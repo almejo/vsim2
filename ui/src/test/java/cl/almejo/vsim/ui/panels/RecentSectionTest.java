@@ -36,24 +36,24 @@ class RecentSectionTest {
 
     @Test
     void theSectionComesRightBelowFavoritesInUseOrder() {
-        palette.setRecents(List.of("and3", "led"));
+        palette.setRecents(List.of("xor", "led"));
 
         assertThat(palette.visibleSections()).startsWith("Favoritos", "Recientes", "Básicas");
-        assertThat(palette.visibleTypeIds()).startsWith("and3", "led");
+        assertThat(palette.visibleTypeIds()).startsWith("xor", "led");
         assertThat(chosen).isEmpty();
     }
 
     @Test
     void aFavoriteIsNotRepeatedAndComesBackWhenUnmarked() {
-        palette.setRecents(List.of("and3", "led"));
+        palette.setRecents(List.of("xor", "led"));
         preferences.setPaletteFavorites(List.of("led"));
 
-        assertThat(palette.recentEntries()).extracting(entry -> entry.type().id()).containsExactly("and3");
-        assertThat(palette.visibleTypeIds()).startsWith("led", "and3", "and2");
+        assertThat(palette.recentEntries()).extracting(entry -> entry.type().id()).containsExactly("xor");
+        assertThat(palette.visibleTypeIds()).startsWith("led", "xor", "and");
 
         preferences.setPaletteFavorites(List.of());
 
-        assertThat(palette.recentEntries()).extracting(entry -> entry.type().id()).containsExactly("and3", "led");
+        assertThat(palette.recentEntries()).extracting(entry -> entry.type().id()).containsExactly("xor", "led");
     }
 
     @Test
@@ -66,11 +66,11 @@ class RecentSectionTest {
 
     @Test
     void theSectionIsFilteredLikeTheOthers() {
-        palette.setRecents(List.of("and3", "led"));
+        palette.setRecents(List.of("xor", "led"));
 
         palette.setFilter("led");
         assertThat(palette.visibleSections()).startsWith("Recientes");
-        palette.setFilter("xor");
+        palette.setFilter("buffer");
         assertThat(palette.visibleSections()).doesNotContain("Recientes");
     }
 
@@ -78,7 +78,7 @@ class RecentSectionTest {
     void withoutFavoritesTheSectionIsFirst() {
         PalettePanel plain = new PalettePanel(StandardComponentTypes.registry(), PainterRegistry.standard(),
                 ColorScheme.LIGHT, type -> { });
-        plain.setRecents(List.of("or2"));
+        plain.setRecents(List.of("or"));
 
         assertThat(plain.visibleSections()).startsWith("Recientes", "Básicas");
     }
@@ -89,8 +89,8 @@ class RecentSectionTest {
         int basic = rowOf("BASIC");
         palette.tree().collapseRow(basic);
 
-        palette.setRecents(List.of("and3"));
-        palette.setRecents(List.of("led", "and3"));
+        palette.setRecents(List.of("xor"));
+        palette.setRecents(List.of("led", "xor"));
 
         assertThat(palette.treeModel()).isSameAs(model);
         assertThat(palette.tree().isCollapsed(rowOf("BASIC"))).isTrue();

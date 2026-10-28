@@ -46,7 +46,7 @@ class SetComponentShapeTest {
         service = new EditService(host, new CopyOnWriteArrayList<>(), Duration.ofSeconds(5), Runnable::run);
         EditReceipt parts = service.edit(request(
                 new PlacePart(Optional.of("a"), "input-pin", 0, 1, Rotation.R0, Map.of(), "A"),
-                new PlacePart(Optional.of("not"), "not", 8, 0, Rotation.R0, Map.of(), ""),
+                new PlacePart(Optional.of("not"), "buffer", 8, 0, Rotation.R0, Map.of("negate", true), ""),
                 new PlacePart(Optional.of("y"), "output-pin", 18, 1, Rotation.R0, Map.of(), "Y"),
                 new EditOperation.Connect(PinTarget.named("new:a", "pin"), PinTarget.named("new:not", "in"), List.of()),
                 new EditOperation.Connect(PinTarget.named("new:not", "out"), PinTarget.named("new:y", "pin"),
@@ -194,8 +194,8 @@ class SetComponentShapeTest {
 
     @Test
     void aPartThatIsNotAUserComponentIsRefused() {
-        EditReceipt gate = service.edit(request(new PlacePart(Optional.of("gate"), "nand2", 30, 30, Rotation.R0,
-                Map.of(), "")));
+        EditReceipt gate = service.edit(request(new PlacePart(Optional.of("gate"), "and", 30, 30, Rotation.R0,
+                Map.of("negate", true), "")));
 
         assertThat(refused(shape(Optional.of(gate.aliases().get("gate")), Optional.empty(),
                 Optional.of(SymbolTemplates.Template.AND), List.of(), false)).error())

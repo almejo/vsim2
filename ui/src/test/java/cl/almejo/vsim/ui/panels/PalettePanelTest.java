@@ -63,7 +63,7 @@ class PalettePanelTest {
         palette.setFocusAfterMouseChoice(handOvers::incrementAndGet);
         javax.swing.JTree tree = palette.tree();
         tree.setSize(300, 2000);
-        palette.choose(StandardComponentTypes.AND2);
+        palette.choose(StandardComponentTypes.AND);
         java.awt.Rectangle entry = tree.getPathBounds(tree.getSelectionPath());
 
         release(tree, entry.x + 2, entry.y + 2);
@@ -115,7 +115,7 @@ class PalettePanelTest {
     @Test
     void filterMatchesIdsAndLocalizedNames() {
         palette.setFilter("and");
-        assertThat(palette.visibleTypeIds()).containsExactly("and2", "and3", "and4", "nand2", "nand3", "nand4");
+        assertThat(palette.visibleTypeIds()).containsExactly("and");
         palette.setFilter("RELOJ");
         assertThat(palette.visibleTypeIds()).containsExactly(StandardComponentTypes.CLOCK);
         palette.setFilter("zzz");
@@ -187,7 +187,7 @@ class PalettePanelTest {
         Appearance appearance = new Appearance(ColorScheme.LIGHT);
         PalettePanel themed = new PalettePanel(registry, PainterRegistry.standard(), appearance, type -> {
         });
-        ComponentType not = registry.require(StandardComponentTypes.NOT);
+        ComponentType not = registry.require(StandardComponentTypes.BUFFER);
         assertThat(((ComponentIcon) themed.icon(not)).scheme()).isSameAs(ColorScheme.LIGHT);
 
         ColorScheme magenta = AppearanceTestSupport.withBackground(ColorScheme.LIGHT, Color.MAGENTA);
@@ -283,7 +283,7 @@ class PalettePanelTest {
 
         assertThat(palette.popupFor(palette.pathOf("subcircuit:inverter"))).isPresent();
         palette.popupFor(null);
-        palette.popupFor(palette.pathOf(StandardComponentTypes.NOT));
+        palette.popupFor(palette.pathOf(StandardComponentTypes.BUFFER));
 
         assertThat(asked).containsExactly(Optional.of("inverter"), Optional.empty(), Optional.empty());
     }
@@ -295,7 +295,7 @@ class PalettePanelTest {
                 .contains("interruptor").contains("entradas"));
         assertThat(palette.toolTipFor(InterfacePins.OUTPUT_PIN)).hasValueSatisfying(text -> assertThat(text)
                 .contains("LED").contains("salidas"));
-        assertThat(palette.toolTipFor(StandardComponentTypes.AND2)).isEmpty();
+        assertThat(palette.toolTipFor(StandardComponentTypes.AND)).isEmpty();
         assertThat(palette.toolTipFor(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER))).isEmpty();
         assertThat(palette.toolTipFor("no-such-type")).isEmpty();
 

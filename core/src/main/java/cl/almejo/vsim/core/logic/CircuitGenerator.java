@@ -272,7 +272,7 @@ public final class CircuitGenerator {
             for (int index = 0; index < gates.size(); index++) {
                 Gate gate = gates.get(index);
                 gateCells.add(addCell(depths[index], new GateSignal(index), gate.inputs(),
-                        component(gate.typeId(), Map.of(), "")));
+                        component(gate.typeId(), gate.parameters(), "")));
             }
             // A constant sits in the column before the first part it feeds: the outputs' column for a constant output,
             // the column before its first gate for a constant written in an expression.

@@ -34,7 +34,7 @@ class SetLabelOffsetCommandTest {
 
     @Test
     void aNewComponentHasNoOffsetAndTheCopyingMethodsKeepOne() {
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 4, 4, "U1");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 4, 4, "U1");
         assertThat(gate.labelOffset()).isEmpty();
         Component moved = gate.withLabelOffset(Optional.of(OFFSET));
         assertThat(moved.translate(2, 3).labelOffset()).contains(OFFSET);
@@ -49,7 +49,7 @@ class SetLabelOffsetCommandTest {
 
     @Test
     void settingAnOffsetIsUndoneAndRedoneExactly() {
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 4, 4, "U1");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 4, 4, "U1");
         List<DocumentElement> before = List.copyOf(document.elements());
         SetLabelOffsetCommand command = new SetLabelOffsetCommand(gate.id(), Optional.of(OFFSET));
         assertThat(command.description()).isEqualTo("command.moveLabel");
@@ -64,7 +64,7 @@ class SetLabelOffsetCommandTest {
 
     @Test
     void resettingRemovesTheOffsetAndUndoBringsItBack() {
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 4, 4, "U1");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 4, 4, "U1");
         document.replace(gate.withLabelOffset(Optional.of(OFFSET)));
         SetLabelOffsetCommand command = new SetLabelOffsetCommand(gate.id(), Optional.empty());
         assertThat(command.description()).isEqualTo("command.resetLabelPosition");
@@ -76,7 +76,7 @@ class SetLabelOffsetCommandTest {
 
     @Test
     void rotatingKeepsTheOffsetInTheComponentsOwnFrame() {
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 4, 4, "U1");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 4, 4, "U1");
         document.replace(gate.withLabelOffset(Optional.of(OFFSET)));
         new RotateElementsCommand(List.of(gate.id()), true, registry).apply(document);
         assertThat(current(gate).labelOffset()).contains(OFFSET);
@@ -88,7 +88,7 @@ class SetLabelOffsetCommandTest {
 
     @Test
     void pasteKeepsTheOffsetOnTheNewComponent() {
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 4, 4, "U1");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 4, 4, "U1");
         document.replace(gate.withLabelOffset(Optional.of(OFFSET)));
         CircuitFragment fragment = CircuitFragment.of(document, List.of(gate.id()), registry);
         assertThat(fragment.components().getFirst().labelOffset()).contains(OFFSET);
@@ -102,7 +102,7 @@ class SetLabelOffsetCommandTest {
     @Test
     void aDefinitionBodyBuiltFromASelectionKeepsTheOffset() {
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 12, 10, "");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 12, 10, "");
         Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         document.replace(gate.withLabelOffset(Optional.of(OFFSET)));
         List<ElementId> selection = List.of(input.id(), gate.id(), output.id());

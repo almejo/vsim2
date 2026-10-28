@@ -276,7 +276,7 @@ class CircuitCanvasTest {
 
     @Test
     void rightClickAsksTheHostForAContextMenu() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 16, 16, InputEvent.BUTTON3_DOWN_MASK, MouseEvent.BUTTON3));
         assertThat(menus).containsExactly(Optional.of(gate));
     }
@@ -295,7 +295,7 @@ class CircuitCanvasTest {
 
     @Test
     void deletingTheSelectedElementPrunesTheSelection() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.selection().select(gate.id());
         openDocument.history().undo();
         assertThat(canvas.selection().isEmpty()).isTrue();
@@ -320,7 +320,7 @@ class CircuitCanvasTest {
 
     @Test
     void removingASelectedElementDropsItFromTheSelection() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.selection().select(gate.id());
         openDocument.history().undo();
         assertThat(canvas.selection().isEmpty()).isTrue();
@@ -329,7 +329,7 @@ class CircuitCanvasTest {
     @Test
     void switchingToolCommitsAFloatingFragment() {
         CircuitFragment fragment = new CircuitFragment(
-                List.of(openDocument.registry().require(StandardComponentTypes.NOT)
+                List.of(openDocument.registry().require(StandardComponentTypes.BUFFER)
                         .newComponent(new ElementId("c1"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "")),
                 List.of(), List.of());
         canvas.setTool(new FloatingSelectionTool(fragment, new GridPoint(3, 3)));
@@ -358,7 +358,7 @@ class CircuitCanvasTest {
     @Test
     void theAntsClockRunsOnlyWhileTheCanvasIsOnScreen() {
         onScreen = false;
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.selection().select(gate.id());
         assertThat(canvas.isAnimatingSelection()).isFalse();
         onScreen = true;
@@ -384,7 +384,7 @@ class CircuitCanvasTest {
                     public void configure(Component component) {
                     }
                 });
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         hidden.selection().select(gate.id());
         assertThat(hidden.isAnimatingSelection()).isFalse();
         hidden.dispose();
@@ -392,7 +392,7 @@ class CircuitCanvasTest {
 
     @Test
     void theAntsClockRunsOnlyWhileSomethingIsSelected() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(canvas.isAnimatingSelection()).isFalse();
         canvas.selection().select(gate.id());
         assertThat(canvas.isAnimatingSelection()).isTrue();
@@ -421,7 +421,7 @@ class CircuitCanvasTest {
 
     @Test
     void aTickAdvancesThePhaseWhileSomethingIsSelected() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.selection().select(gate.id());
         canvas.animationTick();
         assertThat(canvas.selectionDashPhase()).isEqualTo(1.0);
@@ -429,7 +429,7 @@ class CircuitCanvasTest {
 
     @Test
     void aDisposedCanvasNeverRestartsTheClock() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.selection().select(gate.id());
         canvas.dispose();
         assertThat(canvas.isAnimatingSelection()).isFalse();
@@ -440,7 +440,7 @@ class CircuitCanvasTest {
 
     @Test
     void removingTheCanvasFromItsWindowStopsTheClock() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.selection().select(gate.id());
         canvas.removeNotify();
         assertThat(canvas.isAnimatingSelection()).isFalse();
@@ -520,7 +520,7 @@ class CircuitCanvasTest {
     @Test
     void droppingAFragmentFromAnotherWindowFloatsItAtTheDropPoint() {
         try (OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
-            Component gate = place(source, StandardComponentTypes.NOT, 3, 3, Map.of());
+            Component gate = place(source, StandardComponentTypes.BUFFER, 3, 3, Map.of(StandardComponentTypes.NEGATE, true));
             assertThat(canvas.dropFragment(fragmentJsonOf(source, gate), new Point(80, 72))).isTrue();
             assertThat(canvas.tool()).isInstanceOfSatisfying(FloatingSelectionTool.class, floating -> {
                 assertThat(floating.position()).isEqualTo(new GridPoint(10, 9));
@@ -534,7 +534,7 @@ class CircuitCanvasTest {
     void theTransferHandlerTakesTheFragmentFlavorAndFragmentText() {
         canvas.setSize(400, 300);
         try (OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
-            String json = fragmentJsonOf(source, place(source, StandardComponentTypes.NOT, 0, 0, Map.of()));
+            String json = fragmentJsonOf(source, place(source, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true)));
             TransferHandler handler = canvas.getTransferHandler();
             assertThat(handler.importData(new TransferHandler.TransferSupport(canvas, new FragmentTransferable(json))))
                     .isTrue();
@@ -608,7 +608,7 @@ class CircuitCanvasTest {
     void draggingTheSelectionOverAnotherWindowStartsTheDragOut() {
         canvas.setSize(400, 300);
         canvas.overrideWindowProbe(point -> true);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(72, 64);
         primaryDrag(392, 64);
@@ -628,7 +628,7 @@ class CircuitCanvasTest {
     @Test
     void aMoveHeldAtTheEdgeScrollsTheViewAndKeepsMoving() {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(392, 64);
         assertThat(canvas.isAutoscrolling()).isTrue();
@@ -649,7 +649,7 @@ class CircuitCanvasTest {
             asked.add(point);
             return false;
         });
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(72, 64);
         primaryDrag(-16, 64);
@@ -665,7 +665,7 @@ class CircuitCanvasTest {
     @Test
     void aRubberBandHeldAtTheEdgeScrollsAndReachesWhatWasOffScreen() {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 24, 36, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 24, 36, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(180, 150);
         primaryDrag(240, 295);
         assertThat(canvas.isAutoscrolling()).isTrue();
@@ -680,7 +680,7 @@ class CircuitCanvasTest {
     @Test
     void comingBackInsideOrReleasingStopsTheAutoscroll() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(392, 64);
         assertThat(canvas.isAutoscrolling()).isTrue();
@@ -698,7 +698,7 @@ class CircuitCanvasTest {
     @Test
     void losingFocusStopsTheAutoscroll() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(392, 64);
         assertThat(canvas.isAutoscrolling()).isTrue();
@@ -711,7 +711,7 @@ class CircuitCanvasTest {
     @Test
     void aDisposedCanvasStopsAutoscrolling() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(392, 64);
         canvas.dispose();
@@ -720,21 +720,21 @@ class CircuitCanvasTest {
 
     @Test
     void theSelectionIsExportedAsAFragment() throws Exception {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         CanvasTransferHandler handler = (CanvasTransferHandler) canvas.getTransferHandler();
         assertThat(handler.createTransferable(canvas)).isNull();
         canvas.selection().select(gate.id());
         Transferable transferable = handler.createTransferable(canvas);
         String json = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
         assertThat(new FragmentFormat(openDocument.registry()).read(json).components())
-                .singleElement().satisfies(copy -> assertThat(copy.typeId()).isEqualTo(StandardComponentTypes.NOT));
+                .singleElement().satisfies(copy -> assertThat(copy.typeId()).isEqualTo(StandardComponentTypes.BUFFER));
         assertThat(handler.getSourceActions(canvas)).isEqualTo(TransferHandler.COPY_OR_MOVE);
     }
 
     @Test
     void droppingADraggedOutSelectionBackOnItsCanvasMovesIt() throws Exception {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(72, 64);
         assertThat(canvas.beginDragOut()).isTrue();
@@ -818,7 +818,7 @@ class CircuitCanvasTest {
     @Test
     void aStaleDragOutIsForgottenOnTheNextPress() {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(72, 64);
         assertThat(canvas.beginDragOut()).isTrue(); // and the toolkit never calls exportDone
@@ -826,7 +826,7 @@ class CircuitCanvasTest {
         primaryRelease(300, 250);
         assertThat(canvas.isDraggingOut()).isFalse();
         try (OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
-            Component other = place(source, StandardComponentTypes.NOT, 0, 0, Map.of());
+            Component other = place(source, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
             assertThat(canvas.dropFragment(fragmentJsonOf(source, other), new Point(160, 160))).isTrue();
         }
         assertThat(canvas.tool()).isInstanceOf(FloatingSelectionTool.class);
@@ -837,7 +837,7 @@ class CircuitCanvasTest {
     @Test
     void noDragOutBeginsWithoutAFragmentToTransfer() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         primaryPress(56, 56);
         primaryDrag(72, 64);
         canvas.selection().set(List.of(new ElementId("c999"))); // nothing that a fragment could carry
@@ -862,7 +862,7 @@ class CircuitCanvasTest {
     @Test
     void theDragOutCarriesItsOrigin() throws Exception {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         Transferable transferable = dragOut(canvas, 56, 56);
 
         assertThat(transferable.isDataFlavorSupported(CanvasDragTransferable.ORIGIN_FLAVOR)).isTrue();
@@ -878,7 +878,7 @@ class CircuitCanvasTest {
     @Test
     void aDropBackOnItsOwnCanvasMovesEvenAfterTheToolkitEndedTheDrag() {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         Transferable transferable = dragOut(canvas, 56, 56);
         canvas.endDragOut(); // exportDone arrived before the drop was handled
 
@@ -893,7 +893,7 @@ class CircuitCanvasTest {
     @Test
     void aDragOutBackOverItsCanvasPreviewsTheMove() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         dragOut(canvas, 56, 56);
         BufferedImage before = paint(canvas);
 
@@ -942,7 +942,7 @@ class CircuitCanvasTest {
     @Test
     void aDropOnAnotherViewOfTheSameDocumentMovesAsOneStep() {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         CircuitCanvas secondView = canvasOf(openDocument);
         try {
             Transferable transferable = dragOut(canvas, 56, 56);
@@ -964,7 +964,7 @@ class CircuitCanvasTest {
     @Test
     void controlAtTheDropCopiesIntoTheSameDocument() {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         CircuitCanvas secondView = canvasOf(openDocument);
         try {
             Transferable transferable = dragOut(canvas, 56, 56);
@@ -987,7 +987,7 @@ class CircuitCanvasTest {
     @Test
     void controlAtTheDropOnItsOwnCanvasCopiesToo() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         Transferable transferable = dragOut(canvas, 56, 56);
         assertThat(handlerOf(canvas).importFragment(transferable, new Point(160, 160), true)).isTrue();
         assertThat(openDocument.document().components()).extracting(Component::position)
@@ -998,7 +998,7 @@ class CircuitCanvasTest {
     @Test
     void controlAtTheDropCopiesIntoAnotherDocumentWhereTheGrabbedPointLands() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             CircuitCanvas otherView = canvasOf(other);
             try {
@@ -1020,7 +1020,7 @@ class CircuitCanvasTest {
     @Test
     void aDropOnAnotherDocumentFloatsACopy() {
         canvas.setSize(400, 300);
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             CircuitCanvas otherView = canvasOf(other);
             try {
@@ -1040,7 +1040,7 @@ class CircuitCanvasTest {
     @Test
     void aMoveSkipsElementsThatNoLongerExist() {
         canvas.setSize(400, 300);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         Component led = place(openDocument, StandardComponentTypes.LED, 20, 5, Map.of());
         canvas.selection().set(List.of(gate.id(), led.id()));
         CircuitCanvas secondView = canvasOf(openDocument);

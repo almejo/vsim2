@@ -64,7 +64,7 @@ class ConvertedSelectionTest {
     private List<Component> drawSwitchNotLed() {
         Component input = place(StandardComponentTypes.SWITCH, 0, 1, "Cin", Map.of("value", "1"));
         wire(4, 2, 6, 2);
-        Component gate = place(StandardComponentTypes.NOT, 6, 0, "");
+        Component gate = place(StandardComponentTypes.BUFFER, 6, 0, "");
         wire(10, 2, 12, 2);
         Component led = place(StandardComponentTypes.LED, 11, -1, "S");
         return List.of(input, gate, led);
@@ -105,7 +105,7 @@ class ConvertedSelectionTest {
     void theTestPartsAreListedByPositionWithTheirLabelAndTheConstantsValue() {
         Component led = place(StandardComponentTypes.LED, 0, 20, "");
         Component carry = place(StandardComponentTypes.CONSTANT, 0, 0, " Cin ", Map.of("width", 1, "value", "0"));
-        Component gate = place(StandardComponentTypes.NOT, 10, 0, "");
+        Component gate = place(StandardComponentTypes.BUFFER, 10, 0, "");
         Component pin = place(InterfacePins.INPUT_PIN, 0, 5, "a");
         Component clock = place(StandardComponentTypes.CLOCK, 0, 10, "CLK");
 
@@ -359,7 +359,7 @@ class ConvertedSelectionTest {
         assertThat(definition.pinout()).extracting(DefinitionPin::spec)
                 .containsExactly(PinSpec.input("Cin", 0, 2), PinSpec.output("S", 6, 2));
         assertThat(definition.body().components()).extracting(Component::typeId).containsExactlyInAnyOrder(
-                InterfacePins.INPUT_PIN, StandardComponentTypes.NOT, InterfacePins.OUTPUT_PIN);
+                InterfacePins.INPUT_PIN, StandardComponentTypes.BUFFER, InterfacePins.OUTPUT_PIN);
         assertThat(definition.body().wires()).hasSize(2);
         assertThat(elementsOf(document)).isEqualTo(before);
     }
@@ -467,7 +467,7 @@ class ConvertedSelectionTest {
     @ParameterizedTest
     @EnumSource(Rotation.class)
     void aRotatedKeptSwitchIsConnectedToItsInstancePin(Rotation rotation) {
-        Component gate = place(StandardComponentTypes.NOT, 6, 0, "");
+        Component gate = place(StandardComponentTypes.BUFFER, 6, 0, "");
         wire(10, 2, 12, 2);
         place(StandardComponentTypes.LED, 11, -1, "S");
         Component input = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),

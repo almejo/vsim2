@@ -6,8 +6,8 @@ import cl.almejo.vsim.core.logic.Minimization;
 import java.util.Map;
 
 /**
- * What the circuit of a minimization would cost: gates by component type id ({@code "and2" → 3}), as the generator
- * would build them. Step 4 turns it into the cost line with {@link CostLine}.
+ * What the circuit of a minimization would cost: gates by gate key ({@code "and2" → 3}, see
+ * {@link cl.almejo.vsim.core.logic.GateCost#key}), as the generator would build them. Step 4 turns it into the cost line with {@link CostLine}.
  */
 @FunctionalInterface
 public interface KarnaughCost {

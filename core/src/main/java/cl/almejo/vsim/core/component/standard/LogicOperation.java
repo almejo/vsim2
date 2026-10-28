@@ -4,22 +4,21 @@ import cl.almejo.vsim.core.value.Value;
 
 import java.util.Locale;
 
+/** What a gate does with its inputs; «Negar salida» (NAND, NOR, XNOR) is a parameter of the gate, not an operation. */
 public enum LogicOperation {
-    AND, OR, XOR, NAND, NOR;
+    AND, OR, XOR;
 
+    /** Bit by bit, at any width (a high-impedance bit is neutral, see {@link Value#and}). */
     public Value combine(Value left, Value right) {
         return switch (this) {
-            case AND, NAND -> left.and(right);
-            case OR, NOR -> left.or(right);
+            case AND -> left.and(right);
+            case OR -> left.or(right);
             case XOR -> left.xor(right);
         };
     }
 
-    public boolean negated() {
-        return this == NAND || this == NOR;
-    }
-
-    public String typeId(int inputCount) {
-        return name().toLowerCase(Locale.ROOT) + inputCount;
+    /** The id of the gate type: {@code and}, {@code or} or {@code xor}. */
+    public String typeId() {
+        return name().toLowerCase(Locale.ROOT);
     }
 }

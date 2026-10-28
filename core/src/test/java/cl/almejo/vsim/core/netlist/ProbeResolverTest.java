@@ -61,7 +61,7 @@ class ProbeResolverTest {
 
     @Test
     void withoutADriverAWireProbeAnchorsToTheFirstPinInDocumentOrder() {
-        Component gate = add(StandardComponentTypes.NOT, 4, -1);   // c1, input at (4,1), output at (8,1)
+        Component gate = add(StandardComponentTypes.BUFFER, 4, -1);   // c1, input at (4,1), output at (8,1)
         add(StandardComponentTypes.LED, 3, 2);                     // c2, input at (4,5)
         Wire wire = wire(document, 4, 1, 4, 5);
 

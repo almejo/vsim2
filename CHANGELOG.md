@@ -6,6 +6,25 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Compuertas parametrizables
+
+### Agregado
+
+- Las compuertas AND, OR y XOR tienen «Entradas» (de 2 a 8) y «Ancho (bits)» (de 1 a 32) en Propiedades: un AND de 6
+  entradas de 8 bits hace el AND bit a bit de 6 buses. Con 6 a 8 entradas la compuerta es más alta y la salida
+  sigue al medio.
+- «Negar salida», una casilla en Propiedades, pone la burbuja en la salida: un AND negado es un NAND, un OR un NOR y
+  un XOR un **XNOR**, que es nuevo.
+- El **Buffer**: una compuerta de una entrada que copia su entrada (útil para hablar de retardo y de fan-out); negado
+  es el NOT. También tiene «Ancho (bits)».
+- La línea de costo del asistente de Karnaugh y de «Circuito desde expresiones» cuenta los XNOR.
+
+### Cambiado
+
+- Hay un solo tipo por compuerta (AND, OR, XOR y Buffer) en vez de uno por cada número de entradas. Los circuitos,
+  componentes, librerías y lo copiado antes se abren igual, con los pines en el mismo lugar; al guardarlos se
+  escriben con el formato nuevo (versión 4), que las versiones anteriores de VSim 2 no abren.
+
 ## Sin publicar — Memoria (RAM y ROM)
 
 ### Agregado

@@ -5,15 +5,16 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.logic.GateCost;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.TableCircuits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.Action;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import javax.swing.Action;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,7 +51,9 @@ class CreatePanelTest {
     }
 
     private static List<String> typesOf(CircuitFragment fragment) {
-        return fragment.components().stream().map(Component::typeId).toList();
+        // the gates by name and inputs («and2», «not»), as the cost line counts them
+        return fragment.components().stream()
+                .map(component -> GateCost.key(component.typeId(), component.parameters())).toList();
     }
 
     @Test

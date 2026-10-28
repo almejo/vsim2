@@ -40,7 +40,7 @@ class SelectToolFollowTest {
 
     @BeforeEach
     void create() {
-        gate = place(context.openDocument(), StandardComponentTypes.NOT, 10, 10, Map.of());
+        gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 10, 10, Map.of(StandardComponentTypes.NEGATE, true));
         lamp = place(context.openDocument(), StandardComponentTypes.LED, 29, 9, Map.of());
         wire = addWire(context.openDocument(), 14, 12, 30, 12);
     }

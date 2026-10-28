@@ -65,17 +65,17 @@ class ComponentTreeModelTest {
 
     @Test
     void listsTheComponentsInDocumentOrderWithLabelAndTypeName() {
-        Component first = add(StandardComponentTypes.NOT, 0, 0, "U1");
+        Component first = add(StandardComponentTypes.BUFFER, 0, 0, "U1");
         Component led = add(StandardComponentTypes.LED, 10, 0, "");
         document.add(new Wire(document.newWireId(), new GridPoint(4, 2), new GridPoint(10, 2)));
-        Component last = add(StandardComponentTypes.NOT, 20, 0, "");
+        Component last = add(StandardComponentTypes.BUFFER, 20, 0, "");
 
         ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, false);
 
         assertThat(root.kind()).isEqualTo(ComponentTreeNode.Kind.DOCUMENT);
         assertThat(root.path()).isEqualTo(ComponentTreeNode.DOCUMENT_PATH);
         assertThat(root.text()).isEqualTo("Sumador");
-        assertThat(texts(root.children())).containsExactly("U1 · NOT", "LED", "NOT");
+        assertThat(texts(root.children())).containsExactly("U1 · Buffer", "LED", "Buffer");
         assertThat(paths(root.children())).containsExactly(first.id().value(), led.id().value(), last.id().value());
         assertThat(root.children()).allSatisfy(node -> {
             assertThat(node.kind()).isEqualTo(ComponentTreeNode.Kind.COMPONENT);
@@ -86,17 +86,18 @@ class ComponentTreeModelTest {
 
     @Test
     void groupingByTypeSortsTheGroupsByNameAndKeepsDocumentOrderInside() {
-        add(StandardComponentTypes.NOT, 0, 0, "");
+        add(StandardComponentTypes.BUFFER, 0, 0, "");
         add(StandardComponentTypes.LED, 10, 0, "L1");
-        add(StandardComponentTypes.NOT, 20, 0, "U2");
+        add(StandardComponentTypes.BUFFER, 20, 0, "U2");
 
         ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, true);
 
-        assertThat(texts(root.children())).containsExactly("LED (1)", "NOT (2)");
-        ComponentTreeNode nots = root.children().get(1);
-        assertThat(nots.kind()).isEqualTo(ComponentTreeNode.Kind.GROUP);
-        assertThat(nots.path()).isEqualTo(ComponentTreeNode.groupPath(StandardComponentTypes.NOT)).isEqualTo("/not");
-        assertThat(texts(nots.children())).containsExactly("NOT", "U2 · NOT");
+        assertThat(texts(root.children())).containsExactly("Buffer (2)", "LED (1)");
+        ComponentTreeNode buffers = root.children().get(0);
+        assertThat(buffers.kind()).isEqualTo(ComponentTreeNode.Kind.GROUP);
+        assertThat(buffers.path()).isEqualTo(ComponentTreeNode.groupPath(StandardComponentTypes.BUFFER))
+                .isEqualTo("/buffer");
+        assertThat(texts(buffers.children())).containsExactly("Buffer", "U2 · Buffer");
     }
 
     @Test
@@ -117,7 +118,7 @@ class ComponentTreeModelTest {
         String innerId = InstancePath.child(id, "c2");
         assertThat(paths(inner.children())).containsExactly(InstancePath.child(innerId, "c1"),
                 InstancePath.child(innerId, "c2"), InstancePath.child(innerId, "c3"));
-        assertThat(texts(inner.children())).containsExactly("a · Pin de entrada", "NOT", "y · Pin de salida");
+        assertThat(texts(inner.children())).containsExactly("a · Pin de entrada", "Buffer", "y · Pin de salida");
         assertThat(node.children().get(0).showsValue()).isTrue();
         assertThat(node.children().get(1).showsValue()).isFalse();
         assertThat(inner.children().get(0).showsValue()).isTrue();
@@ -165,11 +166,11 @@ class ComponentTreeModelTest {
     }
     @Test
     void framesComeFirstAndHoldTheComponentsAndFramesDirectlyInside() {
-        Component outside = add(StandardComponentTypes.NOT, 60, 0, "");
+        Component outside = add(StandardComponentTypes.BUFFER, 60, 0, "");
         Frame outer = frame(0, 0, 50, 40, "ALU");
         Component inOuter = add(StandardComponentTypes.LED, 40, 2, "L1");
         Frame inner = frame(2, 2, 20, 20, "  ");
-        Component inInner = add(StandardComponentTypes.NOT, 4, 4, "U1");
+        Component inInner = add(StandardComponentTypes.BUFFER, 4, 4, "U1");
 
         ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, false);
 
@@ -184,26 +185,26 @@ class ComponentTreeModelTest {
         ComponentTreeNode innerNode = outerNode.children().get(0);
         assertThat(innerNode.text()).isEqualTo("Marco");
         assertThat(paths(innerNode.children())).containsExactly(inInner.id().value());
-        assertThat(innerNode.children().get(0).typeId()).isEqualTo(StandardComponentTypes.NOT);
+        assertThat(innerNode.children().get(0).typeId()).isEqualTo(StandardComponentTypes.BUFFER);
     }
 
     @Test
     void groupingByTypeAppliesInsideEachFrame() {
         Frame block = frame(0, 0, 50, 40, "ALU");
-        add(StandardComponentTypes.NOT, 2, 2, "");
+        add(StandardComponentTypes.BUFFER, 2, 2, "");
         add(StandardComponentTypes.LED, 10, 2, "");
-        add(StandardComponentTypes.NOT, 20, 2, "");
-        add(StandardComponentTypes.NOT, 60, 2, "");
+        add(StandardComponentTypes.BUFFER, 20, 2, "");
+        add(StandardComponentTypes.BUFFER, 60, 2, "");
 
         ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, true);
 
-        assertThat(texts(root.children())).containsExactly("ALU", "NOT (1)");
-        assertThat(root.children().get(1).path()).isEqualTo("/not");
+        assertThat(texts(root.children())).containsExactly("ALU", "Buffer (1)");
+        assertThat(root.children().get(1).path()).isEqualTo("/buffer");
         ComponentTreeNode blockNode = root.children().get(0);
-        assertThat(texts(blockNode.children())).containsExactly("LED (1)", "NOT (2)");
+        assertThat(texts(blockNode.children())).containsExactly("Buffer (2)", "LED (1)");
         assertThat(paths(blockNode.children())).containsExactly(
-                ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.LED),
-                ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.NOT));
-        assertThat(blockNode.children().get(1).typeId()).isEqualTo(StandardComponentTypes.NOT);
+                ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.BUFFER),
+                ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.LED));
+        assertThat(blockNode.children().get(0).typeId()).isEqualTo(StandardComponentTypes.BUFFER);
     }
 }

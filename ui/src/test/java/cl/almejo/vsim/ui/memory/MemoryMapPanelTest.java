@@ -64,7 +64,7 @@ class MemoryMapPanelTest {
         assertThat(panel.emptyText()).isEqualTo("Selecciona una RAM o una ROM para ver su mapa.");
         assertThat(panel.request()).isEmpty();
 
-        Component not = place(document, StandardComponentTypes.NOT, 20, 0, Map.of());
+        Component not = place(document, StandardComponentTypes.BUFFER, 20, 0, Map.of(StandardComponentTypes.NEGATE, true));
         panel.follow(Set.of(not.id()));
         assertThat(panel.showsEmptyState()).isTrue();
     }
@@ -83,7 +83,7 @@ class MemoryMapPanelTest {
     void switchingTheSelectionToAnotherMemoryChangesTheRequestAndOtherSelectionsKeepTheLastOne() {
         Component ram = ram("256");
         Component rom = place(document, StandardComponentTypes.ROM, 40, 0, Map.of(MemoryTypes.WORDS, "16"));
-        Component not = place(document, StandardComponentTypes.NOT, 80, 0, Map.of());
+        Component not = place(document, StandardComponentTypes.BUFFER, 80, 0, Map.of(StandardComponentTypes.NEGATE, true));
         panel.follow(Set.of(ram.id()));
 
         panel.follow(Set.of(rom.id()));

@@ -140,7 +140,7 @@ class StepModeFeaturesTest {
     void aClickAndEachAdvanceLightTheirWiresAndMoveTheWaveformCursor() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
         Wire input = addWire(4, 1, 8, 1);
-        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));                       // (8,1) → (12,1)
         Wire output = addWire(12, 1, 16, 1);
         view.bottomDock().showDock();
         WaveformPanel panel = (WaveformPanel) view.bottomDock().content().orElseThrow();
@@ -219,8 +219,8 @@ class StepModeFeaturesTest {
     @Test
     void theComponentsAboutToChangeAreOutlinedWhilePaused() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
-        Component first = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());     // (4,1) → (8,1)
-        Component second = place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());    // (8,1) → (12,1)
+        Component first = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));     // (4,1) → (8,1)
+        Component second = place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));    // (8,1) → (12,1)
         settleThenEnterStepMode();
         assertThat(features.pendingOverlay().current().components()).isEmpty();
 
@@ -277,7 +277,7 @@ class StepModeFeaturesTest {
     void reiniciarClearsTheGlowAndTheOutlineFollowsTheNewTime() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
         addWire(4, 1, 8, 1);
-        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));                       // (8,1) → (12,1)
         settleThenEnterStepMode();
         assertThat(openDocument.latestSnapshot().time()).as("the NOT gate settled after t = 0").isPositive();
         openDocument.interact(toggle.id());
@@ -298,7 +298,7 @@ class StepModeFeaturesTest {
     void aFixedStepLightsWhatChangedInTheJumpAndMovesTheWaveformCursor() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
         addWire(4, 1, 8, 1);
-        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));                       // (8,1) → (12,1)
         Wire output = addWire(12, 1, 16, 1);
         view.bottomDock().showDock();
         WaveformPanel panel = (WaveformPanel) view.bottomDock().content().orElseThrow();
@@ -329,7 +329,7 @@ class StepModeFeaturesTest {
     void theGlowBelongsToTheNetlistOfTheSnapshotThatCarriedTheStep() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
         addWire(4, 1, 8, 1);
-        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));                       // (8,1) → (12,1)
         settleThenEnterStepMode();
         openDocument.interact(toggle.id());
         awaitStep(1);
@@ -348,7 +348,7 @@ class StepModeFeaturesTest {
     void aStepPublishedAfterTheShownSnapshotWasReadGlowsWithItsOwnSnapshot() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
         addWire(4, 1, 8, 1);
-        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));                       // (8,1) → (12,1)
         Wire output = addWire(12, 1, 16, 1);
         settleThenEnterStepMode();
         SimulationSnapshot older = openDocument.latestSnapshot();
@@ -370,7 +370,7 @@ class StepModeFeaturesTest {
     void aStepNotShownBeforeReiniciarIsNeverShown() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
         addWire(4, 1, 8, 1);
-        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));                       // (8,1) → (12,1)
         settleThenEnterStepMode();
         SimulationSnapshot older = openDocument.latestSnapshot();
         openDocument.interact(toggle.id());

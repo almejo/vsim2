@@ -36,7 +36,7 @@ class DefaultSnapperTest {
 
     @BeforeEach
     void create() {
-        anchor = place(context.openDocument(), StandardComponentTypes.NOT, 0, 0, Map.of());
+        anchor = place(context.openDocument(), StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     @AfterEach
@@ -89,7 +89,7 @@ class DefaultSnapperTest {
     @Test
     void onlyPartsOnScreenPull() {
         canvasSize = new Dimension(400, 300); // grid 0..50 × 0..37.5 at 100 %
-        Component shown = place(context.openDocument(), StandardComponentTypes.NOT, 200, 0, Map.of());
+        Component shown = place(context.openDocument(), StandardComponentTypes.BUFFER, 200, 0, Map.of(StandardComponentTypes.NEGATE, true));
         context.viewport.panBy(-1200, 0); // shows grid 150..200: the anchor is off screen, the other gate on it
         SnapResult result = moveBoxAt(10, -9, Set.of());
         assertThat(result.winnerY()).flatMap(SnapTarget::ownerId).contains(shown.id());
@@ -101,7 +101,7 @@ class DefaultSnapperTest {
             moveBoxAt(10, -step, Set.of());
         }
         assertThat(snapper.partTargetBuilds()).isEqualTo(1);
-        place(context.openDocument(), StandardComponentTypes.NOT, 40, 40, Map.of());
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 40, 40, Map.of(StandardComponentTypes.NEGATE, true));
         moveBoxAt(10, -9, Set.of());
         assertThat(snapper.partTargetBuilds()).isEqualTo(2);
         moveBoxAt(10, -9, Set.of(anchor.id()));

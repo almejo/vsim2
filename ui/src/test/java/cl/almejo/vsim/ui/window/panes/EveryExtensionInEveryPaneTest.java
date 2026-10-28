@@ -173,7 +173,7 @@ class EveryExtensionInEveryPaneTest {
 
     @Test
     void deleteAndRotateFromAnotherPaneActOnTheSharedSelection() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         splitIntoFour();
         CircuitCanvas first = view.panes().get(0);
         CircuitCanvas other = view.panes().get(3);
@@ -237,7 +237,7 @@ class EveryExtensionInEveryPaneTest {
 
     @Test
     void aDuplicateFloatsInTheActivePaneOnly() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvasPanes().split(Orientation.HORIZONTAL, 0.5);
         CircuitCanvas top = view.panes().get(0);
         CircuitCanvas bottom = view.panes().get(1);
@@ -252,7 +252,7 @@ class EveryExtensionInEveryPaneTest {
 
     @Test
     void anInlineEditOpensInTheActivePaneAndClosesWhenThatPaneGoes() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);
         CircuitCanvas right = view.panes().get(1);
         press(right);

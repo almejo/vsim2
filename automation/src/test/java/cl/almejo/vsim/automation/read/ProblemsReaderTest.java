@@ -87,7 +87,7 @@ class ProblemsReaderTest {
 
     @Test
     void aSnapshotOfAnOlderCircuitIsNotUpToDate() {
-        fixture.place(StandardComponentTypes.NOT, 0, 0);
+        fixture.place(StandardComponentTypes.BUFFER, 0, 0);
         fixture.useSnapshot(new SimulationSnapshot(0, fixture.document.revision() - 1, 0, true, Map.of(), Map.of(),
                 List.of(), Optional.empty()));
 

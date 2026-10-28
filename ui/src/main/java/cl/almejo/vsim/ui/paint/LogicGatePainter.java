@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -13,7 +14,10 @@ import java.util.Map;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
-/** IEEE distinctive-shape AND/OR/XOR gates, optionally negated (NAND/NOR), for 2 to 4 inputs. */
+/**
+ * IEEE distinctive-shape AND/OR/XOR gates; with «Negar salida» the bubble before the output (NAND/NOR/XNOR). The pins
+ * are the ones the gate's «Entradas» and «Ancho (bits)» give.
+ */
 public final class LogicGatePainter implements ComponentPainter {
 
     public enum GateShape { AND, OR, XOR }
@@ -24,16 +28,16 @@ public final class LogicGatePainter implements ComponentPainter {
     private static final double XOR_GAP = 4;
 
     private final GateShape shape;
-    private final boolean negated;
 
-    public LogicGatePainter(GateShape shape, boolean negated) {
+    public LogicGatePainter(GateShape shape) {
         this.shape = shape;
-        this.negated = negated;
     }
 
     @Override
-    public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
+    public void paint(Graphics2D graphics, ComponentType baseType, Map<String, Object> parameters, VisibleState state,
                       ColorScheme scheme) {
+        ComponentType type = baseType.specializedFor(parameters);
+        boolean negated = Boolean.TRUE.equals(parameters.get(StandardComponentTypes.NEGATE));
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         double top = 2;

@@ -97,7 +97,7 @@ class RememberedSplitTest {
 
     private OpenDocument savedDocument(String name) throws Exception {
         OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         document.save(folder.resolve(name));
         toClose.add(document);
         return document;

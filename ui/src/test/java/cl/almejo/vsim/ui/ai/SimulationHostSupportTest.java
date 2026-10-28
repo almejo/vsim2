@@ -94,7 +94,7 @@ class SimulationHostSupportTest {
         OpenDocument document = example("adder-4-bits");
         DocumentSummary adder = summary();
         api.pause(adder.id());
-        SwingUtilities.invokeAndWait(() -> place(document, StandardComponentTypes.NOT, 60, 60, Map.of()));
+        SwingUtilities.invokeAndWait(() -> place(document, StandardComponentTypes.BUFFER, 60, 60, Map.of(StandardComponentTypes.NEGATE, true)));
 
         assertThatThrownBy(() -> api.setInputs(adder.id(), adder.version(), "op-1",
                 List.of(new InputValue("c58", "1"), new InputValue("c59", "1"))))
@@ -198,7 +198,7 @@ class SimulationHostSupportTest {
         SwingUtilities.invokeAndWait(() -> {
             pending.set(host.simulate(new SimulationRequest.Pause(adder.id())));
             // queued behind the request's own EDT step, so it lands before the receipt is written
-            SwingUtilities.invokeLater(() -> place(document, StandardComponentTypes.NOT, 60, 60, Map.of()));
+            SwingUtilities.invokeLater(() -> place(document, StandardComponentTypes.BUFFER, 60, 60, Map.of(StandardComponentTypes.NEGATE, true)));
         });
         SimulationReceipt receipt = pending.get().get(10, TimeUnit.SECONDS);
 
@@ -299,7 +299,7 @@ class SimulationHostSupportTest {
         OpenDocument document = example("adder-4-bits");
         DocumentSummary before = summary();
         AtomicReference<String> gate = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> gate.set(place(document, StandardComponentTypes.NOT, 80, 80, Map.of())
+        SwingUtilities.invokeAndWait(() -> gate.set(place(document, StandardComponentTypes.BUFFER, 80, 80, Map.of(StandardComponentTypes.NEGATE, true))
                 .id().value()));
         api.pause(before.id());
         api.step(before.id(), StepKind.NEXT_EVENT, 100, 0);

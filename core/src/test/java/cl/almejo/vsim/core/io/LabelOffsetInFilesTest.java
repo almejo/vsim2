@@ -29,8 +29,8 @@ class LabelOffsetInFilesTest {
     private final CircuitFormat format = new CircuitFormat(registry);
 
     private static Component gate(String id, Optional<LabelOffset> offset) {
-        return new Component(new ElementId(id), StandardComponentTypes.NOT, new GridPoint(4, 6), Rotation.R90,
-                Map.of("delay", 1), "U1", offset);
+        return new Component(new ElementId(id), StandardComponentTypes.BUFFER, new GridPoint(4, 6), Rotation.R90,
+                Map.of("delay", 1, "width", 1, "negate", true), "U1", offset);
     }
 
     @Test
@@ -77,8 +77,9 @@ class LabelOffsetInFilesTest {
     void aFragmentKeepsTheOffset() throws CircuitFormatException {
         FragmentFormat fragmentFormat = new FragmentFormat(registry);
         CircuitFragment fragment = new CircuitFragment(
-                List.of(new Component(new ElementId("c1"), StandardComponentTypes.NOT, GridPoint.ORIGIN, Rotation.R0,
-                        Map.of("delay", 1), "", Optional.of(OFFSET))), List.of(), List.of());
+                List.of(new Component(new ElementId("c1"), StandardComponentTypes.BUFFER, GridPoint.ORIGIN, Rotation.R0,
+                        Map.of("delay", 1, "width", 1, "negate", true), "", Optional.of(OFFSET))), List.of(),
+                List.of());
         assertThat(fragmentFormat.read(fragmentFormat.write(fragment))).isEqualTo(fragment);
     }
 

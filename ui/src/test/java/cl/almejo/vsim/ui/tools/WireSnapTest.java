@@ -41,7 +41,7 @@ class WireSnapTest {
     @BeforeEach
     void create() {
         context.snapper = new DefaultSnapper(context.preferences, Dimension::new);
-        gate = place(context.openDocument(), StandardComponentTypes.NOT, 0, 0, Map.of());
+        gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         pin = context.openDocument().registry().typeOf(gate).pinLocation(gate, 0);
         context.openDocument().execute(new AddWireCommand(new Wire(context.openDocument().document().newWireId(),
                 new GridPoint(40, 0), new GridPoint(50, 0))));
@@ -144,12 +144,12 @@ class WireSnapTest {
     void aPlacementGhostAndAFloatingPasteNameTheGuideTheyLandOn() {
         guides(ROW_21);
         PlaceComponentTool placing = new PlaceComponentTool(
-                context.openDocument().registry().require(StandardComponentTypes.NOT));
+                context.openDocument().registry().require(StandardComponentTypes.BUFFER));
         placing.mouseMoved(context, TestToolContext.at(20, 20)); // its top at 20: one unit off the guide
         assertThat(placing.hover().y()).isEqualTo(21);
         assertThat(placing.snappedGuides()).containsExactly(ROW_21);
 
-        Component copied = context.openDocument().registry().require(StandardComponentTypes.NOT)
+        Component copied = context.openDocument().registry().require(StandardComponentTypes.BUFFER)
                 .newComponent(new ElementId("c9"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
         FloatingSelectionTool floating = new FloatingSelectionTool(
                 new CircuitFragment(List.of(copied), List.of(), List.of()), new GridPoint(30, 20));

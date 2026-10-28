@@ -55,7 +55,7 @@ class ProbeNamesTest {
 
     @Test
     void aPinIsNamedAfterItsOwnerAndAMissingOneAfterItsIds() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
 
         assertThat(defaultName(new ProbeTarget.PinTarget(gate.id(), 1))).isEqualTo("c1.out");
         assertThat(defaultName(new ProbeTarget.PinTarget(new ElementId("c9"), 3))).isEqualTo("c9.3");
@@ -73,7 +73,7 @@ class ProbeNamesTest {
 
     @Test
     void theDefaultNameFollowsALabelChange() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         Probe probe = new Probe("p1", new ProbeTarget.PinTarget(gate.id(), 1), "");
         assertThat(displayName(probe)).isEqualTo("c1.out");
 
@@ -84,7 +84,7 @@ class ProbeNamesTest {
 
     @Test
     void aStoredNameIsShownAsItIsAndABlankOneIsTheDefault() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         ProbeTarget target = new ProbeTarget.PinTarget(gate.id(), 1);
 
         assertThat(displayName(new Probe("p1", target, "suma"))).isEqualTo("suma");
@@ -94,7 +94,7 @@ class ProbeNamesTest {
     @Test
     void forgettingDefaultNamesClearsOnlyTheNamesAnOlderVsimStoredByDefault() {
         CircuitDocument document = new CircuitDocument();
-        Component gate = StandardComponentTypes.registry().require(StandardComponentTypes.NOT)
+        Component gate = StandardComponentTypes.registry().require(StandardComponentTypes.BUFFER)
                 .newComponent(document.newComponentId(), new GridPoint(4, -1),
                         Rotation.R0, Map.of(), "A");
         document.add(gate);

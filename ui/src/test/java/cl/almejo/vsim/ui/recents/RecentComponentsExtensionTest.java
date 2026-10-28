@@ -89,12 +89,12 @@ class RecentComponentsExtensionTest {
     void placingWithAClickOrADropPutsTheComponentOnTop() {
         extension.install(view);
 
-        placeWithAClick(view, "and3", 10, 10);
+        placeWithAClick(view, "xor", 10, 10);
         view.canvas().dropComponent(PaletteTransfer.encode("led"), new Point(300, 300));
 
         assertThat(document.document().components()).hasSize(2);
-        assertThat(extension.recents().typeIds()).containsExactly("led", "and3");
-        assertThat(recentIds(view)).containsExactly("led", "and3");
+        assertThat(extension.recents().typeIds()).containsExactly("led", "xor");
+        assertThat(recentIds(view)).containsExactly("led", "xor");
     }
 
     @Test
@@ -115,7 +115,7 @@ class RecentComponentsExtensionTest {
         extension.install(view);
         view.palette().choose("led");
         view.canvas().tool().keyPressed(view.canvas(), KeyEvent.VK_ESCAPE, false);
-        Component gate = document.registry().require("and3").newComponent(new ElementId("gate"),
+        Component gate = document.registry().require("xor").newComponent(new ElementId("gate"),
                 new GridPoint(20, 20), Rotation.R0, Map.of(), "");
         document.execute(new AddElementsCommand(List.of(gate)));
         view.selection().select(gate.id());
@@ -137,16 +137,16 @@ class RecentComponentsExtensionTest {
         Runnable uninstallSecond = extension.install(second);
         assertThat(extension.recents().listenerCount()).isEqualTo(listeners + 1);
 
-        placeWithAClick(view, "and3", 10, 10);
-        assertThat(recentIds(second)).containsExactly("and3");
+        placeWithAClick(view, "xor", 10, 10);
+        assertThat(recentIds(second)).containsExactly("xor");
         placeWithAClick(second, "led", 40, 40);
-        assertThat(recentIds(view)).containsExactly("led", "and3");
+        assertThat(recentIds(view)).containsExactly("led", "xor");
 
         uninstallSecond.run();
         assertThat(extension.recents().listenerCount()).isEqualTo(listeners);
-        placeWithAClick(second, "xor2", 60, 60);
-        assertThat(extension.recents().typeIds()).containsExactly("led", "and3");
-        assertThat(recentIds(view)).containsExactly("led", "and3");
+        placeWithAClick(second, "xor", 60, 60);
+        assertThat(extension.recents().typeIds()).containsExactly("led", "xor");
+        assertThat(recentIds(view)).containsExactly("led", "xor");
         uninstallFirst.run();
         assertThat(extension.recents().listenerCount()).isZero();
     }
@@ -157,13 +157,13 @@ class RecentComponentsExtensionTest {
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);
 
         CircuitCanvas pane = view.panes().getLast();
-        view.palette().choose("or2");
+        view.palette().choose("or");
         pane.tool().mouseMoved(pane, at(view, 5, 5));
         pane.tool().mousePressed(pane, at(view, 5, 5));
 
-        assertThat(extension.recents().typeIds()).containsExactly("or2");
+        assertThat(extension.recents().typeIds()).containsExactly("or");
         assertThat(view.palette().recentEntries()).extracting(PaletteEntry::type)
-                .extracting(type -> type.id()).containsExactly("or2");
+                .extracting(type -> type.id()).containsExactly("or");
     }
 
     private Transferable inverterFragment(boolean fromPalette) {

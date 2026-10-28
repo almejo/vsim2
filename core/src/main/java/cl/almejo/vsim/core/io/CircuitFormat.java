@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -48,10 +49,10 @@ import java.util.function.UnaryOperator;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 
-/** Reads formats 2 and 3 and writes format 3 (JSON; first keys in {@link FileHeader}). */
+/** Reads formats 2 to 4 and writes format 4 (JSON; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
-    public static final int FORMAT_VERSION = 3;
+    public static final int FORMAT_VERSION = 4;
     static final String KIND_CIRCUIT = "circuit";
     private static final String STICKY_KIND_TEXT = "text";
     private static final String STICKY_KIND_LIST = "list";
@@ -336,7 +337,7 @@ public final class CircuitFormat {
         FileHeader.check(root);
         T file;
         try {
-            file = mapper.treeToValue(root, fileType);
+            file = mapper.treeToValue(migrated(root), fileType);
         } catch (JsonProcessingException | IllegalArgumentException exception) {
             throw invalid(exception.getMessage(), exception);
         }
@@ -345,6 +346,17 @@ public final class CircuitFormat {
             throw invalid("kind " + fileKind);
         }
         return file;
+    }
+
+    /** {@code root} with an old file's gates renamed ({@link LegacyGateMigration}); the caller's tree is not touched. */
+    private static JsonNode migrated(JsonNode root) {
+        if (!(root instanceof ObjectNode object)
+                || !LegacyGateMigration.needsMigration(root.path(FileHeader.FORMAT_VERSION_KEY).intValue())) {
+            return root;
+        }
+        ObjectNode copy = object.deepCopy();
+        LegacyGateMigration.migrate(copy);
+        return copy;
     }
 
     /** {@code entries}, or an empty list when the key was absent. */

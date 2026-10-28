@@ -65,11 +65,12 @@ final class SchemePreview extends JComponent {
 
         Component firstSwitch = add(StandardComponentTypes.SWITCH, new GridPoint(2, 3), Map.of("value", "0"),
                 Messages.text("schemeEditor.sample.firstSwitch"));
-        Component not = chained(firstSwitch, StandardComponentTypes.NOT, Map.of(), "");
+        Component not = chained(firstSwitch, StandardComponentTypes.BUFFER,
+                Map.of(StandardComponentTypes.NEGATE, true), "");
         chained(not, StandardComponentTypes.LED, Map.of("color", "green"), "");
         Component secondSwitch = add(StandardComponentTypes.SWITCH, new GridPoint(2, 11), Map.of("value", "1"),
                 Messages.text("schemeEditor.sample.secondSwitch"));
-        Component and = chained(secondSwitch, StandardComponentTypes.AND2, Map.of(), "");
+        Component and = chained(secondSwitch, StandardComponentTypes.AND, Map.of(), "");
         chained(and, StandardComponentTypes.LED, Map.of(), "");
         Component thirdSwitch = add(StandardComponentTypes.SWITCH, new GridPoint(2, 19), Map.of("value", "Z"),
                 Messages.text("schemeEditor.sample.thirdSwitch"));

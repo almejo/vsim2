@@ -34,7 +34,7 @@ class PinTextTest {
 
     @Test
     void withoutASnapshotAPinShowsOnlyItsName() {
-        assertThat(describe(StandardComponentTypes.AND2, Map.of(), 0, true, Optional.empty())).isEqualTo("in0");
+        assertThat(describe(StandardComponentTypes.AND, Map.of(), 0, true, Optional.empty())).isEqualTo("in0");
         assertThat(describe(StandardComponentTypes.FLIP_FLOP_DATA, Map.of(), 2, false, Optional.empty()))
                 .isEqualTo("clock");
     }
@@ -51,11 +51,11 @@ class PinTextTest {
 
     @Test
     void theValueFollowsAndALooseZInputSaysItIsNotConnected() {
-        assertThat(describe(StandardComponentTypes.NOT, Map.of(), 1, false, Optional.of(Value.ONE)))
+        assertThat(describe(StandardComponentTypes.BUFFER, Map.of(), 1, false, Optional.of(Value.ONE)))
                 .isEqualTo("out = 1");
-        assertThat(describe(StandardComponentTypes.AND2, Map.of(), 1, true, Optional.of(Value.HIGH_IMPEDANCE)))
+        assertThat(describe(StandardComponentTypes.AND, Map.of(), 1, true, Optional.of(Value.HIGH_IMPEDANCE)))
                 .isEqualTo("in1 = Z (sin conectar)");
-        assertThat(describe(StandardComponentTypes.NOT, Map.of(), 0, false, Optional.of(Value.HIGH_IMPEDANCE)))
+        assertThat(describe(StandardComponentTypes.BUFFER, Map.of(), 0, false, Optional.of(Value.HIGH_IMPEDANCE)))
                 .as("connected to something that drives nothing").isEqualTo("in = Z");
         assertThat(describe(StandardComponentTypes.SWITCH, Map.of(), 0, true, Optional.of(Value.ZERO)))
                 .as("a loose output still drives its value").isEqualTo("out = 0");

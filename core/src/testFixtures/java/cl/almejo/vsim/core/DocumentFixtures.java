@@ -31,10 +31,10 @@ public final class DocumentFixtures {
         return wire(document, startX, startY, endX, endY).id();
     }
 
-    /** Adds a NOT gate at (x, y), unrotated and without parameters, to {@code document} and returns it. */
+    /** Adds a NOT gate (a Buffer with «Negar salida») at (x, y), unrotated, to {@code document} and returns it. */
     public static Component gate(ComponentTypeRegistry registry, CircuitDocument document, int x, int y) {
-        Component component = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
-                new GridPoint(x, y), Rotation.R0, Map.of(), "");
+        Component component = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
+                new GridPoint(x, y), Rotation.R0, GateParameters.NEGATED, "");
         document.add(component);
         return component;
     }

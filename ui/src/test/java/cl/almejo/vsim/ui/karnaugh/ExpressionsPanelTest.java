@@ -37,7 +37,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ExpressionsPanelTest {
 
-    private static final String GATE = "(and|or|xor|nand|nor)\\d+|not";
 
     private final FakeCreationTarget target = new FakeCreationTarget();
     private final AppPreferences preferences = AppPreferences.inMemory();
@@ -171,10 +170,12 @@ class ExpressionsPanelTest {
 
         assertThat(target.newCircuits).singleElement().satisfies(created -> {
             assertThat(created.name()).isEqualTo("Expresiones");
-            long gates = created.fragment().components().stream().map(Component::typeId)
-                    .filter(type -> type.matches(GATE)).count();
+            long gates = created.fragment().components().stream()
+                    .filter(component -> GateCost.family(component.typeId(), component.parameters()).isPresent())
+                    .count();
             assertThat(gates).isEqualTo(cost.gateCount());
-            assertThat(created.fragment().components().stream().map(Component::typeId)).contains("xor3");
+            assertThat(created.fragment().components().stream()
+                    .map(component -> GateCost.key(component.typeId(), component.parameters()))).contains("xor3");
             assertThat(TableCircuits.check(spec, created.fragment(), StandardComponentTypes.registry()).passed())
                     .isTrue();
             assertThat(created.notice()).isEqualTo("✓ El circuito cumple la tabla.");

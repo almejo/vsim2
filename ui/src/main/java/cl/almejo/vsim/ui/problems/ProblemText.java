@@ -273,6 +273,6 @@ public final class ProblemText {
     /** The name of the document's definition for a sub-circuit instance, the bundle name of a standard type. */
     private static String typeName(Component component, CircuitDocument document) {
         return definitionOf(component, document).map(ComponentDefinition::name)
-                .orElseGet(() -> Messages.componentName(component.typeId()));
+                .orElseGet(() -> Messages.componentName(component.typeId(), component.parameters()));
     }
 }

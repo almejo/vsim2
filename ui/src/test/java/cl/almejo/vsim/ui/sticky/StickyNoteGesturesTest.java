@@ -222,7 +222,7 @@ class StickyNoteGesturesTest {
 
     @Test
     void aClickOnTheBodySelectsTheNoteEvenOverAPart() {
-        place(context.openDocument(), StandardComponentTypes.NOT, 11, 11, Map.of());
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 11, 11, Map.of(StandardComponentTypes.NEGATE, true));
         StickyNote note = note(new StickyText("encima"));
         context.click(tool, 12.5, 13.5);
         assertThat(context.selection.ids()).containsExactly(note.id());

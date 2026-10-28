@@ -25,14 +25,10 @@ public final class PainterRegistry {
 
     public static PainterRegistry standard() {
         PainterRegistry registry = new PainterRegistry();
-        for (int inputs = 2; inputs <= 4; inputs++) {
-            registry.register("and" + inputs, new LogicGatePainter(GateShape.AND, false));
-            registry.register("or" + inputs, new LogicGatePainter(GateShape.OR, false));
-            registry.register("xor" + inputs, new LogicGatePainter(GateShape.XOR, false));
-            registry.register("nand" + inputs, new LogicGatePainter(GateShape.AND, true));
-            registry.register("nor" + inputs, new LogicGatePainter(GateShape.OR, true));
-        }
-        registry.register(StandardComponentTypes.NOT, new NotPainter());
+        registry.register(StandardComponentTypes.AND, new LogicGatePainter(GateShape.AND));
+        registry.register(StandardComponentTypes.OR, new LogicGatePainter(GateShape.OR));
+        registry.register(StandardComponentTypes.XOR, new LogicGatePainter(GateShape.XOR));
+        registry.register(StandardComponentTypes.BUFFER, new BufferPainter());
         registry.register(StandardComponentTypes.TRI_STATE, new TriStatePainter());
         registry.register(StandardComponentTypes.FLIP_FLOP_DATA, new FlipFlopPainter());
         registry.register(StandardComponentTypes.CLOCK, new ClockPainter());

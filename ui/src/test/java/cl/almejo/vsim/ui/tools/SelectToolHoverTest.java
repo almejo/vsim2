@@ -64,7 +64,7 @@ class SelectToolHoverTest {
 
     @Test
     void hoveringASingleBitPinKeepsTheCircleOnly() {
-        place(context.openDocument(), StandardComponentTypes.NOT, 10, 8, Map.of());
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 10, 8, Map.of(StandardComponentTypes.NEGATE, true));
         tool.mouseMoved(context, TestToolContext.at(10, 10));
         assertThat(tool.hoverPin()).isEqualTo(new GridPoint(10, 10));
         BufferedImage image = hoverImage();

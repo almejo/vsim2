@@ -29,7 +29,7 @@ class CircuitBoundsTest {
     @Test
     void coversComponentsAndWires() {
         CircuitDocument document = new CircuitDocument();
-        document.add(registry.require(StandardComponentTypes.NOT)
+        document.add(registry.require(StandardComponentTypes.BUFFER)
                 .newComponent(document.newComponentId(), new GridPoint(2, 3), Rotation.R0, Map.of(), ""));
         document.add(new Wire(document.newWireId(), new GridPoint(-5, 20), new GridPoint(10, 20)));
         assertThat(CircuitBounds.of(document, registry)).contains(new Bounds(-5, 3, 15, 17));
@@ -65,7 +65,7 @@ class CircuitBoundsTest {
     void coversAMovedComponentLabelAtItsNewPlace() {
         for (Rotation rotation : Rotation.values()) {
             CircuitDocument document = new CircuitDocument();
-            Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+            Component gate = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                     new GridPoint(0, 0), rotation, Map.of(), "U1").withLabelOffset(Optional.of(new LabelOffset(20, 0)));
             document.add(gate);
             GridPoint centre = rotation.apply(new GridPoint(20, 0));

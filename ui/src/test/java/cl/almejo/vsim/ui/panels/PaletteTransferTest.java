@@ -8,8 +8,8 @@ class PaletteTransferTest {
 
     @Test
     void decodesOnlyWhatItEncoded() {
-        assertThat(PaletteTransfer.decode(PaletteTransfer.encode("and2"))).contains("and2");
-        assertThat(PaletteTransfer.decode("and2")).isEmpty();
+        assertThat(PaletteTransfer.decode(PaletteTransfer.encode("and"))).contains("and");
+        assertThat(PaletteTransfer.decode("and")).isEmpty();
         assertThat(PaletteTransfer.decode("")).isEmpty();
         assertThat(PaletteTransfer.decode(null)).isEmpty();
     }

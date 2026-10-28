@@ -54,7 +54,7 @@ class SelectToolSnapTest {
     }
 
     private Component gate(int x, int y) {
-        return place(context.openDocument(), StandardComponentTypes.NOT, x, y, Map.of());
+        return place(context.openDocument(), StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     private GridPoint position(Component component) {

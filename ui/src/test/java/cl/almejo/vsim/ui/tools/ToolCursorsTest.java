@@ -37,14 +37,14 @@ class ToolCursorsTest {
 
     @Test
     void placingAComponentShowsTheCrosshair() {
-        PlaceComponentTool tool = new PlaceComponentTool(registry.require(StandardComponentTypes.NOT));
+        PlaceComponentTool tool = new PlaceComponentTool(registry.require(StandardComponentTypes.BUFFER));
         assertThat(tool.cursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
     }
 
     @Test
     void aFloatingPasteShowsMoveOverTheFragmentAndTheArrowElsewhere() {
         CircuitFragment gate = new CircuitFragment(
-                List.of(registry.require(StandardComponentTypes.NOT).newComponent(new ElementId("c1"),
+                List.of(registry.require(StandardComponentTypes.BUFFER).newComponent(new ElementId("c1"),
                         GridPoint.ORIGIN, Rotation.R0, Map.of(), "")),
                 List.of(), List.of());
         FloatingSelectionTool tool = new FloatingSelectionTool(gate, new GridPoint(5, 5));

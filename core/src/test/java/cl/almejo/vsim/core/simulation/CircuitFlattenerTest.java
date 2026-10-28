@@ -125,8 +125,8 @@ class CircuitFlattenerTest {
         // to output-pin c4. The outer switch drives 1, so the NOT drives 0 against the inner switch's 1.
         Component input = registry.require(InterfacePins.INPUT_PIN).newComponent(new ElementId("c1"),
                 new GridPoint(0, 1), Rotation.R0, Map.of(), "a");
-        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(new ElementId("c2"),
-                new GridPoint(2, 0), Rotation.R0, Map.of(), "");
+        Component gate = registry.require(StandardComponentTypes.BUFFER).newComponent(new ElementId("c2"),
+                new GridPoint(2, 0), Rotation.R0, Map.of(StandardComponentTypes.NEGATE, true), "");
         Component innerSwitch = registry.require(StandardComponentTypes.SWITCH).newComponent(new ElementId("c3"),
                 new GridPoint(2, 1), Rotation.R0, Map.of("value", "1"), "");
         Component output = registry.require(InterfacePins.OUTPUT_PIN).newComponent(new ElementId("c4"),
@@ -147,7 +147,7 @@ class CircuitFlattenerTest {
 
     @Test
     void innerInstancesKeepTheirEngineInstancesAcrossAnUnrelatedTopLevelEdit() {
-        ComponentType not = registry.require(StandardComponentTypes.NOT);
+        ComponentType not = registry.require(StandardComponentTypes.BUFFER);
         AtomicInteger created = new AtomicInteger();
         registry.register(new ComponentType("counted-not", not.category(), not.size(), not.pins(), not.parameters(),
                 parameters -> {
@@ -156,7 +156,7 @@ class CircuitFlattenerTest {
                 }));
         ComponentDefinition inverter = ExampleDefinitions.inverter();
         List<Component> body = inverter.body().components().stream()
-                .map(component -> component.typeId().equals(StandardComponentTypes.NOT)
+                .map(component -> component.typeId().equals(StandardComponentTypes.BUFFER)
                         ? new Component(component.id(), "counted-not", component.position(), component.rotation(),
                         component.parameters(), component.label())
                         : component)
@@ -171,7 +171,7 @@ class CircuitFlattenerTest {
         engine.runUntil(20);
         assertThat(created).hasValue(1);
 
-        add(StandardComponentTypes.NOT, "c4", 20, 20);
+        add(StandardComponentTypes.BUFFER, "c4", 20, 20);
         engine.update(flattener.flatten(document, compiler.compile(document)));
         engine.runUntil(40);
 

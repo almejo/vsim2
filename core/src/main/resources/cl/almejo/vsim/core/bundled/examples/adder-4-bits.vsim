@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.4",
-  "formatVersion" : 3,
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "Sumador de 4 bits",
   "components" : [ {
@@ -647,53 +647,68 @@
       }
     }, {
       "id" : "c4",
-      "type" : "xor2",
+      "type" : "xor",
       "x" : 12,
       "y" : 0,
       "rotation" : 0,
       "label" : "",
       "parameters" : {
-        "delay" : 1
+        "delay" : 1,
+        "inputs" : 2,
+        "negate" : false,
+        "width" : 1
       }
     }, {
       "id" : "c5",
-      "type" : "and2",
+      "type" : "and",
       "x" : 12,
       "y" : 20,
       "rotation" : 0,
       "label" : "",
       "parameters" : {
-        "delay" : 1
+        "delay" : 1,
+        "inputs" : 2,
+        "negate" : false,
+        "width" : 1
       }
     }, {
       "id" : "c6",
-      "type" : "xor2",
+      "type" : "xor",
       "x" : 24,
       "y" : 2,
       "rotation" : 0,
       "label" : "",
       "parameters" : {
-        "delay" : 1
+        "delay" : 1,
+        "inputs" : 2,
+        "negate" : false,
+        "width" : 1
       }
     }, {
       "id" : "c7",
-      "type" : "and2",
+      "type" : "and",
       "x" : 24,
       "y" : 10,
       "rotation" : 0,
       "label" : "",
       "parameters" : {
-        "delay" : 1
+        "delay" : 1,
+        "inputs" : 2,
+        "negate" : false,
+        "width" : 1
       }
     }, {
       "id" : "c8",
-      "type" : "or2",
+      "type" : "or",
       "x" : 36,
       "y" : 12,
       "rotation" : 0,
       "label" : "",
       "parameters" : {
-        "delay" : 1
+        "delay" : 1,
+        "inputs" : 2,
+        "negate" : false,
+        "width" : 1
       }
     }, {
       "id" : "c29",

@@ -85,8 +85,8 @@ class ZoomActionsTest {
 
     @Test
     void verTodoElCircuitoFitsTheWholeCircuitWithATenPercentMargin() {
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        place(openDocument, StandardComponentTypes.AND2, 120, 40, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        place(openDocument, StandardComponentTypes.AND, 120, 40, Map.of());
         view.canvas().applyViewState(new ViewState(3, 500, 500));
         Bounds circuit = CircuitBounds.of(openDocument.document(), openDocument.registry()).orElseThrow();
 
@@ -98,7 +98,7 @@ class ZoomActionsTest {
 
     @Test
     void verTodoElCircuitoZoomsInOnASmallCircuitButNotPastFourHundredPercent() {
-        place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 10, 10, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().applyViewState(new ViewState(0.5, 0, 0));
 
         view.actions().zoomToFit().actionPerformed(null);
@@ -119,9 +119,9 @@ class ZoomActionsTest {
 
     @Test
     void zoomALaSeleccionFitsWhatIsSelectedNotTheWholeCircuit() {
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        Component and = place(openDocument, StandardComponentTypes.AND2, 120, 40, Map.of());
-        Component or = place(openDocument, StandardComponentTypes.OR2, 120, 60, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        Component and = place(openDocument, StandardComponentTypes.AND, 120, 40, Map.of());
+        Component or = place(openDocument, StandardComponentTypes.OR, 120, 60, Map.of());
         view.selection().set(List.of(and.id(), or.id()));
         Bounds selected = DrawnBounds.of(List.of(and, or), openDocument.registry()).orElseThrow();
 
@@ -134,7 +134,7 @@ class ZoomActionsTest {
     void zoomALaSeleccionIsEnabledOnlyWhileSomethingIsSelected() {
         Action zoomToSelection = view.actions().zoomToSelection();
         assertThat(zoomToSelection.isEnabled()).isFalse();
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
 
         view.selection().select(gate.id());
         assertThat(zoomToSelection.isEnabled()).isTrue();
@@ -146,9 +146,9 @@ class ZoomActionsTest {
 
     @Test
     void bothActionsZoomTheActivePaneOnly() {
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        Component and = place(openDocument, StandardComponentTypes.AND2, 120, 40, Map.of());
-        Component or = place(openDocument, StandardComponentTypes.OR2, 120, 60, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        Component and = place(openDocument, StandardComponentTypes.AND, 120, 40, Map.of());
+        Component or = place(openDocument, StandardComponentTypes.OR, 120, 60, Map.of());
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);
         CircuitCanvas left = view.panes().get(0);
         CircuitCanvas right = view.panes().get(1);

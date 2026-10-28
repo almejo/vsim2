@@ -4,8 +4,12 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
-/** AND/OR/XOR/NAND/NOR of N inputs (port of VSim's AssociativePin); the output pin index is N. */
-record LogicGateBehavior(LogicOperation operation, int inputCount, int delay) implements Behavior {
+/**
+ * AND/OR/XOR of N inputs, negated for NAND/NOR/XNOR (port of VSim's AssociativePin); the output pin index is N. The
+ * value operations are bitwise, so the same behaviour serves every width. XOR of more than two inputs folds, which is
+ * odd parity.
+ */
+record LogicGateBehavior(LogicOperation operation, int inputCount, boolean negated, int delay) implements Behavior {
 
     @Override
     public void initialize(BehaviorContext context) {
@@ -22,7 +26,7 @@ record LogicGateBehavior(LogicOperation operation, int inputCount, int delay) im
         for (int index = 1; index < inputCount; index++) {
             value = operation.combine(value, context.input(index));
         }
-        if (operation.negated()) {
+        if (negated) {
             value = value.not();
         }
         context.drive(inputCount, value, delay);

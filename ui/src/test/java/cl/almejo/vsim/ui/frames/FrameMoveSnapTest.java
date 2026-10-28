@@ -36,7 +36,7 @@ class FrameMoveSnapTest {
         frame = new Frame(context.openDocument().document().newFrameId(), GridPoint.ORIGIN, 20, 12, "Bloque",
                 FrameTint.BLUE, false);
         context.openDocument().execute(new CreateFrameCommand(frame));
-        place(context.openDocument(), StandardComponentTypes.NOT, 40, 15, Map.of());
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 40, 15, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     @AfterEach

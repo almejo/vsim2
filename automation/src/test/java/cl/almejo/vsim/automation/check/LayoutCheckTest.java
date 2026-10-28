@@ -29,8 +29,8 @@ class LayoutCheckTest {
 
     @Test
     void twoPartsWhoseBodiesShareAreaOverlap() {
-        Component first = place(StandardComponentTypes.NAND2, 0, 0, "");
-        Component second = place(StandardComponentTypes.NAND2, 2, 1, "");
+        Component first = place(StandardComponentTypes.AND, 0, 0, "");
+        Component second = place(StandardComponentTypes.AND, 2, 1, "");
 
         assertThat(faults()).extracting(Fault::kind, Fault::elementIds)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(FaultKind.PART_OVERLAP,
@@ -39,17 +39,17 @@ class LayoutCheckTest {
 
     @Test
     void partsSideBySideOnlyTouchingDoNotOverlap() {
-        Component first = place(StandardComponentTypes.NAND2, 0, 0, "");
+        Component first = place(StandardComponentTypes.AND, 0, 0, "");
         Bounds body = bounds(first);
-        place(StandardComponentTypes.NAND2, body.maximumX(), 0, "");
+        place(StandardComponentTypes.AND, body.maximumX(), 0, "");
 
         assertThat(faults()).isEmpty();
     }
 
     @Test
     void aStickyNoteOverPartsAndWiresReportsNothing() {
-        Component gate = place(StandardComponentTypes.NAND2, 0, 0, "");
-        Component other = place(StandardComponentTypes.NAND2, 12, 0, "");
+        Component gate = place(StandardComponentTypes.AND, 0, 0, "");
+        Component other = place(StandardComponentTypes.AND, 12, 0, "");
         connect(gate, 2, other, 0);
         Bounds body = bounds(gate);
         document.add(new StickyNote(document.newStickyNoteId(), new GridPoint(body.x(), body.y()), 20, 10,
@@ -62,7 +62,7 @@ class LayoutCheckTest {
 
     @Test
     void aNoteOverAPartCoversItAndTwoNotesInOnePlaceCoverEachOther() {
-        Component gate = place(StandardComponentTypes.NAND2, 0, 0, "");
+        Component gate = place(StandardComponentTypes.AND, 0, 0, "");
         Bounds body = bounds(gate);
         TextLabel onTheGate = note("Prueba: 1 y 1 dan 0", body.x() + 1, body.y() + 1);
         TextLabel first = note("Uno", 40, 40);
@@ -78,8 +78,8 @@ class LayoutCheckTest {
 
     @Test
     void aLabelThatRunsIntoTheNextPartCoversIt() {
-        Component left = place(StandardComponentTypes.NAND2, 0, 4, "una etiqueta muy pero muy larga");
-        Component right = place(StandardComponentTypes.NAND2, bounds(left).maximumX() + 1, 0, "");
+        Component left = place(StandardComponentTypes.AND, 0, 4, "una etiqueta muy pero muy larga");
+        Component right = place(StandardComponentTypes.AND, bounds(left).maximumX() + 1, 0, "");
 
         assertThat(faults()).extracting(Fault::kind, Fault::elementIds)
                 .contains(org.assertj.core.groups.Tuple.tuple(FaultKind.TEXT_OVER_PART,
@@ -88,7 +88,7 @@ class LayoutCheckTest {
 
     @Test
     void aWireAcrossABodyRunsThroughItButOneEndingAtItsEdgeDoesNot() {
-        Component gate = place(StandardComponentTypes.NAND2, 10, 10, "");
+        Component gate = place(StandardComponentTypes.AND, 10, 10, "");
         Bounds body = bounds(gate);
         int middle = body.y() + body.height() / 2;
         Wire across = wire(body.x() - 4, middle, body.maximumX() + 4, middle);
@@ -102,7 +102,7 @@ class LayoutCheckTest {
     @Test
     void aWiredCircuitLaidOutLeftToRightHasNoFault() {
         Component input = place(StandardComponentTypes.SWITCH, 0, 0, "A");
-        Component gate = place(StandardComponentTypes.NOT, 10, 0, "");
+        Component gate = place(StandardComponentTypes.BUFFER, 10, 0, "");
         Component output = place(StandardComponentTypes.LED, 20, 0, "Y");
         connect(input, 0, gate, 0);
         connect(gate, 1, output, 0);
@@ -113,9 +113,9 @@ class LayoutCheckTest {
 
     @Test
     void theScopeKeepsOnlyTheFaultsOfItsElements() {
-        place(StandardComponentTypes.NAND2, 0, 0, "");
-        place(StandardComponentTypes.NAND2, 2, 1, "");
-        Component apart = place(StandardComponentTypes.NAND2, 40, 40, "");
+        place(StandardComponentTypes.AND, 0, 0, "");
+        place(StandardComponentTypes.AND, 2, 1, "");
+        Component apart = place(StandardComponentTypes.AND, 40, 40, "");
 
         assertThat(LayoutCheck.faults(document, registry, TextMeasure.APPROXIMATE, Set.of(apart.id().value())))
                 .isEmpty();

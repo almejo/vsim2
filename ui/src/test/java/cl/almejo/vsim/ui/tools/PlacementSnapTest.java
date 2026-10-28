@@ -36,7 +36,7 @@ class PlacementSnapTest {
     @BeforeEach
     void create() {
         context.snapper = new DefaultSnapper(context.preferences, Dimension::new);
-        place(context.openDocument(), StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     @AfterEach
@@ -45,7 +45,7 @@ class PlacementSnapTest {
     }
 
     private PlaceComponentTool placing() {
-        return new PlaceComponentTool(context.openDocument().registry().require(StandardComponentTypes.NOT));
+        return new PlaceComponentTool(context.openDocument().registry().require(StandardComponentTypes.BUFFER));
     }
 
     private List<GridPoint> positions() {
@@ -80,7 +80,7 @@ class PlacementSnapTest {
         tool.mouseMoved(context, TestToolContext.at(9, 20));
         assertThat(tool.hover()).isEqualTo(new GridPoint(9, 20)); // its left edge at 9: five units off
         tool.keyPressed(context, KeyEvent.VK_R, false);
-        Component rotated = registry.require(StandardComponentTypes.NOT).newComponent(new ElementId("probe"),
+        Component rotated = registry.require(StandardComponentTypes.BUFFER).newComponent(new ElementId("probe"),
                 new GridPoint(9, 20), tool.rotation(), Map.of(), "");
         Bounds rotatedBounds = ElementBounds.of(rotated, registry);
         // whatever way the rotation turns the box, the ghost now lands with a vertical line on one of 0, 2, 4
@@ -102,7 +102,7 @@ class PlacementSnapTest {
     }
 
     private CircuitFragment oneGate() {
-        Component gate = context.openDocument().registry().require(StandardComponentTypes.NOT)
+        Component gate = context.openDocument().registry().require(StandardComponentTypes.BUFFER)
                 .newComponent(new ElementId("c9"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
         return new CircuitFragment(List.of(gate), List.of(), List.of());
     }

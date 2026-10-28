@@ -41,7 +41,7 @@ class ChangeAppearanceCommandTest {
     @Test
     void changingOneInstanceMovesItsConnectedWireAndUndoRestoresEverything() {
         Component instance = instance("c20", 10);
-        Component gate = new Component(new ElementId("c21"), StandardComponentTypes.NOT, new GridPoint(30, 10),
+        Component gate = new Component(new ElementId("c21"), StandardComponentTypes.BUFFER, new GridPoint(30, 10),
                 Rotation.R0, Map.of(), "");
         document.add(gate);
         Wire wire = new Wire(new ElementId("w30"), new GridPoint(14, 12), new GridPoint(30, 12));
@@ -98,8 +98,8 @@ class ChangeAppearanceCommandTest {
         document.replace(first);
         Component second = instance("c21", 40).withLabel("U2");
         document.replace(second);
-        Component probeGate = new Component(new ElementId("c22"), StandardComponentTypes.NOT, GridPoint.ORIGIN,
-                Rotation.R0, Map.of(), "G1");
+        Component probeGate = new Component(new ElementId("c22"), StandardComponentTypes.BUFFER, GridPoint.ORIGIN,
+                Rotation.R0, Map.of(StandardComponentTypes.NEGATE, true), "G1");
         GridPoint offset = registry.typeOf(probeGate).pinLocation(probeGate, 0);
         document.add(probeGate.withPosition(new GridPoint(16 - offset.x(), -offset.y())));
         document.add(new Wire(new ElementId("w30"), new GridPoint(16, 0), new GridPoint(16, 20)));

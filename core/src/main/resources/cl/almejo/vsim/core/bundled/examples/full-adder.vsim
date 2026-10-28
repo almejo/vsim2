@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.4",
-  "formatVersion" : 3,
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "Sumador completo",
   "components" : [ {
@@ -36,53 +36,68 @@
     }
   }, {
     "id" : "c4",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 16,
     "y" : 6,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c5",
-    "type" : "and2",
+    "type" : "and",
     "x" : 16,
     "y" : 26,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c6",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 28,
     "y" : 8,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c7",
-    "type" : "and2",
+    "type" : "and",
     "x" : 28,
     "y" : 16,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c8",
-    "type" : "or2",
+    "type" : "or",
     "x" : 40,
     "y" : 18,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c30",

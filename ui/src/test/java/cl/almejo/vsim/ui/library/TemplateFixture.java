@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.library;
 
+import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
@@ -86,7 +87,7 @@ final class TemplateFixture implements AutoCloseable {
     /** input-pin "a" (x, y+1) → NOT (x+2, y) → output-pin "y" (x+6, y+1), touching pin to pin; selects them. */
     List<Component> drawInverter(int x, int y) {
         Component input = place(InterfacePins.INPUT_PIN, x, y + 1, "a");
-        Component gate = place(StandardComponentTypes.NOT, x + 2, y, "");
+        Component gate = add(StandardComponentTypes.BUFFER, x + 2, y, GateParameters.NEGATED, "");
         Component output = place(InterfacePins.OUTPUT_PIN, x + 6, y + 1, "y");
         select(input, gate, output);
         return List.of(input, gate, output);

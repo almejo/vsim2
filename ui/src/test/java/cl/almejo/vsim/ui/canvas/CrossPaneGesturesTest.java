@@ -157,7 +157,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void theFirstPaneStopsAutoscrollingWhileThePointerIsOverTheOther() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         left.selection().select(gate.id());
         press(left, 56, 56, 0);
         drag(left, left.getWidth() - 4, 56, 0);
@@ -171,9 +171,9 @@ class CrossPaneGesturesTest {
 
     @Test
     void aRubberBandFromOnePaneToTheOtherSelectsTheDocumentRectangle() {
-        Component near = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
-        Component far = place(openDocument, StandardComponentTypes.NOT, 90, 10, Map.of());
-        Component outside = place(openDocument, StandardComponentTypes.NOT, 5, 60, Map.of());
+        Component near = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
+        Component far = place(openDocument, StandardComponentTypes.BUFFER, 90, 10, Map.of(StandardComponentTypes.NEGATE, true));
+        Component outside = place(openDocument, StandardComponentTypes.BUFFER, 5, 60, Map.of(StandardComponentTypes.NEGATE, true));
         press(left, 8, 8, 0);
         dragOverRight(300, 250, 0);
         releaseOverRight(300, 250, 0);
@@ -184,7 +184,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void movingTheSelectionIntoTheOtherPaneMovesItThereAsOneStep() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         left.selection().select(gate.id());
         GridPoint pressed = left.viewport().snap(56, 56);
         press(left, 56, 56, 0);
@@ -202,7 +202,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void ctrlAtTheReleaseOverTheOtherPaneCopies() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         left.selection().select(gate.id());
         press(left, 56, 56, 0);
         dragOverRight(100, 96, InputEvent.CTRL_DOWN_MASK);
@@ -263,7 +263,7 @@ class CrossPaneGesturesTest {
         Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(2, 2), 20, 10, "Bloque",
                 FrameTint.NONE, true);
         openDocument.execute(new CreateFrameCommand(frame));
-        Component inside = place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        Component inside = place(openDocument, StandardComponentTypes.BUFFER, 6, 6, Map.of(StandardComponentTypes.NEGATE, true));
         GridPoint pressed = left.viewport().snap(80, 26);
         press(left, 80, 26, 0);
         dragOverRight(100, 96, 0);

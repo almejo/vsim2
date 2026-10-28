@@ -83,7 +83,7 @@ class MemoryEditorExtensionTest {
 
     @Test
     void otherPartsGetNoMemoryItems() {
-        Component gate = place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(document, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         EditorView view = view();
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(gate), new Point2D.Double(1, 1))))

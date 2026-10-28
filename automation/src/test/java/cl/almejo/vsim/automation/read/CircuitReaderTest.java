@@ -142,7 +142,7 @@ class CircuitReaderTest {
         fixture.document.putDefinition(ExampleDefinitions.byteBuffer());
         Component plain = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), 10, 10);
         Component shaped = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), 30, 10);
-        Component gate = fixture.place(StandardComponentTypes.NOT, 50, 10);
+        Component gate = fixture.place(StandardComponentTypes.BUFFER, 50, 10);
         fixture.document.replace(shaped.withAppearance(Optional.of(ComponentAppearance.of(
                 ExampleDefinitions.byteBuffer()))));
 
@@ -193,7 +193,7 @@ class CircuitReaderTest {
 
     @Test
     void theStickyNoteKindNarrowsTheReadingAndOtherKindsLeaveThemOut() {
-        fixture.place(StandardComponentTypes.NOT, 50, 10);
+        fixture.place(StandardComponentTypes.BUFFER, 50, 10);
         fixture.document.add(new StickyNote(fixture.document.newStickyNoteId(), new GridPoint(3, 4), 8, 6,
                 StickyColor.YELLOW, new StickyText("x"), false));
 
@@ -248,7 +248,7 @@ class CircuitReaderTest {
     @Test
     void aBigCircuitComesInPagesOfAtMostTwoHundred() {
         for (int index = 0; index < 250; index++) {
-            fixture.place(StandardComponentTypes.NOT, (index % 25) * 6, (index / 25) * 6);
+            fixture.place(StandardComponentTypes.BUFFER, (index % 25) * 6, (index / 25) * 6);
         }
 
         CircuitView first = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.empty());
@@ -268,7 +268,7 @@ class CircuitReaderTest {
     @Test
     void aCursorOfAnOlderVersionIsStaleAndABrokenOneIsRefused() {
         for (int index = 0; index < 5; index++) {
-            fixture.place(StandardComponentTypes.NOT, index * 6, 0);
+            fixture.place(StandardComponentTypes.BUFFER, index * 6, 0);
         }
         CircuitView first = CircuitReader.read(fixture.source(), summaryOfPageSize(2), Optional.empty());
         fixture.useVersion(8);
@@ -286,8 +286,8 @@ class CircuitReaderTest {
 
     @Test
     void theFilterKeepsTheAskedKindsIdsAndRegion() {
-        Component left = fixture.place(StandardComponentTypes.NOT, 0, 0);
-        Component right = fixture.place(StandardComponentTypes.NOT, 40, 0);
+        Component left = fixture.place(StandardComponentTypes.BUFFER, 0, 0);
+        Component right = fixture.place(StandardComponentTypes.BUFFER, 40, 0);
         fixture.wire(fixture.pin(left, 1), new GridPoint(10, 2));
 
         assertThat(CircuitReader.read(fixture.source(),

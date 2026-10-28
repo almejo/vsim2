@@ -240,7 +240,7 @@ class GuidesFeaturesTest {
 
     @Test
     void aGuideUnderAnElementIsNotGrabbedTheElementWins() {
-        Component gate = place(openDocument, StandardComponentTypes.AND2, 8, 8, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.AND, 8, 8, Map.of());
         assertThat(view.canvas().hitTester().elementAt(openDocument.document(), new Point2D.Double(10, 10)))
                 .isPresent();
         setGuides(HORIZONTAL_10);
@@ -253,7 +253,7 @@ class GuidesFeaturesTest {
 
     @Test
     void aPressBesideAPinOnAGuideStartsAWireAndLeavesTheGuide() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         GridPoint input = openDocument.registry().typeOf(gate).pinLocation(gate, 0);
         Guide onThePin = new Guide(Orientation.VERTICAL, input.x());
         setGuides(onThePin);
@@ -313,7 +313,7 @@ class GuidesFeaturesTest {
 
     @Test
     void aShiftOrCtrlPressOnAGuideStartsABandAndLeavesTheGuide() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 30, 20, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 30, 20, Map.of(StandardComponentTypes.NEGATE, true));
         setGuides(HORIZONTAL_10);
         for (int modifiers : new int[] {InputEvent.SHIFT_DOWN_MASK, InputEvent.CTRL_DOWN_MASK}) {
             view.canvas().selection().clear();

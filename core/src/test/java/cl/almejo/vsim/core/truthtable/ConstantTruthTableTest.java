@@ -17,7 +17,7 @@ class ConstantTruthTableTest {
         TruthTableCircuits circuits = new TruthTableCircuits();
         Component constant = circuits.place(StandardComponentTypes.CONSTANT, 0, 0, "K",
                 Map.of("width", 1, "value", "1"));
-        Component gate = circuits.place(StandardComponentTypes.AND2, 10, 1, "");
+        Component gate = circuits.place(StandardComponentTypes.AND, 10, 1, "");
         Component toggle = circuits.place(StandardComponentTypes.SWITCH, 0, 4, "A");
         circuits.wire(circuits.pin(constant, 0), circuits.pin(gate, 0));
         circuits.wire(circuits.pin(toggle, 0), circuits.pin(gate, 1));

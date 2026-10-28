@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TreeSet;
@@ -181,7 +182,15 @@ class MessagesTest {
     @Test
     void subcircuitTypesAreNamedAfterTheirDefinition() {
         assertThat(Messages.componentName(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()))).isEqualTo("Inversor");
-        assertThat(Messages.componentName(StandardComponentTypes.registry().require("not"))).isEqualTo("NOT");
+        assertThat(Messages.componentName(StandardComponentTypes.registry().require("buffer"))).isEqualTo("Buffer");
+    }
+
+    @Test
+    void aGateIsNamedAfterItsTypeAndNegateOutput() {
+        assertThat(Messages.componentName("and", Map.of("negate", false))).isEqualTo("AND");
+        assertThat(Messages.componentName("and", Map.of("negate", true))).isEqualTo("NAND");
+        assertThat(Messages.componentName("xor", Map.of("negate", true))).isEqualTo("XNOR");
+        assertThat(Messages.componentName("buffer", Map.of("negate", true))).isEqualTo("NOT");
     }
 
     private static Set<String> literalKeysIn(Path root, Pattern pattern) throws IOException {

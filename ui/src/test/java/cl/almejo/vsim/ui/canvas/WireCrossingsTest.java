@@ -22,7 +22,7 @@ class WireCrossingsTest {
     private final CircuitDocument document = new CircuitDocument();
 
     private Component notGate(int x, int y, Rotation rotation) {
-        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        Component gate = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 new GridPoint(x, y), rotation, Map.of(), "");
         document.add(gate);
         return gate;

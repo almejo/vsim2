@@ -27,7 +27,7 @@ class SimulationEngineInputTest {
 
     /** {@code source} drives net "n", read by a NOT gate "gate" whose output is net "out". */
     private void simulate(FlatComponent source, int width) {
-        engine.update(new FlatCircuit(List.of(source, component("gate", StandardComponentTypes.NOT, Map.of())),
+        engine.update(new FlatCircuit(List.of(source, component("gate", StandardComponentTypes.BUFFER, Map.of())),
                 List.of(new FlatNet("n", List.of(new FlatPinRef(source.id(), 0)), width, false),
                         new FlatNet("out", List.of(new FlatPinRef("gate", 1)), 1, false))));
     }

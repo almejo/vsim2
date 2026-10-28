@@ -53,13 +53,13 @@ class FavoritesTest {
     @Test
     void favoritesAreCopiedInMarkingOrderAndFollowOtherWindowsWithoutStartingPlacement() {
         PalettePanel second = createPalette(new ArrayList<>());
-        preferences.setPaletteFavorites(List.of("led", "and2", "led"));
+        preferences.setPaletteFavorites(List.of("led", "and", "led"));
 
-        assertThat(preferences.paletteFavorites()).containsExactly("led", "and2");
+        assertThat(preferences.paletteFavorites()).containsExactly("led", "and");
         assertThat(palette.visibleSections()).startsWith("Favoritos");
-        assertThat(palette.visibleTypeIds()).startsWith("led", "and2");
+        assertThat(palette.visibleTypeIds()).startsWith("led", "and");
         assertThat(palette.visibleTypeIds().stream().filter("led"::equals)).hasSize(2);
-        assertThat(second.visibleTypeIds()).startsWith("led", "and2");
+        assertThat(second.visibleTypeIds()).startsWith("led", "and");
         assertThat(chosen).isEmpty();
 
         Object model = palette.treeModel();
@@ -87,12 +87,12 @@ class FavoritesTest {
 
     @Test
     void markingAnUnrelatedComponentKeepsTheCurrentPlacementHighlightWithoutChoosingAgain() {
-        palette.choose("and3");
+        palette.choose("xor");
         Object selected = palette.tree().getSelectionPath().getLastPathComponent();
         preferences.setPaletteFavorites(List.of("led"));
         assertThat(palette.tree().getSelectionPath().getLastPathComponent().toString())
                 .isEqualTo(selected.toString());
-        assertThat(chosen).containsExactly("and3");
+        assertThat(chosen).containsExactly("xor");
     }
 
     @Test
@@ -100,8 +100,8 @@ class FavoritesTest {
         Object model = palette.treeModel();
         palette.tree().collapseRow(rowOfSection("BASIC"));
 
-        preferences.setPaletteFavorites(List.of("led", "and3"));
-        preferences.setPaletteFavorites(List.of("and3"));
+        preferences.setPaletteFavorites(List.of("led", "xor"));
+        preferences.setPaletteFavorites(List.of("xor"));
         preferences.setPaletteFavorites(List.of());
 
         assertThat(palette.treeModel()).isSameAs(model);
@@ -129,24 +129,24 @@ class FavoritesTest {
     void theHoverStarSurvivesAFavoritesChange() {
         JTree tree = palette.tree();
         tree.setSize(300, 2000);
-        Rectangle entry = tree.getPathBounds(palette.pathOf("and3"));
+        Rectangle entry = tree.getPathBounds(palette.pathOf("xor"));
         tree.dispatchEvent(new MouseEvent(tree, MouseEvent.MOUSE_MOVED, 0, 0, entry.x + 4,
                 entry.y + entry.height / 2, 0, false, MouseEvent.NOBUTTON));
-        assertThat(palette.hoveredPath()).hasValue(palette.pathOf("and3"));
+        assertThat(palette.hoveredPath()).hasValue(palette.pathOf("xor"));
 
         preferences.setPaletteFavorites(List.of("led"));
 
         assertThat(palette.hoveredPath()).isPresent();
         assertThat(palette.tree().getRowForPath(palette.hoveredPath().get())).as("a path of the tree shown now")
                 .isNotNegative();
-        assertThat(palette.hoveredPath().get().getLastPathComponent().toString()).contains("id=and3");
+        assertThat(palette.hoveredPath().get().getLastPathComponent().toString()).contains("id=xor");
     }
 
     @Test
     void filteringHidesEmptyFavoritesAndTheHintCannotBeChosen() {
         palette.tree().setSelectionRow(1);
         assertThat(palette.hasSelection()).isFalse();
-        palette.setFilter("and2");
+        palette.setFilter("and");
         assertThat(palette.visibleSections()).doesNotContain("Favoritos");
         preferences.setPaletteFavorites(List.of("led"));
         assertThat(palette.visibleSections()).doesNotContain("Favoritos");
@@ -160,7 +160,7 @@ class FavoritesTest {
         preferences.setPaletteFavorites(List.of("led"));
 
         assertThat(palette.accessibleNameOf("led")).hasValue("LED, favorito");
-        assertThat(palette.accessibleNameOf("and3")).hasValue("AND de 3 entradas");
+        assertThat(palette.accessibleNameOf("xor")).hasValue("XOR");
     }
 
     @Test
@@ -178,13 +178,13 @@ class FavoritesTest {
 
     @Test
     void aClickOnTheEmptyHintKeepsWhatIsBeingPlacedHighlighted() {
-        palette.choose("and3");
+        palette.choose("xor");
         TreePath placing = palette.tree().getSelectionPath();
 
         palette.tree().setSelectionRow(1);
 
         assertThat(palette.tree().getSelectionPath()).isEqualTo(placing);
-        assertThat(chosen).containsExactly("and3");
+        assertThat(chosen).containsExactly("xor");
     }
 
     private int rowOfSection(String section) {
@@ -230,15 +230,15 @@ class FavoritesTest {
                 presses.add(event);
             }
         });
-        Rectangle entry = tree.getPathBounds(palette.pathOf("and3"));
+        Rectangle entry = tree.getPathBounds(palette.pathOf("xor"));
 
         click(entry.x + 4, entry.y + entry.height / 2);
-        clickStar(palette.pathOf("and3"));
+        clickStar(palette.pathOf("xor"));
 
         assertThat(presses).singleElement().satisfies(press -> assertThat(press.isConsumed()).isFalse());
-        assertThat(preferences.paletteFavorites()).containsExactly("and3");
+        assertThat(preferences.paletteFavorites()).containsExactly("xor");
         tree.setSelectionPath(tree.getPathForLocation(entry.x + 4, entry.y + entry.height / 2));
-        assertThat(chosen).containsExactly("and3");
+        assertThat(chosen).containsExactly("xor");
     }
 
     @Test
@@ -252,7 +252,7 @@ class FavoritesTest {
         assertThat(palette.starState(ownRow)).isEqualTo(PalettePanel.StarState.FILLED);
         assertThat(palette.starState(palette.tree().getRowForPath(palette.pathOf("led"))))
                 .isEqualTo(PalettePanel.StarState.FILLED);
-        assertThat(palette.starState(palette.tree().getRowForPath(palette.pathOf("and3"))))
+        assertThat(palette.starState(palette.tree().getRowForPath(palette.pathOf("xor"))))
                 .isEqualTo(PalettePanel.StarState.NONE);
 
         clickStar(own);
@@ -266,8 +266,8 @@ class FavoritesTest {
     @Test
     void theOutlineStarShowsOnlyUnderThePointer() {
         layOut();
-        Rectangle entry = palette.tree().getPathBounds(palette.pathOf("and3"));
-        int row = palette.tree().getRowForPath(palette.pathOf("and3"));
+        Rectangle entry = palette.tree().getPathBounds(palette.pathOf("xor"));
+        int row = palette.tree().getRowForPath(palette.pathOf("xor"));
         assertThat(palette.starState(row)).isEqualTo(PalettePanel.StarState.NONE);
 
         palette.tree().dispatchEvent(new MouseEvent(palette.tree(), MouseEvent.MOUSE_MOVED, 0, 0, entry.x + 4,
@@ -307,7 +307,7 @@ class FavoritesTest {
 
     @Test
     void aStandardTypeGetsAMenuHoldingOnlyTheFavoriteItem() {
-        JPopupMenu menu = palette.popupFor(palette.pathOf("and3")).orElseThrow();
+        JPopupMenu menu = palette.popupFor(palette.pathOf("xor")).orElseThrow();
 
         assertThat(menu.getComponentCount()).isEqualTo(1);
         assertThat(((JMenuItem) menu.getComponent(0)).getText()).isEqualTo("Agregar a favoritos");

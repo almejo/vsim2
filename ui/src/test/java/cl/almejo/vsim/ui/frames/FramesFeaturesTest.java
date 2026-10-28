@@ -209,8 +209,8 @@ class FramesFeaturesTest {
     @Test
     void deletingALockedBlockSaysSoInTheStatusBarAndUndoBringsItBack() {
         Frame frame = addFrame(true);
-        Component first = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
-        Component second = place(openDocument, StandardComponentTypes.NOT, 10, 4, Map.of());
+        Component first = place(openDocument, StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
+        Component second = place(openDocument, StandardComponentTypes.BUFFER, 10, 4, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(frame.id(), first.id(), second.id()));
 
         delete();
@@ -224,15 +224,15 @@ class FramesFeaturesTest {
     @Test
     void deletingAnUnlockedFrameOrPartOfABlockShowsNoNotice() {
         Frame unlocked = addFrame(false);
-        Component inside = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component inside = place(openDocument, StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(unlocked.id(), inside.id()));
         delete();
         assertThat(view.statusBar().text()).doesNotContain("bloque");
 
         // part of a locked block's contents, without its frame
         Frame locked = addFrame(true);
-        Component deleted = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
-        place(openDocument, StandardComponentTypes.NOT, 10, 4, Map.of());
+        Component deleted = place(openDocument, StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
+        place(openDocument, StandardComponentTypes.BUFFER, 10, 4, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(deleted.id()));
         delete();
         assertThat(openDocument.document().frame(locked.id())).isPresent();
@@ -291,7 +291,7 @@ class FramesFeaturesTest {
     @Test
     void theCanvasSelectToolGetsTheFrameGesturesUntilDispose() {
         Frame frame = addFrame(true);
-        Component inside = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component inside = place(openDocument, StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
         Tool select = view.canvas().defaultTool();
         select.mousePressed(view.canvas(), TestToolContext.at(10, 1));
         select.mouseReleased(view.canvas(), TestToolContext.at(10, 1));
@@ -310,7 +310,7 @@ class FramesFeaturesTest {
     @Test
     void aDoubleClickOnAWireInsideALockedFrameSelectsOnlyItsStretchWithTheFrameGesturesInstalled() {
         Frame frame = addFrame(true);
-        Component inside = place(openDocument, StandardComponentTypes.NOT, 14, 4, Map.of());
+        Component inside = place(openDocument, StandardComponentTypes.BUFFER, 14, 4, Map.of(StandardComponentTypes.NEGATE, true));
         Wire first = addWire(openDocument, 2, 6, 8, 6);
         Wire second = addWire(openDocument, 8, 6, 8, 10);
         Wire apart = addWire(openDocument, 10, 10, 12, 10);
@@ -328,7 +328,7 @@ class FramesFeaturesTest {
     @Test
     void draggingALabelInsideALockedFrameMovesOnlyTheLabel() {
         Frame frame = addFrame(true);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 6, 6, Map.of(StandardComponentTypes.NEGATE, true));
         openDocument.execute(new SetLabelCommand(gate.id(), "U1"));
         Component labelled = openDocument.document().component(gate.id()).orElseThrow();
         Rectangle2D bounds = LabelLayout.componentLabel(openDocument.registry().typeOf(labelled), labelled)

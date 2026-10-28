@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.truthtable;
 
+import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
@@ -22,7 +23,11 @@ class CombinationalLoopsTest {
     private final Map<String, List<FlatPinRef>> nets = new LinkedHashMap<>();
 
     private void add(String id, String typeId) {
-        components.add(new FlatComponent(id, registry.require(typeId), Map.of()));
+        add(id, typeId, Map.of());
+    }
+
+    private void add(String id, String typeId, Map<String, Object> parameters) {
+        components.add(new FlatComponent(id, registry.require(typeId), parameters));
     }
 
     /** Puts pin {@code pinIndex} of {@code componentId} on net {@code netId}. */
@@ -39,7 +44,7 @@ class CombinationalLoopsTest {
     @Test
     void aRingOfThreeNotGatesIsALoop() {
         for (int index = 0; index < 3; index++) {
-            add("not" + index, StandardComponentTypes.NOT);
+            add("not" + index, StandardComponentTypes.BUFFER);
             connect("n" + index, "not" + index, 0);
             connect("n" + (index + 1) % 3, "not" + index, 1);
         }
@@ -50,8 +55,8 @@ class CombinationalLoopsTest {
     void crossCoupledNorGatesAreALoop() {
         add("s", StandardComponentTypes.SWITCH);
         add("r", StandardComponentTypes.SWITCH);
-        add("top", StandardComponentTypes.NOR2);
-        add("bottom", StandardComponentTypes.NOR2);
+        add("top", StandardComponentTypes.OR, GateParameters.NEGATED);
+        add("bottom", StandardComponentTypes.OR, GateParameters.NEGATED);
         connect("set", "s", 0);
         connect("set", "top", 0);
         connect("reset", "r", 0);
@@ -65,7 +70,7 @@ class CombinationalLoopsTest {
 
     @Test
     void aGateReadingItsOwnOutputIsALoop() {
-        add("gate", StandardComponentTypes.AND2);
+        add("gate", StandardComponentTypes.AND);
         connect("out", "gate", 0);
         connect("out", "gate", 2);
         assertThat(CombinationalLoops.exists(circuit())).isTrue();
@@ -74,9 +79,9 @@ class CombinationalLoopsTest {
     @Test
     void aChainWithFanOutAndReconvergenceIsNotALoop() {
         add("a", StandardComponentTypes.SWITCH);
-        add("first", StandardComponentTypes.NOT);
-        add("second", StandardComponentTypes.NOT);
-        add("both", StandardComponentTypes.AND2);
+        add("first", StandardComponentTypes.BUFFER);
+        add("second", StandardComponentTypes.BUFFER);
+        add("both", StandardComponentTypes.AND);
         add("led", StandardComponentTypes.LED);
         connect("in", "a", 0);
         connect("in", "first", 0);
@@ -94,7 +99,7 @@ class CombinationalLoopsTest {
     void aVeryLongChainDoesNotOverflowTheStack() {
         int length = 20_000;
         for (int index = 0; index < length; index++) {
-            add("not" + index, StandardComponentTypes.NOT);
+            add("not" + index, StandardComponentTypes.BUFFER);
             connect("n" + index, "not" + index, 0);
             connect("n" + (index + 1), "not" + index, 1);
         }

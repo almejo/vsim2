@@ -142,7 +142,7 @@ class EditorAutomationHostToolsTest {
     void theLayoutCheckMeasuresTextsWithTheEditorsFont() throws Exception {
         OpenDocument document = document("Prueba");
         onEditor(() -> {
-            cl.almejo.vsim.ui.UiTestSupport.place(document, StandardComponentTypes.NAND2, 0, 0, Map.of());
+            cl.almejo.vsim.ui.UiTestSupport.place(document, StandardComponentTypes.AND, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
             document.execute(new AddElementsCommand(List.of(new TextLabel(document.document().newLabelId(),
                     new GridPoint(1, 1), "Prueba: una nota encima de la compuerta"))));
             return null;
@@ -163,7 +163,7 @@ class EditorAutomationHostToolsTest {
         TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(0, 0), "WWWWWWWWWW");
         document.add(note);
         double oneLine = onEditor(() -> LabelTextMeasure.INSTANCE.freeText(note).height());
-        cl.almejo.vsim.core.component.ComponentType and = registry.require(StandardComponentTypes.AND2);
+        cl.almejo.vsim.core.component.ComponentType and = registry.require(StandardComponentTypes.AND);
         int bodyOffset = and.bounds(and.newComponent(document.newComponentId(), new GridPoint(0, 0), Rotation.R0,
                 Map.of(), "")).y();
         // the gate's body starts just under the first line
@@ -195,7 +195,7 @@ class EditorAutomationHostToolsTest {
     @Test
     void anExportThroughTheHostGoesToTheWindowsExportFolder() throws Exception {
         OpenDocument document = document("Contador");
-        onEditor(() -> cl.almejo.vsim.ui.UiTestSupport.place(document, StandardComponentTypes.NAND2, 0, 0, Map.of()));
+        onEditor(() -> cl.almejo.vsim.ui.UiTestSupport.place(document, StandardComponentTypes.AND, 0, 0, Map.of(StandardComponentTypes.NEGATE, true)));
         EditorView view = view(document);
         view.services().preferences().setExportDirectory(exportFolder);
 

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.GateHarness;
+import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.TestComponentTypes;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -38,9 +39,9 @@ class StandardComponentTypesTest {
 
     @Test
     void registryHasEveryType() {
-        assertThat(registry.all()).hasSize(40);
+        assertThat(registry.all()).hasSize(28);
         assertThat(registry.all()).extracting(ComponentType::id).contains(
-                "and2", "or3", "xor4", "nand2", "nor4", "not", "flip-flop-data", "tri-state", "clock",
+                "and", "or", "xor", "buffer", "flip-flop-data", "tri-state", "clock",
                 "switch", "constant", "led", "seven-segments-display", "seven-segments-display-double", "time-diagram", "bus-splitter", "bus-joiner",
                 "adder", "alu", "comparator", "mux", "decoder", "register", "counter", "tunnel-in", "tunnel-out", "ram",
                 "rom");
@@ -48,11 +49,13 @@ class StandardComponentTypesTest {
 
     @Test
     void geometryMatchesVsim() {
-        assertThat(registry.require("and2").pins()).extracting(PinSpec::position)
+        assertThat(registry.require("and").pins()).extracting(PinSpec::position)
                 .containsExactly(new GridPoint(0, 0), new GridPoint(0, 4), new GridPoint(4, 2));
-        assertThat(registry.require("and3").pins()).extracting(PinSpec::position)
+        assertThat(registry.require("and").specializedFor(GateParameters.inputs(3)).pins())
+                .extracting(PinSpec::position)
                 .containsExactly(new GridPoint(0, 0), new GridPoint(0, 2), new GridPoint(0, 4), new GridPoint(4, 2));
-        assertThat(registry.require("and4").pins()).extracting(PinSpec::position)
+        assertThat(registry.require("and").specializedFor(GateParameters.inputs(4)).pins())
+                .extracting(PinSpec::position)
                 .containsExactly(new GridPoint(0, 0), new GridPoint(0, 1), new GridPoint(0, 2),
                         new GridPoint(0, 3), new GridPoint(4, 2));
         assertThat(pinPosition("switch", 0)).isEqualTo(new GridPoint(4, 1));
@@ -68,38 +71,41 @@ class StandardComponentTypesTest {
 
     @ParameterizedTest(name = "{0}({1},{2}) = {3}")
     @CsvSource({
-            "and2,0,0,0", "and2,0,1,0", "and2,1,0,0", "and2,1,1,1", "and2,Z,1,1", "and2,Z,0,0", "and2,Z,Z,Z",
-            "or2,0,0,0", "or2,0,1,1", "or2,1,1,1", "or2,Z,0,0", "or2,Z,1,1", "or2,Z,Z,Z",
-            "xor2,0,0,0", "xor2,0,1,1", "xor2,1,1,0", "xor2,Z,1,1", "xor2,Z,Z,Z",
-            "nand2,1,1,0", "nand2,0,1,1", "nand2,0,0,1", "nand2,Z,Z,Z",
-            "nor2,0,0,1", "nor2,0,1,0", "nor2,1,1,0"
+            "and,0,0,0", "and,0,1,0", "and,1,0,0", "and,1,1,1", "and,Z,1,1", "and,Z,0,0", "and,Z,Z,Z",
+            "or,0,0,0", "or,0,1,1", "or,1,1,1", "or,Z,0,0", "or,Z,1,1", "or,Z,Z,Z",
+            "xor,0,0,0", "xor,0,1,1", "xor,1,1,0", "xor,Z,1,1", "xor,Z,Z,Z",
+            "nand,1,1,0", "nand,0,1,1", "nand,0,0,1", "nand,Z,Z,Z",
+            "nor,0,0,1", "nor,0,1,0", "nor,1,1,0",
+            "xnor,0,0,1", "xnor,0,1,0", "xnor,1,1,1", "xnor,Z,Z,Z"
     })
-    void twoInputTruthTables(String typeId, String first, String second, String expected) {
-        GateHarness harness = new GateHarness(typeId).set(0, parse(first)).set(1, parse(second)).advance(2);
+    void twoInputTruthTables(String name, String first, String second, String expected) {
+        GateParameters.Gate gate = GateParameters.gate(name, 2, Map.of());
+        GateHarness harness = new GateHarness(gate.typeId(), gate.parameters()).set(0, parse(first))
+                .set(1, parse(second)).advance(2);
         assertThat(harness.output(2)).isEqualTo(parse(expected));
     }
 
     @Test
     void andWithOneFloatingInputPassesTheOther() {
-        assertThat(new GateHarness("and2").set(0, Value.ONE).advance(2).output(2)).isEqualTo(Value.ONE);
+        assertThat(new GateHarness("and").set(0, Value.ONE).advance(2).output(2)).isEqualTo(Value.ONE);
     }
 
     @Test
     void wideGates() {
-        GateHarness and4 = new GateHarness("and4");
+        GateHarness and4 = new GateHarness("and", GateParameters.inputs(4));
         for (int pin = 0; pin < 4; pin++) {
             and4.set(pin, Value.ONE);
         }
         assertThat(and4.advance(2).output(4)).isEqualTo(Value.ONE);
         assertThat(and4.set(2, Value.ZERO).advance(2).output(4)).isEqualTo(Value.ZERO);
 
-        GateHarness or3 = new GateHarness("or3").set(0, Value.ZERO).set(1, Value.ZERO).set(2, Value.ONE);
+        GateHarness or3 = new GateHarness("or", GateParameters.inputs(3)).set(0, Value.ZERO).set(1, Value.ZERO).set(2, Value.ONE);
         assertThat(or3.advance(2).output(3)).isEqualTo(Value.ONE);
     }
 
     @Test
     void delayParameterIsHonored() {
-        GateHarness harness = new GateHarness("and2", Map.of("delay", 5)).set(0, Value.ONE).set(1, Value.ONE);
+        GateHarness harness = new GateHarness("and", Map.of("delay", 5)).set(0, Value.ONE).set(1, Value.ONE);
         harness.advance(0).advance(4);
         assertThat(harness.output(2)).isEqualTo(Value.HIGH_IMPEDANCE);
         assertThat(harness.advance(1).output(2)).isEqualTo(Value.ONE);
@@ -108,7 +114,7 @@ class StandardComponentTypesTest {
     @ParameterizedTest
     @CsvSource({"0,1", "1,0", "Z,Z"})
     void notGate(String input, String expected) {
-        assertThat(new GateHarness("not").set(0, parse(input)).advance(2).output(1)).isEqualTo(parse(expected));
+        assertThat(new GateHarness("buffer", GateParameters.NEGATED).set(0, parse(input)).advance(2).output(1)).isEqualTo(parse(expected));
     }
 
     @Test
@@ -137,7 +143,8 @@ class StandardComponentTypesTest {
                 List.of(new FlatComponent("clock", registry.require(StandardComponentTypes.CLOCK),
                                 Map.of("time-up", 5, "time-down", 5)),
                         new FlatComponent("flipFlop", registry.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of()),
-                        new FlatComponent("inverter", registry.require(StandardComponentTypes.NOT), Map.of())),
+                        new FlatComponent("inverter", registry.require(StandardComponentTypes.BUFFER),
+                                GateParameters.NEGATED)),
                 List.of(new FlatNet("clock", List.of(new FlatPinRef("clock", 0), new FlatPinRef("flipFlop", 2)), 1,
                                 false),
                         new FlatNet("q", List.of(new FlatPinRef("flipFlop", 1), new FlatPinRef("inverter", 0)), 1,

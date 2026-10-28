@@ -335,7 +335,7 @@ class CircuitGeneratorTest {
         long[][] gateValues = new long[network.gates().size()][];
         for (int index = 0; index < gateValues.length; index++) {
             LogicNetwork.Gate gate = network.gates().get(index);
-            String family = gate.typeId().replaceAll("\\d", "");
+            String family = gate.nameId();
             if (!families.contains(family) || gate.inputs().isEmpty()
                     || gate.inputs().size() > LogicNetwork.MAXIMUM_FAN_IN) {
                 fail("%s: gate %s with %d inputs", options, gate.typeId(), gate.inputs().size());
@@ -397,7 +397,7 @@ class CircuitGeneratorTest {
             String type = component.typeId();
             if (!type.equals(StandardComponentTypes.INPUT_PIN) && !type.equals(StandardComponentTypes.OUTPUT_PIN)
                     && !type.equals(StandardComponentTypes.CONSTANT)) {
-                counts.merge(type, 1, Integer::sum);
+                counts.merge(GateCost.key(type, component.parameters()), 1, Integer::sum);
             }
         }
         return counts;

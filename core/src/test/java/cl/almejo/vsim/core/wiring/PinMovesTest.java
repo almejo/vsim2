@@ -99,7 +99,7 @@ class PinMovesTest {
     }
 
     private Component gate(int x, int y) {
-        Component component = new Component(document.newComponentId(), StandardComponentTypes.NOT,
+        Component component = new Component(document.newComponentId(), StandardComponentTypes.BUFFER,
                 new GridPoint(x, y), Rotation.R0, Map.of(), "");
         document.add(component);
         return component;

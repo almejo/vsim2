@@ -6,11 +6,11 @@ import cl.almejo.vsim.core.logic.GeneratorOptions.GateStyle;
 import cl.almejo.vsim.core.logic.Minimization.Form;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -47,13 +47,30 @@ final class LogicNetwork {
     }
 
     /**
-     * A gate: its component type id and the signal of each input pin in order (the same signal twice for an
-     * inverter made of a NAND2 or NOR2 with tied inputs).
+     * A gate: its component type id ({@code and}, {@code or}, {@code xor} or {@code buffer}), whether its output is
+     * negated, and the signal of each input pin in order (the same signal twice for an inverter made of a NAND or NOR
+     * with tied inputs).
      */
-    record Gate(String typeId, List<Signal> inputs) {
+    record Gate(String typeId, boolean negated, List<Signal> inputs) {
 
         Gate {
             inputs = List.copyOf(inputs);
+        }
+
+        /** The parameters of the placed part: 1-bit, «Negar salida» and, for an AND/OR/XOR, «Entradas». */
+        Map<String, Object> parameters() {
+            Map<String, Object> parameters = new LinkedHashMap<>();
+            if (!typeId.equals(StandardComponentTypes.BUFFER)) {
+                parameters.put(StandardComponentTypes.GATE_INPUTS, inputs.size());
+            }
+            parameters.put(StandardComponentTypes.WIDTH, 1);
+            parameters.put(StandardComponentTypes.NEGATE, negated);
+            return Collections.unmodifiableMap(parameters);
+        }
+
+        /** The name of the part: {@code and}, {@code nand}, {@code not}, … */
+        String nameId() {
+            return StandardComponentTypes.nameId(typeId, parameters());
         }
     }
 
@@ -137,11 +154,11 @@ final class LogicNetwork {
         return outputs;
     }
 
-    /** Gate counts per type id, in the {@link GateCost} order. */
+    /** Gate counts per {@linkplain GateCost#key gate key}, in the {@link GateCost} order. */
     GateCost cost() {
         Map<String, Integer> counts = new HashMap<>();
         for (Gate gate : gates) {
-            counts.merge(gate.typeId(), 1, Integer::sum);
+            counts.merge(GateCost.key(gate.typeId(), gate.parameters()), 1, Integer::sum);
         }
         Map<String, Integer> ordered = new LinkedHashMap<>();
         counts.keySet().stream()
@@ -152,8 +169,8 @@ final class LogicNetwork {
         return new GateCost(gates.size(), ordered);
     }
 
-    private static int familyOrder(String typeId) {
-        int index = GateCost.FAMILIES.indexOf(GateCost.family(typeId).toUpperCase(Locale.ROOT));
+    private static int familyOrder(String key) {
+        int index = GateCost.FAMILIES.indexOf(GateCost.familyOfKey(key));
         return index < 0 ? GateCost.FAMILIES.size() : index;
     }
 
@@ -163,10 +180,12 @@ final class LogicNetwork {
     }
 
     static boolean isInverter(Gate gate) {
-        return gate.typeId().equals(StandardComponentTypes.NOT)
+        if (!gate.negated()) {
+            return false;
+        }
+        return gate.typeId().equals(StandardComponentTypes.BUFFER)
                 || gate.inputs().size() == 2 && gate.inputs().get(0).equals(gate.inputs().get(1))
-                && (gate.typeId().equals(LogicOperation.NAND.typeId(2))
-                || gate.typeId().equals(LogicOperation.NOR.typeId(2)));
+                && !gate.typeId().equals(StandardComponentTypes.XOR);
     }
 
     // --- the expression ---
@@ -209,9 +228,9 @@ final class LogicNetwork {
             case Expression.Not not -> not.operand() instanceof Expression.Variable variable
                     ? invert(inputSignal(variable, spec))
                     : invert(realizeWritten(not.operand(), owner, spec));
-            case Expression.And and -> tree(LogicOperation.AND, writtenSignals(and.operands(), owner, spec));
-            case Expression.Or or -> tree(LogicOperation.OR, writtenSignals(or.operands(), owner, spec));
-            case Expression.Xor xor -> tree(LogicOperation.XOR, writtenSignals(xor.operands(), owner, spec));
+            case Expression.And and -> tree(LogicOperation.AND, false, writtenSignals(and.operands(), owner, spec));
+            case Expression.Or or -> tree(LogicOperation.OR, false, writtenSignals(or.operands(), owner, spec));
+            case Expression.Xor xor -> tree(LogicOperation.XOR, false, writtenSignals(xor.operands(), owner, spec));
         };
         written.put(key, signal);
         return signal;
@@ -256,14 +275,15 @@ final class LogicNetwork {
         return switch (style) {
             case AND_OR_NOT -> complement
                     ? invert(realize(operation, false))
-                    : tree(operation.and() ? LogicOperation.AND : LogicOperation.OR, childSignals(operation, false));
+                    : tree(operation.and() ? LogicOperation.AND : LogicOperation.OR, false,
+                    childSignals(operation, false));
             // AND = NOT NAND; OR = NAND of the complements.
             case NAND_ONLY -> operation.and() == complement
-                    ? tree(LogicOperation.NAND, childSignals(operation, !operation.and()))
+                    ? tree(LogicOperation.AND, true, childSignals(operation, !operation.and()))
                     : invert(realize(operation, !complement));
             // OR = NOT NOR; AND = NOR of the complements.
             case NOR_ONLY -> operation.and() != complement
-                    ? tree(LogicOperation.NOR, childSignals(operation, operation.and()))
+                    ? tree(LogicOperation.OR, true, childSignals(operation, operation.and()))
                     : invert(realize(operation, !complement));
         };
     }
@@ -277,20 +297,20 @@ final class LogicNetwork {
     }
 
     /**
-     * One gate of {@code operation} over {@code inputs}, or a tree when there are more than four: the inputs are
-     * split into balanced groups of 2..4 whose results feed the same operation again. For NAND (NOR) the groups are
-     * ANDed (ORed) first, which is a NAND (NOR) followed by an inverter.
+     * One gate of {@code operation} ({@code negated}: NAND, NOR) over {@code inputs}, or a tree when there are more
+     * than four: the inputs are split into balanced groups of 2..4 whose results feed the same operation again. For
+     * NAND (NOR) the groups are ANDed (ORed) first, which is a NAND (NOR) followed by an inverter.
      */
-    private Signal tree(LogicOperation operation, List<Signal> inputs) {
+    private Signal tree(LogicOperation operation, boolean negated, List<Signal> inputs) {
         if (inputs.size() <= MAXIMUM_FAN_IN) {
-            return gate(operation.typeId(inputs.size()), inputs);
+            return gate(operation.typeId(), negated, inputs);
         }
         List<Signal> groups = new ArrayList<>();
         for (List<Signal> group : balancedGroups(inputs)) {
-            Signal combined = tree(operation, group);
-            groups.add(operation.negated() ? invert(combined) : combined);
+            Signal combined = tree(operation, negated, group);
+            groups.add(negated ? invert(combined) : combined);
         }
-        return tree(operation, groups);
+        return tree(operation, negated, groups);
     }
 
     /** {@code inputs} (more than four) in ⌈n/4⌉ consecutive groups whose sizes differ by at most one. */
@@ -314,16 +334,16 @@ final class LogicNetwork {
             return known;
         }
         Signal result = switch (style) {
-            case AND_OR_NOT -> gate(StandardComponentTypes.NOT, List.of(signal));
-            case NAND_ONLY -> gate(LogicOperation.NAND.typeId(2), List.of(signal, signal));
-            case NOR_ONLY -> gate(LogicOperation.NOR.typeId(2), List.of(signal, signal));
+            case AND_OR_NOT -> gate(StandardComponentTypes.BUFFER, true, List.of(signal));
+            case NAND_ONLY -> gate(StandardComponentTypes.AND, true, List.of(signal, signal));
+            case NOR_ONLY -> gate(StandardComponentTypes.OR, true, List.of(signal, signal));
         };
         inverted.put(signal, result);
         return result;
     }
 
-    private Signal gate(String typeId, List<Signal> inputs) {
-        gates.add(new Gate(typeId, inputs));
+    private Signal gate(String typeId, boolean negated, List<Signal> inputs) {
+        gates.add(new Gate(typeId, negated, inputs));
         return new GateSignal(gates.size() - 1);
     }
 }

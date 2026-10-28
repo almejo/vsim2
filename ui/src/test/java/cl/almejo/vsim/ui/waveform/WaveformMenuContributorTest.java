@@ -82,7 +82,7 @@ class WaveformMenuContributorTest {
     @Test
     void aMultiSelectionOffersEverySelectedElement() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         selection.set(List.of(toggle.id(), gate.id()));
 
         JPopupMenu menu = menuFor(Optional.of(gate));

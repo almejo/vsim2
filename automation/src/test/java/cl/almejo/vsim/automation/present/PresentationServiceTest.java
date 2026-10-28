@@ -771,7 +771,7 @@ class PresentationServiceTest {
     }
 
     private static PlacePart place(String alias, int x, int y) {
-        return new PlacePart(Optional.of(alias), "nand2", x, y, Rotation.R0, Map.of(), "");
+        return new PlacePart(Optional.of(alias), "and", x, y, Rotation.R0, Map.of("negate", true), "");
     }
 
     private final class Recorder implements PresentationListener {

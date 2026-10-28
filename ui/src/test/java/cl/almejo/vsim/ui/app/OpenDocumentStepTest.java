@@ -76,7 +76,7 @@ class OpenDocumentStepTest {
     @Test
     void aPausedClickAndAnAdvanceArePublishedAsNumberedSteps() {
         Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1), value 1
-        Component gate = place(document, StandardComponentTypes.NOT, 4, -1, Map.of());       // (4,1) → (8,1)
+        Component gate = place(document, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));       // (4,1) → (8,1)
         settleThenEnterStepMode();
         long before = document.latestSnapshot().time();
 
@@ -113,7 +113,7 @@ class OpenDocumentStepTest {
     @Test
     void restartIsNotADocumentChangeAndKeepsTheSwitchesAndTheMode() {
         Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // value 1
-        place(document, StandardComponentTypes.NOT, 4, -1, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         settleThenEnterStepMode();
         assertThat(document.latestSnapshot().time()).as("the NOT gate settled after t = 0").isPositive();
         document.interact(toggle.id());

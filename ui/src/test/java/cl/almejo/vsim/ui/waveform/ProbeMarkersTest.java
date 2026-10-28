@@ -54,7 +54,7 @@ class ProbeMarkersTest {
 
     @Test
     void aPinChannelHangsFromThePinAndAWireChannelFromTheMiddleOfTheWire() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of()); // out (8,1)
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true)); // out (8,1)
         Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(20, 20), new GridPoint(25, 20));
         openDocument.execute(new AddElementsCommand(List.of(wire)));
         setProbes(new Probe("p1", new ProbeTarget.WireTarget(wire.id()), ""), pin("p2", gate, 1, ""));
@@ -67,7 +67,7 @@ class ProbeMarkersTest {
 
     @Test
     void eachPinTakesTheSideOfTheBoxItIsOn() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of()); // box x 4–8, y -1–3
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true)); // box x 4–8, y -1–3
         Component flipFlop = place(openDocument, StandardComponentTypes.FLIP_FLOP_DATA, 20, 0, Map.of());
         setProbes(pin("p1", gate, 0, ""), pin("p2", gate, 1, ""), pin("p3", flipFlop, 2, "reloj"));
 
@@ -79,7 +79,7 @@ class ProbeMarkersTest {
 
     @Test
     void aRotatedComponentsPinMovesItsMarker() {
-        ComponentType not = openDocument.registry().require(StandardComponentTypes.NOT);
+        ComponentType not = openDocument.registry().require(StandardComponentTypes.BUFFER);
         Component turned = not.newComponent(openDocument.document().newComponentId(), new GridPoint(10, 10),
                 Rotation.R90, Map.of(), "");
         openDocument.execute(new AddElementsCommand(List.of(turned)));
@@ -94,7 +94,7 @@ class ProbeMarkersTest {
 
     @Test
     void channelsWhoseTargetIsGoneOrDoesNotResolveHaveNoMarker() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         setProbes(pin("p1", gate, 1, ""), new Probe("p2", new ProbeTarget.PinTarget(new ElementId("c9"), 0), ""),
                 new Probe("p3", new ProbeTarget.WireTarget(new ElementId("w9")), ""),
                 pin("p4", gate, 7, "no existe"));
@@ -108,7 +108,7 @@ class ProbeMarkersTest {
 
     @Test
     void twoChannelsOnOneAnchorShareOneMarkerWithBothNames() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         setProbes(pin("p1", gate, 1, ""), pin("p2", gate, 0, ""), pin("p3", gate, 1, "salida"));
 
         assertThat(markers()).containsExactly(

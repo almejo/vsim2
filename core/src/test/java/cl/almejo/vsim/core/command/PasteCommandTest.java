@@ -40,7 +40,7 @@ class PasteCommandTest {
 
     /** NOT gate (0,2), wire (4,4)-(8,4) on its output, label "nota" at (0,0). */
     private CircuitFragment fragment() {
-        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(source.newComponentId(),
+        Component gate = registry.require(StandardComponentTypes.BUFFER).newComponent(source.newComponentId(),
                 new GridPoint(10, 10), Rotation.R0, Map.of(), "U1");
         Wire wire = new Wire(source.newWireId(), new GridPoint(14, 12), new GridPoint(18, 12));
         TextLabel label = new TextLabel(source.newLabelId(), new GridPoint(10, 8), "nota");
@@ -52,7 +52,7 @@ class PasteCommandTest {
 
     @Test
     void pastesTheFragmentAtTheTargetWithFreshIds() {
-        Component resident = registry.require(StandardComponentTypes.NOT).newComponent(target.newComponentId(),
+        Component resident = registry.require(StandardComponentTypes.BUFFER).newComponent(target.newComponentId(),
                 GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
         target.add(resident);
         PasteCommand command = new PasteCommand(fragment(), new GridPoint(20, 30));

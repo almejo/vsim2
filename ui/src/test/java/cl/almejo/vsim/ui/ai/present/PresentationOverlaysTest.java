@@ -123,7 +123,7 @@ class PresentationOverlaysTest {
     }
 
     private Component newGate(int x, int y, Rotation rotation) {
-        return document.registry().require(StandardComponentTypes.AND2)
+        return document.registry().require(StandardComponentTypes.AND)
                 .newComponent(document.document().newComponentId(), new GridPoint(x, y), rotation, Map.of(), "");
     }
 
@@ -286,7 +286,7 @@ class PresentationOverlaysTest {
 
     @Test
     void aStepOnlyDeletingShowsTheDoomedPartsDimmedAndPointsAtThem() {
-        Component doomed = place(document, StandardComponentTypes.NOT, -5, -2, Map.of());
+        Component doomed = place(document, StandardComponentTypes.BUFFER, -5, -2, Map.of(StandardComponentTypes.NEGATE, true));
         plan(task);
         BufferedImage before = paint(view.canvas());
 

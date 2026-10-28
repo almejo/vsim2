@@ -124,9 +124,9 @@ class FindFeaturesTest {
 
     @Test
     void typingHighlightsEveryMatchCountsThemAndSelectsTheFirst() {
-        Component first = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
-        Component second = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
-        labeled(StandardComponentTypes.NOT, 0, 20, "X");
+        Component first = labeled(StandardComponentTypes.AND, 20, 0, "U2");
+        Component second = labeled(StandardComponentTypes.AND, 0, 0, "U1");
+        labeled(StandardComponentTypes.AND, 0, 20, "X");
         perform(features.findAction());
 
         type("u");
@@ -140,9 +140,9 @@ class FindFeaturesTest {
 
     @Test
     void enterAndF3GoForwardWrappingShiftEnterAndShiftF3GoBack() {
-        Component a = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
-        Component b = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
-        Component c = labeled(StandardComponentTypes.NOT, 0, 20, "U3");
+        Component a = labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
+        Component b = labeled(StandardComponentTypes.BUFFER, 20, 0, "U2");
+        Component c = labeled(StandardComponentTypes.BUFFER, 0, 20, "U3");
         perform(features.findAction());
         type("U");
 
@@ -168,7 +168,7 @@ class FindFeaturesTest {
 
     @Test
     void theCurrentMatchIsTravelledToFollowingThePreference() {
-        Component far = labeled(StandardComponentTypes.NOT, 200, 100, "lejos");
+        Component far = labeled(StandardComponentTypes.BUFFER, 200, 100, "lejos");
         view.canvas().setSize(400, 300);
         ManualFrameTicker ticker = new ManualFrameTicker().drive(view.canvas());
         perform(features.findAction());
@@ -186,8 +186,8 @@ class FindFeaturesTest {
 
     @Test
     void f3WithTheBarClosedOpensItAndGoesToTheNextMatch() {
-        Component a = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
-        Component b = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
+        Component a = labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
+        Component b = labeled(StandardComponentTypes.BUFFER, 20, 0, "U2");
         perform(features.findAction());
         type("U");
         press(KeyEvent.VK_ESCAPE, 0);
@@ -202,9 +202,9 @@ class FindFeaturesTest {
 
     @Test
     void reopeningTheBarGoesOnFromTheMatchTheUserWasOn() {
-        Component first = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
-        Component second = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
-        Component third = labeled(StandardComponentTypes.NOT, 40, 0, "U3");
+        Component first = labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
+        Component second = labeled(StandardComponentTypes.BUFFER, 20, 0, "U2");
+        Component third = labeled(StandardComponentTypes.BUFFER, 40, 0, "U3");
         perform(features.findAction());
         type("U");
         press(KeyEvent.VK_ENTER, 0);
@@ -227,9 +227,9 @@ class FindFeaturesTest {
 
     @Test
     void f3WhenTheMatchOfBeforeIsGoneStartsAtTheFirstAndMayusF3AtTheLast() {
-        Component first = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
-        Component second = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
-        Component third = labeled(StandardComponentTypes.NOT, 40, 0, "U3");
+        Component first = labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
+        Component second = labeled(StandardComponentTypes.BUFFER, 20, 0, "U2");
+        Component third = labeled(StandardComponentTypes.BUFFER, 40, 0, "U3");
         perform(features.findAction());
         type("U");
         press(KeyEvent.VK_ENTER, 0); // on U2
@@ -241,7 +241,7 @@ class FindFeaturesTest {
 
         press(KeyEvent.VK_ESCAPE, 0);
         openDocument.execute(new RemoveElementsCommand(List.of(first.id())));
-        labeled(StandardComponentTypes.NOT, 60, 0, "U4");
+        labeled(StandardComponentTypes.BUFFER, 60, 0, "U4");
         perform(features.findPreviousAction());
         assertThat(features.current().orElseThrow().matchedText()).isEqualTo("U4");
         assertThat(third).isNotNull();
@@ -281,7 +281,7 @@ class FindFeaturesTest {
 
     @Test
     void noMatchTurnsTheFieldRedWithSinResultados() {
-        labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
         perform(features.findAction());
 
         type("zzz");
@@ -297,7 +297,7 @@ class FindFeaturesTest {
 
     @Test
     void anInvalidRegexTurnsTheFieldRedSaysWhyAndClearsTheHighlights() {
-        labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
         perform(features.findAction());
         type("U(");
         assertThat(features.overlay().highlighted()).isEmpty(); // plain text: no «U(» anywhere
@@ -316,9 +316,9 @@ class FindFeaturesTest {
 
     @Test
     void aRegexThatGivesUpSaysSoAndHighlightsNothing() {
-        labeled(StandardComponentTypes.NOT, 0, 0, "aa"); // matches cheaply, before the costly labels
+        labeled(StandardComponentTypes.BUFFER, 0, 0, "aa"); // matches cheaply, before the costly labels
         for (int index = 0; index < 300; index++) {
-            labeled(StandardComponentTypes.NOT, 0, 10 + 10 * index, "a".repeat(20) + "!");
+            labeled(StandardComponentTypes.BUFFER, 0, 10 + 10 * index, "a".repeat(20) + "!");
         }
         preferences.setFindMatchCase(true);
         preferences.setFindRegex(true);
@@ -340,7 +340,7 @@ class FindFeaturesTest {
                 ExampleDefinitions.doubleInverter())));
         labeled(SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 4, 4, "D");
         perform(features.findAction());
-        type("not"); // the NOT inside each of the two unlabeled «Inversor» parts
+        type("buffer"); // the Buffer inside each of the two unlabeled «Inversor» parts
         assertThat(features.hits()).hasSize(2);
         press(KeyEvent.VK_ENTER, 0);
         assertThat(features.bar().counterText()).isEqualTo("2 de 2");
@@ -352,8 +352,8 @@ class FindFeaturesTest {
 
     @Test
     void theOptionTogglesChangeTheResultsPersistAndFollowOtherViews() {
-        labeled(StandardComponentTypes.NOT, 0, 0, "abc");
-        labeled(StandardComponentTypes.NOT, 20, 0, "ABC");
+        labeled(StandardComponentTypes.BUFFER, 0, 0, "abc");
+        labeled(StandardComponentTypes.BUFFER, 20, 0, "ABC");
         perform(features.findAction());
         type("abc");
         assertThat(features.hits()).hasSize(2);
@@ -392,7 +392,7 @@ class FindFeaturesTest {
 
     @Test
     void escapeOrTheCloseButtonClosesTheBarClearsTheHighlightsAndFocusesTheCanvas() {
-        labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
         perform(features.findAction());
         type("U");
         assertThat(features.overlay().highlighted()).hasSize(1);
@@ -414,9 +414,9 @@ class FindFeaturesTest {
 
     @Test
     void editsWhileOpenKeepTheCountAndTheCurrentMatchCoherent() {
-        Component a = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
-        Component b = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
-        Component c = labeled(StandardComponentTypes.NOT, 0, 20, "U3");
+        Component a = labeled(StandardComponentTypes.AND, 0, 0, "U1");
+        Component b = labeled(StandardComponentTypes.AND, 20, 0, "U2");
+        Component c = labeled(StandardComponentTypes.AND, 0, 20, "U3");
         perform(features.findAction());
         type("U");
         perform(features.findNextAction());
@@ -431,7 +431,7 @@ class FindFeaturesTest {
         assertThat(features.bar().counterText()).isEqualTo("1 de 1");
         assertThat(currentIds()).containsExactly(c.id()); // still matches: it stays current
 
-        Component d = labeled(StandardComponentTypes.NOT, 0, -20, "U4");
+        Component d = labeled(StandardComponentTypes.AND, 0, -20, "U4");
         assertThat(features.bar().counterText()).isEqualTo("2 de 2");
         assertThat(currentIds()).containsExactly(c.id());
         assertThat(features.hits().get(0).elementId()).isEqualTo(d.id());
@@ -451,11 +451,11 @@ class FindFeaturesTest {
         Component instance = labeled(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 4, 4, "U3");
         perform(features.findAction());
 
-        type("not");
+        type("buffer");
 
         assertThat(currentIds()).containsExactly(instance.id());
         assertThat(view.canvas().selection().ids()).containsExactly(instance.id());
-        assertThat(features.bar().messageText()).isEqualTo("«NOT», dentro de «Inversor» (U3)");
+        assertThat(features.bar().messageText()).isEqualTo("«Buffer», dentro de «Inversor» (U3)");
     }
 
     @Test
@@ -519,7 +519,7 @@ class FindFeaturesTest {
 
     private void reopenWithTextAndCheckTheViewEndsOnTheMatch(boolean animate) {
         preferences.setAnimateViewMoves(animate);
-        Component far = labeled(StandardComponentTypes.NOT, 300, 200, "lejos");
+        Component far = labeled(StandardComponentTypes.BUFFER, 300, 200, "lejos");
         JPanel window = new JPanel(new java.awt.BorderLayout());
         window.add(view);
         window.setSize(900, 600);

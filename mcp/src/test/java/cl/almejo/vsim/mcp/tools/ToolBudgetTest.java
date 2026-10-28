@@ -64,7 +64,7 @@ class ToolBudgetTest {
                 "operationId", "and-1", "taskId", taskId, "operations", List.of(
                         Map.of("op", "PlacePart", "alias", "a", "typeId", "switch", "x", 0, "y", 0, "label", "A"),
                         Map.of("op", "PlacePart", "alias", "b", "typeId", "switch", "x", 0, "y", 8, "label", "B"),
-                        Map.of("op", "PlacePart", "alias", "and", "typeId", "and2", "x", 12, "y", 2),
+                        Map.of("op", "PlacePart", "alias", "and", "typeId", "and", "x", 12, "y", 2),
                         Map.of("op", "PlacePart", "alias", "y", "typeId", "led", "x", 24, "y", 3, "label", "Y"),
                         Map.of("op", "Connect", "from", Map.of("target", "new:a", "pinName", "out"),
                                 "to", Map.of("target", "new:and", "pinName", "in0")),

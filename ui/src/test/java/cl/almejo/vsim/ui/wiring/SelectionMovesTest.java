@@ -35,7 +35,7 @@ class SelectionMovesTest {
 
     @BeforeEach
     void create() {
-        gate = place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of());
+        gate = place(openDocument, StandardComponentTypes.BUFFER, 10, 10, Map.of(StandardComponentTypes.NEGATE, true));
         addWire(openDocument, 14, 12, 30, 12);
         place(openDocument, StandardComponentTypes.LED, 29, 9, Map.of());
     }

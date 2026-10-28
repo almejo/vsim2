@@ -113,7 +113,7 @@ class ActionIconsTest {
     void theUndoTooltipFollowsTheNameOfTheStepItWouldUndo() {
         AbstractButton undo = toolbarButton(view, view.actions().undo());
         String before = undo.getToolTipText();
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(undo.getToolTipText()).isEqualTo(view.actions().undo().getValue(Action.NAME))
                 .isNotEqualTo(before);
     }
@@ -127,7 +127,7 @@ class ActionIconsTest {
             AbstractButton undo = toolbarButton(plain, plain.actions().undo());
             removal.run();
             String before = undo.getToolTipText();
-            place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+            place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
             assertThat(plain.actions().undo().getValue(Action.NAME)).isNotEqualTo(before);
             assertThat(undo.getToolTipText()).isEqualTo(before);
         } finally {

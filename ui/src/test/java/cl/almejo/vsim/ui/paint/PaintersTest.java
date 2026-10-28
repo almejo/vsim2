@@ -255,7 +255,7 @@ class PaintersTest {
 
     @Test
     void componentIconPaintsInsideItsSize() {
-        ComponentType type = registry.require(StandardComponentTypes.AND2);
+        ComponentType type = registry.require(StandardComponentTypes.AND);
         ComponentIcon icon = new ComponentIcon(type, painters.painterFor(type.id()), SCHEME, 24);
         BufferedImage image = new BufferedImage(40, 40, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
@@ -364,7 +364,7 @@ class PaintersTest {
     @Test
     void pinMarksOnThePlacaBoardArePaintedInThePadColour() {
         List<Map.Entry<String, Map<String, Object>>> parts = List.of(
-                Map.entry(StandardComponentTypes.AND2, Map.of()),
+                Map.entry(StandardComponentTypes.AND, Map.of()),
                 Map.entry(StandardComponentTypes.TUNNEL_ENTRANCE, Map.of()),
                 Map.entry(StandardComponentTypes.TUNNEL_EXIT, Map.of()),
                 Map.entry(InterfacePins.INPUT_PIN, Map.of(InterfacePins.WIDTH, 8)));
@@ -384,7 +384,7 @@ class PaintersTest {
     void theLeadsKeepTheOutlineColourWhenThePinsHaveTheirOwn() {
         ColorScheme magentaPins = ColorScheme.LIGHT.with(ColorRole.PAD, Color.MAGENTA)
                 .with(ColorRole.COMPONENT_STROKE, Color.BLACK).with(ColorRole.BACKGROUND, Color.WHITE);
-        Component gate = placed(StandardComponentTypes.AND2, Map.of());
+        Component gate = placed(StandardComponentTypes.AND, Map.of());
         BufferedImage image = drawOn(magentaPins, gate);
         GridPoint input = registry.typeOf(gate).pinLocation(gate, 0);
         Color lead = new Color(image.getRGB(input.x() * UNIT + 4, input.y() * UNIT));

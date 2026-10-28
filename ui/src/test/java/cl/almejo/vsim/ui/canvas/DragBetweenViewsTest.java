@@ -66,7 +66,7 @@ class DragBetweenViewsTest {
         firstView = viewOf(first);
         firstOtherView = viewOf(first);
         secondView = viewOf(second);
-        gate = place(first, StandardComponentTypes.NOT, 5, 5, Map.of());
+        gate = place(first, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     @AfterEach

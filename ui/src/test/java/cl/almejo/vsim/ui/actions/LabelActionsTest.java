@@ -65,7 +65,7 @@ class LabelActionsTest {
 
 
     private Component gate() {
-        return place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        return place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     private Component labelOf(Component component) {
@@ -258,7 +258,7 @@ class LabelActionsTest {
 
     @Test
     void aSidewaysLabelEditorGrowsToTheLeftAwayFromTheBody() {
-        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.NOT,
+        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.BUFFER,
                 new GridPoint(10, 10), cl.almejo.vsim.core.geometry.Rotation.R90, Map.of(), "U1");
         openDocument.execute(new AddElementsCommand(List.of(gate)));
         actions.editLabel(gate);
@@ -277,7 +277,7 @@ class LabelActionsTest {
     /** M6.8: a moved label is drawn centred on its place, so its editor sits over it and grows both ways. */
     @Test
     void aMovedLabelEditorSitsOverTheLabelAndStaysCentred() {
-        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.NOT,
+        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.BUFFER,
                 new GridPoint(10, 10), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "U1",
                 java.util.Optional.of(new cl.almejo.vsim.core.document.LabelOffset(2, 9)));
         openDocument.execute(new AddElementsCommand(List.of(gate)));
@@ -298,7 +298,7 @@ class LabelActionsTest {
     /** The automatic label of an unrotated component is centred above the body, so its editor grows both ways. */
     @Test
     void anAutomaticLabelAboveTheBodyKeepsItsEditorCentred() {
-        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.NOT,
+        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.BUFFER,
                 new GridPoint(10, 10), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "U1");
         openDocument.execute(new AddElementsCommand(List.of(gate)));
         actions.editLabel(gate);

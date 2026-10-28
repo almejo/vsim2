@@ -193,7 +193,7 @@ class AutomationPresentationControlsTest {
         long version = host.onEditorThread(access -> circuit.contentVersion()).get(5, TimeUnit.SECONDS);
         api.editStep(new EditRequest(id, new DocumentVersion(version), operationId,
                 Optional.of(new TaskStep(story.taskId(), stage, "Coloco la NAND", "Coloco la NAND")),
-                List.of(new EditOperation.PlacePart(Optional.empty(), "nand2", x, 4, Rotation.R0, Map.of(), "")),
+                List.of(new EditOperation.PlacePart(Optional.empty(), "and", x, 4, Rotation.R0, Map.of("negate", true), "")),
                 false), Optional.empty());
         controls.next(story.taskId());
         assertThat(api.awaitStep(story.taskId(), Duration.ofSeconds(5)).status()).isEqualTo(StepStatus.APPLIED);
@@ -227,7 +227,7 @@ class AutomationPresentationControlsTest {
         long version = host.onEditorThread(access -> circuit.contentVersion()).get(5, TimeUnit.SECONDS);
         return new EditRequest(id, new DocumentVersion(version), operationId,
                 Optional.of(new TaskStep(task.taskId(), "Compuertas", "Coloco la NAND", "Coloco la NAND")),
-                List.of(new EditOperation.PlacePart(Optional.of("gate"), "nand2", 0, 0, Rotation.R0, Map.of(), "")),
+                List.of(new EditOperation.PlacePart(Optional.of("gate"), "and", 0, 0, Rotation.R0, Map.of("negate", true), "")),
                 false);
     }
 

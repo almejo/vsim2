@@ -98,7 +98,7 @@ class EditorAutomationHostTest {
         OpenDocument adder = document("Sumador");
         DocumentSummary before = list().get(0);
 
-        SwingUtilities.invokeAndWait(() -> place(adder, StandardComponentTypes.NOT, 0, 0, Map.of()));
+        SwingUtilities.invokeAndWait(() -> place(adder, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true)));
         DocumentSummary after = list().get(0);
 
         assertThat(after.id()).isEqualTo(before.id());

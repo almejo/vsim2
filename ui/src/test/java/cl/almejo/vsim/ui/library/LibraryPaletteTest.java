@@ -202,7 +202,7 @@ class LibraryPaletteTest {
         putAndPlace(ExampleDefinitions.doubleInverter(), ExampleDefinitions.inverter());
         Object model = PalettePanelAccess.treeModel(fixture.view.palette());
 
-        fixture.place(StandardComponentTypes.NOT, 20, 20, "");
+        fixture.place(StandardComponentTypes.BUFFER, 20, 20, "");
 
         assertThat(PalettePanelAccess.treeModel(fixture.view.palette())).isSameAs(model);
     }

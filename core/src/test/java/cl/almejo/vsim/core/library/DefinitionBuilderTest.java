@@ -43,7 +43,7 @@ class DefinitionBuilderTest {
         Component highInput = place(registry, document, InterfacePins.INPUT_PIN, 4, 2, "a");
         Component sameRowLeft = place(registry, document, InterfacePins.INPUT_PIN, 0, 2, "c");
         Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 20, 4, "y");
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 10, 0, "");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 10, 0, "");
 
         PinOrder order = DefinitionBuilder.defaultPinOrder(document,
                 ids(lowInput, highInput, sameRowLeft, output, gate));
@@ -64,7 +64,7 @@ class DefinitionBuilderTest {
     @Test
     void aSelectionBecomesADefinitionWithItsBodyMovedToTheOrigin() {
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 12, 10, "");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 12, 10, "");
         Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         List<ElementId> selection = ids(input, gate, output);
 
@@ -108,7 +108,7 @@ class DefinitionBuilderTest {
     @Test
     void aStickyNoteInTheSelectionStaysOutOfTheDefinitionAndItsBounds() {
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 12, 10, "");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 12, 10, "");
         Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         List<ElementId> selection = ids(input, gate, output);
         DefinitionBundle without = DefinitionBuilder.fromSelection(document, selection, "negador", "Negador",
@@ -130,7 +130,7 @@ class DefinitionBuilderTest {
     void renamedPinsNameTheDefinitionsPinsAndItsBodyButNotTheUsersCircuit() {
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
         Component blank = place(registry, document, InterfacePins.INPUT_PIN, 10, 13, "");
-        Component gate = place(registry, document, StandardComponentTypes.AND2, 12, 10, "");
+        Component gate = place(registry, document, StandardComponentTypes.AND, 12, 10, "");
         Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         List<ElementId> selection = ids(input, blank, gate, output);
 
@@ -246,7 +246,7 @@ class DefinitionBuilderTest {
 
     @Test
     void aSelectionWithoutInterfacePinsOrAWrongOrderIsRejected() {
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 0, 0, "");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 0, 0, "");
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 1, "a");
         PinOrder none = new PinOrder(List.of(), List.of());
         assertThatThrownBy(() -> DefinitionBuilder.fromSelection(document, ids(gate), "x", "X", none, registry))

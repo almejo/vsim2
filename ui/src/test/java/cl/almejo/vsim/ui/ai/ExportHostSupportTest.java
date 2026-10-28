@@ -92,7 +92,7 @@ class ExportHostSupportTest {
         exports = new ExportHostSupport(open -> List.copyOf(windows), () -> home, Runnable::run,
                 SwingUtilities::invokeLater, Clock.fixed(Instant.parse("2026-10-21T12:00:00Z"), ZoneOffset.UTC),
                 opener);
-        onEditor(() -> place(document, StandardComponentTypes.NAND2, 0, 0, Map.of()));
+        onEditor(() -> place(document, StandardComponentTypes.AND, 0, 0, Map.of(StandardComponentTypes.NEGATE, true)));
         AtomicReference<EditorView> created = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             EditorServices services = new EditorServices(PainterRegistry.standard(),
@@ -240,7 +240,7 @@ class ExportHostSupportTest {
     @Test
     void theOnlyElementsExportedAreTheOnesNamed() throws Exception {
         preferences.setExportDirectory(remembered);
-        Component second = onEditor(() -> place(document, StandardComponentTypes.NAND2, 40, 0, Map.of()));
+        Component second = onEditor(() -> place(document, StandardComponentTypes.AND, 40, 0, Map.of(StandardComponentTypes.NEGATE, true)));
 
         ExportReceipt all = export(request(ExportRequest.Format.PNG, new ExportRequest.Scope.WholeCircuit()));
         ExportReceipt one = export(request(ExportRequest.Format.PNG,

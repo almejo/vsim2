@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.within;
 
 class LabelLayoutTest {
 
-    private final ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.NOT);
+    private final ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.BUFFER);
 
     @AfterEach
     void restoreTheFont() {

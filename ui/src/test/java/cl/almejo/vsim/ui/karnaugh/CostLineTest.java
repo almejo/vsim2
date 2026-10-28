@@ -15,6 +15,8 @@ class CostLineTest {
         assertThat(CostLine.text(Map.of("not", 1, "or4", 1, "and2", 2, "and3", 1, "constant", 1)))
                 .isEqualTo("3 AND, 1 OR, 1 NOT (5 compuertas)");
         assertThat(CostLine.text(Map.of("nor2", 1))).isEqualTo("1 NOR (1 compuerta)");
+        assertThat(CostLine.text(Map.of("xnor3", 1, "xor2", 2, "nand4", 1)))
+                .isEqualTo("1 NAND, 2 XOR, 1 XNOR (4 compuertas)");
         assertThat(CostLine.text(Map.of())).isEqualTo("Sin compuertas: cada salida es una entrada o una constante");
     }
 

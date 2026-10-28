@@ -44,7 +44,7 @@ class DragContactsTest {
 
     @BeforeEach
     void create() {
-        gate = place(context.openDocument(), StandardComponentTypes.NOT, 10, 10, Map.of());
+        gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 10, 10, Map.of(StandardComponentTypes.NEGATE, true));
         lamp = place(context.openDocument(), StandardComponentTypes.LED, 29, 9, Map.of());
         addWire(context.openDocument(), 14, 12, 30, 12);
         addWire(context.openDocument(), 10, 15, 10, 25);
@@ -164,7 +164,7 @@ class DragContactsTest {
     @Test
     void aFloatingPasteShowsTheContactsOfItsGhost() {
         CircuitFragment fragment = new CircuitFragment(List.of(context.openDocument().registry()
-                .require(StandardComponentTypes.NOT)
+                .require(StandardComponentTypes.BUFFER)
                 .newComponent(new ElementId("c1"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "")), List.of(),
                 List.of());
         FloatingSelectionTool floating = new FloatingSelectionTool(fragment, new GridPoint(40, 40));
@@ -181,7 +181,7 @@ class DragContactsTest {
     @Test
     void placingAComponentShowsTheContactsOfItsGhost() {
         PlaceComponentTool placing = new PlaceComponentTool(context.openDocument().registry()
-                .require(StandardComponentTypes.NOT));
+                .require(StandardComponentTypes.BUFFER));
         placing.mouseMoved(context, TestToolContext.at(10, 18));
 
         assertThat(points(placing.contacts(context))).containsExactly(ON_THE_CROSSING_WIRE);

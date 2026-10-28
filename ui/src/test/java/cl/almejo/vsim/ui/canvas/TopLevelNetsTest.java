@@ -38,7 +38,7 @@ class TopLevelNetsTest {
 
     @Test
     void aCircuitWithoutTemplatesMergesNothing() {
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
 
         TopLevelNets merged = TopLevelNets.of(openDocument.document(), openDocument.netlist(),
                 openDocument.registry());

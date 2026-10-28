@@ -89,7 +89,7 @@ class PolishEndToEndTest {
     void liveNamesSurviveSaveAndReopenAndMarkersAndTheZoomLabelWork() throws Exception {
         OpenDocument original = track(OpenDocument.createEmpty(registry));
         Component toggle = place(original, StandardComponentTypes.SWITCH, 0, 10, Map.of()); // out (4,11)
-        Component gate = place(original, StandardComponentTypes.NOT, 4, 9, Map.of());       // (4,11) → (8,11)
+        Component gate = place(original, StandardComponentTypes.BUFFER, 4, 9, Map.of(StandardComponentTypes.NEGATE, true));       // (4,11) → (8,11)
         ProbeActions actions = new ProbeActions(original);
         List<String> ids = actions.addSelection(List.of(toggle.id(), gate.id())).addedIds();
         original.execute(new SetLabelCommand(gate.id(), "A"));
@@ -97,7 +97,7 @@ class PolishEndToEndTest {
         Path file = directory.resolve("cadena.vsim");
         original.save(file);
         String saved = Files.readString(file);
-        assertThat(saved).contains("\"formatVersion\" : 3").doesNotContain("A.out");
+        assertThat(saved).contains("\"formatVersion\" : 4").doesNotContain("A.out");
         assertThat(saved.replaceAll("\\s", "")).as("the live name is left out")
                 .contains("{\"id\":\"p1\",\"name\":\"entrada\",\"component\":\"c1\",\"pin\":0}")
                 .contains("{\"id\":\"p2\",\"component\":\"c2\",\"pin\":1}");

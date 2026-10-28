@@ -208,7 +208,8 @@ class SimulationThreadStepTest {
                 new FlatComponent("k", standard.require(StandardComponentTypes.CLOCK),
                         Map.of("time-up", 3, "time-down", 2)),
                 new FlatComponent("ff", standard.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of("delay", 1)),
-                new FlatComponent("not", standard.require(StandardComponentTypes.NOT), Map.of("delay", 1))),
+                new FlatComponent("not", standard.require(StandardComponentTypes.BUFFER),
+                        Map.of("delay", 1, StandardComponentTypes.NEGATE, true))),
                 List.of(new FlatNet("clock", List.of(new FlatPinRef("k", 0), new FlatPinRef("ff", 2)), 1, false),
                         new FlatNet("q", List.of(new FlatPinRef("ff", 1), new FlatPinRef("not", 0)), 1, false),
                         new FlatNet("nq", List.of(new FlatPinRef("not", 1), new FlatPinRef("ff", 0)), 1, false)));

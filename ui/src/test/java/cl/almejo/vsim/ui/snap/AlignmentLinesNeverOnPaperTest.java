@@ -67,7 +67,7 @@ class AlignmentLinesNeverOnPaperTest {
     void create() {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         for (GridPoint position : List.of(new GridPoint(0, 0), new GridPoint(20, 10))) {
-            Component gate = openDocument.registry().require(StandardComponentTypes.NOT)
+            Component gate = openDocument.registry().require(StandardComponentTypes.BUFFER)
                     .newComponent(openDocument.document().newComponentId(), position, Rotation.R0, Map.of(), "");
             openDocument.document().add(gate);
         }

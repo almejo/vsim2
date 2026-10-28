@@ -448,9 +448,9 @@ class CanvasTravelTest {
         List<String> placed = new java.util.ArrayList<>();
         canvas.addPlacementListener(type -> placed.add(type.id()));
 
-        new CrossPaneContext(canvas, canvas).componentPlaced(openDocument.registry().require("and3"));
+        new CrossPaneContext(canvas, canvas).componentPlaced(openDocument.registry().require("and"));
 
-        assertThat(placed).containsExactly("and3");
+        assertThat(placed).containsExactly("and");
     }
 
     @Test

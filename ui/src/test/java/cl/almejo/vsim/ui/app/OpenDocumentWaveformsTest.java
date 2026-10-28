@@ -64,7 +64,7 @@ class OpenDocumentWaveformsTest {
     @Test
     void aProbeIsResolvedRecordedAndFollowsDeletionAndUndo() {
         Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1), value 1
-        Component gate = place(document, StandardComponentTypes.NOT, 4, -1, Map.of());       // (4,1) → (8,1)
+        Component gate = place(document, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));       // (4,1) → (8,1)
         Probe probe = addProbe(gate, 1);
         String netId = document.netlist().netForPin(new PinRef(gate.id(), 1)).orElseThrow().id().value();
 
@@ -126,7 +126,7 @@ class OpenDocumentWaveformsTest {
     @Test
     void aFileSavedWithDefaultNamesOpensWithLiveNamesAndUnmodified(@TempDir Path folder) throws Exception {
         CircuitDocument saved = new CircuitDocument();
-        Component gate = document.registry().require(StandardComponentTypes.NOT).newComponent(saved.newComponentId(),
+        Component gate = document.registry().require(StandardComponentTypes.BUFFER).newComponent(saved.newComponentId(),
                 new GridPoint(4, -1), Rotation.R0, Map.of(), "");
         saved.add(gate);
         saved.setProbes(List.of(new Probe("p1", new ProbeTarget.PinTarget(gate.id(), 1), "c1.out"),
@@ -146,7 +146,7 @@ class OpenDocumentWaveformsTest {
     @Test
     void aRecoveredCopyWithDefaultNamesGetsLiveNamesAndStaysModified(@TempDir Path folder) throws Exception {
         CircuitDocument saved = new CircuitDocument();
-        Component gate = StandardComponentTypes.registry().require(StandardComponentTypes.NOT)
+        Component gate = StandardComponentTypes.registry().require(StandardComponentTypes.BUFFER)
                 .newComponent(saved.newComponentId(), new GridPoint(4, -1), Rotation.R0, Map.of(), "");
         saved.add(gate);
         saved.setProbes(List.of(new Probe("p1", new ProbeTarget.PinTarget(gate.id(), 1), "c1.out"),

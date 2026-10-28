@@ -110,26 +110,26 @@ class ComponentTreePanelTest {
     @Test
     void showsTheDocumentAndFollowsItsChanges() {
         assertThat(panel.rowText("/")).contains("Sin título");
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
-        assertThat(panel.rowText(gate.id().value())).contains("NOT");
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
+        assertThat(panel.rowText(gate.id().value())).contains("Buffer");
         openDocument.history().undo();
         assertThat(panel.rowText(gate.id().value())).isEmpty();
     }
 
     @Test
     void groupByTypeRebuildsTheTreeInGroups() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         panel.groupByTypeToggle().setSelected(true);
-        assertThat(panel.rowText("/not")).contains("NOT (1)");
+        assertThat(panel.rowText("/buffer")).contains("Buffer (1)");
         assertThat(panel.treePath(gate.id().value()).orElseThrow().getPathCount()).isEqualTo(3);
         panel.groupByTypeToggle().setSelected(false);
-        assertThat(panel.rowText("/not")).isEmpty();
+        assertThat(panel.rowText("/buffer")).isEmpty();
         assertThat(panel.treePath(gate.id().value()).orElseThrow().getPathCount()).isEqualTo(2);
     }
 
     @Test
     void choosingATopLevelRowSelectsAndCentersItsComponent() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         panel.tree().setSelectionPath(panel.treePath(gate.id().value()).orElseThrow());
         assertThat(canvas.selection().ids()).containsExactly(gate.id());
         Point2D middle = center(ElementBounds.of(gate, openDocument.registry()));
@@ -139,7 +139,7 @@ class ComponentTreePanelTest {
 
     @Test
     void theTreeCentresOnWhatIsDrawnLikeTheFindBar() {
-        Component gate = labeled(StandardComponentTypes.NOT, 20, 10, "Una etiqueta bastante larga");
+        Component gate = labeled(StandardComponentTypes.BUFFER, 20, 10, "Una etiqueta bastante larga");
         Bounds drawn = DrawnBounds.of(openDocument.document().component(gate.id()).orElseThrow(),
                 openDocument.registry());
         assertThat(drawn).isNotEqualTo(ElementBounds.of(gate, openDocument.registry()));
@@ -153,7 +153,7 @@ class ComponentTreePanelTest {
 
     @Test
     void choosingARowTravelsToItsComponentWhenViewMovesAreAnimated() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.setAnimateViewMoves(() -> true);
         ManualFrameTicker ticker = new ManualFrameTicker().drive(canvas);
         Point2D origin = canvas.viewport().gridToScreen(0, 0);
@@ -182,7 +182,7 @@ class ComponentTreePanelTest {
     @Test
     void aRebuildKeepsExpandedAndChosenRowsWithoutMovingTheView() {
         Component instance = inverterInstance();
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         panel.tree().expandPath(panel.treePath(instance.id().value()).orElseThrow());
         panel.tree().setSelectionPath(panel.treePath(gate.id().value()).orElseThrow());
         canvas.viewport().panBy(30, 0);
@@ -260,14 +260,14 @@ class ComponentTreePanelTest {
         panel.showSnapshot(snapshotWith(Map.of(input, new VisibleState.LedState(Value.ONE))));
         assertThat(panel.rowText(input)).contains("a · Pin de entrada = 1");
 
-        place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of()); // bumps the token and rebuilds
+        place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true)); // bumps the token and rebuilds
         assertThat(panel.rowText(input)).contains("a · Pin de entrada");
     }
 
     @Test
     void aDisposedPanelStopsFollowingTheDocument() {
         panel.dispose();
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(panel.rowText(gate.id().value())).isEmpty();
     }
     private Component labeled(String typeId, int x, int y, String label) {
@@ -279,13 +279,13 @@ class ComponentTreePanelTest {
     @Test
     void theFilterKeepsTheMatchingRowsAndTheirAncestorsExpanded() {
         Frame block = addFrame(0, 0, 30, 20, "ALU");
-        Component inside = labeled(StandardComponentTypes.NOT, 10, 8, "U1");
-        Component outside = labeled(StandardComponentTypes.AND2, 60, 8, "U2");
-        Component instance = inverterInstance(); // at (4, -1), outside the frame; its part c2 is a NOT
+        Component inside = labeled(StandardComponentTypes.BUFFER, 10, 8, "U1");
+        Component outside = labeled(StandardComponentTypes.AND, 60, 8, "U2");
+        Component instance = inverterInstance(); // at (4, -1), outside the frame; its part c2 is a Buffer
         String framePath = ComponentTreeNode.framePath(block.id());
         String nestedNot = InstancePath.child(instance.id().value(), "c2");
 
-        panel.filterField().setText("not");
+        panel.filterField().setText("buffer");
 
         assertThat(panel.rowText(inside.id().value())).isPresent();
         assertThat(panel.rowText(nestedNot)).isPresent();
@@ -303,14 +303,14 @@ class ComponentTreePanelTest {
     @Test
     void clearingTheFilterRestoresTheExpansionOfBefore() {
         Frame block = addFrame(0, 0, 30, 20, "ALU");
-        labeled(StandardComponentTypes.NOT, 10, 8, "U1");
+        labeled(StandardComponentTypes.BUFFER, 10, 8, "U1");
         Component instance = inverterInstance();
         String framePath = ComponentTreeNode.framePath(block.id());
         panel.tree().expandPath(panel.treePath(framePath).orElseThrow());
         panel.tree().collapsePath(panel.treePath(instance.id().value()).orElseThrow());
 
         panel.filterField().setText("no");
-        panel.filterField().setText("not");
+        panel.filterField().setText("buffer");
         assertThat(panel.tree().isExpanded(panel.treePath(instance.id().value()).orElseThrow())).isTrue();
         panel.filterField().setText("");
 
@@ -321,8 +321,8 @@ class ComponentTreePanelTest {
 
     @Test
     void theFilterFollowsTheEditsAndTheFindOptions() {
-        Component lower = labeled(StandardComponentTypes.NOT, 0, 0, "abc");
-        Component upper = labeled(StandardComponentTypes.NOT, 20, 0, "ABC");
+        Component lower = labeled(StandardComponentTypes.BUFFER, 0, 0, "abc");
+        Component upper = labeled(StandardComponentTypes.BUFFER, 20, 0, "ABC");
         panel.filterField().setText("abc");
         assertThat(panel.rowText(upper.id().value())).isPresent();
 
@@ -347,9 +347,9 @@ class ComponentTreePanelTest {
 
     @Test
     void aFilterRegexThatGivesUpKeepsNoRows() {
-        Component cheap = labeled(StandardComponentTypes.NOT, 0, 0, "aa");
+        Component cheap = labeled(StandardComponentTypes.BUFFER, 0, 0, "aa");
         for (int index = 0; index < 300; index++) {
-            labeled(StandardComponentTypes.NOT, 0, 10 + 10 * index, "a".repeat(20) + "!");
+            labeled(StandardComponentTypes.BUFFER, 0, 10 + 10 * index, "a".repeat(20) + "!");
         }
         preferences.setFindMatchCase(true);
         preferences.setFindRegex(true);
@@ -364,28 +364,28 @@ class ComponentTreePanelTest {
 
     @Test
     void groupCountsCountTheRowsTheFilterKeeps() {
-        labeled(StandardComponentTypes.NOT, 0, 0, "U1");
-        labeled(StandardComponentTypes.NOT, 20, 0, "X");
-        labeled(StandardComponentTypes.NOT, 40, 0, "U2");
+        labeled(StandardComponentTypes.AND, 0, 0, "U1");
+        labeled(StandardComponentTypes.AND, 20, 0, "X");
+        labeled(StandardComponentTypes.AND, 40, 0, "U2");
         panel.groupByTypeToggle().setSelected(true);
-        assertThat(panel.rowText("/not")).contains("NOT (3)");
+        assertThat(panel.rowText("/and")).contains("AND (3)");
 
         panel.filterField().setText("U");
-        assertThat(panel.rowText("/not")).contains("NOT (2)");
+        assertThat(panel.rowText("/and")).contains("AND (2)");
 
-        panel.filterField().setText("not"); // the group's type: every row it holds matches
-        assertThat(panel.rowText("/not")).contains("NOT (3)");
+        panel.filterField().setText("and"); // the group's type: every row it holds matches
+        assertThat(panel.rowText("/and")).contains("AND (3)");
         panel.filterField().setText("");
-        assertThat(panel.rowText("/not")).contains("NOT (3)");
+        assertThat(panel.rowText("/and")).contains("AND (3)");
     }
 
     @Test
     void theFilterAndTheFindBarAgreeOnWhatMatches() {
         addFrame(0, 0, 30, 20, "Sumador");
-        labeled(StandardComponentTypes.NOT, 10, 8, "suma");
-        labeled(StandardComponentTypes.AND2, 60, 8, "");
+        labeled(StandardComponentTypes.BUFFER, 10, 8, "suma");
+        labeled(StandardComponentTypes.AND, 60, 8, "");
         Component instance = inverterInstance();
-        for (String text : List.of("sum", "and", "not", "a", "inversor")) {
+        for (String text : List.of("sum", "and", "buffer", "a", "inversor")) {
             panel.filterField().setText(text);
             List<SearchHit> hits = CircuitSearch.find(openDocument.document(), openDocument.registry(),
                     new SearchQuery(text, false, false).compile(), TypeNames.in(openDocument.registry()));
@@ -406,7 +406,7 @@ class ComponentTreePanelTest {
 
     @Test
     void escapeInTheFilterClearsIt() {
-        labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
         panel.filterField().setText("U1");
 
         panel.filterField().deliver(new java.awt.event.KeyEvent(panel.filterField(),
@@ -443,7 +443,7 @@ class ComponentTreePanelTest {
     void movingAComponentIntoAFrameMovesItsRowAndKeepsTheExpandedRows() {
         Frame block = addFrame(0, 0, 30, 20, "ALU");
         Component instance = inverterInstance(); // at (4, -1): straddles the top border
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 40, 4, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 40, 4, Map.of(StandardComponentTypes.NEGATE, true));
         String framePath = ComponentTreeNode.framePath(block.id());
         panel.tree().expandPath(panel.treePath(instance.id().value()).orElseThrow());
         assertThat(panel.treePath(gate.id().value()).orElseThrow().getPathCount()).isEqualTo(2);
@@ -480,19 +480,19 @@ class ComponentTreePanelTest {
     @Test
     void componentFrameAndGroupRowsShowAnIcon() {
         Frame block = addFrame(0, 0, 30, 20, "ALU");
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(renderedIcon(gate.id().value())).isInstanceOf(ComponentIcon.class);
         assertThat(renderedIcon(ComponentTreeNode.framePath(block.id()))).isNotNull();
 
         panel.groupByTypeToggle().setSelected(true);
         assertThat(renderedIcon(ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()),
-                StandardComponentTypes.NOT))).isInstanceOf(ComponentIcon.class);
+                StandardComponentTypes.BUFFER))).isInstanceOf(ComponentIcon.class);
         assertThat(renderedIcon(ComponentTreeNode.DOCUMENT_PATH)).isNull();
     }
 
     @Test
     void aSchemeChangeRedrawsTheIconsWithTheNewColorsAndDisposeStopsListening() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(((ComponentIcon) renderedIcon(gate.id().value())).scheme()).isEqualTo(ColorScheme.LIGHT);
         int listeners = appearance.listenerCount();
 

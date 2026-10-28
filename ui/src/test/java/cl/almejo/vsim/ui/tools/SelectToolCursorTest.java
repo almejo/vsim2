@@ -25,7 +25,7 @@ class SelectToolCursorTest {
     }
 
     private Component not(int x, int y) {
-        return place(context.openDocument(), StandardComponentTypes.NOT, x, y, Map.of());
+        return place(context.openDocument(), StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     private void hover(double x, double y) {

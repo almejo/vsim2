@@ -283,9 +283,9 @@ class ApplicationExtensionsTest {
         EditorView first = new EditorView(openDocument, services, NO_WINDOW);
         EditorView second = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            preferences.setPaletteFavorites(List.of("and3", "led"));
+            preferences.setPaletteFavorites(List.of("xor", "led"));
             assertThat(first.palette().visibleSections()).startsWith("Favoritos");
-            assertThat(second.palette().visibleTypeIds()).startsWith("and3", "led");
+            assertThat(second.palette().visibleTypeIds()).startsWith("xor", "led");
         } finally {
             second.dispose();
             first.dispose();
@@ -298,7 +298,7 @@ class ApplicationExtensionsTest {
         EditorView second = new EditorView(openDocument, services, NO_WINDOW);
         try {
             first.canvas().setSize(800, 600);
-            first.palette().choose("and3");
+            first.palette().choose("xor");
             CanvasMouseEvent click = new CanvasMouseEvent(new Point2D.Double(10, 10), new GridPoint(10, 10),
                     first.canvas().viewport().gridToScreen(10, 10), CanvasMouseEvent.PRIMARY, false, false, 1);
             first.canvas().tool().mouseMoved(first.canvas(), click);
@@ -306,7 +306,7 @@ class ApplicationExtensionsTest {
 
             assertThat(second.palette().visibleSections()).startsWith("Favoritos", "Recientes");
             assertThat(second.palette().recentEntries()).extracting(entry -> entry.type().id())
-                    .containsExactly("and3");
+                    .containsExactly("xor");
         } finally {
             second.dispose();
             first.dispose();

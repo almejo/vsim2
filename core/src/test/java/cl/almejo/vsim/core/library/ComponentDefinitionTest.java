@@ -93,7 +93,7 @@ class ComponentDefinitionTest {
         assertThat(SubcircuitTypes.typeOf(ExampleDefinitions.inverter())).isEqualTo(type);
         assertThat(SubcircuitTypes.definitionIdOf("subcircuit:inverter")).contains("inverter");
         assertThat(SubcircuitTypes.definitionIdOf("subcircuit:")).isEmpty();
-        assertThat(SubcircuitTypes.definitionIdOf("and2")).isEmpty();
+        assertThat(SubcircuitTypes.definitionIdOf("and")).isEmpty();
     }
 
     @Test

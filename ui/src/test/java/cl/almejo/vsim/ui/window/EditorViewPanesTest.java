@@ -77,7 +77,7 @@ class EditorViewPanesTest {
         press(second);
         assertThat(view.canvas()).isSameAs(second);
 
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         first.selection().select(gate.id());
         assertThat(second.selection()).isSameAs(first.selection()).isSameAs(view.selection());
         assertThat(second.selection().ids()).containsExactly(gate.id());
@@ -196,7 +196,7 @@ class EditorViewPanesTest {
         CircuitCanvas bottom = view.panes().get(1);
         view.canvasPanes().removeDivider(Orientation.HORIZONTAL);
         assertThat(view.panes()).doesNotContain(bottom);
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.selection().select(gate.id());
         openDocument.history().undo();
         assertThat(view.selection().isEmpty()).isTrue(); // the surviving pane still prunes the shared selection

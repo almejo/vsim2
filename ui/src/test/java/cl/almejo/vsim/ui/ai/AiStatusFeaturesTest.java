@@ -224,7 +224,7 @@ class AiStatusFeaturesTest {
 
     @Test
     void detenerStopsTheTaskAndLeavesTheAppliedEditsAlone() {
-        place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         long changes = document.changeCount();
         TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Sumador");
         tasks.start(task);
@@ -257,7 +257,7 @@ class AiStatusFeaturesTest {
 
     @Test
     void whenTheTaskEndsWhatItChangedGlowsAndTheOverrideIsDropped() {
-        Component part = place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component part = place(document, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         SettingsOverride override = SettingsOverride.of(windowPreferences).orElseThrow();
         TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
         tasks.start(task);
@@ -278,7 +278,7 @@ class AiStatusFeaturesTest {
     @Test
     void whenTheTaskEndsOffScreenTheViewTravelsToWhatItChangedAndVerLoQueHizoIsOffered() {
         windowPreferences.setAnimateViewMoves(true);
-        Component far = place(document, StandardComponentTypes.NOT, 300, 200, Map.of());
+        Component far = place(document, StandardComponentTypes.BUFFER, 300, 200, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().setSize(400, 300);
         ManualFrameTicker ticker = new ManualFrameTicker().drive(view.canvas());
         TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
@@ -297,7 +297,7 @@ class AiStatusFeaturesTest {
     @Test
     void whenWhatTheTaskChangedIsAlreadyOnScreenTheViewStaysStill() {
         windowPreferences.setAnimateViewMoves(true);
-        Component near = place(document, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component near = place(document, StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().setSize(400, 300);
         new ManualFrameTicker().drive(view.canvas());
         ViewState before = view.canvas().viewState();
@@ -314,7 +314,7 @@ class AiStatusFeaturesTest {
     @Test
     void withReducedMotionTheViewJumpsToWhatTheTaskChanged() {
         windowPreferences.setAnimateViewMoves(false);
-        Component far = place(document, StandardComponentTypes.NOT, 300, 200, Map.of());
+        Component far = place(document, StandardComponentTypes.BUFFER, 300, 200, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().setSize(400, 300);
         TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
         tasks.start(task);
@@ -328,7 +328,7 @@ class AiStatusFeaturesTest {
     @Test
     void verLoQueHizoTravelsThereAgainAfterTheUserLookedElsewhere() {
         windowPreferences.setAnimateViewMoves(false);
-        Component far = place(document, StandardComponentTypes.NOT, 300, 200, Map.of());
+        Component far = place(document, StandardComponentTypes.BUFFER, 300, 200, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().setSize(400, 300);
         TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
         tasks.start(task);

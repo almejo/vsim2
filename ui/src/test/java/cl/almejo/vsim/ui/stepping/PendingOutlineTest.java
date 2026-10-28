@@ -20,7 +20,7 @@ class PendingOutlineTest {
 
     private ElementId placeNot(String id) {
         ElementId elementId = new ElementId(id);
-        document.add(registry.require(StandardComponentTypes.NOT).newComponent(elementId, new GridPoint(0, 0),
+        document.add(registry.require(StandardComponentTypes.BUFFER).newComponent(elementId, new GridPoint(0, 0),
                 Rotation.R0, Map.of(), ""));
         return elementId;
     }

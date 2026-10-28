@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CircuitDocumentTest {
 
     private static Component andGate(ElementId id) {
-        return new Component(id, "and2", new GridPoint(1, 1), Rotation.R0, Map.of("delay", 1), null);
+        return new Component(id, "and", new GridPoint(1, 1), Rotation.R0, Map.of("delay", 1), null);
     }
 
     @Test

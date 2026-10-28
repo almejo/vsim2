@@ -229,7 +229,7 @@ class FrameControlsTest {
     @Test
     void quitarMarcoRemovesOnlyTheFrameEvenWhenLockedInOneUndoStep() {
         Frame frame = frame(true);
-        Component inside = place(context.openDocument(), StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component inside = place(context.openDocument(), StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
         item(menu.build(frame), "Quitar marco").doClick();
         assertThat(context.openDocument().document().frame(frame.id())).isEmpty();
         assertThat(context.openDocument().document().component(inside.id())).contains(inside);
@@ -241,7 +241,7 @@ class FrameControlsTest {
     void convertIsDisabledWithoutContentsAndHandsTheFrameOverOtherwise() {
         Frame frame = frame(false);
         assertThat(item(menu.build(frame), "Convertir en componente…").isEnabled()).isFalse();
-        place(context.openDocument(), StandardComponentTypes.NOT, 4, 4, Map.of());
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
         JMenuItem convert = item(menu.build(frame), "Convertir en componente…");
         assertThat(convert.isEnabled()).isTrue();
         convert.doClick();

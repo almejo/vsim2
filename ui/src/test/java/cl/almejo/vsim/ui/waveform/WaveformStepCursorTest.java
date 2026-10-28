@@ -62,7 +62,7 @@ class WaveformStepCursorTest {
     /** Switch → NOT with both outputs as channels, showing a recording up to t = 20 with edges at 10. */
     private void chainRecordedUntilTwenty() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         List<String> ids = actions.addSelection(List.of(toggle.id(), gate.id())).addedIds();
         panel.probesChanged();
         panel.display(new WaveformSnapshot(1, 20, Map.of(ids.get(0), trace(0, Value.ONE, 10, Value.ZERO),

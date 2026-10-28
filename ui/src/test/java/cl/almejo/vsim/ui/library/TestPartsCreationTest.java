@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -61,7 +62,7 @@ class TestPartsCreationTest {
     private List<Component> drawSwitchNotLed() {
         Component input = fixture.place(StandardComponentTypes.SWITCH, 0, 1, "Cin");
         Wire first = wire(4, 2, 6, 2);
-        Component gate = fixture.place(StandardComponentTypes.NOT, 6, 0, "");
+        Component gate = fixture.place(StandardComponentTypes.BUFFER, 6, 0, GateParameters.NEGATED);
         Wire second = wire(10, 2, 12, 2);
         Component led = fixture.place(StandardComponentTypes.LED, 11, -1, "S");
         fixture.view.canvas().selection().set(List.of(input.id(), first.id(), gate.id(), second.id(), led.id()));
@@ -104,7 +105,7 @@ class TestPartsCreationTest {
         assertThat(form.outputNames()).containsExactly("S");
         assertThat(onlyDefinition().pinout()).extracting(pin -> pin.spec().name()).containsExactly("Cin", "S");
         assertThat(onlyDefinition().body().components()).extracting(Component::typeId).containsExactlyInAnyOrder(
-                InterfacePins.INPUT_PIN, StandardComponentTypes.NOT, InterfacePins.OUTPUT_PIN);
+                InterfacePins.INPUT_PIN, StandardComponentTypes.BUFFER, InterfacePins.OUTPUT_PIN);
         // The switch and the LED stay in the circuit, connected to the instance; the NOT and the wires went inside.
         Component instance = instance();
         assertThat(fixture.openDocument.document().components()).containsExactlyInAnyOrder(parts.get(0),
@@ -271,7 +272,7 @@ class TestPartsCreationTest {
     void eachRowSaysWhichPinsThePartGivesOrWhyItGivesNone() {
         Component input = fixture.place(StandardComponentTypes.SWITCH, 0, 1, "");
         wire(4, 2, 6, 2);
-        fixture.place(StandardComponentTypes.NOT, 6, 0, "");
+        fixture.place(StandardComponentTypes.BUFFER, 6, 0, "");
         wire(10, 2, 14, 2);
         Component firstLed = fixture.place(StandardComponentTypes.LED, 11, -1, "S");
         Component secondLed = fixture.place(StandardComponentTypes.LED, 13, -1, "");
@@ -322,7 +323,7 @@ class TestPartsCreationTest {
 
     @Test
     void aSelectionWithNeitherPinsNorTestPartsStillExplainsWhy() {
-        Component gate = fixture.place(StandardComponentTypes.NOT, 0, 0, "");
+        Component gate = fixture.place(StandardComponentTypes.BUFFER, 0, 0, "");
         fixture.select(gate);
 
         perform(fixture.features.actions().createComponent());

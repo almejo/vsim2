@@ -17,22 +17,22 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import java.util.List;
 import java.util.Map;
 
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND2;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND3;
+import static cl.almejo.vsim.core.GateParameters.NEGATED;
+import static cl.almejo.vsim.core.GateParameters.inputs;
+import static cl.almejo.vsim.core.GateParameters.negatedInputs;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUFFER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUS_JOINER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUS_SPLITTER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.INPUT_PIN;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.LED;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.NOR4;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.NOT;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR2;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR4;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OUTPUT_PIN;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SWITCH;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.WIDTH;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.XOR2;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.XOR;
 
 /**
  * The bus and the ALU of Archivo ▸ Ejemplos (spec M6.1 §3.1). «Bus de 8 bits»: eight switches joined into one 8-bit
@@ -110,9 +110,9 @@ public final class BusAndAluExamples {
         Component select0 = builder.placeByPin(INPUT_PIN, new GridPoint(4, 52), 0, Rotation.R0, NO_PARAMETERS, "S0");
         Component adder = builder.placeByBox(SubcircuitTypes.typeIdOf(CombinationalExamples.FULL_ADDER_ID), 16, 6,
                 Rotation.R0, NO_PARAMETERS, "");
-        Component andGate = builder.placeByBox(AND2, 16, 18, Rotation.R0, NO_PARAMETERS, "");
-        Component orGate = builder.placeByBox(OR2, 16, 26, Rotation.R0, NO_PARAMETERS, "");
-        Component xorGate = builder.placeByBox(XOR2, 16, 34, Rotation.R0, NO_PARAMETERS, "");
+        Component andGate = builder.placeByBox(AND, 16, 18, Rotation.R0, NO_PARAMETERS, "");
+        Component orGate = builder.placeByBox(OR, 16, 26, Rotation.R0, NO_PARAMETERS, "");
+        Component xorGate = builder.placeByBox(XOR, 16, 34, Rotation.R0, NO_PARAMETERS, "");
 
         builder.route(new GridPoint(4, 8), new GridPoint(16, 8));
         builder.link(carryIn, 0, adder, 0);
@@ -134,8 +134,8 @@ public final class BusAndAluExamples {
         }
 
         // selector: S1 and S0 come in at the bottom; NOT gates make ¬S1 and ¬S0; four rails go up
-        Component notSelect1 = builder.placeByBox(NOT, 10, 45, Rotation.R0, NO_PARAMETERS, "");
-        Component notSelect0 = builder.placeByBox(NOT, 10, 53, Rotation.R0, NO_PARAMETERS, "");
+        Component notSelect1 = builder.placeByBox(BUFFER, 10, 45, Rotation.R0, NEGATED, "");
+        Component notSelect0 = builder.placeByBox(BUFFER, 10, 53, Rotation.R0, NEGATED, "");
         builder.route(new GridPoint(4, 44), new GridPoint(26, 44), new GridPoint(26, 30));
         builder.route(new GridPoint(8, 44), new GridPoint(8, 47), new GridPoint(10, 47));
         builder.link(select1, 0, notSelect1, 0);
@@ -156,7 +156,7 @@ public final class BusAndAluExamples {
         int[] railPins = {0, 1, 0, 1};
         for (int index = 0; index < 4; index++) {
             int top = dataRows[index];
-            gates[index] = builder.placeByBox(AND3, 40, top, Rotation.R0, NO_PARAMETERS, "");
+            gates[index] = builder.placeByBox(AND, 40, top, Rotation.R0, inputs(3), "");
             builder.route(new GridPoint(dataStartX[index], top), new GridPoint(40, top));
             builder.link(dataSources[index], dataPins[index], gates[index], 0);
             int highRail = (index & 2) != 0 ? 0 : 1;
@@ -166,7 +166,7 @@ public final class BusAndAluExamples {
             builder.route(new GridPoint(railX[lowRail], top + 4), new GridPoint(40, top + 4));
             builder.link(railSources[lowRail], railPins[lowRail], gates[index], 2);
         }
-        Component orAll = builder.placeByBox(OR4, 50, 21, Rotation.R0, NO_PARAMETERS, "");
+        Component orAll = builder.placeByBox(OR, 50, 21, Rotation.R0, inputs(4), "");
         builder.route(new GridPoint(44, 10), new GridPoint(46, 10), new GridPoint(46, 21), new GridPoint(50, 21));
         builder.link(gates[0], 3, orAll, 0);
         builder.route(new GridPoint(44, 22), new GridPoint(50, 22));
@@ -219,7 +219,7 @@ public final class BusAndAluExamples {
         Component select0 = builder.placeByPin(SWITCH, new GridPoint(6, 92), 0, Rotation.R0, OFF, "S0");
         Component carryIn = builder.placeByPin(SWITCH, new GridPoint(6, 8), 0, Rotation.R0, OFF, "Cin");
         Component display = builder.placeByBox(SEVEN_SEGMENTS_DISPLAY, 54, 72, Rotation.R0, NO_PARAMETERS, "");
-        Component zero = builder.placeByBox(NOR4, 68, 38, Rotation.R0, NO_PARAMETERS, "");
+        Component zero = builder.placeByBox(OR, 68, 38, Rotation.R0, negatedInputs(4), "");
         builder.route(new GridPoint(6, 86), new GridPoint(30, 86), new GridPoint(30, 18));
         builder.route(new GridPoint(6, 92), new GridPoint(34, 92), new GridPoint(34, 20));
         Component[] bits = new Component[4];
@@ -266,9 +266,9 @@ public final class BusAndAluExamples {
                 Map.of("color", "yellow"), "Negativo");
         builder.link(bits[3], 5, negative, 0);
         // Acarreo = Cout3 · ¬S1 · ¬S0
-        Component notSelect1 = builder.placeByBox(NOT, 36, 84, Rotation.R0, NO_PARAMETERS, "");
-        Component notSelect0 = builder.placeByBox(NOT, 36, 90, Rotation.R0, NO_PARAMETERS, "");
-        Component carryGate = builder.placeByBox(AND3, 52, 88, Rotation.R0, NO_PARAMETERS, "");
+        Component notSelect1 = builder.placeByBox(BUFFER, 36, 84, Rotation.R0, NEGATED, "");
+        Component notSelect0 = builder.placeByBox(BUFFER, 36, 90, Rotation.R0, NEGATED, "");
+        Component carryGate = builder.placeByBox(AND, 52, 88, Rotation.R0, inputs(3), "");
         builder.route(new GridPoint(30, 86), new GridPoint(36, 86));
         builder.link(select1, 0, notSelect1, 0);
         builder.route(new GridPoint(34, 92), new GridPoint(36, 92));

@@ -37,7 +37,7 @@ class TruthTableScopeTest {
         assertThat(ready.circuit().components()).extracting(component -> component.type().id())
                 .as("a time diagram samples itself forever: it would keep every row busy")
                 .doesNotContain(StandardComponentTypes.TIME_DIAGRAM)
-                .contains(StandardComponentTypes.XOR2);
+                .contains(StandardComponentTypes.XOR);
         assertThat(ready.inputs()).extracting(Column::name).containsExactly("A", "B");
     }
 

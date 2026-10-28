@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +34,7 @@ class VsimV1ImporterTest {
     @Test
     void importsOneGateExample() throws Exception {
         CircuitDocument document = importResource("one-gate.json");
-        assertThat(document.components()).extracting(Component::typeId).containsExactly("switch", "switch", "xor2");
+        assertThat(document.components()).extracting(Component::typeId).containsExactly("switch", "switch", "xor");
         Component firstSwitch = document.components().getFirst();
         assertThat(firstSwitch.position()).isEqualTo(new GridPoint(19, 28));
         assertThat(firstSwitch.parameters()).isEqualTo(Map.of("value", "1"));
@@ -61,11 +63,35 @@ class VsimV1ImporterTest {
                 Map.of("time-up", 200, "time-down", 300),
                 Map.of("value", "Z"),
                 Map.of("color", "red"),
-                Map.of("delay", 4),
+                Map.of("width", 1, "negate", true, "delay", 4),
                 Map.of("sample-interval", 150, "history", 200));
         assertThat(document.components().get(2).label()).isEqualTo("L1");
         assertThat(document.components().get(3).position()).isEqualTo(new GridPoint(1, 2));
         assertThat(document.wires()).isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0} → {1}, {2} inputs, negated {3}")
+    @CsvSource({"and2,and,2,false", "and3,and,3,false", "and4,and,4,false", "or2,or,2,false", "or3,or,3,false",
+            "or4,or,4,false", "xor2,xor,2,false", "xor3,xor,3,false", "xor4,xor,4,false", "nand2,and,2,true",
+            "nand3,and,3,true", "nand4,and,4,true", "nor2,or,2,true", "nor3,or,3,true", "nor4,or,4,true"})
+    void everyVsim1GateBecomesTheParameterizedGate(String vsim1Id, String typeId, int inputs, boolean negated)
+            throws Exception {
+        Component gate = importJson("""
+                {"gates":[{"type":"%s","position":{"x":8,"y":16},"parameters":{"delay":3}}],"connections":[]}
+                """.formatted(vsim1Id)).components().getFirst();
+
+        assertThat(gate.typeId()).isEqualTo(typeId);
+        assertThat(gate.parameters()).isEqualTo(Map.of("inputs", inputs, "width", 1, "negate", negated, "delay", 3));
+    }
+
+    @Test
+    void theVsim1NotBecomesANegatedBuffer() throws Exception {
+        Component gate = importJson("""
+                {"gates":[{"type":"not","position":{"x":8,"y":16},"parameters":{}}],"connections":[]}
+                """).components().getFirst();
+
+        assertThat(gate.typeId()).isEqualTo("buffer");
+        assertThat(gate.parameters()).containsEntry("negate", true);
     }
 
     @Test

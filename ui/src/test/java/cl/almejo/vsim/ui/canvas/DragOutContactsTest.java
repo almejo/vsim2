@@ -68,7 +68,7 @@ class DragOutContactsTest {
 
     @Test
     void theMovePreviewedByADragOutBroughtBackShowsItsContacts() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         openDocument.execute(new AddWireCommand(new Wire(openDocument.document().newWireId(), new GridPoint(20, 15),
                 new GridPoint(20, 25))));
         canvas.getMouseListeners()[0].mousePressed(

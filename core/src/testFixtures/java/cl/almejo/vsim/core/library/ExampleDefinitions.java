@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.library;
 
+import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -28,7 +29,7 @@ public final class ExampleDefinitions {
     /** input-pin c1 (pin at 2,2) → NOT c2 (2,2 → 6,2) → output-pin c3 (pin at 6,2). */
     public static ComponentDefinition inverter() {
         Component input = standard(InterfacePins.INPUT_PIN, "c1", 0, 1, "a");
-        Component gate = standard(StandardComponentTypes.NOT, "c2", 2, 0, "");
+        Component gate = standard(StandardComponentTypes.BUFFER, "c2", 2, 0, "", GateParameters.NEGATED);
         Component output = standard(InterfacePins.OUTPUT_PIN, "c3", 6, 1, "y");
         return new ComponentDefinition(INVERTER, "Inversor", "", new GridSize(4, 4),
                 List.of(new DefinitionPin(PinSpec.input("a", 0, 2), input.id()),

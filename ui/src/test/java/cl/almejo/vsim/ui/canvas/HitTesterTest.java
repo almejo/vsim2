@@ -37,7 +37,7 @@ class HitTesterTest {
 
     @Test
     void findsAComponentInsideItsBounds() {
-        Component gate = place(StandardComponentTypes.AND2, 10, 10, Rotation.R0);
+        Component gate = place(StandardComponentTypes.AND, 10, 10, Rotation.R0);
         assertThat(at(12, 12)).isEqualTo(gate);
         assertThat(at(14, 14)).isEqualTo(gate);
         assertThat(at(14.5, 12)).isNull();
@@ -52,8 +52,8 @@ class HitTesterTest {
 
     @Test
     void laterComponentsAreOnTop() {
-        place(StandardComponentTypes.AND2, 10, 10, Rotation.R0);
-        Component top = place(StandardComponentTypes.NOT, 12, 12, Rotation.R0);
+        place(StandardComponentTypes.AND, 10, 10, Rotation.R0);
+        Component top = place(StandardComponentTypes.BUFFER, 12, 12, Rotation.R0);
         assertThat(at(13, 13)).isEqualTo(top);
     }
 
@@ -68,7 +68,7 @@ class HitTesterTest {
 
     @Test
     void componentsWinOverWires() {
-        Component gate = place(StandardComponentTypes.AND2, 0, 0, Rotation.R0);
+        Component gate = place(StandardComponentTypes.AND, 0, 0, Rotation.R0);
         wire(document, 0, 2, 10, 2);
         assertThat(at(2, 2)).isEqualTo(gate);
     }
@@ -90,7 +90,7 @@ class HitTesterTest {
 
     @Test
     void aFreeTextOverAComponentWinsTheHit() {
-        place(StandardComponentTypes.AND2, 10, 10, Rotation.R0);
+        place(StandardComponentTypes.AND, 10, 10, Rotation.R0);
         TextLabel label = text(11, 11, "x");
         assertThat(at(11.3, 11.5)).isEqualTo(label);
     }

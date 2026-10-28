@@ -88,7 +88,7 @@ class WaveformsEndToEndTest {
             throws Exception {
         OpenDocument original = track(OpenDocument.createEmpty(registry));
         Component toggle = place(original, StandardComponentTypes.SWITCH, 0, 0, Map.of());
-        Component gate = place(original, StandardComponentTypes.NOT, 4, -1, Map.of());
+        Component gate = place(original, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         ProbeActions actions = new ProbeActions(original);
         ProbeActions.AddResult added = actions.addSelection(List.of(toggle.id(), gate.id()));
         assertThat(added.addedIds()).hasSize(2);

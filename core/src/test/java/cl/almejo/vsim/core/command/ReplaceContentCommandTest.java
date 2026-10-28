@@ -33,7 +33,7 @@ class ReplaceContentCommandTest {
     @BeforeEach
     void createDocument() {
         document = new CircuitDocument();
-        gate = new Component(document.newComponentId(), "and2", new GridPoint(2, 2), Rotation.R0, Map.of(), "U1");
+        gate = new Component(document.newComponentId(), "and", new GridPoint(2, 2), Rotation.R0, Map.of(), "U1");
         wire = new Wire(document.newWireId(), new GridPoint(0, 0), new GridPoint(4, 0));
         note = new TextLabel(document.newLabelId(), new GridPoint(9, 9), "nota");
         document.add(gate);
@@ -82,7 +82,7 @@ class ReplaceContentCommandTest {
         CircuitDocument after = document.copy();
         after.remove(wire.id());
         after.replace(gate.withLabel("U2"));
-        Component added = new Component(after.newComponentId(), "or2", new GridPoint(10, 2), Rotation.R0, Map.of(),
+        Component added = new Component(after.newComponentId(), "or", new GridPoint(10, 2), Rotation.R0, Map.of(),
                 "");
         after.add(added);
         after.putDefinition(ExampleDefinitions.inverter());

@@ -15,17 +15,17 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import java.util.List;
 import java.util.Map;
 
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND2;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND3;
+import static cl.almejo.vsim.core.GateParameters.NEGATED;
+import static cl.almejo.vsim.core.GateParameters.inputs;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUFFER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.INPUT_PIN;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.LED;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.NOT;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR2;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR4;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OUTPUT_PIN;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SWITCH;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.XOR2;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.XOR;
 
 /**
  * The combinational examples of Archivo ▸ Ejemplos (spec M6.1 §3.1): sumador completo, sumador de 4 bits,
@@ -63,11 +63,11 @@ public final class CombinationalExamples {
         Component inputA = input(builder, asComponent, new GridPoint(6, 7), "A");
         Component inputB = input(builder, asComponent, new GridPoint(6, 13), "B");
         Component inputCarry = input(builder, asComponent, new GridPoint(6, 21), "Cin");
-        Component firstXor = builder.placeByBox(XOR2, 16, 6, Rotation.R0, NO_PARAMETERS, "");
-        Component firstAnd = builder.placeByBox(AND2, 16, 26, Rotation.R0, NO_PARAMETERS, "");
-        Component secondXor = builder.placeByBox(XOR2, 28, 8, Rotation.R0, NO_PARAMETERS, "");
-        Component secondAnd = builder.placeByBox(AND2, 28, 16, Rotation.R0, NO_PARAMETERS, "");
-        Component orGate = builder.placeByBox(OR2, 40, 18, Rotation.R0, NO_PARAMETERS, "");
+        Component firstXor = builder.placeByBox(XOR, 16, 6, Rotation.R0, NO_PARAMETERS, "");
+        Component firstAnd = builder.placeByBox(AND, 16, 26, Rotation.R0, NO_PARAMETERS, "");
+        Component secondXor = builder.placeByBox(XOR, 28, 8, Rotation.R0, NO_PARAMETERS, "");
+        Component secondAnd = builder.placeByBox(AND, 28, 16, Rotation.R0, NO_PARAMETERS, "");
+        Component orGate = builder.placeByBox(OR, 40, 18, Rotation.R0, NO_PARAMETERS, "");
 
         builder.route(new GridPoint(6, 7), new GridPoint(10, 7));
         builder.route(new GridPoint(10, 6), new GridPoint(10, 26));
@@ -219,15 +219,15 @@ public final class CombinationalExamples {
         Component[] data = new Component[4];
         for (int index = 0; index < 4; index++) {
             int top = 6 + 8 * index;
-            gates[index] = builder.placeByBox(AND3, 36, top, Rotation.R0, NO_PARAMETERS, "");
+            gates[index] = builder.placeByBox(AND, 36, top, Rotation.R0, inputs(3), "");
             data[index] = builder.placeByPin(SWITCH, new GridPoint(6, top), 0, Rotation.R0, OFF, "D" + index);
             builder.route(new GridPoint(6, top), new GridPoint(36, top));
             builder.link(data[index], 0, gates[index], 0);
         }
         Component select1 = builder.placeByPin(SWITCH, new GridPoint(6, 42), 0, Rotation.R0, OFF, "S1");
         Component select0 = builder.placeByPin(SWITCH, new GridPoint(6, 52), 0, Rotation.R0, OFF, "S0");
-        Component notSelect1 = builder.placeByBox(NOT, 14, 44, Rotation.R0, NO_PARAMETERS, "");
-        Component notSelect0 = builder.placeByBox(NOT, 26, 54, Rotation.R0, NO_PARAMETERS, "");
+        Component notSelect1 = builder.placeByBox(BUFFER, 14, 44, Rotation.R0, NEGATED, "");
+        Component notSelect0 = builder.placeByBox(BUFFER, 26, 54, Rotation.R0, NEGATED, "");
         // rails: S1 at x = 12, ¬S1 at 20, S0 at 24, ¬S0 at 32, each up to its last tap
         builder.route(new GridPoint(6, 42), new GridPoint(12, 42), new GridPoint(12, 24));
         builder.route(new GridPoint(12, 42), new GridPoint(12, 46), new GridPoint(14, 46));
@@ -249,7 +249,7 @@ public final class CombinationalExamples {
             builder.route(new GridPoint(railX[lowRail], top + 4), new GridPoint(36, top + 4));
             builder.link(railSource[lowRail], railPin[lowRail], gates[index], 2);
         }
-        Component orGate = builder.placeByBox(OR4, 48, 15, Rotation.R0, NO_PARAMETERS, "");
+        Component orGate = builder.placeByBox(OR, 48, 15, Rotation.R0, inputs(4), "");
         builder.route(new GridPoint(40, 8), new GridPoint(44, 8), new GridPoint(44, 15), new GridPoint(48, 15));
         builder.link(gates[0], 3, orGate, 0);
         builder.route(new GridPoint(40, 16), new GridPoint(48, 16));
@@ -274,11 +274,11 @@ public final class CombinationalExamples {
         CircuitBuilder builder = new CircuitBuilder("Decodificador 2 a 4");
         Component high = builder.placeByPin(SWITCH, new GridPoint(6, 6), 0, Rotation.R0, OFF, "A1");
         Component low = builder.placeByPin(SWITCH, new GridPoint(6, 14), 0, Rotation.R0, OFF, "A0");
-        Component notHigh = builder.placeByBox(NOT, 14, 8, Rotation.R0, NO_PARAMETERS, "");
-        Component notLow = builder.placeByBox(NOT, 26, 16, Rotation.R0, NO_PARAMETERS, "");
+        Component notHigh = builder.placeByBox(BUFFER, 14, 8, Rotation.R0, NEGATED, "");
+        Component notLow = builder.placeByBox(BUFFER, 26, 16, Rotation.R0, NEGATED, "");
         Component[] gates = new Component[4];
         for (int output = 0; output < 4; output++) {
-            gates[output] = builder.placeByBox(AND2, 40, 22 + 8 * output, Rotation.R0, NO_PARAMETERS, "");
+            gates[output] = builder.placeByBox(AND, 40, 22 + 8 * output, Rotation.R0, NO_PARAMETERS, "");
         }
         // rails: A1 at x = 12, ¬A1 at x = 20, A0 at x = 24, ¬A0 at x = 32; each ends at its last tap
         builder.route(new GridPoint(6, 6), new GridPoint(12, 6), new GridPoint(12, 46));
@@ -321,9 +321,9 @@ public final class CombinationalExamples {
         Component high = builder.placeByPin(SWITCH, new GridPoint(6, 6), 0, Rotation.R0, OFF, "D2");
         Component middle = builder.placeByPin(SWITCH, new GridPoint(6, 12), 0, Rotation.R0, OFF, "D1");
         Component low = builder.placeByPin(SWITCH, new GridPoint(6, 18), 0, Rotation.R0, OFF, "D0");
-        Component firstXor = builder.placeByBox(XOR2, 16, 6, Rotation.R0, NO_PARAMETERS, "");
-        Component secondXor = builder.placeByBox(XOR2, 26, 12, Rotation.R0, NO_PARAMETERS, "");
-        Component inverter = builder.placeByBox(NOT, 36, 20, Rotation.R0, NO_PARAMETERS, "");
+        Component firstXor = builder.placeByBox(XOR, 16, 6, Rotation.R0, NO_PARAMETERS, "");
+        Component secondXor = builder.placeByBox(XOR, 26, 12, Rotation.R0, NO_PARAMETERS, "");
+        Component inverter = builder.placeByBox(BUFFER, 36, 20, Rotation.R0, NEGATED, "");
         builder.route(new GridPoint(6, 6), new GridPoint(16, 6));
         builder.link(high, 0, firstXor, 0);
         builder.route(new GridPoint(6, 12), new GridPoint(12, 12), new GridPoint(12, 10), new GridPoint(16, 10));
@@ -368,15 +368,15 @@ public final class CombinationalExamples {
         Component[] products = new Component[4];
         for (int index = 0; index < 4; index++) {
             int top = 30 + 8 * index;
-            products[index] = builder.placeByBox(AND2, 30, top, Rotation.R0, NO_PARAMETERS, "");
+            products[index] = builder.placeByBox(AND, 30, top, Rotation.R0, NO_PARAMETERS, "");
             builder.route(new GridPoint(railX[factors[index][0]], top), new GridPoint(30, top));
             builder.link(inputs[factors[index][0]], 0, products[index], 0);
             builder.route(new GridPoint(railX[factors[index][1]], top + 4), new GridPoint(30, top + 4));
             builder.link(inputs[factors[index][1]], 0, products[index], 1);
         }
         // first half adder: A1·B0 (row 40) and A0·B1 (row 48)
-        Component firstXor = builder.placeByBox(XOR2, 42, 40, Rotation.R0, NO_PARAMETERS, "");
-        Component firstAnd = builder.placeByBox(AND2, 42, 50, Rotation.R0, NO_PARAMETERS, "");
+        Component firstXor = builder.placeByBox(XOR, 42, 40, Rotation.R0, NO_PARAMETERS, "");
+        Component firstAnd = builder.placeByBox(AND, 42, 50, Rotation.R0, NO_PARAMETERS, "");
         builder.route(new GridPoint(34, 40), new GridPoint(42, 40));
         builder.route(new GridPoint(36, 40), new GridPoint(36, 54), new GridPoint(42, 54));
         builder.link(products[1], 2, firstXor, 0);
@@ -386,8 +386,8 @@ public final class CombinationalExamples {
         builder.link(products[2], 2, firstXor, 1);
         builder.link(products[2], 2, firstAnd, 0);
         // second half adder: c1 (row 52) and A1·B1 (row 56)
-        Component secondXor = builder.placeByBox(XOR2, 54, 52, Rotation.R0, NO_PARAMETERS, "");
-        Component secondAnd = builder.placeByBox(AND2, 54, 60, Rotation.R0, NO_PARAMETERS, "");
+        Component secondXor = builder.placeByBox(XOR, 54, 52, Rotation.R0, NO_PARAMETERS, "");
+        Component secondAnd = builder.placeByBox(AND, 54, 60, Rotation.R0, NO_PARAMETERS, "");
         builder.route(new GridPoint(46, 52), new GridPoint(54, 52));
         builder.route(new GridPoint(50, 52), new GridPoint(50, 60), new GridPoint(54, 60));
         builder.link(firstAnd, 2, secondXor, 0);

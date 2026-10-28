@@ -151,7 +151,8 @@ class TruthTableEvaluatorTest {
     void aSlowButLegalGateSettlesBecauseTheLimitScalesWithTheSlowestDelay() {
         TruthTableCircuits circuits = new TruthTableCircuits();
         Component input = circuits.place(StandardComponentTypes.SWITCH, 0, 0, "A");                 // out (4,1)
-        Component gate = circuits.place(StandardComponentTypes.NOT, 10, -1, "", Map.of("delay", 200_000)); // (10,1) → (14,1)
+        Component gate = circuits.place(StandardComponentTypes.BUFFER, 10, -1, "",
+                Map.of("delay", 200_000, StandardComponentTypes.NEGATE, true)); // (10,1) → (14,1)
         circuits.wire(circuits.pin(input, 0), circuits.pin(gate, 0));
         circuits.place(StandardComponentTypes.LED, 13, -2, "Y");                                    // in (14,1)
         Preparation.Ready ready = ready(circuits, Set.of());

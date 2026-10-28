@@ -20,7 +20,7 @@ class SelectionBoundsTest {
     @Test
     void theTopLeftCoversEveryKnownElement() {
         try (OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
-            Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 7, Map.of());
+            Component gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 7, Map.of(StandardComponentTypes.NEGATE, true));
             Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(3, 12), new GridPoint(9, 12));
             openDocument.execute(new AddWireCommand(wire));
 

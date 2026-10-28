@@ -42,9 +42,9 @@ class CircuitSearchTest {
 
     /** What the UI would show as type names: gates by their family, user components by their definition name. */
     private final Function<String, String> typeDisplayName = typeId -> switch (typeId) {
-        case StandardComponentTypes.AND2 -> "And";
-        case StandardComponentTypes.OR2 -> "Or";
-        case StandardComponentTypes.XOR2 -> "Xor";
+        case StandardComponentTypes.AND -> "And";
+        case StandardComponentTypes.OR -> "Or";
+        case StandardComponentTypes.XOR -> "Xor";
         case StandardComponentTypes.LED -> "LED";
         case InterfacePins.INPUT_PIN -> "Pin de entrada";
         case InterfacePins.OUTPUT_PIN -> "Pin de salida";
@@ -79,18 +79,18 @@ class CircuitSearchTest {
     /** «Medio sumador»: a xor labeled X1 and an unlabeled and. «Sumador completo»: half adders H1, H2 and an or. */
     private void defineAdders() {
         document.putDefinition(new ComponentDefinition(HALF_ADDER, "Medio sumador", "", new GridSize(4, 4), List.of(),
-                new CircuitFragment(List.of(part(StandardComponentTypes.XOR2, "c1", 0, 0, "X1"),
-                        part(StandardComponentTypes.AND2, "c2", 0, 6, "")), List.of(), List.of())));
+                new CircuitFragment(List.of(part(StandardComponentTypes.XOR, "c1", 0, 0, "X1"),
+                        part(StandardComponentTypes.AND, "c2", 0, 6, "")), List.of(), List.of())));
         String halfAdderType = SubcircuitTypes.typeIdOf(HALF_ADDER);
         document.putDefinition(new ComponentDefinition(FULL_ADDER, "Sumador completo", "", new GridSize(4, 6),
                 List.of(), new CircuitFragment(List.of(part(halfAdderType, "c1", 0, 0, "H1"),
                 part(halfAdderType, "c2", 0, 8, "H2"),
-                part(StandardComponentTypes.OR2, "c3", 8, 4, "")), List.of(), List.of())));
+                part(StandardComponentTypes.OR, "c3", 8, 4, "")), List.of(), List.of())));
     }
 
     @Test
     void findsComponentLabels() {
-        Component gate = place(registry, document, StandardComponentTypes.AND2, 0, 0, "Acarreo");
+        Component gate = place(registry, document, StandardComponentTypes.AND, 0, 0, "Acarreo");
 
         assertThat(find("acarreo"))
                 .containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.LABEL, "Acarreo"));
@@ -98,7 +98,7 @@ class CircuitSearchTest {
 
     @Test
     void findsTypeNamesThroughTheGivenDisplayName() {
-        Component gate = place(registry, document, StandardComponentTypes.AND2, 0, 0, "");
+        Component gate = place(registry, document, StandardComponentTypes.AND, 0, 0, "");
 
         assertThat(find("and")).containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.TYPE, "And"));
     }
@@ -147,7 +147,7 @@ class CircuitSearchTest {
                 document.newComponentId(), new GridPoint(0, 10), Rotation.R0, Map.of(Tunnels.NAME, "CLK"), "");
         document.add(entrance);
         document.add(exit);
-        place(registry, document, StandardComponentTypes.AND2, 0, 20, "");
+        place(registry, document, StandardComponentTypes.AND, 0, 20, "");
 
         assertThat(find("clk")).containsExactly(
                 new SearchHit(entrance.id(), List.of(), List.of(), SearchHit.Field.TUNNEL_NAME, "CLK"),
@@ -156,7 +156,7 @@ class CircuitSearchTest {
 
     @Test
     void anElementMatchingOnLabelAndTypeGivesOneHitWithItsLabel() {
-        Component gate = place(registry, document, StandardComponentTypes.AND2, 0, 0, "Banda");
+        Component gate = place(registry, document, StandardComponentTypes.AND, 0, 0, "Banda");
 
         assertThat(find("and"))
                 .containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.LABEL, "Banda"));
@@ -171,7 +171,7 @@ class CircuitSearchTest {
 
     @Test
     void anEmptyOrInvalidQueryFindsNothing() {
-        place(registry, document, StandardComponentTypes.AND2, 0, 0, "(a");
+        place(registry, document, StandardComponentTypes.AND, 0, 0, "(a");
 
         assertThat(find("")).isEmpty();
         assertThat(CircuitSearch.find(document, registry, new SearchQuery("(a", false, true).compile(),
@@ -235,8 +235,8 @@ class CircuitSearchTest {
     @Test
     void twoUnlabeledPartsOfOneTypeAreTellApartByTheirIds() {
         document.putDefinition(new ComponentDefinition("two-ors", "Dos o", "", new GridSize(4, 4), List.of(),
-                new CircuitFragment(List.of(part(StandardComponentTypes.OR2, "c1", 0, 0, ""),
-                        part(StandardComponentTypes.OR2, "c2", 0, 6, "")), List.of(), List.of())));
+                new CircuitFragment(List.of(part(StandardComponentTypes.OR, "c1", 0, 0, ""),
+                        part(StandardComponentTypes.OR, "c2", 0, 6, "")), List.of(), List.of())));
         Component instance = place(registry, document, SubcircuitTypes.typeIdOf("two-ors"), 0, 0, "");
 
         List<SearchHit> hits = CircuitSearch.find(document, registry, new SearchQuery("Or", true, false).compile(),

@@ -38,7 +38,7 @@ class ProbeMarkerOverlayTest {
     void create() {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         overlay = new ProbeMarkerOverlay(openDocument, () -> scheme);
-        gate = place(openDocument, StandardComponentTypes.NOT, 4, 9, Map.of()); // out (8,11): badge x 68–80, y 72–80
+        gate = place(openDocument, StandardComponentTypes.BUFFER, 4, 9, Map.of(StandardComponentTypes.NEGATE, true)); // out (8,11): badge x 68–80, y 72–80
     }
 
     @AfterEach

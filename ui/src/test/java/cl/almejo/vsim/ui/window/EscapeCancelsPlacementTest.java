@@ -58,7 +58,7 @@ class EscapeCancelsPlacementTest {
 
     @Test
     void escapeWithTheFocusInThePaletteCancelsPlacingAPaletteComponent() {
-        view.palette().choose(StandardComponentTypes.AND2);
+        view.palette().choose(StandardComponentTypes.AND);
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
 
         assertThat(press(PalettePanelAccess.tree(view.palette()), KeyEvent.VK_ESCAPE)).isTrue();
@@ -72,7 +72,7 @@ class EscapeCancelsPlacementTest {
     @Test
     void escapeWithTheFocusInTheSearchFieldCancelsPlacingAndKeepsTheSearchText() {
         view.palette().setFilter("and");
-        view.palette().choose(StandardComponentTypes.AND2);
+        view.palette().choose(StandardComponentTypes.AND);
 
         assertThat(press(PalettePanelAccess.searchField(view.palette()), KeyEvent.VK_ESCAPE)).isTrue();
 
@@ -82,7 +82,7 @@ class EscapeCancelsPlacementTest {
 
     @Test
     void escapeWithTheFocusOutsideTheCanvasCancelsAFloatingPaste() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         view.selectionActions().duplicate().actionPerformed(
                 new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
@@ -107,7 +107,7 @@ class EscapeCancelsPlacementTest {
 
     @Test
     void withTheSelectToolEscapeOutsideTheCanvasIsLeftAlone() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
 
         assertThat(press(PalettePanelAccess.tree(view.palette()), KeyEvent.VK_ESCAPE)).isFalse();
@@ -117,7 +117,7 @@ class EscapeCancelsPlacementTest {
 
     @Test
     void theInlineEditorsEscapeCancelsTheEditOnly() {
-        view.palette().choose(StandardComponentTypes.AND2);
+        view.palette().choose(StandardComponentTypes.AND);
         view.inlineEditor().open(new InlineEditRequest(new Rectangle2D.Double(80, 40, 160, 24),
                 new Font(Font.SANS_SERIF, Font.PLAIN, 12), "hola", InlineValidators.anyText(), text -> { }));
 
@@ -129,9 +129,9 @@ class EscapeCancelsPlacementTest {
 
     @Test
     void placingStillWorksAfterAnEscapeFromThePalette() {
-        view.palette().choose(StandardComponentTypes.AND2);
+        view.palette().choose(StandardComponentTypes.AND);
         press(PalettePanelAccess.tree(view.palette()), KeyEvent.VK_ESCAPE);
-        view.palette().choose(StandardComponentTypes.AND2);
+        view.palette().choose(StandardComponentTypes.AND);
 
         view.canvas().tool().mousePressed(view.canvas(), TestToolContext.at(4, 4));
 

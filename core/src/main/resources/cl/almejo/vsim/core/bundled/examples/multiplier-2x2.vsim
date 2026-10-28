@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.4",
-  "formatVersion" : 3,
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "Multiplicador 2×2",
   "components" : [ {
@@ -46,83 +46,107 @@
     }
   }, {
     "id" : "c13",
-    "type" : "and2",
+    "type" : "and",
     "x" : 30,
     "y" : 30,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c16",
-    "type" : "and2",
+    "type" : "and",
     "x" : 30,
     "y" : 38,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c19",
-    "type" : "and2",
+    "type" : "and",
     "x" : 30,
     "y" : 46,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c22",
-    "type" : "and2",
+    "type" : "and",
     "x" : 30,
     "y" : 54,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c25",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 42,
     "y" : 40,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c26",
-    "type" : "and2",
+    "type" : "and",
     "x" : 42,
     "y" : 50,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c35",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 54,
     "y" : 52,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c36",
-    "type" : "and2",
+    "type" : "and",
     "x" : 54,
     "y" : 60,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c44",

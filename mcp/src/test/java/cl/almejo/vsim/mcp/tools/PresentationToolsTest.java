@@ -338,7 +338,7 @@ class PresentationToolsTest {
     }
 
     private static Map<String, Object> place(String alias, int x, int y) {
-        return Map.of("op", "PlacePart", "alias", alias, "typeId", "nand2", "x", x, "y", y);
+        return Map.of("op", "PlacePart", "alias", alias, "typeId", "and", "x", x, "y", y);
     }
 
     private Tool tool(String name) {

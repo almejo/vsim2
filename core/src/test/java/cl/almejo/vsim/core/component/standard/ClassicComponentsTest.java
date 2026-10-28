@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.BlockHarness;
+import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.library.InterfacePins;
@@ -32,7 +33,8 @@ class ClassicComponentsTest {
     @ValueSource(strings = {"and", "or", "xor", "nand", "nor"})
     void everyGateOfTwoToFourInputsMatchesJavaOnEveryInput(String operation) {
         for (int inputCount = 2; inputCount <= 4; inputCount++) {
-            BlockHarness harness = new BlockHarness(operation + inputCount, Map.of());
+            GateParameters.Gate gate = GateParameters.gate(operation, inputCount, Map.of());
+            BlockHarness harness = new BlockHarness(gate.typeId(), gate.parameters());
             for (int inputs = 0; inputs < 1 << inputCount; inputs++) {
                 int ones = Integer.bitCount(inputs);
                 for (int pin = 0; pin < inputCount; pin++) {
@@ -54,8 +56,13 @@ class ClassicComponentsTest {
 
     @Test
     void theGatesAndTheInverterHonourTheirDelay() {
-        for (String typeId : List.of("and3", "or2", "xor4", "nand2", "nor3", "not")) {
-            BlockHarness harness = new BlockHarness(typeId, Map.of("delay", 4)).advance(4);
+        List<GateParameters.Gate> gates = List.of(GateParameters.gate("and", 3, Map.of("delay", 4)),
+                GateParameters.gate("or", 2, Map.of("delay", 4)), GateParameters.gate("xor", 4, Map.of("delay", 4)),
+                GateParameters.gate("nand", 2, Map.of("delay", 4)), GateParameters.gate("nor", 3, Map.of("delay", 4)),
+                GateParameters.gate("not", 1, Map.of("delay", 4)));
+        for (GateParameters.Gate gate : gates) {
+            String typeId = StandardComponentTypes.nameId(gate.typeId(), gate.parameters());
+            BlockHarness harness = new BlockHarness(gate.typeId(), gate.parameters()).advance(4);
             int output = harness.type().pinCount() - 1;
             Value before = harness.output(output);
             // AND and NAND change when every input is 1; the others when the first one is

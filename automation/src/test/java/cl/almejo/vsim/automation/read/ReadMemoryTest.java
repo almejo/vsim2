@@ -78,7 +78,7 @@ class ReadMemoryTest {
     void aLinkedMemoryIsReportedAsLinkedAndANonMemoryIsRefused() {
         Component rom = fixture.place(StandardComponentTypes.ROM, 0, 20, Rotation.R0,
                 Map.of("link", "rom.hex", "contents", "@0 5"), "");
-        Component gate = fixture.place("nand2", 30, 30);
+        Component gate = fixture.place("and", 30, 30);
 
         assertThat(reads.readMemory(ReadFixture.ID, rom.id().value(), false, 0, 1).linked()).isTrue();
         assertThatThrownBy(() -> reads.readMemory(ReadFixture.ID, gate.id().value(), false, 0, 1))

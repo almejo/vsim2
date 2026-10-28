@@ -138,7 +138,7 @@ class OpenDocumentTest {
         OpenDocument document = track(OpenDocument.createEmpty(registry));
         AtomicInteger notifications = new AtomicInteger();
         document.addChangeListener(notifications::incrementAndGet);
-        place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         document.history().undo();
         document.save(directory.resolve("c.vsim"));
         assertThat(notifications).hasValue(3);
@@ -147,7 +147,7 @@ class OpenDocumentTest {
     @Test
     void savedFileReopensWithTheSameContent(@TempDir Path directory) throws Exception {
         OpenDocument document = track(OpenDocument.createEmpty(registry));
-        place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         Path file = directory.resolve("inversor.vsim");
         document.save(file);
         assertThat(document.isModified()).isFalse();
@@ -175,10 +175,10 @@ class OpenDocumentTest {
     @Test
     void failedSaveKeepsModifiedStateAndPath(@TempDir Path directory) throws IOException {
         OpenDocument document = track(OpenDocument.createEmpty(registry));
-        place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         Path good = directory.resolve("ok.vsim");
         document.save(good);
-        place(document, StandardComponentTypes.NOT, 5, 0, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 5, 0, Map.of(StandardComponentTypes.NEGATE, true));
         String before = Files.readString(good);
 
         assertThatThrownBy(() -> document.save(directory.resolve("missing-folder/x.vsim"))).isInstanceOf(IOException.class);

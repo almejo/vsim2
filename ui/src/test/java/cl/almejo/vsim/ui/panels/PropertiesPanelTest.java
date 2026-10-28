@@ -70,7 +70,7 @@ class PropertiesPanelTest {
     }
 
     private Component gate(int x) {
-        return place(openDocument, StandardComponentTypes.NOT, x, 0, Map.of());
+        return place(openDocument, StandardComponentTypes.BUFFER, x, 0, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     private Component current(Component component) {
@@ -147,7 +147,7 @@ class PropertiesPanelTest {
     void aComponentShowsTypeLabelAndParameters() {
         Component gate = gate(0);
         selection.select(gate.id());
-        assertThat(panel.heading()).isEqualTo("NOT");
+        assertThat(panel.heading()).isEqualTo("Buffer");
         assertThat(panel.textField().getText()).isEmpty();
         assertThat(((JSpinner) panel.parameterForm().editor("delay")).getValue()).isEqualTo(1);
     }
@@ -554,7 +554,7 @@ class PropertiesPanelTest {
     @Test
     void movingALockedFrameByItsXStretchesTheWiresCrossingItsBorder() {
         Frame frame = frame(true);
-        place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 6, 6, Map.of(StandardComponentTypes.NEGATE, true));
         Wire inside = new Wire(openDocument.document().newWireId(), new GridPoint(4, 8), new GridPoint(6, 8));
         openDocument.execute(new AddWireCommand(inside));
         Wire crossing = new Wire(openDocument.document().newWireId(), new GridPoint(10, 8), new GridPoint(30, 8));
@@ -575,7 +575,7 @@ class PropertiesPanelTest {
     @Test
     void aSelectedLockedFrameShowsTitleColourPositionAndSizeButNoLockCheckbox() {
         frame(true);
-        place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 6, 6, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(panel.heading()).isEqualTo("Marco");
         assertThat(panel.textField().getText()).isEqualTo("Sumador");
         assertThat(panel.frameColor().selectedValue()).isEqualTo(FrameTint.BLUE);
@@ -622,7 +622,7 @@ class PropertiesPanelTest {
     @Test
     void movingALockedFrameFromThePanelMovesItsContentsInOneUndoStep() {
         Frame frame = frame(true);
-        Component inside = place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        Component inside = place(openDocument, StandardComponentTypes.BUFFER, 6, 6, Map.of(StandardComponentTypes.NEGATE, true));
         selection.select(frame.id());
         panel.frameSpinners()[1].setValue(8);
         assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(2, 8));
@@ -761,7 +761,7 @@ class PropertiesPanelTest {
         assertOneGrid(frameRows, 6);
         int captionLeft = captionColumnLeft(frameRows);
 
-        Component andGate = place(openDocument, StandardComponentTypes.AND2, 30, 0, Map.of());
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 30, 0, Map.of());
         Component constant = place(openDocument, StandardComponentTypes.CONSTANT, 40, 0, Map.of());
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 50, 0, Map.of());
         for (Component component : List.of(andGate, constant, toggle)) {

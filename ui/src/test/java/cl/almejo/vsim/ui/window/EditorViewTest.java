@@ -88,7 +88,7 @@ class EditorViewTest {
     void twoViewsOfOneDocumentFollowItWithTheirOwnSelection() {
         EditorView second = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
         try {
-            Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+            Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
             assertThat(view.actions().undo().isEnabled()).isTrue();
             assertThat(second.actions().undo().isEnabled()).isTrue();
             view.canvas().selection().select(gate.id());
@@ -105,7 +105,7 @@ class EditorViewTest {
     void aDisposedViewStopsFollowingTheDocument() {
         EditorView second = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
         second.dispose();
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(second.actions().undo().isEnabled()).isFalse();
         assertThat(view.actions().undo().isEnabled()).isTrue();
         second.dispose();
@@ -208,7 +208,7 @@ class EditorViewTest {
     void undoIsDisabledUntilSomethingIsDoneAndThenNamesTheCommand() {
         Action undo = view.actions().undo();
         assertThat(undo.isEnabled()).isFalse();
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(undo.isEnabled()).isTrue();
         assertThat(undo.getValue(Action.NAME)).isEqualTo("Deshacer agregar");
         perform(undo);
@@ -218,7 +218,7 @@ class EditorViewTest {
 
     @Test
     void deleteRemovesTheSelectionAsOneStep() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(view.actions().delete().isEnabled()).isFalse();
         view.canvas().selection().select(gate.id());
         assertThat(view.actions().delete().isEnabled()).isTrue();
@@ -230,7 +230,7 @@ class EditorViewTest {
 
     @Test
     void rotateActionsRotateTheSelectedComponent() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         perform(view.actions().rotateClockwise());
         assertThat(openDocument.document().component(gate.id()).orElseThrow().rotation()).isEqualTo(Rotation.R90);
@@ -289,7 +289,7 @@ class EditorViewTest {
     void saveIsEnabledOnlyWhenThereIsSomethingToSave(@TempDir Path folder) throws Exception {
         Action save = view.actions().save();
         assertThat(save.isEnabled()).as("a new, empty document").isFalse();
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(save.isEnabled()).as("after an edit").isTrue();
         openDocument.save(folder.resolve("circuito.vsim"));
         assertThat(save.isEnabled()).as("just saved").isFalse();
@@ -301,7 +301,7 @@ class EditorViewTest {
 
     @Test
     void anUntitledDocumentWithContentCanBeSavedEvenWhenUnmodified() {
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         openDocument.history().markSaved(); // like an example opened as an untitled, unmodified copy
         assertThat(openDocument.isModified()).isFalse();
         assertThat(view.actions().save().isEnabled()).isTrue();
@@ -518,7 +518,7 @@ class EditorViewTest {
 
     @Test
     void deleteRemovesAMultiSelectionAsOneStep() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));
         openDocument.execute(new AddWireCommand(wire));
         TextLabel note = new TextLabel(openDocument.document().newLabelId(), new GridPoint(0, 10), "nota");
@@ -534,8 +534,8 @@ class EditorViewTest {
 
     @Test
     void rotateTurnsAMultiSelectionAsAGroupInOneStep() {
-        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        Component second = place(openDocument, StandardComponentTypes.NOT, 8, 0, Map.of());
+        Component first = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        Component second = place(openDocument, StandardComponentTypes.BUFFER, 8, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(first.id(), second.id()));
         perform(view.actions().rotateClockwise());
         Component rotatedFirst = openDocument.document().component(first.id()).orElseThrow();
@@ -576,8 +576,8 @@ class EditorViewTest {
 
     @Test
     void statusBarCountsTheSelection() {
-        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        Component second = place(openDocument, StandardComponentTypes.NOT, 8, 0, Map.of());
+        Component first = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        Component second = place(openDocument, StandardComponentTypes.BUFFER, 8, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(first.id(), second.id()));
         assertThat(view.statusBar().text()).contains("2 seleccionados");
         view.canvas().selection().clear();

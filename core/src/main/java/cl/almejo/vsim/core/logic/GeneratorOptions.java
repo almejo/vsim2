@@ -21,8 +21,8 @@ public record GeneratorOptions(GateStyle gates, Minimization.Form form, boolean 
     }
 
     /**
-     * The gates of the circuit. An inverter is a {@code not} gate with AND / OR / NOT, and a NAND2 (NOR2) with both
-     * inputs tied together with «Solo NAND» («Solo NOR»).
+     * The gates of the circuit. An inverter is a NOT (a {@code buffer} with «Negar salida») with AND / OR / NOT, and a
+     * 2-input NAND (NOR) with both inputs tied together with «Solo NAND» («Solo NOR»).
      */
     public enum GateStyle {
         AND_OR_NOT,

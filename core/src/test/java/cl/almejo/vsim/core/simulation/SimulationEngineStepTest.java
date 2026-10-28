@@ -319,7 +319,8 @@ class SimulationEngineStepTest {
                 new FlatComponent("k", standard.require(StandardComponentTypes.CLOCK),
                         Map.of("time-up", 3, "time-down", 2)),
                 new FlatComponent("ff", standard.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of("delay", 1)),
-                new FlatComponent("not", standard.require(StandardComponentTypes.NOT), Map.of("delay", 1)),
+                new FlatComponent("not", standard.require(StandardComponentTypes.BUFFER),
+                        Map.of("delay", 1, StandardComponentTypes.NEGATE, true)),
                 new FlatComponent("s", standard.require(StandardComponentTypes.SWITCH), Map.of("value", "0"))),
                 List.of(net("clock", pin("k", 0), pin("ff", 2)), net("q", pin("ff", 1), pin("not", 0)),
                         net("nq", pin("not", 1), pin("ff", 0)), net("a", pin("s", 0))));

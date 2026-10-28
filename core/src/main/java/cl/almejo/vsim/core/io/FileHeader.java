@@ -50,7 +50,8 @@ final class FileHeader {
         }
         JsonNode version = root.path(FORMAT_VERSION_KEY);
         if (version.isIntegralNumber() && version.canConvertToInt()
-                && (version.intValue() == OLDEST_READABLE_VERSION || version.intValue() == CircuitFormat.FORMAT_VERSION)) {
+                && version.intValue() >= OLDEST_READABLE_VERSION
+                && version.intValue() <= CircuitFormat.FORMAT_VERSION) {
             return;
         }
         if (version.isIntegralNumber()

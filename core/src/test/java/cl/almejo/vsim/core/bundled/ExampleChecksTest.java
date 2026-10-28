@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.ADDER;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND2;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUS_JOINER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.LED;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SWITCH;
@@ -47,7 +47,7 @@ class ExampleChecksTest {
         CircuitBuilder builder = new CircuitBuilder("corto");
         Component first = builder.placeByPin(SWITCH, new GridPoint(6, 4), 0, Rotation.R0, OFF, "A");
         Component second = builder.placeByPin(SWITCH, new GridPoint(14, 4), 0, Rotation.R0, OFF, "B");
-        Component gate = builder.placeByBox(AND2, 20, 4, Rotation.R0, Map.of(), "");
+        Component gate = builder.placeByBox(AND, 20, 4, Rotation.R0, Map.of(), "");
         builder.route(new GridPoint(6, 4), new GridPoint(20, 4));
         builder.link(first, 0, gate, 0);
         builder.link(second, 0, gate, 1);
@@ -63,8 +63,8 @@ class ExampleChecksTest {
     @Test
     void gatesStackedFourRowsApartPutAPinOnAPin() {
         CircuitBuilder builder = new CircuitBuilder("pines");
-        builder.placeByBox(AND2, 10, 4, Rotation.R0, Map.of(), "");
-        builder.placeByBox(AND2, 10, 8, Rotation.R0, Map.of(), "");
+        builder.placeByBox(AND, 10, 4, Rotation.R0, Map.of(), "");
+        builder.placeByBox(AND, 10, 8, Rotation.R0, Map.of(), "");
         assertThat(ExampleChecks.wiringProblems(builder))
                 .anyMatch(problem -> problem.endsWith("share GridPoint[x=10, y=8]"));
     }

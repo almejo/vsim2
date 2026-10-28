@@ -60,8 +60,8 @@ class ProbeActionsTest {
     /** Switch c1 (out at 4,1) → NOT c2 (4,1 → 8,1) → NOT c3 (8,1 → 12,1) → LED c4 (in at 12,1). */
     private List<ElementId> chain() {
         return List.of(place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of()).id(),
-                place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of()).id(),
-                place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of()).id(),
+                place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true)).id(),
+                place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true)).id(),
                 place(openDocument, StandardComponentTypes.LED, 11, -2, Map.of()).id());
     }
 
@@ -105,7 +105,7 @@ class ProbeActionsTest {
     @Test
     void aNetAlreadyShownAddsNothingAndNamesTheChannelToBlink() {
         place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());                    // out (4,1)
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());     // in (8,1)
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));     // in (8,1)
         Wire wire = addWire(4, 1, 8, 1);
         actions.addComponentPins(gate.id());
         String gateInput = probes().get(0).id();

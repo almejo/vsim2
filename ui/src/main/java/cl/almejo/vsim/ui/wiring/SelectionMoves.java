@@ -242,7 +242,7 @@ public final class SelectionMoves {
     private static String componentName(Component component, CircuitDocument document) {
         String typeName = SubcircuitTypes.definitionIdOf(component.typeId()).flatMap(document::definition)
                 .map(ComponentDefinition::name)
-                .orElseGet(() -> Messages.componentName(component.typeId()));
+                .orElseGet(() -> Messages.componentName(component.typeId(), component.parameters()));
         return component.label().isBlank() ? typeName
                 : Messages.format("wiresFollow.componentLabeled", typeName, component.label());
     }

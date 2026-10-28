@@ -58,7 +58,7 @@ class PinBridgesTest {
     /** input-pin "a" at (10,11) (point (12,12)) → NOT (12,10) → output-pin "y" at (16,11) (point (16,12)). */
     private List<ElementId> inverter() {
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 12, 10, "");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 12, 10, "");
         Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         return ids(input, gate, output);
     }
@@ -142,7 +142,7 @@ class PinBridgesTest {
     @Test
     void anInstancePinLandingOnAnUnrelatedOutsideWireIsBlocked() {
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component gate = place(registry, document, StandardComponentTypes.NOT, 12, 10, "");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 12, 10, "");
         Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         wire(document, 10, 12, 10, 20); // runs down from where the instance input will be; nothing touched "a" before
 

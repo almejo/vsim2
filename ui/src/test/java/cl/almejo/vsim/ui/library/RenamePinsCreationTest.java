@@ -74,7 +74,7 @@ class RenamePinsCreationTest {
     private List<Component> drawSwitchNotLed() {
         Component input = fixture.place(StandardComponentTypes.SWITCH, 0, 1, "Cin");
         Wire first = wire(4, 2, 6, 2);
-        Component gate = fixture.place(StandardComponentTypes.NOT, 6, 0, "");
+        Component gate = fixture.place(StandardComponentTypes.BUFFER, 6, 0, "");
         Wire second = wire(10, 2, 12, 2);
         Component led = fixture.place(StandardComponentTypes.LED, 11, -1, "S");
         fixture.view.canvas().selection().set(List.of(input.id(), first.id(), gate.id(), second.id(), led.id()));

@@ -49,14 +49,14 @@ class ParameterFormTest {
 
     @Test
     void unchangedValuesReportNoChanges() {
-        ParameterForm form = form(StandardComponentTypes.NOT, Map.of("delay", 3));
+        ParameterForm form = form(StandardComponentTypes.BUFFER, Map.of("delay", 3));
         assertThat(form.validationError()).isEmpty();
         assertThat(form.hasChanges()).isFalse();
     }
 
     @Test
     void changedValuesAreReported() {
-        ParameterForm form = form(StandardComponentTypes.NOT, Map.of());
+        ParameterForm form = form(StandardComponentTypes.BUFFER, Map.of());
         ((JSpinner) form.editor("delay")).setValue(5);
         assertThat(form.validationError()).isEmpty();
         assertThat(form.hasChanges()).isTrue();
@@ -114,7 +114,7 @@ class ParameterFormTest {
 
     @Test
     void outOfRangeTextReportsALocalizedError() {
-        ParameterForm form = form(StandardComponentTypes.NOT, Map.of());
+        ParameterForm form = form(StandardComponentTypes.BUFFER, Map.of());
         typeInto((JSpinner) form.editor("delay"), "0");
         assertThat(form.validationError()).hasValueSatisfying(message -> assertThat(message)
                 .contains("Retardo").contains("1.000.000"));
@@ -145,7 +145,7 @@ class ParameterFormTest {
 
     @Test
     void spinnerTextFieldsKeepInvalidTextWhenFocusIsLost() {
-        ParameterForm form = form(StandardComponentTypes.NOT, Map.of());
+        ParameterForm form = form(StandardComponentTypes.BUFFER, Map.of());
         JFormattedTextField field = ((JSpinner.DefaultEditor) ((JSpinner) form.editor("delay")).getEditor()).getTextField();
         assertThat(field.getFocusLostBehavior()).isEqualTo(JFormattedTextField.COMMIT);
     }
@@ -189,7 +189,7 @@ class ParameterFormTest {
         assertThat(labelOf(clock, "time-down").getText()).isEqualTo("Tiempo en bajo (t)");
         assertThat(labelOf(clock, "time-up").getToolTipText()).isEqualTo(tip);
         assertThat(clock.editor("time-up").getToolTipText()).isEqualTo(tip);
-        ParameterForm gate = form(StandardComponentTypes.NOT, Map.of());
+        ParameterForm gate = form(StandardComponentTypes.BUFFER, Map.of());
         assertThat(labelOf(gate, "delay").getText()).isEqualTo("Retardo (t)");
         assertThat(((JSpinner.DefaultEditor) ((JSpinner) gate.editor("delay")).getEditor()).getTextField()
                 .getToolTipText()).isEqualTo(tip);
@@ -202,7 +202,7 @@ class ParameterFormTest {
 
     @Test
     void anInvalidTimeKeepsThePlainNameInItsMessage() {
-        ParameterForm gate = form(StandardComponentTypes.NOT, Map.of());
+        ParameterForm gate = form(StandardComponentTypes.BUFFER, Map.of());
         typeInto((JSpinner) gate.editor("delay"), "0");
         assertThat(gate.validationError()).hasValueSatisfying(message -> assertThat(message)
                 .contains("Retardo").doesNotContain("(t)"));

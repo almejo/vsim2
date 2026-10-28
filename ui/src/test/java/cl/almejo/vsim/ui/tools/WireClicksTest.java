@@ -85,7 +85,7 @@ class WireClicksTest {
 
     @Test
     void aShiftDoubleClickAddsTheStretchToTheSelection() {
-        Component gate = place(context.openDocument(), StandardComponentTypes.NOT, 50, 50, Map.of());
+        Component gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 50, 50, Map.of(StandardComponentTypes.NEGATE, true));
         context.selection.select(gate.id());
         clicks(20.2, 5, 2, true);
         assertThat(context.selection.ids()).containsExactlyInAnyOrder(gate.id(), first.id(), middle.id(), last.id());
@@ -93,7 +93,7 @@ class WireClicksTest {
 
     @Test
     void aPlainDoubleClickReplacesTheSelection() {
-        Component gate = place(context.openDocument(), StandardComponentTypes.NOT, 50, 50, Map.of());
+        Component gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 50, 50, Map.of(StandardComponentTypes.NEGATE, true));
         context.selection.select(gate.id());
         clicks(20.2, 5, 2, false);
         assertThat(context.selection.ids()).containsExactly(first.id(), middle.id(), last.id());
@@ -145,7 +145,7 @@ class WireClicksTest {
 
     @Test
     void aDoubleClickOnAWireInsideALockedFrameSelectsOnlyTheStretch() {
-        Component gate = place(context.openDocument(), StandardComponentTypes.NOT, 12, 4, Map.of());
+        Component gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 12, 4, Map.of(StandardComponentTypes.NEGATE, true));
         Frame frame = new Frame(document().newFrameId(), new GridPoint(5, -5), 40, 30, "Bloque", FrameTint.BLUE,
                 true);
         context.openDocument().execute(new CreateFrameCommand(frame));

@@ -179,7 +179,7 @@ class SnapFeaturesTest {
         int[] rightAfterTheChange = new int[1];
 
         SwingUtilities.invokeAndWait(() -> {
-            place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of());
+            place(openDocument, StandardComponentTypes.BUFFER, 10, 10, Map.of(StandardComponentTypes.NEGATE, true));
             rightAfterTheChange[0] = tool.refreshes;
         });
         SwingUtilities.invokeAndWait(() -> { });

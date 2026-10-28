@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.StepPacer;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -43,10 +44,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.AbstractButton;
-import javax.swing.JLabel;
-import javax.swing.JRootPane;
-import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Container;
 import java.net.http.HttpRequest;
@@ -70,10 +67,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import javax.swing.AbstractButton;
+import javax.swing.JLabel;
+import javax.swing.JRootPane;
+import javax.swing.SwingUtilities;
 
-import static cl.almejo.vsim.mcp.McpResults.structured;
-import static cl.almejo.vsim.mcp.McpResults.map;
 import static cl.almejo.vsim.mcp.McpResults.list;
+import static cl.almejo.vsim.mcp.McpResults.map;
+import static cl.almejo.vsim.mcp.McpResults.structured;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -189,11 +190,11 @@ class PresentationScenariosTest {
                         part("a", "input-pin", first.x(0), first.y(1), "A"),
                         part("b", "input-pin", first.x(0), first.y(7), "B"),
                         part("cin", "input-pin", first.x(0), first.y(15), "Cin"),
-                        part("x1", "xor2", first.x(10), first.y(2), ""),
-                        part("x2", "xor2", first.x(22), first.y(4), ""),
-                        part("a1", "and2", first.x(22), first.y(12), ""),
-                        part("a2", "and2", first.x(22), first.y(20), ""),
-                        part("o1", "or2", first.x(32), first.y(14), ""),
+                        part("x1", "xor", first.x(10), first.y(2), ""),
+                        part("x2", "xor", first.x(22), first.y(4), ""),
+                        part("a1", "and", first.x(22), first.y(12), ""),
+                        part("a2", "and", first.x(22), first.y(20), ""),
+                        part("o1", "or", first.x(32), first.y(14), ""),
                         part("s", "output-pin", first.x(42), first.y(5), "S"),
                         part("cout", "output-pin", first.x(42), first.y(15), "Cout")));
         steps++;
@@ -472,7 +473,7 @@ class PresentationScenariosTest {
         assertThat(onEditor(() -> circuit.history().canUndo())).isFalse();
 
         // The user places a part of their own while the ghost waits.
-        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.NAND2, 40, 40, Map.of()));
+        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.AND, 40, 40, Map.of(StandardComponentTypes.NEGATE, true)));
 
         assertThat(call("vsim_await_step", Map.of("taskId", task))).containsEntry("status", "STALE");
         assertThat(onEditor(() -> circuit.document().components())).as("the old ghost was never applied")
@@ -1005,8 +1006,13 @@ class PresentationScenariosTest {
         return rows;
     }
 
+    /** A PlacePart of {@code typeId}, or of a preset's type with its parameters ({@code nand}, {@code not}). */
     private static Map<String, Object> part(String alias, String typeId, int x, int y, String label) {
-        return Map.of("op", "PlacePart", "alias", alias, "typeId", typeId, "x", x, "y", y, "label", label);
+        Optional<ComponentPreset> preset = StandardComponentTypes.presets().stream()
+                .filter(candidate -> candidate.id().equals(typeId)).findFirst();
+        return Map.of("op", "PlacePart", "alias", alias, "typeId", preset.map(ComponentPreset::typeId).orElse(typeId),
+                "x", x, "y", y, "label", label,
+                "parameters", preset.map(ComponentPreset::parameters).orElse(Map.of()));
     }
 
     private static Map<String, Object> instance(String alias, String definition, int x, int y) {

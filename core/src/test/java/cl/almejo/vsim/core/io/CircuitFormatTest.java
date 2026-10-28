@@ -28,15 +28,15 @@ class CircuitFormatTest {
     void roundTripKeepsEveryElement() throws CircuitFormatException {
         CircuitDocument document = new CircuitDocument();
         document.setName("sumador");
-        document.add(new Component(document.newComponentId(), "and2", new GridPoint(10, 4), Rotation.R90,
-                Map.of("delay", 3), "U1"));
+        document.add(new Component(document.newComponentId(), "and", new GridPoint(10, 4), Rotation.R90,
+                Map.of("delay", 3, "inputs", 2, "width", 1, "negate", false), "U1"));
         document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0,
                 Map.of("value", "Z"), ""));
         document.add(new Wire(document.newWireId(), new GridPoint(0, 0), new GridPoint(4, 0)));
         document.add(new TextLabel(document.newLabelId(), new GridPoint(2, 9), "nota"));
 
         String json = format.write(document);
-        assertThat(json).contains("\"formatVersion\" : 3").contains("\"kind\" : \"circuit\"");
+        assertThat(json).contains("\"formatVersion\" : 4").contains("\"kind\" : \"circuit\"");
 
         CircuitDocument loaded = format.read(json);
         assertThat(loaded.name()).isEqualTo("sumador");
@@ -76,7 +76,7 @@ class CircuitFormatTest {
     static Stream<org.junit.jupiter.params.provider.Arguments> brokenFiles() {
         return Stream.of(
                 arguments("{", CircuitFormatException.Reason.INVALID_JSON),
-                arguments("{\"formatVersion\":4,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT),
+                arguments("{\"formatVersion\":5,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":\"2\",\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
                 arguments("{\"formatVersion\":2.5,\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
                 arguments("{\"kind\":\"circuit\"}", CircuitFormatException.Reason.NOT_VSIM_FILE),
@@ -118,7 +118,7 @@ class CircuitFormatTest {
         for (String key : List.of("h", "c", "f", "a", "g", "b", "e", "d")) {
             parameters.put(key, 1);
         }
-        document.add(new Component(document.newComponentId(), "and2", GridPoint.ORIGIN, Rotation.R0, parameters, ""));
+        document.add(new Component(document.newComponentId(), "and", GridPoint.ORIGIN, Rotation.R0, parameters, ""));
         String json = format.write(document);
         List<Integer> positions = List.of("a", "b", "c", "d", "e", "f", "g", "h").stream()
                 .map(key -> json.indexOf("\"" + key + "\" : 1"))

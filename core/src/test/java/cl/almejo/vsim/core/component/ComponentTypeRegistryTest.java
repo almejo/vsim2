@@ -30,34 +30,34 @@ class ComponentTypeRegistryTest {
     @Test
     void resolversSupplyTypesThatAreNotListed() {
         ComponentTypeRegistry registry = new ComponentTypeRegistry();
-        registry.register(type("and2"));
+        registry.register(type("and"));
         ComponentType dynamic = type("subcircuit:adder");
         registry.addResolver(typeId -> typeId.equals("subcircuit:adder") ? Optional.of(dynamic) : Optional.empty());
         assertThat(registry.find("subcircuit:adder")).containsSame(dynamic);
         assertThat(registry.require("subcircuit:adder")).isSameAs(dynamic);
-        assertThat(registry.all()).extracting(ComponentType::id).containsExactly("and2");
+        assertThat(registry.all()).extracting(ComponentType::id).containsExactly("and");
         assertThatThrownBy(() -> registry.require("subcircuit:other")).isInstanceOf(UnknownComponentTypeException.class);
     }
 
     @Test
     void registeredTypesWinOverResolvers() {
         ComponentTypeRegistry registry = new ComponentTypeRegistry();
-        ComponentType registered = type("and2");
+        ComponentType registered = type("and");
         registry.register(registered);
         registry.addResolver(typeId -> Optional.of(type(typeId)));
-        assertThat(registry.require("and2")).isSameAs(registered);
+        assertThat(registry.require("and")).isSameAs(registered);
     }
 
     @Test
     void copyKeepsTypesButNotResolversAndExtendedWithKeepsBoth() {
         ComponentTypeRegistry registry = new ComponentTypeRegistry();
-        registry.register(type("and2"));
+        registry.register(type("and"));
         ComponentType first = type("subcircuit:first");
         ComponentType second = type("subcircuit:second");
         registry.addResolver(typeId -> typeId.equals(first.id()) ? Optional.of(first) : Optional.empty());
 
         ComponentTypeRegistry copy = registry.copy();
-        assertThat(copy.find("and2")).isPresent();
+        assertThat(copy.find("and")).isPresent();
         assertThat(copy.find(first.id())).isEmpty();
 
         ComponentTypeRegistry extended = registry.extendedWith(

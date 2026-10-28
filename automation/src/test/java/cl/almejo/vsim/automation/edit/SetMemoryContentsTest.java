@@ -104,8 +104,8 @@ class SetMemoryContentsTest {
 
     @Test
     void aPartThatIsNotAMemoryIsRefused() {
-        EditReceipt gate = service.edit(request(new PlacePart(Optional.of("gate"), "nand2", 30, 30, Rotation.R0,
-                Map.of(), "")));
+        EditReceipt gate = service.edit(request(new PlacePart(Optional.of("gate"), "and", 30, 30, Rotation.R0,
+                Map.of("negate", true), "")));
 
         assertThat(refused(new SetMemoryContents(gate.aliases().get("gate"), 0, List.of("1"))).error())
                 .isEqualTo(AutomationError.INVALID_REFERENCE);

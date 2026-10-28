@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentShape;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -24,22 +25,26 @@ import java.util.Optional;
 /** The built-in components, with VSim's geometry converted to grid units. */
 public final class StandardComponentTypes {
 
-    public static final String AND2 = "and2";
-    public static final String AND3 = "and3";
-    public static final String AND4 = "and4";
-    public static final String OR2 = "or2";
-    public static final String OR3 = "or3";
-    public static final String OR4 = "or4";
-    public static final String XOR2 = "xor2";
-    public static final String XOR3 = "xor3";
-    public static final String XOR4 = "xor4";
-    public static final String NAND2 = "nand2";
-    public static final String NAND3 = "nand3";
-    public static final String NAND4 = "nand4";
-    public static final String NOR2 = "nor2";
-    public static final String NOR3 = "nor3";
-    public static final String NOR4 = "nor4";
-    public static final String NOT = "not";
+    /** «AND»; with «Negar salida» it is the NAND. */
+    public static final String AND = "and";
+    /** «OR»; with «Negar salida» it is the NOR. */
+    public static final String OR = "or";
+    /** «XOR» (odd parity with more than two inputs); with «Negar salida» it is the XNOR. */
+    public static final String XOR = "xor";
+    /** «Buffer»: one input copied to the output; with «Negar salida» it is the NOT. */
+    public static final String BUFFER = "buffer";
+    /** The NAND preset ({@link #presets()}): an {@link #AND} with «Negar salida». Never a type id. */
+    public static final String NAND_PRESET = "nand";
+    /** The NOR preset: an {@link #OR} with «Negar salida». Never a type id. */
+    public static final String NOR_PRESET = "nor";
+    /** The XNOR preset: an {@link #XOR} with «Negar salida». Never a type id. */
+    public static final String XNOR_PRESET = "xnor";
+    /** The NOT preset: a {@link #BUFFER} with «Negar salida». Never a type id. */
+    public static final String NOT_PRESET = "not";
+    /** «Entradas» of a gate (2..8); the output pin index equals it. */
+    public static final String GATE_INPUTS = "inputs";
+    /** «Negar salida» of a gate or the Buffer. */
+    public static final String NEGATE = "negate";
     public static final String FLIP_FLOP_DATA = "flip-flop-data";
     public static final String TRI_STATE = "tri-state";
     public static final String CLOCK = "clock";
@@ -81,8 +86,33 @@ public final class StandardComponentTypes {
     public static final String WIDTH = "width";
 
     private static final GridSize GATE_SIZE = new GridSize(4, 4);
+    /** The gate body's width; its height grows from 4 to 6 and 8 with the inputs. */
+    private static final int GATE_WIDTH_IN_UNITS = 4;
     /** «Retardo» of gates and blocks: simulation units from an input change to the outputs. */
     static final ParameterSpec DELAY = ParameterSpec.integer("delay", 1, 1, 1_000_000);
+    /** «Entradas» of AND/OR/XOR: 2..8 (more inputs, use buses). */
+    public static final ParameterSpec GATE_INPUTS_SPEC = ParameterSpec.integer(GATE_INPUTS, 2, 2, 8);
+    /** «Ancho (bits)» of a gate or the Buffer: 1..32 like the blocks, but 1 by default (gates are 1-bit). */
+    public static final ParameterSpec GATE_WIDTH = ParameterSpec.integer(WIDTH, 1, 1, 32);
+    /** «Negar salida»: the bubble on the output (NAND, NOR, XNOR, NOT). */
+    public static final ParameterSpec NEGATE_SPEC = ParameterSpec.bool(NEGATE, false);
+    /**
+     * The input rows of a gate by number of inputs (index = inputs). 2..4 keep VSim's rows, so old circuits keep their
+     * wires; from 6 the type is taller and even counts skip the middle row, so the output stays centred.
+     */
+    private static final List<List<Integer>> GATE_INPUT_ROWS = List.of(List.of(), List.of(),
+            List.of(0, 4),
+            List.of(0, 2, 4),
+            List.of(0, 1, 2, 3),
+            List.of(0, 1, 2, 3, 4),
+            List.of(0, 1, 2, 4, 5, 6),
+            List.of(0, 1, 2, 3, 4, 5, 6),
+            List.of(0, 1, 2, 3, 5, 6, 7, 8));
+    private static final List<ComponentPreset> PRESETS = List.of(
+            new ComponentPreset(NAND_PRESET, AND, Map.of(NEGATE, true)),
+            new ComponentPreset(NOR_PRESET, OR, Map.of(NEGATE, true)),
+            new ComponentPreset(XNOR_PRESET, XOR, Map.of(NEGATE, true)),
+            new ComponentPreset(NOT_PRESET, BUFFER, Map.of(NEGATE, true)));
     private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, 8, 2, 32);
     /** «Entradas» of the mux: 2 or 4 data inputs. */
     private static final ParameterSpec MUX_INPUTS = ParameterSpec.choice("inputs", "2", List.of("2", "4"));
@@ -106,14 +136,12 @@ public final class StandardComponentTypes {
 
     public static void registerAll(ComponentTypeRegistry registry) {
         for (LogicOperation operation : LogicOperation.values()) {
-            for (int inputCount = 2; inputCount <= 4; inputCount++) {
-                registry.register(logicGate(operation, inputCount));
-            }
+            registry.register(logicGate(operation));
         }
-        registry.register(new ComponentType(NOT, ComponentCategory.BASIC, GATE_SIZE,
-                List.of(PinSpec.input("in", 0, 2), PinSpec.output("out", 4, 2)),
-                List.of(DELAY),
-                parameters -> new NotBehavior((Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(BUFFER, ComponentCategory.BASIC,
+                List.of(GATE_WIDTH, NEGATE_SPEC, DELAY),
+                parameters -> bufferShape((Integer) parameters.get(WIDTH)),
+                parameters -> new BufferBehavior((Boolean) parameters.get(NEGATE), (Integer) parameters.get("delay"))));
         registry.register(new ComponentType(FLIP_FLOP_DATA, ComponentCategory.BASIC, GATE_SIZE,
                 List.of(PinSpec.input("d", 0, 2), PinSpec.output("q", 4, 2), PinSpec.input("clock", 2, 4)),
                 List.of(DELAY),
@@ -361,16 +389,75 @@ public final class StandardComponentTypes {
         return new LedBehavior();
     }
 
-    private static ComponentType logicGate(LogicOperation operation, int inputCount) {
+    /** AND, OR or XOR with «Entradas», «Ancho (bits)», «Negar salida» and «Retardo», in that order. */
+    private static ComponentType logicGate(LogicOperation operation) {
+        return ComponentType.parameterized(operation.typeId(), ComponentCategory.BASIC,
+                List.of(GATE_INPUTS_SPEC, GATE_WIDTH, NEGATE_SPEC, DELAY),
+                parameters -> gateShape((Integer) parameters.get(GATE_INPUTS), (Integer) parameters.get(WIDTH)),
+                parameters -> new LogicGateBehavior(operation, (Integer) parameters.get(GATE_INPUTS),
+                        (Boolean) parameters.get(NEGATE), (Integer) parameters.get("delay")));
+    }
+
+    /**
+     * A 4-wide gate: inputs in0.. on the left edge at {@link #gateInputRows}, out on the right edge at
+     * {@link #gateOutputRow} (the last pin, so its index is the number of inputs). Every pin has the gate's width.
+     */
+    private static ComponentShape gateShape(int inputs, int width) {
         List<PinSpec> pins = new ArrayList<>();
-        int separationInPixels = 32 / (inputCount - 1);
-        for (int index = 0; index < inputCount; index++) {
-            pins.add(PinSpec.input("in" + index, 0, Math.floorDiv(index * separationInPixels, 8)));
+        List<Integer> rows = gateInputRows(inputs);
+        for (int index = 0; index < inputs; index++) {
+            pins.add(PinSpec.input("in" + index, 0, rows.get(index), width));
         }
-        pins.add(PinSpec.output("out", 4, 2));
-        return new ComponentType(operation.typeId(inputCount), ComponentCategory.BASIC, GATE_SIZE, pins,
-                List.of(DELAY),
-                parameters -> new LogicGateBehavior(operation, inputCount, (Integer) parameters.get("delay")));
+        int outputRow = gateOutputRow(inputs);
+        pins.add(PinSpec.output("out", GATE_WIDTH_IN_UNITS, outputRow, width));
+        return new ComponentShape(new GridSize(GATE_WIDTH_IN_UNITS, 2 * outputRow), pins);
+    }
+
+    /** The Buffer's 4 x 4 box (the old NOT's): in at (0, 2), out at (4, 2). */
+    private static ComponentShape bufferShape(int width) {
+        return new ComponentShape(GATE_SIZE, List.of(PinSpec.input("in", 0, 2, width),
+                PinSpec.output("out", GATE_WIDTH_IN_UNITS, 2, width)));
+    }
+
+    /**
+     * The rows of a gate's inputs, top to bottom: 2 → 0, 4; 3 → 0, 2, 4; 4 → 0..3; 5 → 0..4; 6 → 0, 1, 2, 4, 5, 6;
+     * 7 → 0..6; 8 → 0..3, 5..8.
+     *
+     * @throws IllegalArgumentException outside 2..8
+     */
+    public static List<Integer> gateInputRows(int inputs) {
+        requireGateInputs(inputs);
+        return GATE_INPUT_ROWS.get(inputs);
+    }
+
+    /** The row of a gate's output: 2 up to 5 inputs, 3 with 6 or 7, 4 with 8 (half the type's height). */
+    public static int gateOutputRow(int inputs) {
+        requireGateInputs(inputs);
+        return inputs <= 5 ? 2 : inputs <= 7 ? 3 : 4;
+    }
+
+    private static void requireGateInputs(int inputs) {
+        if (inputs < GATE_INPUTS_SPEC.minimum() || inputs > GATE_INPUTS_SPEC.maximum()) {
+            throw new IllegalArgumentException("a gate has 2..8 inputs: " + inputs);
+        }
+    }
+
+    /** NAND, NOR, XNOR and NOT: the gates with «Negar salida» on, offered as their own entries. */
+    public static List<ComponentPreset> presets() {
+        return PRESETS;
+    }
+
+    /**
+     * The id that names a part of {@code typeId} with {@code parameters} (the message key {@code component.<id>}):
+     * {@code nand}, {@code nor}, {@code xnor} or {@code not} for a gate or Buffer with «Negar salida» on, the type id
+     * otherwise.
+     */
+    public static String nameId(String typeId, Map<String, Object> parameters) {
+        if (!Boolean.TRUE.equals(parameters.get(NEGATE))) {
+            return typeId;
+        }
+        return PRESETS.stream().filter(preset -> preset.typeId().equals(typeId)).map(ComponentPreset::id)
+                .findFirst().orElse(typeId);
     }
 
     /**

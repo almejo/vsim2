@@ -140,7 +140,7 @@ class ZoomToolViewTest {
 
     @Test
     void aClickStepsInAndTheStatusBarFollows() {
-        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
         view.actions().zoomTool().actionPerformed(null);
         click(view.canvas(), 200, 150);
         assertThat(view.canvas().viewState().zoom()).isCloseTo(1.25, within(1e-9));

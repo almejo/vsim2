@@ -20,7 +20,7 @@ class ConfigureDialogTest {
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
 
     private ParameterForm notForm() {
-        return new ParameterForm(registry.require(StandardComponentTypes.NOT), Map.of());
+        return new ParameterForm(registry.require(StandardComponentTypes.BUFFER), Map.of());
     }
 
     private static void typeInto(JSpinner spinner, String text) {

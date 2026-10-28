@@ -21,7 +21,7 @@ class FormatMigrationTest {
         CircuitFormat format = new CircuitFormat(StandardComponentTypes.registry());
         FormatMigration.resave(file);
         String migrated = Files.readString(file);
-        assertThat(migrated).contains("\"formatVersion\" : 3");
+        assertThat(migrated).contains("\"formatVersion\" : 4");
         assertThat(format.read(migrated).labels()).isEqualTo(format.read(old).labels());
         FormatMigration.resave(file);
         assertThat(Files.readString(file)).isEqualTo(migrated);

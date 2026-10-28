@@ -16,16 +16,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND2;
+import static cl.almejo.vsim.core.GateParameters.NEGATED;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUFFER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.CLOCK;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.FLIP_FLOP_DATA;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.LED;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.NOT;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR2;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.NEGATE;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.OR;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SWITCH;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.TIME_DIAGRAM;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.XOR2;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.XOR;
 
 /**
  * Small circuits for trying the M3 features by hand. Run {@link #main} to (re)write the files in
@@ -86,8 +88,8 @@ public final class ExampleCircuits {
         CircuitBuilder builder = new CircuitBuilder("labels");
         Component switchA = builder.placeByBox(SWITCH, 2, 4, Rotation.R0, Map.of("value", "1"), "A");
         Component switchB = builder.placeByBox(SWITCH, 2, 12, Rotation.R0, Map.of("value", "0"), "B");
-        Component xorGate = builder.placeByBox(XOR2, 16, 2, Rotation.R0, Map.of(), "U1");
-        Component andGate = builder.placeByBox(AND2, 16, 12, Rotation.R0, Map.of(), "U2");
+        Component xorGate = builder.placeByBox(XOR, 16, 2, Rotation.R0, Map.of(), "U1");
+        Component andGate = builder.placeByBox(AND, 16, 12, Rotation.R0, Map.of(), "U2");
 
         builder.route(new GridPoint(6, 5), new GridPoint(9, 5));
         builder.route(new GridPoint(9, 2), new GridPoint(9, 12));
@@ -115,7 +117,7 @@ public final class ExampleCircuits {
     static CircuitBuilder rotatedGatesBuilder() {
         CircuitBuilder builder = new CircuitBuilder("rotated-gates");
         String[] rowNames = {"NOT", "AND2", "OR2", "XOR2", "Flip-flop D"};
-        String[] typeIds = {NOT, AND2, OR2, XOR2, FLIP_FLOP_DATA};
+        String[] typeIds = {BUFFER, AND, OR, XOR, FLIP_FLOP_DATA};
         String[] columnNames = {"R0", "R90", "R180", "R270"};
         Map<String, Object> clockParameters = Map.of("time-up", 40, "time-down", 40);
         for (int column = 0; column < ALL_ROTATIONS.length; column++) {
@@ -127,11 +129,13 @@ public final class ExampleCircuits {
             for (int column = 0; column < ALL_ROTATIONS.length; column++) {
                 int centerX = 12 + 24 * column;
                 String typeId = typeIds[row];
-                Component gate = builder.placeByBox(typeId, centerX - 2, centerY - 2, ALL_ROTATIONS[column], Map.of(), "");
-                String switchValue = typeId.equals(OR2) ? "0" : "1";
+                Map<String, Object> gateParameters = typeId.equals(BUFFER) ? NEGATED : Map.of();
+                Component gate = builder.placeByBox(typeId, centerX - 2, centerY - 2, ALL_ROTATIONS[column],
+                        gateParameters, "");
+                String switchValue = typeId.equals(OR) ? "0" : "1";
                 Map<String, Object> switchParameters = Map.of("value", switchValue);
                 switch (typeId) {
-                    case NOT -> {
+                    case BUFFER -> {
                         builder.attach(gate, 0, CLOCK, clockParameters, "", 2);
                         builder.attach(gate, 1, LED, Map.of(), "", 2);
                     }
@@ -165,7 +169,7 @@ public final class ExampleCircuits {
         builder.link(highSwitch, 0, firstLed, 0);
 
         Component loneSwitch = builder.placeByBox(SWITCH, 2, 20, Rotation.R0, Map.of("value", "1"), "S3");
-        Component inverter = builder.placeByBox(NOT, 12, 19, Rotation.R0, Map.of(), "N1");
+        Component inverter = builder.placeByBox(BUFFER, 12, 19, Rotation.R0, NEGATED, "N1");
         builder.route(new GridPoint(6, 21), new GridPoint(12, 21));
         builder.route(new GridPoint(8, 21), new GridPoint(8, 27));
         builder.route(new GridPoint(8, 27), new GridPoint(24, 27));
@@ -233,7 +237,8 @@ public final class ExampleCircuits {
                 Map.of("time-up", halfPeriod, "time-down", halfPeriod), "Reloj");
         List<Component> gates = new ArrayList<>();
         for (int index = 0; index < gateCount; index++) {
-            gates.add(builder.placeByBox(NOT, 10 + 8 * index, y - 2, Rotation.R0, Map.of("delay", gateDelay), "N" + (index + 1)));
+            gates.add(builder.placeByBox(BUFFER, 10 + 8 * index, y - 2, Rotation.R0,
+                    Map.of("delay", gateDelay, NEGATE, true), "N" + (index + 1)));
         }
         builder.route(new GridPoint(6, y), new GridPoint(10, y));
         builder.link(clock, 0, gates.get(0), 0);

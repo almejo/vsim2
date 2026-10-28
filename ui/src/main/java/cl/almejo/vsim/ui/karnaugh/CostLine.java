@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.core.logic.GateCost;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
@@ -10,15 +11,16 @@ import java.util.Map;
 /** The step-4 cost line: «3 AND, 2 OR, 1 NOT (6 compuertas)», gate families in a fixed order. */
 final class CostLine {
 
-    /** Type id prefixes in display order; a type belongs to the longest one it starts with («nand2» is a NAND). */
-    private static final List<String> FAMILIES = List.of("and", "or", "nand", "nor", "xor", "not");
-    private static final Map<String, String> FAMILY_KEYS = Map.of("and", "karnaugh.cost.family.and",
-            "or", "karnaugh.cost.family.or", "nand", "karnaugh.cost.family.nand", "nor", "karnaugh.cost.family.nor",
-            "xor", "karnaugh.cost.family.xor", "not", "karnaugh.cost.family.not");
+    /** The families ({@link GateCost#FAMILIES}) in display order. */
+    private static final List<String> FAMILIES = List.of("AND", "OR", "NAND", "NOR", "XOR", "XNOR", "NOT");
+    private static final Map<String, String> FAMILY_KEYS = Map.of("AND", "karnaugh.cost.family.and",
+            "OR", "karnaugh.cost.family.or", "NAND", "karnaugh.cost.family.nand", "NOR", "karnaugh.cost.family.nor",
+            "XOR", "karnaugh.cost.family.xor", "XNOR", "karnaugh.cost.family.xnor", "NOT", "karnaugh.cost.family.not");
 
     private CostLine() {
     }
 
+    /** {@code gatesByType}: counts by {@linkplain GateCost#key gate key} ({@code and2}, {@code not}, …). */
     static String text(Map<String, Integer> gatesByType) {
         Map<String, Integer> byFamily = new LinkedHashMap<>();
         for (String family : FAMILIES) {
@@ -26,8 +28,8 @@ final class CostLine {
         }
         int total = 0;
         for (Map.Entry<String, Integer> entry : gatesByType.entrySet()) {
-            String family = familyOf(entry.getKey());
-            if (family != null) {
+            String family = GateCost.familyOfKey(entry.getKey());
+            if (byFamily.containsKey(family)) {
                 byFamily.merge(family, entry.getValue(), Integer::sum);
                 total += entry.getValue();
             }
@@ -43,18 +45,5 @@ final class CostLine {
             }
         }
         return Messages.format("karnaugh.cost.total", String.join(", ", parts), total);
-    }
-
-    /** The gate family of a type id, or null for what is not a gate (a constant, a pin). */
-    private static String familyOf(String typeId) {
-        String longestMatch = null;
-        for (String family : FAMILIES) {
-            String digits = typeId.substring(Math.min(family.length(), typeId.length()));
-            if (typeId.startsWith(family) && digits.chars().allMatch(Character::isDigit)
-                    && (longestMatch == null || family.length() > longestMatch.length())) {
-                longestMatch = family;
-            }
-        }
-        return longestMatch;
     }
 }

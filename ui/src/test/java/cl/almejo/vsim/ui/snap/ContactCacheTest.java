@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ContactCacheTest {
 
     private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-    private final ComponentType not = openDocument.registry().require(StandardComponentTypes.NOT);
+    private final ComponentType not = openDocument.registry().require(StandardComponentTypes.BUFFER);
     private final ContactCache cache = new ContactCache();
 
     @AfterEach

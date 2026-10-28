@@ -68,7 +68,7 @@ class LockedBlockOperationsTest {
     }
 
     private Component gate(int x, int y) {
-        return place(openDocument, StandardComponentTypes.NOT, x, y, Map.of());
+        return place(openDocument, StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     private CircuitFragment copied() throws Exception {

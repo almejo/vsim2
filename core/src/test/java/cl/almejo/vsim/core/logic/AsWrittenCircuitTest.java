@@ -131,7 +131,7 @@ class AsWrittenCircuitTest {
         GateCost cost = cost("F = (A ^ B) C + D'", true);
         assertThat(FamilyCounts.of(cost)).containsExactly(Map.entry("AND", 1), Map.entry("OR", 1),
                 Map.entry("XOR", 1), Map.entry("NOT", 1));
-        assertThat(GateCost.FAMILIES).containsExactly("AND", "OR", "XOR", "NOT", "NAND", "NOR");
+        assertThat(GateCost.FAMILIES).containsExactly("AND", "OR", "XOR", "NOT", "NAND", "NOR", "XNOR");
     }
 
     @Test
@@ -194,7 +194,7 @@ class AsWrittenCircuitTest {
     /** Evaluates the gates row by row without the simulator; also checks the families and the fan-in. */
     private static void assertNetworkMatches(TruthTableSpec spec, LogicNetwork network, String context) {
         for (LogicNetwork.Gate gate : network.gates()) {
-            String family = GateCost.family(gate.typeId());
+            String family = gate.nameId();
             int expectedInputs = family.equals("not") ? 1 : 2;
             if (!List.of("and", "or", "xor", "not").contains(family) || gate.inputs().size() < expectedInputs
                     || gate.inputs().size() > LogicNetwork.MAXIMUM_FAN_IN) {
@@ -205,7 +205,7 @@ class AsWrittenCircuitTest {
             boolean[] gateValues = new boolean[network.gates().size()];
             for (int index = 0; index < gateValues.length; index++) {
                 LogicNetwork.Gate gate = network.gates().get(index);
-                String family = GateCost.family(gate.typeId());
+                String family = gate.nameId();
                 boolean value = family.equals("and");
                 for (LogicNetwork.Signal input : gate.inputs()) {
                     boolean operand = signalValue(input, spec, row, gateValues);
@@ -241,7 +241,7 @@ class AsWrittenCircuitTest {
             String type = component.typeId();
             if (!type.equals(StandardComponentTypes.INPUT_PIN) && !type.equals(StandardComponentTypes.OUTPUT_PIN)
                     && !type.equals(StandardComponentTypes.CONSTANT)) {
-                counts.merge(type, 1, Integer::sum);
+                counts.merge(GateCost.key(type, component.parameters()), 1, Integer::sum);
             }
         }
         return counts;

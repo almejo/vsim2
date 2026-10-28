@@ -33,7 +33,7 @@ class ConnectionPointsTest {
 
     @Test
     void findsAPinWithinTheRadius() {
-        place(StandardComponentTypes.NOT, 0, 0);
+        place(StandardComponentTypes.BUFFER, 0, 0);
         assertThat(points.pinNear(document, new Point2D.Double(4.3, 2.2))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(4, 2));
         assertThat(points.pinNear(document, new Point2D.Double(0.4, 2.4))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(0, 2));
         assertThat(points.pinNear(document, new Point2D.Double(2, 2))).isEmpty();
@@ -41,10 +41,10 @@ class ConnectionPointsTest {
 
     @Test
     void pinNearChoosesTheClosestPin() {
-        place(StandardComponentTypes.NOT, 0, 0);
-        place(StandardComponentTypes.NOT, 4, 0);
+        place(StandardComponentTypes.BUFFER, 0, 0);
+        place(StandardComponentTypes.BUFFER, 4, 0);
         assertThat(points.pinNear(document, new Point2D.Double(4.1, 2))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(4, 2));
-        place(StandardComponentTypes.NOT, 0, 1);
+        place(StandardComponentTypes.BUFFER, 0, 1);
         assertThat(points.pinNear(document, new Point2D.Double(0.1, 2.6))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(0, 3));
     }
 
@@ -75,14 +75,14 @@ class ConnectionPointsTest {
 
     @Test
     void widthAtIsOneForAGatePinAndForEmptySpace() {
-        place(StandardComponentTypes.NOT, 0, 0);
+        place(StandardComponentTypes.BUFFER, 0, 0);
         assertThat(widthAt(new GridPoint(0, 2))).isEqualTo(1);
         assertThat(widthAt(new GridPoint(50, 50))).isEqualTo(1);
     }
 
     @Test
     void widthAtIsTheWidestWhenPinsOfDifferentWidthsShareAPoint() {
-        place(StandardComponentTypes.NOT, 0, 0);
+        place(StandardComponentTypes.BUFFER, 0, 0);
         place(StandardComponentTypes.BUS_SPLITTER, 0, 2);
         assertThat(widthAt(new GridPoint(0, 2))).isEqualTo(8);
     }
@@ -117,7 +117,7 @@ class ConnectionPointsTest {
 
     @Test
     void anyOtherPinIsOpenWhenItsNetHoldsNothingElse() {
-        place(StandardComponentTypes.NOT, 0, 0);
+        place(StandardComponentTypes.BUFFER, 0, 0);
         Component gate = document.components().get(0);
         assertThat(isOpen(gate)).isTrue();
 

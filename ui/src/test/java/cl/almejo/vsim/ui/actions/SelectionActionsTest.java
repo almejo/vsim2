@@ -62,7 +62,7 @@ class SelectionActionsTest {
     }
 
     private Component gateAt(int x, int y) {
-        return place(openDocument, StandardComponentTypes.NOT, x, y, Map.of());
+        return place(openDocument, StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     private void moveMouseTo(int screenX, int screenY) {
@@ -102,7 +102,7 @@ class SelectionActionsTest {
         String json = clipboard.read().orElseThrow();
         CircuitFragment fragment = new FragmentFormat(openDocument.registry()).read(json);
         assertThat(fragment.components()).singleElement().satisfies(component -> {
-            assertThat(component.typeId()).isEqualTo(StandardComponentTypes.NOT);
+            assertThat(component.typeId()).isEqualTo(StandardComponentTypes.BUFFER);
             assertThat(component.position()).isEqualTo(GridPoint.ORIGIN);
         });
         assertThat(systemClipboard.isDataFlavorAvailable(FragmentTransferable.FRAGMENT_FLAVOR)).isTrue();
@@ -193,7 +193,7 @@ class SelectionActionsTest {
             otherView.canvas().setSize(400, 300);
             SelectionActions otherActions = new SelectionActions(other, otherView::canvas, otherView.canvas().selection(),
                     otherView.actions(), clipboard);
-            Component gate = place(other, StandardComponentTypes.NOT, 10, 4, Map.of());
+            Component gate = place(other, StandardComponentTypes.BUFFER, 10, 4, Map.of(StandardComponentTypes.NEGATE, true));
             otherView.canvas().selection().select(gate.id());
             perform(otherActions.copy());
 

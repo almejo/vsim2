@@ -36,7 +36,7 @@ class SelectToolTest {
     }
 
     private Component not(int x, int y) {
-        return place(context.openDocument(), StandardComponentTypes.NOT, x, y, Map.of());
+        return place(context.openDocument(), StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     @Test
@@ -269,7 +269,7 @@ class SelectToolTest {
 
     @Test
     void dragFromAPinDrawsAWireAsOneUndoStep() {
-        place(context.openDocument(), StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         context.drag(tool, 4.2, 2.1, 9, 2);
         assertThat(context.openDocument().document().wires()).singleElement()
                 .satisfies(wire -> {

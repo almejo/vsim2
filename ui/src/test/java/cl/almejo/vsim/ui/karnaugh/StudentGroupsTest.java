@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.karnaugh;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.logic.DrawnGroup;
+import cl.almejo.vsim.core.logic.GateCost;
 import cl.almejo.vsim.core.logic.KarnaughGroup;
 import cl.almejo.vsim.core.logic.KarnaughLayout;
 import cl.almejo.vsim.core.logic.LogicValue;
@@ -61,7 +62,9 @@ class StudentGroupsTest {
     }
 
     private static List<String> typesOf(cl.almejo.vsim.core.io.CircuitFragment fragment) {
-        return fragment.components().stream().map(Component::typeId).toList();
+        // the gates by name and inputs («and2», «not»), as the cost line counts them
+        return fragment.components().stream()
+                .map(component -> GateCost.key(component.typeId(), component.parameters())).toList();
     }
 
     @Test

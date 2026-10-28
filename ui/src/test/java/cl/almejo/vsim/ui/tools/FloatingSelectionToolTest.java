@@ -31,7 +31,7 @@ class FloatingSelectionToolTest {
     private final History history = context.openDocument().history();
     /** One NOT gate (4x4) labelled U1 at the fragment origin. */
     private final CircuitFragment gate = new CircuitFragment(
-            List.of(registry.require(StandardComponentTypes.NOT).newComponent(new ElementId("c1"), GridPoint.ORIGIN,
+            List.of(registry.require(StandardComponentTypes.BUFFER).newComponent(new ElementId("c1"), GridPoint.ORIGIN,
                     Rotation.R0, Map.of(), "U1")),
             List.of(), List.of());
 

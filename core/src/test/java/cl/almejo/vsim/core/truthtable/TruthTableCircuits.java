@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.truthtable;
 
+import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -84,8 +85,8 @@ final class TruthTableCircuits {
         TruthTableCircuits circuits = new TruthTableCircuits();
         Component first = circuits.place(StandardComponentTypes.SWITCH, 0, 0, "A");
         Component second = circuits.place(StandardComponentTypes.SWITCH, 0, 10, "B");
-        Component sum = circuits.place(StandardComponentTypes.XOR2, 20, 0, "");
-        Component carry = circuits.place(StandardComponentTypes.AND2, 20, 10, "");
+        Component sum = circuits.place(StandardComponentTypes.XOR, 20, 0, "");
+        Component carry = circuits.place(StandardComponentTypes.AND, 20, 10, "");
         circuits.fanOut(circuits.pin(first, 0), 8, circuits.pin(sum, 0), circuits.pin(carry, 0));
         circuits.fanOut(circuits.pin(second, 0), 12, circuits.pin(sum, 1), circuits.pin(carry, 1));
         circuits.place(StandardComponentTypes.LED, 23, -1, "S");
@@ -99,11 +100,11 @@ final class TruthTableCircuits {
         Component first = circuits.place(StandardComponentTypes.SWITCH, 0, 0, "A");
         Component second = circuits.place(StandardComponentTypes.SWITCH, 0, 20, "B");
         Component carryIn = circuits.place(StandardComponentTypes.SWITCH, 0, 40, "Cin");
-        Component sum = circuits.place(StandardComponentTypes.XOR3, 30, 0, "");
-        Component firstAndSecond = circuits.place(StandardComponentTypes.AND2, 30, 10, "");
-        Component firstAndCarry = circuits.place(StandardComponentTypes.AND2, 30, 20, "");
-        Component secondAndCarry = circuits.place(StandardComponentTypes.AND2, 30, 30, "");
-        Component carryOut = circuits.place(StandardComponentTypes.OR3, 50, 10, "");
+        Component sum = circuits.place(StandardComponentTypes.XOR, 30, 0, "", GateParameters.inputs(3));
+        Component firstAndSecond = circuits.place(StandardComponentTypes.AND, 30, 10, "");
+        Component firstAndCarry = circuits.place(StandardComponentTypes.AND, 30, 20, "");
+        Component secondAndCarry = circuits.place(StandardComponentTypes.AND, 30, 30, "");
+        Component carryOut = circuits.place(StandardComponentTypes.OR, 50, 10, "", GateParameters.inputs(3));
         circuits.fanOut(circuits.pin(first, 0), 8, circuits.pin(sum, 0), circuits.pin(firstAndSecond, 0),
                 circuits.pin(firstAndCarry, 0));
         circuits.fanOut(circuits.pin(second, 0), 12, circuits.pin(sum, 1), circuits.pin(firstAndSecond, 1),
@@ -171,9 +172,9 @@ final class TruthTableCircuits {
     static TruthTableCircuits gatedRing() {
         TruthTableCircuits circuits = new TruthTableCircuits();
         Component enable = circuits.place(StandardComponentTypes.SWITCH, 0, 0, "A");
-        Component gate = circuits.place(StandardComponentTypes.NAND2, 10, 0, "");
-        circuits.place(StandardComponentTypes.NOT, 14, 0, "");
-        Component last = circuits.place(StandardComponentTypes.NOT, 18, 0, "");
+        Component gate = circuits.place(StandardComponentTypes.AND, 10, 0, "", GateParameters.NEGATED);
+        circuits.place(StandardComponentTypes.BUFFER, 14, 0, "");
+        Component last = circuits.place(StandardComponentTypes.BUFFER, 18, 0, "");
         circuits.wire(circuits.pin(enable, 0), new GridPoint(6, 1), new GridPoint(6, 0), circuits.pin(gate, 0));
         circuits.wire(circuits.pin(last, 1), new GridPoint(24, 2), new GridPoint(24, 8), new GridPoint(8, 8),
                 new GridPoint(8, 4), circuits.pin(gate, 1));
@@ -189,8 +190,8 @@ final class TruthTableCircuits {
         TruthTableCircuits circuits = new TruthTableCircuits();
         Component reset = circuits.place(StandardComponentTypes.SWITCH, 0, 0, "R");
         Component set = circuits.place(StandardComponentTypes.SWITCH, 0, 20, "S");
-        Component top = circuits.place(StandardComponentTypes.NOR2, 10, 0, "");
-        Component bottom = circuits.place(StandardComponentTypes.NOR2, 10, 20, "");
+        Component top = circuits.place(StandardComponentTypes.OR, 10, 0, "", GateParameters.NEGATED);
+        Component bottom = circuits.place(StandardComponentTypes.OR, 10, 20, "", GateParameters.NEGATED);
         circuits.wire(circuits.pin(reset, 0), new GridPoint(6, 1), new GridPoint(6, 0), circuits.pin(top, 0));
         circuits.wire(circuits.pin(set, 0), new GridPoint(6, 21), new GridPoint(6, 24), circuits.pin(bottom, 1));
         circuits.wire(circuits.pin(top, 2), new GridPoint(16, 2), new GridPoint(16, 12), new GridPoint(8, 12),

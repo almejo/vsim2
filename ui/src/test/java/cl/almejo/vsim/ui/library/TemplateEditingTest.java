@@ -147,7 +147,7 @@ class TemplateEditingTest {
         click(contribute(wired.instance()), "Desarmar");
 
         assertThat(fixture.dialogs.messages).isEmpty();
-        Component gate = fixture.single(StandardComponentTypes.NOT);
+        Component gate = fixture.single(StandardComponentTypes.BUFFER);
         Netlist netlist = netlist();
         PinRef switchPin = new PinRef(wired.source().id(), 0);
         PinRef ledPin = new PinRef(wired.led().id(), 0);
@@ -277,7 +277,7 @@ class TemplateEditingTest {
 
         assertThat(document.components()).extracting(Component::typeId, Component::position).containsExactly(
                 tuple(InterfacePins.INPUT_PIN, new GridPoint(10, 11)),
-                tuple(StandardComponentTypes.NOT, new GridPoint(12, 10)),
+                tuple(StandardComponentTypes.BUFFER, new GridPoint(12, 10)),
                 tuple(InterfacePins.OUTPUT_PIN, new GridPoint(16, 11)));
         assertThat(fixture.view.canvas().selection().ids())
                 .containsExactlyInAnyOrderElementsOf(document.components().stream().map(Component::id).toList());
@@ -411,7 +411,7 @@ class TemplateEditingTest {
         assertThat(document.components()).extracting(Component::typeId, Component::position, Component::rotation)
                 .containsExactly(
                         tuple(InterfacePins.INPUT_PIN, new GridPoint(x, y + 1), Rotation.R0),
-                        tuple(StandardComponentTypes.NOT, new GridPoint(x + 2, y), Rotation.R0),
+                        tuple(StandardComponentTypes.BUFFER, new GridPoint(x + 2, y), Rotation.R0),
                         tuple(InterfacePins.OUTPUT_PIN, new GridPoint(x + 6, y + 1), Rotation.R0));
         assertThat(fixture.openDocument.history().undoDescription()).contains("command.disassemble");
         fixture.openDocument.history().undo();

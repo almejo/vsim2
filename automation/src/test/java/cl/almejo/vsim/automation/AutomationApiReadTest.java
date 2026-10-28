@@ -69,13 +69,13 @@ class AutomationApiReadTest {
 
     @Test
     void theApiReadsTheCircuitTheHostHandsOver() {
-        document.add(registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        document.add(registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 new GridPoint(0, 0), Rotation.R0, Map.of(), "inv"));
 
         assertThat(api.readCircuit(OPEN, ReadFilter.SUMMARY, Optional.empty()).parts())
                 .singleElement().satisfies(part -> assertThat(part.label()).isEqualTo("inv"));
-        assertThat(api.describeComponent(OPEN, StandardComponentTypes.NOT, Map.of()).pins()).hasSize(2);
-        assertThat(api.describeComponents(OPEN, Optional.of("not")).types()).isNotEmpty();
+        assertThat(api.describeComponent(OPEN, StandardComponentTypes.BUFFER, Map.of()).pins()).hasSize(2);
+        assertThat(api.describeComponents(OPEN, Optional.of("buffer")).types()).isNotEmpty();
         assertThat(api.readProblems(OPEN).problems()).isEmpty();
     }
 

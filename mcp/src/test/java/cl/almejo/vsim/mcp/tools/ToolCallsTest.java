@@ -268,7 +268,8 @@ class ToolCallsTest {
         String task = beginTask();
         call("vsim_edit", edit(task, 0, List.of(
                 Map.of("op", "PlacePart", "alias", "in", "typeId", "input-pin", "x", 0, "y", 1, "label", "A"),
-                Map.of("op", "PlacePart", "alias", "gate", "typeId", "not", "x", 8, "y", 0),
+                Map.of("op", "PlacePart", "alias", "gate", "typeId", "buffer", "x", 8, "y", 0,
+                        "parameters", Map.of("negate", true)),
                 Map.of("op", "PlacePart", "alias", "out", "typeId", "output-pin", "x", 18, "y", 1, "label", "Y"),
                 Map.of("op", "Connect", "from", Map.of("target", "new:in", "pinName", "pin"),
                         "to", Map.of("target", "new:gate", "pinName", "in")),
@@ -347,7 +348,8 @@ class ToolCallsTest {
         String task = beginTask();
         call("vsim_edit", edit(task, 0, List.of(
                 Map.of("op", "PlacePart", "alias", "a", "typeId", "input-pin", "x", 0, "y", 1, "label", "A"),
-                Map.of("op", "PlacePart", "alias", "not", "typeId", "not", "x", 8, "y", 0),
+                Map.of("op", "PlacePart", "alias", "not", "typeId", "buffer", "x", 8, "y", 0,
+                        "parameters", Map.of("negate", true)),
                 Map.of("op", "PlacePart", "alias", "y", "typeId", "output-pin", "x", 18, "y", 1, "label", "Y"),
                 Map.of("op", "Connect", "from", Map.of("target", "new:a", "pinName", "pin"),
                         "to", Map.of("target", "new:not", "pinName", "in")),
@@ -550,7 +552,7 @@ class ToolCallsTest {
     }
 
     private static Map<String, Object> place(String alias, int x, int y) {
-        return Map.of("op", "PlacePart", "alias", alias, "typeId", "nand2", "x", x, "y", y);
+        return Map.of("op", "PlacePart", "alias", alias, "typeId", "and", "x", x, "y", y);
     }
 
     /** Switches A and B into an AND gate into a LED Y. */
@@ -558,7 +560,7 @@ class ToolCallsTest {
         call("vsim_edit", edit(beginTask(), 0, List.of(
                 Map.of("op", "PlacePart", "alias", "a", "typeId", "switch", "x", 0, "y", 0, "label", "A"),
                 Map.of("op", "PlacePart", "alias", "b", "typeId", "switch", "x", 0, "y", 8, "label", "B"),
-                Map.of("op", "PlacePart", "alias", "and", "typeId", "and2", "x", 12, "y", 2),
+                Map.of("op", "PlacePart", "alias", "and", "typeId", "and", "x", 12, "y", 2),
                 Map.of("op", "PlacePart", "alias", "y", "typeId", "led", "x", 24, "y", 3, "label", "Y"),
                 Map.of("op", "Connect", "from", Map.of("target", "new:a", "pinName", "out"),
                         "to", Map.of("target", "new:and", "pinName", "in0")),

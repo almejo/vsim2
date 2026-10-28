@@ -80,28 +80,28 @@ class QuickInsertTest {
         view.services().preferences().setPaletteFavorites(List.of("led"));
         view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
         assertThat(shown.results()).isEmpty();
-        shown.setQuery("and3");
+        shown.setQuery("xor");
         shown.acceptSelection();
         assertThat(document.document().components()).singleElement()
-                .extracting(Component::typeId).isEqualTo("and3");
+                .extracting(Component::typeId).isEqualTo("xor");
     }
 
     @Test
     void aBlankSearchListsTheFavoritesThenTheRecentsAndTheArrowsSkipTheHeadings() {
         showFavorites();
         view.services().preferences().setPaletteFavorites(List.of("led"));
-        view.palette().setRecents(List.of("and3", "led", "or2"));
+        view.palette().setRecents(List.of("xor", "led", "or"));
         view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
 
         assertThat(shown.groupTitles()).containsExactly("Favoritos", "Recientes");
-        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("led", "and3", "or2");
+        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("led", "xor", "or");
         JTextField field = shown.searchField();
         Object down = field.getInputMap().get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
         field.getActionMap().get(down).actionPerformed(new ActionEvent(field, 0, ""));
         shown.acceptSelection();
 
         assertThat(document.document().components()).singleElement()
-                .extracting(Component::typeId).isEqualTo("and3");
+                .extracting(Component::typeId).isEqualTo("xor");
     }
 
     @Test
@@ -109,13 +109,13 @@ class QuickInsertTest {
         new RecentComponentsExtension().install(view);
         view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
         assertThat(shown.groupTitles()).isEmpty();
-        shown.setQuery("and3");
+        shown.setQuery("xor");
         shown.acceptSelection();
 
         view.canvas().tool().mousePressed(view.canvas(), at(40, 40, 2));
 
         assertThat(shown.groupTitles()).containsExactly("Recientes");
-        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("and3");
+        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("xor");
     }
 
     private void showFavorites() {
@@ -127,10 +127,10 @@ class QuickInsertTest {
         view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
         assertThat(shown).isNotNull();
         assertThat(document.document().components()).isEmpty();
-        shown.setQuery("and3");
+        shown.setQuery("xor");
         shown.acceptSelection();
         assertThat(document.document().components()).singleElement().satisfies(component -> {
-            assertThat(component.typeId()).isEqualTo("and3");
+            assertThat(component.typeId()).isEqualTo("xor");
             assertThat(component.position()).isEqualTo(new GridPoint(10, 20));
             assertThat(view.selection().contains(component.id())).isTrue();
         });
@@ -143,7 +143,7 @@ class QuickInsertTest {
     @Test
     void theShortcutStartsFloatingPlacementAndEscapeCancelsWithoutAnEdit() {
         view.shortcutActions().get("edit.quickInsert").actionPerformed(new ActionEvent(view, 0, ""));
-        shown.setQuery("and3");
+        shown.setQuery("xor");
         shown.acceptSelection();
         assertThat(document.document().components()).isEmpty();
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
@@ -157,13 +157,13 @@ class QuickInsertTest {
     @Test
     void blankSearchUsesFavoritesAndTypingSearchesTheWholeCatalogueIncludingUserComponents() {
         showFavorites();
-        view.services().preferences().setPaletteFavorites(List.of("led", "missing", "and3"));
+        view.services().preferences().setPaletteFavorites(List.of("led", "missing", "xor"));
         DefinitionBundle bundle = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
         view.palette().setUserComponents(List.of(bundle), List.of());
         view.palette().setUserComponentChooser(component ->
                 view.setToolOnEveryPane(() -> new PlaceDefinitionTool(component.bundle())));
         view.canvas().tool().mousePressed(view.canvas(), at(12, 14, 2));
-        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("led", "and3");
+        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("led", "xor");
         shown.setQuery("INVERSOR");
         assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("subcircuit:inverter");
         shown.acceptSelection();
@@ -177,7 +177,7 @@ class QuickInsertTest {
 
     @Test
     void aDoubleClickOnAPinTipOutsideTheBodyDoesNotOpenTheSearch() {
-        Component gate = document.registry().require("and3").newComponent(new ElementId("gate"),
+        Component gate = document.registry().require("xor").newComponent(new ElementId("gate"),
                 new GridPoint(20, 20), Rotation.R0, Map.of(), "");
         document.execute(new AddElementsCommand(List.of(gate)));
         SelectToolDelegate delegate = ((SelectTool) view.canvas().defaultTool()).delegates().getLast();
@@ -213,7 +213,7 @@ class QuickInsertTest {
 
     @Test
     void existingComponentsLabelsBusValuesWiresAndFrameControlsKeepTheirDoubleClick() {
-        Component gate = document.registry().require("and3").newComponent(new ElementId("gate"),
+        Component gate = document.registry().require("xor").newComponent(new ElementId("gate"),
                 new GridPoint(20, 20), Rotation.R0, Map.of(), "Etiqueta larga");
         Component bus = document.registry().require(StandardComponentTypes.INPUT_PIN)
                 .newComponent(new ElementId("bus"), new GridPoint(40, 40), Rotation.R0, Map.of("width", 8), "");
@@ -256,7 +256,7 @@ class QuickInsertTest {
     @Test
     void theSearchFieldKeepsTheFocusWhileArrowsAndEnterChooseAndEscapeCloses() {
         showFavorites();
-        view.services().preferences().setPaletteFavorites(List.of("and3", "led"));
+        view.services().preferences().setPaletteFavorites(List.of("xor", "led"));
         view.canvas().tool().mousePressed(view.canvas(), at(10, 10, 2));
         JTextField field = shown.searchField();
         Object down = field.getInputMap().get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));

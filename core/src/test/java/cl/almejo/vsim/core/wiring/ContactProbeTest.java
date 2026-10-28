@@ -28,7 +28,7 @@ class ContactProbeTest {
 
     /** A NOT gate: input pin at (x, y + 2), output pin at (x + 4, y + 2). */
     private Component gate(int x, int y) {
-        return component(StandardComponentTypes.NOT, x, y);
+        return component(StandardComponentTypes.BUFFER, x, y);
     }
 
     /** An LED: its only pin at (x + 1, y + 3). */
@@ -119,7 +119,7 @@ class ContactProbeTest {
     @Test
     void aGhostNotInTheDocumentIsProbedEvenWhenItsIdsCollide() {
         Wire existing = wire(document, 10, 0, 10, 10);
-        Component ghost = new Component(existing.id(), StandardComponentTypes.NOT, new GridPoint(0, 0), Rotation.R0,
+        Component ghost = new Component(existing.id(), StandardComponentTypes.BUFFER, new GridPoint(0, 0), Rotation.R0,
                 Map.of(), "");
         assertThat(ContactProbe.newContacts(document, registry, List.of(ghost), 6, 0, Set.of())).containsExactly(
                 new NewContact(new GridPoint(10, 2), Optional.of(existing.id()), Optional.of(pinName(ghost, 1)),
@@ -128,7 +128,7 @@ class ContactProbeTest {
 
     @Test
     void aGhostsOwnPiecesNeverTouchEachOther() {
-        Component ghostGate = new Component(new ElementId("ghost-gate"), StandardComponentTypes.NOT,
+        Component ghostGate = new Component(new ElementId("ghost-gate"), StandardComponentTypes.BUFFER,
                 new GridPoint(0, 0), Rotation.R0, Map.of(), "");
         Wire ghostWire = new Wire(new ElementId("ghost-wire"), new GridPoint(4, 2), new GridPoint(8, 2));
         assertThat(ContactProbe.newContacts(document, registry, List.of(ghostGate, ghostWire), 3, 3, Set.of()))

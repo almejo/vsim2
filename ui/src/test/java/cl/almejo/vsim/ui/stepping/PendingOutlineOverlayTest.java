@@ -36,7 +36,7 @@ class PendingOutlineOverlayTest {
     private final AtomicInteger repaints = new AtomicInteger();
 
     private Component place(int x, int y) {
-        Component component = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        Component component = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 new GridPoint(x, y), Rotation.R0, Map.of(), "");
         document.add(component);
         return component;

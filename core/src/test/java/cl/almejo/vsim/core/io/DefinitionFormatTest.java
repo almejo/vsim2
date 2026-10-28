@@ -28,7 +28,7 @@ class DefinitionFormatTest {
     void roundTripKeepsTheBundle() throws Exception {
         String json = format.write(doubleBundle);
         JsonNode root = mapper.readTree(json);
-        assertThat(root.path("formatVersion").asInt()).isEqualTo(3);
+        assertThat(root.path("formatVersion").asInt()).isEqualTo(4);
         assertThat(root.path("kind").asText()).isEqualTo("component");
         assertThat(root.path("id").asText()).isEqualTo(ExampleDefinitions.DOUBLE_INVERTER);
         assertThat(root.path("definitions")).hasSize(1);
@@ -43,7 +43,7 @@ class DefinitionFormatTest {
         assertReason("no json", CircuitFormatException.Reason.INVALID_JSON);
         assertReason("[1, 2]", CircuitFormatException.Reason.NOT_VSIM_FILE);
         assertReason(mutated(inverter, root -> root.put("kind", "circuit")), CircuitFormatException.Reason.INVALID_ELEMENT);
-        assertReason(mutated(inverter, root -> root.put("formatVersion", 4)),
+        assertReason(mutated(inverter, root -> root.put("formatVersion", 5)),
                 CircuitFormatException.Reason.NEWER_FORMAT);
         assertReason(mutated(format.write(doubleBundle), root -> root.remove("definitions")),
                 CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE);

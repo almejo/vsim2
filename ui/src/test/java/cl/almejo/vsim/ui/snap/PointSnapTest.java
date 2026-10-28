@@ -31,7 +31,7 @@ class PointSnapTest {
 
     @BeforeEach
     void create() {
-        Component gate = place(context.openDocument(), StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         pin = context.openDocument().registry().typeOf(gate).pinLocation(gate, 0);
         context.openDocument().execute(new AddWireCommand(new Wire(context.openDocument().document().newWireId(),
                 new GridPoint(40, 0), new GridPoint(50, 0))));

@@ -70,7 +70,7 @@ class LabelMenuContributorTest {
 
     @Test
     void componentGetsLabelItem() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         selection.select(gate.id());
         JPopupMenu menu = menuFor(Optional.of(gate));
         assertThat(texts(menu)).containsExactly("Etiqueta…");
@@ -82,7 +82,7 @@ class LabelMenuContributorTest {
 
     @Test
     void aComponentWithAMovedLabelGetsTheResetItemThatPutsItBackInOneStep() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         openDocument.execute(new SetLabelOffsetCommand(gate.id(), Optional.of(new LabelOffset(2, 6))));
         Component moved = openDocument.document().component(gate.id()).orElseThrow();
         selection.select(gate.id());
@@ -98,8 +98,8 @@ class LabelMenuContributorTest {
 
     @Test
     void aMultiSelectionGetsNoResetItem() {
-        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        Component second = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
+        Component first = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        Component second = place(openDocument, StandardComponentTypes.BUFFER, 10, 0, Map.of(StandardComponentTypes.NEGATE, true));
         openDocument.execute(new SetLabelOffsetCommand(first.id(), Optional.of(new LabelOffset(2, 6))));
         selection.set(List.of(first.id(), second.id()));
         assertThat(texts(menuFor(openDocument.document().component(first.id()).map(DocumentElement.class::cast))))
@@ -151,8 +151,8 @@ class LabelMenuContributorTest {
 
     @Test
     void multiSelectionGetsNoLabelItems() {
-        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        Component second = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
+        Component first = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        Component second = place(openDocument, StandardComponentTypes.BUFFER, 10, 0, Map.of(StandardComponentTypes.NEGATE, true));
         selection.set(List.of(first.id(), second.id()));
         assertThat(texts(menuFor(Optional.of(first)))).isEmpty();
     }

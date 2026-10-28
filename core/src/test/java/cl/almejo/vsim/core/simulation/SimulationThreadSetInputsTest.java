@@ -19,14 +19,18 @@ class SimulationThreadSetInputsTest {
     private final SimulationThread thread = new SimulationThread(new SimulationEngine(), () -> 0L);
 
     private FlatComponent component(String id, String typeId) {
-        ComponentType type = registry.require(typeId).specializedFor(Map.of());
-        return new FlatComponent(id, type, Map.of());
+        return component(id, typeId, Map.of());
+    }
+
+    private FlatComponent component(String id, String typeId, Map<String, Object> parameters) {
+        ComponentType type = registry.require(typeId).specializedFor(parameters);
+        return new FlatComponent(id, type, parameters);
     }
 
     /** Switches "a" (net "na", read by NOT "gate" whose output is "out") and "b" (net "nb"); both start at 1. */
     private FlatCircuit circuit() {
         return new FlatCircuit(List.of(component("a", StandardComponentTypes.SWITCH),
-                component("b", StandardComponentTypes.SWITCH), component("gate", StandardComponentTypes.NOT)),
+                component("b", StandardComponentTypes.SWITCH), component("gate", StandardComponentTypes.BUFFER, Map.of(StandardComponentTypes.NEGATE, true))),
                 List.of(new FlatNet("na", List.of(new FlatPinRef("a", 0), new FlatPinRef("gate", 0)), 1, false),
                         new FlatNet("nb", List.of(new FlatPinRef("b", 0)), 1, false),
                         new FlatNet("out", List.of(new FlatPinRef("gate", 1)), 1, false)));

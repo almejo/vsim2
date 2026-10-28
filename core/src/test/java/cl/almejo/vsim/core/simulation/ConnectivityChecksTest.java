@@ -43,7 +43,7 @@ class ConnectivityChecksTest {
     void placingAHealthyComponentDoesNotWarnAboutItsUnconnectedExternalTerminals() {
         document.putDefinition(ExampleDefinitions.inverter());
         document.add(component(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), "outer", 0, 0));
-        document.add(component(StandardComponentTypes.NOT, "loose-top-level-gate", 20, 0));
+        document.add(component(StandardComponentTypes.BUFFER, "loose-top-level-gate", 20, 0));
 
         assertThat(problems()).isEmpty();
     }
@@ -92,7 +92,7 @@ class ConnectivityChecksTest {
 
     @Test
     void anIsolatedInternalOutputIsReportedAsWellAsItsInput() {
-        Component inverter = component(StandardComponentTypes.NOT, "gate", 0, 0);
+        Component inverter = component(StandardComponentTypes.BUFFER, "gate", 0, 0);
         document.putDefinition(new ComponentDefinition("broken", "Broken", "", new GridSize(4, 4), List.of(),
                 new CircuitFragment(List.of(inverter), List.of(), List.of())));
         document.add(component(SubcircuitTypes.typeIdOf("broken"), "outer", 0, 0));
@@ -276,7 +276,7 @@ class ConnectivityChecksTest {
         ComponentTypeRegistry workspaceRegistry = StandardComponentTypes.registry()
                 .extendedWith(SubcircuitTypes.resolverFor(workspace));
         ExampleDefinitions.inverter().body().components().forEach(component -> workspace.add(
-                component.typeId().equals(StandardComponentTypes.NOT) ? component.translate(1, 0) : component));
+                component.typeId().equals(StandardComponentTypes.BUFFER) ? component.translate(1, 0) : component));
         List<ElementId> selected = workspace.components().stream().map(Component::id).toList();
         DefinitionBundle broken = DefinitionBuilder.fromSelection(workspace, selected, "inverter", "Inverter",
                 DefinitionBuilder.defaultPinOrder(workspace, selected), workspaceRegistry);
@@ -300,7 +300,7 @@ class ConnectivityChecksTest {
         PasteCommand paste = new PasteCommand(plan.body(), plan.offset());
         paste.apply(repair);
         Component gate = repair.components().stream()
-                .filter(component -> component.typeId().equals(StandardComponentTypes.NOT)).findFirst().orElseThrow();
+                .filter(component -> component.typeId().equals(StandardComponentTypes.BUFFER)).findFirst().orElseThrow();
         repair.replace(gate.translate(-1, 0));
         DefinitionBundle fixed = DefinitionBuilder.fromSelection(repair, paste.pastedIds(), "inverter", "Inverter",
                 DefinitionBuilder.defaultPinOrder(repair, paste.pastedIds()), repairRegistry);

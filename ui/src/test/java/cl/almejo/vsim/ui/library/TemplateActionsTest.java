@@ -86,7 +86,7 @@ class TemplateActionsTest {
     @Test
     void aSelectionWithoutInterfacePinsExplainsWhyAndOpensNothing() {
         assertThat(fixture.features.actions().createComponent().isEnabled()).isFalse();
-        Component gate = fixture.place(StandardComponentTypes.NOT, 0, 0, "");
+        Component gate = fixture.place(StandardComponentTypes.BUFFER, 0, 0, "");
         fixture.select(gate);
         assertThat(fixture.features.actions().createComponent().isEnabled()).isTrue();
 
@@ -340,7 +340,7 @@ class TemplateActionsTest {
         assertThat(texts(fixture.view.menu(MenuId.EDIT))).contains("Crear componente desde selección…");
         List<Component> parts = fixture.drawInverter(0, 0);
         assertThat(texts(contribute(parts.get(1)))).containsExactly("Crear componente desde selección…");
-        Component lone = fixture.place(StandardComponentTypes.NOT, 20, 0, "");
+        Component lone = fixture.place(StandardComponentTypes.BUFFER, 20, 0, "");
         fixture.select(lone);
         assertThat(texts(contribute(lone))).isEmpty();
         // A single test part can become a component (it would be its pin), like from the Edit menu.

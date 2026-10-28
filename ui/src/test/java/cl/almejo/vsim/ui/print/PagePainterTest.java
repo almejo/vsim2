@@ -87,12 +87,12 @@ class PagePainterTest {
 
     /** An AND gate at the top-left and a wire far enough to need 2 × 2 A4 portrait sheets at 100 %. */
     private void bigCircuit() {
-        add(StandardComponentTypes.AND2, 4, 4, Map.of());
+        add(StandardComponentTypes.AND, 4, 4, Map.of());
         wire(document, 95, 125, 100, 125);
     }
 
     private void smallCircuit() {
-        add(StandardComponentTypes.AND2, 4, 4, Map.of());
+        add(StandardComponentTypes.AND, 4, 4, Map.of());
     }
 
     private void colourfulCircuit() {
@@ -595,7 +595,7 @@ class PagePainterTest {
     @Test
     void aFontChosenWhileTheDialogIsOpenDoesNotChangeTheSheet() {
         frame(document, 0, 0, 30, 12, "Sumador", FrameTint.BLUE);
-        add(StandardComponentTypes.AND2, 4, 4, Map.of());
+        add(StandardComponentTypes.AND, 4, 4, Map.of());
         PrintInput input = input();
         PrintArea area = PrintScopes.area(input, new PrintScope.WholeCircuit()).orElseThrow();
         PagePainter before = painter(input, area, fit());
@@ -639,7 +639,7 @@ class PagePainterTest {
         Component input = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
                 new GridPoint(4, 6), Rotation.R0, Map.of("value", "1"), "Cin");
         document.add(input);
-        Component gate = registry.require(StandardComponentTypes.AND2).newComponent(document.newComponentId(),
+        Component gate = registry.require(StandardComponentTypes.AND).newComponent(document.newComponentId(),
                 new GridPoint(14, 6), Rotation.R0, Map.of(), "resultado");
         document.add(gate);
         Component led = registry.require(StandardComponentTypes.LED).newComponent(document.newComponentId(),
@@ -770,7 +770,7 @@ class PagePainterTest {
     private void spreadCircuit() {
         for (int x = 0; x <= 96; x += 8) {
             for (int y = 0; y <= 120; y += 8) {
-                Component gate = registry.require(StandardComponentTypes.AND2).newComponent(document.newComponentId(),
+                Component gate = registry.require(StandardComponentTypes.AND).newComponent(document.newComponentId(),
                         new GridPoint(x, y), Rotation.R0, Map.of(), "G" + x + "_" + y);
                 document.add(gate);
             }

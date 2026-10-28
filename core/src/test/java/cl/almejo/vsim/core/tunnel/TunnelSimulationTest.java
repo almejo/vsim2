@@ -68,12 +68,12 @@ class TunnelSimulationTest {
             TunnelCircuit tunneled = new TunnelCircuit();
             Component source = tunneled.place(StandardComponentTypes.SWITCH, 0, 0, Map.of("value", value));
             tunneled.entrance("SIGNAL", tunneled.pin(source, 0));
-            Component gate = tunneled.place(StandardComponentTypes.NOT, 30, 9, Map.of());
+            Component gate = tunneled.place(StandardComponentTypes.BUFFER, 30, 9, Map.of(StandardComponentTypes.NEGATE, true));
             tunneled.exit("SIGNAL", tunneled.pin(gate, 0));
 
             TunnelCircuit drawn = new TunnelCircuit();
             Component drawnSource = drawn.place(StandardComponentTypes.SWITCH, 0, 0, Map.of("value", value));
-            Component drawnGate = drawn.place(StandardComponentTypes.NOT, 30, 9, Map.of());
+            Component drawnGate = drawn.place(StandardComponentTypes.BUFFER, 30, 9, Map.of(StandardComponentTypes.NEGATE, true));
             GridPoint corner = new GridPoint(drawn.pin(drawnGate, 0).x(), drawn.pin(drawnSource, 0).y());
             drawn.wire(drawn.pin(drawnSource, 0), corner);
             drawn.wire(corner, drawn.pin(drawnGate, 0));

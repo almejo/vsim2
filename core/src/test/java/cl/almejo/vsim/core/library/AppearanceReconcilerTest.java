@@ -112,7 +112,7 @@ class AppearanceReconcilerTest {
                 new DefinitionPin(PinSpec.input("a", 0, 1), before.pinout().getFirst().source()),
                 new DefinitionPin(PinSpec.output("y", 6, 5), before.pinout().getLast().source())), Optional.of(drawing));
         List<Component> body = before.body().components().stream()
-                .map(component -> component.typeId().equals(StandardComponentTypes.NOT)
+                .map(component -> component.typeId().equals(StandardComponentTypes.BUFFER)
                         ? component.withLabel("repaired") : component)
                 .toList();
         ComponentDefinition candidate = new ComponentDefinition(before.id(), "Nuevo nombre", "nuevo", before.size(),

@@ -56,7 +56,7 @@ class ArrowKeyMoveTest {
         view = new EditorView(openDocument, services, NO_WINDOW);
         canvas = view.canvas();
         canvas.setSize(400, 300);
-        gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        gate = place(openDocument, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     @AfterEach
@@ -161,7 +161,7 @@ class ArrowKeyMoveTest {
 
         OpenDocument reference = OpenDocument.createEmpty(StandardComponentTypes.registry());
         try {
-            Component referenceGate = place(reference, StandardComponentTypes.NOT, 5, 5, Map.of());
+            Component referenceGate = place(reference, StandardComponentTypes.BUFFER, 5, 5, Map.of(StandardComponentTypes.NEGATE, true));
             teeWires(reference);
             CircuitDocument referenceDocument = reference.document();
             reference.execute(MoveWithWiresCommand.of(referenceDocument, reference.registry(),
@@ -190,7 +190,7 @@ class ArrowKeyMoveTest {
 
     @Test
     void aDifferentSelectionStartsANewUndoStep() {
-        Component other = place(openDocument, StandardComponentTypes.NOT, 20, 20, Map.of());
+        Component other = place(openDocument, StandardComponentTypes.BUFFER, 20, 20, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.selection().select(gate.id());
         press(KeyEvent.VK_RIGHT, 0);
         canvas.selection().select(other.id());

@@ -57,7 +57,7 @@ class EditHostSupportTest {
 
     @Test
     void anEditIsOneUndoStepOfTheOpenCircuitNamedAsTheAisChange() throws Exception {
-        EditReceipt receipt = api.editStep(request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0),
+        EditReceipt receipt = api.editStep(request("op-1", Optional.empty(), placePart("gate", "and", 0, 0),
                 placePart("lamp", "led", 10, -1),
                 new EditOperation.Connect(PinTarget.named("new:gate", "out"), PinTarget.named("new:lamp", "in"),
                         List.of())), Optional.empty()).receipt();
@@ -83,7 +83,7 @@ class EditHostSupportTest {
     void theAisUndoWorksFromAButtonOnTheEditorThreadWithoutWaitingForItself() throws Exception {
         TaskInfo task = api.beginTask(id, "Compuerta", List.of());
         api.editStep(request("op-1", Optional.of(new TaskStep(task.taskId(), "1", "1", "Coloco la NAND")),
-                placePart("gate", "nand2", 0, 0)), Optional.empty()).receipt();
+                placePart("gate", "and", 0, 0)), Optional.empty()).receipt();
         AtomicReference<UndoOutcome> outcome = new AtomicReference<>();
 
         SwingUtilities.invokeAndWait(() -> outcome.set(api.undoTask(task.taskId())));
@@ -94,8 +94,8 @@ class EditHostSupportTest {
 
     @Test
     void anEditPreparedBeforeTheUsersMoveIsStale() throws Exception {
-        EditRequest prepared = request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0));
-        SwingUtilities.invokeAndWait(() -> place(circuit, StandardComponentTypes.NOT, 20, 0, Map.of()));
+        EditRequest prepared = request("op-1", Optional.empty(), placePart("gate", "and", 0, 0));
+        SwingUtilities.invokeAndWait(() -> place(circuit, StandardComponentTypes.BUFFER, 20, 0, Map.of(StandardComponentTypes.NEGATE, true)));
 
         assertThatThrownBy(() -> api.editStep(prepared, Optional.empty()).receipt())
                 .isInstanceOfSatisfying(AutomationException.class,
@@ -106,7 +106,7 @@ class EditHostSupportTest {
     /** IA.3: saving changes no content, so an edit prepared before the user's Ctrl+S is still current. */
     @Test
     void anEditPreparedBeforeTheUserSavesIsStillCurrent() throws Exception {
-        EditRequest prepared = request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0));
+        EditRequest prepared = request("op-1", Optional.empty(), placePart("gate", "and", 0, 0));
         SwingUtilities.invokeAndWait(() -> circuit.history().markSaved());
 
         assertThat(api.editStep(prepared, Optional.empty()).receipt().applied()).isTrue();
@@ -115,7 +115,7 @@ class EditHostSupportTest {
 
     @Test
     void aClosedCircuitCannotBeEdited() throws Exception {
-        EditRequest request = request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0));
+        EditRequest request = request("op-1", Optional.empty(), placePart("gate", "and", 0, 0));
         open.remove(circuit);
         circuit.close();
 
@@ -126,7 +126,7 @@ class EditHostSupportTest {
 
     @Test
     void theIdOfAnEditedCircuitStaysTheSame() throws Exception {
-        api.editStep(request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0)), Optional.empty()).receipt();
+        api.editStep(request("op-1", Optional.empty(), placePart("gate", "and", 0, 0)), Optional.empty()).receipt();
 
         List<DocumentSummary> documents = host.onEditorThread(EditorAccess::openDocuments).get(5, TimeUnit.SECONDS);
 

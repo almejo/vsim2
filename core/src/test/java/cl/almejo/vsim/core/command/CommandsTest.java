@@ -35,7 +35,7 @@ class CommandsTest {
     @BeforeEach
     void createDocument() {
         document = new CircuitDocument();
-        gate = new Component(document.newComponentId(), "and2", new GridPoint(2, 2), Rotation.R0, Map.of("delay", 1), "U1");
+        gate = new Component(document.newComponentId(), "and", new GridPoint(2, 2), Rotation.R0, Map.of("delay", 1), "U1");
         wire = new Wire(document.newWireId(), new GridPoint(0, 0), new GridPoint(4, 0));
         label = new TextLabel(document.newLabelId(), new GridPoint(9, 9), "nota");
         document.add(gate);
@@ -93,7 +93,7 @@ class CommandsTest {
 
     @Test
     void changeParameters() {
-        assertApplyAndRevertRestore(new ChangeParametersCommand(gate.id(), and2(), Map.of("delay", 5)));
+        assertApplyAndRevertRestore(new ChangeParametersCommand(gate.id(), and(), Map.of("delay", 5)));
     }
 
     @Test
@@ -198,12 +198,12 @@ class CommandsTest {
         ComponentType switchType = StandardComponentTypes.registry().require("switch");
         assertThatThrownBy(() -> new ChangeParametersCommand(gate.id(), switchType, Map.of("value", "7")))
                 .isInstanceOf(IllegalArgumentException.class);
-        new ChangeParametersCommand(gate.id(), and2(), Map.of("delay", "5")).apply(document);
-        assertThat(document.component(gate.id()).orElseThrow().parameters()).isEqualTo(Map.of("delay", 5));
+        new ChangeParametersCommand(gate.id(), and(), Map.of("delay", "5")).apply(document);
+        assertThat(document.component(gate.id()).orElseThrow().parameters()).containsEntry("delay", 5);
     }
 
-    private static ComponentType and2() {
-        return StandardComponentTypes.registry().require("and2");
+    private static ComponentType and() {
+        return StandardComponentTypes.registry().require("and");
     }
 
     @Test
@@ -220,7 +220,7 @@ class CommandsTest {
     @Test
     void undoOfRemoveKeepsPaintAndFileOrder() {
         Wire later = new Wire(document.newWireId(), new GridPoint(0, 6), new GridPoint(4, 6));
-        Component second = new Component(document.newComponentId(), "and2", new GridPoint(20, 2), Rotation.R0,
+        Component second = new Component(document.newComponentId(), "and", new GridPoint(20, 2), Rotation.R0,
                 Map.of("delay", 1), "U2");
         document.add(later);
         document.add(second);

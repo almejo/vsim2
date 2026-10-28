@@ -60,7 +60,7 @@ class GuidesNeverOnPaperTest {
     @BeforeEach
     void create() {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        Component gate = openDocument.registry().require(StandardComponentTypes.AND2)
+        Component gate = openDocument.registry().require(StandardComponentTypes.AND)
                 .newComponent(openDocument.document().newComponentId(), new GridPoint(4, 4), Rotation.R0, Map.of(),
                         "");
         openDocument.document().add(gate);

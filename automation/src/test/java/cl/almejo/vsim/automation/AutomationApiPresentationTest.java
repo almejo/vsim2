@@ -127,7 +127,7 @@ class AutomationApiPresentationTest {
     private EditRequest request(TaskInfo task, String operationId) {
         return new EditRequest(DOCUMENT, host.onEditor(circuit::version), operationId,
                 Optional.of(new TaskStep(task.taskId(), "Compuertas", "Coloco", "Coloco")),
-                List.of(new PlacePart(Optional.of("gate"), "nand2", 0, 0, Rotation.R0, Map.of(), "")), false);
+                List.of(new PlacePart(Optional.of("gate"), "and", 0, 0, Rotation.R0, Map.of("negate", true), "")), false);
     }
 
     private final class Recorder implements PresentationListener {

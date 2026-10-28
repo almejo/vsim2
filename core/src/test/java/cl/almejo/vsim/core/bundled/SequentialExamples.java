@@ -7,10 +7,11 @@ import cl.almejo.vsim.core.geometry.Rotation;
 
 import java.util.Map;
 
+import static cl.almejo.vsim.core.GateParameters.NEGATED;
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUFFER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.CLOCK;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.FLIP_FLOP_DATA;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.LED;
-import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.NOT;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.SWITCH;
 
@@ -104,7 +105,7 @@ public final class SequentialExamples {
         for (int bit = 0; bit < 4; bit++) {
             int left = 64 - 18 * bit;
             Component flipFlop = builder.placeByBox(FLIP_FLOP_DATA, left, 20, Rotation.R0, NO_PARAMETERS, "");
-            Component inverter = builder.placeByPin(NOT, new GridPoint(left - 4, 15), 0, Rotation.R90, NO_PARAMETERS,
+            Component inverter = builder.placeByPin(BUFFER, new GridPoint(left - 4, 15), 0, Rotation.R90, NEGATED,
                     "");
             // Q goes up, over the flip-flop to the left (the top line carries Q) and on to the tap at left - 8
             builder.route(new GridPoint(left + 4, 22), new GridPoint(left + 6, 22), new GridPoint(left + 6, 14),
@@ -164,7 +165,7 @@ public final class SequentialExamples {
             builder.link(clock, 0, flipFlops[bit], 2);
         }
         builder.route(new GridPoint(8, 22), new GridPoint(52, 22));
-        Component inverter = builder.placeByBox(NOT, 59, 14, Rotation.R0, NO_PARAMETERS, "");
+        Component inverter = builder.placeByBox(BUFFER, 59, 14, Rotation.R0, NEGATED, "");
         builder.link(flipFlops[3], 1, inverter, 0);
         builder.route(new GridPoint(63, 16), new GridPoint(65, 16), new GridPoint(65, 6), new GridPoint(10, 6),
                 new GridPoint(10, 16), new GridPoint(14, 16));

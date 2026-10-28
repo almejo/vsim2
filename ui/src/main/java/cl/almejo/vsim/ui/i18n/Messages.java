@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.i18n;
 
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -10,8 +11,9 @@ import org.slf4j.LoggerFactory;
 
 import java.text.MessageFormat;
 import java.util.Locale;
-import java.util.Optional;
+import java.util.Map;
 import java.util.MissingResourceException;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -63,6 +65,14 @@ public final class Messages {
 
     public static String componentName(String typeId) {
         return textOr("component." + typeId, typeId);
+    }
+
+    /**
+     * Visible name of a part of {@code typeId} with {@code parameters}: an AND with «Negar salida» is a «NAND»
+     * ({@link StandardComponentTypes#nameId}).
+     */
+    public static String componentName(String typeId, Map<String, Object> parameters) {
+        return componentName(StandardComponentTypes.nameId(typeId, parameters));
     }
 
     /** Visible name of a type: the definition name for a user component, the bundle name otherwise. */

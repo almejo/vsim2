@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.4",
-  "formatVersion" : 3,
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "Contador Johnson",
   "components" : [ {
@@ -97,13 +97,15 @@
     }
   }, {
     "id" : "c23",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 59,
     "y" : 14,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   } ],
   "wires" : [ {

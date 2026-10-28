@@ -33,7 +33,7 @@ class MemoryNamesTest {
     @Test
     void unnamedMemoriesAreNumberedPerKindInPlacementOrder() {
         Component firstRam = place(document, StandardComponentTypes.RAM, 0, 0, Map.of());
-        place(document, StandardComponentTypes.NOT, 30, 0, Map.of());
+        place(document, StandardComponentTypes.BUFFER, 30, 0, Map.of(StandardComponentTypes.NEGATE, true));
         Component firstRom = place(document, StandardComponentTypes.ROM, 60, 0, Map.of());
         Component secondRam = place(document, StandardComponentTypes.RAM, 90, 0, Map.of());
 

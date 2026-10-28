@@ -59,7 +59,7 @@ class FullAdderIntegrationTest {
     void oneGateExampleComputesXor() throws Exception {
         load("one-gate.json");
         engine.advance(10);
-        Component xor = document.components().stream().filter(component -> component.typeId().equals("xor2")).findFirst().orElseThrow();
+        Component xor = document.components().stream().filter(component -> component.typeId().equals("xor")).findFirst().orElseThrow();
         assertThat(output(xor, 2)).isEqualTo(Value.ONE);
         assertThat(engine.snapshot().problems()).filteredOn(problem -> !(problem instanceof ConnectivityProblem))
                 .isEmpty();
@@ -76,11 +76,11 @@ class FullAdderIntegrationTest {
         engine.advance(20);
 
         Component sumGate = document.components().stream()
-                .filter(component -> component.typeId().equals("xor2"))
+                .filter(component -> component.typeId().equals("xor"))
                 .max(Comparator.comparingInt(component -> component.position().x()))
                 .orElseThrow();
         Component carryGate = document.components().stream()
-                .filter(component -> component.typeId().equals("or2"))
+                .filter(component -> component.typeId().equals("or"))
                 .findFirst().orElseThrow();
         int total = a + b + carryIn;
         assertThat(output(sumGate, 2)).isEqualTo(Value.of(total % 2 == 1));

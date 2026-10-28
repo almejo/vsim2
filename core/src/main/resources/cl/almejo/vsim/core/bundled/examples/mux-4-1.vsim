@@ -1,18 +1,21 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.4",
-  "formatVersion" : 3,
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "Multiplexor 4:1",
   "components" : [ {
     "id" : "c1",
-    "type" : "and3",
+    "type" : "and",
     "x" : 36,
     "y" : 6,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 3,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c2",
@@ -26,13 +29,16 @@
     }
   }, {
     "id" : "c4",
-    "type" : "and3",
+    "type" : "and",
     "x" : 36,
     "y" : 14,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 3,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c5",
@@ -46,13 +52,16 @@
     }
   }, {
     "id" : "c7",
-    "type" : "and3",
+    "type" : "and",
     "x" : 36,
     "y" : 22,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 3,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c8",
@@ -66,13 +75,16 @@
     }
   }, {
     "id" : "c10",
-    "type" : "and3",
+    "type" : "and",
     "x" : 36,
     "y" : 30,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 3,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c11",
@@ -106,33 +118,40 @@
     }
   }, {
     "id" : "c15",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 14,
     "y" : 44,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c16",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 26,
     "y" : 54,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c37",
-    "type" : "or4",
+    "type" : "or",
     "x" : 48,
     "y" : 15,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 4,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c50",

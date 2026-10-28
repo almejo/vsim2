@@ -105,12 +105,12 @@ class PdfExportTest {
     }
 
     private void smallCircuit() {
-        add(StandardComponentTypes.AND2, 4, 4);
+        add(StandardComponentTypes.AND, 4, 4);
     }
 
     /** An AND gate at the top-left and a wire far enough to need 3 columns × 2 rows of A4 portrait at 100 %. */
     private void wideCircuit() {
-        add(StandardComponentTypes.AND2, 4, 4);
+        add(StandardComponentTypes.AND, 4, 4);
         wire(document, 135, 125, 140, 125);
     }
 
@@ -350,7 +350,7 @@ class PdfExportTest {
 
     @Test
     void moreSheetsThanTheLimitAreRefusedWithoutPaintingOrWriting(@TempDir Path folder) throws IOException {
-        add(StandardComponentTypes.AND2, 4, 4);
+        add(StandardComponentTypes.AND, 4, 4);
         wire(document, 1000, 1000, 1005, 1000);
         PagePainter painter = painter(options(Paper.A4, PageOrientation.PORTRAIT, new ScaleMode.Percentage(400)));
         assertThat(painter.pages().size()).isGreaterThan(PdfExport.REFUSE_ABOVE_PAGES);

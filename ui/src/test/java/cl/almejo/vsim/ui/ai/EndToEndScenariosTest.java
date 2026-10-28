@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
+import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
@@ -28,9 +29,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.imageio.ImageIO;
-import javax.swing.JRootPane;
-import javax.swing.SwingUtilities;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.http.HttpRequest;
@@ -43,13 +41,17 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.imageio.ImageIO;
+import javax.swing.JRootPane;
+import javax.swing.SwingUtilities;
 
-import static cl.almejo.vsim.mcp.McpResults.structured;
-import static cl.almejo.vsim.mcp.McpResults.map;
 import static cl.almejo.vsim.mcp.McpResults.list;
+import static cl.almejo.vsim.mcp.McpResults.map;
+import static cl.almejo.vsim.mcp.McpResults.structured;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
@@ -110,10 +112,10 @@ class EndToEndScenariosTest {
         Map<String, Object> placed = edit(document, version, task, stage, "Coloco las piezas", List.of(
                 part("d", "input-pin", 0, 2, "D"),
                 part("e", "input-pin", 0, 12, "E"),
-                part("front", "nand2", 10, 3, ""),
-                part("back", "nand2", 10, 12, ""),
-                part("top", "nand2", 22, 4, ""),
-                part("bottom", "nand2", 22, 12, ""),
+                part("front", "nand", 10, 3, ""),
+                part("back", "nand", 10, 12, ""),
+                part("top", "nand", 22, 4, ""),
+                part("bottom", "nand", 22, 12, ""),
                 part("q", "output-pin", 34, 5, "Q"),
                 part("notQ", "output-pin", 34, 13, "Q'")));
         Map<String, String> ids = aliases(placed);
@@ -213,11 +215,11 @@ class EndToEndScenariosTest {
                 part("a", "input-pin", 0, 1, "A"),
                 part("b", "input-pin", 0, 7, "B"),
                 part("cin", "input-pin", 0, 15, "Cin"),
-                part("x1", "xor2", 10, 2, ""),
-                part("x2", "xor2", 22, 4, ""),
-                part("a1", "and2", 22, 12, ""),
-                part("a2", "and2", 22, 20, ""),
-                part("o1", "or2", 32, 14, ""),
+                part("x1", "xor", 10, 2, ""),
+                part("x2", "xor", 22, 4, ""),
+                part("a1", "and", 22, 12, ""),
+                part("a2", "and", 22, 20, ""),
+                part("o1", "or", 32, 14, ""),
                 part("s", "output-pin", 42, 5, "S"),
                 part("cout", "output-pin", 42, 15, "Cout")));
         Map<String, String> ids = aliases(gates);
@@ -431,7 +433,7 @@ class EndToEndScenariosTest {
         OpenDocument circuit = open.getLast();
         String task = beginTask(document, "Latch SR", "Latch SR con NAND");
         Map<String, Object> placed = edit(document, versionOf(document), task, "Latch SR con NAND",
-                "Coloco las compuertas", List.of(part("top", "nand2", 10, 0, ""), part("bottom", "nand2", 10, 10, "")));
+                "Coloco las compuertas", List.of(part("top", "nand", 10, 0, ""), part("bottom", "nand", 10, 10, "")));
         Map<String, String> ids = aliases(placed);
         long readVersion = versionIn(placed);
 
@@ -476,7 +478,7 @@ class EndToEndScenariosTest {
     void undoingTheTaskReturnsTheCircuitToWhereTheAiStarted() throws Exception {
         String document = openCircuit("Mi circuito");
         OpenDocument circuit = open.getLast();
-        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.NAND2, 40, 40, Map.of()));
+        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.AND, 40, 40, Map.of(StandardComponentTypes.NEGATE, true)));
         Map<String, Object> start = withoutVersions(call("vsim_read_circuit", Map.of("document", document,
                 "detail", "FULL")));
         String task = beginTask(document, "Inversor", "Inversor", "Componente");
@@ -516,7 +518,7 @@ class EndToEndScenariosTest {
         Map<String, Object> placed = edit(document, versionOf(document), task, "Oscilador en anillo",
                 "Coloco la compuerta y la realimento", List.of(
                         part("enable", "input-pin", 0, 1, "EN"),
-                        part("gate", "nand2", 8, 0, ""),
+                        part("gate", "nand", 8, 0, ""),
                         part("y", "output-pin", 20, 1, "Y"),
                         connect("new:enable", "pin", "new:gate", "in0"),
                         connect("new:gate", "out", "new:y", "pin"),
@@ -552,7 +554,7 @@ class EndToEndScenariosTest {
         OpenDocument circuit = open.getLast();
         EditorView view = windowFor(circuit);
         view.services().preferences().setPrintDirectory(exportFolder);
-        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.NOT, 0, 0, Map.of()));
+        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true)));
         Path existing = exportFolder.resolve("inversor.pdf");
         Files.writeString(existing, "the user's own file");
 
@@ -582,7 +584,7 @@ class EndToEndScenariosTest {
         String document = openCircuit("Inversor");
         OpenDocument circuit = open.getLast();
         windowFor(circuit);
-        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.NOT, 0, 0, Map.of()));
+        onEditor(() -> UiTestSupport.place(circuit, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true)));
 
         McpSchema.CallToolResult result = client.callTool(McpSchema.CallToolRequest.builder("vsim_window_picture")
                 .arguments(Map.of("document", document)).build());
@@ -664,8 +666,13 @@ class EndToEndScenariosTest {
         return arguments;
     }
 
+    /** A PlacePart of {@code typeId}, or of a preset's type with its parameters ({@code nand}, {@code not}). */
     private static Map<String, Object> part(String alias, String typeId, int x, int y, String label) {
-        return Map.of("op", "PlacePart", "alias", alias, "typeId", typeId, "x", x, "y", y, "label", label);
+        Optional<ComponentPreset> preset = StandardComponentTypes.presets().stream()
+                .filter(candidate -> candidate.id().equals(typeId)).findFirst();
+        return Map.of("op", "PlacePart", "alias", alias, "typeId", preset.map(ComponentPreset::typeId).orElse(typeId),
+                "x", x, "y", y, "label", label,
+                "parameters", preset.map(ComponentPreset::parameters).orElse(Map.of()));
     }
 
     private static Map<String, Object> connect(String from, String fromPin, String to, String toPin) {

@@ -262,7 +262,7 @@ class TruthTableExtensionTest {
     @Test
     void theContextMenuOffersTheTableOnlyForAScopeWithAnInputAndAnOutput() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 10, -1, Map.of());     // (10,1) → (14,1)
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 10, -1, Map.of(StandardComponentTypes.NEGATE, true));     // (10,1) → (14,1)
         Component led = place(openDocument, StandardComponentTypes.LED, 13, -2, Map.of());      // in (14,1)
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {

@@ -59,7 +59,7 @@ class FrameGesturesTest {
     }
 
     private Component gate(int x, int y) {
-        return place(context.openDocument(), StandardComponentTypes.NOT, x, y, Map.of());
+        return place(context.openDocument(), StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     private Frame current(Frame frame) {
@@ -609,8 +609,8 @@ class FrameGesturesTest {
             for (int index = 0; index < 2; index++) {
                 TestToolContext each = contexts.get(index);
                 SelectTool eachTool = tools.get(index);
-                place(each.openDocument(), StandardComponentTypes.NOT, 4, 4, Map.of());
-                place(each.openDocument(), StandardComponentTypes.NOT, 20, 4, Map.of());
+                place(each.openDocument(), StandardComponentTypes.BUFFER, 4, 4, Map.of(StandardComponentTypes.NEGATE, true));
+                place(each.openDocument(), StandardComponentTypes.BUFFER, 20, 4, Map.of(StandardComponentTypes.NEGATE, true));
                 each.click(eachTool, 6, 6);
                 each.drag(eachTool, 6, 6, 9, 8);
                 each.drag(eachTool, 1, 1, 30, 30);

@@ -37,7 +37,7 @@ class SelectToolLabelDragTest {
     }
 
     private Component labelled(int x, int y, String label) {
-        Component gate = place(context.openDocument(), StandardComponentTypes.NOT, x, y, Map.of());
+        Component gate = place(context.openDocument(), StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
         context.openDocument().execute(new SetLabelCommand(gate.id(), label));
         return current(gate);
     }
@@ -192,7 +192,7 @@ class SelectToolLabelDragTest {
     @Test
     void theBodyOfAnotherComponentWinsOverALabelMovedOntoIt() {
         Component gate = labelled(0, 10, "U1");
-        Component other = place(context.openDocument(), StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component other = place(context.openDocument(), StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         Point2D centre = labelOnBodyOf(gate, other);
         Optional<LabelOffset> offset = current(gate).labelOffset();
 

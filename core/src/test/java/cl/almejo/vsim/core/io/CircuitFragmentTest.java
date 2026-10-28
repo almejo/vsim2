@@ -30,11 +30,11 @@ class CircuitFragmentTest {
 
     @BeforeEach
     void createDocument() {
-        gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        gate = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 new GridPoint(10, 6), Rotation.R0, Map.of(), "U1");
         wire = new Wire(document.newWireId(), new GridPoint(14, 8), new GridPoint(20, 8));
         label = new TextLabel(document.newLabelId(), new GridPoint(12, 4), "nota");
-        Component outsider = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        Component outsider = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 new GridPoint(40, 40), Rotation.R0, Map.of(), "");
         document.add(gate);
         document.add(wire);

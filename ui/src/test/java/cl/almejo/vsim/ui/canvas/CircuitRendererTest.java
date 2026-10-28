@@ -84,7 +84,7 @@ class CircuitRendererTest {
 
     @Test
     void theSelectionOutlineOfAComponentMovesWithThePhase() {
-        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        Component gate = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 new GridPoint(3, 3), Rotation.R0, Map.of(), "");
         document.add(gate);
         SimulationSnapshot empty = snapshot(document.revision(), Map.of(), List.of());
@@ -263,10 +263,10 @@ class CircuitRendererTest {
 
     @Test
     void componentLabelIsDrawnAboveTheComponent() {
-        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        Component gate = registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 new GridPoint(2, 6), Rotation.R0, Map.of(), "");
         document.add(gate);
-        Rectangle2D area = LabelLayout.componentLabel(registry.require(StandardComponentTypes.NOT),
+        Rectangle2D area = LabelLayout.componentLabel(registry.require(StandardComponentTypes.BUFFER),
                 gate.withLabel("WW")).orElseThrow().bounds();
         assertThat(inkInside(renderPlain(Set.of()), area)).isZero();
         document.replace(gate.withLabel("WW"));
@@ -586,7 +586,7 @@ assertThat(pinCenter(image, joiner, 3)).isEqualTo(SCHEME.background());
 
     @Test
     void anOpenInputOfAnyComponentIsAHollowRingAndAnOpenOutputKeepsItsDot() {
-        Component gate = componentAt(StandardComponentTypes.NOT, 3, 3);          // in (3, 5), out (7, 5)
+        Component gate = componentAt(StandardComponentTypes.BUFFER, 3, 3);          // in (3, 5), out (7, 5)
         Component led = componentAt(StandardComponentTypes.LED, 8, 3);           // in (9, 6)
         Component display = componentAt(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 3, 8); // in0 (7, 8)
 
@@ -600,10 +600,10 @@ assertThat(pinCenter(image, joiner, 3)).isEqualTo(SCHEME.background());
 
     @Test
     void connectingAnInputByWireOrPinOnPinTakesItsRingAway() {
-        Component wired = componentAt(StandardComponentTypes.NOT, 3, 3);          // in (3, 5)
+        Component wired = componentAt(StandardComponentTypes.BUFFER, 3, 3);          // in (3, 5)
         document.add(new Wire(document.newWireId(), new GridPoint(1, 5), new GridPoint(3, 5)));
         componentAt(StandardComponentTypes.SWITCH, 0, 10);                       // out (4, 11)
-        Component touching = componentAt(StandardComponentTypes.NOT, 4, 9);       // in (4, 11): pin on pin
+        Component touching = componentAt(StandardComponentTypes.BUFFER, 4, 9);       // in (4, 11): pin on pin
 
         BufferedImage image = renderCompiled();
 
@@ -614,7 +614,7 @@ assertThat(pinCenter(image, joiner, 3)).isEqualTo(SCHEME.background());
     @Test
     void anOpenInputRingUsesTheDarkSchemeToo() {
         CircuitRenderer dark = new CircuitRenderer(registry, PainterRegistry.standard(), ColorSchemes.DARK);
-        Component gate = componentAt(StandardComponentTypes.NOT, 3, 3);
+        Component gate = componentAt(StandardComponentTypes.BUFFER, 3, 3);
         Netlist netlist = new NetlistCompiler(registry).compile(document);
 
         BufferedImage image = renderWith(dark, SimulationSnapshot.EMPTY, netlist, document.revision());

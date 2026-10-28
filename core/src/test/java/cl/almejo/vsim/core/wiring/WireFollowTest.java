@@ -35,7 +35,7 @@ class WireFollowTest {
 
     /** A NOT gate: input pin at (x, y + 2), output pin at (x + 4, y + 2). */
     private Component gate(int x, int y) {
-        return component(StandardComponentTypes.NOT, x, y, Map.of());
+        return component(StandardComponentTypes.BUFFER, x, y, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     /** An LED: its only pin at (x + 1, y + 3). */

@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 
@@ -42,7 +43,10 @@ public final class VsimV1Importer {
                 throw invalid("gate type must be a non-blank string");
             }
             String typeId = typeNode.asText();
-            ComponentType type = registry.find(typeId).orElseThrow(() -> new CircuitFormatException(
+            // VSim 1 names its gates like VSim 2 did before format 4 (and2, nand3, not): same table.
+            Optional<LegacyGateMigration.Replacement> gateReplacement = LegacyGateMigration.replacement(typeId);
+            String newTypeId = gateReplacement.map(LegacyGateMigration.Replacement::typeId).orElse(typeId);
+            ComponentType type = registry.find(newTypeId).orElseThrow(() -> new CircuitFormatException(
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, typeId));
             JsonNode position = gate.path("position");
             if (!position.isObject()) {
@@ -51,11 +55,13 @@ public final class VsimV1Importer {
             JsonNode parameters = gate.path("parameters");
             JsonNode text = parameters.path("text");
             String label = (typeId.equals("switch") || typeId.equals("led")) && text.isTextual() ? text.asText() : "";
+            Map<String, Object> rawParameters = parameters(typeId, parameters);
+            gateReplacement.ifPresent(found -> rawParameters.putAll(found.parameters()));
             try {
                 document.add(new Component(document.newComponentId(), type.id(),
                         GridPoint.fromPixels(pixel(position, "x"), pixel(position, "y")),
                         Rotation.R0,
-                        type.resolveParameters(parameters(typeId, parameters)),
+                        type.resolveParameters(rawParameters),
                         label));
             } catch (IllegalArgumentException exception) {
                 throw invalid(exception.getMessage(), exception);

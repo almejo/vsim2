@@ -2,6 +2,27 @@
 
 Parte de las [funciones de VSim 2](../funciones.md).
 
+## Compuertas
+
+- Hay una sola compuerta por operación: **AND**, **OR** y **XOR**, y el **Buffer** (una entrada). En Propiedades
+  (y en el diálogo de configurar) cada una tiene, en este orden:
+  - «Entradas»: de 2 a 8 (solo AND, OR y XOR; 2 por omisión). Hasta 5 entradas la compuerta mide 4 × 4; con 6 o 7
+    mide 4 × 6 y con 8, 4 × 8, con la salida siempre al medio. Con 2, 3 y 4 entradas los pines quedan donde estaban
+    siempre. Al cambiar las entradas algunos pines se mueven y sus cables quedan sueltos, como en el multiplexor.
+  - «Ancho (bits)»: de 1 a 32 (1 por omisión). Con más de 1 bit todos los pines son buses de ese ancho y la compuerta
+    opera bit a bit (un AND de 8 bits de 6 buses, por ejemplo); un cable de otro ancho es el aviso de anchos
+    incompatibles de siempre.
+  - «Negar salida»: una casilla que agrega la burbuja a la salida. Un AND negado es un **NAND**, un OR negado un
+    **NOR**, un XOR negado un **XNOR** y un Buffer negado un **NOT**. Cada cambio es un paso de deshacer.
+  - «Retardo», como siempre.
+- El XOR de más de dos entradas es la paridad impar: vale 1 cuando hay un número impar de entradas en 1.
+- Una entrada sin conectar (en Z) no cuenta, como antes: un AND con una entrada suelta deja pasar la otra.
+- Los circuitos, componentes, librerías y lo copiado con versiones anteriores se abren sin cambios: las compuertas de
+  antes (AND de 2 entradas, NAND de 3, NOT, …) pasan a ser la compuerta con sus «Entradas» y «Negar salida», con los
+  pines en el mismo lugar, los mismos cables y las mismas sondas. Al guardar se escriben con el formato nuevo.
+- Los circuitos generados desde una tabla de verdad o desde expresiones usan estas compuertas (de 1 bit y hasta 4
+  entradas, como antes), y la línea de costo cuenta también los XNOR.
+
 ## Interruptores, LED, displays y diagramas de tiempo
 
 - Click sobre un interruptor lo cambia mientras simula.

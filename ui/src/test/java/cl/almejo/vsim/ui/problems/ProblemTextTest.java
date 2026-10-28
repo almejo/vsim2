@@ -34,8 +34,9 @@ class ProblemTextTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-    private final Component andGate = place(StandardComponentTypes.AND2, 0, 0, "U3");
-    private final Component notGate = place(StandardComponentTypes.NOT, 10, 0, "");
+    private final Component andGate = place(StandardComponentTypes.AND, 0, 0, "U3");
+    private final Component notGate = place(StandardComponentTypes.BUFFER, 10, 0, "",
+            Map.of(StandardComponentTypes.NEGATE, true));
 
     @AfterEach
     void restoreSpanish() {
@@ -43,8 +44,12 @@ class ProblemTextTest {
     }
 
     private Component place(String typeId, int x, int y, String label) {
+        return place(typeId, x, y, label, Map.of());
+    }
+
+    private Component place(String typeId, int x, int y, String label, Map<String, Object> parameters) {
         Component component = registry.require(typeId).newComponent(document.newComponentId(), new GridPoint(x, y),
-                Rotation.R0, Map.of(), label);
+                Rotation.R0, parameters, label);
         document.add(component);
         return component;
     }
@@ -69,15 +74,15 @@ class ProblemTextTest {
 
     @Test
     void driversAreNamedByTypeAndLabelWithTheValueTheyImpose() {
-        assertThat(ProblemText.drivers(fight(), document)).isEqualTo("AND de 2 entradas 'U3' → 1 · NOT → 0");
+        assertThat(ProblemText.drivers(fight(), document)).isEqualTo("AND 'U3' → 1 · NOT → 0");
         Messages.initialize(Locale.ENGLISH);
-        assertThat(ProblemText.drivers(fight(), document)).isEqualTo("AND (2 inputs) 'U3' → 1 · NOT → 0");
+        assertThat(ProblemText.drivers(fight(), document)).isEqualTo("AND 'U3' → 1 · NOT → 0");
     }
 
     @Test
     void describesAShortCircuitWithItsStartTime() {
         assertThat(ProblemText.describe(fight(), document, registry))
-                .isEqualTo("⚠ Cortocircuito desde t = 5: AND de 2 entradas 'U3' → 1 · NOT → 0");
+                .isEqualTo("⚠ Cortocircuito desde t = 5: AND 'U3' → 1 · NOT → 0");
     }
 
     @Test
@@ -85,7 +90,7 @@ class ProblemTextTest {
         WidthMismatch mismatch = new WidthMismatch("n", List.of(new FlatPinRef(notGate.id().value(), 0),
                 new FlatPinRef(andGate.id().value(), 0)));
         assertThat(ProblemText.describe(mismatch, document, registry))
-                .isEqualTo("⚠ Anchos incompatibles: NOT (1 bit) · AND de 2 entradas 'U3' (1 bit)");
+                .isEqualTo("⚠ Anchos incompatibles: NOT (1 bit) · AND 'U3' (1 bit)");
     }
 
     @Test

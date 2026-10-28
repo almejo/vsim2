@@ -30,7 +30,7 @@ class CloseSequenceTest {
         fixture = EditorFixture.create();
         openDocument = fixture.openDocument();
         view = fixture.view();
-        gate = place(openDocument, StandardComponentTypes.NOT, 0, 10, Map.of());
+        gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 10, Map.of(StandardComponentTypes.NEGATE, true));
         openDocument.history().markSaved();
         new LabelActions(openDocument, view.canvas().selection(), view.inlineEditor()).editLabel(gate);
         view.inlineEditor().field().setText("U7");

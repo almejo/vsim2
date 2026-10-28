@@ -240,7 +240,7 @@ class ShortcutsExtensionTest {
         EditorView icons = iconView();
         AbstractButton undo = toolbarButton(icons, icons.actions().undo());
         assertThat(undo.getToolTipText()).isEqualTo(withShortcut("Deshacer", control(KeyEvent.VK_Z)));
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         String name = (String) icons.actions().undo().getValue(Action.NAME);
         assertThat(name).startsWith("Deshacer ").isNotEqualTo("Deshacer");
         assertThat(undo.getToolTipText()).isEqualTo(withShortcut(name, control(KeyEvent.VK_Z)));
@@ -264,7 +264,7 @@ class ShortcutsExtensionTest {
                 .isEqualTo("otra cosa");
         AbstractButton undo = toolbarButton(plain, plain.actions().undo());
         String before = undo.getToolTipText();
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(undo.getToolTipText()).isEqualTo(before);
     }
 }

@@ -30,8 +30,9 @@ class FragmentFormatTest {
 
     private CircuitFragment sample() {
         return new CircuitFragment(
-                List.of(registry.require(StandardComponentTypes.AND2).newComponent(new ElementId("c1"),
-                        new GridPoint(0, 2), Rotation.R0, Map.of("delay", 3), "U1")),
+                List.of(registry.require(StandardComponentTypes.AND).newComponent(new ElementId("c1"),
+                        new GridPoint(0, 2), Rotation.R0,
+                        Map.of("delay", 3, "inputs", 2, "width", 1, "negate", false), "U1")),
                 List.of(new Wire(new ElementId("w2"), new GridPoint(4, 4), new GridPoint(10, 4))),
                 List.of(new TextLabel(new ElementId("l3"), new GridPoint(2, 0), "nota")));
     }
@@ -39,7 +40,7 @@ class FragmentFormatTest {
     @Test
     void roundTripKeepsEveryElement() throws CircuitFormatException {
         String json = format.write(sample());
-        assertThat(json).contains("\"formatVersion\":3").contains("\"kind\":\"fragment\"");
+        assertThat(json).contains("\"formatVersion\":4").contains("\"kind\":\"fragment\"");
         assertThat(format.read(json)).isEqualTo(sample());
     }
 
@@ -65,7 +66,7 @@ class FragmentFormatTest {
                 arguments("not json", CircuitFormatException.Reason.INVALID_JSON),
                 arguments("[1,2]", CircuitFormatException.Reason.NOT_VSIM_FILE),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\"}", CircuitFormatException.Reason.INVALID_ELEMENT),
-                arguments("{\"formatVersion\":4,\"kind\":\"fragment\"}", CircuitFormatException.Reason.NEWER_FORMAT),
+                arguments("{\"formatVersion\":5,\"kind\":\"fragment\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":2,\"kind\":\"fragment\",\"components\":"
                         + "[{\"id\":\"c1\",\"type\":\"lamp\",\"x\":0,\"y\":0}]}",
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE),

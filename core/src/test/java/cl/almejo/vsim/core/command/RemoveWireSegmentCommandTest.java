@@ -113,7 +113,7 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void pinsAreStops() {
-        document.add(registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+        document.add(registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
                 GridPoint.ORIGIN, Rotation.R0, Map.of(), ""));
         Wire main = wire(document, -3, 2, 8, 2);
         removeNear(main, 2, 2);

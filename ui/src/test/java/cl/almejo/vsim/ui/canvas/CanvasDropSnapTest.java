@@ -58,7 +58,7 @@ class CanvasDropSnapTest {
         canvas.useManualAutoscrollClock();
         canvas.setSize(400, 300);
         canvas.useSnapper(new DefaultSnapper(preferences, canvas::getSize));
-        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
     }
 
     @AfterEach
@@ -73,7 +73,7 @@ class CanvasDropSnapTest {
 
     private static String gateFragment() {
         try (OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
-            Component gate = place(source, StandardComponentTypes.NOT, 3, 3, Map.of());
+            Component gate = place(source, StandardComponentTypes.BUFFER, 3, 3, Map.of(StandardComponentTypes.NEGATE, true));
             return new FragmentFormat(source.registry())
                     .write(CircuitFragment.of(source.document(), List.of(gate.id()), source.registry()));
         }
@@ -81,7 +81,7 @@ class CanvasDropSnapTest {
 
     @Test
     void aPaletteDropSnaps() {
-        assertThat(canvas.dropComponent(PaletteTransfer.encode(StandardComponentTypes.NOT), new Point(160, 8)))
+        assertThat(canvas.dropComponent(PaletteTransfer.encode(StandardComponentTypes.BUFFER), new Point(160, 8)))
                 .isTrue();
         assertThat(positions()).containsExactly(GridPoint.ORIGIN, new GridPoint(20, 0));
     }
@@ -89,7 +89,7 @@ class CanvasDropSnapTest {
     @Test
     void aPaletteDropWithAjustarOffLandsUnderThePointer() {
         preferences.setSnapToAlignments(false);
-        canvas.dropComponent(PaletteTransfer.encode(StandardComponentTypes.NOT), new Point(160, 8));
+        canvas.dropComponent(PaletteTransfer.encode(StandardComponentTypes.BUFFER), new Point(160, 8));
         assertThat(positions()).containsExactly(GridPoint.ORIGIN, new GridPoint(20, 1));
     }
 
@@ -112,7 +112,7 @@ class CanvasDropSnapTest {
 
     @Test
     void aDragOutBroughtBackSnapsInThePreviewAndInTheMove() throws Exception {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         canvas.getMouseListeners()[0].mousePressed(
                 mouse(MouseEvent.MOUSE_PRESSED, 176, 96, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
         canvas.getMouseMotionListeners()[0].mouseDragged(

@@ -54,7 +54,7 @@ class ContextMenuFactoryTest {
 
     @Test
     void componentMenuOffersConfigureRotateAndDelete() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
                 .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar");
@@ -62,7 +62,7 @@ class ContextMenuFactoryTest {
 
     @Test
     void aStickyNoteInsideAMultiSelectionKeepsTheDeleteEntry() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         cl.almejo.vsim.core.document.StickyNote note = new cl.almejo.vsim.core.document.StickyNote(
                 openDocument.document().newStickyNoteId(), new GridPoint(10, 10), 8, 6,
                 cl.almejo.vsim.core.document.StickyColor.YELLOW, new cl.almejo.vsim.core.document.StickyText("x"),
@@ -110,13 +110,13 @@ class ContextMenuFactoryTest {
 
     @Test
     void targetInAMultiSelectionSkipsTheSingleElementEntries() {
-        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
-        Component second = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
+        Component first = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+        Component second = place(openDocument, StandardComponentTypes.BUFFER, 10, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(first.id(), second.id()));
         assertThat(texts(contextMenu(Optional.of(first), CLICK))).isEmpty();
         contributors.add((menu, target, selection, gridPosition) -> menu.add(new JMenuItem("Uno")));
         assertThat(texts(contextMenu(Optional.of(first), CLICK))).containsExactly("Uno");
-        Component outsider = place(openDocument, StandardComponentTypes.NOT, 20, 0, Map.of());
+        Component outsider = place(openDocument, StandardComponentTypes.BUFFER, 20, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(texts(contextMenu(Optional.of(outsider), CLICK)))
                 .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar", "---", "Uno");
     }
@@ -128,11 +128,11 @@ class ContextMenuFactoryTest {
             menu.add(new JMenuItem(view.actions().rotateClockwise()));
             menu.add(new JMenuItem(view.actions().delete()));
         });
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
                 .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar");
-        Component other = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
+        Component other = place(openDocument, StandardComponentTypes.BUFFER, 10, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(gate.id(), other.id()));
         assertThat(texts(contextMenu(Optional.of(gate), CLICK))).containsExactly("Borrar", "Rotar ↻");
     }
@@ -147,7 +147,7 @@ class ContextMenuFactoryTest {
     /** Spec §6.6 order, review M6: Configurar…, Etiqueta…, Rotar ↻ / ↺, Cortar, Copiar, Duplicar, Borrar. */
     @Test
     void theRealComponentMenuOffersClipboardAndLabelEntries() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
                 .containsExactly("Configurar…", "Etiqueta…", "---", "Rotar ↻", "Rotar ↺",
@@ -157,7 +157,7 @@ class ContextMenuFactoryTest {
     /** M6.8: «Restablecer posición de la etiqueta» right after «Etiqueta…», only for a moved label. */
     @Test
     void theRealComponentMenuOffersTheResetOfAMovedLabelNextToTheLabelEntry() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         openDocument.execute(new cl.almejo.vsim.core.command.SetLabelOffsetCommand(gate.id(),
                 Optional.of(new cl.almejo.vsim.core.document.LabelOffset(2, 6))));
         Component moved = openDocument.document().component(gate.id()).orElseThrow();

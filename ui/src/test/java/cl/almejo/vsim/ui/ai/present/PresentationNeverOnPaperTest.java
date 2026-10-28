@@ -131,8 +131,8 @@ class PresentationNeverOnPaperTest {
 
     @Test
     void aProposedAndAnAppliedStepExportTheSamePngSvgAndPdfSheets() throws IOException {
-        Component kept = place(openDocument, StandardComponentTypes.NOT, -10, -5, Map.of());
-        Component doomed = place(openDocument, StandardComponentTypes.NOT, -10, 5, Map.of());
+        Component kept = place(openDocument, StandardComponentTypes.BUFFER, -10, -5, Map.of(StandardComponentTypes.NEGATE, true));
+        Component doomed = place(openDocument, StandardComponentTypes.BUFFER, -10, 5, Map.of(StandardComponentTypes.NEGATE, true));
         byte[] plainPng = png("plain");
         String plainSvg = svg("plain");
         int[] plainSheet = pdfSheet(false);
@@ -143,7 +143,7 @@ class PresentationNeverOnPaperTest {
                 List.of(new TaskStage("Medio sumador", List.of("Pongo la AND", "Quito la NOT"))), 0, 0);
         presentation.stepApplied(new StepPreview("task-1", 0, 0, "Pongo la NOT", Optional.empty(), List.of(kept),
                 Set.of(), Optional.of(DrawnBounds.of(kept, openDocument.registry()))));
-        Component ghost = openDocument.registry().require(StandardComponentTypes.AND2)
+        Component ghost = openDocument.registry().require(StandardComponentTypes.AND)
                 .newComponent(openDocument.document().newComponentId(), new GridPoint(5, 0), Rotation.R0, Map.of(),
                         "");
         presentation.stepProposed(new StepPreview("task-1", 0, 1, "Pongo la AND", Optional.of("para sumar"),

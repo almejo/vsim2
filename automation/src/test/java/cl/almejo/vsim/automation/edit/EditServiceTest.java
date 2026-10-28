@@ -26,9 +26,11 @@ import cl.almejo.vsim.automation.edit.EditOperation.SetStickyItem;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -92,8 +94,8 @@ class EditServiceTest {
     @Test
     void aBatchWhoseThirdOperationNamesAMissingPinChangesNothing() {
         EditRequest request = request(
-                place("first", "nand2", 10, 0),
-                place("second", "nand2", 20, 0),
+                place("first", "nand", 10, 0),
+                place("second", "nand", 20, 0),
                 connect("new:first", "out", "new:second", "nowhere"));
 
         assertRefused(request, AutomationError.INVALID_PIN);
@@ -132,7 +134,7 @@ class EditServiceTest {
 
     @Test
     void anUnknownAliasIsAnInvalidReferenceAndNothingIsPlaced() {
-        EditRequest request = request(place("gate", "nand2", 0, 0), connect("new:gate", "out", "new:ghost", "in0"));
+        EditRequest request = request(place("gate", "nand", 0, 0), connect("new:gate", "out", "new:ghost", "in0"));
 
         assertRefused(request, AutomationError.INVALID_REFERENCE);
         assertNothingChanged();
@@ -142,7 +144,7 @@ class EditServiceTest {
     void aParameterOutOfRangeOrUnknownIsRefused() {
         assertRefused(request(place("pin", "input-pin", 0, 0),
                 new SetParameters("new:pin", Map.of("width", 99))), AutomationError.INVALID_PARAMETER);
-        assertRefused(request(new PlacePart(Optional.empty(), "nand2", 0, 0, Rotation.R0, Map.of("colour", "red"),
+        assertRefused(request(new PlacePart(Optional.empty(), "and", 0, 0, Rotation.R0, Map.of("colour", "red"),
                 "")), AutomationError.INVALID_PARAMETER);
         assertRefused(request(place("x", "warp-drive", 0, 0)), AutomationError.INVALID_REFERENCE);
         assertNothingChanged();
@@ -167,7 +169,7 @@ class EditServiceTest {
 
     @Test
     void aRetryWithTheSameOperationIdAndArgumentsGetsTheSameReceiptAndAddsNothing() {
-        EditRequest request = request(place("gate", "nand2", 0, 0));
+        EditRequest request = request(place("gate", "nand", 0, 0));
 
         EditReceipt first = service.edit(request);
         EditReceipt retried = service.edit(request);
@@ -181,10 +183,10 @@ class EditServiceTest {
     @Test
     void theSameOperationIdWithOtherArgumentsIsAConflict() {
         service.edit(new EditRequest(new DocumentId(DOCUMENT), circuit.version(), "op-same", Optional.empty(),
-                List.of(place("gate", "nand2", 0, 0)), false));
+                List.of(place("gate", "nand", 0, 0)), false));
 
         assertThatThrownBy(() -> service.edit(new EditRequest(new DocumentId(DOCUMENT), circuit.version(), "op-same",
-                Optional.empty(), List.of(place("gate", "nand2", 9, 9)), false)))
+                Optional.empty(), List.of(place("gate", "nand", 9, 9)), false)))
                 .isInstanceOfSatisfying(AutomationException.class,
                         refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.OPERATION_CONFLICT));
         assertThat(circuit.document().components()).hasSize(1);
@@ -193,7 +195,7 @@ class EditServiceTest {
     @Test
     void validateOnlyChecksEverythingAndChangesNothing() {
         EditRequest request = new EditRequest(new DocumentId(DOCUMENT), circuit.version(), "op-check",
-                Optional.empty(), List.of(place("gate", "nand2", 0, 0), place("lamp", "led", 10, 0),
+                Optional.empty(), List.of(place("gate", "nand", 0, 0), place("lamp", "led", 10, 0),
                 connect("new:gate", "out", "new:lamp", "in")), true);
 
         EditReceipt receipt = service.edit(request);
@@ -209,7 +211,7 @@ class EditServiceTest {
     @Test
     void aliasesMapToTheRealIdsAndLaterOperationsCanUseThem() {
         EditReceipt receipt = service.edit(request(
-                place("gate", "nand2", 10, 0),
+                place("gate", "nand", 10, 0),
                 new SetLabel("new:gate", "U1"),
                 new AddNote(Optional.of("note"), "Prueba: la salida es 1", 0, 10)));
 
@@ -384,10 +386,10 @@ class EditServiceTest {
                 new PlacePart(Optional.of("data"), "switch", 0, 1, Rotation.R0, Map.of(), "D"),
                 new PlacePart(Optional.of("enable"), "switch", 0, 15, Rotation.R0, Map.of(), "E"),
                 place("inverter", "not", 8, 0),
-                place("top", "nand2", 16, 0),
-                place("bottom", "nand2", 16, 14),
-                place("set", "nand2", 28, 0),
-                place("reset", "nand2", 28, 14),
+                place("top", "nand", 16, 0),
+                place("bottom", "nand", 16, 14),
+                place("set", "nand", 28, 0),
+                place("reset", "nand", 28, 14),
                 place("output", "led", 40, -1)));
         Map<String, String> ids = parts.aliases();
 
@@ -416,7 +418,7 @@ class EditServiceTest {
 
     @Test
     void anEditPreparedBeforeTheUserMovedSomethingIsStaleAndNothingIsApplied() {
-        String gateId = service.edit(request(place("gate", "nand2", 0, 0))).aliases().get("gate");
+        String gateId = service.edit(request(place("gate", "nand", 0, 0))).aliases().get("gate");
         EditRequest prepared = request(place("lamp", "led", 10, 0));
         circuit.history().execute(new MoveElementsCommand(List.of(new ElementId(gateId)), 2, 0));
         List<DocumentElement> before = circuit.document().elements();
@@ -429,7 +431,7 @@ class EditServiceTest {
 
     @Test
     void anAiStepNeverMergesWithTheUserMovesAroundIt() {
-        String gateId = service.edit(request(place("gate", "nand2", 0, 0))).aliases().get("gate");
+        String gateId = service.edit(request(place("gate", "nand", 0, 0))).aliases().get("gate");
         Set<ElementId> gate = Set.of(new ElementId(gateId));
         circuit.history().execute(MoveElementsCommand.nudge(gate, 1, 0));
         service.edit(request(place("lamp", "led", 10, 0)));
@@ -451,7 +453,7 @@ class EditServiceTest {
     void aRotatedPartIsConnectedAtItsRotatedPin() {
         EditReceipt receipt = service.edit(request(
                 place("source", "switch", 0, 0),
-                new PlacePart(Optional.of("gate"), "nand2", 20, 20, Rotation.R90, Map.of(), ""),
+                new PlacePart(Optional.of("gate"), "and", 20, 20, Rotation.R90, Map.of("negate", true), ""),
                 connect("new:source", "out", "new:gate", "in1")));
         String gateId = receipt.aliases().get("gate");
 
@@ -507,7 +509,7 @@ class EditServiceTest {
 
     @Test
     void connectingPinsThatAreConnectedAlreadyAddsNoWire() {
-        EditReceipt parts = service.edit(request(place("source", "switch", 0, 0), place("gate", "nand2", 10, -1),
+        EditReceipt parts = service.edit(request(place("source", "switch", 0, 0), place("gate", "nand", 10, -1),
                 connect("new:source", "out", "new:gate", "in0")));
         int wires = circuit.document().wires().size();
 
@@ -521,7 +523,7 @@ class EditServiceTest {
 
     @Test
     void anAmbiguousOrUnknownPinListsThePinsThePartHas() {
-        service.edit(request(place("gate", "nand2", 0, 0)));
+        service.edit(request(place("gate", "nand", 0, 0)));
 
         AutomationException refusal = assertRefused(request(new Connect(
                 new PinTarget("c1", Optional.of("in"), java.util.OptionalInt.empty()), PinTarget.named("c1", "out"),
@@ -609,7 +611,7 @@ class EditServiceTest {
 
     @Test
     void movingAPartTakesItsWiresAlong() {
-        EditReceipt parts = service.edit(request(place("source", "switch", 0, 0), place("gate", "nand2", 10, -1),
+        EditReceipt parts = service.edit(request(place("source", "switch", 0, 0), place("gate", "nand", 10, -1),
                 connect("new:source", "out", "new:gate", "in0")));
 
         service.edit(request(new Move(List.of(parts.aliases().get("gate")), 0, 6)));
@@ -621,7 +623,7 @@ class EditServiceTest {
 
     @Test
     void deletingRemovesTheTargets() {
-        EditReceipt parts = service.edit(request(place("gate", "nand2", 0, 0), place("lamp", "led", 10, 0)));
+        EditReceipt parts = service.edit(request(place("gate", "nand", 0, 0), place("lamp", "led", 10, 0)));
 
         EditReceipt receipt = service.edit(request(new Delete(List.of(parts.aliases().get("gate")))));
 
@@ -631,7 +633,7 @@ class EditServiceTest {
 
     @Test
     void aFrameWrapsItsTargetsWithRoomForItsTitle() {
-        EditReceipt receipt = service.edit(request(place("gate", "nand2", 10, 10),
+        EditReceipt receipt = service.edit(request(place("gate", "nand", 10, 10),
                 new MakeFrame(Optional.of("stage"), "Etapa 1: el latch", List.of("new:gate"), Optional.empty(),
                         false)));
 
@@ -643,7 +645,7 @@ class EditServiceTest {
 
     @Test
     void aFrameAroundAPartAndAThreeLineNoteHoldsTheWholeMeasuredNote() {
-        EditReceipt receipt = service.edit(request(place("gate", "nand2", 10, 10),
+        EditReceipt receipt = service.edit(request(place("gate", "nand", 10, 10),
                 new AddNote(Optional.of("note"), "La compuerta NAND invierte\nel AND de sus entradas\ny va aquí", 10,
                         18),
                 new MakeFrame(Optional.of("stage"), "Etapa 1", List.of("new:gate", "new:note"), Optional.empty(),
@@ -672,7 +674,7 @@ class EditServiceTest {
     @Test
     void aFrameAroundAPartHoldsItsLongLabel() {
         EditReceipt receipt = service.edit(request(
-                new PlacePart(Optional.of("gate"), "nand2", 10, 10, Rotation.R0, Map.of(),
+                new PlacePart(Optional.of("gate"), "and", 10, 10, Rotation.R0, Map.of("negate", true),
                         "Compuerta NAND de la entrada larga"),
                 new MakeFrame(Optional.of("stage"), "Etapa", List.of("new:gate"), Optional.empty(), false)));
 
@@ -723,7 +725,7 @@ class EditServiceTest {
     void aTaskIsAnnouncedAndItsEndNamesWhatItChanged() {
         TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Flip-flop D",
                 List.of(new TaskStage("Latch", List.of("Coloco las NAND"))));
-        EditReceipt receipt = service.edit(taskRequest(task, place("gate", "nand2", 0, 0)));
+        EditReceipt receipt = service.edit(taskRequest(task, place("gate", "nand", 0, 0)));
 
         service.endTask(task.taskId());
 
@@ -734,7 +736,7 @@ class EditServiceTest {
     @Test
     void undoingATaskUndoesItsStepsAndStopsAtTheUserEdit() {
         TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Dos compuertas", List.of());
-        String gateId = service.edit(taskRequest(task, place("gate", "nand2", 0, 0))).aliases().get("gate");
+        String gateId = service.edit(taskRequest(task, place("gate", "nand", 0, 0))).aliases().get("gate");
         service.edit(taskRequest(task, place("lamp", "led", 10, 0)));
         circuit.history().execute(new MoveElementsCommand(List.of(new ElementId(gateId)), 2, 0));
 
@@ -750,7 +752,7 @@ class EditServiceTest {
     @Test
     void aStoppedTaskKeepsWhatItAppliedAndRefusesItsNextEdit() {
         TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Sumador", List.of());
-        service.edit(taskRequest(task, place("gate", "nand2", 0, 0)));
+        service.edit(taskRequest(task, place("gate", "nand", 0, 0)));
 
         service.stopTask(task.taskId());
 
@@ -765,7 +767,7 @@ class EditServiceTest {
     void guidesAddedOnlyToAlignGoAwayWhenTheTaskEndsAsOneMoreStepOfTheTask() {
         TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Alinear", List.of());
         service.edit(taskRequest(task, new AddGuide(Guide.Orientation.VERTICAL, 12, true),
-                new AddGuide(Guide.Orientation.HORIZONTAL, 4, false), place("gate", "nand2", 12, 4)));
+                new AddGuide(Guide.Orientation.HORIZONTAL, 4, false), place("gate", "nand", 12, 4)));
 
         TaskEnding ending = service.endTask(task.taskId(), false);
 
@@ -824,7 +826,7 @@ class EditServiceTest {
         long version = circuit.version().value();
 
         for (EditOperation operation : List.of(
-                new PlacePart(Optional.empty(), "nand2", 40, 0, Rotation.R0, Map.of(), html),
+                new PlacePart(Optional.empty(), "and", 40, 0, Rotation.R0, Map.of("negate", true), html),
                 new SetLabel(ids.get("not"), html),
                 new MakeFrame(Optional.empty(), html, List.of(ids.get("not")), Optional.empty(), false),
                 new AddNote(Optional.empty(), html, 0, 30),
@@ -886,7 +888,7 @@ class EditServiceTest {
             }
         }, listeners, Duration.ofSeconds(5), Runnable::run);
 
-        assertThatThrownBy(() -> failing.edit(request(place("gate", "nand2", 0, 0))))
+        assertThatThrownBy(() -> failing.edit(request(place("gate", "nand", 0, 0))))
                 .isInstanceOfSatisfying(AutomationException.class, refusal -> {
                     assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
                     assertThat(refusal.getMessage()).contains("Nothing was changed");
@@ -896,7 +898,7 @@ class EditServiceTest {
 
     @Test
     void anEditForAClosedCircuitSaysSo() {
-        EditRequest request = request(place("gate", "nand2", 0, 0));
+        EditRequest request = request(place("gate", "nand", 0, 0));
         host.close(DOCUMENT);
 
         assertRefused(request, AutomationError.DOCUMENT_CLOSED);
@@ -968,8 +970,12 @@ class EditServiceTest {
                 Optional.of(new TaskStep(task.taskId(), "1", "1", "Paso")), List.of(operations), false);
     }
 
+    /** A part of type {@code typeId}, or of a preset's type with its parameters ({@code nand}, {@code not}). */
     private static PlacePart place(String alias, String typeId, int x, int y) {
-        return new PlacePart(Optional.of(alias), typeId, x, y, Rotation.R0, Map.of(), "");
+        Optional<ComponentPreset> preset = StandardComponentTypes.presets().stream()
+                .filter(candidate -> candidate.id().equals(typeId)).findFirst();
+        return new PlacePart(Optional.of(alias), preset.map(ComponentPreset::typeId).orElse(typeId), x, y,
+                Rotation.R0, preset.map(ComponentPreset::parameters).orElse(Map.of()), "");
     }
 
     private static Connect connect(String fromTarget, String fromPin, String toTarget, String toPin) {
@@ -1027,11 +1033,11 @@ class EditServiceTest {
                 new PlacePart(Optional.of("a"), "input-pin", 0, 0, Rotation.R0, Map.of(), "A"),
                 new PlacePart(Optional.of("b"), "input-pin", 0, 6, Rotation.R0, Map.of(), "B"),
                 new PlacePart(Optional.of("cin"), "input-pin", 0, 12, Rotation.R0, Map.of(), "Cin"),
-                place("xor1", "xor2", 10, 0),
-                place("xor2", "xor2", 22, 2),
-                place("and1", "and2", 22, 10),
-                place("and2", "and2", 22, 18),
-                place("or", "or2", 32, 14),
+                place("xor1", "xor", 10, 0),
+                place("xor2", "xor", 22, 2),
+                place("and1", "and", 22, 10),
+                place("and2", "and", 22, 18),
+                place("or", "or", 32, 14),
                 new PlacePart(Optional.of("s"), "output-pin", 40, 3, Rotation.R0, Map.of(), "S"),
                 new PlacePart(Optional.of("cout"), "output-pin", 44, 15, Rotation.R0, Map.of(), "Cout"),
                 connect("new:a", "pin", "new:xor1", "in0"),

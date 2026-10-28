@@ -619,7 +619,7 @@ class StoryboardTest {
         EditReceipt gates = apply(task, 0,
                 new PlacePart(Optional.of("a"), "input-pin", x, y + 1, Rotation.R0, Map.of(), "A"),
                 new PlacePart(Optional.of("b"), "input-pin", x, y + 7, Rotation.R0, Map.of(), "B"),
-                part("xor", "xor2", x + 10, y + 2),
+                part("xor", "xor", x + 10, y + 2),
                 new PlacePart(Optional.of("s"), "output-pin", x + 20, y + 3, Rotation.R0, Map.of(), "S"),
                 connect("new:a", "pin", "new:xor", "in0"),
                 connect("new:b", "pin", "new:xor", "in1"),

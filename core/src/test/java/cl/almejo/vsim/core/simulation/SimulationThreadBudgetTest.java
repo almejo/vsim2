@@ -41,7 +41,7 @@ class SimulationThreadBudgetTest {
     private FlatCircuit switches() {
         return new FlatCircuit(List.of(component("a", StandardComponentTypes.SWITCH, Map.of()),
                 component("b", StandardComponentTypes.SWITCH, Map.of()),
-                component("gate", StandardComponentTypes.NOT, Map.of())),
+                component("gate", StandardComponentTypes.BUFFER, Map.of(StandardComponentTypes.NEGATE, true))),
                 List.of(new FlatNet("na", List.of(new FlatPinRef("a", 0), new FlatPinRef("gate", 0)), 1, false),
                         new FlatNet("nb", List.of(new FlatPinRef("b", 0)), 1, false),
                         new FlatNet("out", List.of(new FlatPinRef("gate", 1)), 1, false)));

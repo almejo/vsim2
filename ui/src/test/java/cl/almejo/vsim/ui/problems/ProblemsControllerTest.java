@@ -185,7 +185,7 @@ class ProblemsControllerTest {
 
     @Test
     void everyPinNamesItselfAndShowsItsValueOnlyWithACurrentSnapshot() {
-        Component gate = place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of()); // in (10,12), out (14,12)
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 10, 10, Map.of(StandardComponentTypes.NEGATE, true)); // in (10,12), out (14,12)
         assertThat(view.canvas().getToolTipText(hoverAt(80, 96))).isEqualTo("in");
 
         view.problems().showSnapshot(currentSnapshot(Map.of(netOfPin(gate, 0), Value.HIGH_IMPEDANCE,

@@ -33,7 +33,7 @@ class CircuitFormatGuidesTest {
         document.setGuides(guides);
 
         String json = format.write(document);
-        assertThat(json).contains("\"formatVersion\" : 3").contains("\"guides\"")
+        assertThat(json).contains("\"formatVersion\" : 4").contains("\"guides\"")
                 .contains("\"orientation\" : \"vertical\"").contains("\"orientation\" : \"horizontal\"");
 
         CircuitDocument loaded = format.read(json);

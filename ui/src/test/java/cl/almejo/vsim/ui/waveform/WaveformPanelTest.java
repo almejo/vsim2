@@ -72,7 +72,7 @@ class WaveformPanelTest {
     /** Switch c1 → NOT c2 (the gate): channels c1.out and c2.out. */
     private List<String> chain() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
-        gate = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());
+        gate = place(openDocument, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));
         List<String> ids = actions.addSelection(List.of(toggle.id(), gate.id())).addedIds();
         panel.probesChanged();
         return ids;
