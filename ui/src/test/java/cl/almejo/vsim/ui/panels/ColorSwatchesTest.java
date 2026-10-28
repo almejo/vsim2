@@ -2,6 +2,9 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import javax.accessibility.AccessibleRole;
@@ -10,6 +13,8 @@ import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
+import net.miginfocom.swing.MigLayout;
 import javax.swing.JRootPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
@@ -17,6 +22,7 @@ import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
@@ -265,5 +271,98 @@ class ColorSwatchesTest {
     private static int centrePixel(JToggleButton swatch) {
         Icon icon = swatch.getIcon();
         return paint(swatch).getRGB(icon.getIconWidth() / 2, icon.getIconHeight() / 2);
+    }
+
+    /** The wrapping, under the theme the app installs (the size of a swatch button depends on it). */
+    @Nested
+    class Wrapping {
+
+        private LookAndFeel previous;
+
+        @BeforeEach
+        void installTheTheme() throws Exception {
+            previous = UIManager.getLookAndFeel();
+            UIManager.setLookAndFeel(AppThemes.all().getFirst());
+        }
+
+        @AfterEach
+        void restoreTheTheme() throws Exception {
+            UIManager.setLookAndFeel(previous);
+        }
+
+        private static final List<String> EIGHT = List.of("red", "green", "yellow", "blue", "orange", "white", "purple",
+                "cyan");
+
+        /** The swatches in a Propiedades-like two column grid of {@code width} pixels, laid out until stable (what the
+         * revalidation after the swatches' own layout does in a window). */
+        private JPanel hostedIn(int width, ColorSwatches<String> swatches) {
+            JPanel host = new JPanel(new MigLayout("wrap 2, insets dialog", "[right][grow, fill, 60::]"));
+            host.add(new JLabel("Color"));
+            host.add(swatches);
+            host.setSize(width, 600);
+            for (int pass = 0; pass < 4; pass++) {
+                host.doLayout();
+                swatches.doLayout();
+                // without a peer nothing is ever valid, so the invalidate() of the swatches reaches no parent: do its job
+                ((MigLayout) host.getLayout()).invalidateLayout(host);
+            }
+            return host;
+        }
+
+        private ColorSwatches<String> eightSwatches() {
+            return new ColorSwatches<>(EIGHT, "orange", name -> name, name -> Optional.of(Color.GRAY));
+        }
+
+        private long lines(ColorSwatches<String> swatches) {
+            return EIGHT.stream().map(name -> swatches.swatch(EIGHT.indexOf(name)).getY()).distinct().count();
+        }
+
+        @Test
+        void inASidePanelOfNormalWidthAllEightSwatchesAreVisibleOnTwoLines() {
+            ColorSwatches<String> swatches = eightSwatches();
+            hostedIn(270, swatches);
+
+            Rectangle visible = new Rectangle(0, 0, swatches.getWidth(), swatches.getHeight());
+            for (int index = 0; index < EIGHT.size(); index++) {
+                assertThat(visible.contains(swatches.swatch(index).getBounds())).as(EIGHT.get(index)).isTrue();
+            }
+            assertThat(lines(swatches)).isEqualTo(2);
+            assertThat(swatches.getX() + swatches.getWidth()).isLessThanOrEqualTo(270);
+            assertThat(swatches.swatch(0).getX()).as("aligned left").isZero();
+            assertThat(swatches.swatch(6).getX()).as("the second line starts at the left").isZero();
+            assertThat(swatches.swatch(6).getY()).isGreaterThan(swatches.swatch(0).getY());
+            assertThat(swatches.swatch(4).isSelected()).isTrue();
+        }
+
+        @Test
+        void inAWidePanelTheEightSwatchesAreOneLine() {
+            ColorSwatches<String> swatches = eightSwatches();
+            hostedIn(600, swatches);
+
+            assertThat(lines(swatches)).isEqualTo(1);
+            assertThat(swatches.swatch(7).getX() + swatches.swatch(7).getWidth()).isLessThanOrEqualTo(swatches.getWidth());
+        }
+
+        @Test
+        void aVeryNarrowPanelWrapsOntoMoreLinesNeverSideways() {
+            ColorSwatches<String> swatches = eightSwatches();
+            hostedIn(120, swatches);
+
+            assertThat(lines(swatches)).isGreaterThan(2);
+            for (int index = 0; index < EIGHT.size(); index++) {
+                assertThat(swatches.swatch(index).getX() + swatches.swatch(index).getWidth())
+                        .isLessThanOrEqualTo(swatches.getWidth());
+            }
+        }
+
+        @Test
+        void thePerRowLimitStillHoldsInAWidePanel() {
+            ColorSwatches<String> swatches = new ColorSwatches<>(EIGHT, "red", name -> name,
+                    name -> Optional.of(Color.GRAY), 5);
+            hostedIn(900, swatches);
+
+            assertThat(swatches.swatch(5).getX()).isZero();
+            assertThat(swatches.swatch(5).getY()).isGreaterThan(swatches.swatch(0).getY());
+        }
     }
 }

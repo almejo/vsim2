@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.theme.ReadableColors;
-import net.miginfocom.swing.MigLayout;
 
 import javax.accessibility.AccessibleContext;
 import javax.accessibility.AccessibleRole;
@@ -22,8 +21,11 @@ import javax.swing.UIManager;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Graphics;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.LayoutManager;
 import java.awt.RenderingHints;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -98,10 +100,11 @@ public final class ColorSwatches<T> extends JPanel {
      */
     public ColorSwatches(List<T> values, T selected, Function<? super T, String> nameOf,
                          Function<? super T, Optional<Color>> fillOf, int perRow) {
-        super(new MigLayout(perRow < values.size() ? "insets 0, gap 2, wrap " + perRow : "insets 0, gap 2"));
+        super(null);
         if (perRow < 1) {
             throw new IllegalArgumentException("perRow must be at least 1, was " + perRow);
         }
+        setLayout(new WrappingRows(perRow));
         this.values = List.copyOf(values);
         if (!this.values.contains(selected)) {
             throw new IllegalArgumentException(selected + " is not one of " + values);
@@ -155,6 +158,86 @@ public final class ColorSwatches<T> extends JPanel {
             if (!swatches.contains(event.getOppositeComponent())) {
                 makeTabStop(values.indexOf(selectedValue));
             }
+        }
+    }
+
+    /**
+     * Lays the swatches out left to right and wraps them onto as many lines as the width allows (and no more than
+     * {@code perRow} to a line). A layout manager cannot be told its width by the grid that holds it, so the preferred
+     * height is the one for the width the row has now; when the grid gives the row another width and the height it
+     * needs changes, the row asks to be laid out again (one extra pass, then it is stable). The minimum width is one
+     * swatch, so the grid can shrink the row to the column instead of widening the panel.
+     */
+    private static final class WrappingRows implements LayoutManager {
+
+        private static final int GAP = 2;
+        private final int perRow;
+
+        WrappingRows(int perRow) {
+            this.perRow = perRow;
+        }
+
+        @Override
+        public void addLayoutComponent(String name, Component component) {
+        }
+
+        @Override
+        public void removeLayoutComponent(Component component) {
+        }
+
+        @Override
+        public Dimension preferredLayoutSize(Container parent) {
+            Dimension swatch = swatchSize(parent);
+            int count = parent.getComponentCount();
+            int widest = Math.min(count, perRow);
+            int fullWidth = widest * swatch.width + Math.max(0, widest - 1) * GAP;
+            int width = parent.getWidth();
+            int lines = width <= 0 ? Math.min(1, count) : linesFor(count, swatch.width, width);
+            lines = Math.max(lines, (count + perRow - 1) / perRow);
+            return new Dimension(fullWidth, heightOf(lines, swatch.height));
+        }
+
+        @Override
+        public Dimension minimumLayoutSize(Container parent) {
+            Dimension swatch = swatchSize(parent);
+            int lines = parent.getWidth() <= 0 ? 1 : linesFor(parent.getComponentCount(), swatch.width, parent.getWidth());
+            return new Dimension(swatch.width, heightOf(Math.max(lines, 1), swatch.height));
+        }
+
+        @Override
+        public void layoutContainer(Container parent) {
+            Dimension swatch = swatchSize(parent);
+            int count = parent.getComponentCount();
+            int inLine = perLine(swatch.width, parent.getWidth());
+            for (int index = 0; index < count; index++) {
+                int line = index / inLine;
+                int column = index % inLine;
+                parent.getComponent(index).setBounds(column * (swatch.width + GAP), line * (swatch.height + GAP),
+                        swatch.width, swatch.height);
+            }
+            int lines = (count + inLine - 1) / inLine;
+            if (parent.getPreferredSize().height != heightOf(lines, swatch.height)) {
+                parent.invalidate();
+                SwingUtilities.invokeLater(parent::revalidate);
+            }
+        }
+
+        private int perLine(int swatchWidth, int width) {
+            int fitting = Math.max(1, (width + GAP) / (swatchWidth + GAP));
+            return Math.min(perRow, fitting);
+        }
+
+        private int linesFor(int count, int swatchWidth, int width) {
+            return (count + perLine(swatchWidth, width) - 1) / perLine(swatchWidth, width);
+        }
+
+        private static int heightOf(int lines, int swatchHeight) {
+            return lines * swatchHeight + Math.max(0, lines - 1) * GAP;
+        }
+
+        private static Dimension swatchSize(Container parent) {
+            return parent.getComponentCount() == 0 ? new Dimension(ICON_SIZE, ICON_SIZE)
+                    : parent.getComponent(0).getPreferredSize();
         }
     }
 

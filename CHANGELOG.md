@@ -83,6 +83,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   circuitos guardados antes se abren conectados: VSim agrega un tramo corto de cable desde cada pin de abajo hasta
   donde estaba. El contador no cambia.
 
+### Arreglado
+
+- La fila de muestras de color (el LED, las entradas de túnel, los marcos y las notas) ya no corta las últimas muestras en
+  un panel Propiedades angosto: se parte en las líneas que hagan falta, alineadas a la izquierda, sin desplazarse de lado.
+
 ## Sin publicar — Compuertas parametrizables
 
 ### Agregado
