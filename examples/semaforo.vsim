@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.3",
-  "formatVersion" : 3,
+  "savedWith" : "0.4",
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "Semáforo",
   "components" : [ {
@@ -37,23 +37,27 @@
     }
   }, {
     "id" : "c4",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 30,
     "y" : 13,
     "rotation" : 0,
     "label" : "Invierte Q0",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c5",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 68,
     "y" : 13,
     "rotation" : 0,
     "label" : "Invierte Q1",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c6",
@@ -77,43 +81,53 @@
     }
   }, {
     "id" : "c33",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 110,
     "y" : 7,
     "rotation" : 0,
     "label" : "NO Q1",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c34",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 110,
     "y" : 21,
     "rotation" : 0,
     "label" : "NO Q0",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c35",
-    "type" : "and2",
+    "type" : "and",
     "x" : 136,
     "y" : 7,
     "rotation" : 0,
     "label" : "Verde: 00",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c36",
-    "type" : "and2",
+    "type" : "and",
     "x" : 136,
     "y" : 21,
     "rotation" : 0,
     "label" : "Amarillo: 01",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c37",

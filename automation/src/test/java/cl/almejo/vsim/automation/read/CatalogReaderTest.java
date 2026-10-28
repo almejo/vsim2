@@ -155,4 +155,14 @@ class CatalogReaderTest {
                 new ParameterView("negate", "BOOLEAN", false, null, null, List.of(), false));
         assertThat(flagged.parameterValues()).containsEntry("negate", true);
     }
+
+    @Test
+    void aGateWithEightInputsListsNineAndItsWidthAndNegateAreParameters() {
+        ComponentTypeView gate = CatalogReader.describe(fixture.source(), StandardComponentTypes.AND,
+                Map.of("inputs", 8));
+
+        assertThat(gate.pins()).hasSize(9);
+        assertThat(gate.pins().getLast().name()).isEqualTo("out");
+        assertThat(gate.parameters()).extracting(ParameterView::name).contains("inputs", "width", "negate");
+    }
 }

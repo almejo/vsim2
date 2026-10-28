@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.3",
-  "formatVersion" : 3,
+  "savedWith" : "0.4",
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "short-circuit",
   "components" : [ {
@@ -46,13 +46,15 @@
     }
   }, {
     "id" : "c9",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 12,
     "y" : 19,
     "rotation" : 0,
     "label" : "N1",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c15",

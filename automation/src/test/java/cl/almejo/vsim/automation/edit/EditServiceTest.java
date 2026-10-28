@@ -151,6 +151,15 @@ class EditServiceTest {
     }
 
     @Test
+    void aGateIsPlacedWithSixInputsEightBitsAndANegatedOutput() {
+        service.edit(request(new PlacePart(Optional.of("gate"), "and", 0, 0, Rotation.R0,
+                Map.of("inputs", 6, "width", 8, "negate", true), "")));
+
+        assertThat(circuit.document().components().getFirst().parameters())
+                .containsEntry("inputs", 6).containsEntry("width", 8).containsEntry("negate", true);
+    }
+
+    @Test
     void aBooleanParameterIsSetFromAJsonBooleanOrItsTextAndARefusedValueChangesNothing() {
         circuit.registry().register(new ComponentType("test-flagged", ComponentCategory.BASIC, new GridSize(2, 2),
                 List.of(PinSpec.output("out", 2, 1)), List.of(ParameterSpec.bool("negate", false)),

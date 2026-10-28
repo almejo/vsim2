@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.3",
-  "formatVersion" : 3,
+  "savedWith" : "0.4",
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "cortocircuitos",
   "components" : [ {
@@ -100,13 +100,15 @@
     }
   }, {
     "id" : "c10",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 8,
     "y" : 21,
     "rotation" : 0,
     "label" : "N1",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c11",
