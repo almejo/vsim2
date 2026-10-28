@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.io;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -98,5 +99,32 @@ class MultiBitPartsInFilesTest {
         assertThat(loaded.components().get(1).parameters())
                 .isEqualTo(Map.of("color", "red", "width", 8, "side", "left"));
         assertThat(written.split("\"side\"", -1)).as("only the side that is not the default is written").hasSize(2);
+    }
+
+    @Test
+    void aMultiBitSwitchSavedWithARotationLoadsUprightWithItsPinWhereTheFileHadIt() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        Component turned = new Component(document.newComponentId(), "switch", new GridPoint(10, 10), Rotation.R90,
+                Map.of("value", "5", "width", 4), "");
+        document.add(turned);
+        ComponentType type = StandardComponentTypes.registry().require("switch");
+
+        Component loaded = format.read(format.write(document)).components().getFirst();
+
+        assertThat(loaded.rotation()).isEqualTo(Rotation.R0);
+        assertThat(loaded.parameters().get("side")).isEqualTo("bottom");
+        assertThat(type.pinLocation(loaded, 0)).isEqualTo(type.pinLocation(turned, 0));
+    }
+
+    @Test
+    void aOneBitSwitchSavedWithASideLoadsTurnedThatWay() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        document.add(new Component(document.newComponentId(), "switch", new GridPoint(10, 10), Rotation.R0,
+                Map.of("value", "1", "side", "left"), ""));
+
+        Component loaded = format.read(format.write(document)).components().getFirst();
+
+        assertThat(loaded.rotation()).isEqualTo(Rotation.R180);
+        assertThat(loaded.parameters().get("side")).isEqualTo("right");
     }
 }
