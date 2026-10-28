@@ -15,6 +15,9 @@ Parte de las [funciones de VSim 2](../funciones.md).
   - «Negar salida»: una casilla que agrega la burbuja a la salida. Un AND negado es un **NAND**, un OR negado un
     **NOR**, un XOR negado un **XNOR** y un Buffer negado un **NOT**. Cada cambio es un paso de deshacer.
   - «Retardo», como siempre.
+- El dibujo: el cuerpo mide siempre 4 × 4 y queda centrado en la fila de la salida; con 5 o más entradas, las de los
+  extremos llegan a una línea trasera prolongada (como en Logisim). Con «Ancho» mayor que 1 los cables de los pines se
+  dibujan gruesos, como los de los bloques; el Buffer es un triángulo (con burbuja si está negado).
 - El XOR de más de dos entradas es la paridad impar: vale 1 cuando hay un número impar de entradas en 1.
 - Una entrada sin conectar (en Z) no cuenta, como antes: un AND con una entrada suelta deja pasar la otra.
 - Los circuitos, componentes, librerías y lo copiado con versiones anteriores se abren sin cambios: las compuertas de

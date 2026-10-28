@@ -23,8 +23,10 @@ public final class BufferPainter implements ComponentPainter {
                       ColorScheme scheme) {
         boolean negated = Boolean.TRUE.equals(parameters.get(StandardComponentTypes.NEGATE));
         double tip = negated ? OUTPUT_LEAD_START - BUBBLE_DIAMETER : OUTPUT_LEAD_START;
-        PainterSupport.lead(graphics, 0, MIDDLE, TRIANGLE_BACK, MIDDLE, scheme);
-        PainterSupport.lead(graphics, OUTPUT_LEAD_START, MIDDLE, OUTPUT_LEAD_END, MIDDLE, scheme);
+        ComponentType shaped = type.specializedFor(parameters);
+        boolean bus = shaped.pins().stream().anyMatch(pin -> pin.width() > 1);
+        PainterSupport.pinLead(graphics, bus, 0, MIDDLE, TRIANGLE_BACK, MIDDLE, scheme);
+        PainterSupport.pinLead(graphics, bus, OUTPUT_LEAD_START, MIDDLE, OUTPUT_LEAD_END, MIDDLE, scheme);
         Path2D triangle = new Path2D.Double();
         triangle.moveTo(TRIANGLE_BACK, 4);
         triangle.lineTo(tip, MIDDLE);
@@ -35,6 +37,6 @@ public final class BufferPainter implements ComponentPainter {
             PainterSupport.body(graphics, new Ellipse2D.Double(tip, MIDDLE - BUBBLE_DIAMETER / 2, BUBBLE_DIAMETER,
                     BUBBLE_DIAMETER), scheme);
         }
-        PainterSupport.pinDots(graphics, type.specializedFor(parameters), scheme);
+        PainterSupport.pinDots(graphics, shaped, scheme);
     }
 }

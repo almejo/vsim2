@@ -10,6 +10,7 @@ import java.awt.Shape;
 import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
+import java.awt.geom.Rectangle2D;
 import java.util.Map;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
@@ -26,6 +27,7 @@ public final class LogicGatePainter implements ComponentPainter {
     private static final double OUTPUT_LEAD = 2;
     private static final double BACK_CURVE_DEPTH = 6;
     private static final double XOR_GAP = 4;
+    private static final double BODY_HALF_HEIGHT = 14;
 
     private final GateShape shape;
 
@@ -39,10 +41,10 @@ public final class LogicGatePainter implements ComponentPainter {
         ComponentType type = baseType.specializedFor(parameters);
         boolean negated = Boolean.TRUE.equals(parameters.get(StandardComponentTypes.NEGATE));
         double width = type.size().width() * UNIT;
-        double height = type.size().height() * UNIT;
-        double top = 2;
-        double bottom = height - 2;
-        double middle = height / 2;
+        Rectangle2D bodyBounds = bodyBounds(type);
+        double top = bodyBounds.getMinY();
+        double bottom = bodyBounds.getMaxY();
+        double middle = bodyBounds.getCenterY();
         double back = shape == GateShape.AND ? 6 : 4;
         double bodyBack = shape == GateShape.XOR ? back + XOR_GAP : back;
         double bodyFront = width - OUTPUT_LEAD - (negated ? BUBBLE_DIAMETER : 0);
@@ -53,19 +55,20 @@ public final class LogicGatePainter implements ComponentPainter {
             double pinX = pin.position().x() * UNIT;
             double pinY = pin.position().y() * UNIT;
             if (pin.isInput()) {
-                PainterSupport.lead(graphics, pinX, pinY, backAt(back, pinY, top, bottom), pinY, scheme);
+                PainterSupport.pinLead(graphics, pin, pinX, pinY, backAt(back, pinY, top, bottom), pinY, scheme);
                 highestInput = Math.min(highestInput, pinY);
                 lowestInput = Math.max(lowestInput, pinY);
             } else {
-                PainterSupport.lead(graphics, width - OUTPUT_LEAD, pinY, pinX, pinY, scheme);
+                PainterSupport.pinLead(graphics, pin, width - OUTPUT_LEAD, pinY, pinX, pinY, scheme);
             }
         }
         // Inputs beyond the body meet an extended back line (Logisim style) instead of bent leads.
+        boolean bus = type.pins().stream().anyMatch(pin -> pin.isInput() && pin.width() > 1);
         if (highestInput < top) {
-            PainterSupport.lead(graphics, back, highestInput, back, top, scheme);
+            PainterSupport.pinLead(graphics, bus, back, highestInput, back, top, scheme);
         }
         if (lowestInput > bottom) {
-            PainterSupport.lead(graphics, back, bottom, back, lowestInput, scheme);
+            PainterSupport.pinLead(graphics, bus, back, bottom, back, lowestInput, scheme);
         }
 
         PainterSupport.body(graphics, body(bodyBack, bodyFront, top, bottom, middle), scheme);
@@ -80,6 +83,14 @@ public final class LogicGatePainter implements ComponentPainter {
                     BUBBLE_DIAMETER, BUBBLE_DIAMETER), scheme);
         }
         PainterSupport.pinDots(graphics, type, scheme);
+    }
+
+    /** The body: always four units tall (less the lead margin), centred on the output pin's row. */
+    static Rectangle2D bodyBounds(ComponentType type) {
+        double outputY = type.pins().stream().filter(pin -> !pin.isInput()).findFirst().orElseThrow()
+                .position().y() * UNIT;
+        double width = type.size().width() * UNIT;
+        return new Rectangle2D.Double(0, outputY - BODY_HALF_HEIGHT, width, 2 * BODY_HALF_HEIGHT);
     }
 
     /** X where an input lead at {@code y} meets the back of the gate (the concave curve for OR/XOR). */

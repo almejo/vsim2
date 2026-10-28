@@ -113,6 +113,27 @@ public final class PainterSupport {
         graphics.draw(new Line2D.Double(startX, startY, endX, endY));
     }
 
+    private static final BasicStroke BUS_LEAD_STROKE = new BasicStroke(3.5f, BasicStroke.CAP_ROUND,
+            BasicStroke.JOIN_ROUND);
+
+    /** A pin wire, thick when {@code bus} (the pin is wider than one bit). */
+    static void pinLead(Graphics2D graphics, boolean bus, double startX, double startY, double endX, double endY,
+                        ColorScheme scheme) {
+        if (!bus) {
+            lead(graphics, startX, startY, endX, endY, scheme);
+            return;
+        }
+        graphics.setColor(scheme.componentStroke());
+        graphics.setStroke(BUS_LEAD_STROKE);
+        graphics.draw(new Line2D.Double(startX, startY, endX, endY));
+    }
+
+    /** The wire of {@code pin}: thick for a bus pin. */
+    static void pinLead(Graphics2D graphics, PinSpec pin, double startX, double startY, double endX, double endY,
+                        ColorScheme scheme) {
+        pinLead(graphics, pin.width() > 1, startX, startY, endX, endY, scheme);
+    }
+
     /** A round dot on each 1-bit pin and a square on each wider (bus) pin, in the scheme's pin colour. */
     static void pinDots(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
         pinDots(graphics, type, scheme, 1);

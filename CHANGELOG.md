@@ -17,6 +17,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   un XOR un **XNOR**, que es nuevo.
 - El **Buffer**: una compuerta de una entrada que copia su entrada (útil para hablar de retardo y de fan-out); negado
   es el NOT. También tiene «Ancho (bits)».
+- Las compuertas con 5 a 8 entradas se dibujan con el cuerpo de siempre (4 × 4, centrado en la salida) y una línea
+  trasera prolongada hasta las entradas de los extremos; con «Ancho» mayor que 1 los cables de sus pines son gruesos
+  (también en el Buffer).
 - La línea de costo del asistente de Karnaugh y de «Circuito desde expresiones» cuenta los XNOR.
 
 ### Cambiado
