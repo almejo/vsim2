@@ -112,7 +112,7 @@ class ComponentTypeTest {
     }
 
     /** A test type whose bus pin and box follow {@code width}: "bus" at the origin, "last" at (2, width). */
-    private static final ComponentType RIBBON = ComponentType.parameterized("test-ribbon", ComponentCategory.BASIC,
+    private static final ComponentType RIBBON = ComponentType.parameterized("test-ribbon", ComponentCategory.GATES,
             List.of(ParameterSpec.integer("width", 2, 1, 8)),
             parameters -> {
                 int width = (Integer) parameters.get("width");
@@ -175,7 +175,7 @@ class ComponentTypeTest {
     @Test
     void hiddenParametersDoNotKeyTheShapeMemo() {
         AtomicInteger layouts = new AtomicInteger();
-        ComponentType counted = ComponentType.parameterized("test-hidden", ComponentCategory.BASIC,
+        ComponentType counted = ComponentType.parameterized("test-hidden", ComponentCategory.GATES,
                 List.of(ParameterSpec.integer("width", 2, 1, 8), ParameterSpec.text("payload", "").asHidden()),
                 parameters -> {
                     layouts.incrementAndGet();
@@ -195,7 +195,7 @@ class ComponentTypeTest {
     @Test
     void aParameterizedTypeRunsItsLayoutOncePerSetOfParameters() {
         AtomicInteger layouts = new AtomicInteger();
-        ComponentType counted = ComponentType.parameterized("test-counted", ComponentCategory.BASIC,
+        ComponentType counted = ComponentType.parameterized("test-counted", ComponentCategory.GATES,
                 List.of(ParameterSpec.integer("width", 2, 1, 8)),
                 parameters -> {
                     layouts.incrementAndGet();
@@ -276,9 +276,9 @@ class ComponentTypeTest {
         ComponentLayout layout = parameters -> new ComponentShape(new GridSize(1, 1), List.of());
         BehaviorFactory behavior = parameters -> (context, pinIndex) -> {
         };
-        ComponentType first = ComponentType.parameterized("test-twice", ComponentCategory.BASIC, List.of(), layout,
+        ComponentType first = ComponentType.parameterized("test-twice", ComponentCategory.GATES, List.of(), layout,
                 behavior);
-        ComponentType second = ComponentType.parameterized("test-twice", ComponentCategory.BASIC, List.of(), layout,
+        ComponentType second = ComponentType.parameterized("test-twice", ComponentCategory.GATES, List.of(), layout,
                 behavior);
         assertThat(first).isEqualTo(second).hasSameHashCodeAs(second);
     }
@@ -288,9 +288,9 @@ class ComponentTypeTest {
         ComponentLayout layout = parameters -> new ComponentShape(new GridSize(1, 1), List.of());
         BehaviorFactory behavior = parameters -> (context, pinIndex) -> {
         };
-        ComponentType parameterized = ComponentType.parameterized("test-canonical", ComponentCategory.BASIC,
+        ComponentType parameterized = ComponentType.parameterized("test-canonical", ComponentCategory.GATES,
                 List.of(), layout, behavior);
-        ComponentType canonical = new ComponentType("test-canonical", ComponentCategory.BASIC, new GridSize(1, 1),
+        ComponentType canonical = new ComponentType("test-canonical", ComponentCategory.GATES, new GridSize(1, 1),
                 List.of(), List.of(), behavior, layout);
         assertThat(canonical).isEqualTo(parameterized).hasSameHashCodeAs(parameterized);
     }

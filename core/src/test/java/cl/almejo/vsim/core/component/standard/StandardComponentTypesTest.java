@@ -218,8 +218,8 @@ class StandardComponentTypesTest {
         ComponentTypeRegistry standard = StandardComponentTypes.registry();
         ComponentType input = standard.require(InterfacePins.INPUT_PIN);
         ComponentType output = standard.require(InterfacePins.OUTPUT_PIN);
-        assertThat(input.category()).isEqualTo(ComponentCategory.INTERFACE);
-        assertThat(output.category()).isEqualTo(ComponentCategory.INTERFACE);
+        assertThat(input.category()).isEqualTo(ComponentCategory.INPUT_OUTPUT);
+        assertThat(output.category()).isEqualTo(ComponentCategory.INPUT_OUTPUT);
         assertThat(input.pin(0).isDriver()).isTrue();
         assertThat(output.pin(0).isDriver()).isFalse();
         assertThat(input.resolveParameters(Map.of())).containsEntry("value", "0");

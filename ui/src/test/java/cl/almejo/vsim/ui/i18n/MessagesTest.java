@@ -102,7 +102,8 @@ class MessagesTest {
     void everyBlockHasAPaletteHelp() {
         List<String> keys = new ArrayList<>();
         for (ComponentType type : StandardComponentTypes.registry().all()) {
-            if (type.category() == ComponentCategory.BLOCKS) {
+            if (List.of(ComponentCategory.ARITHMETIC, ComponentCategory.PLEXERS, ComponentCategory.SEQUENTIAL)
+                    .contains(type.category()) && !type.id().equals(StandardComponentTypes.FLIP_FLOP_DATA)) {
                 keys.add("help.component." + type.id());
             }
         }

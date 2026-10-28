@@ -30,7 +30,7 @@ class ComparatorBehaviorTest {
     @Test
     void theComparatorIsABlockWithDataLeftAndThreeResultsRight() {
         ComponentType comparator = StandardComponentTypes.registry().require(StandardComponentTypes.COMPARATOR);
-        assertThat(comparator.category()).isEqualTo(ComponentCategory.BLOCKS);
+        assertThat(comparator.category()).isEqualTo(ComponentCategory.ARITHMETIC);
         assertThat(comparator.parameters()).extracting(parameter -> parameter.name())
                 .containsExactly("width", "signedness", "delay");
         assertThat(comparator.parameters().get(1).kind()).isEqualTo(ParameterKind.CHOICE);

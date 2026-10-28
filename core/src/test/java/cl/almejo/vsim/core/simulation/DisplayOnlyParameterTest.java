@@ -102,7 +102,7 @@ class DisplayOnlyParameterTest {
             return (context, pinIndex) -> {
             };
         };
-        ComponentType type = new ComponentType("box", ComponentCategory.BASIC, new GridSize(2, 2),
+        ComponentType type = new ComponentType("box", ComponentCategory.GATES, new GridSize(2, 2),
                 List.of(PinSpec.input("in", 0, 1)),
                 List.of(ParameterSpec.integer("size", 1, 1, 9),
                         ParameterSpec.choice("look", "plain", List.of("plain", "fancy")).asDisplayOnly()),

@@ -38,7 +38,7 @@ class RecentSectionTest {
     void theSectionComesRightBelowFavoritesInUseOrder() {
         palette.setRecents(List.of("xor", "led"));
 
-        assertThat(palette.visibleSections()).startsWith("Favoritos", "Recientes", "Básicas");
+        assertThat(palette.visibleSections()).startsWith("Favoritos", "Recientes", "Compuertas");
         assertThat(palette.visibleTypeIds()).startsWith("xor", "led");
         assertThat(chosen).isEmpty();
     }
@@ -80,20 +80,20 @@ class RecentSectionTest {
                 ColorScheme.LIGHT, type -> { });
         plain.setRecents(List.of("or"));
 
-        assertThat(plain.visibleSections()).startsWith("Recientes", "Básicas");
+        assertThat(plain.visibleSections()).startsWith("Recientes", "Compuertas");
     }
 
     @Test
     void aRecentChangeKeepsTheModelAndWhatTheUserFolded() {
         Object model = palette.treeModel();
-        int basic = rowOf("BASIC");
+        int basic = rowOf("GATES");
         palette.tree().collapseRow(basic);
 
         palette.setRecents(List.of("xor"));
         palette.setRecents(List.of("led", "xor"));
 
         assertThat(palette.treeModel()).isSameAs(model);
-        assertThat(palette.tree().isCollapsed(rowOf("BASIC"))).isTrue();
+        assertThat(palette.tree().isCollapsed(rowOf("GATES"))).isTrue();
         assertThat(palette.tree().isExpanded(rowOf("RECENT"))).isTrue();
     }
 

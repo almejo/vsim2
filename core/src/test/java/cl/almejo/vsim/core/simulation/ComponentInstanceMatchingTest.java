@@ -23,9 +23,9 @@ class ComponentInstanceMatchingTest {
             return (context, pinIndex) -> {
             };
         };
-        ComponentType small = new ComponentType("box", ComponentCategory.BASIC, new GridSize(2, 2),
+        ComponentType small = new ComponentType("box", ComponentCategory.GATES, new GridSize(2, 2),
                 List.of(PinSpec.input("in", 0, 1)), List.of(), factory);
-        ComponentType wide = new ComponentType("box", ComponentCategory.BASIC, new GridSize(4, 2),
+        ComponentType wide = new ComponentType("box", ComponentCategory.GATES, new GridSize(4, 2),
                 List.of(PinSpec.input("in", 0, 1), PinSpec.input("other", 0, 2)), List.of(), factory);
         SimulationEngine engine = new SimulationEngine();
 

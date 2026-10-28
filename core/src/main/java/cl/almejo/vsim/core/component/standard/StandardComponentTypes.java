@@ -138,15 +138,15 @@ public final class StandardComponentTypes {
         for (LogicOperation operation : LogicOperation.values()) {
             registry.register(logicGate(operation));
         }
-        registry.register(ComponentType.parameterized(BUFFER, ComponentCategory.BASIC,
+        registry.register(ComponentType.parameterized(BUFFER, ComponentCategory.GATES,
                 List.of(GATE_WIDTH, NEGATE_SPEC, DELAY),
                 parameters -> bufferShape((Integer) parameters.get(WIDTH)),
                 parameters -> new BufferBehavior((Boolean) parameters.get(NEGATE), (Integer) parameters.get("delay"))));
-        registry.register(new ComponentType(FLIP_FLOP_DATA, ComponentCategory.BASIC, GATE_SIZE,
+        registry.register(new ComponentType(FLIP_FLOP_DATA, ComponentCategory.SEQUENTIAL, GATE_SIZE,
                 List.of(PinSpec.input("d", 0, 2), PinSpec.output("q", 4, 2), PinSpec.input("clock", 2, 4)),
                 List.of(DELAY),
                 parameters -> new FlipFlopDataBehavior((Integer) parameters.get("delay"))));
-        registry.register(new ComponentType(TRI_STATE, ComponentCategory.BASIC, GATE_SIZE,
+        registry.register(new ComponentType(TRI_STATE, ComponentCategory.GATES, GATE_SIZE,
                 List.of(PinSpec.input("in", 0, 2), PinSpec.output("out", 4, 2), PinSpec.input("enable", 2, 4)),
                 List.of(DELAY),
                 parameters -> new TriStateBehavior((Integer) parameters.get("delay"))));
@@ -187,26 +187,26 @@ public final class StandardComponentTypes {
                         ParameterSpec.integer("history", 200, 10, 10_000)),
                 parameters -> new TimeDiagramBehavior(4, (Integer) parameters.get("sample-interval"),
                         (Integer) parameters.get("history"))));
-        registry.register(ComponentType.parameterized(INPUT_PIN, ComponentCategory.INTERFACE,
+        registry.register(ComponentType.parameterized(INPUT_PIN, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.choice("value", "0", List.of("1", "0", "Z")), InterfacePins.WIDTH_PARAMETER,
                         ConstantValue.FORMAT_PARAMETER),
                 parameters -> new ComponentShape(new GridSize(2, 2),
                         List.of(PinSpec.output("pin", 2, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value"),
                         (Integer) parameters.get(InterfacePins.WIDTH)))));
-        registry.register(ComponentType.parameterized(OUTPUT_PIN, ComponentCategory.INTERFACE,
+        registry.register(ComponentType.parameterized(OUTPUT_PIN, ComponentCategory.INPUT_OUTPUT,
                 List.of(InterfacePins.WIDTH_PARAMETER, ConstantValue.FORMAT_PARAMETER),
                 parameters -> new ComponentShape(new GridSize(2, 2),
                         List.of(PinSpec.input("pin", 0, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> newValueProbe()));
-        registry.register(ComponentType.parameterized(BUS_SPLITTER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
+        registry.register(ComponentType.parameterized(BUS_SPLITTER, ComponentCategory.WIRING, List.of(BUS_WIDTH),
                 parameters -> busShape((Integer) parameters.get(WIDTH), false),
                 parameters -> new BusSplitterBehavior((Integer) parameters.get(WIDTH))));
-        registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
+        registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.WIRING, List.of(BUS_WIDTH),
                 parameters -> busShape((Integer) parameters.get(WIDTH), true),
                 parameters -> new BusJoinerBehavior((Integer) parameters.get(WIDTH))));
         for (TunnelKind kind : TunnelKind.values()) {
-            registry.register(ComponentType.parameterized(kind.typeId(), ComponentCategory.INPUT_OUTPUT,
+            registry.register(ComponentType.parameterized(kind.typeId(), ComponentCategory.WIRING,
                     Tunnels.parameters(kind), parameters -> Tunnels.shape(kind, parameters),
                     parameters -> TUNNEL_BEHAVIOR));
         }
@@ -215,41 +215,41 @@ public final class StandardComponentTypes {
     }
 
     /**
-     * The «Bloques» (M7): N-bit parts with «Ancho (bits)» ({@link BlockSignals#WIDTH}) and «Retardo»; data in on the
+     * The block parts (adder to counter, M7): N-bit parts with «Ancho (bits)» ({@link BlockSignals#WIDTH}) and «Retardo»; data in on the
      * left, results out on the right, control on the top and bottom edges. Their size never depends on the width.
      */
     private static void registerBlocks(ComponentTypeRegistry registry) {
-        registry.register(ComponentType.parameterized(ADDER, ComponentCategory.BLOCKS,
+        registry.register(ComponentType.parameterized(ADDER, ComponentCategory.ARITHMETIC,
                 List.of(BlockSignals.WIDTH, DELAY),
                 parameters -> adderShape((Integer) parameters.get(WIDTH)),
                 parameters -> new AdderBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(ALU, ComponentCategory.BLOCKS,
-                List.of(BlockSignals.WIDTH, DELAY),
-                parameters -> aluShape((Integer) parameters.get(WIDTH)),
-                parameters -> new AluBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(COMPARATOR, ComponentCategory.BLOCKS,
+        registry.register(ComponentType.parameterized(COMPARATOR, ComponentCategory.ARITHMETIC,
                 List.of(BlockSignals.WIDTH, ParameterSpec.choice(SIGNEDNESS, SIGNEDNESS_UNSIGNED,
                         List.of(SIGNEDNESS_UNSIGNED, SIGNEDNESS_SIGNED)), DELAY),
                 parameters -> comparatorShape((Integer) parameters.get(WIDTH)),
                 parameters -> new ComparatorBehavior(SIGNEDNESS_SIGNED.equals(parameters.get(SIGNEDNESS)),
                         (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(MUX, ComponentCategory.BLOCKS,
+        registry.register(ComponentType.parameterized(ALU, ComponentCategory.ARITHMETIC,
+                List.of(BlockSignals.WIDTH, DELAY),
+                parameters -> aluShape((Integer) parameters.get(WIDTH)),
+                parameters -> new AluBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(MUX, ComponentCategory.PLEXERS,
                 List.of(BlockSignals.WIDTH, MUX_INPUTS, DELAY),
                 parameters -> muxShape(Integer.parseInt((String) parameters.get("inputs")),
                         (Integer) parameters.get(WIDTH)),
                 parameters -> new MuxBehavior(Integer.parseInt((String) parameters.get("inputs")),
                         (Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(DECODER, ComponentCategory.BLOCKS,
+        registry.register(ComponentType.parameterized(DECODER, ComponentCategory.PLEXERS,
                 List.of(DECODER_INPUT_BITS, DELAY),
                 parameters -> decoderShape((Integer) parameters.get("inputBits")),
                 parameters -> new DecoderBehavior((Integer) parameters.get("inputBits"),
                         (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(REGISTER, ComponentCategory.BLOCKS,
+        registry.register(ComponentType.parameterized(REGISTER, ComponentCategory.SEQUENTIAL,
                 List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
                 parameters -> registerShape((Integer) parameters.get(WIDTH)),
                 parameters -> new RegisterBehavior((Integer) parameters.get(WIDTH),
                         (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(COUNTER, ComponentCategory.BLOCKS,
+        registry.register(ComponentType.parameterized(COUNTER, ComponentCategory.SEQUENTIAL,
                 List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
                 parameters -> counterShape((Integer) parameters.get(WIDTH)),
                 parameters -> new CounterBehavior((Integer) parameters.get(WIDTH),
@@ -391,7 +391,7 @@ public final class StandardComponentTypes {
 
     /** AND, OR or XOR with «Entradas», «Ancho (bits)», «Negar salida» and «Retardo», in that order. */
     private static ComponentType logicGate(LogicOperation operation) {
-        return ComponentType.parameterized(operation.typeId(), ComponentCategory.BASIC,
+        return ComponentType.parameterized(operation.typeId(), ComponentCategory.GATES,
                 List.of(GATE_INPUTS_SPEC, GATE_WIDTH, NEGATE_SPEC, DELAY),
                 parameters -> gateShape((Integer) parameters.get(GATE_INPUTS), (Integer) parameters.get(WIDTH)),
                 parameters -> new LogicGateBehavior(operation, (Integer) parameters.get(GATE_INPUTS),

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.panels;
 
+import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -104,15 +105,40 @@ class PalettePanelTest {
     }
 
     @Test
-    void theBlocksHaveTheirOwnSectionAfterInputOutputWithAHelpTooltip() {
-        assertThat(palette.visibleSections()).containsSubsequence("Entrada/Salida", "Bloques", "Depuración");
+    void theAdderSitsInAritmeticaBeforeInputOutputWithAHelpTooltip() {
         List<String> ids = palette.visibleTypeIds();
-        assertThat(ids.indexOf(StandardComponentTypes.ADDER)).isGreaterThan(ids.indexOf(StandardComponentTypes.LED));
-        assertThat(ids.indexOf(StandardComponentTypes.ADDER))
-                .isLessThan(ids.indexOf(StandardComponentTypes.TIME_DIAGRAM));
+        assertThat(ids.indexOf(StandardComponentTypes.ADDER)).isLessThan(ids.indexOf(StandardComponentTypes.LED));
         assertThat(Messages.componentName(registry.require(StandardComponentTypes.ADDER))).isEqualTo("Sumador");
         assertThat(palette.toolTipFor(StandardComponentTypes.ADDER)).hasValueSatisfying(text -> assertThat(text)
                 .contains("Cin").contains("Cout"));
+    }
+
+    @Test
+    void theNineCategoriesComeInTheAgreedOrder() {
+        assertThat(palette.visibleSections()).containsExactly("Compuertas", "Cableado", "Aritmética",
+                "Multiplexores", "Secuenciales", "Memoria", "Entrada/Salida", "Depuración");
+    }
+
+    @Test
+    void eachCategoryHoldsItsParts() {
+        assertThat(typesIn(ComponentCategory.GATES)).contains("and", "or", "xor", "nand", "nor", "xnor", "buffer",
+                "not", StandardComponentTypes.TRI_STATE);
+        assertThat(typesIn(ComponentCategory.WIRING)).containsExactly(StandardComponentTypes.BUS_SPLITTER,
+                StandardComponentTypes.BUS_JOINER, StandardComponentTypes.TUNNEL_ENTRANCE,
+                StandardComponentTypes.TUNNEL_EXIT);
+        assertThat(typesIn(ComponentCategory.ARITHMETIC)).containsExactly(StandardComponentTypes.ADDER,
+                StandardComponentTypes.COMPARATOR, StandardComponentTypes.ALU);
+        assertThat(typesIn(ComponentCategory.PLEXERS)).containsExactly(StandardComponentTypes.MUX,
+                StandardComponentTypes.DECODER);
+        assertThat(typesIn(ComponentCategory.SEQUENTIAL)).containsExactly(StandardComponentTypes.FLIP_FLOP_DATA,
+                StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER);
+        assertThat(typesIn(ComponentCategory.INPUT_OUTPUT)).contains(StandardComponentTypes.INPUT_PIN,
+                StandardComponentTypes.OUTPUT_PIN, StandardComponentTypes.SWITCH, StandardComponentTypes.LED);
+    }
+
+    private List<String> typesIn(ComponentCategory category) {
+        return palette.entries().stream().filter(entry -> entry.type().category() == category)
+                .map(PaletteEntry::id).toList();
     }
 
     @Test
@@ -208,8 +234,9 @@ class PalettePanelTest {
         palette.setUserComponentChooser(component -> chosenUser.add(component.bundle().root().id()));
         palette.setUserComponents(List.of(inverterBundle), List.of(doubleInverterBundle));
 
-        assertThat(palette.visibleSections()).containsExactly("Básicas", "Entrada/Salida", "Bloques", "Memoria",
-                "Depuración", "Pines de componente", "Mis componentes", "Componentes de este circuito");
+        assertThat(palette.visibleSections()).containsExactly("Compuertas", "Cableado", "Aritmética",
+                "Multiplexores", "Secuenciales", "Memoria", "Entrada/Salida", "Depuración", "Mis componentes",
+                "Componentes de este circuito");
         assertThat(palette.visibleTypeIds()).endsWith("subcircuit:inverter", "subcircuit:double-inverter");
         palette.setFilter("inversor");
         assertThat(palette.visibleTypeIds()).containsExactly("subcircuit:inverter", "subcircuit:double-inverter");

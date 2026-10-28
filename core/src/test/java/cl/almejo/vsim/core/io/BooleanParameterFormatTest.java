@@ -29,7 +29,7 @@ class BooleanParameterFormatTest {
 
     private static ComponentTypeRegistry registryWithAFlaggedType() {
         ComponentTypeRegistry registry = StandardComponentTypes.registry().copy();
-        registry.register(new ComponentType(TYPE_ID, ComponentCategory.BASIC, new GridSize(2, 2),
+        registry.register(new ComponentType(TYPE_ID, ComponentCategory.GATES, new GridSize(2, 2),
                 List.of(PinSpec.output("out", 2, 1)),
                 List.of(ParameterSpec.bool("negate", false)),
                 parameters -> (context, pinIndex) -> {

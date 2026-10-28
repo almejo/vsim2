@@ -252,7 +252,7 @@ class ParameterFormTest {
     }
 
     private static ComponentType flaggedType() {
-        return new ComponentType("test-flagged", ComponentCategory.BASIC, new GridSize(2, 2),
+        return new ComponentType("test-flagged", ComponentCategory.GATES, new GridSize(2, 2),
                 List.of(PinSpec.output("out", 2, 1)), List.of(ParameterSpec.bool("negate", false)),
                 parameters -> (context, pinIndex) -> {
                 });

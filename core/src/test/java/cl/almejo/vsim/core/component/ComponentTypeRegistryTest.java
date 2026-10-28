@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ComponentTypeRegistryTest {
 
     private static ComponentType type(String id) {
-        return new ComponentType(id, ComponentCategory.BASIC, new GridSize(2, 2), List.of(), List.of(),
+        return new ComponentType(id, ComponentCategory.GATES, new GridSize(2, 2), List.of(), List.of(),
                 parameters -> (context, pinIndex) -> {
                 });
     }
@@ -95,7 +95,7 @@ class ComponentTypeRegistryTest {
     @Test
     void theTypeOfAComponentFollowsItsParameters() {
         ComponentTypeRegistry registry = new ComponentTypeRegistry();
-        registry.register(ComponentType.parameterized("ribbon", ComponentCategory.BASIC,
+        registry.register(ComponentType.parameterized("ribbon", ComponentCategory.GATES,
                 List.of(ParameterSpec.integer("width", 1, 1, 8)),
                 parameters -> new ComponentShape(new GridSize(1, (Integer) parameters.get("width")), List.of()),
                 parameters -> (context, pinIndex) -> {

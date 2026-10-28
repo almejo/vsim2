@@ -54,7 +54,7 @@ public final class TestComponentTypes {
     }
 
     private static ComponentType unary(String id, UnaryOperator<Value> function) {
-        return new ComponentType(id, ComponentCategory.BASIC, new GridSize(2, 2),
+        return new ComponentType(id, ComponentCategory.GATES, new GridSize(2, 2),
                 List.of(PinSpec.input("in", 0, 1), PinSpec.output("out", 2, 1)),
                 List.of(ParameterSpec.integer("delay", 1, 1, 1_000_000)),
                 parameters -> new UnaryBehavior(function, (Integer) parameters.get("delay")));

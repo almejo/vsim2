@@ -39,7 +39,7 @@ class CounterBehaviorTest {
     @Test
     void theCounterIsABlockWithDataLeftQAndCarryRightAndControlAtTheBottom() {
         ComponentType counter = StandardComponentTypes.registry().require(StandardComponentTypes.COUNTER);
-        assertThat(counter.category()).isEqualTo(ComponentCategory.BLOCKS);
+        assertThat(counter.category()).isEqualTo(ComponentCategory.SEQUENTIAL);
         assertThat(counter.parameters()).extracting(parameter -> parameter.name())
                 .containsExactly("width", "delay", "format");
         assertThat(counter.pins()).extracting(PinSpec::name).containsExactly("D", "LD", "EN", "CLR", "CLK", "Q", "C");
