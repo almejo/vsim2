@@ -118,7 +118,8 @@ public final class MemoryExamples {
         builder.text(2, 44, "Prueba: la RAM escribe con cada bajada del reloj (WE = 1) la palabra de la dirección que marca");
         builder.text(2, 46, "el contador; cada vez que la dirección da la vuelta, «Pasada» sube uno. Así la pasada 0 escribe 00");
         builder.text(2, 48, "en las 16 palabras, la 1 escribe 01 y así hasta FF, y luego vuelve a 00. En «Mapa de memoria» se ve");
-        builder.text(2, 50, "cómo se va llenando; el display muestra la palabra que se acaba de escribir");
+        builder.text(2, 50, "cómo se va llenando. El display muestra Q: la palabra que se está leyendo (azul), su valor de antes");
+        builder.text(2, 52, "de que la escriba la próxima bajada del reloj (naranja).");
         return builder;
     }
 }

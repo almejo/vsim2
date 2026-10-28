@@ -279,6 +279,11 @@
     "id" : "l40",
     "x" : 2,
     "y" : 50,
-    "text" : "cómo se va llenando; el display muestra la palabra que se acaba de escribir"
+    "text" : "cómo se va llenando. El display muestra Q: la palabra que se está leyendo (azul), su valor de antes"
+  }, {
+    "id" : "l41",
+    "x" : 2,
+    "y" : 52,
+    "text" : "de que la escriba la próxima bajada del reloj (naranja)."
   } ]
 }
