@@ -24,10 +24,17 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   aritmético o rotación, a izquierda o derecha; la cantidad entra por S) y «Contador de unos».
 - Multiplexores: «Demultiplexor» (D va a la salida que elige S, de 2, 4 u 8 salidas; las demás valen 0) y «Codificador
   con prioridad» (A es el número de la entrada más alta en 1 y V dice si alguna lo está; de 2, 4, 8 o 16 entradas).
+- Dos piezas nuevas en Cableado: el **Extensor de bits** (cambia el ancho de un bus, rellenando con ceros o con el
+  signo, o cortando a los bits de abajo) y el **Selector de bits** (saca el grupo número `S` de un bus, por ejemplo el
+  nibble que toca). Cada una explica sus supuestos en su descripción.
+- El **Inversor controlado** en la paleta, justo después del Buffer triestado: la salida es la entrada invertida
+  mientras el control vale 1 y Z si no.
 
 ### Cambiado
 
 - El multiplexor ofrece 8 entradas además de 2 y 4; D0, D1, Y y los circuitos de antes no cambian.
+- El Buffer triestado tiene «Ancho (bits)» (1 por omisión) y «Negar salida»; los triestado de antes se abren y
+  funcionan igual.
 - El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
   uno (antes solo los bloques, los pines, los túneles y la memoria).
 

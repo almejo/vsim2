@@ -31,6 +31,8 @@ public final class StandardComponentTypes {
     public static final String OR = "or";
     /** «XOR» (odd parity with more than two inputs); with «Negar salida» it is the XNOR. */
     public static final String XOR = "xor";
+    /** The controlled inverter preset: a {@link #TRI_STATE} with «Negar salida». Never a type id. */
+    public static final String INVERTER_CONTROLLED_PRESET = "inverter-controlled";
     /** «Buffer»: one input copied to the output; with «Negar salida» it is the NOT. */
     public static final String BUFFER = "buffer";
     /** The NAND preset ({@link #presets()}): an {@link #AND} with «Negar salida». Never a type id. */
@@ -112,7 +114,8 @@ public final class StandardComponentTypes {
             new ComponentPreset(NAND_PRESET, AND, Map.of(NEGATE, true)),
             new ComponentPreset(NOR_PRESET, OR, Map.of(NEGATE, true)),
             new ComponentPreset(XNOR_PRESET, XOR, Map.of(NEGATE, true)),
-            new ComponentPreset(NOT_PRESET, BUFFER, Map.of(NEGATE, true)));
+            new ComponentPreset(NOT_PRESET, BUFFER, Map.of(NEGATE, true)),
+            new ComponentPreset(INVERTER_CONTROLLED_PRESET, TRI_STATE, Map.of(NEGATE, true)));
     private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, 8, 2, 32);
     /**
      * Tunnels only join nets: the flattener leaves them out, so this behaviour never runs; it exists because every
@@ -142,10 +145,11 @@ public final class StandardComponentTypes {
                 List.of(PinSpec.input("d", 0, 2), PinSpec.output("q", 4, 2), PinSpec.input("clock", 2, 4)),
                 List.of(DELAY),
                 parameters -> new FlipFlopDataBehavior((Integer) parameters.get("delay"))));
-        registry.register(new ComponentType(TRI_STATE, ComponentCategory.GATES, GATE_SIZE,
-                List.of(PinSpec.input("in", 0, 2), PinSpec.output("out", 4, 2), PinSpec.input("enable", 2, 4)),
-                List.of(DELAY),
-                parameters -> new TriStateBehavior((Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(TRI_STATE, ComponentCategory.GATES,
+                List.of(GATE_WIDTH, NEGATE_SPEC, DELAY),
+                parameters -> triStateShape((Integer) parameters.get(WIDTH)),
+                parameters -> new TriStateBehavior((Integer) parameters.get(WIDTH), (Boolean) parameters.get(NEGATE),
+                        (Integer) parameters.get("delay"))));
         registry.register(new ComponentType(CLOCK, ComponentCategory.INPUT_OUTPUT, new GridSize(2, 2),
                 List.of(PinSpec.output("out", 2, 2)),
                 List.of(ParameterSpec.integer("time-up", 1000, 1, 1_000_000_000),
@@ -210,6 +214,7 @@ public final class StandardComponentTypes {
         MemoryTypes.register(registry);
         ArithmeticTypes.register(registry);
         PlexerTypes.register(registry);
+        WiringTypes.register(registry);
     }
 
     /**
@@ -367,6 +372,12 @@ public final class StandardComponentTypes {
         return new ComponentShape(new GridSize(GATE_WIDTH_IN_UNITS, 2 * outputRow), pins);
     }
 
+    /** The tri-state buffer's 4 x 4 box: in at (0, 2), out at (4, 2), enable (1 bit) at (2, 4). */
+    private static ComponentShape triStateShape(int width) {
+        return new ComponentShape(GATE_SIZE, List.of(PinSpec.input("in", 0, 2, width),
+                PinSpec.output("out", GATE_WIDTH_IN_UNITS, 2, width), PinSpec.input("enable", 2, 4)));
+    }
+
     /** The Buffer's 4 x 4 box (the old NOT's): in at (0, 2), out at (4, 2). */
     private static ComponentShape bufferShape(int width) {
         return new ComponentShape(GATE_SIZE, List.of(PinSpec.input("in", 0, 2, width),
@@ -396,7 +407,7 @@ public final class StandardComponentTypes {
         }
     }
 
-    /** NAND, NOR, XNOR and NOT: the gates with «Negar salida» on, offered as their own entries. */
+    /** NAND, NOR, XNOR, NOT and the controlled inverter: the parts with «Negar salida» on, offered as their own entries. */
     public static List<ComponentPreset> presets() {
         return PRESETS;
     }
@@ -408,7 +419,7 @@ public final class StandardComponentTypes {
 
     /**
      * The id that names a part of {@code typeId} with {@code parameters} (the message key {@code component.<id>}):
-     * {@code nand}, {@code nor}, {@code xnor} or {@code not} for a gate or Buffer with «Negar salida» on, the type id
+     * {@code nand}, {@code nor}, {@code xnor}, {@code not} or {@code inverter-controlled} for a gate, Buffer or tri-state buffer with «Negar salida» on, the type id
      * otherwise.
      */
     public static String nameId(String typeId, Map<String, Object> parameters) {

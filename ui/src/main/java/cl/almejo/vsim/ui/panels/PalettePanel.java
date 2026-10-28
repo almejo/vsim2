@@ -93,13 +93,15 @@ public final class PalettePanel extends JPanel {
 
     /**
      * The entry each preset follows in its category, so the gates read AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT
-     * (spec 2026-10-28 §3): the negated gates after the three plain ones, NOT after the Buffer.
+     * (spec 2026-10-28 §3): the negated gates after the three plain ones, NOT after the Buffer, and the controlled
+     * inverter after the tri-state buffer.
      */
     private static final Map<String, String> PRESET_PLACES = Map.of(
             StandardComponentTypes.NAND_PRESET, StandardComponentTypes.XOR,
             StandardComponentTypes.NOR_PRESET, StandardComponentTypes.NAND_PRESET,
             StandardComponentTypes.XNOR_PRESET, StandardComponentTypes.NOR_PRESET,
-            StandardComponentTypes.NOT_PRESET, StandardComponentTypes.BUFFER);
+            StandardComponentTypes.NOT_PRESET, StandardComponentTypes.BUFFER,
+            StandardComponentTypes.INVERTER_CONTROLLED_PRESET, StandardComponentTypes.TRI_STATE);
     private static final List<ComponentCategory> ORDER = List.of(ComponentCategory.GATES,
             ComponentCategory.WIRING, ComponentCategory.ARITHMETIC, ComponentCategory.PLEXERS,
             ComponentCategory.SEQUENTIAL, ComponentCategory.MEMORY, ComponentCategory.INPUT_OUTPUT,
