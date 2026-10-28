@@ -351,6 +351,11 @@ public final class OpenDocument implements AutoCloseable {
         simulation.interact(componentId.value());
     }
 
+    /** Clicks bit {@code bit} of a multi-bit Switch: an input event like {@link #interact}, not an edit. */
+    public void interactBit(ElementId componentId, int bit) {
+        simulation.interactBit(componentId.value(), bit);
+    }
+
     /**
      * «Restaurar contenido inicial»: queues a request putting the RAM {@code componentId} back to its initial
      * contents without restarting the rest of the simulation. Not a document change, no undo step.

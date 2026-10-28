@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -21,6 +22,8 @@ import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+import cl.almejo.vsim.ui.canvas.MultiBitCells;
+import cl.almejo.vsim.ui.canvas.MultiBitReadout;
 import cl.almejo.vsim.ui.canvas.TopLevelNets;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.StatusBar;
@@ -341,10 +344,14 @@ public final class ProblemsController {
         if (pin.isPresent()) {
             return Optional.of(pinTooltip(canvas, document, pin.get(), current));
         }
+        Optional<DocumentElement> hit = canvas.hitTester().elementAt(document, gridPoint);
+        if (hit.isPresent() && hit.get() instanceof Component component
+                && MultiBitLayout.isMultiBit(openDocument.registry().typeOf(component))) {
+            return multiBitTooltip(component, gridPoint, current);
+        }
         if (!current) {
             return Optional.empty();
         }
-        Optional<DocumentElement> hit = canvas.hitTester().elementAt(document, gridPoint);
         if (hit.isPresent() && hit.get() instanceof Wire wire) {
             return openDocument.netlist().netForWire(wire.id()).flatMap(net -> wireTooltip(canvas, document, net));
         }
@@ -373,6 +380,18 @@ public final class ProblemsController {
         Optional<String> problem = current ? net.flatMap(found -> problemText(canvas, document, found))
                 : Optional.empty();
         return problem.map(found -> text + PinText.SEPARATOR + found).orElse(text);
+    }
+
+    /**
+     * A multi-bit Switch or LED: its value (only from a current snapshot) and the bit under the pointer, so a stale
+     * picture still names the bit.
+     */
+    private Optional<String> multiBitTooltip(Component component, Point2D gridPoint, boolean current) {
+        Optional<Value> value = current
+                ? MultiBitReadout.valueOf(snapshot.componentState(component.id().value()))
+                : Optional.empty();
+        return MultiBitReadout.text(value,
+                MultiBitCells.bitAt(openDocument.registry().typeOf(component), component, gridPoint));
     }
 
     /** A 7-segment display showing «–» (a Z input) explains it (M6.1-E); any other component has no tooltip. */

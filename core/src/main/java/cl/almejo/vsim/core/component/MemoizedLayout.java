@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
 /**
  * Remembers the shape of each set of resolved parameters, so the pin locations and bounds of a parameterized
  * component (asked on every paint and hit test) do not run its layout again. Keeps at most {@link #LIMIT} shapes per
- * type. Equal to another memo of the same layout, so types stay equal however often they are built. The
- * {@linkplain ParameterSpec#hidden() hidden} parameters (a memory's contents, possibly megabytes of text) never key a
- * shape, so a layout must not depend on them.
+ * type. Equal to another memo of the same layout, so types stay equal however often they are built. The hidden
+ * <em>text</em> parameters (a memory's contents, possibly megabytes of text) never key a shape, so a layout must not
+ * depend on them; the other hidden parameters (the side of a multi-bit Switch's pin) are small and do key it.
  */
 final class MemoizedLayout implements ComponentLayout {
 
@@ -32,8 +32,12 @@ final class MemoizedLayout implements ComponentLayout {
         if (layout instanceof MemoizedLayout || layout instanceof SpecializedLayout) {
             return layout;
         }
-        return new MemoizedLayout(layout, parameters.stream().filter(ParameterSpec::hidden)
+        return new MemoizedLayout(layout, parameters.stream().filter(MemoizedLayout::isBulky)
                 .map(ParameterSpec::name).collect(Collectors.toUnmodifiableSet()));
+    }
+
+    private static boolean isBulky(ParameterSpec parameter) {
+        return parameter.hidden() && parameter.kind() == ParameterKind.TEXT;
     }
 
     /** {@code resolvedParameters} without the hidden ones: what keys a shape. */

@@ -280,6 +280,26 @@ public final class SimulationEngine {
         }
     }
 
+    /** Clicks bit {@code bit} of a multi-bit switch ({@link Behavior#interactBit}); applies its effects now. */
+    public void interactBit(String componentId, int bit) {
+        ComponentInstance instance = instances.get(componentId);
+        if (instance != null && instance.behavior.isInteractive()) {
+            instance.behavior.interactBit(instance, bit);
+            scheduler.runUntil(now());
+        }
+    }
+
+    /** {@link #interactBit} that also reports the nets that changed (a bit clicked while paused). */
+    public StepResult interactBitTracked(String componentId, int bit) {
+        Set<String> changed = startTracking();
+        try {
+            interactBit(componentId, bit);
+        } finally {
+            changedNets = null;
+        }
+        return new StepResult(now(), now(), changed, nextEventTime());
+    }
+
     /**
      * «Restaurar contenido inicial»: component {@code componentId} (a RAM) goes back to its initial contents
      * ({@link Behavior#restoreInitialState}) and its zero-delay effects apply now; the rest of the circuit and the

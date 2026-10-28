@@ -26,6 +26,27 @@ final class SwitchBehavior implements Behavior {
         return parse(text, 1);
     }
 
+    /** Whether {@code text} is the Z of a one-bit Switch (any case, as old files and typed values write it). */
+    static boolean isHighImpedanceText(String text) {
+        return text.strip().equalsIgnoreCase("Z");
+    }
+
+    /** The stored text of a Switch's value: {@code Z}, or the canonical number ({@link ConstantValue#normalize}). */
+    static String normalizeValue(String text) {
+        return isHighImpedanceText(text) ? "Z" : ConstantValue.normalize(text);
+    }
+
+    /**
+     * The value a Switch starts with: the number {@code text} writes, {@code width} bits wide, or all Z for
+     * {@code Z}. A one-bit Switch reads «0» and «1» exactly as it always did.
+     */
+    static Value parseNumber(String text, int width) {
+        if (isHighImpedanceText(text)) {
+            return Value.highImpedance(width);
+        }
+        return Value.of(width, ConstantValue.bitsOf(text, width).orElseThrow());
+    }
+
     @Override
     public void initialize(BehaviorContext context) {
         context.drive(0, value, 0);
@@ -45,6 +66,16 @@ final class SwitchBehavior implements Behavior {
     public void interact(BehaviorContext context) {
         Value allOnes = Value.of(value.width(), Value.maskFor(value.width()));
         value = value.equals(allOnes) ? Value.of(value.width(), 0L) : allOnes;
+        context.drive(0, value, 0);
+    }
+
+    /** Flips bit {@code bit} (0 = least significant) of a multi-bit switch; a bit outside the width is ignored. */
+    @Override
+    public void interactBit(BehaviorContext context, int bit) {
+        if (bit < 0 || bit >= value.width() || !value.isFullyDefined()) {
+            return;
+        }
+        value = Value.of(value.width(), value.bits() ^ (1L << bit));
         context.drive(0, value, 0);
     }
 

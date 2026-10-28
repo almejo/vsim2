@@ -91,6 +91,7 @@ public final class StandardComponentTypes {
     public static final String DISPLAY_BUS_PIN = "bus";
     /** The parameter that sets a bus component's width in bits. */
     public static final String WIDTH = "width";
+    private static final String VALUE = "value";
 
     private static final GridSize GATE_SIZE = new GridSize(4, 4);
     /** The gate body's width; its height grows from 4 to 6 and 8 with the inputs. */
@@ -166,10 +167,14 @@ public final class StandardComponentTypes {
                 List.of(ParameterSpec.integer("time-up", 1000, 1, 1_000_000_000),
                         ParameterSpec.integer("time-down", 1000, 1, 1_000_000_000)),
                 parameters -> new ClockBehavior((Integer) parameters.get("time-up"), (Integer) parameters.get("time-down"))));
-        registry.register(new ComponentType(SWITCH, ComponentCategory.INPUT_OUTPUT, new GridSize(4, 2),
-                List.of(PinSpec.output("out", 4, 1)),
-                List.of(ParameterSpec.choice("value", "1", List.of("1", "0", "Z"))),
-                parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value")))));
+        registry.register(ComponentType.parameterized(SWITCH, ComponentCategory.INPUT_OUTPUT,
+                List.of(ParameterSpec.integer(WIDTH, 1, MultiBitLayout.MINIMUM_WIDTH, MultiBitLayout.MAXIMUM_WIDTH),
+                        MultiBitLayout.sideParameter(MultiBitLayout.RIGHT),
+                        ParameterSpec.text(VALUE, "1", SwitchBehavior::normalizeValue)),
+                parameters -> switchShape((Integer) parameters.get(WIDTH), (String) parameters.get(MultiBitLayout.SIDE)),
+                StandardComponentTypes::checkSwitch,
+                parameters -> new SwitchBehavior(SwitchBehavior.parseNumber((String) parameters.get(VALUE),
+                        (Integer) parameters.get(WIDTH)))));
         registry.register(ComponentType.parameterized(CONSTANT, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 8, 1, ConstantValue.MAXIMUM_WIDTH),
                         ParameterSpec.text("value", "0", ConstantValue::normalize),
@@ -332,6 +337,41 @@ public final class StandardComponentTypes {
      * The box of a constant: height 2, as wide as its longest possible text needs (so the shape never depends on the
      * value), the bus pin on the right edge, in the middle.
      */
+    /** One bit is today's pill with its pin on the right; more bits are the rows of {@link MultiBitLayout}. */
+    private static ComponentShape switchShape(int width, String side) {
+        if (width == 1) {
+            return new ComponentShape(new GridSize(4, 2), List.of(PinSpec.output("out", 4, 1)));
+        }
+        return MultiBitLayout.shape(width, side, "out", PinDirection.OUTPUT);
+    }
+
+    /** The value must be a non-negative number that fits the width; {@code Z} only exists for one bit. */
+    private static Optional<ParameterProblem> checkSwitch(Map<String, Object> raw) {
+        Object rawWidth = raw == null ? null : raw.get(WIDTH);
+        int width;
+        try {
+            width = rawWidth == null ? 1 : rawWidth instanceof Number number ? number.intValue()
+                    : Integer.parseInt(rawWidth.toString().trim());
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
+        if (width < MultiBitLayout.MINIMUM_WIDTH || width > MultiBitLayout.MAXIMUM_WIDTH) {
+            return Optional.empty();
+        }
+        Object rawValue = raw == null ? null : raw.get(VALUE);
+        String text = rawValue == null ? "1" : rawValue.toString().strip();
+        if (SwitchBehavior.isHighImpedanceText(text)) {
+            return width == 1 ? Optional.empty() : Optional.of(new ParameterProblem(VALUE, "switch.noZ", List.of()));
+        }
+        if (!ConstantValue.isValidText(text) || text.startsWith("-")) {
+            return Optional.of(new ParameterProblem(VALUE, "constant.invalidValue", List.of()));
+        }
+        if (!ConstantValue.fitsText(text, width)) {
+            return Optional.of(new ParameterProblem(VALUE, "constant.doesNotFit", List.of(width)));
+        }
+        return Optional.empty();
+    }
+
     private static ComponentShape constantShape(int width, String format) {
         // About one grid unit per character (a bold 9 px digit is under 8 px wide), plus room for margins and the lead.
         int boxWidth = Math.max(4, ConstantValue.longestDisplay(width, format) + 2);

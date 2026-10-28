@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.io;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -168,10 +169,12 @@ public final class CircuitFormat {
 
     /**
      * The parameters a file keeps, sorted. M7: an input or output pin's «Mostrar como» is left out while it is
-     * «Automático», so pins written before it existed keep their bytes (reading fills it back in).
+     * «Automático», and a Switch or LED's one-bit width and default side too ({@link MultiBitLayout#withoutDefaults}),
+     * so parts written before them keep their bytes (reading fills them back in).
      */
     private static Map<String, Object> writtenParameters(Component component) {
-        Map<String, Object> written = new TreeMap<>(component.parameters());
+        Map<String, Object> written = new TreeMap<>(
+                MultiBitLayout.withoutDefaults(component.typeId(), component.parameters()));
         if (InterfacePins.isInterface(component.typeId())
                 && ConstantValue.AUTO.equals(written.get(ConstantValue.FORMAT))) {
             written.remove(ConstantValue.FORMAT);

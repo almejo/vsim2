@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -28,6 +29,7 @@ import cl.almejo.vsim.core.wiring.NewContact;
 import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
+import cl.almejo.vsim.ui.canvas.MultiBitCells;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
@@ -471,7 +473,7 @@ public final class SelectTool implements Tool {
     private void releaseWire(ToolContext context, CanvasMouseEvent event) {
         boolean added = wire.hasMoved() && wire.commit(context, event.snapped());
         if (!added) {
-            click(context);
+            click(context, event);
         }
     }
 
@@ -496,7 +498,7 @@ public final class SelectTool implements Tool {
             if (foldOnRelease) {
                 toggleMemoryContents(context, (Component) pressedElement);
             } else {
-                toggleIfInteractive(context);
+                toggleIfInteractive(context, event);
             }
         }
     }
@@ -666,7 +668,7 @@ public final class SelectTool implements Tool {
             return slideCursor(sliding.get());
         }
         if (element instanceof Component component
-                && (isInteractive(context, component) || onFoldToggle(context, component, event))) {
+                && (isClickable(context, component, event) || onFoldToggle(context, component, event))) {
             return CanvasCursor.HAND;
         }
         return selected ? CanvasCursor.MOVE : CanvasCursor.DEFAULT;
@@ -1005,13 +1007,13 @@ public final class SelectTool implements Tool {
     }
 
     /** A press on a pin or wire that did not become a wire: behave like a plain click on what was under it. */
-    private void click(ToolContext context) {
+    private void click(ToolContext context, CanvasMouseEvent event) {
         if (pressedElement == null) {
             context.selection().clear();
             return;
         }
         context.selection().select(pressedElement.id());
-        toggleIfInteractive(context);
+        toggleIfInteractive(context, event);
     }
 
     /** Ctrl held at the release: the selection stays put and a copy lands where the move would have put it. */
@@ -1028,8 +1030,14 @@ public final class SelectTool implements Tool {
         context.selection().set(paste.pastedIds());
     }
 
-    private void toggleIfInteractive(ToolContext context) {
+    private void toggleIfInteractive(ToolContext context, CanvasMouseEvent event) {
         if (pressedElement instanceof Component component && isInteractive(context, component)) {
+            ComponentType type = context.openDocument().registry().typeOf(component);
+            if (MultiBitLayout.isMultiBit(type)) {
+                MultiBitCells.bitAt(type, component, event.gridPosition())
+                        .ifPresent(bit -> context.openDocument().interactBit(component.id(), bit));
+                return;
+            }
             if (InterfacePins.isBusInput(component) && context.openDocument().latestSnapshot()
                     .componentState(component.id().value()) instanceof VisibleState.SwitchState state) {
                 lastBusInputToggle = new ToggledBusInput(component.id(), state.value());
@@ -1126,6 +1134,15 @@ public final class SelectTool implements Tool {
             }
         }
         return Optional.empty();
+    }
+
+    /** An interactive part under the pointer; a multi-bit Switch only over one of its bits. */
+    private boolean isClickable(ToolContext context, Component component, CanvasMouseEvent event) {
+        if (!isInteractive(context, component)) {
+            return false;
+        }
+        ComponentType type = context.openDocument().registry().typeOf(component);
+        return !MultiBitLayout.isMultiBit(type) || MultiBitCells.bitAt(type, component, event.gridPosition()).isPresent();
     }
 
     private boolean isInteractive(ToolContext context, Component component) {

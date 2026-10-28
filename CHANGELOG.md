@@ -10,6 +10,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- El interruptor puede tener varios bits («Ancho (bits)» de 1 a 32): una fila compacta con una celda por bit, el más
+  significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit (sin deshacer ni
+  marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal y decimal y el bit bajo el
+  puntero. Con un bit, nada cambia.
 - Propiedades termina con un recuadro «Descripción» que explica la pieza elegida y sus supuestos: qué vale una
   entrada sin conectar, en qué flanco actúa, qué pasa con una entrada en Z, cómo lee los números con signo. Todas las
   piezas lo tienen, también la RAM y la ROM (escritura en el flanco de bajada, `CS` y `WE` sin conectar, direcciones

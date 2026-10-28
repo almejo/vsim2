@@ -870,7 +870,8 @@ class PropertiesPanelTest {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 50, 0, Map.of());
         for (Component component : List.of(andGate, constant, toggle)) {
             selection.select(component.id());
-            int parameterCount = openDocument.registry().typeOf(component).parameters().size();
+            int parameterCount = (int) openDocument.registry().typeOf(component).parameters().stream()
+                    .filter(parameter -> !parameter.hidden()).count();
             List<java.awt.Rectangle[]> rows = laidOutRows();
             assertOneGrid(rows, 1 + parameterCount);
             assertThat(captionColumnLeft(rows)).as(component.typeId()).isEqualTo(captionLeft);

@@ -31,7 +31,7 @@ class CircuitFormatTest {
         document.add(new Component(document.newComponentId(), "and", new GridPoint(10, 4), Rotation.R90,
                 Map.of("delay", 3, "inputs", 2, "width", 1, "negate", false), "U1"));
         document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0,
-                Map.of("value", "Z"), ""));
+                Map.of("value", "Z", "width", 1, "side", "right"), ""));
         document.add(new Wire(document.newWireId(), new GridPoint(0, 0), new GridPoint(4, 0)));
         document.add(new TextLabel(document.newLabelId(), new GridPoint(2, 9), "nota"));
 

@@ -26,6 +26,13 @@ public interface Behavior {
     }
 
     /**
+     * User clicked bit {@code bit} (0 = least significant) of the component while simulating: a multi-bit switch
+     * toggles just that bit. Every other component ignores it.
+     */
+    default void interactBit(BehaviorContext context, int bit) {
+    }
+
+    /**
      * Makes an input component (a switch or an input pin) drive {@code value} from now on (M6.1-C truth tables).
      * Returns false, changing nothing, for every other component.
      */

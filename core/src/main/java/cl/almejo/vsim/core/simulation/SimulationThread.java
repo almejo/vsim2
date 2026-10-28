@@ -159,6 +159,17 @@ public final class SimulationThread implements AutoCloseable {
         });
     }
 
+    /** Clicks bit {@code bit} of a multi-bit switch; like {@link #interact}, a paused click publishes a step. */
+    public void interactBit(String componentId, int bit) {
+        requests.add(() -> {
+            if (running) {
+                engine.interactBit(componentId, bit);
+            } else {
+                publishStep(engine.interactBitTracked(componentId, bit));
+            }
+        });
+    }
+
     /**
      * «Avanzar» (M6.1-B): runs every event of the next simulation time and publishes the result as
      * {@link #latestStep()}. Ignored while running. A zero-delay loop fails like any engine error: paused, with the
