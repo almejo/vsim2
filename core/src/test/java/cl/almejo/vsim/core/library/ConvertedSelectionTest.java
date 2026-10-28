@@ -553,4 +553,34 @@ class ConvertedSelectionTest {
     private Netlist compile() {
         return new NetlistCompiler(registry).compile(document);
     }
+
+    @Test
+    void aFourBitSwitchBecomesAFourBitInputPinAndAnEightBitLedAnOutputPinOfEightBits() {
+        Component input = place(StandardComponentTypes.SWITCH, 0, 0, "D", Map.of("width", 4, "value", "10"));
+        Component led = place(StandardComponentTypes.LED, 20, 0, "Q", Map.of("width", 8));
+
+        ConvertedSelection converted = convert(List.of(input.id(), led.id()));
+
+        List<Component> pins = converted.document().components().stream()
+                .filter(component -> InterfacePins.isInterface(component.typeId())).toList();
+        assertThat(pins).extracting(Component::typeId)
+                .containsExactlyInAnyOrder(InterfacePins.INPUT_PIN, InterfacePins.OUTPUT_PIN);
+        assertThat(pins).filteredOn(pin -> pin.typeId().equals(InterfacePins.INPUT_PIN))
+                .allSatisfy(pin -> assertThat(registry.typeOf(pin).pin(0).width()).isEqualTo(4));
+        assertThat(pins).filteredOn(pin -> pin.typeId().equals(InterfacePins.OUTPUT_PIN))
+                .allSatisfy(pin -> assertThat(registry.typeOf(pin).pin(0).width()).isEqualTo(8));
+    }
+
+    @Test
+    void anUncheckedMultiBitSwitchBecomesAConstantOfItsWidthAndCurrentValue() {
+        Component input = place(StandardComponentTypes.SWITCH, 0, 0, "D", Map.of("width", 4, "value", "10"));
+
+        ConvertedSelection converted = convert(List.of(), Map.of(input.id(), Value.of(4, 6)));
+
+        Component constant = converted.document().components().stream()
+                .filter(component -> component.typeId().equals(StandardComponentTypes.CONSTANT)).findFirst()
+                .orElseThrow();
+        assertThat(registry.typeOf(constant).pin(0).width()).isEqualTo(4);
+        assertThat(ConstantValue.bitsOf((String) constant.parameters().get("value"), 4)).hasValue(6L);
+    }
 }

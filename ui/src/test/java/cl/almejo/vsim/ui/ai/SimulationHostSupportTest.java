@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -87,6 +88,45 @@ class SimulationHostSupportTest {
         assertThat(settled.nextEventTime()).as("the adder settled").isEmpty();
         assertThat(read(adder.id(), ADDER_CARRY_LED, "in")).isEqualTo("1");
         assertThat(set.netlistToken()).isEqualTo(settled.netlistToken());
+    }
+
+    /** An 8-bit Switch wired to an 8-bit LED; returns the ids (switch, LED) in an open document. */
+    private List<String> eightBitSwitchToLed() throws Exception {
+        OpenDocument document = new OpenDocument(new cl.almejo.vsim.core.document.CircuitDocument(), registry, null,
+                false);
+        open.add(document);
+        Map<String, Object> eightBits = Map.of(StandardComponentTypes.WIDTH, 8);
+        cl.almejo.vsim.core.document.Component input = place(document, StandardComponentTypes.SWITCH, 0, 0, eightBits);
+        cl.almejo.vsim.core.document.Component output = place(document, StandardComponentTypes.LED, 20, 0, eightBits);
+        cl.almejo.vsim.core.geometry.GridPoint from = registry.typeOf(input).pinLocation(input, 0);
+        cl.almejo.vsim.core.geometry.GridPoint to = registry.typeOf(output).pinLocation(output, 0);
+        addWire(document, from.x(), from.y(), to.x(), to.y());
+        return List.of(input.id().value(), output.id().value());
+    }
+
+    @Test
+    void anEightBitSwitchTakesHexBinaryAndDecimalAndRefusesWhatDoesNotFit() throws Exception {
+        List<String> parts = eightBitSwitchToLed();
+        DocumentSummary summary = summary();
+        api.pause(summary.id());
+
+        for (String written : List.of("0xA6", "0b1010_0110", "166")) {
+            api.setInputs(summary.id(), summary.version(), null, List.of(new InputValue(parts.get(0), "0")));
+            api.step(summary.id(), StepKind.NEXT_EVENT, 1_000, 0);
+            api.setInputs(summary.id(), summary.version(), null, List.of(new InputValue(parts.get(0), written)));
+            api.step(summary.id(), StepKind.NEXT_EVENT, 1_000, 0);
+            SignalValue led = api.readSignals(summary.id(), List.of(new PinReference(parts.get(1), "in", 0)))
+                    .signals().get(0);
+            assertThat(led.bits()).as(written).isEqualTo("10100110");
+            assertThat(led.hex()).as(written).containsIgnoringCase("A6");
+            assertThat(led.width()).isEqualTo(8);
+        }
+        assertThatThrownBy(() -> api.setInputs(summary.id(), summary.version(), null,
+                List.of(new InputValue(parts.get(0), "0x1FF"))))
+                .isInstanceOfSatisfying(AutomationException.class, exception -> {
+                    assertThat(exception.error()).isEqualTo(AutomationError.INPUT_REJECTED);
+                    assertThat(exception.recovery().get("inputs").toString()).contains("does not fit in 8 bits");
+                });
     }
 
     @Test

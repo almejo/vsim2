@@ -147,6 +147,16 @@ final class TruthTableCircuits {
         return circuits;
     }
 
+    /** An 8-bit Switch «A» whose pin touches the pin of an 8-bit LED «Y». */
+    static TruthTableCircuits eightBitSwitchToLed() {
+        TruthTableCircuits circuits = new TruthTableCircuits();
+        Map<String, Object> eightBits = Map.of(StandardComponentTypes.WIDTH, 8);
+        Component input = circuits.place(StandardComponentTypes.SWITCH, 0, 0, "A", eightBits);
+        Component output = circuits.place(StandardComponentTypes.LED, 20, 0, "Y", eightBits);
+        circuits.wire(circuits.pin(input, 0), circuits.pin(output, 0));
+        return circuits;
+    }
+
     /** Switch «A» and LED «Y», not connected. */
     static TruthTableCircuits disconnectedLed() {
         TruthTableCircuits circuits = new TruthTableCircuits();

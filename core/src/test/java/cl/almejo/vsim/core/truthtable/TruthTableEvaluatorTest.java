@@ -96,6 +96,20 @@ class TruthTableEvaluatorTest {
     }
 
     @Test
+    void anEightBitSwitchAndLedAreEightBitColumns() {
+        Preparation.Ready ready = ready(TruthTableCircuits.eightBitSwitchToLed(), Set.of());
+
+        assertThat(ready.inputs()).extracting(Column::width).containsExactly(8);
+        assertThat(ready.outputs()).extracting(Column::width).containsExactly(8);
+        assertThat(ready.inputBits()).isEqualTo(8);
+        assertThat(ready.rowCount()).isEqualTo(256);
+        assertThat(ready.inputsAreTopLevelSwitches()).isTrue();
+        TruthTable table = evaluate(ready);
+        assertThat(table.rows().get(0xA6)).isEqualTo(row(List.of(Value.of(8, 0xA6)), List.of(Value.of(8, 0xA6))));
+        assertThat(TruthTableText.cells(table.rows().get(0xA6))).containsExactly("0xA6", "0xA6");
+    }
+
+    @Test
     void aDisconnectedLedReadsZAndShortedSwitchesReadX() {
         TruthTable floating = evaluate(ready(TruthTableCircuits.disconnectedLed(), Set.of()));
         TruthTable shorted = evaluate(ready(TruthTableCircuits.shortedSwitches(), Set.of()));
