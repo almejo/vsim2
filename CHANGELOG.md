@@ -27,6 +27,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
+  Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
+  componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
+  no cambian.
 - Al cambiar un parámetro que mueve pines (las «Entradas» de una compuerta, las de un multiplexor), las sondas de esos pines pasan al pin con el mismo nombre y se quitan si ya no existe; deshacer las devuelve.
 - Hay un solo tipo por compuerta (AND, OR, XOR y Buffer) en vez de uno por cada número de entradas. Los circuitos,
   componentes, librerías y lo copiado antes se abren igual, con los pines en el mismo lugar; al guardarlos se

@@ -140,7 +140,7 @@ class BlockPainterTest {
 
     /** A 4 x 6 block with a data pin on each side and one 1-bit pin named {@code name} in the middle of the bottom. */
     private static ComponentType boxWithBottomPin(String name) {
-        return new ComponentType("test-block", ComponentCategory.BLOCKS, new GridSize(4, 6),
+        return new ComponentType("test-block", ComponentCategory.ARITHMETIC, new GridSize(4, 6),
                 List.of(PinSpec.input("D", 0, 3, 4), PinSpec.output("Q", 4, 3, 4), PinSpec.input(name, 2, 6)),
                 List.of(), parameters -> (context, pinIndex) -> {
                 });

@@ -36,6 +36,10 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PaintersTest {
+    /** The categories whose parts are drawn as blocks (the D flip-flop, a gate-sized part, is the exception). */
+    private static final List<ComponentCategory> BLOCK_CATEGORIES = List.of(ComponentCategory.ARITHMETIC,
+            ComponentCategory.PLEXERS, ComponentCategory.SEQUENTIAL);
+
 
     private static final int UNIT = GridPoint.PIXELS_PER_UNIT;
 
@@ -150,7 +154,8 @@ class PaintersTest {
     @Test
     void blocksOfAnyWidthDrawNearTheirBoundsInEveryRotation() {
         List<ComponentType> blocks = registry.all().stream()
-                .filter(type -> type.category() == ComponentCategory.BLOCKS).toList();
+                .filter(type -> BLOCK_CATEGORIES.contains(type.category()))
+                .filter(type -> !type.id().equals(StandardComponentTypes.FLIP_FLOP_DATA)).toList();
         assertThat(blocks).extracting(ComponentType::id).contains(StandardComponentTypes.ADDER);
         for (ComponentType block : blocks) {
             assertThat(painters.painterFor(block.id())).as(block.id()).isInstanceOf(BlockPainter.class);

@@ -98,14 +98,14 @@ class FavoritesTest {
     @Test
     void aFavoritesChangeUpdatesOnlyItsSectionAndKeepsWhatTheUserFolded() {
         Object model = palette.treeModel();
-        palette.tree().collapseRow(rowOfSection("BASIC"));
+        palette.tree().collapseRow(rowOfSection("GATES"));
 
         preferences.setPaletteFavorites(List.of("led", "xor"));
         preferences.setPaletteFavorites(List.of("xor"));
         preferences.setPaletteFavorites(List.of());
 
         assertThat(palette.treeModel()).isSameAs(model);
-        assertThat(palette.tree().isCollapsed(rowOfSection("BASIC"))).isTrue();
+        assertThat(palette.tree().isCollapsed(rowOfSection("GATES"))).isTrue();
         assertThat(palette.tree().isExpanded(rowOfSection("INPUT_OUTPUT"))).isTrue();
         assertThat(palette.visibleSections()).startsWith("Favoritos");
     }
@@ -170,7 +170,7 @@ class FavoritesTest {
 
         press(tree, "selectNext");
         assertThat(tree.getSelectionRows()).containsExactly(2);
-        assertThat(tree.getPathForRow(2).getLastPathComponent().toString()).isEqualTo("BASIC");
+        assertThat(tree.getPathForRow(2).getLastPathComponent().toString()).isEqualTo("GATES");
         press(tree, "selectPrevious");
         assertThat(tree.getSelectionRows()).containsExactly(0);
         assertThat(chosen).isEmpty();

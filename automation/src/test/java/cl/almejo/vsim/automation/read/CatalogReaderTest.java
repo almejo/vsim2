@@ -38,7 +38,7 @@ class CatalogReaderTest {
         ComponentTypeView flipFlop = type(catalog, StandardComponentTypes.FLIP_FLOP_DATA);
         assertThat(flipFlop.spanishName()).isEqualTo("es flip-flop-data");
         assertThat(flipFlop.englishName()).isEqualTo("en flip-flop-data");
-        assertThat(flipFlop.category()).isEqualTo("BASIC");
+        assertThat(flipFlop.category()).isEqualTo("SEQUENTIAL");
         assertThat(flipFlop.userComponent()).isFalse();
         assertThat(flipFlop.pins()).containsExactly(
                 new PinSpecView(0, "d", "INPUT", 1, false, new GridPoint(0, 2)),
@@ -119,8 +119,8 @@ class CatalogReaderTest {
         assertThat(CatalogReader.describeAll(fixture.source(), Optional.of("inversor")).types())
                 .extracting(ComponentTypeView::typeId)
                 .containsExactly(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER));
-        assertThat(CatalogReader.describeAll(fixture.source(), Optional.of("interface")).types())
-                .extracting(ComponentTypeView::category).containsOnly("INTERFACE").isNotEmpty();
+        assertThat(CatalogReader.describeAll(fixture.source(), Optional.of("sequential")).types())
+                .extracting(ComponentTypeView::category).containsOnly("SEQUENTIAL").isNotEmpty();
     }
 
     @Test
@@ -144,7 +144,7 @@ class CatalogReaderTest {
 
     @Test
     void aBooleanParameterIsExportedAsKindBooleanWithoutARange() {
-        fixture.registry.register(new ComponentType("test-flagged", ComponentCategory.BASIC, new GridSize(2, 2),
+        fixture.registry.register(new ComponentType("test-flagged", ComponentCategory.GATES, new GridSize(2, 2),
                 List.of(PinSpec.output("out", 2, 1)), List.of(ParameterSpec.bool("negate", false)),
                 parameters -> (context, pinIndex) -> {
                 }));

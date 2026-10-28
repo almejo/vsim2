@@ -29,7 +29,7 @@ class AdderBehaviorTest {
     @Test
     void theAdderIsABlockWithBusesLeftCarryInOnTopAndCarryOutAtTheBottom() {
         ComponentType adder = StandardComponentTypes.registry().require(StandardComponentTypes.ADDER);
-        assertThat(adder.category()).isEqualTo(ComponentCategory.BLOCKS);
+        assertThat(adder.category()).isEqualTo(ComponentCategory.ARITHMETIC);
         assertThat(adder.parameters()).extracting(parameter -> parameter.name()).containsExactly("width", "delay");
         assertThat(adder.pins()).extracting(PinSpec::name).containsExactly("A", "B", "Cin", "S", "Cout");
         assertThat(adder.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,

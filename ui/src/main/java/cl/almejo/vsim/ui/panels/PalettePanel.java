@@ -99,9 +99,10 @@ public final class PalettePanel extends JPanel {
             StandardComponentTypes.NOR_PRESET, StandardComponentTypes.NAND_PRESET,
             StandardComponentTypes.XNOR_PRESET, StandardComponentTypes.NOR_PRESET,
             StandardComponentTypes.NOT_PRESET, StandardComponentTypes.BUFFER);
-    private static final List<ComponentCategory> ORDER = List.of(ComponentCategory.BASIC,
-            ComponentCategory.INPUT_OUTPUT, ComponentCategory.BLOCKS, ComponentCategory.MEMORY,
-            ComponentCategory.DEBUG, ComponentCategory.INTERFACE);
+    private static final List<ComponentCategory> ORDER = List.of(ComponentCategory.GATES,
+            ComponentCategory.WIRING, ComponentCategory.ARITHMETIC, ComponentCategory.PLEXERS,
+            ComponentCategory.SEQUENTIAL, ComponentCategory.MEMORY, ComponentCategory.INPUT_OUTPUT,
+            ComponentCategory.DEBUG);
     static final int ICON_SIZE = 24;
     /** Width of a help tooltip before it wraps, in pixels. */
     private static final int HELP_WIDTH = 260;

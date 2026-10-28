@@ -32,7 +32,7 @@ class DecoderBehaviorTest {
     @Test
     void theDecoderHasItsAddressOnTheLeftEnableAtTheBottomAndOneOutputPerCode() {
         ComponentType standard = decoder();
-        assertThat(standard.category()).isEqualTo(ComponentCategory.BLOCKS);
+        assertThat(standard.category()).isEqualTo(ComponentCategory.PLEXERS);
         assertThat(standard.parameters()).extracting(parameter -> parameter.name())
                 .containsExactly("inputBits", "delay");
         assertThat(standard.parameters().getFirst().defaultValue()).isEqualTo(2);

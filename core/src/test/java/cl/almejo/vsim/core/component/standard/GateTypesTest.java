@@ -37,7 +37,7 @@ class GateTypesTest {
     void aGateHasInputsWidthNegateAndDelayInThatOrder(String typeId) {
         ComponentType gate = registry.require(typeId);
 
-        assertThat(gate.category()).isEqualTo(ComponentCategory.BASIC);
+        assertThat(gate.category()).isEqualTo(ComponentCategory.GATES);
         assertThat(gate.parameters()).extracting(ParameterSpec::name)
                 .containsExactly("inputs", "width", "negate", "delay");
         assertThat(gate.parameters()).extracting(ParameterSpec::kind).containsExactly(ParameterKind.INTEGER,
@@ -53,7 +53,7 @@ class GateTypesTest {
     void theBufferHasWidthNegateAndDelayAndTheOldNotGeometry() {
         ComponentType buffer = registry.require("buffer");
 
-        assertThat(buffer.category()).isEqualTo(ComponentCategory.BASIC);
+        assertThat(buffer.category()).isEqualTo(ComponentCategory.GATES);
         assertThat(buffer.parameters()).extracting(ParameterSpec::name).containsExactly("width", "negate", "delay");
         assertThat(buffer.size()).isEqualTo(new GridSize(4, 4));
         assertThat(buffer.pins()).extracting(PinSpec::name).containsExactly("in", "out");

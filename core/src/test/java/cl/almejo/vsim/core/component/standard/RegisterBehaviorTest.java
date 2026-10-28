@@ -39,7 +39,7 @@ class RegisterBehaviorTest {
     @Test
     void theRegisterIsABlockWithDataLeftQRightAndControlAtTheBottom() {
         ComponentType register = StandardComponentTypes.registry().require(StandardComponentTypes.REGISTER);
-        assertThat(register.category()).isEqualTo(ComponentCategory.BLOCKS);
+        assertThat(register.category()).isEqualTo(ComponentCategory.SEQUENTIAL);
         assertThat(register.parameters()).extracting(parameter -> parameter.name())
                 .containsExactly("width", "delay", "format");
         assertThat(register.pins()).extracting(PinSpec::name).containsExactly("D", "EN", "CLR", "CLK", "Q");

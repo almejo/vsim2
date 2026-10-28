@@ -64,7 +64,7 @@ class AluBehaviorTest {
     @Test
     void theAluIsABlockWithDataLeftOperationAtTheBottomAndResultAndFlagsRight() {
         ComponentType alu = StandardComponentTypes.registry().require(StandardComponentTypes.ALU);
-        assertThat(alu.category()).isEqualTo(ComponentCategory.BLOCKS);
+        assertThat(alu.category()).isEqualTo(ComponentCategory.ARITHMETIC);
         assertThat(alu.parameters()).extracting(parameter -> parameter.name()).containsExactly("width", "delay");
         assertThat(alu.pins()).extracting(PinSpec::name).containsExactly("A", "B", "OP", "Y", "Z", "N", "C", "V");
         assertThat(alu.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,

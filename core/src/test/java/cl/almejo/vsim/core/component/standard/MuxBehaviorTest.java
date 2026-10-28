@@ -33,7 +33,7 @@ class MuxBehaviorTest {
     @Test
     void theMuxHasItsDataOnTheLeftTheSelectAtTheBottomAndGrowsWithItsInputs() {
         ComponentType two = mux();
-        assertThat(two.category()).isEqualTo(ComponentCategory.BLOCKS);
+        assertThat(two.category()).isEqualTo(ComponentCategory.PLEXERS);
         assertThat(two.parameters()).extracting(parameter -> parameter.name())
                 .containsExactly("width", "inputs", "delay");
         assertThat(two.parameters().get(1).choices()).containsExactly("2", "4");
