@@ -140,7 +140,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Ejemplos
 
-- [Ejemplos](docs/funciones/ejemplos.md#ejemplos) clásicos en Archivo ▸ Ejemplos, que se explican solos; «Aritmética» y «Elementos modulares» son los dos circuitos de clase, con un marco por bloque.
+- [Ejemplos](docs/funciones/ejemplos.md#ejemplos) clásicos en Archivo ▸ Ejemplos, que se explican solos.
 
 ## Para desarrolladores
 

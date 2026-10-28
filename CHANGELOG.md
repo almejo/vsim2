@@ -18,9 +18,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   de un bit). Con signo, «Valor» acepta además decimales negativos (en 8 bits, de −128 a −1: −1 entrega 0xFF), y la
   lectura y el globo dan el decimal con signo en lugar del sin signo. Los archivos de antes se abren sin signo y el
   valor por defecto no se escribe.
-- Dos ejemplos nuevos en Archivo ▸ Ejemplos, «Aritmética» y «Elementos modulares» (contar los unos de un número de 8
-  bits): los circuitos de una clase de arquitectura, con un marco y una nota por bloque, interruptores de varios bits
-  como entradas y filas de LED donde ayudan.
+- Los dos circuitos de una clase de arquitectura, «Aritmética» y «Elementos modulares» (contar los unos de un número
+  de 8 bits), armados con un marco y una nota por bloque, interruptores de varios bits como entradas y LED donde
+  ayudan. Todavía no están en Archivo ▸ Ejemplos: se generan como archivos aparte para revisarlos antes.
 - El interruptor puede tener varios bits («Ancho (bits)» de 1 a 32): una fila compacta con una celda por bit, el más
   significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit; el globo muestra el valor en binario, hexadecimal y decimal, y el bit
   bajo el puntero. Con un bit, nada cambia.
@@ -65,9 +65,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
-- El ejemplo «Elementos modulares» se rehizo igual que la lámina de la clase: los bloques «Registro» y «Multiplexor»,
-  y «Ejemplo: contar los bits en 1» con sus dos lazos (x y la cuenta), el bit 0 de x por un separador de bus, el LED
-  «ready», la salida «nº bits en 1» y la función en C como nota. Solo «start» y «reloj» van por túneles.
 - La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
   Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
   componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
@@ -91,8 +88,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
-- En los ejemplos «Aritmética» y «Elementos modulares» los resultados de un solo bit (COUT, BOUT, A<B, A=B, A>B con y sin signo, y RDY) se ven en un LED verde con su nombre; antes eran pines de salida que no mostraban ningún valor.
-- En los ejemplos «Aritmética» y «Elementos modulares» cada túnel tiene su propio color (antes todos salían rojos), y los interruptores de varios bits de «Entradas» y «Valor x» quedan dentro de su marco.
 - La fila de muestras de color (el LED, las entradas de túnel, los marcos y las notas) ya no corta las últimas muestras en
   un panel Propiedades angosto: se parte en las líneas que hagan falta, alineadas a la izquierda, sin desplazarse de lado.
 

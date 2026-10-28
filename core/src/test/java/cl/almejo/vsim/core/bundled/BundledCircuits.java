@@ -40,8 +40,6 @@ public final class BundledCircuits {
         builders.put("accumulator", BlockExamples::accumulator);
         builders.put("rom-program", MemoryExamples::romProgram);
         builders.put("ram-fill", MemoryExamples::ramFill);
-        builders.put("arithmetic", ClassExamples::arithmetic);
-        builders.put("modular-elements", ClassExamples::modularElements);
         return builders;
     }
 
