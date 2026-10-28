@@ -276,16 +276,16 @@ public final class PropertiesPanel extends JPanel {
             remove(descriptionBox);
             descriptionBox = null;
         }
-        if (shown.size() != 1) {
-            return;
+        if (shown.size() == 1) {
+            openDocument.document().component(shown.iterator().next()).ifPresent(component -> {
+                String text = Descriptions.of(openDocument.registry().typeOf(component), component.parameters());
+                if (!text.isBlank()) {
+                    descriptionBox = DescriptionBox.filling(text);
+                    add(descriptionBox, "span 2, grow, push, wmin 0, gaptop 8");
+                }
+            });
         }
-        openDocument.document().component(shown.iterator().next()).ifPresent(component -> {
-            String text = Descriptions.of(openDocument.registry().typeOf(component), component.parameters());
-            if (!text.isBlank()) {
-                descriptionBox = DescriptionBox.filling(text);
-                add(descriptionBox, "span 2, grow, push, wmin 0, gaptop 8");
-            }
-        });
+        // Always, also for nothing or several shown: removing the old rows alone leaves them painted on screen.
         revalidate();
         repaint();
     }

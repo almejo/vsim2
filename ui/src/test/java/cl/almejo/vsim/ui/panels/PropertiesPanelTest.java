@@ -986,4 +986,83 @@ class PropertiesPanelTest {
         panel.stickyKind()[1].doClick();
         assertThat(current(note)).isEqualTo(note);
     }
+
+    /**
+     * Records what asks Swing to lay out and to paint again, so a test sees whether a rebuilt panel would show on
+     * screen (headless, nothing is painted; removing children alone leaves their old pixels behind).
+     */
+    private static final class RecordingRepaintManager extends javax.swing.RepaintManager {
+
+        private final java.util.Set<java.awt.Component> invalidated =
+                java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        private final java.util.Set<java.awt.Component> repainted =
+                java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+        @Override
+        public synchronized void addInvalidComponent(javax.swing.JComponent invalidComponent) {
+            invalidated.add(invalidComponent);
+        }
+
+        @Override
+        public void addDirtyRegion(javax.swing.JComponent component, int x, int y, int width, int height) {
+            if (x <= 0 && y <= 0 && width >= component.getWidth() && height >= component.getHeight()) {
+                repainted.add(component);
+            }
+        }
+
+        void forget() {
+            invalidated.clear();
+            repainted.clear();
+        }
+    }
+
+    /** Runs {@code change} on the event thread, as the app does (off it, revalidate only queues itself). */
+    private static void onEventThread(Runnable change) {
+        try {
+            javax.swing.SwingUtilities.invokeAndWait(change);
+        } catch (InterruptedException | java.lang.reflect.InvocationTargetException exception) {
+            throw new AssertionError(exception);
+        }
+    }
+
+    /**
+     * After every change of what is shown the whole panel is laid out and painted again: going from a placed Switch
+     * (or a gate, a register, a RAM with its long description) to nothing or to several parts left the old rows
+     * painted under «Sin selección», without their captions, until something else repainted the panel.
+     */
+    @Test
+    void everyChangeOfWhatIsShownLaysOutAndRepaintsTheWholePanel() {
+        javax.swing.JPanel parent = new javax.swing.JPanel(new java.awt.BorderLayout());
+        parent.add(panel);
+        parent.setSize(300, 700);
+        RecordingRepaintManager recorder = new RecordingRepaintManager();
+        javax.swing.RepaintManager previous = javax.swing.RepaintManager.currentManager(panel);
+        javax.swing.RepaintManager.setCurrentManager(recorder);
+        try {
+            for (String typeId : List.of(StandardComponentTypes.SWITCH, StandardComponentTypes.AND,
+                    StandardComponentTypes.REGISTER, StandardComponentTypes.RAM)) {
+                Component part = place(openDocument, typeId, 0, 0, Map.of());
+                Component other = gate(20);
+                onEventThread(() -> selection.select(part.id()));
+                layOut(parent);
+
+                recorder.forget();
+                onEventThread(selection::clear);
+                assertThat(panel.heading()).isEqualTo("Sin selección");
+                assertThat(panel.getComponents()).hasSize(2);
+                assertThat(recorder.invalidated).as("laid out again after %s", typeId).contains(panel);
+                assertThat(recorder.repainted).as("painted again after %s", typeId).contains(panel);
+
+                onEventThread(() -> selection.select(part.id()));
+                recorder.forget();
+                onEventThread(() -> selection.set(List.of(part.id(), other.id())));
+                assertThat(panel.heading()).isEqualTo("2 elementos");
+                assertThat(recorder.invalidated).as("laid out again after %s", typeId).contains(panel);
+                assertThat(recorder.repainted).as("painted again after %s", typeId).contains(panel);
+                onEventThread(selection::clear);
+            }
+        } finally {
+            javax.swing.RepaintManager.setCurrentManager(previous);
+        }
+    }
 }
