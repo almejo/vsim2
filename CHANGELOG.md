@@ -10,6 +10,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- Bajo el «Valor» de un interruptor de varios bits (en Propiedades y en el diálogo de configurar), una línea dice cómo lee VSim
+  el número mientras lo escribes: «= 0110 0100 en binario · 0x64 · 100 en decimal» (y «con signo» si el bit más
+  significativo es 1). Si no es un número o no cabe, lo dice en el color de error; cambiar el ancho la actualiza.
 - Dos ejemplos nuevos en Archivo ▸ Ejemplos, «Aritmética» y «Elementos modulares» (contar los unos de un número de 8
   bits): los circuitos de una clase de arquitectura, con un marco y una nota por bloque, interruptores de varios bits
   como entradas y filas de LED donde ayudan.

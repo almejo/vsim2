@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.LedPainter;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import java.util.List;
 import javax.swing.JCheckBox;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JComboBox;
 import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.JSpinner;
 import java.awt.Component;
 import java.util.Map;
@@ -323,5 +326,84 @@ class ParameterFormTest {
         switchValueBox(form).getEditor().setItem("0x0a");
         form.showNormalizedText();
         assertThat(switchValueBox(form).getEditor().getItem()).isEqualTo("0xA");
+    }
+
+    private static void typeSwitchValue(ParameterForm form, String text) {
+        ((JTextField) switchValueBox(form).getEditor().getEditorComponent()).setText(text);
+    }
+
+    private static void setWidth(ParameterForm form, int width) {
+        ((JSpinner) form.editor("width")).setValue(width);
+    }
+
+    @Test
+    void aWideSwitchValueIsReadBackInBinaryHexAndDecimalWhileTyping() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
+
+        typeSwitchValue(form, "100");
+
+        assertThat(form.valueReading().isVisible()).isTrue();
+        assertThat(form.valueReading().getText()).isEqualTo("= 0110 0100 en binario · 0x64 · 100 en decimal");
+    }
+
+    @Test
+    void theReadingAddsTheSignedValueOnlyWhenTheTopBitIsOne() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
+
+        typeSwitchValue(form, "0xFF");
+        assertThat(form.valueReading().getText())
+                .isEqualTo("= 1111 1111 en binario · 0xFF · 255 en decimal · -1 con signo");
+
+        typeSwitchValue(form, "0x7F");
+        assertThat(form.valueReading().getText()).doesNotContain("con signo");
+    }
+
+    @Test
+    void aValueThatDoesNotFitOrDoesNotParseIsSaidInTheErrorColour() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
+
+        typeSwitchValue(form, "0b1_0000_0000");
+        assertThat(form.valueReading().getText()).isEqualTo("No cabe en 8 bits");
+        assertThat(form.valueReading().getForeground()).isEqualTo(ReadableColors.errorText());
+
+        typeSwitchValue(form, "hola");
+        assertThat(form.valueReading().getText()).isEqualTo("Valor no válido (usa 0b…, 0x… o un número)");
+        assertThat(form.valueReading().getForeground()).isEqualTo(ReadableColors.errorText());
+    }
+
+    @Test
+    void aOneBitSwitchHasNoReadingAndChangingTheWidthShowsOrHidesIt() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of());
+        assertThat(form.valueReading().isVisible()).isFalse();
+
+        setWidth(form, 4);
+        typeSwitchValue(form, "5");
+        assertThat(form.valueReading().isVisible()).isTrue();
+        assertThat(form.valueReading().getText()).isEqualTo("= 0101 en binario · 0x5 · 5 en decimal");
+
+        setWidth(form, 3);
+        assertThat(form.valueReading().getText()).isEqualTo("= 101 en binario · 0x5 · 5 en decimal · -3 con signo");
+
+        setWidth(form, 2);
+        assertThat(form.valueReading().getText()).isEqualTo("No cabe en 2 bits");
+
+        setWidth(form, 1);
+        assertThat(form.valueReading().isVisible()).isFalse();
+    }
+
+    @Test
+    void theReadingRowFollowsTheValueRowInAHostGrid() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
+        JPanel host = new JPanel();
+
+        form.addRowsTo(host);
+
+        int valueIndex = List.of(host.getComponents()).indexOf(form.editor("value"));
+        assertThat(host.getComponent(valueIndex + 2)).isSameAs(form.valueReading());
+    }
+
+    @Test
+    void anotherComponentHasNoValueReading() {
+        assertThat(form(StandardComponentTypes.CLOCK, Map.of()).valueReading()).isNull();
     }
 }

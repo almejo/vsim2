@@ -46,7 +46,7 @@ public final class ParameterForm extends JPanel {
     /** Parameters measured in simulation time units (M6.1-E): «Retardo (t)», with a tooltip saying so. */
     static final Set<String> TIME_PARAMETERS = Set.of("delay", "time-up", "time-down", "sample-interval");
 
-    private static final String SWITCH_VALUE = "value";
+    static final String SWITCH_VALUE = "value";
     private static final List<String> SWITCH_VALUE_CHOICES = List.of("1", "0", "Z");
 
     /** FlatLaf's client property that paints a field's border as an error. */
@@ -56,6 +56,8 @@ public final class ParameterForm extends JPanel {
     private final Map<String, Object> initial;
     private final Map<String, JComponent> editors = new LinkedHashMap<>();
     private final Map<String, JLabel> labels = new LinkedHashMap<>();
+    /** The line under a multi-bit Switch's «Valor» (null for any other type); see {@link SwitchValueReading}. */
+    private SwitchValueReading valueReading;
 
     public ParameterForm(ComponentType type, Map<String, Object> currentParameters) {
         this(type, currentParameters, TunnelColorSwatches.THEME_SCHEME);
@@ -86,7 +88,17 @@ public final class ParameterForm extends JPanel {
             }
             add(label);
             add(editor, "width 160::");
+            if (isSwitchValue(type, parameter)) {
+                valueReading = new SwitchValueReading(type, initial, (JComboBox<?>) editor,
+                        (JSpinner) editors.get(StandardComponentTypes.WIDTH));
+                valueReading.addTo(this);
+            }
         }
+    }
+
+    /** The line under a Switch's «Valor» saying how the number is read; null when the type has none. */
+    JLabel valueReading() {
+        return valueReading == null ? null : valueReading.label();
     }
 
     /**
@@ -98,6 +110,9 @@ public final class ParameterForm extends JPanel {
         labels.forEach((name, label) -> {
             host.add(label);
             host.add(editors.get(name));
+            if (valueReading != null && name.equals(SWITCH_VALUE)) {
+                valueReading.addTo(host);
+            }
         });
     }
 
