@@ -88,6 +88,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- En los ejemplos «Aritmética» y «Elementos modulares» los resultados de un solo bit (COUT, BOUT, A<B, A=B, A>B con y sin signo, y RDY) se ven en un LED verde con su nombre; antes eran pines de salida que no mostraban ningún valor.
 - En los ejemplos «Aritmética» y «Elementos modulares» cada túnel tiene su propio color (antes todos salían rojos), y los interruptores de varios bits de «Entradas» y «Valor x» quedan dentro de su marco.
 - La fila de muestras de color (el LED, las entradas de túnel, los marcos y las notas) ya no corta las últimas muestras en
   un panel Propiedades angosto: se parte en las líneas que hagan falta, alineadas a la izquierda, sin desplazarse de lado.
