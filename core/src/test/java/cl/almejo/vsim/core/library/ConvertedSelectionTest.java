@@ -19,6 +19,8 @@ import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -582,5 +584,41 @@ class ConvertedSelectionTest {
                 .orElseThrow();
         assertThat(registry.typeOf(constant).pin(0).width()).isEqualTo(4);
         assertThat(ConstantValue.bitsOf((String) constant.parameters().get("value"), 4)).hasValue(6L);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0xFF", "0b11111111", "255"})
+    void aMultiBitSwitchSavedInAnyBaseAsAllOnesBecomesAnInputPinOfOnes(String saved) {
+        Component input = place(StandardComponentTypes.SWITCH, 0, 0, "D", Map.of("width", 8, "value", saved));
+
+        ConvertedSelection converted = convert(List.of(input.id()));
+
+        assertThat(inputPinDefault(converted)).isEqualTo("1");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0x00", "0b0", "0", "0x12"})
+    void aMultiBitSwitchSavedAsZeroOrMixedBecomesAnInputPinOfZeros(String saved) {
+        Component input = place(StandardComponentTypes.SWITCH, 0, 0, "D", Map.of("width", 8, "value", saved));
+
+        ConvertedSelection converted = convert(List.of(input.id()));
+
+        assertThat(inputPinDefault(converted)).isEqualTo("0");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0b1,1", "0x1,1", "0b0,0", "0x0,0", "1,1", "Z,Z"})
+    void aOneBitSwitchWithAValueInAnyBaseBecomesAnInputPinWithItsBit(String saved, String expected) {
+        Component input = place(StandardComponentTypes.SWITCH, 0, 0, "D", Map.of("value", saved));
+
+        ConvertedSelection converted = convert(List.of(input.id()));
+
+        assertThat(inputPinDefault(converted)).isEqualTo(expected);
+    }
+
+    private String inputPinDefault(ConvertedSelection converted) {
+        return converted.document().components().stream()
+                .filter(component -> component.typeId().equals(InterfacePins.INPUT_PIN)).findFirst().orElseThrow()
+                .parameters().get("value").toString();
     }
 }

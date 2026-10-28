@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.bundled.BundledExamples;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
@@ -14,6 +15,7 @@ import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -45,27 +47,27 @@ class ConnectivityCheckerTest {
     /** The bundled examples ({@code bundled/<id>}) and the m3 test fixtures ({@code fixtures/m3/<name>.vsim}). */
     private static List<String> examples() {
         List<String> examples = new ArrayList<>();
-        // The checker joins by wire geometry only, while the reference netlist also joins tunnels of the same name:
-        // the class examples (tunnels between frames) would differ for a reason the tidy tool does not care about.
-        BundledExamples.ids().stream().filter(id -> !hasTunnels(id)).forEach(id -> examples.add("bundled/" + id));
+        BundledExamples.ids().forEach(id -> examples.add("bundled/" + id));
         ExampleCircuits.builders().keySet().stream().sorted().forEach(name -> examples.add("fixtures/m3/" + name + ".vsim"));
         return examples;
     }
 
-    private static boolean hasTunnels(String id) {
-        try {
-            return BundledExamples.open(id, REGISTRY).components().stream()
-                    .anyMatch(component -> component.typeId().startsWith("tunnel"));
-        } catch (CircuitFormatException exception) {
-            throw new IllegalStateException(exception);
-        }
-    }
-
     private static CircuitDocument open(String example) throws CircuitFormatException {
         if (example.startsWith("bundled/")) {
-            return BundledExamples.open(example.substring("bundled/".length()), REGISTRY);
+            return withoutTunnels(BundledExamples.open(example.substring("bundled/".length()), REGISTRY));
         }
         return new CircuitReader(REGISTRY).read(Path.of("src/test/resources", example));
+    }
+
+    /**
+     * {@code document} without its tunnels: the checker joins by wire geometry only, while the reference netlist also
+     * joins tunnels of the same name (the class examples have them between frames), a join the tidy tool does not
+     * care about. Every frame of those examples is still checked for its wiring geometry.
+     */
+    private static CircuitDocument withoutTunnels(CircuitDocument document) {
+        document.components().stream().filter(component -> Tunnels.isTunnel(component.typeId()))
+                .map(Component::id).toList().forEach(document::remove);
+        return document;
     }
 
     static Stream<Integer> seeds() {

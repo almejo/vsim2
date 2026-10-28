@@ -65,7 +65,7 @@ public final class HelpResource {
                 - **Multiplexores**: mux (2, 4 u 8 entradas), demux, decodificador y codificador con prioridad.
                 - **Secuenciales**: flip-flops D, JK, T y SR, registro y contador.
                 - **Memoria**: RAM y ROM.
-                - **Entrada/Salida**: switch, constante, reloj, LED, displays y pines de entrada y salida.
+                - **Entrada/Salida**: interruptor, constante, reloj, LED, displays y pines de entrada y salida.
                 - **Depuración**: diagrama de tiempo.
                 - **Mis componentes**: los tuyos.
 

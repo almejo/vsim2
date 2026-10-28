@@ -31,6 +31,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.text.ParseException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.Optional;
@@ -44,6 +45,9 @@ public final class ParameterForm extends JPanel {
 
     /** Parameters measured in simulation time units (M6.1-E): «Retardo (t)», with a tooltip saying so. */
     static final Set<String> TIME_PARAMETERS = Set.of("delay", "time-up", "time-down", "sample-interval");
+
+    private static final String SWITCH_VALUE = "value";
+    private static final List<String> SWITCH_VALUE_CHOICES = List.of("1", "0", "Z");
 
     /** FlatLaf's client property that paints a field's border as an error. */
     private static final String OUTLINE_PROPERTY = "JComponent.outline";
@@ -166,12 +170,22 @@ public final class ParameterForm extends JPanel {
     /** Rewrites each text editor with its normalized text ({@code 0x00ff} becomes {@code 0xFF}); unreadable text stays. */
     public void showNormalizedText() {
         for (ParameterSpec parameter : type.parameters()) {
-            if (parameter.kind() == ParameterKind.TEXT && editors.get(parameter.name()) instanceof JTextField field
-                    && readable(parameter, field.getText())) {
-                String normalized = parameter.normalize(field.getText()).toString();
-                if (!normalized.equals(field.getText())) {
-                    field.setText(normalized);
-                }
+            JComponent editor = editors.get(parameter.name());
+            if (parameter.kind() != ParameterKind.TEXT || editor == null) {
+                continue;
+            }
+            String typed = String.valueOf(valueOf(editor));
+            if (!readable(parameter, typed)) {
+                continue;
+            }
+            String normalized = parameter.normalize(typed).toString();
+            if (normalized.equals(typed)) {
+                continue;
+            }
+            if (editor instanceof JTextField field) {
+                field.setText(normalized);
+            } else if (editor instanceof JComboBox<?> box) {
+                box.getEditor().setItem(normalized);
             }
         }
     }
@@ -219,7 +233,12 @@ public final class ParameterForm extends JPanel {
                     field.addActionListener(event -> listener.run());
                     field.addFocusListener(onFocusLost);
                 }
-                case JComboBox<?> box -> box.addActionListener(event -> listener.run());
+                case JComboBox<?> box -> {
+                    box.addActionListener(event -> listener.run());
+                    if (box.isEditable()) {
+                        box.getEditor().getEditorComponent().addFocusListener(onFocusLost);
+                    }
+                }
                 case JCheckBox checkBox -> checkBox.addActionListener(event -> listener.run());
                 case ColorSwatches<?> swatches -> swatches.addChoiceListener(listener);
                 default -> throw new IllegalStateException("unexpected editor " + editor.getClass());
@@ -250,7 +269,8 @@ public final class ParameterForm extends JPanel {
                 yield spinner;
             }
             case BOOLEAN -> new JCheckBox("", (Boolean) value);
-            case TEXT -> FragmentRefusingTransferHandler.install(new JTextField(value.toString(), 16));
+            case TEXT -> isSwitchValue(type, parameter) ? switchValueBox(value.toString())
+                    : FragmentRefusingTransferHandler.install(new JTextField(value.toString(), 16));
             case CHOICE -> {
                 JComboBox<String> box = new JComboBox<>(parameter.choices().toArray(String[]::new));
                 box.setSelectedItem(value);
@@ -272,6 +292,31 @@ public final class ParameterForm extends JPanel {
         };
     }
 
+    /**
+     * The Switch's «Valor»: a one-bit Switch is set to 1, 0 or Z from the list, as always; with more bits the same box
+     * takes the number typed in it, so it keeps working when the width changes in the same form.
+     */
+    private static boolean isSwitchValue(ComponentType type, ParameterSpec parameter) {
+        return type.id().equals(StandardComponentTypes.SWITCH) && parameter.name().equals(SWITCH_VALUE);
+    }
+
+    private static JComboBox<String> switchValueBox(String value) {
+        JComboBox<String> box = new JComboBox<>(SWITCH_VALUE_CHOICES.toArray(String[]::new));
+        box.setEditable(true);
+        box.setSelectedItem(value);
+        box.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object item, int index,
+                                                          boolean selected, boolean focused) {
+                super.getListCellRendererComponent(list, item, index, selected, focused);
+                setText(Messages.choiceName(SWITCH_VALUE, String.valueOf(item)));
+                return this;
+            }
+        });
+        FragmentRefusingTransferHandler.install((JTextField) box.getEditor().getEditorComponent());
+        return box;
+    }
+
     private static Object valueOf(JComponent editor) {
         return switch (editor) {
             case JSpinner spinner -> {
@@ -283,7 +328,7 @@ public final class ParameterForm extends JPanel {
                 }
             }
             case JTextField field -> field.getText();
-            case JComboBox<?> box -> box.getSelectedItem();
+            case JComboBox<?> box -> box.isEditable() ? box.getEditor().getItem() : box.getSelectedItem();
             case JCheckBox checkBox -> checkBox.isSelected();
             case ColorSwatches<?> swatches -> swatches.selectedValue();
             default -> throw new IllegalStateException("unexpected editor " + editor.getClass());

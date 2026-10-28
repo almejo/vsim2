@@ -57,7 +57,6 @@ public final class EditorActions {
     /** The active pane, resolved whenever an action runs (the window may be split). */
     private final Supplier<CircuitCanvas> activePane;
     private final Selection selection;
-    /** Where the configure dialog's «Descripción» remembers whether it is folded. */
     private final int menuMask = ShortcutCatalog.menuMask();
     private final HistoryListener historyListener = history -> refresh();
     /** How far «Avanzar N t» goes (M6.1-B: the preference, followed by {@code FixedStepFeatures}). */

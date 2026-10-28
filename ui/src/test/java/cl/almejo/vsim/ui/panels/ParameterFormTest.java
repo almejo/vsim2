@@ -280,4 +280,48 @@ class ParameterFormTest {
         assertThat(form.rawValues()).containsEntry("negate", Boolean.TRUE);
         assertThat(form.hasChanges()).isTrue();
     }
+
+    @SuppressWarnings("unchecked")
+    private static JComboBox<String> switchValueBox(ParameterForm form) {
+        return (JComboBox<String>) form.editor("value");
+    }
+
+    @Test
+    void theSwitchValueIsAnEditableBoxWithOneZeroAndHighImpedance() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of());
+
+        JComboBox<String> values = switchValueBox(form);
+
+        assertThat(values.isEditable()).isTrue();
+        assertThat(values.getItemCount()).isEqualTo(3);
+        assertThat(values.getItemAt(0)).isEqualTo("1");
+        assertThat(values.getItemAt(1)).isEqualTo("0");
+        assertThat(values.getItemAt(2)).isEqualTo("Z");
+        assertThat(values.getSelectedItem()).isEqualTo("1");
+    }
+
+    @Test
+    void aOneBitSwitchTakesItsValueFromTheListAndAWideOneTheTypedNumber() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of());
+        switchValueBox(form).setSelectedItem("Z");
+        assertThat(form.rawValues()).containsEntry("value", "Z");
+        assertThat(form.validationError()).isEmpty();
+
+        ParameterForm wide = form(StandardComponentTypes.SWITCH, Map.of("width", 8, "value", "0xFF"));
+        switchValueBox(wide).getEditor().setItem("0b1010");
+        assertThat(wide.rawValues()).containsEntry("value", "0b1010");
+        assertThat(wide.validationError()).isEmpty();
+        assertThat(wide.hasChanges()).isTrue();
+    }
+
+    @Test
+    void aTypedSwitchValueThatDoesNotFitIsRefusedAndOneInAnotherBaseIsShownNormalized() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 4));
+        switchValueBox(form).getEditor().setItem("0x1F");
+        assertThat(form.validationError()).isPresent();
+
+        switchValueBox(form).getEditor().setItem("0x0a");
+        form.showNormalizedText();
+        assertThat(switchValueBox(form).getEditor().getItem()).isEqualTo("0xA");
+    }
 }

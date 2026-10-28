@@ -81,4 +81,55 @@ class MultiBitOrientationTest {
         assertThat(normalized(narrow)).isSameAs(narrow);
         assertThat(normalized(gate)).isSameAs(gate);
     }
+
+    @Test
+    void anUnturnedOneBitLedWidenedKeepsItsPinBelow() {
+        Component narrow = part(StandardComponentTypes.LED, Rotation.R0, Map.of());
+        ComponentType type = registry.require(StandardComponentTypes.LED);
+
+        Component wide = MultiBitOrientation.withParameters(narrow, Map.of("width", 8), type);
+
+        assertThat(wide.rotation()).isEqualTo(Rotation.R0);
+        assertThat(side(wide)).isEqualTo("bottom");
+        assertThat(pin(wide)).isEqualTo(pin(narrow));
+    }
+
+    @Test
+    void aTurnedOneBitLedWidenedKeepsItsPinOnTheTurnedSide() {
+        Component narrow = part(StandardComponentTypes.LED, Rotation.R90, Map.of());
+        ComponentType type = registry.require(StandardComponentTypes.LED);
+
+        Component wide = MultiBitOrientation.withParameters(narrow, Map.of("width", 8), type);
+
+        assertThat(side(wide)).isEqualTo("left");
+        assertThat(pin(wide)).isEqualTo(pin(narrow));
+    }
+
+    @Test
+    void aMultiBitLedNarrowedBackGivesTheOneBitRotationThatPutsThePinWhereItWas() {
+        ComponentType type = registry.require(StandardComponentTypes.LED);
+        Component wide = part(StandardComponentTypes.LED, Rotation.R0, Map.of("width", 8, "side", "bottom"));
+
+        Component narrow = MultiBitOrientation.withParameters(wide, Map.of("width", 1), type);
+
+        assertThat(narrow.rotation()).isEqualTo(Rotation.R0);
+        Component wideLeft = part(StandardComponentTypes.LED, Rotation.R0, Map.of("width", 8, "side", "left"));
+        Component narrowLeft = MultiBitOrientation.withParameters(wideLeft, Map.of("width", 1), type);
+        assertThat(narrowLeft.rotation()).isEqualTo(Rotation.R90);
+        assertThat(pin(narrowLeft)).isEqualTo(pin(wideLeft));
+    }
+
+    @Test
+    void aOneBitLedGetsItsRotationBackAfterAWidenAndNarrowRoundTrip() {
+        ComponentType type = registry.require(StandardComponentTypes.LED);
+        for (Rotation rotation : Rotation.values()) {
+            Component narrow = part(StandardComponentTypes.LED, rotation, Map.of());
+
+            Component wide = MultiBitOrientation.withParameters(narrow, Map.of("width", 4), type);
+            Component back = MultiBitOrientation.withParameters(wide, Map.of("width", 1), type);
+
+            assertThat(pin(wide)).isEqualTo(pin(narrow));
+            assertThat(back.rotation()).isEqualTo(rotation);
+        }
+    }
 }

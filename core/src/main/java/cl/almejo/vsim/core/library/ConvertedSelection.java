@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 
 /**
@@ -412,12 +413,12 @@ public final class ConvertedSelection {
             if (width == 1) {
                 return switchText(part, currentValue);
             }
-            String number = numberText(part, currentValue);
-            boolean allOnes = number.equals(String.valueOf(Value.maskFor(width)));
+            boolean allOnes = ConstantValue.bitsOf(numberText(part, currentValue), width)
+                    .equals(OptionalLong.of(Value.maskFor(width)));
             return allOnes ? "1" : "0";
         }
 
-        /** A multi-bit Switch's value as a decimal number: the live one, else the saved one (Z reads as 0). */
+        /** A multi-bit Switch's value as a number text: the live one (decimal), else the saved one in its own base (Z is 0). */
         private String numberText(Component part, Value currentValue) {
             if (currentValue != null) {
                 return currentValue.isFullyDefined() ? String.valueOf(currentValue.bits()) : "0";

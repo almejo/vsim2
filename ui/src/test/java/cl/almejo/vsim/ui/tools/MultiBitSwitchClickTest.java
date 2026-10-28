@@ -35,10 +35,14 @@ class MultiBitSwitchClickTest {
     }
 
     private void clickBit(int bit) {
+        clickBit(context, bit);
+    }
+
+    private void clickBit(TestToolContext clicking, int bit) {
         MultiBitLayout.BitCell cell = MultiBitLayout.cells(4).stream().filter(candidate -> candidate.bit() == bit)
                 .findFirst().orElseThrow();
         double pixelsPerUnit = GridPoint.PIXELS_PER_UNIT;
-        context.click(tool, (cell.x() + cell.width() / 2) / pixelsPerUnit,
+        clicking.click(tool, (cell.x() + cell.width() / 2) / pixelsPerUnit,
                 (cell.y() + cell.height() / 2) / pixelsPerUnit);
     }
 
@@ -77,6 +81,33 @@ class MultiBitSwitchClickTest {
 
         assertThat(context.openDocument().history().undoDescription().toString()).isEqualTo(undoBefore);
         assertThat(context.openDocument().isModified()).isEqualTo(modifiedBefore);
+    }
+
+    @Test
+    void aBitClickedWhilePausedPublishesAStepWithTheNetThatChanged() {
+        Component lever = fourBitSwitch();
+        context.openDocument().pause();
+        waitUntil(() -> !context.openDocument().latestSnapshot().running());
+
+        clickBit(2);
+
+        expectValue(lever, 0b1110);
+        waitUntil(() -> context.openDocument().latestStep().isPresent());
+        assertThat(context.openDocument().latestStep().orElseThrow().result().changedNets()).isNotEmpty();
+    }
+
+    @Test
+    void twoWindowsOnTheSameDocumentSeeEachOthersBitClicks() {
+        Component lever = fourBitSwitch();
+        TestToolContext otherWindow = new TestToolContext(context.openDocument());
+
+        clickBit(3);
+        expectValue(lever, 0b0010);
+        clickBit(otherWindow, 0);
+
+        expectValue(lever, 0b0011);
+        assertThat(otherWindow.openDocument().latestSnapshot().componentState(lever.id().value()))
+                .isEqualTo(new VisibleState.SwitchState(Value.of(4, 0b0011)));
     }
 
     @Test

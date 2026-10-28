@@ -130,4 +130,12 @@ class MultiBitSwitchTest {
         engine.interact("s");
         assertThat(engine.snapshot().netValue("n")).isEqualTo(Value.ZERO);
     }
+
+    @Test
+    void aValueEqualToZeroOrOneInAnyBaseIsStoredAsTheCanonicalDigit() {
+        assertThat(switchType.resolveParameters(Map.of("value", "0b1")).get("value")).isEqualTo("1");
+        assertThat(switchType.resolveParameters(Map.of("value", "0x0")).get("value")).isEqualTo("0");
+        assertThat(switchType.resolveParameters(Map.of("width", 8, "value", "0x0A")).get("value")).isEqualTo("0xA");
+        assertThat(switchType.resolveParameters(Map.of("value", " z ")).get("value")).isEqualTo("Z");
+    }
 }

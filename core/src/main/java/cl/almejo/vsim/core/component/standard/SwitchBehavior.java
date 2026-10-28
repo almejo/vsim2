@@ -31,9 +31,20 @@ final class SwitchBehavior implements Behavior {
         return text.strip().equalsIgnoreCase("Z");
     }
 
-    /** The stored text of a Switch's value: {@code Z}, or the canonical number ({@link ConstantValue#normalize}). */
+    /**
+     * The stored text of a Switch's value: {@code Z}, or the canonical number ({@link ConstantValue#normalize}); a
+     * number equal to 0 or 1 in any base is the plain digit, which is how a one-bit Switch and its painter read it.
+     */
     static String normalizeValue(String text) {
-        return isHighImpedanceText(text) ? "Z" : ConstantValue.normalize(text);
+        if (isHighImpedanceText(text)) {
+            return "Z";
+        }
+        String canonical = ConstantValue.normalize(text);
+        return switch (canonical) {
+            case "0b0", "0x0" -> "0";
+            case "0b1", "0x1" -> "1";
+            default -> canonical;
+        };
     }
 
     /**

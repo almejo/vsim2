@@ -13,9 +13,9 @@ import java.util.Optional;
 /**
  * Where a Switch or LED points, kept in one place only: a one-bit part turns as a whole (the element's rotation, its
  * «side» at the default), a multi-bit part stays upright and moves its pin instead (rotation {@code R0}, the «side»
- * parameter). Both count the same quarter turns from the type's default side, so a part moves from one form to the
- * other keeping its turns: a one-bit Switch turned down and widened to 8 bits keeps its pin below; a one-bit LED (pin
- * below) turned once becomes a multi-bit LED with its pin on top (one turn from its default left side).
+ * parameter). A part changing form keeps the side its pin is on: a one-bit Switch turned down and widened to 8 bits
+ * keeps its pin below; an unturned one-bit LED (its pin below) becomes a multi-bit LED with its pin on the
+ * bottom side, and narrowing it back gives the rotation that puts the pin there.
  *
  * <p>A quarter turn of a multi-bit part (see {@link #turnsBySide}) never turns its body: alone it keeps the body where
  * it is and moves the pin to the next side clockwise; in a group its pin goes where the turn takes it, so the wires
@@ -39,31 +39,54 @@ public final class MultiBitOrientation {
      * Anything already in its form, and any other type, comes back as the same instance.
      */
     public static Component normalized(Component component, ComponentType type) {
-        Optional<String> defaultSide = MultiBitLayout.defaultSideOf(component.typeId());
-        if (defaultSide.isEmpty()) {
+        if (MultiBitLayout.defaultSideOf(component.typeId()).isEmpty()) {
             return component;
         }
+        return inFormOfWidth(component, type, pinSideOf(component, type));
+    }
+
+    /**
+     * {@code component} with {@code parameters}. When they move a Switch or LED across one bit (a one-bit Switch
+     * turned down, widened to 8 bits) its direction moves between the rotation and the «side», the pin stays on the
+     * side it was on and where it was, so the wire on it stays connected; any other change is a plain change of
+     * parameters.
+     */
+    public static Component withParameters(Component component, Map<String, Object> parameters, ComponentType type) {
+        Component changed = component.withParameters(parameters);
+        if (MultiBitLayout.defaultSideOf(component.typeId()).isEmpty()) {
+            return changed;
+        }
+        boolean changesForm = turnsBySide(component, type) != turnsBySide(changed, type);
+        Component normal = changesForm ? inFormOfWidth(changed, type, pinSideOf(component, type))
+                : normalized(changed, type);
+        return normal == changed ? changed : keepingPin(normal, type, type.pinLocation(component, 0));
+    }
+
+    /** The side the pin of a Switch or LED is on, whichever form it is in (counting its rotation). */
+    private static String pinSideOf(Component component, ComponentType type) {
         String side = MultiBitLayout.sideOf(type, component.parameters());
-        int quarterTurns = quarterTurnsBetween(defaultSide.get(), side) + component.rotation().quarterTurns();
+        int rotationTurns = component.rotation().quarterTurns();
+        if (turnsBySide(component, type)) {
+            return turned(side, rotationTurns);
+        }
+        String defaultSide = MultiBitLayout.defaultSideOf(component.typeId()).orElseThrow();
+        String oneBitSide = MultiBitLayout.oneBitSideOf(component.typeId()).orElseThrow();
+        return turned(oneBitSide, quarterTurnsBetween(defaultSide, side) + rotationTurns);
+    }
+
+    /** {@code component} in the form its width asks for, with its pin on {@code pinSide}. */
+    private static Component inFormOfWidth(Component component, ComponentType type, String pinSide) {
+        String defaultSide = MultiBitLayout.defaultSideOf(component.typeId()).orElseThrow();
+        String oneBitSide = MultiBitLayout.oneBitSideOf(component.typeId()).orElseThrow();
         boolean multiBit = turnsBySide(component, type);
-        Rotation rotation = multiBit ? Rotation.R0 : Rotation.fromQuarterTurns(quarterTurns);
-        String normalSide = multiBit ? turned(defaultSide.get(), quarterTurns) : defaultSide.get();
-        if (rotation == component.rotation() && normalSide.equals(side)) {
+        Rotation rotation = multiBit ? Rotation.R0
+                : Rotation.fromQuarterTurns(quarterTurnsBetween(oneBitSide, pinSide));
+        String normalSide = multiBit ? pinSide : defaultSide;
+        if (rotation == component.rotation() && normalSide.equals(MultiBitLayout.sideOf(type, component.parameters()))) {
             return component;
         }
         Component reoriented = withSide(component, normalSide).withRotation(rotation);
         return keepingPin(reoriented, type, type.pinLocation(component, 0));
-    }
-
-    /**
-     * {@code component} with {@code parameters}. When they move a turned Switch or LED across one bit (a one-bit Switch
-     * turned down, widened to 8 bits) its direction moves between the rotation and the «side» and its pin stays where
-     * it was, so the wire on it stays connected; any other change is a plain change of parameters.
-     */
-    public static Component withParameters(Component component, Map<String, Object> parameters, ComponentType type) {
-        Component changed = component.withParameters(parameters);
-        Component normal = normalized(changed, type);
-        return normal == changed ? changed : keepingPin(normal, type, type.pinLocation(component, 0));
     }
 
     /**

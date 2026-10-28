@@ -93,6 +93,15 @@ public final class MultiBitLayout {
         };
     }
 
+    /** The side of the pin of a one-bit {@code typeId} turned not at all: right for the Switch, below for the LED. */
+    public static Optional<String> oneBitSideOf(String typeId) {
+        return switch (typeId) {
+            case StandardComponentTypes.SWITCH -> Optional.of(RIGHT);
+            case StandardComponentTypes.LED -> Optional.of(BOTTOM);
+            default -> Optional.empty();
+        };
+    }
+
     /**
      * The parameters of a Switch or LED as a file keeps them: «width» when it is 1 and «side» when it is the
      * default are left out, so the one-bit parts written before the multi-bit ones existed keep their bytes (reading

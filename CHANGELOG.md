@@ -15,23 +15,27 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   como entradas y filas de LED donde ayudan.
 - El interruptor puede tener varios bits («Ancho (bits)» de 1 a 32): una fila compacta con una celda por bit, el más
   significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit (sin deshacer ni
-  marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal y decimal y el bit bajo el
-  puntero. Con un bit, nada cambia.
-- La tabla de verdad, «Crear componente» y la IA entienden el interruptor y el LED de varios bits: la tabla los muestra
-  como columnas de N bits, «Crear componente» los vuelve un pin de entrada o de salida del mismo ancho (sin marcar, el
-  interruptor queda como una constante de ese ancho) y `vsim_set_inputs` acepta `0xA6`, `0b1010_0110` o `166` para un
-  interruptor de 8 bits y rechaza lo que no cabe.
+  marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal, decimal y decimal con signo, y el bit
+  bajo el puntero. Con un bit, nada cambia.
 - El LED también puede tener varios bits: una fila de luces con la misma caja que el interruptor del mismo ancho (bit
   contra bit) y un solo pin de bus de entrada. Cada luz se enciende solo con 1; con 0, Z o conflicto queda apagada.
 - Rotar un interruptor o un LED de varios bits no da vuelta la fila: su pin pasa al lado siguiente en el sentido del
   reloj y el cuerpo sigue derecho, también dentro de un grupo rotado (el pin va adonde lo lleva el giro, así sus cables
-  siguen conectados), en la exportación y al imprimir. Un interruptor de un bit rotado que pasa a varios bits queda
-  derecho con la salida hacia donde apuntaba.
+  siguen conectados), en la exportación y al imprimir. Un interruptor o un LED de un bit que pasa a varios bits queda
+  derecho con el pin del lado donde lo tenía (un LED sin rotar lo tiene abajo).
+- La tabla de verdad, «Crear componente» y la IA entienden el interruptor y el LED de varios bits: la tabla los muestra
+  como columnas de N bits, «Crear componente» los vuelve un pin de entrada o de salida del mismo ancho (sin marcar, el
+  interruptor queda como una constante de ese ancho) y `vsim_set_inputs` acepta `0xA6`, `0b1010_0110` o `166` para un
+  interruptor de 8 bits y rechaza lo que no cabe.
+  Al volverse una entrada, un interruptor de varios bits parte en todo 1 si su valor era todo 1 y en todo 0 en
+  cualquier otro caso (el pin de entrada solo tiene esos valores iniciales); «Crear componente» lee el valor en
+  cualquier base (`0xFF` es todo 1).
 - Propiedades termina con un recuadro «Descripción» que explica la pieza elegida y sus supuestos: qué vale una
   entrada sin conectar, en qué flanco actúa, qué pasa con una entrada en Z, cómo lee los números con signo. Todas las
   piezas lo tienen, también la RAM y la ROM (escritura en el flanco de bajada, `CS` y `WE` sin conectar, direcciones
   indefinidas, archivos enlazados), y el texto cambia con los parámetros (un AND negado muestra el NAND, la RAM «Sin
-  reloj» lo explica). Se pliega con un clic y VSim lo recuerda; también aparece en «Configurar…».
+  reloj» lo explica). Ocupa todo el espacio que queda bajo los parámetros (se desplaza solo si el texto es más
+  largo); también aparece en «Configurar…», con un máximo de 14 líneas.
 - Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
   después con «Editar descripción…» en Propiedades, como un paso de deshacer que también cambia (y al deshacer,
   devuelve) el archivo de la librería.
@@ -54,9 +58,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
-- La «Descripción» de Propiedades se estira por todo el espacio que queda bajo los parámetros (se desplaza solo si el
-  texto es más largo) y ya no se pliega: desaparecen el botón ▾/▸ del título y la preferencia que recordaba si estaba
-  plegada (un valor guardado de antes se ignora). En «Configurar…» sigue con un máximo de 14 líneas.
 - La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
   Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
   componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
