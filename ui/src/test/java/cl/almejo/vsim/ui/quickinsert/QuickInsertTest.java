@@ -165,6 +165,9 @@ class QuickInsertTest {
         view.canvas().tool().mousePressed(view.canvas(), at(12, 14, 2));
         assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("led", "xor");
         shown.setQuery("INVERSOR");
+        assertThat(shown.results()).extracting(entry -> entry.type().id())
+                .containsExactly("tri-state", "subcircuit:inverter");
+        shown.setQuery("SUBCIRCUIT:INVERTER");
         assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("subcircuit:inverter");
         shown.acceptSelection();
         assertThat(document.document().components()).singleElement()
@@ -203,7 +206,7 @@ class QuickInsertTest {
             return SelectToolDelegate.Press.IGNORED;
         });
 
-        shown.setQuery("INVERSOR");
+        shown.setQuery("subcircuit:inverter");
         shown.acceptSelection();
 
         assertThat(view.canvas().tool()).isInstanceOf(SelectTool.class);

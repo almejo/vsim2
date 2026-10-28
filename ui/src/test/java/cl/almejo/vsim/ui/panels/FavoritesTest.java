@@ -148,11 +148,11 @@ class FavoritesTest {
         assertThat(palette.hasSelection()).isFalse();
         palette.setFilter("and");
         assertThat(palette.visibleSections()).doesNotContain("Favoritos");
-        preferences.setPaletteFavorites(List.of("led"));
+        preferences.setPaletteFavorites(List.of("clock"));
         assertThat(palette.visibleSections()).doesNotContain("Favoritos");
-        palette.setFilter("led");
+        palette.setFilter("clock");
         assertThat(palette.visibleSections()).startsWith("Favoritos");
-        assertThat(palette.visibleTypeIds()).containsExactly("led", "led");
+        assertThat(palette.visibleTypeIds()).containsExactly("clock", "clock");
     }
 
     @Test

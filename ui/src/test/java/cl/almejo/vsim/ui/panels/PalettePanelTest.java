@@ -125,7 +125,7 @@ class PalettePanelTest {
                 "not", StandardComponentTypes.TRI_STATE);
         assertThat(typesIn(ComponentCategory.WIRING)).containsExactly(StandardComponentTypes.BUS_SPLITTER,
                 StandardComponentTypes.BUS_JOINER, StandardComponentTypes.TUNNEL_ENTRANCE,
-                StandardComponentTypes.TUNNEL_EXIT);
+                StandardComponentTypes.TUNNEL_EXIT, "bit-extender", "bit-selector");
         assertThat(typesIn(ComponentCategory.ARITHMETIC)).containsExactly(StandardComponentTypes.ADDER,
                 StandardComponentTypes.COMPARATOR, StandardComponentTypes.ALU);
         assertThat(typesIn(ComponentCategory.PLEXERS)).containsExactly(StandardComponentTypes.MUX,
@@ -239,7 +239,8 @@ class PalettePanelTest {
                 "Componentes de este circuito");
         assertThat(palette.visibleTypeIds()).endsWith("subcircuit:inverter", "subcircuit:double-inverter");
         palette.setFilter("inversor");
-        assertThat(palette.visibleTypeIds()).containsExactly("subcircuit:inverter", "subcircuit:double-inverter");
+        assertThat(palette.visibleTypeIds()).containsExactly("inverter-controlled", "subcircuit:inverter",
+                "subcircuit:double-inverter");
         palette.setFilter("doble inv");
         assertThat(palette.visibleTypeIds()).containsExactly("subcircuit:double-inverter");
 

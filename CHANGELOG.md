@@ -18,9 +18,16 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
   después con «Editar descripción…» en Propiedades, como un paso de deshacer.
 - La IA recibe la misma descripción en `vsim_describe_component`.
+- Dos piezas nuevas en Cableado: el **Extensor de bits** (cambia el ancho de un bus, rellenando con ceros o con el
+  signo, o cortando a los bits de abajo) y el **Selector de bits** (saca el grupo número `S` de un bus, por ejemplo el
+  nibble que toca). Cada una explica sus supuestos en su descripción.
+- El **Inversor controlado** en la paleta, justo después del Buffer triestado: la salida es la entrada invertida
+  mientras el control vale 1 y Z si no.
 
 ### Cambiado
 
+- El Buffer triestado tiene «Ancho (bits)» (1 por omisión) y «Negar salida»; los triestado de antes se abren y
+  funcionan igual.
 - El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
   uno (antes solo los bloques, los pines, los túneles y la memoria).
 

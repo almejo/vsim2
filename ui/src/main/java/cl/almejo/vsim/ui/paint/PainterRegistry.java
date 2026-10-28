@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.WiringTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.value.Value;
@@ -49,7 +50,16 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.TUNNEL_ENTRANCE, tunnel);
         registry.register(StandardComponentTypes.TUNNEL_EXIT, tunnel);
         registerBlocks(registry);
+        registerWiring(registry);
         return registry;
+    }
+
+    /** The bit extender («EXT» with its «N→M» widths) and the bit selector, drawn as blocks. */
+    private static void registerWiring(PainterRegistry registry) {
+        registry.register(WiringTypes.BIT_EXTENDER, new BlockPainter("EXT", BlockPainter.Body.RECTANGLE)
+                .withLiveText((state, parameters) -> Optional.of(parameters.get(WiringTypes.INPUT_WIDTH) + "→"
+                        + parameters.get(WiringTypes.OUTPUT_WIDTH))));
+        registry.register(WiringTypes.BIT_SELECTOR, new BlockPainter("SEL", BlockPainter.Body.RECTANGLE));
     }
 
     /** The «Bloques» (M7), all drawn by a {@link BlockPainter}. */

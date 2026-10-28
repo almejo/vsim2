@@ -191,7 +191,8 @@ class GateTypesTest {
                 new ComponentPreset("nand", "and", Map.of("negate", true)),
                 new ComponentPreset("nor", "or", Map.of("negate", true)),
                 new ComponentPreset("xnor", "xor", Map.of("negate", true)),
-                new ComponentPreset("not", "buffer", Map.of("negate", true)));
+                new ComponentPreset("not", "buffer", Map.of("negate", true)),
+                new ComponentPreset("inverter-controlled", "tri-state", Map.of("negate", true)));
         StandardComponentTypes.presets().forEach(preset -> assertThat(
                 StandardComponentTypes.nameId(preset.typeId(), preset.parameters())).isEqualTo(preset.id()));
     }

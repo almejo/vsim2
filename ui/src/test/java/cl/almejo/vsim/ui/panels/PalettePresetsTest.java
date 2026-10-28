@@ -48,6 +48,20 @@ class PalettePresetsTest {
     }
 
     @Test
+    void theControlledInverterSitsRightAfterTheTriStateBufferAndIsNamedInversorControlado() {
+        List<String> ids = palette.visibleTypeIds();
+        assertThat(ids.indexOf("inverter-controlled")).isEqualTo(ids.indexOf(StandardComponentTypes.TRI_STATE) + 1);
+        assertThat(palette.accessibleNameOf("inverter-controlled")).contains("Inversor controlado");
+
+        palette.choose("inverter-controlled");
+
+        assertThat(chosen).singleElement().satisfies(entry -> {
+            assertThat(entry.type().id()).isEqualTo(StandardComponentTypes.TRI_STATE);
+            assertThat(entry.parameters()).isEqualTo(Map.of(StandardComponentTypes.NEGATE, true));
+        });
+    }
+
+    @Test
     void choosingNandHandsOverTheAndTypeWithNegateOn() {
         palette.choose("nand");
 

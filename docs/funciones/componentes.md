@@ -48,6 +48,11 @@ Parte de las [funciones de VSim 2](../funciones.md).
   componentes, la búsqueda, Problemas): marcarla en un AND lo convierte en «NAND», y en el árbol agrupado los NAND
   van en su propio grupo. Los favoritos guardados con las compuertas de antes («AND de 3 entradas», «NAND de 2
   entradas», «NOT») aparecen como AND, NAND y NOT.
+- El **Buffer triestado** (en la paleta justo antes del Inversor controlado) tiene «Ancho (bits)» (de 1 a 32, 1 por
+  omisión) y «Negar salida». Con ancho mayor que 1 la entrada y la salida son buses y el control de abajo (1 bit)
+  enciende o apaga el bus entero; apagado, la salida queda en Z. Con «Negar salida» la salida es la entrada invertida
+  bit a bit mientras está encendido, y la pieza pasa a llamarse **Inversor controlado**, también disponible como atajo
+  de la paleta, igual que el NAND. Los triestado de antes se abren y funcionan igual (1 bit, sin negar).
 - El XOR de más de dos entradas es la paridad impar: vale 1 cuando hay un número impar de entradas en 1.
 - Una entrada sin conectar (en Z) no cuenta, como antes: un AND con una entrada suelta deja pasar la otra.
 - Los circuitos, componentes, librerías y lo copiado con versiones anteriores se abren sin cambios: las compuertas de
@@ -55,6 +60,21 @@ Parte de las [funciones de VSim 2](../funciones.md).
   pines en el mismo lugar, los mismos cables y las mismas sondas. Al guardar se escriben con el formato nuevo.
 - Los circuitos generados desde una tabla de verdad o desde expresiones usan estas compuertas (de 1 bit y hasta 4
   entradas, como antes), y la línea de costo cuenta también los XNOR.
+
+## Cableado: extensor y selector de bits
+
+- **Extensor de bits**: cambia el ancho de un bus. Tiene «Ancho de entrada» (de 1 a 32, 8 por omisión), «Ancho de
+  salida» (de 1 a 32, 16 por omisión) y «Relleno»: «Ceros» o «Signo». Si la salida es más ancha, los bits nuevos de
+  arriba son ceros o copias del bit más alto de la entrada (para extender números con signo); si es más angosta, se
+  conservan los bits de abajo (de 8 bits a 3 quedan los 3 más bajos). Es solo cableado: no tiene retardo. Si algún bit
+  de la entrada está en Z o en conflicto, toda la salida queda en Z. Se dibuja como un bloque con «EXT» y los anchos
+  («8→16»).
+- **Selector de bits**: saca de la entrada `in` el grupo número `S` de «Ancho de salida» bits (el grupo 0 son los bits
+  de abajo). Tiene «Ancho de entrada» (8 por omisión), «Ancho de salida» (de 1 a 32, 1 por omisión) y «Retardo». `S`
+  entra por abajo y tiene los bits justos para numerar los grupos (al menos 1): un bus de 8 bits con salida de 4 tiene
+  2 grupos. Si el último grupo no llega completo, los bits que faltan valen 0; un `S` que apunta a un grupo que no
+  existe da todo 0. Con `in` o `S` en Z o en conflicto (un `S` sin conectar también), `out` queda en Z.
+- Los dos están en la categoría Cableado de la paleta y su descripción en Propiedades explica estos supuestos.
 
 ## Interruptores, LED, displays y diagramas de tiempo
 
