@@ -18,10 +18,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   de un bit). Con signo, «Valor» acepta además decimales negativos (en 8 bits, de −128 a −1: −1 entrega 0xFF), y la
   lectura y el globo dan el decimal con signo en lugar del sin signo. Los archivos de antes se abren sin signo y el
   valor por defecto no se escribe.
-- Los dos circuitos de una clase de arquitectura, «Aritmética» y «Elementos modulares» (contar los unos de un número
-  de 8 bits), armados con un marco y una nota por bloque, interruptores de varios bits como entradas y LED donde
-  ayudan. Todavía no están en Archivo ▸ Ejemplos: se generan como archivos aparte para revisarlos antes, junto a
-  «Todas las piezas», un circuito con cada pieza nueva (un marco por categoría) mostrando su caso interesante.
+- «Todas las piezas», un circuito con cada pieza nueva (un marco por categoría) mostrando su caso interesante. No
+  está en Archivo ▸ Ejemplos: se genera como archivo aparte para abrirlo a mano.
 - El interruptor puede tener varios bits («Ancho (bits)» de 1 a 32): una fila compacta con una celda por bit, el más
   significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit; el globo muestra el valor en binario, hexadecimal y decimal, y el bit
   bajo el puntero. Con un bit, nada cambia.

@@ -29,7 +29,7 @@ import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.WIDT
 
 /**
  * «Todas las piezas»: a big showcase circuit of every part the «Componentes para clases» work added, for the user to
- * open and look at (it is not a bundled example; {@link ClassExampleFiles} writes it). One locked frame per palette
+ * open and look at (it is not a bundled example; {@link PartsShowcaseFile} writes it). One locked frame per palette
  * category with a title and a short note; inside, one cell per case: a caption, the part, switches or constants on
  * its left (and below or above it for the pins there) and output pins or LEDs on its right, wired in nested L
  * shapes so no two wires cross. The 1-bit switches named «reloj» stand for a clock: a click from 1 to 0 is the

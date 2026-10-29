@@ -36,7 +36,7 @@ sourceSets.named("main") {
 // UP-TO-DATE.
 tasks.named<Test>("test") {
     val toolVariables = listOf("VSIM_WRITE_BUNDLED", "VSIM_MIGRATE_PATHS", "VSIM_WRITE_SHOWCASE",
-        "VSIM_WRITE_CLASS_EXAMPLES")
+        "VSIM_WRITE_PARTS_SHOWCASE")
     if (toolVariables.any { variable -> System.getenv(variable) != null }) {
         outputs.upToDateWhen { false }
     }
