@@ -62,44 +62,117 @@ class AboutDialogTest {
     };
 
     @Test
-    void contentHoldsTheLogoTheVersionTheRepositoryAndTheLicence() {
+    void contentHoldsTheLogoTheVersionTheLabelledGridAndTheCredits() {
         AboutContent content = content(NO_BROWSER);
 
         assertThat(everyComponent(content)).anyMatch(component -> AboutContent.LOGO_NAME.equals(component.getName()));
-        assertThat(allText(content)).contains("9.9").contains("https://github.com/almejo/vsim2")
-                .contains("https://github.com/almejo/vsim2/releases").contains("GPL").contains("Alejandro Vera")
-                .contains("FlatLaf").contains("2001").contains("2013").contains("2026");
+        assertThat(allText(content)).contains("VSim 2").contains("Versión 9.9").contains("Autor")
+                .contains("Alejandro Vera").contains("Licencia").contains("GPL 3.0").contains("Código")
+                .contains("github.com/almejo/vsim2").contains("github.com/almejo/vsim2/releases")
+                .contains("Versiones").contains("Historia").contains("JCSim (2001), VSim (2013), VSim 2 (2026)")
+                .contains("Usa FlatLaf, MigLayout");
     }
 
     @Test
-    void theLogoHasASizeSoItIsVisible() {
-        JLabel logo = (JLabel) everyComponent(content(NO_BROWSER)).stream()
+    void theLogoIs72PixelsOnTheLeftOfTheHeading() {
+        AboutContent content = content(NO_BROWSER);
+        JLabel logo = (JLabel) everyComponent(content).stream()
                 .filter(component -> AboutContent.LOGO_NAME.equals(component.getName())).findFirst().orElseThrow();
 
-        assertThat(logo.getIcon().getIconWidth()).isPositive();
+        assertThat(logo.getIcon().getIconWidth()).isEqualTo(72);
+        assertThat(logo.getIcon().getIconHeight()).isEqualTo(72);
     }
 
     @Test
-    void withoutABrowserThereAreNoOpenButtonsButTheAddressesStillShow() {
+    void theBodyIsNotAnOptionPaneAndTheFooterHasCopyAndClose() {
         AboutContent content = content(NO_BROWSER);
 
+        assertThat(everyComponent(content)).noneMatch(component -> component instanceof javax.swing.JOptionPane);
         List<String> buttons = everyComponent(content).stream().filter(JButton.class::isInstance)
                 .map(component -> ((JButton) component).getName()).toList();
-        assertThat(buttons).containsExactly(AboutContent.COPY_BUTTON_NAME);
+        assertThat(buttons).containsExactly(AboutContent.COPY_BUTTON_NAME, AboutContent.CLOSE_BUTTON_NAME);
+        assertThat(content.closeButton().getText()).isEqualTo("Cerrar");
     }
 
     @Test
-    void openButtonsSendEachAddressToTheBrowser() {
+    void withoutABrowserTheAddressesAreSelectableTextWithoutACaretAndThereAreNoLinks() {
+        AboutContent content = content(NO_BROWSER);
+
+        List<JTextField> fields = everyComponent(content).stream().filter(JTextField.class::isInstance)
+                .map(JTextField.class::cast).toList();
+        assertThat(fields).extracting(JTextField::getText)
+                .containsExactly("github.com/almejo/vsim2", "github.com/almejo/vsim2/releases");
+        assertThat(fields).allMatch(field -> !field.isEditable() && !field.getCaret().isVisible());
+        assertThat(everyComponent(content)).noneMatch(AboutContent.LinkLabel.class::isInstance);
+    }
+
+    @Test
+    void withABrowserEachAddressIsALinkThatOpensItsUrl() {
         List<String> opened = new ArrayList<>();
         AboutContent content = content(new LinkOpener() {
             @Override public boolean available() { return true; }
             @Override public boolean open(String link) { return opened.add(link); }
         });
 
-        everyComponent(content).stream().filter(JButton.class::isInstance).map(JButton.class::cast)
-                .filter(button -> !AboutContent.COPY_BUTTON_NAME.equals(button.getName())).forEach(JButton::doClick);
+        List<AboutContent.LinkLabel> links = everyComponent(content).stream()
+                .filter(AboutContent.LinkLabel.class::isInstance).map(AboutContent.LinkLabel.class::cast).toList();
+        links.forEach(AboutContent.LinkLabel::activate);
 
+        assertThat(links).hasSize(2);
+        assertThat(links.get(0).getCursor().getType()).isEqualTo(java.awt.Cursor.HAND_CURSOR);
         assertThat(opened).containsExactly(AboutContent.REPOSITORY, AboutContent.RELEASES);
+    }
+
+    @Test
+    void theCardAndTheFooterHaveDifferentBackgroundsReadFromTheLookAndFeelAtPaintTime() {
+        AboutContent content = content(NO_BROWSER);
+        java.awt.Color before = content.card().getBackground();
+
+        javax.swing.UIManager.put("List.background", new java.awt.Color(1, 2, 3));
+        javax.swing.UIManager.put("Panel.background", new java.awt.Color(9, 8, 7));
+        try {
+            assertThat(content.card().getBackground()).isEqualTo(new java.awt.Color(1, 2, 3));
+            assertThat(content.footer().getBackground()).isEqualTo(new java.awt.Color(9, 8, 7));
+        } finally {
+            javax.swing.UIManager.put("List.background", null);
+            javax.swing.UIManager.put("Panel.background", null);
+        }
+        assertThat(content.card().getBackground()).isEqualTo(before);
+    }
+
+    @Test
+    void theMutedTextFollowsTheDisabledForegroundAndTheLinksTheLinkColour() {
+        AboutContent content = content(new LinkOpener() {
+            @Override public boolean available() { return true; }
+            @Override public boolean open(String link) { return true; }
+        });
+        javax.swing.UIManager.put("Label.disabledForeground", new java.awt.Color(11, 12, 13));
+        javax.swing.UIManager.put("Component.linkColor", new java.awt.Color(21, 22, 23));
+        try {
+            JLabel version = (JLabel) everyComponent(content).stream()
+                    .filter(component -> AboutContent.VERSION_NAME.equals(component.getName())).findFirst()
+                    .orElseThrow();
+            AboutContent.LinkLabel link = (AboutContent.LinkLabel) everyComponent(content).stream()
+                    .filter(AboutContent.LinkLabel.class::isInstance).findFirst().orElseThrow();
+            assertThat(version.getForeground()).isEqualTo(new java.awt.Color(11, 12, 13));
+            assertThat(link.getForeground()).isEqualTo(new java.awt.Color(21, 22, 23));
+        } finally {
+            javax.swing.UIManager.put("Label.disabledForeground", null);
+            javax.swing.UIManager.put("Component.linkColor", null);
+        }
+    }
+
+    @Test
+    void bindingItToARootPaneMakesCloseTheDefaultButtonAndEscapeCloseIt() {
+        AboutContent content = content(NO_BROWSER);
+        javax.swing.JRootPane rootPane = new javax.swing.JRootPane();
+
+        content.bindTo(rootPane);
+
+        assertThat(rootPane.getDefaultButton()).isSameAs(content.closeButton());
+        assertThat(rootPane.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .get(javax.swing.KeyStroke.getKeyStroke("ESCAPE"))).isNotNull();
+        assertThat(content.getPreferredSize().width).isGreaterThanOrEqualTo(460);
     }
 
     @Test

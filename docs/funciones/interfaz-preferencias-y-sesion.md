@@ -93,7 +93,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Acerca de VSim 2
 
-- Ayuda ▸ «Acerca de VSim 2…» abre un diálogo con el logo, el nombre y la versión, una línea de qué es, el autor (Alejandro Vera), la licencia (GPL 3.0), la historia (JCSim 2001, VSim 2013, VSim 2 2026) y los créditos de las bibliotecas que usa. El repositorio (https://github.com/almejo/vsim2) y la página de versiones salen como texto que se puede seleccionar y, donde el sistema puede abrir un navegador, con un botón «Abrir».
+- Ayuda ▸ «Acerca de VSim 2…» abre un diálogo fijo (no se puede redimensionar ni minimizar) titulado «Acerca de VSim 2». Arriba, el logo a la izquierda y a su lado el nombre, la versión y una línea de qué es; debajo, una grilla con Autor (Alejandro Vera), Licencia (GPL 3.0), Código y Versiones (github.com/almejo/vsim2 y su página de versiones), e Historia (JCSim 2001, VSim 2013, VSim 2 2026); y una línea con los créditos de las bibliotecas que usa. Las dos direcciones son enlaces (color de enlace del tema, subrayados al pasar el mouse) donde el sistema puede abrir un navegador, y texto que se puede seleccionar donde no. Abajo, una franja con «Copiar información» y «Cerrar» (Enter y Esc cierran). Los colores siguen al tema claro u oscuro.
 - «Copiar información» copia la versión de VSim, la de Java, el sistema operativo y la apariencia, para pegarlos en un reporte de error.
 - En macOS, el mismo diálogo se abre desde «Acerca de» del menú de la aplicación.
 

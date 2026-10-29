@@ -8,7 +8,7 @@ import java.awt.Component;
 import java.awt.Window;
 import java.util.function.Supplier;
 
-/** The dialog itself: a modal window over the editor with {@link AboutContent}. */
+/** The dialog itself: a modal, fixed-size window owned by the editor, with {@link AboutContent} and no option pane. */
 final class SwingAboutPresenter implements AboutPresenter {
 
     private final Supplier<AboutInformation> information;
@@ -24,8 +24,12 @@ final class SwingAboutPresenter implements AboutPresenter {
     @Override
     public void show(Component owner) {
         Window window = owner == null ? null : SwingUtilities.getWindowAncestor(owner);
-        JDialog dialog = new JDialog(window, Messages.text("action.about"), JDialog.DEFAULT_MODALITY_TYPE);
-        dialog.setContentPane(new AboutContent(information.get(), clipboard, links));
+        JDialog dialog = new JDialog(window, Messages.text("about.title"), JDialog.DEFAULT_MODALITY_TYPE);
+        AboutContent content = new AboutContent(information.get(), clipboard, links);
+        dialog.setContentPane(content);
+        content.bindTo(dialog.getRootPane());
+        dialog.setResizable(false);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         dialog.pack();
         dialog.setLocationRelativeTo(window);
         dialog.setVisible(true);
