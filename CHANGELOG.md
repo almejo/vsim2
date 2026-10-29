@@ -18,6 +18,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - En el editor de formas, Línea, Multilínea y Polígono se dibujan igual con clic o con arrastre: arrastrar en
   Multilínea o Polígono pone un nodo al empezar y otro al soltar, y un clic en Línea empieza una línea de dos clics
   (Esc la cancela, Mayús fija el ángulo). Las ayudas de la línea inferior lo dicen.
+- Ayuda ▸ «Acerca de VSim 2…» muestra el logo, la versión, la licencia, la historia, los créditos y los enlaces del
+  repositorio y las versiones, con un botón «Copiar información» (versión, Java, sistema y apariencia) para los
+  reportes de error. En macOS también se abre desde el menú de la aplicación.
 
 ## Versión 0.5 — 2026-10-28
 

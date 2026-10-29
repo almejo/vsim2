@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
+import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
@@ -140,7 +141,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             public void useDefault() {
                 useDefaultToolOnEveryPane();
             }
-        }, window);
+        }, window, AboutPresenter.swing());
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {

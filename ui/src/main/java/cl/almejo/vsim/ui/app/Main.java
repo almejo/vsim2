@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
 import cl.almejo.vsim.ui.preferences.PreferencesDialog;
@@ -41,6 +42,7 @@ public final class Main {
             Application application = new Application(preferences);
             installQuitHandler(application);
             installPreferencesHandler(application);
+            installAboutHandler();
             installDockIcon();
             application.start(files);
         });
@@ -70,6 +72,17 @@ public final class Main {
         Desktop.getDesktop().setPreferencesHandler(event -> SwingUtilities.invokeLater(() -> PreferencesDialog.show(
                 KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow(), application.preferences(),
                 application.aiServer())));
+    }
+
+    /** macOS application menu ▸ About VSim 2: the same dialog as Ayuda ▸ «Acerca de VSim 2…». No-op elsewhere. */
+    private static void installAboutHandler() {
+        if (GraphicsEnvironment.isHeadless() || !Desktop.isDesktopSupported()
+                || !Desktop.getDesktop().isSupported(Desktop.Action.APP_ABOUT)) {
+            return;
+        }
+        AboutPresenter presenter = AboutPresenter.swing();
+        Desktop.getDesktop().setAboutHandler(event -> SwingUtilities.invokeLater(() -> presenter.show(
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow())));
     }
 
     /** macOS Dock (and any taskbar that takes one): the largest application icon. Cosmetic, never fails startup. */
