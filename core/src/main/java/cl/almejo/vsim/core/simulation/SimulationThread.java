@@ -39,6 +39,20 @@ public final class SimulationThread implements AutoCloseable {
     private static final long WAVEFORM_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
     /** Memory map frames are republished at most this often, like the waveforms. */
     private static final long MEMORY_MAP_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
+    /** A running tick advances the engine for at most this long of real time, then publishes and serves requests. */
+    private static final long TICK_BUDGET_NANOS = 10 * NANOS_PER_MILLISECOND;
+    /** While running, the snapshot is rebuilt at most this often (about 60 per second: what a frame can show). */
+    private static final long SNAPSHOT_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
+    /** Nor more often than this many times its own cost, so a huge circuit's snapshot takes at most a fifth. */
+    private static final long SNAPSHOT_COST_SHARE = 5;
+    /** The achieved speed is averaged over windows this long. */
+    private static final long SPEED_WINDOW_NANOS = 250 * NANOS_PER_MILLISECOND;
+    /** The engine runs in slices that aim at this long of real time each, so a tick can stop near its budget. */
+    private static final long SLICE_TARGET_NANOS = 2 * NANOS_PER_MILLISECOND;
+    /** The units of a slice before the engine's pace is known, and after a request (the circuit may have changed). */
+    private static final long INITIAL_SLICE_UNITS = 1_000;
+    /** A slice never asks for more than this, however idle the circuit, so the simulated time stays sane. */
+    private static final long MAXIMUM_SLICE_UNITS = 1_000_000_000L;
 
     private final SimulationEngine engine;
     private final LongSupplier nanoClock;
@@ -66,6 +80,19 @@ public final class SimulationThread implements AutoCloseable {
     private boolean running;
     private double speed = 1.0;
     private double pendingUnits;
+    private long sliceUnits = INITIAL_SLICE_UNITS;
+    /** True when a request, a pause or a failure must publish at once, whatever the snapshot cadence. */
+    private boolean snapshotDue = true;
+    private long lastSnapshotNanos;
+    /** How long the last rebuild of the snapshot took. */
+    private long snapshotCostNanos;
+    /** True when the last tick used up its budget: the engine is behind the speed asked for. */
+    private boolean saturated;
+    /** The engine's {@link SimulationEngine#eventsRun()} when the snapshot was last rebuilt. */
+    private long eventsAtSnapshot;
+    private long speedWindowStartNanos;
+    private long speedWindowUnits;
+    private volatile double achievedUnitsPerMillisecond;
     private boolean firstTick = true;
     private long lastTickNanos;
     private String failure;
@@ -335,11 +362,21 @@ public final class SimulationThread implements AutoCloseable {
         });
     }
 
+    /**
+     * Simulated units per real millisecond to aim at; {@link Double#POSITIVE_INFINITY} runs as fast as the engine
+     * can. When the engine cannot keep up with a finite speed, the simulation goes as fast as it can instead and
+     * never owes the difference: see {@link #achievedUnitsPerMillisecond()}.
+     */
     public void setSpeed(double unitsPerMillisecond) {
         if (!(unitsPerMillisecond > 0)) {
             throw new IllegalArgumentException("speed must be positive: " + unitsPerMillisecond);
         }
         requests.add(() -> speed = unitsPerMillisecond);
+    }
+
+    /** The units simulated per real millisecond lately (over about a quarter of a second); 0 while paused. */
+    public double achievedUnitsPerMillisecond() {
+        return achievedUnitsPerMillisecond;
     }
 
     /** When on, a running simulation pauses as soon as a net that was not shorted becomes shorted (spec §6.12). */
@@ -665,26 +702,17 @@ public final class SimulationThread implements AutoCloseable {
             while ((request = requests.poll()) != null) {
                 request.run();
                 snapshotStale = true;
+                snapshotDue = true;
+                sliceUnits = INITIAL_SLICE_UNITS;
             }
             if (running) {
-                double elapsedMilliseconds = Math.min(elapsedNanos / (double) NANOS_PER_MILLISECOND,
-                        MAXIMUM_MILLISECONDS_PER_TICK);
-                pendingUnits += elapsedMilliseconds * speed;
-                long units = (long) Math.floor(pendingUnits);
-                pendingUnits -= units;
-                if (units > 0) {
-                    engine.advance(units);
-                }
+                advanceFor(elapsedNanos);
                 snapshotStale = true;
+            } else {
+                stopMeasuringSpeed(now);
             }
             if (snapshotStale) {
-                SimulationSnapshot snapshot = engine.snapshot();
-                pauseOnNewShortCircuit(snapshot);
-                latestNextEventTime = engine.nextEventTime();
-                latestPendingComponents = running ? Set.of() : engine.pendingComponents();
-                latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
-                snapshotStale = false;
-                memoryMapStale = true;
+                publishSnapshot(now);
             }
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation failed; pausing", exception);
@@ -697,6 +725,104 @@ public final class SimulationThread implements AutoCloseable {
             SimulationSnapshot published = latestSnapshot;
             publicationWaiters.forEach(waiter -> waiter.complete(published));
             publicationWaiters.clear();
+        }
+    }
+
+    /**
+     * Advances the engine by the units owed for {@code elapsedNanos} at the current speed (all it can at an unlimited
+     * one), in slices, until they are done or the tick's real-time budget is spent. What the engine could not run in
+     * time is dropped rather than owed: the simulation then goes as fast as the engine can, and every tick stays
+     * short enough to publish a frame and serve the requests.
+     */
+    private void advanceFor(long elapsedNanos) {
+        boolean unlimited = Double.isInfinite(speed);
+        if (!unlimited) {
+            double elapsedMilliseconds = Math.min(elapsedNanos / (double) NANOS_PER_MILLISECOND,
+                    MAXIMUM_MILLISECONDS_PER_TICK);
+            pendingUnits += elapsedMilliseconds * speed;
+        }
+        long sliceStart = nanoClock.getAsLong();
+        long deadline = sliceStart + TICK_BUDGET_NANOS;
+        long advanced = 0;
+        saturated = false;
+        while (unlimited || pendingUnits >= 1) {
+            // A slice is sized for SLICE_TARGET_NANOS; the last one, for the time left before the deadline.
+            long units = Math.max(1, Math.min(sliceUnits, sliceUnits * (deadline - sliceStart) / SLICE_TARGET_NANOS));
+            if (!unlimited) {
+                units = Math.min((long) pendingUnits, units);
+            }
+            engine.advance(units);
+            advanced += units;
+            if (!unlimited) {
+                pendingUnits -= units;
+            }
+            long sliceEnd = nanoClock.getAsLong();
+            adaptSlice(units, sliceEnd - sliceStart);
+            sliceStart = sliceEnd;
+            if (sliceEnd >= deadline) {
+                saturated = unlimited || pendingUnits >= 1;
+                break;
+            }
+        }
+        if (pendingUnits >= 1) {
+            pendingUnits -= Math.floor(pendingUnits);
+        }
+        measureSpeed(advanced, sliceStart);
+    }
+
+    /**
+     * Re-aims the next slice at {@link #SLICE_TARGET_NANOS} of real time from how long the last one took. It shrinks
+     * as much as needed but grows at most twofold: a circuit's work comes in bursts (a clock edge and its cascade),
+     * so a slice that happened to hold none says little about the next one.
+     */
+    private void adaptSlice(long units, long tookNanos) {
+        double aimed = units * (double) SLICE_TARGET_NANOS / Math.max(1, tookNanos);
+        long ceiling = Math.min(2 * sliceUnits, MAXIMUM_SLICE_UNITS);
+        sliceUnits = (long) Math.max(1, Math.min(aimed, ceiling));
+    }
+
+    /** Averages the units run per real millisecond over {@link #SPEED_WINDOW_NANOS}. */
+    private void measureSpeed(long advanced, long now) {
+        speedWindowUnits += advanced;
+        long window = now - speedWindowStartNanos;
+        if (window >= SPEED_WINDOW_NANOS) {
+            achievedUnitsPerMillisecond = speedWindowUnits * (double) NANOS_PER_MILLISECOND / window;
+            speedWindowUnits = 0;
+            speedWindowStartNanos = now;
+        }
+    }
+
+    private void stopMeasuringSpeed(long now) {
+        achievedUnitsPerMillisecond = 0;
+        speedWindowUnits = 0;
+        speedWindowStartNanos = now;
+    }
+
+    /**
+     * Publishes the engine's state. While running, the snapshot is rebuilt at most every
+     * {@link #SNAPSHOT_INTERVAL_NANOS}, and only when some event ran since the last one (a frame could not show
+     * more); between rebuilds only its time moves. A request, a pause and a failure publish at once what they did.
+     */
+    private void publishSnapshot(long now) {
+        long interval = Math.max(SNAPSHOT_INTERVAL_NANOS, SNAPSHOT_COST_SHARE * snapshotCostNanos);
+        boolean due = snapshotDue || !running || now - lastSnapshotNanos >= interval;
+        boolean changed = snapshotDue || !running || engine.eventsRun() != eventsAtSnapshot;
+        if (due && changed) {
+            long before = nanoClock.getAsLong();
+            SimulationSnapshot snapshot = engine.snapshot();
+            snapshotCostNanos = nanoClock.getAsLong() - before;
+            pauseOnNewShortCircuit(snapshot);
+            latestNextEventTime = engine.nextEventTime();
+            latestPendingComponents = running ? Set.of() : engine.pendingComponents();
+            latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
+            snapshotStale = false;
+            snapshotDue = false;
+            lastSnapshotNanos = now;
+            eventsAtSnapshot = engine.eventsRun();
+            memoryMapStale = true;
+        } else if (latestSnapshot.time() != engine.now()) {
+            latestSnapshot = latestSnapshot.withTime(engine.now());
+            latestNextEventTime = engine.nextEventTime();
         }
     }
 
@@ -766,7 +892,9 @@ public final class SimulationThread implements AutoCloseable {
                     return;
                 }
             }
-            LockSupport.parkNanos(PARK_NANOS);
+            if (!saturated) {
+                LockSupport.parkNanos(PARK_NANOS); // an idle engine leaves the processor alone; a saturated one goes on
+            }
         }
     }
 

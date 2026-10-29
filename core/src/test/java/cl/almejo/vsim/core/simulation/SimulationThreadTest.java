@@ -354,4 +354,88 @@ class SimulationThreadTest {
         assertThat(thread.latestSnapshot()).isNotSameAs(published);
         assertThat(thread.latestSnapshot().time()).isEqualTo(5);
     }
+
+    @Test
+    void whileRunningTheValuesAreRebuiltAtMostEverySixteenMilliseconds() {
+        thread.update(inverterLoop());
+        thread.resume();
+        thread.tick();
+        SimulationSnapshot first = thread.latestSnapshot();
+        nanos.addAndGet(5 * MILLISECOND);
+        thread.tick();
+        SimulationSnapshot soon = thread.latestSnapshot();
+        assertThat(soon.time()).isEqualTo(5);
+        assertThat(soon.running()).isTrue();
+        assertThat(soon.netValues()).as("the values wait for the next frame").isSameAs(first.netValues());
+        nanos.addAndGet(11 * MILLISECOND);
+        thread.tick();
+        SimulationSnapshot frame = thread.latestSnapshot();
+        assertThat(frame.time()).isEqualTo(16);
+        assertThat(frame.netValues()).isNotSameAs(first.netValues());
+    }
+
+    @Test
+    void anIdleCircuitKeepsItsValuesAndOnlyItsTimeMoves() {
+        thread.update(singleSource());
+        thread.resume();
+        thread.tick();
+        nanos.addAndGet(20 * MILLISECOND);
+        thread.tick();
+        SimulationSnapshot settled = thread.latestSnapshot();
+        nanos.addAndGet(40 * MILLISECOND);
+        thread.tick();
+        assertThat(thread.latestSnapshot().time()).isEqualTo(60);
+        assertThat(thread.latestSnapshot().netValues()).isSameAs(settled.netValues());
+    }
+
+    @Test
+    void anUnlimitedSpeedRunsAsMuchAsTheTickBudgetAllowsAndReportsIt() {
+        AtomicLong steppingNanos = new AtomicLong();
+        try (SimulationThread unlimited = new SimulationThread(new SimulationEngine(),
+                () -> steppingNanos.addAndGet(MILLISECOND))) {
+            unlimited.update(singleSource());
+            unlimited.setSpeed(Double.POSITIVE_INFINITY);
+            unlimited.resume();
+            unlimited.tick();
+            long before = unlimited.latestSnapshot().time();
+            unlimited.tick();
+            long after = unlimited.latestSnapshot().time();
+            // Every look at the clock costs 1 ms, so the tick ends after about ten slices.
+            assertThat(after - before).isBetween(1_000L, 11_000_000_000L);
+            for (int tick = 0; tick < 30; tick++) {
+                unlimited.tick();
+            }
+            assertThat(unlimited.achievedUnitsPerMillisecond()).isGreaterThan(0);
+            unlimited.pause();
+            unlimited.tick();
+            assertThat(unlimited.achievedUnitsPerMillisecond()).isZero();
+            assertThat(unlimited.latestSnapshot().running()).isFalse();
+        }
+    }
+
+    @Test
+    void unitsTheEngineCannotRunInTimeAreDroppedNotOwed() {
+        AtomicLong slowNanos = new AtomicLong();
+        AtomicLong costPerLook = new AtomicLong(5 * MILLISECOND);
+        try (SimulationThread slow = new SimulationThread(new SimulationEngine(),
+                () -> slowNanos.addAndGet(costPerLook.get()))) {
+            slow.update(singleSource());
+            slow.setSpeed(1_000);
+            slow.resume();
+            slow.tick();
+            long first = slow.latestSnapshot().time();
+            slow.tick();
+            long second = slow.latestSnapshot().time();
+            // Each look at the clock cost 5 ms: the tick owed 10 ms × 1 000 units but its budget cut it short.
+            assertThat(second - first).isBetween(1L, 9_999L);
+
+            costPerLook.set(0);
+            slowNanos.addAndGet(10 * MILLISECOND);
+            slow.tick();
+            // 25 ms passed since the previous tick began (three looks of 5 ms inside it, then the 10 ms added), so
+            // this tick owes 25 000 units, and not the ones the previous tick could not run.
+            assertThat(slow.latestSnapshot().time() - second).as("only this tick's units, no old debt")
+                    .isEqualTo(25_000);
+        }
+    }
 }

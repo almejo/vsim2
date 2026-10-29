@@ -35,6 +35,11 @@ public record SimulationSnapshot(long revision, long token, long time, boolean r
         return new SimulationSnapshot(revision, token, time, running, netValues, componentStates, problems, newFailure);
     }
 
+    /** The same values at {@code newTime}: for a running simulation whose values did not change since. */
+    public SimulationSnapshot withTime(long newTime) {
+        return new SimulationSnapshot(revision, token, newTime, running, netValues, componentStates, problems, failure);
+    }
+
     public Value netValue(String netId) {
         return netValues.getOrDefault(netId, Value.HIGH_IMPEDANCE);
     }

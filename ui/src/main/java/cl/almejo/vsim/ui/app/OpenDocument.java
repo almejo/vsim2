@@ -565,6 +565,11 @@ public final class OpenDocument implements AutoCloseable {
         simulation.step(duration);
     }
 
+    /** The units per real millisecond the simulation achieves lately, 0 while paused (the status bar shows it). */
+    public double achievedSpeed() {
+        return simulation.achievedUnitsPerMillisecond();
+    }
+
     public void setSpeed(double unitsPerMillisecond) {
         simulation.setSpeed(unitsPerMillisecond);
     }

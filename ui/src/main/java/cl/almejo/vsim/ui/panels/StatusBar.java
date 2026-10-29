@@ -34,6 +34,7 @@ public final class StatusBar extends JPanel {
 
     private final JLabel simulation = new JLabel();
     private final JLabel time = new JLabel();
+    private final JLabel achievedSpeed = new JLabel();
     private final JLabel selection = new JLabel();
     private final JLabel hint = new JLabel();
     private final JLabel notice = new JLabel();
@@ -67,6 +68,8 @@ public final class StatusBar extends JPanel {
         add(simulation);
         time.setToolTipText(Messages.text("status.timeTip"));
         add(time);
+        achievedSpeed.setToolTipText(Messages.text("status.speedTip"));
+        add(achievedSpeed);
         add(selection);
         add(hint, YIELDING_CONSTRAINTS);
         add(notice, YIELDING_CONSTRAINTS);
@@ -75,6 +78,7 @@ public final class StatusBar extends JPanel {
         add(noticeAction, "hidemode 3");
         add(shortCircuits);
         add(failure);
+        achievedSpeed.setVisible(false);
         selection.setVisible(false);
         hint.setVisible(false);
         notice.setVisible(false);
@@ -90,8 +94,26 @@ public final class StatusBar extends JPanel {
             simulation.setToolTipText(runStateTip());
         }
         time.setText(Messages.format("status.time", snapshot.time()));
+        if (!running) {
+            achievedSpeed.setVisible(false);
+        }
         failure.setText(snapshot.failure().map(reason -> Messages.format("status.failure", reason)).orElse(""));
         failure.setVisible(snapshot.failure().isPresent());
+    }
+
+    /** The speed the running simulation achieves, in units per real millisecond; 0, or a pause, hides it. */
+    public void showSpeed(double unitsPerMillisecond) {
+        boolean shown = running && unitsPerMillisecond > 0;
+        if (shown) {
+            Number rounded;
+            if (unitsPerMillisecond >= 10) {
+                rounded = Math.round(unitsPerMillisecond);
+            } else {
+                rounded = Math.round(unitsPerMillisecond * 10) / 10.0;
+            }
+            achievedSpeed.setText(Messages.format("status.speed", rounded));
+        }
+        achievedSpeed.setVisible(shown);
     }
 
     public void showShortCircuits(int count) {
@@ -331,7 +353,8 @@ public final class StatusBar extends JPanel {
 
     /** Visible texts joined with " · " (what the user reads, left to right), the zoom percentage last («125 %»). */
     public String text() {
-        Stream<String> labels = Stream.of(simulation, time, selection, hint, notice, shortCircuits, failure)
+        Stream<String> labels = Stream.of(simulation, time, achievedSpeed, selection, hint, notice, shortCircuits,
+                        failure)
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText);
         Stream<String> zoom = zoomControl != null && zoomControl.isVisible() ? Stream.of(zoomControl.text())

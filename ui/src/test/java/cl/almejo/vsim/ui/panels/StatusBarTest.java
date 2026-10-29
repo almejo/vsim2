@@ -62,6 +62,21 @@ class StatusBarTest {
     }
 
     @Test
+    void showsTheAchievedSpeedOnlyWhileRunning() {
+        statusBar.showZoom(1);
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showSpeed(1250.4);
+        assertThat(statusBar.text()).contains("t = 1.234 · ×1.250");
+        statusBar.showSpeed(0.46);
+        assertThat(statusBar.text()).contains("×0,5");
+        statusBar.showSpeed(0);
+        assertThat(statusBar.text()).doesNotContain("×");
+        statusBar.showSpeed(7);
+        statusBar.showSnapshot(snapshot(false, 0, Optional.empty()));
+        assertThat(statusBar.text()).doesNotContain("×");
+    }
+
+    @Test
     void showsShortCircuitsOnlyWhenThereAreSome() {
         statusBar.showZoom(1);
         statusBar.showSnapshot(snapshot(true, 2, Optional.empty()));

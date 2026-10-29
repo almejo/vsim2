@@ -760,6 +760,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         Consumer<SimulationSnapshot> snapshotListener = snapshot -> {
             if (pane == canvas()) {
                 statusBar.showSnapshot(snapshot);
+                statusBar.showSpeed(openDocument.achievedSpeed());
                 actions.refreshSimulationButtons(snapshot.running());
             }
         };

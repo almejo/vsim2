@@ -58,6 +58,11 @@ public final class SimulationEngine {
         return revision;
     }
 
+    /** How many events ran so far, for whoever needs to know whether anything happened since a moment. */
+    long eventsRun() {
+        return scheduler.eventsRun();
+    }
+
     /**
      * Replaces the simulated circuit, keeping the state of unchanged components.
      * An invalid circuit throws IllegalArgumentException and leaves the engine untouched.

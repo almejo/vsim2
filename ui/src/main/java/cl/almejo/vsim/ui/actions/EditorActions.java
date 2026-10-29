@@ -48,7 +48,8 @@ import java.util.function.Supplier;
 /** Every user command of an editor window, as Swing actions whose enabled state follows the editor. */
 public final class EditorActions {
 
-    public static final List<Double> SPEEDS = List.of(0.1, 1.0, 10.0, 100.0);
+    /** The speed selector's choices in units per millisecond; the infinite one runs as fast as the engine can. */
+    public static final List<Double> SPEEDS = List.of(0.1, 1.0, 10.0, 100.0, Double.POSITIVE_INFINITY);
 
     /** The icon before the speed selector in the toolbar, by file name under {@code icons/} (M6.1-E). */
     public static final String SPEED_ICON = "speed";
@@ -324,12 +325,20 @@ public final class EditorActions {
             public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                                    boolean selected, boolean focused) {
                 super.getListCellRendererComponent(list, value, index, selected, focused);
-                setText(Messages.format(index < 0 ? "speed.closed" : "speed.label", value));
+                setText(value instanceof Double speed ? speedLabel(speed, index < 0) : "");
                 return this;
             }
         });
         selector.addActionListener(event -> openDocument.setSpeed((Double) selector.getSelectedItem()));
         return selector;
+    }
+
+    /** «×10» in the open list and «Velocidad ×10» when closed; the infinite speed reads «Máxima». */
+    private static String speedLabel(Double speed, boolean closed) {
+        if (speed.isInfinite()) {
+            return Messages.text(closed ? "speed.maximumClosed" : "speed.maximum");
+        }
+        return Messages.format(closed ? "speed.closed" : "speed.label", speed);
     }
 
     public void refresh() {
