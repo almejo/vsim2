@@ -4,11 +4,18 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinDirection;
+import cl.almejo.vsim.core.simulation.FlatCircuit;
+import cl.almejo.vsim.core.simulation.FlatComponent;
+import cl.almejo.vsim.core.simulation.FlatNet;
+import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.simulation.SimulationEngine;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.TestParts;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,5 +46,26 @@ class PushButtonTest {
         assertThat(StandardComponentTypes.isSwitchOrPushButton(StandardComponentTypes.PUSH_BUTTON)).isTrue();
         assertThat(StandardComponentTypes.isSwitchOrPushButton(StandardComponentTypes.SWITCH)).isTrue();
         assertThat(StandardComponentTypes.isSwitchOrPushButton(StandardComponentTypes.INPUT_PIN)).isFalse();
+    }
+
+    @Test
+    void aRestartStartsItReleasedEvenIfTheAiOrATruthTableRowLeftItAtOne() {
+        ComponentType button = registry.require(StandardComponentTypes.PUSH_BUTTON);
+        ComponentType input = registry.require(StandardComponentTypes.SWITCH);
+        FlatCircuit circuit = new FlatCircuit(
+                List.of(new FlatComponent("button", button, Map.of()), new FlatComponent("switch", input, Map.of())),
+                List.of(new FlatNet("pressed", List.of(new FlatPinRef("button", 0)), 1, false),
+                        new FlatNet("on", List.of(new FlatPinRef("switch", 0)), 1, false)));
+        SimulationEngine engine = new SimulationEngine();
+        engine.update(circuit);
+        engine.runUntil(engine.now());
+        engine.setInput("button", Value.ONE);
+        engine.setInput("switch", Value.ONE);
+        assertThat(engine.netValue("pressed")).isEqualTo(Value.ONE);
+
+        engine.restart(circuit, Map.of());
+
+        assertThat(engine.netValue("pressed")).isEqualTo(Value.ZERO);
+        assertThat(engine.netValue("on")).as("a switch still keeps its value").isEqualTo(Value.ONE);
     }
 }

@@ -35,6 +35,14 @@ public interface Behavior {
     }
 
     /**
+     * Whether {@code SimulationEngine#restart} carries this component's value over to the new run. True for switches
+     * and input pins; a push button starts released.
+     */
+    default boolean keepsValueOnRestart() {
+        return true;
+    }
+
+    /**
      * Makes an input component (a switch or an input pin) drive {@code value} from now on (M6.1-C truth tables).
      * Returns false, changing nothing, for every other component.
      */
