@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.value.Value;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * What a click does to a Switch's value, and how that value is written back into its «Valor»: a click is an edit of
@@ -36,6 +37,20 @@ public final class SwitchValues {
             return Optional.empty();
         }
         return Optional.of(Value.of(value.width(), value.bits() ^ (1L << bit)));
+    }
+
+    /**
+     * The «Valor» that {@code text} becomes when «Números» goes back to «Sin signo» on a switch of {@code width} bits: a
+     * negative decimal that fits is written as its bit pattern read unsigned ({@code -1} on 8 bits is {@code 255}), so
+     * the switch keeps driving the same bits (review M-2). Empty for any other text, which stays as it is.
+     */
+    public static Optional<String> unsignedText(String text, int width) {
+        String stripped = text == null ? "" : text.strip();
+        if (!stripped.startsWith("-") || !ConstantValue.isValidText(stripped)) {
+            return Optional.empty();
+        }
+        OptionalLong bits = ConstantValue.bitsOf(stripped, width);
+        return bits.isPresent() ? Optional.of(Long.toUnsignedString(bits.getAsLong())) : Optional.empty();
     }
 
     /**

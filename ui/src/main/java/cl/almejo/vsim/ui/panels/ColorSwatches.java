@@ -192,8 +192,7 @@ public final class ColorSwatches<T> extends JPanel {
             int widest = Math.min(count, perRow);
             int fullWidth = widest * swatch.width + Math.max(0, widest - 1) * GAP;
             int width = parent.getWidth();
-            int lines = width <= 0 ? Math.min(1, count) : linesFor(count, swatch.width, width);
-            lines = Math.max(lines, (count + perRow - 1) / perRow);
+            int lines = linesFor(count, swatch.width, width);
             return new Dimension(fullWidth, heightOf(lines, swatch.height));
         }
 
@@ -208,7 +207,7 @@ public final class ColorSwatches<T> extends JPanel {
         public void layoutContainer(Container parent) {
             Dimension swatch = swatchSize(parent);
             int count = parent.getComponentCount();
-            int inLine = perLine(swatch.width, parent.getWidth());
+            int inLine = perLine(swatch.width, parent.getWidth(), count);
             for (int index = 0; index < count; index++) {
                 int line = index / inLine;
                 int column = index % inLine;
@@ -222,13 +221,22 @@ public final class ColorSwatches<T> extends JPanel {
             }
         }
 
-        private int perLine(int swatchWidth, int width) {
+        /**
+         * How many swatches go on a line {@code width} pixels wide; with no width yet (0, before the grid gives it one)
+         * as many as a line may hold, the one line {@link #preferredLayoutSize} counts then: laying it out one per line
+         * would differ from that and ask for a new layout forever (review M-1).
+         */
+        private int perLine(int swatchWidth, int width, int count) {
+            if (width <= 0) {
+                return Math.max(1, Math.min(perRow, count));
+            }
             int fitting = Math.max(1, (width + GAP) / (swatchWidth + GAP));
             return Math.min(perRow, fitting);
         }
 
         private int linesFor(int count, int swatchWidth, int width) {
-            return (count + perLine(swatchWidth, width) - 1) / perLine(swatchWidth, width);
+            int inLine = perLine(swatchWidth, width, count);
+            return (count + inLine - 1) / inLine;
         }
 
         private static int heightOf(int lines, int swatchHeight) {

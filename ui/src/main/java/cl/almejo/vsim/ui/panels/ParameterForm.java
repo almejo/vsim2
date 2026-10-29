@@ -4,7 +4,9 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterProblem;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.SwitchValues;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -100,7 +102,35 @@ public final class ParameterForm extends JPanel {
         if (editors.containsKey(StandardComponentTypes.SIGNEDNESS) && editors.containsKey(StandardComponentTypes.WIDTH)
                 && type.id().equals(StandardComponentTypes.SWITCH)) {
             showNumbersOnlyWithManyBits();
+            ((JComboBox<?>) editors.get(StandardComponentTypes.SIGNEDNESS))
+                    .addActionListener(event -> showNegativeValueAsUnsigned());
         }
+    }
+
+    /** Back to «Sin signo», the «Valor» field shows a negative decimal as the bits it is ({@link #rawValues()}). */
+    private void showNegativeValueAsUnsigned() {
+        if (!(editors.get(SWITCH_VALUE) instanceof JComboBox<?> valueBox)) {
+            return;
+        }
+        Object reconciled = rawValues().get(SWITCH_VALUE);
+        if (!String.valueOf(valueBox.getEditor().getItem()).equals(reconciled)) {
+            valueBox.getEditor().setItem(reconciled);
+        }
+    }
+
+    /**
+     * Review M-2: with «Números: Sin signo» a Switch's negative decimal «Valor» is read as its bits (on 8 bits, {@code -1}
+     * is {@code 255}), so going back to «Sin signo» keeps the value instead of refusing it.
+     */
+    private void readNegativeValueAsUnsigned(Map<String, Object> values) {
+        if (!type.id().equals(StandardComponentTypes.SWITCH)
+                || !StandardComponentTypes.SIGNEDNESS_UNSIGNED.equals(values.get(StandardComponentTypes.SIGNEDNESS))
+                || !(values.get(StandardComponentTypes.WIDTH) instanceof Integer width)
+                || width < MultiBitLayout.MINIMUM_WIDTH || width > MultiBitLayout.MAXIMUM_WIDTH) {
+            return;
+        }
+        SwitchValues.unsignedText(String.valueOf(values.get(SWITCH_VALUE)), width)
+                .ifPresent(text -> values.put(SWITCH_VALUE, text));
     }
 
     /** The Switch's «Números» row disappears (taking no room) when it has one bit: there is nothing to sign. */
@@ -183,6 +213,7 @@ public final class ParameterForm extends JPanel {
             // a hidden parameter (a memory's contents) has no field: it goes through as it was
             values.put(parameter.name(), editor == null ? initial.get(parameter.name()) : valueOf(editor));
         }
+        readNegativeValueAsUnsigned(values);
         return values;
     }
 

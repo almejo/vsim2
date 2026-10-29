@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterProblem;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
@@ -27,14 +28,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalLong;
+import java.util.OptionalInt;
 
 /**
  * The block under a multi-bit Switch's «Valor» that says how VSim reads the number, one reading under the other
- * (binary, hex and decimal, the decimal signed with «Números: Con signo»), or why it cannot («No cabe en 8 bits»). It is updated on
- * every keystroke and whenever the width changes, and it is never wider than the «Valor» field: a binary too long
- * for it wraps in lines of fewer groups of 4 bits (a 32-bit one in two lines of 16). With one bit (the 1/0/Z list)
- * there is no block. The colours are asked at every paint.
+ * (binary, hex and decimal, the decimal signed with «Números: Con signo»), or why it cannot («No cabe en 8 bits»). It is
+ * updated on every keystroke and whenever the width changes, and it is never wider than the «Valor» field: a binary too
+ * long for it wraps in lines of fewer groups of 4 bits (a 32-bit one in two lines of 16). With one bit (the 1/0/Z list)
+ * or a width a switch cannot have there is no block. The colours are asked at every paint.
  */
 final class SwitchValueReading {
 
@@ -101,27 +102,27 @@ final class SwitchValueReading {
     }
 
     private void refresh() {
-        OptionalLong width = width();
-        boolean wide = width.isPresent() && width.getAsLong() > 1;
+        OptionalInt width = width();
+        boolean wide = width.isPresent() && width.getAsInt() > 1;
         caption.setVisible(wide);
         block.setVisible(wide);
         if (!wide) {
             return;
         }
         String text = String.valueOf(valueBox.getEditor().getItem()).strip();
-        Optional<ParameterProblem> found = problemWith((int) width.getAsLong(), text);
+        Optional<ParameterProblem> found = problemWith(width.getAsInt(), text);
         int available = valueBox.getWidth();
-        String signature = found.map(this::problemText).orElse("") + "|" + text + "|" + width.getAsLong() + "|"
+        String signature = found.map(this::problemText).orElse("") + "|" + text + "|" + width.getAsInt() + "|"
                 + available + "|" + signed();
         if (signature.equals(shown)) {
             return;
         }
-        shown = signature; 
+        shown = signature;
         block.removeAll();
         if (found.isPresent()) {
             addProblem(problemText(found.get()), available);
         } else {
-            addReadings(text, (int) width.getAsLong(), available);
+            addReadings(text, width.getAsInt(), available);
         }
         block.revalidate();
         block.repaint();
@@ -218,14 +219,20 @@ final class SwitchValueReading {
         };
     }
 
-    /** The width as typed now (the spinner is not committed on every keystroke); empty when it is not a number. */
-    private OptionalLong width() {
+    /**
+     * The width as typed now (the spinner is not committed on every keystroke); empty when it is not a number or not a
+     * width a switch can have (review I-3: 70 typed on the way to 7 is no width, so there is nothing to read).
+     */
+    private OptionalInt width() {
         JFormattedTextField field = ((JSpinner.DefaultEditor) widthSpinner.getEditor()).getTextField();
+        long typed;
         try {
-            return OptionalLong.of(Long.parseLong(field.getText().strip()));
+            typed = Long.parseLong(field.getText().strip());
         } catch (NumberFormatException exception) {
-            return OptionalLong.empty();
+            return OptionalInt.empty();
         }
+        return typed < MultiBitLayout.MINIMUM_WIDTH || typed > MultiBitLayout.MAXIMUM_WIDTH ? OptionalInt.empty()
+                : OptionalInt.of((int) typed);
     }
 
     private Optional<ParameterProblem> problemWith(int width, String text) {

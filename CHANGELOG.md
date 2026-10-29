@@ -102,6 +102,12 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   de los pasos de la IA (te culpaban de un cambio que solo movía entradas): los deshacen también y el aviso lo dice.
 - Un paso de la IA que espera «Siguiente» ya no falla si mientras tanto haces clic en un interruptor que ese paso
   cambia: se aplica sobre el valor que le diste.
+- Escribir en «Ancho (bits)» de un interruptor un número mayor que 32 (un 70 camino a 7) ya no da un error interno: el
+  bloque de lecturas bajo «Valor» se oculta hasta que el ancho es posible.
+- Cambiar «Números» de un interruptor ya no lo reinicia (perdía el valor de una fila de la tabla de verdad probada en el
+  circuito), y volver a «Sin signo» con un decimal negativo ya no queda bloqueado: el valor se reescribe como su patrón
+  de bits sin signo (en 8 bits, `-1` pasa a `255`).
+- La fila de muestras de color ya no pide acomodarse una y otra vez mientras todavía no tiene ancho.
 
 ## Sin publicar — Compuertas parametrizables
 

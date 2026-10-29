@@ -334,6 +334,18 @@ class ColorSwatchesTest {
             assertThat(swatches.swatch(4).isSelected()).isTrue();
         }
 
+        /** Review M-1: laid out at no width, the lines must be the ones the preferred size counts, or it never settles. */
+        @Test
+        void withNoWidthYetTheLinesAreTheOnesThePreferredSizeCountsSoNoNewLayoutIsAsked() {
+            ColorSwatches<String> swatches = eightSwatches();
+            swatches.setSize(0, 0);
+
+            swatches.doLayout();
+
+            JToggleButton last = swatches.swatch(EIGHT.size() - 1);
+            assertThat(last.getY() + last.getHeight()).isEqualTo(swatches.getPreferredSize().height);
+        }
+
         @Test
         void inAWidePanelTheEightSwatchesAreOneLine() {
             ColorSwatches<String> swatches = eightSwatches();

@@ -67,4 +67,14 @@ class SwitchValuesTest {
         assertThat(SwitchValues.valueOf(parameters(8, "0x2A"))).isEqualTo(Value.of(8, 0x2A));
         assertThat(SwitchValues.valueOf(parameters(1, "Z"))).isEqualTo(Value.HIGH_IMPEDANCE);
     }
+
+    @Test
+    void goingBackToUnsignedANegativeDecimalBecomesItsBitsAndAnythingElseStays() {
+        assertThat(SwitchValues.unsignedText("-1", 8)).contains("255");
+        assertThat(SwitchValues.unsignedText("-128", 8)).contains("128");
+        assertThat(SwitchValues.unsignedText("-129", 8)).as("does not fit: the check says so").isEmpty();
+        assertThat(SwitchValues.unsignedText("12", 8)).isEmpty();
+        assertThat(SwitchValues.unsignedText("0xFF", 8)).isEmpty();
+        assertThat(SwitchValues.unsignedText("hola", 8)).isEmpty();
+    }
 }

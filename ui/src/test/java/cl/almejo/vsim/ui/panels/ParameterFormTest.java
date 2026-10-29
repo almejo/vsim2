@@ -26,6 +26,7 @@ import javax.swing.JSpinner;
 import java.awt.Component;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -403,7 +404,39 @@ class ParameterFormTest {
         assertThat(form.rawValues()).containsEntry("signedness", "signed").containsEntry("value", "-1");
 
         ((JComboBox<?>) form.editor("signedness")).setSelectedItem("unsigned");
-        assertThat(readingTexts(form)).hasSize(1);
+        assertThat(switchValueBox(form).getEditor().getItem()).as("rewritten as its bits, unsigned").isEqualTo("255");
+        assertThat(readingTexts(form)).containsExactly("binario", "1111 1111", "hexa", "0xFF", "decimal", "255");
+        assertThat(form.validationError()).isEmpty();
+        assertThat(form.rawValues()).containsEntry("signedness", "unsigned").containsEntry("value", "255");
+    }
+
+    /** Review M-2: the commit listener may read the form before the field is rewritten; the values already say 255. */
+    @Test
+    void goingBackToUnsignedGivesTheBitsOfANegativeValueEvenBeforeTheFieldIsRewritten() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8, "signedness", "signed",
+                "value", "-2"));
+        AtomicReference<Object> committed = new AtomicReference<>();
+        form.addCommitListener(() -> committed.set(form.rawValues().get("value")));
+
+        ((JComboBox<?>) form.editor("signedness")).setSelectedItem("unsigned");
+
+        assertThat(committed.get()).isEqualTo("254");
+    }
+
+    /** Review I-3: a width outside 1..32 typed in the spinner is no width: no reading and no exception. */
+    @Test
+    void aWidthTypedOutsideTheRangeShowsNoReadingInsteadOfFailing() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8, "value", "5"));
+        JTextField widthField = ((JSpinner.DefaultEditor) ((JSpinner) form.editor("width")).getEditor()).getTextField();
+
+        widthField.setText("70");
+        assertThat(form.valueReading().isVisible()).isFalse();
+
+        widthField.setText("40");
+        assertThat(form.valueReading().isVisible()).isFalse();
+
+        widthField.setText("12");
+        assertThat(form.valueReading().isVisible()).isTrue();
     }
 
     @Test

@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
@@ -86,9 +87,22 @@ class SwitchValueParameterTest {
         engine.update(circuit(value("0")));
 
         engine.update(circuit(Map.of(StandardComponentTypes.VALUE, "0",
-                StandardComponentTypes.SIGNEDNESS, StandardComponentTypes.SIGNEDNESS_SIGNED)));
+                MultiBitLayout.SIDE, MultiBitLayout.BOTTOM)));
 
         assertThat(created).hasValue(2);
+        assertThat(engine.snapshot().netValue("n")).isEqualTo(Value.ZERO);
+    }
+
+    /** Review M-2: «Números» only says how the value reads, so changing it keeps the value the switch drives now. */
+    @Test
+    void theNumbersOnlyChangeHowTheValueReadsSoTheRunningSwitchStays() {
+        engine.update(circuit(value("1")));
+        engine.interact("s");
+
+        engine.update(circuit(Map.of(StandardComponentTypes.VALUE, "1",
+                StandardComponentTypes.SIGNEDNESS, StandardComponentTypes.SIGNEDNESS_SIGNED)));
+
+        assertThat(created).hasValue(1);
         assertThat(engine.snapshot().netValue("n")).isEqualTo(Value.ZERO);
     }
 

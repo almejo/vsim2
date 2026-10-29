@@ -171,8 +171,9 @@ public final class StandardComponentTypes {
         registry.register(ComponentType.parameterized(SWITCH, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 1, MultiBitLayout.MINIMUM_WIDTH, MultiBitLayout.MAXIMUM_WIDTH),
                         MultiBitLayout.sideParameter(MultiBitLayout.RIGHT),
+                        // «Números» only says how «Valor» is read and shown: the behaviour never reads it
                         ParameterSpec.choice(SIGNEDNESS, SIGNEDNESS_UNSIGNED,
-                                List.of(SIGNEDNESS_UNSIGNED, SIGNEDNESS_SIGNED)),
+                                List.of(SIGNEDNESS_UNSIGNED, SIGNEDNESS_SIGNED)).asDisplayOnly(),
                         ParameterSpec.text(VALUE, "1", SwitchBehavior::normalizeValue).asLiveValue()),
                 parameters -> switchShape((Integer) parameters.get(WIDTH), (String) parameters.get(MultiBitLayout.SIDE)),
                 StandardComponentTypes::checkSwitch,
