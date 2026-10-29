@@ -194,6 +194,27 @@ class ConvertedSelectionTest {
     }
 
     @Test
+    void aCheckedPushButtonBecomesAnInputPinAtZeroAndAnUncheckedOneAConstantOfItsCurrentValue() {
+        Component button = place(StandardComponentTypes.PUSH_BUTTON, 0, 1, "Go");
+        wire(4, 2, 6, 2);
+        place(StandardComponentTypes.BUFFER, 6, 0, "");
+
+        ConvertedSelection checked = convert(Set.of(button.id()));
+        ConvertedSelection unchecked = convert(Set.of());
+        ConvertedSelection uncheckedWhileHeld = convert(Set.of(), Map.of(button.id(), Value.ONE));
+
+        Component input = selected(checked, InterfacePins.INPUT_PIN).get(0);
+        assertThat(input.label()).isEqualTo("Go");
+        assertThat(input.parameters()).containsEntry("value", "0");
+        assertThat(pinPoint(input, 0)).isEqualTo(new GridPoint(4, 2));
+        assertThat(selected(checked, StandardComponentTypes.PUSH_BUTTON)).isEmpty();
+        assertThat(selected(unchecked, StandardComponentTypes.CONSTANT)).singleElement()
+                .satisfies(constant -> assertThat(constant.parameters()).containsEntry("value", "0"));
+        assertThat(selected(uncheckedWhileHeld, StandardComponentTypes.CONSTANT)).singleElement()
+                .satisfies(constant -> assertThat(constant.parameters()).containsEntry("value", "1"));
+    }
+
+    @Test
     void aCheckedConstantBecomesAnInputPinOfItsWidthAndAnUncheckedOneStays() {
         Component constant = place(StandardComponentTypes.CONSTANT, 0, 0, "K",
                 Map.of("width", 8, "value", "0x0F", "format", ConstantValue.HEX));

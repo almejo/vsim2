@@ -20,6 +20,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   Después de un avance por flanco el estado dice qué flanco fue («flanco de subida», «flanco de bajada», o «flanco de
   subida y de bajada» con dos relojes que cambian en sentidos opuestos a la vez).
 - La IA también puede avanzar un ciclo de reloj completo, y cuando avanza por flancos la respuesta dice qué flanco fue.
+- **Pulsador** en Entrada/Salida, después del Interruptor: vale 1 solo mientras lo mantienes apretado con el mouse y vuelve a 0 al soltarlo (donde sea), con Esc, al perder la ventana el foco y al pausar o reiniciar la simulación. Apretarlo no deja paso de deshacer, no marca el archivo ni lo selecciona. Cuenta como entrada en la tabla de verdad y en «Crear componente», y la IA lo fija con `vsim_set_inputs`. Ver [Pulsador](docs/funciones/componentes.md#pulsador).
 
 ### Cambiado
 

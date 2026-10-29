@@ -93,6 +93,8 @@ public final class OpenDocument implements AutoCloseable {
      * yet. Cleared from the simulation thread.
      */
     private final Map<ElementId, Value> unpublishedValues = new ConcurrentHashMap<>();
+    /** The push buttons pressed and not yet let go, by any pane or window of this document. */
+    private final Set<ElementId> heldButtons = new LinkedHashSet<>();
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
@@ -525,13 +527,37 @@ public final class OpenDocument implements AutoCloseable {
         simulation.setInputs(Map.of(componentId.value(), value));
     }
 
+    /**
+     * Push button {@code componentId} is held down: the simulation thread makes it drive 1. Not an edit (no undo step,
+     * not modified, the file keeps no value for it) and never applied from here. Every press is let go by
+     * {@link #releaseButton}, and by {@link #releaseButtons} when the simulation stops.
+     */
+    public void pressButton(ElementId componentId) {
+        heldButtons.add(componentId);
+        simulation.pressButton(componentId.value());
+    }
+
+    /** Push button {@code componentId} is let go: it drives 0 again. Nothing happens for one that is not held. */
+    public void releaseButton(ElementId componentId) {
+        if (heldButtons.remove(componentId)) {
+            simulation.releaseButton(componentId.value());
+        }
+    }
+
+    /** Lets go every push button still held (the simulation pauses or restarts), so none stays stuck at 1. */
+    public void releaseButtons() {
+        List.copyOf(heldButtons).forEach(this::releaseButton);
+    }
+
     /** Iniciar: runs the simulation and leaves «Paso a paso» (M6.1-B). */
     public void resume() {
         setStepMode(false);
         simulation.resume();
     }
 
+    /** Pausar: a push button held now is let go first, so the paused circuit does not keep it pressed. */
     public void pause() {
+        releaseButtons();
         simulation.pause();
     }
 
@@ -616,6 +642,7 @@ public final class OpenDocument implements AutoCloseable {
         }
         stepMode = enabled;
         if (enabled) {
+            releaseButtons();
             simulation.pause();
         }
         stepModeListeners.fire(Runnable::run);
@@ -655,9 +682,10 @@ public final class OpenDocument implements AutoCloseable {
     /**
      * «Reiniciar» (M6.1-B): the simulation starts again at time 0 — flip-flops at Q = 0, clocks from their start,
      * waveforms cleared — with every switch where it is now. Not a document change (no undo step, not "modified");
-     * running or paused and the step mode stay as they were.
+     * running or paused and the step mode stay as they were. A push button held now is let go first.
      */
     public void restart() {
+        releaseButtons();
         try {
             simulation.restart(flattener.flatten(document, netlist), updateProbeNets());
         } catch (RuntimeException exception) {
@@ -714,6 +742,7 @@ public final class OpenDocument implements AutoCloseable {
      * as for the user, pauses the simulation with the failure).
      */
     public CompletableFuture<RequestReport> restartWithin(long eventBudget) {
+        releaseButtons();
         try {
             return simulation.restartWithin(flattener.flatten(document, netlist), updateProbeNets(), eventBudget);
         } catch (RuntimeException exception) {

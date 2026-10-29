@@ -45,7 +45,7 @@ import java.util.function.Function;
 final class SimulationHostSupport {
 
     private static final Set<String> INPUT_TYPES = Set.of(StandardComponentTypes.SWITCH,
-            StandardComponentTypes.INPUT_PIN);
+            StandardComponentTypes.PUSH_BUTTON, StandardComponentTypes.INPUT_PIN);
 
     /** A request handed to the simulation thread, with what the receipt needs to be written. */
     private record Started(CompletableFuture<RequestReport> report, int eventBudget, List<InputValue> asked,
@@ -192,7 +192,7 @@ final class SimulationHostSupport {
             }
             if (!INPUT_TYPES.contains(component.get().typeId())) {
                 problems.add(problem(value, value.elementId() + " (" + component.get().typeId()
-                        + ") is not a switch or an input pin"));
+                        + ") is not a switch, a push button or an input pin"));
                 continue;
             }
             int width = typeOf(document, component.get()).pin(0).width();

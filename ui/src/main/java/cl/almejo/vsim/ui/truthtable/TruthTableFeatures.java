@@ -50,7 +50,7 @@ public final class TruthTableFeatures {
     public static final int PROGRESS_DELAY_MILLISECONDS = 300;
 
     private static final Set<String> INPUT_TYPES = Set.of(StandardComponentTypes.SWITCH,
-            StandardComponentTypes.INPUT_PIN);
+            StandardComponentTypes.PUSH_BUTTON, StandardComponentTypes.INPUT_PIN);
     private static final Set<String> OUTPUT_TYPES = Set.of(StandardComponentTypes.LED,
             StandardComponentTypes.OUTPUT_PIN);
 
@@ -340,7 +340,7 @@ public final class TruthTableFeatures {
             for (int column = 0; column < table.inputs().size(); column++) {
                 ElementId id = new ElementId(table.inputs().get(column).componentId());
                 boolean isSwitch = document.component(id)
-                        .map(component -> component.typeId().equals(StandardComponentTypes.SWITCH))
+                        .map(component -> StandardComponentTypes.isSwitchOrPushButton(component.typeId()))
                         .orElse(false);
                 if (!isSwitch) {
                     return;

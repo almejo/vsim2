@@ -68,7 +68,7 @@ public sealed interface Preparation permits Preparation.Ready, Preparation.Refus
                 PinRef live = liveInputPins.get(index);
                 boolean liveSwitch = live.pinIndex() == 0 && live.componentId().equals(id)
                         && evaluated.component(id)
-                        .map(component -> component.typeId().equals(StandardComponentTypes.SWITCH))
+                        .map(component -> StandardComponentTypes.isSwitchOrPushButton(component.typeId()))
                         .orElse(false);
                 if (!liveSwitch) {
                     return false;

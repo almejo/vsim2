@@ -98,10 +98,14 @@ class PalettePanelTest {
     }
 
     @Test
-    void theConstantSitsRightAfterTheSwitchInInputOutput() {
+    void thePushButtonAndThenTheConstantSitRightAfterTheSwitchInInputOutput() {
         List<String> ids = palette.visibleTypeIds();
-        assertThat(ids.indexOf(StandardComponentTypes.CONSTANT))
+        assertThat(ids.indexOf(StandardComponentTypes.PUSH_BUTTON))
                 .isEqualTo(ids.indexOf(StandardComponentTypes.SWITCH) + 1);
+        assertThat(ids.indexOf(StandardComponentTypes.CONSTANT))
+                .isEqualTo(ids.indexOf(StandardComponentTypes.PUSH_BUTTON) + 1);
+        assertThat(Messages.componentName(registry.require(StandardComponentTypes.PUSH_BUTTON)))
+                .isEqualTo("Pulsador");
         assertThat(Messages.componentName(registry.require(StandardComponentTypes.CONSTANT)))
                 .isEqualTo("Constante");
     }

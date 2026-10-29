@@ -39,6 +39,7 @@ public final class PainterRegistry {
         }
         registry.register(StandardComponentTypes.CLOCK, new ClockPainter());
         registry.register(StandardComponentTypes.SWITCH, new SwitchPainter());
+        registry.register(StandardComponentTypes.PUSH_BUTTON, new PushButtonPainter());
         registry.register(StandardComponentTypes.CONSTANT, new ConstantPainter());
         registry.register(StandardComponentTypes.LED, new LedPainter());
         SevenSegmentsPainter display = new SevenSegmentsPainter();

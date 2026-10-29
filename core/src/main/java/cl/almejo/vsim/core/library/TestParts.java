@@ -22,7 +22,10 @@ import java.util.Set;
  */
 public final class TestParts {
 
-    /** What a test part is; the first three become input pins when checked, the others output pins. */
+    /**
+     * What a test part is; the first three become input pins when checked, the others output pins. A push button is a
+     * {@link #SWITCH} here: it becomes an input pin, or a constant of its value when left unchecked.
+     */
     public enum Kind {
         SWITCH, CONSTANT, CLOCK, LED, SEVEN_SEGMENTS_DISPLAY, TIME_DIAGRAM;
 
@@ -53,6 +56,7 @@ public final class TestParts {
 
     private static final Map<String, Kind> KINDS = Map.of(
             StandardComponentTypes.SWITCH, Kind.SWITCH,
+            StandardComponentTypes.PUSH_BUTTON, Kind.SWITCH,
             StandardComponentTypes.CONSTANT, Kind.CONSTANT,
             StandardComponentTypes.CLOCK, Kind.CLOCK,
             StandardComponentTypes.LED, Kind.LED,

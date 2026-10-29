@@ -40,7 +40,7 @@ import java.util.function.IntFunction;
 public final class TruthTableScope {
 
     private static final Set<String> INPUT_TYPES = Set.of(StandardComponentTypes.SWITCH,
-            StandardComponentTypes.INPUT_PIN);
+            StandardComponentTypes.PUSH_BUTTON, StandardComponentTypes.INPUT_PIN);
     private static final Set<String> OUTPUT_TYPES = Set.of(StandardComponentTypes.LED,
             StandardComponentTypes.OUTPUT_PIN);
     private static final Set<String> SEQUENTIAL_TYPES = Set.of(StandardComponentTypes.FLIP_FLOP_DATA,
