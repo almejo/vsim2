@@ -1,6 +1,6 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.4",
+  "savedWith" : "0.5",
   "formatVersion" : 5,
   "kind" : "circuit",
   "name" : "Sumador de 4 bits",

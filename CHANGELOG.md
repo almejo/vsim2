@@ -6,7 +6,7 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
-## Sin publicar — Componentes para clases
+## Versión 0.5 — 2026-10-28
 
 ### Agregado
 
@@ -61,56 +61,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   mientras el control vale 1 y Z si no.
 - Flip-flops JK, T y SR en Secuenciales, del tamaño del flip-flop D, con Q y Q̅, en el flanco de bajada y partiendo en
   Q = 0. El SR con S = R = 1 muestra el estado prohibido: Q y Q̅ en 0 hasta un flanco con S distinto de R.
-
-### Cambiado
-
-- La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
-  Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
-  componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
-  no cambian.
-- El multiplexor ofrece 8 entradas además de 2 y 4; D0, D1, Y y los circuitos de antes no cambian.
-- El Buffer triestado tiene «Ancho (bits)» (1 por omisión) y «Negar salida»; los triestado de antes se abren y
-  funcionan igual.
-- El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
-  uno (antes solo los bloques, los pines, los túneles y la memoria).
-- El flip-flop D tiene también Q̅, debajo de Q, y el parámetro «Mostrar Q̅» para ocultarlo. Los flip-flops D de los
-  circuitos de antes se abren con Q̅ oculto, con sus tres pines de siempre, así que un cable que baja derecho desde Q
-  no queda unido a Q̅ y el circuito simula igual.
-- El registro es más delgado (12 × 4 en vez de 12 × 7): «REG» chico en la esquina y el valor grande al medio; en
-  binario los dígitos van en grupos de 4 y, con más de 16 bits, en dos líneas (el registro mide 12 × 5). Los
-  circuitos guardados antes se abren conectados: VSim agrega un tramo corto de cable desde cada pin de abajo hasta
-  donde estaba. El contador no cambia.
-- Un clic en un interruptor (o en un bit de uno de varios bits) ahora cambia su «Valor»: Propiedades muestra el valor
-  nuevo al instante, el archivo queda modificado, al guardar se escribe ese valor y cambiar otra propiedad ya no lo
-  devuelve al valor guardado. Se deshace con Ctrl+Z, que también lo devuelve en la simulación; varios clics seguidos
-  en el mismo interruptor son un solo paso. Los valores que pone la IA al probar el circuito siguen siendo solo de la
-  simulación: no cambian «Valor», el archivo ni la historia de deshacer.
-
-### Arreglado
-
-- La fila de muestras de color (el LED, las entradas de túnel, los marcos y las notas) ya no corta las últimas muestras en
-  un panel Propiedades angosto: se parte en las líneas que hagan falta, alineadas a la izquierda, sin desplazarse de lado.
-- Un clic en un interruptor ya no vuelve a armar el circuito: los cables y las etiquetas de bus no pierden su color por
-  un instante, la pestaña Problemas no se vacía un momento y en un circuito grande el clic sigue siendo inmediato.
-- Un clic justo después de deshacer otro clic parte del valor que dejó el deshacer, no del que se acababa de deshacer.
-- Un clic que deja el interruptor en el valor que ya tenía guardado (la tabla de verdad o la IA lo habían cambiado solo
-  en la simulación) ya no deja un paso de deshacer vacío ni marca el archivo como modificado.
-- En «Paso a paso», deshacer o rehacer un clic en un interruptor hace brillar los cables que cambian, como el clic.
-- «Deshacer lo que hizo la IA» y «Deshacer etapa» ya no se detienen en tus clics en interruptores que quedaron encima
-  de los pasos de la IA (te culpaban de un cambio que solo movía entradas): los deshacen también y el aviso lo dice.
-- Un paso de la IA que espera «Siguiente» ya no falla si mientras tanto haces clic en un interruptor que ese paso
-  cambia: se aplica sobre el valor que le diste.
-- Escribir en «Ancho (bits)» de un interruptor un número mayor que 32 (un 70 camino a 7) ya no da un error interno: el
-  bloque de lecturas bajo «Valor» se oculta hasta que el ancho es posible.
-- Cambiar «Números» de un interruptor ya no lo reinicia (perdía el valor de una fila de la tabla de verdad probada en el
-  circuito), y volver a «Sin signo» con un decimal negativo ya no queda bloqueado: el valor se reescribe como su patrón
-  de bits sin signo (en 8 bits, `-1` pasa a `255`).
-- La fila de muestras de color ya no pide acomodarse una y otra vez mientras todavía no tiene ancho.
-
-## Sin publicar — Compuertas parametrizables
-
-### Agregado
-
 - Las compuertas AND, OR y XOR tienen «Entradas» (de 2 a 8) y «Ancho (bits)» (de 1 a 32) en Propiedades: un AND de 6
   entradas de 8 bits hace el AND bit a bit de 6 buses. Con 6 a 8 entradas la compuerta es más alta y la salida
   sigue al medio.
@@ -125,23 +75,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Para la IA, una compuerta se coloca con sus parámetros (`inputs`, `width`, `negate`) y `vsim_describe_component` lista los pines según «Entradas»; el ejemplo de la herramienta de edición usa `and` con `negate`. También acepta `nand`, `nor`, `xnor` y `not` como tipo (ponen la compuerta con «Negar salida»), y un id de antes, como `nand2`, da un error que dice con qué reemplazarlo; el resumen del circuito cuenta una NAND como `nand` y no como `and`.
 - Las herramientas de prueba con variable de entorno (`VSIM_MIGRATE_PATHS`, `VSIM_WRITE_SHOWCASE`, `VSIM_WRITE_BUNDLED`) ya no quedan «UP-TO-DATE» en Gradle cuando la variable está puesta.
 - Para desarrolladores: `VSIM_MIGRATE_PATHS` reescribe tus archivos al formato 4 (ver «Para desarrolladores»). Los ejemplos y fixtures del repositorio ya están en el formato 4.
-
-### Cambiado
-
-- Al cambiar un parámetro que mueve pines (las «Entradas» de una compuerta, las de un multiplexor), las sondas de esos pines pasan al pin con el mismo nombre y se quitan si ya no existe; deshacer las devuelve.
-- Hay un solo tipo por compuerta (AND, OR, XOR y Buffer) en vez de uno por cada número de entradas. Los circuitos,
-  componentes, librerías y lo copiado antes se abren igual, con los pines en el mismo lugar; al guardarlos se
-  escriben con el formato nuevo (versión 4), que las versiones anteriores de VSim 2 no abren.
-- La paleta tiene una entrada por compuerta: AND, OR, XOR, NAND, NOR, XNOR, Buffer y NOT, en vez de una por cada
-  número de entradas. NAND, NOR, XNOR y NOT colocan la compuerta con «Negar salida» marcada, también al arrastrarlas,
-  desde la inserción rápida, «Favoritos» y «Recientes»; los favoritos de antes aparecen con la entrada nueva.
-- El nombre de una compuerta sigue a «Negar salida» en Propiedades, el árbol de componentes y la búsqueda: un AND
-  negado se llama NAND y un Buffer negado, NOT.
-
-## Sin publicar — Memoria (RAM y ROM)
-
-### Agregado
-
 - Dos piezas nuevas en la paleta, en la categoría «Memoria»: **RAM** y **ROM**, de 2 a 16M palabras de 1 a 64 bits, con
   pines `A`, `D`, `Q`, `WE`, `CS` y reloj. Lectura combinacional, escritura en el flanco de bajada del reloj (o «Sin
   reloj»), conexión por bus o con pines sueltos, «Un solo bus D», nombre y retardo. Cambiar el tamaño nunca corta el
@@ -208,11 +141,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   RAM de 16 palabras: la pasada 0 deja 00 en todas, la 1 deja 01 y así hasta FF, y vuelve a 00).
 - Al cambiar la base del editor de contenido (Hex, Dec, Bin), las columnas se ajustan al ancho de las palabras en esa
   base; si la fila no cabe, la grilla se desplaza hacia el lado en vez de cortar los valores con «…».
-
-## Sin publicar — Notas adhesivas
-
-### Agregado
-
 - Notas adhesivas: recordatorios tuyos pegados sobre el circuito como un papel (amarillo, rosa, azul, verde o naranja,
   con la esquina doblada y sombra), de texto libre o con una lista de tareas que se marcan con un clic. Se pegan con la
   herramienta «Nota adhesiva» (justo después de «Marco»): un clic deja una nota de 8 × 6 cuadros, arrastrar le da otro
@@ -231,6 +159,60 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   (y la despliega, salvo dentro de un marco cerrado).
 - La IA (MCP) lee tus notas adhesivas, pega notas de texto o de tareas, marca tareas y cambia su texto; no toca las
   tuyas si no se lo pides, y las deja fuera de sus exportaciones salvo que pida incluirlas.
+
+### Cambiado
+
+- La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
+  Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
+  componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
+  no cambian.
+- El multiplexor ofrece 8 entradas además de 2 y 4; D0, D1, Y y los circuitos de antes no cambian.
+- El Buffer triestado tiene «Ancho (bits)» (1 por omisión) y «Negar salida»; los triestado de antes se abren y
+  funcionan igual.
+- El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
+  uno (antes solo los bloques, los pines, los túneles y la memoria).
+- El flip-flop D tiene también Q̅, debajo de Q, y el parámetro «Mostrar Q̅» para ocultarlo. Los flip-flops D de los
+  circuitos de antes se abren con Q̅ oculto, con sus tres pines de siempre, así que un cable que baja derecho desde Q
+  no queda unido a Q̅ y el circuito simula igual.
+- El registro es más delgado (12 × 4 en vez de 12 × 7): «REG» chico en la esquina y el valor grande al medio; en
+  binario los dígitos van en grupos de 4 y, con más de 16 bits, en dos líneas (el registro mide 12 × 5). Los
+  circuitos guardados antes se abren conectados: VSim agrega un tramo corto de cable desde cada pin de abajo hasta
+  donde estaba. El contador no cambia.
+- Un clic en un interruptor (o en un bit de uno de varios bits) ahora cambia su «Valor»: Propiedades muestra el valor
+  nuevo al instante, el archivo queda modificado, al guardar se escribe ese valor y cambiar otra propiedad ya no lo
+  devuelve al valor guardado. Se deshace con Ctrl+Z, que también lo devuelve en la simulación; varios clics seguidos
+  en el mismo interruptor son un solo paso. Los valores que pone la IA al probar el circuito siguen siendo solo de la
+  simulación: no cambian «Valor», el archivo ni la historia de deshacer.
+- Al cambiar un parámetro que mueve pines (las «Entradas» de una compuerta, las de un multiplexor), las sondas de esos pines pasan al pin con el mismo nombre y se quitan si ya no existe; deshacer las devuelve.
+- Hay un solo tipo por compuerta (AND, OR, XOR y Buffer) en vez de uno por cada número de entradas. Los circuitos,
+  componentes, librerías y lo copiado antes se abren igual, con los pines en el mismo lugar; al guardarlos se
+  escriben con el formato nuevo (versión 4), que las versiones anteriores de VSim 2 no abren.
+- La paleta tiene una entrada por compuerta: AND, OR, XOR, NAND, NOR, XNOR, Buffer y NOT, en vez de una por cada
+  número de entradas. NAND, NOR, XNOR y NOT colocan la compuerta con «Negar salida» marcada, también al arrastrarlas,
+  desde la inserción rápida, «Favoritos» y «Recientes»; los favoritos de antes aparecen con la entrada nueva.
+- El nombre de una compuerta sigue a «Negar salida» en Propiedades, el árbol de componentes y la búsqueda: un AND
+  negado se llama NAND y un Buffer negado, NOT.
+
+### Arreglado
+
+- La fila de muestras de color (el LED, las entradas de túnel, los marcos y las notas) ya no corta las últimas muestras en
+  un panel Propiedades angosto: se parte en las líneas que hagan falta, alineadas a la izquierda, sin desplazarse de lado.
+- Un clic en un interruptor ya no vuelve a armar el circuito: los cables y las etiquetas de bus no pierden su color por
+  un instante, la pestaña Problemas no se vacía un momento y en un circuito grande el clic sigue siendo inmediato.
+- Un clic justo después de deshacer otro clic parte del valor que dejó el deshacer, no del que se acababa de deshacer.
+- Un clic que deja el interruptor en el valor que ya tenía guardado (la tabla de verdad o la IA lo habían cambiado solo
+  en la simulación) ya no deja un paso de deshacer vacío ni marca el archivo como modificado.
+- En «Paso a paso», deshacer o rehacer un clic en un interruptor hace brillar los cables que cambian, como el clic.
+- «Deshacer lo que hizo la IA» y «Deshacer etapa» ya no se detienen en tus clics en interruptores que quedaron encima
+  de los pasos de la IA (te culpaban de un cambio que solo movía entradas): los deshacen también y el aviso lo dice.
+- Un paso de la IA que espera «Siguiente» ya no falla si mientras tanto haces clic en un interruptor que ese paso
+  cambia: se aplica sobre el valor que le diste.
+- Escribir en «Ancho (bits)» de un interruptor un número mayor que 32 (un 70 camino a 7) ya no da un error interno: el
+  bloque de lecturas bajo «Valor» se oculta hasta que el ancho es posible.
+- Cambiar «Números» de un interruptor ya no lo reinicia (perdía el valor de una fila de la tabla de verdad probada en el
+  circuito), y volver a «Sin signo» con un decimal negativo ya no queda bloqueado: el valor se reescribe como su patrón
+  de bits sin signo (en 8 bits, `-1` pasa a `255`).
+- La fila de muestras de color ya no pide acomodarse una y otra vez mientras todavía no tiene ancho.
 
 ## Versión 0.4 — 2026-10-26
 
