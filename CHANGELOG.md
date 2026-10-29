@@ -6,6 +6,18 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar
+
+### Agregado
+
+- Ver ▸ «Valores de los buses» (y un botón en la barra de herramientas) oculta el valor escrito sobre cada bus; las
+  imágenes y el PDF siguen al lienzo. El globo, el árbol y las formas de onda conservan el valor. Se recuerda, no tiene
+  tecla por omisión y la IA puede cambiarlo durante una tarea.
+
+### Arreglado
+
+- La documentación de los buses dice que el globo muestra también el valor en binario.
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado

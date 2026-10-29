@@ -50,6 +50,13 @@ class PrintInputTest {
         return PrintInput.capture(openDocument, selection, ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
     }
 
+    @Test
+    void theCaptureCarriesWhetherTheBusValuesAreShown() {
+        assertThat(capture(Set.of()).showBusValues()).isTrue();
+        assertThat(PrintInput.capture(openDocument, Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK, false)
+                .showBusValues()).isFalse();
+    }
+
     private Frame addFrame(int x, int y, int width, int height, String title) {
         Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(x, y), width, height, title,
                 FrameTint.BLUE, false);

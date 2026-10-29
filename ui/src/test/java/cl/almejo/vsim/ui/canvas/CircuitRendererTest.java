@@ -497,6 +497,41 @@ class CircuitRendererTest {
     }
 
     @Test
+    void aBusPaintsNoValueWhenThePolicyHidesTheBusValues() {
+        document.add(wire);
+        splitterAt(5, 1);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        String busNet = netlist.netForWire(wire.id()).orElseThrow().id().value();
+        SimulationSnapshot current = snapshot(document.revision(), Map.of(busNet, Value.of(4, 0x5)), List.of());
+
+        BufferedImage shown = renderUnder(PaintPolicy.CANVAS, current, netlist);
+        BufferedImage hidden = renderUnder(PaintPolicy.CANVAS.withBusValues(false), current, netlist);
+
+        // only the label differs: above the wire (its row is y = 8), never on or below it
+        int differing = 0;
+        for (int y = 0; y < shown.getHeight(); y++) {
+            for (int x = 0; x < shown.getWidth(); x++) {
+                if (shown.getRGB(x, y) != hidden.getRGB(x, y)) {
+                    differing++;
+                    assertThat(y).as("row of a changed pixel").isLessThan(8);
+                }
+            }
+        }
+        assertThat(differing).isGreaterThan(5);
+    }
+
+    private BufferedImage renderUnder(PaintPolicy policy, SimulationSnapshot snapshot, Netlist netlist) {
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        renderer.paint(graphics, new RenderState(document, netlist, document.revision(), snapshot, Set.of(), 0,
+                RenderState.NO_PROBLEM_GLOW, Set.of(), policy));
+        graphics.dispose();
+        return image;
+    }
+
+    @Test
     void busJunctionsAreBigger() {
         // a T at (5, 1): screen (40, 8); pixel (40, 4) is inside a 5 px dot but outside a 3.5 px one and the wire
         Wire through = new Wire(document.newWireId(), new GridPoint(1, 1), new GridPoint(9, 1));

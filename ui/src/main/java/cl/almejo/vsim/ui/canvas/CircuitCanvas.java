@@ -143,6 +143,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private CrossPaneContext pointerPaneContext;
     private Tool tool = defaultTool;
     private GridStyle gridStyle = GridStyle.DOTS;
+    private boolean paintBusValues = true;
     private int gridLineSpacing = AppPreferences.DEFAULT_GRID_LINE_SPACING;
     private Snapper snapper = Snapper.none();
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
@@ -1105,6 +1106,18 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
     }
 
+    /** Whether the value is written above each bus (Ver ▸ «Valores de los buses»); yes until the extension says. */
+    public boolean paintBusValues() {
+        return paintBusValues;
+    }
+
+    public void setPaintBusValues(boolean paint) {
+        if (paint != paintBusValues) {
+            paintBusValues = paint;
+            repaint();
+        }
+    }
+
     /** The units between the grid lines (Ver ▸ Cuadrícula ▸ Separación); 2 until the grid extension says otherwise. */
     public int gridLineSpacing() {
         return gridLineSpacing;
@@ -1317,7 +1330,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             List<CircuitCanvas> sharing = panesSharingAGesture();
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
-                    problemPulse.phase(), hiddenWires(sharing));
+                    problemPulse.phase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues));
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);

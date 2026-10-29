@@ -83,6 +83,15 @@ public final class AppPreferences {
         putFlag(SHOW_GUIDES, show);
     }
 
+    /** «Valores de los buses»: the value written above each bus (canvas and exports); on by default. */
+    public boolean showBusValues() {
+        return flag(SHOW_BUS_VALUES, true);
+    }
+
+    public void setShowBusValues(boolean show) {
+        putFlag(SHOW_BUS_VALUES, show);
+    }
+
     /** «Cuadrícula ▸»: dots unless the user chose otherwise (or the stored value is unreadable). */
     public GridStyle gridStyle() {
         return enumValue(GRID_STYLE, GridStyle.class, GridStyle.DOTS);
@@ -148,6 +157,7 @@ public final class AppPreferences {
     static final String SNAP_TO_GUIDES = "snap.guides";
     static final String SNAP_TO_GRID_LINES = "snap.gridLines";
     static final String SHOW_GUIDES = "guides.show";
+    static final String SHOW_BUS_VALUES = "view.busValues";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
     static final String GRID_LINE_SPACING = "grid.lineSpacing";

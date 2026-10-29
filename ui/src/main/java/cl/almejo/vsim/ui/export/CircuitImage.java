@@ -44,10 +44,19 @@ public final class CircuitImage {
     private final PainterRegistry painters;
     private final ColorScheme scheme;
     private final Bounds gridBounds;
+    /** Whether {@link #paint(Graphics2D, double)} writes the value above each bus (Ver ▸ «Valores de los buses»). */
+    private final boolean busValues;
 
     private CircuitImage(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
                          ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
                          Bounds gridBounds) {
+        this(document, netlist, netlistToken, snapshot, registry, painters, scheme, gridBounds, true);
+    }
+
+    private CircuitImage(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
+                         ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
+                         Bounds gridBounds, boolean busValues) {
+        this.busValues = busValues;
         this.document = document;
         this.netlist = netlist;
         this.netlistToken = netlistToken;
@@ -138,7 +147,16 @@ public final class CircuitImage {
         CircuitDocument copy = filtered(document, ids);
         long copyToken = copyToken(copy, document, netlistToken);
         return new CircuitImage(copy, netlist, copyToken, copySnapshot(snapshot, copyToken, netlistToken), registry,
-                painters, scheme, gridBounds);
+                painters, scheme, gridBounds, busValues);
+    }
+
+    /**
+     * This image with the value above each bus painted or left out by {@link #paint(Graphics2D, double)} (the exports
+     * follow the canvas: with «Valores de los buses» off they leave the values out too).
+     */
+    public CircuitImage withBusValues(boolean paint) {
+        return new CircuitImage(document, netlist, netlistToken, snapshot, registry, painters, scheme, gridBounds,
+                paint);
     }
 
     private static Bounds withMargin(Bounds circuitBounds) {
@@ -212,7 +230,7 @@ public final class CircuitImage {
      * problem wires is canvas chrome and is not painted (the problem wires keep their own color and thickness).
      */
     public void paint(Graphics2D graphics, double scale) {
-        paint(graphics, scale, PaintPolicy.IMAGE);
+        paint(graphics, scale, PaintPolicy.IMAGE.withBusValues(busValues));
     }
 
     /**

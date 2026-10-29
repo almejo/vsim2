@@ -22,6 +22,7 @@ public final class PreferenceLayer {
         SNAP_TO_GUIDES(AppPreferences.SNAP_TO_GUIDES),
         SNAP_TO_GRID_LINES(AppPreferences.SNAP_TO_GRID_LINES),
         SHOW_GUIDES(AppPreferences.SHOW_GUIDES),
+        SHOW_BUS_VALUES(AppPreferences.SHOW_BUS_VALUES),
         GRID_STYLE(AppPreferences.GRID_STYLE),
         GRID_LINE_SPACING(AppPreferences.GRID_LINE_SPACING),
         WIRES_FOLLOW(AppPreferences.WIRES_FOLLOW),
