@@ -40,6 +40,7 @@ import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
 import cl.almejo.vsim.ui.snap.SnapExtension;
 import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
+import cl.almejo.vsim.ui.wiring.BusPinMenuExtension;
 import cl.almejo.vsim.ui.wiring.TidyWiresExtension;
 import cl.almejo.vsim.ui.wiring.WiresFollowExtension;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -240,6 +241,7 @@ public final class Application {
         // the «Mapa de memoria» tab after «Notas»: a click on a cell opens the content editor there
         editorExtensions.add(new MemoryMapExtension(view -> MemoryMapActions.of(view, memoryLauncher)));
         editorExtensions.add(new WiresFollowExtension());
+        editorExtensions.add(new BusPinMenuExtension());
         editorExtensions.add(new GridExtension());
         editorExtensions.add(new SnapExtension());
         editorExtensions.add(new GuidesExtension());
