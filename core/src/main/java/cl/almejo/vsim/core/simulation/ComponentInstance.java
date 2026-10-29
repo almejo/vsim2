@@ -100,27 +100,57 @@ final class ComponentInstance implements BehaviorContext {
             return;
         }
         pin.pendingDrives++;
-        engine.scheduler().schedule(delay, this, () -> {
-            if (removed) {
-                return;
-            }
-            pin.pendingDrives--;
-            pin.driven = value;
-            engine.netChanged(pin.net);
-        });
+        engine.scheduler().schedule(delay, new DriveEvent(this, pin, value));
     }
 
     @Override
     public void schedule(long delay, Runnable action) {
-        engine.scheduler().schedule(delay, this, () -> {
-            if (!removed) {
-                action.run();
-            }
-        });
+        engine.scheduler().schedule(delay, new BehaviorEvent(this, action));
     }
 
     @Override
     public long now() {
         return engine.now();
+    }
+
+    /** The event of a {@link #drive}: the pin takes the value and its net is resolved. It carries its data itself. */
+    private static final class DriveEvent extends Scheduler.Event {
+
+        private final PinState pin;
+        private final Value value;
+
+        DriveEvent(ComponentInstance instance, PinState pin, Value value) {
+            super(instance);
+            this.pin = pin;
+            this.value = value;
+        }
+
+        @Override
+        void run() {
+            if (owner.removed) {
+                return;
+            }
+            pin.pendingDrives--;
+            pin.driven = value;
+            owner.engine.netChanged(pin.net);
+        }
+    }
+
+    /** The event of a behavior's {@link #schedule}: it does nothing once the component is removed. */
+    private static final class BehaviorEvent extends Scheduler.Event {
+
+        private final Runnable action;
+
+        BehaviorEvent(ComponentInstance instance, Runnable action) {
+            super(instance);
+            this.action = action;
+        }
+
+        @Override
+        void run() {
+            if (!owner.removed) {
+                action.run();
+            }
+        }
     }
 }
