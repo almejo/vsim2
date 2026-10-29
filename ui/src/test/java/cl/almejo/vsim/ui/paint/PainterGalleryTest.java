@@ -34,10 +34,14 @@ class PainterGalleryTest {
     private static final int PADDING = 10;
     /** Painters may draw this far outside their bounds (leads, shadows, glows); see PaintersTest. */
     private static final int MARGIN = 8;
+    private static final Map<String, Object> GALLERY_TERMINAL = Map.of("rows", 4, "columns", 20);
 
     /** Types shown, one per row: every standard type (interface pins included) and a user component. */
     static List<ComponentType> galleryTypes() {
         List<ComponentType> types = new ArrayList<>(StandardComponentTypes.registry().all());
+        // the default 24x80 Terminal is 656 px wide: a small one keeps the gallery's image a sane size
+        types.replaceAll(type -> type.id().equals(StandardComponentTypes.TERMINAL)
+                ? type.specializedFor(GALLERY_TERMINAL) : type);
         types.add(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()));
         types.add(SubcircuitTypes.typeOf(ExampleDefinitions.byteBuffer()));
         for (String pinTypeId : List.of(InterfacePins.INPUT_PIN, InterfacePins.OUTPUT_PIN)) {
@@ -79,7 +83,8 @@ class PainterGalleryTest {
                         column * cellWidth + 6, rowTops[row] + 14);
                 Rectangle2D drawingArea = new Rectangle2D.Double(column * cellWidth, rowTops[row] + LABEL_HEIGHT,
                         cellWidth, drawingSide(type));
-                Component component = type.newComponent(new ElementId("c1"), GridPoint.ORIGIN, rotation, Map.of(), "");
+                Component component = type.newComponent(new ElementId("c1"), GridPoint.ORIGIN, rotation,
+                        type.id().equals(StandardComponentTypes.TERMINAL) ? GALLERY_TERMINAL : Map.of(), "");
                 Rectangle2D bounds = ComponentDrawing.documentBounds(type, component);
                 Rectangle2D reach = new Rectangle2D.Double(
                         drawingArea.getCenterX() - (bounds.getWidth() / 2 + MARGIN) * SCALE,

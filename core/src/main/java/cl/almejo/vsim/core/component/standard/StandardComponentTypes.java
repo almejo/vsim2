@@ -62,6 +62,8 @@ public final class StandardComponentTypes {
     public static final String LED = "led";
     public static final String SEVEN_SEGMENTS_DISPLAY = "seven-segments-display";
     public static final String SEVEN_SEGMENTS_DISPLAY_DOUBLE = "seven-segments-display-double";
+    /** «Terminal»: a text screen. */
+    public static final String TERMINAL = "terminal";
     public static final String TIME_DIAGRAM = "time-diagram";
     public static final String INPUT_PIN = InterfacePins.INPUT_PIN;
     public static final String OUTPUT_PIN = InterfacePins.OUTPUT_PIN;
@@ -205,6 +207,7 @@ public final class StandardComponentTypes {
                 parameters -> new LedBehavior()));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY, 4));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY_DOUBLE, 8));
+        TerminalTypes.register(registry);
         List<PinSpec> diagramPins = new ArrayList<>();
         for (int index = 0; index < 4; index++) {
             diagramPins.add(PinSpec.input("in" + index, 0, index * 2));
