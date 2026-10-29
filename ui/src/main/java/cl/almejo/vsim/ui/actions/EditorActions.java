@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
@@ -32,7 +33,6 @@ import javax.swing.JComboBox;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
-import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -103,7 +103,7 @@ public final class EditorActions {
      * tool actions go through {@code toolChoice} to every pane. The window feeds {@link #refreshSimulationButtons}.
      */
     public EditorActions(OpenDocument openDocument, Supplier<CircuitCanvas> activePane, Selection selection,
-                         ToolChoice toolChoice, WindowCommands window) {
+                         ToolChoice toolChoice, WindowCommands window, AboutPresenter aboutPresenter) {
         this.openDocument = openDocument;
         this.activePane = activePane;
         this.selection = selection;
@@ -163,8 +163,7 @@ public final class EditorActions {
                 () -> openDocument.step(stepUnits));
         setStepUnits(stepUnits);
         newView = Actions.of(Messages.text("action.newWindow"), null, window::newView);
-        about = Actions.of(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(activePane.get(),
-                Messages.text("dialog.about.message"), Messages.text("action.about"), JOptionPane.INFORMATION_MESSAGE));
+        about = Actions.of(Messages.text("action.about"), null, () -> aboutPresenter.show(activePane.get()));
 
         openDocument.history().addListener(historyListener);
         selection.addListener(this::refresh);

@@ -130,6 +130,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Atajos de teclado](docs/funciones/interfaz-preferencias-y-sesion.md#atajos-de-teclado) que se pueden cambiar.
 - [Pestaña Componentes](docs/funciones/interfaz-preferencias-y-sesion.md#pestaña-componentes): el árbol del circuito con sus valores.
 - [Preferencias](docs/funciones/interfaz-preferencias-y-sesion.md#preferencias): tema, esquemas de colores (entre ellos «Placa», que dibuja el circuito como una placa de circuito impreso verde con pines dorados) y esquemas propios, idioma, letra y librería.
+- [Acerca de VSim 2…](docs/funciones/interfaz-preferencias-y-sesion.md#acerca-de-vsim-2): versión, licencia, créditos y enlaces, con un botón para copiar la información de tu instalación.
 - [Sesión y recuperación](docs/funciones/interfaz-preferencias-y-sesion.md#sesión-y-recuperación): copias automáticas, recientes y continuar donde quedaste.
 
 ### IA (MCP)

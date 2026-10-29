@@ -6,6 +6,14 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar
+
+### Cambiado
+
+- Ayuda ▸ «Acerca de VSim 2…» muestra el logo, la versión, la licencia, la historia, los créditos y los enlaces del
+  repositorio y las versiones, con un botón «Copiar información» (versión, Java, sistema y apariencia) para los
+  reportes de error. En macOS también se abre desde el menú de la aplicación.
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado
