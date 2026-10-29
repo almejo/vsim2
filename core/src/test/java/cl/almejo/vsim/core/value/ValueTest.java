@@ -176,4 +176,17 @@ class ValueTest {
         assertThat(resolution.isEmpty()).isTrue();
         assertThat(resolution.value()).isEqualTo(Value.highImpedance(2));
     }
+
+    @Test
+    void equalityComparesEveryField() {
+        Value value = new Value(4, 0b0101, 0b1000, false);
+
+        assertThat(value).isEqualTo(new Value(4, 0b0101, 0b1000, false))
+                .hasSameHashCodeAs(new Value(4, 0b0101, 0b1000, false));
+        assertThat(value).isNotEqualTo(new Value(4, 0b0100, 0b1000, false));
+        assertThat(value).isNotEqualTo(new Value(4, 0b0101, 0b0000, false));
+        assertThat(value).isNotEqualTo(new Value(4, 0b0101, 0b1000, true));
+        assertThat(value).isNotEqualTo(new Value(5, 0b0101, 0b1000, false));
+        assertThat(value).isNotEqualTo("Z101");
+    }
 }

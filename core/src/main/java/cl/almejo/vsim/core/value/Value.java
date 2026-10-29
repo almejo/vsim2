@@ -172,6 +172,19 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
         return combine(other, (left, right) -> left ^ right);
     }
 
+    /**
+     * Explicit rather than the record's generated one, which goes through method handles; the shared 1-bit instances
+     * make identity the common case.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof Value that && width == that.width && bits == that.bits
+                && highImpedanceMask == that.highImpedanceMask && conflict == that.conflict;
+    }
+
     public Value not() {
         return canonical(width, ~bits, highImpedanceMask, conflict);
     }

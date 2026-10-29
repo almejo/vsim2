@@ -18,7 +18,9 @@ final class RuntimeNet {
     List<ChannelTrace> recorders = List.of();
     final List<PinState> pins = new ArrayList<>();
     /** The pins of {@link #pins} that can drive the net (outputs and bidirectional pins), in the same order. */
-    private final List<PinState> drivers = new ArrayList<>();
+    final List<PinState> drivers = new ArrayList<>();
+    /** The pins of {@link #pins} that read the net (inputs and bidirectional pins), in the same order. */
+    final List<PinState> inputs = new ArrayList<>();
     private final Value.Resolution stable;
     private final Value.Resolution pending;
     Value value;
@@ -37,6 +39,9 @@ final class RuntimeNet {
         pins.add(pin);
         if (pin.spec.isDriver()) {
             drivers.add(pin);
+        }
+        if (pin.spec.isInput()) {
+            inputs.add(pin);
         }
     }
 

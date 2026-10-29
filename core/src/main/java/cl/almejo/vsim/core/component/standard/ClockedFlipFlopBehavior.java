@@ -19,11 +19,19 @@ abstract sealed class ClockedFlipFlopBehavior implements Behavior
     record Outputs(Value output, Value notOutput) {
 
         static final Outputs POWER_ON = new Outputs(Value.ZERO, Value.ONE);
+        /** Q = 1 and Q̅ = 0. */
+        static final Outputs SET = new Outputs(Value.ONE, Value.ZERO);
         /** Both outputs in Z: an input was undefined at the edge. */
         static final Outputs UNDEFINED = new Outputs(Value.HIGH_IMPEDANCE, Value.HIGH_IMPEDANCE);
 
         /** Q = {@code output} and Q̅ its complement (Z when Q is not a defined bit). */
         static Outputs of(Value output) {
+            if (output.equals(Value.ZERO)) {
+                return POWER_ON;
+            }
+            if (output.equals(Value.ONE)) {
+                return SET;
+            }
             return new Outputs(output, output.isFullyDefined() ? output.not() : Value.HIGH_IMPEDANCE);
         }
     }

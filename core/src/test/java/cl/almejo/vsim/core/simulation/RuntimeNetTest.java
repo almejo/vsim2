@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
@@ -108,5 +110,17 @@ class RuntimeNetTest {
 
         assertThat(net.resolve(0)).isFalse();
         assertThat(net.value).isEqualTo(Value.highImpedance(2));
+    }
+
+    @Test
+    void sortsItsPinsIntoDriversAndInputs() {
+        PinState output = output(1, Value.ONE);
+        PinState input = input(1);
+        PinState both = new PinState(null, 0, new PinSpec("io", new GridPoint(0, 0), PinDirection.BIDIRECTIONAL, 1));
+        RuntimeNet net = net(1, output, input, both);
+
+        assertThat(net.pins).containsExactly(output, input, both);
+        assertThat(net.drivers).containsExactly(output, both);
+        assertThat(net.inputs).containsExactly(input, both);
     }
 }

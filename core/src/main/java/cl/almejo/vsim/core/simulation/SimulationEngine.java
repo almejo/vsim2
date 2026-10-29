@@ -626,8 +626,10 @@ public final class SimulationEngine {
     }
 
     private void deliver(RuntimeNet net) {
-        for (PinState pin : List.copyOf(net.pins)) {
-            if (!pin.spec.isInput() || pin.instance.removed || pin.net != net) {
+        List<PinState> inputs = net.inputs;
+        for (int index = 0; index < inputs.size(); index++) {
+            PinState pin = inputs.get(index);
+            if (pin.instance.removed || pin.net != net) {
                 continue;
             }
             Value seen = net.valueFor(pin);

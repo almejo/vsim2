@@ -247,4 +247,16 @@ class FlipFlopsTest {
         assertThat(harness.output(TWO_INPUT_OUTPUT)).isEqualTo(Value.HIGH_IMPEDANCE);
         assertThat(harness.output(TWO_INPUT_NOT_OUTPUT)).isEqualTo(Value.HIGH_IMPEDANCE);
     }
+
+    @Test
+    void theOutputsOfADefinedBitAreShared() {
+        assertThat(ClockedFlipFlopBehavior.Outputs.of(Value.ZERO)).isSameAs(ClockedFlipFlopBehavior.Outputs.POWER_ON);
+        assertThat(ClockedFlipFlopBehavior.Outputs.of(Value.ONE)).isSameAs(ClockedFlipFlopBehavior.Outputs.SET);
+        assertThat(ClockedFlipFlopBehavior.toggled(ClockedFlipFlopBehavior.Outputs.SET))
+                .isSameAs(ClockedFlipFlopBehavior.Outputs.POWER_ON);
+        assertThat(ClockedFlipFlopBehavior.Outputs.of(Value.HIGH_IMPEDANCE))
+                .isEqualTo(new ClockedFlipFlopBehavior.Outputs(Value.HIGH_IMPEDANCE, Value.HIGH_IMPEDANCE));
+        assertThat(ClockedFlipFlopBehavior.Outputs.of(Value.ONE.withConflict()))
+                .isEqualTo(new ClockedFlipFlopBehavior.Outputs(Value.ONE.withConflict(), Value.HIGH_IMPEDANCE));
+    }
 }
