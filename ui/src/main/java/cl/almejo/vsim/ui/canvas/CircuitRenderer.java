@@ -4,9 +4,11 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -88,11 +90,16 @@ public final class CircuitRenderer {
     /** Gap between a bus and its value, in document pixels. */
     private static final double BUS_LABEL_GAP = 4;
     private static final double OUTLINE_GAP = 3;
+    /** Grid units around a piece that may still show (its pins, rings and outlines) when the piece itself does not. */
+    private static final double PIECE_MARGIN = 1;
+    /** Grid units a component's label may stick out of its bounds. */
+    private static final double LABEL_MARGIN = 30;
     private static final double MINIMUM_DOT_SPACING = 6;
     /** The grid of lines: a stronger line every fifth minor line (engineering paper: every 10 units at 2). */
     private static final int MINOR_LINES_PER_MAJOR = 5;
 
     private final JunctionCache junctionCache = new JunctionCache();
+    private final PlacedTypes placedTypes = new PlacedTypes();
     private final CrossingCache crossingCache = new CrossingCache();
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
@@ -234,22 +241,42 @@ public final class CircuitRenderer {
         ShortCircuitHighlight highlight = highlights.shortCircuits(state);
         WidthMismatchHighlight mismatches = highlights.widthMismatches(state);
 
+        // What the graphics can show, in document pixels: a piece outside it is skipped (null: paint everything).
+        Rectangle2D area = graphics.getClipBounds();
         paintFrames(graphics, state, scheme);
         paintSelectedWireHalos(graphics, state, scheme);
         paintProblemGlow(graphics, state, scheme, highlight, mismatches);
-        paintWires(graphics, state, scheme, highlight, mismatches);
-        paintJunctions(graphics, state, scheme);
-        paintComponents(graphics, state, scheme, highlight);
+        paintWires(graphics, state, scheme, highlight, mismatches, area);
+        paintJunctions(graphics, state, scheme, area);
+        paintComponents(graphics, state, scheme, highlight, area);
 
-        paintComponentLabels(graphics, state, scheme);
-        paintTextLabels(graphics, state, scheme);
+        paintComponentLabels(graphics, state, scheme, area);
+        paintTextLabels(graphics, state, scheme, area);
         if (state.policy().paintBusValues()) {
             paintBusValues(graphics, state, scheme);
         }
         paintDriverPinHalos(graphics, scheme, highlight);
         paintPinWidths(graphics, mismatches, scheme);
-        paintOpenPins(graphics, state, scheme);
-        paintStickyNotes(graphics, state, scheme);
+        paintOpenPins(graphics, state, scheme, area);
+        paintStickyNotes(graphics, state, scheme, area);
+    }
+
+    /** True when {@code bounds} (grid units) grown by {@code margin} units touches {@code area}, or there is none. */
+    private static boolean shows(Rectangle2D area, Bounds bounds, double margin) {
+        return area == null || area.intersects((bounds.x() - margin) * UNIT, (bounds.y() - margin) * UNIT,
+                (bounds.width() + 2 * margin) * UNIT, (bounds.height() + 2 * margin) * UNIT);
+    }
+
+    /** True when a mark of up to one unit around {@code point} touches {@code area}, or there is none. */
+    private static boolean shows(Rectangle2D area, GridPoint point) {
+        return area == null || area.intersects(point.x() * UNIT - UNIT, point.y() * UNIT - UNIT, 2 * UNIT, 2 * UNIT);
+    }
+
+    /** True when {@code box} (document pixels) with its outline gap touches {@code area}, or there is none. */
+    private static boolean shows(Rectangle2D area, Rectangle2D box) {
+        double gap = OUTLINE_GAP + UNIT;
+        return area == null || area.intersects(box.getX() - gap, box.getY() - gap, box.getWidth() + 2 * gap,
+                box.getHeight() + 2 * gap);
     }
 
     /** The HiDPI scale of the screen {@code graphics} paints on, 1 where it has no device configuration. */
@@ -260,13 +287,16 @@ public final class CircuitRenderer {
     }
 
     /** The user's sticky notes, the last pass: paper on top of everything, in document order. */
-    private void paintStickyNotes(Graphics2D graphics, RenderState state, ColorScheme scheme) {
+    private void paintStickyNotes(Graphics2D graphics, RenderState state, ColorScheme scheme, Rectangle2D area) {
         if (!state.policy().paintStickyNotes()) {
             return;
         }
         // logical pixels, like the hit tester's: the device (HiDPI) scale is not part of the zoom the user sees
         double pixelsPerGrid = UNIT * graphics.getTransform().getScaleX() / deviceScale(graphics);
         for (StickyNote note : state.document().stickyNotes()) {
+            if (!shows(area, StickyNoteLayout.paperOf(note))) {
+                continue;
+            }
             StickyNotePainter.paint(graphics, note, scheme, pixelsPerGrid, state.policy());
             if (state.selection().contains(note.id())) {
                 Rectangle2D bounds = StickyNoteLayout.paperOf(note);
@@ -312,7 +342,7 @@ public final class CircuitRenderer {
 
     /** The wires themselves, with a gap where one crosses another. */
     private void paintWires(Graphics2D graphics, RenderState state, ColorScheme scheme,
-                            ShortCircuitHighlight highlight, WidthMismatchHighlight mismatches) {
+                            ShortCircuitHighlight highlight, WidthMismatchHighlight mismatches, Rectangle2D area) {
         // one net lookup and one stroke choice per wire. A gap's width depends on the stroke of each wire crossing it,
         // so when the document has crossings every look is worked out first and kept; without crossings (the common
         // circuit) nothing is kept and no map is made
@@ -324,7 +354,8 @@ public final class CircuitRenderer {
             }
         }
         for (Wire wire : state.document().wires()) {
-            if (state.hiddenWires().contains(wire.id())) {
+            if (state.hiddenWires().contains(wire.id())
+                    || !shows(area, Bounds.of(wire.start(), wire.end()), PIECE_MARGIN)) {
                 continue;
             }
             WireLook look = gaps.isEmpty() ? WireLook.of(wire, state, highlight, mismatches, scheme)
@@ -341,21 +372,26 @@ public final class CircuitRenderer {
     }
 
     /** The dots where wires join. */
-    private void paintJunctions(Graphics2D graphics, RenderState state, ColorScheme scheme) {
+    private void paintJunctions(Graphics2D graphics, RenderState state, ColorScheme scheme, Rectangle2D area) {
         Set<GridPoint> busPoints = highlights.busPoints(state.netlist());
         graphics.setColor(scheme.componentStroke());
         for (GridPoint junction : junctionCache.of(state.document())) {
-            graphics.fill(circle(junction, busPoints.contains(junction) ? BUS_JUNCTION_RADIUS : JUNCTION_RADIUS));
+            if (shows(area, junction)) {
+                graphics.fill(circle(junction, busPoints.contains(junction) ? BUS_JUNCTION_RADIUS : JUNCTION_RADIUS));
+            }
         }
     }
 
     /** Every component, with its conflict and selection outlines. */
     private void paintComponents(Graphics2D graphics, RenderState state, ColorScheme scheme,
-                                 ShortCircuitHighlight highlight) {
+                                 ShortCircuitHighlight highlight, Rectangle2D area) {
         Map<String, Integer> tunnelColors = Tunnels.colorsByName(state.document());
         MemoryNames.Numbering memoryNames = new MemoryNames.Numbering();
         for (Component component : state.document().components()) {
-            ComponentType type = registry.typeOf(component);
+            ComponentType type = placedTypes.typeOf(state.document(), component, registry);
+            if (!shows(area, type.bounds(component), PIECE_MARGIN)) {
+                continue;
+            }
             if (painters.painterFor(type.id()) instanceof TunnelPainter tunnelPainter) {
                 TunnelPainter.Look look = tunnelLook(component, state, tunnelColors, scheme);
                 ComponentDrawing.paintPlaced(graphics, component,
@@ -508,15 +544,18 @@ public final class CircuitRenderer {
      * every pin of a bus splitter or joiner, so a bit left unwired is noticed. Outputs of other components keep their
      * dot. Only with a netlist that matches the document.
      */
-    private void paintOpenPins(Graphics2D graphics, RenderState state, ColorScheme scheme) {
+    private void paintOpenPins(Graphics2D graphics, RenderState state, ColorScheme scheme, Rectangle2D area) {
         if (state.netlistToken() != state.document().structureRevision()) {
             return;
         }
         graphics.setStroke(OPEN_PIN_RING);
         for (Component component : state.document().components()) {
+            ComponentType type = placedTypes.typeOf(state.document(), component, registry);
+            if (!shows(area, type.bounds(component), PIECE_MARGIN)) {
+                continue;
+            }
             boolean busPart = StandardComponentTypes.BUS_SPLITTER.equals(component.typeId())
                     || StandardComponentTypes.BUS_JOINER.equals(component.typeId());
-            ComponentType type = registry.typeOf(component);
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
                 if (!busPart && !type.pin(pinIndex).isInput()) {
                     continue;
@@ -608,13 +647,44 @@ public final class CircuitRenderer {
         ComponentDrawing.paintPlaced(graphics, tunnel, local -> tunnelPainter.paint(local, tunnel, look, scheme));
     }
 
-    private void paintComponentLabels(Graphics2D graphics, RenderState state, ColorScheme scheme) {
+    private void paintComponentLabels(Graphics2D graphics, RenderState state, ColorScheme scheme,
+                                      Rectangle2D area) {
         graphics.setFont(LabelLayout.font());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(scheme.text());
         for (Component component : state.document().components()) {
-            LabelLayout.componentLabel(registry.typeOf(component), component)
+            ComponentType type = placedTypes.typeOf(state.document(), component, registry);
+            if (!shows(area, type.bounds(component), LABEL_MARGIN)) {
+                continue;
+            }
+            LabelLayout.componentLabel(type, component)
                     .ifPresent(placed -> graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY()));
+        }
+    }
+
+    /**
+     * The resolved type of each component of a document, kept while its revision lasts: resolving one specializes
+     * the registered type with the component's parameters, too much to repeat for every piece on every frame of a
+     * big flat circuit. Any change to the document (a click included) starts over, so nothing stale is kept.
+     */
+    private static final class PlacedTypes {
+
+        private CircuitDocument document;
+        private long revision;
+        private final Map<ElementId, ComponentType> types = new HashMap<>();
+
+        ComponentType typeOf(CircuitDocument owner, Component component, ComponentTypeRegistry registry) {
+            if (owner != document || owner.revision() != revision) {
+                types.clear();
+                document = owner;
+                revision = owner.revision();
+            }
+            ComponentType type = types.get(component.id());
+            if (type == null) {
+                type = registry.typeOf(component);
+                types.put(component.id(), type);
+            }
+            return type;
         }
     }
 
@@ -639,8 +709,11 @@ public final class CircuitRenderer {
         PainterSupport.paintTag(graphics, metrics, text, left, baseline, color, scheme.background());
     }
 
-    private void paintTextLabels(Graphics2D graphics, RenderState state, ColorScheme scheme) {
+    private void paintTextLabels(Graphics2D graphics, RenderState state, ColorScheme scheme, Rectangle2D area) {
         for (TextLabel label : state.document().labels()) {
+            if (!shows(area, LabelLayout.noteBox(label))) {
+                continue;
+            }
             NotePainter.paint(graphics, label, scheme, state.policy());
             if (state.selection().contains(label.id())) {
                 Rectangle2D bounds = LabelLayout.noteBox(label);

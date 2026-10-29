@@ -30,6 +30,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,6 +81,35 @@ class CircuitRendererTest {
             }
         }
         return true;
+    }
+
+    @Test
+    void paintsOnlyTheComponentsTheClipCanShow() {
+        PainterRegistry painters = PainterRegistry.standard();
+        List<GridPoint> painted = new ArrayList<>();
+        painters.register(StandardComponentTypes.BUFFER, (graphics, type, parameters, state, scheme) ->
+                painted.add(new GridPoint((int) graphics.getTransform().getTranslateX(),
+                        (int) graphics.getTransform().getTranslateY())));
+        CircuitRenderer counting = new CircuitRenderer(registry, painters, SCHEME);
+        document.add(registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
+                new GridPoint(3, 3), Rotation.R0, Map.of(), ""));
+        document.add(registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
+                new GridPoint(300, 300), Rotation.R0, Map.of(), ""));
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        SimulationSnapshot empty = snapshot(document.revision(), Map.of(), List.of());
+
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D unclipped = image.createGraphics();
+        counting.paint(unclipped, new RenderState(document, netlist, document.revision(), empty, Set.of(), 0));
+        unclipped.dispose();
+        assertThat(painted).as("without a clip everything is painted").hasSize(2);
+
+        painted.clear();
+        Graphics2D clipped = image.createGraphics();
+        clipped.setClip(0, 0, 120, 120);
+        counting.paint(clipped, new RenderState(document, netlist, document.revision(), empty, Set.of(), 0));
+        clipped.dispose();
+        assertThat(painted).as("with a clip only what it can show").hasSize(1);
     }
 
     @Test
