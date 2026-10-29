@@ -64,6 +64,19 @@ class IconsTest {
     }
 
     @Test
+    void everyIconFileIsAWellFormedSvgAndNotEmpty() throws Exception {
+        for (String name : iconNames()) {
+            Path file = DIRECTORY.resolve(name + ".svg");
+            assertThat(Files.size(file)).as(name + " is empty").isPositive();
+            org.w3c.dom.Document document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder().parse(file.toFile());
+            assertThat(document.getDocumentElement().getTagName()).as(name).isEqualTo("svg");
+            assertThat(document.getDocumentElement().getChildNodes().getLength()).as(name + " draws nothing")
+                    .isPositive();
+        }
+    }
+
+    @Test
     void iconsUseOnlyTheColorsTheDarkThemeRecolors() throws IOException {
         for (String name : iconNames()) {
             String svg = Files.readString(DIRECTORY.resolve(name + ".svg"));
