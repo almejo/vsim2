@@ -93,6 +93,7 @@ public final class ShortcutCatalog {
         window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
         window(entries, "view.frameTool", "action.toolFrame", MenuId.VIEW, null);
         window(entries, "view.stickyNoteTool", "action.toolStickyNote", MenuId.VIEW, null);
+        window(entries, "view.textTool", "action.toolText", MenuId.VIEW, null);
         window(entries, "view.panTool", "action.toolPan", MenuId.VIEW, null);
         // a plain letter: a canvas key, so typing «z» in a text field never picks the tool (zoom spec §5.1)
         canvasView(entries, "view.zoomTool", "action.toolZoom", stroke(KeyEvent.VK_Z, 0));
