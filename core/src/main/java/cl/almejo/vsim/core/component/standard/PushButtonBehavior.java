@@ -8,8 +8,8 @@ import cl.almejo.vsim.core.value.Value;
 /**
  * «Pulsador»: drives 0 from the start and 1 only while it is held. The editor presses and releases it through
  * {@link #setValue} (never a click: a click toggles, a press does not), and so do a truth-table row tried in the
- * circuit and the AI's inputs, which leave it at their value until the next press and release or a restart. Its state is a
- * {@link VisibleState.SwitchState}, so the tree, the restart and the readouts treat it as they treat a switch.
+ * circuit and the AI's inputs, which leave it at their value until the next press and release or a restart. Its state
+ * is a {@link VisibleState.SwitchState}, so the tree, the restart and the readouts treat it as they treat a switch.
  */
 final class PushButtonBehavior implements Behavior {
 

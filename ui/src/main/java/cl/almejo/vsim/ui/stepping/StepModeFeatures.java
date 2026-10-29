@@ -35,7 +35,8 @@ import java.util.function.LongSupplier;
  * «Paso a paso» in one editor view (M6.1-B, spec §4): the four Simulación items, the toolbar toggle, «Avanzar»,
  * «Avanzar al próximo flanco de reloj» (half a cycle), «Avanzar un ciclo de reloj» and the status label (right after
  * «Avanzar 10 t», spec §4.4), the glow and pending-outline overlays and the four shortcut registrations. Everything
- * follows the canvas's snapshots: a new {@link StepReport} lights its wires and moves the waveform cursor. {@link #dispose()} takes it all back. EDT only.
+ * follows the canvas's snapshots: a new {@link StepReport} lights its wires and moves the waveform cursor.
+ * {@link #dispose()} takes it all back. EDT only.
  */
 public final class StepModeFeatures {
 

@@ -71,7 +71,7 @@ public final class WiresFollowFeatures {
     private String invertSuffix() {
         AppPreferences.InvertModifier modifier = preferences.invertModifier();
         return modifier == AppPreferences.InvertModifier.NONE ? ""
-                : Messages.format("wiresFollow.tooltip", "", PreferencesForm.invertModifierName(modifier));
+                : Messages.format("wiresFollow.invertSuffix", PreferencesForm.invertModifierName(modifier));
     }
 
     public void dispose() {

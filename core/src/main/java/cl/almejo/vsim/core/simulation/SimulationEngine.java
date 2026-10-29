@@ -165,8 +165,8 @@ public final class SimulationEngine {
     /**
      * «Reiniciar» (M6.1-B): simulates {@code circuit} from scratch at time 0 — every component new (flip-flops at
      * Q = 0, clocks from their start), no event left from before, the waveforms cleared and started again at t = 0 —
-     * except that every switch and input pin (not a push button, which starts released) keeps the value it has now ({@link Behavior#setValue}). The channels are
-     * bound as in {@link #update(FlatCircuit, Map)}. A circuit rejected by validation throws IllegalArgumentException
+     * except that every switch and input pin keeps the value it has now ({@link Behavior#setValue}); a push button
+     * starts released. The channels are bound as in {@link #update(FlatCircuit, Map)}. A circuit rejected by validation throws IllegalArgumentException
      * and leaves the engine untouched; a failure while initializing the components leaves it reset (time 0, switches
      * not restored).
      */

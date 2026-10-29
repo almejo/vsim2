@@ -207,7 +207,8 @@ class SimulationHostSupportTest {
                     assertThat(exception.error()).isEqualTo(AutomationError.INPUT_REJECTED);
                     assertThat((List<?>) exception.recovery().get("inputs")).hasSize(3);
                     assertThat(exception.recovery().get("inputs").toString())
-                            .contains("is not a switch, a push button or an input pin", "does not fit in 1 bit", "no component ghost");
+                            .contains("is not a switch, a push button or an input pin", "does not fit in 1 bit",
+                                    "no component ghost");
                 });
         assertThat(read(adder.id(), "c6", "out")).as("the valid value was not set either").isEqualTo("0");
     }

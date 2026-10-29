@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.actions;
 
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 
 import javax.swing.Action;
@@ -38,7 +39,8 @@ public final class AcceleratorTooltip {
 
     private static String describe(Action action, String text, String suffix) {
         Object key = action.getValue(Action.ACCELERATOR_KEY);
-        String keyText = key instanceof KeyStroke stroke ? " (" + KeyBindings.describe(stroke) + ")" : "";
-        return text + keyText + suffix;
+        String withKey = key instanceof KeyStroke stroke
+                ? Messages.format("tooltip.withKey", text, KeyBindings.describe(stroke)) : text;
+        return withKey + suffix;
     }
 }

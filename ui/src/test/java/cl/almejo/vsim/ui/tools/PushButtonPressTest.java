@@ -116,6 +116,22 @@ class PushButtonPressTest {
     }
 
     @Test
+    void enteringStepModeLetsItGo() {
+        press();
+        expectValue(Value.ONE);
+        context.openDocument().setStepMode(true);
+        expectValue(Value.ZERO);
+    }
+
+    @Test
+    void theAisRestartLetsItGo() {
+        press();
+        expectValue(Value.ONE);
+        context.openDocument().restartWithin(1_000);
+        expectValue(Value.ZERO);
+    }
+
+    @Test
     void aPressIsNoEditAndSelectsNothing() {
         Component other = place(context.openDocument(), StandardComponentTypes.LED, 20, 0, Map.of());
         context.selection().select(other.id());

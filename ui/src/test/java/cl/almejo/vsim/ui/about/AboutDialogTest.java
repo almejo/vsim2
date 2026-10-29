@@ -104,7 +104,8 @@ class AboutDialogTest {
 
     @Test
     void asTextHasTheVersionJavaAndTheSystem() {
-        assertThat(INFORMATION.asText()).contains("9.9").contains("21.0.1").contains("Linux 7").contains("FlatLaf Light");
+        assertThat(INFORMATION.asText()).contains("9.9").contains("21.0.1").contains("Linux 7")
+                .contains("FlatLaf Light");
     }
 
     @Test

@@ -193,7 +193,8 @@ class SimulationThreadStepTest {
         thread.advanceToNextClockEdge(ClockEdgeMode.FALLING);
         thread.tick();
         assertThat(thread.latestStep()).contains(
-                new StepReport(1, new StepResult(0, 5, Set.of("clock"), OptionalLong.of(7), Optional.of(ClockEdge.FALLING))));
+                new StepReport(1, new StepResult(0, 5, Set.of("clock"), OptionalLong.of(7),
+                        Optional.of(ClockEdge.FALLING))));
         assertThat(thread.latestPendingComponents()).containsExactly("k");
 
         thread.resume();

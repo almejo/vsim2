@@ -297,7 +297,8 @@ class SimulationEngineStepTest {
         engine.advance(5);
         engine.interactTracked("s");
 
-        assertThat(engine.advanceToNextClockEdge(ClockEdgeMode.FALLING)).isEqualTo(new StepResult(5, 5, Set.of(), OptionalLong.of(6)));
+        assertThat(engine.advanceToNextClockEdge(ClockEdgeMode.FALLING))
+                .isEqualTo(new StepResult(5, 5, Set.of(), OptionalLong.of(6)));
         assertThat(engine.now()).isEqualTo(5);
     }
 
@@ -308,7 +309,9 @@ class SimulationEngineStepTest {
                 component("one", TestComponentTypes.SOURCE, Map.of("value", "1"))),
                 List.of(net("clock", pin("k", 0), pin("one", 0)))));
 
-        assertThatThrownBy(() -> engine.advanceToNextClockEdge(ClockEdgeMode.FALLING, 10, SimulationEngine.STEP_EVENT_BUDGET)).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> engine.advanceToNextClockEdge(ClockEdgeMode.FALLING, 10,
+                SimulationEngine.STEP_EVENT_BUDGET))
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessage("no clock edge within 10 event times");
         assertThat(engine.now()).isEqualTo(10_000);
         assertThat(SimulationEngine.CLOCK_EDGE_TIME_BUDGET).isEqualTo(1_000_000);

@@ -142,7 +142,8 @@ class BusPinMenuTest {
         ComponentType type = openDocument.registry().typeOf(adder);
         GridPoint input = type.pinLocation(adder, 0);
         JPopupMenu inputMenu = new JPopupMenu();
-        contributor.contribute(inputMenu, Optional.of(adder), selection, new Point2D.Double(input.x() + 0.2, input.y()));
+        contributor.contribute(inputMenu, Optional.of(adder), selection,
+                new Point2D.Double(input.x() + 0.2, input.y()));
         assertThat(texts(inputMenu)).containsExactly("Agregar unión de bus");
         GridPoint output = type.pinLocation(adder, 3);
         JPopupMenu outputMenu = new JPopupMenu();

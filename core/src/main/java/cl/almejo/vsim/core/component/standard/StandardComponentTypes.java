@@ -539,7 +539,6 @@ public final class StandardComponentTypes {
                 parameters -> new SevenSegmentsDisplayBehavior(bitCount));
     }
 
-    /** True for both 7-segment displays. */
     /**
      * Whether {@code typeId} is set by hand while simulating like a switch: the Switch or the push button (a truth
      * table row tried in the circuit, «Crear componente»).
@@ -548,6 +547,7 @@ public final class StandardComponentTypes {
         return SWITCH.equals(typeId) || PUSH_BUTTON.equals(typeId);
     }
 
+    /** True for both 7-segment displays. */
     public static boolean isSevenSegmentsDisplay(String typeId) {
         return SEVEN_SEGMENTS_DISPLAY.equals(typeId) || SEVEN_SEGMENTS_DISPLAY_DOUBLE.equals(typeId);
     }
