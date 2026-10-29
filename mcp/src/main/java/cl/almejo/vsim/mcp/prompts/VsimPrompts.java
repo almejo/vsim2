@@ -205,7 +205,8 @@ public final class VsimPrompts {
                 .orElse("Elige tú lo que mejor muestra cómo funciona. ");
         return "Prueba el circuito que tengo abierto en VSim. " + target + ASK_IF_CUT_ONLY + " "
                 + "Para un circuito combinacional saca su tabla de verdad (vsim_truth_table); para uno secuencial "
-                + "pon entradas (vsim_set_inputs), avanza (vsim_step) y lee las señales (vsim_read_signals). "
+                + "pon entradas (vsim_set_inputs), avanza (vsim_step; NEXT_CLOCK_CYCLE es un ciclo de reloj "
+                + "completo) y lee las señales (vsim_read_signals). "
                 + "Cuéntame lo que VSim midió, en una tabla corta, y separa lo que midió de lo que esperabas. "
                 + "No cambies el circuito (poner entradas y avanzar la simulación no lo cambia): si ves algo que "
                 + "arreglar, propónmelo y espera que te lo pida.";

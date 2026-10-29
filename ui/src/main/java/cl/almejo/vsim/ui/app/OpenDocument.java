@@ -25,6 +25,7 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
+import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
@@ -638,9 +639,12 @@ public final class OpenDocument implements AutoCloseable {
         simulation.advanceToNextEvent();
     }
 
-    /** «Avanzar al próximo flanco de reloj» (M6.1-B): ignored while the simulation runs. */
-    public void advanceToNextClockEdge() {
-        simulation.advanceToNextClockEdge();
+    /**
+     * «Avanzar al próximo flanco de reloj» ({@link ClockEdgeMode#ANY}: half a cycle) or «Avanzar un ciclo de reloj»
+     * ({@link ClockEdgeMode#FALLING}): ignored while the simulation runs.
+     */
+    public void advanceToNextClockEdge(ClockEdgeMode mode) {
+        simulation.advanceToNextClockEdge(mode);
     }
 
     /** True when the circuit has a clock, also inside a user component; follows every edit (M6.1-B). */
@@ -694,9 +698,10 @@ public final class OpenDocument implements AutoCloseable {
         return simulation.advanceToNextEventWithin(count, eventBudget);
     }
 
-    /** {@code count} «Avanzar al próximo flanco de reloj» within {@code eventBudget} events; refused while running. */
-    public CompletableFuture<RequestReport> advanceToNextClockEdgeWithin(int count, long eventBudget) {
-        return simulation.advanceToNextClockEdgeWithin(count, eventBudget);
+    /** {@code count} edge steps of {@code mode} within {@code eventBudget} events; refused while running. */
+    public CompletableFuture<RequestReport> advanceToNextClockEdgeWithin(ClockEdgeMode mode, int count,
+                                                                        long eventBudget) {
+        return simulation.advanceToNextClockEdgeWithin(mode, count, eventBudget);
     }
 
     /** «Avanzar N t» within {@code eventBudget} events; refused while running. */

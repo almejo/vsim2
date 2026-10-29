@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -189,14 +190,14 @@ class SimulationThreadStepTest {
                 List.of(new FlatNet("clock", List.of(new FlatPinRef("k", 0)), 1, false))));
         thread.tick();
 
-        thread.advanceToNextClockEdge();
+        thread.advanceToNextClockEdge(ClockEdgeMode.FALLING);
         thread.tick();
         assertThat(thread.latestStep()).contains(
-                new StepReport(1, new StepResult(0, 5, Set.of("clock"), OptionalLong.of(7))));
+                new StepReport(1, new StepResult(0, 5, Set.of("clock"), OptionalLong.of(7), Optional.of(ClockEdge.FALLING))));
         assertThat(thread.latestPendingComponents()).containsExactly("k");
 
         thread.resume();
-        thread.advanceToNextClockEdge();
+        thread.advanceToNextClockEdge(ClockEdgeMode.FALLING);
         thread.tick();
         assertThat(thread.latestStep().orElseThrow().sequence()).as("ignored while running").isEqualTo(1);
     }

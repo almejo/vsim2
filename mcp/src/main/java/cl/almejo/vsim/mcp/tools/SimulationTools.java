@@ -104,12 +104,13 @@ final class SimulationTools {
     private static Tool step(AutomationApi api) {
         return new Tool(STEP, "Step the simulation",
                 "Advances a paused simulation within an event budget: NEXT_EVENT (amount = how many «Avanzar»), "
-                        + "NEXT_CLOCK_EDGE (amount = how many clock edges) or DURATION (amount = simulation time; one "
-                        + "gate delay is 1). A running simulation is SIMULATION_BUSY: pause it first.",
+                        + "NEXT_CLOCK_EDGE (clock edges, rising or falling), NEXT_CLOCK_CYCLE (falling edges; "
+                        + "clockEdge names the edge reached) or DURATION (simulation time; one gate delay is 1). A "
+                        + "running simulation is SIMULATION_BUSY: pause it first.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("kind", Schema.enumeration("How far", List.of("NEXT_EVENT", "NEXT_CLOCK_EDGE",
-                                "DURATION")))
+                                "NEXT_CLOCK_CYCLE", "DURATION")))
                         .property("amount", Schema.integer("A count (1 to " + SimulationOperations.MAXIMUM_STEP_COUNT
                                 + ") or a duration (1 to " + SimulationOperations.MAXIMUM_DURATION + "); 1 by "
                                 + "default", 1, SimulationOperations.MAXIMUM_DURATION))

@@ -6,6 +6,22 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar
+
+### Agregado
+
+- Simulación ▸ «Avanzar un ciclo de reloj» (Ctrl+F7, y un botón en la barra de «Paso a paso» junto al del flanco)
+  avanza hasta justo después del próximo flanco de bajada, donde guardan los flip-flops: lo que antes hacía Mayús+F7.
+  Después de un avance por flanco el estado dice qué flanco fue («flanco de subida», «flanco de bajada», o «flanco de
+  subida y de bajada» con dos relojes que cambian en sentidos opuestos a la vez).
+- La IA también puede avanzar un ciclo de reloj completo, y cuando avanza por flancos la respuesta dice qué flanco fue.
+
+### Cambiado
+
+- «Avanzar al próximo flanco de reloj» (Mayús+F7) ahora se detiene en el próximo flanco de cualquier tipo, de subida o
+  de bajada: medio ciclo por vez. Para el ciclo completo está «Avanzar un ciclo de reloj» (Ctrl+F7). Lo mismo para la
+  IA: su avance por flanco ahora es de medio ciclo.
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado

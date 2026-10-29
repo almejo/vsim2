@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -40,7 +41,7 @@ public final class SimulationEngine {
     /** At most this many events run in one {@link #advanceToNextEvent()} (a zero-delay loop never lets time move). */
     public static final int STEP_EVENT_BUDGET = 100_000;
 
-    /** At most this many event times run in one {@link #advanceToNextClockEdge()}. */
+    /** At most this many event times run in one {@link #advanceToNextClockEdge(ClockEdgeMode)}. */
     public static final int CLOCK_EDGE_TIME_BUDGET = 1_000_000;
     /** Ids (with aliases) of the nets that changed since tracking started; null while not tracking (M6.1-B). */
     private Set<String> changedNets;
@@ -349,25 +350,27 @@ public final class SimulationEngine {
     }
 
     /**
-     * «Avanzar al próximo flanco de reloj» (M6.1-B): runs event times, each like {@link #advanceToNextEvent()}, until
-     * one at which the output of a clock (any clock, also inside a user component) falls from 1 to 0 — the edge the D
-     * flip-flops latch on — and stops right after that time, so the next «Avanzar» shows the flip-flops reacting. The
-     * result goes from the time before the first one to the edge time and carries the nets that changed at the edge
-     * time only. Without a clock nothing runs.
+     * The edge steps: runs event times, each like {@link #advanceToNextEvent()}, until one at which the output of a
+     * clock (any clock, also inside a user component) changes the way {@code mode} asks — «Avanzar al próximo flanco
+     * de reloj» ({@link ClockEdgeMode#ANY}): from 0 to 1 or from 1 to 0, half a cycle; «Avanzar un ciclo de reloj»
+     * ({@link ClockEdgeMode#FALLING}): from 1 to 0, the edge the D flip-flops latch on — and stops right after that
+     * time, so the next «Avanzar» shows the flip-flops reacting. The result goes from the time before the first one to
+     * the edge time, carries the nets that changed at the edge time only and names the edge
+     * ({@link ClockEdge#BOTH} when another clock changed the opposite way at that time). Without a clock nothing runs.
      *
      * @throws IllegalStateException when no such edge comes within {@link #CLOCK_EDGE_TIME_BUDGET} event times, or
      *                               when one event time runs too many events ({@link #advanceToNextEvent()})
      */
-    public StepResult advanceToNextClockEdge() {
-        return advanceToNextClockEdge(CLOCK_EDGE_TIME_BUDGET);
+    public StepResult advanceToNextClockEdge(ClockEdgeMode mode) {
+        return advanceToNextClockEdge(mode, CLOCK_EDGE_TIME_BUDGET, STEP_EVENT_BUDGET);
     }
 
-    StepResult advanceToNextClockEdge(int maximumEventTimes) {
-        return advanceToNextClockEdge(maximumEventTimes, STEP_EVENT_BUDGET);
-    }
-
-    /** {@link #advanceToNextClockEdge(int)} with each event time limited to {@code maximumEventsPerTime} events. */
-    StepResult advanceToNextClockEdge(int maximumEventTimes, int maximumEventsPerTime) {
+    /**
+     * {@link #advanceToNextClockEdge(ClockEdgeMode)} within {@code maximumEventTimes} event times, each limited to
+     * {@code maximumEventsPerTime} events.
+     */
+    StepResult advanceToNextClockEdge(ClockEdgeMode mode, int maximumEventTimes, int maximumEventsPerTime) {
+        Objects.requireNonNull(mode, "mode");
         long fromTime = now();
         List<RuntimeNet> clockOutputs = clockOutputs();
         if (clockOutputs.isEmpty()) {
@@ -379,13 +382,25 @@ public final class SimulationEngine {
             if (step.isIdle()) {
                 return new StepResult(fromTime, now(), Set.of(), OptionalLong.empty());
             }
-            for (int index = 0; index < clockOutputs.size(); index++) {
-                if (before.get(index).equals(Value.ONE) && clockOutputs.get(index).value.equals(Value.ZERO)) {
-                    return new StepResult(fromTime, step.time(), step.changedNets(), step.nextEventTime());
-                }
+            Optional<ClockEdge> edge = edgeSince(before, clockOutputs);
+            if (edge.isPresent() && mode.stopsAt(edge.get())) {
+                return new StepResult(fromTime, step.time(), step.changedNets(), step.nextEventTime(), edge);
             }
         }
         throw new IllegalStateException("no clock edge within " + maximumEventTimes + " event times");
+    }
+
+    /** The edge the clocks made since their outputs were {@code before}: a direct 0 → 1 rises, 1 → 0 falls. */
+    private static Optional<ClockEdge> edgeSince(List<Value> before, List<RuntimeNet> clockOutputs) {
+        boolean rose = false;
+        boolean fell = false;
+        for (int index = 0; index < clockOutputs.size(); index++) {
+            Value previous = before.get(index);
+            Value current = clockOutputs.get(index).value;
+            rose |= previous.equals(Value.ZERO) && current.equals(Value.ONE);
+            fell |= previous.equals(Value.ONE) && current.equals(Value.ZERO);
+        }
+        return ClockEdge.of(rose, fell);
     }
 
     /** The nets of the clocks' outputs, each once (also nested clocks, and an unconnected clock's private net). */

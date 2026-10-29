@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Queue;
@@ -200,19 +201,21 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
-     * «Avanzar al próximo flanco de reloj» (M6.1-B): see {@link SimulationEngine#advanceToNextClockEdge()}; published
+     * «Avanzar al próximo flanco de reloj» ({@link ClockEdgeMode#ANY}) and «Avanzar un ciclo de reloj»
+     * ({@link ClockEdgeMode#FALLING}): see {@link SimulationEngine#advanceToNextClockEdge(ClockEdgeMode)}; published
      * as {@link #latestStep()} like «Avanzar». Ignored while running; failures pause like any engine error.
      */
-    public void advanceToNextClockEdge() {
+    public void advanceToNextClockEdge(ClockEdgeMode mode) {
+        Objects.requireNonNull(mode, "mode");
         requests.add(() -> {
             if (!running) {
-                publishStep(engine.advanceToNextClockEdge());
+                publishStep(engine.advanceToNextClockEdge(mode));
             }
         });
     }
 
     /**
-     * The last step published by {@link #advanceToNextEvent()}, {@link #advanceToNextClockEdge()}, a paused
+     * The last step published by {@link #advanceToNextEvent()}, {@link #advanceToNextClockEdge}, a paused
      * {@link #step} or a paused {@link #interact}; empty before the first.
      */
     public Optional<StepReport> latestStep() {
@@ -428,14 +431,17 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
-     * {@code count} times {@link #advanceToNextClockEdge()}, all within {@code eventBudget} events, stopping early when
-     * one moves nothing (no clock, nothing pending); paused only, published as one step.
+     * {@code count} times {@link #advanceToNextClockEdge(ClockEdgeMode)}, all within {@code eventBudget} events,
+     * stopping early when one moves nothing (no clock, nothing pending); paused only, published as one step that names
+     * the last edge reached.
      *
      * @throws IllegalArgumentException when {@code count} or {@code eventBudget} is not positive
      */
-    public CompletableFuture<RequestReport> advanceToNextClockEdgeWithin(int count, long eventBudget) {
+    public CompletableFuture<RequestReport> advanceToNextClockEdgeWithin(ClockEdgeMode mode, int count,
+                                                                        long eventBudget) {
+        Objects.requireNonNull(mode, "mode");
         requirePositive(count, eventBudget);
-        return budgetedStep(eventBudget, () -> repeated(count, () -> engine.advanceToNextClockEdge(
+        return budgetedStep(eventBudget, () -> repeated(count, () -> engine.advanceToNextClockEdge(mode,
                 SimulationEngine.CLOCK_EDGE_TIME_BUDGET, Integer.MAX_VALUE)));
     }
 
@@ -446,7 +452,10 @@ public final class SimulationThread implements AutoCloseable {
         requirePositiveBudget(eventBudget);
     }
 
-    /** {@code count} steps as one: from the first one's start to the last one's end, with every net that changed. */
+    /**
+     * {@code count} steps as one: from the first one's start to the last one's end, with every net that changed and
+     * the last one's clock edge.
+     */
     private static StepResult repeated(int count, Supplier<StepResult> step) {
         StepResult first = step.get();
         StepResult last = first;
@@ -456,7 +465,7 @@ public final class SimulationThread implements AutoCloseable {
             last = step.get();
             changed.addAll(last.changedNets());
         }
-        return new StepResult(first.fromTime(), last.time(), changed, last.nextEventTime());
+        return new StepResult(first.fromTime(), last.time(), changed, last.nextEventTime(), last.edge());
     }
 
     /**
@@ -594,11 +603,13 @@ public final class SimulationThread implements AutoCloseable {
             future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, List.of()));
             return;
         }
-        publishStep(result[0] == null
+        StepResult published = result[0] == null
                 ? new StepResult(fromTime, engine.now(), Set.of(), engine.nextEventTime())
-                : result[0]);
+                : result[0];
+        publishStep(published);
         future.complete(reportOf(run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
-                : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), List.of()));
+                : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), List.of())
+                .withClockEdge(published.edge()));
     }
 
     /** The receipt of the engine's state now; called on this thread right after a request. */

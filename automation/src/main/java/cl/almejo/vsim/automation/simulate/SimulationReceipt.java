@@ -3,6 +3,7 @@ package cl.almejo.vsim.automation.simulate;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.core.simulation.ClockEdge;
 import cl.almejo.vsim.core.simulation.InputOutcome;
 import cl.almejo.vsim.core.simulation.RequestReport;
 
@@ -25,13 +26,15 @@ import java.util.Optional;
  *   the budget ran out: the simulation stopped at {@code time} and paused, nothing rolled back.</li>
  *   <li>{@code running}, {@code failure} — the simulation's state right after the request.</li>
  *   <li>{@code inputs} — for {@code set_inputs}, each value in order; {@code signals} — for {@code read_signals}.</li>
+ *   <li>{@code clockEdge} — for a clock-edge or clock-cycle step, the edge it stopped at (RISING, FALLING, or BOTH
+ *   when two clocks changed opposite ways at that time); empty otherwise.</li>
  * </ul>
  */
 public record SimulationReceipt(DocumentId document, DocumentVersion version, DocumentVersion currentVersion,
                                 long netlistToken, boolean ranOnThatCircuit, Outcome outcome, String fromTime,
                                 String time, Optional<String> nextEventTime, long eventsProcessed, int eventBudget,
                                 boolean running, Optional<String> failure, List<InputResult> inputs,
-                                List<SignalValue> signals) {
+                                List<SignalValue> signals, Optional<ClockEdge> clockEdge) {
 
     public enum Outcome {
         COMPLETED,
@@ -64,6 +67,17 @@ public record SimulationReceipt(DocumentId document, DocumentVersion version, Do
         Objects.requireNonNull(failure, "failure");
         inputs = List.copyOf(inputs);
         signals = List.copyOf(signals);
+        Objects.requireNonNull(clockEdge, "clockEdge");
+    }
+
+    /** A receipt of a request that stopped at no clock edge. */
+    public SimulationReceipt(DocumentId document, DocumentVersion version, DocumentVersion currentVersion,
+                             long netlistToken, boolean ranOnThatCircuit, Outcome outcome, String fromTime,
+                             String time, Optional<String> nextEventTime, long eventsProcessed, int eventBudget,
+                             boolean running, Optional<String> failure, List<InputResult> inputs,
+                             List<SignalValue> signals) {
+        this(document, version, currentVersion, netlistToken, ranOnThatCircuit, outcome, fromTime, time,
+                nextEventTime, eventsProcessed, eventBudget, running, failure, inputs, signals, Optional.empty());
     }
 
     /**
@@ -91,7 +105,7 @@ public record SimulationReceipt(DocumentId document, DocumentVersion version, Do
                 report.nextEventTime().isPresent()
                         ? Optional.of(Long.toString(report.nextEventTime().getAsLong())) : Optional.empty(),
                 report.eventsProcessed(), eventBudget, report.snapshot().running(), report.snapshot().failure(),
-                inputs, signals);
+                inputs, signals, report.clockEdge());
     }
 
     private static Outcome outcomeOf(RequestReport.Status status) {
