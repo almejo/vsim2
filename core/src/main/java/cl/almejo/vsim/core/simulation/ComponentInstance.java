@@ -94,6 +94,11 @@ final class ComponentInstance implements BehaviorContext {
             throw new IllegalArgumentException(type.id() + " pin " + pinIndex + " has width " + pin.spec.width()
                     + " but got " + value.width());
         }
+        if (pin.pendingDrives == 0 && value.equals(pin.driven)) {
+            // The pin would end exactly as it is now, so the net cannot change: no event. With a drive still pending
+            // the event is kept, so the values the pin goes through stay in order.
+            return;
+        }
         pin.pendingDrives++;
         engine.scheduler().schedule(delay, this, () -> {
             if (removed) {
