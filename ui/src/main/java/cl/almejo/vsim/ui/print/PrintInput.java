@@ -65,9 +65,11 @@ public final class PrintInput {
     private final Optional<String> fileName;
     private final LocalDate date;
     private final List<FrameEntry> frames;
+    private final boolean showBusValues;
 
     private PrintInput(LiveCircuit live, CircuitDocument copy, Set<ElementId> viewSelection, ColorScheme scheme,
-                       TextFont textFont, Clock clock) {
+                       TextFont textFont, Clock clock, boolean showBusValues) {
+        this.showBusValues = showBusValues;
         this.document = copy;
         this.registry = registryFor(live.registry(), copy);
         this.netlist = live.netlist();
@@ -93,14 +95,33 @@ public final class PrintInput {
      */
     public static PrintInput capture(OpenDocument openDocument, Set<ElementId> viewSelection, ColorScheme scheme,
                                      TextFont textFont, Clock clock) {
+        return capture(openDocument, viewSelection, scheme, textFont, clock, true);
+    }
+
+    /**
+     * Like the overload without {@code showBusValues}; false leaves the value written above each bus out of the
+     * paper too (the exports follow Ver ▸ «Valores de los buses»).
+     */
+    public static PrintInput capture(OpenDocument openDocument, Set<ElementId> viewSelection, ColorScheme scheme,
+                                     TextFont textFont, Clock clock, boolean showBusValues) {
         return capture(new LiveCircuit(openDocument.document(), openDocument.registry(), openDocument.netlist(),
                 openDocument.netlistToken(), openDocument.latestSnapshot(), openDocument.displayName(),
-                openDocument.path()), viewSelection, scheme, textFont, clock);
+                openDocument.path()), viewSelection, scheme, textFont, clock, showBusValues);
     }
 
     static PrintInput capture(LiveCircuit live, Set<ElementId> viewSelection, ColorScheme scheme, TextFont textFont,
                               Clock clock) {
-        return new PrintInput(live, copyOf(live.document()), viewSelection, scheme, textFont, clock);
+        return capture(live, viewSelection, scheme, textFont, clock, true);
+    }
+
+    static PrintInput capture(LiveCircuit live, Set<ElementId> viewSelection, ColorScheme scheme, TextFont textFont,
+                              Clock clock, boolean showBusValues) {
+        return new PrintInput(live, copyOf(live.document()), viewSelection, scheme, textFont, clock, showBusValues);
+    }
+
+    /** Whether the paper writes the value above each bus. */
+    public boolean showBusValues() {
+        return showBusValues;
     }
 
     /** Same ids, paint order, definitions, probes and name as {@code original}; it shares only immutable values. */

@@ -111,7 +111,7 @@ public final class PagePainter {
         }
         this.showsValues = options.withValues() && input.hasValues();
         this.policy = PaintPolicy.print(options.blackAndWhite()).withStickyNotes(options.includeStickyNotes())
-                .atPageScale(layout.scale());
+                .withBusValues(input.showBusValues()).atPageScale(layout.scale());
         // the circuit's bounds depend on the label font: measure them with the frozen one
         this.image = TextFonts.withFont(input.textFont(), () -> circuitImage(input, area, showsValues,
                 options.includeStickyNotes()));
@@ -145,7 +145,8 @@ public final class PagePainter {
      */
     static OptionalDouble smallestTextPixels(PrintInput input, PrintArea area, PrintOptions options) {
         boolean showsValues = options.withValues() && input.hasValues();
-        PaintPolicy policy = PaintPolicy.print(options.blackAndWhite()).withStickyNotes(options.includeStickyNotes());
+        PaintPolicy policy = PaintPolicy.print(options.blackAndWhite()).withStickyNotes(options.includeStickyNotes())
+                .withBusValues(input.showBusValues());
         return TextFonts.withFont(input.textFont(), () -> {
             Optional<CircuitImage> circuit = circuitImage(input, area, showsValues, options.includeStickyNotes());
             if (circuit.isEmpty()) {

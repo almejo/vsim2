@@ -243,7 +243,9 @@ public final class CircuitRenderer {
 
         paintComponentLabels(graphics, state, scheme);
         paintTextLabels(graphics, state, scheme);
-        paintBusValues(graphics, state, scheme);
+        if (state.policy().paintBusValues()) {
+            paintBusValues(graphics, state, scheme);
+        }
         paintDriverPinHalos(graphics, scheme, highlight);
         paintPinWidths(graphics, mismatches, scheme);
         paintOpenPins(graphics, state, scheme);

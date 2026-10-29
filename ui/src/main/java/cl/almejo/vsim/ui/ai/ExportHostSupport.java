@@ -118,11 +118,13 @@ final class ExportHostSupport {
                 .orElse(null);
         ColorScheme windowScheme = window.map(shown -> shown.view().services().appearance().scheme())
                 .orElse(ColorScheme.LIGHT);
+        boolean showBusValues = preferences == null || preferences.showBusValues();
         Path folder = folderFor(request.format(), Optional.ofNullable(preferences));
         String baseName = baseName(request.fileName().orElse(document.displayName()));
         return switch (request.format()) {
-            case PNG, SVG -> prepareImage(id, version, document, request, folder, baseName, windowScheme);
-            case PDF -> preparePdf(id, version, document, request, folder, baseName, windowScheme);
+            case PNG, SVG -> prepareImage(id, version, document, request, folder, baseName, windowScheme,
+                    showBusValues);
+            case PDF -> preparePdf(id, version, document, request, folder, baseName, windowScheme, showBusValues);
         };
     }
 
@@ -159,10 +161,11 @@ final class ExportHostSupport {
     // --- images ---
 
     private Prepared prepareImage(DocumentId id, DocumentVersion version, OpenDocument document,
-                                  ExportRequest request, Path folder, String baseName, ColorScheme windowScheme) {
+                                  ExportRequest request, Path folder, String baseName, ColorScheme windowScheme,
+                                  boolean showBusValues) {
         ExportRequest.ImageOptions options = request.image();
         ColorScheme scheme = options.printBackground() ? CircuitImage.printScheme(ColorScheme.LIGHT) : windowScheme;
-        CircuitImage image = switch (request.scope()) {
+        CircuitImage drawn = switch (request.scope()) {
             case ExportRequest.Scope.WholeCircuit whole -> CircuitImage.of(document.document(), document.netlist(),
                     document.netlistToken(), document.latestSnapshot(), document.registry(),
                     PainterRegistry.standard(), scheme, Optional.empty(), request.includeStickyNotes())
@@ -176,6 +179,7 @@ final class ExportHostSupport {
                     PainterRegistry.standard(), scheme, frameBounds(document, frame.frameId()),
                     request.includeStickyNotes());
         };
+        CircuitImage image = drawn.withBusValues(showBusValues);
         if (request.format() == ExportRequest.Format.SVG) {
             String svg = ImageExport.svgDocument(image);
             return new Prepared(id, version, document, request.format(), folder, baseName,
@@ -219,11 +223,12 @@ final class ExportHostSupport {
     // --- PDF ---
 
     private Prepared preparePdf(DocumentId id, DocumentVersion version, OpenDocument document, ExportRequest request,
-                                Path folder, String baseName, ColorScheme windowScheme) {
+                                Path folder, String baseName, ColorScheme windowScheme, boolean showBusValues) {
         ExportRequest.PdfOptions chosen = request.pdf();
         Set<ElementId> selection = request.scope() instanceof ExportRequest.Scope.Elements elements
                 ? elementIds(document, elements.elementIds()) : Set.of();
-        PrintInput input = PrintInput.capture(document, selection, windowScheme, TextFonts.current(), clock);
+        PrintInput input = PrintInput.capture(document, selection, windowScheme, TextFonts.current(), clock,
+                showBusValues);
         PrintScope scope = switch (request.scope()) {
             case ExportRequest.Scope.WholeCircuit whole -> new PrintScope.WholeCircuit();
             case ExportRequest.Scope.Elements elements -> new PrintScope.Selection(selection);

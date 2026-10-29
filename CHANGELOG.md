@@ -21,6 +21,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   subida y de bajada» con dos relojes que cambian en sentidos opuestos a la vez).
 - La IA también puede avanzar un ciclo de reloj completo, y cuando avanza por flancos la respuesta dice qué flanco fue.
 - **Pulsador** en Entrada/Salida, después del Interruptor: vale 1 solo mientras lo mantienes apretado con el mouse y vuelve a 0 al soltarlo (donde sea), con Esc, al perder la ventana el foco y al pausar o reiniciar la simulación. Apretarlo no deja paso de deshacer, no marca el archivo ni lo selecciona. Cuenta como entrada en la tabla de verdad y en «Crear componente», y la IA lo fija con `vsim_set_inputs`. Ver [Pulsador](docs/funciones/componentes.md#pulsador).
+- Ver ▸ «Valores de los buses» (y un botón en la barra de herramientas) oculta el valor escrito sobre cada bus; las
+  imágenes y el PDF siguen al lienzo. El globo, el árbol y las formas de onda conservan el valor. Se recuerda, no tiene
+  tecla por omisión y la IA puede cambiarlo durante una tarea.
 
 ### Cambiado
 
@@ -33,6 +36,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Ayuda ▸ «Acerca de VSim 2…» muestra el logo, la versión, la licencia, la historia, los créditos y los enlaces del
   repositorio y las versiones, con un botón «Copiar información» (versión, Java, sistema y apariencia) para los
   reportes de error. En macOS también se abre desde el menú de la aplicación.
+
+### Arreglado
+
+- La documentación de los buses dice que el globo muestra también el valor en binario.
 
 ## Versión 0.5 — 2026-10-28
 

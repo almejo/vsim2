@@ -115,6 +115,17 @@ class PrintPaintPolicyTest {
     }
 
     @Test
+    void everyPolicyPaintsTheBusValuesUntilToldNotTo() {
+        assertThat(PaintPolicy.CANVAS.paintBusValues()).isTrue();
+        assertThat(PaintPolicy.IMAGE.paintBusValues()).isTrue();
+        assertThat(PaintPolicy.print(false).paintBusValues()).isTrue();
+        assertThat(new PaintPolicy(false, true, false, 0).paintBusValues()).isTrue();
+        PaintPolicy hidden = PaintPolicy.print(true).withBusValues(false).atPageScale(2).withStickyNotes(true);
+        assertThat(hidden.paintBusValues()).isFalse();
+        assertThat(hidden.withBusValues(true).paintBusValues()).isTrue();
+    }
+
+    @Test
     void theCanvasPolicyIsTodaysBehaviourAndEveryOldConstructorUsesIt() {
         assertThat(PaintPolicy.CANVAS.alwaysShowFrameTitles()).isFalse();
         assertThat(PaintPolicy.CANVAS.paintFrameButtons()).isTrue();

@@ -51,7 +51,8 @@ public final class ExportPdfFeatures extends FileExportFeatures {
     /** The circuit as it is now, with this view's selection, scheme and font; nothing in the document changes. */
     private PrintInput capture() {
         return PrintInput.capture(view().openDocument(), view().selection().ids(),
-                view().services().appearance().scheme(), TextFonts.current(), clock);
+                view().services().appearance().scheme(), TextFonts.current(), clock,
+                view().services().preferences().showBusValues());
     }
 
     /** The last PDF folder, else the document's folder, else the user's home. */

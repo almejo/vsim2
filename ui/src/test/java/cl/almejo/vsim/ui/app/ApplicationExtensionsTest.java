@@ -166,11 +166,11 @@ class ApplicationExtensionsTest {
                     "Zoom a la selección", "Escribir el zoom…",
                     "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
-                    "Borrar guías", "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda", "---",
+                    "Borrar guías", "Valores de los buses", "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda", "---",
                     "Presentar lo que hace la IA", "Ritmo de Presentar");
             assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
                     "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
-                    "view.addVerticalGuide", "view.clearGuides");
+                    "view.addVerticalGuide", "view.clearGuides", "view.busValues");
             assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
                     KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
             assertThat(view.canvas().edgeHandles()).hasSize(6); // the rulers, corner and grab; the two split grips

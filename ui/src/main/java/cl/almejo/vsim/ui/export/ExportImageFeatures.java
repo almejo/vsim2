@@ -61,7 +61,8 @@ public final class ExportImageFeatures extends FileExportFeatures {
         Optional<CircuitImage> image = CircuitImage.of(openDocument.document(), openDocument.netlist(),
                 openDocument.netlistToken(), openDocument.latestSnapshot(), openDocument.registry(),
                 PainterRegistry.standard(), scheme, selection.isEmpty() ? Optional.empty()
-                        : Optional.of(Set.copyOf(selection)), chosen.includeStickyNotes());
+                        : Optional.of(Set.copyOf(selection)), chosen.includeStickyNotes())
+                .map(circuit -> circuit.withBusValues(preferences.showBusValues()));
         if (image.isEmpty()) {
             return;
         }

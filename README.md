@@ -66,7 +66,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Seleccionar tramos de cable](docs/funciones/cables-buses-y-tuneles.md#seleccionar-tramos-de-cable) con doble y triple clic.
 - [Cables que siguen al mover](docs/funciones/cables-buses-y-tuneles.md#cables-que-siguen-al-mover): las conexiones se estiran y no se pierden; Ctrl+E lo activa o desactiva.
 - [Ordenar cables](docs/funciones/cables-buses-y-tuneles.md#ordenar-cables): quitar puntas sueltas, unir tramos y aplanar vueltas sin cambiar las conexiones.
-- [Buses](docs/funciones/cables-buses-y-tuneles.md#buses) de varios bits con su valor en hexadecimal, separador y unión de bus (también desde el clic derecho en un pin de bus).
+- [Buses](docs/funciones/cables-buses-y-tuneles.md#buses) de varios bits con su valor en hexadecimal (que se puede ocultar con «Valores de los buses»), separador y unión de bus (también desde el clic derecho en un pin de bus).
 - [Túneles de cables](docs/funciones/cables-buses-y-tuneles.md#túneles-de-cables) que unen cables por nombre sin dibujarlos.
 
 ### Componentes

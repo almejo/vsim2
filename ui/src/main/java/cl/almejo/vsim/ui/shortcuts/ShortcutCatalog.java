@@ -111,6 +111,7 @@ public final class ShortcutCatalog {
         window(entries, "view.snapToGuides", "shortcut.snapToGuides", MenuId.VIEW, null);
         window(entries, "view.snapToGridLines", "shortcut.snapToGridLines", MenuId.VIEW, null);
         window(entries, "view.showGuides", "action.showGuides", MenuId.VIEW, null);
+        window(entries, "view.busValues", "action.busValues", MenuId.VIEW, null);
         window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);
         window(entries, "view.addVerticalGuide", "action.addVerticalGuide", MenuId.VIEW, null);
         window(entries, "view.clearGuides", "action.clearGuides", MenuId.VIEW, null);

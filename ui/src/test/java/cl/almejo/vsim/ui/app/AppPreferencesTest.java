@@ -390,6 +390,19 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theBusValuesAreShownByDefaultAndTheChoiceRoundTripsAndNotifies() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.showBusValues()).isTrue();
+
+        preferences.setShowBusValues(false);
+        preferences.setShowBusValues(false);
+
+        assertThat(changes).hasValue(1);
+        assertThat(node.get("view.busValues", "")).isEqualTo("false");
+        assertThat(new AppPreferences(node).showBusValues()).isFalse();
+    }
+
+    @Test
     void anUnknownStoredInvertKeyFallsBackToShift() {
         node.put("invertModifier", "HYPER");
         assertThat(preferences.invertModifier()).isEqualTo(AppPreferences.InvertModifier.SHIFT);

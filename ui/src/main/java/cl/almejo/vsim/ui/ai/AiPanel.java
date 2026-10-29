@@ -287,6 +287,7 @@ public final class AiPanel extends JPanel {
             case SNAP_TO_GUIDES -> "ai.setting.SNAP_TO_GUIDES";
             case SNAP_TO_GRID_LINES -> "ai.setting.SNAP_TO_GRID_LINES";
             case SHOW_GUIDES -> "ai.setting.SHOW_GUIDES";
+            case SHOW_BUS_VALUES -> "ai.setting.SHOW_BUS_VALUES";
             case GRID_STYLE -> "ai.setting.GRID_STYLE";
             case GRID_SPACING -> "ai.setting.GRID_SPACING";
             case WIRES_FOLLOW -> "ai.setting.WIRES_FOLLOW";

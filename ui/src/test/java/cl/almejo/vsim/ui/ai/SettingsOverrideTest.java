@@ -61,6 +61,31 @@ class SettingsOverrideTest {
         assertThat(aiWindow.aiPauseMillis()).isEqualTo(1000);
     }
 
+    @Test
+    void theBusValuesSettingIsLayeredReportedAndGivenBack() {
+        override.set(EditorSetting.SHOW_BUS_VALUES, "false");
+
+        assertThat(aiWindow.showBusValues()).isFalse();
+        assertThat(saved.showBusValues()).isTrue();
+        assertThat(otherWindow.showBusValues()).isTrue();
+        assertThat(override.changes()).extracting(SettingsOverride.Change::setting)
+                .containsExactly(EditorSetting.SHOW_BUS_VALUES);
+
+        override.dropEditorSettings();
+
+        assertThat(aiWindow.showBusValues()).isTrue();
+        assertThat(override.changes()).isEmpty();
+    }
+
+    @Test
+    void keepingTheBusValuesSettingSavesIt() {
+        override.set(EditorSetting.SHOW_BUS_VALUES, "false");
+
+        override.keep();
+
+        assertThat(saved.showBusValues()).isFalse();
+    }
+
     /** Review M3: «Mantener» / «Volver a los míos» are about the editor settings; the AI's pace stays for the task. */
     @Test
     void keepingOrGivingBackTheEditorSettingsLeavesTheAisPaceForTheTask() {

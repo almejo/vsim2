@@ -37,6 +37,7 @@ import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
 import cl.almejo.vsim.ui.labels.TextToolExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
+import cl.almejo.vsim.ui.busvalues.BusValuesExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
 import cl.almejo.vsim.ui.snap.SnapExtension;
 import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
@@ -245,6 +246,7 @@ public final class Application {
         editorExtensions.add(new GridExtension());
         editorExtensions.add(new SnapExtension());
         editorExtensions.add(new GuidesExtension());
+        editorExtensions.add(new BusValuesExtension());
         editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());
