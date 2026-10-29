@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
@@ -12,6 +13,10 @@ import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** Points where a wire can start: component pins and grid points on existing wires. */
@@ -20,6 +25,8 @@ public final class ConnectionPoints {
     public static final double PIN_RADIUS = 0.6;
 
     private final ComponentTypeRegistry registry;
+    /** The last document's drawing, kept while its structure revision lasts (read and replaced whole). */
+    private volatile Drawing drawing;
 
     public ConnectionPoints(ComponentTypeRegistry registry) {
         this.registry = registry;
@@ -111,23 +118,73 @@ public final class ConnectionPoints {
             return isOpen(net);
         }
         GridPoint point = registry.typeOf(component).pinLocation(component, pinIndex);
-        return document.wires().stream().noneMatch(wire -> wire.contains(point))
-                && !hasAnotherPinAt(document, component, point);
+        Drawing current = drawingOf(document);
+        return !current.hasWireThrough(point) && !current.hasAnotherPinAt(component.id(), point);
     }
 
-    private boolean hasAnotherPinAt(CircuitDocument document, Component owner, GridPoint point) {
-        for (Component component : document.components()) {
-            if (component.id().equals(owner.id())) {
-                continue;
+    /** The drawing of {@code document} at its current structure revision, built when it is not the one kept. */
+    private Drawing drawingOf(CircuitDocument document) {
+        Drawing current = drawing;
+        if (current == null || current.document != document
+                || current.structureRevision != document.structureRevision()) {
+            current = new Drawing(document, registry);
+            drawing = current;
+        }
+        return current;
+    }
+
+    /** Who has a pin at a point: one owner, and whether some other component has one there too. */
+    private record PinOwners(ElementId ownerId, boolean others) {
+    }
+
+    /**
+     * Where the pins and the wires of a document lie, so that asking what is drawn at a point costs nothing: a frame
+     * asks it once per tunnel, and a document with thousands of tunnels would otherwise walk all its pieces for each.
+     */
+    private static final class Drawing {
+
+        final CircuitDocument document;
+        final long structureRevision;
+        private final Map<GridPoint, PinOwners> pinOwners = new HashMap<>();
+        private final Map<Integer, List<Wire>> horizontalWiresByRow = new HashMap<>();
+        private final Map<Integer, List<Wire>> verticalWiresByColumn = new HashMap<>();
+
+        Drawing(CircuitDocument document, ComponentTypeRegistry registry) {
+            this.document = document;
+            this.structureRevision = document.structureRevision();
+            for (Component component : document.components()) {
+                ComponentType type = registry.typeOf(component);
+                for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                    pinOwners.merge(type.pinLocation(component, pinIndex), new PinOwners(component.id(), false),
+                            (present, added) -> present.others() || present.ownerId().equals(added.ownerId())
+                                    ? present : new PinOwners(present.ownerId(), true));
+                }
             }
-            ComponentType type = registry.typeOf(component);
-            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-                if (type.pinLocation(component, pinIndex).equals(point)) {
+            for (Wire wire : document.wires()) {
+                Map<Integer, List<Wire>> byLine = wire.isHorizontal() ? horizontalWiresByRow : verticalWiresByColumn;
+                int line = wire.isHorizontal() ? wire.start().y() : wire.start().x();
+                byLine.computeIfAbsent(line, key -> new ArrayList<>()).add(wire);
+            }
+        }
+
+        boolean hasWireThrough(GridPoint point) {
+            for (Wire wire : horizontalWiresByRow.getOrDefault(point.y(), List.of())) {
+                if (wire.contains(point)) {
                     return true;
                 }
             }
+            for (Wire wire : verticalWiresByColumn.getOrDefault(point.x(), List.of())) {
+                if (wire.contains(point)) {
+                    return true;
+                }
+            }
+            return false;
         }
-        return false;
+
+        boolean hasAnotherPinAt(ElementId owner, GridPoint point) {
+            PinOwners owners = pinOwners.get(point);
+            return owners != null && (owners.others() || !owners.ownerId().equals(owner));
+        }
     }
 
     /** The grid point of {@code wire} nearest to {@code gridPoint}. */

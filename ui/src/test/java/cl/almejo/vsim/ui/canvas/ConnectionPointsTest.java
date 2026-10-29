@@ -116,6 +116,26 @@ class ConnectionPointsTest {
     }
 
     @Test
+    void aTunnelsPinOpensAgainWhenWhatTouchedItIsRemovedOrMovedAway() {
+        Component entrance = tunnelWithPinAt(StandardComponentTypes.TUNNEL_ENTRANCE, "A", new GridPoint(0, 1));
+        Wire wire = new Wire(document.newWireId(), new GridPoint(0, -5), new GridPoint(0, 5));
+        document.add(wire);
+        assertThat(isOpen(entrance)).as("a vertical wire through the pin").isFalse();
+        document.remove(wire.id());
+        assertThat(isOpen(entrance)).isTrue();
+
+        place(StandardComponentTypes.LED, -1, -2); // its pin lands on the entrada's, at (0, 1)
+        Component led = document.components().get(document.components().size() - 1);
+        assertThat(isOpen(entrance)).isFalse();
+        document.remove(led.id());
+        assertThat(isOpen(entrance)).isTrue();
+
+        Component secondEntrance = tunnelWithPinAt(StandardComponentTypes.TUNNEL_ENTRANCE, "B", new GridPoint(0, 1));
+        assertThat(isOpen(entrance)).as("another tunnel's pin on the same point").isFalse();
+        assertThat(isOpen(secondEntrance)).isFalse();
+    }
+
+    @Test
     void anyOtherPinIsOpenWhenItsNetHoldsNothingElse() {
         place(StandardComponentTypes.BUFFER, 0, 0);
         Component gate = document.components().get(0);
