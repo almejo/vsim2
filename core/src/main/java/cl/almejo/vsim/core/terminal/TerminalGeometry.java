@@ -13,8 +13,8 @@ public final class TerminalGeometry {
     public static final int TITLE_BAR_UNITS = 2;
     /** The margin around the screen, in grid units. */
     public static final int MARGIN_UNITS = 1;
-    /** Wide enough for the three control pins on the bottom edge (x = 1, 2, 3) to sit inside the part. */
-    public static final int MINIMUM_WIDTH_UNITS = 4;
+    /** Wide enough for the three control pins on the bottom edge (x = 2, 4, 6) to sit inside the part. */
+    public static final int MINIMUM_WIDTH_UNITS = 8;
 
     private TerminalGeometry() {
     }

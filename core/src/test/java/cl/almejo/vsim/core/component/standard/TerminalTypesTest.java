@@ -49,7 +49,7 @@ class TerminalTypesTest {
                 .isEqualTo(new GridSize(82, 52));
         ComponentType single = terminal.specializedFor(Map.of(TerminalTypes.ROWS, 1, TerminalTypes.COLUMNS, 1));
         assertThat(single.size()).isEqualTo(TerminalGeometry.size(1, 1, TerminalFontSize.NORMAL));
-        assertThat(single.size().width()).isGreaterThanOrEqualTo(4);
+        assertThat(single.size().width()).isGreaterThanOrEqualTo(8);
     }
 
     @Test
@@ -65,9 +65,9 @@ class TerminalTypesTest {
         assertThat(terminal.pin(0).width()).isEqualTo(7);
         assertThat(terminal.pin(0).position()).isEqualTo(new GridPoint(0, 3));
         int bottom = terminal.size().height();
-        assertThat(terminal.pin(1).position()).isEqualTo(new GridPoint(1, bottom));
-        assertThat(terminal.pin(2).position()).isEqualTo(new GridPoint(2, bottom));
-        assertThat(terminal.pin(3).position()).isEqualTo(new GridPoint(3, bottom));
+        assertThat(terminal.pin(1).position()).isEqualTo(new GridPoint(2, bottom));
+        assertThat(terminal.pin(2).position()).isEqualTo(new GridPoint(4, bottom));
+        assertThat(terminal.pin(3).position()).isEqualTo(new GridPoint(6, bottom));
     }
 
     @Test

@@ -12,10 +12,10 @@ final class TerminalPinout {
     static final int DATA_WIDTH = 7;
     /** D's row on the left edge, in grid units. */
     static final int DATA_ROW = 3;
-    /** CLK, WE and CLR sit on the bottom edge at x = 1, 2 and 3. */
-    static final int CLOCK_COLUMN = 1;
-    static final int WRITE_ENABLE_COLUMN = 2;
-    static final int CLEAR_COLUMN = 3;
+    /** CLK, WE and CLR sit on the bottom edge at x = 2, 4 and 6, two units apart so their names fit. */
+    static final int CLOCK_COLUMN = 2;
+    static final int WRITE_ENABLE_COLUMN = 4;
+    static final int CLEAR_COLUMN = 6;
 
     private TerminalPinout() {
     }
