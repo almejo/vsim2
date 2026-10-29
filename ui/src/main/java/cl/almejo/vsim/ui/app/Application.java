@@ -34,6 +34,7 @@ import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
+import cl.almejo.vsim.ui.labels.TextToolExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
@@ -228,6 +229,8 @@ public final class Application {
         editorExtensions.add(new ExportImageExtension());
         editorExtensions.add(new ExportPdfExtension());
         editorExtensions.add(new TidyWiresExtension());
+        // the «Texto» tool before sticky notes: its button lands after «Nota adhesiva»
+        editorExtensions.add(new TextToolExtension());
         // sticky notes before frames: their tool lands after «Marco» and their gestures are asked first (on top)
         editorExtensions.add(new StickyNotesExtension());
         editorExtensions.add(new FramesExtension());

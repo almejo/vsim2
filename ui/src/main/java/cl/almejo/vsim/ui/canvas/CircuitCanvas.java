@@ -1287,6 +1287,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     @Override
+    public void addTextAt(GridPoint point) {
+        host.addTextAt(point);
+    }
+
+    @Override
     public void editValue(Component component) {
         host.editValue(component);
     }

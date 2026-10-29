@@ -161,7 +161,7 @@ class ApplicationExtensionsTest {
     void theViewMenuHasTheGridSubmenuTheSnapItemsAndTheGuideItemsAfterTheZoomGroup() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco", "Nota adhesiva",
+            assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco", "Nota adhesiva", "Texto",
                     "Mover vista", "Zoom", "---", "Acercar", "Alejar", "Zoom 100 %", "Ver todo el circuito",
                     "Zoom a la selección", "Escribir el zoom…",
                     "Centrar circuito", "---", "Cuadrícula",

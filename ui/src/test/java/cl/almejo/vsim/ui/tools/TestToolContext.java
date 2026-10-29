@@ -38,6 +38,7 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public Optional<DocumentElement> contextMenuTarget;
     public Component configured;
     public DocumentElement editedLabel;
+    public GridPoint textAddedAt;
     public Component valueEdited;
     /** The memory whose content editor a double click asked for ({@link #editMemory}). */
     public Component memoryEdited;
@@ -211,6 +212,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public void editLabel(DocumentElement element) {
         editedLabel = element;
+    }
+
+    @Override
+    public void addTextAt(GridPoint point) {
+        textAddedAt = point;
     }
 
     @Override

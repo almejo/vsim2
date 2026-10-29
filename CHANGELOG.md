@@ -11,6 +11,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Agregado
 
 - «Los cables siguen al mover» tiene el atajo Ctrl+E (se puede cambiar en Atajos de teclado). La ayuda del botón muestra la tecla vigente y la barra de estado dice si quedó activado o desactivado.
+- Herramienta **Texto** en la barra de herramientas y en el menú Ver (después de «Nota adhesiva»): un clic en el lienzo abre el campo de texto en ese punto y el editor vuelve a Selección.
 
 ## Versión 0.5 — 2026-10-28
 

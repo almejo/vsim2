@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -147,6 +148,11 @@ final class CrossPaneContext implements ToolContext {
     @Override
     public void editLabel(DocumentElement element) {
         owner.editLabel(element);
+    }
+
+    @Override
+    public void addTextAt(GridPoint point) {
+        owner.addTextAt(point);
     }
 
     @Override

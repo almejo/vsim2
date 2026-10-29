@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.HitTester;
@@ -107,6 +108,9 @@ public interface ToolContext {
 
     /** Edits the label of a component, or the text of a free text label. */
     void editLabel(DocumentElement element);
+
+    /** Opens the inline editor for a new free text at {@code point}; confirming adds it (one undo step). */
+    void addTextAt(GridPoint point);
 
     /** Edits in place the value of a Constante; by default what a double click did before: the configure dialog. */
     default void editValue(Component component) {

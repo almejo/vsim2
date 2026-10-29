@@ -512,6 +512,11 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     @Override
+    public void addTextAt(GridPoint point) {
+        labelFeatures.actions().addTextAt(point);
+    }
+
+    @Override
     public SelectionMoves selectionMoves() {
         return selectionMoves;
     }

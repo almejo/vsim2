@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
@@ -17,6 +18,10 @@ public interface CanvasHost {
 
     /** Edits the label of a component, or the text of a free text label. Hosts without label editing ignore it. */
     default void editLabel(DocumentElement element) {
+    }
+
+    /** Opens the inline editor for a new free text at {@code point}. Hosts without label editing ignore it. */
+    default void addTextAt(GridPoint point) {
     }
 
     /**
