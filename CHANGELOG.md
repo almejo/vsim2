@@ -6,6 +6,12 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar
+
+### Agregado
+
+- «Los cables siguen al mover» tiene el atajo Ctrl+E (se puede cambiar en Atajos de teclado). La ayuda del botón muestra la tecla vigente y la barra de estado dice si quedó activado o desactivado.
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado

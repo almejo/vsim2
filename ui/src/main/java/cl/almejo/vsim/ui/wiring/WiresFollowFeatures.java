@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.wiring;
 
+import cl.almejo.vsim.ui.actions.AcceleratorTooltip;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -29,6 +30,7 @@ public final class WiresFollowFeatures {
     private final Runnable toolButtonRemover;
     private final Runnable shortcutRemover;
     private final Runnable preferencesListener;
+    private final Runnable tooltipRefresh;
     private boolean disposed;
 
     public WiresFollowFeatures(EditorView view) {
@@ -37,10 +39,13 @@ public final class WiresFollowFeatures {
             @Override
             public void actionPerformed(ActionEvent event) {
                 preferences.setWiresFollow(!preferences.wiresFollow());
-                refresh();
+                view.statusBar().showNotice(Messages.format("wiresFollow.state", Messages.text("action.wiresFollow"),
+                        Messages.text(preferences.wiresFollow() ? "wiresFollow.on" : "wiresFollow.off")));
             }
         };
         Icons.install(toggle, WiresFollowIcons.WIRES_FOLLOW);
+        this.tooltipRefresh = AcceleratorTooltip.install(toggle, () -> Messages.text("action.wiresFollow"),
+                this::invertSuffix);
         refresh();
         this.preferencesListener = this::refresh;
         preferences.addListener(preferencesListener);
@@ -59,11 +64,14 @@ public final class WiresFollowFeatures {
     /** Takes the selected state and the tooltip from the preferences (also when another window changes them). */
     private void refresh() {
         toggle.putValue(Action.SELECTED_KEY, preferences.wiresFollow());
-        String name = Messages.text("action.wiresFollow");
+        tooltipRefresh.run();
+    }
+
+    /** « — Mayús al arrastrar invierte», empty when no key inverts. */
+    private String invertSuffix() {
         AppPreferences.InvertModifier modifier = preferences.invertModifier();
-        toggle.putValue(Action.SHORT_DESCRIPTION, modifier == AppPreferences.InvertModifier.NONE ? name
-                : Messages.format("wiresFollow.tooltip", name,
-                PreferencesForm.invertModifierName(modifier)));
+        return modifier == AppPreferences.InvertModifier.NONE ? ""
+                : Messages.format("wiresFollow.tooltip", "", PreferencesForm.invertModifierName(modifier));
     }
 
     public void dispose() {

@@ -82,7 +82,7 @@ public final class ShortcutCatalog {
                 stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK));
         window(entries, "edit.tidyWiresOptions", "action.tidyWiresOptions", MenuId.EDIT,
                 stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK | shift));
-        window(entries, "edit.wiresFollow", "action.wiresFollow", MenuId.EDIT, null);
+        window(entries, "edit.wiresFollow", "action.wiresFollow", MenuId.EDIT, stroke(KeyEvent.VK_E, menu));
         canvas(entries, "edit.label", "action.label", stroke(KeyEvent.VK_F2, 0));
         canvas(entries, "edit.quickInsert", "action.quickInsert", stroke(KeyEvent.VK_INSERT, 0));
         moveKeys(entries, "edit.moveLeft", "action.moveLeft", "action.moveLeftFar", KeyEvent.VK_LEFT);

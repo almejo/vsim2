@@ -56,6 +56,17 @@ class WiresFollowFeaturesTest {
         throw new AssertionError("no Editar item");
     }
 
+    /** The text of the visible label of the status bar that carries the notice. */
+    private String noticeText() {
+        for (java.awt.Component child : view.statusBar().getComponents()) {
+            if (child instanceof javax.swing.JLabel label && label.isVisible() && label.getText() != null
+                    && label.getText().startsWith(NAME)) {
+                return label.getText();
+            }
+        }
+        return "";
+    }
+
     private static List<AbstractButton> buttonsNamed(EditorView target) {
         List<AbstractButton> found = new ArrayList<>();
         for (java.awt.Component child : target.toolBar().getComponents()) {
@@ -102,9 +113,35 @@ class WiresFollowFeaturesTest {
     }
 
     @Test
-    void theActionIsRegisteredForShortcutsWithoutADefaultStroke() {
+    void theActionIsRegisteredForShortcutsWithCtrlEAsTheDefaultStroke() {
         assertThat(view.shortcutActions()).containsEntry("edit.wiresFollow", features.toggleAction());
-        assertThat(ShortcutCatalog.find("edit.wiresFollow").orElseThrow().defaultStroke()).isEmpty();
+        assertThat(ShortcutCatalog.find("edit.wiresFollow").orElseThrow().defaultStroke()).contains(
+                javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_E, ShortcutCatalog.menuMask()));
+    }
+
+    @Test
+    void theRegisteredActionTogglesThePreferenceAndTheStatusBarSaysTheNewState() {
+        view.shortcutActions().get("edit.wiresFollow").actionPerformed(
+                new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED, "key"));
+        assertThat(preferences.wiresFollow()).isFalse();
+        assertThat(noticeText()).isEqualTo(NAME + ": desactivado");
+        view.shortcutActions().get("edit.wiresFollow").actionPerformed(
+                new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED, "key"));
+        assertThat(preferences.wiresFollow()).isTrue();
+        assertThat(noticeText()).isEqualTo(NAME + ": activado");
+    }
+
+    @Test
+    void theTooltipShowsTheKeyAndFollowsARebinding() {
+        features.toggleAction().putValue(Action.ACCELERATOR_KEY, javax.swing.KeyStroke.getKeyStroke(
+                java.awt.event.KeyEvent.VK_E, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        assertThat(buttonsNamed(view).get(0).getToolTipText())
+                .isEqualTo(NAME + " (Ctrl+E) — Mayús al arrastrar invierte");
+        features.toggleAction().putValue(Action.ACCELERATOR_KEY, javax.swing.KeyStroke.getKeyStroke(
+                java.awt.event.KeyEvent.VK_K, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        assertThat(buttonsNamed(view).get(0).getToolTipText()).contains("(Ctrl+K)").doesNotContain("Ctrl+E");
+        features.toggleAction().putValue(Action.ACCELERATOR_KEY, null);
+        assertThat(buttonsNamed(view).get(0).getToolTipText()).doesNotContain("(");
     }
 
     @Test
