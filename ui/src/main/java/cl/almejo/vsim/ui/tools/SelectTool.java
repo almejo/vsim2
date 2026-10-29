@@ -117,6 +117,8 @@ public final class SelectTool implements Tool {
     private ConnectionPoints connectionPoints;
     private int pinSearches;
     private DocumentElement pressedElement;
+    /** The push button the primary press holds down, until its release (or Esc, a focus loss, deactivation). */
+    private ElementId heldButton;
     private GridPoint pressPoint;
     private WireDrawing wire;
     private GridPoint hoverPin;
@@ -187,6 +189,7 @@ public final class SelectTool implements Tool {
     @Override
     public void deactivated(ToolContext context) {
         cancelDelegate(context);
+        releaseHeldButton(context);
         hoverPin = null;
         hoverWidth = 1;
         reset();
@@ -248,11 +251,18 @@ public final class SelectTool implements Tool {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
+        releaseHeldButton(context); // a new press: the release of the last one was lost
         reset();
         boolean continuesOwnClick = ownPressSeen;
         ownPressSeen = true;
         ToggledBusInput toggledByFirstClick = lastBusInputToggle;
         lastBusInputToggle = null;
+        // before the repeated click: quick presses on a push button are presses, never a double click
+        Optional<Component> button = pushButtonPressedAt(context, event, hit);
+        if (button.isPresent()) {
+            pressButton(context, button.get());
+            return;
+        }
         if (pressRepeatedClick(context, event, hit, continuesOwnClick, toggledByFirstClick)) {
             return;
         }
@@ -286,6 +296,45 @@ public final class SelectTool implements Tool {
             return;
         }
         pressElement(context, event, hit.get());
+    }
+
+    /**
+     * The push button a plain primary press at {@code event} holds down: on its body, not on its pin (a wire starts
+     * there, as from any pin). Shift or Ctrl select it instead, so it can still be moved.
+     */
+    private Optional<Component> pushButtonPressedAt(ToolContext context, CanvasMouseEvent event,
+                                                    Optional<DocumentElement> hit) {
+        if (event.shiftDown() || event.controlDown() || hit.isEmpty()
+                || !(hit.get() instanceof Component component) || !isPushButton(component)
+                || pinNear(context, event.gridPosition()).isPresent()) {
+            return Optional.empty();
+        }
+        return Optional.of(component);
+    }
+
+    private static boolean isPushButton(Component component) {
+        return component.typeId().equals(StandardComponentTypes.PUSH_BUTTON);
+    }
+
+    /** Holds {@code button} down until the release, Esc, a focus loss or the tool going away; selects nothing. */
+    private void pressButton(ToolContext context, Component button) {
+        heldButton = button.id();
+        context.openDocument().pressButton(heldButton);
+    }
+
+    /** Lets go the push button this tool holds, if any (the document ignores one it already let go). */
+    private void releaseHeldButton(ToolContext context) {
+        if (heldButton != null) {
+            ElementId released = heldButton;
+            heldButton = null;
+            context.openDocument().releaseButton(released);
+        }
+    }
+
+    /** The canvas lost the focus or its window was deactivated: the release may never come, so let go now. */
+    @Override
+    public void focusLost(ToolContext context) {
+        releaseHeldButton(context);
     }
 
     /** A secondary press selects what it hit (or clears the selection on empty canvas) and opens the context menu. */
@@ -415,6 +464,9 @@ public final class SelectTool implements Tool {
             activeDelegate.dragged(context, event);
             return;
         }
+        if (heldButton != null) {
+            return; // a held push button stays held wherever the pointer goes
+        }
         if (bandStart != null) {
             bandEnd = event.gridPosition();
             context.repaint();
@@ -453,6 +505,11 @@ public final class SelectTool implements Tool {
             released.released(context, event);
             updateHover(context, event);
             context.repaint();
+            return;
+        }
+        if (heldButton != null) {
+            releaseHeldButton(context);
+            updateHover(context, event);
             return;
         }
         if (bandStart != null) {
@@ -796,6 +853,10 @@ public final class SelectTool implements Tool {
             context.repaint();
             return true;
         }
+        if (heldButton != null) {
+            releaseHeldButton(context);
+            return true;
+        }
         if (pressPoint != null || wire != null || bandStart != null || labelComponent != null) {
             reset();
             context.repaint();
@@ -1136,8 +1197,11 @@ public final class SelectTool implements Tool {
         return Optional.empty();
     }
 
-    /** An interactive part under the pointer; a multi-bit Switch only over one of its bits. */
+    /** An interactive part or a push button under the pointer; a multi-bit Switch only over one of its bits. */
     private boolean isClickable(ToolContext context, Component component, CanvasMouseEvent event) {
+        if (isPushButton(component)) {
+            return true;
+        }
         if (!isInteractive(context, component)) {
             return false;
         }

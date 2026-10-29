@@ -428,9 +428,11 @@ public final class ConvertedSelection {
             return saved.equalsIgnoreCase("Z") ? "0" : saved;
         }
 
+        /** A one-bit switch's text: its live value, else its saved «Valor»; a push button has none and rests at 0. */
         private static String switchText(Component part, Value currentValue) {
             if (currentValue == null) {
-                return String.valueOf(part.parameters().get("value"));
+                return part.typeId().equals(StandardComponentTypes.PUSH_BUTTON) ? "0"
+                        : String.valueOf(part.parameters().get("value"));
             }
             return currentValue.equals(Value.ONE) ? "1" : currentValue.equals(Value.ZERO) ? "0" : "Z";
         }

@@ -56,6 +56,8 @@ public final class StandardComponentTypes {
     public static final String TRI_STATE = "tri-state";
     public static final String CLOCK = "clock";
     public static final String SWITCH = "switch";
+    /** «Pulsador»: a one-bit input that gives 1 only while the mouse button is held on it. */
+    public static final String PUSH_BUTTON = "push-button";
     public static final String CONSTANT = "constant";
     public static final String LED = "led";
     public static final String SEVEN_SEGMENTS_DISPLAY = "seven-segments-display";
@@ -179,6 +181,9 @@ public final class StandardComponentTypes {
                 StandardComponentTypes::checkSwitch,
                 parameters -> new SwitchBehavior(SwitchBehavior.parseNumber((String) parameters.get(VALUE),
                         (Integer) parameters.get(WIDTH)))));
+        // the one-bit Switch's box and pin, so it lines up with a switch and rotates as one
+        registry.register(new ComponentType(PUSH_BUTTON, ComponentCategory.INPUT_OUTPUT, new GridSize(4, 2),
+                List.of(PinSpec.output("out", 4, 1)), List.of(), parameters -> new PushButtonBehavior()));
         registry.register(ComponentType.parameterized(CONSTANT, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 8, 1, ConstantValue.MAXIMUM_WIDTH),
                         ParameterSpec.text("value", "0", ConstantValue::normalize),
@@ -535,6 +540,14 @@ public final class StandardComponentTypes {
     }
 
     /** True for both 7-segment displays. */
+    /**
+     * Whether {@code typeId} is set by hand while simulating like a switch: the Switch or the push button (a truth
+     * table row tried in the circuit, «Crear componente»).
+     */
+    public static boolean isSwitchOrPushButton(String typeId) {
+        return SWITCH.equals(typeId) || PUSH_BUTTON.equals(typeId);
+    }
+
     public static boolean isSevenSegmentsDisplay(String typeId) {
         return SEVEN_SEGMENTS_DISPLAY.equals(typeId) || SEVEN_SEGMENTS_DISPLAY_DOUBLE.equals(typeId);
     }

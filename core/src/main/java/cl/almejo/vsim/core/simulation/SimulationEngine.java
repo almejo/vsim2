@@ -131,8 +131,23 @@ public final class SimulationEngine {
     }
 
     /**
-     * Makes input component {@code componentId} (a switch or an input pin) drive {@code value} and applies the
-     * zero-delay effects now, like {@link #interact}. Used by the truth-table evaluator (M6.1-C) on its own engines.
+     * {@link #setInput} that also reports the nets that changed (a push button pressed or released while paused, shown
+     * as a step like a click).
+     */
+    public StepResult setInputTracked(String componentId, Value value) {
+        Set<String> changed = startTracking();
+        try {
+            setInput(componentId, value);
+        } finally {
+            changedNets = null;
+        }
+        return new StepResult(now(), now(), changed, nextEventTime());
+    }
+
+    /**
+     * Makes input component {@code componentId} (a switch, a push button or an input pin) drive {@code value} and
+     * applies the zero-delay effects now, like {@link #interact}. Used by the truth-table evaluator (M6.1-C) on its own
+     * engines.
      * An unknown id, a component that is not an input or a value of another width throws IllegalArgumentException.
      */
     public void setInput(String componentId, Value value) {

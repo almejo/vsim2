@@ -59,7 +59,8 @@ class PaintersTest {
         }
         return switch (typeId) {
             case StandardComponentTypes.LED -> new VisibleState.LedState(Value.ONE);
-            case StandardComponentTypes.SWITCH -> new VisibleState.SwitchState(Value.ONE);
+            case StandardComponentTypes.SWITCH, StandardComponentTypes.PUSH_BUTTON ->
+                    new VisibleState.SwitchState(Value.ONE);
             case StandardComponentTypes.CLOCK -> new VisibleState.ClockState(Value.ONE);
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY -> new VisibleState.SevenSegmentsState(Value.of(4, 0x7));
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE -> new VisibleState.SevenSegmentsState(Value.of(8, 0x5A));
@@ -253,6 +254,20 @@ class PaintersTest {
     void switchIsFilledWithTheColorOfItsValue() {
         BufferedImage image = draw(StandardComponentTypes.SWITCH, Rotation.R0, Map.of(), new VisibleState.SwitchState(Value.ONE));
         assertThat(new Color(image.getRGB(101, 104))).isEqualTo(SCHEME.wireOne());
+    }
+
+    @Test
+    void aPressedPushButtonFillsItsCapWithTheColourOfOneAndAReleasedOneDoesNot() {
+        BufferedImage pressed = draw(StandardComponentTypes.PUSH_BUTTON, Rotation.R0, Map.of(),
+                new VisibleState.SwitchState(Value.ONE));
+        BufferedImage released = draw(StandardComponentTypes.PUSH_BUTTON, Rotation.R0, Map.of(),
+                new VisibleState.SwitchState(Value.ZERO));
+        BufferedImage beforeAnySnapshot = draw(StandardComponentTypes.PUSH_BUTTON, Rotation.R0, Map.of(),
+                VisibleState.NONE);
+
+        assertThat(new Color(pressed.getRGB(100, 105))).isEqualTo(SCHEME.wireOne());
+        assertThat(new Color(released.getRGB(100, 105))).isNotEqualTo(SCHEME.wireOne());
+        assertThat(new Color(beforeAnySnapshot.getRGB(100, 105))).isEqualTo(new Color(released.getRGB(100, 105)));
     }
 
     @Test

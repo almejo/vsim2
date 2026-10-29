@@ -158,6 +158,25 @@ class SimulationHostSupportTest {
     }
 
     @Test
+    void theAiSetsAPushButtonLikeASwitch() throws Exception {
+        OpenDocument document = new OpenDocument(new cl.almejo.vsim.core.document.CircuitDocument(), registry, null,
+                false);
+        open.add(document);
+        cl.almejo.vsim.core.document.Component button = place(document, StandardComponentTypes.PUSH_BUTTON, 0, 0,
+                Map.of());
+        cl.almejo.vsim.core.document.Component led = place(document, StandardComponentTypes.LED, 20, 0, Map.of());
+        cl.almejo.vsim.core.geometry.GridPoint from = registry.typeOf(button).pinLocation(button, 0);
+        cl.almejo.vsim.core.geometry.GridPoint to = registry.typeOf(led).pinLocation(led, 0);
+        addWire(document, from.x(), from.y(), to.x(), from.y());
+        addWire(document, to.x(), from.y(), to.x(), to.y());
+        DocumentSummary summary = summary();
+
+        api.setInputs(summary.id(), summary.version(), null, List.of(new InputValue(button.id().value(), "1")));
+
+        assertThat(read(summary.id(), led.id().value(), "in")).isEqualTo("1");
+    }
+
+    @Test
     void anInputPreparedAgainstAnOlderVersionIsStaleAndSetsNothing() throws Exception {
         OpenDocument document = example("adder-4-bits");
         DocumentSummary adder = summary();
@@ -187,7 +206,7 @@ class SimulationHostSupportTest {
                     assertThat(exception.error()).isEqualTo(AutomationError.INPUT_REJECTED);
                     assertThat((List<?>) exception.recovery().get("inputs")).hasSize(3);
                     assertThat(exception.recovery().get("inputs").toString())
-                            .contains("is not a switch or an input pin", "does not fit in 1 bit", "no component ghost");
+                            .contains("is not a switch, a push button or an input pin", "does not fit in 1 bit", "no component ghost");
                 });
         assertThat(read(adder.id(), "c6", "out")).as("the valid value was not set either").isEqualTo("0");
     }

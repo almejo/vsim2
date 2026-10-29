@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
@@ -139,6 +140,20 @@ class TruthTableScopeTest {
                 .as("an input pin").isFalse();
         assertThat(ready(withInstance, Set.of(instance.id())).inputsAreTopLevelSwitches())
                 .as("a single instance").isFalse();
+    }
+
+    @Test
+    void aPushButtonIsAnInputThatARowCanSet() {
+        TruthTableCircuits circuits = new TruthTableCircuits();
+        Component button = circuits.place(StandardComponentTypes.PUSH_BUTTON, 0, 0, "P");
+        circuits.wire(circuits.pin(button, 0), new GridPoint(8, 1));
+        circuits.place(StandardComponentTypes.LED, 7, -2, "Y");
+
+        Preparation.Ready ready = ready(circuits, Set.of());
+
+        assertThat(ready.inputs()).extracting(Column::name).containsExactly("P");
+        assertThat(ready.rowCount()).isEqualTo(2);
+        assertThat(ready.inputsAreTopLevelSwitches()).isTrue();
     }
 
     @Test

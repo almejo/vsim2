@@ -153,6 +153,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         @Override
         public void windowDeactivated(WindowEvent event) {
             autoscroll.stopAutoscroll(); // the release may never reach this canvas
+            tool.focusLost(CircuitCanvas.this);
         }
     };
     private Window watchedWindow;
@@ -205,6 +206,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 panAnchor = null;
                 showCursor();
                 autoscroll.stopAutoscroll(); // a modal dialog or another window took the release
+                tool.focusLost(CircuitCanvas.this);
             }
         });
         setTransferHandler(new CanvasTransferHandler(this));

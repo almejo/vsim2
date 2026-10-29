@@ -17,6 +17,13 @@ public interface Tool {
     default void deactivated(ToolContext context) {
     }
 
+    /**
+     * The canvas lost the keyboard focus or its window was deactivated while the tool may hold a press whose release
+     * will never reach it (a push button held down). The default does nothing.
+     */
+    default void focusLost(ToolContext context) {
+    }
+
     /** True while the tool paints a marching-ants outline of its own (the canvas keeps its animation clock running). */
     default boolean animatesOutline() {
         return false;

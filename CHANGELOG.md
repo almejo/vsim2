@@ -6,6 +6,12 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar
+
+### Agregado
+
+- **Pulsador** en Entrada/Salida, después del Interruptor: vale 1 solo mientras lo mantienes apretado con el mouse y vuelve a 0 al soltarlo (donde sea), con Esc, al perder la ventana el foco y al pausar o reiniciar la simulación. Apretarlo no deja paso de deshacer, no marca el archivo ni lo selecciona. Cuenta como entrada en la tabla de verdad y en «Crear componente», y la IA lo fija con `vsim_set_inputs`. Ver [Pulsador](docs/funciones/componentes.md#pulsador).
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado

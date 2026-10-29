@@ -148,6 +148,33 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> publishFailure(cause));
     }
 
+    /**
+     * Push button {@code componentId} is pressed: it drives 1 from now on. Like a click, while paused it publishes a
+     * {@link #latestStep()} with the nets that changed. A component that is gone or is not an input is skipped.
+     */
+    public void pressButton(String componentId) {
+        driveButton(componentId, Value.ONE);
+    }
+
+    /** Push button {@code componentId} is released: it drives 0 again (see {@link #pressButton}). */
+    public void releaseButton(String componentId) {
+        driveButton(componentId, Value.ZERO);
+    }
+
+    private void driveButton(String componentId, Value value) {
+        requests.add(() -> {
+            try {
+                if (running) {
+                    engine.setInput(componentId, value);
+                } else {
+                    publishStep(engine.setInputTracked(componentId, value));
+                }
+            } catch (IllegalArgumentException exception) {
+                LOGGER.debug("Button {} not driven: {}", componentId, exception.getMessage());
+            }
+        });
+    }
+
     /** Clicks a component. While paused it also publishes a {@link #latestStep()} with the nets that changed. */
     public void interact(String componentId) {
         requests.add(() -> {

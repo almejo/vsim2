@@ -71,7 +71,8 @@ final class SimulationTools {
 
     private static Tool setInputs(AutomationApi api) {
         Map<String, Object> value = Schema.object("One input and its value")
-                .property("elementId", Schema.nonEmptyString("A switch (any width) or input pin, top level"))
+                .property("elementId",
+                        Schema.nonEmptyString("A switch (any width), push button or input pin, top level"))
                 .property("value", Schema.nonEmptyString("0b1010 binary, 0x3F hexadecimal or a decimal number "
                         + "(1010 is a thousand and ten: write binary as 0b1010)"))
                 .required("elementId", "value").build();
