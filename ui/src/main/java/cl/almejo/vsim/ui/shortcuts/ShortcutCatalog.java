@@ -129,6 +129,8 @@ public final class ShortcutCatalog {
         window(entries, "simulation.advance", "action.advance", MenuId.SIMULATION, stroke(KeyEvent.VK_F7, 0));
         window(entries, "simulation.advanceToClockEdge", "action.advanceToClockEdge", MenuId.SIMULATION,
                 stroke(KeyEvent.VK_F7, shift));
+        window(entries, "simulation.advanceClockCycle", "action.advanceClockCycle", MenuId.SIMULATION,
+                stroke(KeyEvent.VK_F7, menu));
         window(entries, "simulation.truthTable", "action.truthTable", MenuId.SIMULATION, null);
         window(entries, "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.TOOLS, null);
         window(entries, "tools.karnaughPractice", "action.karnaughPractice", MenuId.TOOLS, null);

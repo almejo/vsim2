@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
@@ -271,10 +272,11 @@ class SimulationEngineStepTest {
         engine.advance(5);
         assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ZERO);
 
-        StepResult edge = engine.advanceToNextClockEdge();
+        StepResult edge = engine.advanceToNextClockEdge(ClockEdgeMode.FALLING);
 
         assertThat(edge).as("the rising edge at 1 000 does not stop it; «inverted» changed at 1 001 and 2 001")
-                .isEqualTo(new StepResult(5, 2_000, Set.of("clock"), OptionalLong.of(2_001)));
+                .isEqualTo(new StepResult(5, 2_000, Set.of("clock"), OptionalLong.of(2_001),
+                        Optional.of(ClockEdge.FALLING)));
         assertThat(engine.snapshot().netValue("q")).as("the flip-flop has not reacted yet").isEqualTo(Value.ZERO);
         StepResult reaction = engine.advanceToNextEvent();
         assertThat(reaction.changedNets()).containsExactlyInAnyOrder("q", "notQ", "inverted");
@@ -285,8 +287,8 @@ class SimulationEngineStepTest {
     void aClockInsideATemplateCounts() {
         engine.update(new FlatCircuit(List.of(clock("c4/k")), List.of(net("c4/clock", pin("c4/k", 0)))));
 
-        assertThat(engine.advanceToNextClockEdge().time()).isEqualTo(2_000);
-        assertThat(engine.advanceToNextClockEdge().time()).isEqualTo(4_000);
+        assertThat(engine.advanceToNextClockEdge(ClockEdgeMode.FALLING).time()).isEqualTo(2_000);
+        assertThat(engine.advanceToNextClockEdge(ClockEdgeMode.FALLING).time()).isEqualTo(4_000);
     }
 
     @Test
@@ -295,7 +297,7 @@ class SimulationEngineStepTest {
         engine.advance(5);
         engine.interactTracked("s");
 
-        assertThat(engine.advanceToNextClockEdge()).isEqualTo(new StepResult(5, 5, Set.of(), OptionalLong.of(6)));
+        assertThat(engine.advanceToNextClockEdge(ClockEdgeMode.FALLING)).isEqualTo(new StepResult(5, 5, Set.of(), OptionalLong.of(6)));
         assertThat(engine.now()).isEqualTo(5);
     }
 
@@ -306,7 +308,7 @@ class SimulationEngineStepTest {
                 component("one", TestComponentTypes.SOURCE, Map.of("value", "1"))),
                 List.of(net("clock", pin("k", 0), pin("one", 0)))));
 
-        assertThatThrownBy(() -> engine.advanceToNextClockEdge(10)).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> engine.advanceToNextClockEdge(ClockEdgeMode.FALLING, 10, SimulationEngine.STEP_EVENT_BUDGET)).isInstanceOf(IllegalStateException.class)
                 .hasMessage("no clock edge within 10 event times");
         assertThat(engine.now()).isEqualTo(10_000);
         assertThat(SimulationEngine.CLOCK_EDGE_TIME_BUDGET).isEqualTo(1_000_000);

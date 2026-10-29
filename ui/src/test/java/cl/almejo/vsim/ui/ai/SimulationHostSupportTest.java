@@ -17,6 +17,7 @@ import cl.almejo.vsim.automation.simulate.TruthTableView;
 import cl.almejo.vsim.core.bundled.BundledExamples;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.simulation.ClockEdge;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -217,28 +218,51 @@ class SimulationHostSupportTest {
     }
 
     @Test
-    void eachClockEdgeOfTheCounterCountsOne() throws Exception {
+    void eachClockCycleOfTheCounterCountsOne() throws Exception {
         example("counter-4-bits");
         DocumentId counter = summary().id();
         api.pause(counter);
         api.restart(counter);
 
-        SimulationReceipt edge = api.step(counter, StepKind.NEXT_CLOCK_EDGE, 1, 0);
+        SimulationReceipt edge = api.step(counter, StepKind.NEXT_CLOCK_CYCLE, 1, 0);
         api.step(counter, StepKind.DURATION, 100, 0);
         int first = counterValue(counter);
-        api.step(counter, StepKind.NEXT_CLOCK_EDGE, 1, 0);
+        api.step(counter, StepKind.NEXT_CLOCK_CYCLE, 1, 0);
         api.step(counter, StepKind.DURATION, 100, 0);
         int second = counterValue(counter);
-        SimulationReceipt twoEdges = api.step(counter, StepKind.NEXT_CLOCK_EDGE, 2, 0);
+        SimulationReceipt twoEdges = api.step(counter, StepKind.NEXT_CLOCK_CYCLE, 2, 0);
         api.step(counter, StepKind.DURATION, 100, 0);
 
         assertThat(edge.outcome()).isEqualTo(SimulationReceipt.Outcome.COMPLETED);
+        assertThat(edge.clockEdge()).contains(ClockEdge.FALLING);
         assertThat(edge.fromTime()).isEqualTo("0");
         assertThat(Long.parseLong(edge.time())).isPositive();
         assertThat(second).isEqualTo((first + 1) % 16);
         assertThat(counterValue(counter)).isEqualTo((second + 2) % 16);
         assertThat(Long.parseLong(twoEdges.time()) - Long.parseLong(twoEdges.fromTime())).as("two periods, nearly")
                 .isGreaterThan(500);
+    }
+
+    @Test
+    void aClockEdgeStepIsHalfACycleAndTheReceiptNamesTheEdge() throws Exception {
+        example("counter-4-bits");
+        DocumentId counter = summary().id();
+        api.pause(counter);
+        api.restart(counter);
+
+        SimulationReceipt rising = api.step(counter, StepKind.NEXT_CLOCK_EDGE, 1, 0);
+        SimulationReceipt falling = api.step(counter, StepKind.NEXT_CLOCK_EDGE, 1, 0);
+        SimulationReceipt cycle = api.step(counter, StepKind.NEXT_CLOCK_CYCLE, 1, 0);
+        SimulationReceipt notAnEdge = api.step(counter, StepKind.NEXT_EVENT, 1, 0);
+
+        assertThat(rising.clockEdge()).contains(ClockEdge.RISING);
+        assertThat(falling.clockEdge()).contains(ClockEdge.FALLING);
+        assertThat(Long.parseLong(falling.time())).isGreaterThan(Long.parseLong(rising.time()));
+        assertThat(cycle.clockEdge()).contains(ClockEdge.FALLING);
+        assertThat(Long.parseLong(cycle.time()) - Long.parseLong(falling.time()))
+                .as("a whole period, more than the time high")
+                .isGreaterThan(Long.parseLong(falling.time()) - Long.parseLong(rising.time()));
+        assertThat(notAnEdge.clockEdge()).isEmpty();
     }
 
     @Test

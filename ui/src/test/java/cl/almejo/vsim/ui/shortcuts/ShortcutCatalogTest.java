@@ -36,10 +36,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFortySevenHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFortyEightHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(47);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(48);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -147,7 +147,7 @@ class ShortcutCatalogTest {
         assertThat(simulation).containsExactly("simulation.start", "simulation.pause", "simulation.startOrPause",
                 "simulation.restart",
                 "simulation.step", "simulation.stepSize", "simulation.stepMode", "simulation.advance",
-                "simulation.advanceToClockEdge", "simulation.truthTable");
+                "simulation.advanceToClockEdge", "simulation.advanceClockCycle", "simulation.truthTable");
         assertThat(ShortcutCatalog.find("simulation.step").orElseThrow().defaultStroke())
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0));
         assertThat(ShortcutCatalog.find("simulation.step").orElseThrow().nameKey())
@@ -159,6 +159,8 @@ class ShortcutCatalogTest {
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0));
         assertThat(ShortcutCatalog.find("simulation.advanceToClockEdge").orElseThrow().defaultStroke())
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F7, InputEvent.SHIFT_DOWN_MASK));
+        assertThat(ShortcutCatalog.find("simulation.advanceClockCycle").orElseThrow().defaultStroke())
+                .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F7, ShortcutCatalog.menuMask()));
         assertThat(ShortcutCatalog.find("simulation.truthTable")).contains(new ShortcutEntry("simulation.truthTable",
                 "action.truthTable", MenuId.SIMULATION, Scope.WINDOW, Optional.empty()));
     }

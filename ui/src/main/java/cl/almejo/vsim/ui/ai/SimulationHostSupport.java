@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.InputAssignment;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.truthtable.TruthTableScope;
@@ -160,7 +161,10 @@ final class SimulationHostSupport {
             }
             case SimulationRequest.Step step -> new Started(switch (step.kind()) {
                 case NEXT_EVENT -> document.advanceToNextEventWithin((int) step.amount(), step.eventBudget());
-                case NEXT_CLOCK_EDGE -> document.advanceToNextClockEdgeWithin((int) step.amount(), step.eventBudget());
+                case NEXT_CLOCK_EDGE -> document.advanceToNextClockEdgeWithin(ClockEdgeMode.ANY, (int) step.amount(),
+                        step.eventBudget());
+                case NEXT_CLOCK_CYCLE -> document.advanceToNextClockEdgeWithin(ClockEdgeMode.FALLING,
+                        (int) step.amount(), step.eventBudget());
                 case DURATION -> document.stepWithin(step.amount(), step.eventBudget());
             }, step.eventBudget(), List.of(), List.of());
             case SimulationRequest.ReadSignals readSignals -> {

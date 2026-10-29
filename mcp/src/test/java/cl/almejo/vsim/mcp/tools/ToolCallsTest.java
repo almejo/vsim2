@@ -1,13 +1,17 @@
 package cl.almejo.vsim.mcp.tools;
 
 import cl.almejo.vsim.automation.AutomationApi;
+import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.export.ExportRequest;
+import cl.almejo.vsim.automation.simulate.SimulationOperations;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
+import cl.almejo.vsim.automation.simulate.StepKind;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.simulation.ClockEdge;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
@@ -21,6 +25,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static cl.almejo.vsim.mcp.McpResults.structured;
 import static cl.almejo.vsim.mcp.McpResults.map;
@@ -417,6 +422,31 @@ class ToolCallsTest {
         assertThat(host.simulationRequests).singleElement().isEqualTo(new SimulationRequest.Step(
                 new cl.almejo.vsim.automation.DocumentId("circuit-1"),
                 cl.almejo.vsim.automation.simulate.StepKind.DURATION, 1000, 100));
+    }
+
+    @Test
+    void aClockCycleStepReachesTheHostAndTheAnswerNamesTheEdge() {
+        host.simulation = request -> {
+            SimulationReceipt plain = host.receipt(request.document(), SimulationReceipt.Outcome.COMPLETED);
+            return new SimulationReceipt(plain.document(), plain.version(), plain.currentVersion(),
+                    plain.netlistToken(), plain.ranOnThatCircuit(), plain.outcome(), plain.fromTime(), plain.time(),
+                    plain.nextEventTime(), plain.eventsProcessed(), plain.eventBudget(), plain.running(),
+                    plain.failure(), plain.inputs(), plain.signals(),
+                    Optional.of(ClockEdge.FALLING));
+        };
+
+        Map<String, Object> answer = call("vsim_step", Map.of("document", "circuit-1", "kind", "NEXT_CLOCK_CYCLE"));
+
+        assertThat(answer).containsEntry("clockEdge", "FALLING");
+        assertThat(host.simulationRequests).singleElement().isEqualTo(new SimulationRequest.Step(
+                new DocumentId("circuit-1"), StepKind.NEXT_CLOCK_CYCLE, 1,
+                SimulationOperations.DEFAULT_EVENT_BUDGET));
+    }
+
+    @Test
+    void anOrdinaryStepAnswerHasNoClockEdge() {
+        assertThat(call("vsim_step", Map.of("document", "circuit-1", "kind", "NEXT_EVENT")))
+                .doesNotContainKey("clockEdge");
     }
 
     @Test

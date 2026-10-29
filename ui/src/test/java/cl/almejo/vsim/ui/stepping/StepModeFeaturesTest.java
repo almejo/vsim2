@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.simulation.ClockEdge;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.StepResult;
 import cl.almejo.vsim.core.value.Value;
@@ -208,11 +209,11 @@ class StepModeFeaturesTest {
         features.dispose();
 
         assertThat(openDocument.stepModeListenerCount()).isEqualTo(listeners - 1);
-        assertThat(view.toolBar().getComponentCount()).isEqualTo(toolBarItems - 5);
+        assertThat(view.toolBar().getComponentCount()).isEqualTo(toolBarItems - 6);
         assertThat(view.menu(MenuId.SIMULATION).getMenuComponentCount())
-                .isEqualTo(menuItems - 3);
+                .isEqualTo(menuItems - 4);
         assertThat(view.shortcutActions()).doesNotContainKeys("simulation.stepMode", "simulation.advance",
-                "simulation.advanceToClockEdge");
+                "simulation.advanceToClockEdge", "simulation.advanceClockCycle");
         assertThat(features.overlay().isTimerRunning()).isFalse();
     }
 
@@ -251,26 +252,52 @@ class StepModeFeaturesTest {
         features.snapshotPublished(SimulationSnapshot.EMPTY);
         assertThat(features.clockEdgeAction().isEnabled()).as("no clock").isFalse();
         assertThat(features.clockEdgeButton().isVisible()).isFalse();
+        assertThat(features.clockCycleAction().isEnabled()).as("no clock").isFalse();
+        assertThat(features.clockCycleButton().isVisible()).isFalse();
 
         Component clock = place(openDocument, StandardComponentTypes.CLOCK, 0, 0,
                 Map.of("time-up", 3, "time-down", 2));
         features.snapshotPublished(SimulationSnapshot.EMPTY.withRunning(true));
         assertThat(features.clockEdgeAction().isEnabled()).as("running").isFalse();
+        assertThat(features.clockCycleAction().isEnabled()).as("running").isFalse();
         perform(features.stepModeAction());
         assertThat(awaitSimulation(openDocument).running()).isFalse();
         showLatestSnapshot();
         assertThat(features.clockEdgeAction().isEnabled()).isTrue();
         assertThat(features.clockEdgeButton().isVisible()).isTrue();
+        assertThat(features.clockCycleAction().isEnabled()).isTrue();
+        assertThat(features.clockCycleButton().isVisible()).isTrue();
 
         perform(features.clockEdgeAction());
         awaitStep(1);
         StepResult edge = openDocument.latestStep().orElseThrow().result();
         assertThat(openDocument.latestSnapshot().time()).isEqualTo(edge.time());
         assertThat(edge.time()).isGreaterThan(edge.fromTime());
-        assertThat(openDocument.latestSnapshot().componentState(clock.id().value()))
-                .as("stopped right after the clock fell").isEqualTo(new VisibleState.ClockState(Value.ZERO));
+        ClockEdge expected = openDocument.latestSnapshot().componentState(clock.id().value())
+                .equals(new VisibleState.ClockState(Value.ONE)) ? ClockEdge.RISING : ClockEdge.FALLING;
+        assertThat(edge.edge()).as("the edge it stopped right after").contains(expected);
         String clockNet = openDocument.netlist().netForPin(new PinRef(clock.id(), 0)).orElseThrow().id().value();
         assertThat(edge.changedNets()).contains(clockNet);
+    }
+
+    @Test
+    void aClockCycleStopsRightAfterTheClockFell() {
+        Component clock = place(openDocument, StandardComponentTypes.CLOCK, 0, 0,
+                Map.of("time-up", 3, "time-down", 2));
+        perform(features.stepModeAction());
+        assertThat(awaitSimulation(openDocument).running()).isFalse();
+        showLatestSnapshot();
+
+        perform(features.clockCycleAction());
+        awaitStep(1);
+        perform(features.clockCycleAction());
+        awaitStep(2);
+
+        StepResult cycle = openDocument.latestStep().orElseThrow().result();
+        assertThat(cycle.edge()).contains(ClockEdge.FALLING);
+        assertThat(cycle.time() - cycle.fromTime()).as("one full period").isEqualTo(5);
+        assertThat(openDocument.latestSnapshot().componentState(clock.id().value()))
+                .as("stopped right after the clock fell").isEqualTo(new VisibleState.ClockState(Value.ZERO));
     }
 
     @Test

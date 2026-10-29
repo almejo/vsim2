@@ -208,7 +208,7 @@ class SimulationThreadBudgetTest {
         thread.resume();
         thread.tick();
 
-        RequestReport report = applied(thread.advanceToNextClockEdgeWithin(1, 1_000));
+        RequestReport report = applied(thread.advanceToNextClockEdgeWithin(ClockEdgeMode.FALLING, 1, 1_000));
 
         assertThat(report.status()).isEqualTo(RequestReport.Status.REFUSED_WHILE_RUNNING);
         assertThat(report.eventsProcessed()).isZero();
@@ -220,7 +220,7 @@ class SimulationThreadBudgetTest {
         thread.update(clock());
         thread.tick();
 
-        RequestReport report = applied(thread.advanceToNextClockEdgeWithin(1, 1_000));
+        RequestReport report = applied(thread.advanceToNextClockEdgeWithin(ClockEdgeMode.FALLING, 1, 1_000));
 
         assertThat(report.status()).isEqualTo(RequestReport.Status.COMPLETED);
         assertThat(report.snapshot().netValue("clock")).isEqualTo(Value.ZERO);
@@ -231,14 +231,39 @@ class SimulationThreadBudgetTest {
     void severalClockEdgesAreOneStepFromTheFirstStartToTheLastEdge() {
         thread.update(clock());
         thread.tick();
-        RequestReport one = applied(thread.advanceToNextClockEdgeWithin(1, 1_000));
+        RequestReport one = applied(thread.advanceToNextClockEdgeWithin(ClockEdgeMode.FALLING, 1, 1_000));
 
-        RequestReport three = applied(thread.advanceToNextClockEdgeWithin(3, 1_000));
+        RequestReport three = applied(thread.advanceToNextClockEdgeWithin(ClockEdgeMode.FALLING, 3, 1_000));
 
         long period = 5; // time-up 3 + time-down 2
         assertThat(three.fromTime()).isEqualTo(one.snapshot().time());
         assertThat(three.snapshot().time()).isEqualTo(one.snapshot().time() + 3 * period);
         assertThat(thread.latestStep().orElseThrow().result().fromTime()).isEqualTo(three.fromTime());
+    }
+
+    @Test
+    void halfCyclesAlternateAndTheReportNamesTheLastEdge() {
+        thread.update(clock()); // rises at 2, falls at 5, rises at 7
+        thread.tick();
+
+        RequestReport rising = applied(thread.advanceToNextClockEdgeWithin(ClockEdgeMode.ANY, 1, 1_000));
+        RequestReport twoMore = applied(thread.advanceToNextClockEdgeWithin(ClockEdgeMode.ANY, 2, 1_000));
+
+        assertThat(rising.snapshot().time()).isEqualTo(2);
+        assertThat(rising.clockEdge()).contains(ClockEdge.RISING);
+        assertThat(twoMore.snapshot().time()).isEqualTo(7);
+        assertThat(twoMore.clockEdge()).contains(ClockEdge.RISING);
+        assertThat(thread.latestStep().orElseThrow().result().edge()).contains(ClockEdge.RISING);
+    }
+
+    @Test
+    void aStepThatIsNotAnEdgeStepNamesNoEdge() {
+        thread.update(clock());
+        thread.tick();
+
+        RequestReport report = applied(thread.advanceToNextEventWithin(1, 1_000));
+
+        assertThat(report.clockEdge()).isEmpty();
     }
 
     @Test

@@ -185,12 +185,14 @@ class ApplicationExtensionsTest {
         try {
             assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Iniciar o pausar", "Reiniciar",
                     "Avanzar 10 t", "Tamaño del avance…", "Paso a paso", "Avanzar al próximo evento",
-                    "Avanzar al próximo flanco de reloj", "---", "Pausar al detectar cortocircuito", "---",
-                    "Tabla de verdad…");
+                    "Avanzar al próximo flanco de reloj", "Avanzar un ciclo de reloj", "---",
+                    "Pausar al detectar cortocircuito", "---", "Tabla de verdad…");
             assertThat(view.shortcutActions().get("simulation.advance").getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0));
             assertThat(view.shortcutActions().get("simulation.advanceToClockEdge").getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, InputEvent.SHIFT_DOWN_MASK));
+            assertThat(view.shortcutActions().get("simulation.advanceClockCycle").getValue(Action.ACCELERATOR_KEY))
+                    .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, ShortcutCatalog.menuMask()));
             assertThat(view.shortcutActions().get("simulation.stepMode").getValue(Action.ACCELERATOR_KEY)).isNull();
         } finally {
             view.dispose();
@@ -217,13 +219,16 @@ class ApplicationExtensionsTest {
             Action stepMode = view.shortcutActions().get("simulation.stepMode");
             Action advance = view.shortcutActions().get("simulation.advance");
             Action clockEdge = view.shortcutActions().get("simulation.advanceToClockEdge");
+            Action clockCycle = view.shortcutActions().get("simulation.advanceClockCycle");
             assertThat(stepMode.getValue(Action.LARGE_ICON_KEY))
                     .isSameAs(Icons.get(StepIcons.MODE, Icons.TOOLBAR_SIZE));
             assertThat(advance.getValue(Action.LARGE_ICON_KEY))
                     .isSameAs(Icons.get(StepIcons.ADVANCE, Icons.TOOLBAR_SIZE));
             assertThat(clockEdge.getValue(Action.LARGE_ICON_KEY))
                     .isSameAs(Icons.get(StepIcons.CLOCK_EDGE, Icons.TOOLBAR_SIZE));
-            for (Action action : List.of(stepMode, advance, clockEdge)) {
+            assertThat(clockCycle.getValue(Action.LARGE_ICON_KEY))
+                    .isSameAs(Icons.get(StepIcons.CLOCK_CYCLE, Icons.TOOLBAR_SIZE));
+            for (Action action : List.of(stepMode, advance, clockEdge, clockCycle)) {
                 AbstractButton button = Arrays.stream(view.toolBar().getComponents())
                         .filter(AbstractButton.class::isInstance)
                         .map(AbstractButton.class::cast)

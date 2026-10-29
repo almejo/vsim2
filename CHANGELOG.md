@@ -15,9 +15,17 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Clic derecho sobre un pin de bus de un componente ofrece «Agregar separador de bus» (en una salida) o «Agregar unión
   de bus» (en una entrada): pone la pieza del ancho del pin, hacia afuera y unida por un cable, en un solo paso de
   deshacer, y la deja seleccionada.
+- Simulación ▸ «Avanzar un ciclo de reloj» (Ctrl+F7, y un botón en la barra de «Paso a paso» junto al del flanco)
+  avanza hasta justo después del próximo flanco de bajada, donde guardan los flip-flops: lo que antes hacía Mayús+F7.
+  Después de un avance por flanco el estado dice qué flanco fue («flanco de subida», «flanco de bajada», o «flanco de
+  subida y de bajada» con dos relojes que cambian en sentidos opuestos a la vez).
+- La IA también puede avanzar un ciclo de reloj completo, y cuando avanza por flancos la respuesta dice qué flanco fue.
 
 ### Cambiado
 
+- «Avanzar al próximo flanco de reloj» (Mayús+F7) ahora se detiene en el próximo flanco de cualquier tipo, de subida o
+  de bajada: medio ciclo por vez. Para el ciclo completo está «Avanzar un ciclo de reloj» (Ctrl+F7). Lo mismo para la
+  IA: su avance por flanco ahora es de medio ciclo.
 - En el editor de formas, Línea, Multilínea y Polígono se dibujan igual con clic o con arrastre: arrastrar en
   Multilínea o Polígono pone un nodo al empezar y otro al soltar, y un clic en Línea empieza una línea de dos clics
   (Esc la cancela, Mayús fija el ángulo). Las ayudas de la línea inferior lo dicen.
