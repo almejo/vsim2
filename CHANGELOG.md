@@ -6,6 +6,14 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar
+
+### Agregado
+
+- Clic derecho sobre un pin de bus de un componente ofrece «Agregar separador de bus» (en una salida) o «Agregar unión
+  de bus» (en una entrada): pone la pieza del ancho del pin, hacia afuera y unida por un cable, en un solo paso de
+  deshacer, y la deja seleccionada.
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado
