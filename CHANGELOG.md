@@ -6,6 +6,14 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar
+
+### Cambiado
+
+- En el editor de formas, Línea, Multilínea y Polígono se dibujan igual con clic o con arrastre: arrastrar en
+  Multilínea o Polígono pone un nodo al empezar y otro al soltar, y un clic en Línea empieza una línea de dos clics
+  (Esc la cancela, Mayús fija el ángulo). Las ayudas de la línea inferior lo dicen.
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado

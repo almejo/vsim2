@@ -352,7 +352,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     boolean operationActive() {
-        return pressed != null || !pathDrawing.pathNodes.isEmpty() || textEditor.isOpen();
+        return pressed != null || pathDrawing.drawingPath() || textEditor.isOpen();
     }
 
     boolean hasSelection() {
@@ -402,7 +402,7 @@ final class ShapeCanvas extends JPanel {
         dragging = null;
         beforeDrag = null;
         committedBeforeDrag = null;
-        pathDrawing.pathNodes.clear();
+        pathDrawing.reset();
         pinDragActive = false;
         grabbedHandle = Optional.empty();
         curving = Optional.empty();
@@ -509,7 +509,7 @@ final class ShapeCanvas extends JPanel {
         dragTip = Optional.empty();
         requestFocusInWindow();
         pressed = event.getPoint();
-        start = point(event);
+        start = tool == ShapeTool.LINE && pathDrawing.lineAnchor != null ? pathDrawing.lineAnchor : point(event);
         beforeDrag = current.get();
         dragging = null;
         committedBeforeDrag = beforeDrag;
@@ -773,6 +773,10 @@ final class ShapeCanvas extends JPanel {
         return path.nodes().stream().mapToInt(node -> node.point().y()).average().orElse(0);
     }
 
+    boolean shiftHeld() {
+        return shiftHeld;
+    }
+
     private void drag(MouseEvent event) {
         controlHeld = event.isControlDown();
         shiftHeld = event.isShiftDown();
@@ -785,6 +789,9 @@ final class ShapeCanvas extends JPanel {
     /** Shift pressed or released in the middle of a drag: the move is worked out again at the same pointer. */
     private void shiftChanged(boolean shift) {
         shiftHeld = shift;
+        if (pathDrawing.lineAnchor != null) {
+            repaint();
+        }
         if (pressed != null && lastDragPoint != null && !panning) {
             drag(lastDragPoint, shift);
         }
@@ -803,7 +810,11 @@ final class ShapeCanvas extends JPanel {
             repaint();
             return;
         }
-        if (isPathTool() || tool == ShapeTool.TEXT || isNodeTool()) {
+        if (isPathTool()) {
+            pathDrawing.dragPath(pressed, where);
+            return;
+        }
+        if (tool == ShapeTool.TEXT || isNodeTool()) {
             return;
         }
         SymbolPoint end = point(where);
@@ -946,6 +957,12 @@ final class ShapeCanvas extends JPanel {
             completed = beforeDrag.bendSegment(curving.get().pathIndex(), curving.get().segment(), 0.5,
                     defaultBulge(beforeDrag, curving.get(), point(event)), SnapMode.FREE);
         }
+        boolean drawsLines = !panning && SwingUtilities.isLeftMouseButton(event);
+        if (drawsLines && tool == ShapeTool.LINE) {
+            completed = pathDrawing.releaseLine(event, pressed, committedBeforeDrag, completed);
+        } else if (drawsLines && isPathTool()) {
+            pathDrawing.releasePath(event, pressed);
+        }
         curving = Optional.empty();
         grabbedHandle = Optional.empty();
         SymbolDraft original = committedBeforeDrag;
@@ -1010,7 +1027,8 @@ final class ShapeCanvas extends JPanel {
             }
             repaint();
         } else if (isPathTool()) {
-            pathDrawing.clickPathTool(event);
+            // Placed on release (a click or the end of a drag), never twice.
+            return;
         } else if (tool == ShapeTool.TEXT) {
             beginText(event.getPoint(), -1);
         }
@@ -1347,6 +1365,10 @@ final class ShapeCanvas extends JPanel {
 
     private void pointerMoved(MouseEvent event) {
         pointer = event.getPoint();
+        shiftHeld = event.isShiftDown();
+        if (pathDrawing.lineAnchor != null) {
+            repaint();
+        }
         boolean wasOverBoxHandle = overBoxHandle;
         overBoxHandle = tool == ShapeTool.SELECT && !current.get().pinsLocked()
                 && hitHandle(event.getPoint()).isEmpty()

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.appearance.SymbolDraft;
 import cl.almejo.vsim.core.component.appearance.SymbolElement;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
+import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.component.appearance.SymbolText;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
@@ -458,11 +459,33 @@ final class ShapeCanvasPainter {
         });
     }
 
+    /** Línea after its first click: the dashed rubber band from that point to the pointer (angle locked with Shift). */
+    private void paintTwoClickLine(Graphics2D surface, ColorScheme scheme) {
+        SymbolPoint anchor = canvas.pathDrawing.lineAnchor;
+        if (anchor == null) {
+            return;
+        }
+        SymbolPoint end = SymbolTemplates.line(anchor, canvas.point(canvas.pointer), canvas.shiftHeld()).nodes()
+                .getLast().point();
+        surface.setColor(scheme.selection());
+        surface.setStroke(new BasicStroke((float) (1.2 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
+                new float[]{(float) (4 / zoom()), (float) (3 / zoom())}, 0));
+        surface.draw(new Line2D.Double(anchor.x() / 8.0 * UNIT, anchor.y() / 8.0 * UNIT, end.x() / 8.0 * UNIT,
+                end.y() / 8.0 * UNIT));
+        Shape marker = new Ellipse2D.Double(anchor.x() / 8.0 * UNIT - 3 / zoom(), anchor.y() / 8.0 * UNIT - 3 / zoom(),
+                6 / zoom(), 6 / zoom());
+        surface.setColor(scheme.background());
+        surface.fill(marker);
+        surface.setColor(scheme.componentStroke());
+        surface.draw(marker);
+    }
+
     /**
      * The multiline or polygon being drawn: its placed segments and nodes, the rubber band from the last node to the
      * pointer (and, for a polygon, back to the first node), and a ring on the first node when a click there closes it.
      */
     private void paintPathInProgress(Graphics2D surface, ColorScheme scheme) {
+        paintTwoClickLine(surface, scheme);
         List<SymbolPoint> pathNodes = canvas.pathDrawing.pathNodes;
         if (pathNodes.isEmpty()) {
             return;
