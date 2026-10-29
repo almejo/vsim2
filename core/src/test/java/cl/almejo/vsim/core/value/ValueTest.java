@@ -137,4 +137,43 @@ class ValueTest {
         assertThat(new Value(6, 0, 0b110000, false).hex()).isEqualTo("Z0");
         assertThat(Value.of(8, 0x5A).withConflict().hex()).isEqualTo("5A");
     }
+
+    @Test
+    void oneBitValuesAreShared() {
+        assertThat(Value.of(1, 1L)).isSameAs(Value.ONE);
+        assertThat(Value.of(1, 0L)).isSameAs(Value.ZERO);
+        assertThat(Value.highImpedance(1)).isSameAs(Value.HIGH_IMPEDANCE);
+        assertThat(Value.ONE.not()).isSameAs(Value.ZERO);
+        assertThat(Value.ONE.and(Value.ZERO)).isSameAs(Value.ZERO);
+        assertThat(Value.resolve(1, List.of(Value.HIGH_IMPEDANCE, Value.ONE))).isSameAs(Value.ONE);
+        assertThat(Value.ZERO.withConflict().not()).isSameAs(Value.ONE.withConflict());
+        assertThat(Value.resolve(1, List.of(Value.ONE, Value.ZERO))).isSameAs(Value.ONE.withConflict());
+    }
+
+    @Test
+    void filledWithTakesOnlyTheBitsInHighImpedanceAndKeepsTheConflict() {
+        Value resolved = new Value(4, 0b0001, 0b1100, true);
+        Value filler = new Value(4, 0b1110, 0b0001, false);
+
+        assertThat(resolved.filledWith(filler)).isEqualTo(new Value(4, 0b1101, 0b0000, true));
+        assertThat(resolved.filledWith(Value.highImpedance(4))).isEqualTo(resolved);
+        assertThatThrownBy(() -> resolved.filledWith(Value.ONE)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void resolutionAccumulatesLikeResolve() {
+        Value.Resolution resolution = new Value.Resolution(2);
+        assertThat(resolution.isEmpty()).isTrue();
+        resolution.add(new Value(2, 0b01, 0b10, false));
+        resolution.add(new Value(2, 0b10, 0b01, false));
+        resolution.add(new Value(2, 0b00, 0b01, false));
+
+        assertThat(resolution.isEmpty()).isFalse();
+        assertThat(resolution.value()).isEqualTo(Value.resolve(2, List.of(new Value(2, 0b01, 0b10, false),
+                new Value(2, 0b10, 0b01, false), new Value(2, 0b00, 0b01, false))));
+        assertThat(resolution.value().conflict()).as("bit 1: 1 against 0").isTrue();
+        resolution.reset();
+        assertThat(resolution.isEmpty()).isTrue();
+        assertThat(resolution.value()).isEqualTo(Value.highImpedance(2));
+    }
 }

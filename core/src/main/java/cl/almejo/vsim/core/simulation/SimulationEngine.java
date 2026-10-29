@@ -239,7 +239,7 @@ public final class SimulationEngine {
                 ComponentInstance instance = instances.get(reference.componentId());
                 PinState pin = instance.pins[reference.pinIndex()];
                 pin.net = net;
-                net.pins.add(pin);
+                net.add(pin);
             }
             nextNets.put(net.id, net);
         }
@@ -248,7 +248,7 @@ public final class SimulationEngine {
                 if (pin.net == null) {
                     RuntimeNet privateNet = new RuntimeNet("p:" + instance.id + "#" + pin.index, pin.spec.width(), false);
                     pin.net = privateNet;
-                    privateNet.pins.add(pin);
+                    privateNet.add(pin);
                     nextNets.put(privateNet.id, privateNet);
                 }
             }

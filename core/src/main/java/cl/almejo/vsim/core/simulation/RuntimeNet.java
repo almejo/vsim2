@@ -17,6 +17,10 @@ final class RuntimeNet {
     /** Waveform channels watching this net; {@code List.of()} for an unprobed net (see WaveformRecorder#rebind). */
     List<ChannelTrace> recorders = List.of();
     final List<PinState> pins = new ArrayList<>();
+    /** The pins of {@link #pins} that can drive the net (outputs and bidirectional pins), in the same order. */
+    private final List<PinState> drivers = new ArrayList<>();
+    private final Value.Resolution stable;
+    private final Value.Resolution pending;
     Value value;
     long conflictSince = -1;
 
@@ -25,27 +29,35 @@ final class RuntimeNet {
         this.width = width;
         this.widthMismatch = widthMismatch;
         this.value = Value.highImpedance(width);
+        this.stable = new Value.Resolution(width);
+        this.pending = new Value.Resolution(width);
     }
 
-    /** Recomputes the value; returns true when it changed. */
+    void add(PinState pin) {
+        pins.add(pin);
+        if (pin.spec.isDriver()) {
+            drivers.add(pin);
+        }
+    }
+
+    /**
+     * Recomputes the value; returns true when it changed. The pins with a drive still on its way count only to fill
+     * the bits the settled pins leave in high impedance, and never add a conflict.
+     */
     boolean resolve(long now) {
         if (widthMismatch) {
             value = Value.highImpedance(width);
             return false;
         }
-        List<Value> stable = new ArrayList<>();
-        List<Value> transitioning = new ArrayList<>();
-        for (PinState pin : pins) {
-            if (pin.spec.isDriver()) {
-                (pin.pendingDrives > 0 ? transitioning : stable).add(pin.driven);
-            }
+        stable.reset();
+        pending.reset();
+        for (int index = 0; index < drivers.size(); index++) {
+            PinState pin = drivers.get(index);
+            (pin.pendingDrives > 0 ? pending : stable).add(pin.driven);
         }
-        Value resolved = Value.resolve(width, stable);
-        if (!transitioning.isEmpty() && resolved.highImpedanceMask() != 0) {
-            Value pending = Value.resolve(width, transitioning);
-            long fill = resolved.highImpedanceMask() & ~pending.highImpedanceMask();
-            resolved = new Value(width, resolved.bits() | (pending.bits() & fill),
-                    resolved.highImpedanceMask() & ~fill, resolved.conflict());
+        Value resolved = stable.value();
+        if (!pending.isEmpty() && resolved.highImpedanceMask() != 0) {
+            resolved = resolved.filledWith(pending.value());
         }
         if (resolved.conflict()) {
             if (conflictSince < 0) {

@@ -13,6 +13,10 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
     public static final Value ZERO = new Value(1, 0L, 0L, false);
     public static final Value ONE = new Value(1, 1L, 0L, false);
     public static final Value HIGH_IMPEDANCE = new Value(1, 0L, 1L, false);
+    /** The 1-bit values, indexed by bit | highImpedance << 1 | conflict << 2: every 1-bit result is one of these. */
+    private static final Value[] ONE_BIT = {ZERO, ONE, HIGH_IMPEDANCE, HIGH_IMPEDANCE,
+            new Value(1, 0L, 0L, true), new Value(1, 1L, 0L, true), new Value(1, 0L, 1L, true),
+            new Value(1, 0L, 1L, true)};
 
     public Value {
         if (width < 1 || width > MAXIMUM_WIDTH) {
@@ -28,7 +32,17 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
     }
 
     public static Value of(int width, long bits) {
-        return new Value(width, bits, 0L, false);
+        return canonical(width, bits, 0L, false);
+    }
+
+    /** Equal to {@code new Value(width, bits, highImpedanceMask, conflict)}; for 1 bit, the shared instance. */
+    private static Value canonical(int width, long bits, long highImpedanceMask, boolean conflict) {
+        if (width == 1) {
+            int highImpedance = (int) (highImpedanceMask & 1L);
+            int bit = (int) (bits & 1L) & ~highImpedance;
+            return ONE_BIT[bit | highImpedance << 1 | (conflict ? 4 : 0)];
+        }
+        return new Value(width, bits, highImpedanceMask, conflict);
     }
 
     public static Value of(boolean bit) {
@@ -36,7 +50,7 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
     }
 
     public static Value highImpedance(int width) {
-        return new Value(width, 0L, -1L, false);
+        return canonical(width, 0L, -1L, false);
     }
 
     /**
@@ -44,11 +58,38 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
      * High impedance bits yield; different defined bits produce a conflict.
      */
     public static Value resolve(int width, Collection<Value> drivers) {
-        long mask = maskFor(width);
-        long defined = 0L;
-        long definedBits = 0L;
-        long conflictMask = 0L;
+        Resolution resolution = new Resolution(width);
         for (Value driver : drivers) {
+            resolution.add(driver);
+        }
+        return resolution.value();
+    }
+
+    /**
+     * The rule of {@link #resolve(int, Collection)} as an accumulator, so a net resolves its pins one by one without
+     * building a list: {@link #reset()}, {@link #add(Value)} each driver, {@link #value()}.
+     */
+    public static final class Resolution {
+        private final int width;
+        private final long mask;
+        private int drivers;
+        private long defined;
+        private long definedBits;
+        private long conflictMask;
+
+        public Resolution(int width) {
+            this.width = width;
+            this.mask = maskFor(width);
+        }
+
+        public void reset() {
+            drivers = 0;
+            defined = 0L;
+            definedBits = 0L;
+            conflictMask = 0L;
+        }
+
+        public void add(Value driver) {
             if (driver.width != width) {
                 throw new IllegalArgumentException("driver width " + driver.width + " differs from net width " + width);
             }
@@ -57,9 +98,26 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
             conflictMask |= overlap & (definedBits ^ driver.bits);
             definedBits |= driver.bits & driverDefined & ~defined;
             defined |= driverDefined;
+            drivers++;
         }
-        Value result = new Value(width, definedBits, ~defined, false);
-        return conflictMask != 0 ? result.withConflict() : result;
+
+        /** True when no driver was added since the last reset. */
+        public boolean isEmpty() {
+            return drivers == 0;
+        }
+
+        public Value value() {
+            return canonical(width, definedBits, ~defined, conflictMask != 0);
+        }
+    }
+
+    /** This value with, on each bit in Z, the bit {@code filler} defines (if any); keeps this conflict flag. */
+    public Value filledWith(Value filler) {
+        if (filler.width != width) {
+            throw new IllegalArgumentException("width mismatch: " + width + " vs " + filler.width);
+        }
+        long fill = highImpedanceMask & ~filler.highImpedanceMask;
+        return canonical(width, bits | (filler.bits & fill), highImpedanceMask & ~fill, conflict);
     }
 
     public BitState bit(int index) {
@@ -115,11 +173,11 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
     }
 
     public Value not() {
-        return new Value(width, ~bits, highImpedanceMask, conflict);
+        return canonical(width, ~bits, highImpedanceMask, conflict);
     }
 
     public Value withConflict() {
-        return new Value(width, bits, highImpedanceMask, true);
+        return canonical(width, bits, highImpedanceMask, true);
     }
 
     private Value combine(Value other, LongBinaryOperator operation) {
@@ -134,7 +192,7 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
         long result = (computed & ~anyHighImpedance)
                 | (other.bits & onlyThisHighImpedance)
                 | (bits & onlyOtherHighImpedance);
-        return new Value(width, result, bothHighImpedance, conflict || other.conflict);
+        return canonical(width, result, bothHighImpedance, conflict || other.conflict);
     }
 
     @Override
