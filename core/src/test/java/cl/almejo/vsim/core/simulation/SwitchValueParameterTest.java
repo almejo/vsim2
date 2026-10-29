@@ -93,6 +93,37 @@ class SwitchValueParameterTest {
     }
 
     @Test
+    void handedLiveValuesDriveTheNewValueKeepingTheCircuitAndItsToken() {
+        engine.update(new FlatCircuit(7, circuit(value("1")).components(), circuit(value("1")).nets()));
+
+        assertThat(engine.takeLiveValues(Map.of("s", value("0")))).isTrue();
+
+        assertThat(created).hasValue(1);
+        assertThat(engine.snapshot().token()).isEqualTo(7);
+        assertThat(engine.snapshot().netValue("n")).isEqualTo(Value.ZERO);
+    }
+
+    @Test
+    void aHandedValueTheSwitchDrivesAlreadyChangesNothingAndUnknownIdsAreSkipped() {
+        engine.update(circuit(value("1")));
+        engine.interact("s");
+
+        assertThat(engine.takeLiveValues(Map.of("s", value("0"), "gone", value("1")))).isFalse();
+
+        assertThat(valuesDriven).hasValue(0);
+        assertThat(engine.snapshot().netValue("n")).isEqualTo(Value.ZERO);
+    }
+
+    @Test
+    void handedLiveValuesTrackedReportTheNetsTheyChangedAndNothingWhenNothingChanged() {
+        engine.update(circuit(value("1")));
+
+        assertThat(engine.takeLiveValuesTracked(Map.of("s", value("0"))).orElseThrow().changedNets())
+                .contains("n");
+        assertThat(engine.takeLiveValuesTracked(Map.of("s", value("0")))).isEmpty();
+    }
+
+    @Test
     void onlyTheSwitchValueIsALiveValue() {
         assertThat(standardSwitch.parameters()).filteredOn(ParameterSpec::liveValue)
                 .extracting(ParameterSpec::name).containsExactly(StandardComponentTypes.VALUE);

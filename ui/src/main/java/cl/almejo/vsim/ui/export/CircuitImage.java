@@ -161,7 +161,8 @@ public final class CircuitImage {
     // A copy has its own revision, and the renderer trusts the netlist and the values only while their tokens match
     // the document's: carry over exactly which of the two matched the original.
     private static long copyToken(CircuitDocument copy, CircuitDocument original, long netlistToken) {
-        return netlistToken == original.revision() ? copy.revision() : copy.revision() + 1;
+        return netlistToken == original.structureRevision() ? copy.structureRevision()
+                : copy.structureRevision() + 1;
     }
 
     private static SimulationSnapshot copySnapshot(SimulationSnapshot snapshot, long copyToken, long netlistToken) {

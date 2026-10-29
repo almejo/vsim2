@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.value.Value;
@@ -168,10 +169,87 @@ class SwitchClickEditTest {
         document.interact(toggle.id());
         document.history().undo();
         assertThat(document.structureRevision()).isEqualTo(structure);
-        assertThat(document.netlistToken()).isGreaterThan(structure);
+        assertThat(document.netlistToken()).isEqualTo(structure);
+        assertThat(document.document().revision()).isGreaterThan(structure);
 
         document.execute(new SetLabelCommand(toggle.id(), "A"));
         assertThat(document.structureRevision()).isEqualTo(document.netlistToken()).isGreaterThan(structure);
+    }
+
+    @Test
+    void aClickKeepsTheNetlistAndItsTokenSoWiresNeverLoseTheirValue() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        awaitSimulation(document);
+        Netlist netlist = document.netlist();
+        long token = document.netlistToken();
+
+        document.interact(toggle.id());
+
+        assertThat(document.netlist()).isSameAs(netlist);
+        assertThat(document.netlistToken()).isEqualTo(token);
+        assertThat(document.latestSnapshot().token()).as("the snapshot before the click still matches").isEqualTo(token);
+        assertThat(awaitSimulation(document).token()).isEqualTo(token);
+        document.history().undo();
+        assertThat(document.netlistToken()).isEqualTo(token);
+        assertThat(liveValueOf(toggle)).isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void aRestartAfterAClickKeepsTheTokenAndTheClickedValue() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        document.interact(toggle.id());
+
+        document.restart();
+
+        assertThat(awaitSimulation(document).token()).isEqualTo(document.netlistToken());
+        assertThat(liveValueOf(toggle)).isEqualTo(Value.ZERO);
+    }
+
+    @Test
+    void aClickRightAfterAnUndoStartsFromTheValueTheUndoPutBack() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        awaitSimulation(document);
+
+        document.interact(toggle.id());
+        document.history().undo();
+        document.interact(toggle.id());
+
+        assertThat(valueOf(toggle)).isEqualTo("0");
+        assertThat(liveValueOf(toggle)).isEqualTo(Value.ZERO);
+    }
+
+    @Test
+    void aClickThatGivesBackTheStoredValueLeavesNoUndoStep() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        document.history().markSaved();
+        document.setInputs(Map.of(toggle.id(), Value.ZERO));
+        assertThat(liveValueOf(toggle)).isEqualTo(Value.ZERO);
+
+        document.interact(toggle.id());
+
+        assertThat(liveValueOf(toggle)).isEqualTo(Value.ONE);
+        assertThat(valueOf(toggle)).isEqualTo("1");
+        assertThat(document.isModified()).isFalse();
+        assertThat(document.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void aPausedUndoOfAClickIsPublishedAsAStep() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        waitUntil(() -> document.latestSnapshot().token() == document.netlistToken()
+                && document.latestSnapshot().running());
+        document.setStepMode(true);
+        document.interact(toggle.id());
+        awaitSimulation(document);
+        long clickStep = document.latestStep().orElseThrow().sequence();
+
+        document.history().undo();
+
+        awaitSimulation(document);
+        StepReport undone = document.latestStep().orElseThrow();
+        assertThat(undone.sequence()).isGreaterThan(clickStep);
+        assertThat(undone.result().changedNets()).contains(netOf(toggle, 0));
+        assertThat(liveValueOf(toggle)).isEqualTo(Value.ONE);
     }
 
     @Test

@@ -74,7 +74,8 @@ public final class CircuitFlattener {
     public FlatCircuit flatten(CircuitDocument document, Netlist netlist) {
         Expansion expansion = new Expansion();
         expansion.addLevel("", document, netlist, TunnelChecks.problems(document, netlist, registry), 0);
-        return new FlatCircuit(document.revision(), expansion.components, expansion.flatNets(),
+        // a netlist compiled at the structure revision still matches after switch clicks (live values only)
+        return new FlatCircuit(document.structureRevision(), expansion.components, expansion.flatNets(),
                 expansion.tunnelProblems, ConnectivityChecks.problems(document, registry));
     }
 

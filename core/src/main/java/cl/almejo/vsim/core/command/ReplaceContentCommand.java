@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
@@ -62,6 +64,100 @@ public final class ReplaceContentCommand implements Command {
         this.probesAfter = after.probes();
         this.guidesBefore = before.guides();
         this.guidesAfter = after.guides();
+    }
+
+    /** {@code original} with other elements on both sides (see {@link #rebasedOnSwitchValuesOf}). */
+    private ReplaceContentCommand(ReplaceContentCommand original, List<Placed> removed, List<Placed> added,
+                                  Map<ElementId, DocumentElement> changedBefore,
+                                  Map<ElementId, DocumentElement> changedAfter) {
+        this.description = original.description;
+        this.removed = List.copyOf(removed);
+        this.added = List.copyOf(added);
+        this.changedBefore = Collections.unmodifiableMap(changedBefore);
+        this.changedAfter = Collections.unmodifiableMap(changedAfter);
+        this.definitionsBefore = original.definitionsBefore;
+        this.definitionsAfter = original.definitionsAfter;
+        this.probesBefore = original.probesBefore;
+        this.probesAfter = original.probesAfter;
+        this.guidesBefore = original.guidesBefore;
+        this.guidesAfter = original.guidesAfter;
+    }
+
+    /**
+     * This change written over the switch values {@code document} holds now (review M-8: an AI step waiting for
+     * «Siguiente» while the user clicks a switch it changes). A switch it replaces or takes out whose «Valor» alone
+     * changed since the change was computed starts from the value it has now, and keeps it unless the change sets its
+     * value itself. Clicks do not make the AI's edits stale on purpose (they only change inputs), so without this the
+     * change would no longer find what it starts from. This command itself when no such switch.
+     */
+    public ReplaceContentCommand rebasedOnSwitchValuesOf(CircuitDocument document) {
+        Map<ElementId, Component> clicked = new LinkedHashMap<>();
+        for (DocumentElement element : changedBefore.values()) {
+            clickedSince(element, document).ifPresent(current -> clicked.put(element.id(), current));
+        }
+        for (Placed placed : removed) {
+            clickedSince(placed.element(), document).ifPresent(current -> clicked.put(placed.element().id(), current));
+        }
+        if (clicked.isEmpty()) {
+            return this;
+        }
+        Map<ElementId, DocumentElement> valuesBefore = new LinkedHashMap<>(changedBefore);
+        removed.forEach(placed -> valuesBefore.put(placed.element().id(), placed.element()));
+        Map<ElementId, DocumentElement> rebasedBefore = new LinkedHashMap<>(changedBefore);
+        Map<ElementId, DocumentElement> rebasedAfter = new LinkedHashMap<>(changedAfter);
+        clicked.forEach((id, current) -> {
+            rebasedBefore.computeIfPresent(id, (key, element) -> current);
+            rebasedAfter.computeIfPresent(id, (key, element) -> keepingClick(element, valuesBefore.get(id), current));
+        });
+        List<Placed> rebasedRemoved = removed.stream()
+                .map(placed -> clicked.containsKey(placed.element().id())
+                        ? new Placed(clicked.get(placed.element().id()), placed.order()) : placed)
+                .toList();
+        List<Placed> rebasedAdded = added.stream()
+                .map(placed -> clicked.containsKey(placed.element().id())
+                        ? new Placed(keepingClick(placed.element(), valuesBefore.get(placed.element().id()),
+                        clicked.get(placed.element().id())), placed.order()) : placed)
+                .toList();
+        return new ReplaceContentCommand(this, rebasedRemoved, rebasedAdded, rebasedBefore, rebasedAfter);
+    }
+
+    /** The switch {@code document} holds as {@code expected} with only another «Valor», if it does. */
+    private static Optional<Component> clickedSince(DocumentElement expected, CircuitDocument document) {
+        if (!(expected instanceof Component switchBefore)
+                || !switchBefore.typeId().equals(StandardComponentTypes.SWITCH)) {
+            return Optional.empty();
+        }
+        return document.component(expected.id())
+                .filter(current -> !current.equals(switchBefore))
+                .filter(current -> withValueOf(current, switchBefore).equals(switchBefore));
+    }
+
+    /**
+     * {@code after} (what the change leaves) with the «Valor» of {@code clicked}, unless the change set the value
+     * itself (it differs from the one in {@code before}).
+     */
+    private static DocumentElement keepingClick(DocumentElement after, DocumentElement before, Component clicked) {
+        if (!(after instanceof Component switchAfter) || !(before instanceof Component switchBefore)
+                || !Objects.equals(valueOf(switchAfter), valueOf(switchBefore))) {
+            return after;
+        }
+        return withValueOf(switchAfter, clicked);
+    }
+
+    /** {@code target} with the «Valor» of {@code source} (none when {@code source} has none). */
+    private static Component withValueOf(Component target, Component source) {
+        Map<String, Object> parameters = new LinkedHashMap<>(target.parameters());
+        Object value = valueOf(source);
+        if (value == null) {
+            parameters.remove(StandardComponentTypes.VALUE);
+        } else {
+            parameters.put(StandardComponentTypes.VALUE, value);
+        }
+        return target.withParameters(parameters);
+    }
+
+    private static Object valueOf(Component component) {
+        return component.parameters().get(StandardComponentTypes.VALUE);
     }
 
     /**

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -167,6 +168,32 @@ class ReplaceContentCommandTest {
         assertThat(document.probes()).isEqualTo(after.probes());
         command.revert(document);
         assertThat(document.probes()).isEmpty();
+    }
+
+    @Test
+    void rebasedOnAClickedSwitchKeepsTheClickUnlessTheChangeSetsTheValueItself() {
+        Component toggle = new Component(document.newComponentId(), StandardComponentTypes.SWITCH, new GridPoint(30, 0),
+                Rotation.R0, Map.of(StandardComponentTypes.VALUE, "1"), null);
+        document.add(toggle);
+        CircuitDocument labelled = document.copy();
+        labelled.replace(toggle.withLabel("A"));
+        CircuitDocument valued = document.copy();
+        valued.replace(toggle.withParameters(Map.of(StandardComponentTypes.VALUE, "Z")));
+        ReplaceContentCommand label = ReplaceContentCommand.between(document, labelled, "command.aiEdit");
+        ReplaceContentCommand value = ReplaceContentCommand.between(document, valued, "command.aiEdit");
+        assertThat(label.rebasedOnSwitchValuesOf(document)).as("nothing clicked: the same command").isSameAs(label);
+        document.replace(toggle.withParameters(Map.of(StandardComponentTypes.VALUE, "0")));
+
+        ReplaceContentCommand rebasedLabel = label.rebasedOnSwitchValuesOf(document);
+        rebasedLabel.apply(document);
+        assertThat(document.component(toggle.id()).orElseThrow().parameters())
+                .containsEntry(StandardComponentTypes.VALUE, "0");
+        assertThat(document.component(toggle.id()).orElseThrow().label()).isEqualTo("A");
+        rebasedLabel.revert(document);
+
+        value.rebasedOnSwitchValuesOf(document).apply(document);
+        assertThat(document.component(toggle.id()).orElseThrow().parameters())
+                .containsEntry(StandardComponentTypes.VALUE, "Z");
     }
 
     private static Map<ElementId, Long> orders(CircuitDocument document) {

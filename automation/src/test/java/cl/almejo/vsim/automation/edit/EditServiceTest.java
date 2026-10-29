@@ -25,6 +25,7 @@ import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
 import cl.almejo.vsim.automation.edit.EditOperation.SetStickyItem;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.command.SetSwitchValueCommand;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -791,6 +792,47 @@ class EditServiceTest {
         assertThat(service.undoTask(task.taskId())).isEqualTo(new UndoOutcome(2, false));
         assertThat(circuit.document().isEmpty()).isTrue();
         assertThat(service.undoTask(task.taskId())).isEqualTo(new UndoOutcome(0, false));
+    }
+
+    @Test
+    void undoingATaskPassesOverTheUsersSwitchClicksOnTopOfItAndCountsThem() {
+        TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Interruptor", List.of());
+        String switchId = service.edit(taskRequest(task, place("input", "switch", 0, 0))).aliases().get("input");
+        circuit.history().execute(SetSwitchValueCommand.click(new ElementId(switchId), "0"));
+        circuit.history().markSaved();
+        circuit.history().execute(SetSwitchValueCommand.click(new ElementId(switchId), "1"));
+
+        assertThat(service.undoTask(task.taskId())).isEqualTo(new UndoOutcome(1, false, 2));
+        assertThat(circuit.document().isEmpty()).isTrue();
+    }
+
+    /** Review M-8: a step waiting for «Siguiente» while the user clicks the switch it changes keeps the click. */
+    @Test
+    void anEditPreparedBeforeASwitchClickIsWrittenOverTheClickedValue() {
+        String switchId = service.edit(request(place("input", "switch", 0, 0))).aliases().get("input");
+        ElementId id = new ElementId(switchId);
+        PreparedEdit prepared = service.prepare(circuit, request(new SetLabel(switchId, "A")));
+        circuit.history().execute(SetSwitchValueCommand.click(id, "0"));
+
+        service.commit(circuit, prepared);
+
+        assertThat(circuit.document().component(id).orElseThrow().label()).isEqualTo("A");
+        assertThat(circuit.document().component(id).orElseThrow().parameters()).containsEntry("value", "0");
+        circuit.history().undo();
+        assertThat(circuit.document().component(id).orElseThrow().label()).isEmpty();
+        assertThat(circuit.document().component(id).orElseThrow().parameters()).containsEntry("value", "0");
+    }
+
+    @Test
+    void undoingATaskKeepsTheSwitchClicksThatHaveNoStepOfItUnder() {
+        TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Interruptor", List.of());
+        String switchId = service.edit(taskRequest(task, place("input", "switch", 0, 0))).aliases().get("input");
+        circuit.history().execute(new MoveElementsCommand(List.of(new ElementId(switchId)), 2, 0));
+        circuit.history().execute(SetSwitchValueCommand.click(new ElementId(switchId), "0"));
+
+        assertThat(service.undoTask(task.taskId())).isEqualTo(new UndoOutcome(0, true));
+        assertThat(circuit.document().component(new ElementId(switchId)).orElseThrow().parameters())
+                .containsEntry("value", "0");
     }
 
     @Test

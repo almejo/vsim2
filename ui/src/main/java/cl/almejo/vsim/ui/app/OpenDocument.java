@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.SwitchValues;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.io.AtomicFiles;
@@ -86,14 +87,11 @@ public final class OpenDocument implements AutoCloseable {
     /** The pins each applied command left unconnected and that are still loose ({@link #loosenedPins()}). */
     private final Map<Command, Set<PinRef>> loosenedByCommand = new LinkedHashMap<>();
     /**
-     * The value each switch was clicked to, until the simulation publishes it: a second click before that toggles
-     * from here, not from a snapshot that does not have the first one yet. Cleared from the simulation thread.
+     * The value each switch was given (a click, an undo or redo of one, a value typed or tried in the circuit) until the
+     * simulation publishes it: a click before that toggles from here, not from a snapshot that does not have the value
+     * yet. Cleared from the simulation thread.
      */
-    private final Map<ElementId, Value> unpublishedClicks = new ConcurrentHashMap<>();
-    /** See {@link #structureRevision()}. */
-    private long structureRevision;
-    /** Set while a {@link SwitchValueStep} changes the document, until the recompile it causes reads it. */
-    private boolean switchValuesOnly;
+    private final Map<ElementId, Value> unpublishedValues = new ConcurrentHashMap<>();
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
@@ -122,7 +120,7 @@ public final class OpenDocument implements AutoCloseable {
         this.compiler = new NetlistCompiler(this.registry);
         this.flattener = new CircuitFlattener(this.registry);
         this.simulation = new SimulationThread(new SimulationEngine());
-        document.addListener((changed, change) -> synchronize());
+        document.addListener((changed, change) -> documentChanged(change));
         history.addListener(changed -> {
             changeCount++;
             Command top = changed.undoCommand().orElse(null);
@@ -262,7 +260,7 @@ public final class OpenDocument implements AutoCloseable {
      * The version of the circuit the AI's edits are prepared against (IA.3): grows on every undo-history notification
      * that changes the command on top of the undo stack (execute, undo, redo, clear), not when the file is saved or
      * marked unsaved, so the user's Ctrl+S never makes the AI's next edit or a step waiting for «Siguiente» stale; nor
-     * for a switch's value set by a click or by the AI ({@link SetSwitchValueCommand}), an input like before.
+     * for a switch's value set by a click ({@link SetSwitchValueCommand}), an input like before.
      */
     public long contentVersion() {
         return contentVersion;
@@ -272,7 +270,10 @@ public final class OpenDocument implements AutoCloseable {
         return netlist;
     }
 
-    /** Revision of the document the current netlist was compiled from; compare with {@code snapshot.token()}. */
+    /**
+     * The {@linkplain CircuitDocument#structureRevision() structure revision} of the document the current netlist was
+     * compiled from (switch clicks since do not change it); compare with {@code snapshot.token()}.
+     */
     public long netlistToken() {
         return netlistToken;
     }
@@ -301,81 +302,21 @@ public final class OpenDocument implements AutoCloseable {
      * never made the AI's prepared edits stale before a click was an edit, so it does not now.
      */
     private static boolean changedOnlySwitchValues(History changed) {
-        return changed.lastChange().filter(SwitchValueStep.class::isInstance).isPresent();
+        return changed.lastChange().filter(SetSwitchValueCommand.class::isInstance).isPresent();
     }
 
-    /**
-     * Runs {@code command} as one undo step; one that may loosen pins gets its pins marked while it is applied, and one
-     * that only sets switch values is told apart from changes to the circuit ({@link #structureRevision()}).
-     */
+    /** Runs {@code command} as one undo step; one that may loosen pins gets its pins marked while it is applied. */
     public void execute(Command command) {
-        history.execute(switch (command) {
-            case LoosensPins loosening -> new MarkingCommand(command, loosening);
-            case SetSwitchValueCommand values -> new SwitchValueStep(values);
-            default -> command;
-        });
+        history.execute(command instanceof LoosensPins loosening ? new MarkingCommand(command, loosening) : command);
     }
 
     /**
-     * The document revision of the last change to the circuit other than switch values (a click, its undo, the AI's
-     * values): a netlist token at or after it is the same circuit with, at most, other switch values. The truth table
-     * keeps following the live inputs across clicks with it.
+     * The document revision of the last change to the circuit other than switch values (a click, its undo or redo;
+     * {@link CircuitDocument#structureRevision()}): the netlist and its token stay across clicks. The truth table keeps
+     * following the live inputs across clicks with it.
      */
     public long structureRevision() {
-        return structureRevision;
-    }
-
-    /**
-     * A {@link SetSwitchValueCommand} in the history: while it applies or reverts, the recompile it causes is marked as
-     * a change of switch values only ({@link #structureRevision()}). A run of clicks merges as the command does.
-     */
-    private final class SwitchValueStep implements Command {
-        private final SetSwitchValueCommand values;
-
-        private SwitchValueStep(SetSwitchValueCommand values) {
-            this.values = values;
-        }
-
-        @Override
-        public void apply(CircuitDocument target) {
-            changingOnlySwitchValues(() -> values.apply(target));
-        }
-
-        @Override
-        public void revert(CircuitDocument target) {
-            changingOnlySwitchValues(() -> values.revert(target));
-        }
-
-        /**
-         * Runs {@code change} with the next recompile marked as switch values only; the mark is consumed by that
-         * recompile, which may come at the end of an outer batch (a merged run of clicks).
-         */
-        private void changingOnlySwitchValues(Runnable change) {
-            switchValuesOnly = true;
-            try {
-                change.run();
-            } catch (RuntimeException exception) {
-                switchValuesOnly = false;
-                throw exception;
-            }
-        }
-
-        @Override
-        public Optional<Command> mergedWith(Command next) {
-            return next instanceof SwitchValueStep following
-                    ? values.continuedBy(following.values).map(SwitchValueStep::new)
-                    : Optional.empty();
-        }
-
-        @Override
-        public boolean changesNothing() {
-            return values.changesNothing();
-        }
-
-        @Override
-        public String description() {
-            return values.description();
-        }
+        return document.structureRevision();
     }
 
     private boolean isPinOfThisCircuit(PinRef pin) {
@@ -481,23 +422,53 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
-     * Writes the clicked value into the switch's «Valor». The simulation already has the click (queued just before),
-     * so the edit's recompile finds the value driven and fires nothing.
+     * Writes the clicked value into the switch's «Valor», unless it is the one stored already (the simulation had
+     * another value, from a truth-table row tried in the circuit or the AI's test): then there is nothing to undo. The
+     * simulation already has the click (queued just before), so handing it the edit's value fires nothing.
      */
     private void record(SwitchClick click) {
-        unpublishedClicks.put(click.componentId(), click.value());
-        simulation.published().thenRun(() -> unpublishedClicks.remove(click.componentId(), click.value()));
-        click.text().ifPresent(text -> execute(SetSwitchValueCommand.click(click.componentId(), text)));
+        expectPublished(click.componentId(), click.value());
+        Object stored = document.component(click.componentId())
+                .map(component -> registry.typeOf(component).resolveParameters(component.parameters())
+                        .get(StandardComponentTypes.VALUE))
+                .orElse(null);
+        click.text().filter(text -> !text.equals(stored))
+                .ifPresent(text -> execute(SetSwitchValueCommand.click(click.componentId(), text)));
+    }
+
+    /** Switch {@code componentId} will show {@code value} once the requests queued so far are published. */
+    private void expectPublished(ElementId componentId, Value value) {
+        unpublishedValues.put(componentId, value);
+        simulation.published().thenRun(() -> unpublishedValues.remove(componentId, value));
     }
 
     /**
-     * The value the switch has for a click: the one the last click left while the simulation has not shown it yet,
-     * else the one the simulation shows (a truth-table row tried in the circuit sets it without an edit), else its
-     * «Valor».
+     * A change of the document gave switches another «Valor» (a click, its undo or redo: {@code liveValuesOnly}; or,
+     * for a switch still waiting to show a value, a value typed in Propiedades): the simulation is handed that one, so
+     * a click before it is published starts from it (review I-4). A removed switch is forgotten.
+     */
+    private void followStoredSwitchValues(DocumentChange change, boolean liveValuesOnly) {
+        for (ElementId id : change.removed()) {
+            unpublishedValues.remove(id);
+        }
+        for (ElementId id : change.changed()) {
+            if (!liveValuesOnly && !unpublishedValues.containsKey(id)) {
+                continue;
+            }
+            document.component(id).filter(component -> component.typeId().equals(StandardComponentTypes.SWITCH))
+                    .map(component -> SwitchValues.valueOf(registry.typeOf(component)
+                            .resolveParameters(component.parameters())))
+                    .ifPresentOrElse(value -> expectPublished(id, value), () -> unpublishedValues.remove(id));
+        }
+    }
+
+    /**
+     * The value the switch has for a click: the one it was last given while the simulation has not shown it yet, else
+     * the one the simulation shows (a truth-table row tried in the circuit sets it without an edit), else its «Valor».
      */
     private Value valueBeforeClick(ElementId componentId, Map<String, Object> parameters) {
         Value stored = SwitchValues.valueOf(parameters);
-        Value pending = unpublishedClicks.get(componentId);
+        Value pending = unpublishedValues.get(componentId);
         if (pending != null) {
             return pending;
         }
@@ -532,6 +503,16 @@ public final class OpenDocument implements AutoCloseable {
         Map<String, Value> byId = new HashMap<>();
         values.forEach((componentId, value) -> byId.put(componentId.value(), value));
         simulation.setInputs(byId);
+        values.forEach(this::expectPublishedIfSwitch);
+    }
+
+    /** {@link #expectPublished} when {@code componentId} is a switch of the width of {@code value}. */
+    private void expectPublishedIfSwitch(ElementId componentId, Value value) {
+        document.component(componentId)
+                .filter(component -> component.typeId().equals(StandardComponentTypes.SWITCH))
+                .filter(component -> SwitchValues.valueOf(registry.typeOf(component)
+                        .resolveParameters(component.parameters())).width() == value.width())
+                .ifPresent(component -> expectPublished(componentId, value));
     }
 
     /**
@@ -698,9 +679,14 @@ public final class OpenDocument implements AutoCloseable {
 
     // --- IA.1: simulation requests with an event budget and one receipt each (SimulationThread, A§7) ---
 
-    /** Sets inputs in order, each reported accepted or rejected, within {@code eventBudget} events. */
+    /**
+     * Sets inputs in order, each reported accepted or rejected, within {@code eventBudget} events: the AI testing the
+     * circuit, simulation only like a truth-table row tried in it (not a document change, no undo step). EDT only.
+     */
     public CompletableFuture<RequestReport> setInputsWithin(List<InputAssignment> inputs, long eventBudget) {
-        return simulation.setInputsWithin(inputs, eventBudget);
+        CompletableFuture<RequestReport> report = simulation.setInputsWithin(inputs, eventBudget);
+        inputs.forEach(input -> expectPublishedIfSwitch(new ElementId(input.componentId()), input.value()));
+        return report;
     }
 
     /** {@code count} «Avanzar» within {@code eventBudget} events; refused while running. */
@@ -802,18 +788,41 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
+     * A document listener: a change of switch values only (a click, its undo or redo;
+     * {@link CircuitDocument#changeLiveValues}) keeps the netlist, the flattened circuit and their token and only hands
+     * the new values to the running switches, so wires never lose their colour for a snapshot and a click stays cheap
+     * on a big circuit (decided 2026-10-28); any other change recompiles.
+     */
+    private void documentChanged(DocumentChange change) {
+        boolean liveValuesOnly = document.structureRevision() == netlistToken;
+        if (liveValuesOnly) {
+            handOverLiveValues(change);
+        } else {
+            synchronize();
+        }
+        followStoredSwitchValues(change, liveValuesOnly);
+    }
+
+    /** The changed components' parameters to the simulation, whose switches drive the values they do not yet. */
+    private void handOverLiveValues(DocumentChange change) {
+        Map<String, Map<String, Object>> parameters = new LinkedHashMap<>();
+        for (ElementId id : change.changed()) {
+            document.component(id).ifPresent(component -> parameters.put(id.value(), component.parameters()));
+        }
+        if (!parameters.isEmpty()) {
+            simulation.takeLiveValues(parameters);
+        }
+    }
+
+    /**
      * Recompiles and republishes the circuit. It runs as a document listener while a command is being applied, so it
      * never throws: a failure (for example sub-circuits nested too deep) pauses the simulation and shows up as the
      * snapshot's failure, and the command still reaches the undo history.
      */
     private void synchronize() {
-        if (!switchValuesOnly) {
-            structureRevision = document.revision();
-        }
-        switchValuesOnly = false;
         try {
             netlist = compiler.compile(document);
-            netlistToken = document.revision();
+            netlistToken = document.structureRevision();
             forgetReconnectedPins();
             // One request with the circuit, so no tick runs between the new circuit and its channels (spec §3.4).
             FlatCircuit circuit = flattener.flatten(document, netlist);
@@ -826,9 +835,9 @@ public final class OpenDocument implements AutoCloseable {
             probeNets = Map.of();
             hasClock = false;
             connectivityProblems = List.of();
-            if (netlistToken != document.revision()) {
+            if (netlistToken != document.structureRevision()) {
                 netlist = Netlist.EMPTY;
-                netlistToken = document.revision();
+                netlistToken = document.structureRevision();
             }
             simulation.reportFailure(exception);
         }

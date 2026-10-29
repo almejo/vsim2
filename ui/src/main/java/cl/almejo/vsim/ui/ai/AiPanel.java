@@ -244,8 +244,7 @@ public final class AiPanel extends JPanel {
         if (disposed) {
             return;
         }
-        noticeText = Messages.format(outcome.stoppedAtUserEdit() ? "ai.status.undoStoppedAtUser"
-                : "ai.status.undone", Integer.toString(outcome.undone()));
+        noticeText = AiUndoNotices.of(outcome);
         refreshState();
     }
 

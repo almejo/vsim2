@@ -226,4 +226,35 @@ class CircuitDocumentTest {
         document.replace(first.withLabel("U1"));
         assertThat(document.components()).containsExactly(first.withLabel("U1"), second);
     }
+
+    @Test
+    void changingOnlyLiveValuesMovesTheRevisionButNotTheStructureRevision() {
+        CircuitDocument document = new CircuitDocument();
+        ElementId id = document.newComponentId();
+        document.add(andGate(id));
+        long structure = document.structureRevision();
+        assertThat(structure).isEqualTo(document.revision());
+        List<DocumentChange> heard = new ArrayList<>();
+        document.addListener((changed, change) -> heard.add(change));
+
+        document.changeLiveValues(() -> document.replace(andGate(id).withParameters(Map.of("delay", 2))));
+
+        assertThat(document.revision()).isEqualTo(structure + 1);
+        assertThat(document.structureRevision()).isEqualTo(structure);
+        assertThat(heard).extracting(DocumentChange::changed).containsExactly(Set.of(id));
+    }
+
+    @Test
+    void anyOtherChangeInTheSameBatchMovesTheStructureRevision() {
+        CircuitDocument document = new CircuitDocument();
+        ElementId id = document.newComponentId();
+        document.add(andGate(id));
+
+        document.batch(() -> {
+            document.changeLiveValues(() -> document.replace(andGate(id).withParameters(Map.of("delay", 2))));
+            document.replace(andGate(id).withLabel("U1"));
+        });
+
+        assertThat(document.structureRevision()).isEqualTo(document.revision());
+    }
 }

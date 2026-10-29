@@ -507,7 +507,7 @@ public final class CircuitRenderer {
      * dot. Only with a netlist that matches the document.
      */
     private void paintOpenPins(Graphics2D graphics, RenderState state, ColorScheme scheme) {
-        if (state.netlistToken() != state.document().revision()) {
+        if (state.netlistToken() != state.document().structureRevision()) {
             return;
         }
         graphics.setStroke(OPEN_PIN_RING);

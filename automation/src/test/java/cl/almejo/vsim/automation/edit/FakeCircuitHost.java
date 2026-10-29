@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.FakeAutomationHost;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.SetSwitchValueCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -72,12 +73,14 @@ final class FakeCircuitHost extends FakeAutomationHost {
             this.registry = BASE_REGISTRY.copy();
             this.registry.addResolver(SubcircuitTypes.resolverFor(document));
             this.history = new History(document);
-            // Like OpenDocument.contentVersion(): every edit, undo and redo moves it, a save does not.
+            // Like OpenDocument.contentVersion(): every edit, undo and redo moves it, a save or a switch click does not.
             history.addListener(changed -> {
                 Command top = changed.undoCommand().orElse(null);
                 if (top != lastTop) {
                     lastTop = top;
-                    changeCount++;
+                    if (changed.lastChange().filter(SetSwitchValueCommand.class::isInstance).isEmpty()) {
+                        changeCount++;
+                    }
                 }
             });
         }

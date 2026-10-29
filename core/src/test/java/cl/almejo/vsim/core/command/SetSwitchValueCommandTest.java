@@ -10,7 +10,6 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +49,19 @@ class SetSwitchValueCommandTest {
         history.undo();
         assertThat(valueOf(toggle.id())).isEqualTo("1");
         assertThat(history.isModified()).isFalse();
+    }
+
+    @Test
+    void clicksTheirMergesAndTheirUndoKeepTheStructureRevision() {
+        long structure = document.structureRevision();
+
+        history.execute(SetSwitchValueCommand.click(wide.id(), "0b111"));
+        history.execute(SetSwitchValueCommand.click(wide.id(), "0b1111"));
+        history.undo();
+        history.redo();
+
+        assertThat(document.revision()).isGreaterThan(structure);
+        assertThat(document.structureRevision()).isEqualTo(structure);
     }
 
     @Test
@@ -96,22 +108,6 @@ class SetSwitchValueCommandTest {
         history.undo();
 
         assertThat(valueOf(toggle.id())).isEqualTo("0");
-    }
-
-    @Test
-    void valuesSetTogetherAreOneStepThatNeverMerges() {
-        Map<ElementId, String> values = new LinkedHashMap<>();
-        values.put(toggle.id(), "0");
-        values.put(wide.id(), "0b11");
-        history.execute(SetSwitchValueCommand.of(values, "command.aiSwitchValues"));
-        history.execute(SetSwitchValueCommand.click(toggle.id(), "1"));
-
-        history.undo();
-        assertThat(valueOf(toggle.id())).isEqualTo("0");
-        assertThat(valueOf(wide.id())).isEqualTo("0b11");
-        history.undo();
-        assertThat(valueOf(toggle.id())).isEqualTo("1");
-        assertThat(valueOf(wide.id())).isEqualTo("0b101");
     }
 
     @Test

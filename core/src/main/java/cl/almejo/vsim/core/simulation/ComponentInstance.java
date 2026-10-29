@@ -48,7 +48,20 @@ final class ComponentInstance implements BehaviorContext {
      * {@linkplain cl.almejo.vsim.core.component.ParameterSpec#liveValue() live value} (a Switch's «Valor»).
      */
     boolean hasOtherLiveValue(FlatComponent component) {
-        return !type.liveValueParameters(parameters).equals(type.liveValueParameters(component.parameters()));
+        return hasOtherLiveValue(component.parameters());
+    }
+
+    /** {@link #hasOtherLiveValue(FlatComponent)} for the raw parameters {@code raw} of the same component. */
+    boolean hasOtherLiveValue(Map<String, Object> raw) {
+        return !type.liveValueParameters(parameters).equals(type.liveValueParameters(raw));
+    }
+
+    /**
+     * Whether {@code raw} differs from the parameters this instance runs with in live values at most, so it can take
+     * them with {@link #takeLiveValue(Map)}.
+     */
+    boolean differsOnlyInLiveValues(Map<String, Object> raw) {
+        return !initializationFailed && type.behaviorParameters(parameters).equals(type.behaviorParameters(raw));
     }
 
     /**
@@ -56,7 +69,12 @@ final class ComponentInstance implements BehaviorContext {
      * unless it drives it already ({@link Behavior#takeLiveValue}): nothing fires twice.
      */
     void takeLiveValue(FlatComponent component) {
-        parameters = component.parameters();
+        takeLiveValue(component.parameters());
+    }
+
+    /** {@link #takeLiveValue(FlatComponent)} for the raw parameters {@code raw}. */
+    void takeLiveValue(Map<String, Object> raw) {
+        parameters = Map.copyOf(raw);
         behavior.takeLiveValue(this, type.resolveParameters(parameters));
     }
 

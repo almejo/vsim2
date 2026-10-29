@@ -159,6 +159,22 @@ public final class SimulationThread implements AutoCloseable {
         });
     }
 
+    /**
+     * New live values for running components ({@link SimulationEngine#takeLiveValues}: a Switch's «Valor» changed by a
+     * click, its undo or redo), without a new circuit or token. While paused, one that changes something publishes a
+     * step like a click, so «Paso a paso» shows an undone click too.
+     */
+    public void takeLiveValues(Map<String, Map<String, Object>> parametersById) {
+        Map<String, Map<String, Object>> copy = Map.copyOf(parametersById);
+        requests.add(() -> {
+            if (running) {
+                engine.takeLiveValues(copy);
+            } else {
+                engine.takeLiveValuesTracked(copy).ifPresent(this::publishStep);
+            }
+        });
+    }
+
     /** Clicks bit {@code bit} of a multi-bit switch; like {@link #interact}, a paused click publishes a step. */
     public void interactBit(String componentId, int bit) {
         requests.add(() -> {

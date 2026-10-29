@@ -6,6 +6,7 @@ import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.ui.ai.AiIcons;
 import cl.almejo.vsim.ui.ai.AiPanel;
+import cl.almejo.vsim.ui.ai.AiUndoNotices;
 import cl.almejo.vsim.ui.ai.QuestionCard;
 import cl.almejo.vsim.ui.ai.ChangedSettingsSection;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
@@ -335,8 +336,12 @@ final class PresentationPanel extends JPanel {
         });
     }
 
-    /** What «Deshacer etapa» did, in the IA.1 words where they fit. */
+    /** What «Deshacer etapa» did, in the IA.1 words where they fit, and the user's switch clicks it undid with it. */
     static String undoNotice(StageUndoOutcome outcome) {
+        return AiUndoNotices.withSwitchClicks(stageNotice(outcome), outcome.switchClicksUndone());
+    }
+
+    private static String stageNotice(StageUndoOutcome outcome) {
         String undone = Integer.toString(outcome.undone());
         return switch (outcome.stoppedAt()) {
             case USER_EDIT -> Messages.format("ai.status.undoStoppedAtUser", undone);

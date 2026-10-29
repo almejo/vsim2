@@ -41,6 +41,12 @@ public final class CircuitDocument {
     private long nextOrder;
     private int batchDepth;
     private long revision;
+    /** See {@link #structureRevision()}. */
+    private long structureRevision;
+    /** How deep in {@link #changeLiveValues} the changes being made are; 0 outside it. */
+    private int liveValueDepth;
+    /** Whether a change outside {@link #changeLiveValues} was recorded since the last notification. */
+    private boolean pendingStructuralChange;
     private String name = "";
     private final List<Runnable> probeListeners = new CopyOnWriteArrayList<>();
     private List<Probe> probes = List.of();
@@ -59,6 +65,15 @@ public final class CircuitDocument {
     /** Grows by one every time listeners are notified: once per non-empty change, or once per batch. */
     public long revision() {
         return revision;
+    }
+
+    /**
+     * The {@link #revision()} of the last notification that changed more than live values ({@link #changeLiveValues}):
+     * a netlist compiled at it still describes the circuit after any number of switch clicks, so a click never makes
+     * the editor compile the circuit again (decided 2026-10-28).
+     */
+    public long structureRevision() {
+        return structureRevision;
     }
 
     /**
@@ -310,6 +325,21 @@ public final class CircuitDocument {
         batch(() -> instances.forEach(this::recordChanged));
     }
 
+    /**
+     * Runs {@code changes}, which only set the live values of components (a Switch's «Valor»: what an input drives,
+     * {@code ParameterSpec#liveValue}), as one {@link #batch}: the listeners hear it and the {@link #revision()} grows,
+     * but the {@link #structureRevision()} stays unless something else changes in the same outer batch. The caller
+     * vouches that nothing but live values changes.
+     */
+    public void changeLiveValues(Runnable changes) {
+        liveValueDepth++;
+        try {
+            batch(changes);
+        } finally {
+            liveValueDepth--;
+        }
+    }
+
     /** Runs {@code changes} and notifies listeners once at the end (batches may nest). */
     public void batch(Runnable changes) {
         batchDepth++;
@@ -466,7 +496,11 @@ public final class CircuitDocument {
         notifyUnlessBatching();
     }
 
+    /** Called by every record method: notes a change to the structure outside {@link #changeLiveValues}, then notifies. */
     private void notifyUnlessBatching() {
+        if (liveValueDepth == 0) {
+            pendingStructuralChange = true;
+        }
         if (batchDepth == 0) {
             notifyListeners();
         }
@@ -474,13 +508,18 @@ public final class CircuitDocument {
 
     private void notifyListeners() {
         DocumentChange change = new DocumentChange(pendingAdded, pendingRemoved, pendingChanged);
+        boolean structural = pendingStructuralChange;
         pendingAdded.clear();
         pendingRemoved.clear();
         pendingChanged.clear();
+        pendingStructuralChange = false;
         if (change.isEmpty()) {
             return;
         }
         revision++;
+        if (structural) {
+            structureRevision = revision;
+        }
         listeners.forEach(listener -> listener.documentChanged(this, change));
     }
 }

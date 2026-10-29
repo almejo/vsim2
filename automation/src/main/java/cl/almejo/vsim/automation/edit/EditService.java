@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.ReplaceContentCommand;
 import cl.almejo.vsim.core.command.SetGuidesCommand;
+import cl.almejo.vsim.core.command.SetSwitchValueCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
@@ -199,7 +200,7 @@ public final class EditService {
             return receipt;
         }
         int stageIndex = prepared.task().map(found -> stageOf(found, request)).orElse(AiEditCommand.NO_STAGE);
-        AiEditCommand command = new AiEditCommand(prepared.content(),
+        AiEditCommand command = new AiEditCommand(prepared.content().rebasedOnSwitchValuesOf(circuit.document()),
                 prepared.task().map(found -> found.info().taskId()), stageIndex, AiEditCommand.DESCRIPTION);
         circuit.history().execute(command);
         EditReceipt receipt = receipt(true, circuit.version(), prepared.planned(), prepared.changes(), List.of());
@@ -410,7 +411,8 @@ public final class EditService {
     /**
      * «Deshacer lo que hizo la IA» (spec §4.1): undoes the task's steps one after the other while one of them is on
      * top of the history; stops at anything else — the user's own edit — and says so when steps of the task remain
-     * under it, so the user's work is never undone. Safe to call from the editor thread.
+     * under it, so the user's work is never undone. The user's switch clicks on top of a step of the task (they only
+     * change inputs) are undone with it and counted. Safe to call from the editor thread.
      */
     public UndoOutcome undoTask(String taskId) {
         AiTask task = requireTask(taskId);
@@ -421,7 +423,8 @@ public final class EditService {
      * «Deshacer etapa» (spec §4.1): undoes the steps of stage {@code stageIndex} of the task one after the other while
      * one of them is on top of the history (passing over the task's step that took its layout-only guides away);
      * stops at anything else — the user's own edit, another stage's step — and says which when steps of the stage
-     * remain under it. Safe to call from the editor thread.
+     * remain under it. The user's switch clicks on top of a step of the stage are undone with it and counted. Safe to
+     * call from the editor thread.
      */
     public StageUndoOutcome undoStage(String taskId, int stageIndex) {
         AiTask task = requireTask(taskId);
@@ -449,6 +452,7 @@ public final class EditService {
 
     private static StageUndoOutcome undoStage(History history, AiTask task, int stageIndex) {
         int undone = 0;
+        int clicksUndone = 0;
         while (true) {
             Optional<AiEditCommand> top = topStepOf(history, task);
             boolean ofTheStage = top.filter(edit -> edit.stageIndex() == stageIndex).isPresent();
@@ -457,19 +461,39 @@ public final class EditService {
             if (!ofTheStage && !cleanupOverIt) {
                 break;
             }
+            clicksUndone += undoSwitchClicks(history);
             history.undo();
             undone++;
         }
         StageUndoOutcome.StoppedAt stoppedAt = !task.hasAppliedEdits(stageIndex) ? StageUndoOutcome.StoppedAt.NOTHING
                 : topStepOf(history, task).isPresent() ? StageUndoOutcome.StoppedAt.ANOTHER_STAGE
                 : StageUndoOutcome.StoppedAt.USER_EDIT;
-        return new StageUndoOutcome(stageIndex, undone, stoppedAt, task.latestStageWithAppliedEdits().isPresent());
+        return new StageUndoOutcome(stageIndex, undone, stoppedAt, task.latestStageWithAppliedEdits().isPresent(),
+                clicksUndone);
     }
 
-    /** The step on top of the history when it is one of {@code task}'s. */
+    /**
+     * The step of {@code task} on top of the history, under the user's switch clicks if some lie on top of it: a click
+     * only changes an input (decided 2026-10-28), so the AI's undo passes over it and undoes it too.
+     */
     private static Optional<AiEditCommand> topStepOf(History history, AiTask task) {
-        return history.undoCommand().filter(AiEditCommand.class::isInstance).map(AiEditCommand.class::cast)
-                .filter(edit -> edit.belongsTo(task.info().taskId()));
+        return history.undoCommandUnder(EditService::isSwitchClick).filter(AiEditCommand.class::isInstance)
+                .map(AiEditCommand.class::cast).filter(edit -> edit.belongsTo(task.info().taskId()));
+    }
+
+    /** Undoes the switch-click steps on top of the history; returns how many. */
+    private static int undoSwitchClicks(History history) {
+        int undone = 0;
+        while (history.undoCommand().filter(EditService::isSwitchClick).isPresent()) {
+            history.undo();
+            undone++;
+        }
+        return undone;
+    }
+
+    /** A step that only set switch values: the user's clicks on switches ({@link SetSwitchValueCommand}). */
+    private static boolean isSwitchClick(Command command) {
+        return command instanceof SetSwitchValueCommand;
     }
 
     /** The AI says it works on stage {@code stageIndex} of the task now («begin stage», IA.2). */
@@ -486,18 +510,13 @@ public final class EditService {
 
     private static UndoOutcome undo(History history, AiTask task) {
         int undone = 0;
-        while (isStepOf(history.undoCommand(), task)) {
+        int clicksUndone = 0;
+        while (topStepOf(history, task).isPresent()) {
+            clicksUndone += undoSwitchClicks(history);
             history.undo();
             undone++;
         }
-        return new UndoOutcome(undone, task.hasAppliedEdits());
-    }
-
-    private static boolean isStepOf(Optional<Command> command, AiTask task) {
-        return command.filter(AiEditCommand.class::isInstance)
-                .map(AiEditCommand.class::cast)
-                .filter(edit -> edit.belongsTo(task.info().taskId()))
-                .isPresent();
+        return new UndoOutcome(undone, task.hasAppliedEdits(), clicksUndone);
     }
 
     /** The task, as the plan and the status line need it. */

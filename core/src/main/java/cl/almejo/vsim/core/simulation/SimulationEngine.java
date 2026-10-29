@@ -414,6 +414,46 @@ public final class SimulationEngine {
         return new StepResult(fromTime, now(), changed, nextEventTime());
     }
 
+    /**
+     * Hands components the new {@linkplain cl.almejo.vsim.core.component.ParameterSpec#liveValue() live values} of
+     * their raw parameters {@code parametersById} (a Switch's «Valor» set by a click, its undo or redo) without building
+     * anything again: the circuit, its nets and its token stay, a switch drives the new value now unless it drives it
+     * already (the click reached the engine first) and the zero-delay effects apply now. An id that is gone, or whose
+     * parameters differ in more than live values, is skipped (only {@link #update} can apply those).
+     *
+     * @return whether some component shows another state after it (false: every value was driven already)
+     */
+    public boolean takeLiveValues(Map<String, Map<String, Object>> parametersById) {
+        boolean changed = false;
+        for (Map.Entry<String, Map<String, Object>> entry : parametersById.entrySet()) {
+            ComponentInstance instance = instances.get(entry.getKey());
+            if (instance == null || !instance.differsOnlyInLiveValues(entry.getValue())
+                    || !instance.hasOtherLiveValue(entry.getValue())) {
+                continue;
+            }
+            VisibleState before = instance.behavior.visibleState();
+            instance.takeLiveValue(entry.getValue());
+            changed |= !before.equals(instance.behavior.visibleState());
+        }
+        scheduler.runUntil(now());
+        return changed;
+    }
+
+    /**
+     * {@link #takeLiveValues} that also reports the nets that changed (an undo of a click while paused), as a click
+     * does; empty when no component changed, so a click's own step is not covered by an empty one.
+     */
+    public Optional<StepResult> takeLiveValuesTracked(Map<String, Map<String, Object>> parametersById) {
+        Set<String> changed = startTracking();
+        boolean anyChanged;
+        try {
+            anyChanged = takeLiveValues(parametersById);
+        } finally {
+            changedNets = null;
+        }
+        return anyChanged ? Optional.of(new StepResult(now(), now(), changed, nextEventTime())) : Optional.empty();
+    }
+
     /** {@link #interact} that also reports the nets that changed (a switch clicked while paused, M6.1-B). */
     public StepResult interactTracked(String componentId) {
         Set<String> changed = startTracking();

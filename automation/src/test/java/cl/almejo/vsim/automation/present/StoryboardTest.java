@@ -20,6 +20,7 @@ import cl.almejo.vsim.automation.edit.PinTarget;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.edit.TaskStep;
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.SetSwitchValueCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -458,6 +459,23 @@ class StoryboardTest {
 
         assertThat(outcome).isEqualTo(new StageUndoOutcome(0, 0, StoppedAt.USER_EDIT, true));
         assertThat(elementIds()).contains(users).hasSize(2);
+    }
+
+    @Test
+    void undoStagePassesOverTheUsersSwitchClicksOnTopOfItsSteps() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
+        api.beginStage(task.taskId(), 0, Optional.empty());
+        String switchId = apply(task, 0, place("input", "switch", 2, 4)).aliases().get("input");
+        host.onEditor(() -> {
+            circuit.history().execute(SetSwitchValueCommand.click(new ElementId(switchId), "0"));
+            return null;
+        });
+
+        StageUndoOutcome outcome = api.undoStage(task.taskId(), 0);
+
+        assertThat(outcome).isEqualTo(new StageUndoOutcome(0, 1, StoppedAt.NOTHING, false, 1));
+        assertThat(circuit.document().elements()).isEmpty();
     }
 
     @Test

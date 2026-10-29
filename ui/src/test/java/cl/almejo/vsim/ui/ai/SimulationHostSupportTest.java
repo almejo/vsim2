@@ -25,6 +25,7 @@ import javax.swing.SwingUtilities;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -87,9 +88,7 @@ class SimulationHostSupportTest {
         assertThat(settled.outcome()).isEqualTo(SimulationReceipt.Outcome.COMPLETED);
         assertThat(settled.nextEventTime()).as("the adder settled").isEmpty();
         assertThat(read(adder.id(), ADDER_CARRY_LED, "in")).isEqualTo("1");
-        // The switches keep the values set (2026-10-28): that edit recompiles the circuit; the step runs on the new one.
-        assertThat(settled.netlistToken()).isGreaterThan(set.netlistToken());
-        assertThat(settled.ranOnThatCircuit()).isTrue();
+        assertThat(set.netlistToken()).isEqualTo(settled.netlistToken());
     }
 
     /** An 8-bit Switch wired to an 8-bit LED; returns the ids (switch, LED) in an open document. */
@@ -131,26 +130,31 @@ class SimulationHostSupportTest {
                 });
     }
 
-    /** Decided 2026-10-28: a switch the AI sets keeps that «Valor», as a click does, in one undo step of its own. */
+    /**
+     * The AI testing the circuit drives the switches in the simulation only (fix round of 2026-10-28): «Prueba el
+     * circuito» promises the user's file stays as it was, so «Valor», the undo history and the modified flag stay.
+     */
     @Test
-    void aSwitchTheAiSetsKeepsTheValueAsOneUndoStepWithoutMakingItsVersionStale() throws Exception {
+    void aSwitchTheAiSetsChangesOnlyTheSimulation() throws Exception {
         List<String> parts = eightBitSwitchToLed();
         OpenDocument document = open.get(open.size() - 1);
+        document.history().markSaved();
         DocumentSummary summary = summary();
         cl.almejo.vsim.core.document.ElementId switchId = new cl.almejo.vsim.core.document.ElementId(parts.get(0));
+        Object storedBefore = document.document().component(switchId).orElseThrow().parameters()
+                .get(StandardComponentTypes.VALUE);
+        Optional<String> undoBefore = document.history().undoDescription();
 
         SimulationReceipt set = api.setInputs(summary.id(), summary.version(), null,
                 List.of(new InputValue(parts.get(0), "0xA6")));
 
         assertThat(set.stale()).isFalse();
-        assertThat(summary().version()).as("an input's value, like a click").isEqualTo(summary.version());
+        assertThat(read(summary.id(), parts.get(1), "in")).isEqualTo("10100110");
         assertThat(document.document().component(switchId).orElseThrow().parameters()
-                .get(StandardComponentTypes.VALUE)).isEqualTo("166");
-        assertThat(document.history().undoDescription()).contains(SimulationHostSupport.AI_SWITCH_VALUES);
-        api.setInputs(summary.id(), summary.version(), null, List.of(new InputValue(parts.get(0), "0x0F")));
-        document.history().undo();
-        assertThat(document.document().component(switchId).orElseThrow().parameters()
-                .get(StandardComponentTypes.VALUE)).isEqualTo("166");
+                .get(StandardComponentTypes.VALUE)).isEqualTo(storedBefore);
+        assertThat(document.history().undoDescription()).isEqualTo(undoBefore);
+        assertThat(document.isModified()).isFalse();
+        assertThat(summary().version()).isEqualTo(summary.version());
     }
 
     @Test

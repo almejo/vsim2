@@ -367,6 +367,19 @@ class AiStatusFeaturesTest {
     }
 
     @Test
+    void deshacerSaysItAlsoUndidTheUsersSwitchClicksOnTopOfTheAisSteps() {
+        TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
+        tasks.start(task);
+        tasks.end(task, Set.of());
+        tasks.nextOutcome = new UndoOutcome(2, false, 3);
+
+        features.undoButton().doClick();
+
+        assertThat(view.statusBar().text()).contains("Pasos de la IA deshechos: 2")
+                .contains("También deshice 3 cambios tuyos en interruptores");
+    }
+
+    @Test
     void aProposalIsAnnouncedInTheStatusBar() {
         proposals.propose(ProposedPreference.THEME, "DARK", "");
 

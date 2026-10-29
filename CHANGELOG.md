@@ -85,12 +85,23 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Un clic en un interruptor (o en un bit de uno de varios bits) ahora cambia su «Valor»: Propiedades muestra el valor
   nuevo al instante, el archivo queda modificado, al guardar se escribe ese valor y cambiar otra propiedad ya no lo
   devuelve al valor guardado. Se deshace con Ctrl+Z, que también lo devuelve en la simulación; varios clics seguidos
-  en el mismo interruptor son un solo paso. Los valores que la IA pone en interruptores también quedan en su «Valor».
+  en el mismo interruptor son un solo paso. Los valores que pone la IA al probar el circuito siguen siendo solo de la
+  simulación: no cambian «Valor», el archivo ni la historia de deshacer.
 
 ### Arreglado
 
 - La fila de muestras de color (el LED, las entradas de túnel, los marcos y las notas) ya no corta las últimas muestras en
   un panel Propiedades angosto: se parte en las líneas que hagan falta, alineadas a la izquierda, sin desplazarse de lado.
+- Un clic en un interruptor ya no vuelve a armar el circuito: los cables y las etiquetas de bus no pierden su color por
+  un instante, la pestaña Problemas no se vacía un momento y en un circuito grande el clic sigue siendo inmediato.
+- Un clic justo después de deshacer otro clic parte del valor que dejó el deshacer, no del que se acababa de deshacer.
+- Un clic que deja el interruptor en el valor que ya tenía guardado (la tabla de verdad o la IA lo habían cambiado solo
+  en la simulación) ya no deja un paso de deshacer vacío ni marca el archivo como modificado.
+- En «Paso a paso», deshacer o rehacer un clic en un interruptor hace brillar los cables que cambian, como el clic.
+- «Deshacer lo que hizo la IA» y «Deshacer etapa» ya no se detienen en tus clics en interruptores que quedaron encima
+  de los pasos de la IA (te culpaban de un cambio que solo movía entradas): los deshacen también y el aviso lo dice.
+- Un paso de la IA que espera «Siguiente» ya no falla si mientras tanto haces clic en un interruptor que ese paso
+  cambia: se aplica sobre el valor que le diste.
 
 ## Sin publicar — Compuertas parametrizables
 

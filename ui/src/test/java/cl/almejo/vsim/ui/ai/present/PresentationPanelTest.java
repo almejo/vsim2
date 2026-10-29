@@ -154,6 +154,17 @@ class PresentationPanelTest {
     }
 
     @Test
+    void deshacerEtapaSaysItAlsoUndidTheUsersSwitchClick() {
+        controls.nextUndo = new StageUndoOutcome(0, 3, StoppedAt.NOTHING, false, 1);
+
+        panel.undoStageButton().doClick();
+
+        assertThat(panel.notice().getText())
+                .isEqualTo("Deshice la etapa 1: 3 pasos. También deshice 1 cambio tuyo en un interruptor que estaba "
+                        + "encima.");
+    }
+
+    @Test
     void deshacerEtapaWithNothingLeftSaysSo() {
         controls.nextUndo = StageUndoOutcome.NOTHING_TO_UNDO;
 

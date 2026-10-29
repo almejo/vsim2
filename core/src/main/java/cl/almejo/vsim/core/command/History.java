@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Predicate;
 
 /** Undo/redo stacks for one document, with a "saved" marker. */
 public final class History {
@@ -172,6 +173,14 @@ public final class History {
      */
     public Optional<Command> undoCommand() {
         return Optional.ofNullable(undoStack.peek());
+    }
+
+    /**
+     * The command undo would reach after undoing, from the top, every command {@code passedOver} accepts (the AI's
+     * undo passes over the user's switch clicks on top of its steps); empty when there is no other.
+     */
+    public Optional<Command> undoCommandUnder(Predicate<Command> passedOver) {
+        return undoStack.stream().filter(passedOver.negate()).findFirst();
     }
 
     /**

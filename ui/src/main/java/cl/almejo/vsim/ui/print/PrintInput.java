@@ -73,9 +73,9 @@ public final class PrintInput {
         this.netlist = live.netlist();
         // The copy has its own revision, and the renderer trusts the netlist and the values only while their tokens
         // match the document's: carry over exactly which of the two matched the original (like CircuitImage).
-        boolean netlistMatches = live.netlistToken() == live.document().revision();
+        boolean netlistMatches = live.netlistToken() == live.document().structureRevision();
         boolean valuesMatch = netlistMatches && live.snapshot().token() == live.netlistToken();
-        this.netlistToken = netlistMatches ? copy.revision() : copy.revision() + 1;
+        this.netlistToken = netlistMatches ? copy.structureRevision() : copy.structureRevision() + 1;
         this.snapshot = withToken(live.snapshot(), valuesMatch ? netlistToken : netlistToken + 1);
         this.valuesProblem = valuesMatch ? Optional.empty() : Optional.of(Messages.text(VALUES_STALE));
         this.selection = selectionIn(copy, viewSelection);
@@ -204,7 +204,7 @@ public final class PrintInput {
         return netlist;
     }
 
-    /** {@code document().revision()} when the netlist belongs to the copied revision, something else otherwise. */
+    /** {@code document().structureRevision()} when the netlist belongs to the copied circuit, something else otherwise. */
     public long netlistToken() {
         return netlistToken;
     }

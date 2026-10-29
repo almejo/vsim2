@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
-import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -364,16 +363,11 @@ final class AiStatusFeatures {
             if (disposed) {
                 return;
             }
-            view.statusBar().showNotice(undoNotice(outcome));
+            view.statusBar().showNotice(AiUndoNotices.of(outcome));
             if (shown == task && !service.runningTasks().contains(task)) {
                 hide();
             }
         });
-    }
-
-    private static String undoNotice(UndoOutcome outcome) {
-        return Messages.format(outcome.stoppedAtUserEdit() ? "ai.status.undoStoppedAtUser" : "ai.status.undone",
-                Integer.toString(outcome.undone()));
     }
 
     private void followProposals() {
