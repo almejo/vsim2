@@ -13,6 +13,12 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - «Los cables siguen al mover» tiene el atajo Ctrl+E (se puede cambiar en Atajos de teclado). La ayuda del botón muestra la tecla vigente y la barra de estado dice si quedó activado o desactivado.
 - Herramienta **Texto** en la barra de herramientas y en el menú Ver (después de «Nota adhesiva»): un clic en el lienzo abre el campo de texto en ese punto y el editor vuelve a Selección.
 
+### Cambiado
+
+- En el editor de formas, Línea, Multilínea y Polígono se dibujan igual con clic o con arrastre: arrastrar en
+  Multilínea o Polígono pone un nodo al empezar y otro al soltar, y un clic en Línea empieza una línea de dos clics
+  (Esc la cancela, Mayús fija el ángulo). Las ayudas de la línea inferior lo dicen.
+
 ## Versión 0.5 — 2026-10-28
 
 ### Agregado

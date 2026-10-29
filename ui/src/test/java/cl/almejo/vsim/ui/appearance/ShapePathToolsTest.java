@@ -208,6 +208,110 @@ class ShapePathToolsTest {
         return onlyPath(draft);
     }
 
+    @Test
+    void dragDragEnterDrawsAMultilineFromTheDraggedPoints() {
+        AtomicReference<SymbolDraft> draft = blank();
+        ShapeCanvas canvas = canvas(draft);
+        canvas.setTool(ShapeTool.MULTILINE);
+
+        drag(canvas, 78, 78, 94, 86, 0);
+        drag(canvas, 94, 86, 110, 78, 0);
+        canvas.finishOperation();
+
+        assertThat(points(onlyPath(draft))).containsExactly(new SymbolPoint(8, 8), new SymbolPoint(24, 16),
+                new SymbolPoint(40, 8));
+    }
+
+    @Test
+    void aDragIsNotAlsoCountedAsAClickAndMixesWithClicks() {
+        AtomicReference<SymbolDraft> draft = blank();
+        ShapeCanvas canvas = canvas(draft);
+        canvas.setTool(ShapeTool.POLYGON);
+
+        click(canvas, 78, 78, 0);
+        drag(canvas, 94, 86, 110, 78, 0);
+        // The release of a drag is followed by a Swing mouseClicked only when the pointer did not move; send both.
+        canvas.dispatchEvent(new java.awt.event.MouseEvent(canvas, java.awt.event.MouseEvent.MOUSE_CLICKED, 0, 0, 110,
+                78, 2, false, java.awt.event.MouseEvent.BUTTON1));
+
+        assertThat(canvas.placedNodes()).containsExactly(new SymbolPoint(8, 8), new SymbolPoint(24, 16),
+                new SymbolPoint(40, 8));
+        assertThat(canvas.operationActive()).isTrue();
+    }
+
+    @Test
+    void aDragStartingOnTheLastNodePlacesOnlyItsEndPoint() {
+        AtomicReference<SymbolDraft> draft = blank();
+        ShapeCanvas canvas = canvas(draft);
+        canvas.setTool(ShapeTool.MULTILINE);
+        click(canvas, 78, 78, 0);
+
+        drag(canvas, 78, 78, 110, 78, 0);
+
+        assertThat(canvas.placedNodes()).containsExactly(new SymbolPoint(8, 8), new SymbolPoint(40, 8));
+    }
+
+    @Test
+    void aLineDrawnByTwoClicksEndsOnTheSecond() {
+        AtomicReference<SymbolDraft> draft = blank();
+        ShapeCanvas canvas = canvas(draft);
+        canvas.setTool(ShapeTool.LINE);
+
+        click(canvas, 78, 78, 0);
+        assertThat(draft.get().elements()).isEmpty();
+        assertThat(canvas.operationActive()).isTrue();
+        click(canvas, 110, 94, 0);
+
+        assertThat(points(onlyPath(draft))).containsExactly(new SymbolPoint(8, 8), new SymbolPoint(40, 24));
+        assertThat(canvas.operationActive()).isFalse();
+    }
+
+    @Test
+    void shiftLocksTheAngleOfATwoClickLine() {
+        AtomicReference<SymbolDraft> draft = blank();
+        ShapeCanvas canvas = canvas(draft);
+        canvas.setTool(ShapeTool.LINE);
+
+        click(canvas, 78, 78, 0);
+        click(canvas, 110, 86, java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+
+        assertThat(points(onlyPath(draft))).containsExactly(new SymbolPoint(8, 8), new SymbolPoint(40, 8));
+    }
+
+    @Test
+    void escapeAndUndoCancelATwoClickLineInProgress() {
+        AtomicReference<SymbolDraft> draft = blank();
+        ShapeCanvas canvas = canvas(draft);
+        canvas.setTool(ShapeTool.LINE);
+
+        click(canvas, 78, 78, 0);
+        canvas.escapeOperation();
+        assertThat(canvas.operationActive()).isFalse();
+        click(canvas, 78, 78, 0);
+        assertThat(canvas.drawingPath()).isTrue();
+        canvas.removeLastNode();
+        click(canvas, 110, 94, 0);
+
+        assertThat(draft.get().elements()).isEmpty();
+        assertThat(canvas.operationActive()).isTrue();
+    }
+
+    @Test
+    void aDragStillDrawsALine() {
+        AtomicReference<SymbolDraft> draft = blank();
+        ShapeCanvas canvas = canvas(draft);
+        canvas.setTool(ShapeTool.LINE);
+
+        drag(canvas, 78, 78, 110, 94, 0);
+
+        assertThat(points(onlyPath(draft))).containsExactly(new SymbolPoint(8, 8), new SymbolPoint(40, 24));
+        assertThat(canvas.operationActive()).isFalse();
+    }
+
+    private static void drag(ShapeCanvas canvas, int fromX, int fromY, int toX, int toY, int modifiers) {
+        ShapeCurveToolTest.drag(canvas, fromX, fromY, toX, toY, modifiers);
+    }
+
     private static AtomicReference<SymbolDraft> blank() {
         ComponentDefinition definition = ShapeEditorPanelTest.definition();
         SymbolDraft empty = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false)
