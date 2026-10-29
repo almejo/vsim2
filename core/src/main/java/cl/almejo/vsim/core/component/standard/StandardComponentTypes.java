@@ -181,7 +181,8 @@ public final class StandardComponentTypes {
                 StandardComponentTypes::checkSwitch,
                 parameters -> new SwitchBehavior(SwitchBehavior.parseNumber((String) parameters.get(VALUE),
                         (Integer) parameters.get(WIDTH)))));
-        // the one-bit Switch's box and pin, so it lines up with a switch and rotates as one
+        // the one-bit Switch's box and pin, so it lines up with a switch and rotates as one: a 1-unit grip on the
+        // left, the 2 x 2 cap area, and the lead to the pin
         registry.register(new ComponentType(PUSH_BUTTON, ComponentCategory.INPUT_OUTPUT, new GridSize(4, 2),
                 List.of(PinSpec.output("out", 4, 1)), List.of(), parameters -> new PushButtonBehavior()));
         registry.register(ComponentType.parameterized(CONSTANT, ComponentCategory.INPUT_OUTPUT,

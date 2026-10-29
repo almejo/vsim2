@@ -32,6 +32,7 @@ import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.MultiBitCells;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.paint.PushButtonPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
@@ -306,10 +307,24 @@ public final class SelectTool implements Tool {
                                                     Optional<DocumentElement> hit) {
         if (event.shiftDown() || event.controlDown() || hit.isEmpty()
                 || !(hit.get() instanceof Component component) || !isPushButton(component)
+                || !onPushButtonCap(component, event.gridPosition())
                 || pinNear(context, event.gridPosition()).isPresent()) {
             return Optional.empty();
         }
         return Optional.of(component);
+    }
+
+    /**
+     * Whether {@code gridPosition} is over the cap area of the push button {@code component}: the square right of its
+     * grip. The grip and the lead are not pressable, so the part moves like any other from there.
+     */
+    static boolean onPushButtonCap(Component component, Point2D gridPosition) {
+        Point2D local = MultiBitCells.unrotated(component.rotation(), gridPosition.getX() - component.position().x(),
+                gridPosition.getY() - component.position().y());
+        double capStart = PushButtonPainter.GRIP_UNITS;
+        double capEnd = capStart + PushButtonPainter.CAP_AREA_UNITS;
+        return local.getX() >= capStart && local.getX() <= capEnd && local.getY() >= 0
+                && local.getY() <= PushButtonPainter.CAP_AREA_UNITS;
     }
 
     private static boolean isPushButton(Component component) {
@@ -1200,7 +1215,7 @@ public final class SelectTool implements Tool {
     /** An interactive part or a push button under the pointer; a multi-bit Switch only over one of its bits. */
     private boolean isClickable(ToolContext context, Component component, CanvasMouseEvent event) {
         if (isPushButton(component)) {
-            return true;
+            return onPushButtonCap(component, event.gridPosition());
         }
         if (!isInteractive(context, component)) {
             return false;

@@ -265,9 +265,9 @@ class PaintersTest {
         BufferedImage beforeAnySnapshot = draw(StandardComponentTypes.PUSH_BUTTON, Rotation.R0, Map.of(),
                 VisibleState.NONE);
 
-        assertThat(new Color(pressed.getRGB(100, 105))).isEqualTo(SCHEME.wireOne());
-        assertThat(new Color(released.getRGB(100, 105))).isNotEqualTo(SCHEME.wireOne());
-        assertThat(new Color(beforeAnySnapshot.getRGB(100, 105))).isEqualTo(new Color(released.getRGB(100, 105)));
+        assertThat(new Color(pressed.getRGB(108, 105))).isEqualTo(SCHEME.wireOne());
+        assertThat(new Color(released.getRGB(108, 105))).isNotEqualTo(SCHEME.wireOne());
+        assertThat(new Color(beforeAnySnapshot.getRGB(108, 105))).isEqualTo(new Color(released.getRGB(108, 105)));
     }
 
     @Test

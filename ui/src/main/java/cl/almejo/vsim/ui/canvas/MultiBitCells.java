@@ -37,7 +37,7 @@ public final class MultiBitCells {
     }
 
     /** The inverse of {@link Rotation#apply}: a point of the rotated component back in its own frame. */
-    private static Point2D unrotated(Rotation rotation, double pointX, double pointY) {
+    public static Point2D unrotated(Rotation rotation, double pointX, double pointY) {
         return switch (rotation) {
             case R0 -> new Point2D.Double(pointX, pointY);
             case R90 -> new Point2D.Double(pointY, -pointX);

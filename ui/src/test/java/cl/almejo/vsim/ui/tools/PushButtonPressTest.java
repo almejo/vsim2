@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +46,7 @@ class PushButtonPressTest {
     }
 
     private void press() {
-        tool.mousePressed(context, TestToolContext.at(1, 1));
+        tool.mousePressed(context, TestToolContext.at(2, 1));
         awaitSimulation(context.openDocument());
     }
 
@@ -54,7 +55,7 @@ class PushButtonPressTest {
         press();
         expectValue(Value.ONE);
 
-        tool.mouseReleased(context, TestToolContext.at(1, 1));
+        tool.mouseReleased(context, TestToolContext.at(2, 1));
         expectValue(Value.ZERO);
     }
 
@@ -107,7 +108,7 @@ class PushButtonPressTest {
         expectValue(Value.ONE);
         context.openDocument().pause();
         expectValue(Value.ZERO);
-        tool.mouseReleased(context, TestToolContext.at(1, 1));
+        tool.mouseReleased(context, TestToolContext.at(2, 1));
 
         press();
         expectValue(Value.ONE);
@@ -139,7 +140,7 @@ class PushButtonPressTest {
         long changesBefore = context.openDocument().changeCount();
 
         press();
-        tool.mouseReleased(context, TestToolContext.at(1, 1));
+        tool.mouseReleased(context, TestToolContext.at(2, 1));
         awaitSimulation(context.openDocument());
 
         assertThat(context.selection().ids()).containsExactly(other.id());
@@ -160,12 +161,12 @@ class PushButtonPressTest {
     @Test
     void quickPressesAreEachAPressNotADoubleClick() {
         press();
-        tool.mouseReleased(context, TestToolContext.at(1, 1));
-        tool.mousePressed(context, TestToolContext.event(1, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.at(2, 1));
+        tool.mousePressed(context, TestToolContext.event(2, 1, CanvasMouseEvent.PRIMARY, 2, false));
         awaitSimulation(context.openDocument());
         expectValue(Value.ONE);
 
-        tool.mouseReleased(context, TestToolContext.event(1, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(2, 1, CanvasMouseEvent.PRIMARY, 2, false));
 
         expectValue(Value.ZERO);
         assertThat(context.configured).as("no properties opened").isNull();
@@ -183,8 +184,42 @@ class PushButtonPressTest {
 
     @Test
     void theButtonShowsTheHandCursor() {
-        tool.mouseMoved(context, TestToolContext.at(1, 1));
+        tool.mouseMoved(context, TestToolContext.at(2, 1));
 
         assertThat(context.lastCursor()).isEqualTo(CanvasCursor.HAND);
+    }
+
+    @Test
+    void theGripShowsTheNormalCursorAndTheCapTheHand() {
+        tool.mouseMoved(context, TestToolContext.at(2, 1));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.HAND);
+
+        tool.mouseMoved(context, TestToolContext.at(0.5, 1));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.DEFAULT);
+    }
+
+    @Test
+    void draggingTheGripMovesTheButtonAsOneUndoStepAndNeverPressesIt() {
+        context.drag(tool, 0.5, 1, 5.5, 3);
+        awaitSimulation(context.openDocument());
+
+        assertThat(context.openDocument().document().component(button.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(5, 2));
+        assertThat(context.openDocument().history().undoDescription()).contains("command.move");
+        assertThat(context.openDocument().latestSnapshot().componentState(button.id().value()))
+                .isEqualTo(new VisibleState.SwitchState(Value.ZERO));
+        context.openDocument().history().undo();
+        assertThat(context.openDocument().document().component(button.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+    }
+
+    @Test
+    void aClickOnTheGripSelectsItWithoutPressing() {
+        context.click(tool, 0.5, 1);
+        awaitSimulation(context.openDocument());
+
+        assertThat(context.selection().ids()).containsExactly(button.id());
+        assertThat(context.openDocument().latestSnapshot().componentState(button.id().value()))
+                .isEqualTo(new VisibleState.SwitchState(Value.ZERO));
     }
 }
