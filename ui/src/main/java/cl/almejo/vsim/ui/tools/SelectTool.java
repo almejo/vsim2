@@ -34,6 +34,7 @@ import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.PushButtonPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.canvas.SelectionArea;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
@@ -1000,12 +1001,24 @@ public final class SelectTool implements Tool {
         }
     }
 
+    /** What the band must enclose, in grid units: a component's body and bus value box, the other elements' bounds. */
+    private static Rectangle2D gridArea(DocumentElement element, ToolContext context) {
+        if (element instanceof Component component) {
+            Rectangle2D pixels = SelectionArea.of(component, context.openDocument().registry());
+            double unit = GridPoint.PIXELS_PER_UNIT;
+            return new Rectangle2D.Double(pixels.getX() / unit, pixels.getY() / unit, pixels.getWidth() / unit,
+                    pixels.getHeight() / unit);
+        }
+        Bounds bounds = ElementBounds.of(element, context.openDocument().registry());
+        return new Rectangle2D.Double(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+    }
+
     private static Set<ElementId> elementsInside(ToolContext context, Rectangle2D band) {
         Set<ElementId> inside = new LinkedHashSet<>();
         for (DocumentElement element : context.openDocument().document().elements()) {
-            Bounds bounds = ElementBounds.of(element, context.openDocument().registry());
-            if (bounds.x() >= band.getMinX() && bounds.maximumX() <= band.getMaxX()
-                    && bounds.y() >= band.getMinY() && bounds.maximumY() <= band.getMaxY()) {
+            Rectangle2D area = gridArea(element, context);
+            if (area.getMinX() >= band.getMinX() && area.getMaxX() <= band.getMaxX()
+                    && area.getMinY() >= band.getMinY() && area.getMaxY() <= band.getMaxY()) {
                 inside.add(element.id());
             }
         }

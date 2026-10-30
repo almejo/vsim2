@@ -737,7 +737,7 @@ public final class CircuitRenderer {
     }
 
     private Rectangle2D outline(ComponentType type, Component component) {
-        Rectangle2D bounds = ComponentDrawing.documentBounds(type, component);
+        Rectangle2D bounds = SelectionArea.of(type, component);
         return new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP, bounds.getY() - OUTLINE_GAP,
                 bounds.getWidth() + 2 * OUTLINE_GAP, bounds.getHeight() + 2 * OUTLINE_GAP);
     }

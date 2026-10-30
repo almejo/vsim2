@@ -597,6 +597,33 @@ class SelectToolTest {
     }
 
     @Test
+    void bandEnclosingABusPinsBodyAndValueBoxSelectsIt() {
+        Component bus = place(context.openDocument(), StandardComponentTypes.INPUT_PIN, 20, 0, Map.of("width", 8));
+        java.awt.geom.Rectangle2D area = cl.almejo.vsim.ui.canvas.SelectionArea.of(bus, context.openDocument().registry());
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        context.drag(tool, Math.floor(area.getMinX() / unit) - 1, Math.floor(area.getMinY() / unit) - 1,
+                Math.ceil(area.getMaxX() / unit) + 1, Math.ceil(area.getMaxY() / unit) + 1);
+        assertThat(context.selection.ids()).containsExactly(bus.id());
+    }
+
+    @Test
+    void bandEnclosingOnlyABusPinsBodyLeavesItOut() {
+        // decision: "fully inside" counts what the pin draws, its value box included (like its selection outline)
+        Component bus = place(context.openDocument(), StandardComponentTypes.INPUT_PIN, 20, 0, Map.of("width", 8));
+        cl.almejo.vsim.core.geometry.Bounds body = context.openDocument().registry().typeOf(bus).bounds(bus);
+        context.drag(tool, body.x() - 0.5, body.y() - 0.5, body.maximumX() + 0.5, body.maximumY() + 0.5);
+        assertThat(context.selection.ids()).isEmpty();
+    }
+
+    @Test
+    void bandEnclosingOnlyAOneBitPinsBodySelectsIt() {
+        Component pin = place(context.openDocument(), StandardComponentTypes.INPUT_PIN, 20, 0, Map.of());
+        cl.almejo.vsim.core.geometry.Bounds body = context.openDocument().registry().typeOf(pin).bounds(pin);
+        context.drag(tool, body.x() - 0.5, body.y() - 0.5, body.maximumX() + 0.5, body.maximumY() + 0.5);
+        assertThat(context.selection.ids()).containsExactly(pin.id());
+    }
+
+    @Test
     void partlyCoveredElementsAreLeftOut() {
         Component inside = not(0, 0);
         not(10, 0);

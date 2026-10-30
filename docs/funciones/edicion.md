@@ -41,6 +41,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 ## Arrastrar entre ventanas
 
 - Arrastrar: al mover la selección o el rectángulo de selección cerca del borde del canvas, la vista se desplaza sola. Al llevar la selección sobre otra ventana empieza un arrastre entre ventanas: soltarla en otra vista del mismo circuito la mueve (un solo paso de deshacer); en otro circuito se pega una copia flotando donde se suelta. Con Ctrl al soltar se copia (entre ventanas en macOS, Opción), también dentro del mismo canvas. Ctrl se presiona después de empezar a arrastrar (Ctrl al hacer click alterna la selección). Si el arrastre vuelve al canvas de origen, se ve dónde quedará.
+- Pines de varios bits: el contorno de selección de un pin de entrada o salida de más de un bit rodea también el recuadro con su valor, y el rectángulo de selección solo lo toma si encierra el pin completo con su recuadro (las etiquetas no cuentan).
 
 ## Etiquetas, textos y Propiedades
 
