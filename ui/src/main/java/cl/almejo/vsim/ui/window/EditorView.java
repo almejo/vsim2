@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
@@ -32,6 +33,8 @@ import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.panels.ZoomControl;
 import cl.almejo.vsim.ui.problems.ProblemsController;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
+import cl.almejo.vsim.ui.terminal.CapturedKeys;
+import cl.almejo.vsim.ui.terminal.KeyboardCapture;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
@@ -49,6 +52,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
+import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
@@ -66,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -106,6 +111,9 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToolBar toolBar;
     private final LabelFeatures labelFeatures;
     private final InlineTextEditor inlineEditor;
+    /** Which part has the keyboard of this window (a Teclado after a click on it), shared by every pane. */
+    private final KeyboardCapture keyboardCapture;
+    private final CapturedKeys capturedKeys;
     private TemplateActions templateActions;
     private final EditorServices services;
     private final Runnable appearanceListener;
@@ -126,6 +134,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     public EditorView(OpenDocument openDocument, EditorServices services, WindowCommands window) {
         super(new BorderLayout());
         this.openDocument = openDocument;
+        this.keyboardCapture = new KeyboardCapture(openDocument.document());
         this.services = services;
         this.windowCommands = window;
         this.selectionMoves = new SelectionMoves(services.preferences(), statusBar::showNotice);
@@ -150,6 +159,9 @@ public final class EditorView extends JPanel implements CanvasHost {
         });
         this.menuBar = actions.createMenuBar();
         indexMenus();
+        this.capturedKeys = new CapturedKeys(keyboardCapture, openDocument, new WindowShortcuts(),
+                statusBar::showNotice);
+        capturedKeys.useClipboard(FragmentClipboard.system()::readPlainText);
         this.zoomControl = new ZoomControl(new ActivePaneZoom(), new ZoomControl.Actions(actions.zoomOut(),
                 actions.zoomIn(), actions.zoomReset(), actions.zoomToFit(), actions.zoomToSelection()));
         addAfter(menu(MenuId.VIEW), actions.zoomToSelection(), zoomControl.typeZoomAction());
@@ -170,6 +182,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvasPanes.addPanesListener(this::panesChanged);
         canvasPanes.addActiveListener(this::activePaneChanged);
         selection.addListener(() -> statusBar.showSelection(selection.ids().size()));
+        selection.addListener(this::releaseKeyboardIfDeselected);
+        keyboardCapture.addListener(this::keyboardCaptureChanged);
         statusBar.showSnapshot(SimulationSnapshot.EMPTY);
         statusBar.setZoomControl(zoomControl);
         statusBar.showZoom(canvas.viewport().zoom());
@@ -296,6 +310,12 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /** The editor that writes texts right over the canvas (labels, titles, the Constante value). */
     public InlineTextEditor inlineEditor() { return inlineEditor; }
+
+    /** Which part has this window's keyboard (decision 5): painters and the Terminal window read it. */
+    public KeyboardCapture keyboardCapture() { return keyboardCapture; }
+
+    /** The keys of this window while a part has its keyboard (the clipboard a paste reads is injectable). */
+    public CapturedKeys capturedKeys() { return capturedKeys; }
 
     /** The template actions of this view, once the templates extension is installed. */
     public Optional<TemplateActions> templateActions() {
@@ -477,6 +497,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         steps.add(labelFeatures::dispose);
         steps.add(inlineEditor::dispose);
         steps.add(actions::dispose);
+        steps.add(keyboardCapture::dispose);
         steps.add(this::undoPaneInstallations);
         steps.add(canvasPanes::dispose);
         RuntimeException failure = null;
@@ -535,6 +556,47 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** Undoes {@link #setMemoryEditor}: a double click on a memory configures it again. */
     public void clearMemoryEditor() {
         this.memoryEditor = null;
+    }
+
+    @Override
+    public void captureKeyboard(Component component) {
+        keyboardCapture.capture(component.id().value());
+    }
+
+    @Override
+    public boolean takeKey(CircuitCanvas canvas, KeyEvent event) {
+        return switch (event.getID()) {
+            case KeyEvent.KEY_PRESSED -> capturedKeys.keyPressed(event);
+            case KeyEvent.KEY_TYPED -> capturedKeys.keyTyped(event);
+            default -> false;
+        };
+    }
+
+    /** The keyboard went to another window or another component: the capture ends, unless it went to another pane. */
+    @Override
+    public void canvasFocusLost(CircuitCanvas canvas, Optional<java.awt.Component> opposite) {
+        if (opposite.isEmpty() || !panes().contains(opposite.get())) {
+            keyboardCapture.release();
+        }
+    }
+
+    /** A click elsewhere (or any selection without the captured part alone) ends the keyboard capture. */
+    private void releaseKeyboardIfDeselected() {
+        keyboardCapture.captured()
+                .filter(id -> !selection.ids().equals(Set.of(new ElementId(id))))
+                .ifPresent(id -> keyboardCapture.release());
+    }
+
+    /**
+     * A part took or gave back the keyboard: while it has it, Tab is a key for the part, not a focus move, and every
+     * pane repaints (the part shows it is capturing).
+     */
+    private void keyboardCaptureChanged() {
+        boolean capturing = keyboardCapture.captured().isPresent();
+        for (CircuitCanvas pane : panes()) {
+            pane.setFocusTraversalKeysEnabled(!capturing);
+            pane.repaint();
+        }
     }
 
     @Override
@@ -736,6 +798,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private Runnable configurePane(CircuitCanvas pane) {
         pane.setAnimateViewMoves(services.preferences()::animateViewMoves);
         pane.setFileDropTarget(this::dropFilesAt);
+        pane.setFocusTraversalKeysEnabled(keyboardCapture.captured().isEmpty());
         Map<KeyStroke, String> bound = new LinkedHashMap<>();
         bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
         bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());
@@ -785,6 +848,9 @@ public final class EditorView extends JPanel implements CanvasHost {
      * back to its default tool (Escape, a placement done) the window's tool choice ends on every pane.
      */
     private void paneToolChanged(CircuitCanvas pane, Tool tool) {
+        if (tool != pane.defaultTool()) {
+            keyboardCapture.release(); // another tool: the keys are the editor's again
+        }
         if (pane != canvas()) {
             return;
         }
@@ -833,6 +899,48 @@ public final class EditorView extends JPanel implements CanvasHost {
         editorToolBar.showTool(tool);
         if (!tool.placesFromPalette()) {
             palette.clearSelection();
+        }
+    }
+
+    /**
+     * The shortcuts of this window a captured key must leave alone (decision 5): every menu accelerator, and every key
+     * binding Swing would run from the focused component (its own, then its ancestors').
+     */
+    private final class WindowShortcuts implements CapturedKeys.Shortcuts {
+
+        @Override
+        public boolean isBound(KeyStroke stroke, java.awt.Component focused) {
+            return isMenuAccelerator(menuBar, stroke) || isKeyBinding(stroke, focused);
+        }
+
+        @Override
+        public boolean isPaste(KeyStroke stroke) {
+            return stroke.equals(selectionActions.paste().getValue(Action.ACCELERATOR_KEY));
+        }
+
+        private static boolean isMenuAccelerator(MenuElement element, KeyStroke stroke) {
+            if (element instanceof JMenuItem item && !(item instanceof JMenu) && stroke.equals(item.getAccelerator())) {
+                return true;
+            }
+            for (MenuElement child : element.getSubElements()) {
+                if (isMenuAccelerator(child, stroke)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static boolean isKeyBinding(KeyStroke stroke, java.awt.Component focused) {
+            if (focused instanceof JComponent component && component.getInputMap(WHEN_FOCUSED).get(stroke) != null) {
+                return true;
+            }
+            for (java.awt.Component ancestor = focused; ancestor != null; ancestor = ancestor.getParent()) {
+                if (ancestor instanceof JComponent component
+                        && component.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(stroke) != null) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

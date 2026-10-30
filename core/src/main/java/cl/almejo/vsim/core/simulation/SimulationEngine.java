@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryBehavior;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 
@@ -18,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.function.IntSupplier;
 
 /**
  * Event-driven simulator. Single-threaded: call it only from one thread
@@ -334,6 +336,81 @@ public final class SimulationEngine {
         Set<String> changed = startTracking();
         try {
             interactBit(componentId, bit);
+        } finally {
+            changedNets = null;
+        }
+        return new StepResult(now(), now(), changed, nextEventTime());
+    }
+
+    /**
+     * Bytes typed into component {@code componentId} (a Teclado, {@link Behavior#acceptBytes}) at the current time; its
+     * zero-delay effects apply now, like {@link #interact}. Returns how many bytes it took: 0 for an unknown id or a
+     * component that does not take typing.
+     */
+    public int typeBytes(String componentId, byte[] bytes) {
+        Objects.requireNonNull(bytes, "bytes");
+        ComponentInstance instance = instances.get(componentId);
+        if (instance == null || !instance.behavior.acceptsTyping()) {
+            return 0;
+        }
+        int accepted = instance.behavior.acceptBytes(instance, bytes.clone());
+        scheduler.runUntil(now());
+        return accepted;
+    }
+
+    /**
+     * Typed characters (each one's bytes) into component {@code componentId}, in order, stopping at the first one it
+     * does not take whole (a paste into a queue that fills up): returns how many characters it took. A character it
+     * took only in part counts as not taken.
+     */
+    public int typeCharacters(String componentId, List<byte[]> characters) {
+        int taken = 0;
+        for (byte[] character : characters) {
+            if (typeBytes(componentId, character) < character.length) {
+                break;
+            }
+            taken++;
+        }
+        return taken;
+    }
+
+    /**
+     * Typing ({@link #typeBytes} or {@link #typeCharacters}) that also reports the nets that changed (typing while
+     * paused is shown as a step, like a click): {@code typing} runs now and its answer comes with the step.
+     */
+    TypedStep typedTracked(IntSupplier typing) {
+        Set<String> changed = startTracking();
+        int taken;
+        try {
+            taken = typing.getAsInt();
+        } finally {
+            changedNets = null;
+        }
+        return new TypedStep(taken, new StepResult(now(), now(), changed, nextEventTime()));
+    }
+
+    /** What a {@link #typedTracked} typing took (bytes or characters), and the step it makes. */
+    record TypedStep(int taken, StepResult step) {
+    }
+
+    /**
+     * An edit of the not-yet-read typed text of component {@code componentId} ({@link Behavior#editTyping}); its
+     * zero-delay effects apply now. An unknown id or a component that does not take typing changes nothing.
+     */
+    public void editTyping(String componentId, TypingEdit edit) {
+        Objects.requireNonNull(edit, "edit");
+        ComponentInstance instance = instances.get(componentId);
+        if (instance != null && instance.behavior.acceptsTyping()) {
+            instance.behavior.editTyping(instance, edit);
+            scheduler.runUntil(now());
+        }
+    }
+
+    /** {@link #editTyping} that also reports the nets that changed (an edit while paused). */
+    public StepResult editTypingTracked(String componentId, TypingEdit edit) {
+        Set<String> changed = startTracking();
+        try {
+            editTyping(componentId, edit);
         } finally {
             changedNets = null;
         }

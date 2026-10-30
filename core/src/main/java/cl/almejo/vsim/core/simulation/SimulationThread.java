@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.standard.MemoryBehavior;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -62,6 +64,8 @@ public final class SimulationThread implements AutoCloseable {
     private final Set<CompletableFuture<RequestReport>> waitingReports = ConcurrentHashMap.newKeySet();
     /** The {@link #requestMemoryContents} answers not given yet: completed empty on close. */
     private final Set<CompletableFuture<Optional<MemoryContents>>> waitingContents = ConcurrentHashMap.newKeySet();
+    /** The {@link #typeBytes} and {@link #typeCharacters} answers not given yet: completed with 0 on close. */
+    private final Set<CompletableFuture<Integer>> waitingTyping = ConcurrentHashMap.newKeySet();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
     /** The last memory map frame for the current request; null without a request or a memory to answer it. */
@@ -201,6 +205,67 @@ public final class SimulationThread implements AutoCloseable {
                 LOGGER.debug("Button {} not driven: {}", componentId, exception.getMessage());
             }
         });
+    }
+
+    /**
+     * Bytes typed into component {@code componentId} (a Teclado; one key's character or sequence), queued like a click:
+     * while paused it also publishes a {@link #latestStep()}, so «Paso a paso» shows it. Completes on the simulation
+     * thread with how many bytes the part took (0 when it is gone, does not take typing or is full), and with 0 at once
+     * when the thread is closed. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Integer> typeBytes(String componentId, byte[] bytes) {
+        byte[] copy = bytes.clone();
+        return typing(() -> engine.typeBytes(componentId, copy));
+    }
+
+    /**
+     * Typed characters (each one's bytes; a paste) into component {@code componentId}, in order, stopping at the first
+     * one it does not take whole ({@link SimulationEngine#typeCharacters}); as {@link #typeBytes}, but completing with
+     * how many characters it took.
+     */
+    public CompletableFuture<Integer> typeCharacters(String componentId, List<byte[]> characters) {
+        List<byte[]> copy = characters.stream().map(byte[]::clone).toList();
+        return typing(() -> engine.typeCharacters(componentId, copy));
+    }
+
+    /** An edit of the not-yet-read typed text of {@code componentId}; while paused it is a step, as a click. */
+    public void editTyping(String componentId, TypingEdit edit) {
+        requests.add(() -> {
+            if (running) {
+                engine.editTyping(componentId, edit);
+            } else {
+                publishStep(engine.editTypingTracked(componentId, edit));
+            }
+        });
+    }
+
+    /** Queues {@code typing} with the {@link #driveButton} template, answering what it took. */
+    private CompletableFuture<Integer> typing(IntSupplier typing) {
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        if (stopRequested) {
+            future.complete(0);
+            return future;
+        }
+        waitingTyping.add(future);
+        future.whenComplete((taken, failure) -> waitingTyping.remove(future));
+        requests.add(() -> {
+            try {
+                if (running) {
+                    future.complete(typing.getAsInt());
+                } else {
+                    SimulationEngine.TypedStep typed = engine.typedTracked(typing);
+                    publishStep(typed.step());
+                    future.complete(typed.taken());
+                }
+            } catch (RuntimeException exception) {
+                future.complete(0);
+                throw exception;
+            }
+        });
+        if (stopRequested) {
+            future.complete(0);
+        }
+        return future;
     }
 
     /** Clicks a component. While paused it also publishes a {@link #latestStep()} with the nets that changed. */
@@ -615,6 +680,9 @@ public final class SimulationThread implements AutoCloseable {
         }
         for (CompletableFuture<Optional<MemoryContents>> future : Set.copyOf(waitingContents)) {
             future.complete(Optional.empty());
+        }
+        for (CompletableFuture<Integer> future : Set.copyOf(waitingTyping)) {
+            future.complete(0);
         }
     }
 

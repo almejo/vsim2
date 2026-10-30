@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.component;
 
+import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.Map;
@@ -63,5 +64,26 @@ public interface Behavior {
      * restarting the rest of the simulation. Every other component ignores it.
      */
     default void restoreInitialState(BehaviorContext context) {
+    }
+
+    /**
+     * Whether the user can type into the component from the PC keyboard (a Teclado, spec §10): a click captures the
+     * keyboard for it and the keys reach {@link #acceptBytes} and {@link #editTyping}. False for every other one.
+     */
+    default boolean acceptsTyping() {
+        return false;
+    }
+
+    /**
+     * Bytes typed into the component (one character's bytes, or one key's sequence) at the current time: returns how
+     * many it took, 0 when it has no room. Taking whole characters only is the component's choice; the default takes
+     * nothing. Not an edit of the document.
+     */
+    default int acceptBytes(BehaviorContext context, byte[] bytes) {
+        return 0;
+    }
+
+    /** An edit of the typed text not read yet (Logisim's arrows in its Keyboard queue). The default ignores it. */
+    default void editTyping(BehaviorContext context, TypingEdit edit) {
     }
 }

@@ -74,6 +74,23 @@ public final class FragmentClipboard {
     }
 
     /**
+     * The plain text on the clipboard, for typing it into a Teclado; empty when there is none or it is a circuit
+     * fragment (whose text is VSim's JSON, not something to type).
+     */
+    public Optional<String> readPlainText() {
+        try {
+            if (!clipboard.isDataFlavorAvailable(FragmentTransferable.FRAGMENT_FLAVOR)
+                    && clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor)
+                    && clipboard.getData(DataFlavor.stringFlavor) instanceof String text) {
+                return Optional.of(text);
+            }
+        } catch (IllegalStateException | UnsupportedFlavorException | IOException exception) {
+            LOGGER.warn("Clipboard unavailable, nothing typed", exception);
+        }
+        return Optional.empty();
+    }
+
+    /**
      * Where {@code fragmentJson} was copied from, when it is the last fragment this clipboard put and it came from
      * {@code source}; empty for another document, an unknown source or another text.
      */

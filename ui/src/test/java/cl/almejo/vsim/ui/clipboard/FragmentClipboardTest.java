@@ -77,6 +77,15 @@ class FragmentClipboardTest {
     }
 
     @Test
+    void plainTextForTypingIsNeverACircuitFragment() {
+        assertThat(clipboard.readPlainText()).isEmpty();
+        systemClipboard.setContents(new StringSelection("hola"), null);
+        assertThat(clipboard.readPlainText()).contains("hola");
+        clipboard.put(JSON, new GridPoint(3, 4), null);
+        assertThat(clipboard.readPlainText()).isEmpty();
+    }
+
+    @Test
     void originIsRememberedOnlyForTheLastCopiedJsonAndItsSource() {
         Object first = new Object();
         Object second = new Object();

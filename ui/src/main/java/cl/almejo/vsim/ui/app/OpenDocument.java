@@ -36,6 +36,7 @@ import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
 import cl.almejo.vsim.core.simulation.StepReport;
+import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -542,6 +543,28 @@ public final class OpenDocument implements AutoCloseable {
         if (heldButtons.remove(componentId)) {
             simulation.releaseButton(componentId.value());
         }
+    }
+
+    /**
+     * Bytes typed into the part simulated as {@code componentId} (a Teclado with the keyboard captured): queued to the
+     * simulation thread like a click, also while paused (as a step). Not an edit (no undo step, not modified).
+     * Completes off the EDT with how many bytes the part took; never wait for it on the EDT.
+     */
+    public CompletableFuture<Integer> typeBytes(String componentId, byte[] bytes) {
+        return simulation.typeBytes(componentId, bytes);
+    }
+
+    /**
+     * A pasted text, one array per character, typed into {@code componentId} in order until the part refuses one (its
+     * queue is full); completes with how many characters it took. Like {@link #typeBytes}, not an edit.
+     */
+    public CompletableFuture<Integer> typeCharacters(String componentId, List<byte[]> characters) {
+        return simulation.typeCharacters(componentId, characters);
+    }
+
+    /** An edit of the typed text {@code componentId} has not read yet (its arrows, Inicio, Fin, Supr); not an edit. */
+    public void editTyping(String componentId, TypingEdit edit) {
+        simulation.editTyping(componentId, edit);
     }
 
     /** Lets go every push button still held (the simulation pauses or restarts), so none stays stuck at 1. */
