@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.panels;
 
+import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
@@ -18,6 +19,7 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,8 +44,14 @@ public final class StatusBar extends JPanel {
     private Runnable noticeActionRun = () -> { };
     private final JLabel shortCircuits = new ErrorTextLabel();
     private final JLabel failure = new ErrorTextLabel();
+    /** «Simulación detenida en t = …: …»: why a part paused the simulation, while it stays paused. */
+    private final JLabel pauseNotice = new JLabel();
     private boolean clickable;
     private boolean running;
+    /** The time of the last snapshot shown. */
+    private long snapshotTime;
+    /** The {@link PauseNotice#sequence()} of the last pause the simulation ran on from; it is not said again. */
+    private long pauseNoticeOver;
     private boolean runStateClickable;
     private final Timer noticeTimer;
     /** What extensions show while something happens (the AI's task strip), after the problems. */
@@ -78,6 +86,7 @@ public final class StatusBar extends JPanel {
         add(noticeAction, "hidemode 3");
         add(shortCircuits);
         add(failure);
+        add(pauseNotice);
         achievedSpeed.setVisible(false);
         selection.setVisible(false);
         hint.setVisible(false);
@@ -85,10 +94,12 @@ public final class StatusBar extends JPanel {
         noticeAction.setVisible(false);
         shortCircuits.setVisible(false);
         failure.setVisible(false);
+        pauseNotice.setVisible(false);
     }
 
     public void showSnapshot(SimulationSnapshot snapshot) {
         running = snapshot.running();
+        snapshotTime = snapshot.time();
         simulation.setText(Messages.text(running ? "status.running" : "status.paused"));
         if (runStateClickable) {
             simulation.setToolTipText(runStateTip());
@@ -99,6 +110,29 @@ public final class StatusBar extends JPanel {
         }
         failure.setText(snapshot.failure().map(reason -> Messages.format("status.failure", reason)).orElse(""));
         failure.setVisible(snapshot.failure().isPresent());
+    }
+
+    /**
+     * Says why a part paused the simulation ({@code latest}, read after the snapshot shown last): while it stays
+     * paused, «Simulación detenida en t = 120: «consola» recibió «=120»». Once a snapshot shows it running past that
+     * time the pause is over and is not said again, not even when the user pauses later; a newer pause is.
+     */
+    public void showPauseNotice(Optional<PauseNotice> latest) {
+        if (latest.isEmpty()) {
+            pauseNotice.setVisible(false);
+            return;
+        }
+        PauseNotice notice = latest.get();
+        if (running && snapshotTime > notice.time()) {
+            pauseNoticeOver = Math.max(pauseNoticeOver, notice.sequence());
+        }
+        boolean shown = !running && notice.sequence() > pauseNoticeOver;
+        if (shown) {
+            String reason = Messages.format(notice.messageKey(), notice.arguments().toArray());
+            pauseNotice.setText(Messages.format("status.pausedByPart", notice.time(), reason));
+            pauseNotice.setToolTipText(pauseNotice.getText());
+        }
+        pauseNotice.setVisible(shown);
     }
 
     /** The speed the running simulation achieves, in units per real millisecond; 0, or a pause, hides it. */
@@ -206,7 +240,7 @@ public final class StatusBar extends JPanel {
     }
 
     private int indexAfterFailure() {
-        return getComponentZOrder(failure) + 1;
+        return getComponentZOrder(pauseNotice) + 1;
     }
 
     JLabel shortCircuitsLabel() {
@@ -215,6 +249,10 @@ public final class StatusBar extends JPanel {
 
     JLabel failureLabel() {
         return failure;
+    }
+
+    JLabel pauseNoticeLabel() {
+        return pauseNotice;
     }
 
     JLabel noticeLabel() {
@@ -354,7 +392,7 @@ public final class StatusBar extends JPanel {
     /** Visible texts joined with " · " (what the user reads, left to right), the zoom percentage last («125 %»). */
     public String text() {
         Stream<String> labels = Stream.of(simulation, time, achievedSpeed, selection, hint, notice, shortCircuits,
-                        failure)
+                        failure, pauseNotice)
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText);
         Stream<String> zoom = zoomControl != null && zoomControl.isVisible() ? Stream.of(zoomControl.text())

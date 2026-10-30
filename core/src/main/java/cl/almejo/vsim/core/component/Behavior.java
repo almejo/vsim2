@@ -86,4 +86,13 @@ public interface Behavior {
     /** An edit of the typed text not read yet (Logisim's arrows in its Keyboard queue). The default ignores it. */
     default void editTyping(BehaviorContext context, TypingEdit edit) {
     }
+
+    /**
+     * This behaviour replaces {@code previous}, the one the same component (same type) ran with before a parameter
+     * change rebuilt it: it may take over what {@code previous} held (a Terminal keeps its screen when its rows
+     * change). Called by {@code SimulationEngine#update} before {@link #initialize}; never by «Reiniciar», which starts
+     * every part from nothing. {@code previous} no longer runs. Default: nothing is taken.
+     */
+    default void adoptStateFrom(Behavior previous) {
+    }
 }

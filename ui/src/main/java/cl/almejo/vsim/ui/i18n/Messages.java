@@ -97,6 +97,11 @@ public final class Messages {
         return textOr("parameter." + parameterName, parameterName);
     }
 
+    /** The header of a group of parameters in the inspector («Pantalla», «Aspecto»): {@code parameter.group.<group>}. */
+    public static String groupName(String group) {
+        return textOr("parameter.group." + group, group);
+    }
+
     public static String choiceName(String parameterName, String value) {
         return textOr("choice." + parameterName + "." + value, value);
     }

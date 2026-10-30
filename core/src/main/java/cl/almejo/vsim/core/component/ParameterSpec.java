@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.component;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 /**
@@ -11,10 +12,23 @@ import java.util.function.UnaryOperator;
  * an editable field by the UI. A {@code liveValue} parameter is the value an input drives (a Switch's «Valor»): when
  * only it changes the engine keeps the running component and hands it the new value ({@link Behavior#takeLiveValue}),
  * so a value the component already drives fires nothing.
+ *
+ * <p>How the inspector presents it: a {@code group} puts it under a header («Pantalla», «Aspecto»: bundle key
+ * {@code parameter.group.<group>}); a {@code multiline} text gets a box of several lines; a {@code visibility}
+ * condition shows its row only while another parameter has a given value (the encoding only with 8 bits). None of
+ * them changes what is stored or simulated.
  */
 public record ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                             int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
-                            boolean displayOnly, boolean hidden, boolean liveValue) {
+                            boolean displayOnly, boolean hidden, boolean liveValue,
+                            Optional<String> group, boolean multiline, Optional<VisibilityCondition> visibility) {
+
+    public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
+                         int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
+                         boolean displayOnly, boolean hidden, boolean liveValue) {
+        this(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, hidden, liveValue,
+                Optional.empty(), false, Optional.empty());
+    }
 
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                          int minimum, int maximum, List<String> choices) {
@@ -36,6 +50,11 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(kind, "kind");
         choices = choices == null ? List.of() : List.copyOf(choices);
+        Objects.requireNonNull(group, "group");
+        Objects.requireNonNull(visibility, "visibility");
+        if (multiline && kind != ParameterKind.TEXT) {
+            throw new IllegalArgumentException("only a text parameter can be multiline: " + name);
+        }
         if ((kind == ParameterKind.CHOICE || kind == ParameterKind.COLOR) && !choices.contains(defaultValue)) {
             throw new IllegalArgumentException("default " + defaultValue + " is not one of " + choices);
         }
@@ -75,7 +94,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
     /** This parameter marked as {@linkplain #displayOnly() display-only}. */
     public ParameterSpec asDisplayOnly() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true, hidden,
-                liveValue);
+                liveValue, group, multiline, visibility);
     }
 
     /**
@@ -84,7 +103,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
      */
     public ParameterSpec asHidden() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, true,
-                liveValue);
+                liveValue, group, multiline, visibility);
     }
 
     /**
@@ -93,7 +112,37 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
      */
     public ParameterSpec asLiveValue() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
-                hidden, true);
+                hidden, true, group, multiline, visibility);
+    }
+
+    /**
+     * This parameter shown under the header of {@code groupKey} (bundle key {@code parameter.group.<groupKey>}); the
+     * inspector orders the groups by their first parameter.
+     */
+    public ParameterSpec inGroup(String groupKey) {
+        Objects.requireNonNull(groupKey, "groupKey");
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
+                hidden, liveValue, Optional.of(groupKey), multiline, visibility);
+    }
+
+    /**
+     * This text parameter edited in a box of several lines (an expected output), committed when the box loses the
+     * focus or with Ctrl+Enter.
+     *
+     * @throws IllegalArgumentException for a parameter that is not a text
+     */
+    public ParameterSpec asMultiline() {
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
+                hidden, liveValue, group, true, visibility);
+    }
+
+    /**
+     * This parameter's row shown only while parameter {@code parameter} of the same type has the value {@code value}
+     * (checked by {@link ComponentType}); the value is kept while the row is hidden.
+     */
+    public ParameterSpec visibleWhen(String parameter, Object value) {
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
+                hidden, liveValue, group, multiline, Optional.of(new VisibilityCondition(parameter, value)));
     }
 
     /** Converts a raw value (from JSON or a dialog) to the canonical type, or throws IllegalArgumentException. */
@@ -111,6 +160,21 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
                 yield text;
             }
         };
+    }
+
+    /**
+     * {@link #normalize} for a value that may be missing or unreadable (half-typed text in a form): the default for
+     * null, empty when it cannot be read.
+     */
+    public Optional<Object> normalizeIfValid(Object raw) {
+        if (raw == null) {
+            return Optional.of(defaultValue);
+        }
+        try {
+            return Optional.of(normalize(raw));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
     }
 
     private Boolean normalizeBoolean(Object raw) {

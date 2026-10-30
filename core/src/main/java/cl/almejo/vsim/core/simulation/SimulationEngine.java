@@ -47,6 +47,10 @@ public final class SimulationEngine {
     public static final int CLOCK_EDGE_TIME_BUDGET = 1_000_000;
     /** Ids (with aliases) of the nets that changed since tracking started; null while not tracking (M6.1-B). */
     private Set<String> changedNets;
+    /** The pause a part asked for and {@link #takePauseRequest()} did not take yet; null when none. */
+    private PauseNotice pendingPause;
+    /** How many pause requests were kept so far (never reset): the sequence of the next notice. */
+    private long pauseRequests;
 
     Scheduler scheduler() {
         return scheduler;
@@ -83,6 +87,9 @@ public final class SimulationEngine {
                 }
             } else {
                 ComponentInstance instance = new ComponentInstance(this, component);
+                if (existing != null && existing.canHandOverTo(instance)) {
+                    instance.behavior.adoptStateFrom(existing.behavior);
+                }
                 nextInstances.put(component.id(), instance);
                 created.add(instance);
             }
@@ -191,6 +198,7 @@ public final class SimulationEngine {
         nets = new LinkedHashMap<>();
         aliasRoots = Map.of();
         scheduler.reset();
+        pendingPause = null;
         recorder.clear();
         update(circuit, channels);
         inputs.forEach((id, value) -> {
@@ -311,6 +319,38 @@ public final class SimulationEngine {
 
     public void advance(long duration) {
         runUntil(now() + duration);
+    }
+
+    /**
+     * {@link #advance} that stops once every event of the time at which a part asked to pause
+     * ({@link #requestPause}) ran, leaving the time there; what the running simulation uses, so it pauses like at a
+     * breakpoint. A request that waits from before stops it before the next time.
+     *
+     * @return true when a pause request stopped it before {@code duration}
+     */
+    public boolean advanceUntilPause(long duration) {
+        return !scheduler.runUntilHalted(now() + duration);
+    }
+
+    /**
+     * Component {@code componentId} asks to pause ({@link cl.almejo.vsim.core.component.BehaviorContext#requestPause}).
+     * Kept until {@link #takePauseRequest()}; while one waits, later ones are dropped.
+     */
+    void requestPause(String componentId, String messageKey, List<String> arguments) {
+        if (pendingPause != null) {
+            return;
+        }
+        pauseRequests++;
+        pendingPause = new PauseNotice(componentId, messageKey, arguments, now(), pauseRequests);
+        scheduler.requestHalt();
+    }
+
+    /** The pause a part asked for and nobody took yet; taking it lets {@link #advanceUntilPause} run on. */
+    public Optional<PauseNotice> takePauseRequest() {
+        Optional<PauseNotice> taken = Optional.ofNullable(pendingPause);
+        pendingPause = null;
+        scheduler.clearHalt();
+        return taken;
     }
 
     public void interact(String componentId) {

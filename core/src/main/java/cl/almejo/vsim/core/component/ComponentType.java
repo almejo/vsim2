@@ -20,21 +20,34 @@ import java.util.function.Function;
  * {@code layout} (bus widths) has the size and pins of its default parameters; {@link #forComponent} and
  * {@link ComponentTypeRegistry#typeOf} give the ones of a placed component. {@code layout} is null for fixed types.
  * {@code parameterCheck}, when not null, refuses sets of parameters that no single parameter can judge (a value that
- * must fit a width); see {@link #check}.
+ * must fit a width); see {@link #check}. A type with {@linkplain #withProfiles profiles} names the choice parameter
+ * that remembers the chosen one ({@code profileParameter}) and the {@code profiles} themselves, their values
+ * normalized; see {@link ParameterProfiles}.
  */
 public record ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
                             List<ParameterSpec> parameters, BehaviorFactory behaviorFactory,
                             ComponentLayout layout,
-                            Function<Map<String, Object>, Optional<ParameterProblem>> parameterCheck) {
+                            Function<Map<String, Object>, Optional<ParameterProblem>> parameterCheck,
+                            Optional<String> profileParameter, List<ParameterProfile> profiles) {
 
     public ComponentType {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(category, "category");
         Objects.requireNonNull(size, "size");
         Objects.requireNonNull(behaviorFactory, "behaviorFactory");
+        Objects.requireNonNull(profileParameter, "profileParameter");
         pins = List.copyOf(pins);
         parameters = List.copyOf(parameters);
         layout = layout == null ? null : MemoizedLayout.of(layout, parameters);
+        checkVisibilityConditions(id, parameters);
+        profiles = normalizedProfiles(id, parameters, profileParameter, profiles);
+    }
+
+    public ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
+                         List<ParameterSpec> parameters, BehaviorFactory behaviorFactory, ComponentLayout layout,
+                         Function<Map<String, Object>, Optional<ParameterProblem>> parameterCheck) {
+        this(id, category, size, pins, parameters, behaviorFactory, layout, parameterCheck, Optional.empty(),
+                List.of());
     }
 
     public ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
@@ -84,7 +97,101 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
             return this;
         }
         return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory,
-                new SpecializedLayout(SpecializedLayout.baseOf(layout), rawParameters), parameterCheck);
+                new SpecializedLayout(SpecializedLayout.baseOf(layout), rawParameters), parameterCheck,
+                profileParameter, profiles);
+    }
+
+    /**
+     * This type with {@code profiles} chosen by the choice parameter {@code profileParameter} (spec §7: the part
+     * remembers its profile). Every choice of that parameter needs exactly one profile, and every value a profile
+     * lists must be a valid value of another parameter; the values are kept normalized.
+     *
+     * @throws IllegalArgumentException when they are not
+     */
+    public ComponentType withProfiles(String profileParameter, List<ParameterProfile> profiles) {
+        Objects.requireNonNull(profileParameter, "profileParameter");
+        return new ComponentType(id, category, size, pins, parameters, behaviorFactory, layout, parameterCheck,
+                Optional.of(profileParameter), profiles);
+    }
+
+    /** The profile called {@code name}, empty when this type has none by that name. */
+    public Optional<ParameterProfile> profile(String name) {
+        return profiles.stream().filter(profile -> profile.name().equals(name)).findFirst();
+    }
+
+    /**
+     * Whether the inspector shows {@code parameter}'s row while the form holds {@code rawValues}: never a hidden one,
+     * and one with a {@linkplain ParameterSpec#visibility() condition} only while it holds (a value that cannot be
+     * read does not meet it).
+     */
+    public boolean isShown(ParameterSpec parameter, Map<String, Object> rawValues) {
+        if (parameter.hidden()) {
+            return false;
+        }
+        return parameter.visibility().map(condition -> parameterNamed(condition.parameter())
+                .flatMap(other -> other.normalizeIfValid(rawValues.get(other.name())))
+                .filter(condition.value()::equals)
+                .isPresent()).orElse(true);
+    }
+
+    /** The parameter called {@code name}, empty when this type has none. */
+    public Optional<ParameterSpec> parameterNamed(String name) {
+        return parameters.stream().filter(parameter -> parameter.name().equals(name)).findFirst();
+    }
+
+    private static void checkVisibilityConditions(String id, List<ParameterSpec> parameters) {
+        for (ParameterSpec parameter : parameters) {
+            parameter.visibility().ifPresent(condition -> {
+                ParameterSpec other = parameters.stream()
+                        .filter(candidate -> candidate.name().equals(condition.parameter())
+                                && !candidate.name().equals(parameter.name()))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException(id + ": " + parameter.name()
+                                + " is shown after an unknown parameter " + condition.parameter()));
+                if (!other.normalizeIfValid(condition.value()).filter(condition.value()::equals).isPresent()) {
+                    throw new IllegalArgumentException(id + ": " + parameter.name() + " is shown when "
+                            + other.name() + " is " + condition.value() + ", which is not one of its values");
+                }
+            });
+        }
+    }
+
+    private static List<ParameterProfile> normalizedProfiles(String id, List<ParameterSpec> parameters,
+                                                             Optional<String> profileParameter,
+                                                             List<ParameterProfile> profiles) {
+        if (profileParameter.isEmpty()) {
+            if (!profiles.isEmpty()) {
+                throw new IllegalArgumentException(id + ": profiles without a profile parameter");
+            }
+            return List.of();
+        }
+        String chooser = profileParameter.get();
+        ParameterSpec chooserSpec = parameters.stream().filter(parameter -> parameter.name().equals(chooser))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(id + ": no profile parameter " + chooser));
+        if (chooserSpec.kind() != ParameterKind.CHOICE) {
+            throw new IllegalArgumentException(id + ": the profile parameter " + chooser + " is not a choice");
+        }
+        List<String> names = profiles.stream().map(ParameterProfile::name).toList();
+        if (names.size() != chooserSpec.choices().size() || !names.containsAll(chooserSpec.choices())) {
+            throw new IllegalArgumentException(id + ": profiles " + names + " do not match the choices "
+                    + chooserSpec.choices());
+        }
+        return profiles.stream().map(profile -> normalized(id, parameters, chooser, profile)).toList();
+    }
+
+    private static ParameterProfile normalized(String id, List<ParameterSpec> parameters, String chooser,
+                                               ParameterProfile profile) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        profile.values().forEach((name, value) -> {
+            ParameterSpec parameter = parameters.stream()
+                    .filter(candidate -> candidate.name().equals(name) && !name.equals(chooser))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(id + ": profile " + profile.name()
+                            + " sets an unknown parameter " + name));
+            values.put(name, parameter.normalize(value));
+        });
+        return new ParameterProfile(profile.name(), values);
     }
 
     /** This type as {@code component} has it: {@link #specializedFor} its parameters. */
