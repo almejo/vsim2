@@ -48,8 +48,8 @@ public final class MultiBitOrientation {
     /**
      * {@code component} with {@code parameters}. When they move a Switch or LED across one bit (a one-bit Switch
      * turned down, widened to 8 bits) its direction moves between the rotation and the «side», the pin stays on the
-     * side it was on and where it was, so the wire on it stays connected; any other change is a plain change of
-     * parameters.
+     * side it was on; any change of width, across one bit or not, moves the part so the pin stays on the grid point it
+     * was on, so the wire on it stays connected; any other change is a plain change of parameters.
      */
     public static Component withParameters(Component component, Map<String, Object> parameters, ComponentType type) {
         Component changed = component.withParameters(parameters);
@@ -59,7 +59,7 @@ public final class MultiBitOrientation {
         boolean changesForm = turnsBySide(component, type) != turnsBySide(changed, type);
         Component normal = changesForm ? inFormOfWidth(changed, type, pinSideOf(component, type))
                 : normalized(changed, type);
-        return normal == changed ? changed : keepingPin(normal, type, type.pinLocation(component, 0));
+        return keepingPin(normal, type, type.pinLocation(component, 0));
     }
 
     /** The side the pin of a Switch or LED is on, whichever form it is in (counting its rotation). */
