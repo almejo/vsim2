@@ -64,4 +64,13 @@ public interface Behavior {
      */
     default void restoreInitialState(BehaviorContext context) {
     }
+
+    /**
+     * This behaviour replaces {@code previous}, the one the same component (same type) ran with before a parameter
+     * change rebuilt it: it may take over what {@code previous} held (a Terminal keeps its screen when its rows
+     * change). Called by {@code SimulationEngine#update} before {@link #initialize}; never by «Reiniciar», which starts
+     * every part from nothing. {@code previous} no longer runs. Default: nothing is taken.
+     */
+    default void adoptStateFrom(Behavior previous) {
+    }
 }

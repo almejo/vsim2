@@ -71,6 +71,9 @@ public final class SimulationThread implements AutoCloseable {
     /** The engine's next event time, refreshed with every published snapshot (M6.1-B). */
     private volatile OptionalLong latestNextEventTime = OptionalLong.empty();
 
+    /** The last pause a part asked for ({@link #latestPauseNotice()}); null before the first and after a restart. */
+    private volatile PauseNotice latestPauseNotice;
+
     /** The engine's pending components while paused, empty while running (M6.1-B), written with the next event time. */
     private volatile Set<String> latestPendingComponents = Set.of();
     private volatile boolean stopRequested;
@@ -163,6 +166,7 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> {
             engine.restart(circuit, copy);
             latestStep = null; // the old timeline's last jump must not come back as «(+N)»
+            latestPauseNotice = null;
             failure = null;
             pendingUnits = 0;
         });
@@ -274,6 +278,15 @@ public final class SimulationThread implements AutoCloseable {
      */
     public Optional<StepReport> latestStep() {
         return Optional.ofNullable(latestStep);
+    }
+
+    /**
+     * Why a part last paused the simulation ({@link cl.almejo.vsim.core.component.BehaviorContext#requestPause}),
+     * written before the snapshot that shows the pause; empty before the first and after a «Reiniciar». A newer pause
+     * has a greater {@link PauseNotice#sequence()}.
+     */
+    public Optional<PauseNotice> latestPauseNotice() {
+        return Optional.ofNullable(latestPauseNotice);
     }
 
     /**
@@ -561,6 +574,7 @@ public final class SimulationThread implements AutoCloseable {
         requirePositiveBudget(eventBudget);
         return budgeted(eventBudget, List.of(), () -> {
             latestStep = null; // the old timeline's last jump must not come back as «(+N)»
+            latestPauseNotice = null;
             failure = null;
             pendingUnits = 0;
             engine.restart(circuit, copy);
@@ -705,9 +719,11 @@ public final class SimulationThread implements AutoCloseable {
                 snapshotDue = true;
                 sliceUnits = INITIAL_SLICE_UNITS;
             }
+            pauseForPart();
             if (running) {
                 advanceFor(elapsedNanos);
                 snapshotStale = true;
+                pauseForPart();
             } else {
                 stopMeasuringSpeed(now);
             }
@@ -751,7 +767,7 @@ public final class SimulationThread implements AutoCloseable {
             if (!unlimited) {
                 units = Math.min((long) pendingUnits, units);
             }
-            engine.advance(units);
+            boolean pausedByPart = engine.advanceUntilPause(units);
             advanced += units;
             if (!unlimited) {
                 pendingUnits -= units;
@@ -759,6 +775,10 @@ public final class SimulationThread implements AutoCloseable {
             long sliceEnd = nanoClock.getAsLong();
             adaptSlice(units, sliceEnd - sliceStart);
             sliceStart = sliceEnd;
+            if (pausedByPart) {
+                pendingUnits = 0;
+                break;
+            }
             if (sliceEnd >= deadline) {
                 saturated = unlimited || pendingUnits >= 1;
                 break;
@@ -768,6 +788,23 @@ public final class SimulationThread implements AutoCloseable {
             pendingUnits -= Math.floor(pendingUnits);
         }
         measureSpeed(advanced, sliceStart);
+    }
+
+    /**
+     * A part asked to pause ({@link SimulationEngine#takePauseRequest()}): the simulation stops where the engine
+     * stopped, the notice is published before the snapshot that shows the pause, and the snapshot goes out at once.
+     * Asked while paused (a step), it only publishes the notice.
+     */
+    private void pauseForPart() {
+        engine.takePauseRequest().ifPresent(notice -> {
+            if (running) {
+                LOGGER.info("Part {} asked to pause at t = {}", notice.componentId(), notice.time());
+            }
+            running = false;
+            latestPauseNotice = notice;
+            snapshotStale = true;
+            snapshotDue = true;
+        });
     }
 
     /**

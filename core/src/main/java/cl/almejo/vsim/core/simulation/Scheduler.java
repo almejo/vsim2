@@ -84,6 +84,8 @@ final class Scheduler {
     private long eventsRun;
     /** The value of {@link #eventsRun} at which the budget is used up; {@code Long.MAX_VALUE}: no budget. */
     private long eventLimit = Long.MAX_VALUE;
+    /** True while a part's pause request waits: {@link #runUntilHalted} stops after the current time. */
+    private boolean haltRequested;
 
     long now() {
         return now;
@@ -135,6 +137,38 @@ final class Scheduler {
         now = until;
     }
 
+    /**
+     * {@link #runUntil(long)} that stops once every event of the current time ran when a halt is
+     * {@linkplain #requestHalt() requested} (a part asked to pause), leaving now at that time.
+     *
+     * @return true when it reached {@code until}, false when a halt stopped it
+     */
+    boolean runUntilHalted(long until) {
+        if (until < now) {
+            throw new IllegalArgumentException("cannot go back in time from " + now + " to " + until);
+        }
+        while (head < end && moments[head].time <= until) {
+            if (haltRequested && moments[head].time > now) {
+                return false;
+            }
+            runNext();
+        }
+        if (haltRequested) {
+            return false;
+        }
+        now = until;
+        return true;
+    }
+
+    /** From now on {@link #runUntilHalted} stops after the current time, until {@link #clearHalt()}. */
+    void requestHalt() {
+        haltRequested = true;
+    }
+
+    void clearHalt() {
+        haltRequested = false;
+    }
+
     /** The time of the earliest pending event (it may equal {@link #now()}); empty when nothing is pending. */
     OptionalLong nextEventTime() {
         return head < end ? OptionalLong.of(moments[head].time) : OptionalLong.empty();
@@ -168,6 +202,7 @@ final class Scheduler {
         end = 0;
         pendingEvents = 0;
         now = 0;
+        haltRequested = false;
     }
 
     int pendingEvents() {

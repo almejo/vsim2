@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Sets a component's parameters. A Switch or LED whose width crosses one bit moves its direction between the element's
@@ -26,6 +27,7 @@ public final class ChangeParametersCommand implements Command {
     private final ComponentType type;
     private final String typeId;
     private final Map<String, Object> parameters;
+    private final String description;
     private Map<String, Object> previousParameters;
     private GridPoint previousPosition;
     private Rotation previousRotation;
@@ -33,10 +35,20 @@ public final class ChangeParametersCommand implements Command {
 
     /** Normalizes {@code rawParameters} with {@code type}; invalid values throw IllegalArgumentException here. */
     public ChangeParametersCommand(ElementId id, ComponentType type, Map<String, Object> rawParameters) {
+        this(id, type, rawParameters, "command.configure");
+    }
+
+    /**
+     * The same edit named {@code description} in «Deshacer …» (a bundle key: choosing a profile is
+     * {@code command.applyProfile}, a «↺» {@code command.restoreParameter}).
+     */
+    public ChangeParametersCommand(ElementId id, ComponentType type, Map<String, Object> rawParameters,
+                                   String description) {
         this.id = id;
         this.type = type;
         this.typeId = type.id();
         this.parameters = type.resolveParameters(rawParameters);
+        this.description = Objects.requireNonNull(description, "description");
     }
 
     @Override
@@ -94,6 +106,6 @@ public final class ChangeParametersCommand implements Command {
 
     @Override
     public String description() {
-        return "command.configure";
+        return description;
     }
 }

@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.value.Value;
 
+import java.util.List;
 import java.util.Map;
 
 /** A component inside the engine (port of VSim's Gate). It is also the behavior's context. */
@@ -41,6 +42,14 @@ final class ComponentInstance implements BehaviorContext {
         return !initializationFailed
                 && type.equals(component.type())
                 && type.behaviorParameters(parameters).equals(type.behaviorParameters(component.parameters()));
+    }
+
+    /**
+     * Whether {@code successor}, built for this component after a parameter change, may take over this instance's
+     * state ({@link Behavior#adoptStateFrom}): the same type of part (its shape may differ) that started fine.
+     */
+    boolean canHandOverTo(ComponentInstance successor) {
+        return !initializationFailed && type.id().equals(successor.type.id());
     }
 
     /**
@@ -111,6 +120,11 @@ final class ComponentInstance implements BehaviorContext {
     @Override
     public long now() {
         return engine.now();
+    }
+
+    @Override
+    public void requestPause(String messageKey, List<String> arguments) {
+        engine.requestPause(id, messageKey, arguments);
     }
 
     /** The event of a {@link #drive}: the pin takes the value and its net is resolved. It carries its data itself. */
