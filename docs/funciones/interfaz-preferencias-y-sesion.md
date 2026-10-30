@@ -76,7 +76,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Pestaña Componentes
 
-- Árbol de componentes: la pestaña Componentes del inspector lista los componentes del circuito ("etiqueta · tipo"); "Agrupar por tipo" los agrupa. Los componentes propios se despliegan en sus partes, y sus pines y LEDs internos muestran el valor actual mientras simula. Elegir una fila selecciona y centra el componente (o la instancia que lo contiene).
+- Árbol de componentes: la pestaña Componentes del inspector lista los componentes del circuito ("etiqueta · tipo"; sin etiqueta, el tipo, y una compuerta con su cantidad de entradas, «AND de 3 entradas»); "Agrupar por tipo" los agrupa. Los componentes propios se despliegan en sus partes, y sus pines y LEDs internos muestran el valor actual mientras simula. Elegir una fila selecciona y centra el componente (o la instancia que lo contiene).
 - La pestaña «Componentes» muestra el ícono de la paleta junto a cada componente (y a cada grupo con «Agrupar por tipo»), con los colores del esquema actual. Los marcos aparecen como carpetas con lo que tienen adentro (el marco más interno manda; primero los marcos, después los componentes, y la agrupación por tipo se aplica dentro de cada marco). Al mover un componente dentro o fuera de un marco su fila cambia de lugar sin cerrar las filas abiertas. Elegir un marco lo selecciona y centra la vista en él.
 
 ## Preferencias

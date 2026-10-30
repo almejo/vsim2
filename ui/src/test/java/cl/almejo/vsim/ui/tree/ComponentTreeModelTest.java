@@ -108,7 +108,7 @@ class ComponentTreeModelTest {
         document.add(nand);
 
         assertThat(texts(ComponentTreeModel.build("Sumador", document, registry, false).children()))
-                .containsExactly("AND", "U2 · NAND");
+                .containsExactly("AND de 2 entradas", "U2 · NAND");
         ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, true);
         assertThat(texts(root.children())).containsExactly("AND (1)", "NAND (1)");
         assertThat(root.children().get(1).path()).isEqualTo("/nand");

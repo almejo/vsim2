@@ -115,7 +115,7 @@ public final class ComponentTreeModel {
     private static ComponentTreeNode componentNode(Component component, String path, CircuitDocument document,
                                                    ComponentTypeRegistry registry, int depth) {
         String name = TypeNames.of(component, registry);
-        String text = component.label().isBlank() ? name
+        String text = component.label().isBlank() ? TypeNames.distinguished(component, registry)
                 : Messages.format("tree.component.labeled", component.label(), name);
         List<ComponentTreeNode> children = new ArrayList<>();
         Optional<ComponentDefinition> definition = SubcircuitTypes.definitionIdOf(component.typeId())

@@ -89,6 +89,17 @@ public final class Messages {
                 .orElseGet(() -> componentName(type.id(), parameters));
     }
 
+    /**
+     * {@code name} of an unlabeled part told apart from its siblings: a parameterizable gate adds its input count
+     * («AND de 3 entradas»), anything else stays as {@code name}. The tree and Problemas both use it.
+     */
+    public static String distinguishedName(String name, Map<String, Object> parameters) {
+        if (parameters.get(StandardComponentTypes.GATE_INPUTS) instanceof Integer inputCount) {
+            return format("component.withInputs", name, inputCount);
+        }
+        return name;
+    }
+
     public static String categoryName(ComponentCategory category) {
         return textOr("category." + category.name(), category.name());
     }

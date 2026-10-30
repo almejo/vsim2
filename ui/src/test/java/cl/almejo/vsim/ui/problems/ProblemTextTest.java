@@ -19,7 +19,9 @@ import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.tree.ComponentTreeModel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,6 +59,44 @@ class ProblemTextTest {
     private ShortCircuit fight() {
         return new ShortCircuit("n", List.of(new DriverRef(andGate.id().value(), 2, Value.ONE),
                 new DriverRef(notGate.id().value(), 1, Value.ZERO)), 5);
+    }
+
+    @Test
+    void twoUnlabeledGatesWithDifferentInputCountsGiveDistinctTexts() {
+        Component three = place(StandardComponentTypes.AND, 0, 10, "", Map.of(StandardComponentTypes.GATE_INPUTS, 3));
+        Component four = place(StandardComponentTypes.AND, 0, 20, "", Map.of(StandardComponentTypes.GATE_INPUTS, 4));
+        ConnectivityProblem pinThree = new ConnectivityProblem("n", three.id().value(), 2, new GridPoint(0, 0),
+                ConnectivityProblem.Cause.INNER_PIN);
+        ConnectivityProblem pinFour = new ConnectivityProblem("n", four.id().value(), 2, new GridPoint(0, 0),
+                ConnectivityProblem.Cause.INNER_PIN);
+
+        String textThree = ProblemText.describe(pinThree, document, registry);
+        String textFour = ProblemText.describe(pinFour, document, registry);
+
+        assertThat(textThree).isEqualTo("AND de 3 entradas: la entrada «in2» está desconectada");
+        assertThat(textFour).isEqualTo("AND de 4 entradas: la entrada «in2» está desconectada");
+    }
+
+    @Test
+    void aLabeledGateUsesItsLabelInProblems() {
+        ConnectivityProblem problem = new ConnectivityProblem("n", andGate.id().value(), 1, new GridPoint(0, 0),
+                ConnectivityProblem.Cause.INNER_PIN);
+
+        assertThat(ProblemText.describe(problem, document, registry))
+                .isEqualTo("U3 (AND): la entrada «in1» está desconectada");
+    }
+
+    @Test
+    void anUnlabeledGateIsNamedAlikeInTheTreeAndInProblems() {
+        Component three = place(StandardComponentTypes.AND, 0, 10, "", Map.of(StandardComponentTypes.GATE_INPUTS, 3));
+        ConnectivityProblem problem = new ConnectivityProblem("n", three.id().value(), 0, new GridPoint(0, 0),
+                ConnectivityProblem.Cause.INNER_PIN);
+
+        String treeText = ComponentTreeModel.build("Circuito", document, registry, false).children().stream()
+                .filter(node -> node.path().equals(three.id().value())).findFirst().orElseThrow().text();
+
+        assertThat(treeText).isEqualTo("AND de 3 entradas");
+        assertThat(ProblemText.describe(problem, document, registry)).startsWith(treeText + ": ");
     }
 
     @Test

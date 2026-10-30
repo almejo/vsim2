@@ -87,8 +87,7 @@ public final class ProblemText {
     /** «La memoria «Programa» está enlazada a «rom.hex», que no se encuentra…»: the part by its label or type name. */
     private static String linkedFile(LinkedFileProblem problem, CircuitDocument document) {
         String name = document.component(new ElementId(problem.elementId()))
-                .map(component -> component.label().isBlank()
-                        ? Messages.componentName(component.typeId(), component.parameters()) : component.label())
+                .map(component -> component.label().isBlank() ? unlabeledName(component, document) : component.label())
                 .orElse(problem.elementId());
         return switch (problem.kind()) {
             case MISSING -> Messages.format("problem.memoryFile.missing", name, problem.link());
@@ -154,7 +153,7 @@ public final class ProblemText {
     /** A placed piece by its label, or by its type or definition name when it has none: «U5», «ALU». */
     private static String pieceName(String hierarchicalId, CircuitDocument document) {
         return chain(hierarchicalId, document).map(List::getLast)
-                .map(component -> component.label().isBlank() ? typeName(component, document) : component.label())
+                .map(component -> component.label().isBlank() ? unlabeledName(component, document) : component.label())
                 .orElse(hierarchicalId);
     }
 
@@ -214,7 +213,7 @@ public final class ProblemText {
         }
         String name = typeName(component.get(), document);
         String label = component.get().label();
-        return label.isBlank() ? Messages.format("problem.driver", name, value)
+        return label.isBlank() ? Messages.format("problem.driver", unlabeledName(component.get(), document), value)
                 : Messages.format("problem.driverLabeled", name, label, value);
     }
 
@@ -233,7 +232,8 @@ public final class ProblemText {
             return Messages.format("problem.pin", path(pin.componentId(), document).orElse(pin.componentId()), width);
         }
         String name = typeName(found, document);
-        return found.label().isBlank() ? Messages.format("problem.pin", name, width)
+        return found.label().isBlank()
+                ? Messages.format("problem.pin", unlabeledName(found, document), width)
                 : Messages.format("problem.pinLabeled", name, found.label(), width);
     }
 
@@ -253,7 +253,7 @@ public final class ProblemText {
             Component component = levels.get(index);
             String typeName = typeName(component, document);
             if (component.label().isBlank()) {
-                names.add(typeName);
+                names.add(unlabeledName(component, document));
             } else if (index == levels.size() - 1) {
                 names.add(Messages.format("problem.pathLabeled", component.label(), typeName));
             } else {
@@ -284,6 +284,11 @@ public final class ProblemText {
 
     private static Optional<ComponentDefinition> definitionOf(Component component, CircuitDocument document) {
         return SubcircuitTypes.definitionIdOf(component.typeId()).flatMap(document::definition);
+    }
+
+    /** The name of a part without a label, told apart from its siblings: «AND de 3 entradas». Same as the tree. */
+    private static String unlabeledName(Component component, CircuitDocument document) {
+        return Messages.distinguishedName(typeName(component, document), component.parameters());
     }
 
     /** The name of the document's definition for a sub-circuit instance, the bundle name of a standard type. */

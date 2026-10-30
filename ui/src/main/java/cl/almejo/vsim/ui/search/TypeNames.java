@@ -28,6 +28,11 @@ public final class TypeNames {
         return of(StandardComponentTypes.nameId(component.typeId(), component.parameters()), registry);
     }
 
+    /** The name that tells an unlabeled {@code component} from others of its kind: «AND de 3 entradas». */
+    public static String distinguished(Component component, ComponentTypeRegistry registry) {
+        return Messages.distinguishedName(of(component, registry), component.parameters());
+    }
+
     /** {@link #of(String, ComponentTypeRegistry)} for every name id of {@code registry}. */
     public static Function<String, String> in(ComponentTypeRegistry registry) {
         return typeId -> of(typeId, registry);
