@@ -77,6 +77,16 @@ class ExecutableJarTest {
     }
 
     @Test
+    void itCarriesTheTerminalFontsAndTheirLicences() throws IOException {
+        assertThat(entryNames()).contains(
+                "fonts/IBMPlexMono-Regular.ttf",
+                "fonts/IBMPlexMono-Bold.ttf",
+                "fonts/VT323-Regular.ttf",
+                "fonts/OFL-IBMPlexMono.txt",
+                "fonts/OFL-VT323.txt");
+    }
+
+    @Test
     void itCarriesTheBundledExamples() throws IOException {
         assertThat(entryNames()).containsAll(BundledExamples.all().stream()
                 .map(example -> example.resourceName().substring(1)).toList());

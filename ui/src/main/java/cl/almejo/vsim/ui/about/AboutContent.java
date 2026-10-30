@@ -76,7 +76,8 @@ final class AboutContent extends JPanel {
         addRow(Messages.text("about.label.code"), address(REPOSITORY, links));
         addRow(Messages.text("about.label.releases"), address(RELEASES, links));
         addRow(Messages.text("about.label.history"), new JLabel(Messages.text("about.value.history")));
-        JLabel credits = new MutedLabel(Messages.format("about.credits", String.join(", ", CREDITS)));
+        JLabel credits = new MutedLabel(Messages.format("about.credits", String.join(", ", CREDITS)) + " "
+                + Messages.text("about.credits.fonts"));
         credits.setFont(credits.getFont().deriveFont(credits.getFont().getSize2D() * SMALL_SCALE));
         card.add(creditsText(credits), "span 2, gaptop 12");
     }
