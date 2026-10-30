@@ -30,6 +30,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - «Avanzar al próximo flanco de reloj» (Mayús+F7) ahora se detiene en el próximo flanco de cualquier tipo, de subida o
   de bajada: medio ciclo por vez. Para el ciclo completo está «Avanzar un ciclo de reloj» (Ctrl+F7). Lo mismo para la
   IA: su avance por flanco ahora es de medio ciclo.
+- El ícono de «Avanzar al próximo flanco de reloj» muestra un pulso con sus dos flancos y la flecha de avance, en vez de un
+  solo flanco de bajada; sigue distinto del de «Avanzar un ciclo de reloj».
 - En el editor de formas, Línea, Multilínea y Polígono se dibujan igual con clic o con arrastre: arrastrar en
   Multilínea o Polígono pone un nodo al empezar y otro al soltar, y un clic en Línea empieza una línea de dos clics
   (Esc la cancela, Mayús fija el ángulo). Las ayudas de la línea inferior lo dicen.
