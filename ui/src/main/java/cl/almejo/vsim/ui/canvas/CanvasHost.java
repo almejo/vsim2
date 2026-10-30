@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
+import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 
@@ -53,5 +54,28 @@ public interface CanvasHost {
     /** M7: edits a bus input pin's value starting from {@code startingValue}; by default as {@link #editValue}. */
     default void editValue(Component component, Value startingValue) {
         editValue(component);
+    }
+
+    /**
+     * A plain click on {@code component}, a part that takes typing (a Teclado): its window captures the keyboard for
+     * it (decision 5). Hosts without a keyboard capture ignore it.
+     */
+    default void captureKeyboard(Component component) {
+    }
+
+    /**
+     * A key pressed or typed on {@code canvas}, before its own handling and any key binding: true when the window
+     * used it (a part has the keyboard), so the canvas consumes it. False by default.
+     */
+    default boolean takeKey(CircuitCanvas canvas, KeyEvent event) {
+        return false;
+    }
+
+    /**
+     * {@code canvas} lost the keyboard focus to {@code opposite} (empty: another window, or its window was
+     * deactivated). The window ends a keyboard capture unless the focus went to another of its panes. Ignored by
+     * default.
+     */
+    default void canvasFocusLost(CircuitCanvas canvas, Optional<java.awt.Component> opposite) {
     }
 }

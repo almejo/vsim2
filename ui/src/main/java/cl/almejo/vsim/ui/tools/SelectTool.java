@@ -113,6 +113,8 @@ public final class SelectTool implements Tool {
     private enum BandMode { REPLACE, ADD, REMOVE }
 
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
+    /** Whether each type's parts take typing from the keyboard (a Teclado), asked once per type. */
+    private final Map<String, Boolean> typingByType = new HashMap<>();
     private final List<SelectToolDelegate> delegates = new CopyOnWriteArrayList<>();
     private SelectToolDelegate activeDelegate;
     private ConnectionPoints connectionPoints;
@@ -571,6 +573,7 @@ public final class SelectTool implements Tool {
                 toggleMemoryContents(context, (Component) pressedElement);
             } else {
                 toggleIfInteractive(context, event);
+                captureKeyboardIfTyping(context);
             }
         }
     }
@@ -1122,6 +1125,13 @@ public final class SelectTool implements Tool {
         }
     }
 
+    /** A plain click on a part that takes typing (a Teclado) gives it the window's keyboard (decision 5). */
+    private void captureKeyboardIfTyping(ToolContext context) {
+        if (pressedElement instanceof Component component && acceptsTyping(context, component)) {
+            context.captureKeyboard(component);
+        }
+    }
+
     /** Whether {@code event} is on the ▾ / ▸ square of {@code component}, a RAM or ROM. */
     private static boolean onFoldToggle(ToolContext context, Component component, CanvasMouseEvent event) {
         return MemoryTypes.kindOf(component.typeId()).isPresent()
@@ -1222,6 +1232,11 @@ public final class SelectTool implements Tool {
         }
         ComponentType type = context.openDocument().registry().typeOf(component);
         return !MultiBitLayout.isMultiBit(type) || MultiBitCells.bitAt(type, component, event.gridPosition()).isPresent();
+    }
+
+    private boolean acceptsTyping(ToolContext context, Component component) {
+        return typingByType.computeIfAbsent(component.typeId(), typeId -> context.openDocument().registry()
+                .require(typeId).createBehavior(component.parameters()).acceptsTyping());
     }
 
     private boolean isInteractive(ToolContext context, Component component) {

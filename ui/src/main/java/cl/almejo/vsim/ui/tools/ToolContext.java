@@ -138,4 +138,11 @@ public interface ToolContext {
     default void editValue(Component component, Value startingValue) {
         editValue(component);
     }
+
+    /**
+     * A plain click on {@code component}, a part that takes typing (a Teclado): the window captures the keyboard for
+     * it (decision 5); by default (hosts without a capture) nothing happens.
+     */
+    default void captureKeyboard(Component component) {
+    }
 }

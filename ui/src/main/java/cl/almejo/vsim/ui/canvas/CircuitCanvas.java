@@ -155,6 +155,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         public void windowDeactivated(WindowEvent event) {
             autoscroll.stopAutoscroll(); // the release may never reach this canvas
             tool.focusLost(CircuitCanvas.this);
+            host.canvasFocusLost(CircuitCanvas.this, Optional.empty());
         }
     };
     private Window watchedWindow;
@@ -208,6 +209,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 showCursor();
                 autoscroll.stopAutoscroll(); // a modal dialog or another window took the release
                 tool.focusLost(CircuitCanvas.this);
+                host.canvasFocusLost(CircuitCanvas.this, Optional.ofNullable(event.getOppositeComponent()));
             }
         });
         setTransferHandler(new CanvasTransferHandler(this));
@@ -1322,6 +1324,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     @Override
+    public void captureKeyboard(Component component) {
+        host.captureKeyboard(component);
+    }
+
+    @Override
     public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
         return host.memoryFoldToggleAt(component, gridPosition);
     }
@@ -1623,6 +1630,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
         @Override
         public void keyPressed(KeyEvent event) {
+            if (host.takeKey(CircuitCanvas.this, event)) {
+                event.consume(); // a part has the keyboard: no key binding runs (decision 5)
+                return;
+            }
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {
                 spaceDown = true;
                 showCursor();
@@ -1640,6 +1651,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             }
             repaintOtherPanesIfTheGestureEnded(shared);
             updateAnimation();
+        }
+
+        @Override
+        public void keyTyped(KeyEvent event) {
+            if (host.takeKey(CircuitCanvas.this, event)) {
+                event.consume();
+            }
         }
 
         @Override
