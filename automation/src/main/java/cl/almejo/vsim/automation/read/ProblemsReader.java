@@ -7,7 +7,9 @@ import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.memory.LinkedFileChecks;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -32,7 +34,9 @@ public final class ProblemsReader {
 
     public static ProblemsView read(ReadSource source) {
         SimulationSnapshot snapshot = source.snapshot();
-        List<ProblemView> problems = snapshot.problems().stream().map(problem -> view(source, problem)).toList();
+        List<Problem> found = new ArrayList<>(snapshot.problems());
+        found.addAll(LinkedFileChecks.missing(source.document(), source.circuitFile()));
+        List<ProblemView> problems = found.stream().map(problem -> view(source, problem)).toList();
         return new ProblemsView(source.id(), source.version(), Long.toString(snapshot.time()),
                 snapshot.token() == source.netlistToken(), problems);
     }
@@ -62,6 +66,11 @@ public final class ProblemsReader {
                 yield references.view("TUNNEL_" + tunnel.kind().name(), tunnel.isWarning(), problem.netId(),
                         tunnelMessage(tunnel));
             }
+            case LinkedFileProblem linkedFile -> {
+                references.element(linkedFile.elementId());
+                yield references.view("LINKED_FILE_" + linkedFile.kind().name(), true, problem.netId(),
+                        linkedFileMessage(source, linkedFile));
+            }
             case ConnectivityProblem connectivity -> {
                 if (connectivity.isPin()) {
                     references.pin(connectivity.elementId(), connectivity.pinIndex());
@@ -79,6 +88,18 @@ public final class ProblemsReader {
                                 ? "Disconnected pin " + connectivity.pinIndex() + " of " + connectivity.elementId()
                                 : "Loose wire end of " + connectivity.elementId() + " at " + connectivity.position());
             }
+        };
+    }
+
+    private static String linkedFileMessage(ReadSource source, LinkedFileProblem problem) {
+        String name = source.document().component(new ElementId(problem.elementId()))
+                .map(component -> component.label().isBlank() ? component.typeId() : component.label())
+                .orElse(problem.elementId());
+        return switch (problem.kind()) {
+            case MISSING -> "The memory " + name + " is linked to the file " + problem.link()
+                    + ", which is not there: it keeps the contents saved in the circuit";
+            case UNREADABLE -> "The memory " + name + " is linked to the file " + problem.link()
+                    + ", which cannot be read (" + problem.detail() + "): it keeps the contents saved in the circuit";
         };
     }
 

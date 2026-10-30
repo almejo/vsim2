@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.RenderState;
@@ -21,6 +22,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -43,10 +45,17 @@ final class ConnectivityOverlay implements CanvasOverlay {
 
     private final OpenDocument openDocument;
     private final Supplier<ColorScheme> scheme;
+    private final Supplier<List<LinkedFileProblem>> linkedFiles;
 
     ConnectivityOverlay(OpenDocument openDocument, Supplier<ColorScheme> scheme) {
+        this(openDocument, scheme, List::of);
+    }
+
+    ConnectivityOverlay(OpenDocument openDocument, Supplier<ColorScheme> scheme,
+                        Supplier<List<LinkedFileProblem>> linkedFiles) {
         this.openDocument = openDocument;
         this.scheme = scheme;
+        this.linkedFiles = linkedFiles;
     }
 
     @Override
@@ -65,6 +74,11 @@ final class ConnectivityOverlay implements CanvasOverlay {
                         .orElse(null);
                 markPin(graphics, problem.position(), bounds, colors);
             }
+        }
+        for (LinkedFileProblem problem : linkedFiles.get()) {
+            ElementId memoryId = new ElementId(problem.elementId());
+            state.document().component(memoryId).filter(component -> glowing.add(memoryId))
+                    .ifPresent(component -> glowPiece(graphics, component, colors));
         }
         for (PinRef pin : openDocument.loosenedPins()) {
             state.document().component(pin.componentId()).ifPresent(component -> {

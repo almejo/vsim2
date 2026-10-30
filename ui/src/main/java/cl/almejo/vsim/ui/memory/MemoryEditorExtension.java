@@ -56,8 +56,8 @@ public final class MemoryEditorExtension implements EditorExtension {
     }
 
     /**
-     * When the linked files' problems change: a new problem is told in the status bar, and the inspector shows the
-     * memory again when it is the one selected.
+     * When the linked files' problems change: a new problem is told in the status bar, all of them go to the Problems
+     * panel and the canvas marks, and the inspector shows the memory again when it is the one selected.
      */
     private static final class ProblemsShown implements Runnable {
 
@@ -81,6 +81,7 @@ public final class MemoryEditorExtension implements EditorExtension {
                 }
             });
             told = now;
+            view.problems().showLinkedFileProblems(watcher.linkedFileProblems());
             Set<ElementId> selected = view.selection().ids();
             boolean memoryShown = selected.size() == 1 && view.openDocument().document()
                     .component(selected.iterator().next())

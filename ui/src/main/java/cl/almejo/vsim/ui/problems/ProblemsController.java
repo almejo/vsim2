@@ -7,11 +7,14 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
@@ -85,6 +88,7 @@ public final class ProblemsController {
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private List<ConnectivityProblem> outdatedPieces = List.of();
+    private List<LinkedFileProblem> reportedLinkedFiles = List.of();
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
 
@@ -96,7 +100,7 @@ public final class ProblemsController {
         Runnable repaintPanes = EveryPane.repaint(view);
         this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
         this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime);
-        this.connectivityOverlay = new ConnectivityOverlay(openDocument, () -> view.canvas().scheme());
+        this.connectivityOverlay = new ConnectivityOverlay(openDocument, () -> view.canvas().scheme(), this::linkedFileProblems);
         this.navigator = new ProblemNavigator(view::canvas, blink);
         this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
 
@@ -210,6 +214,7 @@ public final class ProblemsController {
         problems.addAll(openDocument.connectivityProblems());
         problems.addAll(loosenedPinProblems());
         problems.addAll(outdatedPieces);
+        problems.addAll(linkedFileProblems());
         SimulationSnapshot combined = new SimulationSnapshot(snapshot.revision(), openDocument.netlistToken(),
                 snapshot.time(), snapshot.running(), snapshot.netValues(), snapshot.componentStates(), problems,
                 snapshot.failure());
@@ -250,6 +255,31 @@ public final class ProblemsController {
         }
         outdatedPieces = List.copyOf(pieces);
         refreshStructure();
+    }
+
+    /**
+     * Lists the linked memory files that are missing or unreadable (what the document's {@code LinkedMemoryWatcher}
+     * found); replaces the previous list.
+     */
+    public void showLinkedFileProblems(List<LinkedFileProblem> found) {
+        if (disposed || found.equals(reportedLinkedFiles)) {
+            return;
+        }
+        reportedLinkedFiles = List.copyOf(found);
+        refreshStructure();
+    }
+
+    /**
+     * The reported linked-file problems that are still true of the document: a memory that was deleted, or whose link
+     * was removed or changed, drops out at once, without waiting for the next look at the files.
+     */
+    List<LinkedFileProblem> linkedFileProblems() {
+        return reportedLinkedFiles.stream().filter(problem -> openDocument.document()
+                .component(new ElementId(problem.elementId()))
+                .flatMap(memory -> MemoryLinkPaths.linkedFile(memory, openDocument.path()).map(file ->
+                        MemoryLinkPaths.displayPath(MemoryLinkPaths.linkOf(memory), openDocument.path())))
+                .filter(problem.link()::equals).isPresent())
+                .sorted(Comparator.comparing(LinkedFileProblem::elementId)).toList();
     }
 
     /** The tunnel problems that are errors (the warnings show only in the Problems tab, like display warnings). */

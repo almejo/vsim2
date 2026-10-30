@@ -65,7 +65,7 @@ final class ReadHostSupport {
     ReadSource source(DocumentId id, OpenDocument document, List<DefinitionBundle> library) {
         return new ReadSource(id, version(document), document.displayName(), document.document(),
                 document.registry(), document.netlist(), document.netlistToken(), document.latestSnapshot(), NAMES,
-                library, LabelTextMeasure.INSTANCE);
+                library, LabelTextMeasure.INSTANCE, document.path());
     }
 
     /** The region picture painted, still to encode; the export one in the scheme of the circuit's first window. */

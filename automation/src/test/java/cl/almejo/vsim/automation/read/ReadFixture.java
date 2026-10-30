@@ -17,8 +17,10 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** A circuit as the editor would hand it to the readers, with the standard types and its own user components. */
 final class ReadFixture {
@@ -46,6 +48,7 @@ final class ReadFixture {
             StandardComponentTypes.registry().extendedWith(SubcircuitTypes.resolverFor(document));
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private long version = 7;
+    private Optional<Path> circuitFile = Optional.empty();
     private List<DefinitionBundle> library = List.of();
 
     Component place(String typeId, int x, int y) {
@@ -77,6 +80,10 @@ final class ReadFixture {
         library = List.copyOf(newLibrary);
     }
 
+    void useCircuitFile(Path file) {
+        circuitFile = Optional.of(file);
+    }
+
     void useVersion(long newVersion) {
         version = newVersion;
     }
@@ -88,6 +95,6 @@ final class ReadFixture {
     ReadSource source() {
         return new ReadSource(ID, new DocumentVersion(version), "Prueba", document, registry,
                 new NetlistCompiler(registry).compile(document), document.revision(), snapshot, NAMES, library,
-                TextMeasure.APPROXIMATE);
+                TextMeasure.APPROXIMATE, circuitFile);
     }
 }

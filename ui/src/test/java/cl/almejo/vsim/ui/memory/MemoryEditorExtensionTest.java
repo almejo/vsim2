@@ -1,6 +1,10 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
+import cl.almejo.vsim.core.simulation.Problem;
+import cl.almejo.vsim.ui.problems.ProblemText;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentLibrary;
@@ -13,7 +17,11 @@ import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.geom.Point2D;
@@ -44,10 +52,12 @@ class MemoryEditorExtensionTest {
         document.close();
     }
 
+    private final MemoryLinks links =
+            new MemoryLinks(new FakeLinkPrompts(), (file, command) -> true, MemoryLinks.PollScheduler.MANUAL);
+
     private EditorView view() {
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                AppPreferences.inMemory(), new ComponentLibrary(), List.of(new MemoryEditorExtension(launcher,
-                new MemoryLinks(new FakeLinkPrompts(), (file, command) -> true, MemoryLinks.PollScheduler.MANUAL))));
+                AppPreferences.inMemory(), new ComponentLibrary(), List.of(new MemoryEditorExtension(launcher, links)));
         return new EditorView(document, services, NO_WINDOW);
     }
 
@@ -88,5 +98,41 @@ class MemoryEditorExtensionTest {
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(gate), new Point2D.Double(1, 1))))
                 .doesNotContain("Editar contenido…");
+    }
+
+    private List<Problem> memoryProblems(EditorView view) {
+        return view.problems().navigator().problems().stream().filter(LinkedFileProblem.class::isInstance).toList();
+    }
+
+    @Test
+    void aMissingLinkedFileIsAProblemOfThePartThatGoesWhenTheFileComesBackOrTheLinkGoes(@TempDir Path folder)
+            throws IOException {
+        Path file = folder.resolve("rom.hex");
+        Component rom = place(document, StandardComponentTypes.ROM, 0, 0,
+                Map.of(MemoryTypes.LINK, file.toString()));
+        place(document, StandardComponentTypes.RAM, 30, 0, Map.of());
+        EditorView view = view();
+        LinkedMemoryWatcher watcher = links.watcherOf(document).orElseThrow();
+
+        watcher.poll();
+
+        assertThat(memoryProblems(view)).singleElement().satisfies(problem -> {
+            assertThat(((LinkedFileProblem) problem).elementId()).isEqualTo(rom.id().value());
+            assertThat(ProblemText.describe(problem, document.document(), document.registry()))
+                    .contains(file.toString(), "no se encuentra");
+        });
+        assertThat(view.problems().nextProblem().isEnabled()).isTrue();
+        assertThat(view.problems().navigator().navigateTo(memoryProblems(view).getFirst())).isTrue();
+        assertThat(view.canvas().selection().ids()).containsExactly(rom.id());
+
+        Files.writeString(file, "01\n");
+        watcher.poll();
+        assertThat(memoryProblems(view)).isEmpty();
+
+        Files.delete(file);
+        watcher.poll();
+        assertThat(memoryProblems(view)).hasSize(1);
+        document.execute(MemoryLinks.changing(document, rom, Map.of(MemoryTypes.LINK, ""), "command.unlinkMemory"));
+        assertThat(memoryProblems(view)).isEmpty();
     }
 }

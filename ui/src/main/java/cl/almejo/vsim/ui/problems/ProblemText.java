@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.OutdatedPieceChecks;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
@@ -50,6 +51,7 @@ public final class ProblemText {
             case DisplayBusOverride display -> 3;
             case TunnelProblem tunnel -> 4;
             case ConnectivityProblem connectivity -> 5;
+            case LinkedFileProblem linkedFile -> 6;
         };
     }
 
@@ -78,6 +80,20 @@ public final class ProblemText {
             case DisplayBusOverride display -> displayBus(display, document);
             case TunnelProblem tunnel -> tunnel(tunnel, document);
             case ConnectivityProblem connectivity -> connectivity(connectivity, document, registry);
+            case LinkedFileProblem linkedFile -> linkedFile(linkedFile, document);
+        };
+    }
+
+    /** «La memoria «Programa» está enlazada a «rom.hex», que no se encuentra…»: the part by its label or type name. */
+    private static String linkedFile(LinkedFileProblem problem, CircuitDocument document) {
+        String name = document.component(new ElementId(problem.elementId()))
+                .map(component -> component.label().isBlank()
+                        ? Messages.componentName(component.typeId(), component.parameters()) : component.label())
+                .orElse(problem.elementId());
+        return switch (problem.kind()) {
+            case MISSING -> Messages.format("problem.memoryFile.missing", name, problem.link());
+            case UNREADABLE -> Messages.format("problem.memoryFile.unreadable", name, problem.link(),
+                    problem.detail());
         };
     }
 

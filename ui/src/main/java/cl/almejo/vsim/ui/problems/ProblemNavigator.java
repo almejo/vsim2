@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
@@ -99,6 +100,9 @@ public final class ProblemNavigator {
         if (problem instanceof ConnectivityProblem connectivity) {
             return navigateToConnectivity(connectivity);
         }
+        if (problem instanceof LinkedFileProblem linkedFile) {
+            return navigateToMemory(linkedFile);
+        }
         if (problem instanceof TunnelProblem tunnel && navigateToTunnels(tunnel)) {
             return true;
         }
@@ -107,6 +111,19 @@ public final class ProblemNavigator {
             return navigateToInstances(problem);
         }
         focusNet(canvas.get(), blink, net.get());
+        return true;
+    }
+
+    private boolean navigateToMemory(LinkedFileProblem problem) {
+        CircuitCanvas pane = canvas.get();
+        Optional<Component> memory = pane.openDocument().document().component(new ElementId(problem.elementId()));
+        if (memory.isEmpty()) {
+            return false;
+        }
+        pane.travelTo(pane.openDocument().registry().typeOf(memory.get()).bounds(memory.get()));
+        pane.selection().set(List.of(memory.get().id()));
+        blink.stop();
+        pane.requestFocusInWindow();
         return true;
     }
 
@@ -184,6 +201,7 @@ public final class ProblemNavigator {
             case DisplayBusOverride display -> ids.add(display.componentId());
             case TunnelProblem tunnel -> ids.addAll(tunnel.tunnels());
             case ConnectivityProblem connectivity -> ids.add(connectivity.elementId());
+            case LinkedFileProblem linkedFile -> ids.add(linkedFile.elementId());
         }
         CircuitDocument document = canvas.get().openDocument().document();
         ComponentTypeRegistry registry = canvas.get().openDocument().registry();

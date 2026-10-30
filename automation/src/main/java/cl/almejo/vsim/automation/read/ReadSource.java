@@ -9,8 +9,10 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * What the readers see of one open circuit, given by the editor on its own thread ({@code ReadHost#reading}): valid
@@ -18,12 +20,13 @@ import java.util.Objects;
  * user components; {@code netlist} is compiled from the document as it is now ({@code netlistToken} is the document
  * revision it was compiled from); {@code snapshot} is the latest published simulation, which may lag behind.
  * {@code library} is the user's component library («Mis componentes»), whose components the AI may also place;
- * {@code textMeasure} says where the editor draws texts (for the layout checks).
+ * {@code textMeasure} says where the editor draws texts (for the layout checks); {@code circuitFile} is where the
+ * circuit is saved, empty when it is not (what the links of its memories are relative to).
  */
 public record ReadSource(DocumentId id, DocumentVersion version, String name, CircuitDocument document,
                          ComponentTypeRegistry registry, Netlist netlist, long netlistToken,
                          SimulationSnapshot snapshot, ComponentNames names, List<DefinitionBundle> library,
-                         TextMeasure textMeasure) {
+                         TextMeasure textMeasure, Optional<Path> circuitFile) {
 
     public ReadSource {
         Objects.requireNonNull(id, "id");
@@ -36,6 +39,15 @@ public record ReadSource(DocumentId id, DocumentVersion version, String name, Ci
         Objects.requireNonNull(names, "names");
         library = List.copyOf(library);
         Objects.requireNonNull(textMeasure, "textMeasure");
+        Objects.requireNonNull(circuitFile, "circuitFile");
+    }
+
+    /** A source of a circuit that is not saved anywhere. */
+    public ReadSource(DocumentId id, DocumentVersion version, String name, CircuitDocument document,
+                      ComponentTypeRegistry registry, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
+                      ComponentNames names, List<DefinitionBundle> library, TextMeasure textMeasure) {
+        this(id, version, name, document, registry, netlist, netlistToken, snapshot, names, library, textMeasure,
+                Optional.empty());
     }
 
     /** A source without a library, whose texts are measured approximately. */
@@ -43,6 +55,6 @@ public record ReadSource(DocumentId id, DocumentVersion version, String name, Ci
                       ComponentTypeRegistry registry, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
                       ComponentNames names) {
         this(id, version, name, document, registry, netlist, netlistToken, snapshot, names, List.of(),
-                TextMeasure.APPROXIMATE);
+                TextMeasure.APPROXIMATE, Optional.empty());
     }
 }

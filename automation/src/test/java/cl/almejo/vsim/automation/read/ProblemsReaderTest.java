@@ -1,11 +1,13 @@
 package cl.almejo.vsim.automation.read;
 
 import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
@@ -19,7 +21,11 @@ import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,7 +34,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ProblemsReaderTest {
 
+    @TempDir
+    Path folder;
+
     private final ReadFixture fixture = new ReadFixture();
+
+    @Test
+    void aMemoryLinkedToAMissingFileIsAWarningNamingItAndItsPath() throws IOException {
+        fixture.useCircuitFile(folder.resolve("cpu.vsim"));
+        Component rom = fixture.place(StandardComponentTypes.ROM, 0, 0, Rotation.R0,
+                Map.of(MemoryTypes.LINK, "programas/rom.hex"), "Programa");
+
+        ProblemsView missing = ProblemsReader.read(fixture.source());
+
+        assertThat(missing.problems()).singleElement().satisfies(problem -> {
+            assertThat(problem.kind()).isEqualTo("LINKED_FILE_MISSING");
+            assertThat(problem.warning()).isTrue();
+            assertThat(problem.elementIds()).containsExactly(rom.id().value());
+            assertThat(problem.message()).contains("Programa", "programas/rom.hex");
+        });
+
+        Files.createDirectories(folder.resolve("programas"));
+        Files.writeString(folder.resolve("programas/rom.hex"), "01\n");
+        assertThat(ProblemsReader.read(fixture.source()).problems()).isEmpty();
+    }
 
     @Test
     void aShortCircuitNamesItsDriversAsPinReferences() {

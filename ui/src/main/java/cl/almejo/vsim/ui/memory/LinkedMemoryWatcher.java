@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MemoryFile;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -16,7 +17,9 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -40,7 +43,7 @@ public final class LinkedMemoryWatcher {
     private final Map<ElementId, Fingerprint> seen = new HashMap<>();
     /** A file that changed since it was read, waiting for a second poll that finds it the same (a save in two writes). */
     private final Map<ElementId, Fingerprint> settling = new HashMap<>();
-    private final Map<ElementId, String> problems = new HashMap<>();
+    private final Map<ElementId, LinkedFileProblem> problems = new HashMap<>();
     private final Listeners<Runnable> listeners = new Listeners<>();
 
     public LinkedMemoryWatcher(OpenDocument document) {
@@ -49,7 +52,7 @@ public final class LinkedMemoryWatcher {
 
     /** Looks at every linked file once: reloads the changed ones, notes the missing or unreadable ones. */
     public void poll() {
-        Map<ElementId, String> before = Map.copyOf(problems);
+        Map<ElementId, LinkedFileProblem> before = Map.copyOf(problems);
         Set<ElementId> linked = new HashSet<>();
         for (Component component : document.document().components()) {
             if (MemoryTypes.kindOf(component.typeId()).isEmpty()) {
@@ -71,12 +74,26 @@ public final class LinkedMemoryWatcher {
 
     /** Why the linked file of {@code componentId} is not used now («No se encuentra …»), empty when all is well. */
     public Optional<String> problem(ElementId componentId) {
-        return Optional.ofNullable(problems.get(componentId));
+        return Optional.ofNullable(problems.get(componentId)).map(LinkedMemoryWatcher::text);
     }
 
     /** Every linked memory whose file cannot be used now, with why. */
     public Map<ElementId, String> problems() {
-        return Map.copyOf(problems);
+        Map<ElementId, String> texts = new HashMap<>();
+        problems.forEach((id, problem) -> texts.put(id, text(problem)));
+        return texts;
+    }
+
+    /** The same problems as parts' problems, for the Problems panel and the canvas marks; document order is not kept. */
+    public List<LinkedFileProblem> linkedFileProblems() {
+        return new ArrayList<>(problems.values());
+    }
+
+    private static String text(LinkedFileProblem problem) {
+        return switch (problem.kind()) {
+            case MISSING -> Messages.format("memory.link.missing", problem.link());
+            case UNREADABLE -> Messages.format("memory.link.unreadable", problem.detail());
+        };
     }
 
     /** Runs {@code listener} whenever the problems change; returns its removal. */
@@ -91,7 +108,7 @@ public final class LinkedMemoryWatcher {
         if (now.isEmpty()) {
             seen.remove(id);
             settling.remove(id);
-            problems.put(id, Messages.format("memory.link.missing", shown));
+            problems.put(id, new LinkedFileProblem(id.value(), shown, LinkedFileProblem.Kind.MISSING, ""));
             return;
         }
         if (now.get().equals(seen.get(id))) {
@@ -111,7 +128,8 @@ public final class LinkedMemoryWatcher {
             problems.remove(id);
             reloadIfChanged(component, read.contents());
         } catch (MemoryFileIo.Unreadable problem) {
-            problems.put(id, Messages.format("memory.link.unreadable", problem.getMessage()));
+            problems.put(id, new LinkedFileProblem(id.value(), shown, LinkedFileProblem.Kind.UNREADABLE,
+                    problem.getMessage()));
         }
     }
 
