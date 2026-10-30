@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
@@ -321,6 +322,59 @@ class StatusBarTest {
         removeIndicator.run();
 
         assertThat(statusBar.getComponentCount()).isEqualTo(before);
+    }
+
+    private static SimulationSnapshot at(long time, boolean running) {
+        return new SimulationSnapshot(1, 1, time, running, Map.of(), Map.of(), List.of(), Optional.empty());
+    }
+
+    private static PauseNotice terminalNotice(long time, long sequence) {
+        return new PauseNotice("t1", "action.pauseOnShortCircuit", List.of("consola", "=120"), time, sequence);
+    }
+
+    @Test
+    void aPartsPauseIsSaidWhilePausedAndGoesAwayOnceTheSimulationRunsOn() {
+        statusBar.showSnapshot(at(120, false));
+        statusBar.showPauseNotice(Optional.of(new PauseNotice("t1", "action.pauseOnShortCircuit", List.of(), 120,
+                1)));
+
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).isTrue();
+        assertThat(statusBar.text()).contains("Simulación detenida en t = 120: Pausar al detectar cortocircuito");
+
+        statusBar.showSnapshot(at(130, true));
+        statusBar.showPauseNotice(Optional.of(new PauseNotice("t1", "action.pauseOnShortCircuit", List.of(), 120,
+                1)));
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).isFalse();
+
+        statusBar.showSnapshot(at(140, false));
+        statusBar.showPauseNotice(Optional.of(new PauseNotice("t1", "action.pauseOnShortCircuit", List.of(), 120,
+                1)));
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).as("a later pause by hand says nothing").isFalse();
+    }
+
+    @Test
+    void aRunningSnapshotFromBeforeThePauseDoesNotHideIt() {
+        statusBar.showSnapshot(at(100, true));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(120, 1)));
+        statusBar.showSnapshot(at(120, false));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(120, 1)));
+
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).isTrue();
+    }
+
+    @Test
+    void aNewerPauseIsSaidAgainAndNoNoticeSaysNothing() {
+        statusBar.showSnapshot(at(120, false));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(120, 1)));
+        statusBar.showSnapshot(at(130, true));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(120, 1)));
+
+        statusBar.showSnapshot(at(150, false));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(150, 2)));
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).isTrue();
+
+        statusBar.showPauseNotice(Optional.empty());
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).isFalse();
     }
 
     @Test

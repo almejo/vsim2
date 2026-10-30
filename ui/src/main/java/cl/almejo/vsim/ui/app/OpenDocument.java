@@ -31,6 +31,7 @@ import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
 import cl.almejo.vsim.core.simulation.MemoryMapFrame;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
+import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -586,6 +587,14 @@ public final class OpenDocument implements AutoCloseable {
 
     public SimulationSnapshot latestSnapshot() {
         return simulation.latestSnapshot();
+    }
+
+    /**
+     * Why a part last paused this document's simulation (a Terminal received its «Detener al recibir» text); empty
+     * before the first and after «Reiniciar». Read it after {@link #latestSnapshot()}: it is written first.
+     */
+    public Optional<PauseNotice> latestPauseNotice() {
+        return simulation.latestPauseNotice();
     }
 
     /**
