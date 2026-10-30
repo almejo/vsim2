@@ -72,13 +72,13 @@ class ChangeMultiBitWidthTest {
     }
 
     @Test
-    void wideningAnUprightSwitchKeepsItsPlaceAsBefore() {
+    void wideningAnUprightSwitchKeepsItsPinWhereItWasAndItsSide() {
         Component narrow = place(Rotation.R0, Map.of());
 
         widthChange(narrow, 8).apply(document);
 
         Component wide = document.component(narrow.id()).orElseThrow();
-        assertThat(wide.position()).isEqualTo(narrow.position());
+        assertThat(switchType.pinLocation(wide, 0)).isEqualTo(switchType.pinLocation(narrow, 0));
         assertThat(MultiBitLayout.sideOf(switchType, wide.parameters())).isEqualTo("right");
     }
 }
