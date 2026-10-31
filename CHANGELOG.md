@@ -10,6 +10,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- Un lienzo completamente vacío muestra al centro un texto suave que dice cómo empezar («Arrastra una pieza desde la paleta para empezar» y «o abre un ejemplo en Archivo ▸ Ejemplos»). Desaparece al poner cualquier cosa, vuelve si borras todo y no sale en las imágenes, el PDF ni la impresión. Ver [Lienzo vacío](docs/funciones/interfaz-preferencias-y-sesion.md#lienzo-vacío).
 - «Los cables siguen al mover» tiene el atajo Ctrl+E (se puede cambiar en Atajos de teclado). La ayuda del botón muestra la tecla vigente y la barra de estado dice si quedó activado o desactivado.
 - Herramienta **Texto** en la barra de herramientas y en el menú Ver (después de «Nota adhesiva»): un clic en el lienzo abre el campo de texto en ese punto y el editor vuelve a Selección.
 - Clic derecho sobre un pin de bus de un componente ofrece «Agregar separador de bus» (en una salida) o «Agregar unión
