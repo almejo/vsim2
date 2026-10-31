@@ -52,12 +52,12 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
     static final String ELLIPSIS = "…";
 
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
-    /** Where the text starts below the paper's top when the two buttons get a strip of their own. */
+    /**
+     * Where the text starts below the paper's top: the two buttons get a strip of their own. A note is never lower
+     * than {@code StickyNote.MINIMUM_HEIGHT} (4 units), which fits this strip plus one text row, so the buttons never
+     * cover text.
+     */
     private static final double CONTROL_STRIP = CLOSE_INSET + CLOSE_SIZE + 2;
-    /** A paper lower than this has no room for the strip: the buttons then lie over the first line's ends. */
-    private static final double TALL_ENOUGH_FOR_STRIP = 4 * UNIT;
-    /** A paper narrower than this keeps no room for the ✕ in its first line: the line would be a letter. */
-    private static final double WIDE_ENOUGH_FOR_CLOSE_ROOM = 6 * UNIT;
     private static final int LAST_CHARACTER_OFFSET = 1;
     private static volatile Measuring measuring;
 
@@ -135,7 +135,7 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
         if (pixelsPerGrid < MINIMUM_PIXELS_PER_GRID_FOR_DETAILS) {
             return new StickyNoteLayout(paper, fold, closeBox, foldButton, resizeHandle, List.of(), List.of());
         }
-        Text text = new Text(paper, closeBox, metrics);
+        Text text = new Text(paper, metrics);
         switch (note.content()) {
             case StickyText freeText -> text.addFreeText(freeText.text());
             case StickyChecklist checklist -> text.addChecklist(checklist.items());
@@ -153,20 +153,17 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
         private final double top;
         private final double lineHeight;
         private final int capacity;
-        private final double closeRoom;
         private final List<Line> rows = new ArrayList<>();
         private final List<Rectangle2D> boxes = new ArrayList<>();
 
-        Text(Rectangle2D paper, Rectangle2D closeBox, FontMetrics metrics) {
+        Text(Rectangle2D paper, FontMetrics metrics) {
             this.paper = paper;
             this.metrics = metrics;
             this.left = paper.getX() + PADDING;
-            boolean strip = paper.getHeight() >= TALL_ENOUGH_FOR_STRIP;
-            this.top = paper.getY() + (strip ? CONTROL_STRIP : PADDING);
+            this.top = paper.getY() + CONTROL_STRIP;
             this.lineHeight = Math.max(1, metrics.getHeight());
             double room = paper.getHeight() - (top - paper.getY()) - PADDING;
             this.capacity = Math.max(1, (int) Math.floor(room / lineHeight));
-            this.closeRoom = !strip && paper.getWidth() >= WIDE_ENOUGH_FOR_CLOSE_ROOM ? CLOSE_SIZE + CLOSE_INSET : 0;
         }
 
         List<Line> lines() {
@@ -177,10 +174,9 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
             return boxes;
         }
 
-        /** The width of row {@code row} counted from {@code indent}: the first row leaves room for the ✕. */
+        /** The width of row {@code row} counted from {@code indent}. */
         private double widthOfRow(int row, double indent) {
-            double width = paper.getWidth() - 2 * PADDING - indent;
-            return row == 0 ? width - closeRoom : width;
+            return paper.getWidth() - 2 * PADDING - indent;
         }
 
         private double baselineOfRow(int row) {

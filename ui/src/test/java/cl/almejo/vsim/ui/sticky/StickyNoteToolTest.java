@@ -60,7 +60,7 @@ class StickyNoteToolTest {
         StickyNote note = notes().getFirst();
         assertThat(note.position()).isEqualTo(new GridPoint(10, 10));
         assertThat(note.width()).isEqualTo(4);
-        assertThat(note.height()).isEqualTo(3);
+        assertThat(note.height()).isEqualTo(4);
     }
 
     @Test

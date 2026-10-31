@@ -15,7 +15,7 @@ public record StickyNote(ElementId id, GridPoint position, int width, int height
     public static final int DEFAULT_WIDTH = 8;
     public static final int DEFAULT_HEIGHT = 6;
     public static final int MINIMUM_WIDTH = 4;
-    public static final int MINIMUM_HEIGHT = 3;
+    public static final int MINIMUM_HEIGHT = 4;
     public static final int FOLDED_SIZE = 2;
 
     public StickyNote {

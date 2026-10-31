@@ -108,7 +108,7 @@ class StickyNoteTest {
                 new StickyText(""), false);
 
         assertThat(note.width()).isEqualTo(StickyNote.MINIMUM_WIDTH).isEqualTo(4);
-        assertThat(note.height()).isEqualTo(StickyNote.MINIMUM_HEIGHT).isEqualTo(3);
+        assertThat(note.height()).isEqualTo(StickyNote.MINIMUM_HEIGHT).isEqualTo(4);
         assertThat(note.withSize(2, 9).width()).isEqualTo(4);
     }
 

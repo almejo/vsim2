@@ -83,7 +83,7 @@ class StickyNoteLayoutTest {
         for (int number = 1; number <= 30; number++) {
             lines.add("linea " + number);
         }
-        StickyNoteLayout layout = layout(note(4, 3, new StickyText(String.join("\n", lines))), FULL_ZOOM);
+        StickyNoteLayout layout = layout(note(4, 4, new StickyText(String.join("\n", lines))), FULL_ZOOM);
         assertThat(layout.lines()).isNotEmpty().hasSizeLessThan(30);
         StickyNoteLayout.Line last = layout.lines().getLast();
         assertThat(last.text()).endsWith("…");
@@ -121,7 +121,7 @@ class StickyNoteLayoutTest {
         for (int number = 0; number < 40; number++) {
             many.add(new StickyItem("item " + number, false));
         }
-        StickyNoteLayout layout = layout(note(4, 3, new StickyChecklist(many)), FULL_ZOOM);
+        StickyNoteLayout layout = layout(note(4, 4, new StickyChecklist(many)), FULL_ZOOM);
         assertThat(layout.checkboxes()).isNotEmpty().hasSizeLessThan(40);
         assertThat(layout.lines().getLast().text()).endsWith("…");
     }
@@ -156,6 +156,24 @@ class StickyNoteLayoutTest {
     }
 
     @Test
+    void theShortestNoteKeepsItsControlsOffItsFirstTextRow() {
+        StickyNote shortest = new StickyNote(new ElementId("s1"), new GridPoint(10, 20), 4, 1, StickyColor.YELLOW,
+                new StickyText("hola"), false);
+        assertThat(shortest.height()).isGreaterThanOrEqualTo(4);
+        for (StickyContent content : List.of(new StickyText("hola"),
+                new StickyChecklist(List.of(new StickyItem("hola", false))))) {
+            StickyNoteLayout layout = layout(shortest.withContent(content), FULL_ZOOM);
+            assertThat(layout.lines()).isNotEmpty();
+            for (StickyNoteLayout.Line line : layout.lines()) {
+                double rowTop = line.baseline() - metrics.getAscent();
+                assertThat(rowTop).isGreaterThanOrEqualTo(layout.closeBox().getMaxY());
+                assertThat(rowTop).isGreaterThanOrEqualTo(layout.foldButton().getMaxY());
+                assertThat(rowTop + metrics.getHeight()).isLessThanOrEqualTo(layout.paper().getMaxY());
+            }
+        }
+    }
+
+    @Test
     void aFoldedNoteIsTheFoldedSquareWithOnlyTheFold() {
         StickyNote folded = note(8, 6, new StickyText("hola")).withFolded(true);
         StickyNoteLayout layout = layout(folded, FULL_ZOOM);
@@ -176,7 +194,7 @@ class StickyNoteLayoutTest {
         for (StickyContent content : contents) {
             for (double zoom : new double[]{0.5, 2, 8, 32}) {
                 for (boolean folded : new boolean[]{false, true}) {
-                    assertThatCode(() -> layout(note(4, 3, content).withFolded(folded), zoom))
+                    assertThatCode(() -> layout(note(4, 4, content).withFolded(folded), zoom))
                             .doesNotThrowAnyException();
                     assertThatCode(() -> layout(note(30, 20, content).withFolded(folded), zoom))
                             .doesNotThrowAnyException();
