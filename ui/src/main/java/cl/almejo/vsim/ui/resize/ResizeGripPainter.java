@@ -19,8 +19,8 @@ import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 
 /**
- * Draws the «↔» tab of a selected resizable part and, while it is dragged, the tag above it (Teclado mockup v4,
- * {@code paintKeyboard}): the tab in the part's fill with a border and a double arrow in the selection colour, filled
+ * Draws the «↔» (on a corner «⤡») tab of a selected resizable part and, while it is dragged, the tag above it
+ * (Teclado mockup v4, {@code paintKeyboard}): the tab in the part's fill with a border and a double arrow in the selection colour, filled
  * with the selection colour while dragged; the tag on the part's fill with a border in the selection colour and a soft
  * shadow, upright whatever the part's rotation. Only the canvas overlay calls it, so exports, printing, the palette
  * and ghosts never show it. Colours are read from the scheme at each paint.
@@ -32,6 +32,9 @@ final class ResizeGripPainter {
     /** How far the arrow's ends stay inside the tab, and how long its heads are. */
     private static final double ARROW_INSET = 3;
     private static final double ARROW_HEAD = 2;
+    /** How far the diagonal «⤡» stays inside the corner tab, across and down. */
+    private static final double DIAGONAL_INSET_X = 4;
+    private static final double DIAGONAL_INSET_Y = 1.5;
     private static final float TAG_SIZE = 7f;
     private static final double TAG_PADDING = 5;
     private static final double TAG_HEIGHT = 11;
@@ -49,6 +52,12 @@ final class ResizeGripPainter {
     /** The tab of {@code component} (as shown: during a drag, at its new size), at {@code tab} in its own pixels. */
     static void paintTab(Graphics2D graphics, Component component, Rectangle2D tab, boolean dragging,
                          ColorScheme scheme) {
+        paintTab(graphics, component, tab, false, dragging, scheme);
+    }
+
+    /** {@link #paintTab(Graphics2D, Component, Rectangle2D, boolean, ColorScheme)}; a corner's tab shows «⤡». */
+    static void paintTab(Graphics2D graphics, Component component, Rectangle2D tab, boolean corner, boolean dragging,
+                         ColorScheme scheme) {
         ComponentDrawing.paintPlaced(graphics, component, local -> {
             local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             RoundRectangle2D shape = new RoundRectangle2D.Double(tab.getX(), tab.getY(), tab.getWidth(),
@@ -59,8 +68,25 @@ final class ResizeGripPainter {
             local.setStroke(new BasicStroke(TAB_BORDER));
             local.draw(shape);
             local.setColor(dragging ? KeyboardPainter.textOn(scheme.selection()) : scheme.selection());
-            local.draw(arrow(tab));
+            local.draw(corner ? diagonalArrow(tab) : arrow(tab));
         });
+    }
+
+    /** «⤡»: a line from the tab's top left to its bottom right with a head at each end, its legs along the axes. */
+    private static Path2D diagonalArrow(Rectangle2D tab) {
+        double left = tab.getMinX() + DIAGONAL_INSET_X;
+        double top = tab.getMinY() + DIAGONAL_INSET_Y;
+        double right = tab.getMaxX() - DIAGONAL_INSET_X;
+        double bottom = tab.getMaxY() - DIAGONAL_INSET_Y;
+        Path2D arrow = new Path2D.Double();
+        arrow.append(new Line2D.Double(left, top, right, bottom), false);
+        arrow.moveTo(left + ARROW_HEAD, top);
+        arrow.lineTo(left, top);
+        arrow.lineTo(left, top + ARROW_HEAD);
+        arrow.moveTo(right - ARROW_HEAD, bottom);
+        arrow.lineTo(right, bottom);
+        arrow.lineTo(right, bottom - ARROW_HEAD);
+        return arrow;
     }
 
     /** A line along the tab's long side with a head at each end. */

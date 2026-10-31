@@ -118,7 +118,7 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     }
 
     /**
-     * This type with {@code resize}: its size follows that integer parameter, which the canvas also lets the user
+     * This type with {@code resize}: its size follows those integer parameters, which the canvas also lets the user
      * change by dragging an edge (Task 6b, the Teclado's width).
      *
      * @throws IllegalArgumentException when the type has no such integer parameter

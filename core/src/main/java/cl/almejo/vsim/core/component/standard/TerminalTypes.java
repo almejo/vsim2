@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.component.ComponentShape;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.ResizeSpec;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.terminal.KeyEncoding;
 import cl.almejo.vsim.core.terminal.TerminalEncoding;
 import cl.almejo.vsim.core.terminal.TerminalFontSize;
@@ -178,13 +180,24 @@ public final class TerminalTypes {
                     GROUP_DISPLAY),
             look(ParameterSpec.text(OUTPUT_FILE, "").visibleWhen(SAVE_OUTPUT, SAVE_OUTPUT_TO_FILE), GROUP_DISPLAY));
 
+    /**
+     * The bottom-right corner grip (Task 7b): columns on the right edge, rows on the bottom one, one value for every
+     * cell of the current «Tamaño de letra» dragged (decision 3: cell sizes in pixels at 100 %).
+     */
+    private static final ResizeSpec RESIZE = ResizeSpec.corner(
+            ResizeSpec.Axis.stepped(COLUMNS, ResizeSpec.Edge.RIGHT,
+                    parameters -> (double) fontSize(parameters).cellWidth() / GridPoint.PIXELS_PER_UNIT),
+            ResizeSpec.Axis.stepped(ROWS, ResizeSpec.Edge.BOTTOM,
+                    parameters -> (double) fontSize(parameters).cellHeight() / GridPoint.PIXELS_PER_UNIT));
+
     private TerminalTypes() {
     }
 
     static void register(ComponentTypeRegistry registry) {
         registry.register(ComponentType.parameterized(StandardComponentTypes.TERMINAL, ComponentCategory.INPUT_OUTPUT,
                 PARAMETERS, TerminalTypes::shape, TerminalBehavior::new)
-                .withProfiles(PROFILE, TerminalProfiles.all()));
+                .withProfiles(PROFILE, TerminalProfiles.all())
+                .withResize(RESIZE));
     }
 
     /** What decides how the resolved {@code parameters} turn bytes into a screen. */

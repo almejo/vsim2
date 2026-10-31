@@ -19,8 +19,9 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * Sets the resize parameter of a part ({@link ResizeSpec}, the Teclado's «Ancho») and makes the wires of the pins that
- * move with the edge follow them, as one undo step (Task 6b). The part keeps its position; the wires are planned with
+ * Sets the resize parameters of a part ({@link ResizeSpec}: the Teclado's «Ancho», a Terminal's columns and rows) and
+ * makes the wires of the pins that move with the edges follow them, as one undo step (Tasks 6b, 7b). The part keeps
+ * its position; the wires are planned with
  * {@link WireFollow#plan(CircuitDocument, ComponentTypeRegistry, PinMoves, Supplier)} against the document as it is
  * before the change, the way an appearance edit moves the pins of its pieces.
  */
@@ -46,9 +47,21 @@ public final class ResizeComponentCommand implements Command {
      */
     public static ResizeComponentCommand of(CircuitDocument document, ComponentTypeRegistry registry, ElementId id,
                                             int value) {
+        return of(document, registry, id, Map.of(firstParameter(document, registry, id), value));
+    }
+
+    /**
+     * Sets several resize parameters of {@code id} at once (a Terminal's columns and rows, Task 7b), each in its range,
+     * as one undo step; planned now on {@code document}, new wires take the document's ids.
+     *
+     * @throws IllegalArgumentException when the part's type has no resize, a parameter is not one of its axes or a
+     *                                  value is out of range
+     */
+    public static ResizeComponentCommand of(CircuitDocument document, ComponentTypeRegistry registry, ElementId id,
+                                            Map<String, Integer> values) {
         Component component = document.component(id).orElseThrow();
         ComponentType type = registry.typeOf(component);
-        Map<String, Object> parameters = resizedParameters(type, component, value);
+        Map<String, Object> parameters = resizedParameters(type, component, values);
         return new ResizeComponentCommand(new ChangeParametersCommand(id, type, parameters, DESCRIPTION),
                 wirePlan(document, registry, component, parameters, document::newWireId));
     }
@@ -59,18 +72,36 @@ public final class ResizeComponentCommand implements Command {
      */
     public static FollowPlan wirePlan(CircuitDocument document, ComponentTypeRegistry registry, ElementId id,
                                       int value, Supplier<ElementId> newWireIds) {
-        Component component = document.component(id).orElseThrow();
-        ComponentType type = registry.typeOf(component);
-        return wirePlan(document, registry, component, resizedParameters(type, component, value), newWireIds);
+        return wirePlan(document, registry, id, Map.of(firstParameter(document, registry, id), value), newWireIds);
     }
 
-    private static Map<String, Object> resizedParameters(ComponentType type, Component component, int value) {
-        ResizeSpec resize = type.resize().orElseThrow(() -> new IllegalArgumentException(
-                type.id() + " cannot be resized"));
-        if (value < resize.minimum(type) || value > resize.maximum(type)) {
-            throw new IllegalArgumentException(resize.parameter() + " " + value + " is out of range");
-        }
-        return resize.parametersWith(component.parameters(), value);
+    /** {@link #wirePlan(CircuitDocument, ComponentTypeRegistry, ElementId, int, Supplier)} for several parameters. */
+    public static FollowPlan wirePlan(CircuitDocument document, ComponentTypeRegistry registry, ElementId id,
+                                      Map<String, Integer> values, Supplier<ElementId> newWireIds) {
+        Component component = document.component(id).orElseThrow();
+        ComponentType type = registry.typeOf(component);
+        return wirePlan(document, registry, component, resizedParameters(type, component, values), newWireIds);
+    }
+
+    private static ResizeSpec resizeOf(ComponentType type) {
+        return type.resize().orElseThrow(() -> new IllegalArgumentException(type.id() + " cannot be resized"));
+    }
+
+    private static String firstParameter(CircuitDocument document, ComponentTypeRegistry registry, ElementId id) {
+        return resizeOf(registry.typeOf(document.component(id).orElseThrow())).parameter();
+    }
+
+    private static Map<String, Object> resizedParameters(ComponentType type, Component component,
+                                                         Map<String, Integer> values) {
+        ResizeSpec resize = resizeOf(type);
+        values.forEach((parameter, value) -> {
+            ResizeSpec.Axis axis = resize.axisOf(parameter).orElseThrow(() -> new IllegalArgumentException(
+                    type.id() + " is not resized by " + parameter));
+            if (value < axis.minimum(type) || value > axis.maximum(type)) {
+                throw new IllegalArgumentException(parameter + " " + value + " is out of range");
+            }
+        });
+        return resize.parametersWith(component.parameters(), values);
     }
 
     private static FollowPlan wirePlan(CircuitDocument document, ComponentTypeRegistry registry, Component component,
