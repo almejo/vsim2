@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
@@ -38,10 +37,7 @@ public final class ConfigureDialog {
                                                      Component component, Supplier<ColorScheme> scheme) {
         ParameterForm form = new ParameterForm(type, component.parameters(), scheme);
         JLabel error = newErrorLabel();
-        JPanel content = new JPanel(new BorderLayout(0, 8));
-        content.add(form, BorderLayout.NORTH);
-        content.add(error, BorderLayout.CENTER);
-        content.add(descriptionBox(type, form), BorderLayout.SOUTH);
+        JPanel content = content(form, error);
 
         JOptionPane pane = new JOptionPane(content, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
         Window window = owner == null ? null : SwingUtilities.getWindowAncestor(owner);
@@ -75,13 +71,14 @@ public final class ConfigureDialog {
     }
 
     /**
-     * The «Descripción» of the part, following the values in {@code form} each time one is applied (Enter or leaving
-     * the field); values that do not resolve keep the base text.
+     * The dialog's body: the form and, under it, the error line. The part's «Descripción» stays in the Propiedades tab
+     * only (the user, 2026-10-31): the dialog is for changing values quickly.
      */
-    static DescriptionBox descriptionBox(ComponentType type, ParameterForm form) {
-        DescriptionBox box = DescriptionBox.capped(Descriptions.of(type, form.rawValues()));
-        form.addCommitListener(() -> box.showText(Descriptions.of(type, form.rawValues())));
-        return box;
+    static JPanel content(ParameterForm form, JLabel error) {
+        JPanel content = new JPanel(new BorderLayout(0, 8));
+        content.add(form, BorderLayout.NORTH);
+        content.add(error, BorderLayout.CENTER);
+        return content;
     }
 
     /** The line under the form that shows why OK did not close the dialog, in the readable error red. */
