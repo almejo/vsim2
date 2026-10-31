@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.standard.TerminalBehavior;
 import cl.almejo.vsim.core.terminal.ByteLog;
+import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.TerminalCell;
 import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.core.terminal.TerminalScreen;
@@ -16,19 +17,27 @@ import java.util.Objects;
  * or a «Reiniciar»), the screen, the history rows asked for (oldest first), the received bytes not acknowledged yet
  * (oldest first; see {@link SimulationThread#acknowledgeTerminalBytes}), the number of the last byte received (it
  * goes back to 0 after «Reiniciar»: a reader that saw a greater one starts over; a rebuilt part keeps counting), the
- * transcript and the simulation time. Immutable: the history rows are private copies and {@link #history()} copies
+ * transcript, the simulation time and the glyphs read from its character ROM (empty without one). Immutable: the history rows are private copies and {@link #history()} copies
  * them again (read single cells with {@link #historyCell}, which allocates nothing).
  */
 public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalFrame frame,
                                   List<TerminalCell[]> history,
-                                  List<ByteLog.Entry> bytes, long lastByteSequence, String transcript, long time) {
+                                  List<ByteLog.Entry> bytes, long lastByteSequence, String transcript, long time,
+                                  GlyphCache glyphs) {
 
     public TerminalWindowFrame {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(frame, "frame");
         Objects.requireNonNull(transcript, "transcript");
+        Objects.requireNonNull(glyphs, "glyphs");
         history = copies(history);
         bytes = List.copyOf(bytes);
+    }
+
+    /** A frame of a Terminal without glyphs from a character ROM. */
+    public TerminalWindowFrame(TerminalRequest request, long owner, TerminalFrame frame, List<TerminalCell[]> history,
+                               List<ByteLog.Entry> bytes, long lastByteSequence, String transcript, long time) {
+        this(request, owner, frame, history, bytes, lastByteSequence, transcript, time, GlyphCache.EMPTY);
     }
 
     /**
@@ -41,7 +50,8 @@ public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalF
         TerminalScreen screen = terminal.screen();
         return new TerminalWindowFrame(request, terminal.owner(), screen.frame(),
                 screen.history(request.historyLines()),
-                screen.byteLog().since(bytesSince), screen.byteLog().lastSequence(), screen.transcript(), time);
+                screen.byteLog().since(bytesSince), screen.byteLog().lastSequence(), screen.transcript(), time,
+                terminal.glyphs());
     }
 
     /** Fresh copies of the history rows, oldest first; prefer {@link #historyCell} when drawing. */

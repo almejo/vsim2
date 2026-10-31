@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.TerminalFontSize;
 import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.core.terminal.TerminalGeometry;
@@ -44,6 +45,8 @@ public final class TerminalPainter implements ComponentPainter {
     private static final int CHIP_ALPHA = 170;
     private static final float PIN_NAME_SIZE = 5f;
     private static final double PIN_NAME_INSET = 4.5;
+    /** A right-edge name ends this far inside the edge, where a centred D name starts on the left. */
+    private static final double RIGHT_PIN_NAME_INSET = 2.5;
     private static final BasicStroke DIVIDER = new BasicStroke(1f);
     private static final String CHIP_KEY_PREFIX = "terminal.chip.";
 
@@ -67,8 +70,9 @@ public final class TerminalPainter implements ComponentPainter {
         paintTitleBar(graphics, outline, width, resolved, label.orElseGet(() -> Messages.componentName(type.id())),
                 scheme);
         TerminalLook look = TerminalLook.of(resolved);
-        TerminalScreenPainter.paint(graphics, screen(width, height), frameOf(state), rows(resolved),
-                columns(resolved), TerminalTypes.fontSize(resolved), look, colorsOf(look, scheme), moment);
+        TerminalScreenPainter.paint(graphics, screen(width, height), frameOf(state), romGlyphsOf(state, resolved),
+                rows(resolved), columns(resolved), TerminalTypes.fontSize(resolved), look, colorsOf(look, scheme),
+                moment);
         PainterSupport.pinDots(graphics, type, scheme);
         paintPinNames(graphics, type, scheme);
     }
@@ -81,6 +85,15 @@ public final class TerminalPainter implements ComponentPainter {
      */
     public static void paintScreen(Graphics2D graphics, Rectangle2D screen, TerminalFrame frame,
                                    Map<String, Object> resolved, ColorScheme scheme) {
+        paintScreen(graphics, screen, frame, GlyphCache.EMPTY, resolved, scheme);
+    }
+
+    /**
+     * {@link #paintScreen(Graphics2D, Rectangle2D, TerminalFrame, Map, ColorScheme)} with the glyphs its character ROM
+     * gave ({@code glyphs}), drawn as the canvas draws them when the part takes its glyphs from a ROM.
+     */
+    public static void paintScreen(Graphics2D graphics, Rectangle2D screen, TerminalFrame frame, GlyphCache glyphs,
+                                   Map<String, Object> resolved, ColorScheme scheme) {
         TerminalFontSize size = TerminalTypes.fontSize(resolved);
         Rectangle2D natural = new Rectangle2D.Double(0, 0, frame.columns() * size.cellWidth(),
                 frame.rows() * size.cellHeight());
@@ -89,8 +102,9 @@ public final class TerminalPainter implements ComponentPainter {
             scaled.translate(screen.getX(), screen.getY());
             scaled.scale(screen.getWidth() / natural.getWidth(), screen.getHeight() / natural.getHeight());
             TerminalLook look = TerminalLook.of(resolved);
-            TerminalScreenPainter.paint(scaled, natural, Optional.of(frame), frame.rows(), frame.columns(), size, look,
-                    colorsOf(look, scheme), TerminalMoment.still(TerminalAnimation.STILL));
+            GlyphCache romGlyphs = TerminalTypes.externalGlyphs(resolved) ? glyphs : GlyphCache.EMPTY;
+            TerminalScreenPainter.paint(scaled, natural, Optional.of(frame), romGlyphs, frame.rows(), frame.columns(),
+                    size, look, colorsOf(look, scheme), TerminalMoment.still(TerminalAnimation.STILL));
         } finally {
             scaled.dispose();
         }
@@ -138,6 +152,12 @@ public final class TerminalPainter implements ComponentPainter {
         return state instanceof VisibleState.TerminalState terminal ? Optional.of(terminal.frame()) : Optional.empty();
     }
 
+    /** The glyphs of the character ROM to draw: none unless the part takes its glyphs from one. */
+    private static GlyphCache romGlyphsOf(VisibleState state, Map<String, Object> resolved) {
+        return state instanceof VisibleState.TerminalState terminal && TerminalTypes.externalGlyphs(resolved)
+                ? terminal.glyphs() : GlyphCache.EMPTY;
+    }
+
     private static Rectangle2D screen(double width, double height) {
         return new Rectangle2D.Double(MARGIN, TITLE_HEIGHT + MARGIN, width - 2 * MARGIN,
                 height - TITLE_HEIGHT - 2 * MARGIN);
@@ -181,19 +201,42 @@ public final class TerminalPainter implements ComponentPainter {
                 upsideDown ? PainterSupport.ALIGN_LEFT : PainterSupport.ALIGN_RIGHT);
     }
 
-    /** Each pin's name inside the part, next to its stub: D beside the left edge, the others above the bottom edge. */
+    /**
+     * Each pin's name inside the part, next to its stub: D beside the left edge, CODE, ROW and PIX (an external
+     * character ROM) beside the right edge, the others above the bottom edge.
+     */
     private static void paintPinNames(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
+        int rightEdge = type.size().width();
         for (var pin : type.pins()) {
             double pinX = pin.position().x() * UNIT;
             double pinY = pin.position().y() * UNIT;
             boolean onLeftEdge = pin.position().x() == 0;
+            boolean onRightEdge = pin.position().x() == rightEdge && pin.position().y() < type.size().height();
             if (onLeftEdge) {
                 PainterSupport.uprightText(graphics, pin.name(), pinX + PIN_NAME_INSET, pinY, PIN_NAME_SIZE,
                         scheme.text(), PainterSupport.ALIGN_CENTER);
+            } else if (onRightEdge) {
+                paintRightPinName(graphics, pin.name(), pinX, pinY, scheme);
             } else {
                 PainterSupport.uprightText(graphics, pin.name(), pinX, pinY - PIN_NAME_INSET, PIN_NAME_SIZE,
                         scheme.text(), PainterSupport.ALIGN_CENTER);
             }
         }
+    }
+
+    /**
+     * A right-edge pin's name, ending just inside the edge; turned upside down it starts there instead (the text stays
+     * upright, so its end would leave the part), and turned sideways it is centred a little inside the edge.
+     */
+    private static void paintRightPinName(Graphics2D graphics, String name, double pinX, double pinY,
+                                          ColorScheme scheme) {
+        if (PainterSupport.turnedSideways(graphics)) {
+            PainterSupport.uprightText(graphics, name, pinX - PIN_NAME_INSET, pinY, PIN_NAME_SIZE, scheme.text(),
+                    PainterSupport.ALIGN_CENTER);
+            return;
+        }
+        boolean upsideDown = Math.abs(PainterSupport.quarterTurns(graphics)) % 4 == 2;
+        PainterSupport.uprightText(graphics, name, pinX - RIGHT_PIN_NAME_INSET, pinY, PIN_NAME_SIZE, scheme.text(),
+                upsideDown ? PainterSupport.ALIGN_LEFT : PainterSupport.ALIGN_RIGHT);
     }
 }

@@ -597,6 +597,14 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
+     * «Releer la ROM de caracteres» on the Terminal simulated as {@code componentId} (see
+     * {@link SimulationEngine#rereadTerminalGlyphs}). Not an edit of the document and not a step.
+     */
+    public void rereadTerminalGlyphs(String componentId) {
+        requests.add(() -> engine.rereadTerminalGlyphs(componentId));
+    }
+
+    /**
      * The recorded waveforms, republished at most every 16 ms when a trace changes or, with channels, when the
      * simulation time moves.
      */

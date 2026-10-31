@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.terminal;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.terminal.TypingEdit;
@@ -19,8 +20,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * The context menu of a Terminal («Abrir en ventana», «Limpiar pantalla») and of a Teclado («Pegar texto», «Vaciar
- * cola»). Clearing, pasting and emptying are simulation requests, never edits (no undo step).
+ * The context menu of a Terminal («Abrir en ventana», «Limpiar pantalla», and with an external character ROM «Releer
+ * la ROM de caracteres») and of a Teclado («Pegar texto», «Vaciar cola»). Clearing, rereading, pasting and emptying are
+ * simulation requests, never edits (no undo step).
  */
 final class TerminalContextMenu implements ContextMenuContributor {
 
@@ -48,6 +50,11 @@ final class TerminalContextMenu implements ContextMenuContributor {
             case StandardComponentTypes.TERMINAL -> {
                 menu.add(item("terminal.menu.open", () -> openWindow.accept(component)));
                 menu.add(item("terminal.menu.clear", () -> document.clearTerminal(component.id())));
+                if (TerminalTypes.externalGlyphs(document.registry().typeOf(component)
+                        .resolveParameters(component.parameters()))) {
+                    menu.add(item("terminal.menu.reread-glyphs",
+                            () -> document.rereadTerminalGlyphs(component.id())));
+                }
             }
             case StandardComponentTypes.KEYBOARD -> {
                 menu.add(item("keyboard.menu.paste", () -> KeyboardPaste.paste(document, componentId,

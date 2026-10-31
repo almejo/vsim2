@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.component;
 
+import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.core.value.Value;
 
@@ -54,28 +55,37 @@ public sealed interface VisibleState {
     }
 
     /**
-     * A Terminal as its painter shows it: an immutable {@code frame} of its screen, the screen's {@code version} and
-     * whether it draws with an external character ROM. {@code owner} is a number unique to the behaviour that
-     * published it, so a screen started over («Reiniciar», a rebuilt part) never looks like an older one with the same
-     * version. Equality and hash use {@code owner}, {@code version} and {@code externalGlyphs} only, never the cells:
-     * the canvas compares the states of every part on every frame, and a version is enough to know the screen changed.
+     * A Terminal as its painter shows it: an immutable {@code frame} of its screen, the screen's {@code version},
+     * whether it draws with an external character ROM and the {@code glyphs} read from it so far (spec §8.8; empty
+     * with the internal generator). {@code owner} is a number unique to the behaviour that published it, so a screen
+     * started over («Reiniciar», a rebuilt part) never looks like an older one with the same version. Equality and hash
+     * use {@code owner}, {@code version}, {@code externalGlyphs} and the glyphs' generation only, never the cells or
+     * the bitmaps: the canvas compares the states of every part on every frame, and a version is enough to know the
+     * screen changed.
      */
-    record TerminalState(long owner, long version, TerminalFrame frame, boolean externalGlyphs)
+    record TerminalState(long owner, long version, TerminalFrame frame, boolean externalGlyphs, GlyphCache glyphs)
             implements VisibleState {
 
         public TerminalState {
             Objects.requireNonNull(frame, "frame");
+            Objects.requireNonNull(glyphs, "glyphs");
+        }
+
+        /** A state without glyphs from a character ROM. */
+        public TerminalState(long owner, long version, TerminalFrame frame, boolean externalGlyphs) {
+            this(owner, version, frame, externalGlyphs, GlyphCache.EMPTY);
         }
 
         @Override
         public boolean equals(Object other) {
             return other instanceof TerminalState state && owner == state.owner && version == state.version
-                    && externalGlyphs == state.externalGlyphs;
+                    && externalGlyphs == state.externalGlyphs
+                    && glyphs.generation() == state.glyphs.generation();
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(owner, version, externalGlyphs);
+            return Objects.hash(owner, version, externalGlyphs, glyphs.generation());
         }
     }
 

@@ -153,6 +153,21 @@ class TerminalExtensionTest {
     }
 
     @Test
+    void aTerminalWithACharacterRomCanRereadItFromItsMenuWithoutAnEdit() {
+        install();
+        Component internal = terminal("interno", Map.of());
+        Component external = terminal("rom", Map.of(TerminalTypes.GLYPHS, TerminalTypes.GLYPHS_EXTERNAL));
+
+        assertThat(menuTexts(internal)).doesNotContain("Releer la ROM de caracteres");
+        assertThat(menuTexts(external)).contains("Abrir en ventana", "Limpiar pantalla",
+                "Releer la ROM de caracteres");
+        boolean modified = document.isModified();
+        click(external, "Releer la ROM de caracteres");
+        awaitSimulation(document);
+        assertThat(document.isModified()).isEqualTo(modified);
+    }
+
+    @Test
     void theTecladosMenuPastesTextAndEmptiesItsQueue() {
         install();
         Component keyboard = place(document, StandardComponentTypes.KEYBOARD, 0, 40, Map.of());

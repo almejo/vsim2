@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.IntConsumer;
 
 /**
  * A Terminal's screen: the cells, the cursor, the history, the transcript and the byte log, written one byte at a time
@@ -69,6 +70,7 @@ public final class TerminalScreen {
     private long scrollOrClearCount;
     private CellPosition lastWritten;
     private long lastWrittenSerial;
+    private int lastPrintedCodePoint = ' ';
     private TerminalFrame frame;
 
     /** What DECSC and {@code ESC[s} keep. */
@@ -218,6 +220,25 @@ public final class TerminalScreen {
         return printedCount;
     }
 
+    /** The character placed on the screen last ({@link #printedCount()} counts them); a space before the first. */
+    public int lastPrintedCodePoint() {
+        return lastPrintedCodePoint;
+    }
+
+    /**
+     * Gives {@code action} the character of every cell of the screen (not the history) that a byte wrote, row by row;
+     * a character in several cells comes several times.
+     */
+    public void forEachWrittenCodePoint(IntConsumer action) {
+        for (TerminalCell[] row : cells) {
+            for (TerminalCell cell : row) {
+                if (cell.written()) {
+                    action.accept(cell.codePoint());
+                }
+            }
+        }
+    }
+
     private void character(int codePoint, byte[] bytes) {
         if (!parser.inGround() || (codePoint == ESCAPE && settings.mode() != TerminalMode.LOGISIM)) {
             act(parser.feed(codePoint));
@@ -328,6 +349,7 @@ public final class TerminalScreen {
             lineFeed();
         }
         cells[cursorRow][cursorColumn] = new TerminalCell(codePoint, style, bytes, time);
+        lastPrintedCodePoint = codePoint;
         lastWritten = new CellPosition(cursorRow, cursorColumn);
         lastWrittenSerial++;
         printedCount++;

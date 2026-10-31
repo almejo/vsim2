@@ -36,8 +36,13 @@ public final class TerminalTypes {
     public static final String SCROLLBACK = "scrollback";
     /** «Ajuste de línea». */
     public static final String WRAP = "wrap";
-    /** «Generador de caracteres»: internal font or an external character ROM (Task 11). */
+    /** «Generador de caracteres»: internal font or an external character ROM (spec §8.8). */
     public static final String GLYPHS = "glyphs";
+    /**
+     * «Tiempo de lectura»: with an external character ROM, how long each (CODE, ROW) pair is driven before PIX is read
+     * (decision 8), in time units.
+     */
+    public static final String GLYPH_READ_TIME = "glyph-read-time";
     /** «Ancho del dato», 7 or 8 bits: the width of D. Shared with the Teclado. */
     public static final String DATA_WIDTH = KeyEncoding.DATA_WIDTH;
     /** «Codificación» of 8-bit data. Shared with the Teclado. */
@@ -122,6 +127,9 @@ public final class TerminalTypes {
     public static final int DEFAULT_COLUMNS = 80;
     public static final int MAXIMUM_ROWS = TerminalSettings.MAXIMUM_ROWS;
     public static final int MAXIMUM_COLUMNS = TerminalSettings.MAXIMUM_COLUMNS;
+    public static final int DEFAULT_GLYPH_READ_TIME = 10;
+    public static final int MINIMUM_GLYPH_READ_TIME = 1;
+    public static final int MAXIMUM_GLYPH_READ_TIME = 1000;
 
     private static final String SEVEN = String.valueOf(TerminalSettings.SEVEN_BITS);
     private static final String EIGHT = String.valueOf(TerminalSettings.EIGHT_BITS);
@@ -145,6 +153,8 @@ public final class TerminalTypes {
             ParameterSpec.bool(WRAP, true).inGroup(GROUP_SCREEN),
             ParameterSpec.choice(GLYPHS, GLYPHS_INTERNAL, List.of(GLYPHS_INTERNAL, GLYPHS_EXTERNAL))
                     .inGroup(GROUP_SCREEN),
+            ParameterSpec.integer(GLYPH_READ_TIME, DEFAULT_GLYPH_READ_TIME, MINIMUM_GLYPH_READ_TIME,
+                    MAXIMUM_GLYPH_READ_TIME).visibleWhen(GLYPHS, GLYPHS_EXTERNAL).inGroup(GROUP_SCREEN),
             ParameterSpec.choice(DATA_WIDTH, EIGHT, List.of(SEVEN, EIGHT)).inGroup(GROUP_DATA),
             ParameterSpec.choice(ENCODING, KeyEncoding.UTF8_VALUE,
                     List.of(KeyEncoding.UTF8_VALUE, KeyEncoding.LATIN1_VALUE))
@@ -221,6 +231,11 @@ public final class TerminalTypes {
         };
     }
 
+    /** Whether the resolved {@code parameters} take the glyphs from an external character ROM. */
+    public static boolean externalGlyphs(Map<String, Object> parameters) {
+        return GLYPHS_EXTERNAL.equals(parameters.get(GLYPHS));
+    }
+
     /** The width of D, 7 or 8 bits, that the resolved {@code parameters} choose. */
     static int dataWidth(Map<String, Object> parameters) {
         return SEVEN.equals(String.valueOf(parameters.get(DATA_WIDTH))) ? TerminalSettings.SEVEN_BITS
@@ -240,7 +255,9 @@ public final class TerminalTypes {
     }
 
     private static ComponentShape shape(Map<String, Object> resolved) {
+        boolean characterRom = externalGlyphs(resolved);
         return TerminalPinout.shape(TerminalGeometry.size((Integer) resolved.get(ROWS),
-                (Integer) resolved.get(COLUMNS), fontSize(resolved)), dataWidth(resolved));
+                (Integer) resolved.get(COLUMNS), fontSize(resolved), characterRom), dataWidth(resolved),
+                characterRom);
     }
 }

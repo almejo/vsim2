@@ -721,6 +721,14 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
+     * «Releer la ROM de caracteres» on the Terminal {@code componentId}: queues a request that makes it forget the
+     * glyphs it read and read the codes on its screen again. Not a document change, no undo step.
+     */
+    public void rereadTerminalGlyphs(ElementId componentId) {
+        simulation.rereadTerminalGlyphs(componentId.value());
+    }
+
+    /**
      * The name of the last tunnel entrada placed or renamed in this document during this session, which a new salida
      * proposes (spec §2); empty until there is one.
      */

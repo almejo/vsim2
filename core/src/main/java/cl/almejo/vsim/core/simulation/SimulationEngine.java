@@ -494,6 +494,19 @@ public final class SimulationEngine {
         terminal(componentId).ifPresent(TerminalBehavior::clearScreen);
     }
 
+    /**
+     * «Releer la ROM de caracteres» on the Terminal simulated as {@code componentId}: it forgets its glyphs and starts
+     * reading the codes on its screen again ({@link TerminalBehavior#rereadGlyphs}); its zero-delay effects apply now
+     * and the reading goes on as the simulation runs. An unknown id or another part changes nothing. Not an edit.
+     */
+    public void rereadTerminalGlyphs(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        if (instance != null && instance.behavior instanceof TerminalBehavior terminal) {
+            terminal.rereadGlyphs(instance);
+            scheduler.runUntil(now());
+        }
+    }
+
     /** The memory simulated as {@code componentId} (flat id), empty when there is none or it is not a RAM or ROM. */
     public Optional<MemoryBehavior> memory(String componentId) {
         ComponentInstance instance = instances.get(componentId);

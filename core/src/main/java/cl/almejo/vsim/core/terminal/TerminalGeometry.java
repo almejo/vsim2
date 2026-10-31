@@ -16,6 +16,12 @@ public final class TerminalGeometry {
     /** Wide enough for the three control pins on the bottom edge (x = 2, 4, 6) to sit inside the part. */
     public static final int MINIMUM_WIDTH_UNITS = 8;
 
+    /**
+     * With an external character ROM: tall enough for PIX, the lowest of the ROM pins (y = 7 on the right edge), to sit
+     * inside the part and away from the corner grip under its bottom-right corner.
+     */
+    public static final int MINIMUM_HEIGHT_WITH_ROM_UNITS = 9;
+
     private TerminalGeometry() {
     }
 
@@ -25,6 +31,16 @@ public final class TerminalGeometry {
         int screenHeight = unitsFor(rows * fontSize.cellHeight());
         return new GridSize(Math.max(MINIMUM_WIDTH_UNITS, screenWidth + 2 * MARGIN_UNITS),
                 TITLE_BAR_UNITS + screenHeight + 2 * MARGIN_UNITS);
+    }
+
+    /**
+     * The part's size for a screen of {@code rows} × {@code columns} cells, at least
+     * {@link #MINIMUM_HEIGHT_WITH_ROM_UNITS} tall when it has the pins of an external character ROM.
+     */
+    public static GridSize size(int rows, int columns, TerminalFontSize fontSize, boolean characterRom) {
+        GridSize size = size(rows, columns, fontSize);
+        return characterRom ? new GridSize(size.width(), Math.max(MINIMUM_HEIGHT_WITH_ROM_UNITS, size.height()))
+                : size;
     }
 
     private static int unitsFor(int pixels) {

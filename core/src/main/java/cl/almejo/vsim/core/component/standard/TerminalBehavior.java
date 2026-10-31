@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.VisibleState.TerminalState;
+import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.TerminalMode;
 import cl.almejo.vsim.core.terminal.TerminalScreen;
 import cl.almejo.vsim.core.terminal.TerminalSettings;
@@ -22,8 +23,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * Logisim 2.7's TTY instead: it writes unless WE is exactly 0 and clears only when CLR is exactly 1. It drives nothing.
  *
  * <p>A behaviour rebuilt after a parameter change keeps the screen ({@link #adoptStateFrom}, Logisim's resize rule);
- * «Reiniciar» starts from an empty one. With «Detener al recibir» the simulation pauses when the received text ends
- * with it, once per arrival: the latch opens again when the text no longer ends with it.
+ * «Reiniciar» starts from an empty one. With «Generador de caracteres: Memoria externa» it reads the glyphs of the
+ * codes on its screen from a character ROM through CODE, ROW and PIX ({@link CharacterRomScan}). With «Detener al
+ * recibir» the simulation pauses when the received text ends with it, once per arrival: the latch opens again when the
+ * text no longer ends with it.
  */
 public final class TerminalBehavior implements Behavior {
 
@@ -36,6 +39,8 @@ public final class TerminalBehavior implements Behavior {
     private final long owner = OWNERS.incrementAndGet();
     private final boolean logisimControls;
     private final boolean externalGlyphs;
+    /** Empty with the internal generator: no ROM pins, nothing to read. */
+    private final Optional<CharacterRomScan> characterRom;
     private final String stopOn;
     private final ClockEdgeDetector edge;
     private TerminalScreen screen;
@@ -45,7 +50,10 @@ public final class TerminalBehavior implements Behavior {
     TerminalBehavior(Map<String, Object> parameters) {
         TerminalSettings settings = TerminalTypes.settings(parameters);
         this.logisimControls = settings.mode() == TerminalMode.LOGISIM;
-        this.externalGlyphs = TerminalTypes.GLYPHS_EXTERNAL.equals(parameters.get(TerminalTypes.GLYPHS));
+        this.externalGlyphs = TerminalTypes.externalGlyphs(parameters);
+        this.characterRom = externalGlyphs
+                ? Optional.of(new CharacterRomScan((Integer) parameters.get(TerminalTypes.GLYPH_READ_TIME)))
+                : Optional.empty();
         this.stopOn = String.valueOf(parameters.getOrDefault(TerminalTypes.STOP_ON, ""));
         this.edge = ClockEdgeDetector.of(parameters);
         this.screen = new TerminalScreen(settings);
@@ -56,12 +64,16 @@ public final class TerminalBehavior implements Behavior {
         if (previous instanceof TerminalBehavior terminal) {
             screen = terminal.screen.adoptedWith(screen.settings());
             stopLatchOpen = terminal.stopLatchOpen || !stopOn.equals(terminal.stopOn);
+            if (characterRom.isPresent() && terminal.characterRom.isPresent()) {
+                characterRom.get().adoptFrom(terminal.characterRom.get());
+            }
         }
     }
 
     @Override
     public void initialize(BehaviorContext context) {
         edge.start(context.input(TerminalPinout.CLOCK));
+        characterRom.ifPresent(scan -> scan.start(context, screen));
     }
 
     @Override
@@ -85,6 +97,19 @@ public final class TerminalBehavior implements Behavior {
         screen.clear();
     }
 
+    /**
+     * «Releer la ROM de caracteres»: forgets every glyph and reads the codes on the screen again from the ROM. Not an
+     * edit. Without an external character ROM it does nothing.
+     */
+    public void rereadGlyphs(BehaviorContext context) {
+        characterRom.ifPresent(scan -> scan.reread(context, screen));
+    }
+
+    /** The glyphs read from the character ROM so far; empty with the internal generator. */
+    public GlyphCache glyphs() {
+        return characterRom.map(CharacterRomScan::glyphs).orElse(GlyphCache.EMPTY);
+    }
+
     /** The number of this behaviour in {@link TerminalState#owner()}. */
     public long owner() {
         return owner;
@@ -97,18 +122,23 @@ public final class TerminalBehavior implements Behavior {
 
     @Override
     public VisibleState visibleState() {
-        if (published == null || published.version() != screen.version()) {
-            published = new TerminalState(owner, screen.version(), screen.frame(), externalGlyphs);
+        GlyphCache glyphs = glyphs();
+        if (published == null || published.version() != screen.version() || published.glyphs() != glyphs) {
+            published = new TerminalState(owner, screen.version(), screen.frame(), externalGlyphs, glyphs);
         }
         return published;
     }
 
     private void write(BehaviorContext context) {
         OptionalLong data = BlockSignals.unsigned(context.input(TerminalPinout.DATA));
+        long printedBefore = screen.printedCount();
         if (data.isPresent()) {
             screen.write((int) data.getAsLong(), context.now());
         } else {
             screen.writeUndefined(context.now());
+        }
+        if (screen.printedCount() != printedBefore) {
+            characterRom.ifPresent(scan -> scan.printed(context, screen.lastPrintedCodePoint()));
         }
         checkStopText(context);
     }

@@ -196,7 +196,7 @@ final class TerminalScreenPanel extends JPanel {
                 }
                 TerminalFrame visible = visibleFrame();
                 Rectangle2D screen = screenArea(visible);
-                renderer.paint(canvas, screen, visible, resolved, scheme.get());
+                renderer.paint(canvas, screen, visible, frame.glyphs(), resolved, scheme.get());
                 if (flashing) {
                     canvas.setXORMode(Color.WHITE);
                     canvas.fill(screen);

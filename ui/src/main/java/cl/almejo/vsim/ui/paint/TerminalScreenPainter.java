@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.terminal.CellPosition;
 import cl.almejo.vsim.core.terminal.CellStyle;
+import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.TerminalCell;
 import cl.almejo.vsim.core.terminal.TerminalFontSize;
 import cl.almejo.vsim.core.terminal.TerminalFrame;
@@ -30,6 +31,8 @@ import java.util.function.Predicate;
  * the cursor, and on the canvas the last character's glow, the old picture fading after a scroll or a clear, and the
  * screen effect (glow around the glyphs, scanlines, vignette). Glyphs stay upright whatever the part's rotation, each
  * turned about its cell's centre. Only the cells the clip shows are drawn, so repainting the cursor's cell is cheap.
+ * With an external character ROM (spec §8.8) a code the ROM gave a glyph for is drawn as that 8 × 8 bitmap scaled to
+ * the cell, in the cell's text colour; the other codes keep the font.
  *
  * <p>In black and white (printing, monochrome export) the screen is the page's paper with ink text; a cell with a
  * colour of its own behind it turns to ink with paper text, so coloured text stays readable as a shape.
@@ -79,10 +82,12 @@ final class TerminalScreenPainter {
 
     /**
      * Paints {@code frame} (empty: a screen without a simulation, its cursor at home) in {@code screen}, showing at most
-     * {@code rows} × {@code columns} cells of {@code size}.
+     * {@code rows} × {@code columns} cells of {@code size}; the codes {@code romGlyphs} has are drawn with the character
+     * ROM's bitmaps.
      */
-    static void paint(Graphics2D graphics, Rectangle2D screen, Optional<TerminalFrame> frame, int rows, int columns,
-                      TerminalFontSize size, TerminalLook look, Colors colors, TerminalMoment moment) {
+    static void paint(Graphics2D graphics, Rectangle2D screen, Optional<TerminalFrame> frame, GlyphCache romGlyphs,
+                      int rows, int columns, TerminalFontSize size, TerminalLook look, Colors colors,
+                      TerminalMoment moment) {
         graphics.setColor(colors.background());
         graphics.fill(screen);
         Graphics2D cells = (Graphics2D) graphics.create();
@@ -92,8 +97,9 @@ final class TerminalScreenPainter {
                     frame.map(TerminalFrame::columns).orElse(columns), rows, columns);
             GlyphSetting glyphs = glyphSetting(cells, size, look);
             boolean effects = moment.effects() && !colors.monochrome() && look.effect() != TerminalEffect.NONE;
-            frame.ifPresent(shown -> paintCells(cells, grid, shown, glyphs, look, colors, moment, effects));
-            paintCursor(cells, grid, frame, glyphs, look, colors, moment);
+            frame.ifPresent(shown -> paintCells(cells, grid, shown, glyphs, romGlyphs, look, colors, moment,
+                    effects));
+            paintCursor(cells, grid, frame, glyphs, romGlyphs, look, colors, moment);
             if (effects) {
                 paintScanlines(cells, screen, look.effect(), glyphs.quarterTurns());
                 if (look.effect().vignette()) {
@@ -112,7 +118,8 @@ final class TerminalScreenPainter {
     }
 
     private static void paintCells(Graphics2D graphics, ScreenGrid grid, TerminalFrame frame, GlyphSetting glyphs,
-                                   TerminalLook look, Colors colors, TerminalMoment moment, boolean effects) {
+                                   GlyphCache romGlyphs, TerminalLook look, Colors colors, TerminalMoment moment,
+                                   boolean effects) {
         for (int row = grid.firstRow(); row < grid.endRow(); row++) {
             for (int column = grid.firstColumn(); column < grid.endColumn(); column++) {
                 Optional<Color> background = colorsOf(frame.cell(row, column).style(), colors).background();
@@ -129,38 +136,48 @@ final class TerminalScreenPainter {
                 graphics.fill(grid.cell(last.row(), last.column()));
             });
         }
-        moment.ghost().ifPresent(ghost -> paintGhost(graphics, grid, frame, ghost, glyphs, colors,
+        moment.ghost().ifPresent(ghost -> paintGhost(graphics, grid, frame, ghost, glyphs, romGlyphs, colors,
                 moment.ghostOpacity()));
-        List<GlyphRun> runs = GlyphRun.of(graphics, grid, frame, glyphs, position -> true,
-                cell -> colorsOf(cell.style(), colors).foreground());
+        Function<TerminalCell, Color> colorOf = cell -> colorsOf(cell.style(), colors).foreground();
+        List<GlyphRun> runs = GlyphRun.of(graphics, grid, frame, glyphs,
+                position -> !romGlyphs.has(frame.cell(position.row(), position.column()).codePoint()), colorOf);
+        List<Bitmap> bitmaps = Bitmap.of(grid, frame, romGlyphs, position -> true, colorOf);
         if (effects) {
-            paintGlow(graphics, runs, glyphs, look.effect());
+            paintGlow(graphics, runs, bitmaps, glyphs, romGlyphs, look.effect());
         }
         for (GlyphRun run : runs) {
             run.draw(graphics, run.color(), glyphs, 0, 0);
+        }
+        for (Bitmap bitmap : bitmaps) {
+            bitmap.draw(graphics, bitmap.color(), romGlyphs, glyphs.quarterTurns(), 0, 0);
         }
         paintUnderlines(graphics, grid, frame, glyphs, colors);
     }
 
     /** The old picture's characters where the new one differs, fading. */
     private static void paintGhost(Graphics2D graphics, ScreenGrid grid, TerminalFrame frame, TerminalFrame ghost,
-                                   GlyphSetting glyphs, Colors colors, double opacity) {
+                                   GlyphSetting glyphs, GlyphCache romGlyphs, Colors colors, double opacity) {
         if (ghost.rows() < grid.endRow() || ghost.columns() < grid.endColumn()) {
             return; // a picture from before a resize does not line up with this screen
         }
         int alpha = (int) Math.round(opacity * OPAQUE);
-        List<GlyphRun> runs = GlyphRun.of(graphics, grid, ghost, glyphs,
-                position -> !ghost.cell(position.row(), position.column())
-                        .equals(frame.cell(position.row(), position.column())),
-                cell -> PainterSupport.withAlpha(colorsOf(cell.style(), colors).foreground(), alpha));
+        Predicate<CellPosition> changed = position -> !ghost.cell(position.row(), position.column())
+                .equals(frame.cell(position.row(), position.column()));
+        Function<TerminalCell, Color> faded = cell -> PainterSupport.withAlpha(colorsOf(cell.style(), colors)
+                .foreground(), alpha);
+        List<GlyphRun> runs = GlyphRun.of(graphics, grid, ghost, glyphs, position -> changed.test(position)
+                && !romGlyphs.has(ghost.cell(position.row(), position.column()).codePoint()), faded);
         for (GlyphRun run : runs) {
             run.draw(graphics, run.color(), glyphs, 0, 0);
+        }
+        for (Bitmap bitmap : Bitmap.of(grid, ghost, romGlyphs, changed, faded)) {
+            bitmap.draw(graphics, bitmap.color(), romGlyphs, glyphs.quarterTurns(), 0, 0);
         }
     }
 
     /** Low-alpha copies of every glyph around it: the soft halo of a phosphor screen. */
-    private static void paintGlow(Graphics2D graphics, List<GlyphRun> runs, GlyphSetting glyphs,
-                                  TerminalEffect effect) {
+    private static void paintGlow(Graphics2D graphics, List<GlyphRun> runs, List<Bitmap> bitmaps,
+                                  GlyphSetting glyphs, GlyphCache romGlyphs, TerminalEffect effect) {
         for (int ring = 0; ring < effect.glowRings(); ring++) {
             double[] offsets = GLOW_RINGS[ring];
             int alpha = Math.round(GLOW_RING_ALPHAS[ring] * OPAQUE);
@@ -168,6 +185,13 @@ final class TerminalScreenPainter {
                 Color color = PainterSupport.withAlpha(run.color(), alpha);
                 for (int offset = 0; offset < offsets.length; offset += 2) {
                     run.draw(graphics, color, glyphs, offsets[offset], offsets[offset + 1]);
+                }
+            }
+            for (Bitmap bitmap : bitmaps) {
+                Color color = PainterSupport.withAlpha(bitmap.color(), alpha);
+                for (int offset = 0; offset < offsets.length; offset += 2) {
+                    bitmap.draw(graphics, color, romGlyphs, glyphs.quarterTurns(), offsets[offset],
+                            offsets[offset + 1]);
                 }
             }
         }
@@ -190,7 +214,8 @@ final class TerminalScreenPainter {
 
     /** The cursor at the frame's cursor (at home without a frame), unless hidden or in a blink's hidden half. */
     private static void paintCursor(Graphics2D graphics, ScreenGrid grid, Optional<TerminalFrame> frame,
-                                    GlyphSetting glyphs, TerminalLook look, Colors colors, TerminalMoment moment) {
+                                    GlyphSetting glyphs, GlyphCache romGlyphs, TerminalLook look, Colors colors,
+                                    TerminalMoment moment) {
         boolean visible = frame.map(TerminalFrame::cursorVisible).orElse(true);
         if (!visible || !moment.cursorOn() || look.cursor() == TerminalCursorShape.NONE) {
             return;
@@ -204,7 +229,10 @@ final class TerminalScreenPainter {
         TerminalCursorPainter.paint(graphics, look.cursor(), cell, colors.text(), moment.automanSeconds());
         if (look.cursor() == TerminalCursorShape.BLOCK && frame.isPresent()) {
             TerminalCell under = frame.get().cell(row, column);
-            if (under.codePoint() != ' ') {
+            if (under.written() && romGlyphs.has(under.codePoint())) {
+                new Bitmap(under.codePoint(), cell, colors.background()).draw(graphics, colors.background(),
+                        romGlyphs, glyphs.quarterTurns(), 0, 0);
+            } else if (under.codePoint() != ' ') {
                 Font font = under.style().bold() ? glyphs.bold() : glyphs.plain();
                 GlyphVector vector = font.createGlyphVector(graphics.getFontRenderContext(),
                         Character.toString(under.codePoint()));
@@ -285,6 +313,60 @@ final class TerminalScreenPainter {
 
     private static int mix(int from, int towards, double share) {
         return (int) Math.round(from + (towards - from) * share);
+    }
+
+    /** A cell drawn with the character ROM's glyph for {@code codePoint}: 8 × 8 pixels stretched over the cell. */
+    private record Bitmap(int codePoint, Rectangle2D cell, Color color) {
+
+        /** The written cells of {@code frame} the grid shows that {@code glyphs} has and {@code wanted} keeps. */
+        static List<Bitmap> of(ScreenGrid grid, TerminalFrame frame, GlyphCache glyphs,
+                               Predicate<CellPosition> wanted, Function<TerminalCell, Color> colorOf) {
+            List<Bitmap> bitmaps = new ArrayList<>();
+            if (glyphs.size() == 0) {
+                return bitmaps;
+            }
+            for (int row = grid.firstRow(); row < grid.endRow(); row++) {
+                for (int column = grid.firstColumn(); column < grid.endColumn(); column++) {
+                    TerminalCell cell = frame.cell(row, column);
+                    if (cell.written() && glyphs.has(cell.codePoint())
+                            && wanted.test(new CellPosition(row, column))) {
+                        bitmaps.add(new Bitmap(cell.codePoint(), grid.cell(row, column), colorOf.apply(cell)));
+                    }
+                }
+            }
+            return bitmaps;
+        }
+
+        /**
+         * Fills the lit pixels in {@code drawColor}, one rectangle per run of lit pixels in a glyph row (bit 7 the
+         * leftmost), moved by (offsetX, offsetY) on screen and kept upright on a part turned {@code quarterTurns}.
+         */
+        void draw(Graphics2D graphics, Color drawColor, GlyphCache glyphs, int quarterTurns, double offsetX,
+                  double offsetY) {
+            AffineTransform saved = graphics.getTransform();
+            if (quarterTurns != 0) {
+                graphics.rotate(-quarterTurns * Math.PI / 2, cell.getCenterX(), cell.getCenterY());
+            }
+            graphics.setColor(drawColor);
+            double pixelWidth = cell.getWidth() / GlyphCache.GLYPH_COLUMNS;
+            double pixelHeight = cell.getHeight() / GlyphCache.GLYPH_ROWS;
+            for (int row = 0; row < GlyphCache.GLYPH_ROWS; row++) {
+                int column = 0;
+                while (column < GlyphCache.GLYPH_COLUMNS) {
+                    if (!glyphs.pixel(codePoint, row, column)) {
+                        column++;
+                        continue;
+                    }
+                    int first = column;
+                    while (column < GlyphCache.GLYPH_COLUMNS && glyphs.pixel(codePoint, row, column)) {
+                        column++;
+                    }
+                    graphics.fill(new Rectangle2D.Double(cell.getX() + first * pixelWidth + offsetX,
+                            cell.getY() + row * pixelHeight + offsetY, (column - first) * pixelWidth, pixelHeight));
+                }
+            }
+            graphics.setTransform(saved);
+        }
     }
 
     /**

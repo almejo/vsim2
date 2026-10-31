@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.TerminalFontSize;
 import cl.almejo.vsim.core.terminal.TerminalScreen;
 import cl.almejo.vsim.core.terminal.TerminalSettings;
@@ -328,6 +329,53 @@ class TerminalPainterTest {
         assertThat(area.getWidth()).isGreaterThanOrEqualTo(20 * CELL_WIDTH);
 
         assertThat(painter.movingArea(type, automan, screenWith("ab"), TerminalMoment.EXPORTED)).isEmpty();
+    }
+
+    /** A state of a 4 × 20 VT screen that received {@code text}, with a character ROM that gave {@code glyphs}. */
+    private static VisibleState.TerminalState screenWithGlyphs(String text, GlyphCache glyphs) {
+        VisibleState.TerminalState plain = screenWith(text);
+        return new VisibleState.TerminalState(plain.owner(), plain.version(), plain.frame(), true, glyphs);
+    }
+
+    @Test
+    void aCodeTheCharacterRomGaveIsDrawnAsItsBitmapScaledToTheCell() {
+        // the left column of the 8 × 8 glyph lit: bit 7 of every row
+        GlyphCache leftStem = GlyphCache.EMPTY.with('H', 0x8080_8080_8080_8080L);
+        Map<String, Object> external = small(TerminalTypes.GLYPHS, TerminalTypes.GLYPHS_EXTERNAL);
+        BufferedImage image = draw(external, screenWithGlyphs("HO", leftStem));
+        Color text = new Color(0xE8E8E8);
+        Color background = new Color(0x101010);
+
+        assertThat(cellPixelsOf(image, 0, 0, text)).as("8 rows of a 1 × 2 px pixel at a zoom of 2")
+                .isEqualTo(8 * 2 * ZOOM * ZOOM);
+        assertThat(new Color(pixel(image, 0, 0, 0.5, 1))).as("bit 7 is the leftmost pixel").isEqualTo(text);
+        assertThat(new Color(pixel(image, 0, 0, 0.5, 15))).as("the stem reaches the bottom row").isEqualTo(text);
+        assertThat(new Color(pixel(image, 0, 0, 4, 8))).as("no font H crossbar").isEqualTo(background);
+        assertThat(cellPixelsOf(image, 0, 1, text)).as("a code not read yet keeps the internal font")
+                .isGreaterThan(10);
+    }
+
+    @Test
+    void anInternalGeneratorIgnoresGlyphs() {
+        GlyphCache full = GlyphCache.EMPTY.with('H', -1L);
+        BufferedImage image = draw(SMALL, new VisibleState.TerminalState(1, 1, screenWith("H").frame(), false, full));
+
+        assertThat(cellPixelsOf(image, 0, 0, new Color(0xE8E8E8))).as("the font H, not a full block")
+                .isLessThan(CELL_WIDTH * CELL_HEIGHT * ZOOM * ZOOM / 2);
+    }
+
+    @Test
+    void theWindowDrawsTheRomsGlyphsToo() {
+        Map<String, Object> resolved = terminal(small(TerminalTypes.GLYPHS, TerminalTypes.GLYPHS_EXTERNAL))
+                .resolveParameters(small(TerminalTypes.GLYPHS, TerminalTypes.GLYPHS_EXTERNAL));
+        BufferedImage image = PaintersTest.blankImage(400, 200);
+        Graphics2D graphics = image.createGraphics();
+        TerminalPainter.paintScreen(graphics, new Rectangle2D.Double(0, 0, 160, 64), screenWith("H").frame(),
+                GlyphCache.EMPTY.with('H', -1L), resolved, PaintersTest.SCHEME);
+        graphics.dispose();
+
+        assertThat(new Color(image.getRGB(4, 1))).as("the full block of the ROM's H, where a font H is empty")
+                .isEqualTo(new Color(0xE8E8E8));
     }
 
     @Test

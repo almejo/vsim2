@@ -72,7 +72,8 @@ final class TerminalFramePublisher {
     }
 
     /**
-     * Publishes a frame when the request changed or the screen did (another screen, another version, more bytes).
+     * Publishes a frame when the request changed or the screen did (another screen, another version, more bytes,
+     * another glyph from the character ROM).
      * Nothing new, no frame: the history and the bytes are never copied for nothing.
      */
     private void publish(SimulationEngine engine, String componentId, Feed feed, long nowNanos, boolean running) {
@@ -98,7 +99,8 @@ final class TerminalFramePublisher {
 
     private static boolean unchanged(TerminalWindowFrame previous, TerminalBehavior terminal) {
         return previous.owner() == terminal.owner() && previous.frame().version() == terminal.screen().version()
-                && previous.lastByteSequence() == terminal.screen().byteLog().lastSequence();
+                && previous.lastByteSequence() == terminal.screen().byteLog().lastSequence()
+                && previous.glyphs() == terminal.glyphs();
     }
 
     /**
