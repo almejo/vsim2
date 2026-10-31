@@ -201,6 +201,38 @@ public final class Tunnels {
                 fragment.definitions(), fragment.frames()), renames);
     }
 
+    /**
+     * {@code components} (a pasted fragment's, in order) ready to join {@code document}: an entrada whose name an
+     * entrada of {@code document} already has takes the first free {@code NAME_2}, {@code NAME_3}, … (free among every
+     * tunnel of both), together with every tunnel of that name in {@code components}, each kept at its pin
+     * ({@link #renamedInPlace}), so a name never gets a second entrada and the pasted group stays joined to itself.
+     * Salidas alone keep their name (reusing a signal); names the document does not use as an entrada are kept.
+     */
+    public static List<Component> renamedEntrancesApart(CircuitDocument document, List<Component> components,
+                                                        ComponentTypeRegistry registry) {
+        Set<String> entranceNamesOutside = entranceNames(document);
+        Set<String> taken = new HashSet<>(tunnelNames(document.components()));
+        taken.addAll(tunnelNames(components));
+        Map<String, String> renames = new HashMap<>();
+        for (Component component : components) {
+            String name = nameOf(component);
+            if (kindOf(component).orElse(null) == TunnelKind.ENTRANCE && entranceNamesOutside.contains(name)
+                    && !renames.containsKey(name)) {
+                String free = freeVariantOf(name, taken);
+                taken.add(free);
+                renames.put(name, free);
+            }
+        }
+        if (renames.isEmpty()) {
+            return components;
+        }
+        return components.stream()
+                .map(component -> isTunnel(component.typeId()) && renames.containsKey(nameOf(component))
+                        ? renamedInPlace(component, renames.get(nameOf(component)), registry)
+                        : component)
+                .toList();
+    }
+
     /** The first of {@code name_2}, {@code name_3}, … not in {@code taken}. */
     private static String freeVariantOf(String name, Set<String> taken) {
         int number = 2;
