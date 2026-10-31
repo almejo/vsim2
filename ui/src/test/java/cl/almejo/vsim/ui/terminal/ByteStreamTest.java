@@ -69,4 +69,18 @@ class ByteStreamTest {
         assertThat(reading.startedOver()).isFalse();
         assertThat(reading.newBytes()).extracting(ByteLog.Entry::value).containsExactly((int) 'c');
     }
+
+    @Test
+    void theBytesTheLogDroppedBetweenTwoFramesAreCounted() {
+        terminals.request(new TerminalRequest("tty", 0, 0));
+        terminal.write("ab");
+        assertThat(read().lostBytes()).isZero();
+
+        terminal.write("x".repeat(ByteLog.CAPACITY + 5));
+        ByteStream.Reading reading = read();
+
+        assertThat(reading.startedOver()).isFalse();
+        assertThat(reading.lostBytes()).isEqualTo(5);
+        assertThat(reading.newBytes()).hasSize(ByteLog.CAPACITY);
+    }
 }

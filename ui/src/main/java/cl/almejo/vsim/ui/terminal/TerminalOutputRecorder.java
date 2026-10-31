@@ -42,8 +42,9 @@ import java.util.function.Consumer;
  * (asked once per file while the circuit is open; «no» leaves it unarmed). Opening a circuit never creates or
  * truncates anything. Arming starts the file over (truncated) with every byte the log still keeps, and so does
  * «Reiniciar» of an armed recording. Two Terminals, of this circuit or of another open one, never record to the same
- * file: the second one is told and stays unarmed. A file that cannot be written is told once per file through
- * {@code problems} (called on the writer's thread or on the EDT).
+ * file: the second one is told and stays unarmed. A file that cannot be written is told once per file, and bytes the
+ * byte log dropped before they could be saved once per recording, through {@code problems} (called on the writer's
+ * thread or on the EDT).
  */
 public final class TerminalOutputRecorder {
 
@@ -85,6 +86,8 @@ public final class TerminalOutputRecorder {
     private final Set<Path> asked = new HashSet<>();
     /** The file each Terminal was told it cannot record to (another one records there), so it is told once. */
     private final Map<String, Path> toldBusy = new HashMap<>();
+    /** The Terminals whose recording was told it lost bytes (once per recording: a fast program loses many). */
+    private final Set<String> toldLoss = new HashSet<>();
     /** Files already told as unwritable; touched on the writer's thread only. */
     private final Set<Path> told = ConcurrentHashMap.newKeySet();
     private final DocumentListener documentListener = this::documentChanged;
@@ -166,10 +169,11 @@ public final class TerminalOutputRecorder {
         toldBusy.remove(componentId);
         String name = nameOf(componentId);
         recordings.put(componentId, new Recording(file, feeds.subscribe(componentId, 0,
-                update -> record(name, file, update))));
+                update -> record(componentId, name, file, update))));
     }
 
     private void stop(String componentId) {
+        toldLoss.remove(componentId);
         Recording recording = recordings.remove(componentId);
         recording.subscription().cancel();
         services.claims().release(recording.file(), new Holder(this, componentId));
@@ -225,7 +229,10 @@ public final class TerminalOutputRecorder {
                         : component.label()).orElse(componentId);
     }
 
-    private void record(String name, Path file, TerminalUpdate update) {
+    private void record(String componentId, String name, Path file, TerminalUpdate update) {
+        if (update.lostBytes() > 0 && toldLoss.add(componentId)) {
+            problems.accept(Messages.format("terminal.output.lost", name, update.lostBytes(), file.getFileName()));
+        }
         if (update.newBytes().isEmpty() && !update.startedOver()) {
             return;
         }

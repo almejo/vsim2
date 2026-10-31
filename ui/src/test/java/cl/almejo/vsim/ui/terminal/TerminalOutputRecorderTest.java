@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.terminal.ByteLog;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -313,5 +314,22 @@ class TerminalOutputRecorderTest {
             otherRecorder.dispose();
             otherDocument.close();
         }
+    }
+
+    @Test
+    void bytesLostBeforeTheyCouldBeSavedAreToldOnce() throws IOException {
+        Path file = folder.resolve("salida.txt");
+        Component terminal = terminalSavingTo(file);
+        startChosen(file);
+        arrive(terminal, "ab");
+        writer.runAll();
+
+        arrive(terminal, "x".repeat(ByteLog.CAPACITY + 5));
+        arrive(terminal, "y".repeat(ByteLog.CAPACITY + 1));
+        writer.runAll();
+
+        assertThat(problems).hasSize(1);
+        assertThat(problems.getFirst()).contains("consola", "5");
+        assertThat(read(file)).startsWith("ab").hasSize(2 + 2 * ByteLog.CAPACITY);
     }
 }

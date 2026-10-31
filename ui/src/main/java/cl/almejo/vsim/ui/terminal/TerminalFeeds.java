@@ -65,7 +65,8 @@ public final class TerminalFeeds {
             }
             started = true;
             ByteStream.Reading reading = stream.read(frame);
-            listener.accept(new TerminalUpdate(frame, reading.newBytes(), reading.startedOver()));
+            listener.accept(new TerminalUpdate(frame, reading.newBytes(), reading.startedOver(),
+                    reading.lostBytes()));
         }
     }
 
