@@ -46,6 +46,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Una memoria RAM o ROM enlazada a un archivo que no se encuentra (o que no se puede leer) ahora es un problema de la pieza, como los demás: aparece en la pestaña «Problemas» con el nombre de la memoria y la ruta, la memoria se marca en el lienzo y la IA lo ve al leer los problemas. Antes solo se veía en la barra de estado y en el inspector. Se va cuando el archivo vuelve o se quita el enlace.
 - Cambiar el ancho de un LED o un Interruptor de varios bits (por ejemplo de 8 a 1, o de 8 a 4) mueve la pieza para que su pin siga en el mismo punto de la grilla, y el cable conectado no queda suelto; todo en un solo paso de deshacer.
 - La documentación de los buses dice que el globo muestra también el valor en binario.
+- Ensanchar un Interruptor de varios bits paso a paso en Propiedades (de 1 a 2, a 3…) ya no lanza un error al dibujarlo: mientras la simulación se pone al día, muestra los bits del parámetro «Valor».
 
 ## Versión 0.5 — 2026-10-28
 

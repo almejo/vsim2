@@ -97,4 +97,26 @@ class MultiBitSwitchPainterTest {
         int pixelY = (ORIGIN_UNITS + pin.y()) * UNIT;
         assertThat(new Color(image.getRGB(pixelX, pixelY))).isNotEqualTo(ColorScheme.LIGHT.background());
     }
+
+    @Test
+    void aStateNarrowerThanTheTypeWhileTheWidthChangesPaintsTheParameterBits() {
+        BufferedImage image = draw(Map.of("width", 6, "value", "0b100000"), new VisibleState.SwitchState(Value.of(1, 0)),
+                ColorScheme.LIGHT);
+
+        int corner = ORIGIN_UNITS * UNIT;
+        assertThat(cellColor(image, 6, 5, corner, corner))
+                .isEqualTo(SignalColors.valueColor(Value.ONE, ColorScheme.LIGHT));
+        assertThat(cellColor(image, 6, 1, corner, corner))
+                .isEqualTo(SignalColors.valueColor(Value.ZERO, ColorScheme.LIGHT));
+    }
+
+    @Test
+    void aStateWiderThanTheTypeDoesNotThrowEither() {
+        BufferedImage image = draw(Map.of("width", 2, "value", "0b10"), new VisibleState.SwitchState(Value.of(6, 0b111111)),
+                ColorScheme.LIGHT);
+
+        int corner = ORIGIN_UNITS * UNIT;
+        assertThat(cellColor(image, 2, 0, corner, corner))
+                .isEqualTo(SignalColors.valueColor(Value.ZERO, ColorScheme.LIGHT));
+    }
 }

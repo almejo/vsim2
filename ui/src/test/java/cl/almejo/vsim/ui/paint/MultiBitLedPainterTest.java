@@ -145,4 +145,13 @@ class MultiBitLedPainterTest {
         assertThat(new Color(image.getRGB(ORIGIN_UNITS * UNIT + 8, ORIGIN_UNITS * UNIT + 8)))
                 .usingComparator(SAME_LENS).isEqualTo(LedPainter.colorFor("green"));
     }
+
+    @Test
+    void aStateOfAnotherWidthWhileTheWidthChangesDoesNotThrowAndLeavesTheMissingBitsUnlit() {
+        BufferedImage narrow = draw(Map.of("width", 6), new VisibleState.LedState(Value.of(1, 1)), ColorScheme.LIGHT);
+        assertThat(lens(narrow, 6, 5)).usingComparator(SAME_LENS).isEqualTo(LedPainter.unlitColorFor("red"));
+
+        BufferedImage wide = draw(Map.of("width", 2), new VisibleState.LedState(Value.of(6, 0b111111)), ColorScheme.LIGHT);
+        assertThat(lens(wide, 2, 1)).usingComparator(SAME_LENS).isEqualTo(LedPainter.colorFor("red"));
+    }
 }

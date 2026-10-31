@@ -44,9 +44,11 @@ public final class SwitchPainter implements ComponentPainter {
     /** The rows of bits: each cell filled with the colour of its 0 or 1 and its digit on top. */
     private static void paintBits(Graphics2D graphics, ComponentType type, Map<String, Object> parameters,
                                   VisibleState state, ColorScheme scheme) {
-        Value value = state instanceof VisibleState.SwitchState switchState
+        int width = MultiBitLayout.widthOf(type);
+        // while the width is being edited the type may be ahead of the simulation's snapshot: use the parameter then
+        Value value = state instanceof VisibleState.SwitchState switchState && switchState.value().width() == width
                 ? switchState.value()
-                : fromParameter(parameters.get("value"), MultiBitLayout.widthOf(type));
+                : fromParameter(parameters.get("value"), width);
         MultiBitBody.paint(graphics, type, parameters, scheme, (cellGraphics, cell) -> {
             boolean on = value.bit(cell.bit()) == BitState.ONE;
             Color fill = SignalColors.valueColor(on ? Value.ONE : Value.ZERO, scheme);
