@@ -927,6 +927,11 @@ public final class SelectTool implements Tool {
         return movePreview.hiddenWires(context, context.selection().effectiveIds(), deltaX, deltaY);
     }
 
+    @Override
+    public Map<ElementId, Component> previewedParts(ToolContext context) {
+        return activeDelegate == null ? Map.of() : activeDelegate.previewedParts(context);
+    }
+
     /** A circle around a 1-bit pin; a square of the same footprint, tagged with the width, around a bus pin. */
     private void paintHover(Graphics2D graphics, ToolContext context) {
         double unit = GridPoint.PIXELS_PER_UNIT;

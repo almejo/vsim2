@@ -1,11 +1,13 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** What the canvas does with the mouse: select, place a component, draw a wire, pan. */
@@ -100,6 +102,14 @@ public interface Tool {
      */
     default Set<ElementId> hiddenWires(ToolContext context) {
         return Set.of();
+    }
+
+    /**
+     * Parts the canvas paints, in this frame, as the tool's preview has them instead of as the document has them, by
+     * id (Task 6b: the Teclado at the width its tab is dragged to); asked before every paint. None by default.
+     */
+    default Map<ElementId, Component> previewedParts(ToolContext context) {
+        return Map.of();
     }
 
     default Cursor cursor() {

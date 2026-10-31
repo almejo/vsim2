@@ -22,13 +22,15 @@ import java.util.function.Function;
  * {@code parameterCheck}, when not null, refuses sets of parameters that no single parameter can judge (a value that
  * must fit a width); see {@link #check}. A type with {@linkplain #withProfiles profiles} names the choice parameter
  * that remembers the chosen one ({@code profileParameter}) and the {@code profiles} themselves, their values
- * normalized; see {@link ParameterProfiles}.
+ * normalized; see {@link ParameterProfiles}. A type with a {@linkplain #withResize resize} ({@code resize}) can be made
+ * wider or taller by dragging an edge on the canvas.
  */
 public record ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
                             List<ParameterSpec> parameters, BehaviorFactory behaviorFactory,
                             ComponentLayout layout,
                             Function<Map<String, Object>, Optional<ParameterProblem>> parameterCheck,
-                            Optional<String> profileParameter, List<ParameterProfile> profiles) {
+                            Optional<String> profileParameter, List<ParameterProfile> profiles,
+                            Optional<ResizeSpec> resize) {
 
     public ComponentType {
         Objects.requireNonNull(id, "id");
@@ -36,6 +38,7 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         Objects.requireNonNull(size, "size");
         Objects.requireNonNull(behaviorFactory, "behaviorFactory");
         Objects.requireNonNull(profileParameter, "profileParameter");
+        Objects.requireNonNull(resize, "resize");
         pins = List.copyOf(pins);
         parameters = List.copyOf(parameters);
         layout = layout == null ? null : MemoizedLayout.of(layout, parameters);
@@ -47,7 +50,7 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
                          List<ParameterSpec> parameters, BehaviorFactory behaviorFactory, ComponentLayout layout,
                          Function<Map<String, Object>, Optional<ParameterProblem>> parameterCheck) {
         this(id, category, size, pins, parameters, behaviorFactory, layout, parameterCheck, Optional.empty(),
-                List.of());
+                List.of(), Optional.empty());
     }
 
     public ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
@@ -98,7 +101,7 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         }
         return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory,
                 new SpecializedLayout(SpecializedLayout.baseOf(layout), rawParameters), parameterCheck,
-                profileParameter, profiles);
+                profileParameter, profiles, resize);
     }
 
     /**
@@ -111,7 +114,20 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     public ComponentType withProfiles(String profileParameter, List<ParameterProfile> profiles) {
         Objects.requireNonNull(profileParameter, "profileParameter");
         return new ComponentType(id, category, size, pins, parameters, behaviorFactory, layout, parameterCheck,
-                Optional.of(profileParameter), profiles);
+                Optional.of(profileParameter), profiles, resize);
+    }
+
+    /**
+     * This type with {@code resize}: its size follows that integer parameter, which the canvas also lets the user
+     * change by dragging an edge (Task 6b, the Teclado's width).
+     *
+     * @throws IllegalArgumentException when the type has no such integer parameter
+     */
+    public ComponentType withResize(ResizeSpec resize) {
+        Objects.requireNonNull(resize, "resize");
+        resize.checkFor(this);
+        return new ComponentType(id, category, size, pins, parameters, behaviorFactory, layout, parameterCheck,
+                profileParameter, profiles, Optional.of(resize));
     }
 
     /** The profile called {@code name}, empty when this type has none by that name. */

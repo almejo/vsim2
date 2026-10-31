@@ -265,6 +265,17 @@ class KeyboardCaptureTest {
     }
 
     @Test
+    void shiftEscapeSendsTheEscapeByteAndKeepsTheCapture() {
+        clickTheTypist();
+
+        KeyEvent escape = press(view.canvas(), KeyEvent.VK_ESCAPE, InputEvent.SHIFT_DOWN_MASK, KeyEvent.CHAR_UNDEFINED);
+
+        assertThat(escape.isConsumed()).isTrue();
+        assertThat(capture().captured()).contains(typist.id().value());
+        assertThat(receivedAfterTheSimulation()).containsExactly((byte) 0x1B);
+    }
+
+    @Test
     void aBoundShortcutIsLeftToTheApplication() {
         clickTheTypist();
 

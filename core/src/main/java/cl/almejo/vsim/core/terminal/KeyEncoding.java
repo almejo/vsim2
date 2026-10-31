@@ -57,6 +57,7 @@ public record KeyEncoding(int dataWidth, TerminalEncoding encoding, EnterSends e
     private static final byte BACKSPACE = 0x08;
     private static final byte DELETE = 0x7F;
     private static final byte TAB = 0x09;
+    private static final byte ESCAPE = 0x1B;
     private static final String CONTROL_SEQUENCE = "\u001B[";
     private static final String SINGLE_SHIFT_THREE = "\u001BO";
 
@@ -136,6 +137,7 @@ public record KeyEncoding(int dataWidth, TerminalEncoding encoding, EnterSends e
             });
             case BACKSPACE -> Optional.of(new byte[]{backspaceSends == BackspaceSends.BS ? BACKSPACE : DELETE});
             case TAB -> Optional.of(new byte[]{TAB});
+            case ESCAPE -> Optional.of(new byte[]{ESCAPE});
             default -> arrowsAsSequences
                     ? Optional.of(SEQUENCES.get(key).getBytes(StandardCharsets.US_ASCII)) : Optional.empty();
         };

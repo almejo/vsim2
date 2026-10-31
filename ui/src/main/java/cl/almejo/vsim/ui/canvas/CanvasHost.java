@@ -63,6 +63,11 @@ public interface CanvasHost {
     default void captureKeyboard(Component component) {
     }
 
+    /** The part that has this window's keyboard now, if any (its painter shows it is capturing). */
+    default java.util.Optional<cl.almejo.vsim.core.document.ElementId> capturedPart() {
+        return java.util.Optional.empty();
+    }
+
     /**
      * A key pressed or typed on {@code canvas}, before its own handling and any key binding: true when the window
      * used it (a part has the keyboard), so the canvas consumes it. False by default.

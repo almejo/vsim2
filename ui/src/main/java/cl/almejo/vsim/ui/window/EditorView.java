@@ -35,6 +35,7 @@ import cl.almejo.vsim.ui.problems.ProblemsController;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.terminal.CapturedKeys;
 import cl.almejo.vsim.ui.terminal.KeyboardCapture;
+import cl.almejo.vsim.ui.terminal.KeyboardInspectorRows;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
@@ -198,6 +199,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         palette.setFileDropHandler(this::dropFiles);
         installSelectionActions();
         labelFeatures = LabelFeatures.install(this);
+        labelFeatures.properties().addComponentRows(new KeyboardInspectorRows(openDocument));
         problems = new ProblemsController(this);
         appearanceListener = this::repaintPanes;
         services.appearance().addListener(appearanceListener);
@@ -556,6 +558,11 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** Undoes {@link #setMemoryEditor}: a double click on a memory configures it again. */
     public void clearMemoryEditor() {
         this.memoryEditor = null;
+    }
+
+    @Override
+    public java.util.Optional<cl.almejo.vsim.core.document.ElementId> capturedPart() {
+        return keyboardCapture.captured().map(cl.almejo.vsim.core.document.ElementId::new);
     }
 
     @Override

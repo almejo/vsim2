@@ -25,6 +25,7 @@ import cl.almejo.vsim.ui.memory.MemoryNames;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
+import cl.almejo.vsim.ui.paint.KeyboardPainter;
 import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -323,8 +324,9 @@ public final class CircuitRenderer {
                                  ShortCircuitHighlight highlight, Rectangle2D area) {
         Map<String, Integer> tunnelColors = Tunnels.colorsByName(state.document());
         MemoryNames.Numbering memoryNames = new MemoryNames.Numbering();
-        for (Component component : state.document().components()) {
-            ComponentType type = placedTypes.typeOf(state.document(), component, registry);
+        for (Component documentComponent : state.document().components()) {
+            Component component = state.shown(documentComponent);
+            ComponentType type = shownTypeOf(state, component);
             if (!shows(area, type.bounds(component), PIECE_MARGIN)) {
                 continue;
             }
@@ -340,6 +342,12 @@ public final class CircuitRenderer {
                         state.snapshot().time());
                 ComponentDrawing.paintPlaced(graphics, component, local -> memoryPainter.paintWithLabel(local, type,
                         component.parameters(), memoryState, scheme, name, lights));
+            } else if (painters.painterFor(type.id()) instanceof KeyboardPainter keyboardPainter) {
+                VisibleState keyboardState = state.snapshot().componentState(component.id().value());
+                boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
+                String label = component.label().isBlank() ? null : component.label();
+                ComponentDrawing.paintPlaced(graphics, component, local -> keyboardPainter.paintWithCapture(local,
+                        type, component.parameters(), keyboardState, scheme, label, capturing));
             } else {
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);
@@ -485,8 +493,9 @@ public final class CircuitRenderer {
             return;
         }
         graphics.setStroke(OPEN_PIN_RING);
-        for (Component component : state.document().components()) {
-            ComponentType type = placedTypes.typeOf(state.document(), component, registry);
+        for (Component documentComponent : state.document().components()) {
+            Component component = state.shown(documentComponent);
+            ComponentType type = shownTypeOf(state, component);
             if (!shows(area, type.bounds(component), PIECE_MARGIN)) {
                 continue;
             }
@@ -588,14 +597,21 @@ public final class CircuitRenderer {
         graphics.setFont(LabelLayout.font());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(scheme.text());
-        for (Component component : state.document().components()) {
-            ComponentType type = placedTypes.typeOf(state.document(), component, registry);
+        for (Component documentComponent : state.document().components()) {
+            Component component = state.shown(documentComponent);
+            ComponentType type = shownTypeOf(state, component);
             if (!shows(area, type.bounds(component), LABEL_MARGIN)) {
                 continue;
             }
             LabelLayout.componentLabel(type, component)
                     .ifPresent(placed -> graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY()));
         }
+    }
+
+    /** The type of {@code component} as {@code state} shows it: a previewed part's own, else the cached one. */
+    private ComponentType shownTypeOf(RenderState state, Component component) {
+        return state.previewedParts().containsKey(component.id()) ? registry.typeOf(component)
+                : placedTypes.typeOf(state.document(), component, registry);
     }
 
     /**

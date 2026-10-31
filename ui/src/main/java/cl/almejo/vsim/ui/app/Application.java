@@ -36,6 +36,7 @@ import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
 import cl.almejo.vsim.ui.labels.TextToolExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
+import cl.almejo.vsim.ui.resize.PartResizeExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.busvalues.BusValuesExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
@@ -235,6 +236,7 @@ public final class Application {
         editorExtensions.add(new TextToolExtension());
         // sticky notes before frames: their tool lands after «Marco» and their gestures are asked first (on top)
         editorExtensions.add(new StickyNotesExtension());
+        editorExtensions.add(new PartResizeExtension()); // the tab of a resizable part: after the notes, before frames
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new StickyNotesTabExtension());
         MemoryLinks memoryLinks = MemoryLinks.standard(); // one for every window (and one watcher per document)

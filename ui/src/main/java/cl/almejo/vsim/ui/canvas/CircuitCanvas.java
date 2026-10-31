@@ -71,6 +71,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -1344,7 +1345,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             List<CircuitCanvas> sharing = panesSharingAGesture();
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
-                    problemPulse.phase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues));
+                    problemPulse.phase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues),
+                    host.capturedPart(), previewedParts(sharing));
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
@@ -1384,6 +1386,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             hidden.addAll(owner.tool.hiddenWires(new CrossPaneContext(owner, this)));
         }
         return hidden;
+    }
+
+    /** The parts the tools preview changed in this frame: this canvas's tool's and those of gestures crossing here. */
+    private Map<ElementId, Component> previewedParts(List<CircuitCanvas> sharing) {
+        Map<ElementId, Component> own = tool.previewedParts(this);
+        if (sharing.isEmpty()) {
+            return own;
+        }
+        Map<ElementId, Component> previewed = new LinkedHashMap<>(own);
+        for (CircuitCanvas owner : sharing) {
+            previewed.putAll(owner.tool.previewedParts(new CrossPaneContext(owner, this)));
+        }
+        return previewed;
     }
 
     SimulationSnapshot displayedSnapshot() {

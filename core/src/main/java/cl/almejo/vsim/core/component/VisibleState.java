@@ -37,6 +37,21 @@ public sealed interface VisibleState {
     record StoredValueState(Value value) implements VisibleState {
     }
 
+    /**
+     * A Teclado's queue: {@code version} grows with every change of it, {@code queue} holds the first
+     * {@link #SHOWN_BYTES} bytes (0 to 255) not read yet, {@code size} all of them and {@code cursor} the typing
+     * cursor (0 to {@code size}).
+     */
+    record KeyboardState(long version, List<Integer> queue, int size, int cursor) implements VisibleState {
+
+        /** How many bytes of the queue a state carries. */
+        public static final int SHOWN_BYTES = 64;
+
+        public KeyboardState {
+            queue = List.copyOf(queue);
+        }
+    }
+
     record TimeDiagramState(List<TimeDiagramSample> samples) implements VisibleState {
         public TimeDiagramState {
             samples = List.copyOf(samples);
