@@ -43,6 +43,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Pegar o duplicar una entrada de túnel cuyo nombre ya tiene una entrada en el circuito le pone un nombre libre (`A` pasa a `A_2`, el primer `_N` libre), en el mismo paso de deshacer, en vez de dejar «Hay 2 entradas». Las salidas de ese nombre que vienen en lo pegado se renombran con ella. Una salida sola conserva su nombre, y una entrada pegada en otro circuito donde el nombre está libre también. Ver [Túneles de cables](docs/funciones/cables-buses-y-tuneles.md#túneles-de-cables).
 - En el asistente de expresiones booleanas, la leyenda de notación lista todas las marcas de NOT que se entienden (`'`, `’`, `′` y `ʹ`), y los errores de las líneas se pintan con el mismo rojo legible del resto del editor.
 - Un doble clic sobre la casilla de una tarea de una nota adhesiva la marca una sola vez (un solo paso de deshacer), en vez de marcarla y desmarcarla, y no abre la edición del texto.
 - Una nota adhesiva de menos de 4 cuadros de alto ya no tapa su primera línea de texto con los botones ✕ y –: el mínimo ahora es 4 × 4 cuadros y el texto empieza bajo los botones. Una nota guardada con 3 de alto se abre con 4.

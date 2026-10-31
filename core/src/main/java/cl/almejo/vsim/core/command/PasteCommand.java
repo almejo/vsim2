@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -10,15 +12,20 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Adds a fragment with its (0,0) at {@code at}, giving every element a fresh id of the target document.
+ * An entrada whose name the target already has is renamed ({@link Tunnels#renamedEntrancesApart}).
  * Ids are chosen on the first {@link #apply}; redo reuses them. Wires follow the {@link AddWireCommand} merge rules.
  */
 public final class PasteCommand implements Command {
+
+    /** The tunnel types are standard, so renaming a pasted tunnel in place needs no document registry. */
+    private static final ComponentTypeRegistry TUNNEL_TYPES = StandardComponentTypes.registry();
 
     private final CircuitFragment fragment;
     private final GridPoint at;
@@ -64,7 +71,9 @@ public final class PasteCommand implements Command {
     private CompositeCommand buildSteps(CircuitDocument document) {
         List<DocumentElement> elements = new ArrayList<>();
         List<ElementId> ids = new ArrayList<>();
-        for (Component component : fragment.components()) {
+        // An entrada whose name the target already has gets a free one, so a paste never makes a second entrada.
+        List<Component> components = Tunnels.renamedEntrancesApart(document, fragment.components(), TUNNEL_TYPES);
+        for (Component component : components) {
             Component placed = new Component(document.newComponentId(), component.typeId(),
                     component.position().plus(at), component.rotation(), component.parameters(), component.label(),
                     component.labelOffset(), component.appearance());
