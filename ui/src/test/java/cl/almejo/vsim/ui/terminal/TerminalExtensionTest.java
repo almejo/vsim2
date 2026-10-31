@@ -22,11 +22,17 @@ import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JTextField;
+import java.awt.Container;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,8 +51,13 @@ class TerminalExtensionTest {
     private final List<String> shownTitles = new ArrayList<>();
     private final List<Boolean> closed = new ArrayList<>();
     private final ManualFrameTicker ticker = new ManualFrameTicker();
+    private final List<String> questions = new ArrayList<>();
+    private Optional<Path> chosenFile = Optional.empty();
     private EditorView view;
     private Runnable dispose;
+
+    @TempDir
+    Path folder;
 
     @BeforeEach
     void create() {
@@ -87,9 +98,10 @@ class TerminalExtensionTest {
             };
         };
         TerminalWindowServices windows = new TerminalWindowServices(factory, text -> { },
-                () -> Optional.of("hola"), (parent, suggested) -> Optional.empty(), Runnable::run, Runnable::run,
+                () -> Optional.of("hola"), (parent, suggested) -> chosenFile, Runnable::run, Runnable::run,
                 TerminalScreenRenderer.standard(), System::nanoTime);
-        return new TerminalServices(windows, () -> ticker, tone -> { }, Runnable::run, Runnable::run);
+        return new TerminalServices(windows, () -> ticker, tone -> { }, Runnable::run, Runnable::run,
+                (name, file) -> questions.add(name + " → " + file) && false);
     }
 
     private void install() {
@@ -250,5 +262,62 @@ class TerminalExtensionTest {
         awaitSimulation(document);
         return document.latestSnapshot().componentState(keyboard.id().value())
                 instanceof VisibleState.KeyboardState state ? state.size() : -1;
+    }
+
+    private static <T extends java.awt.Component> T named(Container root, Class<T> kind, String name) {
+        for (java.awt.Component child : root.getComponents()) {
+            if (kind.isInstance(child) && name.equals(child.getName())) {
+                return kind.cast(child);
+            }
+            if (child instanceof Container container) {
+                T nested = named(container, kind, name);
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> resolvedParameters(Component component) {
+        Component now = document.document().component(component.id()).orElseThrow();
+        return document.registry().typeOf(now).resolveParameters(now.parameters());
+    }
+
+    @Test
+    void theOutputFileIsSetOnlyWithTheChooserAndInOneUndoStep() {
+        install();
+        Component consola = terminal("consola", Map.of());
+        view.selection().select(consola.id());
+        JTextField shown = named(view.labelFeatures().properties(), JTextField.class, TerminalOutputRows.FILE_NAME);
+        assertThat(shown).isNotNull();
+        assertThat(shown.isEditable()).isFalse();
+        assertThat(shown.getText()).isEqualTo("(ninguno)");
+        Path file = folder.resolve("salida.txt");
+        chosenFile = Optional.of(file);
+
+        named(view.labelFeatures().properties(), JButton.class, TerminalOutputRows.CHOOSE_NAME).doClick();
+
+        assertThat(resolvedParameters(consola)).containsEntry(TerminalTypes.SAVE_OUTPUT,
+                TerminalTypes.SAVE_OUTPUT_TO_FILE).containsEntry(TerminalTypes.OUTPUT_FILE, file.toString());
+        assertThat(questions).as("a file the user chose is not asked about").isEmpty();
+        document.history().undo();
+        assertThat(resolvedParameters(consola)).containsEntry(TerminalTypes.SAVE_OUTPUT, TerminalTypes.SAVE_OUTPUT_NO)
+                .containsEntry(TerminalTypes.OUTPUT_FILE, "");
+    }
+
+    @Test
+    void aSavedCircuitsOutputFileIsAskedAboutOnceAndNeverTouchedWithoutAYes() throws Exception {
+        Path file = folder.resolve("tesis.txt");
+        Files.writeString(file, "years of work");
+        terminal("consola", Map.of(TerminalTypes.SAVE_OUTPUT, TerminalTypes.SAVE_OUTPUT_TO_FILE,
+                TerminalTypes.OUTPUT_FILE, file.toString()));
+
+        install();
+        awaitSimulation(document);
+        ticker.advance(100);
+
+        assertThat(questions).containsExactly("consola → " + file);
+        assertThat(Files.readString(file)).isEqualTo("years of work");
     }
 }

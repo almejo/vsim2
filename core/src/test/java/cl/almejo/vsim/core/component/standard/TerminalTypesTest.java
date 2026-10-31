@@ -115,8 +115,8 @@ class TerminalTypesTest {
         assertThat(terminal.parameterNamed(TerminalTypes.PROFILE).orElseThrow().group()).contains("piece");
         assertThat(terminal.isShown(terminal.parameterNamed(TerminalTypes.ENCODING).orElseThrow(),
                 Map.of(TerminalTypes.DATA_WIDTH, "7"))).isFalse();
-        assertThat(terminal.isShown(terminal.parameterNamed(TerminalTypes.OUTPUT_FILE).orElseThrow(),
-                Map.of(TerminalTypes.SAVE_OUTPUT, "file"))).isTrue();
+        assertThat(terminal.parameterNamed(TerminalTypes.OUTPUT_FILE).orElseThrow().hidden())
+                .as("the file is chosen with the UI's chooser, never typed in the form").isTrue();
     }
 
     @Test

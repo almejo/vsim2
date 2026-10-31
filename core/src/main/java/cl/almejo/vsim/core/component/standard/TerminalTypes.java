@@ -188,7 +188,8 @@ public final class TerminalTypes {
             look(ParameterSpec.choice(SHOW, "canvas", List.of("canvas", "window")), GROUP_DISPLAY),
             look(ParameterSpec.choice(SAVE_OUTPUT, SAVE_OUTPUT_NO, List.of(SAVE_OUTPUT_NO, SAVE_OUTPUT_TO_FILE)),
                     GROUP_DISPLAY),
-            look(ParameterSpec.text(OUTPUT_FILE, "").visibleWhen(SAVE_OUTPUT, SAVE_OUTPUT_TO_FILE), GROUP_DISPLAY));
+            // the user sets it only with «Elegir archivo…» (the UI's row), never by typing or through the AI
+            look(ParameterSpec.text(OUTPUT_FILE, "").asHidden(), GROUP_DISPLAY));
 
     /**
      * The bottom-right corner grip (Task 7b): columns on the right edge, rows on the bottom one, one value for every

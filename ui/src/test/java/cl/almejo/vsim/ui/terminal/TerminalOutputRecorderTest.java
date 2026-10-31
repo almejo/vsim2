@@ -27,7 +27,10 @@ import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** «Guardar salida» (spec §8.9): the raw bytes appended to a .txt off the EDT, the file truncated on «Reiniciar». */
+/**
+ * «Guardar salida» (spec §8.9): the raw bytes appended to a .txt off the EDT, the file truncated on «Reiniciar». A file
+ * is touched only once the user chose it in this session or confirmed the one a saved circuit names.
+ */
 class TerminalOutputRecorderTest {
 
     /** An executor that only runs its tasks when asked: nothing is written where the bytes arrive. */
@@ -54,6 +57,9 @@ class TerminalOutputRecorderTest {
     private final FakeTerminals terminals = new FakeTerminals();
     private final LaterExecutor writer = new LaterExecutor();
     private final List<String> problems = new ArrayList<>();
+    private final List<String> questions = new ArrayList<>();
+    private final TerminalOutputClaims claims = new TerminalOutputClaims();
+    private boolean answer;
     private TerminalFeeds feeds;
     private TerminalOutputRecorder recorder;
 
@@ -83,7 +89,22 @@ class TerminalOutputRecorderTest {
     }
 
     private void start() {
-        recorder = new TerminalOutputRecorder(document, feeds, writer, problems::add);
+        recorder = recorderOf(document, feeds);
+    }
+
+    private TerminalOutputRecorder recorderOf(OpenDocument recorded, TerminalFeeds recordedFeeds) {
+        TerminalOutputConfirmation confirmation = (name, file) -> {
+            questions.add(name + " → " + file);
+            return answer;
+        };
+        return new TerminalOutputRecorder(recorded, recordedFeeds,
+                new TerminalOutputRecorder.Services(writer, Runnable::run, confirmation, claims), problems::add);
+    }
+
+    /** The user chose {@code file} with «Elegir archivo…» in this session. */
+    private void startChosen(Path file) {
+        start();
+        recorder.approve(file);
     }
 
     private void arrive(Component component, String text) {
@@ -100,7 +121,7 @@ class TerminalOutputRecorderTest {
     void theBytesAreAppendedOnlyWhenTheWriterRuns() throws IOException {
         Path file = folder.resolve("salida.txt");
         Component terminal = terminalSavingTo(file);
-        start();
+        startChosen(file);
 
         arrive(terminal, "? 5\n");
         assertThat(file).as("nothing is written where the frames arrive").doesNotExist();
@@ -116,7 +137,7 @@ class TerminalOutputRecorderTest {
     void aRestartTruncatesTheFile() throws IOException {
         Path file = folder.resolve("salida.txt");
         Component terminal = terminalSavingTo(file);
-        start();
+        startChosen(file);
         arrive(terminal, "primera vuelta");
         writer.runAll();
 
@@ -131,7 +152,7 @@ class TerminalOutputRecorderTest {
     void anUndefinedByteIsSavedAsTheQuestionMarkTheScreenShows() throws IOException {
         Path file = folder.resolve("salida.txt");
         Component terminal = terminalSavingTo(file);
-        start();
+        startChosen(file);
 
         terminals.terminal(terminal.id().value()).write("a").writeUndefined();
         terminals.publish(terminal.id().value());
@@ -145,7 +166,7 @@ class TerminalOutputRecorderTest {
     void turningItOffStopsTheRecordingAndKeepsTheFile() throws IOException {
         Path file = folder.resolve("salida.txt");
         Component terminal = terminalSavingTo(file);
-        start();
+        startChosen(file);
         arrive(terminal, "uno");
         writer.runAll();
 
@@ -161,6 +182,8 @@ class TerminalOutputRecorderTest {
         Component terminal = terminalSavingTo(folder.resolve("salida.txt"));
         Component other = terminalSavingTo(folder.resolve("otra.txt"));
         start();
+        recorder.approve(folder.resolve("salida.txt"));
+        recorder.approve(folder.resolve("otra.txt"));
         assertThat(terminals.isRequested(terminal.id().value())).isTrue();
 
         document.execute(new RemoveElementsCommand(List.of(terminal.id())));
@@ -172,8 +195,9 @@ class TerminalOutputRecorderTest {
 
     @Test
     void aFileThatCannotBeWrittenIsToldOnce() {
-        Component terminal = terminalSavingTo(folder.resolve("no-existe").resolve("salida.txt"));
-        start();
+        Path file = folder.resolve("no-existe").resolve("salida.txt");
+        Component terminal = terminalSavingTo(file);
+        startChosen(file);
 
         arrive(terminal, "a");
         writer.runAll();
@@ -181,5 +205,113 @@ class TerminalOutputRecorderTest {
         writer.runAll();
 
         assertThat(problems).hasSize(1);
+    }
+
+    @Test
+    void openingACircuitNeverTouchesTheFileItNames() throws IOException {
+        Path existing = folder.resolve("tesis.txt");
+        Files.writeString(existing, "years of work", StandardCharsets.UTF_8);
+        Path missing = folder.resolve("nueva.txt");
+        Component first = terminalSavingTo(existing);
+        Component second = terminalSavingTo(missing);
+        start();
+
+        arrive(first, "hola");
+        arrive(second, "hola");
+        writer.runAll();
+
+        assertThat(read(existing)).isEqualTo("years of work");
+        assertThat(missing).doesNotExist();
+        assertThat(recorder.isRecording(first.id().value())).isFalse();
+    }
+
+    @Test
+    void theFileOfASavedCircuitIsAskedAboutOnceAndNoKeepsItUnarmed() throws IOException {
+        Path file = folder.resolve("tesis.txt");
+        Files.writeString(file, "years of work", StandardCharsets.UTF_8);
+        Component terminal = terminalSavingTo(file);
+        start();
+        assertThat(questions).containsExactly("consola → " + file);
+
+        Map<String, Object> parameters = new HashMap<>(type.resolveParameters(terminal.parameters()));
+        parameters.put(TerminalTypes.ROWS, 5);
+        document.execute(new ChangeParametersCommand(terminal.id(), type, parameters));
+        arrive(terminal, "hola");
+        writer.runAll();
+
+        assertThat(questions).as("asked once per file while the circuit is open").hasSize(1);
+        assertThat(read(file)).isEqualTo("years of work");
+    }
+
+    @Test
+    void confirmingTheFileOfASavedCircuitArmsItAndStartsTheFile() throws IOException {
+        Path file = folder.resolve("salida.txt");
+        Files.writeString(file, "de antes", StandardCharsets.UTF_8);
+        Component terminal = terminalSavingTo(file);
+        answer = true;
+        start();
+
+        arrive(terminal, "hola");
+        writer.runAll();
+
+        assertThat(read(file)).isEqualTo("hola");
+    }
+
+    @Test
+    void aFileChosenInThisSessionIsRecordedWithoutAsking() throws IOException {
+        Path file = folder.resolve("salida.txt");
+        start();
+        recorder.approve(file);
+        Component terminal = terminalSavingTo(file);
+
+        arrive(terminal, "hola");
+        writer.runAll();
+
+        assertThat(questions).isEmpty();
+        assertThat(read(file)).isEqualTo("hola");
+    }
+
+    @Test
+    void twoTerminalsNeverRecordToTheSameFile() throws IOException {
+        Path file = folder.resolve("salida.txt");
+        Component first = terminalSavingTo(file);
+        Component copy = terminalSavingTo(file);
+        startChosen(file);
+
+        arrive(first, "uno");
+        arrive(copy, "dos");
+        writer.runAll();
+
+        assertThat(read(file)).isEqualTo("uno");
+        assertThat(recorder.isRecording(copy.id().value())).isFalse();
+        assertThat(problems).hasSize(1);
+    }
+
+    @Test
+    void twoCircuitsNeverRecordToTheSameFile() throws IOException {
+        Path file = folder.resolve("salida.txt");
+        Component first = terminalSavingTo(file);
+        startChosen(file);
+        OpenDocument otherDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        FakeTerminals otherTerminals = new FakeTerminals();
+        TerminalFeeds otherFeeds = new TerminalFeeds(otherTerminals);
+        Component other = type.newComponent(otherDocument.document().newComponentId(), new GridPoint(0, 0),
+                Rotation.R0, Map.of(TerminalTypes.SAVE_OUTPUT, TerminalTypes.SAVE_OUTPUT_TO_FILE,
+                        TerminalTypes.OUTPUT_FILE, file.toString()), "otra");
+        otherDocument.execute(new AddElementsCommand(List.of(other)));
+        otherTerminals.add(other.id().value(), 2, 10);
+        TerminalOutputRecorder otherRecorder = recorderOf(otherDocument, otherFeeds);
+        try {
+            otherRecorder.approve(file);
+
+            arrive(first, "uno");
+            writer.runAll();
+
+            assertThat(otherRecorder.isRecording(other.id().value())).isFalse();
+            assertThat(read(file)).isEqualTo("uno");
+        } finally {
+            otherRecorder.dispose();
+            otherDocument.close();
+        }
     }
 }

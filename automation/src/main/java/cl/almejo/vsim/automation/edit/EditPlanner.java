@@ -28,6 +28,7 @@ import cl.almejo.vsim.automation.edit.EditReceipt.ConnectionReport;
 import cl.almejo.vsim.automation.edit.EditReceipt.CreatedComponent;
 import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.io.LegacyGateMigration;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
@@ -287,6 +288,7 @@ final class EditPlanner {
                         + "describe the components to see the types"));
         requireKnownParameters(type, parameters);
         requireNotMemoryFiles(type, parameters);
+        requireNotTerminalOutputFile(type, parameters);
         // A multi-bit Switch or LED asked for turned stays upright with its pin where the turn would put it.
         Component component = MultiBitOrientation.normalized(type.newComponent(candidate.newComponentId(),
                 new GridPoint(operation.x(), operation.y()), operation.rotation(), parameters,
@@ -339,6 +341,7 @@ final class EditPlanner {
         ComponentType type = registry.require(component.typeId());
         requireKnownParameters(type, operation.parameters());
         requireNotMemoryFiles(type, operation.parameters());
+        requireNotTerminalOutputFile(type, operation.parameters());
         Map<String, Object> merged = new HashMap<>(component.parameters());
         merged.putAll(operation.parameters());
         new ChangeParametersCommand(component.id(), type, merged).apply(candidate);
@@ -351,6 +354,20 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.NOT_ALLOWED, "The contents and the link of a memory are not "
                     + "parameters the AI sets: write words with SetMemoryContents; linking a file is for the user "
                     + "(ask the user to do it)");
+        }
+    }
+
+    /**
+     * «Guardar salida» writes a file of the user's (it starts it over): the user turns it on and picks the file with
+     * the editor's chooser; the AI never sets either.
+     */
+    private static void requireNotTerminalOutputFile(ComponentType type, Map<String, Object> parameters) {
+        if (type.id().equals(StandardComponentTypes.TERMINAL) && (parameters.containsKey(TerminalTypes.SAVE_OUTPUT)
+                || parameters.containsKey(TerminalTypes.OUTPUT_FILE))) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "A Terminal's " + TerminalTypes.SAVE_OUTPUT
+                    + " and " + TerminalTypes.OUTPUT_FILE + " are not parameters the AI sets: saving the output "
+                    + "writes a file of the user's, so the user turns it on and chooses the file in the editor (ask the "
+                    + "user to do it)");
         }
     }
 

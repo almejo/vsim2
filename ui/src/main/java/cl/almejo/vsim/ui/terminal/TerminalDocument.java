@@ -29,12 +29,15 @@ final class TerminalDocument {
     private final List<Consumer<String>> noticeListeners = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener = this::documentChanged;
 
-    TerminalDocument(OpenDocument document, TerminalServices services, TerminalWindowPreferences preferences) {
+    /** The features of {@code document}; {@code outputClaims} are the files every open circuit records to. */
+    TerminalDocument(OpenDocument document, TerminalServices services, TerminalWindowPreferences preferences,
+                     TerminalOutputClaims outputClaims) {
         this.document = Objects.requireNonNull(document, "document");
         ticker = services.tickers().get();
         feeds = new TerminalFeeds(TerminalFrameSource.of(document));
         windows = new TerminalWindows(document, feeds, services.windows(), preferences);
-        recorder = new TerminalOutputRecorder(document, feeds, services.outputWriter(),
+        recorder = new TerminalOutputRecorder(document, feeds, new TerminalOutputRecorder.Services(
+                services.outputWriter(), services.later(), services.outputConfirmation(), outputClaims),
                 problem -> services.windows().edt().execute(() -> notice(problem)));
         sounds = new TerminalSoundController(document,
                 new TerminalSounds(services.sound(), services.windows().nanoClock()), windows::flash);
@@ -44,6 +47,10 @@ final class TerminalDocument {
 
     TerminalWindows windows() {
         return windows;
+    }
+
+    TerminalOutputRecorder recorder() {
+        return recorder;
     }
 
     /** {@code listener} shows the notices of this document (a window's status bar); the runnable removes it. */

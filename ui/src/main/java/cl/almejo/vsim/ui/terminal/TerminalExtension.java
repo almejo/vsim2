@@ -44,6 +44,8 @@ public final class TerminalExtension implements EditorExtension {
 
     private final TerminalServices services;
     private final Map<OpenDocument, Shared> documents = new IdentityHashMap<>();
+    /** The files «Guardar salida» writes, across every open circuit. */
+    private final TerminalOutputClaims outputClaims = new TerminalOutputClaims();
 
     public TerminalExtension() {
         this(TerminalServices.standard());
@@ -65,6 +67,8 @@ public final class TerminalExtension implements EditorExtension {
         view.setTerminalEditor(component -> windows.open(component.id().value(), ownerOf(view, owner)));
         removers.add(view::clearTerminalEditor);
         removers.add(terminals.addNoticeListener(view.statusBar()::showNotice));
+        removers.add(view.labelFeatures().properties().addComponentRows(new TerminalOutputRows(document,
+                terminals.recorder(), services.windows().saveChooser(), view)));
         removers.add(view.addContextMenuContributor(new TerminalContextMenu(document,
                 component -> windows.open(component.id().value(), ownerOf(view, owner)),
                 services.windows().clipboardText(), view.statusBar()::showNotice)));
@@ -88,7 +92,7 @@ public final class TerminalExtension implements EditorExtension {
 
     private TerminalDocument acquire(OpenDocument document, EditorView view) {
         Shared shared = documents.computeIfAbsent(document, key -> new Shared(new TerminalDocument(key, services,
-                new TerminalWindowPreferences(view.services().preferences().terminalWindowsNode()))));
+                new TerminalWindowPreferences(view.services().preferences().terminalWindowsNode()), outputClaims)));
         shared.views++;
         return shared.terminals;
     }
