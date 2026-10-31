@@ -1,18 +1,12 @@
 package cl.almejo.vsim.ui.terminal;
 
-import cl.almejo.vsim.core.component.ComponentType;
-import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.terminal.KeyEncoding;
 import cl.almejo.vsim.core.terminal.SpecialKey;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -191,18 +185,7 @@ public final class CapturedKeys {
 
     /** Types the clipboard text into {@code target}; when it does not all fit, the status bar says how much went in. */
     private void paste(String target) {
-        String text = clipboardText.get().orElse("");
-        int total = KeyEncoding.characterCount(text);
-        if (total == 0) {
-            return;
-        }
-        List<byte[]> characters = encodingOf(target).encodeText(text);
-        openDocument.typeCharacters(target, characters).thenAccept(taken -> {
-            if (taken < total) {
-                SwingUtilities.invokeLater(() -> notices.accept(
-                        Messages.format("keyboard.pasteIncomplete", taken, total)));
-            }
-        });
+        KeyboardPaste.paste(openDocument, target, clipboardText.get().orElse(""), notices);
     }
 
     private void send(String target, byte[] bytes) {
@@ -213,12 +196,7 @@ public final class CapturedKeys {
 
     /** The encoding the parameters of {@code componentId} ask for; the Teclado's defaults when it is gone. */
     private KeyEncoding encodingOf(String componentId) {
-        Optional<Component> component = openDocument.document().component(new ElementId(componentId));
-        if (component.isEmpty()) {
-            return KeyEncoding.DEFAULT;
-        }
-        ComponentType type = openDocument.registry().typeOf(component.get());
-        return KeyEncoding.forParameters(type.resolveParameters(component.get().parameters()));
+        return KeyboardPaste.encodingOf(openDocument, componentId);
     }
 
     /** A character the user typed as text: printable, not the result of Ctrl or ⌘ (AltGr, as Ctrl+Alt, is text). */

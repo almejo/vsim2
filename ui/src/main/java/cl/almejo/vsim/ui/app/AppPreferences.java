@@ -160,6 +160,7 @@ public final class AppPreferences {
     static final String SHOW_BUS_VALUES = "view.busValues";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
+    static final String TERMINAL_WINDOWS = "terminal-windows";
     static final String GRID_LINE_SPACING = "grid.lineSpacing";
     static final String INVERT_MODIFIER = "invertModifier";
     static final String TEXT_FONT_FAMILY = "textFontFamily";
@@ -685,6 +686,11 @@ public final class AppPreferences {
     /** How each recent file's window was split (Dividir la vista): child node {@code splitLayouts}. */
     public Preferences splitLayoutsNode() {
         return node.node(SPLIT_LAYOUTS);
+    }
+
+    /** Where each Terminal window was and how big (spec §9): child node {@code terminal-windows}. */
+    public Preferences terminalWindowsNode() {
+        return node.node(TERMINAL_WINDOWS);
     }
 
     /** «Al iniciar, abrir los circuitos de la última sesión» (M6-B): on unless the user turned it off. */

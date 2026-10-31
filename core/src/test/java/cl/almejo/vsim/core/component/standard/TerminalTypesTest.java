@@ -62,7 +62,7 @@ class TerminalTypesTest {
                 .containsEntry(TerminalTypes.BLINK, true).containsEntry(TerminalTypes.MARK_LAST, true)
                 .containsEntry(TerminalTypes.STOP_ON, "").containsEntry(TerminalTypes.EXPECTED, "none")
                 .containsEntry(TerminalTypes.WAVEFORM_FORMAT, "chars").containsEntry(TerminalTypes.BELL, "flash")
-                .containsEntry(TerminalTypes.TYPING_SOUND, false).containsEntry(TerminalTypes.SHOW, "canvas")
+                .containsEntry(TerminalTypes.TELETYPE_SOUND, false).containsEntry(TerminalTypes.SHOW, "canvas")
                 .containsEntry(TerminalTypes.SAVE_OUTPUT, "no");
         assertThat(ParameterProfiles.differences(terminal, defaults)).isEmpty();
     }
@@ -79,13 +79,13 @@ class TerminalTypesTest {
                 .containsEntry(TerminalTypes.SCREEN_COLORS, "green").containsEntry(TerminalTypes.EFFECT, "soft")
                 .containsEntry(TerminalTypes.FONT, "vt323").containsEntry(TerminalTypes.CURSOR, "block")
                 .containsEntry(TerminalTypes.BLINK, true).containsEntry(TerminalTypes.BELL, "none")
-                .containsEntry(TerminalTypes.TYPING_SOUND, false).containsEntry(TerminalTypes.MARK_LAST, true);
+                .containsEntry(TerminalTypes.TELETYPE_SOUND, false).containsEntry(TerminalTypes.MARK_LAST, true);
         assertThat(teletype).containsEntry(TerminalTypes.MODE, "teletype").containsEntry(TerminalTypes.DATA_WIDTH, "7")
                 .containsEntry(TerminalTypes.BACKSPACE_ERASES, false)
                 .containsEntry(TerminalTypes.FORM_FEED_CLEARS, false).containsEntry(TerminalTypes.SCROLLBACK, 10_000)
                 .containsEntry(TerminalTypes.SCREEN_COLORS, "paper").containsEntry(TerminalTypes.ANSI_PALETTE, "vga")
                 .containsEntry(TerminalTypes.CURSOR, "underline").containsEntry(TerminalTypes.BLINK, false)
-                .containsEntry(TerminalTypes.BELL, "both").containsEntry(TerminalTypes.TYPING_SOUND, true);
+                .containsEntry(TerminalTypes.BELL, "both").containsEntry(TerminalTypes.TELETYPE_SOUND, true);
         for (String profile : List.of(TerminalTypes.PROFILE_LOGISIM, TerminalTypes.PROFILE_VT,
                 TerminalTypes.PROFILE_TELETYPE)) {
             assertThat(terminal.profile(profile).orElseThrow().values()).as(profile)
@@ -107,7 +107,7 @@ class TerminalTypesTest {
                 TerminalTypes.EFFECT, TerminalTypes.FONT, TerminalTypes.CURSOR, TerminalTypes.BLINK,
                 TerminalTypes.MARK_LAST, TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_TEXT,
                 TerminalTypes.EXPECTED_FILE, TerminalTypes.WAVEFORM_FORMAT, TerminalTypes.BELL,
-                TerminalTypes.TYPING_SOUND, TerminalTypes.SHOW, TerminalTypes.SAVE_OUTPUT, TerminalTypes.OUTPUT_FILE)
+                TerminalTypes.TELETYPE_SOUND, TerminalTypes.SHOW, TerminalTypes.SAVE_OUTPUT, TerminalTypes.OUTPUT_FILE)
                 .doesNotContain(TerminalTypes.FONT_SIZE, TerminalTypes.STOP_ON, TerminalTypes.ROWS,
                         TerminalTypes.MODE, TerminalTypes.PROFILE);
         assertThat(terminal.parameterNamed(TerminalTypes.EXPECTED_TEXT).orElseThrow().multiline()).isTrue();
@@ -117,6 +117,13 @@ class TerminalTypesTest {
                 Map.of(TerminalTypes.DATA_WIDTH, "7"))).isFalse();
         assertThat(terminal.isShown(terminal.parameterNamed(TerminalTypes.OUTPUT_FILE).orElseThrow(),
                 Map.of(TerminalTypes.SAVE_OUTPUT, "file"))).isTrue();
+    }
+
+    @Test
+    void theTeletypeSoundHasItsOwnIdSoItIsNotNamedLikeTheTecladosKeySound() {
+        assertThat(TerminalTypes.TELETYPE_SOUND).isEqualTo("teletype-sound").isNotEqualTo(KeyboardTypes.TYPING_SOUND);
+        assertThat(terminal.parameterNamed(TerminalTypes.TELETYPE_SOUND)).isPresent();
+        assertThat(terminal.parameterNamed(KeyboardTypes.TYPING_SOUND)).isEmpty();
     }
 
     @Test

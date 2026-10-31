@@ -39,6 +39,7 @@ import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedMove;
+import cl.almejo.vsim.ui.terminal.TerminalScreenArea;
 import cl.almejo.vsim.ui.wiring.MovePreview;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
@@ -407,6 +408,9 @@ public final class SelectTool implements Tool {
                     context.editValue(component, toggledByFirstClick.valueBefore());
                 } else if (MemoryTypes.kindOf(component.typeId()).isPresent()) {
                     context.editMemory(component);
+                } else if (component.typeId().equals(StandardComponentTypes.TERMINAL) && TerminalScreenArea.isOnScreen(
+                        context.openDocument().registry().typeOf(component), component, event.gridPosition())) {
+                    context.editTerminal(component);
                 } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
                         || InterfacePins.isBusInput(component) || Tunnels.isTunnel(component.typeId())) {
                     context.editValue(component);

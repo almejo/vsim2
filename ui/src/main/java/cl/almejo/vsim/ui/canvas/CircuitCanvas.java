@@ -1417,6 +1417,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     @Override
+    public void editTerminal(Component component) {
+        host.editTerminal(component);
+    }
+
+    @Override
     public void captureKeyboard(Component component) {
         host.captureKeyboard(component);
     }

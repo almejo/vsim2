@@ -24,7 +24,7 @@ import static cl.almejo.vsim.core.component.standard.TerminalTypes.MODE;
 import static cl.almejo.vsim.core.component.standard.TerminalTypes.SCREEN_COLORS;
 import static cl.almejo.vsim.core.component.standard.TerminalTypes.SCROLLBACK;
 import static cl.almejo.vsim.core.component.standard.TerminalTypes.TAB_WIDTH;
-import static cl.almejo.vsim.core.component.standard.TerminalTypes.TYPING_SOUND;
+import static cl.almejo.vsim.core.component.standard.TerminalTypes.TELETYPE_SOUND;
 import static cl.almejo.vsim.core.component.standard.TerminalTypes.WRAP;
 
 /**
@@ -60,7 +60,7 @@ final class TerminalProfiles {
         values.put(CURSOR, "block");
         values.put(BLINK, true);
         values.put(BELL, "none");
-        values.put(TYPING_SOUND, false);
+        values.put(TELETYPE_SOUND, false);
         return new ParameterProfile(TerminalTypes.PROFILE_LOGISIM, values);
     }
 
@@ -79,7 +79,7 @@ final class TerminalProfiles {
         values.put(CURSOR, "bar");
         values.put(BLINK, true);
         values.put(BELL, "flash");
-        values.put(TYPING_SOUND, false);
+        values.put(TELETYPE_SOUND, false);
         return new ParameterProfile(TerminalTypes.PROFILE_VT, values);
     }
 
@@ -97,7 +97,7 @@ final class TerminalProfiles {
         values.put(CURSOR, "underline");
         values.put(BLINK, false);
         values.put(BELL, "both");
-        values.put(TYPING_SOUND, true);
+        values.put(TELETYPE_SOUND, true);
         return new ParameterProfile(TerminalTypes.PROFILE_TELETYPE, values);
     }
 

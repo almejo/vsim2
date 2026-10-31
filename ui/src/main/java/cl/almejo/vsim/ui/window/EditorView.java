@@ -123,6 +123,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private Consumer<List<Path>> componentFileImporter;
     private PositionedFileImporter memoryFileImporter;
     private Consumer<Component> memoryEditor;
+    private Consumer<Component> terminalEditor;
     private final WindowCommands windowCommands;
     private Consumer<TruthTableSpec> tableWizard;
     private Consumer<List<Path>> circuitOpener = files -> {
@@ -560,6 +561,21 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.memoryEditor = null;
     }
 
+    /** Where the Terminal extension plugs in: what a double click on a Terminal's screen opens (its window). */
+    public void setTerminalEditor(Consumer<Component> terminalEditor) {
+        this.terminalEditor = Objects.requireNonNull(terminalEditor);
+    }
+
+    /** Undoes {@link #setTerminalEditor}: a double click on a Terminal configures it again. */
+    public void clearTerminalEditor() {
+        this.terminalEditor = null;
+    }
+
+    /** Whether a double click on a Terminal's screen opens its window. */
+    public boolean hasTerminalEditor() {
+        return terminalEditor != null;
+    }
+
     @Override
     public java.util.Optional<cl.almejo.vsim.core.document.ElementId> capturedPart() {
         return keyboardCapture.captured().map(cl.almejo.vsim.core.document.ElementId::new);
@@ -612,6 +628,15 @@ public final class EditorView extends JPanel implements CanvasHost {
             configure(component);
         } else {
             memoryEditor.accept(component);
+        }
+    }
+
+    @Override
+    public void editTerminal(Component component) {
+        if (terminalEditor == null) {
+            configure(component);
+        } else {
+            terminalEditor.accept(component);
         }
     }
 

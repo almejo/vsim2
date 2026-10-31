@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
@@ -76,17 +75,18 @@ class OpenDocumentTerminalTest {
         boolean modified = document.isModified();
         Object undo = document.history().undoDescription();
 
-        document.setTerminalRequest(Optional.of(new TerminalRequest(terminal.id().value(), 10, 0)));
-        waitUntil(() -> document.latestTerminalFrame().isPresent());
-        document.acknowledgeTerminalBytes(document.latestTerminalFrame().orElseThrow().owner(), 0);
+        String id = terminal.id().value();
+        document.setTerminalRequest(new TerminalRequest(id, 10, 0));
+        waitUntil(() -> document.latestTerminalFrame(id).isPresent());
+        document.acknowledgeTerminalBytes(id, document.latestTerminalFrame(id).orElseThrow().owner(), 0);
         document.clearTerminal(terminal.id());
         awaitSimulation(document);
 
         assertThat(document.latestSnapshot().componentState(terminal.id().value())).isInstanceOf(TerminalState.class);
         assertThat(document.isModified()).isEqualTo(modified);
         assertThat(document.history().undoDescription()).isEqualTo(undo);
-        document.setTerminalRequest(Optional.empty());
+        document.removeTerminalRequest(id);
         awaitSimulation(document);
-        assertThat(document.latestTerminalFrame()).isEmpty();
+        assertThat(document.latestTerminalFrame(id)).isEmpty();
     }
 }

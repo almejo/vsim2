@@ -100,6 +100,30 @@ class TerminalPainterTest {
     }
 
     @Test
+    void theWindowsScreenHasThePartsLookScaledToTheSpaceItIsGiven() {
+        Map<String, Object> green = terminal(small(TerminalTypes.SCREEN_COLORS, "green"))
+                .resolveParameters(small(TerminalTypes.SCREEN_COLORS, "green"));
+        BufferedImage image = PaintersTest.blankImage(400, 200);
+        Graphics2D graphics = image.createGraphics();
+        TerminalPainter.paintScreen(graphics, new Rectangle2D.Double(0, 0, 320, 128),
+                screenWith("HHHH").frame(), green, PaintersTest.SCHEME);
+        graphics.dispose();
+
+        assertThat(image.getRGB(300, 120)).as("the background fills the whole space")
+                .isEqualTo(new Color(0x0B130D).getRGB());
+        assertThat(image.getRGB(350, 150)).as("nothing outside it").isNotEqualTo(new Color(0x0B130D).getRGB());
+        int text = 0;
+        for (int x = 0; x < 32; x++) {
+            for (int y = 0; y < 32; y++) {
+                if (image.getRGB(x, y) == new Color(0x33FF66).getRGB()) {
+                    text++;
+                }
+            }
+        }
+        assertThat(text).as("the first H, twice as large as on the canvas").isGreaterThan(20);
+    }
+
+    @Test
     void eachProfileShowsItsScreenColoursAndText() {
         record Expected(String profile, int text, int background) {
         }

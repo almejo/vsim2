@@ -689,21 +689,27 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
-     * What the Terminal window shows (spec §9): {@link #latestTerminalFrame()} answers this request whenever the
-     * screen changes; empty stops the frames. One request per document: the last one set wins.
+     * What a reader of the Terminal {@link TerminalRequest#componentId()} (its window, its saved output) wants
+     * (spec §9): {@link #latestTerminalFrame(String)} answers this request whenever that screen changes. One request
+     * per Terminal: the last one set for it wins, the other Terminals keep theirs.
      */
-    public void setTerminalRequest(Optional<TerminalRequest> request) {
+    public void setTerminalRequest(TerminalRequest request) {
         simulation.setTerminalRequest(request);
     }
 
-    /** The latest Terminal window frame (at most every 16 ms); safe to read from any thread. */
-    public Optional<TerminalWindowFrame> latestTerminalFrame() {
-        return simulation.latestTerminalFrame();
+    /** Stops the frames of the Terminal {@code componentId}. */
+    public void removeTerminalRequest(String componentId) {
+        simulation.removeTerminalRequest(componentId);
     }
 
-    /** The window has the bytes up to {@code sequence} of screen {@code owner}: later frames leave them out. */
-    public void acknowledgeTerminalBytes(long owner, long sequence) {
-        simulation.acknowledgeTerminalBytes(owner, sequence);
+    /** The latest frame of the Terminal {@code componentId} (at most every 16 ms); safe from any thread. */
+    public Optional<TerminalWindowFrame> latestTerminalFrame(String componentId) {
+        return simulation.latestTerminalFrame(componentId);
+    }
+
+    /** The reader of {@code componentId} has the bytes up to {@code sequence} of screen {@code owner}. */
+    public void acknowledgeTerminalBytes(String componentId, long owner, long sequence) {
+        simulation.acknowledgeTerminalBytes(componentId, owner, sequence);
     }
 
     /**

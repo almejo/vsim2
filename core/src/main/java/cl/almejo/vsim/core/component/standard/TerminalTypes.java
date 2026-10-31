@@ -78,8 +78,8 @@ public final class TerminalTypes {
     public static final String WAVEFORM_FORMAT = "waveform-format";
     /** «Campana (BEL)». */
     public static final String BELL = "bell";
-    /** «Golpeteo de teletipo». Same id as the Teclado's typing sound. */
-    public static final String TYPING_SOUND = "typing-sound";
+    /** «Golpeteo de teletipo»: its own id, so it is not named like the Teclado's «Sonido de tecla». */
+    public static final String TELETYPE_SOUND = "teletype-sound";
     /** «Mostrar»: on the canvas, or on the canvas and in a window. */
     public static final String SHOW = "show";
     /** «Guardar salida». */
@@ -172,7 +172,7 @@ public final class TerminalTypes {
             look(ParameterSpec.text(EXPECTED_FILE, "").visibleWhen(EXPECTED, EXPECTED_FROM_FILE), GROUP_TEACHING),
             look(ParameterSpec.choice(WAVEFORM_FORMAT, "chars", List.of("chars", "hex")), GROUP_TEACHING),
             look(ParameterSpec.choice(BELL, "flash", BELL_CHOICES), GROUP_SOUND),
-            look(ParameterSpec.bool(TYPING_SOUND, false), GROUP_SOUND),
+            look(ParameterSpec.bool(TELETYPE_SOUND, false), GROUP_SOUND),
             look(ParameterSpec.choice(SHOW, "canvas", List.of("canvas", "window")), GROUP_DISPLAY),
             look(ParameterSpec.choice(SAVE_OUTPUT, SAVE_OUTPUT_NO, List.of(SAVE_OUTPUT_NO, SAVE_OUTPUT_TO_FILE)),
                     GROUP_DISPLAY),

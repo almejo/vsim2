@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.TerminalReading;
 import cl.almejo.vsim.core.terminal.ByteLog;
+import cl.almejo.vsim.core.terminal.ExpectedOutput;
 import cl.almejo.vsim.core.terminal.KeyEncoding;
 import cl.almejo.vsim.core.terminal.TerminalFrame;
 
@@ -103,7 +104,8 @@ public final class TerminalReader {
         if (terminal.expectedFromFile()) {
             return Optional.of(EXPECTED_FROM_FILE);
         }
-        return terminal.expectedText().map(text -> text.stripTrailing().equals(reading.transcript().stripTrailing())
+        // the window's «Salida esperada» tab compares the same way
+        return terminal.expectedText().map(text -> ExpectedOutput.matches(text, reading.transcript())
                 ? EXPECTED_MATCHES : EXPECTED_DIFFERS);
     }
 

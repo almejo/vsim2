@@ -122,6 +122,11 @@ public interface ToolContext {
         configure(component);
     }
 
+    /** Opens the window of a Terminal (a double click on its screen); by default the configure dialog. */
+    default void editTerminal(Component component) {
+        configure(component);
+    }
+
     /**
      * Whether {@code gridPosition} (grid units, like {@link CanvasMouseEvent#gridPosition()}) is on the ▾ / ▸ square
      * of the memory {@code component}, where a click folds or unfolds its content window; never by default (hosts

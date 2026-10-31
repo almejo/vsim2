@@ -42,6 +42,7 @@ import cl.almejo.vsim.ui.busvalues.BusValuesExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
 import cl.almejo.vsim.ui.snap.SnapExtension;
 import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
+import cl.almejo.vsim.ui.terminal.TerminalExtension;
 import cl.almejo.vsim.ui.wiring.BusPinMenuExtension;
 import cl.almejo.vsim.ui.wiring.TidyWiresExtension;
 import cl.almejo.vsim.ui.wiring.WiresFollowExtension;
@@ -259,6 +260,7 @@ public final class Application {
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new MemoryEditorExtension(memoryLauncher, memoryLinks));
+        editorExtensions.add(new TerminalExtension()); // Terminal windows, menus and sounds, after the memories
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature(ai.server()));
         editorExtensions.add(new RecentFilesFeature());

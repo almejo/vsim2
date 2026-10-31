@@ -39,8 +39,14 @@ class SimulationThreadTerminalTest {
 
     /** A VT Terminal "tty" whose D, CLK and WE come from input pins of the same names (CLR unconnected). */
     private FlatCircuit circuit() {
+        return circuit(List.of("tty"));
+    }
+
+    /** VT Terminals with the given ids, all on the same D, CLK and WE input pins (each CLR unconnected). */
+    private FlatCircuit circuit(List<String> terminalIds) {
         ComponentType terminal = registry.require(StandardComponentTypes.TERMINAL).specializedFor(parameters);
-        List<FlatComponent> components = new ArrayList<>(List.of(new FlatComponent("tty", terminal, parameters)));
+        List<FlatComponent> components = new ArrayList<>();
+        terminalIds.forEach(terminalId -> components.add(new FlatComponent(terminalId, terminal, parameters)));
         List<FlatNet> nets = new ArrayList<>();
         List<String> inputs = List.of("D", "CLK", "WE");
         for (int pinIndex = 0; pinIndex < inputs.size(); pinIndex++) {
@@ -49,10 +55,13 @@ class SimulationThreadTerminalTest {
             Map<String, Object> pinParameters = Map.of("value", "0", InterfacePins.WIDTH, width);
             components.add(new FlatComponent(input, registry.require(InterfacePins.INPUT_PIN)
                     .specializedFor(pinParameters), pinParameters));
-            nets.add(new FlatNet("n-" + input, List.of(new FlatPinRef(input, 0), new FlatPinRef("tty", pinIndex)),
-                    width, false));
+            List<FlatPinRef> pins = new ArrayList<>(List.of(new FlatPinRef(input, 0)));
+            int terminalPin = pinIndex;
+            terminalIds.forEach(terminalId -> pins.add(new FlatPinRef(terminalId, terminalPin)));
+            nets.add(new FlatNet("n-" + input, pins, width, false));
         }
-        nets.add(new FlatNet("n-CLR", List.of(new FlatPinRef("tty", 3)), 1, false));
+        terminalIds.forEach(terminalId -> nets.add(new FlatNet("n-CLR-" + terminalId,
+                List.of(new FlatPinRef(terminalId, 3)), 1, false)));
         return new FlatCircuit(components, nets);
     }
 
@@ -79,10 +88,10 @@ class SimulationThreadTerminalTest {
     void aFrameHoldsTheScreenTheHistoryTheBytesAndTheTranscript() {
         start();
         type("uno\ndos\ntres");
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("tty", 10, 0)));
+        thread.setTerminalRequest(new TerminalRequest("tty", 10, 0));
         tickLater();
 
-        TerminalWindowFrame frame = thread.latestTerminalFrame().orElseThrow();
+        TerminalWindowFrame frame = thread.latestTerminalFrame("tty").orElseThrow();
         assertThat(frame.request()).isEqualTo(new TerminalRequest("tty", 10, 0));
         assertThat(frame.frame().text().stripTrailing()).isEqualTo("dos\ntres");
         assertThat(frame.history()).hasSize(1);
@@ -127,10 +136,10 @@ class SimulationThreadTerminalTest {
     void theHistoryIsCutToTheLinesAskedFor() {
         start();
         type("a\nb\nc\nd\ne");
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("tty", 2, 0)));
+        thread.setTerminalRequest(new TerminalRequest("tty", 2, 0));
         tickLater();
 
-        assertThat(thread.latestTerminalFrame().orElseThrow().history()).extracting(this::rowText)
+        assertThat(thread.latestTerminalFrame("tty").orElseThrow().history()).extracting(this::rowText)
                 .containsExactly("b", "c");
     }
 
@@ -138,15 +147,15 @@ class SimulationThreadTerminalTest {
     void theBytesStartAfterTheOnesAskedForAndAfterTheOnesAcknowledged() {
         start();
         type("abcd");
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("tty", 0, 2)));
+        thread.setTerminalRequest(new TerminalRequest("tty", 0, 2));
         tickLater();
-        assertThat(thread.latestTerminalFrame().orElseThrow().bytes()).extracting(ByteLog.Entry::sequence)
+        assertThat(thread.latestTerminalFrame("tty").orElseThrow().bytes()).extracting(ByteLog.Entry::sequence)
                 .containsExactly(3L, 4L);
 
-        thread.acknowledgeTerminalBytes(thread.latestTerminalFrame().orElseThrow().owner(), 4);
+        thread.acknowledgeTerminalBytes("tty", thread.latestTerminalFrame("tty").orElseThrow().owner(), 4);
         type("ef");
         tickLater();
-        assertThat(thread.latestTerminalFrame().orElseThrow().bytes()).extracting(ByteLog.Entry::value)
+        assertThat(thread.latestTerminalFrame("tty").orElseThrow().bytes()).extracting(ByteLog.Entry::value)
                 .containsExactly((int) 'e', (int) 'f');
     }
 
@@ -154,16 +163,16 @@ class SimulationThreadTerminalTest {
     void afterARestartTheBytesStartOverFromTheFirst() {
         start();
         type("abcd");
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("tty", 0, 0)));
+        thread.setTerminalRequest(new TerminalRequest("tty", 0, 0));
         tickLater();
-        thread.acknowledgeTerminalBytes(thread.latestTerminalFrame().orElseThrow().owner(), 4);
+        thread.acknowledgeTerminalBytes("tty", thread.latestTerminalFrame("tty").orElseThrow().owner(), 4);
 
         thread.restart(circuit(), Map.of());
         tickLater();
         type("x");
         tickLater();
 
-        TerminalWindowFrame frame = thread.latestTerminalFrame().orElseThrow();
+        TerminalWindowFrame frame = thread.latestTerminalFrame("tty").orElseThrow();
         assertThat(frame.frame().text().stripTrailing()).isEqualTo("x");
         assertThat(frame.bytes()).extracting(ByteLog.Entry::sequence).containsExactly(1L);
         assertThat(frame.lastByteSequence()).isEqualTo(1);
@@ -173,10 +182,10 @@ class SimulationThreadTerminalTest {
     void whileRunningFramesArePublishedAtMostEverySixteenMilliseconds() {
         start();
         type("a");
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("tty", 0, 0)));
+        thread.setTerminalRequest(new TerminalRequest("tty", 0, 0));
         thread.resume();
         tickLater();
-        TerminalWindowFrame first = thread.latestTerminalFrame().orElseThrow();
+        TerminalWindowFrame first = thread.latestTerminalFrame("tty").orElseThrow();
 
         thread.setInputs(Map.of("D", Value.of(8, 'b'), "CLK", Value.ZERO));
         clock.addAndGet(MILLISECOND);
@@ -184,39 +193,76 @@ class SimulationThreadTerminalTest {
         thread.setInputs(Map.of("CLK", Value.ONE));
         clock.addAndGet(MILLISECOND);
         thread.tick();
-        assertThat(thread.latestTerminalFrame()).containsSame(first);
+        assertThat(thread.latestTerminalFrame("tty")).containsSame(first);
 
         tickLater();
-        assertThat(thread.latestTerminalFrame().orElseThrow().frame().text().stripTrailing()).isEqualTo("ab");
+        assertThat(thread.latestTerminalFrame("tty").orElseThrow().frame().text().stripTrailing()).isEqualTo("ab");
     }
 
     @Test
     void nothingChangedPublishesNoNewFrame() {
         start();
         type("a");
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("tty", 0, 0)));
+        thread.setTerminalRequest(new TerminalRequest("tty", 0, 0));
         tickLater();
-        TerminalWindowFrame first = thread.latestTerminalFrame().orElseThrow();
+        TerminalWindowFrame first = thread.latestTerminalFrame("tty").orElseThrow();
 
         tickLater();
         tickLater();
 
-        assertThat(thread.latestTerminalFrame()).containsSame(first);
+        assertThat(thread.latestTerminalFrame("tty")).containsSame(first);
     }
 
     @Test
-    void framesStopWithAnEmptyRequestAndNameOnlyTerminals() {
+    void framesStopWhenTheRequestIsRemovedAndNameOnlyTerminals() {
         start();
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("D", 0, 0)));
+        thread.setTerminalRequest(new TerminalRequest("D", 0, 0));
         tickLater();
-        assertThat(thread.latestTerminalFrame()).as("an input pin is not a terminal").isEmpty();
+        assertThat(thread.latestTerminalFrame("D")).as("an input pin is not a terminal").isEmpty();
 
-        thread.setTerminalRequest(Optional.of(new TerminalRequest("tty", 0, 0)));
+        thread.setTerminalRequest(new TerminalRequest("tty", 0, 0));
         tickLater();
-        assertThat(thread.latestTerminalFrame()).isPresent();
-        thread.setTerminalRequest(Optional.empty());
+        assertThat(thread.latestTerminalFrame("tty")).isPresent();
+        thread.removeTerminalRequest("tty");
         tickLater();
-        assertThat(thread.latestTerminalFrame()).isEmpty();
+        assertThat(thread.latestTerminalFrame("tty")).isEmpty();
+    }
+
+    @Test
+    void twoTerminalsHaveTheirOwnRequestsFramesAndAcknowledgements() {
+        thread.update(circuit(List.of("tty", "log")));
+        thread.tick();
+        type("ab");
+        thread.setTerminalRequest(new TerminalRequest("tty", 0, 0));
+        thread.setTerminalRequest(new TerminalRequest("log", 0, 0));
+        tickLater();
+        thread.acknowledgeTerminalBytes("tty", thread.latestTerminalFrame("tty").orElseThrow().owner(), 2);
+
+        type("c");
+        tickLater();
+
+        assertThat(thread.latestTerminalFrame("tty").orElseThrow().bytes()).extracting(ByteLog.Entry::value)
+                .containsExactly((int) 'c');
+        assertThat(thread.latestTerminalFrame("log").orElseThrow().bytes()).extracting(ByteLog.Entry::value)
+                .as("nobody acknowledged the other terminal's bytes")
+                .containsExactly((int) 'a', (int) 'b', (int) 'c');
+        assertThat(thread.latestTerminalFrame("log").orElseThrow().request().componentId()).isEqualTo("log");
+    }
+
+    @Test
+    void removingOneTerminalsRequestKeepsTheOthers() {
+        thread.update(circuit(List.of("tty", "log")));
+        thread.tick();
+        thread.setTerminalRequest(new TerminalRequest("tty", 0, 0));
+        thread.setTerminalRequest(new TerminalRequest("log", 0, 0));
+        tickLater();
+
+        thread.removeTerminalRequest("tty");
+        type("z");
+        tickLater();
+
+        assertThat(thread.latestTerminalFrame("tty")).isEmpty();
+        assertThat(thread.latestTerminalFrame("log").orElseThrow().frame().text().stripTrailing()).isEqualTo("z");
     }
 
     @Test

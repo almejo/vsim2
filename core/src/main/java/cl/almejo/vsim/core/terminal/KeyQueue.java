@@ -92,7 +92,7 @@ public final class KeyQueue {
         version++;
     }
 
-    /** Moves the cursor or deletes the byte after it, as Logisim's Keyboard does with its keys. */
+    /** Moves the cursor or deletes the byte after it, as Logisim's Keyboard does with its keys, or empties the queue. */
     public void edit(TypingEdit edit) {
         Objects.requireNonNull(edit, "edit");
         int cursorBefore = cursor;
@@ -106,6 +106,10 @@ public final class KeyQueue {
                 if (cursor < bytes.size()) {
                     bytes.remove(cursor);
                 }
+            }
+            case CLEAR -> {
+                bytes.clear();
+                cursor = 0;
             }
         }
         if (cursor != cursorBefore || bytes.size() != sizeBefore) {

@@ -67,15 +67,33 @@ public final class TerminalPainter implements ComponentPainter {
         paintTitleBar(graphics, outline, width, resolved, label.orElseGet(() -> Messages.componentName(type.id())),
                 scheme);
         TerminalLook look = TerminalLook.of(resolved);
-        boolean monochrome = MonochromeScheme.isMonochrome(scheme);
-        TerminalScreenPainter.Colors colors = monochrome
-                ? new TerminalScreenPainter.Colors(scheme.text(), scheme.background(), look.palette(), true)
-                : new TerminalScreenPainter.Colors(look.screenColors().text(scheme),
-                look.screenColors().background(scheme), look.palette(), false);
         TerminalScreenPainter.paint(graphics, screen(width, height), frameOf(state), rows(resolved),
-                columns(resolved), TerminalTypes.fontSize(resolved), look, colors, moment);
+                columns(resolved), TerminalTypes.fontSize(resolved), look, colorsOf(look, scheme), moment);
         PainterSupport.pinDots(graphics, type, scheme);
         paintPinNames(graphics, type, scheme);
+    }
+
+    /**
+     * The screen alone, as the Terminal window shows it (spec §9): {@code frame}'s cells in the part's look (screen
+     * colours, palette, font, cursor shape, screen effect) filling {@code screen}, whose size may differ from the
+     * canvas's (the cells grow with the window). Still: no blink, no Automan spin, no glow, no persistence. The theme's
+     * colours come from {@code scheme}, read at paint time.
+     */
+    public static void paintScreen(Graphics2D graphics, Rectangle2D screen, TerminalFrame frame,
+                                   Map<String, Object> resolved, ColorScheme scheme) {
+        TerminalFontSize size = TerminalTypes.fontSize(resolved);
+        Rectangle2D natural = new Rectangle2D.Double(0, 0, frame.columns() * size.cellWidth(),
+                frame.rows() * size.cellHeight());
+        Graphics2D scaled = (Graphics2D) graphics.create();
+        try {
+            scaled.translate(screen.getX(), screen.getY());
+            scaled.scale(screen.getWidth() / natural.getWidth(), screen.getHeight() / natural.getHeight());
+            TerminalLook look = TerminalLook.of(resolved);
+            TerminalScreenPainter.paint(scaled, natural, Optional.of(frame), frame.rows(), frame.columns(), size, look,
+                    colorsOf(look, scheme), TerminalMoment.still(TerminalAnimation.STILL));
+        } finally {
+            scaled.dispose();
+        }
     }
 
     /**
@@ -101,6 +119,14 @@ public final class TerminalPainter implements ComponentPainter {
                     last.row(), last.column())));
         }
         return Optional.of(area);
+    }
+
+    /** The screen's colours in {@code scheme}: the part's own, or the scheme's text on its background in monochrome. */
+    private static TerminalScreenPainter.Colors colorsOf(TerminalLook look, ColorScheme scheme) {
+        return MonochromeScheme.isMonochrome(scheme)
+                ? new TerminalScreenPainter.Colors(scheme.text(), scheme.background(), look.palette(), true)
+                : new TerminalScreenPainter.Colors(look.screenColors().text(scheme),
+                look.screenColors().background(scheme), look.palette(), false);
     }
 
     /** The chip's text, «VT100 · 24×80»: the mode and the rows × columns. */
