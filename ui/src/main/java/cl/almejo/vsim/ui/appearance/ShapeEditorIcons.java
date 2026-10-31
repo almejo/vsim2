@@ -25,6 +25,8 @@ public final class ShapeEditorIcons {
     public static final String TEMPLATES = "shape-templates";
     public static final String FRONT = "shape-front";
     public static final String BACK = "shape-back";
+    /** The grid toggle next to the magnet. */
+    public static final String GRID = "grid";
 
     private ShapeEditorIcons() {
     }
@@ -32,6 +34,6 @@ public final class ShapeEditorIcons {
     /** Every shape editor icon, once. */
     public static List<String> names() {
         return List.of(NODES, LINE, MULTILINE, RECTANGLE, ELLIPSE, TRIANGLE, POLYGON, TEXT, NODE_ADD, NODE_REMOVE,
-                CURVE_SEGMENT, CLOSE_PATH, FILL, TEMPLATES, FRONT, BACK);
+                CURVE_SEGMENT, CLOSE_PATH, FILL, TEMPLATES, FRONT, BACK, GRID);
     }
 }
