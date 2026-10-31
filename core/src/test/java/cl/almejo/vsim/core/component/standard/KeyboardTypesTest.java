@@ -176,6 +176,33 @@ class KeyboardTypesTest {
     }
 
     @Test
+    void anUndefinedOrConflictingClearDoesNotClearAndTheEdgeStillPopsAsInLogisim() {
+        BlockHarness harness = keyboard(Map.of());
+        harness.typeText("abc");
+        harness.settle();
+
+        harness.conflict(CLR).settle();
+        assertThat(harness.output(AV)).as("only CLR = 1 clears").isEqualTo(Value.ONE);
+        clockOnce(harness);
+        assertThat(harness.output(D)).isEqualTo(Value.of(8, 'b'));
+        harness.release(CLR).settle();
+        clockOnce(harness);
+        assertThat(harness.output(D)).isEqualTo(Value.of(8, 'c'));
+    }
+
+    @Test
+    void onlyReadEnableAtZeroHoldsTheQueueAsInLogisim() {
+        BlockHarness harness = keyboard(Map.of());
+        harness.typeText("ab");
+        harness.settle();
+
+        harness.conflict(RE).settle();
+        clockOnce(harness);
+
+        assertThat(harness.output(D)).isEqualTo(Value.of(8, 'b'));
+    }
+
+    @Test
     void aFullQueueRefusesAndReportsZeroAccepted() {
         BlockHarness harness = keyboard(Map.of("capacity", 2));
 
