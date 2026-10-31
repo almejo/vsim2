@@ -35,6 +35,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -200,8 +201,19 @@ public final class ParameterForm extends JPanel {
         if (parameter.multiline()) {
             editor.setToolTipText(Messages.text("form.multilineTip"));
         }
-        JComponent field = parameter.multiline() ? new JScrollPane(editor) : editor;
+        JComponent field = parameter.multiline() ? multilineBox(editor) : editor;
         cells.put(parameter.name(), isSetByAProfile(parameter) ? withRestoreButton(parameter, field) : field);
+    }
+
+    /**
+     * A scroll pane for a multi-line text. Its height never goes below the rows it shows: the inspector has no scroll
+     * pane of its own, so on a window shorter than the form the grid shrinks the rows down to their minimum and this
+     * box (minimum: one scroll bar) would collapse to a sliver, hiding the text being typed.
+     */
+    private static JScrollPane multilineBox(JComponent editor) {
+        JScrollPane box = new JScrollPane(editor);
+        box.setMinimumSize(new Dimension(box.getMinimumSize().width, box.getPreferredSize().height));
+        return box;
     }
 
     private static JLabel groupHeaderFor(String group) {
@@ -781,7 +793,11 @@ public final class ParameterForm extends JPanel {
             return switchValueBox(value);
         }
         if (parameter.multiline()) {
-            return FragmentRefusingTransferHandler.install(new JTextArea(value, MULTILINE_ROWS, TEXT_COLUMNS));
+            JTextArea area = new JTextArea(value, MULTILINE_ROWS, TEXT_COLUMNS);
+            // wrapped lines: no horizontal scroll bar taking a row of the box, and the lines follow the panel's width
+            area.setLineWrap(true);
+            area.setWrapStyleWord(true);
+            return FragmentRefusingTransferHandler.install(area);
         }
         return FragmentRefusingTransferHandler.install(new JTextField(value, TEXT_COLUMNS));
     }
