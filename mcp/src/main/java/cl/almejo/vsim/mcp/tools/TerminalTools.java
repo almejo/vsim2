@@ -44,6 +44,8 @@ final class TerminalTools {
                         .property("cursorVisible", Schema.bool("False after the program hid it"))
                         .property("screen", Schema.array("One text per row, top first", Schema.string("")))
                         .property("history", Schema.array("History lines, oldest first", Schema.string("")))
+                        .property("historyTrimmed", Schema.integer("Oldest history lines left out to keep the "
+                                + "answer under " + TerminalReader.MAXIMUM_TEXT_CHARACTERS + " characters"))
                         .property("bytes", Schema.array("Last bytes received, oldest first", Schema.object("")
                                 .property("time", Schema.integer("Simulation time"))
                                 .property("hex", Schema.string("The byte as hex"))

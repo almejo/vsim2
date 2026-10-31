@@ -121,6 +121,25 @@ class ReadTerminalTest {
     }
 
     @Test
+    void aBigScreenWithAllItsHistoryStaysWithinTheTextBudgetDroppingTheOldestLines() {
+        screen = new TerminalScreen(TerminalSettings.vt(60, 160));
+        Component part = terminal(Map.of(TerminalTypes.ROWS, 60, TerminalTypes.COLUMNS, 160));
+        for (int line = 0; line < TerminalReader.MAXIMUM_HISTORY + 60; line++) {
+            write(String.format("%04d", line) + "x".repeat(150) + "\r\n");
+        }
+
+        TerminalView view = reads.readTerminal(ReadFixture.ID, part.id().value(), TerminalReader.MAXIMUM_HISTORY, 0);
+
+        int characters = view.screen().stream().mapToInt(String::length).sum()
+                + view.history().stream().mapToInt(String::length).sum();
+        assertThat(characters).isLessThanOrEqualTo(TerminalReader.MAXIMUM_TEXT_CHARACTERS);
+        assertThat(view.historyTrimmed()).isPositive()
+                .isEqualTo(TerminalReader.MAXIMUM_HISTORY - view.history().size());
+        assertThat(view.history().getLast()).as("the newest lines are kept").startsWith(String.format("%04d",
+                TerminalReader.MAXIMUM_HISTORY));
+    }
+
+    @Test
     void theCountsAreCappedAndTheWrongPartIsRefused() {
         Component part = terminal(Map.of());
         Component gate = fixture.place("and", 30, 30);

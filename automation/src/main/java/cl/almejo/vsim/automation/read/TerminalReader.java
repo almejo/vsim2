@@ -31,6 +31,12 @@ public final class TerminalReader {
     public static final int MAXIMUM_HISTORY = 1000;
     /** The most last bytes one read returns. */
     public static final int MAXIMUM_BYTES = 256;
+    /**
+     * The most characters of screen and history one read returns: a 60 × 160 screen with 1000 history lines would be
+     * about 170 000, beyond an MCP client's output limit (Claude Code's is 25 000 tokens). The oldest history lines go
+     * first.
+     */
+    public static final int MAXIMUM_TEXT_CHARACTERS = 20_000;
 
     static final String EXPECTED_MATCHES = "matches";
     static final String EXPECTED_DIFFERS = "differs";
@@ -95,10 +101,22 @@ public final class TerminalReader {
         for (ByteLog.Entry entry : reading.bytes()) {
             bytes.add(byteView(entry));
         }
+        List<String> history = withinBudget(reading.history(), screen);
         return new TerminalView(terminal.source().id(), terminal.source().version(), terminal.component(),
                 terminal.mode(), terminal.profile(), frame.rows(), frame.columns(), frame.cursorRow(),
-                frame.cursorColumn(), frame.cursorVisible(), screen, reading.history(), bytes,
-                expected(terminal, reading), reading.time());
+                frame.cursorColumn(), frame.cursorVisible(), screen, history,
+                reading.history().size() - history.size(), bytes, expected(terminal, reading), reading.time());
+    }
+
+    /** The newest lines of {@code history} that fit, with {@code screen}, in {@link #MAXIMUM_TEXT_CHARACTERS}. */
+    private static List<String> withinBudget(List<String> history, List<String> screen) {
+        int budget = MAXIMUM_TEXT_CHARACTERS - screen.stream().mapToInt(String::length).sum();
+        int first = history.size();
+        while (first > 0 && history.get(first - 1).length() <= budget) {
+            first--;
+            budget -= history.get(first).length();
+        }
+        return history.subList(first, history.size());
     }
 
     private static Optional<String> expected(Described terminal, TerminalReading reading) {
