@@ -17,8 +17,10 @@ import java.util.Objects;
  * or a «Reiniciar»), the screen, the history rows asked for (oldest first), the received bytes not acknowledged yet
  * (oldest first; see {@link SimulationThread#acknowledgeTerminalBytes}), the number of the last byte received (it
  * goes back to 0 after «Reiniciar»: a reader that saw a greater one starts over; a rebuilt part keeps counting), the
- * transcript, the simulation time and the glyphs read from its character ROM (empty without one). Immutable: the history rows are private copies and {@link #history()} copies
- * them again (read single cells with {@link #historyCell}, which allocates nothing).
+ * transcript, the simulation time and the glyphs read from its character ROM (empty without one). Immutable: the
+ * history rows are the screen's own, shared and never written (a row never changes once it scrolled off; see
+ * {@link TerminalScreen#history}), and {@link #history()} gives copies (read single cells with {@link #historyCell},
+ * which allocates nothing).
  */
 public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalFrame frame,
                                   List<TerminalCell[]> history,
@@ -30,7 +32,7 @@ public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalF
         Objects.requireNonNull(frame, "frame");
         Objects.requireNonNull(transcript, "transcript");
         Objects.requireNonNull(glyphs, "glyphs");
-        history = copies(history);
+        history = List.copyOf(history);
         bytes = List.copyOf(bytes);
     }
 

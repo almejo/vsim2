@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.terminal.ControlSequenceParser.Execute;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -175,7 +176,11 @@ public final class TerminalScreen {
         return frame;
     }
 
-    /** Copies of the last {@code maximumLines} rows that scrolled off the top, oldest first. */
+    /**
+     * The last {@code maximumLines} rows that scrolled off the top, oldest first, in an unmodifiable list. The rows are
+     * shared, not copied (a Teletipo's 10 000 lines go into a frame every 16 ms): a row never changes once it scrolled
+     * off, and readers must never write into one.
+     */
     public List<TerminalCell[]> history(int maximumLines) {
         if (maximumLines < 0) {
             throw new IllegalArgumentException("maximumLines must not be negative: " + maximumLines);
@@ -186,10 +191,10 @@ public final class TerminalScreen {
         for (int index = 0; rows.hasNext(); index++) {
             TerminalCell[] row = rows.next();
             if (index >= skipped) {
-                lines.add(row.clone());
+                lines.add(row);
             }
         }
-        return lines;
+        return Collections.unmodifiableList(lines);
     }
 
     /** The last {@link #TRANSCRIPT_LIMIT} characters received, with {@code \n} for line feeds and BS applied. */
