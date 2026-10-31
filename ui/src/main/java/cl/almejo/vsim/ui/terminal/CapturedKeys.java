@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,7 +19,8 @@ import java.util.function.Supplier;
  * listener before any binding runs. Printable characters, Enter, Retroceso, Tab, the arrows, Inicio, Fin, Supr and
  * (with «Flechas y teclas F como secuencias VT») the F keys go to the part, encoded with its own parameters
  * ({@link KeyEncoding#forParameters}); the paste shortcut types the clipboard text into it; Ctrl + a letter is a
- * control code only when the window has no shortcut on it, so Ctrl+S, Ctrl+Z and the rest keep working. Esc ends the
+ * control code only when the window has no shortcut on it, so Ctrl+S, Ctrl+Z and the rest keep working; a character
+ * typed with AltGr (Ctrl+Alt on Windows) or a Mac's Option is text unless its stroke is bound. Esc ends the
  * capture. A plain key that sends nothing is still swallowed, so no canvas key (R, Supr, the arrows) acts on the
  * selection. Typing is never an edit of the document. EDT only.
  */
@@ -60,6 +62,7 @@ public final class CapturedKeys {
     private final OpenDocument openDocument;
     private final Shortcuts shortcuts;
     private final Consumer<String> notices;
+    private final Platform platform;
     private Supplier<Optional<String>> clipboardText = Optional::empty;
     /** The last press went to the application (a shortcut): the character it may type is not the part's. */
     private boolean pressLeftToTheApplication;
@@ -67,11 +70,31 @@ public final class CapturedKeys {
     private char pendingHighSurrogate;
 
     /**
-     * Keys for {@code capture} of a window on {@code openDocument}; {@code notices} shows a status-bar notice (a paste
-     * that did not fit).
+     * Where VSim runs, for the modifiers that type characters: AltGr (Ctrl+Alt on Windows) everywhere, and Option
+     * alone on a Mac, where Alt is not the menus' mnemonic key («Option+2» is «@»).
+     */
+    public enum Platform {
+        PC, MAC;
+
+        /** The platform of this Java. */
+        public static Platform current() {
+            return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("mac") ? MAC : PC;
+        }
+    }
+
+    /**
+     * Keys for {@code capture} of a window on {@code openDocument} on this platform; {@code notices} shows a status-bar
+     * notice (a paste that did not fit).
      */
     public CapturedKeys(KeyboardCapture capture, OpenDocument openDocument, Shortcuts shortcuts,
                         Consumer<String> notices) {
+        this(capture, openDocument, shortcuts, notices, Platform.current());
+    }
+
+    /** Keys as on {@code platform} (tests try the Mac's Option on any system). */
+    public CapturedKeys(KeyboardCapture capture, OpenDocument openDocument, Shortcuts shortcuts,
+                        Consumer<String> notices, Platform platform) {
+        this.platform = Objects.requireNonNull(platform, "platform");
         this.capture = Objects.requireNonNull(capture, "capture");
         this.openDocument = Objects.requireNonNull(openDocument, "openDocument");
         this.shortcuts = Objects.requireNonNull(shortcuts, "shortcuts");
@@ -146,7 +169,11 @@ public final class CapturedKeys {
         return true;
     }
 
-    /** Ctrl, Alt or ⌘ with a key: the application's when bound; else Ctrl + a letter is a control code. */
+    /**
+     * Ctrl, Alt, AltGr or ⌘ with a key: the application's when bound; else Ctrl + a letter is a control code, and
+     * AltGr (Ctrl+Alt) or a Mac's Option leave the character they type to arrive as a typed key («@» is AltGr+Q on a
+     * Latin American layout).
+     */
     private boolean pressCommand(String target, KeyEvent event, KeyStroke stroke) {
         if (shortcuts.isBound(stroke, event.getComponent())) {
             pressLeftToTheApplication = true;
@@ -158,8 +185,22 @@ public final class CapturedKeys {
             send(target, encodingOf(target).encodeControl((char) keyCode));
             return true;
         }
+        if (typesCharacters(commandModifiers)) {
+            return true;
+        }
         pressLeftToTheApplication = true; // Alt + a letter opens a menu, as without capture
         return false;
+    }
+
+    /** Whether {@code commandModifiers} make a key type a character: AltGr, Ctrl+Alt, or Option alone on a Mac. */
+    private boolean typesCharacters(int commandModifiers) {
+        if ((commandModifiers & InputEvent.META_DOWN_MASK) != 0) {
+            return false;
+        }
+        int controlAndAlt = InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK;
+        return (commandModifiers & InputEvent.ALT_GRAPH_DOWN_MASK) != 0
+                || (commandModifiers & controlAndAlt) == controlAndAlt
+                || platform == Platform.MAC && commandModifiers == InputEvent.ALT_DOWN_MASK;
     }
 
     /**
@@ -199,12 +240,16 @@ public final class CapturedKeys {
         return KeyboardPaste.encodingOf(openDocument, componentId);
     }
 
-    /** A character the user typed as text: printable, not the result of Ctrl or ⌘ (AltGr, as Ctrl+Alt, is text). */
-    private static boolean isText(KeyEvent event, char character) {
+    /**
+     * A character the user typed as text: printable, typed without modifiers or with the ones that type characters
+     * (AltGr, Ctrl+Alt, a Mac's Option); not the result of Ctrl or ⌘.
+     */
+    private boolean isText(KeyEvent event, char character) {
         if (character == KeyEvent.CHAR_UNDEFINED || character < FIRST_PRINTABLE || character == DELETE_CHARACTER) {
             return false;
         }
-        return !event.isMetaDown() && event.isControlDown() == event.isAltDown();
+        int commandModifiers = event.getModifiersEx() & COMMAND_MODIFIERS;
+        return commandModifiers == 0 || typesCharacters(commandModifiers);
     }
 
     private static boolean isArrow(SpecialKey key) {
