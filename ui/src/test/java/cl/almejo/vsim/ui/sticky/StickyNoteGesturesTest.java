@@ -192,6 +192,29 @@ class StickyNoteGesturesTest {
         assertThat(context.openDocument().history().undoDescription()).contains("command.untickStickyItem");
     }
 
+    @Test
+    void aDoubleClickOnACheckboxTogglesOnceInOneUndoStepAndDoesNotEditTheText() {
+        StickyNote note = checklist();
+        Point2D box = gridCentre(layout(note).checkboxes().get(1));
+        doubleClick(box.getX(), box.getY());
+
+        StickyChecklist items = (StickyChecklist) current(note).content();
+        assertThat(items.items()).extracting(StickyItem::done).containsExactly(false, true, true);
+        assertThat(context.editedLabel).isNull();
+        context.openDocument().history().undo();
+        assertThat(context.openDocument().history().canUndo()).isFalse();
+        assertThat(((StickyChecklist) current(note).content()).items().get(1).done()).isFalse();
+    }
+
+    @Test
+    void twoSeparateClicksOnTheSameCheckboxStillToggleTwice() {
+        StickyNote note = checklist();
+        Point2D box = gridCentre(layout(note).checkboxes().get(1));
+        click(box);
+        click(box);
+        assertThat(((StickyChecklist) current(note).content()).items().get(1).done()).isFalse();
+    }
+
     // --- resize
 
     @Test

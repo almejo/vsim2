@@ -41,6 +41,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Un doble clic sobre la casilla de una tarea de una nota adhesiva la marca una sola vez (un solo paso de deshacer), en vez de marcarla y desmarcarla, y no abre la edición del texto.
 - Los problemas de una pieza sin etiqueta dicen cuál es: una compuerta se nombra con su cantidad de entradas («AND de 3 entradas: la entrada «in2» está desconectada») y el árbol de componentes usa el mismo nombre; con etiqueta, se usa la etiqueta.
 - El contorno de selección de un pin de entrada o salida de varios bits ahora rodea también el recuadro con su valor (antes lo cortaba), y el rectángulo de selección lo cuenta como parte del pin: para seleccionarlo hay que encerrar el pin y su recuadro. Los pines de 1 bit no cambian.
 - Una memoria RAM o ROM enlazada a un archivo que no se encuentra (o que no se puede leer) ahora es un problema de la pieza, como los demás: aparece en la pestaña «Problemas» con el nombre de la memoria y la ruta, la memoria se marca en el lienzo y la IA lo ve al leer los problemas. Antes solo se veía en la barra de estado y en el inspector. Se va cuando el archivo vuelve o se quita el enlace.
