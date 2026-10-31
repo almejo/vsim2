@@ -1,10 +1,12 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
 
 import java.awt.Graphics2D;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -81,6 +83,11 @@ public interface SelectToolDelegate {
     /** While a press of this delegate is held: the wires its preview shows elsewhere ({@link Tool#hiddenWires}). */
     default Set<ElementId> hiddenWires(ToolContext context) {
         return Set.of();
+    }
+
+    /** While a press of this delegate is held: the parts its preview shows changed ({@link Tool#previewedParts}). */
+    default Map<ElementId, Component> previewedParts(ToolContext context) {
+        return Map.of();
     }
 
     /** Paints under the tool's own previews, in document coordinates. */

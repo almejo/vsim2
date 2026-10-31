@@ -25,7 +25,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * «Teclado»: the queue drawn as a row of keycaps. The first key, the one D shows now, is in the memories' read colour
+ * «Teclado»: the queue drawn as a row of keycaps, as many as fit its «Ancho» ({@link #visibleKeys}); the fill bar
+ * stretches with it. The first key, the one D shows now, is in the memories' read colour
  * with a small «D» under it; a bar says how full the queue is and the title bar's chip counts bytes («3/64», «llena»);
  * AV's dot is lit while the queue has data. While the keyboard is captured for the part ({@link #paintWithCapture})
  * it gets a border and halo in the capture colour («Color al escribir»), a title bar filled with it that says
@@ -65,7 +66,11 @@ public final class KeyboardPainter implements ComponentPainter {
     private static final double PIN_NAME_INSET = 3.5;
     private static final double PIN_NAME_RISE = 4;
 
-    private static final int VISIBLE_KEYS = 8;
+    /**
+     * The room of the row of keys that holds no key: the left inset and, after the last key, the «+N» (mockup v4:
+     * {@code (width − 23) / 13} keys fit).
+     */
+    private static final double KEY_ROW_RESERVE = 23;
     private static final double KEY_LEFT = 5;
     private static final double KEY_TOP = TITLE_HEIGHT + 4;
     private static final double KEY_WIDTH = 11;
@@ -120,8 +125,10 @@ public final class KeyboardPainter implements ComponentPainter {
      * Draws the Teclado with {@code label} in its title bar ({@code null}: the part's name); {@code capturing} when the
      * window's keyboard is captured for it. The palette icon and the ghost use {@link #paint}: the idle look.
      */
-    public void paintWithCapture(Graphics2D graphics, ComponentType type, Map<String, Object> parameters,
+    public void paintWithCapture(Graphics2D graphics, ComponentType baseOrPlacedType, Map<String, Object> parameters,
                                  VisibleState state, ColorScheme scheme, String label, boolean capturing) {
+        // «Ancho» changes the size and moves AV and D: the palette and the ghost pass the type of the defaults
+        ComponentType type = baseOrPlacedType.specializedFor(parameters);
         Map<String, Object> resolved = type.resolveParameters(parameters);
         VisibleState.KeyboardState keyboard = state instanceof VisibleState.KeyboardState known ? known
                 : new VisibleState.KeyboardState(0, List.of(), 0, 0);
@@ -141,9 +148,14 @@ public final class KeyboardPainter implements ComponentPainter {
         }
         paintBody(graphics, outline, width, scheme, accent, capturing);
         paintTitle(graphics, type, resolved, keyboard, capacity, width, scheme, accent, label, capturing);
-        paintKeys(graphics, keyboard, utf8, scheme, accent, capturing);
+        paintKeys(graphics, keyboard, utf8, visibleKeys(type.size().width()), scheme, accent, capturing);
         paintFillBar(graphics, keyboard.size(), capacity, width, scheme);
         paintPins(graphics, type, keyboard.size() > 0, scheme);
+    }
+
+    /** How many keys a Teclado {@code widthUnits} grid units wide shows: 8 at the narrowest, 37 at the widest. */
+    public static int visibleKeys(int widthUnits) {
+        return (int) Math.floor((widthUnits * UNIT - KEY_ROW_RESERVE) / (KEY_WIDTH + KEY_GAP));
     }
 
     /** The colour of the capture look for the «Color al escribir» choice; «automatic» is the scheme's selection. */
@@ -304,11 +316,11 @@ public final class KeyboardPainter implements ComponentPainter {
     }
 
     private static void paintKeys(Graphics2D graphics, VisibleState.KeyboardState keyboard, boolean utf8,
-                                  ColorScheme scheme, Color accent, boolean capturing) {
+                                  int visibleKeys, ColorScheme scheme, Color accent, boolean capturing) {
         List<String> keys = keyTexts(keyboard.queue(), utf8);
         boolean beyondWindow = keyboard.size() > keyboard.queue().size();
-        boolean crowded = keys.size() > VISIBLE_KEYS || beyondWindow;
-        int shown = crowded ? VISIBLE_KEYS - 1 : keys.size();
+        boolean crowded = keys.size() > visibleKeys || beyondWindow;
+        int shown = crowded ? visibleKeys - 1 : keys.size();
         if (keys.isEmpty()) {
             paintEmptyKey(graphics, scheme);
         }

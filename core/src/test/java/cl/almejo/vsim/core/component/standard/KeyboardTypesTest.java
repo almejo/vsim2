@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.component.standard;
 import cl.almejo.vsim.core.BlockHarness;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -60,6 +61,43 @@ class KeyboardTypesTest {
     }
 
     @Test
+    void itsPartWidthStretchesTheRightEdgeAndCarriesAvAndD() {
+        ComponentType wide = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD)
+                .specializedFor(Map.of(KeyboardTypes.PART_WIDTH, 24));
+
+        assertThat(wide.size()).isEqualTo(new GridSize(24, 6));
+        assertThat(wide.pin(AV).position()).isEqualTo(new GridPoint(24, 2));
+        assertThat(wide.pin(D).position()).isEqualTo(new GridPoint(24, 4));
+        assertThat(wide.pin(CLK).position()).isEqualTo(new GridPoint(2, 6));
+        assertThat(wide.pin(RE).position()).isEqualTo(new GridPoint(4, 6));
+        assertThat(wide.pin(CLR).position()).isEqualTo(new GridPoint(6, 6));
+    }
+
+    @Test
+    void itsPartWidthGoesFromSixteenToSixtyFourUnits() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
+        ParameterSpec width = type.parameterNamed(KeyboardTypes.PART_WIDTH).orElseThrow();
+
+        assertThat(width.minimum()).isEqualTo(16);
+        assertThat(width.maximum()).isEqualTo(64);
+        assertThat(width.group()).contains("piece");
+        assertThat(width.displayOnly()).isFalse();
+    }
+
+    @Test
+    void aWiderKeyboardKeepsItsQueue() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
+        KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of())));
+        before.acceptBytes(new NoContext(), "hola".getBytes());
+        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(
+                Map.of(KeyboardTypes.PART_WIDTH, 40))));
+
+        after.adoptStateFrom(before);
+
+        assertThat(after.contents()).containsExactly((int) 'h', (int) 'o', (int) 'l', (int) 'a');
+    }
+
+    @Test
     void itsParametersHaveTheirDefaultsAndHideTheLink() {
         ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
 
@@ -67,7 +105,8 @@ class KeyboardTypesTest {
                 .containsEntry("encoding", "utf8").containsEntry("edge", "rising").containsEntry("enter-sends", "lf")
                 .containsEntry("backspace-sends", "bs").containsEntry("arrows-as-sequences", false)
                 .containsEntry("tri-state", false).containsEntry("initial-text", "")
-                .containsEntry("linked-terminal", "").containsEntry("typing-sound", false).containsEntry("capture-color", "automatic").hasSize(12);
+                .containsEntry("linked-terminal", "").containsEntry("typing-sound", false).containsEntry("capture-color", "automatic")
+                .containsEntry("part-width", 16).hasSize(13);
         assertThat(type.parameters().stream().filter(parameter -> parameter.name().equals("linked-terminal"))
                 .findFirst().orElseThrow().hidden()).isTrue();
     }

@@ -39,7 +39,7 @@ class KeyboardPainterTest {
 
     private BufferedImage draw(VisibleState state, ColorScheme scheme, Map<String, Object> parameters,
                                boolean capturing) {
-        BufferedImage image = new BufferedImage(16 * 8 * SCALE + 40, 6 * 8 * SCALE + 40, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage image = new BufferedImage(64 * 8 * SCALE + 40, 6 * 8 * SCALE + 40, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.setColor(Color.WHITE);
@@ -84,6 +84,30 @@ class KeyboardPainterTest {
 
         assertThat(head).as("the first key").isGreaterThan(100);
         assertThat(second).as("the second key").isZero();
+    }
+
+    @Test
+    void asManyKeysShowAsFitTheWidth() {
+        assertThat(KeyboardPainter.visibleKeys(16)).isEqualTo(8);
+        assertThat(KeyboardPainter.visibleKeys(24)).isEqualTo(13);
+        assertThat(KeyboardPainter.visibleKeys(64)).isEqualTo(37);
+    }
+
+    @Test
+    void aWiderTecladoShowsMoreKeysAndStretchesItsFillBar() {
+        ColorScheme scheme = ColorScheme.LIGHT;
+        String twenty = "abcdefghijklmnopqrst";
+        int eleventhKeyLeft = 5 + 10 * 13;
+        int keyTop = 16 + 4;
+        int barTop = 16 + 4 + 13 + 7;
+
+        BufferedImage narrow = draw(queue(twenty), scheme, Map.of(), false);
+        BufferedImage wide = draw(queue(twenty), scheme, Map.of(KeyboardTypes.PART_WIDTH, 24), false);
+
+        // the eleventh character («k») is drawn on its key only when the part is wide enough for it
+        assertThat(count(narrow, scheme.text(), eleventhKeyLeft, keyTop, 11, 11)).isZero();
+        assertThat(count(wide, scheme.text(), eleventhKeyLeft, keyTop, 11, 11)).isGreaterThan(10);
+        assertThat(count(wide, scheme.componentShade(), 150, barTop, 20, 1)).isGreaterThan(10);
     }
 
     @Test

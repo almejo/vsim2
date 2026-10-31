@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentShape;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.ResizeSpec;
 import cl.almejo.vsim.core.terminal.KeyEncoding;
 
 import java.util.List;
@@ -25,6 +26,11 @@ public final class KeyboardTypes {
     public static final String INITIAL_TEXT = "initial-text";
     /** «Terminal enlazado»: the label of the Terminal whose window types into this Teclado. */
     public static final String LINKED_TERMINAL = "linked-terminal";
+    /**
+     * «Ancho»: the part's width in grid units; more width shows more keys. Also changed by dragging the «↔» tab of a
+     * selected Teclado ({@link ResizeSpec}). Not called {@code width}: that name is the bit width of other parts.
+     */
+    public static final String PART_WIDTH = "part-width";
     /** «Sonido de tecla». */
     public static final String TYPING_SOUND = "typing-sound";
 
@@ -36,9 +42,14 @@ public final class KeyboardTypes {
 
     public static final int DEFAULT_CAPACITY = 64;
     public static final int MAXIMUM_CAPACITY = 4096;
+    /** The narrowest Teclado, the size it had before it could be widened: eight keys. */
+    public static final int MINIMUM_PART_WIDTH = 16;
+    /** The widest Teclado (mockup v4): 37 keys; without a limit a large queue would ask for a part metres wide. */
+    public static final int MAXIMUM_PART_WIDTH = 64;
 
     private static final String SEVEN = String.valueOf(KeyEncoding.SEVEN_BITS);
     private static final String EIGHT = String.valueOf(KeyEncoding.EIGHT_BITS);
+    private static final String GROUP_PIECE = "piece";
     private static final String GROUP_DATA = "data";
     private static final String GROUP_INTERPRETATION = "interpretation";
     private static final String GROUP_TEACHING = "teaching";
@@ -46,6 +57,8 @@ public final class KeyboardTypes {
     private static final String GROUP_APPEARANCE = "appearance";
 
     private static final List<ParameterSpec> PARAMETERS = List.of(
+            ParameterSpec.integer(PART_WIDTH, MINIMUM_PART_WIDTH, MINIMUM_PART_WIDTH, MAXIMUM_PART_WIDTH)
+                    .inGroup(GROUP_PIECE),
             ParameterSpec.integer(CAPACITY, DEFAULT_CAPACITY, 1, MAXIMUM_CAPACITY).inGroup(GROUP_DATA),
             ParameterSpec.choice(KeyEncoding.DATA_WIDTH, EIGHT, List.of(SEVEN, EIGHT)).inGroup(GROUP_DATA),
             ParameterSpec.choice(KeyEncoding.ENCODING, KeyEncoding.UTF8_VALUE,
@@ -70,10 +83,12 @@ public final class KeyboardTypes {
 
     static void register(ComponentTypeRegistry registry) {
         registry.register(ComponentType.parameterized(StandardComponentTypes.KEYBOARD,
-                ComponentCategory.INPUT_OUTPUT, PARAMETERS, KeyboardTypes::shape, KeyboardBehavior::new));
+                ComponentCategory.INPUT_OUTPUT, PARAMETERS, KeyboardTypes::shape, KeyboardBehavior::new)
+                .withResize(new ResizeSpec(PART_WIDTH, ResizeSpec.Edge.RIGHT)));
     }
 
     private static ComponentShape shape(Map<String, Object> resolved) {
-        return KeyboardPinout.shape(KeyEncoding.forParameters(resolved).dataWidth());
+        return KeyboardPinout.shape((Integer) resolved.get(PART_WIDTH),
+                KeyEncoding.forParameters(resolved).dataWidth());
     }
 }

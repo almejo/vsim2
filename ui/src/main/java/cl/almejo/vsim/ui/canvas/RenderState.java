@@ -1,10 +1,12 @@
 package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -18,10 +20,13 @@ import java.util.Set;
  * decisions that differ on paper ({@link PaintPolicy#print}); every constructor but the canonical one uses
  * {@link PaintPolicy#CANVAS}. {@code capturingPart} is the part that has the keyboard of the window (a Teclado
  * paints «Escribiendo…»); only the canvas passes one, so exports and printing never show the capture look.
+ * {@code previewedParts} are parts painted as a drag preview has them instead of as the document has them, by id (a
+ * Teclado whose «↔» tab is dragged, at its new width); empty but for the canvas during such a drag.
  */
 public record RenderState(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
                           Set<ElementId> selection, double selectionDashPhase, double problemPulsePhase,
-                          Set<ElementId> hiddenWires, PaintPolicy policy, Optional<ElementId> capturingPart) {
+                          Set<ElementId> hiddenWires, PaintPolicy policy, Optional<ElementId> capturingPart,
+                          Map<ElementId, Component> previewedParts) {
 
     /** The {@code problemPulsePhase} of a frame without the glow under problem wires. */
     public static final double NO_PROBLEM_GLOW = Double.NaN;
@@ -30,6 +35,20 @@ public record RenderState(CircuitDocument document, Netlist netlist, long netlis
         hiddenWires = Set.copyOf(hiddenWires);
         Objects.requireNonNull(policy, "policy");
         Objects.requireNonNull(capturingPart, "capturingPart");
+        previewedParts = Map.copyOf(previewedParts);
+    }
+
+    /** A frame without previewed parts. */
+    public RenderState(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
+                       Set<ElementId> selection, double selectionDashPhase, double problemPulsePhase,
+                       Set<ElementId> hiddenWires, PaintPolicy policy, Optional<ElementId> capturingPart) {
+        this(document, netlist, netlistToken, snapshot, selection, selectionDashPhase, problemPulsePhase, hiddenWires,
+                policy, capturingPart, Map.of());
+    }
+
+    /** {@code component} as this frame paints it: its preview when a drag previews it, else itself. */
+    public Component shown(Component component) {
+        return previewedParts.getOrDefault(component.id(), component);
     }
 
     /** A frame in which no part has the keyboard (exports, printing, previews). */
