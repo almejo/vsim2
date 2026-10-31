@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.AbstractPreferences;
 
@@ -120,6 +121,16 @@ class AppPreferencesTest {
         assertThat(reduced.animateViewMoves()).isFalse();
         reduced.setAnimateViewMoves(true);
         assertThat(reduced.animateViewMoves()).isTrue();
+    }
+
+    @Test
+    void theDesktopsReducedMotionIsReadAsItIsNowWhateverTheViewMovesChoice() {
+        AtomicBoolean desktopReduces = new AtomicBoolean(true);
+        AppPreferences preferences = new AppPreferences(new MemoryPreferences(), desktopReduces::get);
+        preferences.setAnimateViewMoves(true);
+        assertThat(preferences.systemReducesMotion()).isTrue();
+        desktopReduces.set(false);
+        assertThat(preferences.systemReducesMotion()).isFalse();
     }
 
     @Test

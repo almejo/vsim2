@@ -77,12 +77,12 @@ class TerminalValuesTest {
     void aFrameCopiesItsRowsAndChecksTheirSize() {
         TerminalCell[] row = {TerminalCell.BLANK, TerminalCell.BLANK};
         TerminalFrame frame = new TerminalFrame(1, 2, List.<TerminalCell[]>of(row), 0, 1, true, Optional.empty(), 0,
-                1, 0, 0);
+                1, 0, 0, 0);
         row[0] = new TerminalCell('x', CellStyle.PLAIN, new byte[] {'x'}, 0);
         assertThat(frame.text()).isEmpty();
         assertThatThrownBy(() -> new TerminalFrame(2, 2, List.<TerminalCell[]>of(row), 0, 0, true, Optional.empty(),
-                0, 1, 0, 0)).isInstanceOf(IllegalArgumentException.class);
+                0, 1, 0, 0, 0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new TerminalFrame(1, 2, List.<TerminalCell[]>of(row), 0, 2, true, Optional.empty(),
-                0, 1, 0, 0)).isInstanceOf(IllegalArgumentException.class);
+                0, 1, 0, 0, 0)).isInstanceOf(IllegalArgumentException.class);
     }
 }

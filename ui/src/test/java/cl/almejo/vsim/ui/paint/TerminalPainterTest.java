@@ -13,52 +13,50 @@ import cl.almejo.vsim.core.terminal.TerminalScreen;
 import cl.almejo.vsim.core.terminal.TerminalSettings;
 import org.junit.jupiter.api.Test;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The Terminal's look: without a simulation (palette, ghost) a dark screen with the prompt in the first cell and a still
- * block cursor in the third; while simulating, the frame's cells in the chosen font and a block cursor at its cursor.
+ * The Terminal's look (spec §4, §8.1–§8.5): the screen colours and ANSI palette of the part, cell styles, the seven
+ * cursors, the screen effects, the last character's glow and the phosphor persistence; none of the moving or CRT parts
+ * in an export, and an empty screen with its chip in the palette.
  */
 class TerminalPainterTest {
 
-    private static final int ORIGIN_UNITS = 2;
-    /** The part's origin in the image, in pixels. */
-    private static final int ORIGIN = ORIGIN_UNITS * GridPoint.PIXELS_PER_UNIT;
+    /** The image is drawn at this zoom so the glyph stems have whole pixels of the text colour. */
+    private static final int ZOOM = 2;
     /** The screen's top-left corner inside the part: a margin right, a title bar and a margin down. */
     private static final int SCREEN_LEFT = 8;
     private static final int SCREEN_TOP = 24;
     private static final int CELL_WIDTH = 8;
     private static final int CELL_HEIGHT = 16;
-    private static final int LIGHTER_THAN_SCREEN = 150;
     private static final Map<String, Object> SMALL = Map.of(TerminalTypes.ROWS, 4, TerminalTypes.COLUMNS, 20);
 
-    private final ComponentType terminal = StandardComponentTypes.registry()
-            .require(StandardComponentTypes.TERMINAL).specializedFor(SMALL);
     private final PainterRegistry painters = PainterRegistry.standard();
+    private final TerminalPainter painter = (TerminalPainter) painters.painterFor(StandardComponentTypes.TERMINAL);
 
-    private BufferedImage draw(ColorScheme scheme, Rotation rotation) {
-        return draw(scheme, rotation, terminal, SMALL, VisibleState.NONE);
+    private static Map<String, Object> small(Object... keysAndValues) {
+        Map<String, Object> parameters = new HashMap<>(SMALL);
+        for (int index = 0; index < keysAndValues.length; index += 2) {
+            parameters.put((String) keysAndValues[index], keysAndValues[index + 1]);
+        }
+        return parameters;
     }
 
-    private BufferedImage draw(ColorScheme scheme, Rotation rotation, ComponentType type,
-                               Map<String, Object> parameters, VisibleState state) {
-        Component component = type.newComponent(new ElementId("c1"), new GridPoint(ORIGIN_UNITS, ORIGIN_UNITS),
-                rotation, parameters, "");
-        BufferedImage image = PaintersTest.blankImage(300, 300);
-        Graphics2D graphics = image.createGraphics();
-        ComponentDrawing.paint(graphics, type, component, state, scheme, painters);
-        graphics.dispose();
-        return image;
+    private static ComponentType terminal(Map<String, Object> parameters) {
+        return StandardComponentTypes.registry().require(StandardComponentTypes.TERMINAL).specializedFor(parameters);
     }
 
     /** The state of a 4 × 20 VT screen that received {@code text}. */
-    private static VisibleState.TerminalState screenWith(String text) {
+    static VisibleState.TerminalState screenWith(String text) {
         TerminalScreen screen = new TerminalScreen(TerminalSettings.vt(4, 20));
         for (byte value : text.getBytes(StandardCharsets.UTF_8)) {
             screen.write(value & 0xFF, 0);
@@ -66,14 +64,34 @@ class TerminalPainterTest {
         return new VisibleState.TerminalState(1, screen.version(), screen.frame(), false);
     }
 
-    private static int lightPixels(BufferedImage image, int cellColumn, int cellWidth, int cellHeight) {
-        int screen = TerminalPainter.SCREEN_BACKGROUND.getRGB();
+    private BufferedImage draw(Map<String, Object> parameters, VisibleState state, ColorScheme scheme,
+                               TerminalMoment moment) {
+        BufferedImage image = PaintersTest.blankImage(220 * ZOOM, 120 * ZOOM);
+        Graphics2D graphics = image.createGraphics();
+        graphics.scale(ZOOM, ZOOM);
+        painter.paintLive(graphics, terminal(parameters), parameters, state, scheme, Optional.empty(), moment);
+        graphics.dispose();
+        return image;
+    }
+
+    private BufferedImage draw(Map<String, Object> parameters, VisibleState state) {
+        return draw(parameters, state, PaintersTest.SCHEME, TerminalMoment.EXPORTED);
+    }
+
+    /** The colour at the cell's local point, in the zoomed image. */
+    private static int pixel(BufferedImage image, int row, int column, double offsetX, double offsetY) {
+        return image.getRGB((int) ((SCREEN_LEFT + column * CELL_WIDTH + offsetX) * ZOOM),
+                (int) ((SCREEN_TOP + row * CELL_HEIGHT + offsetY) * ZOOM));
+    }
+
+    /** How many pixels of one cell are exactly {@code color}. */
+    private static int cellPixelsOf(BufferedImage image, int row, int column, Color color) {
         int count = 0;
-        for (int offsetX = 0; offsetX < cellWidth; offsetX++) {
-            for (int offsetY = 0; offsetY < cellHeight; offsetY++) {
-                int rgb = image.getRGB(ORIGIN + SCREEN_LEFT + cellColumn * cellWidth + offsetX,
-                        ORIGIN + SCREEN_TOP + offsetY);
-                if (brightness(rgb) > brightness(screen) + LIGHTER_THAN_SCREEN) {
+        for (int offsetX = 0; offsetX < CELL_WIDTH * ZOOM; offsetX++) {
+            for (int offsetY = 0; offsetY < CELL_HEIGHT * ZOOM; offsetY++) {
+                int x = (SCREEN_LEFT + column * CELL_WIDTH) * ZOOM + offsetX;
+                int y = (SCREEN_TOP + row * CELL_HEIGHT) * ZOOM + offsetY;
+                if (image.getRGB(x, y) == color.getRGB()) {
                     count++;
                 }
             }
@@ -82,115 +100,182 @@ class TerminalPainterTest {
     }
 
     @Test
-    void aSimulatedScreenShowsItsCellsAndTheBlockCursorWhereTheFrameSaysInsteadOfThePrompt() {
-        BufferedImage image = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, screenWith("Hi"));
+    void eachProfileShowsItsScreenColoursAndText() {
+        record Expected(String profile, int text, int background) {
+        }
+        for (Expected expected : new Expected[] {new Expected(TerminalTypes.PROFILE_LOGISIM, 0x33FF66, 0x0B130D),
+                new Expected(TerminalTypes.PROFILE_VT, 0xE8E8E8, 0x101010),
+                new Expected(TerminalTypes.PROFILE_TELETYPE, 0x2A2A2A, 0xF6F1E3)}) {
+            Map<String, Object> parameters = resolvedProfile(expected.profile());
+            BufferedImage image = draw(parameters, screenWith("HHHH"));
+            assertThat(new Color(pixel(image, 2, 10, 4, 8))).as(expected.profile() + " background")
+                    .isEqualTo(new Color(expected.background()));
+            assertThat(cellPixelsOf(image, 0, 0, new Color(expected.text()))).as(expected.profile() + " text")
+                    .isGreaterThan(10);
+        }
+    }
 
-        assertThat(lightPixels(image, 0, CELL_WIDTH, CELL_HEIGHT)).as("H").isGreaterThan(5);
-        assertThat(lightPixels(image, 1, CELL_WIDTH, CELL_HEIGHT)).as("i").isGreaterThan(3);
-        assertThat(pixel(image, 2, CELL_WIDTH / 2, CELL_HEIGHT / 2)).as("the cursor after the text")
-                .isEqualTo(TerminalPainter.SCREEN_TEXT.getRGB());
-        assertThat(pixel(image, 3, CELL_WIDTH / 2, CELL_HEIGHT / 2)).isEqualTo(TerminalPainter.SCREEN_BACKGROUND.getRGB());
+    /** The profile's values on a 4 × 20 screen. */
+    private static Map<String, Object> resolvedProfile(String profile) {
+        ComponentType standard = StandardComponentTypes.registry().require(StandardComponentTypes.TERMINAL);
+        Map<String, Object> parameters = new HashMap<>(standard.profile(profile).orElseThrow().values());
+        parameters.put(TerminalTypes.PROFILE, profile);
+        parameters.putAll(SMALL);
+        return standard.resolveParameters(parameters);
     }
 
     @Test
-    void anEmptySimulatedScreenHasNoPromptAndAHiddenCursorIsNotDrawn() {
-        BufferedImage empty = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, screenWith(""));
-        assertThat(lightPixels(empty, 0, CELL_WIDTH, CELL_HEIGHT)).as("the cursor at home")
-                .isEqualTo(CELL_WIDTH * CELL_HEIGHT);
-        assertThat(lightPixels(empty, 2, CELL_WIDTH, CELL_HEIGHT)).as("no cursor after a prompt").isZero();
+    void ansiColoursComeFromThePartsPaletteAndBoldBrightensThem() {
+        VisibleState red = screenWith("\u001b[31mHHH\u001b[1mHHH");
+        BufferedImage xterm = draw(small(TerminalTypes.ANSI_PALETTE, "xterm"), red);
+        assertThat(cellPixelsOf(xterm, 0, 0, new Color(0xCD0000))).isGreaterThan(10);
+        assertThat(cellPixelsOf(xterm, 0, 4, new Color(0xFF0000))).as("bold red is bright red").isGreaterThan(10);
 
-        BufferedImage hidden = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, screenWith("\u001b[?25l"));
-        assertThat(lightPixels(hidden, 0, CELL_WIDTH, CELL_HEIGHT)).isZero();
+        BufferedImage vga = draw(small(TerminalTypes.ANSI_PALETTE, "vga"), red);
+        assertThat(cellPixelsOf(vga, 0, 0, new Color(0xAA0000))).isGreaterThan(10);
+        assertThat(cellPixelsOf(vga, 0, 0, new Color(0xCD0000))).isZero();
+    }
+
+    @Test
+    void backgroundsReverseAndUnderlineAreDrawn() {
+        BufferedImage image = draw(SMALL, screenWith("\u001b[44m \u001b[0m\u001b[7m \u001b[0m\u001b[4m_\u001b[0m"));
+        assertThat(new Color(pixel(image, 0, 0, 4, 8))).as("a blue background").isEqualTo(new Color(0x0000EE));
+        assertThat(new Color(pixel(image, 0, 1, 4, 8))).as("reverse: the text colour behind")
+                .isEqualTo(new Color(0xE8E8E8));
+        assertThat(cellPixelsOf(image, 0, 2, new Color(0xE8E8E8))).as("an underline").isGreaterThan(CELL_WIDTH);
+    }
+
+    @Test
+    void theThemeColoursFollowTheSchemeAtPaintTime() {
+        Map<String, Object> theme = small(TerminalTypes.SCREEN_COLORS, "theme");
+        BufferedImage light = draw(theme, screenWith(""), ColorScheme.LIGHT, TerminalMoment.EXPORTED);
+        BufferedImage dark = draw(theme, screenWith(""), ColorSchemes.DARK, TerminalMoment.EXPORTED);
+        assertThat(new Color(pixel(light, 2, 10, 4, 8))).isEqualTo(ColorScheme.LIGHT.background());
+        assertThat(new Color(pixel(dark, 2, 10, 4, 8))).isEqualTo(ColorSchemes.DARK.background());
+    }
+
+    @Test
+    void theCursorTakesTheChosenShapeAtTheFramesCursorAndAHiddenOneIsNotDrawn() {
+        Color text = new Color(0xE8E8E8);
+        BufferedImage block = draw(small(TerminalTypes.CURSOR, "block"), screenWith("ab"));
+        assertThat(cellPixelsOf(block, 0, 2, text)).isEqualTo(CELL_WIDTH * CELL_HEIGHT * ZOOM * ZOOM);
+
+        BufferedImage bar = draw(small(TerminalTypes.CURSOR, "bar"), screenWith("ab"));
+        assertThat(new Color(pixel(bar, 0, 2, 1, 8))).isEqualTo(text);
+        assertThat(new Color(pixel(bar, 0, 2, 5, 8))).isNotEqualTo(text);
+
+        BufferedImage hidden = draw(small(TerminalTypes.CURSOR, "block"), screenWith("ab\u001b[?25l"));
+        assertThat(cellPixelsOf(hidden, 0, 2, text)).isZero();
+
+        BufferedImage none = draw(small(TerminalTypes.CURSOR, "none"), screenWith("ab"));
+        assertThat(cellPixelsOf(none, 0, 2, text)).isZero();
+    }
+
+    @Test
+    void aBlinkingCursorInItsOffHalfIsNotDrawn() {
+        Map<String, Object> block = small(TerminalTypes.CURSOR, "block");
+        TerminalMoment off = new TerminalMoment(TerminalAnimation.LIVE, Double.NaN, false, 0, Optional.empty(), 0,
+                TerminalMoment.NEVER);
+        assertThat(cellPixelsOf(draw(block, screenWith("ab"), PaintersTest.SCHEME, off), 0, 2,
+                new Color(0xE8E8E8))).isZero();
+    }
+
+    @Test
+    void theEffectsShowOnTheCanvasButNeverInAnExport() {
+        VisibleState state = screenWith("HELLO WORLD\r\nscan lines");
+        TerminalMoment canvas = TerminalMoment.still(TerminalAnimation.STILL);
+        BufferedImage none = draw(small(TerminalTypes.EFFECT, "none"), state, PaintersTest.SCHEME, canvas);
+        BufferedImage soft = draw(small(TerminalTypes.EFFECT, "soft"), state, PaintersTest.SCHEME, canvas);
+        BufferedImage strong = draw(small(TerminalTypes.EFFECT, "strong"), state, PaintersTest.SCHEME, canvas);
+        assertThat(PainterTesting.differentPixels(none, soft)).isGreaterThan(500);
+        assertThat(PainterTesting.differentPixels(soft, strong)).isGreaterThan(500);
+
+        BufferedImage exported = draw(small(TerminalTypes.EFFECT, "strong"), state);
+        BufferedImage plain = draw(small(TerminalTypes.EFFECT, "none"), state);
+        assertThat(PainterTesting.differentPixels(exported, plain)).isZero();
+    }
+
+    @Test
+    void theLastCharacterGlowsPaleYellow() {
+        VisibleState state = screenWith("ab");
+        TerminalMoment glowing = new TerminalMoment(TerminalAnimation.LIVE, Double.NaN, true,
+                TerminalMoment.LAST_GLOW_ALPHA, Optional.empty(), 0, 0);
+        BufferedImage image = draw(SMALL, state, PaintersTest.SCHEME, glowing);
+        Color corner = new Color(pixel(image, 0, 1, 0.5, 0.5));
+        assertThat(corner.getRed()).as("yellowish over the dark screen").isGreaterThan(100);
+        assertThat(corner.getBlue()).isLessThan(corner.getRed());
+        assertThat(new Color(pixel(image, 0, 0, 0.5, 0.5))).isEqualTo(new Color(0x101010));
+    }
+
+    @Test
+    void theOldPictureFadesOverTheNewOne() {
+        VisibleState.TerminalState old = screenWith("OLD TEXT");
+        VisibleState cleared = screenWith("\u000c");
+        TerminalMoment fading = new TerminalMoment(TerminalAnimation.LIVE, Double.NaN, true, 0,
+                Optional.of(old.frame()), TerminalMoment.GHOST_OPACITY, 0);
+        Map<String, Object> soft = small(TerminalTypes.EFFECT, "soft");
+        BufferedImage withGhost = draw(soft, cleared, PaintersTest.SCHEME, fading);
+        BufferedImage without = draw(soft, cleared, PaintersTest.SCHEME, TerminalMoment.still(TerminalAnimation.STILL));
+        assertThat(PainterTesting.differentPixels(withGhost, without)).isGreaterThan(50);
+    }
+
+    @Test
+    void inBlackAndWhiteTheScreenIsPaperWithInk() {
+        ColorScheme monochrome = MonochromeScheme.of(ColorScheme.LIGHT);
+        BufferedImage image = draw(small(TerminalTypes.SCREEN_COLORS, "green"),
+                screenWith("\u001b[41mHH\u001b[0mHH"), monochrome, TerminalMoment.EXPORTED);
+        assertThat(new Color(pixel(image, 2, 10, 4, 8))).isEqualTo(monochrome.background());
+        assertThat(cellPixelsOf(image, 0, 2, monochrome.text())).isGreaterThan(10);
+        assertThat(new Color(pixel(image, 0, 0, 0.5, 0.5))).as("a coloured background turns to ink")
+                .isEqualTo(monochrome.text());
+    }
+
+    @Test
+    void thePaletteIconShowsAnEmptyScreenWithTheCursorAtHomeAndTheChip() {
+        ComponentType standard = StandardComponentTypes.registry().require(StandardComponentTypes.TERMINAL);
+        BufferedImage image = new BufferedImage(700, 450, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        painter.paint(graphics, standard, Map.of(), VisibleState.NONE, PaintersTest.SCHEME);
+        graphics.dispose();
+
+        assertThat(new Color(image.getRGB(SCREEN_LEFT + 1, SCREEN_TOP + 8))).as("the bar cursor at home")
+                .isEqualTo(new Color(0xE8E8E8));
+        assertThat(new Color(image.getRGB(SCREEN_LEFT + 3 * CELL_WIDTH, SCREEN_TOP + 8)))
+                .isEqualTo(new Color(0x101010));
+    }
+
+    @Test
+    void theChipNamesTheModeAndTheSize() {
+        assertThat(TerminalPainter.chip(resolvedProfile(TerminalTypes.PROFILE_LOGISIM))).isEqualTo("Logisim · 4×20");
+        assertThat(TerminalPainter.chip(resolvedProfile(TerminalTypes.PROFILE_VT))).isEqualTo("VT100 · 4×20");
+        assertThat(TerminalPainter.chip(resolvedProfile(TerminalTypes.PROFILE_TELETYPE)))
+                .isEqualTo("Teletipo · 4×20");
     }
 
     @Test
     void theFontAndTheFontSizeChangeTheDrawing() {
         VisibleState state = screenWith("Wg@#");
-        Map<String, Object> vt323 = new HashMap<>(SMALL);
-        vt323.put(TerminalTypes.FONT, TerminalTypes.FONT_VT323);
-        BufferedImage plexImage = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, state);
-        BufferedImage vt323Image = draw(PaintersTest.SCHEME, Rotation.R0, terminal.specializedFor(vt323), vt323,
-                state);
-        assertThat(differentPixels(plexImage, vt323Image)).isGreaterThan(10);
+        BufferedImage plexImage = draw(SMALL, state);
+        BufferedImage vt323Image = draw(small(TerminalTypes.FONT, TerminalTypes.FONT_VT323), state);
+        assertThat(PainterTesting.differentPixels(plexImage, vt323Image)).isGreaterThan(10);
 
-        Map<String, Object> large = new HashMap<>(SMALL);
-        large.put(TerminalTypes.FONT_SIZE, TerminalTypes.FONT_SIZE_LARGE);
+        BufferedImage largeImage = draw(small(TerminalTypes.FONT_SIZE, TerminalTypes.FONT_SIZE_LARGE,
+                TerminalTypes.CURSOR, "block"), state);
         int largeCellWidth = TerminalFontSize.LARGE.cellWidth();
-        int largeCellHeight = TerminalFontSize.LARGE.cellHeight();
-        BufferedImage largeImage = draw(PaintersTest.SCHEME, Rotation.R0, terminal.specializedFor(large), large,
-                state);
-        assertThat(lightPixels(largeImage, 4, largeCellWidth, largeCellHeight)).as("the cursor in a large cell")
-                .isEqualTo(largeCellWidth * largeCellHeight);
-    }
-
-    private static int differentPixels(BufferedImage first, BufferedImage second) {
-        int count = 0;
-        for (int x = 0; x < first.getWidth(); x++) {
-            for (int y = 0; y < first.getHeight(); y++) {
-                if (first.getRGB(x, y) != second.getRGB(x, y)) {
-                    count++;
-                }
-            }
-        }
-        return count;
-    }
-
-    private static int pixel(BufferedImage image, int cellColumn, int offsetX, int offsetY) {
-        return image.getRGB(ORIGIN + SCREEN_LEFT + cellColumn * CELL_WIDTH + offsetX, ORIGIN + SCREEN_TOP + offsetY);
+        assertThat(new Color(largeImage.getRGB((SCREEN_LEFT + 4 * largeCellWidth + 5) * ZOOM,
+                (SCREEN_TOP + 10) * ZOOM))).as("the cursor in a large cell").isEqualTo(new Color(0xE8E8E8));
     }
 
     @Test
-    void theScreenIsDarkAndTheCursorBlockSitsInTheThirdCellAfterThePrompt() {
-        BufferedImage image = draw(PaintersTest.SCHEME, Rotation.R0);
-        int screen = TerminalPainter.SCREEN_BACKGROUND.getRGB();
-        int text = TerminalPainter.SCREEN_TEXT.getRGB();
-
-        assertThat(pixel(image, 1, CELL_WIDTH / 2, CELL_HEIGHT / 2)).as("the cell after the prompt").isEqualTo(screen);
-        assertThat(pixel(image, 2, CELL_WIDTH / 2, CELL_HEIGHT / 2)).as("the cursor block").isEqualTo(text);
-        assertThat(pixel(image, 2, 1, 1)).isEqualTo(text);
-        assertThat(pixel(image, 2, CELL_WIDTH - 1, CELL_HEIGHT - 1)).isEqualTo(text);
-        assertThat(pixel(image, 3, CELL_WIDTH / 2, CELL_HEIGHT / 2)).as("nothing after the cursor").isEqualTo(screen);
-        assertThat(pixel(image, 10, 0, CELL_HEIGHT * 2)).as("rows below are empty").isEqualTo(screen);
-    }
-
-    private static int brightness(int rgb) {
-        return (rgb >> 16 & 0xFF) + (rgb >> 8 & 0xFF) + (rgb & 0xFF);
-    }
-
-    @Test
-    void thePromptIsDrawnInTheTextColourInTheFirstCell() {
-        BufferedImage image = draw(PaintersTest.SCHEME, Rotation.R0);
-        int screen = TerminalPainter.SCREEN_BACKGROUND.getRGB();
-
-        int textPixels = 0;
-        for (int offsetX = 0; offsetX < CELL_WIDTH; offsetX++) {
-            for (int offsetY = 0; offsetY < CELL_HEIGHT; offsetY++) {
-                // antialiased strokes: any pixel clearly lighter than the screen belongs to the prompt
-                if (brightness(pixel(image, 0, offsetX, offsetY)) > brightness(screen) + LIGHTER_THAN_SCREEN) {
-                    textPixels++;
-                }
-            }
-        }
-        assertThat(textPixels).isGreaterThan(5);
-    }
-
-    @Test
-    void theScreenKeepsItsColoursInTheDarkTheme() {
-        BufferedImage image = draw(ColorSchemes.DARK, Rotation.R0);
-
-        assertThat(pixel(image, 1, CELL_WIDTH / 2, CELL_HEIGHT / 2))
-                .isEqualTo(TerminalPainter.SCREEN_BACKGROUND.getRGB());
-        assertThat(pixel(image, 2, CELL_WIDTH / 2, CELL_HEIGHT / 2)).isEqualTo(TerminalPainter.SCREEN_TEXT.getRGB());
-    }
-
-    @Test
-    void theChipShowsRowsByColumnsAndItDrawsInsideItsBoundsWhenTurned() {
-        assertThat(TerminalPainter.chip(terminal.resolveParameters(SMALL))).isEqualTo("4×20");
+    void itDrawsInsideItsBoundsWhenTurned() {
+        ComponentType type = terminal(SMALL);
         for (Rotation rotation : Rotation.values()) {
-            BufferedImage image = draw(PaintersTest.SCHEME, rotation);
-            Component component = terminal.newComponent(new ElementId("c1"),
-                    new GridPoint(ORIGIN_UNITS, ORIGIN_UNITS), rotation, SMALL, "");
-            java.awt.geom.Rectangle2D allowed = ComponentDrawing.documentBounds(terminal, component);
+            Component component = type.newComponent(new ElementId("c1"), new GridPoint(2, 2), rotation, SMALL, "");
+            BufferedImage image = PaintersTest.blankImage(300, 300);
+            Graphics2D graphics = image.createGraphics();
+            ComponentDrawing.paint(graphics, type, component, screenWith("turned"), PaintersTest.SCHEME, painters);
+            graphics.dispose();
+            Rectangle2D allowed = ComponentDrawing.documentBounds(type, component);
             allowed.setRect(allowed.getX() - 8, allowed.getY() - 8, allowed.getWidth() + 16, allowed.getHeight() + 16);
             int background = PaintersTest.SCHEME.background().getRGB();
             for (int x = 0; x < image.getWidth(); x++) {
@@ -204,15 +289,46 @@ class TerminalPainterTest {
     }
 
     @Test
-    void theDefaultTypeFromThePaletteDrawsAnEmptyScreenToo() {
-        ComponentType standard = StandardComponentTypes.registry().require(StandardComponentTypes.TERMINAL);
+    void theMovingAreaIsTheCursorsReachOrTheWholeScreenWhileTheOldPictureFades() {
+        Map<String, Object> automan = small(TerminalTypes.CURSOR, "automan");
+        ComponentType type = terminal(automan);
+        TerminalMoment moving = new TerminalMoment(TerminalAnimation.LIVE, 1.0, true, 0, Optional.empty(), 0, 0);
+        Rectangle2D cursorCell = new Rectangle2D.Double(SCREEN_LEFT + 2 * CELL_WIDTH, SCREEN_TOP, CELL_WIDTH,
+                CELL_HEIGHT);
+        assertThat(painter.movingArea(type, automan, screenWith("ab"), moving))
+                .contains(TerminalCursorPainter.reach(cursorCell));
+
+        TerminalMoment fading = new TerminalMoment(TerminalAnimation.LIVE, Double.NaN, true, 0,
+                Optional.of(screenWith("x").frame()), TerminalMoment.GHOST_OPACITY, 0);
+        Rectangle2D area = painter.movingArea(type, automan, screenWith("ab"), fading).orElseThrow();
+        assertThat(area.getWidth()).isGreaterThanOrEqualTo(20 * CELL_WIDTH);
+
+        assertThat(painter.movingArea(type, automan, screenWith("ab"), TerminalMoment.EXPORTED)).isEmpty();
+    }
+
+    @Test
+    void aFullVt323ScreenWithTheStrongEffectPaintsQuickly() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(TerminalTypes.FONT, TerminalTypes.FONT_VT323);
+        parameters.put(TerminalTypes.EFFECT, "strong");
+        ComponentType type = terminal(parameters);
+        TerminalScreen screen = new TerminalScreen(TerminalSettings.vt(24, 80));
+        for (int index = 0; index < 24 * 80 - 1; index++) {
+            screen.write('A' + index % 26, 0);
+        }
+        VisibleState state = new VisibleState.TerminalState(1, screen.version(), screen.frame(), false);
+        TerminalMoment live = new TerminalMoment(TerminalAnimation.LIVE, 1.0, true, TerminalMoment.LAST_GLOW_ALPHA,
+                Optional.of(screen.frame()), TerminalMoment.GHOST_OPACITY, 0);
         BufferedImage image = new BufferedImage(700, 450, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
-        painters.painterFor(StandardComponentTypes.TERMINAL).paint(graphics, standard, Map.of(), VisibleState.NONE,
-                PaintersTest.SCHEME);
+        painter.paintLive(graphics, type, parameters, state, PaintersTest.SCHEME, Optional.of("consola"), live);
+        long start = System.nanoTime();
+        int paints = 10;
+        for (int paint = 0; paint < paints; paint++) {
+            painter.paintLive(graphics, type, parameters, state, PaintersTest.SCHEME, Optional.of("consola"), live);
+        }
+        long averageMilliseconds = (System.nanoTime() - start) / 1_000_000 / paints;
         graphics.dispose();
-
-        assertThat(image.getRGB(SCREEN_LEFT + 2 * CELL_WIDTH + 4, SCREEN_TOP + 8))
-                .isEqualTo(TerminalPainter.SCREEN_TEXT.getRGB());
+        assertThat(averageMilliseconds).as("a loose budget per paint").isLessThan(250);
     }
 }

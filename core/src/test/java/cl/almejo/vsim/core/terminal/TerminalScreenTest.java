@@ -202,4 +202,24 @@ class TerminalScreenTest {
         assertThat(elapsedMilliseconds).as("a loose guard against a grid copy per byte").isLessThan(10_000);
         assertThat(screen.printedCount()).isGreaterThan(900_000);
     }
+
+    @Test
+    void scrollingAndClearingTheWholeScreenCountAsJumpsButTypingAndPartialErasesDoNot() {
+        TerminalScreen screen = vt(2, 10);
+        write(screen, "ab\r\ncd\b\u001b[K");
+        assertThat(screen.frame().scrollOrClearCount()).as("typing, a new line on screen, an erased line end")
+                .isZero();
+        write(screen, "\r\n");
+        assertThat(screen.frame().scrollOrClearCount()).as("a scroll").isEqualTo(1);
+        write(screen, "\u000c");
+        assertThat(screen.frame().scrollOrClearCount()).as("form feed").isEqualTo(2);
+        write(screen, "x\u001b[2J");
+        assertThat(screen.frame().scrollOrClearCount()).as("ED 2").isEqualTo(3);
+        screen.clear();
+        assertThat(screen.frame().scrollOrClearCount()).as("CLR").isEqualTo(4);
+        write(screen, "\u001bc");
+        assertThat(screen.frame().scrollOrClearCount()).as("RIS").isEqualTo(5);
+        assertThat(screen.adoptedWith(TerminalSettings.vt(3, 12)).frame().scrollOrClearCount())
+                .as("kept by adoption").isEqualTo(5);
+    }
 }

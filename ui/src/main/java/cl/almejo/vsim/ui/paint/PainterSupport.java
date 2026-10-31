@@ -13,6 +13,7 @@ import java.awt.FontMetrics;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.font.GlyphVector;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
@@ -39,6 +40,7 @@ public final class PainterSupport {
     /** The air between a text and its border box, and the box's rounded corner, in local pixels. */
     private static final double BORDER_PADDING = 2;
     private static final double BORDER_CORNER = 4;
+    private static final String ELLIPSIS = "…";
     static final double ALIGN_LEFT = 0;
     static final double ALIGN_CENTER = 0.5;
     static final double ALIGN_RIGHT = 1;
@@ -188,6 +190,36 @@ public final class PainterSupport {
         } finally {
             upright.dispose();
         }
+    }
+
+    /** {@code text}, cut with «…» when it is wider than {@code available} pixels. */
+    static String ellipsized(String text, FontMetrics metrics, double available) {
+        if (metrics.stringWidth(text) <= available) {
+            return text;
+        }
+        String cut = text;
+        while (!cut.isEmpty() && metrics.stringWidth(cut + ELLIPSIS) > available) {
+            cut = cut.substring(0, cut.length() - 1);
+        }
+        return cut + ELLIPSIS;
+    }
+
+    /**
+     * Draws {@code glyphs}, already placed and coloured, with its origin at ({@code left}, {@code baseline}) and upright
+     * on screen whatever the rotation: turned about ({@code centerX}, {@code centerY}). A Terminal draws a run of
+     * cells with one call (a turned Terminal draws one cell per call, turned about the cell's centre).
+     */
+    static void uprightGlyphs(Graphics2D graphics, GlyphVector glyphs, float left, float baseline, double centerX,
+                              double centerY) {
+        int quarterTurns = quarterTurns(graphics);
+        if (quarterTurns == 0) {
+            graphics.drawGlyphVector(glyphs, left, baseline);
+            return;
+        }
+        AffineTransform saved = graphics.getTransform();
+        graphics.rotate(-quarterTurns * Math.PI / 2, centerX, centerY);
+        graphics.drawGlyphVector(glyphs, left, baseline);
+        graphics.setTransform(saved);
     }
 
     /** Where a block of text goes: its anchor, font size and the part of each line, from its left, on the anchor. */
