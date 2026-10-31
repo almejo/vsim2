@@ -1360,8 +1360,16 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         Graphics2D screen = (Graphics2D) graphics.create(); // logical pixels: the device transform only
         try {
             edgeController.paint(screen);
+            paintEmptyHint(screen);
         } finally {
             screen.dispose();
+        }
+    }
+
+    /** The welcome text of a canvas with nothing in it, centred in this pane; screen only, never in an export. */
+    private void paintEmptyHint(Graphics2D screen) {
+        if (EmptyCanvasHint.isShownFor(openDocument.document())) {
+            EmptyCanvasHint.paint(screen, getWidth(), getHeight());
         }
     }
 
