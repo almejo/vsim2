@@ -25,6 +25,7 @@ import cl.almejo.vsim.ui.memory.MemoryNames;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
+import cl.almejo.vsim.ui.paint.KeyboardPainter;
 import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -404,6 +405,12 @@ public final class CircuitRenderer {
                         state.snapshot().time());
                 ComponentDrawing.paintPlaced(graphics, component, local -> memoryPainter.paintWithLabel(local, type,
                         component.parameters(), memoryState, scheme, name, lights));
+            } else if (painters.painterFor(type.id()) instanceof KeyboardPainter keyboardPainter) {
+                VisibleState keyboardState = state.snapshot().componentState(component.id().value());
+                boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
+                String label = component.label().isBlank() ? null : component.label();
+                ComponentDrawing.paintPlaced(graphics, component, local -> keyboardPainter.paintWithCapture(local,
+                        type, component.parameters(), keyboardState, scheme, label, capturing));
             } else {
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);

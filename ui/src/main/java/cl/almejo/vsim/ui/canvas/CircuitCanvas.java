@@ -1344,7 +1344,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             List<CircuitCanvas> sharing = panesSharingAGesture();
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
-                    problemPulse.phase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues));
+                    problemPulse.phase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues),
+                    host.capturedPart());
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);

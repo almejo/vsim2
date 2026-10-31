@@ -46,8 +46,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, display);
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, display);
         registry.register(StandardComponentTypes.TERMINAL, new TerminalPainter());
-        // placeholder until the Teclado has its own painter
-        registry.register(StandardComponentTypes.KEYBOARD, new GenericBoxPainter());
+        registry.register(StandardComponentTypes.KEYBOARD, new KeyboardPainter());
         registry.register(StandardComponentTypes.TIME_DIAGRAM, new TimeDiagramPainter());
         BusSplitterPainter bus = new BusSplitterPainter();
         registry.register(StandardComponentTypes.BUS_SPLITTER, bus);

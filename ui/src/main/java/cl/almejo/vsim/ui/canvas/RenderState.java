@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -15,11 +16,12 @@ import java.util.Set;
  * paint no glow at all (exported images). {@code hiddenWires} are wires left out of the frame because a drag preview
  * draws them where they are going (M6.7); empty but for the canvas during such a drag. {@code policy} holds the
  * decisions that differ on paper ({@link PaintPolicy#print}); every constructor but the canonical one uses
- * {@link PaintPolicy#CANVAS}.
+ * {@link PaintPolicy#CANVAS}. {@code capturingPart} is the part that has the keyboard of the window (a Teclado
+ * paints «Escribiendo…»); only the canvas passes one, so exports and printing never show the capture look.
  */
 public record RenderState(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
                           Set<ElementId> selection, double selectionDashPhase, double problemPulsePhase,
-                          Set<ElementId> hiddenWires, PaintPolicy policy) {
+                          Set<ElementId> hiddenWires, PaintPolicy policy, Optional<ElementId> capturingPart) {
 
     /** The {@code problemPulsePhase} of a frame without the glow under problem wires. */
     public static final double NO_PROBLEM_GLOW = Double.NaN;
@@ -27,6 +29,15 @@ public record RenderState(CircuitDocument document, Netlist netlist, long netlis
     public RenderState {
         hiddenWires = Set.copyOf(hiddenWires);
         Objects.requireNonNull(policy, "policy");
+        Objects.requireNonNull(capturingPart, "capturingPart");
+    }
+
+    /** A frame in which no part has the keyboard (exports, printing, previews). */
+    public RenderState(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
+                       Set<ElementId> selection, double selectionDashPhase, double problemPulsePhase,
+                       Set<ElementId> hiddenWires, PaintPolicy policy) {
+        this(document, netlist, netlistToken, snapshot, selection, selectionDashPhase, problemPulsePhase, hiddenWires,
+                policy, Optional.empty());
     }
 
     /** A frame painted as the canvas paints it. */

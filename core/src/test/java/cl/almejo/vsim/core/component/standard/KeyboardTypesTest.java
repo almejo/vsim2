@@ -67,7 +67,7 @@ class KeyboardTypesTest {
                 .containsEntry("encoding", "utf8").containsEntry("edge", "rising").containsEntry("enter-sends", "lf")
                 .containsEntry("backspace-sends", "bs").containsEntry("arrows-as-sequences", false)
                 .containsEntry("tri-state", false).containsEntry("initial-text", "")
-                .containsEntry("linked-terminal", "").containsEntry("typing-sound", false).hasSize(11);
+                .containsEntry("linked-terminal", "").containsEntry("typing-sound", false).containsEntry("capture-color", "automatic").hasSize(12);
         assertThat(type.parameters().stream().filter(parameter -> parameter.name().equals("linked-terminal"))
                 .findFirst().orElseThrow().hidden()).isTrue();
     }

@@ -561,6 +561,11 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     @Override
+    public java.util.Optional<cl.almejo.vsim.core.document.ElementId> capturedPart() {
+        return keyboardCapture.captured().map(cl.almejo.vsim.core.document.ElementId::new);
+    }
+
+    @Override
     public void captureKeyboard(Component component) {
         keyboardCapture.capture(component.id().value());
     }

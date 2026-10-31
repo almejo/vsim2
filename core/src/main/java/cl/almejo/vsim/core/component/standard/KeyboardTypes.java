@@ -28,6 +28,12 @@ public final class KeyboardTypes {
     /** «Sonido de tecla». */
     public static final String TYPING_SOUND = "typing-sound";
 
+    /** «Color al escribir»: the colour of the capture look; a look only (display-only), never rebuilds the part. */
+    public static final String CAPTURE_COLOR = "capture-color";
+    /** The values of {@link #CAPTURE_COLOR}; «automatic» follows the scheme's selection colour. */
+    public static final List<String> CAPTURE_COLOR_CHOICES = List.of("automatic", "blue", "green", "purple",
+            "orange", "pink", "teal", "yellow");
+
     public static final int DEFAULT_CAPACITY = 64;
     public static final int MAXIMUM_CAPACITY = 4096;
 
@@ -37,6 +43,7 @@ public final class KeyboardTypes {
     private static final String GROUP_INTERPRETATION = "interpretation";
     private static final String GROUP_TEACHING = "teaching";
     private static final String GROUP_SOUND = "sound";
+    private static final String GROUP_APPEARANCE = "appearance";
 
     private static final List<ParameterSpec> PARAMETERS = List.of(
             ParameterSpec.integer(CAPACITY, DEFAULT_CAPACITY, 1, MAXIMUM_CAPACITY).inGroup(GROUP_DATA),
@@ -54,7 +61,9 @@ public final class KeyboardTypes {
             ParameterSpec.bool(KeyEncoding.ARROWS_AS_SEQUENCES, false).inGroup(GROUP_INTERPRETATION),
             ParameterSpec.text(INITIAL_TEXT, "").asMultiline().inGroup(GROUP_TEACHING),
             ParameterSpec.text(LINKED_TERMINAL, "").asHidden(),
-            ParameterSpec.bool(TYPING_SOUND, false).asDisplayOnly().inGroup(GROUP_SOUND));
+            ParameterSpec.bool(TYPING_SOUND, false).asDisplayOnly().inGroup(GROUP_SOUND),
+            ParameterSpec.choice(CAPTURE_COLOR, CAPTURE_COLOR_CHOICES.get(0), CAPTURE_COLOR_CHOICES)
+                    .asDisplayOnly().inGroup(GROUP_APPEARANCE));
 
     private KeyboardTypes() {
     }
