@@ -34,6 +34,7 @@ import cl.almejo.vsim.ui.paint.TerminalAnimation;
 import cl.almejo.vsim.ui.paint.TerminalLook;
 import cl.almejo.vsim.ui.paint.TerminalMoment;
 import cl.almejo.vsim.ui.paint.TerminalPainter;
+import cl.almejo.vsim.ui.paint.UartPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
 import cl.almejo.vsim.ui.paint.TunnelPainter;
@@ -400,6 +401,13 @@ public final class CircuitRenderer {
                 String label = component.label().isBlank() ? null : component.label();
                 ComponentDrawing.paintPlaced(graphics, component, local -> keyboardPainter.paintWithCapture(local,
                         type, component.parameters(), keyboardState, scheme, label, capturing));
+            } else if (painters.painterFor(type.id()) instanceof UartPainter uartPainter) {
+                VisibleState uartState = state.snapshot().componentState(component.id().value());
+                boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
+                Optional<String> label = component.label().isBlank() ? Optional.empty()
+                        : Optional.of(component.label());
+                ComponentDrawing.paintPlaced(graphics, component, local -> uartPainter.paintWithCapture(local, type,
+                        component.parameters(), uartState, scheme, label, capturing));
             } else {
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);

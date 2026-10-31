@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.KeyboardTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -351,6 +352,46 @@ class TerminalWindowsTest {
 
         assertThat(content.typingHint()).contains(
                 "Para escribir aquí, enlaza un Teclado a este Terminal en su propiedad «Terminal enlazado».");
+    }
+
+    private Component uart(String label, String screen) {
+        ComponentType uartType = document.registry().require(StandardComponentTypes.UART_16550);
+        Component component = uartType.newComponent(document.document().newComponentId(), new GridPoint(0, 80),
+                Rotation.R0, Map.of(TerminalTypes.ROWS, 2, TerminalTypes.COLUMNS, 10, UartTypes.SCREEN, screen),
+                label);
+        document.execute(new AddElementsCommand(List.of(component)));
+        terminals.add(component.id().value(), 2, 10);
+        return component;
+    }
+
+    @Test
+    void aUartWithItsIntegratedScreenHasTheWindowAndTypingOnItGoesToTheUart() {
+        Component uart0 = uart("uart0", UartTypes.SCREEN_INTEGRATED);
+        awaitSimulation(document);
+
+        TerminalWindowContent content = open(uart0);
+        JComponent screen = content.screen().typingTarget();
+        for (java.awt.event.KeyListener listener : screen.getKeyListeners()) {
+            listener.keyTyped(new KeyEvent(screen, KeyEvent.KEY_TYPED, 0, 0, KeyEvent.VK_UNDEFINED, 'a'));
+        }
+
+        assertThat(shown).hasSize(1);
+        assertThat(content.barText()).isEqualTo("uart0 · 2×10 · VT100‑xterm");
+        assertThat(content.typingHint()).isEmpty();
+        waitUntil(() -> {
+            awaitSimulation(document);
+            return document.latestSnapshot().componentState(uart0.id().value())
+                    instanceof VisibleState.UartState state && state.received() == 1;
+        });
+    }
+
+    @Test
+    void aUartWithTxAndRxPinsHasNoWindow() {
+        Component uart0 = uart("uart0", UartTypes.SCREEN_PINS);
+
+        windows.open(uart0.id().value(), opener());
+
+        assertThat(shown).isEmpty();
     }
 
     private int queueSize(Component keyboard) {

@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * recibir» the simulation pauses when the received text ends with it, once per arrival: the latch opens again when the
  * text no longer ends with it.
  */
-public final class TerminalBehavior implements Behavior {
+public final class TerminalBehavior implements Behavior, TerminalScreenPart {
 
     /** The bundle key of the pause notice; its argument is the text received (the UI adds the part's name). */
     public static final String STOPPED_MESSAGE = "terminal.stopped";
@@ -93,6 +93,7 @@ public final class TerminalBehavior implements Behavior {
     }
 
     /** «Limpiar» from the window or the context menu: the same as CLR, not an edit. */
+    @Override
     public void clearScreen() {
         screen.clear();
     }
@@ -106,16 +107,19 @@ public final class TerminalBehavior implements Behavior {
     }
 
     /** The glyphs read from the character ROM so far; empty with the internal generator. */
+    @Override
     public GlyphCache glyphs() {
         return characterRom.map(CharacterRomScan::glyphs).orElse(GlyphCache.EMPTY);
     }
 
     /** The number of this behaviour in {@link TerminalState#owner()}. */
+    @Override
     public long owner() {
         return owner;
     }
 
     /** The screen, read by the window's frames on the simulation thread only. */
+    @Override
     public TerminalScreen screen() {
         return screen;
     }

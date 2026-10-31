@@ -197,8 +197,15 @@ final class TerminalWindowContent extends JPanel {
         return document.document().component(new ElementId(componentId));
     }
 
-    /** The first Teclado on the circuit whose «Terminal enlazado» is this Terminal's name. */
+    /**
+     * Where typing on the screen goes: a UART 16550's own keyboard, else the first Teclado on the circuit whose
+     * «Terminal enlazado» is this Terminal's name.
+     */
     private Optional<Component> linkedKeyboard() {
+        Optional<Component> uart = component().filter(found -> TerminalParts.isIntegratedUart(document, found));
+        if (uart.isPresent()) {
+            return uart;
+        }
         String label = component().map(Component::label).orElse("");
         if (label.isBlank()) {
             return Optional.empty();

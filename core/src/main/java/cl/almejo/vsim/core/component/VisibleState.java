@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.value.Value;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 public sealed interface VisibleState {
 
@@ -86,6 +87,30 @@ public sealed interface VisibleState {
         @Override
         public int hashCode() {
             return Objects.hash(owner, version, externalGlyphs, glyphs.generation());
+        }
+    }
+
+    /**
+     * A UART 16550's eight registers as its painter shows them (spec §12, mockup «uart0»), behind DLAB or not.
+     * {@code receiver} is the byte RBR would give now and {@code transmitter} the last byte written to THR, both -1
+     * when there is none; the others are the register values (0 to 255) a CPU would read, {@code fifoControl} the last
+     * one written to FCR.
+     */
+    record UartRegisters(int receiver, int transmitter, int interruptEnable, int interruptIdentification,
+                         int fifoControl, int lineControl, int modemControl, int lineStatus, int modemStatus,
+                         int scratch, int divisorLow, int divisorHigh) {
+    }
+
+    /**
+     * A UART 16550: its {@code registers}, how many received bytes wait to be read ({@code received}: the FIFO with
+     * pins, the typed bytes with the integrated keyboard) and, with the integrated screen, that screen as a Terminal
+     * shows it (equal by its owner and version, so comparing states never compares cells).
+     */
+    record UartState(UartRegisters registers, int received, Optional<TerminalState> screen) implements VisibleState {
+
+        public UartState {
+            Objects.requireNonNull(registers, "registers");
+            Objects.requireNonNull(screen, "screen");
         }
     }
 

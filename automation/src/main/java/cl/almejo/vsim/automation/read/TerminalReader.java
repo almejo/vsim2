@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.TerminalReading;
@@ -17,11 +18,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 
 /**
  * Reads what the AI may know of a Terminal (the screen the simulation shows, its text and bytes) and finds the Teclado
- * it may type into. Only parts placed on the circuit itself are reachable, found by id or, failing that, by their
- * only label.
+ * it may type into; a UART 16550 with its integrated screen counts as both. Only parts placed on the circuit itself
+ * are reachable, found by id or, failing that, by their only label.
  */
 public final class TerminalReader {
 
@@ -64,23 +66,22 @@ public final class TerminalReader {
 
     /** The Terminal {@code reference} (id or label) of the circuit; INVALID_REFERENCE when it is not one. */
     public static Described describe(ReadSource source, String reference) {
-        Component component = find(source, reference, StandardComponentTypes.TERMINAL, "terminal");
-        ComponentType type = source.registry().typeOf(component);
-        Map<String, Object> resolved = type.resolveParameters(component.parameters());
+        Component component = find(source, reference, TerminalReader::showsScreen,
+                "terminal (or a UART 16550 with its integrated screen)");
+        Map<String, Object> resolved = resolved(source, component);
         String expectedKind = String.valueOf(resolved.get(TerminalTypes.EXPECTED));
         Optional<String> expectedText = TerminalTypes.EXPECTED_WRITTEN.equals(expectedKind)
                 ? Optional.of(String.valueOf(resolved.get(TerminalTypes.EXPECTED_TEXT))) : Optional.empty();
-        return new Described(component.id().value(), String.valueOf(resolved.get(TerminalTypes.PROFILE)),
+        return new Described(component.id().value(), String.valueOf(resolved.getOrDefault(TerminalTypes.PROFILE, "")),
                 TerminalTypes.settings(resolved).mode().name(), expectedText,
                 TerminalTypes.EXPECTED_FROM_FILE.equals(expectedKind), source);
     }
 
     /** The Teclado {@code reference} (id or label) of the circuit; INVALID_REFERENCE when it is not one. */
     public static Keyboard keyboard(ReadSource source, String reference) {
-        Component component = find(source, reference, StandardComponentTypes.KEYBOARD, "keyboard (Teclado)");
-        ComponentType type = source.registry().typeOf(component);
-        return new Keyboard(component.id().value(),
-                KeyEncoding.forParameters(type.resolveParameters(component.parameters())));
+        Component component = find(source, reference, TerminalReader::takesTyping,
+                "keyboard (Teclado, or a UART 16550 with its integrated keyboard)");
+        return new Keyboard(component.id().value(), KeyEncoding.forParameters(resolved(source, component)));
     }
 
     /** {@code reading} of {@code terminal} as the AI sees it. */
@@ -130,12 +131,32 @@ public final class TerminalReader {
         };
     }
 
-    private static Component find(ReadSource source, String reference, String typeId, String kind) {
+    /** A Terminal, or a UART 16550 with its integrated screen. */
+    private static boolean showsScreen(Component component, Map<String, Object> resolved) {
+        return component.typeId().equals(StandardComponentTypes.TERMINAL) || isIntegratedUart(component, resolved);
+    }
+
+    /** A Teclado, or a UART 16550 with its integrated keyboard. */
+    private static boolean takesTyping(Component component, Map<String, Object> resolved) {
+        return component.typeId().equals(StandardComponentTypes.KEYBOARD) || isIntegratedUart(component, resolved);
+    }
+
+    private static boolean isIntegratedUart(Component component, Map<String, Object> resolved) {
+        return component.typeId().equals(StandardComponentTypes.UART_16550) && UartTypes.isIntegrated(resolved);
+    }
+
+    private static Map<String, Object> resolved(ReadSource source, Component component) {
+        ComponentType type = source.registry().typeOf(component);
+        return type.resolveParameters(component.parameters());
+    }
+
+    private static Component find(ReadSource source, String reference,
+                                  BiPredicate<Component, Map<String, Object>> wanted, String kind) {
         Optional<Component> byId = idOf(reference).flatMap(id -> source.document().component(id));
         Optional<Component> found = byId.isPresent() ? byId : byLabel(source, reference);
         Component component = found.orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE,
                 "There is no part " + reference + " on the circuit itself; read the circuit again"));
-        if (!component.typeId().equals(typeId)) {
+        if (!wanted.test(component, resolved(source, component))) {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, reference + " is a "
                     + component.typeId() + ", not a " + kind);
         }

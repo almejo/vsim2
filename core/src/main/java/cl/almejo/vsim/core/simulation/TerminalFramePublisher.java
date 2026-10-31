@@ -1,6 +1,6 @@
 package cl.almejo.vsim.core.simulation;
 
-import cl.almejo.vsim.core.component.standard.TerminalBehavior;
+import cl.almejo.vsim.core.component.standard.TerminalScreenPart;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +45,7 @@ final class TerminalFramePublisher {
 
     /** Sets (or replaces) the request for its Terminal; on the simulation thread. */
     void set(TerminalRequest request, SimulationEngine engine) {
-        long owner = engine.terminal(request.componentId()).map(TerminalBehavior::owner).orElse(NO_TERMINAL);
+        long owner = engine.terminal(request.componentId()).map(TerminalScreenPart::owner).orElse(NO_TERMINAL);
         feeds.put(request.componentId(), new Feed(request, owner));
     }
 
@@ -80,7 +80,7 @@ final class TerminalFramePublisher {
         if (running && feed.published && nowNanos - feed.lastPublishNanos < PUBLISH_INTERVAL_NANOS) {
             return;
         }
-        Optional<TerminalBehavior> terminal = engine.terminal(componentId);
+        Optional<TerminalScreenPart> terminal = engine.terminal(componentId);
         TerminalWindowFrame previous = latestFrames.get(componentId);
         if (!feed.requestChanged && (terminal.isEmpty() && previous == null
                 || terminal.isPresent() && previous != null && unchanged(previous, terminal.get()))) {
@@ -97,7 +97,7 @@ final class TerminalFramePublisher {
         feed.lastPublishNanos = nowNanos;
     }
 
-    private static boolean unchanged(TerminalWindowFrame previous, TerminalBehavior terminal) {
+    private static boolean unchanged(TerminalWindowFrame previous, TerminalScreenPart terminal) {
         return previous.owner() == terminal.owner() && previous.frame().version() == terminal.screen().version()
                 && previous.lastByteSequence() == terminal.screen().byteLog().lastSequence()
                 && previous.glyphs() == terminal.glyphs();
@@ -107,7 +107,7 @@ final class TerminalFramePublisher {
      * The first byte a frame of {@code terminal} leaves out: the acknowledged ones when the reader acknowledged this
      * screen, else the request's when it was set for this screen, else none (a screen started over or rebuilt).
      */
-    private long bytesSince(String componentId, Feed feed, TerminalBehavior terminal) {
+    private long bytesSince(String componentId, Feed feed, TerminalScreenPart terminal) {
         long asked = feed.requestOwner == terminal.owner() ? feed.request.bytesSince() : 0;
         Acknowledgement acknowledgement = acknowledgements.get(componentId);
         return acknowledgement != null && acknowledgement.owner() == terminal.owner()

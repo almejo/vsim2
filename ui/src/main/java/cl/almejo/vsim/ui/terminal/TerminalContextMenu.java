@@ -21,8 +21,9 @@ import java.util.function.Supplier;
 
 /**
  * The context menu of a Terminal («Abrir en ventana», «Limpiar pantalla», and with an external character ROM «Releer
- * la ROM de caracteres») and of a Teclado («Pegar texto», «Vaciar cola»). Clearing, rereading, pasting and emptying are
- * simulation requests, never edits (no undo step).
+ * la ROM de caracteres»), of a Teclado («Pegar texto», «Vaciar cola») and of a UART 16550 with its integrated screen
+ * (the Terminal's two and the Teclado's two). Clearing, rereading, pasting and emptying are simulation requests, never
+ * edits (no undo step).
  */
 final class TerminalContextMenu implements ContextMenuContributor {
 
@@ -45,26 +46,28 @@ final class TerminalContextMenu implements ContextMenuContributor {
         if (selection.ids().size() > 1 || target.isEmpty() || !(target.get() instanceof Component component)) {
             return;
         }
-        String componentId = component.id().value();
-        switch (component.typeId()) {
-            case StandardComponentTypes.TERMINAL -> {
-                menu.add(item("terminal.menu.open", () -> openWindow.accept(component)));
-                menu.add(item("terminal.menu.clear", () -> document.clearTerminal(component.id())));
-                if (TerminalTypes.externalGlyphs(document.registry().typeOf(component)
-                        .resolveParameters(component.parameters()))) {
-                    menu.add(item("terminal.menu.reread-glyphs",
-                            () -> document.rereadTerminalGlyphs(component.id())));
-                }
-            }
-            case StandardComponentTypes.KEYBOARD -> {
-                menu.add(item("keyboard.menu.paste", () -> KeyboardPaste.paste(document, componentId,
-                        clipboardText.get().orElse(""), notices)));
-                menu.add(item("keyboard.menu.clear", () -> document.editTyping(componentId, TypingEdit.CLEAR)));
-            }
-            default -> {
-                // not a part of this feature
-            }
+        if (TerminalParts.showsScreen(document, component)) {
+            addScreenItems(menu, component);
         }
+        if (component.typeId().equals(StandardComponentTypes.KEYBOARD)
+                || TerminalParts.isIntegratedUart(document, component)) {
+            addTypingItems(menu, component.id().value());
+        }
+    }
+
+    private void addScreenItems(JPopupMenu menu, Component component) {
+        menu.add(item("terminal.menu.open", () -> openWindow.accept(component)));
+        menu.add(item("terminal.menu.clear", () -> document.clearTerminal(component.id())));
+        if (TerminalTypes.externalGlyphs(document.registry().typeOf(component)
+                .resolveParameters(component.parameters()))) {
+            menu.add(item("terminal.menu.reread-glyphs", () -> document.rereadTerminalGlyphs(component.id())));
+        }
+    }
+
+    private void addTypingItems(JPopupMenu menu, String componentId) {
+        menu.add(item("keyboard.menu.paste", () -> KeyboardPaste.paste(document, componentId,
+                clipboardText.get().orElse(""), notices)));
+        menu.add(item("keyboard.menu.clear", () -> document.editTyping(componentId, TypingEdit.CLEAR)));
     }
 
     private static JMenuItem item(String key, Runnable behavior) {

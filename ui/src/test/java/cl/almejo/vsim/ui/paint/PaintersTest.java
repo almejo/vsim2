@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,6 +71,9 @@ class PaintersTest {
             case StandardComponentTypes.ALU -> new VisibleState.AluState(1);
             case StandardComponentTypes.KEYBOARD -> new VisibleState.KeyboardState(1, List.of(0x68, 0x69), 2, 2);
             case StandardComponentTypes.TERMINAL -> terminalSample();
+            case StandardComponentTypes.UART_16550 -> new VisibleState.UartState(new VisibleState.UartRegisters('a',
+                    '?', 0x00, 0xC1, 0x07, 0x03, 0x00, 0x61, 0xB0, 0x00, 0x01, 0x00), 1,
+                    Optional.of((VisibleState.TerminalState) terminalSample()));
             case StandardComponentTypes.RAM, StandardComponentTypes.ROM -> new VisibleState.MemoryState(true,
                     VisibleState.MemoryAccess.READ, 2, 0, List.of(0x11L, 0x22L, 0x33L, 0x44L, 0x55L));
             case StandardComponentTypes.TIME_DIAGRAM -> fullTimeDiagramHistory(StandardComponentTypes.registry().require(typeId));

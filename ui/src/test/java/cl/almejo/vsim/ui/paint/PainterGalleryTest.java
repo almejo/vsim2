@@ -49,15 +49,19 @@ class PainterGalleryTest {
     /** Types shown, one per row: every standard type (interface pins included) and a user component. */
     static List<ComponentType> galleryTypes() {
         List<ComponentType> types = new ArrayList<>(StandardComponentTypes.registry().all());
-        // the default 24x80 Terminal is 656 px wide: a small one keeps the gallery's image a sane size
-        types.replaceAll(type -> type.id().equals(StandardComponentTypes.TERMINAL)
-                ? type.specializedFor(GALLERY_TERMINAL) : type);
+        // the default 24x80 Terminal is 656 px wide (the UART's screen too): a small one keeps the gallery's image a
+        // sane size
+        types.replaceAll(type -> hasScreen(type.id()) ? type.specializedFor(GALLERY_TERMINAL) : type);
         types.add(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()));
         types.add(SubcircuitTypes.typeOf(ExampleDefinitions.byteBuffer()));
         for (String pinTypeId : List.of(InterfacePins.INPUT_PIN, InterfacePins.OUTPUT_PIN)) {
             types.add(StandardComponentTypes.registry().require(pinTypeId).specializedFor(Map.of(InterfacePins.WIDTH, 8)));
         }
         return types;
+    }
+
+    private static boolean hasScreen(String typeId) {
+        return typeId.equals(StandardComponentTypes.TERMINAL) || typeId.equals(StandardComponentTypes.UART_16550);
     }
 
     /** Side of the square area a type needs below its label, in image pixels, in any rotation. */
@@ -94,7 +98,7 @@ class PainterGalleryTest {
                 Rectangle2D drawingArea = new Rectangle2D.Double(column * cellWidth, rowTops[row] + LABEL_HEIGHT,
                         cellWidth, drawingSide(type));
                 Component component = type.newComponent(new ElementId("c1"), GridPoint.ORIGIN, rotation,
-                        type.id().equals(StandardComponentTypes.TERMINAL) ? GALLERY_TERMINAL : Map.of(), "");
+                        hasScreen(type.id()) ? GALLERY_TERMINAL : Map.of(), "");
                 Rectangle2D bounds = ComponentDrawing.documentBounds(type, component);
                 Rectangle2D reach = new Rectangle2D.Double(
                         drawingArea.getCenterX() - (bounds.getWidth() / 2 + MARGIN) * SCALE,

@@ -66,6 +66,8 @@ public final class StandardComponentTypes {
     public static final String TERMINAL = "terminal";
     /** «Teclado»: a queue of bytes typed from the PC keyboard. */
     public static final String KEYBOARD = "keyboard";
+    /** «UART 16550»: the standard serial port, with a screen and a keyboard inside it or TX and RX pins. */
+    public static final String UART_16550 = "uart-16550";
     public static final String TIME_DIAGRAM = "time-diagram";
     public static final String INPUT_PIN = InterfacePins.INPUT_PIN;
     public static final String OUTPUT_PIN = InterfacePins.OUTPUT_PIN;
@@ -211,6 +213,7 @@ public final class StandardComponentTypes {
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY_DOUBLE, 8));
         TerminalTypes.register(registry);
         KeyboardTypes.register(registry);
+        UartTypes.register(registry);
         List<PinSpec> diagramPins = new ArrayList<>();
         for (int index = 0; index < 4; index++) {
             diagramPins.add(PinSpec.input("in" + index, 0, index * 2));

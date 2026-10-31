@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -126,6 +127,33 @@ class TerminalExtensionTest {
             }
         }
         throw new AssertionError("no item " + text);
+    }
+
+    private Component uart(String label, String screen) {
+        ComponentType type = document.registry().require(StandardComponentTypes.UART_16550);
+        Component component = type.newComponent(document.document().newComponentId(), new GridPoint(0, 0),
+                Rotation.R0, Map.of(UartTypes.SCREEN, screen), label);
+        document.execute(new AddElementsCommand(List.of(component)));
+        return component;
+    }
+
+    @Test
+    void anIntegratedUartsMenuHasTheTerminalsAndTheTecladosItems() {
+        install();
+        Component uart0 = uart("uart0", UartTypes.SCREEN_INTEGRATED);
+
+        assertThat(menuTexts(uart0)).contains("Abrir en ventana", "Limpiar pantalla", "Pegar texto", "Vaciar cola");
+        click(uart0, "Abrir en ventana");
+        assertThat(shownTitles).containsExactly("uart0");
+    }
+
+    @Test
+    void aUartWithTxAndRxPinsHasNoneOfThem() {
+        install();
+        Component uart0 = uart("uart0", UartTypes.SCREEN_PINS);
+
+        assertThat(menuTexts(uart0)).doesNotContain("Abrir en ventana", "Limpiar pantalla", "Pegar texto",
+                "Vaciar cola");
     }
 
     @Test

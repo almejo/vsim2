@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.terminal;
 
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
@@ -42,7 +41,10 @@ public final class TerminalWindows {
         document.document().addListener(documentListener);
     }
 
-    /** Opens the window of the Terminal {@code componentId}, or brings it to the front when it is open. */
+    /**
+     * Opens the window of the Terminal (or integrated UART 16550) {@code componentId}, or brings it to the front when
+     * it is open.
+     */
     public void open(String componentId, TerminalWindowOwner owner) {
         Open open = windows.get(componentId);
         if (open != null) {
@@ -50,7 +52,7 @@ public final class TerminalWindows {
             return;
         }
         boolean terminal = document.document().component(new ElementId(componentId))
-                .filter(component -> component.typeId().equals(StandardComponentTypes.TERMINAL)).isPresent();
+                .filter(component -> TerminalParts.showsScreen(document, component)).isPresent();
         if (!terminal) {
             return;
         }

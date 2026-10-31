@@ -6,6 +6,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.ReadHost;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.TerminalReading;
@@ -162,6 +163,30 @@ class ReadTerminalTest {
                 .containsExactly((byte) 0xE9);
         assertThat(reads.keyboardOf(ReadFixture.ID, "teclas").component()).isEqualTo(keyboard.id().value());
         assertInvalid(() -> reads.keyboardOf(ReadFixture.ID, gate.id().value()), AutomationError.INVALID_REFERENCE);
+    }
+
+    @Test
+    void anIntegratedUartIsReadAndTypedIntoLikeATerminalAndATeclado() {
+        Component uart = fixture.place(StandardComponentTypes.UART_16550, 0, 40, Rotation.R0,
+                Map.of(TerminalTypes.ROWS, ROWS, TerminalTypes.COLUMNS, COLUMNS), "uart0");
+        write("hola");
+
+        TerminalView view = reads.readTerminal(ReadFixture.ID, "uart0", 0, 0);
+
+        assertThat(view.component()).isEqualTo(uart.id().value());
+        assertThat(view.screen().getFirst()).isEqualTo("hola");
+        assertThat(view.mode()).isEqualTo("VT");
+        assertThat(reads.keyboardOf(ReadFixture.ID, "uart0").component()).isEqualTo(uart.id().value());
+    }
+
+    @Test
+    void aUartWithTxAndRxPinsHasNoScreenAndNoKeyboard() {
+        Component uart = fixture.place(StandardComponentTypes.UART_16550, 0, 40, Rotation.R0,
+                Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS), "uart0");
+
+        assertInvalid(() -> reads.readTerminal(ReadFixture.ID, uart.id().value(), 0, 0),
+                AutomationError.INVALID_REFERENCE);
+        assertInvalid(() -> reads.keyboardOf(ReadFixture.ID, uart.id().value()), AutomationError.INVALID_REFERENCE);
     }
 
     private static void assertInvalid(Runnable call, AutomationError error) {

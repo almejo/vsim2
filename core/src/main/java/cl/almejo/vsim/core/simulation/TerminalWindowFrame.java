@@ -1,6 +1,6 @@
 package cl.almejo.vsim.core.simulation;
 
-import cl.almejo.vsim.core.component.standard.TerminalBehavior;
+import cl.almejo.vsim.core.component.standard.TerminalScreenPart;
 import cl.almejo.vsim.core.terminal.ByteLog;
 import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.TerminalCell;
@@ -45,7 +45,7 @@ public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalF
      * {@code bytesSince}. Costs the history asked for and the bytes not acknowledged yet, never more than the
      * screen's limits (10 000 lines, the byte log's 10 000 entries).
      */
-    static TerminalWindowFrame capture(TerminalBehavior terminal, TerminalRequest request, long bytesSince,
+    static TerminalWindowFrame capture(TerminalScreenPart terminal, TerminalRequest request, long bytesSince,
                                        long time) {
         TerminalScreen screen = terminal.screen();
         return new TerminalWindowFrame(request, terminal.owner(), screen.frame(),

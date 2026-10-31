@@ -136,7 +136,7 @@ public final class TerminalPainter implements ComponentPainter {
     }
 
     /** The screen's colours in {@code scheme}: the part's own, or the scheme's text on its background in monochrome. */
-    private static TerminalScreenPainter.Colors colorsOf(TerminalLook look, ColorScheme scheme) {
+    static TerminalScreenPainter.Colors colorsOf(TerminalLook look, ColorScheme scheme) {
         return MonochromeScheme.isMonochrome(scheme)
                 ? new TerminalScreenPainter.Colors(scheme.text(), scheme.background(), look.palette(), true)
                 : new TerminalScreenPainter.Colors(look.screenColors().text(scheme),
