@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.TerminalReading;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +52,17 @@ public interface ReadHost {
      * yet). Called off the editor thread; completes off it.
      */
     default CompletableFuture<Optional<MemoryContents>> currentMemory(DocumentId document, String component) {
+        return CompletableFuture.completedFuture(Optional.empty());
+    }
+
+    /**
+     * What Terminal {@code component} of circuit {@code document} shows in the running simulation (its screen, the last
+     * {@code historyLines} rows of history and the last {@code byteCount} bytes), once the earlier requests ran; empty
+     * when the simulation has no such Terminal (stopped or not built yet). Called off the editor thread; completes
+     * off it.
+     */
+    default CompletableFuture<Optional<TerminalReading>> currentTerminal(DocumentId document, String component,
+                                                                        int historyLines, int byteCount) {
         return CompletableFuture.completedFuture(Optional.empty());
     }
 }

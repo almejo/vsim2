@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -90,6 +91,36 @@ class SimulationThreadTerminalTest {
         assertThat(frame.lastByteSequence()).isEqualTo(12);
         assertThat(frame.transcript()).isEqualTo("uno\ndos\ntres");
         assertThat(frame.time()).isEqualTo(thread.latestSnapshot().time());
+    }
+
+    @Test
+    void aOneShotReadingHoldsTheScreenTheHistoryTextAndTheLastBytes() {
+        start();
+        type("uno\ndos\ntres");
+
+        CompletableFuture<Optional<TerminalReading>> asked = thread.requestTerminalReading("tty", 10, 4);
+        assertThat(asked).isNotDone();
+        thread.tick();
+
+        TerminalReading reading = asked.join().orElseThrow();
+        assertThat(reading.frame().text().stripTrailing()).isEqualTo("dos\ntres");
+        assertThat(reading.history()).containsExactly("uno");
+        assertThat(reading.bytes()).extracting(ByteLog.Entry::value)
+                .containsExactly((int) 't', (int) 'r', (int) 'e', (int) 's');
+        assertThat(reading.transcript()).isEqualTo("uno\ndos\ntres");
+        assertThat(reading.time()).isEqualTo(thread.latestSnapshot().time());
+    }
+
+    @Test
+    void aReadingOfAnUnknownPartOrOfAClosedThreadIsEmpty() {
+        start();
+
+        CompletableFuture<Optional<TerminalReading>> unknown = thread.requestTerminalReading("nothing", 0, 0);
+        thread.tick();
+        assertThat(unknown.join()).isEmpty();
+
+        thread.close();
+        assertThat(thread.requestTerminalReading("tty", 0, 0).join()).isEmpty();
     }
 
     @Test

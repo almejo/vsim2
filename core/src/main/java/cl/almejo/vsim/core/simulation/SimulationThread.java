@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.Set;
@@ -74,6 +75,10 @@ public final class SimulationThread implements AutoCloseable {
     private final Set<CompletableFuture<Optional<MemoryContents>>> waitingContents = ConcurrentHashMap.newKeySet();
     /** The {@link #typeBytes} and {@link #typeCharacters} answers not given yet: completed with 0 on close. */
     private final Set<CompletableFuture<Integer>> waitingTyping = ConcurrentHashMap.newKeySet();
+    /** The {@link #requestTerminalReading} answers not given yet: completed empty on close. */
+    private final Set<CompletableFuture<Optional<TerminalReading>>> waitingReadings = ConcurrentHashMap.newKeySet();
+    /** The {@link #requestTypingQueueSize} answers not given yet: completed empty on close. */
+    private final Set<CompletableFuture<OptionalInt>> waitingQueueSizes = ConcurrentHashMap.newKeySet();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
     /** The last memory map frame for the current request; null without a request or a memory to answer it. */
@@ -440,6 +445,49 @@ public final class SimulationThread implements AutoCloseable {
         return future;
     }
 
+    /**
+     * What the Terminal simulated as {@code componentId} shows now, for a reader that is not its window (the AI): its
+     * screen, the last {@code historyLines} rows of history and the last {@code byteCount} bytes. Completed on the
+     * simulation thread once the earlier requests ran, empty when there is no such Terminal, and at once with empty
+     * when the thread is closed. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Optional<TerminalReading>> requestTerminalReading(String componentId, int historyLines,
+                                                                              int byteCount) {
+        CompletableFuture<Optional<TerminalReading>> future = new CompletableFuture<>();
+        if (stopRequested) {
+            future.complete(Optional.empty());
+            return future;
+        }
+        waitingReadings.add(future);
+        future.whenComplete((reading, failure) -> waitingReadings.remove(future));
+        requests.add(() -> future.complete(engine.terminal(componentId).map(terminal ->
+                TerminalReading.of(terminal.screen(), historyLines, byteCount, engine.now()))));
+        if (stopRequested) {
+            future.complete(Optional.empty());
+        }
+        return future;
+    }
+
+    /**
+     * How many bytes the typing queue of the part simulated as {@code componentId} (a Teclado) holds now: completed
+     * on the simulation thread once the earlier requests ran, empty when there is no such part or it keeps no queue,
+     * and at once with empty when the thread is closed. Never wait for it on the EDT.
+     */
+    public CompletableFuture<OptionalInt> requestTypingQueueSize(String componentId) {
+        CompletableFuture<OptionalInt> future = new CompletableFuture<>();
+        if (stopRequested) {
+            future.complete(OptionalInt.empty());
+            return future;
+        }
+        waitingQueueSizes.add(future);
+        future.whenComplete((size, failure) -> waitingQueueSizes.remove(future));
+        requests.add(() -> future.complete(engine.typingQueueSize(componentId)));
+        if (stopRequested) {
+            future.complete(OptionalInt.empty());
+        }
+        return future;
+    }
+
     public void resume() {
         requests.add(() -> {
             running = true;
@@ -762,6 +810,12 @@ public final class SimulationThread implements AutoCloseable {
         }
         for (CompletableFuture<Integer> future : Set.copyOf(waitingTyping)) {
             future.complete(0);
+        }
+        for (CompletableFuture<Optional<TerminalReading>> future : Set.copyOf(waitingReadings)) {
+            future.complete(Optional.empty());
+        }
+        for (CompletableFuture<OptionalInt> future : Set.copyOf(waitingQueueSizes)) {
+            future.complete(OptionalInt.empty());
         }
     }
 

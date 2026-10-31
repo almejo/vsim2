@@ -9,6 +9,7 @@ import cl.almejo.vsim.automation.check.LayoutCheck;
 import cl.almejo.vsim.automation.check.StageCheck;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.TerminalReading;
 
 import java.time.Duration;
 import java.util.Map;
@@ -66,6 +67,29 @@ public final class Reads {
                         + " yet (the circuit changed and is not simulated, or the simulation is stopped); read the "
                         + "initial contents or try again"));
         return MemoryReader.window(memory, live, "current", firstAddress, count);
+    }
+
+    /**
+     * What Terminal {@code component} (id or label) shows in the running simulation: its screen, the last
+     * {@code historyLines} rows of history and the last {@code byteCount} bytes (NOT_ALLOWED when the simulation does
+     * not have it).
+     */
+    public TerminalView readTerminal(DocumentId document, String component, int historyLines, int byteCount) {
+        Objects.requireNonNull(component, "component");
+        TerminalReader.checkCounts(historyLines, byteCount);
+        TerminalReader.Described terminal = await(host.reading(document,
+                source -> TerminalReader.describe(source, component)));
+        TerminalReading reading = await(host.currentTerminal(document, terminal.component(), historyLines,
+                byteCount)).orElseThrow(() -> new AutomationException(AutomationError.NOT_ALLOWED,
+                "The simulation has no state for " + component + " yet (the circuit changed and is not simulated, "
+                        + "or the simulation is stopped); try again"));
+        return TerminalReader.view(terminal, reading);
+    }
+
+    /** The Teclado {@code component} (id or label) of the circuit and how it encodes what is typed. */
+    public TerminalReader.Keyboard keyboardOf(DocumentId document, String component) {
+        Objects.requireNonNull(component, "component");
+        return await(host.reading(document, source -> TerminalReader.keyboard(source, component)));
     }
 
     public ProblemsView readProblems(DocumentId document) {

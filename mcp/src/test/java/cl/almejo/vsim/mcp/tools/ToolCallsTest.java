@@ -12,6 +12,9 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.ClockEdge;
+import cl.almejo.vsim.core.simulation.TerminalReading;
+import cl.almejo.vsim.core.terminal.TerminalScreen;
+import cl.almejo.vsim.core.terminal.TerminalSettings;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
@@ -608,6 +611,71 @@ class ToolCallsTest {
                         "to", Map.of("target", "new:and", "pinName", "in1")),
                 Map.of("op", "Connect", "from", Map.of("target", "new:and", "pinName", "out"),
                         "to", Map.of("target", "new:y", "pinName", "in")))));
+    }
+
+    // --- Terminal and Teclado ---
+
+    private String placeAndFindId(String typeId, String label) {
+        call("vsim_edit", edit(beginTask(), 0, List.of(Map.of("op", "PlacePart", "alias", "part", "typeId", typeId,
+                "x", 0, "y", 0, "label", label))));
+        return (String) list(call("vsim_read_circuit", Map.of("document", "circuit-1")), "parts").getFirst()
+                .get("id");
+    }
+
+    @Test
+    void aTerminalIsReadAsWhatItsBytesShow() {
+        String terminal = placeAndFindId("terminal", "tty");
+        TerminalScreen screen = new TerminalScreen(TerminalSettings.vt(24, 80));
+        for (char character : "hola\r\nmundo".toCharArray()) {
+            screen.write(character, 5);
+        }
+        host.terminal = Optional.of(TerminalReading.of(screen, 10, 4, 77));
+
+        Map<String, Object> read = call("vsim_read_terminal", Map.of("document", "circuit-1",
+                "component", terminal, "bytes", 4));
+
+        assertThat(read).containsEntry("rows", 24).containsEntry("columns", 80).containsEntry("mode", "VT")
+                .containsEntry("profile", "vt").containsEntry("cursorRow", 1).containsEntry("cursorColumn", 5);
+        assertThat(read.get("screen")).asList().startsWith("hola", "mundo").hasSize(24);
+        assertThat(list(read, "bytes")).extracting(entry -> entry.get("character"))
+                .containsExactly("u", "n", "d", "o");
+        assertThat(read).doesNotContainKey("expected");
+        assertThat(refusal("vsim_read_terminal", Map.of("document", "circuit-1", "component", "c999")))
+                .containsEntry("error", "INVALID_REFERENCE");
+    }
+
+    @Test
+    void aTerminalReadWithoutASimulationIsRefusedAndAHugeHistoryIsRefusedBySchema() {
+        String terminal = placeAndFindId("terminal", "tty");
+
+        assertThat(refusal("vsim_read_terminal", Map.of("document", "circuit-1", "component", terminal)))
+                .containsEntry("error", "NOT_ALLOWED");
+        assertThat(refusal("vsim_read_terminal", Map.of("document", "circuit-1", "component", terminal,
+                "history", 1001))).containsEntry("error", "INVALID_PARAMETER");
+    }
+
+    @Test
+    void textIsTypedIntoAKeyboardAndOnlyIntoAKeyboard() {
+        String keyboard = placeAndFindId("keyboard", "teclas");
+        host.typingCapacity = 3;
+
+        Map<String, Object> typed = call("vsim_type_text", Map.of("document", "circuit-1", "component", keyboard,
+                "text", "hola"));
+
+        assertThat(typed).containsEntry("accepted", 3).containsEntry("total", 4).containsEntry("queueSize", 3);
+        assertThat(host.typedCharacters).hasSize(4);
+        assertThat(host.typedCharacters.getFirst()).containsExactly((byte) 'h');
+        assertThat(refusal("vsim_type_text", Map.of("document", "circuit-1", "component", "c999",
+                "text", "x"))).containsEntry("error", "INVALID_REFERENCE");
+    }
+
+    @Test
+    void aTerminalIsNotATeclado() {
+        String terminal = placeAndFindId("terminal", "tty");
+
+        assertThat(refusal("vsim_type_text", Map.of("document", "circuit-1", "component", terminal, "text", "x")))
+                .containsEntry("error", "INVALID_REFERENCE");
+        assertThat(host.typedCharacters).isEmpty();
     }
 
     /** The AND rows, the last one's Y as given. */

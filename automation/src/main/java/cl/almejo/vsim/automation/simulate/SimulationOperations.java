@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.FutureWait;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.automation.SimulationHost;
+import cl.almejo.vsim.core.terminal.KeyEncoding;
 import cl.almejo.vsim.core.truthtable.BudgetedTruthTable;
 import cl.almejo.vsim.core.truthtable.Preparation;
 import cl.almejo.vsim.core.truthtable.TruthTableEvaluator;
@@ -142,6 +143,21 @@ public final class SimulationOperations {
             throw invalid("The amount of a " + kind + " step goes from 1 to " + maximum, Map.of("maximum", maximum));
         }
         return run(new SimulationRequest.Step(document, kind, amount, eventBudget(eventBudget)));
+    }
+
+    /**
+     * Types {@code text} into the Teclado {@code component} as {@code encoding} sends it, character by character, until
+     * the queue is full (INVALID_PARAMETER for a text no keyboard of that encoding can send, NOT_ALLOWED when the
+     * simulation has no such Teclado). Never clears or empties anything.
+     */
+    public TypedText typeText(DocumentId document, String component, String text, KeyEncoding encoding) {
+        Objects.requireNonNull(text, "text");
+        List<byte[]> characters = TextTyping.characters(text, encoding);
+        TypingOutcome outcome = await(host.typeText(document, component, characters));
+        int queueSize = outcome.queueSize().orElseThrow(() -> new AutomationException(AutomationError.NOT_ALLOWED,
+                "The simulation has no state for " + component + " yet (the circuit changed and is not simulated, "
+                        + "or the simulation is stopped); try again"));
+        return new TypedText(document, component, outcome.accepted(), characters.size(), queueSize);
     }
 
     /** The values on {@code pins} at one instant (unknown element INVALID_REFERENCE, unknown pin INVALID_PIN). */

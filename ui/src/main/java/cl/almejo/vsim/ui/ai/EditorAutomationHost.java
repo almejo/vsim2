@@ -16,12 +16,14 @@ import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
 import cl.almejo.vsim.automation.simulate.TruthTableRequest;
+import cl.almejo.vsim.automation.simulate.TypingOutcome;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.automation.export.ExportReceipt;
 import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.TerminalReading;
 import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.present.PresentationPace;
@@ -138,6 +140,18 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public CompletableFuture<Optional<MemoryContents>> currentMemory(DocumentId document, String component) {
         return simulation.currentMemory(document, component);
+    }
+
+    @Override
+    public CompletableFuture<Optional<TerminalReading>> currentTerminal(DocumentId document, String component,
+                                                                       int historyLines, int byteCount) {
+        return simulation.currentTerminal(document, component, historyLines, byteCount);
+    }
+
+    @Override
+    public CompletableFuture<TypingOutcome> typeText(DocumentId document, String component,
+                                                     List<byte[]> characters) {
+        return simulation.typeText(document, component, characters);
     }
 
     /** {@code listener} runs (on the caller's thread) at every request until the returned runnable takes it back. */

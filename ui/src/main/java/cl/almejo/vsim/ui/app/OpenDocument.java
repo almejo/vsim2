@@ -33,6 +33,7 @@ import cl.almejo.vsim.core.simulation.MemoryMapFrame;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.core.simulation.PauseNotice;
+import cl.almejo.vsim.core.simulation.TerminalReading;
 import cl.almejo.vsim.core.simulation.TerminalRequest;
 import cl.almejo.vsim.core.simulation.TerminalWindowFrame;
 import cl.almejo.vsim.core.simulation.RequestReport;
@@ -62,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
@@ -502,6 +504,20 @@ public final class OpenDocument implements AutoCloseable {
      */
     public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(ElementId componentId) {
         return simulation.requestMemoryContents(componentId.value());
+    }
+
+    /**
+     * What the Terminal {@code componentId} shows now, for a reader that is not its window (the AI): completed on the
+     * simulation thread, empty when the engine has no such Terminal. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Optional<TerminalReading>> requestTerminal(ElementId componentId, int historyLines,
+                                                                        int byteCount) {
+        return simulation.requestTerminalReading(componentId.value(), historyLines, byteCount);
+    }
+
+    /** How many bytes the typing queue of {@code componentId} (a Teclado) holds now; empty without such a queue. */
+    public CompletableFuture<OptionalInt> requestTypingQueueSize(ElementId componentId) {
+        return simulation.requestTypingQueueSize(componentId.value());
     }
 
     /**

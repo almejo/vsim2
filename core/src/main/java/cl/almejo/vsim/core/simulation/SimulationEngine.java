@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.IntSupplier;
@@ -469,6 +470,13 @@ public final class SimulationEngine {
             instance.behavior.restoreInitialState(instance);
             scheduler.runUntil(now());
         }
+    }
+
+    /** The bytes the typing queue of the part simulated as {@code componentId} holds; empty without such a queue. */
+    public OptionalInt typingQueueSize(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        return instance != null && instance.behavior.visibleState() instanceof VisibleState.KeyboardState keyboard
+                ? OptionalInt.of(keyboard.size()) : OptionalInt.empty();
     }
 
     /** The Terminal simulated as {@code componentId} (flat id), empty when there is none or it is not a Terminal. */

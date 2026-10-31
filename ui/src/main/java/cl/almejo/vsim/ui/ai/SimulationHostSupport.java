@@ -11,6 +11,7 @@ import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
 import cl.almejo.vsim.automation.simulate.TruthTableRequest;
+import cl.almejo.vsim.automation.simulate.TypingOutcome;
 import cl.almejo.vsim.automation.simulate.ValueText;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
@@ -18,6 +19,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.TerminalReading;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.InputAssignment;
@@ -115,6 +117,40 @@ final class SimulationHostSupport {
                         result.complete(contents);
                     }
                 }));
+    }
+
+    /** What Terminal {@code component} shows in the simulation now, asked of its thread; the EDT never waits. */
+    CompletableFuture<Optional<TerminalReading>> currentTerminal(DocumentId document, String component,
+                                                                int historyLines, int byteCount) {
+        return queue.submitAsync(editorThread, result -> document(document)
+                .requestTerminal(new ElementId(component), historyLines, byteCount)
+                .whenComplete((reading, failure) -> {
+                    if (failure != null) {
+                        result.completeExceptionally(closedOr(failure, document));
+                    } else {
+                        result.complete(reading);
+                    }
+                }));
+    }
+
+    /**
+     * Types {@code characters} into Teclado {@code component} on its simulation thread (not an edit), then asks how
+     * full its queue is; the EDT never waits.
+     */
+    CompletableFuture<TypingOutcome> typeText(DocumentId document, String component, List<byte[]> characters) {
+        return queue.submitAsync(editorThread, result -> {
+            OpenDocument target = document(document);
+            ElementId id = new ElementId(component);
+            target.typeCharacters(component, characters).thenCompose(accepted ->
+                            target.requestTypingQueueSize(id).thenApply(size -> new TypingOutcome(accepted, size)))
+                    .whenComplete((outcome, failure) -> {
+                        if (failure != null) {
+                            result.completeExceptionally(closedOr(failure, document));
+                        } else {
+                            result.complete(outcome);
+                        }
+                    });
+        });
     }
 
     CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
