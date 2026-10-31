@@ -276,8 +276,10 @@ final class EditPlanner {
         String alias = newAlias(operation.alias());
         Optional<ComponentPreset> preset = StandardComponentTypes.preset(operation.typeId());
         String typeId = preset.map(ComponentPreset::typeId).orElse(operation.typeId());
-        Map<String, Object> parameters = new HashMap<>(operation.parameters());
+        // A preset is only a starting point: what the caller passes explicitly wins over its defaults.
+        Map<String, Object> parameters = new HashMap<>();
         preset.ifPresent(found -> parameters.putAll(found.parameters()));
+        parameters.putAll(operation.parameters());
         bringFromLibrary(typeId);
         ComponentType type = registry.find(typeId)
                 .orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE, "There is no component "

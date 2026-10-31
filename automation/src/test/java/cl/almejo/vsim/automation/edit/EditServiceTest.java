@@ -164,6 +164,20 @@ class EditServiceTest {
     }
 
     @Test
+    void anExplicitParameterWinsOverThePresetsDefault() {
+        service.edit(request(new PlacePart(Optional.of("plain"), "nand", 0, 0, Rotation.R0, Map.of("negate", false), ""),
+                new PlacePart(Optional.of("wide"), "nor", 10, 0, Rotation.R0, Map.of("inputs", 4), ""),
+                new PlacePart(Optional.of("default"), "nand", 20, 0, Rotation.R0, Map.of(), "")));
+
+        assertThat(circuit.document().components()).extracting(component -> component.typeId())
+                .containsExactly("and", "or", "and");
+        assertThat(circuit.document().components().get(0).parameters()).containsEntry("negate", false);
+        assertThat(circuit.document().components().get(1).parameters())
+                .containsEntry("inputs", 4).containsEntry("negate", true);
+        assertThat(circuit.document().components().get(2).parameters()).containsEntry("negate", true);
+    }
+
+    @Test
     void aMultiBitSwitchPlacedTurnedComesOutUprightWithItsPinWhereTheTurnPutIt() {
         service.edit(request(new PlacePart(Optional.of("bits"), "switch", 10, 10, Rotation.R90,
                 Map.of("width", 8), "")));

@@ -10,7 +10,9 @@ import cl.almejo.vsim.automation.edit.PinTarget;
 import cl.almejo.vsim.automation.edit.TaskStep;
 import cl.almejo.vsim.automation.present.PresentedEdit;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
@@ -24,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.OptionalInt;
 
 /** {@code vsim_edit}: one call, a list of typed operations, all or nothing, one undo step (spec §10, A§6). */
@@ -316,6 +319,20 @@ final class EditTools {
 
     // --- the tool ---
 
+    /** The presets a PlacePart typeId may be, from the registry: what each places and sets (explicit parameters win). */
+    static String presetsHint() {
+        StringBuilder hint = new StringBuilder("PlacePart typeId also takes these presets (your parameters override "
+                + "theirs): ");
+        String separator = "";
+        for (ComponentPreset preset : StandardComponentTypes.presets()) {
+            hint.append(separator).append(preset.id()).append(" = ").append(preset.typeId());
+            new TreeMap<>(preset.parameters()).forEach((name, value) ->
+                    hint.append(' ').append(name).append(' ').append(value));
+            separator = "; ";
+        }
+        return hint.append('.').toString();
+    }
+
     private static Tool edit(AutomationApi api) {
         return new Tool(EDIT, "Edit the circuit",
                 "Typed operations carried out in order on a copy of the circuit and applied together as one undo "
@@ -330,7 +347,7 @@ final class EditTools {
                         + "step per call with stage, step, text and reason: status APPLIED is in the circuit; "
                         + "PROPOSED is a ghost, nothing changed yet (the aliases already name the ids it will "
                         + "have): call vsim_await_step until APPLIED before the next step. No status: only "
-                        + "validated.",
+                        + "validated. " + presetsHint(),
                 Schema.object("")
                         .property("document", Common.document())
                         .property("version", Common.version())

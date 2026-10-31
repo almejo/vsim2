@@ -384,8 +384,17 @@ class ToolCallsTest {
     }
 
     @Test
+    void theEditDescriptionListsEveryPresetAndWhatItSets() {
+        for (cl.almejo.vsim.core.component.ComponentPreset preset
+                : cl.almejo.vsim.core.component.standard.StandardComponentTypes.presets()) {
+            assertThat(tool("vsim_edit").description()).contains(preset.id() + " = " + preset.typeId());
+        }
+    }
+
+    @Test
     void guidesAddedOnlyToAlignGoAwayAtTheEndUnlessTheTaskKeepsThem() {
         assertThat(tool("vsim_edit").description()).contains("layoutOnly");
+
         assertThat(tool("vsim_end_task").description()).contains("keepLayoutGuides");
         String task = beginTask();
         call("vsim_edit", edit(task, 0, List.of(

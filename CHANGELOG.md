@@ -43,6 +43,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- En `vsim_edit`, los parámetros que la IA pasa al colocar con `nand`, `nor`, `xnor`, `not` o `inverter-controlled` ahora mandan sobre los del atajo (`nand` con `negate: false` da una AND sin negar; `nor` con `inputs: 4` da una OR negada de 4 entradas), y la descripción de la herramienta lista los atajos y lo que fija cada uno.
 - En el asistente de expresiones booleanas, la leyenda de notación lista todas las marcas de NOT que se entienden (`'`, `’`, `′` y `ʹ`), y los errores de las líneas se pintan con el mismo rojo legible del resto del editor.
 - Un doble clic sobre la casilla de una tarea de una nota adhesiva la marca una sola vez (un solo paso de deshacer), en vez de marcarla y desmarcarla, y no abre la edición del texto.
 - Una nota adhesiva de menos de 4 cuadros de alto ya no tapa su primera línea de texto con los botones ✕ y –: el mínimo ahora es 4 × 4 cuadros y el texto empieza bajo los botones. Una nota guardada con 3 de alto se abre con 4.
