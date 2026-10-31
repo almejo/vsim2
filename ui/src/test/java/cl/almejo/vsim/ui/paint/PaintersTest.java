@@ -65,6 +65,7 @@ class PaintersTest {
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY -> new VisibleState.SevenSegmentsState(Value.of(4, 0x7));
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE -> new VisibleState.SevenSegmentsState(Value.of(8, 0x5A));
             case StandardComponentTypes.ALU -> new VisibleState.AluState(1);
+            case StandardComponentTypes.KEYBOARD -> new VisibleState.KeyboardState(1, List.of(0x68, 0x69), 2, 2);
             case StandardComponentTypes.RAM, StandardComponentTypes.ROM -> new VisibleState.MemoryState(true,
                     VisibleState.MemoryAccess.READ, 2, 0, List.of(0x11L, 0x22L, 0x33L, 0x44L, 0x55L));
             case StandardComponentTypes.TIME_DIAGRAM -> fullTimeDiagramHistory(StandardComponentTypes.registry().require(typeId));

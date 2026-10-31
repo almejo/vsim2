@@ -110,6 +110,25 @@ public final class BlockHarness {
         return engine.memory("dut").orElseThrow();
     }
 
+    /** Types {@code bytes} into the block (a Teclado); how many it took. */
+    public int typeBytes(byte[] bytes) {
+        return engine.typeBytes("dut", bytes);
+    }
+
+    /** Applies a queue edit (an arrow key) to the block. */
+    public void editTyping(cl.almejo.vsim.core.terminal.TypingEdit edit) {
+        engine.editTyping("dut", edit);
+    }
+
+    /** Types the characters of {@code text} one at a time (ASCII); how many it took in all. */
+    public int typeText(String text) {
+        int taken = 0;
+        for (char character : text.toCharArray()) {
+            taken += typeBytes(new byte[]{(byte) character});
+        }
+        return taken;
+    }
+
     public VisibleState state() {
         return engine.snapshot().componentState("dut");
     }
