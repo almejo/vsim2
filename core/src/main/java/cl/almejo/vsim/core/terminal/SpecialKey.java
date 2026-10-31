@@ -10,6 +10,8 @@ public enum SpecialKey {
     ENTER,
     BACKSPACE,
     TAB,
+    /** Esc: sent with Shift+Esc while capturing, since Esc alone ends the capture. */
+    ESCAPE,
     DELETE,
     UP,
     DOWN,

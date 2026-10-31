@@ -101,6 +101,9 @@ public final class CapturedKeys {
             return false; // Shift, Ctrl or Alt alone: the canvas keeps track of them
         }
         if (keyCode == KeyEvent.VK_ESCAPE && (event.getModifiersEx() & COMMAND_MODIFIERS) == 0) {
+            if ((event.getModifiersEx() & InputEvent.SHIFT_DOWN_MASK) != 0) {
+                return pressSpecial(target.get(), SpecialKey.ESCAPE); // Shift+Esc types the ESC byte
+            }
             capture.release();
             return true;
         }

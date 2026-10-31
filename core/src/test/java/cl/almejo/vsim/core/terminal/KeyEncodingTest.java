@@ -200,6 +200,13 @@ class KeyEncodingTest {
     }
 
     @Test
+    void escapeAlwaysSendsTheEscapeByte() {
+        assertThat(UTF8.encode(SpecialKey.ESCAPE).orElseThrow()).containsExactly((byte) ESCAPE);
+        assertThat(SEQUENCES.encode(SpecialKey.ESCAPE).orElseThrow()).containsExactly((byte) ESCAPE);
+        assertThat(SpecialKey.ESCAPE.typingEdit()).isEmpty();
+    }
+
+    @Test
     void anEncodedSequenceIsACopy() {
         Optional<byte[]> sequence = SEQUENCES.encode(SpecialKey.UP);
         sequence.orElseThrow()[0] = 0;
