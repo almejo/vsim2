@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
@@ -234,18 +235,17 @@ class ProbeActionsTest {
 
     @Test
     void theDataPinOfATerminalIsAsciiUnlessItsWaveformFormatSaysHex() {
-        ElementId characters = place(openDocument, StandardComponentTypes.TERMINAL, 0, 0, Map.of()).id();
-        // built by hand: the Terminal type does not declare «waveform-format» yet, so newComponent would drop it
-        Component hexComponent = new Component(openDocument.document().newComponentId(),
-                StandardComponentTypes.TERMINAL, new GridPoint(0, 40), cl.almejo.vsim.core.geometry.Rotation.R0,
-                Map.of("waveform-format", "hex"), "");
-        openDocument.execute(new AddElementsCommand(List.of(hexComponent)));
-        ElementId hexOnly = hexComponent.id();
-        actions.addComponentPins(characters);
+        Component characters = place(openDocument, StandardComponentTypes.TERMINAL, 0, 0, Map.of());
+        assertThat(characters.parameters()).as("a new Terminal's default")
+                .containsEntry(TerminalTypes.WAVEFORM_FORMAT, "chars");
+        ElementId hexOnly = place(openDocument, StandardComponentTypes.TERMINAL, 0, 60,
+                Map.of(TerminalTypes.WAVEFORM_FORMAT, "hex")).id();
+        actions.addComponentPins(characters.id());
         actions.addComponentPins(hexOnly);
         assertThat(probes()).extracting(Probe::format).containsOnlyOnce("ascii");
-        assertThat(probes().stream().filter(probe -> probe.format().equals("ascii"))
-                .map(probe -> ((ProbeTarget.PinTarget) probe.target()).componentId())).containsExactly(characters);
+        Probe data = probes().stream().filter(probe -> probe.format().equals("ascii")).findFirst().orElseThrow();
+        assertThat(((ProbeTarget.PinTarget) data.target()).componentId()).isEqualTo(characters.id());
+        assertThat(((ProbeTarget.PinTarget) data.target()).pinIndex()).as("D").isZero();
     }
 
     @Test

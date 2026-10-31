@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.standard.MemoryBehavior;
+import cl.almejo.vsim.core.component.standard.TerminalBehavior;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
@@ -41,6 +42,13 @@ public final class SimulationThread implements AutoCloseable {
     private static final long WAVEFORM_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
     /** Memory map frames are republished at most this often, like the waveforms. */
     private static final long MEMORY_MAP_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
+    private static final long TERMINAL_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
+    /** The owner of no screen: behaviours count from 1. */
+    private static final long NO_TERMINAL = 0;
+
+    /** The window has every byte up to {@code sequence} of the screen of {@code owner}. */
+    private record TerminalAcknowledgement(long owner, long sequence) {
+    }
     /** A running tick advances the engine for at most this long of real time, then publishes and serves requests. */
     private static final long TICK_BUDGET_NANOS = 10 * NANOS_PER_MILLISECOND;
     /** While running, the snapshot is rebuilt at most this often (about 60 per second: what a frame can show). */
@@ -70,6 +78,10 @@ public final class SimulationThread implements AutoCloseable {
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
     /** The last memory map frame for the current request; null without a request or a memory to answer it. */
     private volatile MemoryMapFrame latestMemoryMap;
+    /** The last Terminal window frame for the current request; null without a request or a terminal to answer it. */
+    private volatile TerminalWindowFrame latestTerminalFrame;
+    /** The bytes the Terminal window already has ({@link #acknowledgeTerminalBytes}); null before the first. */
+    private volatile TerminalAcknowledgement terminalAcknowledgement;
     /** The last «Avanzar» or paused interaction (M6.1-B); null until the first one. */
     private volatile StepReport latestStep;
     /** The engine's next event time, refreshed with every published snapshot (M6.1-B). */
@@ -115,6 +127,14 @@ public final class SimulationThread implements AutoCloseable {
     private boolean memoryMapStale;
     private boolean memoryMapPublished;
     private long lastMemoryMapPublishNanos;
+    /** What the Terminal window asks for; null when it asks for nothing. */
+    private TerminalRequest terminalRequest;
+    /** The owner of the screen when the request was set: its {@code bytesSince} counts only for that screen. */
+    private long terminalRequestOwner = NO_TERMINAL;
+    /** True when the request changed since the last terminal frame. */
+    private boolean terminalRequestChanged;
+    private boolean terminalPublished;
+    private long lastTerminalPublishNanos;
     private long stepSequence;
     /** The {@link #published()} futures whose request ran in this tick, completed once it has published. */
     private final List<CompletableFuture<SimulationSnapshot>> publicationWaiters = new ArrayList<>();
@@ -503,6 +523,51 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
+     * What the Terminal window shows (spec §9): from now on {@link #latestTerminalFrame()} answers {@code request}
+     * whenever its screen changes, at most every 16 ms while running; empty stops the frames. Its
+     * {@link TerminalRequest#bytesSince()} counts for the screen the part has now (a «Reiniciar» later starts the bytes
+     * over from the first).
+     */
+    public void setTerminalRequest(Optional<TerminalRequest> request) {
+        TerminalRequest wanted = request.orElse(null);
+        requests.add(() -> {
+            terminalRequest = wanted;
+            terminalRequestOwner = wanted == null ? NO_TERMINAL
+                    : engine.terminal(wanted.componentId()).map(TerminalBehavior::owner).orElse(NO_TERMINAL);
+            terminalRequestChanged = true;
+            terminalPublished = false;
+            if (wanted == null) {
+                latestTerminalFrame = null;
+            }
+        });
+    }
+
+    /**
+     * The latest Terminal window frame: empty without a request, or when what it names is not a Terminal on the
+     * circuit. Its {@link TerminalWindowFrame#request()} may be an earlier request than the last one set.
+     */
+    public Optional<TerminalWindowFrame> latestTerminalFrame() {
+        return Optional.ofNullable(latestTerminalFrame);
+    }
+
+    /**
+     * The window has every byte up to {@code sequence} of the screen {@code owner} ({@link TerminalWindowFrame#owner()}):
+     * later frames of that screen leave them out. Not queued (no new snapshot); safe from any thread. An
+     * acknowledgement of another screen (one started over meanwhile) is ignored.
+     */
+    public void acknowledgeTerminalBytes(long owner, long sequence) {
+        terminalAcknowledgement = new TerminalAcknowledgement(owner, sequence);
+    }
+
+    /**
+     * «Limpiar» on the Terminal simulated as {@code componentId}: its screen and history empty as with CLR (see
+     * {@link SimulationEngine#clearTerminal}). Not an edit of the document and not a step.
+     */
+    public void clearTerminal(String componentId) {
+        requests.add(() -> engine.clearTerminal(componentId));
+    }
+
+    /**
      * The recorded waveforms, republished at most every 16 ms when a trace changes or, with channels, when the
      * simulation time moves.
      */
@@ -805,6 +870,7 @@ public final class SimulationThread implements AutoCloseable {
         // Also after a failure: the channels of a rejected circuit are still bound and shown.
         publishWaveforms(now);
         publishMemoryMap(now);
+        publishTerminalFrame(now);
         if (!publicationWaiters.isEmpty()) {
             SimulationSnapshot published = latestSnapshot;
             publicationWaiters.forEach(waiter -> waiter.complete(published));
@@ -973,6 +1039,46 @@ public final class SimulationThread implements AutoCloseable {
         memoryMapStale = false;
         memoryMapPublished = true;
         lastMemoryMapPublishNanos = nowNanos;
+    }
+
+    /**
+     * Publishes a Terminal window frame when the request changed or the screen did (another screen, another version,
+     * more bytes): while running at most every 16 ms, while paused at once. Nothing new, no frame: the history and the
+     * bytes are never copied for nothing.
+     */
+    private void publishTerminalFrame(long nowNanos) {
+        TerminalRequest request = terminalRequest;
+        if (request == null || running && terminalPublished
+                && nowNanos - lastTerminalPublishNanos < TERMINAL_PUBLISH_INTERVAL_NANOS) {
+            return;
+        }
+        Optional<TerminalBehavior> terminal = engine.terminal(request.componentId());
+        TerminalWindowFrame previous = latestTerminalFrame;
+        if (!terminalRequestChanged && terminal.isEmpty() && previous == null) {
+            return;
+        }
+        if (!terminalRequestChanged && terminal.isPresent() && previous != null
+                && previous.owner() == terminal.get().owner()
+                && previous.frame().version() == terminal.get().screen().version()
+                && previous.lastByteSequence() == terminal.get().screen().byteLog().lastSequence()) {
+            return;
+        }
+        latestTerminalFrame = terminal.map(found -> TerminalWindowFrame.capture(found, request,
+                bytesSince(found, request), engine.now())).orElse(null);
+        terminalRequestChanged = false;
+        terminalPublished = true;
+        lastTerminalPublishNanos = nowNanos;
+    }
+
+    /**
+     * The first byte a frame of {@code terminal} leaves out: the acknowledged ones when the window acknowledged this
+     * screen, else the request's when it was set for this screen, else none (a screen started over).
+     */
+    private long bytesSince(TerminalBehavior terminal, TerminalRequest request) {
+        long asked = terminalRequestOwner == terminal.owner() ? request.bytesSince() : 0;
+        TerminalAcknowledgement acknowledgement = terminalAcknowledgement;
+        return acknowledgement != null && acknowledgement.owner() == terminal.owner()
+                ? Math.max(asked, acknowledgement.sequence()) : asked;
     }
 
     private void publishFailure(Throwable throwable) {

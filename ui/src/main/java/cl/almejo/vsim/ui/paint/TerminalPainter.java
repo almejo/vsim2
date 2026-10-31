@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.terminal.TerminalFontSize;
+import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.core.terminal.TerminalGeometry;
 import cl.almejo.vsim.ui.i18n.Messages;
 
@@ -20,8 +21,9 @@ import java.awt.geom.RoundRectangle2D;
 import java.util.Map;
 
 /**
- * «Terminal»: a title bar (the part's name on the left, a chip with its size on the right) over a dark screen that
- * shows a prompt and a still block cursor after it, and the pin stubs with their names. The screen keeps its own
+ * «Terminal»: a title bar (the part's name on the left, a chip with its size on the right) over a dark screen, and the
+ * pin stubs with their names. While simulating the screen shows the frame of {@link VisibleState.TerminalState} (its
+ * characters and a still block cursor); without a simulation (palette, ghost) a prompt and a block cursor after it. The screen keeps its own
  * colours in every theme; border and title bar come from the scheme at paint time.
  */
 public final class TerminalPainter implements ComponentPainter {
@@ -61,7 +63,11 @@ public final class TerminalPainter implements ComponentPainter {
         paintTitleBar(graphics, outline, width, resolved, type, scheme);
         Rectangle2D screen = new Rectangle2D.Double(MARGIN, TITLE_HEIGHT + MARGIN, width - 2 * MARGIN,
                 height - TITLE_HEIGHT - 2 * MARGIN);
-        paintScreen(graphics, screen);
+        if (state instanceof VisibleState.TerminalState terminal) {
+            paintFrame(graphics, screen, terminal.frame(), resolved);
+        } else {
+            paintScreen(graphics, screen);
+        }
         PainterSupport.pinDots(graphics, type, scheme);
         paintPinNames(graphics, type, scheme);
     }
@@ -108,6 +114,52 @@ public final class TerminalPainter implements ComponentPainter {
         graphics.setColor(SCREEN_TEXT);
         graphics.fill(new Rectangle2D.Double(screen.getX() + CURSOR_COLUMN * CELL_WIDTH, cellTop, CELL_WIDTH,
                 CELL_HEIGHT));
+    }
+
+    /**
+     * A simulated screen: every written cell's character in the chosen font, fitted to the cell of the chosen size and
+     * kept upright like every text of a part (each glyph turns about its cell's centre), in
+     * the screen's default text colour (styles and colours come later), and a still block cursor at the frame's cursor
+     * unless the screen hid it. Only the cells the part and the frame both have are drawn (a frame may be one step
+     * behind a resize).
+     */
+    private static void paintFrame(Graphics2D graphics, Rectangle2D screen, TerminalFrame frame,
+                                   Map<String, Object> resolved) {
+        graphics.setColor(SCREEN_BACKGROUND);
+        graphics.fill(screen);
+        TerminalFontSize fontSize = TerminalTypes.fontSize(resolved);
+        double cellWidth = fontSize.cellWidth();
+        double cellHeight = fontSize.cellHeight();
+        int rows = Math.min(frame.rows(), (Integer) resolved.get(TerminalTypes.ROWS));
+        int columns = Math.min(frame.columns(), (Integer) resolved.get(TerminalTypes.COLUMNS));
+        Font font = TerminalFonts.fitted(fontFamily(resolved), false, cellWidth, cellHeight,
+                graphics.getFontRenderContext());
+        float size = font.getSize2D();
+        for (int row = 0; row < rows; row++) {
+            double middle = screen.getY() + (row + 0.5) * cellHeight;
+            for (int column = 0; column < columns; column++) {
+                int codePoint = frame.cell(row, column).codePoint();
+                if (codePoint != ' ') {
+                    PainterSupport.uprightText(graphics, Character.toString(codePoint),
+                            screen.getX() + (column + 0.5) * cellWidth, middle, size, SCREEN_TEXT,
+                            PainterSupport.ALIGN_CENTER, font);
+                }
+            }
+        }
+        if (frame.cursorVisible() && frame.cursorRow() < rows && frame.cursorColumn() < columns) {
+            graphics.setColor(SCREEN_TEXT);
+            graphics.fill(new Rectangle2D.Double(screen.getX() + frame.cursorColumn() * cellWidth,
+                    screen.getY() + frame.cursorRow() * cellHeight, cellWidth, cellHeight));
+        }
+    }
+
+    /** The family «Fuente» chooses. */
+    static TerminalFontFamily fontFamily(Map<String, Object> resolved) {
+        return switch (String.valueOf(resolved.get(TerminalTypes.FONT))) {
+            case TerminalTypes.FONT_VT323 -> TerminalFontFamily.VT323;
+            case TerminalTypes.FONT_SYSTEM -> TerminalFontFamily.SYSTEM;
+            default -> TerminalFontFamily.PLEX_MONO;
+        };
     }
 
     /** The font size at which a monospaced glyph is as wide as a cell (and fits its height). */

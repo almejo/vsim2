@@ -30,8 +30,11 @@ import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
 import cl.almejo.vsim.core.simulation.MemoryMapFrame;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.core.simulation.PauseNotice;
+import cl.almejo.vsim.core.simulation.TerminalRequest;
+import cl.almejo.vsim.core.simulation.TerminalWindowFrame;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -50,6 +53,7 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -617,7 +621,23 @@ public final class OpenDocument implements AutoCloseable {
      * before the first and after «Reiniciar». Read it after {@link #latestSnapshot()}: it is written first.
      */
     public Optional<PauseNotice> latestPauseNotice() {
-        return simulation.latestPauseNotice();
+        return simulation.latestPauseNotice().map(this::withPartName);
+    }
+
+    /**
+     * {@code notice} with the name of the part that asked first in its arguments, as the bundle texts of part pauses
+     * expect it ({@code {0}}): core does not know labels. The name is the label of the component placed on the circuit
+     * (the user component that holds a nested part), else its type's name, else the simulated id.
+     */
+    PauseNotice withPartName(PauseNotice notice) {
+        String name = document.component(new ElementId(InstancePath.topLevel(notice.componentId())))
+                .map(component -> component.label().isBlank() ? Messages.componentName(component.typeId(),
+                        component.parameters()) : component.label())
+                .orElse(notice.componentId());
+        List<String> arguments = new ArrayList<>();
+        arguments.add(name);
+        arguments.addAll(notice.arguments());
+        return new PauseNotice(notice.componentId(), notice.messageKey(), arguments, notice.time(), notice.sequence());
     }
 
     /**
@@ -650,6 +670,32 @@ public final class OpenDocument implements AutoCloseable {
     /** The latest memory map frame (at most every 16 ms); safe to read from any thread. */
     public Optional<MemoryMapFrame> latestMemoryMap() {
         return simulation.latestMemoryMap();
+    }
+
+    /**
+     * What the Terminal window shows (spec §9): {@link #latestTerminalFrame()} answers this request whenever the
+     * screen changes; empty stops the frames. One request per document: the last one set wins.
+     */
+    public void setTerminalRequest(Optional<TerminalRequest> request) {
+        simulation.setTerminalRequest(request);
+    }
+
+    /** The latest Terminal window frame (at most every 16 ms); safe to read from any thread. */
+    public Optional<TerminalWindowFrame> latestTerminalFrame() {
+        return simulation.latestTerminalFrame();
+    }
+
+    /** The window has the bytes up to {@code sequence} of screen {@code owner}: later frames leave them out. */
+    public void acknowledgeTerminalBytes(long owner, long sequence) {
+        simulation.acknowledgeTerminalBytes(owner, sequence);
+    }
+
+    /**
+     * «Limpiar» on the Terminal {@code componentId}: queues a request clearing its screen and history as CLR does.
+     * Not a document change, no undo step.
+     */
+    public void clearTerminal(ElementId componentId) {
+        simulation.clearTerminal(componentId.value());
     }
 
     /**

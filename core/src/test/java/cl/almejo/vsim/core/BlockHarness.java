@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.FlatComponent;
 import cl.almejo.vsim.core.simulation.FlatNet;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.value.Value;
 
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -30,13 +32,15 @@ public final class BlockHarness {
     /** Longer than any block's default delay chain; nothing in a lone block runs this long. */
     private static final long SETTLE_TIME = 1_000;
 
-    private final ComponentType type;
-    private final Map<String, Object> parameters;
+    private final String typeId;
+    private ComponentType type;
+    private Map<String, Object> parameters;
     private final Set<Integer> unconnected = new HashSet<>();
     private final SimulationEngine engine = new SimulationEngine();
-    private final FlatCircuit circuit;
+    private FlatCircuit circuit;
 
     public BlockHarness(String typeId, Map<String, Object> parameters, int... unconnectedPins) {
+        this.typeId = typeId;
         this.type = StandardComponentTypes.registry().require(typeId).specializedFor(parameters);
         this.parameters = parameters;
         for (int pinIndex : unconnectedPins) {
@@ -92,6 +96,29 @@ public final class BlockHarness {
     public BlockHarness restart() {
         engine.restart(circuit, Map.of());
         return this;
+    }
+
+    /**
+     * The block's parameters change to {@code newParameters} while it runs (an edit in the inspector): the engine gets
+     * the new circuit, so the block is rebuilt (and may adopt its old state) unless only display-only ones changed.
+     * The sources are rebuilt too when a pin's width changes, and then drive 0.
+     */
+    public BlockHarness reconfigure(Map<String, Object> newParameters) {
+        this.type = StandardComponentTypes.registry().require(typeId).specializedFor(newParameters);
+        this.parameters = newParameters;
+        this.circuit = buildCircuit();
+        engine.update(circuit);
+        return this;
+    }
+
+    /** The pause the block asked for and nobody took yet (a Terminal's «Detener al recibir»); takes it. */
+    public Optional<PauseNotice> takePauseRequest() {
+        return engine.takePauseRequest();
+    }
+
+    /** The engine running the block, for requests the harness has no shortcut for. */
+    public SimulationEngine engine() {
+        return engine;
     }
 
     /** The value on the net of pin {@code pinIndex} (inputs and outputs alike). */

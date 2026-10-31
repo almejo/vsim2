@@ -8,15 +8,23 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.terminal.TerminalFontSize;
+import cl.almejo.vsim.core.terminal.TerminalScreen;
+import cl.almejo.vsim.core.terminal.TerminalSettings;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The Terminal's look: a dark screen with the prompt in the first cell and a still block cursor in the third. */
+/**
+ * The Terminal's look: without a simulation (palette, ghost) a dark screen with the prompt in the first cell and a still
+ * block cursor in the third; while simulating, the frame's cells in the chosen font and a block cursor at its cursor.
+ */
 class TerminalPainterTest {
 
     private static final int ORIGIN_UNITS = 2;
@@ -35,13 +43,96 @@ class TerminalPainterTest {
     private final PainterRegistry painters = PainterRegistry.standard();
 
     private BufferedImage draw(ColorScheme scheme, Rotation rotation) {
-        Component component = terminal.newComponent(new ElementId("c1"), new GridPoint(ORIGIN_UNITS, ORIGIN_UNITS),
-                rotation, SMALL, "");
+        return draw(scheme, rotation, terminal, SMALL, VisibleState.NONE);
+    }
+
+    private BufferedImage draw(ColorScheme scheme, Rotation rotation, ComponentType type,
+                               Map<String, Object> parameters, VisibleState state) {
+        Component component = type.newComponent(new ElementId("c1"), new GridPoint(ORIGIN_UNITS, ORIGIN_UNITS),
+                rotation, parameters, "");
         BufferedImage image = PaintersTest.blankImage(300, 300);
         Graphics2D graphics = image.createGraphics();
-        ComponentDrawing.paint(graphics, terminal, component, VisibleState.NONE, scheme, painters);
+        ComponentDrawing.paint(graphics, type, component, state, scheme, painters);
         graphics.dispose();
         return image;
+    }
+
+    /** The state of a 4 × 20 VT screen that received {@code text}. */
+    private static VisibleState.TerminalState screenWith(String text) {
+        TerminalScreen screen = new TerminalScreen(TerminalSettings.vt(4, 20));
+        for (byte value : text.getBytes(StandardCharsets.UTF_8)) {
+            screen.write(value & 0xFF, 0);
+        }
+        return new VisibleState.TerminalState(1, screen.version(), screen.frame(), false);
+    }
+
+    private static int lightPixels(BufferedImage image, int cellColumn, int cellWidth, int cellHeight) {
+        int screen = TerminalPainter.SCREEN_BACKGROUND.getRGB();
+        int count = 0;
+        for (int offsetX = 0; offsetX < cellWidth; offsetX++) {
+            for (int offsetY = 0; offsetY < cellHeight; offsetY++) {
+                int rgb = image.getRGB(ORIGIN + SCREEN_LEFT + cellColumn * cellWidth + offsetX,
+                        ORIGIN + SCREEN_TOP + offsetY);
+                if (brightness(rgb) > brightness(screen) + LIGHTER_THAN_SCREEN) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    @Test
+    void aSimulatedScreenShowsItsCellsAndTheBlockCursorWhereTheFrameSaysInsteadOfThePrompt() {
+        BufferedImage image = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, screenWith("Hi"));
+
+        assertThat(lightPixels(image, 0, CELL_WIDTH, CELL_HEIGHT)).as("H").isGreaterThan(5);
+        assertThat(lightPixels(image, 1, CELL_WIDTH, CELL_HEIGHT)).as("i").isGreaterThan(3);
+        assertThat(pixel(image, 2, CELL_WIDTH / 2, CELL_HEIGHT / 2)).as("the cursor after the text")
+                .isEqualTo(TerminalPainter.SCREEN_TEXT.getRGB());
+        assertThat(pixel(image, 3, CELL_WIDTH / 2, CELL_HEIGHT / 2)).isEqualTo(TerminalPainter.SCREEN_BACKGROUND.getRGB());
+    }
+
+    @Test
+    void anEmptySimulatedScreenHasNoPromptAndAHiddenCursorIsNotDrawn() {
+        BufferedImage empty = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, screenWith(""));
+        assertThat(lightPixels(empty, 0, CELL_WIDTH, CELL_HEIGHT)).as("the cursor at home")
+                .isEqualTo(CELL_WIDTH * CELL_HEIGHT);
+        assertThat(lightPixels(empty, 2, CELL_WIDTH, CELL_HEIGHT)).as("no cursor after a prompt").isZero();
+
+        BufferedImage hidden = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, screenWith("\u001b[?25l"));
+        assertThat(lightPixels(hidden, 0, CELL_WIDTH, CELL_HEIGHT)).isZero();
+    }
+
+    @Test
+    void theFontAndTheFontSizeChangeTheDrawing() {
+        VisibleState state = screenWith("Wg@#");
+        Map<String, Object> vt323 = new HashMap<>(SMALL);
+        vt323.put(TerminalTypes.FONT, TerminalTypes.FONT_VT323);
+        BufferedImage plexImage = draw(PaintersTest.SCHEME, Rotation.R0, terminal, SMALL, state);
+        BufferedImage vt323Image = draw(PaintersTest.SCHEME, Rotation.R0, terminal.specializedFor(vt323), vt323,
+                state);
+        assertThat(differentPixels(plexImage, vt323Image)).isGreaterThan(10);
+
+        Map<String, Object> large = new HashMap<>(SMALL);
+        large.put(TerminalTypes.FONT_SIZE, TerminalTypes.FONT_SIZE_LARGE);
+        int largeCellWidth = TerminalFontSize.LARGE.cellWidth();
+        int largeCellHeight = TerminalFontSize.LARGE.cellHeight();
+        BufferedImage largeImage = draw(PaintersTest.SCHEME, Rotation.R0, terminal.specializedFor(large), large,
+                state);
+        assertThat(lightPixels(largeImage, 4, largeCellWidth, largeCellHeight)).as("the cursor in a large cell")
+                .isEqualTo(largeCellWidth * largeCellHeight);
+    }
+
+    private static int differentPixels(BufferedImage first, BufferedImage second) {
+        int count = 0;
+        for (int x = 0; x < first.getWidth(); x++) {
+            for (int y = 0; y < first.getHeight(); y++) {
+                if (first.getRGB(x, y) != second.getRGB(x, y)) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private static int pixel(BufferedImage image, int cellColumn, int offsetX, int offsetY) {

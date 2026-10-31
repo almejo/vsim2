@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.component;
 
+import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.List;
@@ -49,6 +50,32 @@ public sealed interface VisibleState {
 
         public KeyboardState {
             queue = List.copyOf(queue);
+        }
+    }
+
+    /**
+     * A Terminal as its painter shows it: an immutable {@code frame} of its screen, the screen's {@code version} and
+     * whether it draws with an external character ROM. {@code owner} is a number unique to the behaviour that
+     * published it, so a screen started over («Reiniciar», a rebuilt part) never looks like an older one with the same
+     * version. Equality and hash use {@code owner}, {@code version} and {@code externalGlyphs} only, never the cells:
+     * the canvas compares the states of every part on every frame, and a version is enough to know the screen changed.
+     */
+    record TerminalState(long owner, long version, TerminalFrame frame, boolean externalGlyphs)
+            implements VisibleState {
+
+        public TerminalState {
+            Objects.requireNonNull(frame, "frame");
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof TerminalState state && owner == state.owner && version == state.version
+                    && externalGlyphs == state.externalGlyphs;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(owner, version, externalGlyphs);
         }
     }
 

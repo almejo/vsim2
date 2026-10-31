@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryBehavior;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalBehavior;
 import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
@@ -468,6 +469,21 @@ public final class SimulationEngine {
             instance.behavior.restoreInitialState(instance);
             scheduler.runUntil(now());
         }
+    }
+
+    /** The Terminal simulated as {@code componentId} (flat id), empty when there is none or it is not a Terminal. */
+    public Optional<TerminalBehavior> terminal(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        return instance != null && instance.behavior instanceof TerminalBehavior terminal
+                ? Optional.of(terminal) : Optional.empty();
+    }
+
+    /**
+     * «Limpiar» on the Terminal simulated as {@code componentId}: its screen and history empty as with CLR; the time
+     * and every other part go on. An unknown id or another part changes nothing. Not an edit, not a step.
+     */
+    public void clearTerminal(String componentId) {
+        terminal(componentId).ifPresent(TerminalBehavior::clearScreen);
     }
 
     /** The memory simulated as {@code componentId} (flat id), empty when there is none or it is not a RAM or ROM. */

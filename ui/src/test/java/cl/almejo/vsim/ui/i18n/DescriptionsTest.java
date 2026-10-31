@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.ArithmeticTypes;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
@@ -120,6 +121,25 @@ class DescriptionsTest {
         assertThat(negated).contains("NAND").isNotEqualTo(plain);
         ComponentPreset nand = StandardComponentTypes.preset(StandardComponentTypes.NAND_PRESET).orElseThrow();
         assertThat(Descriptions.of(and, nand.parameters())).isEqualTo(negated);
+    }
+
+    @Test
+    void eachTerminalProfileAddsItsOwnParagraphInBothLanguages() {
+        ComponentType terminal = REGISTRY.require(StandardComponentTypes.TERMINAL);
+        for (Locale locale : List.of(Messages.SPANISH, Locale.ENGLISH)) {
+            ResourceBundle bundle = Messages.bundle(locale);
+            String base = Descriptions.of(terminal, Map.of(TerminalTypes.PROFILE, "none-such"), bundle);
+            List<String> texts = new ArrayList<>();
+            for (String profile : TerminalTypes.PROFILES) {
+                String key = Descriptions.PREFIX + StandardComponentTypes.TERMINAL + "." + TerminalTypes.PROFILE + "."
+                        + profile;
+                assertThat(bundle.containsKey(key)).as(locale + ":" + key).isTrue();
+                String described = Descriptions.of(terminal, Map.of(TerminalTypes.PROFILE, profile), bundle);
+                assertThat(described).startsWith(base).contains(bundle.getString(key).strip());
+                texts.add(described);
+            }
+            assertThat(texts).doesNotHaveDuplicates();
+        }
     }
 
     @Test

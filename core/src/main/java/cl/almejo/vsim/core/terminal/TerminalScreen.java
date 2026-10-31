@@ -193,6 +193,14 @@ public final class TerminalScreen {
         return transcript.text();
     }
 
+    /**
+     * Whether {@link #transcript()} ends with {@code suffix} («Detener al recibir»), checked after every byte: costs
+     * the suffix's length, never a copy of the transcript.
+     */
+    public boolean transcriptEndsWith(String suffix) {
+        return suffix.length() <= TRANSCRIPT_LIMIT && transcript.endsWith(suffix);
+    }
+
     /** Every byte received, for the byte monitor, the sounds and «Guardar salida». */
     public ByteLog byteLog() {
         return byteLog;

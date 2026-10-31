@@ -39,6 +39,20 @@ final class Transcript {
         return text.substring(cutBefore(Math.max(0, text.length() - LIMIT)));
     }
 
+    /** Whether the text ends with {@code suffix}; costs the suffix's length, never a copy of the text. */
+    boolean endsWith(String suffix) {
+        int start = text.length() - suffix.length();
+        if (start < 0) {
+            return false;
+        }
+        for (int index = 0; index < suffix.length(); index++) {
+            if (text.charAt(start + index) != suffix.charAt(index)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     Transcript copy() {
         Transcript copy = new Transcript();
         copy.text.append(text);
