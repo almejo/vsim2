@@ -393,6 +393,18 @@ class TidyEquivalenceTest {
      * The circuit's truth table when it has one computed at once (combinational, at most 10 input bits); otherwise
      * every component's visible state sampled while the circuit runs, its switches clicked one after another.
      */
+    /**
+     * A Terminal's state carries a number unique to each behaviour (so a restarted screen never looks like an older
+     * one); two engines on the same circuit therefore never agree on it, and only the rest is compared.
+     */
+    private static VisibleState withoutOwner(VisibleState state) {
+        if (state instanceof VisibleState.TerminalState terminal) {
+            return new VisibleState.TerminalState(0, terminal.version(), terminal.frame(), terminal.externalGlyphs(),
+                    terminal.glyphs());
+        }
+        return state;
+    }
+
     private static Object behaviour(CircuitDocument document, ComponentTypeRegistry registry) {
         Preparation preparation = TruthTableScope.prepare(document, Set.of(), registry);
         if (preparation instanceof Preparation.Ready ready && !ready.needsConfirmation()) {
@@ -417,7 +429,7 @@ class TidyEquivalenceTest {
             SimulationSnapshot snapshot = engine.snapshot();
             Map<String, VisibleState> sample = new LinkedHashMap<>();
             for (Component component : document.components()) {
-                sample.put(component.id().value(), snapshot.componentState(component.id().value()));
+                sample.put(component.id().value(), withoutOwner(snapshot.componentState(component.id().value())));
             }
             samples.add(sample);
         }

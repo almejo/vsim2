@@ -1,0 +1,395 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.5",
+  "formatVersion" : 5,
+  "kind" : "circuit",
+  "name" : "Hola, terminal",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "clock",
+    "x" : 4,
+    "y" : 20,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 250,
+      "time-up" : 250
+    }
+  }, {
+    "id" : "c2",
+    "type" : "counter",
+    "x" : 14,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "Contador",
+    "parameters" : {
+      "delay" : 1,
+      "format" : "auto",
+      "width" : 6
+    }
+  }, {
+    "id" : "c3",
+    "type" : "rom",
+    "x" : 36,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "Mensaje",
+    "parameters" : {
+      "connection" : "bus",
+      "contents" : "@0 48 6F 6C 61 2C 20 74 65 72 6D 69 6E 61 6C D A 45 73 63 72 69 62 65 20 61 6C 67 6F D A 3E 20",
+      "delay" : 1,
+      "link" : "",
+      "show-contents" : "yes",
+      "width" : 8,
+      "words" : "64"
+    }
+  }, {
+    "id" : "c4",
+    "type" : "bus-splitter",
+    "x" : 30,
+    "y" : 24,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "width" : 6
+    }
+  }, {
+    "id" : "c5",
+    "type" : "buffer",
+    "x" : 30,
+    "y" : 34,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c6",
+    "type" : "mux",
+    "x" : 56,
+    "y" : 9,
+    "rotation" : 0,
+    "label" : "Fuente",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : "2",
+      "width" : 8
+    }
+  }, {
+    "id" : "c7",
+    "type" : "terminal",
+    "x" : 80,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "Terminal",
+    "parameters" : {
+      "ansi-palette" : "xterm",
+      "backspace-erases" : false,
+      "bell" : "flash",
+      "blink" : true,
+      "columns" : 24,
+      "cursor" : "bar",
+      "data-width" : "8",
+      "edge" : "rising",
+      "effect" : "none",
+      "encoding" : "utf8",
+      "expected" : "none",
+      "expected-file" : "",
+      "expected-text" : "",
+      "font" : "plex",
+      "font-size" : "normal",
+      "form-feed-clears" : true,
+      "glyph-read-time" : 10,
+      "glyphs" : "internal",
+      "line-feed-returns" : true,
+      "mark-last" : true,
+      "mode" : "vt",
+      "output-file" : "",
+      "profile" : "vt",
+      "rows" : 8,
+      "save-output" : "no",
+      "screen-colors" : "white",
+      "scrollback" : 1000,
+      "show" : "canvas",
+      "stop-on" : "",
+      "tab-width" : 8,
+      "teletype-sound" : false,
+      "waveform-format" : "chars",
+      "wrap" : true
+    }
+  }, {
+    "id" : "c8",
+    "type" : "keyboard",
+    "x" : 36,
+    "y" : 40,
+    "rotation" : 0,
+    "label" : "Teclado",
+    "parameters" : {
+      "arrows-as-sequences" : false,
+      "backspace-sends" : "bs",
+      "capacity" : 64,
+      "capture-color" : "automatic",
+      "data-width" : "8",
+      "edge" : "rising",
+      "encoding" : "utf8",
+      "enter-sends" : "crlf",
+      "initial-text" : "",
+      "linked-terminal" : "",
+      "part-width" : 16,
+      "tri-state" : false,
+      "typing-sound" : false
+    }
+  }, {
+    "id" : "c9",
+    "type" : "or",
+    "x" : 58,
+    "y" : 36,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w10",
+    "x1" : 26,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w11",
+    "x1" : 30,
+    "y1" : 12,
+    "x2" : 36,
+    "y2" : 12
+  }, {
+    "id" : "w12",
+    "x1" : 30,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 24
+  }, {
+    "id" : "w13",
+    "x1" : 50,
+    "y1" : 12,
+    "x2" : 56,
+    "y2" : 12
+  }, {
+    "id" : "w14",
+    "x1" : 52,
+    "y1" : 44,
+    "x2" : 54,
+    "y2" : 44
+  }, {
+    "id" : "w15",
+    "x1" : 54,
+    "y1" : 14,
+    "x2" : 54,
+    "y2" : 44
+  }, {
+    "id" : "w16",
+    "x1" : 54,
+    "y1" : 14,
+    "x2" : 56,
+    "y2" : 14
+  }, {
+    "id" : "w17",
+    "x1" : 62,
+    "y1" : 13,
+    "x2" : 80,
+    "y2" : 13
+  }, {
+    "id" : "w18",
+    "x1" : 6,
+    "y1" : 22,
+    "x2" : 24,
+    "y2" : 22
+  }, {
+    "id" : "w19",
+    "x1" : 24,
+    "y1" : 17,
+    "x2" : 24,
+    "y2" : 22
+  }, {
+    "id" : "w20",
+    "x1" : 6,
+    "y1" : 22,
+    "x2" : 6,
+    "y2" : 52
+  }, {
+    "id" : "w21",
+    "x1" : 6,
+    "y1" : 52,
+    "x2" : 38,
+    "y2" : 52
+  }, {
+    "id" : "w22",
+    "x1" : 38,
+    "y1" : 52,
+    "x2" : 82,
+    "y2" : 52
+  }, {
+    "id" : "w23",
+    "x1" : 82,
+    "y1" : 30,
+    "x2" : 82,
+    "y2" : 52
+  }, {
+    "id" : "w24",
+    "x1" : 38,
+    "y1" : 46,
+    "x2" : 38,
+    "y2" : 52
+  }, {
+    "id" : "w25",
+    "x1" : 24,
+    "y1" : 26,
+    "x2" : 24,
+    "y2" : 28
+  }, {
+    "id" : "w26",
+    "x1" : 24,
+    "y1" : 28,
+    "x2" : 24,
+    "y2" : 30
+  }, {
+    "id" : "w27",
+    "x1" : 24,
+    "y1" : 30,
+    "x2" : 28,
+    "y2" : 30
+  }, {
+    "id" : "w28",
+    "x1" : 28,
+    "y1" : 30,
+    "x2" : 59,
+    "y2" : 30
+  }, {
+    "id" : "w29",
+    "x1" : 59,
+    "y1" : 17,
+    "x2" : 59,
+    "y2" : 30
+  }, {
+    "id" : "w30",
+    "x1" : 28,
+    "y1" : 30,
+    "x2" : 28,
+    "y2" : 36
+  }, {
+    "id" : "w31",
+    "x1" : 28,
+    "y1" : 36,
+    "x2" : 30,
+    "y2" : 36
+  }, {
+    "id" : "w32",
+    "x1" : 22,
+    "y1" : 28,
+    "x2" : 24,
+    "y2" : 28
+  }, {
+    "id" : "w33",
+    "x1" : 22,
+    "y1" : 28,
+    "x2" : 22,
+    "y2" : 48
+  }, {
+    "id" : "w34",
+    "x1" : 22,
+    "y1" : 48,
+    "x2" : 40,
+    "y2" : 48
+  }, {
+    "id" : "w35",
+    "x1" : 40,
+    "y1" : 46,
+    "x2" : 40,
+    "y2" : 48
+  }, {
+    "id" : "w36",
+    "x1" : 34,
+    "y1" : 19,
+    "x2" : 34,
+    "y2" : 36
+  }, {
+    "id" : "w37",
+    "x1" : 20,
+    "y1" : 19,
+    "x2" : 34,
+    "y2" : 19
+  }, {
+    "id" : "w38",
+    "x1" : 20,
+    "y1" : 17,
+    "x2" : 20,
+    "y2" : 19
+  }, {
+    "id" : "w39",
+    "x1" : 34,
+    "y1" : 36,
+    "x2" : 58,
+    "y2" : 36
+  }, {
+    "id" : "w40",
+    "x1" : 52,
+    "y1" : 42,
+    "x2" : 56,
+    "y2" : 42
+  }, {
+    "id" : "w41",
+    "x1" : 56,
+    "y1" : 40,
+    "x2" : 56,
+    "y2" : 42
+  }, {
+    "id" : "w42",
+    "x1" : 56,
+    "y1" : 40,
+    "x2" : 58,
+    "y2" : 40
+  }, {
+    "id" : "w43",
+    "x1" : 62,
+    "y1" : 38,
+    "x2" : 84,
+    "y2" : 38
+  }, {
+    "id" : "w44",
+    "x1" : 84,
+    "y1" : 30,
+    "x2" : 84,
+    "y2" : 38
+  } ],
+  "labels" : [ {
+    "id" : "l45",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Hola, terminal"
+  }, {
+    "id" : "l46",
+    "x" : 2,
+    "y" : 56,
+    "text" : "Prueba: la ROM «Mensaje» guarda «Hola, terminal» y el contador la recorre con el reloj: la Terminal lo escribe"
+  }, {
+    "id" : "l47",
+    "x" : 2,
+    "y" : 58,
+    "text" : "una vez y el contador se detiene en la palabra 32, cuando su bit más alto («listo») se enciende y cambia la «Fuente»."
+  }, {
+    "id" : "l48",
+    "x" : 2,
+    "y" : 60,
+    "text" : "Con la simulación corriendo, haz clic en el Teclado y escribe: cada letra sale por D, AV habilita la escritura (WE)"
+  }, {
+    "id" : "l49",
+    "x" : 2,
+    "y" : 62,
+    "text" : "y la Terminal la muestra. Doble clic en su pantalla abre una ventana con el monitor de bytes y la salida esperada."
+  } ]
+}
