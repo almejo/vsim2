@@ -30,8 +30,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * LSR always says THRE and TEMT.
  *
  * <p><b>The FIFOs.</b> With «FIFO» 16, FCR bit 0 turns them on (IIR then has bits 7 and 6) and bit 1 empties the
- * receiver; with 1 the part is a 16450 and FCR does nothing. A byte that finds the receiver full is lost and sets the
- * overrun bit of LSR.
+ * receiver; with 1 the part is a 16450 and FCR does nothing. A byte that finds the receiver full sets the overrun bit
+ * of LSR: with the FIFOs on it is lost; without them it overwrites RBR, as on the real chip (the old byte is lost).
+ * RBR read with nothing received gives the last byte read again. Simplified: «dato recibido» fires from the first byte
+ * (FCR's trigger level and the character timeout are not modelled), and RD held at 1 over several edges takes one
+ * byte off per edge.
  *
  * <p><b>Interrupts.</b> IRQ is 1 while IIR has a cause, highest first: an overrun (IER bit 2), «dato recibido» (IER
  * bit 0, while LSR's DR is on) and «THR vacío» (IER bit 1: raised when that bit is turned on and after every byte
@@ -103,6 +106,8 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
     private int divisorHigh;
     private boolean fifosEnabled;
     private boolean overrun;
+    /** The last byte a CPU read from RBR: what RBR shows while nothing new waits. */
+    private int lastRead;
     private boolean transmitterInterruptPending;
     private int lastTransmitted = NONE;
     private boolean transmitterUndefined;
@@ -135,6 +140,7 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         divisorHigh = uart.divisorHigh;
         fifosEnabled = uart.fifosEnabled && fifoDepth > 1;
         overrun = uart.overrun;
+        lastRead = uart.lastRead;
         transmitterInterruptPending = uart.transmitterInterruptPending;
         lastTransmitted = uart.lastTransmitted;
         transmitterUndefined = uart.transmitterUndefined;
@@ -260,8 +266,15 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         if (value.isEmpty()) {
             return;
         }
-        if (!received.insert(new byte[]{(byte) value.getAsLong()})) {
-            overrun = true;
+        byte[] character = {(byte) value.getAsLong()};
+        if (received.insert(character)) {
+            return;
+        }
+        overrun = true;
+        if (!fifosEnabled) {
+            // the 16450's single RBR: the new byte overwrites the one not read yet, as on the real chip
+            received.pop();
+            received.insert(character);
         }
     }
 
@@ -269,7 +282,8 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
     private void finishRead(int register) {
         switch (register) {
             case RECEIVER_OR_TRANSMITTER -> {
-                if (!divisorLatch()) {
+                if (!divisorLatch() && !received.isEmpty()) {
+                    lastRead = received.peek();
                     received.pop();
                 }
             }
@@ -362,6 +376,7 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         divisorHigh = 0;
         fifosEnabled = false;
         overrun = false;
+        lastRead = 0;
         transmitterInterruptPending = false;
         transmitStrobe = false;
         if (!integrated) {
@@ -401,7 +416,7 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
     /** The value a CPU reads from {@code register} now. */
     private int registerValue(int register) {
         return switch (register) {
-            case RECEIVER_OR_TRANSMITTER -> divisorLatch() ? divisorLow : received.peek();
+            case RECEIVER_OR_TRANSMITTER -> divisorLatch() ? divisorLow : receiverBuffer();
             case INTERRUPT_ENABLE -> divisorLatch() ? divisorHigh : interruptEnable;
             case INTERRUPT_IDENTIFICATION -> interruptIdentification();
             case LINE_CONTROL -> lineControl;
@@ -410,6 +425,11 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
             case MODEM_STATUS -> MODEM_STATUS_CONNECTED;
             default -> scratch;
         };
+    }
+
+    /** RBR: the next byte received, or with none the last one read again (a stale RBR, as on the real chip). */
+    private int receiverBuffer() {
+        return received.isEmpty() ? lastRead : received.peek();
     }
 
     /** A 1-bit control input that rests at 0; a conflict on it counts as 0. */

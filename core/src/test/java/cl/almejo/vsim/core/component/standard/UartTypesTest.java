@@ -427,4 +427,30 @@ class UartTypesTest {
         assertThat(registers.receiver()).isEqualTo('a');
         assertThat(state(harness).received()).isEqualTo(2);
     }
+
+    @Test
+    void withoutFifosANewByteOverwritesRbrAndOverrunSaysTheOldOneWasLost() {
+        BlockHarness harness = withPins(Map.of(UartTypes.FIFO, "1"));
+        harness.set(RXV, 1).set(RX, 'a');
+        clockOnce(harness);
+        harness.set(RX, 'b');
+        clockOnce(harness);
+        harness.set(RXV, 0).settle();
+
+        assertThat(read(harness, LSR) & OVERRUN).isEqualTo(OVERRUN);
+        assertThat(read(harness, RBR_THR)).as("the 16450 keeps the newest byte, as the real chip").isEqualTo('b');
+    }
+
+    @Test
+    void readingAnEmptyRbrGivesTheLastByteAgain() {
+        BlockHarness harness = withPins(Map.of(UartTypes.FIFO, "1"));
+        assertThat(read(harness, RBR_THR)).as("nothing received yet").isZero();
+        harness.set(RXV, 1).set(RX, 'k');
+        clockOnce(harness);
+        harness.set(RXV, 0).settle();
+
+        assertThat(read(harness, RBR_THR)).isEqualTo('k');
+        assertThat(read(harness, LSR) & DATA_READY).isZero();
+        assertThat(read(harness, RBR_THR)).as("a stale RBR, as the real chip").isEqualTo('k');
+    }
 }
