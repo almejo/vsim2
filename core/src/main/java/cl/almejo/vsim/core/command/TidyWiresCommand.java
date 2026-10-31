@@ -77,7 +77,7 @@ public final class TidyWiresCommand implements Command {
             if (probe.target() instanceof ProbeTarget.WireTarget target) {
                 ElementId replacement = plan.probeRetargets().get(target.wireId());
                 if (replacement != null) {
-                    result.add(new Probe(probe.id(), new ProbeTarget.WireTarget(replacement), probe.name()));
+                    result.add(probe.withTarget(new ProbeTarget.WireTarget(replacement)));
                     continue;
                 }
             }

@@ -80,7 +80,7 @@ final class WaveformPlot extends JComponent implements Scrollable {
             graphics2D.setColor(panel.scheme().diagramBackground());
             graphics2D.fillRect(0, 0, getWidth(), getHeight());
             WaveformPainter.paint(graphics2D, panel.displayed(), panel.channelIds(), axis, getWidth(),
-                    panel.scheme());
+                    panel.scheme(), panel.formats());
         } finally {
             graphics2D.dispose();
         }

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.value.Value;
 
 /** How a bus value is written on the canvas, in tooltips and in the component tree. */
@@ -20,6 +22,17 @@ public final class BusValueText {
             return CONFLICT;
         }
         return "0x" + value.hex();
+    }
+
+    /**
+     * {@code value} in a probe's format: bytes as characters ({@code 'f'}, {@code LF}) for {@link Probe#FORMAT_ASCII}
+     * when every bit is defined, else {@link #of(Value)}.
+     */
+    public static String of(Value value, String format) {
+        if (Probe.FORMAT_ASCII.equals(format) && value.isFullyDefined() && !value.conflict()) {
+            return ConstantValue.display(value.bits(), value.width(), ConstantValue.ASCII);
+        }
+        return of(value);
     }
 
     /**

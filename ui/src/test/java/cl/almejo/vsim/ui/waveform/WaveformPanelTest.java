@@ -535,4 +535,28 @@ class WaveformPanelTest {
         panel.selectRow(ids.get(0));
         assertThat(panel.selectedProbe()).contains(ids.get(1));
     }
+
+    @Test
+    void aBusRowMenuChoosesHowToShowTheValueInOneUndoStep() {
+        Component bus = place(openDocument, StandardComponentTypes.SWITCH, 0, 0,
+                Map.of(StandardComponentTypes.WIDTH, 8));
+        String probeId = actions.addComponentPins(bus.id()).addedIds().get(0);
+        panel.probesChanged();
+        assertThat(texts(panel.rowMenu(probeId))).contains("Mostrar como");
+
+        javax.swing.JMenu submenu = (javax.swing.JMenu) item(panel.rowMenu(probeId), "Mostrar como");
+        assertThat(texts(submenu.getPopupMenu())).containsExactly("Hexadecimal", "Caracteres");
+        item(submenu.getPopupMenu(), "Caracteres").doClick(0);
+        assertThat(openDocument.document().probes().get(0).format()).isEqualTo("ascii");
+        assertThat(panel.rows().get(0).format()).isEqualTo("ascii");
+        assertThat(openDocument.history().undoDescription()).contains("command.setProbeFormat");
+        openDocument.history().undo();
+        assertThat(openDocument.document().probes().get(0).format()).isEqualTo("hex");
+    }
+
+    @Test
+    void aOneBitRowHasNoFormatChoice() {
+        List<String> ids = chain();
+        assertThat(texts(panel.rowMenu(ids.get(0)))).doesNotContain("Mostrar como");
+    }
 }

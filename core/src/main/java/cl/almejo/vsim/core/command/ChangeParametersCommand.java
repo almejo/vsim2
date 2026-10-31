@@ -89,7 +89,7 @@ public final class ChangeParametersCommand implements Command {
             String pinName = oldPins.get(pin.pinIndex()).name();
             for (int index = 0; index < newPins.size(); index++) {
                 if (newPins.get(index).name().equals(pinName)) {
-                    result.add(new Probe(probe.id(), new ProbeTarget.PinTarget(id, index), probe.name()));
+                    result.add(probe.withTarget(new ProbeTarget.PinTarget(id, index)));
                     break;
                 }
             }

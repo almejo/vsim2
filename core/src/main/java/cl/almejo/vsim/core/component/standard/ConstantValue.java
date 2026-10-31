@@ -25,6 +25,12 @@ public final class ConstantValue {
     public static final String DECIMAL = "decimal";
     /** M7: decimal with sign, the bits read in two's complement. */
     public static final String SIGNED = "signed";
+    /**
+     * Bytes as characters: printable ASCII quoted ({@code 'A'}), control bytes by name, anything else hex. Only for
+     * display ({@link #display}): it is not one of the {@link #FORMAT_PARAMETER} choices because {@link #bitsOf}
+     * cannot read it back.
+     */
+    public static final String ASCII = "ascii";
 
     /** The name of the «Mostrar como» parameter. */
     public static final String FORMAT = "format";
@@ -112,6 +118,7 @@ public final class ConstantValue {
             case HEX -> "0x" + Long.toHexString(masked).toUpperCase(Locale.ROOT);
             case DECIMAL -> Long.toUnsignedString(masked);
             case SIGNED -> Long.toString(signed(masked, width));
+            case ASCII -> character(masked);
             default -> throw new IllegalArgumentException("unknown format: " + format);
         };
     }
@@ -132,8 +139,32 @@ public final class ConstantValue {
             case HEX -> 2 + (width + 3) / 4;
             case DECIMAL -> Long.toUnsignedString(Value.maskFor(width)).length();
             case SIGNED -> Long.toString(signed(1L << (width - 1), width)).length();
+            case ASCII -> Math.max(MAXIMUM_CONTROL_NAME, 2 + (Math.max(width, Byte.SIZE) + 3) / 4);
             default -> throw new IllegalArgumentException("unknown format: " + format);
         };
+    }
+
+    /** The control bytes 0..31 by their ASCII names; 127 is {@code DEL}. */
+    private static final List<String> CONTROL_NAMES = List.of("NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",
+            "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI", "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB",
+            "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US");
+    private static final String DELETE_NAME = "DEL";
+    private static final int FIRST_PRINTABLE = 0x20;
+    private static final int DELETE = 0x7F;
+    private static final int MAXIMUM_CONTROL_NAME = 3;
+
+    /** One byte as a character: {@code 'A'}, a control name such as {@code LF}, or {@code 0xE9}. */
+    private static String character(long value) {
+        if (value >= FIRST_PRINTABLE && value < DELETE) {
+            return "'" + (char) value + "'";
+        }
+        if (value < FIRST_PRINTABLE) {
+            return CONTROL_NAMES.get((int) value);
+        }
+        if (value == DELETE) {
+            return DELETE_NAME;
+        }
+        return "0x" + Long.toHexString(value).toUpperCase(Locale.ROOT);
     }
 
     /** The lowest {@code width} bits of {@code bits} read in two's complement. */

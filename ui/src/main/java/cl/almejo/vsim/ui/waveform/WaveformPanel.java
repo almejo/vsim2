@@ -18,6 +18,7 @@ import javax.swing.Box;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -31,6 +32,7 @@ import java.awt.Rectangle;
 import java.awt.event.HierarchyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -258,6 +260,15 @@ public final class WaveformPanel extends JPanel {
         return rows().stream().map(ChannelRows.ChannelRow::probeId).toList();
     }
 
+    /** Channel id to bus format, for the painter. */
+    Map<String, String> formats() {
+        Map<String, String> formats = new HashMap<>();
+        for (ChannelRows.ChannelRow row : rows()) {
+            formats.put(row.probeId(), row.format());
+        }
+        return formats;
+    }
+
     ColorScheme scheme() {
         return scheme.get();
     }
@@ -372,6 +383,14 @@ public final class WaveformPanel extends JPanel {
     JPopupMenu rowMenu(String probeId) {
         JPopupMenu menu = new JPopupMenu();
         menu.add(new JMenuItem(Actions.of(Messages.text("waveform.rename"), () -> rename(probeId))));
+        if (actions.isBus(probeId)) {
+            JMenu formatMenu = new JMenu(Messages.text("waveform.showAs"));
+            formatMenu.add(new JMenuItem(Actions.of(Messages.text("waveform.format.hex"),
+                    () -> actions.setFormat(probeId, Probe.FORMAT_HEX))));
+            formatMenu.add(new JMenuItem(Actions.of(Messages.text("waveform.format.ascii"),
+                    () -> actions.setFormat(probeId, Probe.FORMAT_ASCII))));
+            menu.add(formatMenu);
+        }
         menu.addSeparator();
         menu.add(new JMenuItem(Actions.of(Messages.text("waveform.moveUp"), () -> actions.moveUp(probeId))));
         menu.add(new JMenuItem(Actions.of(Messages.text("waveform.moveDown"), () -> actions.moveDown(probeId))));

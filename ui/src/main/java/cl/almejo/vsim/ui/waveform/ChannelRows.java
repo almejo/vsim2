@@ -12,7 +12,11 @@ import java.util.function.Function;
 /** The rows of a waveform panel: one per probe, in order, with the name to show and whether the probe resolves. */
 final class ChannelRows {
 
-    record ChannelRow(String probeId, String name, boolean connected) {
+    record ChannelRow(String probeId, String name, boolean connected, String format) {
+
+        ChannelRow(String probeId, String name, boolean connected) {
+            this(probeId, name, connected, Probe.FORMAT_HEX);
+        }
     }
 
     private ChannelRows() {
@@ -21,18 +25,24 @@ final class ChannelRows {
     /** {@code names} gives each probe the name its row shows ({@link ProbeNames#displayName} in the panel). */
     static List<ChannelRow> of(List<Probe> probes, Map<String, String> probeNets, Function<Probe, String> names) {
         return probes.stream()
-                .map(probe -> new ChannelRow(probe.id(), names.apply(probe), probeNets.containsKey(probe.id())))
+                .map(probe -> new ChannelRow(probe.id(), names.apply(probe), probeNets.containsKey(probe.id()),
+                        probe.format()))
                 .toList();
     }
 
     /** {@code 1}, {@code 0}, {@code Z} or {@code X} for one bit; {@code 0x…} (or {@code X}) for a bus; nothing outside the recording. */
     static String valueText(Optional<Value> value) {
+        return valueText(value, Probe.FORMAT_HEX);
+    }
+
+    /** As {@link #valueText(Optional)}, a bus in the probe's {@code format} ({@link BusValueText#of(Value, String)}). */
+    static String valueText(Optional<Value> value, String format) {
         if (value.isEmpty()) {
             return "";
         }
         Value present = value.get();
         if (present.width() > 1) {
-            return BusValueText.of(present);
+            return BusValueText.of(present, format);
         }
         if (present.conflict()) {
             return BusValueText.CONFLICT;

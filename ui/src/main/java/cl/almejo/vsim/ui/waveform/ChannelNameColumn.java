@@ -75,7 +75,8 @@ final class ChannelNameColumn extends JComponent {
         }
         WaveformSnapshot snapshot = panel.displayed();
         long time = panel.axis().cursor().orElse(snapshot.time());
-        return ChannelRows.valueText(snapshot.trace(row.probeId()).flatMap(trace -> trace.valueAt(time)));
+        return ChannelRows.valueText(snapshot.trace(row.probeId()).flatMap(trace -> trace.valueAt(time)),
+                row.format());
     }
 
     @Override
