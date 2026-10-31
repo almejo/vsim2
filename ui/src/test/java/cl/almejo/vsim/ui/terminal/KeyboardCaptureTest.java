@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -496,5 +497,38 @@ class KeyboardCaptureTest {
         typeWith(pc, KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK, '@');
 
         assertThat(receivedAfterTheSimulation()).isEmpty();
+    }
+
+    /** A pins-mode UART at (50, 10) and an integrated one at (50, 80), clicked just inside their corner. */
+    private Component[] twoUarts() {
+        Component pins = UiTestSupport.place(openDocument, StandardComponentTypes.UART_16550, 50, 10,
+                Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS));
+        Component integrated = UiTestSupport.place(openDocument, StandardComponentTypes.UART_16550, 50, 80,
+                Map.of(UartTypes.SCREEN, UartTypes.SCREEN_INTEGRATED));
+        awaitSimulation(openDocument);
+        return new Component[]{pins, integrated};
+    }
+
+    @Test
+    void anIntegratedUartCapturesAfterAPinsUartWasClicked() {
+        Component[] uarts = twoUarts();
+
+        click(view.canvas(), 51.5, 11.5);
+        assertThat(capture().captured()).as("a UART with TX and RX pins never captures").isEmpty();
+        click(view.canvas(), 51.5, 81.5);
+
+        assertThat(capture().captured()).contains(uarts[1].id().value());
+    }
+
+    @Test
+    void aPinsUartNeverCapturesAfterAnIntegratedUartWasClicked() {
+        Component[] uarts = twoUarts();
+
+        click(view.canvas(), 51.5, 81.5);
+        assertThat(capture().captured()).contains(uarts[1].id().value());
+        capture().release();
+        click(view.canvas(), 51.5, 11.5);
+
+        assertThat(capture().captured()).isEmpty();
     }
 }
