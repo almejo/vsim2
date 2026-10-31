@@ -18,7 +18,7 @@ class WizardColorsTest {
         try {
             for (LookAndFeel theme : AppThemes.all()) {
                 UIManager.setLookAndFeel(theme);
-                Map<String, Color> texts = Map.of("errorText", WizardColors.errorText(),
+                Map<String, Color> texts = Map.of("errorLabel", WizardColors.errorLabel("x").getForeground(),
                         "warning", WizardColors.warning(), "failure", WizardColors.failure(),
                         "success", WizardColors.success());
                 for (Map.Entry<String, Color> text : texts.entrySet()) {
@@ -33,12 +33,18 @@ class WizardColorsTest {
     }
 
     @Test
+    void theNegationLegendListsEveryMarkTheParserAccepts() {
+        String detail = cl.almejo.vsim.ui.i18n.Messages.text("expressions.legend.not.detail");
+        assertThat(detail).contains("\u02B9", "\u2032", "\u2019");
+    }
+
+    @Test
     void theErrorTextIsARedOnBothThemes() throws Exception {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {
             for (LookAndFeel theme : AppThemes.all()) {
                 UIManager.setLookAndFeel(theme);
-                Color errorText = WizardColors.errorText();
+                Color errorText = WizardColors.errorLabel("x").getForeground();
                 assertThat(errorText.getRed()).as(theme.getName())
                         .isGreaterThan(errorText.getGreen() + 60)
                         .isGreaterThan(errorText.getBlue() + 60);

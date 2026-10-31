@@ -42,6 +42,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- En el asistente de expresiones booleanas, la leyenda de notación lista todas las marcas de NOT que se entienden (`'`, `’`, `′` y `ʹ`), y los errores de las líneas se pintan con el mismo rojo legible del resto del editor.
 - Un doble clic sobre la casilla de una tarea de una nota adhesiva la marca una sola vez (un solo paso de deshacer), en vez de marcarla y desmarcarla, y no abre la edición del texto.
 - Una nota adhesiva de menos de 4 cuadros de alto ya no tapa su primera línea de texto con los botones ✕ y –: el mínimo ahora es 4 × 4 cuadros y el texto empieza bajo los botones. Una nota guardada con 3 de alto se abre con 4.
 - Los problemas de una pieza sin etiqueta dicen cuál es: una compuerta se nombra con su cantidad de entradas («AND de 3 entradas: la entrada «in2» está desconectada») y el árbol de componentes usa el mismo nombre; con etiqueta, se usa la etiqueta.

@@ -44,15 +44,6 @@ final class WizardColors {
         return color("Component.error.focusedBorderColor", new Color(0xE53935));
     }
 
-    /**
-     * The error colour for text (a line that does not parse, a table that cannot be imported, why «Siguiente» or
-     * «Crear» is off): the readable red of {@link #failure()}, the same {@link ReadableColors#errorText()} as the
-     * rest of the editor. The theme's {@link #error()} is a border colour and stays under 4.5:1 as text.
-     */
-    static Color errorText() {
-        return failure();
-    }
-
     /** A label whose colour is asked each time it paints, so a theme change recolours it. */
     static JLabel label(String text, Supplier<Color> colour) {
         return new JLabel(text) {
@@ -63,9 +54,9 @@ final class WizardColors {
         };
     }
 
-    /** A label in the {@link #errorText()} colour. */
+    /** A label in the {@link #failure()} colour (the readable red). */
     static JLabel errorLabel(String text) {
-        return label(text, WizardColors::errorText);
+        return label(text, WizardColors::failure);
     }
 
     /**
@@ -80,7 +71,8 @@ final class WizardColors {
     /**
      * Red for something wrong in the practice (a group that is no group, «No es equivalente»): a dark red on a light
      * theme and a bright one on a dark theme, both readable as text at 4.5:1 (the theme's error colour stays a little
-     * under that). {@link #errorText()} is this same red.
+     * under that). It is also the colour of error text (a line that does not parse, why «Siguiente» is off), the same
+     * {@link ReadableColors#errorText()} as the rest of the editor; the theme's {@link #error()} is a border colour.
      */
     static Color failure() {
         return ReadableColors.errorText();

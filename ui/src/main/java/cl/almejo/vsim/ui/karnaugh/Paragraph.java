@@ -36,7 +36,7 @@ class Paragraph extends JTextArea {
         return new Paragraph("") {
             @Override
             public Color getForeground() {
-                return WizardColors.errorText();
+                return WizardColors.failure();
             }
         };
     }
