@@ -138,6 +138,7 @@ public final class ShapeEditorPanel extends JPanel {
     private final JPanel previews = new JPanel(new MigLayout("insets 4 10 10 10, gap 8",
             "[grow, fill, sg card][grow, fill, sg card]", "[" + PREVIEW_HEIGHT + "!]"));
     private boolean refreshing;
+    private final Runnable gridListener = this::followGridPreferences;
     private Runnable onAccept = () -> { };
     private Runnable onClose = () -> { };
 
@@ -164,6 +165,8 @@ public final class ShapeEditorPanel extends JPanel {
         this.canvas = new ShapeCanvas(request.definition(), () -> draft, this::apply, this::preview, scheme,
                 this::refresh);
         canvas.setSnap(preferences.shapeEditorSnap());
+        canvas.setGridShown(preferences.shapeEditorGrid());
+        followGridPreferences();
         // The in-place text field counts as a change while it is open, so «Aceptar» must follow it.
         canvas.addContainerListener(new ContainerAdapter() {
             @Override
@@ -452,6 +455,7 @@ public final class ShapeEditorPanel extends JPanel {
         actionButton("back", icon(ShapeEditorIcons.BACK), () -> apply(draft.sendToBack()));
         toolbar.addSeparator();
         addMagnet();
+        addGridToggle();
         toolbar.addSeparator();
         actionButton("undo", icon("undo"), this::undo);
         actionButton("redo", icon("redo"), this::redo);
@@ -497,6 +501,39 @@ public final class ShapeEditorPanel extends JPanel {
         });
         toolbar.add(magnet);
         bindCanvas(KeyStroke.getKeyStroke("M"), magnet::doClick);
+    }
+
+    /** The grid's on/off, built like the magnet and remembered apart from the main editor (which has no on/off). */
+    private void addGridToggle() {
+        JToggleButton grid = new JToggleButton(icon(ShapeEditorIcons.GRID));
+        grid.setSelected(preferences.shapeEditorGrid());
+        grid.setToolTipText(ShapeEditorTexts.twoLines(Messages.text("shape.grid"), Messages.text("shape.grid.hint")));
+        grid.getAccessibleContext().setAccessibleName(Messages.text("shape.grid"));
+        grid.setFocusable(false);
+        grid.addActionListener(event -> {
+            preferences.setShapeEditorGrid(grid.isSelected());
+            canvas.setGridShown(grid.isSelected());
+            canvas.requestFocusInWindow();
+        });
+        toolbar.add(grid);
+    }
+
+    /** The grid style and spacing chosen in Ver > Cuadricula, now and whenever they change while this is open. */
+    private void followGridPreferences() {
+        canvas.setGrid(preferences.gridStyle(), preferences.gridLineSpacing());
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        followGridPreferences();
+        preferences.addListener(gridListener);
+    }
+
+    @Override
+    public void removeNotify() {
+        preferences.removeListener(gridListener);
+        super.removeNotify();
     }
 
     private void addZoomValue() {

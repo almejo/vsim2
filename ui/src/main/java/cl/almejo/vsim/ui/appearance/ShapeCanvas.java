@@ -21,6 +21,8 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.Viewport;
@@ -58,6 +60,7 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -100,6 +103,9 @@ final class ShapeCanvas extends JPanel {
     final Runnable changed;
     ShapeTool tool = ShapeTool.SELECT;
     private SnapMode snap = SnapMode.HALF_UNITS;
+    private GridStyle gridStyle = GridStyle.DOTS;
+    private int gridLineSpacing = AppPreferences.DEFAULT_GRID_LINE_SPACING;
+    private boolean gridShown = true;
     /** Zoom and pan, the main editor's: grid units of 8 px times the zoom, the box's corner at the grid origin. */
     final Viewport viewport = new Viewport();
     final MarchingAnts marchingAnts = new MarchingAnts();
@@ -269,6 +275,31 @@ final class ShapeCanvas extends JPanel {
 
     void setSnap(boolean enabled) {
         snap = enabled ? SnapMode.HALF_UNITS : SnapMode.FREE;
+    }
+
+    /** The main editor's grid style and line spacing (Preferencias), kept in step by the editor panel. */
+    void setGrid(GridStyle style, int lineSpacing) {
+        gridStyle = Objects.requireNonNull(style, "style");
+        gridLineSpacing = lineSpacing;
+        repaint();
+    }
+
+    GridStyle gridStyle() {
+        return gridStyle;
+    }
+
+    int gridLineSpacing() {
+        return gridLineSpacing;
+    }
+
+    /** The toolbar's grid toggle: whether the grid is painted at all. */
+    void setGridShown(boolean shown) {
+        gridShown = shown;
+        repaint();
+    }
+
+    boolean gridShown() {
+        return gridShown;
     }
 
     /** Sets the zoom keeping the box's corner where it is on screen; a shortcut for tests. */

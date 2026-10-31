@@ -13,6 +13,8 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.ui.appearance.ShapeCanvas.Coincidence;
 import cl.almejo.vsim.ui.appearance.ShapeCanvas.HandleRef;
+import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
+import cl.almejo.vsim.ui.canvas.GridPainter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
@@ -133,17 +135,15 @@ final class ShapeCanvasPainter {
         }
     }
 
-    /** A dot on every grid point, when the zoom leaves them far enough apart. */
+    /**
+     * The main editor's grid, painted by the same code in the preference's style (dots when the preference says
+     * none: the toolbar toggle is what hides the grid here) and in the scheme's colours.
+     */
     private void paintGrid(Graphics2D surface, ColorScheme scheme) {
-        double spacing = canvas.viewport.pixelsPerUnit();
-        if (spacing >= 4) {
-            surface.setColor(scheme.grid());
-            Point2D origin = canvas.viewport.gridToScreen(0, 0);
-            for (double x = origin.getX() % spacing; x < canvas.getWidth(); x += spacing) {
-                for (double y = origin.getY() % spacing; y < canvas.getHeight(); y += spacing) {
-                    surface.fill(new Ellipse2D.Double(x - 0.8, y - 0.8, 1.6, 1.6));
-                }
-            }
+        if (canvas.gridShown()) {
+            GridStyle style = canvas.gridStyle() == GridStyle.NONE ? GridStyle.DOTS : canvas.gridStyle();
+            GridPainter.paint(surface, canvas.viewport, canvas.getWidth(), canvas.getHeight(), style,
+                    canvas.gridLineSpacing(), scheme);
         }
     }
 

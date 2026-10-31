@@ -837,6 +837,15 @@ public final class AppPreferences {
         putFlag("shapeEditor.snap", enabled);
     }
 
+    /** Whether the shape editor shows its grid (its toolbar toggle), on initially. */
+    public boolean shapeEditorGrid() {
+        return Boolean.parseBoolean(read("shapeEditor.grid", "true"));
+    }
+
+    public void setShapeEditorGrid(boolean shown) {
+        putFlag("shapeEditor.grid", shown);
+    }
+
     /** The shape editor's last bounds, kept separately from the circuit viewport; none before its first use. */
     public Optional<Rectangle> shapeEditorBounds() {
         String[] values = read("shapeEditor.bounds", "").split(",");

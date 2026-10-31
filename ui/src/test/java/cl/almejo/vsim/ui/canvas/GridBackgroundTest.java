@@ -116,21 +116,21 @@ class GridBackgroundTest {
 
     @Test
     void theFinestLinesShownDependOnTheirSpacingOnScreen() {
-        assertThat(CircuitRenderer.finestLineStep(8, 2)).hasValue(2);
-        assertThat(CircuitRenderer.finestLineStep(3, 2)).hasValue(2);
-        assertThat(CircuitRenderer.finestLineStep(2.9, 2)).hasValue(10);
-        assertThat(CircuitRenderer.finestLineStep(0.6, 2)).hasValue(10);
-        assertThat(CircuitRenderer.finestLineStep(0.59, 2)).isEmpty();
+        assertThat(GridPainter.finestLineStep(8, 2)).hasValue(2);
+        assertThat(GridPainter.finestLineStep(3, 2)).hasValue(2);
+        assertThat(GridPainter.finestLineStep(2.9, 2)).hasValue(10);
+        assertThat(GridPainter.finestLineStep(0.6, 2)).hasValue(10);
+        assertThat(GridPainter.finestLineStep(0.59, 2)).isEmpty();
     }
 
     @Test
     void atTenUnitsTheMinorLinesThinOutFirstAndThenTheFiftyUnitOnes() {
-        assertThat(CircuitRenderer.finestLineStep(0.6, 10)).hasValue(10);
-        assertThat(CircuitRenderer.finestLineStep(0.59, 10)).hasValue(50);
-        assertThat(CircuitRenderer.finestLineStep(0.12, 10)).hasValue(50);
-        assertThat(CircuitRenderer.finestLineStep(0.11, 10)).isEmpty();
-        assertThat(CircuitRenderer.finestLineStep(1.5, 4)).hasValue(4);
-        assertThat(CircuitRenderer.finestLineStep(1.4, 4)).hasValue(20);
+        assertThat(GridPainter.finestLineStep(0.6, 10)).hasValue(10);
+        assertThat(GridPainter.finestLineStep(0.59, 10)).hasValue(50);
+        assertThat(GridPainter.finestLineStep(0.12, 10)).hasValue(50);
+        assertThat(GridPainter.finestLineStep(0.11, 10)).isEmpty();
+        assertThat(GridPainter.finestLineStep(1.5, 4)).hasValue(4);
+        assertThat(GridPainter.finestLineStep(1.4, 4)).hasValue(20);
     }
 
     @Test
