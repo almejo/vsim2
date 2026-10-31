@@ -19,7 +19,8 @@ import java.util.Optional;
  * next byte {@value #OUTPUT_DELAY} unit later, after whatever sampled the old one. RE = 0 holds the queue; CLR = 1
  * empties it at once and wins over the clock. With «Tercer estado» D lets go of its net while RE is 0. Typing and the
  * arrows reach it through {@link #acceptBytes} and {@link #editTyping}. The queue starts with «Texto inicial»,
- * encoded as typing it would be; a rebuilt behaviour ({@link #adoptStateFrom}) keeps the queue instead.
+ * encoded as typing it would be; a rebuilt behaviour ({@link #adoptStateFrom}) keeps the queue instead, unless the
+ * «Texto inicial» itself changed.
  */
 final class KeyboardBehavior implements Behavior {
 
@@ -47,7 +48,8 @@ final class KeyboardBehavior implements Behavior {
 
     @Override
     public void adoptStateFrom(Behavior previous) {
-        if (previous instanceof KeyboardBehavior keyboard) {
+        // A new «Texto inicial» starts the queue over with it, as «Reiniciar» would; any other change keeps the queue.
+        if (previous instanceof KeyboardBehavior keyboard && keyboard.initialText.equals(initialText)) {
             queue = keyboard.queue.resizedTo(queue.capacity());
             adopted = true;
         }

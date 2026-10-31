@@ -268,12 +268,26 @@ class KeyboardTypesTest {
         ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
         KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 8))));
         before.acceptBytes(new NoContext(), "hello".getBytes());
-        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 3,
-                "initial-text", "zzz"))));
+        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 3))));
 
         after.adoptStateFrom(before);
 
         assertThat(after.contents()).containsExactly((int) 'h', (int) 'e', (int) 'l');
+    }
+
+    @Test
+    void aNewInitialTextReplacesTheQueue() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
+        KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(
+                Map.of("initial-text", "old"))));
+        before.acceptBytes(new NoContext(), "typed".getBytes());
+        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(
+                Map.of("initial-text", "new"))));
+
+        after.adoptStateFrom(before);
+        after.initialize(new NoContext());
+
+        assertThat(after.contents()).containsExactly((int) 'n', (int) 'e', (int) 'w');
     }
 
     @Test
