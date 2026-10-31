@@ -54,6 +54,8 @@ public final class StickyNoteGestures implements SelectToolDelegate {
     private boolean unfoldOnRelease;
     /** The note a click has just unfolded: the second press of that double click is swallowed. */
     private ElementId justUnfolded;
+    /** The checkbox a click has just toggled: the second press of that double click is swallowed. */
+    private StickyNoteHit justToggled;
     private int deltaX;
     private int deltaY;
     private boolean followWires;
@@ -95,7 +97,12 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         }
         ElementId unfoldedByTheFirstClick = justUnfolded;
         justUnfolded = null;
+        StickyNoteHit toggledByTheFirstClick = justToggled;
+        justToggled = null;
         if (event.clickCount() >= 2 && note.id().equals(unfoldedByTheFirstClick)) {
+            return Press.HANDLED;
+        }
+        if (event.clickCount() >= 2 && hit.get().equals(toggledByTheFirstClick)) {
             return Press.HANDLED;
         }
         boolean locked = StickyNoteLock.isLocked(context.openDocument(), note.id());
@@ -112,6 +119,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
             }
             case CHECKBOX -> {
                 edits.toggle(note.id(), hit.get().itemIndex());
+                justToggled = hit.get();
                 yield Press.HANDLED;
             }
             case RESIZE, BODY -> pressPaper(context, event, note,
