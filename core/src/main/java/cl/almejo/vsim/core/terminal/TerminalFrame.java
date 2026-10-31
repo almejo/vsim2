@@ -23,10 +23,14 @@ import java.util.Optional;
  * @param version           the screen's {@link TerminalScreen#version()} this frame shows
  * @param bellCount         BEL bytes received so far
  * @param printedCount      characters placed on the screen so far
+ * @param scrollOrClearCount scrolls and whole-screen clears so far (CLR, FF, {@code ESC[2J}/{@code ESC[3J}, RIS): when
+ *                          it moves the old picture jumped away, which is when the painter's phosphor persistence fades
+ *                          it out (spec §8.2)
  */
 public record TerminalFrame(int rows, int columns, List<TerminalCell[]> cells, int cursorRow, int cursorColumn,
                             boolean cursorVisible, Optional<CellPosition> lastWritten, long lastWrittenSerial,
-                            long version, long bellCount, long printedCount) {
+                            long version, long bellCount, long printedCount,
+                            long scrollOrClearCount) {
 
     public TerminalFrame {
         Objects.requireNonNull(lastWritten, "lastWritten");
@@ -88,6 +92,7 @@ public record TerminalFrame(int rows, int columns, List<TerminalCell[]> cells, i
                 && cursorRow == frame.cursorRow && cursorColumn == frame.cursorColumn
                 && cursorVisible == frame.cursorVisible && lastWrittenSerial == frame.lastWrittenSerial
                 && version == frame.version && bellCount == frame.bellCount && printedCount == frame.printedCount
+                && scrollOrClearCount == frame.scrollOrClearCount
                 && lastWritten.equals(frame.lastWritten) && sameCells(frame);
     }
 

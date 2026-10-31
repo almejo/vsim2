@@ -13,26 +13,29 @@ import java.awt.BasicStroke;
  * {@code paintStickyNotes} false leaves the user's sticky notes out (paper: they are reminders, not part of the
  * figure, unless the user asks for them); {@code paintStickyControls} false leaves the ✕ and the fold button of the
  * notes out (they are screen chrome, like the buttons of a frame, and do not belong in a figure);
- * {@code paintBusValues} false leaves the value written above each bus out (Ver ▸ «Valores de los buses»).
+ * {@code paintBusValues} false leaves the value written above each bus out (Ver ▸ «Valores de los buses»);
+ * {@code animateParts} false paints the parts that move on the canvas still and plain: a Terminal without its screen
+ * effect, blink, Automan's star in motion, last character's glow or persistence (spec §8.2), so an export or a page is
+ * the same whenever it is made.
  */
 public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButtons, boolean monochrome,
                           double minimumStrokePixels, boolean paintStickyNotes, boolean paintStickyControls,
-                          boolean paintBusValues) {
+                          boolean paintBusValues, boolean animateParts) {
 
     /** The canvas: what VSim always painted. */
-    public static final PaintPolicy CANVAS = new PaintPolicy(false, true, false, 0, true, true, true);
+    public static final PaintPolicy CANVAS = new PaintPolicy(false, true, false, 0, true, true, true, true);
 
-    /** The PNG/SVG image export: the canvas without the controls of the sticky notes. */
-    public static final PaintPolicy IMAGE = CANVAS.withStickyControls(false);
+    /** The PNG/SVG image export: the canvas without the controls of the sticky notes, and nothing moving. */
+    public static final PaintPolicy IMAGE = CANVAS.withStickyControls(false).withAnimatedParts(false);
 
     /** The thinnest wire or frame border on paper, in points: about 0.18 mm, still visible on any printer. */
     public static final double PAPER_MINIMUM_STROKE_POINTS = 0.5;
 
-    /** A policy that paints the bus values (every policy before the option existed). */
+    /** A policy that paints the bus values and animates the parts (every policy before the options existed). */
     public PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButtons, boolean monochrome,
                        double minimumStrokePixels, boolean paintStickyNotes, boolean paintStickyControls) {
         this(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels, paintStickyNotes,
-                paintStickyControls, true);
+                paintStickyControls, true, true);
     }
 
     /** A policy whose sticky notes show their controls where it paints the frame buttons. */
@@ -56,11 +59,11 @@ public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButto
     }
 
     /**
-     * Paper: titles always, no buttons, no sticky notes, and a minimum stroke of {@link #PAPER_MINIMUM_STROKE_POINTS} at 100 % (one
+     * Paper: titles always, no buttons, no sticky notes, nothing moving, and a minimum stroke of {@link #PAPER_MINIMUM_STROKE_POINTS} at 100 % (one
      * document pixel is one point); a page painted at another scale uses {@link #atPageScale}.
      */
     public static PaintPolicy print(boolean monochrome) {
-        return new PaintPolicy(true, false, monochrome, PAPER_MINIMUM_STROKE_POINTS, false, false, true);
+        return new PaintPolicy(true, false, monochrome, PAPER_MINIMUM_STROKE_POINTS, false, false, true, false);
     }
 
     /**
@@ -73,25 +76,32 @@ public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButto
             throw new IllegalArgumentException("pointsPerDocumentPixel must be positive: " + pointsPerDocumentPixel);
         }
         return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome,
-                minimumStrokePixels / pointsPerDocumentPixel, paintStickyNotes, paintStickyControls, paintBusValues);
+                minimumStrokePixels / pointsPerDocumentPixel, paintStickyNotes, paintStickyControls, paintBusValues,
+                animateParts);
     }
 
     /** This policy with sticky notes painted or left out. */
     public PaintPolicy withStickyNotes(boolean paint) {
         return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels, paint,
-                paintStickyControls, paintBusValues);
+                paintStickyControls, paintBusValues, animateParts);
     }
 
     /** This policy with the ✕ and the fold button of the sticky notes painted or left out. */
     public PaintPolicy withStickyControls(boolean paint) {
         return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels,
-                paintStickyNotes, paint, paintBusValues);
+                paintStickyNotes, paint, paintBusValues, animateParts);
     }
 
     /** This policy with the value written above each bus painted or left out. */
     public PaintPolicy withBusValues(boolean paint) {
         return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels,
-                paintStickyNotes, paintStickyControls, paint);
+                paintStickyNotes, paintStickyControls, paint, animateParts);
+    }
+
+    /** This policy with the moving parts animated (the canvas) or painted still (exports, paper). */
+    public PaintPolicy withAnimatedParts(boolean animate) {
+        return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels,
+                paintStickyNotes, paintStickyControls, paintBusValues, animate);
     }
 
     /** {@code stroke}, or the same stroke at {@link #minimumStrokePixels} wide when it is thinner than that. */

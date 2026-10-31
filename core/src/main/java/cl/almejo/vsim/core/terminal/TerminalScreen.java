@@ -66,6 +66,7 @@ public final class TerminalScreen {
     private long version;
     private long bellCount;
     private long printedCount;
+    private long scrollOrClearCount;
     private CellPosition lastWritten;
     private long lastWrittenSerial;
     private TerminalFrame frame;
@@ -149,6 +150,7 @@ public final class TerminalScreen {
         adopted.erasedCell = TerminalCell.blank(style.erasing());
         adopted.bellCount = bellCount;
         adopted.printedCount = printedCount;
+        adopted.scrollOrClearCount = scrollOrClearCount;
         adopted.lastWrittenSerial = lastWrittenSerial;
         adopted.adoptLastWritten(lastWritten, firstKept);
         adopted.time = time;
@@ -166,7 +168,7 @@ public final class TerminalScreen {
         if (frame == null || frame.version() != version) {
             frame = new TerminalFrame(settings.rows(), settings.columns(), Arrays.asList(cells), cursorRow,
                     cursorColumn, cursorVisible, Optional.ofNullable(lastWritten), lastWrittenSerial, version,
-                    bellCount, printedCount);
+                    bellCount, printedCount, scrollOrClearCount);
         }
         return frame;
     }
@@ -351,6 +353,7 @@ public final class TerminalScreen {
     }
 
     private void scrollUp() {
+        scrollOrClearCount++;
         keepInHistory(cells[0]);
         System.arraycopy(cells, 1, cells, 0, cells.length - 1);
         cells[cells.length - 1] = blankRow();
@@ -514,6 +517,9 @@ public final class TerminalScreen {
     }
 
     private void eraseRows(int fromRow, int toRow) {
+        if (fromRow == 0 && toRow == settings.rows()) {
+            scrollOrClearCount++;
+        }
         for (int row = fromRow; row < toRow; row++) {
             Arrays.fill(cells[row], erasedCell);
         }

@@ -67,6 +67,8 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
@@ -91,6 +93,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     static final int FRAME_MILLISECONDS = 16;
     private static final int ANTS_MILLISECONDS = 90;
+    /** Automan's star at about 30 frames a second (spec §8.5); a blink only repaints when it turns. */
+    private static final int TERMINAL_FRAME_MILLISECONDS = 33;
+    /** Device pixels added around a moving terminal's area so antialiased edges are repainted too. */
+    private static final int TERMINAL_REPAINT_MARGIN = 2;
     private static final double WHEEL_SCROLL_PIXELS = 40;
     /**
      * A touchpad's sideways swipe reaches Swing on Linux as presses of these extra mouse buttons (X11 buttons 6 and 7),
@@ -116,6 +122,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final Timer antsTimer;
     private final ProblemPulse problemPulse = new ProblemPulse();
     private final Timer problemPulseTimer;
+    /** The Terminals' animation clock: runs only while a moving terminal is in view. */
+    private FrameTicker terminalTicker = FrameTicker.swing(TERMINAL_FRAME_MILLISECONDS);
+    /** Whether the desktop asks for less motion: the Terminals stay still (cursor on, a still star, no fading). */
+    private BooleanSupplier reducedMotion = () -> false;
     private final CanvasAutoscroll autoscroll = new CanvasAutoscroll(this);
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
@@ -157,6 +167,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             autoscroll.stopAutoscroll(); // the release may never reach this canvas
             tool.focusLost(CircuitCanvas.this);
             host.canvasFocusLost(CircuitCanvas.this, Optional.empty());
+            repaint(); // the terminals turn still
+        }
+
+        @Override
+        public void windowActivated(WindowEvent event) {
+            repaint(); // the terminals come back to life; the paint restarts their clock
         }
     };
     private Window watchedWindow;
@@ -223,6 +239,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
         problemPulseTimer = new Timer(ProblemPulse.TICK_MILLISECONDS, event -> problemPulseTick());
+        renderer.useMotionGate(() -> !reducedMotion.getAsBoolean() && windowActive());
         viewTravel.listenForUserMoves();
     }
 
@@ -545,6 +562,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         animationSuspended = true;
         antsTimer.stop();
         problemPulseTimer.stop();
+        terminalTicker.stop();
         watchWindow(null);
         viewTravel.finish();
         super.removeNotify();
@@ -559,6 +577,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         animationSuspended = true;
         antsTimer.stop();
         problemPulseTimer.stop();
+        terminalTicker.stop();
         watchWindow(null);
         openDocument.document().removeListener(documentListener);
         selection.removeListener(selectionListener);
@@ -1004,6 +1023,27 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return problemPulse.phase();
     }
 
+    /** For tests: the Terminals' animation runs on {@code ticker} (a hand-driven one) instead of a Swing timer. */
+    void useTerminalTicker(FrameTicker ticker) {
+        terminalTicker.stop();
+        terminalTicker = Objects.requireNonNull(ticker, "ticker");
+        updateTerminalAnimation();
+    }
+
+    /** True while the Terminals' clock runs: on screen with a moving terminal in view. */
+    boolean isAnimatingTerminals() {
+        return terminalTicker.isRunning();
+    }
+
+    /**
+     * Where to ask whether the desktop wants less motion (read at every paint); with it the Terminals show the cursor
+     * on, Automan's star still and no glow or fading, and their clock does not run.
+     */
+    public void setReducedMotion(BooleanSupplier reduced) {
+        reducedMotion = Objects.requireNonNull(reduced, "reduced");
+        repaint();
+    }
+
     /** Replaces the on-screen check (showing and not minimized), so headless tests can show or hide the canvas. */
     void overrideOnScreen(BooleanSupplier check) {
         onScreen = check;
@@ -1082,8 +1122,60 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
     }
 
+    /** Whether this canvas's window has the focus (none: a canvas outside a window, as in tests, counts as active). */
+    private boolean windowActive() {
+        return watchedWindow == null || watchedWindow.isActive();
+    }
+
+    /** Runs the Terminals' clock while this canvas is on screen and a moving terminal is in view, and only then. */
+    private void updateTerminalAnimation() {
+        boolean needed = !animationSuspended && onScreen.getAsBoolean() && !movingTerminalsInView().isEmpty();
+        if (needed && !terminalTicker.isRunning()) {
+            terminalTicker.start(this::terminalTick);
+        } else if (!needed && terminalTicker.isRunning()) {
+            terminalTicker.stop();
+        }
+    }
+
+    /** One tick of the Terminals' clock: repaints the moving areas whose moment is over, or stops when none is left. */
+    void terminalTick() {
+        updateTerminalAnimation();
+        if (!terminalTicker.isRunning()) {
+            return;
+        }
+        long now = renderer.terminalNow();
+        AffineTransform documentToScreen = viewport.documentTransform();
+        for (CircuitRenderer.TerminalMotion motion : movingTerminalsInView()) {
+            if (now - motion.nextChangeNanos() >= 0) {
+                Rectangle area = documentToScreen.createTransformedShape(motion.documentArea()).getBounds();
+                area.grow(TERMINAL_REPAINT_MARGIN, TERMINAL_REPAINT_MARGIN);
+                repaint(area);
+            }
+        }
+    }
+
+    private List<CircuitRenderer.TerminalMotion> movingTerminalsInView() {
+        List<CircuitRenderer.TerminalMotion> motions = renderer.terminalMotions();
+        if (motions.isEmpty()) {
+            return motions;
+        }
+        Rectangle2D view = visibleDocumentArea();
+        return motions.stream().filter(motion -> motion.documentArea().intersects(view)).toList();
+    }
+
+    /** The part of the document this canvas shows, in document pixels. */
+    private Rectangle2D visibleDocumentArea() {
+        try {
+            return viewport.documentTransform().createInverse()
+                    .createTransformedShape(new Rectangle2D.Double(0, 0, getWidth(), getHeight())).getBounds2D();
+        } catch (NoninvertibleTransformException exception) {
+            throw new IllegalStateException("the viewport has a degenerate transform", exception);
+        }
+    }
+
     private void updateAnimation() {
         updateProblemPulse();
+        updateTerminalAnimation();
         boolean needed = !animationSuspended && onScreen.getAsBoolean()
                 && (!selection.isEmpty() || tool.animatesOutline());
         if (needed && !antsTimer.isRunning()) {
@@ -1366,6 +1458,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         } finally {
             screen.dispose();
         }
+        updateTerminalAnimation();
     }
 
     /** The welcome text of a canvas with nothing in it, centred in this pane; screen only, never in an export. */

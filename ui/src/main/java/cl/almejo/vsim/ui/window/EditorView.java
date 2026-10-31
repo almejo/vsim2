@@ -801,9 +801,10 @@ public final class EditorView extends JPanel implements CanvasHost {
         return new CircuitCanvas(openDocument, renderer, this, selection);
     }
 
-    /** What this view sets on every pane: view moves, file drops, its key bindings, the status bar, the tool. */
+    /** What this view sets on every pane: view moves, reduced motion, file drops, its key bindings, the status bar, the tool. */
     private Runnable configurePane(CircuitCanvas pane) {
         pane.setAnimateViewMoves(services.preferences()::animateViewMoves);
+        pane.setReducedMotion(services.preferences()::systemReducesMotion);
         pane.setFileDropTarget(this::dropFilesAt);
         pane.setFocusTraversalKeysEnabled(keyboardCapture.captured().isEmpty());
         Map<KeyStroke, String> bound = new LinkedHashMap<>();

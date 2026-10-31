@@ -564,6 +564,14 @@ public final class AppPreferences {
     // --- Buscar en el circuito: animated view moves ---
 
     /**
+     * Whether the desktop asks applications for less motion right now (GNOME's «Animaciones» off): the Terminals then
+     * keep their cursor still, Automan's star still and show no glow or fading.
+     */
+    public boolean systemReducesMotion() {
+        return systemReducesMotion.getAsBoolean();
+    }
+
+    /**
      * «Animar los movimientos de la vista»: the view travels (an eased pan or a «fly to») instead of jumping when the
      * app takes it somewhere. On by default, unless the desktop asks for reduced motion; a stored choice wins.
      */
