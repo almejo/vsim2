@@ -37,6 +37,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- La descripción del Teclado (su ayuda al pasar el mouse y en Propiedades) dice que Mayús+Esc envía el byte ESC.
 - En el Terminal, un `WE` sin conectar vale 1 en todos los modos (antes solo en el modo Logisim: VT100 y Teletipo no escribían hasta cablearlo). Con `WE` conectado todo sigue igual.
 - El diálogo «Configurar…» ya no repite la descripción de la pieza: la descripción se lee en Propiedades.
 - El lienzo del editor de formas dibuja la cuadrícula como el editor principal: el mismo estilo (puntos o líneas) y la misma separación que eliges en Ver ▸ Cuadrícula, con los colores del tema claro u oscuro y menos puntos cuando el zoom es bajo, y cambia al instante si cambias esa preferencia con el editor abierto. Un botón nuevo en su barra de herramientas, junto al imán «Ajustar», muestra u oculta la cuadrícula (se recuerda aparte del editor principal).

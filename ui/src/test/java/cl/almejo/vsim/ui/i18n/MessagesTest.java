@@ -135,6 +135,14 @@ class MessagesTest {
     }
 
     @Test
+    void theTecladosDescriptionSaysThatShiftEscSendsEsc() {
+        assertThat(Messages.bundle(Messages.SPANISH).getString("description.component.keyboard"))
+                .contains("Mayús+Esc").contains("ESC");
+        assertThat(Messages.bundle(Locale.ENGLISH).getString("description.component.keyboard"))
+                .contains("Shift+Esc").contains("ESC");
+    }
+
+    @Test
     void englishLocaleSelectsEnglishAndAnyOtherSelectsSpanish() {
         assertThat(Messages.chooseLocale(Locale.US)).isEqualTo(Locale.ENGLISH);
         assertThat(Messages.chooseLocale(Locale.GERMANY)).isEqualTo(Messages.SPANISH);
