@@ -38,6 +38,7 @@ import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
 import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.ChangeParametersWithWiresCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
@@ -344,7 +345,8 @@ final class EditPlanner {
         requireNotTerminalOutputFile(type, operation.parameters());
         Map<String, Object> merged = new HashMap<>(component.parameters());
         merged.putAll(operation.parameters());
-        new ChangeParametersCommand(component.id(), type, merged).apply(candidate);
+        // the wires on pins the change moves follow them, as in the inspector (a wider Teclado carries AV and D)
+        ChangeParametersWithWiresCommand.of(candidate, registry, component.id(), merged).apply(candidate);
     }
 
     /** A memory's contents and link are the user's (spec §9): the AI writes words with SetMemoryContents only. */

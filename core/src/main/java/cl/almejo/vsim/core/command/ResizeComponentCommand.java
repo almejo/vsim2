@@ -6,37 +6,25 @@ import cl.almejo.vsim.core.component.ResizeSpec;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.FollowPlan;
-import cl.almejo.vsim.core.wiring.PinMoves;
-import cl.almejo.vsim.core.wiring.WireFollow;
 
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 
 /**
  * Sets the resize parameters of a part ({@link ResizeSpec}: the Teclado's «Ancho», a Terminal's columns and rows) and
  * makes the wires of the pins that move with the edges follow them, as one undo step (Tasks 6b, 7b). The part keeps
- * its position; the wires are planned with
- * {@link WireFollow#plan(CircuitDocument, ComponentTypeRegistry, PinMoves, Supplier)} against the document as it is
- * before the change, the way an appearance edit moves the pins of its pieces.
+ * its position; this is {@link ChangeParametersWithWiresCommand}, the same plan as typing the size in the inspector,
+ * with the resize's range checks and its own name in «Deshacer …».
  */
 public final class ResizeComponentCommand implements Command {
 
     static final String DESCRIPTION = "command.resizePart";
 
-    private final CompositeCommand steps;
-    private final FollowPlan plan;
+    private final ChangeParametersWithWiresCommand change;
 
-    private ResizeComponentCommand(ChangeParametersCommand parameters, FollowPlan plan) {
-        this.plan = plan;
-        // A move of nothing by (0, 0) only applies the plan's wires: replaced, removed and added, reverted exactly.
-        this.steps = new CompositeCommand(DESCRIPTION, List.of(parameters,
-                new MoveWithWiresCommand(Set.of(), 0, 0, plan)));
+    private ResizeComponentCommand(ChangeParametersWithWiresCommand change) {
+        this.change = change;
     }
 
     /**
@@ -61,9 +49,8 @@ public final class ResizeComponentCommand implements Command {
                                             Map<String, Integer> values) {
         Component component = document.component(id).orElseThrow();
         ComponentType type = registry.typeOf(component);
-        Map<String, Object> parameters = resizedParameters(type, component, values);
-        return new ResizeComponentCommand(new ChangeParametersCommand(id, type, parameters, DESCRIPTION),
-                wirePlan(document, registry, component, parameters, document::newWireId));
+        return new ResizeComponentCommand(ChangeParametersWithWiresCommand.of(document, registry, id,
+                resizedParameters(type, component, values), DESCRIPTION));
     }
 
     /**
@@ -80,7 +67,8 @@ public final class ResizeComponentCommand implements Command {
                                       Map<String, Integer> values, Supplier<ElementId> newWireIds) {
         Component component = document.component(id).orElseThrow();
         ComponentType type = registry.typeOf(component);
-        return wirePlan(document, registry, component, resizedParameters(type, component, values), newWireIds);
+        return ChangeParametersWithWiresCommand.wirePlan(document, registry, component,
+                resizedParameters(type, component, values), newWireIds);
     }
 
     private static ResizeSpec resizeOf(ComponentType type) {
@@ -104,34 +92,19 @@ public final class ResizeComponentCommand implements Command {
         return resize.parametersWith(component.parameters(), values);
     }
 
-    private static FollowPlan wirePlan(CircuitDocument document, ComponentTypeRegistry registry, Component component,
-                                       Map<String, Object> parameters, Supplier<ElementId> newWireIds) {
-        ComponentType before = registry.typeOf(component);
-        Component resized = component.withParameters(parameters);
-        ComponentType after = registry.typeOf(resized);
-        Map<PinRef, GridPoint> moves = new LinkedHashMap<>();
-        for (int pinIndex = 0; pinIndex < before.pinCount(); pinIndex++) {
-            GridPoint target = after.pinLocation(resized, pinIndex);
-            if (!target.equals(before.pinLocation(component, pinIndex))) {
-                moves.put(new PinRef(component.id(), pinIndex), target);
-            }
-        }
-        return WireFollow.plan(document, registry, new PinMoves(moves), newWireIds);
-    }
-
     /** How the wires follow this resize. */
     public FollowPlan plan() {
-        return plan;
+        return change.plan();
     }
 
     @Override
     public void apply(CircuitDocument document) {
-        steps.apply(document);
+        change.apply(document);
     }
 
     @Override
     public void revert(CircuitDocument document) {
-        steps.revert(document);
+        change.revert(document);
     }
 
     @Override

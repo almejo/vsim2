@@ -2,7 +2,7 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.Command;
-import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.ChangeParametersWithWiresCommand;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetNoteStyleCommand;
@@ -745,7 +745,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         }
         if (!form.commitDescription().equals(ParameterForm.CONFIGURE)) {
             // a profile chosen or a «↺»: its own name in «Deshacer …» (a profiled part is never a tunnel)
-            return Optional.of(new ChangeParametersCommand(id, type, values, form.commitDescription()));
+            return Optional.of(ChangeParametersWithWiresCommand.of(openDocument.document(), openDocument.registry(),
+                    id, values, form.commitDescription()));
         }
         // a tunnel whose name changed follows the rename rules (spec §7), as «Configurar…» does
         return Optional.of(TunnelNames.parametersCommand(openDocument, id, type, values));

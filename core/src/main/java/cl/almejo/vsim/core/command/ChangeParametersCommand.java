@@ -23,6 +23,9 @@ import java.util.Objects;
  */
 public final class ChangeParametersCommand implements Command {
 
+    /** «Configurar» in «Deshacer …», the name of a plain parameter edit. */
+    static final String CONFIGURE = "command.configure";
+
     private final ElementId id;
     private final ComponentType type;
     private final String typeId;
@@ -35,7 +38,7 @@ public final class ChangeParametersCommand implements Command {
 
     /** Normalizes {@code rawParameters} with {@code type}; invalid values throw IllegalArgumentException here. */
     public ChangeParametersCommand(ElementId id, ComponentType type, Map<String, Object> rawParameters) {
-        this(id, type, rawParameters, "command.configure");
+        this(id, type, rawParameters, CONFIGURE);
     }
 
     /**

@@ -38,7 +38,10 @@ public sealed interface EditOperation {
         }
     }
 
-    /** Changes some parameters of a part; the ones not named keep their value. */
+    /**
+     * Changes some parameters of a part; the ones not named keep their value. When the change moves pins (a gate's
+     * inputs, a Teclado's width) the wires on them follow, as in the inspector.
+     */
     record SetParameters(String target, Map<String, Object> parameters) implements EditOperation {
         public SetParameters {
             Objects.requireNonNull(target, "target");

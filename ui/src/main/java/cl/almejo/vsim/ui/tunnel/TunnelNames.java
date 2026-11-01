@@ -1,6 +1,6 @@
 package cl.almejo.vsim.ui.tunnel;
 
-import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.ChangeParametersWithWiresCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -53,12 +53,14 @@ public final class TunnelNames {
     /**
      * The command that sets the parameters of component {@code id} (of {@code type}) to {@code values}, as a form
      * gives them: a plain parameter change, except when a tunnel's name changes. Then it is the rename that carries an
-     * entrada's salidas along, followed by the other changes (an entrada's colour) in the same undo step. «Configurar…»
-     * and the inspector both build their change here, so the two paths follow the same rules.
+     * entrada's salidas along, followed by the other changes (an entrada's colour) in the same undo step. The wires on
+     * the pins the change moves follow them (a gate's inputs, a Teclado's «Ancho»). «Configurar…» and the inspector
+     * both build their change here, so the two paths follow the same rules.
      */
     public static Command parametersCommand(OpenDocument openDocument, ElementId id, ComponentType type,
                                             Map<String, Object> values) {
-        Command change = new ChangeParametersCommand(id, type, values);
+        Command change = ChangeParametersWithWiresCommand.of(openDocument.document(), openDocument.registry(), id,
+                values);
         if (!Tunnels.isTunnel(type.id())) {
             return change;
         }
