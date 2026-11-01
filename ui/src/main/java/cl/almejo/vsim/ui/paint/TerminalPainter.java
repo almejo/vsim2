@@ -93,7 +93,7 @@ public final class TerminalPainter implements ComponentPainter {
         TerminalScreenPainter.Setting setting = new TerminalScreenPainter.Setting(screen(width, height),
                 romGlyphsOf(state, resolved), rows(resolved), columns(resolved), TerminalTypes.fontSize(resolved), look,
                 colorsOf(look, scheme));
-        boolean cached = raster.isPresent() && moment.effects() && !setting.colors().monochrome();
+        boolean cached = LiveTerminalScreen.drawnFromPicture(raster, moment, setting);
         if (cached && setting.colors().background().getAlpha() == OPAQUE) {
             paintBodyAround(graphics, outline, scheme, inside(setting.screen()));
         } else {
@@ -103,9 +103,7 @@ public final class TerminalPainter implements ComponentPainter {
             paintTitleBar(graphics, outline, width, resolved, label.orElseGet(() -> Messages.componentName(type.id())),
                     scheme);
         }
-        if (!cached || !raster.get().paint(graphics, setting, frameOf(state), moment)) {
-            TerminalScreenPainter.paint(graphics, setting, frameOf(state), moment);
-        }
+        LiveTerminalScreen.paint(graphics, setting, frameOf(state), moment, raster);
         PainterSupport.pinDots(graphics, type, scheme);
         paintPinNames(graphics, type, scheme);
     }
@@ -150,22 +148,8 @@ public final class TerminalPainter implements ComponentPainter {
      */
     public Optional<Rectangle2D> movingArea(ComponentType type, Map<String, Object> parameters, VisibleState state,
                                             TerminalMoment moment) {
-        if (!moment.moving()) {
-            return Optional.empty();
-        }
-        Rectangle2D screen = screen(type.size().width() * UNIT, type.size().height() * UNIT);
-        Optional<TerminalFrame> frame = frameOf(state);
-        if (moment.ghost().isPresent() || frame.isEmpty()) {
-            return Optional.of(screen);
-        }
-        TerminalFontSize size = TerminalTypes.fontSize(type.resolveParameters(parameters));
-        Rectangle2D area = TerminalCursorPainter.reach(TerminalScreenPainter.cellBounds(screen, size,
-                frame.get().cursorRow(), frame.get().cursorColumn()));
-        if (moment.lastGlowAlpha() > 0) {
-            frame.get().lastWritten().ifPresent(last -> area.add(TerminalScreenPainter.cellBounds(screen, size,
-                    last.row(), last.column())));
-        }
-        return Optional.of(area);
+        return LiveTerminalScreen.movingArea(screen(type.size().width() * UNIT, type.size().height() * UNIT),
+                TerminalTypes.fontSize(type.resolveParameters(parameters)), frameOf(state), moment);
     }
 
     /**

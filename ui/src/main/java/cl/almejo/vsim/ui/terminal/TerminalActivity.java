@@ -89,15 +89,17 @@ public final class TerminalActivity {
     }
 
     /**
-     * The moment of Terminal {@code componentId} in this paint, whose {@code state} comes from the latest snapshot.
-     * Each call is one paint of this view.
+     * The moment of Terminal {@code componentId} in this paint, whose {@code state} comes from the latest snapshot
+     * (a UART 16550's state for its integrated screen). Each call is one paint of this view.
      */
     public TerminalMoment moment(String componentId, VisibleState state, TerminalLook look,
                                  TerminalAnimation animation) {
-        if (!(state instanceof VisibleState.TerminalState terminal)) {
+        Optional<VisibleState.TerminalState> shown = VisibleState.terminalScreen(state);
+        if (shown.isEmpty()) {
             remembered.remove(componentId);
             return TerminalMoment.still(animation);
         }
+        VisibleState.TerminalState terminal = shown.get();
         long now = nanoClock.getAsLong();
         Seen seen = remembered.get(componentId);
         if (seen == null || seen.owner != terminal.owner()) {
