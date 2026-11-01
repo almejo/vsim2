@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.terminal.KeyEncoding;
 import cl.almejo.vsim.core.terminal.KeyQueue;
+import cl.almejo.vsim.core.terminal.TerminalEncoding;
 import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 
@@ -50,7 +51,8 @@ final class KeyboardBehavior implements Behavior {
     public void adoptStateFrom(Behavior previous) {
         // A new «Texto inicial» starts the queue over with it, as «Reiniciar» would; any other change keeps the queue.
         if (previous instanceof KeyboardBehavior keyboard && keyboard.initialText.equals(initialText)) {
-            queue = keyboard.queue.resizedTo(queue.capacity());
+            queue = keyboard.queue.resizedTo(queue.capacity(),
+                    encoding.encoding() == TerminalEncoding.UTF8);
             adopted = true;
         }
     }
