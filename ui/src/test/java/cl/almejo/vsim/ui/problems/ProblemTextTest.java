@@ -73,8 +73,18 @@ class ProblemTextTest {
         String textThree = ProblemText.describe(pinThree, document, registry);
         String textFour = ProblemText.describe(pinFour, document, registry);
 
-        assertThat(textThree).isEqualTo("AND de 3 entradas: la entrada «in2» está desconectada");
-        assertThat(textFour).isEqualTo("AND de 4 entradas: la entrada «in2» está desconectada");
+        assertThat(textThree).isEqualTo("AND de 3 entradas: la entrada 3 está desconectada");
+        assertThat(textFour).isEqualTo("AND de 4 entradas: la entrada 3 está desconectada");
+    }
+
+    @Test
+    void anUnconnectedGateInputIsCountedFromOneAndEnglishSaysInput() {
+        ConnectivityProblem problem = new ConnectivityProblem("n", andGate.id().value(), 1, new GridPoint(0, 0),
+                ConnectivityProblem.Cause.INNER_PIN);
+        Messages.initialize(Locale.ENGLISH);
+
+        assertThat(ProblemText.describe(problem, document, registry)).contains("input 2 is disconnected")
+                .doesNotContain("in1");
     }
 
     @Test
@@ -83,7 +93,7 @@ class ProblemTextTest {
                 ConnectivityProblem.Cause.INNER_PIN);
 
         assertThat(ProblemText.describe(problem, document, registry))
-                .isEqualTo("U3 (AND): la entrada «in1» está desconectada");
+                .isEqualTo("U3 (AND): la entrada 2 está desconectada");
     }
 
     @Test

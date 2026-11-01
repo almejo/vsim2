@@ -4,7 +4,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Dibujar cables
 
-- Cables: arrastrar desde un pin (se marca con un anillo al pasar el mouse) o desde un cable dibuja un cable en "L". Para mover un cable, primero click para seleccionarlo y luego arrastrarlo. Al pasar el mouse sobre cualquier pin se ve su nombre, su bit si el componente lee sus pines como un número (display de 7 segmentos: «in0 · bit 0 (el de la derecha)»), su ancho si es de más de un bit y, mientras simula, su valor («in1 = Z (sin conectar)»). Una entrada sin nada conectado (ni cable ni otro pin) se dibuja con un anillo hueco, porque queda en Z; el anillo desaparece al conectarla.
+- Cables: arrastrar desde un pin (se marca con un anillo al pasar el mouse) o desde un cable dibuja un cable en "L". Para mover un cable, primero click para seleccionarlo y luego arrastrarlo. Al pasar el mouse sobre cualquier pin se ve su nombre, su bit si el componente lee sus pines como un número (display de 7 segmentos: «in0 · bit 0 (el de la derecha)»), su ancho si es de más de un bit y, mientras simula, su valor («entrada 2 = Z (sin conectar)»; las entradas de las compuertas se cuentan desde 1: «entrada 1», «entrada 2»…). Una entrada sin nada conectado (ni cable ni otro pin) se dibuja con un anillo hueco, porque queda en Z; el anillo desaparece al conectarla.
 - Las herramientas Cable y Mover de la barra de vista siguen existiendo como modos opcionales.
 - Los puntos de unión aparecen solo donde un cable se ramifica (no donde dos cables siguen en línea recta). Dos cables que se cruzan sin unirse dejan un pequeño corte en el vertical, que «pasa por debajo» del horizontal; una T o un punto de unión nunca tienen corte.
 

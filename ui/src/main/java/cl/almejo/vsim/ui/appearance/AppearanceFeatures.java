@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.PinNames;
 import cl.almejo.vsim.ui.library.LibraryDialogs;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -246,7 +247,7 @@ final class AppearanceFeatures {
         }
         List<ConnectionsQuestion.Entry> disconnected = plan.disconnected().stream().map(this::entry).toList();
         List<ConnectionsQuestion.Entry> kept = plan.keptOldShape().stream().map(contact ->
-                new ConnectionsQuestion.Entry(contact.instanceName(), contact.pinName(), contact.touchedNetName())).toList();
+                new ConnectionsQuestion.Entry(contact.instanceName(), PinNames.display(contact.pinName()), contact.touchedNetName())).toList();
         return prompts.confirmConnections(view, new ConnectionsQuestion(disconnected, kept, unaffectedPieces(plan),
                 instanceScope && !kept.isEmpty()));
     }
@@ -265,7 +266,7 @@ final class AppearanceFeatures {
 
     private ConnectionsQuestion.Entry entry(PinRef pin) {
         return document().component(pin.componentId()).map(component -> new ConnectionsQuestion.Entry(pieceName(component),
-                view.openDocument().registry().typeOf(component).pin(pin.pinIndex()).name(), ""))
+                PinNames.display(view.openDocument().registry().typeOf(component).pin(pin.pinIndex()).name()), ""))
                 .orElse(new ConnectionsQuestion.Entry(pin.componentId().value(), "", ""));
     }
 

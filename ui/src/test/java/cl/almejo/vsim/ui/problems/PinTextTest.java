@@ -34,7 +34,7 @@ class PinTextTest {
 
     @Test
     void withoutASnapshotAPinShowsOnlyItsName() {
-        assertThat(describe(StandardComponentTypes.AND, Map.of(), 0, true, Optional.empty())).isEqualTo("in0");
+        assertThat(describe(StandardComponentTypes.AND, Map.of(), 0, true, Optional.empty())).isEqualTo("entrada 1");
         assertThat(describe(StandardComponentTypes.FLIP_FLOP_DATA, Map.of(), 2, false, Optional.empty()))
                 .isEqualTo("clock");
     }
@@ -54,7 +54,7 @@ class PinTextTest {
         assertThat(describe(StandardComponentTypes.BUFFER, Map.of(), 1, false, Optional.of(Value.ONE)))
                 .isEqualTo("out = 1");
         assertThat(describe(StandardComponentTypes.AND, Map.of(), 1, true, Optional.of(Value.HIGH_IMPEDANCE)))
-                .isEqualTo("in1 = Z (sin conectar)");
+                .isEqualTo("entrada 2 = Z (sin conectar)");
         assertThat(describe(StandardComponentTypes.BUFFER, Map.of(), 0, false, Optional.of(Value.HIGH_IMPEDANCE)))
                 .as("connected to something that drives nothing").isEqualTo("in = Z");
         assertThat(describe(StandardComponentTypes.SWITCH, Map.of(), 0, true, Optional.of(Value.ZERO)))
@@ -125,6 +125,14 @@ class PinTextTest {
         assertThat(describe(splitter, fourBits, 0, true, Optional.of(Value.highImpedance(4))))
                 .isEqualTo("bus · 4 bits = 0xZ (ZZZZ) (sin conectar)");
         assertThat(describe(splitter, fourBits, 2, true, Optional.empty())).as("a one-bit side pin").isEqualTo("b1");
+    }
+
+    @Test
+    void aGateInputIsCountedFromOneInEnglishToo() {
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(describe(StandardComponentTypes.AND, Map.of(), 0, true, Optional.empty())).isEqualTo("input 1");
+        assertThat(describe(StandardComponentTypes.AND, Map.of(), 1, true, Optional.of(Value.ONE)))
+                .isEqualTo("input 2 = 1");
     }
 
     @Test

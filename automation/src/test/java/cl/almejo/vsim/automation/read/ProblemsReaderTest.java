@@ -84,6 +84,17 @@ class ProblemsReaderTest {
     }
 
     @Test
+    void anUnconnectedGateInputKeepsItsInternalPinIdForTheAi() {
+        Component gate = fixture.place(StandardComponentTypes.AND, 0, 0, Rotation.R0,
+                Map.of(StandardComponentTypes.GATE_INPUTS, 3), "");
+        publish(0, new ConnectivityProblem("n:pin", gate.id().value(), 2, GridPoint.ORIGIN));
+
+        ProblemView problem = ProblemsReader.read(fixture.source()).problems().get(0);
+
+        assertThat(problem.pins()).containsExactly(new PinReference(gate.id().value(), "in2", 0));
+    }
+
+    @Test
     void aProblemInsideAUserComponentPointsAtTheInstanceThatHoldsIt() {
         fixture.document.putDefinition(ExampleDefinitions.inverter());
         Component inverter = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 10);
