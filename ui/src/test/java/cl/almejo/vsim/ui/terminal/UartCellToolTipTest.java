@@ -55,7 +55,7 @@ class UartCellToolTipTest {
         return component;
     }
 
-    /** The middle of a Normal cell (8 × 16 px): the screen starts right of the register table, one unit below the bar. */
+    /** The middle of a Normal cell (8 × 16 px): the screen starts right of the register table, below the bar. */
     private static Point2D middleOf(int row, int column) {
         double localX = UartTypes.SCREEN_LEFT_UNITS * 8 + column * 8 + 4;
         double localY = (UartTypes.TITLE_BAR_UNITS + UartTypes.MARGIN_UNITS) * 8 + row * 16 + 8;

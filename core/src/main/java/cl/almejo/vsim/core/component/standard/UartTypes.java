@@ -14,10 +14,10 @@ import java.util.Map;
 
 /**
  * The «UART 16550» part (spec §12): the standard serial port of a PC and of QEMU's RISC‑V {@code virt} board, with its
- * eight registers on a CPU bus. Its line goes to a screen and a keyboard of its own («Pantalla: integrada», a
- * Terminal and a Teclado inside it, with their properties under the «Pantalla», «Para enseñar», «Sonido» and
- * «Teclado» groups and the Terminal window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to. See
- * {@link Uart16550Behavior} for the registers and {@link UartPinout} for the pins.
+ * eight registers on a CPU bus. Its line goes to a screen and a keyboard of its own («Pantalla: integrada», a Terminal
+ * and a Teclado inside it, with their properties under the «Pantalla», «Para enseñar», «Sonido» and «Teclado» groups
+ * and the Terminal window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to.
+ * See {@link Uart16550Behavior} for the registers and {@link UartPinout} for the pins.
  *
  * <p>The screen's and keyboard's parameters keep the Terminal's and the Teclado's names, so they read, save and show
  * the same; data is always 8 bits, so «Ancho del dato» is not among them and one «Codificación» serves both.

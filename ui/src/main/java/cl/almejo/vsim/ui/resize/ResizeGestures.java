@@ -28,11 +28,12 @@ import java.util.Set;
 /**
  * What the select tool does with the tab of a resizable part ({@link ResizeSpec}): the Teclado's «↔» on one edge (Task
  * 6b), the Terminal's «⤡» on its bottom-right corner (Task 7b; a UART 16550's integrated screen too). The tab is there
- * only while the part is selected alone (not as part of a locked block) and its resize applies. Dragging it changes the part's size live, each axis snapped to whole values (a
- * Terminal's whole cells) and kept inside its parameter's range, with the wires of the pins that move following them
- * as in a move preview, and a tag above the tab («Ancho 24 · 14 teclas», «80×24»); the release records one undo step
- * ({@link ResizeComponentCommand}), nothing when no value changed. Esc cancels the drag. A double click on the tab goes
- * back to the parameters' defaults (the Teclado's smallest width, a Terminal's 80×24), as one undo step.
+ * only while the part is selected alone (not as part of a locked block) and its resize applies. Dragging it changes the
+ * part's size live, each axis snapped to whole values (a Terminal's whole cells) and kept inside its parameter's range,
+ * with the wires of the pins that move following them as in a move preview, and a tag above the tab («Ancho 24 · 14
+ * teclas», «80×24»); the release records one undo step ({@link ResizeComponentCommand}), nothing when no value changed.
+ * Esc cancels the drag. A double click on the tab goes back to the parameters' defaults (the Teclado's smallest width,
+ * a Terminal's 80×24), as one undo step.
  */
 public final class ResizeGestures implements SelectToolDelegate {
 
