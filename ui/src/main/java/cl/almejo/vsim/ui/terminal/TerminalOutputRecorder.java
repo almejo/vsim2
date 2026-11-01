@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * «Guardar salida: En un archivo .txt» (spec §8.9): the raw bytes every top-level Terminal of the circuit receives are
@@ -39,7 +40,7 @@ import java.util.function.Consumer;
  *
  * <p>A file is touched only when the user wants it in this session: a recording is <em>armed</em> once its file was
  * chosen with «Elegir archivo…» ({@link #approve}) or, for a file a saved circuit names, once the user confirmed it
- * (asked once per file while the circuit is open; «no» leaves it unarmed). Opening a circuit never creates or
+ * (asked once per file in each run of the app, the answer kept in memory; «no» leaves it unarmed). Opening a circuit never creates or
  * truncates anything. Arming starts the file over (truncated) with every byte the log still keeps, and so does
  * «Reiniciar» of an armed recording. Two Terminals, of this circuit or of another open one, never record to the same
  * file: the second one is told and stays unarmed. A file that cannot be written is told once per file, and bytes the
@@ -54,16 +55,18 @@ public final class TerminalOutputRecorder {
     /**
      * What the recorder takes from the outside: the {@code writer} of the files (off the EDT, in order), how a question
      * is left for later on the EDT ({@code later}: never from inside a document change), the question about a saved
-     * circuit's file and the files every open circuit records to.
+     * circuit's file, the files every open circuit records to (and the answers already given in this run) and the
+     * window that owns the question (read when it is asked; null when there is none).
      */
     public record Services(Executor writer, Executor later, TerminalOutputConfirmation confirmation,
-                           TerminalOutputClaims claims) {
+                           TerminalOutputClaims claims, Supplier<java.awt.Component> ownerWindow) {
 
         public Services {
             Objects.requireNonNull(writer, "writer");
             Objects.requireNonNull(later, "later");
             Objects.requireNonNull(confirmation, "confirmation");
             Objects.requireNonNull(claims, "claims");
+            Objects.requireNonNull(ownerWindow, "ownerWindow");
         }
     }
 
@@ -80,7 +83,7 @@ public final class TerminalOutputRecorder {
     private final Services services;
     private final Consumer<String> problems;
     private final Map<String, Recording> recordings = new HashMap<>();
-    /** The files the user chose or confirmed while this circuit is open (absolute, normalized). */
+    /** The files the user chose or confirmed while this circuit is open ({@link TerminalOutputClaims#canonical}). */
     private final Set<Path> approved = new HashSet<>();
     /** The files already asked about while this circuit is open, whatever the answer. */
     private final Set<Path> asked = new HashSet<>();
@@ -108,7 +111,9 @@ public final class TerminalOutputRecorder {
      * that saves its output there is armed, now or as soon as it names it.
      */
     public void approve(Path file) {
-        approved.add(normalized(file));
+        Path approvedFile = normalized(file);
+        approved.add(approvedFile);
+        services.claims().remember(approvedFile, true);
         refresh();
     }
 
@@ -159,8 +164,15 @@ public final class TerminalOutputRecorder {
             return;
         }
         if (!approved.contains(file)) {
-            askOnce(file);
-            return;
+            Optional<Boolean> answered = services.claims().answerFor(file);
+            if (answered.isEmpty()) {
+                askOnce(file);
+                return;
+            }
+            if (!answered.get()) {
+                return;
+            }
+            approved.add(file);
         }
         if (!services.claims().claim(file, new Holder(this, componentId))) {
             tellBusy(componentId, file);
@@ -187,14 +199,20 @@ public final class TerminalOutputRecorder {
     }
 
     private void ask(Path file) {
-        if (disposed || approved.contains(file)) {
+        if (disposed || approved.contains(file) || services.claims().answerFor(file).isPresent()) {
             return;
         }
         Optional<String> terminal = wantedFiles().entrySet().stream()
                 .filter(entry -> entry.getValue().equals(file))
                 .map(Map.Entry::getKey)
                 .findFirst();
-        if (terminal.isPresent() && services.confirmation().recordThere(nameOf(terminal.get()), file.toString())) {
+        if (terminal.isEmpty()) {
+            return;
+        }
+        boolean record = services.confirmation().recordThere(services.ownerWindow().get(), nameOf(terminal.get()),
+                file.toString());
+        services.claims().remember(file, record);
+        if (record) {
             approve(file);
         }
     }
@@ -206,7 +224,7 @@ public final class TerminalOutputRecorder {
     }
 
     private static Path normalized(Path file) {
-        return file.toAbsolutePath().normalize();
+        return TerminalOutputClaims.canonical(file);
     }
 
     private Optional<Path> outputFile(Component terminal) {

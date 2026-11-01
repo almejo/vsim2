@@ -63,6 +63,11 @@ final class ByteMonitorText {
                 characterName(entry.value()));
     }
 
+    /** The marker row for {@code lost} bytes the log dropped: the text in the first column, the rest empty. */
+    static List<String> lostRow(long lost) {
+        return List.of(Messages.format("terminal.monitor.lost", lost), "", "", "");
+    }
+
     /** The bytes as {@code hexdump -C} shows them, offsets counted from the first byte given; no final line feed. */
     static String hexDump(List<ByteLog.Entry> entries) {
         StringBuilder dump = new StringBuilder();

@@ -85,7 +85,7 @@ final class TerminalWindowContent extends JPanel {
     /** A new frame of the Terminal. */
     void update(TerminalUpdate update) {
         screen.show(update.frame(), resolved);
-        monitor.accept(update.newBytes(), update.startedOver());
+        monitor.accept(update.newBytes(), update.startedOver(), update.lostBytes());
         expected.showTranscript(update.frame().transcript());
     }
 

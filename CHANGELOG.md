@@ -10,6 +10,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- El monitor de bytes de la ventana del Terminal marca con una fila «… N bytes perdidos …» los bytes que el registro descartó antes de que la ventana los leyera, en vez de saltárselos sin avisar. Ver [Terminal](docs/funciones/componentes.md#terminal).
 - Un lienzo completamente vacío muestra al centro un texto suave que dice cómo empezar («Arrastra una pieza desde la paleta para empezar» y «o abre un ejemplo en Archivo ▸ Ejemplos»). Desaparece al poner cualquier cosa, vuelve si borras todo y no sale en las imágenes, el PDF ni la impresión. Ver [Lienzo vacío](docs/funciones/interfaz-preferencias-y-sesion.md#lienzo-vacío).
 - «Los cables siguen al mover» tiene el atajo Ctrl+E (se puede cambiar en Atajos de teclado). La ayuda del botón muestra la tecla vigente y la barra de estado dice si quedó activado o desactivado.
 - Herramienta **Texto** en la barra de herramientas y en el menú Ver (después de «Nota adhesiva»): un clic en el lienzo abre el campo de texto en ese punto y el editor vuelve a Selección.
@@ -53,6 +54,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- «Guardar salida»: la pregunta «¿Grabar ahí?» pertenece a la ventana del editor y se hace una sola vez por archivo en cada vez que usas VSim (antes se repetía al abrir el circuito de nuevo); un enlace simbólico o una ruta con `..` cuentan como el mismo archivo para la regla de que dos Terminales no graban en el mismo.
+- «Reiniciar» un Terminal ya no se confunde con reconstruir la pieza al editar un parámetro: el registro de bytes tiene una época propia, así que el monitor y «Guardar salida» empiezan de nuevo solo en «Reiniciar».
 - En `vsim_edit`, los parámetros que la IA pasa al colocar con `nand`, `nor`, `xnor`, `not` o `inverter-controlled` ahora mandan sobre los del atajo (`nand` con `negate: false` da una AND sin negar; `nor` con `inputs: 4` da una OR negada de 4 entradas), y la descripción de la herramienta lista los atajos y lo que fija cada uno.
 - Pegar o duplicar una entrada de túnel cuyo nombre ya tiene una entrada en el circuito le pone un nombre libre (`A` pasa a `A_2`, el primer `_N` libre), en el mismo paso de deshacer, en vez de dejar «Hay 2 entradas». Las salidas de ese nombre que vienen en lo pegado se renombran con ella. Una salida sola conserva su nombre, y una entrada pegada en otro circuito donde el nombre está libre también. Ver [Túneles de cables](docs/funciones/cables-buses-y-tuneles.md#túneles-de-cables).
 - En el asistente de expresiones booleanas, la leyenda de notación lista todas las marcas de NOT que se entienden (`'`, `’`, `′` y `ʹ`), y los errores de las líneas se pintan con el mismo rojo legible del resto del editor.

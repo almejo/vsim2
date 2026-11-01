@@ -19,6 +19,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The «Monitor de bytes» tab (spec §9, mockup §5), like Arduino's serial monitor: every byte received with its time,
@@ -31,7 +32,11 @@ final class ByteMonitorPanel extends JPanel {
     private static final String DUMP_CARD = "dump";
     private static final int COLUMNS = 4;
 
-    private final Deque<ByteLog.Entry> entries = new ArrayDeque<>();
+    /** A row of the list: a byte, or a marker for the {@code lost} bytes the log dropped before the next row. */
+    private record Row(ByteLog.Entry entry, long lost) {
+    }
+
+    private final Deque<Row> entries = new ArrayDeque<>();
     private final BytesModel model = new BytesModel();
     private final JTable table = new JTable(model);
     private final JTextArea dump = new JTextArea();
@@ -40,7 +45,8 @@ final class ByteMonitorPanel extends JPanel {
     private final JPanel views = new JPanel(cards);
     private final JToggleButton listButton = new JToggleButton(Messages.text("terminal.monitor.list"), true);
     private final JToggleButton dumpButton = new JToggleButton(Messages.text("terminal.monitor.hexDump"));
-    private List<ByteLog.Entry> rows = List.of();
+    private List<Row> rows = List.of();
+    private int byteCount;
     private boolean dumpShown;
 
     ByteMonitorPanel() {
@@ -64,17 +70,27 @@ final class ByteMonitorPanel extends JPanel {
         refreshCount();
     }
 
-    /** New bytes; a start over (a «Reiniciar») empties the monitor first. */
-    void accept(List<ByteLog.Entry> newBytes, boolean startedOver) {
+    /**
+     * New bytes, after {@code lostBytes} the log dropped before they could be read (a marker row says so); a start over
+     * (a «Reiniciar») empties the monitor first.
+     */
+    void accept(List<ByteLog.Entry> newBytes, boolean startedOver, long lostBytes) {
         if (startedOver) {
             entries.clear();
+            byteCount = 0;
         }
         if (newBytes.isEmpty() && !startedOver) {
             return;
         }
-        entries.addAll(newBytes);
-        while (entries.size() > ByteLog.CAPACITY) {
-            entries.removeFirst();
+        if (lostBytes > 0 && !startedOver) {
+            entries.add(new Row(null, lostBytes));
+        }
+        newBytes.forEach(entry -> entries.add(new Row(entry, 0)));
+        byteCount += newBytes.size();
+        while (byteCount > ByteLog.CAPACITY) {
+            if (entries.removeFirst().entry() != null) {
+                byteCount--;
+            }
         }
         rows = new ArrayList<>(entries);
         model.fireTableDataChanged();
@@ -93,7 +109,7 @@ final class ByteMonitorPanel extends JPanel {
 
     /** The four columns of row {@code index}. */
     List<String> row(int index) {
-        return ByteMonitorText.row(rows.get(index));
+        return rowTexts(rows.get(index));
     }
 
     String countText() {
@@ -101,7 +117,11 @@ final class ByteMonitorPanel extends JPanel {
     }
 
     String hexDumpText() {
-        return ByteMonitorText.hexDump(rows);
+        return ByteMonitorText.hexDump(rows.stream().map(Row::entry).filter(Objects::nonNull).toList());
+    }
+
+    private static List<String> rowTexts(Row row) {
+        return row.entry() == null ? ByteMonitorText.lostRow(row.lost()) : ByteMonitorText.row(row.entry());
     }
 
     private void showList() {
@@ -121,7 +141,7 @@ final class ByteMonitorPanel extends JPanel {
     }
 
     private void refreshCount() {
-        count.setText(Messages.format("terminal.monitor.count", rows.size()));
+        count.setText(Messages.format("terminal.monitor.count", byteCount));
     }
 
     /** The «Lista» rows: one per byte, formatted when shown. */
@@ -147,7 +167,7 @@ final class ByteMonitorPanel extends JPanel {
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            return ByteMonitorText.row(rows.get(rowIndex)).get(columnIndex);
+            return rowTexts(rows.get(rowIndex)).get(columnIndex);
         }
     }
 }

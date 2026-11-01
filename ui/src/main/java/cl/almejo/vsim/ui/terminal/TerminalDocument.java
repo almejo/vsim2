@@ -10,7 +10,9 @@ import cl.almejo.vsim.ui.sound.TerminalSounds;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * The Terminal features of one document, shared by all its editor windows: the frames ({@link TerminalFeeds}), the
@@ -28,6 +30,8 @@ final class TerminalDocument {
     private final TerminalSoundController sounds;
     private final List<Consumer<String>> noticeListeners = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener = this::documentChanged;
+    /** The editor window that owns the question about the output file; the last view installed supplies it. */
+    private final AtomicReference<Supplier<java.awt.Component>> ownerWindow = new AtomicReference<>(() -> null);
 
     /** The features of {@code document}; {@code outputClaims} are the files every open circuit records to. */
     TerminalDocument(OpenDocument document, TerminalServices services, TerminalWindowPreferences preferences,
@@ -37,12 +41,22 @@ final class TerminalDocument {
         feeds = new TerminalFeeds(TerminalFrameSource.of(document));
         windows = new TerminalWindows(document, feeds, services.windows(), preferences);
         recorder = new TerminalOutputRecorder(document, feeds, new TerminalOutputRecorder.Services(
-                services.outputWriter(), services.later(), services.outputConfirmation(), outputClaims),
+                services.outputWriter(), services.later(), services.outputConfirmation(), outputClaims,
+                () -> ownerWindow.get().get()),
                 problem -> services.windows().edt().execute(() -> notice(problem)));
         sounds = new TerminalSoundController(document,
                 new TerminalSounds(services.sound(), services.windows().nanoClock()), windows::flash);
         document.document().addListener(documentListener);
         updateTicker();
+    }
+
+    /**
+     * {@code owner} supplies the window that owns the question about a saved output file; the runnable gives it back
+     * (when it is still the current one).
+     */
+    Runnable setOwnerWindow(Supplier<java.awt.Component> owner) {
+        ownerWindow.set(owner);
+        return () -> ownerWindow.compareAndSet(owner, () -> null);
     }
 
     TerminalWindows windows() {

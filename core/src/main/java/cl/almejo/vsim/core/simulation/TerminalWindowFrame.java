@@ -16,7 +16,8 @@ import java.util.Objects;
  * screen ({@link cl.almejo.vsim.core.component.VisibleState.TerminalState#owner()}: another one means a rebuilt part
  * or a «Reiniciar»), the screen, the history rows asked for (oldest first), the received bytes not acknowledged yet
  * (oldest first; see {@link SimulationThread#acknowledgeTerminalBytes}), the number of the last byte received (it
- * goes back to 0 after «Reiniciar»: a reader that saw a greater one starts over; a rebuilt part keeps counting), the
+ * goes back to 0 after «Reiniciar»), the epoch of the byte log ({@link ByteLog#epoch()}: another one means «Reiniciar», the
+ * same one a rebuilt part, whose numbering goes on), the
  * transcript, the simulation time and the glyphs read from its character ROM (empty without one). Immutable: the
  * history rows are the screen's own, shared and never written (a row never changes once it scrolled off; see
  * {@link TerminalScreen#history}), and {@link #history()} gives copies (read single cells with {@link #historyCell},
@@ -24,8 +25,8 @@ import java.util.Objects;
  */
 public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalFrame frame,
                                   List<TerminalCell[]> history,
-                                  List<ByteLog.Entry> bytes, long lastByteSequence, String transcript, long time,
-                                  GlyphCache glyphs) {
+                                  List<ByteLog.Entry> bytes, long lastByteSequence, long byteEpoch, String transcript,
+                                  long time, GlyphCache glyphs) {
 
     public TerminalWindowFrame {
         Objects.requireNonNull(request, "request");
@@ -38,8 +39,9 @@ public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalF
 
     /** A frame of a Terminal without glyphs from a character ROM. */
     public TerminalWindowFrame(TerminalRequest request, long owner, TerminalFrame frame, List<TerminalCell[]> history,
-                               List<ByteLog.Entry> bytes, long lastByteSequence, String transcript, long time) {
-        this(request, owner, frame, history, bytes, lastByteSequence, transcript, time, GlyphCache.EMPTY);
+                               List<ByteLog.Entry> bytes, long lastByteSequence, long byteEpoch, String transcript,
+                               long time) {
+        this(request, owner, frame, history, bytes, lastByteSequence, byteEpoch, transcript, time, GlyphCache.EMPTY);
     }
 
     /**
@@ -52,7 +54,7 @@ public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalF
         TerminalScreen screen = terminal.screen();
         return new TerminalWindowFrame(request, terminal.owner(), screen.frame(),
                 screen.history(request.historyLines()),
-                screen.byteLog().since(bytesSince), screen.byteLog().lastSequence(), screen.transcript(), time,
+                screen.byteLog().since(bytesSince), screen.byteLog().lastSequence(), screen.byteLog().epoch(), screen.transcript(), time,
                 terminal.glyphs());
     }
 

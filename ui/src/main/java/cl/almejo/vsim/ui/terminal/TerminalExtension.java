@@ -67,6 +67,7 @@ public final class TerminalExtension implements EditorExtension {
         view.setTerminalEditor(component -> windows.open(component.id().value(), ownerOf(view, owner)));
         removers.add(view::clearTerminalEditor);
         removers.add(terminals.addNoticeListener(view.statusBar()::showNotice));
+        removers.add(terminals.setOwnerWindow(() -> SwingUtilities.getWindowAncestor(view)));
         removers.add(view.labelFeatures().properties().addComponentRows(new TerminalOutputRows(document,
                 terminals.recorder(), services.windows().saveChooser(), view)));
         removers.add(view.addContextMenuContributor(new TerminalContextMenu(document,

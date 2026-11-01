@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.JPanel;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -60,6 +61,8 @@ class TerminalOutputRecorderTest {
     private final List<String> problems = new ArrayList<>();
     private final List<String> questions = new ArrayList<>();
     private final TerminalOutputClaims claims = new TerminalOutputClaims();
+    private final java.awt.Component editorWindow = new JPanel();
+    private final List<java.awt.Component> questionOwners = new ArrayList<>();
     private boolean answer;
     private TerminalFeeds feeds;
     private TerminalOutputRecorder recorder;
@@ -94,12 +97,14 @@ class TerminalOutputRecorderTest {
     }
 
     private TerminalOutputRecorder recorderOf(OpenDocument recorded, TerminalFeeds recordedFeeds) {
-        TerminalOutputConfirmation confirmation = (name, file) -> {
+        TerminalOutputConfirmation confirmation = (owner, name, file) -> {
+            questionOwners.add(owner);
             questions.add(name + " → " + file);
             return answer;
         };
         return new TerminalOutputRecorder(recorded, recordedFeeds,
-                new TerminalOutputRecorder.Services(writer, Runnable::run, confirmation, claims), problems::add);
+                new TerminalOutputRecorder.Services(writer, Runnable::run, confirmation, claims,
+                        () -> editorWindow), problems::add);
     }
 
     /** The user chose {@code file} with «Elegir archivo…» in this session. */
@@ -286,6 +291,101 @@ class TerminalOutputRecorderTest {
         assertThat(read(file)).isEqualTo("uno");
         assertThat(recorder.isRecording(copy.id().value())).isFalse();
         assertThat(problems).hasSize(1);
+    }
+
+    @Test
+    void theQuestionIsAskedWithTheEditorWindowAsOwner() throws IOException {
+        Path file = folder.resolve("tesis.txt");
+        terminalSavingTo(file);
+
+        start();
+
+        assertThat(questionOwners).containsExactly(editorWindow);
+    }
+
+    @Test
+    void reopeningTheCircuitDoesNotAskAgainAboutAFileAlreadyAnswered() throws IOException {
+        Path file = folder.resolve("tesis.txt");
+        Files.writeString(file, "years of work", StandardCharsets.UTF_8);
+        Component terminal = terminalSavingTo(file);
+        start();
+        assertThat(questions).hasSize(1);
+        recorder.dispose();
+
+        recorder = recorderOf(document, feeds);
+        arrive(terminal, "hola");
+        writer.runAll();
+
+        assertThat(questions).as("the answer «no» is remembered for the run").hasSize(1);
+        assertThat(recorder.isRecording(terminal.id().value())).isFalse();
+        assertThat(read(file)).isEqualTo("years of work");
+    }
+
+    @Test
+    void aRememberedYesArmsTheRecordingOfAReopenedCircuitWithoutAsking() throws IOException {
+        Path file = folder.resolve("salida.txt");
+        Component terminal = terminalSavingTo(file);
+        answer = true;
+        start();
+        recorder.dispose();
+
+        recorder = recorderOf(document, feeds);
+        arrive(terminal, "hola");
+        writer.runAll();
+
+        assertThat(questions).hasSize(1);
+        assertThat(read(file)).isEqualTo("hola");
+    }
+
+    @Test
+    void aSymlinkToTheFileIsTheSameFileForTwoTerminals() throws IOException {
+        Path file = Files.writeString(folder.resolve("salida.txt"), "", StandardCharsets.UTF_8);
+        Path link = Files.createSymbolicLink(folder.resolve("enlace.txt"), file);
+        Component first = terminalSavingTo(file);
+        Component viaLink = terminalSavingTo(link);
+        startChosen(file);
+
+        arrive(first, "uno");
+        arrive(viaLink, "dos");
+        writer.runAll();
+
+        assertThat(read(file)).isEqualTo("uno");
+        assertThat(recorder.isRecording(viaLink.id().value())).isFalse();
+        assertThat(problems).hasSize(1);
+    }
+
+    @Test
+    void aPathWithDotDotIsTheSameFileForTwoTerminals() throws IOException {
+        Files.createDirectory(folder.resolve("a"));
+        Path file = folder.resolve("a").resolve("salida.txt");
+        Component first = terminalSavingTo(file);
+        Component roundabout = terminalSavingTo(folder.resolve("a").resolve("..").resolve("a").resolve("salida.txt"));
+        startChosen(file);
+
+        arrive(first, "uno");
+        arrive(roundabout, "dos");
+        writer.runAll();
+
+        assertThat(read(file)).isEqualTo("uno");
+        assertThat(recorder.isRecording(roundabout.id().value())).isFalse();
+    }
+
+    @Test
+    void aFileThatDoesNotExistYetKeepsItsIdentityOnceTheRecordingCreatesIt() throws IOException {
+        Path real = Files.createDirectory(folder.resolve("real"));
+        Path linked = Files.createSymbolicLink(folder.resolve("enlace"), real);
+        Component terminal = terminalSavingTo(linked.resolve("nuevo.txt"));
+        answer = true;
+        start();
+
+        arrive(terminal, "hola");
+        writer.runAll();
+        arrive(terminal, "!");
+        writer.runAll();
+
+        assertThat(questions).hasSize(1);
+        assertThat(recorder.isRecording(terminal.id().value())).isTrue();
+        assertThat(read(real.resolve("nuevo.txt"))).isEqualTo("hola!");
     }
 
     @Test

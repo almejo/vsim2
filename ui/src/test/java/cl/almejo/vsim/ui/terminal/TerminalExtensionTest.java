@@ -101,7 +101,7 @@ class TerminalExtensionTest {
                 () -> Optional.of("hola"), (parent, suggested) -> chosenFile, Runnable::run, Runnable::run,
                 TerminalScreenRenderer.standard(), System::nanoTime);
         return new TerminalServices(windows, () -> ticker, tone -> { }, Runnable::run, Runnable::run,
-                (name, file) -> questions.add(name + " → " + file) && false);
+                (owner, name, file) -> questions.add(name + " → " + file) && false);
     }
 
     private void install() {

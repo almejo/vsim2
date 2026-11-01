@@ -58,6 +58,32 @@ class ByteStreamTest {
     }
 
     @Test
+    void aRestartThatRepeatsTheLastByteSeenStillStartsTheStreamOver() {
+        terminals.request(new TerminalRequest("tty", 0, 0));
+        terminal.write("a");
+        read();
+
+        terminal.restart().write("a");
+        ByteStream.Reading reading = read();
+
+        assertThat(reading.startedOver()).as("the new log has the same byte 1 at the same time").isTrue();
+        assertThat(reading.newBytes()).extracting(ByteLog.Entry::value).containsExactly((int) 'a');
+    }
+
+    @Test
+    void aRebuildWithNothingNewKeepsTheStreamGoingAcrossManyRebuilds() {
+        terminals.request(new TerminalRequest("tty", 0, 0));
+        terminal.write("a");
+        read();
+
+        terminal.rebuild().rebuild();
+        ByteStream.Reading reading = read();
+
+        assertThat(reading.startedOver()).isFalse();
+        assertThat(reading.newBytes()).isEmpty();
+    }
+
+    @Test
     void aRebuiltPartKeepsTheStreamGoing() {
         terminals.request(new TerminalRequest("tty", 0, 0));
         terminal.write("ab");

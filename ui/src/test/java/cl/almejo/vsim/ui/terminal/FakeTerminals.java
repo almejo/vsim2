@@ -109,7 +109,7 @@ final class FakeTerminals implements TerminalFrameSource {
         TerminalScreen screen = terminal.screen;
         latest.put(componentId, new TerminalWindowFrame(request, terminal.owner, screen.frame(),
                 screen.history(request.historyLines()), screen.byteLog().since(since),
-                screen.byteLog().lastSequence(), screen.transcript(), terminal.time));
+                screen.byteLog().lastSequence(), screen.byteLog().epoch(), screen.transcript(), terminal.time));
     }
 
     /** Whether a request for {@code componentId} is set now. */

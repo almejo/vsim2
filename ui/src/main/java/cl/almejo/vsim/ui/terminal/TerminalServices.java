@@ -16,7 +16,6 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.filechooser.FileSystemView;
-import java.awt.KeyboardFocusManager;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -87,11 +86,10 @@ public record TerminalServices(TerminalWindowServices windows, Supplier<FrameTic
     }
 
     /** «Este circuito guarda la salida de … ¿Grabar ahí?», with «No grabar» as the default answer. */
-    private static boolean confirmOutputFile(String terminalName, String shownFile) {
+    private static boolean confirmOutputFile(java.awt.Component owner, String terminalName, String shownFile) {
         String record = Messages.text("terminal.output.confirm.record");
         String skip = Messages.text("terminal.output.confirm.skip");
-        int answer = JOptionPane.showOptionDialog(KeyboardFocusManager.getCurrentKeyboardFocusManager()
-                        .getActiveWindow(), Messages.format("terminal.output.confirm.message", terminalName, shownFile),
+        int answer = JOptionPane.showOptionDialog(owner, Messages.format("terminal.output.confirm.message", terminalName, shownFile),
                 Messages.text("terminal.output.confirm.title"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
                 null, new Object[]{record, skip}, skip);
         return answer == JOptionPane.YES_OPTION;
