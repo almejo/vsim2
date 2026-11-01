@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
@@ -197,6 +198,30 @@ class SelectToolTest {
         doubleClick(4, 1);
         assertThat(context.terminalEdited).isNull();
         assertThat(context.configured).isEqualTo(terminal);
+    }
+
+    @Test
+    void doubleClickOnAnIntegratedUartsScreenOpensItsWindowAndOnItsTitleBarConfiguresIt() {
+        Component uart = place(context.openDocument(), StandardComponentTypes.UART_16550, 0, 0, Map.of());
+        double screenX = UartTypes.SCREEN_LEFT_UNITS + 2;
+        double screenY = UartTypes.TITLE_BAR_UNITS + UartTypes.MARGIN_UNITS + 1;
+        doubleClick(screenX, screenY);
+        assertThat(context.terminalEdited).isEqualTo(uart);
+        assertThat(context.configured).isNull();
+
+        context.terminalEdited = null;
+        doubleClick(screenX, 1);
+        assertThat(context.terminalEdited).isNull();
+        assertThat(context.configured).isEqualTo(uart);
+    }
+
+    @Test
+    void doubleClickWhereAUartWithPinsWouldHaveItsScreenOpensNoWindow() {
+        Component uart = place(context.openDocument(), StandardComponentTypes.UART_16550, 0, 0,
+                Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS));
+        doubleClick(UartTypes.SCREEN_LEFT_UNITS + 2, UartTypes.TITLE_BAR_UNITS + UartTypes.MARGIN_UNITS + 1);
+        assertThat(context.terminalEdited).isNull();
+        assertThat(context.configured).isEqualTo(uart);
     }
 
     private void doubleClick(double x, double y) {

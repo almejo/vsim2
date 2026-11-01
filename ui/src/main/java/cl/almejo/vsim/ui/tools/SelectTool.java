@@ -411,7 +411,9 @@ public final class SelectTool implements Tool {
                     context.editValue(component, toggledByFirstClick.valueBefore());
                 } else if (MemoryTypes.kindOf(component.typeId()).isPresent()) {
                     context.editMemory(component);
-                } else if (component.typeId().equals(StandardComponentTypes.TERMINAL) && TerminalScreenArea.isOnScreen(
+                } else if ((component.typeId().equals(StandardComponentTypes.TERMINAL)
+                        || component.typeId().equals(StandardComponentTypes.UART_16550))
+                        && TerminalScreenArea.isOnScreen(
                         context.openDocument().registry().typeOf(component), component, event.gridPosition())) {
                     context.editTerminal(component);
                 } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
