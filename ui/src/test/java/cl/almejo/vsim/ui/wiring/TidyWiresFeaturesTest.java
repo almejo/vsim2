@@ -158,6 +158,19 @@ class TidyWiresFeaturesTest {
     }
 
     @Test
+    void aSelectedWireTheTidyMergesIntoAnEarlierOneLeavesTheSurvivorSelected() {
+        view.canvas().selection().set(List.of(left, right, stub));
+
+        perform(features.tidyAction());
+
+        assertThat(openDocument.document().wire(right)).isEmpty();
+        assertThat(openDocument.document().wire(left)).isPresent();
+        assertThat(view.canvas().selection().ids()).containsExactly(left);
+        openDocument.history().undo();
+        assertThat(openDocument.document().wire(right)).isPresent();
+    }
+
+    @Test
     void aSelectionWithoutWiresTidiesTheWholeCircuit() {
         view.canvas().selection().set(List.of(openDocument.document().components().get(0).id()));
         perform(features.tidyAction());
