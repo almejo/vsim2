@@ -13,10 +13,13 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import java.awt.BasicStroke;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -49,6 +52,9 @@ public final class TerminalPainter implements ComponentPainter {
     private static final double RIGHT_PIN_NAME_INSET = 2.5;
     private static final BasicStroke DIVIDER = new BasicStroke(1f);
     private static final String CHIP_KEY_PREFIX = "terminal.chip.";
+    private static final int OPAQUE = 255;
+    /** How far the body's shadow and outline reach out of its shape (and its rounded corners in), rounded up. */
+    private static final int BODY_REACH = 4;
 
     @Override
     public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
@@ -88,9 +94,15 @@ public final class TerminalPainter implements ComponentPainter {
                 romGlyphsOf(state, resolved), rows(resolved), columns(resolved), TerminalTypes.fontSize(resolved), look,
                 colorsOf(look, scheme));
         boolean cached = raster.isPresent() && moment.effects() && !setting.colors().monochrome();
-        PainterSupport.body(graphics, outline, scheme);
-        paintTitleBar(graphics, outline, width, resolved, label.orElseGet(() -> Messages.componentName(type.id())),
-                scheme);
+        if (cached && setting.colors().background().getAlpha() == OPAQUE) {
+            paintBodyAround(graphics, outline, scheme, inside(setting.screen()));
+        } else {
+            PainterSupport.body(graphics, outline, scheme);
+        }
+        if (shows(graphics, new Rectangle2D.Double(0, 0, width, TITLE_HEIGHT))) {
+            paintTitleBar(graphics, outline, width, resolved, label.orElseGet(() -> Messages.componentName(type.id())),
+                    scheme);
+        }
         if (!cached || !raster.get().paint(graphics, setting, frameOf(state), moment)) {
             TerminalScreenPainter.paint(graphics, setting, frameOf(state), moment);
         }
@@ -154,6 +166,71 @@ public final class TerminalPainter implements ComponentPainter {
                     last.row(), last.column())));
         }
         return Optional.of(area);
+    }
+
+    /**
+     * The part's body only where the clip reaches outside {@code hidden}, the inside of an opaque screen painted over
+     * it next: its gradient is the costliest thing a canvas repaint of a moving screen would draw, all of it hidden.
+     * A band of the clip well inside the body (away from its rounded edge, outline and shadow) is just the gradient.
+     */
+    private static void paintBodyAround(Graphics2D graphics, Shape outline, ColorScheme scheme, Rectangle2D hidden) {
+        Rectangle clip = Optional.ofNullable(graphics.getClipBounds()).orElseGet(() -> {
+            Rectangle whole = outline.getBounds();
+            whole.grow(BODY_REACH, BODY_REACH);
+            return whole;
+        });
+        if (!clip.intersects(hidden)) {
+            PainterSupport.body(graphics, outline, scheme);
+            return;
+        }
+        Rectangle2D inside = clip.createIntersection(hidden);
+        Rectangle2D outlineBox = outline.getBounds2D();
+        Rectangle2D flat = new Rectangle2D.Double(outlineBox.getX() + BODY_REACH, outlineBox.getY() + BODY_REACH,
+                outlineBox.getWidth() - 2 * BODY_REACH, outlineBox.getHeight() - 2 * BODY_REACH);
+        List<Rectangle2D> bands = List.of(
+                new Rectangle2D.Double(clip.getMinX(), clip.getMinY(), clip.getWidth(),
+                        inside.getMinY() - clip.getMinY()),
+                new Rectangle2D.Double(clip.getMinX(), inside.getMaxY(), clip.getWidth(),
+                        clip.getMaxY() - inside.getMaxY()),
+                new Rectangle2D.Double(clip.getMinX(), inside.getMinY(), inside.getMinX() - clip.getMinX(),
+                        inside.getHeight()),
+                new Rectangle2D.Double(inside.getMaxX(), inside.getMinY(), clip.getMaxX() - inside.getMaxX(),
+                        inside.getHeight()));
+        for (Rectangle2D band : bands) {
+            if (band.getWidth() <= 0 || band.getHeight() <= 0) {
+                continue;
+            }
+            Graphics2D around = (Graphics2D) graphics.create();
+            try {
+                around.clip(band);
+                if (flat.contains(band)) {
+                    // a plain rectangle of the gradient: its edges are the clip's or under the screen
+                    around.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+                    around.setPaint(PainterSupport.bodyGradient(around, outline, scheme));
+                    around.fill(band);
+                } else {
+                    PainterSupport.body(around, outline, scheme);
+                }
+            } finally {
+                around.dispose();
+            }
+        }
+    }
+
+    /**
+     * Whether the clip reaches {@code area} or near it (its outline and antialiased edges): a repaint of the screen
+     * alone skips the title bar, whose clip to the rounded outline is costly.
+     */
+    private static boolean shows(Graphics2D graphics, Rectangle2D area) {
+        Rectangle clip = graphics.getClipBounds();
+        return clip == null || clip.intersects(area.getX() - BODY_REACH, area.getY() - BODY_REACH,
+                area.getWidth() + 2 * BODY_REACH, area.getHeight() + 2 * BODY_REACH);
+    }
+
+    /** {@code screen} less the pixel its antialiased edge blends with the body. */
+    private static Rectangle2D inside(Rectangle2D screen) {
+        return new Rectangle2D.Double(screen.getX() + 1, screen.getY() + 1, screen.getWidth() - 2,
+                screen.getHeight() - 2);
     }
 
     /** The screen's colours in {@code scheme}: the part's own, or the scheme's text on its background in monochrome. */

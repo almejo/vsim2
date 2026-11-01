@@ -4,6 +4,8 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
+import cl.almejo.vsim.core.terminal.TerminalScreen;
+import cl.almejo.vsim.core.terminal.TerminalSettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -11,7 +13,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -200,6 +204,48 @@ class TerminalScreenRasterTest {
         assertThat(differingPixelsInRow(late, without, 1)).isLessThanOrEqualTo(earlyChange);
         assertThat(differingPixels(early, direct(parameters, newer, PaintersTest.SCHEME,
                 fading(old, TerminalMoment.GHOST_OPACITY)), 40)).as("close to the direct drawing").isLessThan(60);
+    }
+
+    @Test
+    void aRepaintOfAFullScreenWithTheStrongEffectCostsAFractionOfDrawingIt() {
+        Map<String, Object> parameters = new HashMap<>(Map.of(TerminalTypes.EFFECT, "strong"));
+        ComponentType type = terminal(parameters);
+        TerminalScreen screen = new TerminalScreen(TerminalSettings.vt(24, 80));
+        for (int index = 0; index < 24 * 80 - 1; index++) {
+            screen.write('A' + index % 26, 0);
+        }
+        VisibleState state = new VisibleState.TerminalState(1, screen.version(), screen.frame(), false);
+        TerminalMoment moment = glowing();
+        BufferedImage image = new BufferedImage(1100, 700, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = canvasGraphics(image, ZOOM);
+        // what the canvas repaints while the old picture fades: the screen and a little around it
+        graphics.clip(new Rectangle2D.Double(SCREEN_LEFT - 2, SCREEN_TOP - 2, 80 * CELL_WIDTH + 4,
+                24 * CELL_HEIGHT + 4));
+        TerminalScreenRaster raster = new TerminalScreenRaster();
+        Runnable direct = () -> painter.paintLive(graphics, type, parameters, state, PaintersTest.SCHEME,
+                Optional.empty(), moment);
+        Runnable cached = () -> painter.paintLive(graphics, type, parameters, state, PaintersTest.SCHEME,
+                Optional.empty(), moment, raster);
+        double directMilliseconds = medianMilliseconds(direct);
+        double cachedMilliseconds = medianMilliseconds(cached);
+        graphics.dispose();
+        assertThat(cachedMilliseconds).as("a blit and the cursor's cells, not every glyph and the body again")
+                .isLessThan(directMilliseconds / 4);
+    }
+
+    private static double medianMilliseconds(Runnable painting) {
+        int paints = 15;
+        for (int paint = 0; paint < paints; paint++) {
+            painting.run();
+        }
+        double[] milliseconds = new double[paints];
+        for (int paint = 0; paint < paints; paint++) {
+            long start = System.nanoTime();
+            painting.run();
+            milliseconds[paint] = (System.nanoTime() - start) / 1e6;
+        }
+        Arrays.sort(milliseconds);
+        return milliseconds[paints / 2];
     }
 
     @Test

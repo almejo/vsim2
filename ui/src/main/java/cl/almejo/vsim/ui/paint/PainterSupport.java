@@ -87,15 +87,20 @@ public final class PainterSupport {
         if (flatFill != null) {
             graphics.setColor(flatFill);
         } else {
-            Rectangle2D box = shape.getBounds2D();
-            double reach = Math.hypot(box.getWidth(), box.getHeight()) / 2;
-            Point2D down = localDirection(graphics, 0, 1, reach);
-            graphics.setPaint(new GradientPaint(
-                    (float) (box.getCenterX() - down.getX()), (float) (box.getCenterY() - down.getY()), scheme.componentFill(),
-                    (float) (box.getCenterX() + down.getX()), (float) (box.getCenterY() + down.getY()), scheme.componentShade()));
+            graphics.setPaint(bodyGradient(graphics, shape, scheme));
         }
         graphics.fill(shape);
         outline(graphics, shape, scheme, stroke);
+    }
+
+    /** The gradient that fills a body of {@code shape}: lighter at its top on screen, darker at its bottom. */
+    static GradientPaint bodyGradient(Graphics2D graphics, Shape shape, ColorScheme scheme) {
+        Rectangle2D box = shape.getBounds2D();
+        double reach = Math.hypot(box.getWidth(), box.getHeight()) / 2;
+        Point2D down = localDirection(graphics, 0, 1, reach);
+        return new GradientPaint(
+                (float) (box.getCenterX() - down.getX()), (float) (box.getCenterY() - down.getY()), scheme.componentFill(),
+                (float) (box.getCenterX() + down.getX()), (float) (box.getCenterY() + down.getY()), scheme.componentShade());
     }
 
     static void outline(Graphics2D graphics, Shape shape, ColorScheme scheme) {
