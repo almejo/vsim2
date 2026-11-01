@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * «Terminal»: on the chosen clock edge («Flanco») with WE = 1 the byte on D goes to the screen ({@link TerminalScreen});
  * a D with a bit undefined writes {@code ?} as Logisim does. CLR = 1 clears the screen at once and wins over the clock.
- * Unconnected, WE counts as 0 and CLR as 0, and a conflict on either does nothing; «Modo» Logisim reads them as
+ * Unconnected, WE counts as 1 and CLR as 0, and a conflict on either does nothing; «Modo» Logisim reads them as
  * Logisim 2.7's TTY instead: it writes unless WE is exactly 0 and clears only when CLR is exactly 1. It drives nothing.
  *
  * <p>A behaviour rebuilt after a parameter change keeps the screen ({@link #adoptStateFrom}, Logisim's resize rule);
@@ -172,6 +172,6 @@ public final class TerminalBehavior implements Behavior, TerminalScreenPart {
         if (logisimControls) {
             return !value.equals(Value.ZERO);
         }
-        return BlockSignals.control(value, false).orElse(false);
+        return BlockSignals.control(value, true).orElse(false);
     }
 }
