@@ -58,21 +58,42 @@ public final class TerminalPainter implements ComponentPainter {
 
     /**
      * Draws the Terminal with {@code label} in its title bar (empty: the part's name) at {@code moment} of the view's
-     * animation.
+     * animation, its screen drawn directly.
      */
     public void paintLive(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
                           ColorScheme scheme, Optional<String> label, TerminalMoment moment) {
+        paintLive(graphics, type, parameters, state, scheme, label, moment, Optional.empty());
+    }
+
+    /**
+     * {@link #paintLive(Graphics2D, ComponentType, Map, VisibleState, ColorScheme, Optional, TerminalMoment)} with the
+     * screen kept as a picture in {@code raster}, the view's for this part: a repaint that only moves the cursor, the
+     * glow or the fading old picture blits it. An export and black and white still draw the screen directly.
+     */
+    public void paintLive(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
+                          ColorScheme scheme, Optional<String> label, TerminalMoment moment,
+                          TerminalScreenRaster raster) {
+        paintLive(graphics, type, parameters, state, scheme, label, moment, Optional.of(raster));
+    }
+
+    private void paintLive(Graphics2D graphics, ComponentType type, Map<String, Object> parameters,
+                           VisibleState state, ColorScheme scheme, Optional<String> label, TerminalMoment moment,
+                           Optional<TerminalScreenRaster> raster) {
         Map<String, Object> resolved = type.resolveParameters(parameters);
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Shape outline = new RoundRectangle2D.Double(0, 0, width, height, CORNER, CORNER);
+        TerminalLook look = TerminalLook.of(resolved);
+        TerminalScreenPainter.Setting setting = new TerminalScreenPainter.Setting(screen(width, height),
+                romGlyphsOf(state, resolved), rows(resolved), columns(resolved), TerminalTypes.fontSize(resolved), look,
+                colorsOf(look, scheme));
+        boolean cached = raster.isPresent() && moment.effects() && !setting.colors().monochrome();
         PainterSupport.body(graphics, outline, scheme);
         paintTitleBar(graphics, outline, width, resolved, label.orElseGet(() -> Messages.componentName(type.id())),
                 scheme);
-        TerminalLook look = TerminalLook.of(resolved);
-        TerminalScreenPainter.paint(graphics, screen(width, height), frameOf(state), romGlyphsOf(state, resolved),
-                rows(resolved), columns(resolved), TerminalTypes.fontSize(resolved), look, colorsOf(look, scheme),
-                moment);
+        if (!cached || !raster.get().paint(graphics, setting, frameOf(state), moment)) {
+            TerminalScreenPainter.paint(graphics, setting, frameOf(state), moment);
+        }
         PainterSupport.pinDots(graphics, type, scheme);
         paintPinNames(graphics, type, scheme);
     }

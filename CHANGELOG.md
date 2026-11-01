@@ -64,6 +64,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Cambiar el ancho de un LED o un Interruptor de varios bits (por ejemplo de 8 a 1, o de 8 a 4) mueve la pieza para que su pin siga en el mismo punto de la grilla, y el cable conectado no queda suelto; todo en un solo paso de deshacer.
 - La documentación de los buses dice que el globo muestra también el valor en binario.
 - Ensanchar un Interruptor de varios bits paso a paso en Propiedades (de 1 a 2, a 3…) ya no lanza un error al dibujarlo: mientras la simulación se pone al día, muestra los bits del parámetro «Valor».
+- Un Terminal con «Efecto de pantalla» en «Suave» o «Fuerte» ya no pone lento el editor ni la simulación mientras recibe texto: el lienzo guarda una imagen de la pantalla con su efecto y, mientras nada cambia en ella, solo vuelve a dibujar el cursor, la última letra marcada y la imagen anterior que se desvanece. Ver [Terminal](docs/funciones/componentes.md#terminal).
 
 ## Versión 0.5 — 2026-10-28
 

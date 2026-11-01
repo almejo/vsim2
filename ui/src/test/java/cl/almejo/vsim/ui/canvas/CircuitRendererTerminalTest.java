@@ -127,6 +127,25 @@ class CircuitRendererTerminalTest {
     }
 
     @Test
+    void theCanvasKeepsAPictureOfEachScreenAndAnExportDoesNot() {
+        frame(PaintPolicy.IMAGE);
+        frame(PaintPolicy.print(false));
+        assertThat(renderer.terminalScreenPictures()).isZero();
+        frame(PaintPolicy.CANVAS);
+        now += 130 * MILLISECOND;
+        frame(PaintPolicy.CANVAS);
+        assertThat(renderer.terminalScreenPictures()).isEqualTo(1);
+    }
+
+    @Test
+    void aTerminalTakenOutOfTheDocumentForgetsItsPicture() {
+        frame(PaintPolicy.CANVAS);
+        document.remove(terminal.id());
+        frame(PaintPolicy.CANVAS);
+        assertThat(renderer.terminalScreenPictures()).isZero();
+    }
+
+    @Test
     void aTerminalTakenOutOfTheDocumentStopsMoving() {
         frame(PaintPolicy.CANVAS);
         assertThat(renderer.terminalMotions()).isNotEmpty();

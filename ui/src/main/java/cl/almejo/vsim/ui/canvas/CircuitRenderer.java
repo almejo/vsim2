@@ -34,6 +34,7 @@ import cl.almejo.vsim.ui.paint.TerminalAnimation;
 import cl.almejo.vsim.ui.paint.TerminalLook;
 import cl.almejo.vsim.ui.paint.TerminalMoment;
 import cl.almejo.vsim.ui.paint.TerminalPainter;
+import cl.almejo.vsim.ui.paint.TerminalScreenRaster;
 import cl.almejo.vsim.ui.paint.UartPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
@@ -105,6 +106,8 @@ public final class CircuitRenderer {
     private static final double PIECE_MARGIN = 1;
     /** Grid units a component's label may stick out of its bounds. */
     private static final double LABEL_MARGIN = 30;
+    /** Terminal screen pictures kept at most: a few megabytes each at usual zooms, 16 MB at most (32 while fading). */
+    private static final int MAXIMUM_TERMINAL_SCREENS = 16;
 
     private final JunctionCache junctionCache = new JunctionCache();
     private final PlacedTypes placedTypes = new PlacedTypes();
@@ -121,6 +124,8 @@ public final class CircuitRenderer {
     private BooleanSupplier motionGate = () -> true;
     /** The moving terminals of the paints so far, by component; a terminal painted still leaves. */
     private final Map<ElementId, TerminalMotion> terminalMotions = new LinkedHashMap<>();
+    /** The picture of each Terminal's screen this view keeps, so a moving frame blits it instead of every glyph. */
+    private final Map<ElementId, TerminalScreenRaster> terminalScreens = new HashMap<>();
 
     public CircuitRenderer(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme) {
         this(registry, painters, new Appearance(scheme));
@@ -163,6 +168,11 @@ public final class CircuitRenderer {
      */
     List<TerminalMotion> terminalMotions() {
         return List.copyOf(terminalMotions.values());
+    }
+
+    /** How many Terminal screens this view keeps a picture of. */
+    int terminalScreenPictures() {
+        return terminalScreens.size();
     }
 
     /**
@@ -435,6 +445,25 @@ public final class CircuitRenderer {
         if (!terminalMotions.isEmpty()) {
             terminalMotions.keySet().removeIf(id -> document.component(id).isEmpty());
         }
+        if (!terminalScreens.isEmpty()) {
+            terminalScreens.keySet().removeIf(id -> document.component(id).isEmpty());
+        }
+    }
+
+    /**
+     * The picture this view keeps of {@code component}'s screen; past {@link #MAXIMUM_TERMINAL_SCREENS} the others
+     * are forgotten.
+     */
+    private TerminalScreenRaster terminalScreen(ElementId component) {
+        TerminalScreenRaster raster = terminalScreens.get(component);
+        if (raster == null) {
+            if (terminalScreens.size() >= MAXIMUM_TERMINAL_SCREENS) {
+                terminalScreens.clear();
+            }
+            raster = new TerminalScreenRaster();
+            terminalScreens.put(component, raster);
+        }
+        return raster;
     }
 
     /**
@@ -449,7 +478,12 @@ public final class CircuitRenderer {
         Optional<String> label = component.label().isBlank() ? Optional.empty() : Optional.of(component.label());
         AffineTransform documentToDevice = graphics.getTransform();
         ComponentDrawing.paintPlaced(graphics, component, local -> {
-            painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment);
+            if (animation == TerminalAnimation.EXPORT) {
+                painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment);
+            } else {
+                painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment,
+                        terminalScreen(component.id()));
+            }
             Optional<Rectangle2D> moving = painter.movingArea(type, component.parameters(), terminalState, moment);
             if (moving.isPresent()) {
                 terminalMotions.put(component.id(), new TerminalMotion(documentArea(moving.get(), local.getTransform(),

@@ -51,6 +51,11 @@ final class TerminalScreenPainter {
     private static final double[][] GLOW_RINGS = {{1, 0, -1, 0, 0, 1, 0, -1}, {1.5, 1.5, -1.5, 1.5, 1.5, -1.5, -1.5,
             -1.5}};
     private static final float[] GLOW_RING_ALPHAS = {0.22f, 0.12f};
+    /**
+     * How far the glow of a glyph reaches out of its cell, rounded up: a clip takes in the cells this close to it, so
+     * a partial repaint draws its neighbours' glow too.
+     */
+    private static final double GLOW_REACH = 2;
     /** A dark 1 px line every 3 px. */
     private static final double SCANLINE_PERIOD = 3;
     private static final double SCANLINE_HEIGHT = 1;
@@ -70,6 +75,15 @@ final class TerminalScreenPainter {
      * @param monochrome black and white: no colour of a cell's own, no effects
      */
     record Colors(Color text, Color background, AnsiPalette palette, boolean monochrome) {
+    }
+
+    /**
+     * Everything a screen's picture depends on besides its frame, the moment and the device: the screen's rectangle
+     * in the part, the character ROM's glyphs, the part's rows and columns, the cell size, the look and the colours
+     * resolved for this paint.
+     */
+    record Setting(Rectangle2D screen, GlyphCache romGlyphs, int rows, int columns, TerminalFontSize size,
+                   TerminalLook look, Colors colors) {
     }
 
     /** One cell's colours after its style: {@code background} empty for the screen's own. */
@@ -109,6 +123,81 @@ final class TerminalScreenPainter {
         } finally {
             cells.dispose();
         }
+    }
+
+    /** Paints {@code frame} in the screen {@code setting} describes, at {@code moment}. */
+    static void paint(Graphics2D graphics, Setting setting, Optional<TerminalFrame> frame, TerminalMoment moment) {
+        paint(graphics, setting.screen(), frame, setting.romGlyphs(), setting.rows(), setting.columns(),
+                setting.size(), setting.look(), setting.colors(), moment);
+    }
+
+    /**
+     * The characters of {@code ghost}, the picture before a scroll or a clear, in their own colours and nothing else
+     * (no background, no glow, no underline): the layer the canvas fades over {@code frame} where the two differ.
+     * Nothing when the old picture does not line up with the screen (it is from before a resize).
+     */
+    static void paintGhostLayer(Graphics2D graphics, Setting setting, TerminalFrame frame, TerminalFrame ghost) {
+        Graphics2D cells = (Graphics2D) graphics.create();
+        try {
+            cells.clip(setting.screen());
+            ScreenGrid grid = ScreenGrid.of(cells, setting.screen(), setting.size(), frame.rows(), frame.columns(),
+                    setting.rows(), setting.columns());
+            if (linesUp(ghost, grid)) {
+                paintGhostGlyphs(cells, grid, ghost, glyphSetting(cells, setting.size(), setting.look()),
+                        setting.romGlyphs(), setting.colors(), OPAQUE, position -> true);
+            }
+        } finally {
+            cells.dispose();
+        }
+    }
+
+    /**
+     * The cells where {@code ghost} differs from {@code frame}, one rectangle per run of neighbouring ones in a row, in
+     * the part's coordinates; none when the old picture does not line up with the screen.
+     */
+    static List<Rectangle2D> changedRuns(Setting setting, TerminalFrame frame, TerminalFrame ghost) {
+        int rows = Math.min(frame.rows(), setting.rows());
+        int columns = Math.min(frame.columns(), setting.columns());
+        List<Rectangle2D> runs = new ArrayList<>();
+        if (ghost.rows() < rows || ghost.columns() < columns) {
+            return runs;
+        }
+        for (int row = 0; row < rows; row++) {
+            int column = 0;
+            while (column < columns) {
+                if (ghost.cell(row, column).equals(frame.cell(row, column))) {
+                    column++;
+                    continue;
+                }
+                int first = column;
+                while (column < columns && !ghost.cell(row, column).equals(frame.cell(row, column))) {
+                    column++;
+                }
+                Rectangle2D run = cellBounds(setting.screen(), setting.size(), row, first);
+                run.add(cellBounds(setting.screen(), setting.size(), row, column - 1));
+                runs.add(run);
+            }
+        }
+        return runs;
+    }
+
+    /**
+     * What a paint at {@code moment} draws on top of the still screen, in the part's coordinates: the cursor's reach
+     * while it shows and the last character's cell while it glows, each apart (the two may be far from each other).
+     */
+    static List<Rectangle2D> overlayAreas(Setting setting, Optional<TerminalFrame> frame, TerminalMoment moment) {
+        List<Rectangle2D> areas = new ArrayList<>(2);
+        boolean cursorShows = frame.map(TerminalFrame::cursorVisible).orElse(true) && moment.cursorOn()
+                && setting.look().cursor() != TerminalCursorShape.NONE;
+        if (cursorShows) {
+            areas.add(TerminalCursorPainter.reach(cellBounds(setting.screen(), setting.size(),
+                    frame.map(TerminalFrame::cursorRow).orElse(0), frame.map(TerminalFrame::cursorColumn).orElse(0))));
+        }
+        if (moment.lastGlowAlpha() > 0) {
+            frame.flatMap(TerminalFrame::lastWritten).ifPresent(last -> areas.add(cellBounds(setting.screen(),
+                    setting.size(), last.row(), last.column())));
+        }
+        return areas;
     }
 
     /** The cell at {@code row}, {@code column} of a screen drawn in {@code screen} with cells of {@code size}. */
@@ -157,20 +246,32 @@ final class TerminalScreenPainter {
     /** The old picture's characters where the new one differs, fading. */
     private static void paintGhost(Graphics2D graphics, ScreenGrid grid, TerminalFrame frame, TerminalFrame ghost,
                                    GlyphSetting glyphs, GlyphCache romGlyphs, Colors colors, double opacity) {
-        if (ghost.rows() < grid.endRow() || ghost.columns() < grid.endColumn()) {
-            return; // a picture from before a resize does not line up with this screen
+        if (!linesUp(ghost, grid)) {
+            return;
         }
-        int alpha = (int) Math.round(opacity * OPAQUE);
         Predicate<CellPosition> changed = position -> !ghost.cell(position.row(), position.column())
                 .equals(frame.cell(position.row(), position.column()));
+        paintGhostGlyphs(graphics, grid, ghost, glyphs, romGlyphs, colors, (int) Math.round(opacity * OPAQUE),
+                changed);
+    }
+
+    /** Whether {@code ghost} has every cell the grid shows: a picture from before a resize does not line up. */
+    private static boolean linesUp(TerminalFrame ghost, ScreenGrid grid) {
+        return ghost.rows() >= grid.rows() && ghost.columns() >= grid.columns();
+    }
+
+    /** The characters of {@code ghost} in the cells {@code wanted} keeps, in their colours at {@code alpha}. */
+    private static void paintGhostGlyphs(Graphics2D graphics, ScreenGrid grid, TerminalFrame ghost,
+                                         GlyphSetting glyphs, GlyphCache romGlyphs, Colors colors, int alpha,
+                                         Predicate<CellPosition> wanted) {
         Function<TerminalCell, Color> faded = cell -> PainterSupport.withAlpha(colorsOf(cell.style(), colors)
                 .foreground(), alpha);
-        List<GlyphRun> runs = GlyphRun.of(graphics, grid, ghost, glyphs, position -> changed.test(position)
+        List<GlyphRun> runs = GlyphRun.of(graphics, grid, ghost, glyphs, position -> wanted.test(position)
                 && !romGlyphs.has(ghost.cell(position.row(), position.column()).codePoint()), faded);
         for (GlyphRun run : runs) {
             run.draw(graphics, run.color(), glyphs, 0, 0);
         }
-        for (Bitmap bitmap : Bitmap.of(grid, ghost, romGlyphs, changed, faded)) {
+        for (Bitmap bitmap : Bitmap.of(grid, ghost, romGlyphs, wanted, faded)) {
             bitmap.draw(graphics, bitmap.color(), romGlyphs, glyphs.quarterTurns(), 0, 0);
         }
     }
@@ -472,10 +573,14 @@ final class TerminalScreenPainter {
             if (clip == null) {
                 return new ScreenGrid(screen, size, rows, columns, 0, rows, 0, columns);
             }
-            int firstColumn = clamp((int) Math.floor((clip.getMinX() - screen.getX()) / size.cellWidth()), columns);
-            int endColumn = clamp((int) Math.ceil((clip.getMaxX() - screen.getX()) / size.cellWidth()), columns);
-            int firstRow = clamp((int) Math.floor((clip.getMinY() - screen.getY()) / size.cellHeight()), rows);
-            int endRow = clamp((int) Math.ceil((clip.getMaxY() - screen.getY()) / size.cellHeight()), rows);
+            double left = clip.getMinX() - GLOW_REACH - screen.getX();
+            double right = clip.getMaxX() + GLOW_REACH - screen.getX();
+            double top = clip.getMinY() - GLOW_REACH - screen.getY();
+            double bottom = clip.getMaxY() + GLOW_REACH - screen.getY();
+            int firstColumn = clamp((int) Math.floor(left / size.cellWidth()), columns);
+            int endColumn = clamp((int) Math.ceil(right / size.cellWidth()), columns);
+            int firstRow = clamp((int) Math.floor(top / size.cellHeight()), rows);
+            int endRow = clamp((int) Math.ceil(bottom / size.cellHeight()), rows);
             return new ScreenGrid(screen, size, rows, columns, firstRow, endRow, firstColumn, endColumn);
         }
 
