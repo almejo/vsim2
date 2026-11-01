@@ -42,8 +42,8 @@ public final class ResizeComponentCommand implements Command {
      * Sets several resize parameters of {@code id} at once (a Terminal's columns and rows, Task 7b), each in its range,
      * as one undo step; planned now on {@code document}, new wires take the document's ids.
      *
-     * @throws IllegalArgumentException when the part's type has no resize, a parameter is not one of its axes or a
-     *                                  value is out of range
+     * @throws IllegalArgumentException when the part's type has no resize (or not with its parameters now), a
+     *                                  parameter is not one of its axes or a value is out of range
      */
     public static ResizeComponentCommand of(CircuitDocument document, ComponentTypeRegistry registry, ElementId id,
                                             Map<String, Integer> values) {
@@ -82,6 +82,9 @@ public final class ResizeComponentCommand implements Command {
     private static Map<String, Object> resizedParameters(ComponentType type, Component component,
                                                          Map<String, Integer> values) {
         ResizeSpec resize = resizeOf(type);
+        if (!resize.appliesTo(type, component.parameters())) {
+            throw new IllegalArgumentException(type.id() + " cannot be resized with its parameters now");
+        }
         values.forEach((parameter, value) -> {
             ResizeSpec.Axis axis = resize.axisOf(parameter).orElseThrow(() -> new IllegalArgumentException(
                     type.id() + " is not resized by " + parameter));

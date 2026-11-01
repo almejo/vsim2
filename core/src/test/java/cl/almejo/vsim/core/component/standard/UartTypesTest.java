@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.component.standard;
 import cl.almejo.vsim.core.BlockHarness;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.VisibleState.UartState;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The UART 16550 (spec §12) driven through its bus as a CPU would: the QEMU {@code virt} polling driver
@@ -452,5 +454,63 @@ class UartTypesTest {
         assertThat(read(harness, RBR_THR)).isEqualTo('k');
         assertThat(read(harness, LSR) & DATA_READY).isZero();
         assertThat(read(harness, RBR_THR)).as("a stale RBR, as the real chip").isEqualTo('k');
+    }
+
+    @Test
+    void theIntegratedScreenHasTheTerminalsBellAndTeletypeClatterAndThePinsOneHidesThem() {
+        Map<String, Object> integrated = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_INTEGRATED);
+        Map<String, Object> pins = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS);
+        for (String name : List.of(TerminalTypes.BELL, TerminalTypes.TELETYPE_SOUND)) {
+            ParameterSpec parameter = UART.parameterNamed(name).orElseThrow();
+            assertThat(parameter.displayOnly()).as(name).isTrue();
+            assertThat(UART.isShown(parameter, integrated)).as(name).isTrue();
+            assertThat(UART.isShown(parameter, pins)).as(name).isFalse();
+        }
+        assertThat(UART.resolveParameters(Map.of())).containsEntry(TerminalTypes.BELL, "flash")
+                .containsEntry(TerminalTypes.TELETYPE_SOUND, false);
+    }
+
+    @Test
+    void theIntegratedScreenHasTheTerminalsExpectedOutputAndThePinsOneHidesItAll() {
+        Map<String, Object> written = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_INTEGRATED, TerminalTypes.EXPECTED,
+                TerminalTypes.EXPECTED_WRITTEN);
+        Map<String, Object> pins = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS, TerminalTypes.EXPECTED,
+                TerminalTypes.EXPECTED_WRITTEN);
+        ParameterSpec expected = UART.parameterNamed(TerminalTypes.EXPECTED).orElseThrow();
+        ParameterSpec expectedText = UART.parameterNamed(TerminalTypes.EXPECTED_TEXT).orElseThrow();
+        assertThat(UART.parameterNamed(TerminalTypes.EXPECTED_FILE)).isPresent();
+        assertThat(UART.resolveParameters(Map.of()))
+                .containsEntry(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_NONE);
+        assertThat(UART.isShown(expected, written)).isTrue();
+        assertThat(UART.isShown(expectedText, written)).isTrue();
+        assertThat(UART.isShown(expected, pins)).isFalse();
+        assertThat(UART.isShown(expectedText, pins)).as("hidden with the row it depends on").isFalse();
+    }
+
+    @Test
+    void aUartWithPinsAllocatesNoScreen() {
+        Uart16550Behavior behavior = new Uart16550Behavior(parameters(Map.of(UartTypes.SCREEN,
+                UartTypes.SCREEN_PINS)));
+
+        assertThat(behavior.showsScreen()).isFalse();
+        assertThatThrownBy(behavior::screen).isInstanceOf(IllegalStateException.class);
+        behavior.clearScreen();
+        assertThat(((UartState) behavior.visibleState()).screen()).isEmpty();
+    }
+
+    @Test
+    void goingToPinsDropsTheScreenAndComingBackStartsAnEmptyOne() {
+        BlockHarness harness = integrated();
+        print(harness, "hi");
+
+        harness.reconfigure(parameters(Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS)));
+        assertThat(state(harness).screen()).isEmpty();
+        harness.reconfigure(parameters(Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS, UartTypes.FIFO, "1")));
+        assertThat(state(harness).screen()).as("a pins UART adopted by another keeps no screen").isEmpty();
+        harness.reconfigure(parameters(Map.of()));
+
+        assertThat(screenRow(harness, 0)).isBlank();
+        print(harness, "ok");
+        assertThat(screenRow(harness, 0)).startsWith("ok");
     }
 }

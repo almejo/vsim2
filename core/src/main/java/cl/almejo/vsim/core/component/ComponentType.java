@@ -138,13 +138,20 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     /**
      * Whether the inspector shows {@code parameter}'s row while the form holds {@code rawValues}: never a hidden one,
      * and one with a {@linkplain ParameterSpec#visibility() condition} only while it holds (a value that cannot be
-     * read does not meet it).
+     * read does not meet it), and only while the parameter its condition reads is shown itself (a UART's «Texto
+     * esperado» follows «Salida esperada», which shows only with the integrated screen).
      */
     public boolean isShown(ParameterSpec parameter, Map<String, Object> rawValues) {
-        if (parameter.hidden()) {
+        return isShown(parameter, rawValues, parameters.size());
+    }
+
+    /** {@link #isShown(ParameterSpec, Map)} following at most {@code depth} conditions, so a cycle cannot loop. */
+    private boolean isShown(ParameterSpec parameter, Map<String, Object> rawValues, int depth) {
+        if (parameter.hidden() || depth < 0) {
             return false;
         }
         return parameter.visibility().map(condition -> parameterNamed(condition.parameter())
+                .filter(other -> isShown(other, rawValues, depth - 1))
                 .flatMap(other -> other.normalizeIfValid(rawValues.get(other.name())))
                 .filter(condition.value()::equals)
                 .isPresent()).orElse(true);

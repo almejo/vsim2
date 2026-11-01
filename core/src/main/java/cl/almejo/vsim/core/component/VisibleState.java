@@ -12,6 +12,17 @@ public sealed interface VisibleState {
 
     VisibleState NONE = new None();
 
+    /**
+     * The Terminal screen {@code state} shows: a Terminal's own, or the integrated screen of a UART 16550; empty for
+     * every other state (a UART with TX and RX pins too).
+     */
+    static Optional<TerminalState> terminalScreen(VisibleState state) {
+        if (state instanceof TerminalState terminal) {
+            return Optional.of(terminal);
+        }
+        return state instanceof UartState uart ? uart.screen() : Optional.empty();
+    }
+
     record None() implements VisibleState {
     }
 

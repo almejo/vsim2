@@ -8,7 +8,6 @@ import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.terminal.GlyphCache;
-import cl.almejo.vsim.core.terminal.TerminalFontSize;
 import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.ui.i18n.Messages;
 
@@ -25,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -90,6 +90,17 @@ public final class UartPainter implements ComponentPainter {
     private static final int DIVISOR_HIGH_ADDRESS = 1;
     private static final String REGISTER_KEY_PREFIX = "uart.register.";
 
+    /**
+     * How the canvas shows a UART besides its state: {@code label} in its title bar (empty: the part's name), and
+     * {@code capturing} when the keyboard is captured for its integrated keyboard.
+     */
+    public record Look(Optional<String> label, boolean capturing) {
+
+        public Look {
+            Objects.requireNonNull(label, "label");
+        }
+    }
+
     @Override
     public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
                       ColorScheme scheme) {
@@ -97,11 +108,46 @@ public final class UartPainter implements ComponentPainter {
     }
 
     /**
-     * Draws the UART with {@code label} in its title bar (empty: the part's name); {@code capturing} when the keyboard
-     * is captured for its integrated keyboard.
+     * Draws the UART with {@code label} in its title bar (empty: the part's name), its integrated screen still and
+     * without effects, as an export shows it; {@code capturing} when the keyboard is captured for its integrated
+     * keyboard.
      */
     public void paintWithCapture(Graphics2D graphics, ComponentType baseOrPlacedType, Map<String, Object> parameters,
                                  VisibleState state, ColorScheme scheme, Optional<String> label, boolean capturing) {
+        paintLive(graphics, baseOrPlacedType, parameters, state, scheme, new Look(label, capturing),
+                TerminalMoment.EXPORTED, Optional.empty());
+    }
+
+    /**
+     * {@link #paintWithCapture} with the integrated screen at {@code moment} of the view's animation (blink, Automan's
+     * star, last character's glow, persistence, screen effect), as a Terminal's, kept as a picture in {@code raster}.
+     */
+    public void paintLive(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
+                          ColorScheme scheme, Look look, TerminalMoment moment, TerminalScreenRaster raster) {
+        paintLive(graphics, type, parameters, state, scheme, look, moment, Optional.of(raster));
+    }
+
+    /**
+     * The part of a UART painted at {@code moment} that will look different later without a new frame, in the part's
+     * coordinates: what moves on its integrated screen (see {@link TerminalPainter#movingArea}); empty with TX and RX
+     * pins or when nothing moves.
+     */
+    public Optional<Rectangle2D> movingArea(ComponentType baseOrPlacedType, Map<String, Object> parameters,
+                                            VisibleState state, TerminalMoment moment) {
+        ComponentType type = baseOrPlacedType.specializedFor(parameters);
+        Map<String, Object> resolved = type.resolveParameters(parameters);
+        if (!UartTypes.isIntegrated(resolved)) {
+            return Optional.empty();
+        }
+        return LiveTerminalScreen.movingArea(screen(type, resolved), TerminalTypes.fontSize(resolved),
+                frameOf(state), moment);
+    }
+
+    private void paintLive(Graphics2D graphics, ComponentType baseOrPlacedType, Map<String, Object> parameters,
+                           VisibleState state, ColorScheme scheme, Look look, TerminalMoment moment,
+                           Optional<TerminalScreenRaster> raster) {
+        Optional<String> label = look.label();
+        boolean capturing = look.capturing();
         // the screen and «Pantalla» change the size: the palette and the ghost pass the type of the defaults
         ComponentType type = baseOrPlacedType.specializedFor(parameters);
         Map<String, Object> resolved = type.resolveParameters(parameters);
@@ -127,8 +173,7 @@ public final class UartPainter implements ComponentPainter {
         paintTable(graphics, uart.map(VisibleState.UartState::registers).orElse(resetRegisters()),
                 UartTypes.registerStride(resolved), scheme);
         if (UartTypes.isIntegrated(resolved)) {
-            paintScreen(graphics, type, resolved, uart.flatMap(VisibleState.UartState::screen)
-                    .map(VisibleState.TerminalState::frame), scheme);
+            paintScreen(graphics, type, resolved, frameOf(state), scheme, moment, raster);
         }
         PainterSupport.pinDots(graphics, type, scheme);
         paintPinNames(graphics, type, scheme);
@@ -244,18 +289,28 @@ public final class UartPainter implements ComponentPainter {
     }
 
     private static void paintScreen(Graphics2D graphics, ComponentType type, Map<String, Object> resolved,
-                                     Optional<TerminalFrame> frame, ColorScheme scheme) {
-        TerminalFontSize size = TerminalTypes.fontSize(resolved);
+                                    Optional<TerminalFrame> frame, ColorScheme scheme, TerminalMoment moment,
+                                    Optional<TerminalScreenRaster> raster) {
+        TerminalLook look = TerminalLook.of(resolved);
+        TerminalScreenPainter.Setting setting = new TerminalScreenPainter.Setting(screen(type, resolved),
+                GlyphCache.EMPTY, (Integer) resolved.get(TerminalTypes.ROWS),
+                (Integer) resolved.get(TerminalTypes.COLUMNS), TerminalTypes.fontSize(resolved), look,
+                TerminalPainter.colorsOf(look, scheme));
+        LiveTerminalScreen.paint(graphics, setting, frame, moment, raster);
+    }
+
+    /** The integrated screen, in the part's coordinates: right of the register table, one margin below the bar. */
+    private static Rectangle2D screen(ComponentType type, Map<String, Object> resolved) {
         int rows = (Integer) resolved.get(TerminalTypes.ROWS);
-        int columns = (Integer) resolved.get(TerminalTypes.COLUMNS);
         double left = UartTypes.SCREEN_LEFT_UNITS * UNIT;
         double right = (type.size().width() - UartTypes.RIGHT_PANEL_UNITS) * UNIT;
-        double screenHeight = Math.ceil(rows * size.cellHeight() / UNIT) * UNIT;
-        Rectangle2D screen = new Rectangle2D.Double(left, TITLE_HEIGHT + UartTypes.MARGIN_UNITS * UNIT, right - left,
+        double screenHeight = Math.ceil(rows * TerminalTypes.fontSize(resolved).cellHeight() / UNIT) * UNIT;
+        return new Rectangle2D.Double(left, TITLE_HEIGHT + UartTypes.MARGIN_UNITS * UNIT, right - left,
                 screenHeight);
-        TerminalLook look = TerminalLook.of(resolved);
-        TerminalScreenPainter.paint(graphics, screen, frame, GlyphCache.EMPTY, rows, columns, size, look,
-                TerminalPainter.colorsOf(look, scheme), TerminalMoment.EXPORTED);
+    }
+
+    private static Optional<TerminalFrame> frameOf(VisibleState state) {
+        return VisibleState.terminalScreen(state).map(VisibleState.TerminalState::frame);
     }
 
     private static void paintTitleBar(Graphics2D graphics, Shape outline, double width, Map<String, Object> resolved,

@@ -92,7 +92,8 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
     private final KeyEncoding encoding;
     private final String initialText;
     private final ClockEdgeDetector edge;
-    private TerminalScreen screen;
+    /** The integrated screen; empty with TX and RX pins, which allocate no screen and no history. */
+    private Optional<TerminalScreen> screen;
     private KeyQueue received;
     private boolean adoptedQueue;
     private TerminalState publishedScreen;
@@ -121,7 +122,8 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         this.encoding = KeyEncoding.forParameters(parameters);
         this.initialText = String.valueOf(parameters.getOrDefault(KeyboardTypes.INITIAL_TEXT, ""));
         this.edge = ClockEdgeDetector.of(parameters);
-        this.screen = new TerminalScreen(TerminalTypes.settings(parameters));
+        this.screen = integrated ? Optional.of(new TerminalScreen(TerminalTypes.settings(parameters)))
+                : Optional.empty();
         this.received = new KeyQueue(receiverCapacity());
     }
 
@@ -130,7 +132,10 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         if (!(previous instanceof Uart16550Behavior uart)) {
             return;
         }
-        screen = uart.screen.adoptedWith(screen.settings());
+        // the screen goes on with the new settings; one that was not there (TX and RX pins) starts empty
+        if (screen.isPresent() && uart.screen.isPresent()) {
+            screen = Optional.of(uart.screen.get().adoptedWith(screen.get().settings()));
+        }
         interruptEnable = uart.interruptEnable;
         fifoControl = uart.fifoControl;
         lineControl = uart.lineControl;
@@ -203,14 +208,19 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         return owner;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @throws IllegalStateException with TX and RX pins, which have no screen ({@link #showsScreen()} is false)
+     */
     @Override
     public TerminalScreen screen() {
-        return screen;
+        return screen.orElseThrow(() -> new IllegalStateException("a UART with TX and RX pins has no screen"));
     }
 
     @Override
     public void clearScreen() {
-        screen.clear();
+        screen.ifPresent(TerminalScreen::clear);
     }
 
     @Override
@@ -221,9 +231,11 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
     @Override
     public VisibleState visibleState() {
         Optional<TerminalState> shownScreen = Optional.empty();
-        if (integrated) {
-            if (publishedScreen == null || publishedScreen.version() != screen.version()) {
-                publishedScreen = new TerminalState(owner, screen.version(), screen.frame(), false, GlyphCache.EMPTY);
+        if (screen.isPresent()) {
+            TerminalScreen integratedScreen = screen.get();
+            if (publishedScreen == null || publishedScreen.version() != integratedScreen.version()) {
+                publishedScreen = new TerminalState(owner, integratedScreen.version(), integratedScreen.frame(),
+                        false, GlyphCache.EMPTY);
             }
             shownScreen = Optional.of(publishedScreen);
         }
@@ -354,11 +366,11 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         transmitterInterruptPending = true;
         transmitterUndefined = data.isEmpty();
         lastTransmitted = data.isPresent() ? (int) data.getAsLong() : NONE;
-        if (integrated) {
+        if (screen.isPresent()) {
             if (data.isPresent()) {
-                screen.write(lastTransmitted, context.now());
+                screen.get().write(lastTransmitted, context.now());
             } else {
-                screen.writeUndefined(context.now());
+                screen.get().writeUndefined(context.now());
             }
         } else {
             transmitStrobe = true;

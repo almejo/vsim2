@@ -412,12 +412,7 @@ public final class CircuitRenderer {
                 ComponentDrawing.paintPlaced(graphics, component, local -> keyboardPainter.paintWithCapture(local,
                         type, component.parameters(), keyboardState, scheme, label, capturing));
             } else if (painters.painterFor(type.id()) instanceof UartPainter uartPainter) {
-                VisibleState uartState = state.snapshot().componentState(component.id().value());
-                boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
-                Optional<String> label = component.label().isBlank() ? Optional.empty()
-                        : Optional.of(component.label());
-                ComponentDrawing.paintPlaced(graphics, component, local -> uartPainter.paintWithCapture(local, type,
-                        component.parameters(), uartState, scheme, label, capturing));
+                paintUart(graphics, state, scheme, component, type, uartPainter, animation);
             } else {
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);
@@ -484,14 +479,49 @@ public final class CircuitRenderer {
                 painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment,
                         terminalScreen(component.id()));
             }
-            Optional<Rectangle2D> moving = painter.movingArea(type, component.parameters(), terminalState, moment);
-            if (moving.isPresent()) {
-                terminalMotions.put(component.id(), new TerminalMotion(documentArea(moving.get(), local.getTransform(),
-                        documentToDevice), moment.nextChangeNanos()));
-            } else {
-                terminalMotions.remove(component.id());
-            }
+            rememberMotion(component.id(), painter.movingArea(type, component.parameters(), terminalState, moment),
+                    local, documentToDevice, moment);
         });
+    }
+
+    /**
+     * A UART 16550 with its label and the capture look, its integrated screen animated like a Terminal's; remembers
+     * what of it moves so the canvas's clock repaints just that. A UART with TX and RX pins has no screen to animate
+     * and keeps no picture.
+     */
+    private void paintUart(Graphics2D graphics, RenderState state, ColorScheme scheme, Component component,
+                           ComponentType type, UartPainter painter, TerminalAnimation animation) {
+        VisibleState uartState = state.snapshot().componentState(component.id().value());
+        TerminalLook look = TerminalLook.of(type.resolveParameters(component.parameters()));
+        TerminalMoment moment = terminalActivity.moment(component.id().value(), uartState, look, animation);
+        Optional<String> label = component.label().isBlank() ? Optional.empty() : Optional.of(component.label());
+        boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
+        UartPainter.Look partLook = new UartPainter.Look(label, capturing);
+        boolean animated = animation != TerminalAnimation.EXPORT
+                && VisibleState.terminalScreen(uartState).isPresent();
+        AffineTransform documentToDevice = graphics.getTransform();
+        ComponentDrawing.paintPlaced(graphics, component, local -> {
+            if (animated) {
+                painter.paintLive(local, type, component.parameters(), uartState, scheme, partLook, moment,
+                        terminalScreen(component.id()));
+            } else {
+                painter.paintWithCapture(local, type, component.parameters(), uartState, scheme, label, capturing);
+                terminalScreens.remove(component.id());
+            }
+            rememberMotion(component.id(), painter.movingArea(type, component.parameters(), uartState, moment),
+                    local, documentToDevice, moment);
+        });
+    }
+
+    /** Remembers {@code component}'s {@code moving} area, drawn with {@code local}, or that nothing of it moves. */
+    private void rememberMotion(ElementId component, Optional<Rectangle2D> moving, Graphics2D local,
+                                AffineTransform documentToDevice, TerminalMoment moment) {
+        if (moving.isPresent()) {
+            terminalMotions.put(component, new TerminalMotion(documentArea(moving.get(), local.getTransform(),
+                    documentToDevice), moment.nextChangeNanos()));
+        } else {
+            terminalMotions.remove(component);
+        }
     }
 
     /** {@code localArea} of a part drawn with {@code localToDevice}, in document pixels. */

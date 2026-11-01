@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.terminal;
 
 import cl.almejo.vsim.core.component.VisibleState;
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -25,8 +24,8 @@ import java.util.function.Consumer;
  * ({@link TerminalFrame#bellCount()}, {@link TerminalFrame#printedCount()}): new BEL bytes ring the bell once per
  * frame (several in one frame merge, as a 120 ms beep cannot tell them apart) or ask for a «Destello» through
  * {@code flashes}, as «Campana (BEL)» says; new characters click with «Golpeteo de teletipo» ({@link TerminalSounds}
- * limits the clicks). The first screen seen and a «Reiniciar» (the counters go down) are silent. Only Terminals on the
- * circuit itself, like the window. EDT only.
+ * limits the clicks). The first screen seen and a «Reiniciar» (the counters go down) are silent. Only Terminals (and
+ * UART 16550s with their integrated screen) on the circuit itself, like the window. EDT only.
  */
 public final class TerminalSoundController {
 
@@ -53,7 +52,7 @@ public final class TerminalSoundController {
         refreshTerminals();
     }
 
-    /** Whether the circuit has a Terminal (nothing to listen to otherwise). */
+    /** Whether the circuit has a Terminal or a UART with its screen (nothing to listen to otherwise). */
     public boolean hasTerminals() {
         return !terminalIds.isEmpty();
     }
@@ -61,9 +60,8 @@ public final class TerminalSoundController {
     /** Listens to {@code snapshot}'s screens. */
     public void poll(SimulationSnapshot snapshot) {
         for (String componentId : terminalIds) {
-            if (snapshot.componentState(componentId) instanceof VisibleState.TerminalState state) {
-                hear(componentId, state.frame());
-            }
+            VisibleState.terminalScreen(snapshot.componentState(componentId))
+                    .ifPresent(state -> hear(componentId, state.frame()));
         }
     }
 
@@ -107,7 +105,7 @@ public final class TerminalSoundController {
 
     private void refreshTerminals() {
         terminalIds = document.document().components().stream()
-                .filter(component -> component.typeId().equals(StandardComponentTypes.TERMINAL))
+                .filter(component -> TerminalParts.showsScreen(document, component))
                 .map(component -> component.id().value()).toList();
         heard.keySet().retainAll(terminalIds);
     }

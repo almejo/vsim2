@@ -355,10 +355,15 @@ class TerminalWindowsTest {
     }
 
     private Component uart(String label, String screen) {
+        return uart(label, screen, Map.of());
+    }
+
+    private Component uart(String label, String screen, Map<String, Object> extra) {
         ComponentType uartType = document.registry().require(StandardComponentTypes.UART_16550);
+        Map<String, Object> parameters = new HashMap<>(extra);
+        parameters.putAll(Map.of(TerminalTypes.ROWS, 2, TerminalTypes.COLUMNS, 10, UartTypes.SCREEN, screen));
         Component component = uartType.newComponent(document.document().newComponentId(), new GridPoint(0, 80),
-                Rotation.R0, Map.of(TerminalTypes.ROWS, 2, TerminalTypes.COLUMNS, 10, UartTypes.SCREEN, screen),
-                label);
+                Rotation.R0, parameters, label);
         document.execute(new AddElementsCommand(List.of(component)));
         terminals.add(component.id().value(), 2, 10);
         return component;
@@ -383,6 +388,17 @@ class TerminalWindowsTest {
             return document.latestSnapshot().componentState(uart0.id().value())
                     instanceof VisibleState.UartState state && state.received() == 1;
         });
+    }
+
+    @Test
+    void theUartsExpectedTabComparesItsTranscriptLikeATerminals() {
+        Component uart0 = uart("uart0", UartTypes.SCREEN_INTEGRATED, Map.of(TerminalTypes.EXPECTED,
+                TerminalTypes.EXPECTED_WRITTEN, TerminalTypes.EXPECTED_TEXT, "hola\n"));
+        TerminalWindowContent content = open(uart0);
+
+        arrive(uart0, "hola\n");
+
+        assertThat(content.expected().statusText()).isEqualTo("✓ La salida es igual a la esperada.");
     }
 
     @Test

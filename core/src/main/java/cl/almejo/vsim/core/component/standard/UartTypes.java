@@ -14,10 +14,10 @@ import java.util.Map;
 
 /**
  * The «UART 16550» part (spec §12): the standard serial port of a PC and of QEMU's RISC‑V {@code virt} board, with its
- * eight registers on a CPU bus. Its line goes to a screen and a keyboard of its own («Pantalla: integrada», a
- * Terminal and a Teclado inside it, with their properties under the «Pantalla» and «Teclado» groups and the Terminal
- * window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to. See
- * {@link Uart16550Behavior} for the registers and {@link UartPinout} for the pins.
+ * eight registers on a CPU bus. Its line goes to a screen and a keyboard of its own («Pantalla: integrada», a Terminal
+ * and a Teclado inside it, with their properties under the «Pantalla», «Para enseñar», «Sonido» and «Teclado» groups
+ * and the Terminal window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to.
+ * See {@link Uart16550Behavior} for the registers and {@link UartPinout} for the pins.
  *
  * <p>The screen's and keyboard's parameters keep the Terminal's and the Teclado's names, so they read, save and show
  * the same; data is always 8 bits, so «Ancho del dato» is not among them and one «Codificación» serves both.
@@ -51,6 +51,8 @@ public final class UartTypes {
 
     private static final String GROUP_PIECE = "piece";
     private static final String GROUP_SCREEN = "screen";
+    private static final String GROUP_TEACHING = "teaching";
+    private static final String GROUP_SOUND = "sound";
     private static final String GROUP_KEYBOARD = "keyboard";
 
     private static final List<ParameterSpec> PARAMETERS = List.of(
@@ -85,6 +87,16 @@ public final class UartTypes {
             look(ParameterSpec.choice(TerminalTypes.CURSOR, "bar", TerminalTypes.CURSOR_CHOICES)),
             look(ParameterSpec.bool(TerminalTypes.BLINK, true)),
             look(ParameterSpec.bool(TerminalTypes.MARK_LAST, true)),
+            teaching(ParameterSpec.choice(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_NONE,
+                    List.of(TerminalTypes.EXPECTED_NONE, TerminalTypes.EXPECTED_WRITTEN,
+                            TerminalTypes.EXPECTED_FROM_FILE)).visibleWhen(SCREEN, SCREEN_INTEGRATED)),
+            // shown only with their «Salida esperada» choice, which shows only with the integrated screen
+            teaching(ParameterSpec.text(TerminalTypes.EXPECTED_TEXT, "").asMultiline()
+                    .visibleWhen(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_WRITTEN)),
+            teaching(ParameterSpec.text(TerminalTypes.EXPECTED_FILE, "")
+                    .visibleWhen(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_FROM_FILE)),
+            sound(ParameterSpec.choice(TerminalTypes.BELL, "flash", TerminalTypes.BELL_CHOICES)),
+            sound(ParameterSpec.bool(TerminalTypes.TELETYPE_SOUND, false)),
             keyboard(ParameterSpec.integer(KeyboardTypes.CAPACITY, KeyboardTypes.DEFAULT_CAPACITY, 1,
                     KeyboardTypes.MAXIMUM_CAPACITY)),
             keyboard(ParameterSpec.choice(KeyEncoding.ENTER_SENDS, KeyEncoding.LF_VALUE,
@@ -98,8 +110,10 @@ public final class UartTypes {
     }
 
     static void register(ComponentTypeRegistry registry) {
+        // the integrated screen's corner resizes it like a Terminal's; with TX and RX pins there is no screen
         registry.register(ComponentType.parameterized(StandardComponentTypes.UART_16550,
-                ComponentCategory.INPUT_OUTPUT, PARAMETERS, UartTypes::shape, Uart16550Behavior::new));
+                ComponentCategory.INPUT_OUTPUT, PARAMETERS, UartTypes::shape, Uart16550Behavior::new)
+                .withResize(TerminalTypes.RESIZE.onlyWhen(SCREEN, SCREEN_INTEGRATED)));
     }
 
     /** Whether the resolved {@code parameters} put the screen and the keyboard inside the UART. */
@@ -123,6 +137,16 @@ public final class UartTypes {
 
     private static ParameterSpec look(ParameterSpec parameter) {
         return screen(parameter.asDisplayOnly());
+    }
+
+    /** «Salida esperada» of the integrated screen, under the Terminal's «Para enseñar» group. */
+    private static ParameterSpec teaching(ParameterSpec parameter) {
+        return parameter.asDisplayOnly().inGroup(GROUP_TEACHING);
+    }
+
+    /** «Campana (BEL)» and «Golpeteo de teletipo» of the integrated screen, under the Terminal's «Sonido» group. */
+    private static ParameterSpec sound(ParameterSpec parameter) {
+        return parameter.asDisplayOnly().inGroup(GROUP_SOUND).visibleWhen(SCREEN, SCREEN_INTEGRATED);
     }
 
     private static ParameterSpec keyboard(ParameterSpec parameter) {

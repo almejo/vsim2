@@ -13,7 +13,7 @@ public interface TerminalScreenPart {
     /** A number unique to this behaviour, so a screen started over never looks like an older one with its version. */
     long owner();
 
-    /** The screen, read on the simulation thread only. */
+    /** The screen, read on the simulation thread only, and only while {@link #showsScreen()}. */
     TerminalScreen screen();
 
     /** «Limpiar» from the window or the context menu: the screen and its history empty, not an edit. */
