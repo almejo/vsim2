@@ -301,24 +301,44 @@ public final class CircuitFormat {
             ComponentType type = local.find(entry.type()).orElseThrow(() -> new CircuitFormatException(
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, String.valueOf(entry.type())));
             requireRotation(entry);
-            add(document, () -> MultiBitOrientation.normalized(
-                    validateAppearance(component(entry, type.resolveParameters(entry.parameters())), type), type));
+            try {
+                add(document, () -> MultiBitOrientation.normalized(
+                        validateAppearance(component(entry, type.resolveParameters(entry.parameters())), type), type));
+            } catch (CircuitFormatException exception) {
+                throw exception.atElement("components", entry.id(), entry.type());
+            }
         }
         for (WireEntry entry : entries(file.wires())) {
             requireEntry(entry, "wires");
-            add(document, () -> wire(entry));
+            try {
+                add(document, () -> wire(entry));
+            } catch (CircuitFormatException exception) {
+                throw exception.atElement("wires", entry.id(), null);
+            }
         }
         for (LabelEntry entry : entries(file.labels())) {
             requireEntry(entry, "labels");
-            add(document, () -> label(entry));
+            try {
+                add(document, () -> label(entry));
+            } catch (CircuitFormatException exception) {
+                throw exception.atElement("labels", entry.id(), null);
+            }
         }
         for (FrameEntry entry : entries(file.frames())) {
             requireEntry(entry, "frames");
-            add(document, () -> frame(entry));
+            try {
+                add(document, () -> frame(entry));
+            } catch (CircuitFormatException exception) {
+                throw exception.atElement("frames", entry.id(), null);
+            }
         }
         for (StickyNoteEntry entry : entries(file.stickyNotes())) {
             requireEntry(entry, "stickyNotes");
-            add(document, () -> stickyNote(entry));
+            try {
+                add(document, () -> stickyNote(entry));
+            } catch (CircuitFormatException exception) {
+                throw exception.atElement("stickyNotes", entry.id(), null);
+            }
         }
         document.setProbes(probes(entries(file.probes())));
         document.setGuides(guides);

@@ -120,6 +120,8 @@ public final class Application {
     private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
+    /** Every way of opening a circuit file goes through it, so a file that cannot be read is explained to the user. */
+    private final OpeningFiles openingFiles = new OpeningFiles(registry, new SwingFileProblemDialog());
     private final AppPreferences preferences;
     private final Appearance appearance = new Appearance(ColorScheme.LIGHT);
     private final ComponentLibrary library = new ComponentLibrary();
@@ -342,7 +344,8 @@ public final class Application {
         List<Path> components = files.stream().filter(LibraryDirectory::isComponentFile).toList();
         List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
         List<RecoveryCopy> reopened = new ArrayList<>();
-        StartupSteps.run(() -> {
+        // The files that do not open at the start (session, recovered copies, command line) get one message together.
+        StartupSteps.run(() -> openingFiles.collecting(() -> {
             List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
             StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
                     circuits, Files::isRegularFile);
@@ -359,7 +362,7 @@ public final class Application {
             }
             // Through the already-open check (no file opens twice); one file each so a failure skips only that one.
             StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
-        }, () -> !windows.isEmpty(), this::newDocument, () -> {
+        }), () -> !windows.isEmpty(), this::newDocument, () -> {
             if (!components.isEmpty()) {
                 // A component file on the command line is imported into the library, as a drop on the window would.
                 windows.all().get(0).openOrImport(components);
@@ -520,13 +523,7 @@ public final class Application {
     }
 
     private Optional<OpenDocument> read(Path path, CircuitWindow requester) {
-        try {
-            return Optional.of(OpenDocument.open(path, registry));
-        } catch (CircuitFormatException exception) {
-            LOGGER.warn("Could not open {}", path, exception);
-            showOpenError(requester, exception);
-            return Optional.empty();
-        }
+        return openingFiles.read(path, requester);
     }
 
     /**
@@ -606,8 +603,7 @@ public final class Application {
             autosave.afterCopied(document, () -> discardQuietly(copy));
             return Optional.of(copy);
         } catch (CircuitFormatException exception) {
-            LOGGER.warn("Could not recover {}", copy.content(), exception);
-            showOpenError(null, exception);
+            openingFiles.report(copy.originalPath().orElse(copy.content()), exception, null);
             return Optional.empty(); // the copy stays for the next start
         }
     }
@@ -698,11 +694,6 @@ public final class Application {
             }
         }
         return screens;
-    }
-
-    private static void showOpenError(Component requester, CircuitFormatException exception) {
-        JOptionPane.showMessageDialog(requester, Messages.readError(exception), Messages.text("error.open.title"),
-                JOptionPane.ERROR_MESSAGE);
     }
 
     /** What the AI's host may do with the windows (spec §7): open a new unsaved circuit, reach an override. */

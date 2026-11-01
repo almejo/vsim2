@@ -10,6 +10,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- Un archivo que no se puede abrir ahora lo dice con un aviso (antes, desde la línea de comandos, solo quedaba en el registro): nombra el archivo y explica por qué, distinguiendo uno guardado con un VSim más nuevo (con ambas versiones), uno que no es de VSim (o parece de Logisim) y uno dañado (indica el componente o elemento que falló). El texto técnico está en «Detalles». Al arrancar, varios archivos con problemas dan un solo aviso.
 - Un lienzo completamente vacío muestra al centro un texto suave que dice cómo empezar («Arrastra una pieza desde la paleta para empezar» y «o abre un ejemplo en Archivo ▸ Ejemplos»). Desaparece al poner cualquier cosa, vuelve si borras todo y no sale en las imágenes, el PDF ni la impresión. Ver [Lienzo vacío](docs/funciones/interfaz-preferencias-y-sesion.md#lienzo-vacío).
 - «Los cables siguen al mover» tiene el atajo Ctrl+E (se puede cambiar en Atajos de teclado). La ayuda del botón muestra la tecla vigente y la barra de estado dice si quedó activado o desactivado.
 - Herramienta **Texto** en la barra de herramientas y en el menú Ver (después de «Nota adhesiva»): un clic en el lienzo abre el campo de texto en ese punto y el editor vuelve a Selección.
