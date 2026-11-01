@@ -303,6 +303,19 @@ class KeyboardTypesTest {
     }
 
     @Test
+    void shrinkingTheQueueNeverKeepsHalfAUtf8Character() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
+        KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 8))));
+        before.acceptBytes(new NoContext(), "ab\u00f1c".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // a, b, then ñ in two bytes, then c: a capacity of 3 would cut ñ in half
+        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 3))));
+
+        after.adoptStateFrom(before);
+
+        assertThat(after.contents()).containsExactly((int) 'a', (int) 'b');
+    }
+
+    @Test
     void aNewInitialTextReplacesTheQueue() {
         ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
         KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(

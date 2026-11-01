@@ -14,6 +14,8 @@ import java.util.Objects;
 public final class KeyQueue {
 
     private static final int BYTE_MASK = 0xFF;
+    private static final int CONTINUATION_MASK = 0xC0;
+    private static final int CONTINUATION_BITS = 0x80;
 
     private final int capacity;
     private final ArrayList<Integer> bytes = new ArrayList<>();
@@ -127,8 +129,22 @@ public final class KeyQueue {
      * is left as it is.
      */
     public KeyQueue resizedTo(int newCapacity) {
+        return resizedTo(newCapacity, false);
+    }
+
+    /**
+     * As {@link #resizedTo(int)}; with {@code wholeUtf8Characters} the bytes are UTF-8 text and a character the new
+     * capacity would cut in half is dropped whole.
+     */
+    public KeyQueue resizedTo(int newCapacity, boolean wholeUtf8Characters) {
         KeyQueue resized = new KeyQueue(newCapacity);
-        resized.bytes.addAll(bytes.subList(0, Math.min(bytes.size(), newCapacity)));
+        int kept = Math.min(bytes.size(), newCapacity);
+        if (wholeUtf8Characters && kept < bytes.size()) {
+            while (kept > 0 && (bytes.get(kept) & CONTINUATION_MASK) == CONTINUATION_BITS) {
+                kept--;
+            }
+        }
+        resized.bytes.addAll(bytes.subList(0, kept));
         resized.cursor = Math.min(cursor, resized.bytes.size());
         resized.version = version + 1;
         return resized;

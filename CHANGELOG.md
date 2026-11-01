@@ -40,6 +40,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- La descripción del Teclado (su ayuda al pasar el mouse y en Propiedades) dice que Mayús+Esc envía el byte ESC.
+- En el Terminal, un `WE` sin conectar vale 1 en todos los modos (antes solo en el modo Logisim: VT100 y Teletipo no escribían hasta cablearlo). Con `WE` conectado todo sigue igual.
 - El diálogo «Configurar…» ya no repite la descripción de la pieza: la descripción se lee en Propiedades.
 - El lienzo del editor de formas dibuja la cuadrícula como el editor principal: el mismo estilo (puntos o líneas) y la misma separación que eliges en Ver ▸ Cuadrícula, con los colores del tema claro u oscuro y menos puntos cuando el zoom es bajo, y cambia al instante si cambias esa preferencia con el editor abierto. Un botón nuevo en su barra de herramientas, junto al imán «Ajustar», muestra u oculta la cuadrícula (se recuerda aparte del editor principal).
 - «Avanzar al próximo flanco de reloj» (Mayús+F7) ahora se detiene en el próximo flanco de cualquier tipo, de subida o
@@ -59,6 +61,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 - «Guardar salida»: la pregunta «¿Grabar ahí?» pertenece a la ventana del editor y se hace una sola vez por archivo en cada vez que usas VSim (antes se repetía al abrir el circuito de nuevo); un enlace simbólico o una ruta con `..` cuentan como el mismo archivo para la regla de que dos Terminales no graban en el mismo.
 - «Reiniciar» un Terminal ya no se confunde con reconstruir la pieza al editar un parámetro: el registro de bytes tiene una época propia, así que el monitor y «Guardar salida» empiezan de nuevo solo en «Reiniciar».
+- En la barra de estado, el aviso «Simulación detenida en t = …: …» de una pieza que pausó la simulación se borra al avanzar paso a paso más allá de esa pausa, sin esperar a que la simulación vuelva a correr.
+- Al achicar la «Capacidad» de un Teclado con la simulación en marcha, la cola ya no conserva medio carácter UTF-8: si el corte cae dentro de un carácter, se descarta entero.
 - En `vsim_edit`, los parámetros que la IA pasa al colocar con `nand`, `nor`, `xnor`, `not` o `inverter-controlled` ahora mandan sobre los del atajo (`nand` con `negate: false` da una AND sin negar; `nor` con `inputs: 4` da una OR negada de 4 entradas), y la descripción de la herramienta lista los atajos y lo que fija cada uno.
 - Pegar o duplicar una entrada de túnel cuyo nombre ya tiene una entrada en el circuito le pone un nombre libre (`A` pasa a `A_2`, el primer `_N` libre), en el mismo paso de deshacer, en vez de dejar «Hay 2 entradas». Las salidas de ese nombre que vienen en lo pegado se renombran con ella. Una salida sola conserva su nombre, y una entrada pegada en otro circuito donde el nombre está libre también. Ver [Túneles de cables](docs/funciones/cables-buses-y-tuneles.md#túneles-de-cables).
 - En el asistente de expresiones booleanas, la leyenda de notación lista todas las marcas de NOT que se entienden (`'`, `’`, `′` y `ʹ`), y los errores de las líneas se pintan con el mismo rojo legible del resto del editor.

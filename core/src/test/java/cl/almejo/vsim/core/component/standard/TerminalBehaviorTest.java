@@ -93,17 +93,32 @@ class TerminalBehaviorTest {
     }
 
     @Test
-    void anUnconnectedWriteEnableWritesInLogisimModeOnly() {
-        BlockHarness logisim = new BlockHarness(StandardComponentTypes.TERMINAL,
-                profile(TerminalTypes.PROFILE_LOGISIM, 4, 20, Map.of()), WRITE_ENABLE);
-        BlockHarness vt = new BlockHarness(StandardComponentTypes.TERMINAL,
-                profile(TerminalTypes.PROFILE_VT, 4, 20, Map.of()), WRITE_ENABLE);
+    void anUnconnectedWriteEnableCountsAsOneInEveryMode() {
+        for (String profile : List.of(TerminalTypes.PROFILE_LOGISIM, TerminalTypes.PROFILE_VT,
+                TerminalTypes.PROFILE_TELETYPE)) {
+            BlockHarness unwired = new BlockHarness(StandardComponentTypes.TERMINAL,
+                    profile(profile, 4, 20, Map.of()), WRITE_ENABLE);
 
-        type(logisim, "ok");
-        type(vt, "ok");
+            type(unwired, "ok");
 
-        assertThat(text(logisim)).startsWith("ok");
-        assertThat(text(vt)).isBlank();
+            assertThat(text(unwired)).as(profile).startsWith("ok");
+        }
+    }
+
+    @Test
+    void aWiredWriteEnableKeepsItsReadingPerMode() {
+        for (String profile : List.of(TerminalTypes.PROFILE_LOGISIM, TerminalTypes.PROFILE_VT,
+                TerminalTypes.PROFILE_TELETYPE)) {
+            BlockHarness low = terminal(profile, Map.of());
+            low.set(WRITE_ENABLE, 0).settle();
+            type(low, "no");
+            assertThat(text(low)).as(profile + " WE=0").isBlank();
+
+            BlockHarness high = terminal(profile, Map.of());
+            high.set(WRITE_ENABLE, 1).settle();
+            type(high, "si");
+            assertThat(text(high)).as(profile + " WE=1").startsWith("si");
+        }
     }
 
     @Test
