@@ -43,6 +43,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- En la práctica de Karnaugh, un clic sin querer en la tabla ya no pierde lo practicado: aparece «Deshacer» (o Ctrl+Z) que devuelve la tabla y los grupos. Cerrar la práctica con grupos dibujados pregunta antes («¿Cerrar la práctica? Se perderán los grupos dibujados.»; «Seguir practicando» la deja abierta). Ver [Modo práctica de Karnaugh](docs/funciones/tabla-de-verdad-karnaugh-y-expresiones.md#modo-práctica-de-karnaugh).
 - En `vsim_edit`, los parámetros que la IA pasa al colocar con `nand`, `nor`, `xnor`, `not` o `inverter-controlled` ahora mandan sobre los del atajo (`nand` con `negate: false` da una AND sin negar; `nor` con `inputs: 4` da una OR negada de 4 entradas), y la descripción de la herramienta lista los atajos y lo que fija cada uno.
 - Pegar o duplicar una entrada de túnel cuyo nombre ya tiene una entrada en el circuito le pone un nombre libre (`A` pasa a `A_2`, el primer `_N` libre), en el mismo paso de deshacer, en vez de dejar «Hay 2 entradas». Las salidas de ese nombre que vienen en lo pegado se renombran con ella. Una salida sola conserva su nombre, y una entrada pegada en otro circuito donde el nombre está libre también. Ver [Túneles de cables](docs/funciones/cables-buses-y-tuneles.md#túneles-de-cables).
 - En el asistente de expresiones booleanas, la leyenda de notación lista todas las marcas de NOT que se entienden (`'`, `’`, `′` y `ʹ`), y los errores de las líneas se pintan con el mismo rojo legible del resto del editor.

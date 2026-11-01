@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.karnaugh;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import net.miginfocom.swing.MigLayout;
 
@@ -16,10 +17,12 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.JToggleButton;
+import javax.swing.KeyStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -85,9 +88,14 @@ public final class KarnaughWizard extends JPanel {
 
         /** «Descartar» / «Seguir editando», with «Seguir editando» as the default answer. */
         static DiscardConfirmation dialog(String titleKey, String messageKey) {
+            return dialog(titleKey, messageKey, "karnaugh.discard.discard", "karnaugh.discard.keep");
+        }
+
+        /** The same question with the texts of {@code discardKey} and {@code keepKey} on its two buttons. */
+        static DiscardConfirmation dialog(String titleKey, String messageKey, String discardKey, String keepKey) {
             return parent -> {
-                String discard = Messages.text("karnaugh.discard.discard");
-                String keep = Messages.text("karnaugh.discard.keep");
+                String discard = Messages.text(discardKey);
+                String keep = Messages.text(keepKey);
                 int answer = JOptionPane.showOptionDialog(parent, Messages.text(messageKey),
                         Messages.text(titleKey), JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE, null, new Object[] {discard, keep}, keep);
@@ -141,6 +149,12 @@ public final class KarnaughWizard extends JPanel {
     private DiscardConfirmation discardConfirmation =
             DiscardConfirmation.dialog("karnaugh.discard.title", "karnaugh.discard.message");
     private LeaveConfirmation leaveConfirmation = LeaveConfirmation.dialog();
+    /** «¿Cerrar la práctica?», asked when the student has drawn groups or made other progress. */
+    private DiscardConfirmation practiceCloseConfirmation = DiscardConfirmation.dialog(
+            "karnaugh.practice.close.title", "karnaugh.practice.close.message",
+            "karnaugh.practice.close.close", "karnaugh.practice.leave.stay");
+    private final Action undoRestartAction;
+    private final JButton undoRestartButton;
     /** The table as the wizard opened it, or as «Crear» last created it: closing asks only when it differs. */
     private KarnaughModel.Contents unchanged;
     private Step step = Step.TABLE;
@@ -183,6 +197,13 @@ public final class KarnaughWizard extends JPanel {
         backAction = Actions.of(Messages.text("karnaugh.back"), () -> back());
         nextAction = Actions.of(Messages.text("karnaugh.next"), () -> next());
         closeAction = Actions.of(Messages.text("karnaugh.close"), () -> requestClose());
+        undoRestartAction = Actions.of(Messages.text("karnaugh.practice.undoRestart"), () -> model.restorePractice());
+        undoRestartButton = new JButton(undoRestartAction);
+        undoRestartButton.setToolTipText(Messages.text("karnaugh.practice.undoRestart.tooltip"));
+        undoRestartButton.setVisible(false);
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z,
+                ShortcutCatalog.menuMask()), "undoPracticeRestart");
+        getActionMap().put("undoPracticeRestart", undoRestartAction);
 
         JPanel bar = new JPanel(new MigLayout("insets 8 12 4 12, gap 4"));
         ButtonGroup barGroup = new ButtonGroup();
@@ -199,7 +220,10 @@ public final class KarnaughWizard extends JPanel {
             content.add(panels.get(each), each.name());
         }
         buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow, fill][][][][]"));
-        buttonBar.add(reason);
+        JPanel reasonRow = new JPanel(new MigLayout("insets 0, hidemode 3", "[grow, fill][]"));
+        reasonRow.add(reason);
+        reasonRow.add(undoRestartButton);
+        buttonBar.add(reasonRow);
         buttonBar.add(new JButton(backAction));
         nextButton = new JButton(nextAction);
         buttonBar.add(nextButton);
@@ -326,8 +350,14 @@ public final class KarnaughWizard extends JPanel {
      */
     public void requestClose() {
         createPanel.controls().cancel();
-        if (afterCreating == null && edited() && !discardConfirmation.discard(this)) {
-            return;
+        if (afterCreating == null) {
+            boolean practiceProgress = mode == Mode.PRACTICE && model.practice().hasProgress();
+            // One question: the practice's covers the table's (closing loses both).
+            boolean keepOpen = practiceProgress ? !practiceCloseConfirmation.discard(this)
+                    : edited() && !discardConfirmation.discard(this);
+            if (keepOpen) {
+                return;
+            }
         }
         onClose.run();
     }
@@ -343,6 +373,16 @@ public final class KarnaughWizard extends JPanel {
     /** What asks «¿Descartar la tabla?»; the real one shows a dialog, tests answer it. */
     public void setDiscardConfirmation(DiscardConfirmation confirmation) {
         discardConfirmation = confirmation;
+    }
+
+    /** What asks «¿Cerrar la práctica?» when closing with progress; the real one shows a dialog. */
+    public void setPracticeCloseConfirmation(DiscardConfirmation confirmation) {
+        practiceCloseConfirmation = confirmation;
+    }
+
+    /** «Deshacer», next to the reason: visible only while a restart of the practice can be undone. */
+    JButton undoRestartButton() {
+        return undoRestartButton;
     }
 
     /** What asks before leaving step 3 of the practice with outputs pending; the real one shows a dialog. */
@@ -384,6 +424,8 @@ public final class KarnaughWizard extends JPanel {
         Optional<String> problem = model.problem();
         boolean busy = createPanel != null && createPanel.controls().isBusy();
         reason.setText(problem.orElse(""));
+        undoRestartAction.setEnabled(!busy && model.canRestorePractice());
+        undoRestartButton.setVisible(!busy && model.canRestorePractice());
         backAction.setEnabled(!busy && step.ordinal() > 0);
         nextAction.setEnabled(!busy && step.ordinal() < Step.values().length - 1 && problem.isEmpty());
         closeAction.putValue(Action.NAME, Messages.text(busy ? "karnaugh.cancel"

@@ -68,6 +68,18 @@ public final class PracticeModel {
         boolean blank() {
             return groups.isEmpty() && !revealed && !givenUp && hintsUsed == 0 && hintedRow < 0;
         }
+
+        Work copy() {
+            Work copy = new Work();
+            copy.groups.addAll(groups);
+            copy.selected = selected;
+            copy.hintedRow = hintedRow;
+            copy.hintGroupShown = hintGroupShown;
+            copy.hintsUsed = hintsUsed;
+            copy.revealed = revealed;
+            copy.givenUp = givenUp;
+            return copy;
+        }
     }
 
     private final KarnaughModel model;
@@ -80,6 +92,8 @@ public final class PracticeModel {
     /** The output columns when the groups were last checked against the table. */
     private List<List<LogicValue>> knownColumns = List.of();
     private boolean practising;
+    /** What a restart threw away, until the student draws again or restores it; null when there is none. */
+    private Map<Key, Work> lostWorks;
 
     PracticeModel(KarnaughModel model) {
         this.model = model;
@@ -334,6 +348,28 @@ public final class PracticeModel {
         return pending;
     }
 
+    /** Whether any map has something the student did (a group, a hint, a reveal, a give-up). */
+    public boolean hasProgress() {
+        return works.values().stream().anyMatch(work -> !work.blank());
+    }
+
+    /** Whether a restart threw away progress that {@link KarnaughModel#restorePractice()} can bring back. */
+    boolean canRestore() {
+        return lostWorks != null;
+    }
+
+    /** Puts back what the last restart threw away; the table was already put back by the model. */
+    void restore(List<List<LogicValue>> columns) {
+        works.clear();
+        if (lostWorks != null) {
+            works.putAll(lostWorks);
+        }
+        lostWorks = null;
+        restarted = false;
+        knownColumns = columns.stream().map(List::copyOf).toList();
+        fire();
+    }
+
     /** Whether a table change restarted the practice and nothing was drawn since («La tabla cambió…»). */
     public boolean restarted() {
         return restarted;
@@ -356,7 +392,11 @@ public final class PracticeModel {
         verdictCache.clear();
         resultCache.clear();
         if (!columns.equals(knownColumns)) {
-            boolean lost = works.values().stream().anyMatch(work -> !work.blank());
+            boolean lost = hasProgress();
+            if (lost) {
+                lostWorks = new HashMap<>();
+                works.forEach((key, work) -> lostWorks.put(key, work.copy()));
+            }
             works.clear();
             restarted |= lost;
         }
@@ -364,6 +404,7 @@ public final class PracticeModel {
     }
 
     private void edited(Work work) {
+        lostWorks = null; // new work: an undo would throw it away
         work.hintedRow = -1;
         work.hintGroupShown = false;
         restarted = false;
