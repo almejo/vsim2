@@ -114,8 +114,9 @@ public final class StatusBar extends JPanel {
 
     /**
      * Says why a part paused the simulation ({@code latest}, read after the snapshot shown last): while it stays
-     * paused, «Simulación detenida en t = 120: «consola» recibió «=120»». Once a snapshot shows it running past that
-     * time the pause is over and is not said again, not even when the user pauses later; a newer pause is.
+     * paused, «Simulación detenida en t = 120: «consola» recibió «=120»». Once a snapshot shows the simulation past that
+     * time, running or stepped, the pause is over and is not said again, not even when the user pauses later; a newer
+     * pause is.
      */
     public void showPauseNotice(Optional<PauseNotice> latest) {
         if (latest.isEmpty()) {
@@ -123,7 +124,7 @@ public final class StatusBar extends JPanel {
             return;
         }
         PauseNotice notice = latest.get();
-        if (running && snapshotTime > notice.time()) {
+        if (snapshotTime > notice.time()) {
             pauseNoticeOver = Math.max(pauseNoticeOver, notice.sequence());
         }
         boolean shown = !running && notice.sequence() > pauseNoticeOver;

@@ -353,6 +353,22 @@ class StatusBarTest {
     }
 
     @Test
+    void steppingPastAPartsPauseClearsItsNoticeWithoutWaitingForTheRun() {
+        statusBar.showSnapshot(at(120, false));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(120, 1)));
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).isTrue();
+
+        statusBar.showSnapshot(at(121, false));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(120, 1)));
+
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).as("a step moved past the pause").isFalse();
+
+        statusBar.showSnapshot(at(150, false));
+        statusBar.showPauseNotice(Optional.of(terminalNotice(150, 2)));
+        assertThat(statusBar.pauseNoticeLabel().isVisible()).as("a newer pause is said").isTrue();
+    }
+
+    @Test
     void aRunningSnapshotFromBeforeThePauseDoesNotHideIt() {
         statusBar.showSnapshot(at(100, true));
         statusBar.showPauseNotice(Optional.of(terminalNotice(120, 1)));
