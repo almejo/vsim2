@@ -28,6 +28,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Los textos que nombran la entrada de una compuerta (Problemas, el globo de un pin, los nombres por defecto de las sondas, el aviso de conexiones al cambiar la forma) la cuentan desde 1: «entrada 1», «entrada 2», «entrada 3» (en inglés «input 1»…), en vez de `in0`, `in1`, `in2`. Los nombres internos no cambian: el archivo y la IA siguen usando `in0`.
 - El lienzo del editor de formas dibuja la cuadrícula como el editor principal: el mismo estilo (puntos o líneas) y la misma separación que eliges en Ver ▸ Cuadrícula, con los colores del tema claro u oscuro y menos puntos cuando el zoom es bajo, y cambia al instante si cambias esa preferencia con el editor abierto. Un botón nuevo en su barra de herramientas, junto al imán «Ajustar», muestra u oculta la cuadrícula (se recuerda aparte del editor principal).
 - «Avanzar al próximo flanco de reloj» (Mayús+F7) ahora se detiene en el próximo flanco de cualquier tipo, de subida o
   de bajada: medio ciclo por vez. Para el ciclo completo está «Avanzar un ciclo de reloj» (Ctrl+F7). Lo mismo para la

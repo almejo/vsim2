@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.PinNames;
 
 import java.text.MessageFormat;
 import java.util.List;
@@ -32,10 +33,10 @@ public final class ProbeNames {
     public static String defaultName(ProbeTarget target, CircuitDocument document, Netlist netlist,
                                      ComponentTypeRegistry registry) {
         return switch (target) {
-            case ProbeTarget.PinTarget pin -> pinName(pin, document, registry);
+            case ProbeTarget.PinTarget pin -> pinName(pin, document, registry, true);
             case ProbeTarget.WireTarget wire -> ProbeResolver.anchor(wire.wireId(), document, netlist, registry)
                     .filter(ProbeTarget.PinTarget.class::isInstance)
-                    .map(anchor -> pinName((ProbeTarget.PinTarget) anchor, document, registry))
+                    .map(anchor -> pinName((ProbeTarget.PinTarget) anchor, document, registry, true))
                     .orElseGet(() -> wireName(wire));
         };
     }
@@ -64,7 +65,7 @@ public final class ProbeNames {
 
     private static boolean isStoredDefault(Probe probe, CircuitDocument document, ComponentTypeRegistry registry) {
         return switch (probe.target()) {
-            case ProbeTarget.PinTarget pin -> probe.name().equals(pinName(pin, document, registry));
+            case ProbeTarget.PinTarget pin -> probe.name().equals(pinName(pin, document, registry, false));
             case ProbeTarget.WireTarget wire -> STORED_WIRE_NAME_LOCALES.stream()
                     .anyMatch(locale -> probe.name().equals(wireName(wire, locale)));
         };
@@ -76,10 +77,12 @@ public final class ProbeNames {
                 .format(new Object[]{wire.wireId().value()});
     }
 
+    /** {@code readable}: gate inputs as the user reads them; false for the raw id an older VSim stored. */
     private static String pinName(ProbeTarget.PinTarget pin, CircuitDocument document,
-                                  ComponentTypeRegistry registry) {
+                                  ComponentTypeRegistry registry, boolean readable) {
         return document.component(pin.componentId())
-                .map(component -> ownerName(component) + "." + pinName(component, pin.pinIndex(), registry))
+                .map(component -> ownerName(component) + "."
+                        + pinName(component, pin.pinIndex(), registry, readable))
                 .orElse(pin.componentId().value() + "." + pin.pinIndex());
     }
 
@@ -87,10 +90,11 @@ public final class ProbeNames {
         return component.label().isBlank() ? component.id().value() : component.label();
     }
 
-    private static String pinName(Component component, int pinIndex, ComponentTypeRegistry registry) {
+    private static String pinName(Component component, int pinIndex, ComponentTypeRegistry registry,
+                                  boolean readable) {
         return registry.findTypeOf(component)
                 .filter(type -> pinIndex < type.pinCount())
-                .map(type -> type.pin(pinIndex).name())
+                .map(type -> readable ? PinNames.display(type.pin(pinIndex).name()) : type.pin(pinIndex).name())
                 .orElse(String.valueOf(pinIndex));
     }
 

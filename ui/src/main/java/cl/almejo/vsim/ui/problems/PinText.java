@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.PinNames;
 
 import java.util.Optional;
 import java.util.Set;
@@ -54,7 +55,7 @@ final class PinText {
     private static String pinName(Component component, PinSpec pin) {
         return Tunnels.isTunnel(component.typeId())
                 ? Messages.format("pin.tunnel", Tunnels.nameOf(component))
-                : pin.name();
+                : NUMBER_READERS.contains(component.typeId()) ? pin.name() : PinNames.display(pin.name());
     }
 
     /**

@@ -62,7 +62,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Cables, buses y túneles
 
-- [Dibujar cables](docs/funciones/cables-buses-y-tuneles.md#dibujar-cables) arrastrando desde un pin o un cable, con puntos de unión y cruces claros.
+- [Dibujar cables](docs/funciones/cables-buses-y-tuneles.md#dibujar-cables) arrastrando desde un pin o un cable, con puntos de unión y cruces claros; los textos nombran las entradas de una compuerta desde 1 («entrada 1», «entrada 2»…).
 - [Seleccionar tramos de cable](docs/funciones/cables-buses-y-tuneles.md#seleccionar-tramos-de-cable) con doble y triple clic.
 - [Cables que siguen al mover](docs/funciones/cables-buses-y-tuneles.md#cables-que-siguen-al-mover): las conexiones se estiran y no se pierden; Ctrl+E lo activa o desactiva.
 - [Ordenar cables](docs/funciones/cables-buses-y-tuneles.md#ordenar-cables): quitar puntas sueltas, unir tramos y aplanar vueltas sin cambiar las conexiones.

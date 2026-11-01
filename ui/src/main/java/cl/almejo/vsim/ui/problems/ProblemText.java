@@ -21,6 +21,7 @@ import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.PinNames;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -105,7 +106,8 @@ public final class ProblemText {
                     path(problem.elementId(), document).orElse(problem.elementId()),
                     pinName(problem, document, registry));
             case LOOSENED_BY_SHAPE_CHANGE -> Messages.format("problem.connectivity.loosened",
-                    pieceName(problem.elementId(), document), pinName(problem, document, registry));
+                    pieceName(problem.elementId(), document),
+                    PinNames.display(pinName(problem, document, registry)));
             case OUTDATED_WOULD_BREAK -> Messages.format("problem.connectivity.outdated",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document));
             case OUTDATED_CANNOT_UPDATE -> Messages.format("problem.connectivity.outdatedNested",
@@ -131,7 +133,10 @@ public final class ProblemText {
         Optional<PinDirection> direction = pinType(problem, document, registry)
                 .map(type -> type.pin(problem.pinIndex()).direction());
         return switch (direction.orElse(PinDirection.BIDIRECTIONAL)) {
-            case INPUT -> Messages.format("problem.connectivity.pin.input", componentPath, pinName);
+            case INPUT -> PinNames.isNumberedInput(pinName)
+                    ? Messages.format("problem.connectivity.pin.numberedInput", componentPath,
+                            PinNames.display(pinName))
+                    : Messages.format("problem.connectivity.pin.input", componentPath, pinName);
             case OUTPUT -> Messages.format("problem.connectivity.pin.output", componentPath, pinName);
             case BIDIRECTIONAL -> Messages.format("problem.connectivity.pin", componentPath, pinName);
         };
