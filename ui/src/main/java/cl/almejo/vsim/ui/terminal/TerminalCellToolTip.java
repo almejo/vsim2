@@ -43,20 +43,21 @@ public final class TerminalCellToolTip {
     }
 
     /**
-     * The tooltip of the written cell under {@code gridPosition} on a Terminal placed on the circuit itself, from the
-     * screen {@code snapshot} shows; empty elsewhere.
+     * The tooltip of the written cell under {@code gridPosition} on a Terminal (or a UART 16550's integrated screen)
+     * placed on the circuit itself, from the screen {@code snapshot} shows; empty elsewhere.
      */
     public static Optional<String> at(CircuitDocument document, ComponentTypeRegistry registry,
                                       SimulationSnapshot snapshot, Point2D gridPosition) {
         for (Component component : List.copyOf(document.components())) {
-            if (!component.typeId().equals(StandardComponentTypes.TERMINAL)) {
+            if (!component.typeId().equals(StandardComponentTypes.TERMINAL)
+                    && !component.typeId().equals(StandardComponentTypes.UART_16550)) {
                 continue;
             }
             Optional<CellPosition> cell = TerminalScreenArea.cellAt(registry.typeOf(component), component,
                     gridPosition);
             if (cell.isPresent()) {
-                return snapshot.componentState(component.id().value()) instanceof VisibleState.TerminalState state
-                        ? forCell(state.frame(), cell.get()) : Optional.empty();
+                return VisibleState.terminalScreen(snapshot.componentState(component.id().value()))
+                        .flatMap(state -> forCell(state.frame(), cell.get()));
             }
         }
         return Optional.empty();
