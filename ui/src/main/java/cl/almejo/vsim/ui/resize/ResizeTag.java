@@ -11,7 +11,8 @@ import java.util.Map;
 
 /**
  * The text of the temporary tag above the tab while it is dragged: «Ancho 24 · 14 teclas» for a Teclado, «80×24»
- * (columns × rows) for a Terminal, the first parameter's name and value («Ancho 24») for other parts.
+ * (columns × rows) for a Terminal and a UART 16550's integrated screen, the first parameter's name and value
+ * («Ancho 24») for other parts.
  */
 final class ResizeTag {
 
@@ -22,7 +23,7 @@ final class ResizeTag {
     static String text(ComponentType type, Map<String, Object> parameters) {
         ResizeSpec resize = type.resize().orElseThrow();
         int value = resize.valueOf(type, parameters);
-        if (StandardComponentTypes.TERMINAL.equals(type.id())) {
+        if (StandardComponentTypes.TERMINAL.equals(type.id()) || StandardComponentTypes.UART_16550.equals(type.id())) {
             Map<String, Object> resolved = type.resolveParameters(parameters);
             return Messages.format("resize.terminal.tag", resolved.get(TerminalTypes.COLUMNS),
                     resolved.get(TerminalTypes.ROWS));

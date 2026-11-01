@@ -19,10 +19,12 @@ import java.util.Set;
  * grid units works the same. The edges are in the part's own (unrotated) coordinates: the opposite ones and the part's
  * position stay put.
  *
- * <p>Declared on the type with {@link ComponentType#withResize}; the canvas offers the grip only for such types. The
- * one-axis accessors ({@link #parameter()}, {@link #edge()}, {@link #minimum}, …) speak of the first axis.
+ * <p>Declared on the type with {@link ComponentType#withResize}; the canvas offers the grip only for such types, and
+ * with a {@code condition} ({@link #onlyWhen}) only while another parameter has a value (a UART 16550's screen
+ * resizes only while it is integrated). The one-axis accessors ({@link #parameter()}, {@link #edge()},
+ * {@link #minimum}, …) speak of the first axis.
  */
-public record ResizeSpec(List<Axis> axes) {
+public record ResizeSpec(List<Axis> axes, Optional<VisibilityCondition> condition) {
 
     /** The edge that a larger value moves outwards. */
     public enum Edge {
@@ -139,6 +141,7 @@ public record ResizeSpec(List<Axis> axes) {
      * @throws IllegalArgumentException unless there are one or two axes, on different edges and parameters
      */
     public ResizeSpec {
+        Objects.requireNonNull(condition, "condition");
         axes = List.copyOf(axes);
         if (axes.isEmpty() || axes.size() > Edge.values().length) {
             throw new IllegalArgumentException("a resize has one or two axes");
@@ -152,9 +155,25 @@ public record ResizeSpec(List<Axis> axes) {
         }
     }
 
+    /** A resize on {@code axes} that always applies. */
+    public ResizeSpec(List<Axis> axes) {
+        this(axes, Optional.empty());
+    }
+
     /** One parameter on one edge, landing on the nearest size. */
     public ResizeSpec(String parameter, Edge edge) {
         this(List.of(new Axis(parameter, edge)));
+    }
+
+    /** This resize, offered only while parameter {@code parameter} has the (normalized) value {@code value}. */
+    public ResizeSpec onlyWhen(String parameter, Object value) {
+        return new ResizeSpec(axes, Optional.of(new VisibilityCondition(parameter, value)));
+    }
+
+    /** Whether a part of {@code type} with {@code parameters} can be resized now: its condition holds, if any. */
+    public boolean appliesTo(ComponentType type, Map<String, Object> parameters) {
+        return condition.map(required -> required.value().equals(type.resolveParameters(parameters)
+                .get(required.parameter()))).orElse(true);
     }
 
     /** The bottom-right corner: {@code horizontal} on the right edge, {@code vertical} on the bottom one. */
@@ -245,8 +264,11 @@ public record ResizeSpec(List<Axis> axes) {
         return first().valueFor(type, parameters, extent);
     }
 
-    /** Checks that {@code type} has every axis's parameter and that they are integers. */
+    /** Checks that {@code type} has every axis's parameter, that they are integers, and the condition's parameter. */
     void checkFor(ComponentType type) {
         axes.forEach(axis -> axis.spec(type));
+        condition.ifPresent(required -> type.parameterNamed(required.parameter()).orElseThrow(
+                () -> new IllegalArgumentException(type.id() + " has no parameter " + required.parameter()
+                        + " to condition its resize on")));
     }
 }

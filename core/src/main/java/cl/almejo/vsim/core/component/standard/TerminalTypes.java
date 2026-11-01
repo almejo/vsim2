@@ -195,7 +195,7 @@ public final class TerminalTypes {
      * The bottom-right corner grip (Task 7b): columns on the right edge, rows on the bottom one, one value for every
      * cell of the current «Tamaño de letra» dragged (decision 3: cell sizes in pixels at 100 %).
      */
-    private static final ResizeSpec RESIZE = ResizeSpec.corner(
+    static final ResizeSpec RESIZE = ResizeSpec.corner(
             ResizeSpec.Axis.stepped(COLUMNS, ResizeSpec.Edge.RIGHT,
                     parameters -> (double) fontSize(parameters).cellWidth() / GridPoint.PIXELS_PER_UNIT),
             ResizeSpec.Axis.stepped(ROWS, ResizeSpec.Edge.BOTTOM,

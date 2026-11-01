@@ -37,6 +37,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Ayuda ▸ «Acerca de VSim 2…» nombra las tipografías incluidas (IBM Plex Mono y VT323, licencia SIL OFL 1.1), y el README dice su licencia.
 - La pestaña «Propiedades» se desplaza cuando su formulario es más alto que la ventana (antes el del Teclado quedaba cortado abajo): barra vertical, sin barra horizontal, y la rueda del mouse funciona también sobre los cuadros de texto.
 - La pantalla integrada de la UART 16550 se anima en el lienzo como la del Terminal: parpadeo, cursor de Automan, la última letra iluminada, la imagen anterior que se desvanece y el «Efecto de pantalla» (las imágenes, el PDF y la impresión la muestran quieta). Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
+- La UART 16550 con pantalla integrada tiene la pestañita «⤡» del Terminal: arrastrarla cambia las columnas y las filas de su pantalla, los cables la siguen y es un solo paso de deshacer. Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - Con «Guardar salida» activa, el Terminal muestra bajo el archivo si esta sesión realmente graba o no (falta confirmar, «No grabar», otro Terminal en el mismo archivo o sin archivo).
 
 ### Cambiado

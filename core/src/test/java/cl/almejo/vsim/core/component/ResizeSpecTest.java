@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.component;
 import cl.almejo.vsim.core.component.standard.KeyboardTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.geometry.GridSize;
 import org.junit.jupiter.api.Test;
 
@@ -149,5 +150,35 @@ class ResizeSpecTest {
                 ResizeSpec.Edge.RIGHT), new ResizeSpec.Axis(TerminalTypes.COLUMNS, ResizeSpec.Edge.BOTTOM))))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new ResizeSpec(List.of())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // --- the UART 16550's integrated screen
+
+    private final ComponentType uart = StandardComponentTypes.registry().require(StandardComponentTypes.UART_16550);
+
+    @Test
+    void theUartGrowsAtItsCornerWithTheColumnsAndRowsOfItsScreen() {
+        ResizeSpec resize = uart.resize().orElseThrow();
+        assertThat(resize.isCorner()).isTrue();
+        assertThat(resize.axis(ResizeSpec.Edge.RIGHT).orElseThrow().parameter()).isEqualTo(TerminalTypes.COLUMNS);
+        assertThat(resize.axis(ResizeSpec.Edge.BOTTOM).orElseThrow().parameter()).isEqualTo(TerminalTypes.ROWS);
+        assertThat(resize.axis(ResizeSpec.Edge.RIGHT).orElseThrow()
+                .valueAfter(uart, withFont(TerminalTypes.FONT_SIZE_NORMAL), -40)).isEqualTo(40);
+        assertThat(resize.axis(ResizeSpec.Edge.BOTTOM).orElseThrow()
+                .valueAfter(uart, withFont(TerminalTypes.FONT_SIZE_NORMAL), -24)).isEqualTo(12);
+    }
+
+    @Test
+    void theUartResizesOnlyWithItsIntegratedScreen() {
+        ResizeSpec resize = uart.resize().orElseThrow();
+        assertThat(resize.appliesTo(uart, Map.of())).isTrue();
+        assertThat(resize.appliesTo(uart, Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS))).isFalse();
+        assertThat(corner().appliesTo(terminal, Map.of())).as("a Terminal always resizes").isTrue();
+    }
+
+    @Test
+    void aResizeConditionNeedsAParameterOfTheType() {
+        assertThatThrownBy(() -> keyboard.withResize(new ResizeSpec(KeyboardTypes.PART_WIDTH, ResizeSpec.Edge.RIGHT)
+                .onlyWhen("no-such-parameter", "x"))).isInstanceOf(IllegalArgumentException.class);
     }
 }

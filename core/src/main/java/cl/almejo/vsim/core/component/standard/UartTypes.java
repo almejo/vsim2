@@ -98,8 +98,10 @@ public final class UartTypes {
     }
 
     static void register(ComponentTypeRegistry registry) {
+        // the integrated screen's corner resizes it like a Terminal's; with TX and RX pins there is no screen
         registry.register(ComponentType.parameterized(StandardComponentTypes.UART_16550,
-                ComponentCategory.INPUT_OUTPUT, PARAMETERS, UartTypes::shape, Uart16550Behavior::new));
+                ComponentCategory.INPUT_OUTPUT, PARAMETERS, UartTypes::shape, Uart16550Behavior::new)
+                .withResize(TerminalTypes.RESIZE.onlyWhen(SCREEN, SCREEN_INTEGRATED)));
     }
 
     /** Whether the resolved {@code parameters} put the screen and the keyboard inside the UART. */
