@@ -123,6 +123,18 @@ class MessagesTest {
     }
 
     @Test
+    void theTerminalsSoundParameterHasItsOwnLabelNotTheTecladosOne() {
+        ComponentType terminal = StandardComponentTypes.registry().require(StandardComponentTypes.TERMINAL);
+        assertThat(terminal.parameters()).extracting(ParameterSpec::name)
+                .contains("teletype-sound").doesNotContain("typing-sound");
+
+        assertThat(Messages.parameterName("teletype-sound")).isEqualTo("Golpeteo de teletipo");
+        assertThat(Messages.parameterName("typing-sound")).isEqualTo("Sonido de tecla");
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(Messages.parameterName("teletype-sound")).isEqualTo("Teletype clatter");
+    }
+
+    @Test
     void englishLocaleSelectsEnglishAndAnyOtherSelectsSpanish() {
         assertThat(Messages.chooseLocale(Locale.US)).isEqualTo(Locale.ENGLISH);
         assertThat(Messages.chooseLocale(Locale.GERMANY)).isEqualTo(Messages.SPANISH);
