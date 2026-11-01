@@ -19,6 +19,11 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - Con el panel de formas de onda abierto, el cursor salta al nuevo tiempo después de cada «Avanzar», y en el modo también después de un clic, y la columna de nombres lee el valor de cada canal. Fuera del modo, un clic en pausa no mueve el cursor.
 - «Avanzar 10 t» (el antiguo «Paso», F6) sigue avanzando un tramo fijo: la flecha junto a su botón elige 1, 10, 100, 1 000, 10 000 u «Otro…» (de 1 a 1 000 000 000), y Simulación ▸ «Tamaño del avance…» abre el mismo diálogo. El nombre cambia («Avanzar 100 t», también su ayuda: «Avanza la simulación 100 unidades de tiempo (F6)») y se recuerda para la próxima vez. Con la simulación en pausa, los cables que cambiaron en cualquier momento del tramo brillan como con F7 y el cursor de las formas de onda va al nuevo tiempo. Los botones de «Paso a paso» van justo después.
 
+## Piezas que detienen la simulación
+
+- Una pieza puede pedir que la simulación se detenga, como un punto de parada: hoy lo hace el Terminal con «Detener al recibir» (ver [Terminal y teclado](componentes.md#terminal-y-teclado)). La simulación queda en pausa en ese instante y la barra de estado dice quién la detuvo y por qué: «Simulación detenida en t = 2400: «consola» recibió «=120»». El nombre es la etiqueta de la pieza, o su tipo si no tiene.
+- Después se puede seguir con «Iniciar» o avanzar paso a paso; la misma condición no vuelve a detenerla hasta que vuelva a cumplirse. Un «Reiniciar» la rearma.
+
 ## Mapa de memoria
 
 - La pestaña «Mapa de memoria» del panel derecho muestra la RAM o ROM seleccionada (o la última que se seleccionó) completa, como una matriz de cuadritos: «Mapa de memoria · Variables (RAM 1K × 8)». Con más de 4K palabras cada cuadrito agrupa varias (por ejemplo 4 096 en una de 16M); la rueda del ratón acerca el mapa alrededor del puntero hasta ver palabras sueltas, y lo aleja de vuelta.

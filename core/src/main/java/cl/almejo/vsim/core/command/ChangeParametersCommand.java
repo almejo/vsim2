@@ -23,6 +23,9 @@ import java.util.Objects;
  */
 public final class ChangeParametersCommand implements Command {
 
+    /** «Configurar» in «Deshacer …», the name of a plain parameter edit. */
+    static final String CONFIGURE = "command.configure";
+
     private final ElementId id;
     private final ComponentType type;
     private final String typeId;
@@ -35,7 +38,7 @@ public final class ChangeParametersCommand implements Command {
 
     /** Normalizes {@code rawParameters} with {@code type}; invalid values throw IllegalArgumentException here. */
     public ChangeParametersCommand(ElementId id, ComponentType type, Map<String, Object> rawParameters) {
-        this(id, type, rawParameters, "command.configure");
+        this(id, type, rawParameters, CONFIGURE);
     }
 
     /**
@@ -89,7 +92,7 @@ public final class ChangeParametersCommand implements Command {
             String pinName = oldPins.get(pin.pinIndex()).name();
             for (int index = 0; index < newPins.size(); index++) {
                 if (newPins.get(index).name().equals(pinName)) {
-                    result.add(new Probe(probe.id(), new ProbeTarget.PinTarget(id, index), probe.name()));
+                    result.add(probe.withTarget(new ProbeTarget.PinTarget(id, index)));
                     break;
                 }
             }

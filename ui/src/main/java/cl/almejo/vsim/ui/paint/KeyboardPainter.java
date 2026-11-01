@@ -92,7 +92,6 @@ public final class KeyboardPainter implements ComponentPainter {
 
     private static final float[] DASH = {2f, 2f};
     private static final Font EMPTY_FONT = new Font(Font.SANS_SERIF, Font.ITALIC, 1);
-    private static final String ELLIPSIS = "…";
     private static final int MULTI_BYTE_LEAD_MINIMUM = 0xC2;
     private static final int THREE_BYTE_LEAD = 0xE0;
     private static final int FOUR_BYTE_LEAD = 0xF0;
@@ -277,8 +276,8 @@ public final class KeyboardPainter implements ComponentPainter {
                 PainterSupport.ALIGN_CENTER, chipFont);
         String name = label == null ? Messages.componentName(type.id()) : label;
         FontMetrics labelMetrics = graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(LABEL_SIZE));
-        PainterSupport.uprightText(graphics, ellipsized(name, labelMetrics, chipLeft - TITLE_TEXT_LEFT - 3),
-                TITLE_TEXT_LEFT, middle, LABEL_SIZE, scheme.text(), along(graphics, PainterSupport.ALIGN_LEFT));
+        String shownName = PainterSupport.ellipsized(name, labelMetrics, chipLeft - TITLE_TEXT_LEFT - 3);
+        PainterSupport.uprightText(graphics, shownName, TITLE_TEXT_LEFT, middle, LABEL_SIZE, scheme.text(), along(graphics, PainterSupport.ALIGN_LEFT));
     }
 
     /**
@@ -288,18 +287,6 @@ public final class KeyboardPainter implements ComponentPainter {
     private static double along(Graphics2D graphics, double alignment) {
         boolean upsideDown = Math.abs(PainterSupport.quarterTurns(graphics)) % 4 == 2;
         return upsideDown ? 1 - alignment : alignment;
-    }
-
-    /** {@code text}, cut with «…» when it is wider than {@code available} pixels. */
-    private static String ellipsized(String text, FontMetrics metrics, double available) {
-        if (metrics.stringWidth(text) <= available) {
-            return text;
-        }
-        String cut = text;
-        while (!cut.isEmpty() && metrics.stringWidth(cut + ELLIPSIS) > available) {
-            cut = cut.substring(0, cut.length() - 1);
-        }
-        return cut + ELLIPSIS;
     }
 
     /** A little board with two rows of keys and a space bar, 12 × 8 px. */

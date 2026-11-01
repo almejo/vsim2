@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
@@ -92,6 +93,24 @@ public final class ProbeActions {
         replace(probeId, probe -> probe.withName(stripped), "command.renameProbe");
     }
 
+    /** «Mostrar como» on a bus channel: {@link Probe#FORMAT_HEX} or {@link Probe#FORMAT_ASCII}, one undo step. */
+    public void setFormat(String probeId, String format) {
+        replace(probeId, probe -> probe.withFormat(format), "command.setProbeFormat");
+    }
+
+    /** Whether the channel watches a net wider than one bit (only those have a format to choose). */
+    boolean isBus(String probeId) {
+        CircuitDocument document = openDocument.document();
+        Netlist netlist = openDocument.netlist();
+        return document.probes().stream()
+                .filter(probe -> probe.id().equals(probeId))
+                .findFirst()
+                .flatMap(probe -> ProbeResolver.netOf(probe.target(), document, netlist))
+                .flatMap(netId -> netlist.nets().stream().filter(net -> net.id().value().equals(netId)).findFirst())
+                .map(net -> net.width() > 1)
+                .orElse(false);
+    }
+
     public void moveUp(String probeId) {
         move(probeId, -1);
     }
@@ -175,7 +194,7 @@ public final class ProbeActions {
                 capReached = true;
                 break;
             }
-            Probe probe = new Probe(document.newProbeId(), target, "");
+            Probe probe = new Probe(document.newProbeId(), target, "", formatOf(target, document));
             after.add(probe);
             added.add(probe.id());
         }
@@ -183,6 +202,37 @@ public final class ProbeActions {
             openDocument.execute(new SetProbesCommand(before, after, "command.addProbes"));
         }
         return new AddResult(added, added.isEmpty() ? existingId : Optional.empty(), capReached);
+    }
+
+    /** The type id of the Terminal, whose bytes read as characters in a waveform unless its parameter says hex. */
+    private static final String TERMINAL_TYPE = "terminal";
+    private static final String KEYBOARD_TYPE = "keyboard";
+    /** The Terminal's «En formas de onda» parameter, and its value for «Bytes como caracteres». */
+    private static final String WAVEFORM_FORMAT = "waveform-format";
+    private static final String CHARACTERS = "chars";
+    private static final String DATA_PIN = "D";
+
+    /**
+     * The format a new channel starts with: the D pin of a Terminal (unless its {@code waveform-format} is not
+     * {@code chars}) or of a Teclado (always) carries bytes, so it shows characters; everything else shows hex.
+     */
+    private String formatOf(ProbeTarget target, CircuitDocument document) {
+        if (!(target instanceof ProbeTarget.PinTarget pin)) {
+            return Probe.FORMAT_HEX;
+        }
+        Optional<Component> component = document.component(pin.componentId());
+        Optional<ComponentType> type = component.flatMap(openDocument.registry()::findTypeOf);
+        if (type.isEmpty() || pin.pinIndex() >= type.get().pinCount()
+                || !DATA_PIN.equals(type.get().pin(pin.pinIndex()).name())) {
+            return Probe.FORMAT_HEX;
+        }
+        boolean characters = switch (component.get().typeId()) {
+            case KEYBOARD_TYPE -> true;
+            case TERMINAL_TYPE -> CHARACTERS.equals(component.get().parameters().getOrDefault(WAVEFORM_FORMAT,
+                    CHARACTERS));
+            default -> false;
+        };
+        return characters ? Probe.FORMAT_ASCII : Probe.FORMAT_HEX;
     }
 
     private void replace(String probeId, UnaryOperator<Probe> change, String descriptionKey) {

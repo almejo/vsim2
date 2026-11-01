@@ -40,6 +40,7 @@ public final class BundledCircuits {
         builders.put("accumulator", BlockExamples::accumulator);
         builders.put("rom-program", MemoryExamples::romProgram);
         builders.put("ram-fill", MemoryExamples::ramFill);
+        builders.put("hola-terminal", TerminalExamples::holaTerminal);
         return builders;
     }
 

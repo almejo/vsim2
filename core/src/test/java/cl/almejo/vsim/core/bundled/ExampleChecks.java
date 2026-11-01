@@ -52,7 +52,7 @@ public final class ExampleChecks {
 
     /**
      * The block control inputs that may stay unconnected because they take a rest value (spec M7 §2.1: Cin = 0,
-     * EN = 1, CLR = LD = 0, the D of a counter that never loads, a ROM's CS = 1), by block type and pin name, and the 7-segment displays' bus input (the examples feed
+     * EN = 1, CLR = LD = 0, the D of a counter that never loads, a ROM's CS = 1, a Terminal's or Teclado's CLR = 0), by block type and pin name, and the 7-segment displays' bus input (the examples feed
      * their displays bit by bit). Any other input alone on its net is a problem.
      */
     private static final Map<String, Set<String>> RESTING_PINS = Map.of(
@@ -62,6 +62,8 @@ public final class ExampleChecks {
             StandardComponentTypes.COUNTER, Set.of("D", "LD", "EN", "CLR"),
             StandardComponentTypes.ROM, Set.of("CS"),
             StandardComponentTypes.RAM, Set.of("CS"),
+            StandardComponentTypes.TERMINAL, Set.of("CLR"),
+            StandardComponentTypes.KEYBOARD, Set.of("CLR"),
             StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, Set.of(StandardComponentTypes.DISPLAY_BUS_PIN),
             StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, Set.of(StandardComponentTypes.DISPLAY_BUS_PIN));
 

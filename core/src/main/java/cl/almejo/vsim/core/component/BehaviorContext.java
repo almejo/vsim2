@@ -20,7 +20,9 @@ public interface BehaviorContext {
     /**
      * Asks the running simulation to pause, like a breakpoint (a Terminal received its «Detener al recibir» text): it
      * stops once every event of the current time ran, and the UI says why with the message of bundle key
-     * {@code messageKey} and {@code arguments} (core never formats user text). Stepping and running go on normally
+     * {@code messageKey} and {@code arguments} (core never formats user text). The UI puts the part's name before
+     * {@code arguments}, so the message's {@code {0}} is the name and the arguments follow from {@code {1}} (core does
+     * not know labels). Stepping and running go on normally
      * afterwards. While one request waits to be served, later ones are dropped. A context outside the engine (a test, a one-off
      * evaluation) ignores it.
      */

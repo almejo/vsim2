@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
@@ -17,6 +18,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
@@ -47,11 +49,17 @@ public final class WaveformPainter {
 
     public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
                              int width, ColorScheme scheme) {
+        paint(graphics, snapshot, channelIds, axis, width, scheme, Map.of());
+    }
+
+    /** As above; {@code formats} gives a channel id its bus format ({@link Probe#FORMAT_HEX} when absent). */
+    public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
+                             int width, ColorScheme scheme, Map<String, String> formats) {
         // Pure strokes: lines and the bus outlines land on the same pixel rows (normalization shifts paths by a row).
         Object strokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         try {
-            paintRows(graphics, snapshot, channelIds, axis, width, scheme);
+            paintRows(graphics, snapshot, channelIds, axis, width, scheme, formats);
         } finally {
             graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                     strokeControl == null ? RenderingHints.VALUE_STROKE_DEFAULT : strokeControl);
@@ -59,7 +67,7 @@ public final class WaveformPainter {
     }
 
     private static void paintRows(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds,
-                                  TimeAxis axis, int width, ColorScheme scheme) {
+                                  TimeAxis axis, int width, ColorScheme scheme, Map<String, String> formats) {
         int height = channelIds.size() * ROW_HEIGHT;
         graphics.setColor(scheme.diagramBackground());
         graphics.fill(new Rectangle2D.Double(0, 0, width, height));
@@ -67,7 +75,8 @@ public final class WaveformPainter {
         for (int row = 0; row < channelIds.size(); row++) {
             Optional<Trace> trace = snapshot.trace(channelIds.get(row));
             if (trace.isPresent()) {
-                paintRow(graphics, trace.get(), row * ROW_HEIGHT, axis, width, snapshot.time(), scheme);
+                paintRow(graphics, trace.get(), row * ROW_HEIGHT, axis, width, snapshot.time(), scheme,
+                        formats.getOrDefault(channelIds.get(row), Probe.FORMAT_HEX));
             }
         }
         OptionalLong cursor = axis.cursor();
@@ -135,6 +144,11 @@ public final class WaveformPainter {
      */
     static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
                         ColorScheme scheme) {
+        return paintRow(graphics, trace, top, axis, width, now, scheme, Probe.FORMAT_HEX);
+    }
+
+    static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
+                        ColorScheme scheme, String format) {
         OptionalLong first = trace.firstTime();
         if (first.isEmpty()) {
             return 0;
@@ -162,7 +176,7 @@ public final class WaveformPainter {
             double column = Math.floor(right);
             long nextColumnTime = Math.max(time + 1, (long) Math.ceil(axis.timeAt(column + 1)));
             int next = index + 1;
-            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme);
+            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme, format);
             if (next < eventCount && trace.eventTime(next) < nextColumnTime && trace.eventTime(next) <= to) {
                 graphics.setColor(scheme.diagramTrace());
                 graphics.setStroke(LINE);
@@ -179,12 +193,12 @@ public final class WaveformPainter {
                 index = next;
             }
         }
-        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme);
+        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme, format);
         return visited;
     }
 
     private static void paintSegment(Graphics2D graphics, Optional<Value> value, double left, double right,
-                                     double top, ColorScheme scheme) {
+                                     double top, ColorScheme scheme, String format) {
         if (right <= left) {
             return;
         }
@@ -210,10 +224,15 @@ public final class WaveformPainter {
             case BUS -> {
                 graphics.setColor(scheme.diagramTrace());
                 graphics.draw(hexagon(left, right, top));
-                paintText(graphics, BusValueText.of(value.orElseThrow()), left, right, top, scheme.diagramTrace());
+                paintText(graphics, busText(value.orElseThrow(), format), left, right, top, scheme.diagramTrace());
             }
             case GAP -> hatch(graphics, left, right, top, scheme);
         }
+    }
+
+    /** The text of a bus segment in a channel's {@code format}: {@code 0x66} or {@code 'f'}. */
+    static String busText(Value value, String format) {
+        return BusValueText.of(value, format);
     }
 
     /** A vertical line where one bit changes between levels (Z counts as the middle); buses pinch in their outline. */

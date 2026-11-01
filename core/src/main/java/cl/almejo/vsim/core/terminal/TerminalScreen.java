@@ -10,10 +10,12 @@ import cl.almejo.vsim.core.terminal.ControlSequenceParser.Execute;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.IntConsumer;
 
 /**
  * A Terminal's screen: the cells, the cursor, the history, the transcript and the byte log, written one byte at a time
@@ -66,8 +68,10 @@ public final class TerminalScreen {
     private long version;
     private long bellCount;
     private long printedCount;
+    private long scrollOrClearCount;
     private CellPosition lastWritten;
     private long lastWrittenSerial;
+    private int lastPrintedCodePoint = ' ';
     private TerminalFrame frame;
 
     /** What DECSC and {@code ESC[s} keep. */
@@ -149,6 +153,7 @@ public final class TerminalScreen {
         adopted.erasedCell = TerminalCell.blank(style.erasing());
         adopted.bellCount = bellCount;
         adopted.printedCount = printedCount;
+        adopted.scrollOrClearCount = scrollOrClearCount;
         adopted.lastWrittenSerial = lastWrittenSerial;
         adopted.adoptLastWritten(lastWritten, firstKept);
         adopted.time = time;
@@ -166,12 +171,16 @@ public final class TerminalScreen {
         if (frame == null || frame.version() != version) {
             frame = new TerminalFrame(settings.rows(), settings.columns(), Arrays.asList(cells), cursorRow,
                     cursorColumn, cursorVisible, Optional.ofNullable(lastWritten), lastWrittenSerial, version,
-                    bellCount, printedCount);
+                    bellCount, printedCount, scrollOrClearCount);
         }
         return frame;
     }
 
-    /** Copies of the last {@code maximumLines} rows that scrolled off the top, oldest first. */
+    /**
+     * The last {@code maximumLines} rows that scrolled off the top, oldest first, in an unmodifiable list. The rows are
+     * shared, not copied (a Teletipo's 10 000 lines go into a frame every 16 ms): a row never changes once it scrolled
+     * off, and readers must never write into one.
+     */
     public List<TerminalCell[]> history(int maximumLines) {
         if (maximumLines < 0) {
             throw new IllegalArgumentException("maximumLines must not be negative: " + maximumLines);
@@ -182,15 +191,23 @@ public final class TerminalScreen {
         for (int index = 0; rows.hasNext(); index++) {
             TerminalCell[] row = rows.next();
             if (index >= skipped) {
-                lines.add(row.clone());
+                lines.add(row);
             }
         }
-        return lines;
+        return Collections.unmodifiableList(lines);
     }
 
     /** The last {@link #TRANSCRIPT_LIMIT} characters received, with {@code \n} for line feeds and BS applied. */
     public String transcript() {
         return transcript.text();
+    }
+
+    /**
+     * Whether {@link #transcript()} ends with {@code suffix} («Detener al recibir»), checked after every byte: costs
+     * the suffix's length, never a copy of the transcript.
+     */
+    public boolean transcriptEndsWith(String suffix) {
+        return suffix.length() <= TRANSCRIPT_LIMIT && transcript.endsWith(suffix);
     }
 
     /** Every byte received, for the byte monitor, the sounds and «Guardar salida». */
@@ -206,6 +223,25 @@ public final class TerminalScreen {
     /** Characters placed on the screen so far. */
     public long printedCount() {
         return printedCount;
+    }
+
+    /** The character placed on the screen last ({@link #printedCount()} counts them); a space before the first. */
+    public int lastPrintedCodePoint() {
+        return lastPrintedCodePoint;
+    }
+
+    /**
+     * Gives {@code action} the character of every cell of the screen (not the history) that a byte wrote, row by row;
+     * a character in several cells comes several times.
+     */
+    public void forEachWrittenCodePoint(IntConsumer action) {
+        for (TerminalCell[] row : cells) {
+            for (TerminalCell cell : row) {
+                if (cell.written()) {
+                    action.accept(cell.codePoint());
+                }
+            }
+        }
     }
 
     private void character(int codePoint, byte[] bytes) {
@@ -318,6 +354,7 @@ public final class TerminalScreen {
             lineFeed();
         }
         cells[cursorRow][cursorColumn] = new TerminalCell(codePoint, style, bytes, time);
+        lastPrintedCodePoint = codePoint;
         lastWritten = new CellPosition(cursorRow, cursorColumn);
         lastWrittenSerial++;
         printedCount++;
@@ -343,6 +380,7 @@ public final class TerminalScreen {
     }
 
     private void scrollUp() {
+        scrollOrClearCount++;
         keepInHistory(cells[0]);
         System.arraycopy(cells, 1, cells, 0, cells.length - 1);
         cells[cells.length - 1] = blankRow();
@@ -506,6 +544,9 @@ public final class TerminalScreen {
     }
 
     private void eraseRows(int fromRow, int toRow) {
+        if (fromRow == 0 && toRow == settings.rows()) {
+            scrollOrClearCount++;
+        }
         for (int row = fromRow; row < toRow; row++) {
             Arrays.fill(cells[row], erasedCell);
         }

@@ -39,6 +39,7 @@ import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedMove;
+import cl.almejo.vsim.ui.terminal.TerminalScreenArea;
 import cl.almejo.vsim.ui.wiring.MovePreview;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
@@ -114,8 +115,11 @@ public final class SelectTool implements Tool {
     private enum BandMode { REPLACE, ADD, REMOVE }
 
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
-    /** Whether each type's parts take typing from the keyboard (a Teclado), asked once per type. */
-    private final Map<String, Boolean> typingByType = new HashMap<>();
+    /**
+     * Whether parts take typing from the keyboard (a Teclado, a UART with «Pantalla: Integrada»), asked once per type
+     * and resolved parameters: the answer of a UART follows its «Pantalla».
+     */
+    private final Map<TypingKey, Boolean> typingByParameters = new HashMap<>();
     private final List<SelectToolDelegate> delegates = new CopyOnWriteArrayList<>();
     private SelectToolDelegate activeDelegate;
     private ConnectionPoints connectionPoints;
@@ -407,6 +411,9 @@ public final class SelectTool implements Tool {
                     context.editValue(component, toggledByFirstClick.valueBefore());
                 } else if (MemoryTypes.kindOf(component.typeId()).isPresent()) {
                     context.editMemory(component);
+                } else if (component.typeId().equals(StandardComponentTypes.TERMINAL) && TerminalScreenArea.isOnScreen(
+                        context.openDocument().registry().typeOf(component), component, event.gridPosition())) {
+                    context.editTerminal(component);
                 } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
                         || InterfacePins.isBusInput(component) || Tunnels.isTunnel(component.typeId())) {
                     context.editValue(component);
@@ -1253,8 +1260,15 @@ public final class SelectTool implements Tool {
     }
 
     private boolean acceptsTyping(ToolContext context, Component component) {
-        return typingByType.computeIfAbsent(component.typeId(), typeId -> context.openDocument().registry()
-                .require(typeId).createBehavior(component.parameters()).acceptsTyping());
+        return context.openDocument().registry().findTypeOf(component)
+                .map(type -> typingByParameters.computeIfAbsent(
+                        new TypingKey(type.id(), type.resolveParameters(component.parameters())),
+                        key -> type.createBehavior(key.parameters()).acceptsTyping()))
+                .orElse(false);
+    }
+
+    /** A type and the resolved parameters of a part of it: what decides whether the part takes typing. */
+    private record TypingKey(String typeId, Map<String, Object> parameters) {
     }
 
     private boolean isInteractive(ToolContext context, Component component) {

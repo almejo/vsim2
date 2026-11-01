@@ -4,6 +4,8 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryBehavior;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalBehavior;
+import cl.almejo.vsim.core.component.standard.TerminalScreenPart;
 import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.IntSupplier;
@@ -466,6 +469,50 @@ public final class SimulationEngine {
         ComponentInstance instance = instances.get(componentId);
         if (instance != null) {
             instance.behavior.restoreInitialState(instance);
+            scheduler.runUntil(now());
+        }
+    }
+
+    /** The bytes the typing queue of the part simulated as {@code componentId} holds; empty without such a queue. */
+    public OptionalInt typingQueueSize(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        if (instance == null || !instance.behavior.acceptsTyping()) {
+            return OptionalInt.empty();
+        }
+        return switch (instance.behavior.visibleState()) {
+            case VisibleState.KeyboardState keyboard -> OptionalInt.of(keyboard.size());
+            case VisibleState.UartState uart -> OptionalInt.of(uart.received());
+            default -> OptionalInt.empty();
+        };
+    }
+
+    /**
+     * The Terminal screen of the part simulated as {@code componentId} (flat id): a Terminal, or a UART 16550 with its
+     * integrated screen; empty when there is none or the part shows no screen.
+     */
+    public Optional<TerminalScreenPart> terminal(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        return instance != null && instance.behavior instanceof TerminalScreenPart terminal && terminal.showsScreen()
+                ? Optional.of(terminal) : Optional.empty();
+    }
+
+    /**
+     * «Limpiar» on the Terminal simulated as {@code componentId}: its screen and history empty as with CLR; the time
+     * and every other part go on. An unknown id or another part changes nothing. Not an edit, not a step.
+     */
+    public void clearTerminal(String componentId) {
+        terminal(componentId).ifPresent(TerminalScreenPart::clearScreen);
+    }
+
+    /**
+     * «Releer la ROM de caracteres» on the Terminal simulated as {@code componentId}: it forgets its glyphs and starts
+     * reading the codes on its screen again ({@link TerminalBehavior#rereadGlyphs}); its zero-delay effects apply now
+     * and the reading goes on as the simulation runs. An unknown id or another part changes nothing. Not an edit.
+     */
+    public void rereadTerminalGlyphs(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        if (instance != null && instance.behavior instanceof TerminalBehavior terminal) {
+            terminal.rereadGlyphs(instance);
             scheduler.runUntil(now());
         }
     }

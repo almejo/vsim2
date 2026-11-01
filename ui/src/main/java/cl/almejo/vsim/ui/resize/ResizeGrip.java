@@ -14,7 +14,8 @@ import java.awt.geom.Rectangle2D;
  * Where the «↔» tab of a resizable part is (Teclado mockup v4, {@code gripBounds}): a 14 × 8 px tab on the selection
  * outline over the corner where the moving edge meets the top, away from the pins. For the right edge it is
  * {@code (width − 9, −10, 14, 8)} in the part's own pixels (unrotated, 8 px per grid unit); for the bottom edge the
- * same tab turned a quarter, over the left end of that edge. A press within 3 px of it takes it.
+ * same tab turned a quarter, over the left end of that edge; for a corner (Task 7b) the right edge's tab mirrored under
+ * the bottom-right corner. A press within 3 px of it takes it.
  */
 final class ResizeGrip {
 
@@ -41,9 +42,23 @@ final class ResizeGrip {
         };
     }
 
+    /**
+     * The corner tab in the part's own pixels (Task 7b): the right edge's tab mirrored under the bottom-right corner,
+     * {@code (width − 9, height + 2, 14, 8)}, right of the pins on the bottom edge.
+     */
+    static Rectangle2D cornerBounds(GridSize size) {
+        return new Rectangle2D.Double(size.width() * UNIT - TAB_INSET, size.height() * UNIT + TAB_RISE - TAB_THICKNESS,
+                TAB_LENGTH, TAB_THICKNESS);
+    }
+
+    /** The tab for {@code resize} on a part of {@code size}, in its own pixels. */
+    static Rectangle2D localBounds(ResizeSpec resize, GridSize size) {
+        return resize.isCorner() ? cornerBounds(size) : localBounds(resize.edge(), size);
+    }
+
     /** The tab of {@code component}, whose type (with its parameters) is {@code type}, in its own pixels. */
     static Rectangle2D localBounds(Component component, ComponentType type) {
-        return localBounds(type.resize().orElseThrow().edge(), type.forComponent(component).size());
+        return localBounds(type.resize().orElseThrow(), type.forComponent(component).size());
     }
 
     /** True when {@code gridPosition} (document grid units) is on the tab or within 3 px of it. */
@@ -72,6 +87,11 @@ final class ResizeGrip {
     static Point2D toLocalVector(Component component, double deltaX, double deltaY) {
         return turned(Rotation.fromQuarterTurns(-component.rotation().quarterTurns()),
                 new Point2D.Double(deltaX, deltaY));
+    }
+
+    /** A vector along {@code component}'s own unrotated axes, as the document shows it. */
+    static Point2D toDocumentVector(Component component, double deltaX, double deltaY) {
+        return turned(component.rotation(), new Point2D.Double(deltaX, deltaY));
     }
 
     /** A point in {@code component}'s own pixels, in document grid units. */

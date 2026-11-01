@@ -34,4 +34,21 @@ class ChannelRowsTest {
                 probe -> probe.name().isBlank() ? "cable w9" : probe.name())).containsExactly(
                 new ChannelRows.ChannelRow("p1", "reloj", true), new ChannelRows.ChannelRow("p2", "cable w9", false));
     }
+
+    @Test
+    void anAsciiChannelWritesDefinedBusValuesAsCharacters() {
+        assertThat(ChannelRows.valueText(Optional.of(Value.of(8, 0x66)), "ascii")).isEqualTo("'f'");
+        assertThat(ChannelRows.valueText(Optional.of(Value.of(8, 0x0A)), "ascii")).isEqualTo("LF");
+        assertThat(ChannelRows.valueText(Optional.of(Value.of(8, 0x66)), "hex")).isEqualTo("0x66");
+        assertThat(ChannelRows.valueText(Optional.of(Value.highImpedance(8)), "ascii")).isEqualTo("0xZZ");
+        assertThat(ChannelRows.valueText(Optional.of(Value.of(8, 0x66).withConflict()), "ascii")).isEqualTo("X");
+        assertThat(ChannelRows.valueText(Optional.of(Value.ONE), "ascii")).isEqualTo("1");
+    }
+
+    @Test
+    void rowsCarryTheirProbesFormat() {
+        List<Probe> probes = List.of(
+                new Probe("p1", new ProbeTarget.PinTarget(new ElementId("c1"), 0), "").withFormat("ascii"));
+        assertThat(ChannelRows.of(probes, Map.of(), Probe::name).get(0).format()).isEqualTo("ascii");
+    }
 }

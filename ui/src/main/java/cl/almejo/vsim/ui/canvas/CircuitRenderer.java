@@ -30,11 +30,18 @@ import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.paint.TerminalAnimation;
+import cl.almejo.vsim.ui.paint.TerminalLook;
+import cl.almejo.vsim.ui.paint.TerminalMoment;
+import cl.almejo.vsim.ui.paint.TerminalPainter;
+import cl.almejo.vsim.ui.paint.TerminalScreenRaster;
+import cl.almejo.vsim.ui.paint.UartPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
 import cl.almejo.vsim.ui.paint.TunnelPainter;
 import cl.almejo.vsim.ui.sticky.StickyNoteLayout;
 import cl.almejo.vsim.ui.sticky.StickyNotePainter;
+import cl.almejo.vsim.ui.terminal.TerminalActivity;
 import cl.almejo.vsim.ui.paint.WireState;
 import cl.almejo.vsim.ui.paint.MonochromeGraphics;
 import cl.almejo.vsim.ui.paint.MonochromeScheme;
@@ -48,17 +55,22 @@ import java.awt.Graphics2D;
 import java.awt.GraphicsConfiguration;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
@@ -94,6 +106,8 @@ public final class CircuitRenderer {
     private static final double PIECE_MARGIN = 1;
     /** Grid units a component's label may stick out of its bounds. */
     private static final double LABEL_MARGIN = 30;
+    /** Terminal screen pictures kept at most: a few megabytes each at usual zooms, 16 MB at most (32 while fading). */
+    private static final int MAXIMUM_TERMINAL_SCREENS = 16;
 
     private final JunctionCache junctionCache = new JunctionCache();
     private final PlacedTypes placedTypes = new PlacedTypes();
@@ -105,6 +119,13 @@ public final class CircuitRenderer {
     private final ConnectionPoints connectionPoints;
     /** Which memory lights this view shows: each kept on a little while after its access. */
     private MemoryActivity memoryActivity = new MemoryActivity();
+    /** What this view animates on each Terminal: blink, Automan's star, last character's glow, persistence. */
+    private TerminalActivity terminalActivity = new TerminalActivity();
+    private BooleanSupplier motionGate = () -> true;
+    /** The moving terminals of the paints so far, by component; a terminal painted still leaves. */
+    private final Map<ElementId, TerminalMotion> terminalMotions = new LinkedHashMap<>();
+    /** The picture of each Terminal's screen this view keeps, so a moving frame blits it instead of every glyph. */
+    private final Map<ElementId, TerminalScreenRaster> terminalScreens = new HashMap<>();
 
     public CircuitRenderer(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme) {
         this(registry, painters, new Appearance(scheme));
@@ -121,6 +142,44 @@ public final class CircuitRenderer {
     /** For tests: the memory lights follow {@code nanoClock} instead of the system's clock. */
     void useMemoryClock(LongSupplier nanoClock) {
         memoryActivity = new MemoryActivity(nanoClock);
+    }
+
+    /** For tests: the terminals' animation follows {@code nanoClock} instead of the system's clock. */
+    void useTerminalClock(LongSupplier nanoClock) {
+        terminalActivity = new TerminalActivity(nanoClock);
+    }
+
+    /**
+     * Whether the parts may move on this view now (the canvas: its window is active and the desktop does not ask for
+     * reduced motion); when not, a Terminal shows its cursor on and Automan's star still, but keeps its screen effect.
+     */
+    void useMotionGate(BooleanSupplier gate) {
+        motionGate = Objects.requireNonNull(gate, "gate");
+    }
+
+    /** The clock the terminals' animation reads. */
+    long terminalNow() {
+        return terminalActivity.now();
+    }
+
+    /**
+     * The terminals whose last paint will look different later without a new snapshot (a blink, Automan's star, a
+     * glow or a fading picture), each with the area that moves; what the canvas's animation clock repaints.
+     */
+    List<TerminalMotion> terminalMotions() {
+        return List.copyOf(terminalMotions.values());
+    }
+
+    /** How many Terminal screens this view keeps a picture of. */
+    int terminalScreenPictures() {
+        return terminalScreens.size();
+    }
+
+    /**
+     * A Terminal that moves: {@code documentArea} in document pixels, repainted when the clock reaches
+     * {@code nextChangeNanos}.
+     */
+    record TerminalMotion(Rectangle2D documentArea, long nextChangeNanos) {
     }
 
     /** The scheme in use right now; it changes when the user picks another one. */
@@ -324,6 +383,8 @@ public final class CircuitRenderer {
                                  ShortCircuitHighlight highlight, Rectangle2D area) {
         Map<String, Integer> tunnelColors = Tunnels.colorsByName(state.document());
         MemoryNames.Numbering memoryNames = new MemoryNames.Numbering();
+        TerminalAnimation animation = terminalAnimation(state.policy());
+        forgetTerminalsOutside(state.document());
         for (Component documentComponent : state.document().components()) {
             Component component = state.shown(documentComponent);
             ComponentType type = shownTypeOf(state, component);
@@ -342,12 +403,16 @@ public final class CircuitRenderer {
                         state.snapshot().time());
                 ComponentDrawing.paintPlaced(graphics, component, local -> memoryPainter.paintWithLabel(local, type,
                         component.parameters(), memoryState, scheme, name, lights));
+            } else if (painters.painterFor(type.id()) instanceof TerminalPainter terminalPainter) {
+                paintTerminal(graphics, state, scheme, component, type, terminalPainter, animation);
             } else if (painters.painterFor(type.id()) instanceof KeyboardPainter keyboardPainter) {
                 VisibleState keyboardState = state.snapshot().componentState(component.id().value());
                 boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
                 String label = component.label().isBlank() ? null : component.label();
                 ComponentDrawing.paintPlaced(graphics, component, local -> keyboardPainter.paintWithCapture(local,
                         type, component.parameters(), keyboardState, scheme, label, capturing));
+            } else if (painters.painterFor(type.id()) instanceof UartPainter uartPainter) {
+                paintUart(graphics, state, scheme, component, type, uartPainter, animation);
             } else {
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);
@@ -361,6 +426,113 @@ public final class CircuitRenderer {
                 MarchingAnts.draw(graphics, outline(type, component), scheme.selection(), SELECTION_OUTLINE_WIDTH,
                         state.selectionDashPhase());
             }
+        }
+    }
+
+    private TerminalAnimation terminalAnimation(PaintPolicy policy) {
+        if (!policy.animateParts()) {
+            return TerminalAnimation.EXPORT;
+        }
+        return motionGate.getAsBoolean() ? TerminalAnimation.LIVE : TerminalAnimation.STILL;
+    }
+
+    private void forgetTerminalsOutside(CircuitDocument document) {
+        if (!terminalMotions.isEmpty()) {
+            terminalMotions.keySet().removeIf(id -> document.component(id).isEmpty());
+        }
+        if (!terminalScreens.isEmpty()) {
+            terminalScreens.keySet().removeIf(id -> document.component(id).isEmpty());
+        }
+    }
+
+    /**
+     * The picture this view keeps of {@code component}'s screen; past {@link #MAXIMUM_TERMINAL_SCREENS} the others
+     * are forgotten.
+     */
+    private TerminalScreenRaster terminalScreen(ElementId component) {
+        TerminalScreenRaster raster = terminalScreens.get(component);
+        if (raster == null) {
+            if (terminalScreens.size() >= MAXIMUM_TERMINAL_SCREENS) {
+                terminalScreens.clear();
+            }
+            raster = new TerminalScreenRaster();
+            terminalScreens.put(component, raster);
+        }
+        return raster;
+    }
+
+    /**
+     * A Terminal at this view's moment of its animation, with its label in the title bar; remembers what of it moves
+     * so the canvas's clock repaints just that.
+     */
+    private void paintTerminal(Graphics2D graphics, RenderState state, ColorScheme scheme, Component component,
+                               ComponentType type, TerminalPainter painter, TerminalAnimation animation) {
+        VisibleState terminalState = state.snapshot().componentState(component.id().value());
+        TerminalLook look = TerminalLook.of(type.resolveParameters(component.parameters()));
+        TerminalMoment moment = terminalActivity.moment(component.id().value(), terminalState, look, animation);
+        Optional<String> label = component.label().isBlank() ? Optional.empty() : Optional.of(component.label());
+        AffineTransform documentToDevice = graphics.getTransform();
+        ComponentDrawing.paintPlaced(graphics, component, local -> {
+            if (animation == TerminalAnimation.EXPORT) {
+                painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment);
+            } else {
+                painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment,
+                        terminalScreen(component.id()));
+            }
+            rememberMotion(component.id(), painter.movingArea(type, component.parameters(), terminalState, moment),
+                    local, documentToDevice, moment);
+        });
+    }
+
+    /**
+     * A UART 16550 with its label and the capture look, its integrated screen animated like a Terminal's; remembers
+     * what of it moves so the canvas's clock repaints just that. A UART with TX and RX pins has no screen to animate
+     * and keeps no picture.
+     */
+    private void paintUart(Graphics2D graphics, RenderState state, ColorScheme scheme, Component component,
+                           ComponentType type, UartPainter painter, TerminalAnimation animation) {
+        VisibleState uartState = state.snapshot().componentState(component.id().value());
+        TerminalLook look = TerminalLook.of(type.resolveParameters(component.parameters()));
+        TerminalMoment moment = terminalActivity.moment(component.id().value(), uartState, look, animation);
+        Optional<String> label = component.label().isBlank() ? Optional.empty() : Optional.of(component.label());
+        boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
+        UartPainter.Look partLook = new UartPainter.Look(label, capturing);
+        boolean animated = animation != TerminalAnimation.EXPORT
+                && VisibleState.terminalScreen(uartState).isPresent();
+        AffineTransform documentToDevice = graphics.getTransform();
+        ComponentDrawing.paintPlaced(graphics, component, local -> {
+            if (animated) {
+                painter.paintLive(local, type, component.parameters(), uartState, scheme, partLook, moment,
+                        terminalScreen(component.id()));
+            } else {
+                painter.paintWithCapture(local, type, component.parameters(), uartState, scheme, label, capturing);
+                terminalScreens.remove(component.id());
+            }
+            rememberMotion(component.id(), painter.movingArea(type, component.parameters(), uartState, moment),
+                    local, documentToDevice, moment);
+        });
+    }
+
+    /** Remembers {@code component}'s {@code moving} area, drawn with {@code local}, or that nothing of it moves. */
+    private void rememberMotion(ElementId component, Optional<Rectangle2D> moving, Graphics2D local,
+                                AffineTransform documentToDevice, TerminalMoment moment) {
+        if (moving.isPresent()) {
+            terminalMotions.put(component, new TerminalMotion(documentArea(moving.get(), local.getTransform(),
+                    documentToDevice), moment.nextChangeNanos()));
+        } else {
+            terminalMotions.remove(component);
+        }
+    }
+
+    /** {@code localArea} of a part drawn with {@code localToDevice}, in document pixels. */
+    private static Rectangle2D documentArea(Rectangle2D localArea, AffineTransform localToDevice,
+                                            AffineTransform documentToDevice) {
+        try {
+            AffineTransform localToDocument = documentToDevice.createInverse();
+            localToDocument.concatenate(localToDevice);
+            return localToDocument.createTransformedShape(localArea).getBounds2D();
+        } catch (NoninvertibleTransformException exception) {
+            throw new IllegalStateException("a paint with a degenerate transform", exception);
         }
     }
 

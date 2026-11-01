@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
@@ -29,21 +30,13 @@ class ConfigureDialogTest {
     }
 
     @Test
-    void theDescriptionUnderTheFormFollowsAnAppliedNegateOutput() {
-        ParameterForm form = new ParameterForm(registry.require(StandardComponentTypes.AND), Map.of());
-        DescriptionBox box = ConfigureDialog.descriptionBox(registry.require(StandardComponentTypes.AND), form);
-        assertThat(box.text()).startsWith("AND");
+    void theDialogShowsTheFormWithoutTheDescription() {
+        ParameterForm form = new ParameterForm(registry.require(StandardComponentTypes.CLOCK), Map.of());
 
-        ((JCheckBox) form.editor(StandardComponentTypes.NEGATE)).doClick();
+        JPanel content = ConfigureDialog.content(form, ConfigureDialog.newErrorLabel());
 
-        assertThat(box.text()).startsWith("NAND");
-    }
-
-    @Test
-    void theDescriptionInTheDialogStopsAtItsMaximumHeight() {
-        DescriptionBox box = DescriptionBox.capped("palabra ".repeat(2000));
-
-        assertThat(box.getPreferredSize().height).isLessThanOrEqualTo(box.maximumBodyHeight() + box.headerHeight() + 10);
+        assertThat(content.getComponents()).contains(form)
+                .noneMatch(component -> component instanceof DescriptionBox);
     }
 
     @Test

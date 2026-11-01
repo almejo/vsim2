@@ -11,6 +11,7 @@ import static cl.almejo.vsim.core.terminal.ScreenWriter.vt;
 import static cl.almejo.vsim.core.terminal.ScreenWriter.write;
 import static cl.almejo.vsim.core.terminal.ScreenWriter.writeBytes;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The screen as a whole: cells, history, transcript, byte log, versions, frames and adoption. */
 class TerminalScreenTest {
@@ -80,6 +81,15 @@ class TerminalScreenTest {
     }
 
     @Test
+    void theHistoryRowsAreSharedNotCopiedAndTheListCannotBeChanged() {
+        TerminalScreen screen = write(new TerminalScreen(withScrollback(2, 3)), "l0\nl1\nl2\nl3");
+
+        assertThat(screen.history(10).getFirst()).as("a row never changes after it scrolls off: no copy per frame")
+                .isSameAs(screen.history(10).getFirst());
+        assertThatThrownBy(() -> screen.history(10).clear()).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
     void noScrollbackKeepsNoHistory() {
         TerminalScreen screen = write(logisim(1, 10), "a\nb\nc");
         assertThat(screen.history(10)).isEmpty();
@@ -124,13 +134,6 @@ class TerminalScreenTest {
         cells.get(0)[0] = TerminalCell.BLANK;
         assertThat(frame.cell(0, 0).codePoint()).isEqualTo('a');
         assertThat(screen.frame().cell(0, 0).codePoint()).isEqualTo('a');
-    }
-
-    @Test
-    void theHistoryIsACopy() {
-        TerminalScreen screen = write(new TerminalScreen(withScrollback(1, 5)), "a\nb");
-        screen.history(5).get(0)[0] = TerminalCell.BLANK;
-        assertThat(rowText(screen.history(5).get(0))).isEqualTo("a");
     }
 
     @Test
@@ -201,5 +204,25 @@ class TerminalScreenTest {
         long elapsedMilliseconds = (System.nanoTime() - start) / 1_000_000;
         assertThat(elapsedMilliseconds).as("a loose guard against a grid copy per byte").isLessThan(10_000);
         assertThat(screen.printedCount()).isGreaterThan(900_000);
+    }
+
+    @Test
+    void scrollingAndClearingTheWholeScreenCountAsJumpsButTypingAndPartialErasesDoNot() {
+        TerminalScreen screen = vt(2, 10);
+        write(screen, "ab\r\ncd\b\u001b[K");
+        assertThat(screen.frame().scrollOrClearCount()).as("typing, a new line on screen, an erased line end")
+                .isZero();
+        write(screen, "\r\n");
+        assertThat(screen.frame().scrollOrClearCount()).as("a scroll").isEqualTo(1);
+        write(screen, "\u000c");
+        assertThat(screen.frame().scrollOrClearCount()).as("form feed").isEqualTo(2);
+        write(screen, "x\u001b[2J");
+        assertThat(screen.frame().scrollOrClearCount()).as("ED 2").isEqualTo(3);
+        screen.clear();
+        assertThat(screen.frame().scrollOrClearCount()).as("CLR").isEqualTo(4);
+        write(screen, "\u001bc");
+        assertThat(screen.frame().scrollOrClearCount()).as("RIS").isEqualTo(5);
+        assertThat(screen.adoptedWith(TerminalSettings.vt(3, 12)).frame().scrollOrClearCount())
+                .as("kept by adoption").isEqualTo(5);
     }
 }

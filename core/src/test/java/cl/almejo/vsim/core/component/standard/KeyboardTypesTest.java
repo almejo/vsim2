@@ -176,6 +176,33 @@ class KeyboardTypesTest {
     }
 
     @Test
+    void anUndefinedOrConflictingClearDoesNotClearAndTheEdgeStillPopsAsInLogisim() {
+        BlockHarness harness = keyboard(Map.of());
+        harness.typeText("abc");
+        harness.settle();
+
+        harness.conflict(CLR).settle();
+        assertThat(harness.output(AV)).as("only CLR = 1 clears").isEqualTo(Value.ONE);
+        clockOnce(harness);
+        assertThat(harness.output(D)).isEqualTo(Value.of(8, 'b'));
+        harness.release(CLR).settle();
+        clockOnce(harness);
+        assertThat(harness.output(D)).isEqualTo(Value.of(8, 'c'));
+    }
+
+    @Test
+    void onlyReadEnableAtZeroHoldsTheQueueAsInLogisim() {
+        BlockHarness harness = keyboard(Map.of());
+        harness.typeText("ab");
+        harness.settle();
+
+        harness.conflict(RE).settle();
+        clockOnce(harness);
+
+        assertThat(harness.output(D)).isEqualTo(Value.of(8, 'b'));
+    }
+
+    @Test
     void aFullQueueRefusesAndReportsZeroAccepted() {
         BlockHarness harness = keyboard(Map.of("capacity", 2));
 
@@ -268,12 +295,39 @@ class KeyboardTypesTest {
         ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
         KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 8))));
         before.acceptBytes(new NoContext(), "hello".getBytes());
-        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 3,
-                "initial-text", "zzz"))));
+        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 3))));
 
         after.adoptStateFrom(before);
 
         assertThat(after.contents()).containsExactly((int) 'h', (int) 'e', (int) 'l');
+    }
+
+    @Test
+    void shrinkingTheQueueNeverKeepsHalfAUtf8Character() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
+        KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 8))));
+        before.acceptBytes(new NoContext(), "ab\u00f1c".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // a, b, then ñ in two bytes, then c: a capacity of 3 would cut ñ in half
+        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(Map.of("capacity", 3))));
+
+        after.adoptStateFrom(before);
+
+        assertThat(after.contents()).containsExactly((int) 'a', (int) 'b');
+    }
+
+    @Test
+    void aNewInitialTextReplacesTheQueue() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.KEYBOARD);
+        KeyboardBehavior before = new KeyboardBehavior(new HashMap<>(type.resolveParameters(
+                Map.of("initial-text", "old"))));
+        before.acceptBytes(new NoContext(), "typed".getBytes());
+        KeyboardBehavior after = new KeyboardBehavior(new HashMap<>(type.resolveParameters(
+                Map.of("initial-text", "new"))));
+
+        after.adoptStateFrom(before);
+        after.initialize(new NoContext());
+
+        assertThat(after.contents()).containsExactly((int) 'n', (int) 'e', (int) 'w');
     }
 
     @Test

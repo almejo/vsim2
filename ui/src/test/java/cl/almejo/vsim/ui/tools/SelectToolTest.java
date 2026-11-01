@@ -186,6 +186,19 @@ class SelectToolTest {
         assertThat(context.selection.ids()).containsExactly(memory.id());
     }
 
+    @Test
+    void doubleClickOnATerminalsScreenOpensItsWindowAndOnItsTitleBarConfiguresIt() {
+        Component terminal = place(context.openDocument(), StandardComponentTypes.TERMINAL, 0, 0, Map.of());
+        doubleClick(4, 5);
+        assertThat(context.terminalEdited).isEqualTo(terminal);
+        assertThat(context.configured).isNull();
+
+        context.terminalEdited = null;
+        doubleClick(4, 1);
+        assertThat(context.terminalEdited).isNull();
+        assertThat(context.configured).isEqualTo(terminal);
+    }
+
     private void doubleClick(double x, double y) {
         tool.mousePressed(context, TestToolContext.at(x, y));
         tool.mouseReleased(context, TestToolContext.at(x, y));

@@ -43,6 +43,11 @@ public interface CanvasHost {
         configure(component);
     }
 
+    /** Opens the window of a Terminal (a double click on its screen); hosts without one open the configure dialog. */
+    default void editTerminal(Component component) {
+        configure(component);
+    }
+
     /**
      * Whether {@code gridPosition} is on the ▾ / ▸ square of the memory {@code component} (a click there folds or
      * unfolds its content window); never in hosts without memories.

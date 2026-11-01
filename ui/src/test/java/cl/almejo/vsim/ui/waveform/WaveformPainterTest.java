@@ -201,4 +201,34 @@ class WaveformPainterTest {
         assertThat(at(image, 50, HIGH)).isEqualTo(TRACE);
         assertThat(at(image, 50, LOW)).isEqualTo(SCREEN);
     }
+
+    @Test
+    void anAsciiBusSegmentDrawsItsCharacterInsteadOfHex() {
+        Trace bus = trace(0, Value.of(8, 0x66));
+        BufferedImage hex = drawFormatted(bus, 8, axis(20), "hex");
+        BufferedImage characters = drawFormatted(bus, 8, axis(20), "ascii");
+        assertThat(WaveformPainter.busText(Value.of(8, 0x66), "ascii")).isEqualTo("'f'");
+        assertThat(WaveformPainter.busText(Value.of(8, 0x66), "hex")).isEqualTo("0x66");
+        assertThat(sameImage(hex, characters)).isFalse();
+    }
+
+    private BufferedImage drawFormatted(Trace trace, long now, TimeAxis axis, String format) {
+        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.ROW_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        WaveformPainter.paint(graphics, new WaveformSnapshot(1, now, Map.of("p1", trace)), List.of("p1"), axis,
+                WIDTH, scheme, Map.of("p1", format));
+        graphics.dispose();
+        return image;
+    }
+
+    private static boolean sameImage(BufferedImage first, BufferedImage second) {
+        for (int y = 0; y < first.getHeight(); y++) {
+            for (int x = 0; x < first.getWidth(); x++) {
+                if (first.getRGB(x, y) != second.getRGB(x, y)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }

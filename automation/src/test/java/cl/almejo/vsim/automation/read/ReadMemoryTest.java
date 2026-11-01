@@ -119,4 +119,16 @@ class ReadMemoryTest {
                 .filter(part -> part.id().equals(rom.id().value())).findFirst().orElseThrow().parameters();
         assertThat(parameters).containsEntry("link", "rom.hex");
     }
+
+    @Test
+    void theAiSeesOnlyTheNameOfATerminalsOutputFileNotTheUsersPath() {
+        Component terminal = fixture.place(StandardComponentTypes.TERMINAL, 0, 40, Rotation.R0,
+                Map.of("save-output", "file", "output-file", "/home/maria/cursos/salida.txt"), "");
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty());
+
+        Map<String, Object> parameters = view.parts().stream()
+                .filter(part -> part.id().equals(terminal.id().value())).findFirst().orElseThrow().parameters();
+        assertThat(parameters).containsEntry("output-file", "salida.txt");
+    }
 }

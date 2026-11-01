@@ -2,11 +2,16 @@ package cl.almejo.vsim.core.terminal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The last bytes a Terminal received, oldest dropped first, for the window's byte monitor, the sounds and «Guardar
  * salida». Readers remember the last sequence number they saw and ask for what came {@link #since(long)}. Simulation
  * thread only.
+ *
+ * <p>Every log has an {@link #epoch()}, a number no other log of the run has: a «Reiniciar» builds a new log (numbering
+ * from 1 again, another epoch) while a rebuilt part {@linkplain #copy() copies} it (same epoch, numbering goes on), so a
+ * reader tells one from the other by the epoch, never by guessing from the numbers.
  */
 public final class ByteLog {
 
@@ -24,10 +29,26 @@ public final class ByteLog {
         }
     }
 
+    private static final AtomicLong NEXT_EPOCH = new AtomicLong(1);
+
+    private final long epoch;
     private final long[] times = new long[CAPACITY];
     private final int[] values = new int[CAPACITY];
     private long lastSequence;
     private int count;
+
+    ByteLog() {
+        this(NEXT_EPOCH.getAndIncrement());
+    }
+
+    private ByteLog(long epoch) {
+        this.epoch = epoch;
+    }
+
+    /** Identifies this log among all of the run: changes when a Terminal restarts, never on a rebuilt part. */
+    public long epoch() {
+        return epoch;
+    }
 
     /** Records a byte; the oldest one leaves when the ring is full. */
     void append(long time, int value) {
@@ -61,7 +82,7 @@ public final class ByteLog {
 
     /** A separate log with the same entries and numbering. */
     ByteLog copy() {
-        ByteLog copy = new ByteLog();
+        ByteLog copy = new ByteLog(epoch);
         System.arraycopy(times, 0, copy.times, 0, CAPACITY);
         System.arraycopy(values, 0, copy.values, 0, CAPACITY);
         copy.lastSequence = lastSequence;

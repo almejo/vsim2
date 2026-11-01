@@ -18,6 +18,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
+import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.component.ElementBounds;
@@ -182,7 +183,8 @@ public final class CircuitReader {
 
     /**
      * Hidden parameters (a memory's contents) are not shown whole: they could be megabytes. The contents become a
-     * count of the words set, and a link only its file name (the AI never sees a user's folders).
+     * count of the words set, and a link or a Terminal's output file only its file name (the AI never sees a user's
+     * folders).
      */
     private static Map<String, Object> withoutHiddenValues(ComponentType type, Map<String, Object> parameters) {
         if (type.parameters().stream().noneMatch(ParameterSpec::hidden)) {
@@ -195,6 +197,9 @@ public final class CircuitReader {
         }
         if (parameters.get(MemoryTypes.LINK) instanceof String link && !link.isEmpty()) {
             shown.put(MemoryTypes.LINK, MemoryLinkPaths.fileName(link));
+        }
+        if (parameters.get(TerminalTypes.OUTPUT_FILE) instanceof String file && !file.isEmpty()) {
+            shown.put(TerminalTypes.OUTPUT_FILE, MemoryLinkPaths.fileName(file));
         }
         return shown;
     }

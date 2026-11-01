@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
@@ -191,5 +192,65 @@ class ProbeActionsTest {
         assertThat(second.addedAny()).isFalse();
         assertThat(second.existingId()).contains(first.addedIds().get(0));
         assertThat(probes()).hasSize(1);
+    }
+
+    @Test
+    void changingAChannelsFormatIsOneUndoStep() {
+        ElementId pinId = place(openDocument, StandardComponentTypes.SWITCH, 0, 0,
+                Map.of(StandardComponentTypes.WIDTH, 8)).id();
+        actions.addComponentPins(pinId);
+        String probeId = probes().get(0).id();
+        assertThat(probes().get(0).format()).isEqualTo("hex");
+
+        actions.setFormat(probeId, "ascii");
+        assertThat(probes().get(0).format()).isEqualTo("ascii");
+        assertThat(probes().get(0).name()).isEmpty();
+        openDocument.history().undo();
+        assertThat(probes().get(0).format()).isEqualTo("hex");
+        openDocument.history().redo();
+        assertThat(probes().get(0).format()).isEqualTo("ascii");
+        actions.setFormat(probeId, "ascii");
+        openDocument.history().undo();
+        assertThat(probes().get(0).format()).isEqualTo("hex");
+    }
+
+    @Test
+    void renamingKeepsTheFormat() {
+        ElementId pinId = place(openDocument, StandardComponentTypes.SWITCH, 0, 0,
+                Map.of(StandardComponentTypes.WIDTH, 8)).id();
+        actions.addComponentPins(pinId);
+        actions.setFormat(probes().get(0).id(), "ascii");
+        actions.rename(probes().get(0).id(), "dato");
+        assertThat(probes().get(0).format()).isEqualTo("ascii");
+    }
+
+    @Test
+    void theDataPinOfATeclado() {
+        ElementId keyboard = place(openDocument, StandardComponentTypes.KEYBOARD, 0, 0, Map.of()).id();
+        actions.addComponentPins(keyboard);
+        assertThat(probes()).extracting(Probe::format).containsOnly("ascii", "hex");
+        Probe data = probes().stream().filter(probe -> probe.format().equals("ascii")).findFirst().orElseThrow();
+        assertThat(((ProbeTarget.PinTarget) data.target()).pinIndex()).isEqualTo(4);
+    }
+
+    @Test
+    void theDataPinOfATerminalIsAsciiUnlessItsWaveformFormatSaysHex() {
+        Component characters = place(openDocument, StandardComponentTypes.TERMINAL, 0, 0, Map.of());
+        assertThat(characters.parameters()).as("a new Terminal's default")
+                .containsEntry(TerminalTypes.WAVEFORM_FORMAT, "chars");
+        ElementId hexOnly = place(openDocument, StandardComponentTypes.TERMINAL, 0, 60,
+                Map.of(TerminalTypes.WAVEFORM_FORMAT, "hex")).id();
+        actions.addComponentPins(characters.id());
+        actions.addComponentPins(hexOnly);
+        assertThat(probes()).extracting(Probe::format).containsOnlyOnce("ascii");
+        Probe data = probes().stream().filter(probe -> probe.format().equals("ascii")).findFirst().orElseThrow();
+        assertThat(((ProbeTarget.PinTarget) data.target()).componentId()).isEqualTo(characters.id());
+        assertThat(((ProbeTarget.PinTarget) data.target()).pinIndex()).as("D").isZero();
+    }
+
+    @Test
+    void aNormalPartsPinsStayHex() {
+        actions.addComponentPins(chain().get(0));
+        assertThat(probes()).extracting(Probe::format).containsOnly("hex");
     }
 }

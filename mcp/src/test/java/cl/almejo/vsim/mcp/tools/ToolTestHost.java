@@ -125,6 +125,29 @@ final class ToolTestHost extends FakeAutomationHost {
         return CompletableFuture.completedFuture(currentMemory);
     }
 
+    /** What the simulation shows in every Terminal, set by the test; empty: the simulation has none. */
+    Optional<cl.almejo.vsim.core.simulation.TerminalReading> terminal = Optional.empty();
+
+    @Override
+    public CompletableFuture<Optional<cl.almejo.vsim.core.simulation.TerminalReading>> currentTerminal(
+            DocumentId document, String component, int historyLines, int byteCount) {
+        return CompletableFuture.completedFuture(terminal);
+    }
+
+    /** How many characters the Teclado's queue still takes, and what was typed (a test sets and reads them). */
+    int typingCapacity = Integer.MAX_VALUE;
+    final List<byte[]> typedCharacters = new ArrayList<>();
+
+    @Override
+    public CompletableFuture<cl.almejo.vsim.automation.simulate.TypingOutcome> typeText(DocumentId document,
+                                                                                         String component,
+                                                                                         List<byte[]> characters) {
+        typedCharacters.addAll(characters);
+        int accepted = Math.min(characters.size(), typingCapacity);
+        return CompletableFuture.completedFuture(new cl.almejo.vsim.automation.simulate.TypingOutcome(accepted,
+                java.util.OptionalInt.of(accepted)));
+    }
+
     @Override
     public CompletableFuture<RegionPicture> pictureOf(DocumentId document, Optional<Bounds> region,
                                                       boolean asOnScreen) {

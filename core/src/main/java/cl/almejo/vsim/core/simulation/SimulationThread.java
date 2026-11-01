@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.Set;
@@ -66,10 +67,16 @@ public final class SimulationThread implements AutoCloseable {
     private final Set<CompletableFuture<Optional<MemoryContents>>> waitingContents = ConcurrentHashMap.newKeySet();
     /** The {@link #typeBytes} and {@link #typeCharacters} answers not given yet: completed with 0 on close. */
     private final Set<CompletableFuture<Integer>> waitingTyping = ConcurrentHashMap.newKeySet();
+    /** The {@link #requestTerminalReading} answers not given yet: completed empty on close. */
+    private final Set<CompletableFuture<Optional<TerminalReading>>> waitingReadings = ConcurrentHashMap.newKeySet();
+    /** The {@link #requestTypingQueueSize} answers not given yet: completed empty on close. */
+    private final Set<CompletableFuture<OptionalInt>> waitingQueueSizes = ConcurrentHashMap.newKeySet();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
     /** The last memory map frame for the current request; null without a request or a memory to answer it. */
     private volatile MemoryMapFrame latestMemoryMap;
+    /** The Terminal window frames: one request and one frame per Terminal. */
+    private final TerminalFramePublisher terminalFrames = new TerminalFramePublisher();
     /** The last «Avanzar» or paused interaction (M6.1-B); null until the first one. */
     private volatile StepReport latestStep;
     /** The engine's next event time, refreshed with every published snapshot (M6.1-B). */
@@ -420,6 +427,49 @@ public final class SimulationThread implements AutoCloseable {
         return future;
     }
 
+    /**
+     * What the Terminal simulated as {@code componentId} shows now, for a reader that is not its window (the AI): its
+     * screen, the last {@code historyLines} rows of history and the last {@code byteCount} bytes. Completed on the
+     * simulation thread once the earlier requests ran, empty when there is no such Terminal, and at once with empty
+     * when the thread is closed. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Optional<TerminalReading>> requestTerminalReading(String componentId, int historyLines,
+                                                                              int byteCount) {
+        CompletableFuture<Optional<TerminalReading>> future = new CompletableFuture<>();
+        if (stopRequested) {
+            future.complete(Optional.empty());
+            return future;
+        }
+        waitingReadings.add(future);
+        future.whenComplete((reading, failure) -> waitingReadings.remove(future));
+        requests.add(() -> future.complete(engine.terminal(componentId).map(terminal ->
+                TerminalReading.of(terminal.screen(), historyLines, byteCount, engine.now()))));
+        if (stopRequested) {
+            future.complete(Optional.empty());
+        }
+        return future;
+    }
+
+    /**
+     * How many bytes the typing queue of the part simulated as {@code componentId} (a Teclado) holds now: completed
+     * on the simulation thread once the earlier requests ran, empty when there is no such part or it keeps no queue,
+     * and at once with empty when the thread is closed. Never wait for it on the EDT.
+     */
+    public CompletableFuture<OptionalInt> requestTypingQueueSize(String componentId) {
+        CompletableFuture<OptionalInt> future = new CompletableFuture<>();
+        if (stopRequested) {
+            future.complete(OptionalInt.empty());
+            return future;
+        }
+        waitingQueueSizes.add(future);
+        future.whenComplete((size, failure) -> waitingQueueSizes.remove(future));
+        requests.add(() -> future.complete(engine.typingQueueSize(componentId)));
+        if (stopRequested) {
+            future.complete(OptionalInt.empty());
+        }
+        return future;
+    }
+
     public void resume() {
         requests.add(() -> {
             running = true;
@@ -500,6 +550,58 @@ public final class SimulationThread implements AutoCloseable {
      */
     public Optional<MemoryMapFrame> latestMemoryMap() {
         return Optional.ofNullable(latestMemoryMap);
+    }
+
+    /**
+     * What the window (or another reader) of the Terminal {@link TerminalRequest#componentId()} wants: from now on
+     * {@link #latestTerminalFrame(String)} answers {@code request} whenever that screen changes, at most every 16 ms
+     * while running. It replaces the earlier request of the same Terminal and leaves the others alone. Its
+     * {@link TerminalRequest#bytesSince()} counts for the screen the part has now (a «Reiniciar» later starts the
+     * bytes over from the first).
+     */
+    public void setTerminalRequest(TerminalRequest request) {
+        Objects.requireNonNull(request, "request");
+        requests.add(() -> terminalFrames.set(request, engine));
+    }
+
+    /** Stops the frames of the Terminal {@code componentId}; its latest frame is forgotten. */
+    public void removeTerminalRequest(String componentId) {
+        Objects.requireNonNull(componentId, "componentId");
+        requests.add(() -> terminalFrames.remove(componentId));
+    }
+
+    /**
+     * The latest window frame of the Terminal {@code componentId}: empty without a request for it, or when it is not a
+     * Terminal on the circuit. Its {@link TerminalWindowFrame#request()} may be an earlier request than the last one
+     * set.
+     */
+    public Optional<TerminalWindowFrame> latestTerminalFrame(String componentId) {
+        return terminalFrames.latest(componentId);
+    }
+
+    /**
+     * The reader of the Terminal {@code componentId} has every byte up to {@code sequence} of the screen {@code owner}
+     * ({@link TerminalWindowFrame#owner()}): later frames of that screen leave them out. Not queued (no new snapshot);
+     * safe from any thread. An acknowledgement of another screen (one started over meanwhile) is ignored.
+     */
+    public void acknowledgeTerminalBytes(String componentId, long owner, long sequence) {
+        terminalFrames.acknowledge(componentId, owner, sequence);
+    }
+
+    /**
+     * «Limpiar» on the Terminal simulated as {@code componentId}: its screen and history empty as with CLR (see
+     * {@link SimulationEngine#clearTerminal}). Not an edit of the document and not a step.
+     */
+    public void clearTerminal(String componentId) {
+        requests.add(() -> engine.clearTerminal(componentId));
+    }
+
+    /**
+     * «Releer la ROM de caracteres» on the Terminal simulated as {@code componentId} (see
+     * {@link SimulationEngine#rereadTerminalGlyphs}). Not an edit of the document and not a step.
+     */
+    public void rereadTerminalGlyphs(String componentId) {
+        requests.add(() -> engine.rereadTerminalGlyphs(componentId));
     }
 
     /**
@@ -698,6 +800,12 @@ public final class SimulationThread implements AutoCloseable {
         for (CompletableFuture<Integer> future : Set.copyOf(waitingTyping)) {
             future.complete(0);
         }
+        for (CompletableFuture<Optional<TerminalReading>> future : Set.copyOf(waitingReadings)) {
+            future.complete(Optional.empty());
+        }
+        for (CompletableFuture<OptionalInt> future : Set.copyOf(waitingQueueSizes)) {
+            future.complete(OptionalInt.empty());
+        }
     }
 
     private CompletableFuture<RequestReport> budgeted(long eventBudget, List<InputOutcome> outcomes, Runnable work) {
@@ -805,6 +913,7 @@ public final class SimulationThread implements AutoCloseable {
         // Also after a failure: the channels of a rejected circuit are still bound and shown.
         publishWaveforms(now);
         publishMemoryMap(now);
+        terminalFrames.publish(engine, now, running);
         if (!publicationWaiters.isEmpty()) {
             SimulationSnapshot published = latestSnapshot;
             publicationWaiters.forEach(waiter -> waiter.complete(published));

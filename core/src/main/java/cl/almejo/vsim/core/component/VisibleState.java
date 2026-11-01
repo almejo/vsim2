@@ -1,13 +1,27 @@
 package cl.almejo.vsim.core.component;
 
+import cl.almejo.vsim.core.terminal.GlyphCache;
+import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 public sealed interface VisibleState {
 
     VisibleState NONE = new None();
+
+    /**
+     * The Terminal screen {@code state} shows: a Terminal's own, or the integrated screen of a UART 16550; empty for
+     * every other state (a UART with TX and RX pins too).
+     */
+    static Optional<TerminalState> terminalScreen(VisibleState state) {
+        if (state instanceof TerminalState terminal) {
+            return Optional.of(terminal);
+        }
+        return state instanceof UartState uart ? uart.screen() : Optional.empty();
+    }
 
     record None() implements VisibleState {
     }
@@ -49,6 +63,65 @@ public sealed interface VisibleState {
 
         public KeyboardState {
             queue = List.copyOf(queue);
+        }
+    }
+
+    /**
+     * A Terminal as its painter shows it: an immutable {@code frame} of its screen, the screen's {@code version},
+     * whether it draws with an external character ROM and the {@code glyphs} read from it so far (spec §8.8; empty
+     * with the internal generator). {@code owner} is a number unique to the behaviour that published it, so a screen
+     * started over («Reiniciar», a rebuilt part) never looks like an older one with the same version. Equality and hash
+     * use {@code owner}, {@code version}, {@code externalGlyphs} and the glyphs' generation only, never the cells or
+     * the bitmaps: the canvas compares the states of every part on every frame, and a version is enough to know the
+     * screen changed.
+     */
+    record TerminalState(long owner, long version, TerminalFrame frame, boolean externalGlyphs, GlyphCache glyphs)
+            implements VisibleState {
+
+        public TerminalState {
+            Objects.requireNonNull(frame, "frame");
+            Objects.requireNonNull(glyphs, "glyphs");
+        }
+
+        /** A state without glyphs from a character ROM. */
+        public TerminalState(long owner, long version, TerminalFrame frame, boolean externalGlyphs) {
+            this(owner, version, frame, externalGlyphs, GlyphCache.EMPTY);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof TerminalState state && owner == state.owner && version == state.version
+                    && externalGlyphs == state.externalGlyphs
+                    && glyphs.generation() == state.glyphs.generation();
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(owner, version, externalGlyphs, glyphs.generation());
+        }
+    }
+
+    /**
+     * A UART 16550's eight registers as its painter shows them (spec §12, mockup «uart0»), behind DLAB or not.
+     * {@code receiver} is the byte RBR would give now and {@code transmitter} the last byte written to THR, both -1
+     * when there is none; the others are the register values (0 to 255) a CPU would read, {@code fifoControl} the last
+     * one written to FCR.
+     */
+    record UartRegisters(int receiver, int transmitter, int interruptEnable, int interruptIdentification,
+                         int fifoControl, int lineControl, int modemControl, int lineStatus, int modemStatus,
+                         int scratch, int divisorLow, int divisorHigh) {
+    }
+
+    /**
+     * A UART 16550: its {@code registers}, how many received bytes wait to be read ({@code received}: the FIFO with
+     * pins, the typed bytes with the integrated keyboard) and, with the integrated screen, that screen as a Terminal
+     * shows it (equal by its owner and version, so comparing states never compares cells).
+     */
+    record UartState(UartRegisters registers, int received, Optional<TerminalState> screen) implements VisibleState {
+
+        public UartState {
+            Objects.requireNonNull(registers, "registers");
+            Objects.requireNonNull(screen, "screen");
         }
     }
 

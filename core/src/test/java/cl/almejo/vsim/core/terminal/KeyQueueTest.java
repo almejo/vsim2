@@ -37,6 +37,23 @@ class KeyQueueTest {
     }
 
     @Test
+    void clearingEmptiesTheQueueAndPutsTheCursorBackAtTheStart() {
+        KeyQueue queue = new KeyQueue(8);
+        queue.insert(new byte[]{'a'});
+        queue.insert(new byte[]{'b'});
+        long before = queue.version();
+
+        queue.edit(TypingEdit.CLEAR);
+
+        assertThat(queue.isEmpty()).isTrue();
+        assertThat(queue.cursor()).isZero();
+        assertThat(queue.version()).isGreaterThan(before);
+        long empty = queue.version();
+        queue.edit(TypingEdit.CLEAR);
+        assertThat(queue.version()).as("clearing an empty queue changes nothing").isEqualTo(empty);
+    }
+
+    @Test
     void theVersionGrowsOnlyWhenSomethingChanges() {
         KeyQueue queue = new KeyQueue(4);
         long start = queue.version();

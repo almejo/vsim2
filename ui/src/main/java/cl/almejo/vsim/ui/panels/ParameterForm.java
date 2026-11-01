@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ParameterProblem;
 import cl.almejo.vsim.core.component.ParameterProfiles;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.MultiBitLayout;
+import cl.almejo.vsim.core.component.standard.KeyboardTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.SwitchValues;
 import cl.almejo.vsim.core.tunnel.Tunnels;
@@ -14,6 +15,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.LedPainter;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
+import cl.almejo.vsim.ui.paint.KeyboardPainter;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
@@ -35,6 +37,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -200,8 +203,19 @@ public final class ParameterForm extends JPanel {
         if (parameter.multiline()) {
             editor.setToolTipText(Messages.text("form.multilineTip"));
         }
-        JComponent field = parameter.multiline() ? new JScrollPane(editor) : editor;
+        JComponent field = parameter.multiline() ? multilineBox(editor) : editor;
         cells.put(parameter.name(), isSetByAProfile(parameter) ? withRestoreButton(parameter, field) : field);
+    }
+
+    /**
+     * A scroll pane for a multi-line text. Its height never goes below the rows it shows: when the inspector is
+     * shorter than the form, the form scrolls as a whole, and this box (minimum: one scroll bar) must not collapse to a
+     * sliver, hiding the text being typed.
+     */
+    private static JScrollPane multilineBox(JComponent editor) {
+        JScrollPane box = new JScrollPane(editor);
+        box.setMinimumSize(new Dimension(box.getMinimumSize().width, box.getPreferredSize().height));
+        return box;
     }
 
     private static JLabel groupHeaderFor(String group) {
@@ -743,6 +757,9 @@ public final class ParameterForm extends JPanel {
         if (type.id().equals(StandardComponentTypes.TUNNEL_ENTRANCE) && parameter.name().equals(Tunnels.COLOR)) {
             return TunnelColorSwatches.create((Integer) value, scheme);
         }
+        if (type.id().equals(StandardComponentTypes.KEYBOARD) && parameter.name().equals(KeyboardTypes.CAPTURE_COLOR)) {
+            return captureColorSwatches(parameter, (String) value, scheme);
+        }
         return switch (parameter.kind()) {
             case INTEGER -> {
                 JSpinner spinner = new JSpinner(new SpinnerNumberModel(((Integer) value).intValue(),
@@ -775,13 +792,30 @@ public final class ParameterForm extends JPanel {
         };
     }
 
+    /**
+     * The Teclado's «Color al escribir» (a CHOICE, so the saved value stays its name) as swatches in the colours the
+     * capture look has in {@code scheme}; «automatic», the scheme's selection colour, carries an «A».
+     */
+    private static ColorSwatches<String> captureColorSwatches(ParameterSpec parameter, String value,
+                                                              Supplier<ColorScheme> scheme) {
+        return new ColorSwatches<>(parameter.choices(), value,
+                choice -> Messages.choiceName(parameter.name(), choice),
+                choice -> Optional.of(KeyboardPainter.captureColor(scheme.get(), choice)),
+                choice -> choice.equals(KeyboardTypes.CAPTURE_COLOR_CHOICES.get(0))
+                        ? Optional.of(Messages.text("form.automaticMark")) : Optional.empty());
+    }
+
     /** The Switch's «Valor», a box of a few lines for a multi-line text, a one-line field otherwise. */
     private static JComponent textEditor(ComponentType type, ParameterSpec parameter, String value) {
         if (isSwitchValue(type, parameter.name())) {
             return switchValueBox(value);
         }
         if (parameter.multiline()) {
-            return FragmentRefusingTransferHandler.install(new JTextArea(value, MULTILINE_ROWS, TEXT_COLUMNS));
+            JTextArea area = new JTextArea(value, MULTILINE_ROWS, TEXT_COLUMNS);
+            // wrapped lines: no horizontal scroll bar taking a row of the box, and the lines follow the panel's width
+            area.setLineWrap(true);
+            area.setWrapStyleWord(true);
+            return FragmentRefusingTransferHandler.install(area);
         }
         return FragmentRefusingTransferHandler.install(new JTextField(value, TEXT_COLUMNS));
     }

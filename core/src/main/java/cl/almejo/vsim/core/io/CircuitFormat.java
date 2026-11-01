@@ -210,16 +210,21 @@ public final class CircuitFormat {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     record ProbeEntry(String id, @JsonInclude(JsonInclude.Include.NON_EMPTY) String name, String component,
-                      Integer pin, String wire) {
+                      Integer pin, String wire, @JsonInclude(JsonInclude.Include.NON_NULL) String format) {
     }
 
     static ProbeEntry probeEntry(Probe probe) {
         return switch (probe.target()) {
             case ProbeTarget.PinTarget pin -> new ProbeEntry(probe.id(), probe.name(), pin.componentId().value(),
-                    pin.pinIndex(), null);
+                    pin.pinIndex(), null, formatEntry(probe));
             case ProbeTarget.WireTarget wire -> new ProbeEntry(probe.id(), probe.name(), null, null,
-                    wire.wireId().value());
+                    wire.wireId().value(), formatEntry(probe));
         };
+    }
+
+    /** Only a non-default format is written, so files without bus formats stay as they were. */
+    private static String formatEntry(Probe probe) {
+        return Probe.FORMAT_HEX.equals(probe.format()) ? null : probe.format();
     }
 
     record CircuitFile(String format, String savedWith, int formatVersion, String kind, String name,
@@ -491,7 +496,7 @@ public final class CircuitFormat {
             if (!ids.add(entry.id())) {
                 throw invalid(where + "duplicate id " + entry.id());
             }
-            probes.add(new Probe(entry.id(), probeTarget(entry, where), entry.name()));
+            probes.add(new Probe(entry.id(), probeTarget(entry, where), entry.name(), entry.format()));
         }
         return probes;
     }

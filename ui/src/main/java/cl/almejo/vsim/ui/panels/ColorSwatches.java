@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.Listeners;
+import cl.almejo.vsim.ui.paint.KeyboardPainter;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import javax.accessibility.AccessibleContext;
@@ -24,6 +25,8 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.LayoutManager;
 import java.awt.RenderingHints;
@@ -62,6 +65,7 @@ public final class ColorSwatches<T> extends JPanel {
     /** Room around the swatch for the selection ring: a gap, then the ring itself. */
     private static final int RING_GAP = 2;
     private static final float RING_WIDTH = 2f;
+    private static final float MARK_FONT_SIZE = 10f;
     private static final int RING_MARGIN = RING_GAP + (int) RING_WIDTH;
     private static final int ICON_SIZE = SWATCH_SIZE + 2 * RING_MARGIN;
     /** WCAG's minimum contrast for graphical objects that carry meaning (1.4.11): the ring must reach it. */
@@ -77,6 +81,7 @@ public final class ColorSwatches<T> extends JPanel {
     private static final String NEXT_ACTION = "colorSwatches.next";
 
     private final List<T> values;
+    private final Function<? super T, Optional<String>> markOf;
     private final List<JToggleButton> swatches = new ArrayList<>();
     private final Listeners<Runnable> listeners = new Listeners<>();
     private final ButtonGroup group = new ButtonGroup();
@@ -100,6 +105,21 @@ public final class ColorSwatches<T> extends JPanel {
      */
     public ColorSwatches(List<T> values, T selected, Function<? super T, String> nameOf,
                          Function<? super T, Optional<Color>> fillOf, int perRow) {
+        this(values, selected, nameOf, fillOf, value -> Optional.empty(), perRow);
+    }
+
+    /**
+     * As the four-argument constructor, with a short mark (a letter) written on the swatch of the values {@code markOf}
+     * gives one for: a swatch whose colour is not fixed (an «automatic» one) says so on itself.
+     */
+    public ColorSwatches(List<T> values, T selected, Function<? super T, String> nameOf,
+                         Function<? super T, Optional<Color>> fillOf, Function<? super T, Optional<String>> markOf) {
+        this(values, selected, nameOf, fillOf, markOf, Integer.MAX_VALUE);
+    }
+
+    private ColorSwatches(List<T> values, T selected, Function<? super T, String> nameOf,
+                          Function<? super T, Optional<Color>> fillOf, Function<? super T, Optional<String>> markOf,
+                          int perRow) {
         super(null);
         if (perRow < 1) {
             throw new IllegalArgumentException("perRow must be at least 1, was " + perRow);
@@ -111,6 +131,7 @@ public final class ColorSwatches<T> extends JPanel {
         }
         Objects.requireNonNull(nameOf, "nameOf");
         Objects.requireNonNull(fillOf, "fillOf");
+        this.markOf = Objects.requireNonNull(markOf, "markOf");
         this.selectedValue = selected;
         for (int index = 0; index < this.values.size(); index++) {
             JToggleButton swatch = newSwatch(index, nameOf, fillOf);
@@ -124,7 +145,7 @@ public final class ColorSwatches<T> extends JPanel {
     private JToggleButton newSwatch(int index, Function<? super T, String> nameOf,
                                     Function<? super T, Optional<Color>> fillOf) {
         T value = values.get(index);
-        JToggleButton swatch = new JToggleButton(new SwatchIcon(() -> fillOf.apply(value)));
+        JToggleButton swatch = new JToggleButton(new SwatchIcon(() -> fillOf.apply(value), markOf.apply(value)));
         String name = nameOf.apply(value);
         swatch.setToolTipText(name);
         swatch.getAccessibleContext().setAccessibleName(name);
@@ -387,7 +408,7 @@ public final class ColorSwatches<T> extends JPanel {
      * A filled rounded square in the value's colour, as the theme shows it now (or an outline crossed by a diagonal
      * for «no colour»); when its button is the chosen one, a ring in {@link #selectionRingColor()} circles it.
      */
-    private record SwatchIcon(Supplier<Optional<Color>> fill) implements Icon {
+    private record SwatchIcon(Supplier<Optional<Color>> fill, Optional<String> mark) implements Icon {
 
         @Override
         public void paintIcon(Component owner, Graphics graphics, int x, int y) {
@@ -404,6 +425,7 @@ public final class ColorSwatches<T> extends JPanel {
                 canvas.setColor(outlineColor());
                 canvas.setStroke(new BasicStroke(1f));
                 canvas.draw(square);
+                mark.ifPresent(letter -> paintMark(canvas, square, letter, color));
                 if (color.isEmpty()) {
                     canvas.draw(new Line2D.Double(square.getMaxX() - 2, square.getMinY() + 2,
                             square.getMinX() + 2, square.getMaxY() - 2));
@@ -414,6 +436,17 @@ public final class ColorSwatches<T> extends JPanel {
             } finally {
                 canvas.dispose();
             }
+        }
+
+        /** The mark centred in the swatch, in white or near-black, whichever reads on the fill. */
+        private static void paintMark(Graphics2D canvas, RoundRectangle2D square, String letter,
+                                      Optional<Color> fill) {
+            canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            canvas.setFont(canvas.getFont().deriveFont(Font.BOLD, MARK_FONT_SIZE));
+            canvas.setColor(fill.map(KeyboardPainter::textOn).orElse(outlineColor()));
+            FontMetrics metrics = canvas.getFontMetrics();
+            float baseline = (float) (square.getCenterY() + (metrics.getAscent() - metrics.getDescent()) / 2.0);
+            canvas.drawString(letter, (float) (square.getCenterX() - metrics.stringWidth(letter) / 2.0), baseline);
         }
 
         private static void paintRing(Graphics2D canvas, int x, int y) {

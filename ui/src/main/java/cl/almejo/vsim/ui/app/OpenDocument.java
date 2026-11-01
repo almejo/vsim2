@@ -30,8 +30,12 @@ import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
 import cl.almejo.vsim.core.simulation.MemoryMapFrame;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.core.simulation.PauseNotice;
+import cl.almejo.vsim.core.simulation.TerminalReading;
+import cl.almejo.vsim.core.simulation.TerminalRequest;
+import cl.almejo.vsim.core.simulation.TerminalWindowFrame;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -50,6 +54,7 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -58,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
@@ -501,6 +507,20 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
+     * What the Terminal {@code componentId} shows now, for a reader that is not its window (the AI): completed on the
+     * simulation thread, empty when the engine has no such Terminal. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Optional<TerminalReading>> requestTerminal(ElementId componentId, int historyLines,
+                                                                        int byteCount) {
+        return simulation.requestTerminalReading(componentId.value(), historyLines, byteCount);
+    }
+
+    /** How many bytes the typing queue of {@code componentId} (a Teclado) holds now; empty without such a queue. */
+    public CompletableFuture<OptionalInt> requestTypingQueueSize(ElementId componentId) {
+        return simulation.requestTypingQueueSize(componentId.value());
+    }
+
+    /**
      * Sets switches or input pins of the live simulation (M6.1-C: a truth-table row tried in the circuit): unlike a
      * click on a switch, not a document change and no undo step; the saved values are untouched.
      */
@@ -617,7 +637,23 @@ public final class OpenDocument implements AutoCloseable {
      * before the first and after «Reiniciar». Read it after {@link #latestSnapshot()}: it is written first.
      */
     public Optional<PauseNotice> latestPauseNotice() {
-        return simulation.latestPauseNotice();
+        return simulation.latestPauseNotice().map(this::withPartName);
+    }
+
+    /**
+     * {@code notice} with the name of the part that asked first in its arguments, as the bundle texts of part pauses
+     * expect it ({@code {0}}): core does not know labels. The name is the label of the component placed on the circuit
+     * (the user component that holds a nested part), else its type's name, else the simulated id.
+     */
+    PauseNotice withPartName(PauseNotice notice) {
+        String name = document.component(new ElementId(InstancePath.topLevel(notice.componentId())))
+                .map(component -> component.label().isBlank() ? Messages.componentName(component.typeId(),
+                        component.parameters()) : component.label())
+                .orElse(notice.componentId());
+        List<String> arguments = new ArrayList<>();
+        arguments.add(name);
+        arguments.addAll(notice.arguments());
+        return new PauseNotice(notice.componentId(), notice.messageKey(), arguments, notice.time(), notice.sequence());
     }
 
     /**
@@ -650,6 +686,46 @@ public final class OpenDocument implements AutoCloseable {
     /** The latest memory map frame (at most every 16 ms); safe to read from any thread. */
     public Optional<MemoryMapFrame> latestMemoryMap() {
         return simulation.latestMemoryMap();
+    }
+
+    /**
+     * What a reader of the Terminal {@link TerminalRequest#componentId()} (its window, its saved output) wants
+     * (spec §9): {@link #latestTerminalFrame(String)} answers this request whenever that screen changes. One request
+     * per Terminal: the last one set for it wins, the other Terminals keep theirs.
+     */
+    public void setTerminalRequest(TerminalRequest request) {
+        simulation.setTerminalRequest(request);
+    }
+
+    /** Stops the frames of the Terminal {@code componentId}. */
+    public void removeTerminalRequest(String componentId) {
+        simulation.removeTerminalRequest(componentId);
+    }
+
+    /** The latest frame of the Terminal {@code componentId} (at most every 16 ms); safe from any thread. */
+    public Optional<TerminalWindowFrame> latestTerminalFrame(String componentId) {
+        return simulation.latestTerminalFrame(componentId);
+    }
+
+    /** The reader of {@code componentId} has the bytes up to {@code sequence} of screen {@code owner}. */
+    public void acknowledgeTerminalBytes(String componentId, long owner, long sequence) {
+        simulation.acknowledgeTerminalBytes(componentId, owner, sequence);
+    }
+
+    /**
+     * «Limpiar» on the Terminal {@code componentId}: queues a request clearing its screen and history as CLR does.
+     * Not a document change, no undo step.
+     */
+    public void clearTerminal(ElementId componentId) {
+        simulation.clearTerminal(componentId.value());
+    }
+
+    /**
+     * «Releer la ROM de caracteres» on the Terminal {@code componentId}: queues a request that makes it forget the
+     * glyphs it read and read the codes on its screen again. Not a document change, no undo step.
+     */
+    public void rereadTerminalGlyphs(ElementId componentId) {
+        simulation.rereadTerminalGlyphs(componentId.value());
     }
 
     /**

@@ -48,4 +48,16 @@ class ByteLogTest {
         log.append(2, 'b');
         assertThat(log.since(0)).containsExactly(new Entry(2, 2, 'b'));
     }
+
+    @Test
+    void everyLogHasItsOwnEpochThatAClearAndACopyKeep() {
+        ByteLog log = new ByteLog();
+        log.append(1, 'a');
+
+        assertThat(new ByteLog().epoch()).isNotEqualTo(log.epoch());
+        assertThat(log.copy().epoch()).isEqualTo(log.epoch());
+        long before = log.epoch();
+        log.clear();
+        assertThat(log.epoch()).isEqualTo(before);
+    }
 }

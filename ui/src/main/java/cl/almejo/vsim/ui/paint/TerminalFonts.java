@@ -24,8 +24,10 @@ public final class TerminalFonts {
     private static final float MINIMUM_SIZE = 1f;
     private static final float SIZE_STEP = 0.25f;
     private static final String RESOURCE_FOLDER = "/fonts/";
-    private static final String WIDEST_LETTER = "M";
-    private static final String TALL_SAMPLE = "Mg|";
+    /** The letter whose advance is a cell's width. */
+    static final String WIDEST_LETTER = "M";
+    /** Letters that reach the top and the bottom of a line. */
+    static final String TALL_SAMPLE = "Mg|";
 
     private record FamilyKey(TerminalFontFamily family, boolean bold) {
     }

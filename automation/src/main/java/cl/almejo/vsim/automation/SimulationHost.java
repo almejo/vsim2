@@ -4,7 +4,9 @@ import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
 import cl.almejo.vsim.automation.simulate.TruthTableRequest;
+import cl.almejo.vsim.automation.simulate.TypingOutcome;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -28,5 +30,17 @@ public interface SimulationHost {
     default CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
         return CompletableFuture.failedFuture(new AutomationException(AutomationError.NOT_ALLOWED,
                 "This editor does not make truth tables"));
+    }
+
+    /**
+     * Types {@code characters} (each one's bytes) into the Teclado {@code component} of circuit {@code document}, in
+     * order, on its simulation thread, stopping at the first one its queue does not take; completes with how many it
+     * took and how full the queue is then (no queue size: the simulation has no such Teclado, stopped or not built
+     * yet). Not an edit. Called off the editor thread; completes off it.
+     */
+    default CompletableFuture<TypingOutcome> typeText(DocumentId document, String component,
+                                                      List<byte[]> characters) {
+        return CompletableFuture.failedFuture(new AutomationException(AutomationError.NOT_ALLOWED,
+                "This editor does not simulate"));
     }
 }

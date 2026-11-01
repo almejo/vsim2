@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
@@ -436,5 +438,97 @@ class KeyboardCaptureTest {
         clickTheTypist();
 
         assertThat(openDocument.document().component(new ElementId(capture().captured().orElseThrow()))).isPresent();
+    }
+
+    @Test
+    void altGraphAndControlAltCharactersAreTyped() {
+        clickTheTypist();
+        // AltGr+Q on a Latin American layout gives @; on Windows AltGr arrives as Ctrl+Alt
+        press(view.canvas(), KeyEvent.VK_Q, InputEvent.ALT_GRAPH_DOWN_MASK, '@');
+        type(view.canvas(), '@', InputEvent.ALT_GRAPH_DOWN_MASK);
+        press(view.canvas(), KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK, '@');
+        type(view.canvas(), '@', InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK);
+        // AltGr+Shift+7 on a Spanish layout gives a backslash in some systems
+        press(view.canvas(), KeyEvent.VK_7, InputEvent.ALT_GRAPH_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK, '\\');
+        type(view.canvas(), '\\', InputEvent.ALT_GRAPH_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK);
+
+        assertThat(receivedAfterTheSimulation()).isEqualTo(bytesOf("@@\\"));
+    }
+
+    /** Keys handled by a {@link CapturedKeys} of {@code platform} on the typist, with {@code bound} as the shortcuts. */
+    private CapturedKeys keysOf(CapturedKeys.Platform platform, KeyStroke bound) {
+        KeyboardCapture standalone = new KeyboardCapture(openDocument.document());
+        standalone.capture(typist.id().value());
+        CapturedKeys.Shortcuts shortcuts = new CapturedKeys.Shortcuts() {
+            @Override
+            public boolean isBound(KeyStroke stroke, java.awt.Component focused) {
+                return stroke.equals(bound);
+            }
+
+            @Override
+            public boolean isPaste(KeyStroke stroke) {
+                return false;
+            }
+        };
+        return new CapturedKeys(standalone, openDocument, shortcuts, notice -> { }, platform);
+    }
+
+    private void typeWith(CapturedKeys keys, int keyCode, int modifiers, char character) {
+        keys.keyPressed(new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, 0, modifiers, keyCode, character));
+        keys.keyTyped(new KeyEvent(view.canvas(), KeyEvent.KEY_TYPED, 0, modifiers, KeyEvent.VK_UNDEFINED, character));
+    }
+
+    @Test
+    void optionCharactersAreTypedOnAMac() {
+        CapturedKeys keys = keysOf(CapturedKeys.Platform.MAC, null);
+
+        typeWith(keys, KeyEvent.VK_2, InputEvent.ALT_DOWN_MASK, '@');
+        typeWith(keys, KeyEvent.VK_7, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK, '\\');
+
+        assertThat(receivedAfterTheSimulation()).isEqualTo(bytesOf("@\\"));
+    }
+
+    @Test
+    void altWithALetterIsStillTheMenusOnAPcAndABoundStrokeIsStillTheApplications() {
+        CapturedKeys pc = keysOf(CapturedKeys.Platform.PC,
+                KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK));
+
+        typeWith(pc, KeyEvent.VK_A, InputEvent.ALT_DOWN_MASK, 'a');
+        typeWith(pc, KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK, '@');
+
+        assertThat(receivedAfterTheSimulation()).isEmpty();
+    }
+
+    /** A pins-mode UART at (50, 10) and an integrated one at (50, 80), clicked just inside their corner. */
+    private Component[] twoUarts() {
+        Component pins = UiTestSupport.place(openDocument, StandardComponentTypes.UART_16550, 50, 10,
+                Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS));
+        Component integrated = UiTestSupport.place(openDocument, StandardComponentTypes.UART_16550, 50, 80,
+                Map.of(UartTypes.SCREEN, UartTypes.SCREEN_INTEGRATED));
+        awaitSimulation(openDocument);
+        return new Component[]{pins, integrated};
+    }
+
+    @Test
+    void anIntegratedUartCapturesAfterAPinsUartWasClicked() {
+        Component[] uarts = twoUarts();
+
+        click(view.canvas(), 51.5, 11.5);
+        assertThat(capture().captured()).as("a UART with TX and RX pins never captures").isEmpty();
+        click(view.canvas(), 51.5, 81.5);
+
+        assertThat(capture().captured()).contains(uarts[1].id().value());
+    }
+
+    @Test
+    void aPinsUartNeverCapturesAfterAnIntegratedUartWasClicked() {
+        Component[] uarts = twoUarts();
+
+        click(view.canvas(), 51.5, 81.5);
+        assertThat(capture().captured()).contains(uarts[1].id().value());
+        capture().release();
+        click(view.canvas(), 51.5, 11.5);
+
+        assertThat(capture().captured()).isEmpty();
     }
 }

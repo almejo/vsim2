@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.TimeDiagramSample;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -15,6 +16,8 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.terminal.TerminalScreen;
+import cl.almejo.vsim.core.terminal.TerminalSettings;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,11 +70,25 @@ class PaintersTest {
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE -> new VisibleState.SevenSegmentsState(Value.of(8, 0x5A));
             case StandardComponentTypes.ALU -> new VisibleState.AluState(1);
             case StandardComponentTypes.KEYBOARD -> new VisibleState.KeyboardState(1, List.of(0x68, 0x69), 2, 2);
+            case StandardComponentTypes.TERMINAL -> terminalSample();
+            case StandardComponentTypes.UART_16550 -> new VisibleState.UartState(new VisibleState.UartRegisters('a',
+                    '?', 0x00, 0xC1, 0x07, 0x03, 0x00, 0x61, 0xB0, 0x00, 0x01, 0x00), 1,
+                    Optional.of((VisibleState.TerminalState) terminalSample()));
             case StandardComponentTypes.RAM, StandardComponentTypes.ROM -> new VisibleState.MemoryState(true,
                     VisibleState.MemoryAccess.READ, 2, 0, List.of(0x11L, 0x22L, 0x33L, 0x44L, 0x55L));
             case StandardComponentTypes.TIME_DIAGRAM -> fullTimeDiagramHistory(StandardComponentTypes.registry().require(typeId));
             default -> VisibleState.NONE;
         };
+    }
+
+    /** A 24 × 80 VT screen with a prompt and some text, the cursor after it. */
+    static VisibleState terminalSample() {
+        TerminalScreen screen = new TerminalScreen(TerminalSettings.vt(TerminalTypes.DEFAULT_ROWS,
+                TerminalTypes.DEFAULT_COLUMNS));
+        for (byte value : "$ echo hola\nhola\n$ ".getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+            screen.write(value & 0xFF, 0);
+        }
+        return new VisibleState.TerminalState(1, screen.version(), screen.frame(), false);
     }
 
     /**

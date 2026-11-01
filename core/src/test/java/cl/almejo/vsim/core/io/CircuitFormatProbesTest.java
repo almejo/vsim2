@@ -49,6 +49,25 @@ class CircuitFormatProbesTest {
     }
 
     @Test
+    void aProbeFormatIsSavedOnlyWhenNotHexAndAFileWithoutItReadsAsHex() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0, Map.of(),
+                ""));
+        Probe characters = new Probe("p1", new ProbeTarget.PinTarget(new ElementId("c1"), 0), "").withFormat("ascii");
+        Probe plain = new Probe("p2", new ProbeTarget.PinTarget(new ElementId("c1"), 0), "");
+        document.setProbes(List.of(characters, plain));
+
+        String json = format.write(document);
+        assertThat(json).containsOnlyOnce("\"format\" : \"ascii\"");
+        assertThat(format.read(json).probes()).containsExactly(characters, plain);
+        assertThat(plain.format()).isEqualTo("hex");
+        assertThat(format.read("""
+                {"formatVersion":2,"kind":"circuit","components":[{"id":"c1","type":"switch","x":0,"y":0}],
+                 "probes":[{"id":"p1","component":"c1","pin":0},{"id":"p2","component":"c1","pin":0,"format":"nonsense"}]}
+                """).probes()).extracting(Probe::format).containsExactly("hex", "hex");
+    }
+
+    @Test
     void aCircuitWithoutProbesWritesNoProbesKeyAndAnOlderFileReadsAsNoProbes() throws CircuitFormatException {
         CircuitDocument document = new CircuitDocument();
         document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0, Map.of(),

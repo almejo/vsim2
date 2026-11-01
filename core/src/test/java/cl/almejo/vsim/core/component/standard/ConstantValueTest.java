@@ -260,4 +260,25 @@ class ConstantValueTest {
         assertThat(ConstantValue.fitsText(null, 8)).isFalse();
         assertThat(ConstantValue.bitsOf(null, 8)).isEmpty();
     }
+
+    @Test
+    void asciiShowsPrintableBytesAsQuotedCharactersControlsByNameAndTheRestAsHex() {
+        assertThat(ConstantValue.display(0x66, 8, "ascii")).isEqualTo("'f'");
+        assertThat(ConstantValue.display(0x41, 8, "ascii")).isEqualTo("'A'");
+        assertThat(ConstantValue.display(0x20, 8, "ascii")).isEqualTo("' '");
+        assertThat(ConstantValue.display(0x7E, 8, "ascii")).isEqualTo("'~'");
+        assertThat(ConstantValue.display(0x0A, 8, "ascii")).isEqualTo("LF");
+        assertThat(ConstantValue.display(0x0D, 8, "ascii")).isEqualTo("CR");
+        assertThat(ConstantValue.display(0x00, 7, "ascii")).isEqualTo("NUL");
+        assertThat(ConstantValue.display(0x07, 8, "ascii")).isEqualTo("BEL");
+        assertThat(ConstantValue.display(0x1B, 8, "ascii")).isEqualTo("ESC");
+        assertThat(ConstantValue.display(0x7F, 8, "ascii")).isEqualTo("DEL");
+        assertThat(ConstantValue.display(0xE9, 8, "ascii")).isEqualTo("0xE9");
+        assertThat(ConstantValue.display(0x141, 12, "ascii")).isEqualTo("0x141");
+    }
+
+    @Test
+    void asciiHasALongestDisplay() {
+        assertThat(ConstantValue.longestDisplay(8, "ascii")).isEqualTo(4);
+    }
 }

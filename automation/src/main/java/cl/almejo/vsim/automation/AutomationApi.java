@@ -8,6 +8,8 @@ import cl.almejo.vsim.automation.read.CatalogView;
 import cl.almejo.vsim.automation.read.CircuitView;
 import cl.almejo.vsim.automation.read.ComponentTypeView;
 import cl.almejo.vsim.automation.read.MemoryView;
+import cl.almejo.vsim.automation.read.TerminalReader;
+import cl.almejo.vsim.automation.read.TerminalView;
 import cl.almejo.vsim.automation.read.ProblemsView;
 import cl.almejo.vsim.automation.read.ReadFilter;
 import cl.almejo.vsim.automation.read.Reads;
@@ -20,6 +22,7 @@ import cl.almejo.vsim.automation.simulate.SimulationOperations;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.StepKind;
 import cl.almejo.vsim.automation.simulate.TruthTableView;
+import cl.almejo.vsim.automation.simulate.TypedText;
 import cl.almejo.vsim.automation.edit.EditRequest;
 import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.OrderedExecutor;
@@ -205,6 +208,23 @@ public final class AutomationApi {
     public MemoryView readMemory(DocumentId document, String component, boolean current, long firstAddress,
                                  int count) {
         return reads.readMemory(document, component, current, firstAddress, count);
+    }
+
+    /**
+     * Terminal {@code component} (id or label) as the running simulation shows it: the screen, the cursor, the mode,
+     * the last {@code historyLines} (0 to 1000) rows of history and the last {@code byteCount} (0 to 256) bytes.
+     */
+    public TerminalView readTerminal(DocumentId document, String component, int historyLines, int byteCount) {
+        return reads.readTerminal(document, component, historyLines, byteCount);
+    }
+
+    /**
+     * Types {@code text} into the Teclado {@code component} (id or label) as a person would: not an edit, nothing is
+     * cleared; a full queue takes only the first characters, and the answer says how many.
+     */
+    public TypedText typeText(DocumentId document, String component, String text) {
+        TerminalReader.Keyboard keyboard = reads.keyboardOf(document, component);
+        return simulation.typeText(document, keyboard.component(), text, keyboard.encoding());
     }
 
     // --- Simulation with budgets and receipts (IA.1 Task 4): see SimulationOperations ---

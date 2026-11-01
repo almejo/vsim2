@@ -39,7 +39,7 @@ public final class LabelFeatures {
         view.addContextMenuContributor(new LabelMenuContributor(actions));
         PropertiesPanel properties = new PropertiesPanel(view.openDocument(), view.selection(),
                 view.selectionMoves(), () -> view.canvas().scheme());
-        view.inspector().addTab(Messages.text("inspector.properties"), properties);
+        view.inspector().addTab(Messages.text("inspector.properties"), PropertiesPanel.inScrollPane(properties));
         // the colour swatches paint with the canvas's scheme: a new scheme in Preferencias repaints them
         return new LabelFeatures(actions, properties, view.services().appearance(), paneBindings);
     }

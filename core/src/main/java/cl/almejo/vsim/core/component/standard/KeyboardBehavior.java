@@ -5,21 +5,23 @@ import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.terminal.KeyEncoding;
 import cl.almejo.vsim.core.terminal.KeyQueue;
+import cl.almejo.vsim.core.terminal.TerminalEncoding;
 import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * «Teclado»: a queue of typed bytes, Logisim's Keyboard timing. D always shows the head of the queue (0 when it is
  * empty) and AV is 1 while the queue is not empty, so the circuit reads the head before the edge. On the clock's edge
  * (rising or falling, «Flanco») with RE not 0 (unconnected counts as 1) the head is popped, and D and AV show the
- * next byte {@value #OUTPUT_DELAY} unit later, after whatever sampled the old one. RE = 0 holds the queue; CLR = 1
+ * next byte {@value #OUTPUT_DELAY} unit later, after whatever sampled the old one. Only RE = 0 holds the queue and only
+ * CLR = 1 clears it (an undefined or conflicting RE reads and CLR does not clear, as in Logisim); CLR = 1
  * empties it at once and wins over the clock. With «Tercer estado» D lets go of its net while RE is 0. Typing and the
  * arrows reach it through {@link #acceptBytes} and {@link #editTyping}. The queue starts with «Texto inicial»,
- * encoded as typing it would be; a rebuilt behaviour ({@link #adoptStateFrom}) keeps the queue instead.
+ * encoded as typing it would be; a rebuilt behaviour ({@link #adoptStateFrom}) keeps the queue instead, unless the
+ * «Texto inicial» itself changed.
  */
 final class KeyboardBehavior implements Behavior {
 
@@ -47,8 +49,10 @@ final class KeyboardBehavior implements Behavior {
 
     @Override
     public void adoptStateFrom(Behavior previous) {
-        if (previous instanceof KeyboardBehavior keyboard) {
-            queue = keyboard.queue.resizedTo(queue.capacity());
+        // A new «Texto inicial» starts the queue over with it, as «Reiniciar» would; any other change keeps the queue.
+        if (previous instanceof KeyboardBehavior keyboard && keyboard.initialText.equals(initialText)) {
+            queue = keyboard.queue.resizedTo(queue.capacity(),
+                    encoding.encoding() == TerminalEncoding.UTF8);
             adopted = true;
         }
     }
@@ -69,10 +73,10 @@ final class KeyboardBehavior implements Behavior {
     @Override
     public void inputChanged(BehaviorContext context, int pinIndex) {
         boolean clockEdge = pinIndex == KeyboardPinout.CLOCK && edge.step(context.input(KeyboardPinout.CLOCK));
-        Optional<Boolean> clear = BlockSignals.control(context.input(KeyboardPinout.CLEAR), false);
-        if (clear.isPresent() && clear.get()) {
+        // as Logisim's Keyboard: only CLR = 1 clears; an undefined or conflicting CLR lets the edge pop
+        if (Value.ONE.equals(context.input(KeyboardPinout.CLEAR))) {
             queue.clear();
-        } else if (clear.isPresent() && clockEdge && readEnabled(context)) {
+        } else if (clockEdge && readEnabled(context)) {
             queue.pop();
         }
         refresh(context);
@@ -107,9 +111,9 @@ final class KeyboardBehavior implements Behavior {
         return published;
     }
 
-    /** RE unconnected counts as on; a conflict on it holds the queue. */
+    /** As Logisim's Keyboard: only RE = 0 holds the queue; unconnected, undefined or in conflict, it reads. */
     private static boolean readEnabled(BehaviorContext context) {
-        return BlockSignals.control(context.input(KeyboardPinout.READ_ENABLE), true).orElse(false);
+        return !Value.ZERO.equals(context.input(KeyboardPinout.READ_ENABLE));
     }
 
     private void refresh(BehaviorContext context) {

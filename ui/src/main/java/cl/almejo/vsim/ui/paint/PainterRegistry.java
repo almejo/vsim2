@@ -47,6 +47,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, display);
         registry.register(StandardComponentTypes.TERMINAL, new TerminalPainter());
         registry.register(StandardComponentTypes.KEYBOARD, new KeyboardPainter());
+        registry.register(StandardComponentTypes.UART_16550, new UartPainter());
         registry.register(StandardComponentTypes.TIME_DIAGRAM, new TimeDiagramPainter());
         BusSplitterPainter bus = new BusSplitterPainter();
         registry.register(StandardComponentTypes.BUS_SPLITTER, bus);
