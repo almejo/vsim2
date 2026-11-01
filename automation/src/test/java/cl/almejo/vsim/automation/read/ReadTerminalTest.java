@@ -199,6 +199,18 @@ class ReadTerminalTest {
     }
 
     @Test
+    void anIntegratedUartsExpectedOutputIsComparedLikeATerminals() {
+        fixture.place(StandardComponentTypes.UART_16550, 0, 40, Rotation.R0,
+                Map.of(TerminalTypes.ROWS, ROWS, TerminalTypes.COLUMNS, COLUMNS, TerminalTypes.EXPECTED,
+                        TerminalTypes.EXPECTED_WRITTEN, TerminalTypes.EXPECTED_TEXT, "hola"), "uart0");
+        write("hol");
+        assertThat(reads.readTerminal(ReadFixture.ID, "uart0", 0, 0).expected()).contains("differs");
+
+        write("a");
+        assertThat(reads.readTerminal(ReadFixture.ID, "uart0", 0, 0).expected()).contains("matches");
+    }
+
+    @Test
     void aUartWithTxAndRxPinsHasNoScreenAndNoKeyboard() {
         Component uart = fixture.place(StandardComponentTypes.UART_16550, 0, 40, Rotation.R0,
                 Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS), "uart0");

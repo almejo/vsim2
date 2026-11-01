@@ -40,6 +40,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - La UART 16550 con pantalla integrada tiene la pestañita «⤡» del Terminal: arrastrarla cambia las columnas y las filas de su pantalla, los cables la siguen y es un solo paso de deshacer. Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - Las celdas escritas de la pantalla integrada de la UART 16550 tienen en el lienzo el globo del Terminal (carácter, código, bytes, instante, fila y columna). Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - La UART 16550 con pantalla integrada suena como el Terminal: «Campana (BEL)» y «Golpeteo de teletipo» en su grupo *Sonido* (solo las del propio circuito). Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
+- La UART 16550 con pantalla integrada tiene la «Salida esperada» del Terminal: la pestaña de su ventana compara lo que llegó con lo esperado, y la IA también lo lee. Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - Con «Guardar salida» activa, el Terminal muestra bajo el archivo si esta sesión realmente graba o no (falta confirmar, «No grabar», otro Terminal en el mismo archivo o sin archivo).
 
 ### Cambiado

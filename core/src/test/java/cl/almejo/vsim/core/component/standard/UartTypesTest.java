@@ -468,4 +468,21 @@ class UartTypesTest {
         assertThat(UART.resolveParameters(Map.of())).containsEntry(TerminalTypes.BELL, "flash")
                 .containsEntry(TerminalTypes.TELETYPE_SOUND, false);
     }
+
+    @Test
+    void theIntegratedScreenHasTheTerminalsExpectedOutputAndThePinsOneHidesItAll() {
+        Map<String, Object> written = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_INTEGRATED, TerminalTypes.EXPECTED,
+                TerminalTypes.EXPECTED_WRITTEN);
+        Map<String, Object> pins = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS, TerminalTypes.EXPECTED,
+                TerminalTypes.EXPECTED_WRITTEN);
+        ParameterSpec expected = UART.parameterNamed(TerminalTypes.EXPECTED).orElseThrow();
+        ParameterSpec expectedText = UART.parameterNamed(TerminalTypes.EXPECTED_TEXT).orElseThrow();
+        assertThat(UART.parameterNamed(TerminalTypes.EXPECTED_FILE)).isPresent();
+        assertThat(UART.resolveParameters(Map.of()))
+                .containsEntry(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_NONE);
+        assertThat(UART.isShown(expected, written)).isTrue();
+        assertThat(UART.isShown(expectedText, written)).isTrue();
+        assertThat(UART.isShown(expected, pins)).isFalse();
+        assertThat(UART.isShown(expectedText, pins)).as("hidden with the row it depends on").isFalse();
+    }
 }

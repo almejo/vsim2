@@ -15,8 +15,8 @@ import java.util.Map;
 /**
  * The «UART 16550» part (spec §12): the standard serial port of a PC and of QEMU's RISC‑V {@code virt} board, with its
  * eight registers on a CPU bus. Its line goes to a screen and a keyboard of its own («Pantalla: integrada», a
- * Terminal and a Teclado inside it, with their properties under the «Pantalla», «Sonido» and «Teclado» groups and the
- * Terminal window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to. See
+ * Terminal and a Teclado inside it, with their properties under the «Pantalla», «Para enseñar», «Sonido» and
+ * «Teclado» groups and the Terminal window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to. See
  * {@link Uart16550Behavior} for the registers and {@link UartPinout} for the pins.
  *
  * <p>The screen's and keyboard's parameters keep the Terminal's and the Teclado's names, so they read, save and show
@@ -51,6 +51,7 @@ public final class UartTypes {
 
     private static final String GROUP_PIECE = "piece";
     private static final String GROUP_SCREEN = "screen";
+    private static final String GROUP_TEACHING = "teaching";
     private static final String GROUP_SOUND = "sound";
     private static final String GROUP_KEYBOARD = "keyboard";
 
@@ -86,6 +87,14 @@ public final class UartTypes {
             look(ParameterSpec.choice(TerminalTypes.CURSOR, "bar", TerminalTypes.CURSOR_CHOICES)),
             look(ParameterSpec.bool(TerminalTypes.BLINK, true)),
             look(ParameterSpec.bool(TerminalTypes.MARK_LAST, true)),
+            teaching(ParameterSpec.choice(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_NONE,
+                    List.of(TerminalTypes.EXPECTED_NONE, TerminalTypes.EXPECTED_WRITTEN,
+                            TerminalTypes.EXPECTED_FROM_FILE)).visibleWhen(SCREEN, SCREEN_INTEGRATED)),
+            // shown only with their «Salida esperada» choice, which shows only with the integrated screen
+            teaching(ParameterSpec.text(TerminalTypes.EXPECTED_TEXT, "").asMultiline()
+                    .visibleWhen(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_WRITTEN)),
+            teaching(ParameterSpec.text(TerminalTypes.EXPECTED_FILE, "")
+                    .visibleWhen(TerminalTypes.EXPECTED, TerminalTypes.EXPECTED_FROM_FILE)),
             sound(ParameterSpec.choice(TerminalTypes.BELL, "flash", TerminalTypes.BELL_CHOICES)),
             sound(ParameterSpec.bool(TerminalTypes.TELETYPE_SOUND, false)),
             keyboard(ParameterSpec.integer(KeyboardTypes.CAPACITY, KeyboardTypes.DEFAULT_CAPACITY, 1,
@@ -128,6 +137,11 @@ public final class UartTypes {
 
     private static ParameterSpec look(ParameterSpec parameter) {
         return screen(parameter.asDisplayOnly());
+    }
+
+    /** «Salida esperada» of the integrated screen, under the Terminal's «Para enseñar» group. */
+    private static ParameterSpec teaching(ParameterSpec parameter) {
+        return parameter.asDisplayOnly().inGroup(GROUP_TEACHING);
     }
 
     /** «Campana (BEL)» and «Golpeteo de teletipo» of the integrated screen, under the Terminal's «Sonido» group. */

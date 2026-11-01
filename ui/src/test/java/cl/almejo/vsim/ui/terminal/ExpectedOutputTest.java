@@ -36,7 +36,7 @@ class ExpectedOutputTest {
     @Test
     void aMissingExpectedOutputSaysWhatToDo() {
         assertThat(ExpectedOutputText.none())
-                .isEqualTo("Este Terminal no tiene salida esperada: elígela en «Salida esperada» de sus propiedades.");
+                .isEqualTo("Esta pieza no tiene salida esperada: elígela en «Salida esperada» de sus propiedades.");
         assertThat(ExpectedOutputText.noFile()).isEqualTo("Falta elegir el archivo .txt con la salida esperada.");
         assertThat(ExpectedOutputText.unreadable("salida.txt")).isEqualTo("No se pudo leer «salida.txt».");
     }
