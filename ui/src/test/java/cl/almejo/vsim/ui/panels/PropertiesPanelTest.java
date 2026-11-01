@@ -416,6 +416,35 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void turningQBarOnOverAQWireShowsTheErrorAndAddsNoStep() {
+        Component flipFlop = place(openDocument, StandardComponentTypes.FLIP_FLOP_DATA, 0, 0,
+                Map.of(StandardComponentTypes.SHOW_INVERTED, false));
+        openDocument.execute(new AddWireCommand(new Wire(openDocument.document().newWireId(), new GridPoint(4, 2),
+                new GridPoint(4, 6))));
+        selection.select(flipFlop.id());
+        Optional<String> undoBefore = openDocument.history().undoDescription();
+
+        ((javax.swing.JCheckBox) panel.parameterForm().editor(StandardComponentTypes.SHOW_INVERTED)).doClick();
+
+        assertThat(panel.error()).contains("Q̅").isNotBlank();
+        assertThat(current(flipFlop).parameters()).containsEntry(StandardComponentTypes.SHOW_INVERTED, false);
+        assertThat(openDocument.history().undoDescription()).isEqualTo(undoBefore);
+    }
+
+    @Test
+    void turningQBarOnOnACleanFlipFlopIsOneUndoStep() {
+        Component flipFlop = place(openDocument, StandardComponentTypes.FLIP_FLOP_DATA, 0, 0,
+                Map.of(StandardComponentTypes.SHOW_INVERTED, false));
+        selection.select(flipFlop.id());
+
+        ((javax.swing.JCheckBox) panel.parameterForm().editor(StandardComponentTypes.SHOW_INVERTED)).doClick();
+
+        assertThat(current(flipFlop).parameters()).containsEntry(StandardComponentTypes.SHOW_INVERTED, true);
+        openDocument.history().undo();
+        assertThat(current(flipFlop).parameters()).containsEntry(StandardComponentTypes.SHOW_INVERTED, false);
+    }
+
+    @Test
     void selectionChangeCommitsThePendingEditToThePreviousElement() {
         Component first = gate(0);
         Component second = gate(10);

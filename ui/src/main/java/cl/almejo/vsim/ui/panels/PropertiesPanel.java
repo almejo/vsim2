@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.NewPinTouch;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetNoteStyleCommand;
@@ -670,6 +671,11 @@ public final class PropertiesPanel extends JPanel {
         Map<String, Object> values = type.resolveParameters(form.rawValues());
         Map<String, Object> current = type.resolveParameters(component.get().parameters());
         if (values.equals(current)) {
+            return Optional.empty();
+        }
+        if (NewPinTouch.find(openDocument.document(), openDocument.registry(), component.get(),
+                component.get().withParameters(values)).isPresent()) {
+            error.setText(Messages.text("properties.newPinTouches"));
             return Optional.empty();
         }
         if (!form.commitDescription().equals(ParameterForm.CONFIGURE)) {

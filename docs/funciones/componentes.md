@@ -142,8 +142,10 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - «Flip-flop D»: Q toma D en el flanco. Ahora tiene también **Q̅**, agregado como su último pin, y el parámetro
   «Mostrar Q̅» (encendido en uno nuevo). Los flip-flops D de los circuitos de antes se abren con «Mostrar Q̅»
   apagado, con sus tres pines de siempre: un cable que bajaba derecho desde Q pasaría por el punto de Q̅ y los
-  uniría. Así se abren con sus cables y sondas donde estaban y simulan igual; Q̅ se enciende en Propiedades (revisa
-  antes que ningún cable pase justo abajo de Q).
+  uniría. Así se abren con sus cables y sondas donde estaban y simulan igual; Q̅ se enciende en Propiedades. Si un cable
+  (por ejemplo, uno que baja desde Q) o un pin ya ocupa el punto de Q̅, VSim no lo enciende, para no unir Q y Q̅ sin
+  avisar: Propiedades muestra «El pin Q̅ caería sobre un cable o un pin ya conectado…» y no cambia nada, y la IA recibe
+  un error equivalente en `vsim_edit`. Mueve ese cable y vuelve a intentarlo.
 - «Flip-flop JK»: J = 0 y K = 0 lo deja igual, J = 0 y K = 1 lo pone en 0, J = 1 y K = 0 lo pone en 1, y J = 1 y
   K = 1 lo invierte.
 - «Flip-flop T»: con T = 1 se invierte en cada flanco y con T = 0 queda igual. T está en la misma fila que la D del

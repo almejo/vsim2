@@ -37,6 +37,7 @@ import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
 import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.NewPinTouch;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
@@ -341,7 +342,19 @@ final class EditPlanner {
         requireNotMemoryFiles(type, operation.parameters());
         Map<String, Object> merged = new HashMap<>(component.parameters());
         merged.putAll(operation.parameters());
-        new ChangeParametersCommand(component.id(), type, merged).apply(candidate);
+        ChangeParametersCommand command = new ChangeParametersCommand(component.id(), type, merged);
+        requireNoNewPinTouch(component, type.resolveParameters(merged));
+        command.apply(candidate);
+    }
+
+    /** A pin that appears (Q̅ shown) over a wire or a pin would short silently: the AI is told to move the wire. */
+    private void requireNoNewPinTouch(Component component, Map<String, Object> resolved) {
+        Optional<String> pinName = NewPinTouch.find(candidate, registry, component, component.withParameters(resolved));
+        if (pinName.isPresent()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The new pin " + pinName.get() + " of "
+                    + component.id() + " would land on a wire or a pin and join it silently; move that wire or part "
+                    + "first (nothing was changed)");
+        }
     }
 
     /** A memory's contents and link are the user's (spec §9): the AI writes words with SetMemoryContents only. */
