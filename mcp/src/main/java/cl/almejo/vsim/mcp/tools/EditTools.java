@@ -114,7 +114,7 @@ final class EditTools {
                         .property("parameters", parameters)
                         .property("label", Schema.string("Inputs, outputs and blocks should have one"))
                         .required("typeId", "x", "y").build(),
-                operation("SetParameters", "Changes some parameters of a part; the others keep their value")
+                operation("SetParameters", "Changes some parameters of a part; the others keep their value; wires follow pins that move")
                         .property("target", target("The part"))
                         .property("parameters", parameters)
                         .required("target", "parameters").build(),
