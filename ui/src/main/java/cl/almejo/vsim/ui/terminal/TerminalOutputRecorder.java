@@ -94,6 +94,7 @@ public final class TerminalOutputRecorder {
     /** Files already told as unwritable; touched on the writer's thread only. */
     private final Set<Path> told = ConcurrentHashMap.newKeySet();
     private final DocumentListener documentListener = this::documentChanged;
+    private final List<Runnable> armingListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean disposed;
 
     public TerminalOutputRecorder(OpenDocument document, TerminalFeeds feeds, Services services,
@@ -120,6 +121,12 @@ public final class TerminalOutputRecorder {
     /** Whether the output of the Terminal {@code componentId} is being written to its file. */
     public boolean isRecording(String componentId) {
         return recordings.containsKey(componentId);
+    }
+
+    /** Calls {@code listener} whenever a Terminal starts or stops recording; the returned runnable removes it. */
+    public Runnable addArmingListener(Runnable listener) {
+        armingListeners.add(Objects.requireNonNull(listener, "listener"));
+        return () -> armingListeners.remove(listener);
     }
 
     /** Stops every recording (the document closes). */
@@ -182,6 +189,7 @@ public final class TerminalOutputRecorder {
         String name = nameOf(componentId);
         recordings.put(componentId, new Recording(file, feeds.subscribe(componentId, 0,
                 update -> record(componentId, name, file, update))));
+        armingListeners.forEach(Runnable::run);
     }
 
     private void stop(String componentId) {
@@ -189,6 +197,9 @@ public final class TerminalOutputRecorder {
         Recording recording = recordings.remove(componentId);
         recording.subscription().cancel();
         services.claims().release(recording.file(), new Holder(this, componentId));
+        if (!disposed) {
+            armingListeners.forEach(Runnable::run);
+        }
     }
 
     /** A saved circuit's file: the user is asked once (later, out of the document change) whether to record there. */
