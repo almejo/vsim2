@@ -15,8 +15,8 @@ import java.util.Map;
 /**
  * The «UART 16550» part (spec §12): the standard serial port of a PC and of QEMU's RISC‑V {@code virt} board, with its
  * eight registers on a CPU bus. Its line goes to a screen and a keyboard of its own («Pantalla: integrada», a
- * Terminal and a Teclado inside it, with their properties under the «Pantalla» and «Teclado» groups and the Terminal
- * window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to. See
+ * Terminal and a Teclado inside it, with their properties under the «Pantalla», «Sonido» and «Teclado» groups and the
+ * Terminal window) or to pins («Pines TX y RX») that a Terminal and a Teclado of the circuit can be wired to. See
  * {@link Uart16550Behavior} for the registers and {@link UartPinout} for the pins.
  *
  * <p>The screen's and keyboard's parameters keep the Terminal's and the Teclado's names, so they read, save and show
@@ -51,6 +51,7 @@ public final class UartTypes {
 
     private static final String GROUP_PIECE = "piece";
     private static final String GROUP_SCREEN = "screen";
+    private static final String GROUP_SOUND = "sound";
     private static final String GROUP_KEYBOARD = "keyboard";
 
     private static final List<ParameterSpec> PARAMETERS = List.of(
@@ -85,6 +86,8 @@ public final class UartTypes {
             look(ParameterSpec.choice(TerminalTypes.CURSOR, "bar", TerminalTypes.CURSOR_CHOICES)),
             look(ParameterSpec.bool(TerminalTypes.BLINK, true)),
             look(ParameterSpec.bool(TerminalTypes.MARK_LAST, true)),
+            sound(ParameterSpec.choice(TerminalTypes.BELL, "flash", TerminalTypes.BELL_CHOICES)),
+            sound(ParameterSpec.bool(TerminalTypes.TELETYPE_SOUND, false)),
             keyboard(ParameterSpec.integer(KeyboardTypes.CAPACITY, KeyboardTypes.DEFAULT_CAPACITY, 1,
                     KeyboardTypes.MAXIMUM_CAPACITY)),
             keyboard(ParameterSpec.choice(KeyEncoding.ENTER_SENDS, KeyEncoding.LF_VALUE,
@@ -125,6 +128,11 @@ public final class UartTypes {
 
     private static ParameterSpec look(ParameterSpec parameter) {
         return screen(parameter.asDisplayOnly());
+    }
+
+    /** «Campana (BEL)» and «Golpeteo de teletipo» of the integrated screen, under the Terminal's «Sonido» group. */
+    private static ParameterSpec sound(ParameterSpec parameter) {
+        return parameter.asDisplayOnly().inGroup(GROUP_SOUND).visibleWhen(SCREEN, SCREEN_INTEGRATED);
     }
 
     private static ParameterSpec keyboard(ParameterSpec parameter) {

@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
+import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -31,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TerminalSoundControllerTest {
 
     private static final long SIXTY_MILLISECONDS = 60_000_000L;
+    private static final VisibleState.UartRegisters REGISTERS = new VisibleState.UartRegisters(-1, -1, 0, 1, 0, 0,
+            0, 0x60, 0xB0, 0, 0, 0);
 
     private OpenDocument document;
     private ComponentType type;
@@ -141,5 +144,43 @@ class TerminalSoundControllerTest {
         write("hola");
         show(teletype);
         assertThat(played).hasSize(1);
+    }
+
+    // --- a UART 16550's integrated screen sounds like a Terminal
+
+    private Component uart(String screen, String bell, boolean teletype) {
+        ComponentType uartType = document.registry().require(StandardComponentTypes.UART_16550);
+        Component component = uartType.newComponent(document.document().newComponentId(), new GridPoint(0, 0),
+                Rotation.R0, Map.of(UartTypes.SCREEN, screen, TerminalTypes.BELL, bell,
+                        TerminalTypes.TELETYPE_SOUND, teletype), "uart0");
+        document.execute(new AddElementsCommand(List.of(component)));
+        return component;
+    }
+
+    private void showUart(Component component) {
+        nanoClock.addAndGet(SIXTY_MILLISECONDS);
+        controller.poll(new SimulationSnapshot(1, 1, 0, true, Map.of(), Map.of(component.id().value(),
+                new VisibleState.UartState(REGISTERS, 0, Optional.of(new VisibleState.TerminalState(owner,
+                        screen.version(), screen.frame(), false)))), List.of(), Optional.empty()));
+    }
+
+    @Test
+    void theIntegratedUartRingsAndClicksLikeATerminal() {
+        Component uart = uart(UartTypes.SCREEN_INTEGRATED, "both", true);
+        assertThat(controller.hasTerminals()).isTrue();
+        showUart(uart);
+
+        write("a\u0007");
+        showUart(uart);
+
+        assertThat(played).hasSize(2);
+        assertThat(flashes).containsExactly(uart.id().value());
+    }
+
+    @Test
+    void aUartWithPinsHasNothingToHear() {
+        uart(UartTypes.SCREEN_PINS, "sound", false);
+
+        assertThat(controller.hasTerminals()).isFalse();
     }
 }

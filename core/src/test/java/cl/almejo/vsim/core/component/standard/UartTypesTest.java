@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.component.standard;
 import cl.almejo.vsim.core.BlockHarness;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.VisibleState.UartState;
@@ -452,5 +453,19 @@ class UartTypesTest {
         assertThat(read(harness, RBR_THR)).isEqualTo('k');
         assertThat(read(harness, LSR) & DATA_READY).isZero();
         assertThat(read(harness, RBR_THR)).as("a stale RBR, as the real chip").isEqualTo('k');
+    }
+
+    @Test
+    void theIntegratedScreenHasTheTerminalsBellAndTeletypeClatterAndThePinsOneHidesThem() {
+        Map<String, Object> integrated = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_INTEGRATED);
+        Map<String, Object> pins = Map.of(UartTypes.SCREEN, UartTypes.SCREEN_PINS);
+        for (String name : List.of(TerminalTypes.BELL, TerminalTypes.TELETYPE_SOUND)) {
+            ParameterSpec parameter = UART.parameterNamed(name).orElseThrow();
+            assertThat(parameter.displayOnly()).as(name).isTrue();
+            assertThat(UART.isShown(parameter, integrated)).as(name).isTrue();
+            assertThat(UART.isShown(parameter, pins)).as(name).isFalse();
+        }
+        assertThat(UART.resolveParameters(Map.of())).containsEntry(TerminalTypes.BELL, "flash")
+                .containsEntry(TerminalTypes.TELETYPE_SOUND, false);
     }
 }
