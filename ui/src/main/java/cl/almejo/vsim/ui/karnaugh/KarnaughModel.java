@@ -55,6 +55,7 @@ public final class KarnaughModel {
         outputNames.add(DEFAULT_OUTPUT_NAMES.getFirst());
         values.add(new ArrayList<>(Collections.nCopies(rowCount(), LogicValue.ZERO)));
         practice.tableChanged(values);
+        lastContents = contents();
         practice.addListener(this::fire);
     }
 
@@ -468,9 +469,50 @@ public final class KarnaughModel {
                 values.stream().map(List::copyOf).toList());
     }
 
+    /** The table before the change that restarted the practice (null when no restart can be undone). */
+    private Contents beforeRestart;
+    /** The table after each change, so the next one knows what it replaced. */
+    private Contents lastContents;
+
+    /** Whether a change of the table threw away practice progress that {@link #restorePractice()} brings back. */
+    public boolean canRestorePractice() {
+        return practice.canRestore() && beforeRestart != null;
+    }
+
+    /**
+     * Undoes the restart a table change caused (a mis-click on a cell, a count): the table goes back to how it was
+     * and the student's groups, hints and give-ups with it. The title stays as it is now.
+     */
+    public void restorePractice() {
+        if (!canRestorePractice()) {
+            return;
+        }
+        inputNames.clear();
+        inputNames.addAll(beforeRestart.inputNames());
+        outputNames.clear();
+        outputNames.addAll(beforeRestart.outputNames());
+        values.clear();
+        for (List<LogicValue> column : beforeRestart.values()) {
+            values.add(new ArrayList<>(column));
+        }
+        selectedOutput = Math.min(selectedOutput, outputNames.size() - 1);
+        beforeRestart = null;
+        minimization = null;
+        practice.restore(values);
+        lastContents = contents();
+        fire();
+    }
+
     private void changed() {
         minimization = null;
+        boolean couldRestore = practice.canRestore();
         practice.tableChanged(values);
+        if (practice.canRestore() && (!couldRestore || beforeRestart == null)) {
+            beforeRestart = lastContents;
+        } else if (!practice.canRestore()) {
+            beforeRestart = null;
+        }
+        lastContents = contents();
         fire();
     }
 
