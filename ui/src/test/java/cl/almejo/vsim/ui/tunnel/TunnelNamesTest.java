@@ -1,6 +1,6 @@
 package cl.almejo.vsim.ui.tunnel;
 
-import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.ChangeParametersWithWiresCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -88,13 +88,13 @@ class TunnelNamesTest {
     }
 
     @Test
-    void anyOtherPartGetsAPlainParameterChange() {
+    void anyOtherPartGetsAPlainParameterChangeWhoseWiresFollowItsPins() {
         Component constant = place(openDocument, StandardComponentTypes.CONSTANT, 0, 0, Map.of());
         ComponentType type = openDocument.registry().typeOf(constant);
         Map<String, Object> values = new HashMap<>(constant.parameters());
         values.put("value", "1");
 
         assertThat(TunnelNames.parametersCommand(openDocument, constant.id(), type, values))
-                .isInstanceOf(ChangeParametersCommand.class);
+                .isInstanceOf(ChangeParametersWithWiresCommand.class);
     }
 }

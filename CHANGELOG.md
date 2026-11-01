@@ -50,6 +50,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Ayuda ▸ «Acerca de VSim 2…» abre un diálogo fijo con el logo y la versión arriba, una grilla (Autor, Licencia,
   Código, Versiones, Historia) con los dos enlaces, los créditos y una franja con «Copiar información» (versión,
   Java, sistema y apariencia, para los reportes de error) y «Cerrar». En macOS también se abre desde el menú de la aplicación.
+- Cambiar en Propiedades (o en «Configurar…», o desde la IA) un parámetro que mueve pines ahora lleva sus cables, como al arrastrar el borde: el «Ancho» del Teclado, las filas, columnas, tamaño de letra o perfil de un Terminal, las entradas de una compuerta y cualquier otro parámetro que cambie dónde quedan los pines. Cada cable sigue al pin del mismo nombre y todo es un solo paso de deshacer; el cable de un pin que desaparece queda donde estaba. Ver [Cables que siguen al mover](docs/funciones/cables-buses-y-tuneles.md#cables-que-siguen-al-mover).
 
 ### Arreglado
 
