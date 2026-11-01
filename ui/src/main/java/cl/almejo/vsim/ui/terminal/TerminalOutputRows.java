@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JButton;
+import javax.swing.JTextArea;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import java.nio.file.InvalidPathException;
@@ -35,6 +36,7 @@ final class TerminalOutputRows implements PropertiesPanel.ComponentRows {
     /** The names of the field and the button, for tests. */
     static final String FILE_NAME = "terminal.outputFile";
     static final String CHOOSE_NAME = "terminal.outputFile.choose";
+    static final String HINT_NAME = "terminal.outputFile.hint";
     private static final String TEXT_EXTENSION = ".txt";
     private static final Logger LOGGER = LoggerFactory.getLogger(TerminalOutputRows.class);
 
@@ -71,6 +73,32 @@ final class TerminalOutputRows implements PropertiesPanel.ComponentRows {
         line.add(shown, "wmin 0");
         line.add(choose);
         rows.add(Messages.text("parameter.output-file"), line);
+        addHint(component, stored, rows);
+    }
+
+    /**
+     * Under the file: whether this run writes to it. Nothing while «Guardar salida» is off; otherwise armed (writing),
+     * or not (no file named, or the file is not confirmed yet / the user said «No grabar» / another Terminal has it).
+     */
+    private void addHint(Component component, String stored, PropertiesPanel.Rows rows) {
+        Object saving = document.registry().typeOf(component).resolveParameters(component.parameters())
+                .get(TerminalTypes.SAVE_OUTPUT);
+        if (!TerminalTypes.SAVE_OUTPUT_TO_FILE.equals(saving)) {
+            return;
+        }
+        String key = stored.isBlank() ? "terminal.output.hint.noFile"
+                : recorder.isRecording(component.id().value()) ? "terminal.output.hint.armed"
+                : "terminal.output.hint.unarmed";
+        JTextArea hint = new JTextArea(Messages.text(key));
+        hint.setName(HINT_NAME);
+        hint.setEditable(false);
+        hint.setFocusable(false);
+        hint.setLineWrap(true);
+        hint.setWrapStyleWord(true);
+        hint.setOpaque(false);
+        hint.setBorder(null);
+        hint.putClientProperty("FlatLaf.styleClass", "small");
+        rows.addWide(hint);
     }
 
     private void choose(ElementId id) {

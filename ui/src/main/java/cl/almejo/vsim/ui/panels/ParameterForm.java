@@ -208,9 +208,9 @@ public final class ParameterForm extends JPanel {
     }
 
     /**
-     * A scroll pane for a multi-line text. Its height never goes below the rows it shows: the inspector has no scroll
-     * pane of its own, so on a window shorter than the form the grid shrinks the rows down to their minimum and this
-     * box (minimum: one scroll bar) would collapse to a sliver, hiding the text being typed.
+     * A scroll pane for a multi-line text. Its height never goes below the rows it shows: when the inspector is
+     * shorter than the form, the form scrolls as a whole, and this box (minimum: one scroll bar) must not collapse to a
+     * sliver, hiding the text being typed.
      */
     private static JScrollPane multilineBox(JComponent editor) {
         JScrollPane box = new JScrollPane(editor);

@@ -69,6 +69,8 @@ public final class TerminalExtension implements EditorExtension {
         removers.add(terminals.addNoticeListener(view.statusBar()::showNotice));
         removers.add(view.labelFeatures().properties().addComponentRows(new TerminalOutputRows(document,
                 terminals.recorder(), services.windows().saveChooser(), view)));
+        // arming also changes without a document change (the answer to the prompt): the hint shows it
+        removers.add(terminals.recorder().addArmingListener(view.labelFeatures().properties()::refresh));
         removers.add(view.addContextMenuContributor(new TerminalContextMenu(document,
                 component -> windows.open(component.id().value(), ownerOf(view, owner)),
                 services.windows().clipboardText(), view.statusBar()::showNotice)));

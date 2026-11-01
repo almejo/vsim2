@@ -34,6 +34,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Propiedades agrupa los parámetros de las piezas nuevas en grupos, con perfiles de valores, y un texto de varias líneas se escribe en un recuadro de tres líneas (Ctrl+Enter lo aplica).
 - La IA tiene `vsim_read_terminal` (lee la pantalla de un Terminal o de una UART, el historial, los bytes recibidos y si coincide con la salida esperada) y `vsim_type_text` (escribe un texto en un Teclado), ambas sobre la simulación que corre.
 - Ayuda ▸ «Acerca de VSim 2…» nombra las tipografías incluidas (IBM Plex Mono y VT323, licencia SIL OFL 1.1), y el README dice su licencia.
+- La pestaña «Propiedades» se desplaza cuando su formulario es más alto que la ventana (antes el del Teclado quedaba cortado abajo): barra vertical, sin barra horizontal, y la rueda del mouse funciona también sobre los cuadros de texto.
+- Con «Guardar salida» activa, el Terminal muestra bajo el archivo si esta sesión realmente graba o no (falta confirmar, «No grabar», otro Terminal en el mismo archivo o sin archivo).
 
 ### Cambiado
 

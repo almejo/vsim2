@@ -320,4 +320,38 @@ class TerminalExtensionTest {
         assertThat(questions).containsExactly("consola → " + file);
         assertThat(Files.readString(file)).isEqualTo("years of work");
     }
+
+    private String hint() {
+        javax.swing.JTextArea label = named(view.labelFeatures().properties(), javax.swing.JTextArea.class,
+                TerminalOutputRows.HINT_NAME);
+        return label == null ? null : label.getText();
+    }
+
+    @Test
+    void theOutputHintSaysWhetherThisRunIsWritingToTheFile() {
+        install();
+        Component consola = terminal("consola", Map.of());
+        view.selection().select(consola.id());
+        assertThat(hint()).as("not saving: nothing to say").isNull();
+
+        chosenFile = Optional.of(folder.resolve("salida.txt"));
+        named(view.labelFeatures().properties(), JButton.class, TerminalOutputRows.CHOOSE_NAME).doClick();
+
+        assertThat(hint()).isEqualTo(Messages.text("terminal.output.hint.armed"));
+    }
+
+    @Test
+    void theOutputHintSaysItIsNotWritingWhenTheUserSaidNoOrNoFileIsNamed() throws Exception {
+        Path file = folder.resolve("tesis.txt");
+        Component declined = terminal("consola", Map.of(TerminalTypes.SAVE_OUTPUT, TerminalTypes.SAVE_OUTPUT_TO_FILE,
+                TerminalTypes.OUTPUT_FILE, file.toString()));
+        Component nameless = terminal("otra", Map.of(TerminalTypes.SAVE_OUTPUT, TerminalTypes.SAVE_OUTPUT_TO_FILE));
+        install();
+        awaitSimulation(document);
+
+        view.selection().select(declined.id());
+        assertThat(hint()).isEqualTo(Messages.text("terminal.output.hint.unarmed"));
+        view.selection().select(nameless.id());
+        assertThat(hint()).isEqualTo(Messages.text("terminal.output.hint.noFile"));
+    }
 }
