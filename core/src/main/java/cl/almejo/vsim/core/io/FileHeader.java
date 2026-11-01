@@ -56,7 +56,8 @@ final class FileHeader {
         }
         if (version.isIntegralNumber()
                 && version.bigIntegerValue().compareTo(BigInteger.valueOf(CircuitFormat.FORMAT_VERSION)) > 0) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.NEWER_FORMAT, version.asText());
+            JsonNode savedWith = root.path("savedWith");
+            throw CircuitFormatException.newer(version.asText(), savedWith.isTextual() ? savedWith.asText() : null);
         }
         throw new CircuitFormatException(CircuitFormatException.Reason.UNSUPPORTED_VERSION,
                 "formatVersion " + (version.isMissingNode() ? "missing" : version.toString()));

@@ -12,15 +12,41 @@ public class CircuitFormatException extends Exception {
 
     private final Reason reason;
     private final String detail;
+    private final Element element;
+    private final String savedWith;
 
     public CircuitFormatException(Reason reason, String detail) {
         this(reason, detail, null);
     }
 
     public CircuitFormatException(Reason reason, String detail, Throwable cause) {
+        this(reason, detail, cause, null, null);
+    }
+
+    private CircuitFormatException(Reason reason, String detail, Throwable cause, Element element, String savedWith) {
         super(reason + ": " + detail, cause);
         this.reason = reason;
         this.detail = detail;
+        this.element = element;
+        this.savedWith = savedWith;
+    }
+
+    /** A {@code NEWER_FORMAT} failure: {@code formatVersion} is the file's, {@code savedWith} the app version (or null). */
+    static CircuitFormatException newer(String formatVersion, String savedWith) {
+        return new CircuitFormatException(Reason.NEWER_FORMAT, formatVersion, null, null, savedWith);
+    }
+
+    /** The same failure, saying which element of the file it is about. */
+    CircuitFormatException atElement(String kind, String id, String type) {
+        return new CircuitFormatException(reason, detail, getCause(), new Element(kind, id, type), savedWith);
+    }
+
+    /**
+     * The element of the file a failure is about: {@code kind} is the file's key ({@code components}, {@code wires},
+     * {@code labels}, {@code frames}, {@code stickyNotes}), {@code id} the element's, {@code type} its component type
+     * id (null for anything but a component).
+     */
+    public record Element(String kind, String id, String type) {
     }
 
     /** An {@code INVALID_ELEMENT} failure: a well-formed file with an element the format does not allow. */
@@ -38,5 +64,15 @@ public class CircuitFormatException extends Exception {
 
     public String detail() {
         return detail;
+    }
+
+    /** Which element of the file failed; null when not known. */
+    public Element element() {
+        return element;
+    }
+
+    /** The VSim version a {@code NEWER_FORMAT} file says it was saved with; null when it says nothing. */
+    public String savedWith() {
+        return savedWith;
     }
 }
