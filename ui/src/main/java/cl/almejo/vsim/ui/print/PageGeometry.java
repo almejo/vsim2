@@ -33,7 +33,16 @@ public record PageGeometry(Paper paper, PageOrientation orientation, double marg
 
     /** 1 cm margins and overlap, the standard band (when {@code headerFooter}) and marks strip. */
     public static PageGeometry standard(Paper paper, PageOrientation orientation, boolean headerFooter) {
-        return new PageGeometry(paper, orientation, CENTIMETRE_POINTS,
+        return standard(paper, orientation, headerFooter, CENTIMETRE_POINTS);
+    }
+
+    /**
+     * Like {@link #standard(Paper, PageOrientation, boolean)} with {@code marginPoints} instead of 1 cm: a printer
+     * whose hardware margin is wider ({@link PrintSetup#marginPoints()}). The overlap stays 1 cm.
+     */
+    public static PageGeometry standard(Paper paper, PageOrientation orientation, boolean headerFooter,
+                                        double marginPoints) {
+        return new PageGeometry(paper, orientation, marginPoints,
                 headerFooter ? STANDARD_HEADER_BAND_POINTS : 0, STANDARD_MARKS_STRIP_POINTS, CENTIMETRE_POINTS);
     }
 
