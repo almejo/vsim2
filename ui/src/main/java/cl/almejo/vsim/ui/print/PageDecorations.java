@@ -40,6 +40,8 @@ final class PageDecorations {
     static final float LEGEND_TEXT_POINTS = 7;
 
     private static final Color INK = new Color(0x333333);
+    /** The strip where neighbouring sheets overlap, where they are glued: light enough to spare toner. */
+    static final Color OVERLAP_BAND = new Color(0xEBEBEB);
     private static final Color RULE = MonochromeScheme.LIGHT_GREY;
     private static final BasicStroke HAIRLINE = new BasicStroke(0.5f);
     /** A cut mark starts this far from the window, so it never touches the drawing, and is this long. */
@@ -95,6 +97,31 @@ final class PageDecorations {
         this.headerFont = base.deriveFont(HEADER_TEXT_POINTS);
         this.titleFont = base.deriveFont(Font.BOLD, HEADER_TEXT_POINTS);
         this.legendFont = base.deriveFont(LEGEND_TEXT_POINTS);
+    }
+
+    /**
+     * Fills, inside the sheet's window, the strip where it overlaps each neighbouring sheet (left, right, above,
+     * below) in {@link #OVERLAP_BAND}: the strip to glue. Opaque, so a corner shared by two strips is not darker.
+     * Painted before the circuit, so everything the circuit draws stays on top.
+     */
+    void paintOverlapBand(Graphics2D graphics, PageLayout layout, PrintPage page) {
+        Rectangle2D paper = page.paperRectangle();
+        double overlap = layout.overlapPoints();
+        graphics.setColor(OVERLAP_BAND);
+        if (page.column() > 0) {
+            graphics.fill(new Rectangle2D.Double(paper.getMinX(), paper.getMinY(), overlap, paper.getHeight()));
+        }
+        if (page.column() < layout.columns() - 1) {
+            graphics.fill(new Rectangle2D.Double(paper.getMaxX() - overlap, paper.getMinY(), overlap,
+                    paper.getHeight()));
+        }
+        if (page.row() > 0) {
+            graphics.fill(new Rectangle2D.Double(paper.getMinX(), paper.getMinY(), paper.getWidth(), overlap));
+        }
+        if (page.row() < layout.rows() - 1) {
+            graphics.fill(new Rectangle2D.Double(paper.getMinX(), paper.getMaxY() - overlap, paper.getWidth(),
+                    overlap));
+        }
     }
 
     /**

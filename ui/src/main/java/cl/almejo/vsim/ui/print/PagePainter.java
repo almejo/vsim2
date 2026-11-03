@@ -271,6 +271,9 @@ public final class PagePainter {
             sheet.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
             sheet.setColor(Color.WHITE);
             sheet.fill(new Rectangle2D.Double(0, 0, pageSize.widthPoints(), pageSize.heightPoints()));
+            if (layout.tiled() && options.sheetGuides()) {
+                decorations.paintOverlapBand(sheet, layout, page);
+            }
             TextFonts.runWithFont(input.textFont(), () -> paintCircuit(sheet, page));
             paintDecorations(sheet, page, pageCount);
         } finally {
@@ -334,7 +337,7 @@ public final class PagePainter {
             Bounds imageBounds = image.get().gridBounds();
             circuit.translate(paper.getX() + (imageBounds.x() - grid.getX()) * pointsPerGridUnit,
                     paper.getY() + (imageBounds.y() - grid.getY()) * pointsPerGridUnit);
-            sheetShare(grid).paint(circuit, layout.scale(), policy);
+            sheetShare(grid).paint(circuit, layout.scale(), policy, false);
         } finally {
             circuit.dispose();
         }

@@ -238,8 +238,18 @@ public final class CircuitImage {
      * in black and white the background is white whatever the scheme.
      */
     public void paint(Graphics2D graphics, double scale, PaintPolicy policy) {
-        graphics.setColor(policy.monochrome() ? Color.WHITE : scheme.background());
-        graphics.fillRect(0, 0, width(scale), height(scale));
+        paint(graphics, scale, policy, true);
+    }
+
+    /**
+     * Like {@link #paint(Graphics2D, double, PaintPolicy)}; with {@code fillsBackground} false the background is left
+     * as it is (a printed sheet paints what goes under the circuit first, like the strip where sheets overlap).
+     */
+    public void paint(Graphics2D graphics, double scale, PaintPolicy policy, boolean fillsBackground) {
+        if (fillsBackground) {
+            graphics.setColor(policy.monochrome() ? Color.WHITE : scheme.background());
+            graphics.fillRect(0, 0, width(scale), height(scale));
+        }
         graphics.scale(scale, scale);
         graphics.translate(-gridBounds.x() * GridPoint.PIXELS_PER_UNIT, -gridBounds.y() * GridPoint.PIXELS_PER_UNIT);
         new CircuitRenderer(registry, painters, scheme)
