@@ -247,6 +247,8 @@ public final class PdfExportDialog extends JPanel {
     private final JLabel status = new JLabel();
     private final JLabel warning = new JLabel();
     private final JButton split = new JButton(Messages.text("print.split"));
+    /** «Ajustar a una hoja» next to the sheet count: the way back after «Dividir en varias hojas». */
+    private final JButton fit = new JButton(Messages.text("print.scale.fit"));
     private final JLabel hint = new JLabel();
     private final JProgressBar progress = new JProgressBar();
     private final JButton save = new JButton(Messages.text("print.save"));
@@ -388,7 +390,11 @@ public final class PdfExportDialog extends JPanel {
     private void buildPreviewColumn() {
         JPanel right = new JPanel(new MigLayout("wrap 1, insets 0, gap 4", "[grow, fill]", "[grow, fill][][][]"));
         right.add(preview);
-        right.add(status);
+        JPanel statusRow = new JPanel(new MigLayout("insets 0", "[grow, fill][]"));
+        statusRow.add(status);
+        statusRow.add(fit, "hidemode 3");
+        fit.setVisible(false);
+        right.add(statusRow);
         JPanel warningRow = new JPanel(new MigLayout("insets 0", "[grow, fill][]"));
         warningRow.add(warning);
         warningRow.add(split);
@@ -466,6 +472,7 @@ public final class PdfExportDialog extends JPanel {
         percentSpinner.addChangeListener(event -> update());
         TextChanges.onChange(titleField, this::update);
         split.addActionListener(event -> scaleChoice.setSelectedItem(ScaleChoice.HUNDRED));
+        fit.addActionListener(event -> scaleChoice.setSelectedItem(ScaleChoice.FIT));
         refresh.addActionListener(event -> refresh());
         save.addActionListener(event -> save());
         printButton.addActionListener(event -> print());
@@ -513,6 +520,7 @@ public final class PdfExportDialog extends JPanel {
 
         PrintOptions options = options();
         dropPrinterHintWhenAnotherSheetIsShown(options);
+        fit.setVisible(false);
         Optional<PrintArea> area = area(options.scope());
         if (area.isEmpty()) {
             plan = Optional.empty();
@@ -538,6 +546,7 @@ public final class PdfExportDialog extends JPanel {
         String warningText = options.scaleMode() instanceof ScaleMode.FitToOnePage && layout.scale() < 1
                 && smallest < MINIMUM_LEGIBLE_POINTS ? Messages.format("print.warning.smallText", smallest) : "";
         boolean tooMany = layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES;
+        fit.setVisible(layout.pageCountExact() > 1);
         show(statusText, warningText,
                 tooMany ? Messages.format("print.tooManyPages", PdfExport.REFUSE_ABOVE_PAGES) : "");
         enableOutputs(idle && !tooMany);
@@ -571,7 +580,7 @@ public final class PdfExportDialog extends JPanel {
         percentSpinner.setEnabled(idle && scaleChoice.getSelectedItem() == ScaleChoice.OTHER);
         titleField.setEnabled(idle && headerFooter.isSelected());
         List.<JComponent>of(scopeWhole, paperChoice, portrait, landscape, scaleChoice, withValues, blackAndWhite,
-                includeStickyNotes, headerFooter, refresh, split).forEach(control -> control.setEnabled(idle));
+                includeStickyNotes, headerFooter, refresh, split, fit).forEach(control -> control.setEnabled(idle));
     }
 
     /** Shows (or hides) why the values cannot be printed, when «with values» is on. */
@@ -950,6 +959,10 @@ public final class PdfExportDialog extends JPanel {
 
     JButton splitButton() {
         return split;
+    }
+
+    JButton fitButton() {
+        return fit;
     }
 
     JLabel hintLabel() {

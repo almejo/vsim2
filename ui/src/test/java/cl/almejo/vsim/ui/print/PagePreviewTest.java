@@ -9,7 +9,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JComponent;
+import javax.swing.JLabel;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
@@ -56,6 +60,30 @@ class PagePreviewTest {
     private Point2D mapPointOf(int sheet) {
         Rectangle2D grid = layout.page(sheet).gridRectangle();
         return preview.map().toMap(grid.getCenterX(), grid.getCenterY());
+    }
+
+    @Test
+    void theZoomSaysItIsThePreviewsNotThePapers() {
+        JLabel zoomLabel = labelFor(preview, preview.zoomChoice());
+
+        assertThat(zoomLabel.getText()).isEqualTo("Zoom de la vista previa:");
+        assertThat(preview.zoomChoice().getToolTipText()).isEqualTo("Solo cambia lo que ves aquí; el tamaño en el"
+                + " papel lo da la «Escala».");
+    }
+
+    private static JLabel labelFor(Container container, JComponent labelled) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JLabel label && label.getLabelFor() == labelled) {
+                return label;
+            }
+            if (child instanceof Container inner) {
+                JLabel found = labelFor(inner, labelled);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     @Test

@@ -49,6 +49,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En «Exportar a PDF…» e «Imprimir…», con más de una hoja aparece junto a la cuenta de hojas un botón «Ajustar a una hoja», para volver atrás después de «Dividir en varias hojas», y el zoom de la vista previa se llama «Zoom de la vista previa» para no confundirlo con la «Escala» del papel. Ver [Exportar a PDF](docs/funciones/importar-y-exportar.md#exportar-a-pdf).
 - Los textos que nombran la entrada de una compuerta (Problemas, el globo de un pin, los nombres por defecto de las sondas, el aviso de conexiones al cambiar la forma) la cuentan desde 1: «entrada 1», «entrada 2», «entrada 3» (en inglés «input 1»…), en vez de `in0`, `in1`, `in2`. Los nombres internos no cambian: el archivo y la IA siguen usando `in0`.
 - La descripción del Teclado (su ayuda al pasar el mouse y en Propiedades) dice que Mayús+Esc envía el byte ESC.
 - En el Terminal, un `WE` sin conectar vale 1 en todos los modos (antes solo en el modo Logisim: VT100 y Teletipo no escribían hasta cablearlo). Con `WE` conectado todo sigue igual.

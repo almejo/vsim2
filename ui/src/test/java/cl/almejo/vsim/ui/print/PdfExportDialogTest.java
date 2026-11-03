@@ -218,6 +218,23 @@ class PdfExportDialogTest {
     }
 
     @Test
+    void severalSheetsOfferTheWayBackToOneSheet() {
+        place(0, 0);
+        place(200, 0);
+        open();
+        assertThat(dialog.fitButton().isVisible()).as("one sheet already").isFalse();
+        dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.HUNDRED);
+        assertThat(dialog.fitButton().isVisible()).isTrue();
+        assertThat(dialog.fitButton().getText()).isEqualTo("Ajustar a una hoja");
+
+        dialog.fitButton().doClick();
+
+        assertThat(dialog.options().scaleMode()).isEqualTo(new ScaleMode.FitToOnePage());
+        assertThat(dialog.pageLayout().orElseThrow().pageCount()).isEqualTo(1);
+        assertThat(dialog.fitButton().isVisible()).isFalse();
+    }
+
+    @Test
     void tinyTextWarnsAndSplittingSwitchesToOneHundredPercent() {
         place(0, 0);
         place(900, 600);

@@ -85,6 +85,7 @@ final class PagePreview extends JPanel {
         zoomLabel.setLabelFor(zoom);
         controls.add(zoomLabel);
         controls.add(zoom);
+        zoom.setToolTipText(Messages.text("print.zoom.tip"));
         add(controls);
         previous.addActionListener(event -> selectSheet(selected - 1));
         next.addActionListener(event -> selectSheet(selected + 1));
@@ -157,6 +158,10 @@ final class PagePreview extends JPanel {
 
     JButton previousButton() {
         return previous;
+    }
+
+    JComboBox<Zoom> zoomChoice() {
+        return zoom;
     }
 
     JButton nextButton() {
