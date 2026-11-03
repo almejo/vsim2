@@ -17,7 +17,9 @@ import java.util.Objects;
  *
  * <p>Java hands {@link #print} a graphics already in points with the origin at the sheet's top-left corner and, for a
  * landscape {@link PageFormat}, already turned; the painter only composes transforms on it, so nothing is turned
- * twice. A printer may ask for the same page several times (banding): painting is idempotent, and the progress counts
+ * twice. That graphics also carries the printer's resolution, the landscape turn and, on a page painted in raster
+ * bands, a mirror, which the painters would read as a turned part: they get it through {@link SheetGraphics}, which
+ * answers like the PDF's graphics, so the paper shows the PDF's sheet. A printer may ask for the same page several times (banding): painting is idempotent, and the progress counts
  * the highest page asked so far. «Cancelar» is checked each time a page is asked: the job is cancelled and a
  * {@link PrinterAbortException} ends it.
  */
@@ -87,7 +89,8 @@ final class PrintPageable implements Pageable, Printable {
             highestPageAsked = pageIndex;
             progress.pageDone(pageIndex + 1, pages.size());
         }
-        painter.paint((Graphics2D) graphics, pages.get(pageIndex).layoutIndex());
+        Graphics2D sheet = SheetGraphics.over((Graphics2D) graphics);
+        painter.paint(sheet, pages.get(pageIndex).layoutIndex());
         return PAGE_EXISTS;
     }
 }

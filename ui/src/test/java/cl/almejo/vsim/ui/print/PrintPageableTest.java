@@ -36,7 +36,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
-/** The sheets as a printer asks for them: one format per page, banding, cancelling, any device transform. */
+/**
+ * The sheets as a printer asks for them: one format per page, banding, cancelling. That the paper shows the PDF's
+ * sheet under Java's real transforms (turned, mirrored) is {@link PrintedSheetMatchesThePdfTest}'s.
+ */
 class PrintPageableTest {
 
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-02T15:30:00Z"), ZoneOffset.UTC);
@@ -120,18 +123,6 @@ class PrintPageableTest {
         return image;
     }
 
-    /** The same sheet painted straight by the painter under the same device transform. */
-    private static BufferedImage painted(PagePainter painter, PageFormat format, int pageIndex) {
-        BufferedImage image = deviceImage(format);
-        Graphics2D graphics = deviceGraphics(image);
-        try {
-            painter.paint(graphics, painter.pages().get(pageIndex).layoutIndex());
-        } finally {
-            graphics.dispose();
-        }
-        return image;
-    }
-
     private static BufferedImage deviceImage(PageFormat format) {
         return new BufferedImage((int) Math.floor(format.getWidth() * DEVICE_SCALE / 2),
                 (int) Math.floor(format.getHeight() * DEVICE_SCALE / 2), BufferedImage.TYPE_INT_RGB);
@@ -202,20 +193,17 @@ class PrintPageableTest {
     }
 
     @Test
-    void aLandscapeSheetIsTurnedByTheFormatNotByThePainter() throws PrinterException {
+    void aLandscapeSheetIsTurnedByTheFormat() {
         add(StandardComponentTypes.AND, 4, 4);
         PrintSetup landscape = new PrintSetup(Paper.A4, PageOrientation.LANDSCAPE, PageGeometry.CENTIMETRE_POINTS);
-        PagePainter painter = painter(input(), landscape, new ScaleMode.FitToOnePage());
-        PrintPageable pageable = pageable(painter, landscape);
-        PageFormat format = pageable.getPageFormat(0);
+        PageFormat format = pageable(painter(input(), landscape, new ScaleMode.FitToOnePage()), landscape)
+                .getPageFormat(0);
 
         assertThat(format.getOrientation()).isEqualTo(PageFormat.LANDSCAPE);
         assertThat(format.getWidth()).isCloseTo(Paper.A4.heightPoints(), within(1e-9));
         assertThat(format.getHeight()).isCloseTo(Paper.A4.widthPoints(), within(1e-9));
         assertThat(format.getPaper().getWidth()).as("the paper itself stays portrait")
                 .isCloseTo(Paper.A4.widthPoints(), within(1e-9));
-        assertThat(samePixels(printed(pageable, 0), painted(painter, format, 0)))
-                .as("no second rotation: the graphics Java gives is already turned").isTrue();
     }
 
     @Test
@@ -245,20 +233,17 @@ class PrintPageableTest {
     }
 
     @Test
-    void anExtraDeviceTransformChangesNoDecision() throws PrinterException {
+    void aFramesTitleIsPrintedOnPaperToo() throws PrinterException {
         frame(document, 0, 0, 40, 20, "MMMMMMMMMMMMMMMM", FrameTint.BLUE);
         wire(document, 190, 0, 195, 0);
         PagePainter titled = painter(input(), A4_PORTRAIT, new ScaleMode.FitToOnePage());
         document.replace(document.frames().iterator().next().withTitle(""));
         PagePainter untitled = painter(input(), A4_PORTRAIT, new ScaleMode.FitToOnePage());
-        PrintPageable titledPageable = pageable(titled, A4_PORTRAIT);
 
-        BufferedImage withTitle = printed(titledPageable, 0);
+        BufferedImage withTitle = printed(pageable(titled, A4_PORTRAIT), 0);
         BufferedImage withoutTitle = printed(pageable(untitled, A4_PORTRAIT), 0);
 
-        assertThat(samePixels(withTitle, withoutTitle)).as("the frame's title is painted on paper too").isFalse();
-        assertThat(samePixels(withTitle, painted(titled, titledPageable.getPageFormat(0), 0)))
-                .as("the printer gets exactly the PDF's sheet").isTrue();
+        assertThat(samePixels(withTitle, withoutTitle)).isFalse();
     }
 
     @Test
