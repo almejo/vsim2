@@ -73,6 +73,31 @@ public final class SystemPrinterAccess implements PrinterAccess {
     }
 
     @Override
+    public CompletableFuture<Optional<Paper>> defaultPaper() {
+        return CompletableFuture.supplyAsync(() -> {
+            PrintService service = PrintServiceLookup.lookupDefaultPrintService();
+            if (service == null) {
+                PrintService[] services = PrintServiceLookup.lookupPrintServices(null, null);
+                service = services.length == 0 ? null : services[0];
+            }
+            return defaultPaperOf(service);
+        }, lookupThread);
+    }
+
+    /** The paper {@code service} prints on by default, when it says and it is one of {@link Paper}. */
+    static Optional<Paper> defaultPaperOf(PrintService service) {
+        if (service == null) {
+            return Optional.empty();
+        }
+        return paperOfDefault(service.getDefaultAttributeValue(Media.class));
+    }
+
+    /** The paper of a printer's default media attribute: only a named size is one; a tray or null is not. */
+    static Optional<Paper> paperOfDefault(Object defaultMedia) {
+        return defaultMedia instanceof MediaSizeName name ? paperOf(name) : Optional.empty();
+    }
+
+    @Override
     public PrinterChoice choose(Component parent, PrintSetup requested, String jobName) {
         PrinterJob printerJob = PrinterJob.getPrinterJob();
         printerJob.setJobName(jobName);
@@ -82,8 +107,10 @@ public final class SystemPrinterAccess implements PrinterAccess {
             return new PrinterChoice.Declined();
         }
         PrintService service = printerJob.getPrintService();
-        return choiceOf(attributes, requested, media -> printableArea(service, media),
+        PrinterChoice choice = choiceOf(attributes, requested, media -> printableArea(service, media),
                 new SystemJob(printerJob, attributes));
+        return choice instanceof PrinterChoice.Chosen chosen
+                ? new PrinterChoice.Chosen(chosen.effective(), chosen.job(), defaultPaperOf(service)) : choice;
     }
 
     @Override

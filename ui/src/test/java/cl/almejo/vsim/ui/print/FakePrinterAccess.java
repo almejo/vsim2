@@ -5,6 +5,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -26,6 +27,11 @@ final class FakePrinterAccess implements PrinterAccess {
     final List<String> jobNames = new ArrayList<>();
     final List<PrintCall> prints = new ArrayList<>();
     private final Deque<PrinterChoice> answers = new ArrayDeque<>();
+    final List<CompletableFuture<Optional<Paper>>> defaultPaperLookups = new ArrayList<>();
+    /** The paper the printer prints on unless told otherwise; empty when the printer does not say. */
+    private Optional<Paper> printerDefault = Optional.empty();
+    /** Whether {@link #defaultPaper} answers at once. */
+    private boolean defaultPaperAnswersAtOnce = true;
     /** Answer every lookup at once with this, or leave them waiting when null. */
     private Boolean printersInstalled = Boolean.TRUE;
 
@@ -41,6 +47,26 @@ final class FakePrinterAccess implements PrinterAccess {
         return this;
     }
 
+    /** The printer's default paper: what {@link #defaultPaper} answers and every later choice carries. */
+    FakePrinterAccess printerDefault(Paper paper) {
+        this.printerDefault = Optional.ofNullable(paper);
+        return this;
+    }
+
+    /** The default paper stays unanswered until the test completes it ({@link #defaultPaperLookups}). */
+    FakePrinterAccess slowDefaultPaper() {
+        this.defaultPaperAnswersAtOnce = false;
+        return this;
+    }
+
+    @Override
+    public CompletableFuture<Optional<Paper>> defaultPaper() {
+        CompletableFuture<Optional<Paper>> lookup = defaultPaperAnswersAtOnce
+                ? CompletableFuture.completedFuture(printerDefault) : new CompletableFuture<>();
+        defaultPaperLookups.add(lookup);
+        return lookup;
+    }
+
     /** The next printer dialog answers {@code answer}. */
     FakePrinterAccess answer(PrinterChoice answer) {
         answers.add(answer);
@@ -49,7 +75,7 @@ final class FakePrinterAccess implements PrinterAccess {
 
     /** The next printer dialog accepts {@code effective}. */
     FakePrinterAccess accepting(PrintSetup effective) {
-        return answer(new PrinterChoice.Chosen(effective, JOB));
+        return answer(new PrinterChoice.Chosen(effective, JOB, printerDefault));
     }
 
     @Override
@@ -66,7 +92,7 @@ final class FakePrinterAccess implements PrinterAccess {
         jobNames.add(jobName);
         this.requested.add(requested);
         PrinterChoice answer = answers.poll();
-        return answer == null ? new PrinterChoice.Chosen(requested, JOB) : answer;
+        return answer == null ? new PrinterChoice.Chosen(requested, JOB, printerDefault) : answer;
     }
 
     @Override

@@ -30,4 +30,9 @@ public enum Paper {
     public String messageKey() {
         return messageKey;
     }
+
+    /** The bundle key of the paper's short name, e.g. «Carta». */
+    public String shortMessageKey() {
+        return messageKey.replace("print.paper.", "print.paper.short.");
+    }
 }

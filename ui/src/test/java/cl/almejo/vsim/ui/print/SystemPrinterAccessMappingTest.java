@@ -176,4 +176,13 @@ class SystemPrinterAccessMappingTest {
         assertThat(((PrinterChoice.Chosen) nothing).effective()).isEqualTo(letterLandscape);
         assertThat(((PrinterChoice.Chosen) fromATray).effective()).isEqualTo(letterLandscape);
     }
+
+    @Test
+    void aPrintersDefaultMediaIsAPaperOnlyWhenItIsANamedSizeWeKnow() {
+        assertThat(SystemPrinterAccess.paperOfDefault(MediaSizeName.NA_LETTER)).contains(Paper.LETTER);
+        assertThat(SystemPrinterAccess.paperOfDefault(MediaSizeName.NA_LEGAL)).isEmpty();
+        assertThat(SystemPrinterAccess.paperOfDefault(MediaTray.MAIN)).isEmpty();
+        assertThat(SystemPrinterAccess.paperOfDefault(null)).isEmpty();
+        assertThat(SystemPrinterAccess.defaultPaperOf(null)).isEmpty();
+    }
 }

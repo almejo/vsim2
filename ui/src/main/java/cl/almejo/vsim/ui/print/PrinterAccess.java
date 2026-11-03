@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.print;
 
 import java.awt.Component;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -12,6 +13,12 @@ public interface PrinterAccess {
 
     /** Whether any printer is installed; answered off the EDT (the lookup can be slow with CUPS). */
     CompletableFuture<Boolean> hasPrinters();
+
+    /**
+     * The paper the printer that would be used prints on by default (the default printer, else the first one), when
+     * it says and it is one of {@link Paper}; answered off the EDT (the lookup can be slow with CUPS).
+     */
+    CompletableFuture<Optional<Paper>> defaultPaper();
 
     /**
      * Shows the printer's modal dialog pre-filled with {@code requested} and one copy, and says what the user chose.
@@ -40,6 +47,11 @@ public interface PrinterAccess {
             @Override
             public CompletableFuture<Boolean> hasPrinters() {
                 return CompletableFuture.completedFuture(false);
+            }
+
+            @Override
+            public CompletableFuture<Optional<Paper>> defaultPaper() {
+                return CompletableFuture.completedFuture(Optional.empty());
             }
 
             @Override

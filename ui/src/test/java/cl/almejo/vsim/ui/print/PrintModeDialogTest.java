@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -323,5 +324,126 @@ class PrintModeDialogTest {
         assertThat(dialog.exporting()).isFalse();
         assertThat(dialog.printButton().isEnabled()).isTrue();
         assertThat(preferences.printOptions("x").paper()).isEqualTo(Paper.A4);
+    }
+
+    // --- the printer's default paper -----------------------------------------------------------------------------
+
+    private static final PrintSetup LETTER_PORTRAIT = new PrintSetup(Paper.LETTER, PageOrientation.PORTRAIT,
+            CENTIMETRE);
+
+    @Test
+    void aPrinterWithAnotherDefaultPaperSwitchesTheDialogToItAndSaysSo() {
+        printers.printerDefault(Paper.LETTER);
+
+        openToPrint();
+
+        assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.LETTER);
+        assertThat(shownGeometry().paper()).isEqualTo(Paper.LETTER);
+        assertThat(dialog.hintText()).isEqualTo("Papel cambiado a Carta, el de la impresora.");
+        dialog.printButton().doClick();
+        assertThat(printers.requested).containsExactly(LETTER_PORTRAIT);
+        assertThat(printers.prints).hasSize(1);
+    }
+
+    @Test
+    void theHintIsAlsoInEnglish() {
+        assertThat(java.text.MessageFormat.format(
+                Messages.bundle(Locale.ENGLISH).getString("print.printer.defaultPaper"), "Letter"))
+                .isEqualTo("Paper changed to Letter, the printer's.");
+        assertThat(Messages.bundle(Locale.ENGLISH).getString("print.paper.short.letter")).isEqualTo("Letter");
+    }
+
+    @Test
+    void aDefaultPaperLikeTheDialogsChangesNothing() {
+        printers.printerDefault(Paper.A4);
+
+        openToPrint();
+
+        assertThat(dialog.hintText()).isEmpty();
+        assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.A4);
+    }
+
+    @Test
+    void aPrinterThatDoesNotSayItsPaperChangesNothing() {
+        openToPrint();
+
+        assertThat(printers.defaultPaperLookups).hasSize(1);
+        assertThat(dialog.hintText()).isEmpty();
+        assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.A4);
+    }
+
+    @Test
+    void aSlowAnswerAfterTheUserChoseThePaperDoesNotOverrideIt() {
+        printers.slowDefaultPaper();
+        openToPrint();
+        dialog.paperChoice().setSelectedItem(Paper.OFICIO);
+
+        printers.defaultPaperLookups.get(0).complete(Optional.of(Paper.LETTER));
+
+        assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.OFICIO);
+        assertThat(dialog.hintText()).isEmpty();
+    }
+
+    @Test
+    void theUserMaySwitchBackAfterTheSwitchAndTheHintGoes() {
+        printers.printerDefault(Paper.LETTER);
+        openToPrint();
+
+        dialog.paperChoice().setSelectedItem(Paper.A4);
+
+        assertThat(shownGeometry().paper()).isEqualTo(Paper.A4);
+        assertThat(dialog.hintText()).isEmpty();
+    }
+
+    @Test
+    void aPdfDialogNeverAsksForTheDefaultPaper() {
+        printers.printerDefault(Paper.LETTER);
+
+        open(PdfExportDialog.Mode.PDF);
+
+        assertThat(printers.defaultPaperLookups).isEmpty();
+        assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.A4);
+    }
+
+    @Test
+    void aChosenPrinterWhosePaperIsLetterWhileTheRequestWasOnlyOurDefaultPrintsNothingAndSwitches() {
+        openToPrint();
+        printers.answer(new PrinterChoice.Chosen(A4_PORTRAIT, FakePrinterAccess.JOB, Optional.of(Paper.LETTER)));
+
+        dialog.printButton().doClick();
+
+        assertThat(printers.prints).isEmpty();
+        assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.LETTER);
+        assertThat(dialog.hintText()).isEqualTo("Papel cambiado a Carta, el de la impresora.");
+        printers.printerDefault(Paper.LETTER);
+        dialog.printButton().doClick();
+        assertThat(printers.prints).hasSize(1);
+        assertThat(printers.prints.get(0).setup().paper()).isEqualTo(Paper.LETTER);
+    }
+
+    @Test
+    void ifTheUserChosePaperHimselfTheChosenPrintersDefaultOnlyHints() {
+        openToPrint();
+        dialog.paperChoice().setSelectedItem(Paper.LETTER);
+        dialog.paperChoice().setSelectedItem(Paper.A4);
+        printers.answer(new PrinterChoice.Chosen(A4_PORTRAIT, FakePrinterAccess.JOB, Optional.of(Paper.LETTER)));
+
+        dialog.printButton().doClick();
+
+        assertThat(printers.prints).hasSize(1);
+        assertThat(dialog.hintText()).contains("Carta").contains("por defecto");
+    }
+
+    @Test
+    void aPaperPickedInThePrinterDialogIsTrusted() {
+        openToPrint();
+        PrintSetup oficio = new PrintSetup(Paper.OFICIO, PageOrientation.PORTRAIT, CENTIMETRE);
+        printers.answer(new PrinterChoice.Chosen(oficio, FakePrinterAccess.JOB, Optional.of(Paper.LETTER)));
+
+        dialog.printButton().doClick();
+
+        assertThat(printers.prints).isEmpty();
+        assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.OFICIO);
+        assertThat(dialog.hintText()).contains("Oficio");
     }
 }

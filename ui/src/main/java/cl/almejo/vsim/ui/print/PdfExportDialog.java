@@ -223,6 +223,8 @@ public final class PdfExportDialog extends JPanel {
     private String printerHint = "";
     /** The paper and orientation the printer's last answer switched to, while the hint is about them. */
     private Optional<PrintSetup> printerSwitch = Optional.empty();
+    /** Whether the user changed the paper by hand: then the printer's default paper is no longer ours to apply. */
+    private boolean paperTouched;
     /** False once the system said no printer is installed; true until it answers. */
     private boolean printersAvailable = true;
 
@@ -290,6 +292,7 @@ public final class PdfExportDialog extends JPanel {
         update();
         if (mode == Mode.PRINT) {
             lookUpPrinters();
+            lookUpDefaultPaper();
         }
     }
 
@@ -467,7 +470,10 @@ public final class PdfExportDialog extends JPanel {
         List.of(scopeWhole, scopeSelection, scopeFrame, portrait, landscape, withValues, blackAndWhite,
                 includeStickyNotes, headerFooter).forEach(button -> button.addActionListener(event -> update()));
         frameChoice.addActionListener(event -> update());
-        paperChoice.addActionListener(event -> update());
+        paperChoice.addActionListener(event -> {
+            paperTouched |= !updating;
+            update();
+        });
         scaleChoice.addActionListener(event -> update());
         percentSpinner.addChangeListener(event -> update());
         TextChanges.onChange(titleField, this::update);
@@ -717,10 +723,57 @@ public final class PdfExportDialog extends JPanel {
                 printerHint = Messages.format("print.printer.unknownPaper", unknown.name());
                 update();
             }
-            case PrinterChoice.Chosen accepted when accepted.effective().matches(chosen.options(), marginPoints) ->
-                    startPrinting(chosen, accepted);
+            case PrinterChoice.Chosen accepted when keptOurPaperOnAnotherDefault(accepted, requested) ->
+                    adoptPrintersPaper(accepted.printerDefault().orElseThrow());
+            case PrinterChoice.Chosen accepted when accepted.effective().matches(chosen.options(), marginPoints) -> {
+                accepted.printerDefault().filter(printerPaper -> printerPaper != accepted.effective().paper())
+                        .ifPresent(printerPaper -> printerHint = Messages.format("print.printer.defaultDiffers",
+                                Messages.text(printerPaper.shortMessageKey())));
+                startPrinting(chosen, accepted);
+            }
             case PrinterChoice.Chosen accepted -> switchTo(accepted.effective());
         }
+    }
+
+    /**
+     * Java's dialog cannot say whether the user picked the paper it returns or just left the one it was given, so
+     * the paper counts as «kept» when it is what we asked for and the user never chose it here: it was only our
+     * guess, and the chosen printer defaults to another paper.
+     */
+    private boolean keptOurPaperOnAnotherDefault(PrinterChoice.Chosen accepted, PrintSetup requested) {
+        return !paperTouched && accepted.effective().paper() == requested.paper()
+                && accepted.printerDefault().filter(printerPaper -> printerPaper != requested.paper()).isPresent();
+    }
+
+    /** Shows {@code paper}, the printer's, in place of the dialog's, and says so; prints nothing. */
+    private void adoptPrintersPaper(Paper paper) {
+        updating = true;
+        try {
+            paperChoice.setSelectedItem(paper);
+        } finally {
+            updating = false;
+        }
+        PageOrientation orientation = landscape.isSelected() ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT;
+        printerSwitch = Optional.of(new PrintSetup(paper, orientation, marginPoints));
+        printerHint = Messages.format("print.printer.defaultPaper", Messages.text(paper.shortMessageKey()));
+        update();
+    }
+
+    private void lookUpDefaultPaper() {
+        collaborators.printers().defaultPaper().whenComplete((printerPaper, failure) ->
+                collaborators.edt().execute(() -> defaultPaperAnswered(printerPaper, failure)));
+    }
+
+    private void defaultPaperAnswered(Optional<Paper> printerPaper, Throwable failure) {
+        if (failure != null) {
+            LOGGER.warn("Could not look up the printer's paper", failure);
+            return;
+        }
+        if (disposed || exporting || paperTouched || printerPaper == null || printerPaper.isEmpty()
+                || printerPaper.get() == paperChoice.getSelectedItem()) {
+            return;
+        }
+        adoptPrintersPaper(printerPaper.get());
     }
 
     /** The printer prints on another sheet: show that one, say so, print nothing yet. */
