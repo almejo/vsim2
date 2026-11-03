@@ -40,8 +40,12 @@ final class PageDecorations {
     static final float LEGEND_TEXT_POINTS = 7;
 
     private static final Color INK = new Color(0x333333);
-    /** The strip where neighbouring sheets overlap, where they are glued: light enough to spare toner. */
+    /** The glue tab: the strip of the overlap on a sheet's right and bottom edges: light enough to spare toner. */
     static final Color OVERLAP_BAND = new Color(0xEBEBEB);
+    /** «Pegar aquí» on the glue tab: clearly darker than the band, still light. */
+    static final Color GLUE_TEXT = new Color(0x9A9A9A);
+    /** «Pegar aquí» repeats along a long tab about every 9 cm. */
+    private static final double GLUE_TEXT_SPACING_POINTS = 9 * 72 / 2.54;
     private static final Color RULE = MonochromeScheme.LIGHT_GREY;
     private static final BasicStroke HAIRLINE = new BasicStroke(0.5f);
     /** A cut mark starts this far from the window, so it never touches the drawing, and is this long. */
@@ -89,6 +93,7 @@ final class PageDecorations {
     private final Font headerFont;
     private final Font titleFont;
     private final Font legendFont;
+    private final Font glueFont;
 
     /** The decorations in {@code family} (the frozen text font's installed family). */
     PageDecorations(String family) {
@@ -97,59 +102,92 @@ final class PageDecorations {
         this.headerFont = base.deriveFont(HEADER_TEXT_POINTS);
         this.titleFont = base.deriveFont(Font.BOLD, HEADER_TEXT_POINTS);
         this.legendFont = base.deriveFont(LEGEND_TEXT_POINTS);
+        this.glueFont = base.deriveFont(MARK_TEXT_POINTS);
     }
 
     /**
-     * Fills, inside the sheet's window, the strip where it overlaps each neighbouring sheet (left, right, above,
-     * below) in {@link #OVERLAP_BAND}: the strip to glue. Opaque, so a corner shared by two strips is not darker.
-     * Painted before the circuit, so everything the circuit draws stays on top.
+     * The glue tabs of a tiled sheet: inside its window, the strip along the right edge and the one along the bottom
+     * edge, each only when there is a neighbour on that side, filled in {@link #OVERLAP_BAND} and marked with
+     * «Pegar aquí» ({@link #GLUE_TEXT}), repeated along a long tab. The neighbour on the right (below) is cut at the
+     * inner edge of its own left (top) overlap and laid over the tab, so that no grey is left. Opaque, so the corner
+     * where both tabs meet is not darker. Painted before the circuit, so everything the circuit draws stays on top.
      */
-    void paintOverlapBand(Graphics2D graphics, PageLayout layout, PrintPage page) {
+    void paintGlueTabs(Graphics2D graphics, PageLayout layout, PrintPage page) {
         Rectangle2D paper = page.paperRectangle();
         double overlap = layout.overlapPoints();
+        boolean hasRight = page.column() < layout.columns() - 1;
+        boolean hasBelow = page.row() < layout.rows() - 1;
         graphics.setColor(OVERLAP_BAND);
-        if (page.column() > 0) {
-            graphics.fill(new Rectangle2D.Double(paper.getMinX(), paper.getMinY(), overlap, paper.getHeight()));
-        }
-        if (page.column() < layout.columns() - 1) {
+        if (hasRight) {
             graphics.fill(new Rectangle2D.Double(paper.getMaxX() - overlap, paper.getMinY(), overlap,
                     paper.getHeight()));
         }
-        if (page.row() > 0) {
-            graphics.fill(new Rectangle2D.Double(paper.getMinX(), paper.getMinY(), paper.getWidth(), overlap));
-        }
-        if (page.row() < layout.rows() - 1) {
+        if (hasBelow) {
             graphics.fill(new Rectangle2D.Double(paper.getMinX(), paper.getMaxY() - overlap, paper.getWidth(),
                     overlap));
         }
+        String text = Messages.text("print.sheet.glueHere");
+        double textWidth = width(text, glueFont);
+        graphics.setColor(GLUE_TEXT);
+        if (hasRight) {
+            double from = paper.getMinY() + TEXT_GAP_POINTS;
+            double to = paper.getMaxY() - (hasBelow ? overlap : 0) - TEXT_GAP_POINTS;
+            LineMetrics metrics = glueFont.getLineMetrics("Ag", MEASURE);
+            double shift = (metrics.getAscent() - metrics.getDescent()) / 2;
+            double centreX = paper.getMaxX() - overlap / 2;
+            for (double centre : glueCentres(from, to, textWidth)) {
+                AffineTransform turn = AffineTransform.getTranslateInstance(centreX - shift,
+                        centre - textWidth / 2);
+                turn.rotate(Math.PI / 2);
+                graphics.fill(new TextLayout(text, glueFont, MEASURE).getOutline(turn));
+            }
+        }
+        if (hasBelow) {
+            double from = paper.getMinX() + TEXT_GAP_POINTS;
+            double to = paper.getMaxX() - (hasRight ? overlap : 0) - TEXT_GAP_POINTS;
+            double baseline = baselineIn(paper.getMaxY() - overlap, overlap, glueFont);
+            for (double centre : glueCentres(from, to, textWidth)) {
+                drawText(graphics, text, glueFont, centre - textWidth / 2, baseline);
+            }
+        }
+    }
+
+    /** Where to centre the text along {@code from..to}: once per {@link #GLUE_TEXT_SPACING_POINTS}, at least once. */
+    private static List<Double> glueCentres(double from, double to, double textWidth) {
+        double length = to - from;
+        if (length < textWidth) {
+            return List.of();
+        }
+        int count = Math.max(1, (int) Math.round(length / GLUE_TEXT_SPACING_POINTS));
+        List<Double> centres = new java.util.ArrayList<>();
+        for (int index = 0; index < count; index++) {
+            centres.add(from + length * (index + 0.5) / count);
+        }
+        return centres;
     }
 
     /**
-     * The cut marks of a tiled sheet, in the strip around the window at the middle of each overlap with a neighbour
-     * (cut one sheet there and lay it on the other with the marks matching), and {@code label} centred under the
-     * window, clear of the marks.
+     * The cut marks of a tiled sheet, in the strip around the window, at the inner edge of the overlap on the left and
+     * top edges that have a neighbour (cut the repeated strip off along them and lay the sheet over the glue tab of
+     * the neighbour); none on the right and bottom, where the glue tab is. And {@code label} under the window, clear
+     * of the marks.
      */
     void paintMarks(Graphics2D graphics, PageLayout layout, PrintPage page, String label) {
         Rectangle2D window = layout.window();
-        double halfOverlap = layout.overlapPoints() / 2;
+        double overlap = layout.overlapPoints();
+        double halfOverlap = overlap / 2;
         graphics.setColor(INK);
         graphics.setStroke(HAIRLINE);
         if (page.column() > 0) {
-            verticalMarks(graphics, window, window.getX() + halfOverlap);
-        }
-        if (page.column() < layout.columns() - 1) {
-            verticalMarks(graphics, window, window.getMaxX() - halfOverlap);
+            verticalMarks(graphics, window, window.getX() + overlap);
         }
         if (page.row() > 0) {
-            horizontalMarks(graphics, window, window.getY() + halfOverlap);
-        }
-        if (page.row() < layout.rows() - 1) {
-            horizontalMarks(graphics, window, window.getMaxY() - halfOverlap);
+            horizontalMarks(graphics, window, window.getY() + overlap);
         }
         double strip = layout.geometry().marksStripPoints();
         Neighbours neighbours = neighbours(layout, page);
         // the label starts after the mark of the left overlap; the number of the sheet below stays centred
-        double labelLeft = window.getX() + halfOverlap + TEXT_GAP_POINTS / 2;
+        double labelLeft = window.getX() + overlap + TEXT_GAP_POINTS / 2;
         double labelRoom = window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;
         if (neighbours.below().isPresent()) {
             double belowWidth = neighbourWidth(neighbours.below().getAsInt());

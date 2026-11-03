@@ -272,7 +272,7 @@ public final class PagePainter {
             sheet.setColor(Color.WHITE);
             sheet.fill(new Rectangle2D.Double(0, 0, pageSize.widthPoints(), pageSize.heightPoints()));
             if (layout.tiled() && options.sheetGuides()) {
-                decorations.paintOverlapBand(sheet, layout, page);
+                decorations.paintGlueTabs(sheet, layout, page);
             }
             TextFonts.runWithFont(input.textFont(), () -> paintCircuit(sheet, page));
             paintDecorations(sheet, page, pageCount);
