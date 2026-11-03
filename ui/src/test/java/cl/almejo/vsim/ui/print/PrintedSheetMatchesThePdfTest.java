@@ -19,17 +19,24 @@ import cl.almejo.vsim.core.terminal.TerminalScreen;
 import cl.almejo.vsim.core.terminal.TerminalSettings;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
+import org.jfree.pdf.PDFDocument;
+import org.jfree.pdf.PDFGraphics2D;
+import org.jfree.pdf.Page;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.print.PageFormat;
 import java.awt.print.PrinterException;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -267,5 +274,28 @@ class PrintedSheetMatchesThePdfTest {
     @Test
     void aLandscapeRasterBandIsThePdfsSheetTurnedAndMirrored() throws PrinterException {
         assertPrintedLikeThePdf(PageOrientation.LANDSCAPE, Pass.BAND);
+    }
+
+    /**
+     * A printer would set plain text in its own Helvetica or Courier (final review, I3): every text reaches it as
+     * shapes in VSim's font, like the PDF's. A JFreePDF page stands in for the printer, since it too writes text it is
+     * given as text.
+     */
+    @Test
+    void textReachesThePrinterAsShapes(@TempDir Path folder) throws PrinterException, IOException {
+        PagePainter painter = painter(input(), PageOrientation.PORTRAIT);
+        PrintPageable pageable = new PrintPageable(painter,
+                new PrintSetup(PAPER, PageOrientation.PORTRAIT, PageGeometry.CENTIMETRE_POINTS), noProgress, () -> { });
+        PageFormat format = pageable.getPageFormat(0);
+        PDFDocument pdf = new PDFDocument();
+        Page page = pdf.createPage(new Rectangle2D.Double(0, 0, format.getWidth(), format.getHeight()));
+        PDFGraphics2D printer = page.getGraphics2D();
+        pageable.print(printer, format, 0);
+        Path file = folder.resolve("printer.pdf");
+        Files.write(file, pdf.getPDFBytes());
+
+        assertThat(PdfReading.operators(file, 0)).doesNotContain("BT", "Tj", "TJ");
+        assertThat(PdfReading.text(file, 0)).isEmpty();
+        assertThat(PdfReading.pathOperatorCount(file, 0)).isPositive();
     }
 }

@@ -15,6 +15,7 @@ import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
+import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
@@ -34,7 +35,8 @@ import java.util.Map;
  * title bar fits. Here {@link #getTransform()} answers in points from the sheet's corner, {@link #setTransform} is
  * read the same way, there is no device configuration (scale 1, like the PDF's) and fonts are measured as JFreePDF
  * measures them, so every decision comes out as on the PDF. The drawing itself still goes through Java's graphics,
- * turned and scaled, so the sheet lands on the paper as Java laid it out.
+ * turned and scaled, so the sheet lands on the paper as Java laid it out. Text goes as the shapes of its glyphs, as on
+ * the PDF, so it prints in VSim's font and not in the printer's (final review, I3).
  *
  * <p>Built once per {@link PrintPageable#print} call: every pass and every band has its own base.
  */
@@ -118,27 +120,41 @@ final class SheetGraphics extends Graphics2D {
 
     @Override
     public void drawString(String text, int x, int y) {
-        delegate.drawString(text, x, y);
+        drawString(text, (float) x, (float) y);
     }
 
+    /**
+     * As the shapes of its glyphs, like the PDF ({@code SharedStreamGraphics}): a printer would set plain text in its
+     * own Helvetica or Courier.
+     */
     @Override
     public void drawString(String text, float x, float y) {
-        delegate.drawString(text, x, y);
+        if (text.isEmpty()) {
+            return;
+        }
+        fillOutline(new TextLayout(text, getFont(), getFontRenderContext()), x, y);
     }
 
     @Override
     public void drawString(AttributedCharacterIterator iterator, int x, int y) {
-        delegate.drawString(iterator, x, y);
+        drawString(iterator, (float) x, (float) y);
     }
 
     @Override
     public void drawString(AttributedCharacterIterator iterator, float x, float y) {
-        delegate.drawString(iterator, x, y);
+        if (iterator.getBeginIndex() == iterator.getEndIndex()) {
+            return;
+        }
+        fillOutline(new TextLayout(iterator, getFontRenderContext()), x, y);
+    }
+
+    private void fillOutline(TextLayout layout, float x, float y) {
+        fill(layout.getOutline(AffineTransform.getTranslateInstance(x, y)));
     }
 
     @Override
     public void drawGlyphVector(GlyphVector glyphs, float x, float y) {
-        delegate.drawGlyphVector(glyphs, x, y);
+        fill(glyphs.getOutline(x, y));
     }
 
     @Override
