@@ -30,4 +30,28 @@ public interface PrinterAccess {
     /** A print job the user accepted in {@link #choose}, with what they chose there (copies, page range…). */
     interface Job {
     }
+
+    /**
+     * No printers at all, without asking the system: for «Exportar a PDF…» alone and for tests that install every
+     * extension (they must never reach a printer).
+     */
+    static PrinterAccess none() {
+        return new PrinterAccess() {
+            @Override
+            public CompletableFuture<Boolean> hasPrinters() {
+                return CompletableFuture.completedFuture(false);
+            }
+
+            @Override
+            public PrinterChoice choose(Component parent, PrintSetup requested) {
+                return new PrinterChoice.Declined();
+            }
+
+            @Override
+            public CompletableFuture<Void> print(Job job, PagePainter pages, PrintSetup setup,
+                                                 PdfExporter.ProgressListener progress) {
+                return CompletableFuture.failedFuture(new IllegalStateException("no printers"));
+            }
+        };
+    }
 }

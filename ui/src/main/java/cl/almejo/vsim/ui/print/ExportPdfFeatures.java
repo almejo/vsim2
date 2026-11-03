@@ -42,17 +42,20 @@ public final class ExportPdfFeatures extends FileExportFeatures {
         if (!available()) {
             return;
         }
-        OpenDocument openDocument = view().openDocument();
-        PdfExportDialog dialog = new PdfExportDialog(capture(), this::capture, view().services().preferences(),
-                startDirectory(), suggestedName(openDocument), collaborators);
+        PdfExportDialog dialog = new PdfExportDialog(capture(view(), clock), () -> capture(view(), clock),
+                view().services().preferences(), startDirectory(), suggestedName(view().openDocument()),
+                collaborators);
         presenter.present(view(), dialog);
     }
 
-    /** The circuit as it is now, with this view's selection, scheme and font; nothing in the document changes. */
-    private PrintInput capture() {
-        return PrintInput.capture(view().openDocument(), view().selection().ids(),
-                view().services().appearance().scheme(), TextFonts.current(), clock,
-                view().services().preferences().showBusValues());
+    /**
+     * The circuit of {@code view} as it is now, with its selection, scheme and font; nothing in the document
+     * changes. Shared with «Imprimir…».
+     */
+    static PrintInput capture(EditorView view, Clock clock) {
+        return PrintInput.capture(view.openDocument(), view.selection().ids(),
+                view.services().appearance().scheme(), TextFonts.current(), clock,
+                view.services().preferences().showBusValues());
     }
 
     /** The last PDF folder, else the document's folder, else the user's home. */
@@ -60,7 +63,8 @@ public final class ExportPdfFeatures extends FileExportFeatures {
         return startDirectory(view().services().preferences().printDirectory());
     }
 
-    private static String suggestedName(OpenDocument openDocument) {
+    /** The document's name without «.vsim», offered for the PDF. */
+    static String suggestedName(OpenDocument openDocument) {
         String name = FileNames.safeName(openDocument.displayName());
         return name.toLowerCase(Locale.ROOT).endsWith(".vsim")
                 ? name.substring(0, name.length() - ".vsim".length()) : name;

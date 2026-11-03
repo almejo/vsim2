@@ -12,8 +12,11 @@ import java.util.concurrent.Executors;
 /** Adds Archivo ▸ «Exportar a PDF…» (spec 2026-10-19 §3) to every editor view. */
 public final class ExportPdfExtension implements EditorExtension {
 
-    /** Writes the PDFs, one at a time, off the EDT; a daemon thread, so it never keeps the app alive. */
-    private static final ExecutorService EXPORT_THREAD = Executors.newSingleThreadExecutor(runnable -> {
+    /**
+     * Writes the PDFs and sends the prints («Imprimir…» shares it), one at a time, off the EDT; a daemon thread, so it
+     * never keeps the app alive.
+     */
+    static final ExecutorService EXPORT_THREAD = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "vsim-pdf-export");
         thread.setDaemon(true);
         return thread;

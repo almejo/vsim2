@@ -64,7 +64,26 @@ public abstract class FileExportFeatures {
     }
 
     private void updateEnabled() {
-        action.setEnabled(!view.openDocument().document().isEmpty());
+        action.setEnabled(!view.openDocument().document().isEmpty() && ready());
+    }
+
+    /**
+     * Whether the export can run besides having something to export (a printer to print on); true here. Asked from
+     * this class's constructor too, before the subclass's fields are set, so an override must answer true then.
+     */
+    protected boolean ready() {
+        return true;
+    }
+
+    /** Asks again whether the action is on, after what {@link #ready()} reads changed. */
+    protected final void refreshEnabled() {
+        if (!disposed) {
+            updateEnabled();
+        }
+    }
+
+    /** Takes back what the subclass added; runs once, from {@link #dispose()}, after the item and listener went. */
+    protected void disposeExtras() {
     }
 
     /** False once disposed or while the action is off (an empty document): the export must then do nothing. */
@@ -87,5 +106,6 @@ public abstract class FileExportFeatures {
         disposed = true;
         itemRemover.run();
         view.openDocument().removeChangeListener(changeListener);
+        disposeExtras();
     }
 }

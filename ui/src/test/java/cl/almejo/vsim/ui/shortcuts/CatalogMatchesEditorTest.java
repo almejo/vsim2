@@ -27,7 +27,7 @@ class CatalogMatchesEditorTest {
     private static final Set<String> REGISTERED_BY_EXTENSIONS = Set.of("simulation.advance",
             "simulation.advanceToClockEdge", "simulation.advanceClockCycle", "edit.tidyWires", "edit.tidyWiresOptions",
             "edit.frameSelection", "edit.wiresFollow", "edit.find", "edit.findNext", "edit.findPrevious", "edit.quickInsert",
-            "view.snap");
+            "view.snap", "file.print");
 
     private OpenDocument openDocument;
     private EditorView view;

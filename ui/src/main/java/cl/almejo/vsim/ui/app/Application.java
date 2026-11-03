@@ -31,6 +31,8 @@ import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
+import cl.almejo.vsim.ui.print.PrintExtension;
+import cl.almejo.vsim.ui.print.PrinterAccess;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
@@ -195,7 +197,7 @@ public final class Application {
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
                         new AiExtension(aiServer, automationHost::documentId, proposals,
-                                applicationWindows::settingsOverride), presentation));
+                                applicationWindows::settingsOverride), presentation, new PrintExtension()));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -206,23 +208,26 @@ public final class Application {
     }
 
     /**
-     * The extensions with the import's file chooser starting in the user's home and remembering nothing (tests, also
-     * outside this package: every extension in every pane).
+     * The extensions with the import's file chooser starting in the user's home and remembering nothing, and no
+     * printers (tests, also outside this package: every extension in every pane; none may reach a real printer).
      */
     public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
-                path -> { }, AiExtension.inactive(), PresentationExtension.inactive());
+                path -> { }, AiExtension.inactive(), PresentationExtension.inactive(),
+                new PrintExtension(PrinterAccess.none()));
     }
 
     /**
      * The extensions of every editor view, in install order. Package-private so a test can install them all.
      * {@code startDirectory} and {@code chosen} are the folder «Abrir» starts in and remembers, shared with the
      * table import's file chooser. {@code ai} is the AI's panel and status line over the application's server,
-     * {@code presentation} its «Presentar» toggle and floating panel.
+     * {@code presentation} its «Presentar» toggle and floating panel, {@code print} «Imprimir…» over the system's
+     * printers or none.
      */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs,
                                                   Supplier<Path> startDirectory, Consumer<Path> chosen,
-                                                  AiExtension ai, PresentationExtension presentation) {
+                                                  AiExtension ai, PresentationExtension presentation,
+                                                  PrintExtension print) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
@@ -234,6 +239,7 @@ public final class Application {
         editorExtensions.add(new TruthTableExtension());
         editorExtensions.add(new ExportImageExtension());
         editorExtensions.add(new ExportPdfExtension());
+        editorExtensions.add(print); // after «Exportar a PDF…»: its item goes right after that one
         editorExtensions.add(new TidyWiresExtension());
         // the «Texto» tool before sticky notes: its button lands after «Nota adhesiva»
         editorExtensions.add(new TextToolExtension());

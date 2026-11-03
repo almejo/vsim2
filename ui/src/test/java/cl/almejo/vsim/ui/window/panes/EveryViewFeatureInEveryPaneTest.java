@@ -24,6 +24,8 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
+import cl.almejo.vsim.ui.print.PrintExtension;
+import cl.almejo.vsim.ui.print.PrinterAccess;
 import cl.almejo.vsim.ui.search.FindExtension;
 import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
@@ -164,7 +166,9 @@ class EveryViewFeatureInEveryPaneTest {
                 Arguments.of("Exportar imagen", (Function<LibraryService, EditorExtension>) libraryService ->
                         new ExportImageExtension(), false),
                 Arguments.of("Exportar a PDF", (Function<LibraryService, EditorExtension>) libraryService ->
-                        new ExportPdfExtension(), false));
+                        new ExportPdfExtension(), false),
+                Arguments.of("Imprimir", (Function<LibraryService, EditorExtension>) libraryService ->
+                        new PrintExtension(PrinterAccess.none()), false));
     }
 
     @ParameterizedTest(name = "{0}")
