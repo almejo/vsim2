@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
 import org.junit.jupiter.api.AfterEach;
@@ -134,6 +135,42 @@ class PrintModeDialogTest {
         assertThat(dialog.hintText()).isEqualTo("La impresora usa Carta (21,6 × 27,9 cm), horizontal, con márgenes"
                 + " de 1 cm; revisa la vista previa y vuelve a pulsar «Imprimir…».");
         assertThat(dialog.exporting()).isFalse();
+    }
+
+    @Test
+    void choosingAnotherPaperByHandDropsThePrintersHint() {
+        openToPrint();
+        printers.accepting(new PrintSetup(Paper.LETTER, PageOrientation.LANDSCAPE, CENTIMETRE));
+        dialog.printButton().doClick();
+
+        dialog.portrait().doClick();
+
+        assertThat(dialog.hintText()).as("the printer's paper is no longer the one shown").isEmpty();
+    }
+
+    @Test
+    void theHintStaysWhileThePrintersPaperIsShown() {
+        openToPrint();
+        printers.accepting(new PrintSetup(Paper.LETTER, PageOrientation.LANDSCAPE, CENTIMETRE));
+        dialog.printButton().doClick();
+
+        dialog.blackAndWhite().doClick();
+
+        assertThat(dialog.hintText()).startsWith("La impresora usa Carta");
+    }
+
+    @Test
+    void thePrinterDialogGetsTheCircuitsNameForTheQueue() {
+        openToPrint();
+
+        dialog.printButton().doClick();
+
+        assertThat(printers.jobNames).containsExactly("circuito");
+    }
+
+    @Test
+    void aPdfNotesThatPaperGoesThroughImprimir() {
+        assertThat(Messages.text("print.note")).isEqualTo("Para imprimir en papel, usa Archivo ▸ Imprimir….");
     }
 
     @Test

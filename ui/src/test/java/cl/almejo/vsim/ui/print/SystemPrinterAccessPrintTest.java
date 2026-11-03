@@ -222,7 +222,7 @@ class SystemPrinterAccessPrintTest {
         assertThat(printerJob.printedWith.get(PageRanges.class)).as("the page range goes through untouched")
                 .isEqualTo(new PageRanges(2, 3));
         assertThat(printerJob.asked).isEqualTo(8);
-        assertThat(done).containsExactly(1, 2, 3, 4);
+        assertThat(done).as("only the range's sheets count: 2 of 2 at the end").containsExactly(1, 2);
     }
 
     @Test

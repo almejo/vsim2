@@ -23,6 +23,7 @@ final class FakePrinterAccess implements PrinterAccess {
 
     final List<CompletableFuture<Boolean>> lookups = new ArrayList<>();
     final List<PrintSetup> requested = new ArrayList<>();
+    final List<String> jobNames = new ArrayList<>();
     final List<PrintCall> prints = new ArrayList<>();
     private final Deque<PrinterChoice> answers = new ArrayDeque<>();
     /** Answer every lookup at once with this, or leave them waiting when null. */
@@ -61,7 +62,8 @@ final class FakePrinterAccess implements PrinterAccess {
 
     /** Without a scripted answer the dialog accepts what it was asked for. */
     @Override
-    public PrinterChoice choose(Component parent, PrintSetup requested) {
+    public PrinterChoice choose(Component parent, PrintSetup requested, String jobName) {
+        jobNames.add(jobName);
         this.requested.add(requested);
         PrinterChoice answer = answers.poll();
         return answer == null ? new PrinterChoice.Chosen(requested, JOB) : answer;

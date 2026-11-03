@@ -6,15 +6,18 @@ import javax.print.attribute.HashPrintRequestAttributeSet;
 import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.Copies;
 import javax.print.attribute.standard.DialogTypeSelection;
+import javax.print.attribute.standard.JobName;
 import javax.print.attribute.standard.Media;
 import javax.print.attribute.standard.MediaPrintableArea;
 import javax.print.attribute.standard.MediaSize;
 import javax.print.attribute.standard.MediaSizeName;
 import javax.print.attribute.standard.OrientationRequested;
+import javax.print.attribute.standard.PageRanges;
 import java.awt.Component;
 import java.awt.print.PrinterAbortException;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -22,6 +25,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
  * The real {@link PrinterAccess}: {@link PrinterJob} and the {@code javax.print} attributes (spec 2026-10-19 §4).
@@ -69,10 +73,11 @@ public final class SystemPrinterAccess implements PrinterAccess {
     }
 
     @Override
-    public PrinterChoice choose(Component parent, PrintSetup requested) {
+    public PrinterChoice choose(Component parent, PrintSetup requested, String jobName) {
         PrinterJob printerJob = PrinterJob.getPrinterJob();
+        printerJob.setJobName(jobName);
         PrintRequestAttributeSet attributes = requestOf(requested,
-                dialogTypeFor(System.getProperty("os.name", "")));
+                dialogTypeFor(System.getProperty("os.name", "")), jobName);
         if (!printerJob.printDialog(attributes)) {
             return new PrinterChoice.Declined();
         }
@@ -113,7 +118,8 @@ public final class SystemPrinterAccess implements PrinterAccess {
             throw new IllegalArgumentException("no sheets or too many sheets to print: " + total);
         }
         PrinterJob printerJob = job.printerJob();
-        printerJob.setPageable(new PrintPageable(pages, setup, progress, printerJob::cancel));
+        printerJob.setPageable(new PrintPageable(pages, setup, progress, printerJob::cancel,
+                printedPages(job.attributes(), total)));
         try {
             printerJob.print(job.attributes());
         } catch (PrinterAbortException aborted) {
@@ -211,6 +217,17 @@ public final class SystemPrinterAccess implements PrinterAccess {
         return Math.max(0, Math.max(Math.max(left, top), Math.max(right, bottom)));
     }
 
+    /**
+     * The sheets the job prints, from 0: every one, or those of the page range chosen in the printer dialog that the
+     * document has («2-3» of 4 sheets is sheets 1 and 2).
+     */
+    static List<Integer> printedPages(PrintRequestAttributeSet chosen, int total) {
+        if (!(chosen.get(PageRanges.class) instanceof PageRanges ranges)) {
+            return IntStream.range(0, total).boxed().toList();
+        }
+        return IntStream.range(0, total).filter(pageIndex -> ranges.contains(pageIndex + 1)).boxed().toList();
+    }
+
     /** The native printer dialog on Windows and macOS, Java's own elsewhere (see the class comment). */
     static DialogTypeSelection dialogTypeFor(String osName) {
         String name = osName.toLowerCase(Locale.ROOT);
@@ -218,13 +235,17 @@ public final class SystemPrinterAccess implements PrinterAccess {
                 : DialogTypeSelection.COMMON;
     }
 
-    /** What the printer dialog starts with: the paper and orientation of {@code requested}, one copy. */
-    static PrintRequestAttributeSet requestOf(PrintSetup requested, DialogTypeSelection dialogType) {
+    /**
+     * What the printer dialog starts with: the paper and orientation of {@code requested}, one copy, and {@code
+     * jobName} as the name the printer's queue shows.
+     */
+    static PrintRequestAttributeSet requestOf(PrintSetup requested, DialogTypeSelection dialogType, String jobName) {
         PrintRequestAttributeSet attributes = new HashPrintRequestAttributeSet();
         attributes.add(mediaOf(requested.paper()));
         attributes.add(orientationRequestedOf(requested.orientation()));
         attributes.add(new Copies(1));
         attributes.add(dialogType);
+        attributes.add(new JobName(jobName, Locale.ROOT));
         return attributes;
     }
 

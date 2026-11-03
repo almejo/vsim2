@@ -221,6 +221,8 @@ public final class PdfExportDialog extends JPanel {
     private double marginPoints = PageGeometry.CENTIMETRE_POINTS;
     /** What the printer's last answer asks the user to check; shown when no other hint is. */
     private String printerHint = "";
+    /** The paper and orientation the printer's last answer switched to, while the hint is about them. */
+    private Optional<PrintSetup> printerSwitch = Optional.empty();
     /** False once the system said no printer is installed; true until it answers. */
     private boolean printersAvailable = true;
 
@@ -510,6 +512,7 @@ public final class PdfExportDialog extends JPanel {
         showValuesProblem();
 
         PrintOptions options = options();
+        dropPrinterHintWhenAnotherSheetIsShown(options);
         Optional<PrintArea> area = area(options.scope());
         if (area.isEmpty()) {
             plan = Optional.empty();
@@ -546,6 +549,18 @@ public final class PdfExportDialog extends JPanel {
         save.setEnabled(sheetsCanGoOut);
         printButton.setEnabled(sheetsCanGoOut && printersAvailable);
         printButton.setToolTipText(printersAvailable ? null : Messages.text("print.noPrinters"));
+    }
+
+    /**
+     * «La impresora usa Carta…» speaks of the sheet shown after the switch: once the user picks another paper or
+     * orientation by hand, it no longer does.
+     */
+    private void dropPrinterHintWhenAnotherSheetIsShown(PrintOptions options) {
+        if (printerSwitch.isPresent() && (printerSwitch.get().paper() != options.paper()
+                || printerSwitch.get().orientation() != options.orientation())) {
+            printerSwitch = Optional.empty();
+            printerHint = "";
+        }
     }
 
     /** Enables each control by whether an export is running and by what the circuit and the choices allow. */
@@ -686,7 +701,8 @@ public final class PdfExportDialog extends JPanel {
         PrintSetup requested = new PrintSetup(chosen.options().paper(), chosen.options().orientation(),
                 marginPoints);
         printerHint = "";
-        switch (collaborators.printers().choose(this, requested)) {
+        printerSwitch = Optional.empty();
+        switch (collaborators.printers().choose(this, requested, suggestedName)) {
             case PrinterChoice.Declined declined -> update();
             case PrinterChoice.UnknownPaper unknown -> {
                 printerHint = Messages.format("print.printer.unknownPaper", unknown.name());
@@ -711,6 +727,7 @@ public final class PdfExportDialog extends JPanel {
         marginPoints = effective.marginPoints();
         String orientation = Messages.text(effective.orientation() == PageOrientation.LANDSCAPE
                 ? "print.orientation.landscape" : "print.orientation.portrait").toLowerCase(Messages.locale());
+        printerSwitch = Optional.of(effective);
         printerHint = Messages.format("print.printer.changed", Messages.text(effective.paper().messageKey()),
                 orientation, effective.marginPoints() / PageGeometry.CENTIMETRE_POINTS);
         update();
@@ -779,6 +796,7 @@ public final class PdfExportDialog extends JPanel {
             public void pageDone(int done, int pages) {
                 collaborators.edt().execute(() -> {
                     if (!cancelRequested) {
+                        progress.setMaximum(pages);
                         progress.setValue(done);
                         progress.setString(Messages.format("print.progress", done, pages));
                     }
@@ -892,6 +910,10 @@ public final class PdfExportDialog extends JPanel {
 
     JComboBox<Paper> paperChoice() {
         return paperChoice;
+    }
+
+    JRadioButton portrait() {
+        return portrait;
     }
 
     JRadioButton landscape() {

@@ -15,9 +15,9 @@ public interface PrinterAccess {
 
     /**
      * Shows the printer's modal dialog pre-filled with {@code requested} and one copy, and says what the user chose.
-     * EDT only.
+     * {@code jobName} is what the printer's queue shows («sumador»). EDT only.
      */
-    PrinterChoice choose(Component parent, PrintSetup requested);
+    PrinterChoice choose(Component parent, PrintSetup requested, String jobName);
 
     /**
      * Prints every sheet of {@code pages} on {@code setup} through {@code job}, off the EDT. The future completes
@@ -43,7 +43,7 @@ public interface PrinterAccess {
             }
 
             @Override
-            public PrinterChoice choose(Component parent, PrintSetup requested) {
+            public PrinterChoice choose(Component parent, PrintSetup requested, String jobName) {
                 return new PrinterChoice.Declined();
             }
 

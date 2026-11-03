@@ -56,11 +56,13 @@ class PrintPageableTest {
     /** Notes each reported page and answers the cancel question the test sets. */
     private static final class RecordingProgress implements PdfExporter.ProgressListener {
         final List<Integer> done = new ArrayList<>();
+        final List<Integer> totals = new ArrayList<>();
         boolean cancelled;
 
         @Override
         public void pageDone(int pagesDone, int total) {
             done.add(pagesDone);
+            totals.add(total);
         }
 
         @Override
@@ -244,6 +246,21 @@ class PrintPageableTest {
         BufferedImage withoutTitle = printed(pageable(untitled, A4_PORTRAIT), 0);
 
         assertThat(samePixels(withTitle, withoutTitle)).isFalse();
+    }
+
+    @Test
+    void withAPageRangeTheProgressCountsOnlyItsSheets() throws PrinterException {
+        bigCircuit();
+        PagePainter painter = painter(input(), A4_PORTRAIT, new ScaleMode.Percentage(100));
+        PrintPageable pageable = new PrintPageable(painter, A4_PORTRAIT, progress, () -> jobCancels++,
+                List.of(1, 2));
+
+        printed(pageable, 1);
+        printed(pageable, 1);
+        printed(pageable, 2);
+
+        assertThat(progress.done).as("«Páginas 2–3» ends at 2 of 2").containsExactly(1, 2);
+        assertThat(progress.totals).containsOnly(2);
     }
 
     @Test

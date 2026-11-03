@@ -5,12 +5,14 @@ import org.junit.jupiter.api.Test;
 import javax.print.attribute.HashPrintRequestAttributeSet;
 import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.Copies;
+import javax.print.attribute.standard.JobName;
 import javax.print.attribute.standard.DialogTypeSelection;
 import javax.print.attribute.standard.MediaPrintableArea;
 import javax.print.attribute.standard.MediaSize;
 import javax.print.attribute.standard.MediaSizeName;
 import javax.print.attribute.standard.MediaTray;
 import javax.print.attribute.standard.OrientationRequested;
+import javax.print.attribute.standard.PageRanges;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -96,14 +98,30 @@ class SystemPrinterAccessMappingTest {
     }
 
     @Test
-    void theRequestCarriesThePaperTheOrientationOneCopyAndTheNativeDialog() {
+    void theRequestCarriesThePaperTheOrientationOneCopyTheJobNameAndTheNativeDialog() {
         PrintRequestAttributeSet request = SystemPrinterAccess.requestOf(new PrintSetup(Paper.LETTER,
-                PageOrientation.LANDSCAPE, PageGeometry.CENTIMETRE_POINTS), DialogTypeSelection.NATIVE);
+                PageOrientation.LANDSCAPE, PageGeometry.CENTIMETRE_POINTS), DialogTypeSelection.NATIVE, "sumador");
 
         assertThat(request.get(javax.print.attribute.standard.Media.class)).isEqualTo(MediaSizeName.NA_LETTER);
         assertThat(request.get(OrientationRequested.class)).isEqualTo(OrientationRequested.LANDSCAPE);
         assertThat(request.get(Copies.class)).isEqualTo(new Copies(1));
         assertThat(request.get(DialogTypeSelection.class)).isEqualTo(DialogTypeSelection.NATIVE);
+        assertThat(((JobName) request.get(JobName.class)).getValue()).as("the name in the printer's queue")
+                .isEqualTo("sumador");
+    }
+
+    @Test
+    void withoutAPageRangeEverySheetIsPrinted() {
+        assertThat(SystemPrinterAccess.printedPages(new HashPrintRequestAttributeSet(), 4))
+                .containsExactly(0, 1, 2, 3);
+    }
+
+    @Test
+    void aPageRangeKeepsOnlyItsSheetsInsideTheDocument() {
+        PrintRequestAttributeSet chosen = new HashPrintRequestAttributeSet();
+        chosen.add(new PageRanges("2-3, 6-9"));
+
+        assertThat(SystemPrinterAccess.printedPages(chosen, 7)).containsExactly(1, 2, 5, 6);
     }
 
     @Test
