@@ -189,8 +189,8 @@ public final class PainterSupport {
             upright.setFont(font.deriveFont(size));
             upright.setColor(color);
             FontMetrics metrics = upright.getFontMetrics();
-            Rectangle2D textBounds = metrics.getStringBounds(text, upright);
-            upright.drawString(text, (float) (anchorX - textBounds.getWidth() * alignment),
+            double textWidth = FallbackText.width(metrics, text, upright);
+            FallbackText.draw(upright, text, (float) (anchorX - textWidth * alignment),
                     (float) (anchorY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
         } finally {
             upright.dispose();
@@ -199,11 +199,11 @@ public final class PainterSupport {
 
     /** {@code text}, cut with «…» when it is wider than {@code available} pixels. */
     static String ellipsized(String text, FontMetrics metrics, double available) {
-        if (metrics.stringWidth(text) <= available) {
+        if (FallbackText.stringWidth(metrics, text) <= available) {
             return text;
         }
         String cut = text;
-        while (!cut.isEmpty() && metrics.stringWidth(cut + ELLIPSIS) > available) {
+        while (!cut.isEmpty() && FallbackText.stringWidth(metrics, cut + ELLIPSIS) > available) {
             cut = cut.substring(0, cut.length() - 1);
         }
         return cut + ELLIPSIS;
@@ -244,7 +244,7 @@ public final class PainterSupport {
             FontMetrics metrics = upright.getFontMetrics();
             double lineHeight = place.size() * LINE_HEIGHT;
             double top = place.anchorY() - lines.size() * lineHeight / 2;
-            double widest = lines.stream().mapToDouble(line -> metrics.getStringBounds(line, upright).getWidth())
+            double widest = lines.stream().mapToDouble(line -> FallbackText.width(metrics, line, upright))
                     .max().orElse(0);
             border.ifPresent(borderColor -> {
                 upright.setColor(borderColor);
@@ -255,8 +255,8 @@ public final class PainterSupport {
             });
             upright.setColor(color);
             for (int index = 0; index < lines.size(); index++) {
-                double width = metrics.getStringBounds(lines.get(index), upright).getWidth();
-                upright.drawString(lines.get(index), (float) (place.anchorX() - width * place.alignment()),
+                double width = FallbackText.width(metrics, lines.get(index), upright);
+                FallbackText.draw(upright, lines.get(index), (float) (place.anchorX() - width * place.alignment()),
                         (float) (top + (index + 0.5) * lineHeight + (metrics.getAscent() - metrics.getDescent()) / 2.0));
             }
         } finally {

@@ -356,6 +356,8 @@ class PaintersTest {
                     .filter(path -> !path.getFileName().toString().equals("PainterSupport.java"))
                     // a Graphics2D that passes text on, not a painter
                     .filter(path -> !path.getFileName().toString().equals("MonochromeGraphics.java"))
+                    // draws a text in place, with borrowed glyphs; the upright helper calls it
+                    .filter(path -> !path.getFileName().toString().equals("FallbackText.java"))
                     .filter(path -> {
                         String source = readSource(path);
                         return source.contains("drawString(") || source.contains("drawGlyphVector(")

@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.StickyChecklist;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.MonochromeScheme;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
@@ -125,12 +126,13 @@ public final class StickyNotePainter {
             }
             graphics.setColor(text);
             if (!line.text().isEmpty()) {
-                graphics.drawString(line.text(), (float) line.x(), (float) line.baseline());
+                FallbackText.draw(graphics, line.text(), (float) line.x(), (float) line.baseline());
             }
             if (done && !line.text().isEmpty()) {
                 double strikeY = line.baseline() - metrics.getAscent() * STRIKE_HEIGHT_SHARE;
                 graphics.setStroke(BORDER);
-                graphics.draw(new Line2D.Double(line.x(), strikeY, line.x() + metrics.stringWidth(line.text()),
+                graphics.draw(new Line2D.Double(line.x(), strikeY, line.x() + FallbackText.stringWidth(metrics,
+                        line.text()),
                         strikeY));
             }
             graphics.setComposite(previous);

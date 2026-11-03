@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.FallbackText;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -77,7 +78,7 @@ final class NotePainter {
         graphics.setColor(color);
         for (LabelLayout.Line line : placed.lines()) {
             if (!line.text().isEmpty()) {
-                graphics.drawString(line.text(), line.baselineX(), line.baselineY());
+                FallbackText.draw(graphics, line.text(), line.baselineX(), line.baselineY());
             }
         }
     }

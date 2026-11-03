@@ -208,7 +208,7 @@ public final class SymbolPainter {
         try {
             scratch.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
             FontMetrics metrics = scratch.getFontMetrics(TextFonts.labelFont().deriveFont(Font.BOLD).deriveFont(size));
-            double widest = lines.stream().mapToDouble(line -> metrics.getStringBounds(line, scratch).getWidth())
+            double widest = lines.stream().mapToDouble(line -> FallbackText.width(metrics, line, scratch))
                     .max().orElse(0);
             double height = lines.size() * size * PainterSupport.LINE_HEIGHT;
             double anchorX = text.anchor().x() * COORDINATE_SCALE;
@@ -295,7 +295,7 @@ public final class SymbolPainter {
     /** The local rectangle a text takes, as {@link PainterSupport#uprightText} will place it. */
     private static Rectangle2D textArea(Graphics2D graphics, String text, Font font, float size, double anchorX,
                                         double anchorY, double alignment, boolean sideways) {
-        double width = graphics.getFontMetrics(font.deriveFont(size)).getStringBounds(text, graphics).getWidth();
+        double width = FallbackText.width(graphics.getFontMetrics(font.deriveFont(size)), text, graphics);
         double half = size * PainterSupport.LINE_HEIGHT / 2;
         return sideways
                 ? new Rectangle2D.Double(anchorX - half, anchorY - width / 2, 2 * half, width)
@@ -372,7 +372,7 @@ public final class SymbolPainter {
         float size = Math.min(PIN_NAME_SIZE, fittedSize(graphics, text, sideways ? PIN_NAME_SIZE * 4 : gap - 2));
         FontMetrics metrics = graphics.getFontMetrics(TextFonts.labelFont().deriveFont(size));
         // Upright on screen, so when the box is turned a quarter the text's width runs along the box's local y axis.
-        double extent = sideways ? metrics.stringWidth(text) / 2.0 : metrics.getAscent() / 2.0;
+        double extent = sideways ? FallbackText.stringWidth(metrics, text) / 2.0 : metrics.getAscent() / 2.0;
         double anchorY = y + outward * (OUTSIDE_GAP + extent);
         double margin = OUTSIDE_GAP + 2 * extent + 4;
         Rectangle2D slot = new Rectangle2D.Double(x - Math.max(gap, UNIT) / 2, -margin,
@@ -452,7 +452,8 @@ public final class SymbolPainter {
     }
 
     private static float fittedSize(Graphics2D graphics, String text, double across) {
-        double textWidth = graphics.getFontMetrics(TextFonts.labelFont().deriveFont(PIN_NAME_SIZE)).stringWidth(text);
+        double textWidth = FallbackText.stringWidth(graphics.getFontMetrics(TextFonts.labelFont().deriveFont(
+                PIN_NAME_SIZE)), text);
         return textWidth <= across ? PIN_NAME_SIZE
                 : (float) Math.max(MINIMUM_NAME_SIZE, PIN_NAME_SIZE * across / textWidth);
     }

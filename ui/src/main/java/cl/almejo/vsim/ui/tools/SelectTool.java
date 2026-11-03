@@ -30,6 +30,7 @@ import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.MultiBitCells;
+import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.PushButtonPainter;
@@ -1336,7 +1337,7 @@ public final class SelectTool implements Tool {
         graphics.setColor(context.scheme().selection());
         graphics.setFont(LabelLayout.font());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY());
+        FallbackText.draw(graphics, placed.text(), placed.baselineX(), placed.baselineY());
         graphics.setStroke(new BasicStroke(BAND_WIDTH));
         graphics.draw(placed.bounds());
     }

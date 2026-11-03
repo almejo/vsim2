@@ -25,6 +25,7 @@ import cl.almejo.vsim.ui.memory.MemoryNames;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
+import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.KeyboardPainter;
 import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
@@ -776,7 +777,8 @@ public final class CircuitRenderer {
                 continue;
             }
             LabelLayout.componentLabel(type, component)
-                    .ifPresent(placed -> graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY()));
+                    .ifPresent(placed -> FallbackText.draw(graphics, placed.text(), placed.baselineX(),
+                            placed.baselineY()));
         }
     }
 
