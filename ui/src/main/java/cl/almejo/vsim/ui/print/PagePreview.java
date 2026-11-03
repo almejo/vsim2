@@ -81,11 +81,15 @@ final class PagePreview extends JPanel {
         controls.add(previous);
         controls.add(sheetLabel);
         controls.add(next);
-        JLabel zoomLabel = new JLabel(Messages.text("print.zoom"));
+        String zoomName = Messages.text("print.zoom.tip");
+        JLabel zoomLabel = new JLabel(cl.almejo.vsim.ui.icons.Icons.get(PrintIcons.PREVIEW_ZOOM, 16));
         zoomLabel.setLabelFor(zoom);
+        zoomLabel.setToolTipText(zoomName);
+        zoomLabel.getAccessibleContext().setAccessibleName(zoomName);
         controls.add(zoomLabel);
         controls.add(zoom);
-        zoom.setToolTipText(Messages.text("print.zoom.tip"));
+        zoom.setToolTipText(zoomName);
+        zoom.getAccessibleContext().setAccessibleName(zoomName);
         add(controls);
         previous.addActionListener(event -> selectSheet(selected - 1));
         next.addActionListener(event -> selectSheet(selected + 1));

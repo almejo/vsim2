@@ -63,12 +63,16 @@ class PagePreviewTest {
     }
 
     @Test
-    void theZoomSaysItIsThePreviewsNotThePapers() {
+    void theZoomIsAMagnifierNextToTheComboNotAScaleLabel() {
         JLabel zoomLabel = labelFor(preview, preview.zoomChoice());
 
-        assertThat(zoomLabel.getText()).isEqualTo("Zoom de la vista previa:");
-        assertThat(preview.zoomChoice().getToolTipText()).isEqualTo("Solo cambia lo que ves aquí; el tamaño en el"
-                + " papel lo da la «Escala».");
+        assertThat(zoomLabel.getText()).isNullOrEmpty();
+        assertThat(zoomLabel.getIcon()).isNotNull();
+        assertThat(zoomLabel.getToolTipText()).isEqualTo("Zoom de la vista previa (no cambia la escala del papel)");
+        assertThat(zoomLabel.getAccessibleContext().getAccessibleName())
+                .isEqualTo("Zoom de la vista previa (no cambia la escala del papel)");
+        assertThat(preview.zoomChoice().getToolTipText()).isEqualTo("Zoom de la vista previa (no cambia la escala"
+                + " del papel)");
     }
 
     private static JLabel labelFor(Container container, JComponent labelled) {

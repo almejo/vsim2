@@ -153,11 +153,29 @@ public final class PdfExportDialog extends JPanel {
                     }
                 });
                 content.onClose(dialog::dispose);
+                content.onContentGrew(() -> growToFit(dialog));
                 dialog.pack();
                 dialog.setLocationRelativeTo(parent);
                 dialog.setVisible(true);
                 content.dispose();
             };
+        }
+    }
+
+    /** Makes {@code dialog} as large as its content now asks, within the screen; it never shrinks. */
+    private static void growToFit(JDialog dialog) {
+        if (!dialog.isDisplayable()) {
+            return;
+        }
+        java.awt.GraphicsConfiguration screen = dialog.getGraphicsConfiguration();
+        java.awt.Rectangle usable = screen.getBounds();
+        java.awt.Insets insets = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(screen);
+        usable = new java.awt.Rectangle(usable.x + insets.left, usable.y + insets.top,
+                usable.width - insets.left - insets.right, usable.height - insets.top - insets.bottom);
+        java.awt.Rectangle grown = WindowGrowth.grown(dialog.getBounds(), dialog.getPreferredSize(), usable);
+        if (!grown.equals(dialog.getBounds())) {
+            dialog.setBounds(grown);
+            dialog.validate();
         }
     }
 
@@ -212,6 +230,8 @@ public final class PdfExportDialog extends JPanel {
     private TextSizeKey textSizeKey;
     private double smallestText;
     private Runnable close = () -> { };
+    /** Told after a notice, a warning or the status changed, so the window can grow to the content. */
+    private Runnable contentGrew = () -> { };
     private boolean updating;
     private boolean exporting;
     private volatile boolean cancelRequested;
@@ -220,7 +240,9 @@ public final class PdfExportDialog extends JPanel {
     /** The blank border of every sheet: 1 cm, or the wider hardware margin of the printer that answered last. */
     private double marginPoints = PageGeometry.CENTIMETRE_POINTS;
     /** What the printer's last answer asks the user to check; shown when no other hint is. */
-    private String printerHint = "";
+    private Notice printerNotice = Notice.NONE;
+    /** The paper the printer prints on unless told otherwise, once it has said so. */
+    private Optional<Paper> printerDefaultPaper = Optional.empty();
     /** The paper and orientation the printer's last answer switched to, while the hint is about them. */
     private Optional<PrintSetup> printerSwitch = Optional.empty();
     /** Whether the user changed the paper by hand: then the printer's default paper is no longer ours to apply. */
@@ -251,7 +273,7 @@ public final class PdfExportDialog extends JPanel {
     private final JButton split = new JButton(Messages.text("print.split"));
     /** «Ajustar a una hoja» next to the sheet count: the way back after «Dividir en varias hojas». */
     private final JButton fit = new JButton(Messages.text("print.scale.fit"));
-    private final JLabel hint = new JLabel();
+    private final NoticeLabel hint = new NoticeLabel();
     private final JProgressBar progress = new JProgressBar();
     private final JButton save = new JButton(Messages.text("print.save"));
     private final JButton printButton = new JButton(Messages.text("print.print"));
@@ -402,7 +424,6 @@ public final class PdfExportDialog extends JPanel {
         warningRow.add(warning);
         warningRow.add(split);
         right.add(warningRow, "hidemode 3");
-        hinted(hint);
         right.add(hint, "hidemode 3");
         add(right, "wrap");
 
@@ -427,6 +448,23 @@ public final class PdfExportDialog extends JPanel {
         JLabel label = new JLabel(Messages.text(key));
         label.setFont(label.getFont().deriveFont(java.awt.Font.BOLD));
         return label;
+    }
+
+    /** What the line under the preview says besides the sheet count: its look and its text. */
+    private record Notice(NoticeLabel.Kind kind, String text) {
+        static final Notice NONE = new Notice(NoticeLabel.Kind.HINT, "");
+
+        static Notice hint(String text) {
+            return new Notice(NoticeLabel.Kind.HINT, text);
+        }
+
+        static Notice info(String text) {
+            return new Notice(NoticeLabel.Kind.INFO, text);
+        }
+
+        static Notice warning(String text) {
+            return new Notice(NoticeLabel.Kind.WARNING, text);
+        }
     }
 
     /** A hint's dimmed text colour, from the theme each time the look changes (FlatLaf resolves the style then). */
@@ -530,7 +568,7 @@ public final class PdfExportDialog extends JPanel {
         Optional<PrintArea> area = area(options.scope());
         if (area.isEmpty()) {
             plan = Optional.empty();
-            show("", "", Messages.text(mode == Mode.PRINT ? "print.nothing.print" : "print.nothing"));
+            show("", "", Notice.hint(Messages.text(mode == Mode.PRINT ? "print.nothing.print" : "print.nothing")));
             enableOutputs(false);
             preview.clear();
             return;
@@ -539,7 +577,7 @@ public final class PdfExportDialog extends JPanel {
                 options.orientation(), options.headerFooter(), marginPoints), options.scaleMode());
         plan = Optional.of(new Plan(options, area.get(), layout));
         if (layout.problem().isPresent()) {
-            show("", "", Messages.text(layout.problem().get()));
+            show("", "", Notice.hint(Messages.text(layout.problem().get())));
             enableOutputs(false);
             previewTimer.restart();
             return;
@@ -553,8 +591,9 @@ public final class PdfExportDialog extends JPanel {
                 && smallest < MINIMUM_LEGIBLE_POINTS ? Messages.format("print.warning.smallText", smallest) : "";
         boolean tooMany = layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES;
         fit.setVisible(layout.pageCountExact() > 1);
-        show(statusText, warningText,
-                tooMany ? Messages.format("print.tooManyPages", PdfExport.REFUSE_ABOVE_PAGES) : "");
+        show(statusText, warningText, tooMany
+                ? Notice.hint(Messages.format("print.tooManyPages", PdfExport.REFUSE_ABOVE_PAGES))
+                : paperMismatch(options));
         enableOutputs(idle && !tooMany);
         previewTimer.restart();
     }
@@ -574,8 +613,21 @@ public final class PdfExportDialog extends JPanel {
         if (printerSwitch.isPresent() && (printerSwitch.get().paper() != options.paper()
                 || printerSwitch.get().orientation() != options.orientation())) {
             printerSwitch = Optional.empty();
-            printerHint = "";
+            printerNotice = Notice.NONE;
         }
+    }
+
+    /**
+     * When printing on a paper other than the printer's default: a sheet of the wrong size may come out cut, so say
+     * so before the user presses «Imprimir…». Nothing while the printer has not said its paper, or to save a PDF.
+     */
+    private Notice paperMismatch(PrintOptions options) {
+        if (mode != Mode.PRINT || printerDefaultPaper.isEmpty() || printerDefaultPaper.get() == options.paper()) {
+            return Notice.NONE;
+        }
+        return Notice.warning(Messages.format("print.printer.paperMismatch",
+                Messages.text(printerDefaultPaper.get().shortMessageKey()),
+                Messages.text(options.paper().shortMessageKey())));
     }
 
     /** Enables each control by whether an export is running and by what the circuit and the choices allow. */
@@ -620,14 +672,15 @@ public final class PdfExportDialog extends JPanel {
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
-    private void show(String statusText, String warningText, String hintText) {
+    private void show(String statusText, String warningText, Notice notice) {
         status.setText(statusText);
         warning.setText(warningText);
         warning.getParent().setVisible(!warningText.isEmpty());
-        String shownHint = hintText.isEmpty() ? printerHint : hintText;
-        hint.setText(shownHint);
-        hint.setVisible(!shownHint.isEmpty());
+        Notice shown = !notice.text().isEmpty() ? notice : printerNotice;
+        hint.notice(shown.kind(), shown.text());
+        hint.setVisible(!shown.text().isEmpty());
         revalidate();
+        contentGrew.run();
     }
 
     /** The coalescing timer fired: paint the last option set, whatever came before it. */
@@ -715,20 +768,22 @@ public final class PdfExportDialog extends JPanel {
         }
         PrintSetup requested = new PrintSetup(chosen.options().paper(), chosen.options().orientation(),
                 marginPoints);
-        printerHint = "";
+        printerNotice = Notice.NONE;
         printerSwitch = Optional.empty();
         switch (collaborators.printers().choose(this, requested, suggestedName)) {
             case PrinterChoice.Declined declined -> update();
             case PrinterChoice.UnknownPaper unknown -> {
-                printerHint = Messages.format("print.printer.unknownPaper", unknown.name());
+                printerNotice = Notice.warning(Messages.format("print.printer.unknownPaper", unknown.name()));
                 update();
             }
             case PrinterChoice.Chosen accepted when keptOurPaperOnAnotherDefault(accepted, requested) ->
                     adoptPrintersPaper(accepted.printerDefault().orElseThrow());
             case PrinterChoice.Chosen accepted when accepted.effective().matches(chosen.options(), marginPoints) -> {
                 accepted.printerDefault().filter(printerPaper -> printerPaper != accepted.effective().paper())
-                        .ifPresent(printerPaper -> printerHint = Messages.format("print.printer.defaultDiffers",
-                                Messages.text(printerPaper.shortMessageKey())));
+                        .filter(printerPaper -> !printerDefaultPaper.equals(Optional.of(printerPaper)))
+                        .ifPresent(printerPaper -> printerNotice = Notice.warning(
+                                Messages.format("print.printer.defaultDiffers",
+                                        Messages.text(printerPaper.shortMessageKey()))));
                 startPrinting(chosen, accepted);
             }
             case PrinterChoice.Chosen accepted -> switchTo(accepted.effective());
@@ -755,7 +810,8 @@ public final class PdfExportDialog extends JPanel {
         }
         PageOrientation orientation = landscape.isSelected() ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT;
         printerSwitch = Optional.of(new PrintSetup(paper, orientation, marginPoints));
-        printerHint = Messages.format("print.printer.defaultPaper", Messages.text(paper.shortMessageKey()));
+        printerNotice = Notice.info(Messages.format("print.printer.defaultPaper",
+                Messages.text(paper.shortMessageKey())));
         update();
     }
 
@@ -769,8 +825,13 @@ public final class PdfExportDialog extends JPanel {
             LOGGER.warn("Could not look up the printer's paper", failure);
             return;
         }
-        if (disposed || exporting || paperTouched || printerPaper == null || printerPaper.isEmpty()
+        if (disposed || printerPaper == null) {
+            return;
+        }
+        printerDefaultPaper = printerPaper;
+        if (exporting || paperTouched || printerPaper.isEmpty()
                 || printerPaper.get() == paperChoice.getSelectedItem()) {
+            update();
             return;
         }
         adoptPrintersPaper(printerPaper.get());
@@ -790,8 +851,9 @@ public final class PdfExportDialog extends JPanel {
         String orientation = Messages.text(effective.orientation() == PageOrientation.LANDSCAPE
                 ? "print.orientation.landscape" : "print.orientation.portrait").toLowerCase(Messages.locale());
         printerSwitch = Optional.of(effective);
-        printerHint = Messages.format("print.printer.changed", Messages.text(effective.paper().messageKey()),
-                orientation, effective.marginPoints() / PageGeometry.CENTIMETRE_POINTS);
+        printerNotice = Notice.info(Messages.format("print.printer.changed",
+                Messages.text(effective.paper().messageKey()), orientation,
+                effective.marginPoints() / PageGeometry.CENTIMETRE_POINTS));
         update();
     }
 
@@ -905,6 +967,10 @@ public final class PdfExportDialog extends JPanel {
     }
 
     /** What closes the window around this content. */
+    void onContentGrew(Runnable listener) {
+        this.contentGrew = Objects.requireNonNull(listener, "listener");
+    }
+
     public void onClose(Runnable closer) {
         this.close = Objects.requireNonNull(closer, "closer");
     }
@@ -943,7 +1009,12 @@ public final class PdfExportDialog extends JPanel {
     }
 
     String hintText() {
-        return hint.isVisible() ? hint.getText() : "";
+        return hint.isVisible() ? hint.plainText() : "";
+    }
+
+    /** How the line under the preview looks now. */
+    NoticeLabel.Kind noticeKind() {
+        return hint.kind();
     }
 
     String valuesProblemText() {

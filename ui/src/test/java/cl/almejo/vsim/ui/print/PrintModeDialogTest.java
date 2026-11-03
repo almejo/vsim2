@@ -381,7 +381,7 @@ class PrintModeDialogTest {
         printers.defaultPaperLookups.get(0).complete(Optional.of(Paper.LETTER));
 
         assertThat(dialog.paperChoice().getSelectedItem()).isEqualTo(Paper.OFICIO);
-        assertThat(dialog.hintText()).isEmpty();
+        assertThat(dialog.hintText()).startsWith("La impresora tiene Carta por defecto");
     }
 
     @Test
@@ -392,7 +392,7 @@ class PrintModeDialogTest {
         dialog.paperChoice().setSelectedItem(Paper.A4);
 
         assertThat(shownGeometry().paper()).isEqualTo(Paper.A4);
-        assertThat(dialog.hintText()).isEmpty();
+        assertThat(dialog.hintText()).doesNotContain("Papel cambiado");
     }
 
     @Test
@@ -431,7 +431,111 @@ class PrintModeDialogTest {
         dialog.printButton().doClick();
 
         assertThat(printers.prints).hasSize(1);
-        assertThat(dialog.hintText()).contains("Carta").contains("por defecto");
+        assertThat(dialog.hintText()).isEqualTo("La impresora usa Carta por defecto; revisa que sea el papel que hay"
+                + " en la bandeja.");
+        assertThat(dialog.noticeKind()).isEqualTo(NoticeLabel.Kind.WARNING);
+    }
+
+    @Test
+    void whenTheMismatchWarningAlreadySaidItThePrintDoesNotAddTheAfterPrintHint() {
+        printers.printerDefault(Paper.LETTER);
+        openToPrint();
+        dialog.paperChoice().setSelectedItem(Paper.A4);
+        printers.answer(new PrinterChoice.Chosen(A4_PORTRAIT, FakePrinterAccess.JOB, Optional.of(Paper.LETTER)));
+
+        dialog.printButton().doClick();
+
+        assertThat(printers.prints).hasSize(1);
+        assertThat(dialog.hintText()).startsWith("La impresora tiene Carta por defecto")
+                .doesNotContain("revisa que sea");
+        assertThat(dialog.noticeKind()).isEqualTo(NoticeLabel.Kind.WARNING);
+    }
+
+    @Test
+    void theChangedPaperNoticeIsAnInfoAndTheMismatchAWarning() {
+        printers.printerDefault(Paper.LETTER);
+        openToPrint();
+        assertThat(dialog.noticeKind()).isEqualTo(NoticeLabel.Kind.INFO);
+        assertThat(dialog.hintLabel().getIcon()).isNotNull();
+
+        dialog.paperChoice().setSelectedItem(Paper.A4);
+
+        assertThat(dialog.hintText()).isEqualTo("La impresora tiene Carta por defecto: si en la bandeja hay Carta,"
+                + " una hoja A4 saldrá cortada.");
+        assertThat(dialog.noticeKind()).isEqualTo(NoticeLabel.Kind.WARNING);
+        assertThat(dialog.hintLabel().getIcon()).isNotNull();
+
+        dialog.paperChoice().setSelectedItem(Paper.LETTER);
+
+        assertThat(dialog.hintText()).isEmpty();
+    }
+
+    @Test
+    void thePrintersOtherPaperWarningIsAlsoAWarningAndTheEnglishTextExists() {
+        openToPrint();
+        printers.answer(new PrinterChoice.Chosen(new PrintSetup(Paper.OFICIO, PageOrientation.PORTRAIT, CENTIMETRE),
+                FakePrinterAccess.JOB, Optional.of(Paper.LETTER)));
+        dialog.printButton().doClick();
+        assertThat(dialog.noticeKind()).isEqualTo(NoticeLabel.Kind.INFO);
+        assertThat(java.text.MessageFormat.format(
+                Messages.bundle(Locale.ENGLISH).getString("print.printer.paperMismatch"), "Letter", "A4"))
+                .isEqualTo("The printer defaults to Letter: if Letter is in the tray, a sheet of A4 will come out cut.");
+    }
+
+    @Test
+    void aSlowAnswerShowsTheMismatchAtOnce() {
+        printers.slowDefaultPaper();
+        openToPrint();
+        assertThat(dialog.hintText()).isEmpty();
+        dialog.paperChoice().setSelectedItem(Paper.OFICIO);
+
+        printers.defaultPaperLookups.get(0).complete(Optional.of(Paper.A4));
+
+        assertThat(dialog.noticeKind()).isEqualTo(NoticeLabel.Kind.WARNING);
+    }
+
+    @Test
+    void aPdfDialogNeverWarnsAboutThePrinterPaper() {
+        printers.printerDefault(Paper.LETTER);
+        open(PdfExportDialog.Mode.PDF);
+        dialog.paperChoice().setSelectedItem(Paper.A3);
+        assertThat(dialog.hintText()).isEmpty();
+    }
+
+    @Test
+    void theZoomComboShowsItsFullTextInThePackedDialog() {
+        openToPrint();
+        java.awt.Dimension size = dialog.getPreferredSize();
+        dialog.setSize(size);
+        layoutTree(dialog);
+        javax.swing.JComboBox<?> zoom = dialog.preview().zoomChoice();
+        assertThat(zoom.getWidth()).isGreaterThanOrEqualTo(zoom.getPreferredSize().width);
+        assertThat(zoom.getAccessibleContext().getAccessibleName()).isEqualTo(
+                "Zoom de la vista previa (no cambia la escala del papel)");
+        assertThat(zoom.getToolTipText()).isEqualTo("Zoom de la vista previa (no cambia la escala del papel)");
+        assertThat(Messages.bundle(Locale.ENGLISH).getString("print.zoom.tip"))
+                .isEqualTo("Preview zoom (does not change the paper's scale)");
+    }
+
+    @Test
+    void theWindowIsToldWhenANoticeAppears() {
+        printers.printerDefault(Paper.LETTER);
+        openToPrint();
+        int[] told = {0};
+        dialog.onContentGrew(() -> told[0]++);
+
+        dialog.paperChoice().setSelectedItem(Paper.A4);
+
+        assertThat(told[0]).isPositive();
+    }
+
+    private static void layoutTree(java.awt.Container container) {
+        container.doLayout();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof java.awt.Container inner) {
+                layoutTree(inner);
+            }
+        }
     }
 
     @Test

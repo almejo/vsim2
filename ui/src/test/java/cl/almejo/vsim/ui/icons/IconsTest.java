@@ -25,7 +25,8 @@ class IconsTest {
 
     private static final Path DIRECTORY = Path.of("src/main/resources/icons");
     /** FlatLaf's action colors: FlatSVGIcon recolors exactly these in dark themes. */
-    private static final Set<String> ACTION_COLORS = Set.of("#6E6E6E", "#389FD6", "#59A869", "#DB5860");
+    /** Plus the warning amber of the print notices, which reads on both themes as it is. */
+    private static final Set<String> ACTION_COLORS = Set.of("#6E6E6E", "#389FD6", "#59A869", "#DB5860", "#E0A030");
     private static final Pattern PAINT = Pattern.compile("(?:fill|stroke)=\"([^\"]*)\"");
 
     static List<String> iconNames() throws IOException {
