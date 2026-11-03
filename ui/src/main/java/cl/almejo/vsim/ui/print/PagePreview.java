@@ -77,7 +77,7 @@ final class PagePreview extends JPanel {
         JScrollPane scroll = new JScrollPane(sheet);
         scroll.getAccessibleContext().setAccessibleName(Messages.text("print.preview.sheet"));
         add(scroll);
-        JPanel controls = new JPanel(new MigLayout("insets 0", "[][grow, fill][]push[][]"));
+        JPanel controls = new JPanel(new MigLayout("insets 0", "[][grow, fill][]16[]4[]"));
         controls.add(previous);
         controls.add(sheetLabel);
         controls.add(next);
