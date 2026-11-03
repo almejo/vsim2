@@ -146,13 +146,13 @@ class PagePainterTest {
     }
 
     private static PagePainter painter(PrintInput input, PrintArea area, PrintOptions options) {
-        PageGeometry geometry = PageGeometry.standard(options.paper(), options.orientation(), options.headerFooter());
+        PageGeometry geometry = PageGeometry.standard(options, PageGeometry.CENTIMETRE_POINTS);
         return new PagePainter(input, area, options, PageLayout.of(area.gridArea(), geometry, options.scaleMode()));
     }
 
     private static PageLayout layoutOf(PrintInput input, PrintOptions options) {
         PrintArea area = PrintScopes.area(input, options.scope()).orElseThrow();
-        PageGeometry geometry = PageGeometry.standard(options.paper(), options.orientation(), options.headerFooter());
+        PageGeometry geometry = PageGeometry.standard(options, PageGeometry.CENTIMETRE_POINTS);
         return PageLayout.of(area.gridArea(), geometry, options.scaleMode());
     }
 
@@ -490,6 +490,123 @@ class PagePainterTest {
         PrintInput unsimulated = input(SimulationSnapshot.EMPTY);
         assertThat(unsimulated.hasValues()).isFalse();
         assertThat(text(render(painter(unsimulated, legend), 0), footerMiddle)).as("not «sin valores»").isZero();
+    }
+
+    // --- the sheet-joining guides and the header and footer items ----------------------------------------------
+
+    private static PrintOptions guides(PrintOptions base, boolean sheetGuides) {
+        return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
+                base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(), sheetGuides,
+                base.showDate(), base.showFileName(), base.showSheetNumber());
+    }
+
+    private static PrintOptions items(PrintOptions base, boolean date, boolean fileName, boolean sheetNumber) {
+        return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
+                base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(),
+                base.sheetGuides(), date, fileName, sheetNumber);
+    }
+
+    private static PrintOptions threeByThree() {
+        return new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
+                new ScaleMode.Percentage(160), true, false, false, "");
+    }
+
+    private static Rectangle2D centred(double centreX, double centreY, double width, double height) {
+        return new Rectangle2D.Double(centreX - width / 2, centreY - height / 2, width, height);
+    }
+
+    @Test
+    void theMiddleSheetOfThreeByThreeNamesItsFourNeighboursAndACornerSheetTwo() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, threeByThree());
+        assertThat(layout.columns()).isEqualTo(3);
+        assertThat(layout.rows()).isEqualTo(3);
+        PagePainter painter = painter(input, threeByThree());
+        Rectangle2D window = layout.window();
+        double strip = layout.geometry().marksStripPoints();
+        Rectangle2D left = centred(window.getX() - strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D right = centred(window.getMaxX() + strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D above = centred(window.getCenterX(), window.getY() - strip / 2, 20, strip);
+        Rectangle2D below = centred(window.getCenterX(), window.getMaxY() + strip / 2, 20, strip);
+        BufferedImage middle = render(painter, 4);
+        assertThat(text(middle, left)).as("◀ Hoja 4").isPositive();
+        assertThat(text(middle, right)).as("Hoja 6 ▶").isPositive();
+        assertThat(text(middle, above)).as("▲ Hoja 2").isPositive();
+        assertThat(text(middle, below)).as("▼ Hoja 8").isPositive();
+        BufferedImage corner = render(painter, 0);
+        assertThat(text(corner, left)).as("nothing on the left").isZero();
+        assertThat(text(corner, above)).as("nothing above").isZero();
+        assertThat(text(corner, right)).as("◀ Hoja 2").isPositive();
+        assertThat(text(corner, below)).as("▼ Hoja 4").isPositive();
+        assertThat(inkOutside(middle, new Rectangle2D.Double(layout.geometry().marginPoints(),
+                layout.geometry().marginPoints(), layout.geometry().paperWidthPoints() - 2
+                * layout.geometry().marginPoints(), layout.geometry().paperHeightPoints() - 2
+                * layout.geometry().marginPoints()))).as("inside the printable area").isZero();
+    }
+
+    @Test
+    void withoutTheGuidesATiledSheetHasNoMarksLabelNorNumbersAndTheStripIsGivenBack() {
+        bigCircuit();
+        PrintInput input = input();
+        PrintOptions off = guides(threeByThree(), false);
+        PageLayout without = layoutOf(input, off);
+        PageLayout with = layoutOf(input, threeByThree());
+        assertThat(without.geometry().marksStripPoints()).isZero();
+        assertThat(without.window().getWidth()).isEqualTo(with.window().getWidth() + 2
+                * with.geometry().marksStripPoints(), org.assertj.core.api.Assertions.within(1e-9));
+        assertThat(without.pageCountExact()).isLessThanOrEqualTo(with.pageCountExact());
+        PagePainter painter = painter(input, off);
+        for (int index = 0; index < painter.pages().size(); index++) {
+            assertThat(inkOutside(render(painter, index), without.window())).as("sheet " + index).isZero();
+        }
+    }
+
+    @Test
+    void aSingleSheetHasNoGuidesWhetherTheyAreOnOrOff() {
+        bigCircuit();
+        PrintInput input = input();
+        assertThat(layoutOf(input, fit()).tiled()).isFalse();
+        BufferedImage page = render(painter(input, fit()), 0);
+        assertThat(inkOutside(page, layoutOf(input, fit()).window())).isZero();
+        assertThat(samePixels(page, render(painter(input, guides(fit(), false)), 0))).isTrue();
+    }
+
+    @Test
+    void eachHeaderAndFooterItemCanBeLeftOutAlone() {
+        smallCircuit();
+        PrintInput input = input();
+        PrintOptions all = options(new PrintScope.WholeCircuit(), new ScaleMode.FitToOnePage(), true, false, true);
+        PageGeometry geometry = layoutOf(input, all).geometry();
+        Rectangle2D title = slice(headerBand(geometry), 0, 0.3);
+        Rectangle2D fileName = slice(headerBand(geometry), 0.7, 1);
+        Rectangle2D date = slice(footerBand(geometry), 0, 0.3);
+        Rectangle2D sheetNumber = slice(footerBand(geometry), 0.7, 1);
+        BufferedImage withoutDate = render(painter(input, items(all, false, true, true)), 0);
+        assertThat(text(withoutDate, date)).as("no date").isZero();
+        assertThat(text(withoutDate, title)).isPositive();
+        assertThat(text(withoutDate, fileName)).isPositive();
+        assertThat(text(withoutDate, sheetNumber)).isPositive();
+        BufferedImage withoutName = render(painter(input, items(all, true, false, true)), 0);
+        assertThat(text(withoutName, fileName)).as("no file name").isZero();
+        assertThat(text(withoutName, title)).as("the title stays").isPositive();
+        assertThat(text(withoutName, date)).isPositive();
+        BufferedImage withoutNumber = render(painter(input, items(all, true, true, false)), 0);
+        assertThat(text(withoutNumber, sheetNumber)).as("no sheet number").isZero();
+        assertThat(text(withoutNumber, date)).isPositive();
+        BufferedImage none = render(painter(input, items(all, false, false, false)), 0);
+        assertThat(text(none, date) + text(none, fileName) + text(none, sheetNumber)).isZero();
+        assertThat(text(none, title)).isPositive();
+    }
+
+    @Test
+    void theLegendStillGoesInTheFooterWhenItsItemsAreLeftOut() {
+        bigCircuit();
+        PrintInput input = input();
+        PrintOptions legend = items(options(new PrintScope.WholeCircuit(), new ScaleMode.Percentage(100), true, true,
+                true), false, true, false);
+        PageGeometry geometry = layoutOf(input, legend).geometry();
+        assertThat(text(render(painter(input, legend), 0), slice(footerBand(geometry), 0.4, 0.6))).isPositive();
     }
 
     @Test

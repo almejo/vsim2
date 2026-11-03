@@ -244,8 +244,8 @@ final class ExportHostSupport {
                 PageOrientation.valueOf(chosen.orientation()), scaleMode, chosen.withValues(), chosen.blackAndWhite(),
                 chosen.headerFooter(), title, request.includeStickyNotes());
         PrintArea area = PrintScopes.area(input, scope, request.includeStickyNotes()).orElseThrow(ExportHostSupport::nothing);
-        PageLayout layout = PageLayout.of(area.gridArea(), PageGeometry.standard(options.paper(),
-                options.orientation(), options.headerFooter()), options.scaleMode());
+        PageLayout layout = PageLayout.of(area.gridArea(), PageGeometry.standard(options,
+                PageGeometry.CENTIMETRE_POINTS), options.scaleMode());
         if (layout.problem().isPresent()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "The circuit does not fit on the sheet "
                     + "with these options; try another paper, orientation or scale",

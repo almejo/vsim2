@@ -52,6 +52,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En «Exportar a PDF…» e «Imprimir…», con varias hojas, cada hoja nombra en el margen junto a cada borde la hoja vecina («◀ Hoja 1», «Hoja 3 ▶», «▲ Hoja 1», «▼ Hoja 4»), además de las marcas de corte y la etiqueta «Fila · Columna — Hoja n de N»; «Guías para unir hojas» (activada por defecto, se recuerda) las quita todas y devuelve su franja a la ventana. Ver [Exportar a PDF](docs/funciones/importar-y-exportar.md#exportar-a-pdf).
+- Con «Encabezado y pie de página», tres casillas dejan fuera por separado la fecha, el nombre del archivo y el número de hoja (activadas por defecto, se recuerdan). Ver [Exportar a PDF](docs/funciones/importar-y-exportar.md#exportar-a-pdf).
 - El zoom de la vista previa de «Exportar a PDF…» e «Imprimir…» es ahora una lupa junto a su lista (con la ayuda «Zoom de la vista previa (no cambia la escala del papel)») en vez de una etiqueta larga que dejaba la lista cortada.
 - En «Exportar a PDF…» e «Imprimir…», con más de una hoja aparece junto a la cuenta de hojas un botón «Ajustar a una hoja», para volver atrás después de «Dividir en varias hojas», y el zoom de la vista previa se llama «Zoom de la vista previa» para no confundirlo con la «Escala» del papel. Ver [Exportar a PDF](docs/funciones/importar-y-exportar.md#exportar-a-pdf).
 - Los textos que nombran la entrada de una compuerta (Problemas, el globo de un pin, los nombres por defecto de las sondas, el aviso de conexiones al cambiar la forma) la cuentan desde 1: «entrada 1», «entrada 2», «entrada 3» (en inglés «input 1»…), en vez de `in0`, `in1`, `in2`. Los nombres internos no cambian: el archivo y la IA siguen usando `in0`.

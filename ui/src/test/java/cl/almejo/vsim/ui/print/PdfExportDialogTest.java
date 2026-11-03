@@ -295,6 +295,87 @@ class PdfExportDialogTest {
     }
 
     @Test
+    void theJoiningGuidesAppearOnlyWithSeveralSheetsAndStartOn() {
+        place(10, 10);
+        open();
+        assertThat(dialog.sheetGuides().isSelected()).as("on by default").isTrue();
+        assertThat(dialog.sheetGuides().isVisible()).as("one sheet, nothing to join").isFalse();
+        dialog.dispose();
+        place(2000, 0);
+        open();
+        dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
+        dialog.percentSpinner().setValue(400);
+        assertThat(dialog.pageLayout().orElseThrow().tiled()).isTrue();
+        assertThat(dialog.sheetGuides().isVisible()).isTrue();
+        assertThat(dialog.sheetGuides().isEnabled()).isTrue();
+        assertThat(dialog.options().sheetGuides()).isTrue();
+    }
+
+    @Test
+    void withoutTheGuidesTheLayoutKeepsNoMarksStrip() {
+        place(0, 0);
+        place(2000, 0);
+        open();
+        dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
+        dialog.percentSpinner().setValue(400);
+        double stripWith = dialog.pageLayout().orElseThrow().geometry().marksStripPoints();
+        double widthWith = dialog.pageLayout().orElseThrow().window().getWidth();
+        assertThat(stripWith).isPositive();
+        dialog.sheetGuides().doClick();
+        assertThat(dialog.options().sheetGuides()).isFalse();
+        assertThat(dialog.pageLayout().orElseThrow().geometry().marksStripPoints()).isZero();
+        assertThat(dialog.pageLayout().orElseThrow().window().getWidth()).isEqualTo(widthWith + 2 * stripWith,
+                org.assertj.core.api.Assertions.within(1e-9));
+        assertThat(dialog.sheetGuides().isVisible()).as("still there to turn back on").isTrue();
+    }
+
+    @Test
+    void theHeaderItemsShowOnlyWithTheHeaderAndStartOn() {
+        place(10, 10);
+        open();
+        for (javax.swing.JCheckBox item : List.of(dialog.showDate(), dialog.showFileName(),
+                dialog.showSheetNumber())) {
+            assertThat(item.isSelected()).as("on by default").isTrue();
+            assertThat(item.isVisible()).as("hidden without the header").isFalse();
+        }
+        dialog.headerFooter().doClick();
+        for (javax.swing.JCheckBox item : List.of(dialog.showDate(), dialog.showFileName(),
+                dialog.showSheetNumber())) {
+            assertThat(item.isVisible()).isTrue();
+            assertThat(item.isEnabled()).isTrue();
+        }
+        dialog.showDate().doClick();
+        dialog.showSheetNumber().doClick();
+        assertThat(dialog.options().showDate()).isFalse();
+        assertThat(dialog.options().showFileName()).isTrue();
+        assertThat(dialog.options().showSheetNumber()).isFalse();
+        dialog.headerFooter().doClick();
+        assertThat(dialog.showDate().isVisible()).isFalse();
+    }
+
+    @Test
+    void theGuidesAndTheHeaderItemsAreRememberedAfterASavedExport() {
+        place(10, 10);
+        open();
+        dialog.headerFooter().doClick();
+        dialog.showFileName().doClick();
+        dialog.sheetGuides().doClick();
+        chosenFile = Optional.of(directory.resolve("a.pdf"));
+        dialog.saveButton().doClick();
+        exporter.future.complete(null);
+        PrintOptions remembered = preferences.printOptions("x");
+        assertThat(remembered.sheetGuides()).isFalse();
+        assertThat(remembered.showFileName()).isFalse();
+        assertThat(remembered.showDate()).isTrue();
+        assertThat(remembered.showSheetNumber()).isTrue();
+        dialog.dispose();
+        open();
+        assertThat(dialog.sheetGuides().isSelected()).isFalse();
+        assertThat(dialog.showFileName().isSelected()).isFalse();
+        assertThat(dialog.showDate().isSelected()).isTrue();
+    }
+
+    @Test
     void thePreviewIsRebuiltOnlyWhenTheCoalescingTimerFires() {
         place(10, 10);
         open();

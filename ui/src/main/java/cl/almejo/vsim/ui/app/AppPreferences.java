@@ -178,6 +178,10 @@ public final class AppPreferences {
     static final String PRINT_BLACK_AND_WHITE = "print.blackAndWhite";
     static final String PRINT_HEADER_FOOTER = "print.headerFooter";
     static final String PRINT_INCLUDE_STICKY_NOTES = "print.includeStickyNotes";
+    static final String PRINT_SHEET_GUIDES = "print.sheetGuides";
+    static final String PRINT_SHOW_DATE = "print.showDate";
+    static final String PRINT_SHOW_FILE_NAME = "print.showFileName";
+    static final String PRINT_SHOW_SHEET_NUMBER = "print.showSheetNumber";
     static final String PRINT_DIRECTORY = "print.directory";
     private static final String PRINT_FIT = "fit";
     static final String AI_PORT = "ai.port";
@@ -459,7 +463,11 @@ public final class AppPreferences {
                 flag(PRINT_BLACK_AND_WHITE, false),
                 flag(PRINT_HEADER_FOOTER, false),
                 title,
-                flag(PRINT_INCLUDE_STICKY_NOTES, false));
+                flag(PRINT_INCLUDE_STICKY_NOTES, false),
+                flag(PRINT_SHEET_GUIDES, defaults.sheetGuides()),
+                flag(PRINT_SHOW_DATE, defaults.showDate()),
+                flag(PRINT_SHOW_FILE_NAME, defaults.showFileName()),
+                flag(PRINT_SHOW_SHEET_NUMBER, defaults.showSheetNumber()));
     }
 
     private ScaleMode printScale(ScaleMode fallback) {
@@ -506,6 +514,10 @@ public final class AppPreferences {
         putFlag(PRINT_BLACK_AND_WHITE, options.blackAndWhite());
         putFlag(PRINT_HEADER_FOOTER, options.headerFooter());
         putFlag(PRINT_INCLUDE_STICKY_NOTES, options.includeStickyNotes());
+        putFlag(PRINT_SHEET_GUIDES, options.sheetGuides());
+        putFlag(PRINT_SHOW_DATE, options.showDate());
+        putFlag(PRINT_SHOW_FILE_NAME, options.showFileName());
+        putFlag(PRINT_SHOW_SHEET_NUMBER, options.showSheetNumber());
     }
 
     /** The folder of the last saved PDF; empty until the first one. */

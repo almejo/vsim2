@@ -369,15 +369,16 @@ public final class PagePainter {
 
     private void paintDecorations(Graphics2D sheet, PrintPage page, int pageCount) {
         int sheetNumber = page.index() + 1;
-        if (layout.tiled()) {
+        if (layout.tiled() && options.sheetGuides()) {
             decorations.paintMarks(sheet, layout, page, Messages.format(SHEET_POSITION, page.row() + 1,
                     page.column() + 1, sheetNumber, pageCount));
         }
         boolean legend = showsValues && options.blackAndWhite() && page.index() == 0;
         if (options.headerFooter()) {
-            decorations.paintHeader(sheet, layout.geometry(), title, input.fileName());
-            decorations.paintFooter(sheet, layout.geometry(), date,
-                    Messages.format(SHEET_NUMBER, sheetNumber, pageCount), legend);
+            decorations.paintHeader(sheet, layout.geometry(), title,
+                    options.showFileName() ? input.fileName() : Optional.empty());
+            decorations.paintFooter(sheet, layout.geometry(), options.showDate() ? date : "",
+                    options.showSheetNumber() ? Messages.format(SHEET_NUMBER, sheetNumber, pageCount) : "", legend);
         } else if (legend) {
             PageGeometry geometry = layout.geometry();
             decorations.paintLegendBelow(sheet, geometry, geometry.paperHeightPoints() - geometry.marginPoints());

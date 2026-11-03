@@ -46,6 +46,14 @@ public record PageGeometry(Paper paper, PageOrientation orientation, double marg
                 headerFooter ? STANDARD_HEADER_BAND_POINTS : 0, STANDARD_MARKS_STRIP_POINTS, CENTIMETRE_POINTS);
     }
 
+    /** The geometry for {@code options} with {@code marginPoints}: without the guides the marks' strip is not kept. */
+    public static PageGeometry standard(PrintOptions options, double marginPoints) {
+        PageGeometry geometry = PageGeometry.standard(options.paper(), options.orientation(),
+                options.headerFooter(), marginPoints);
+        return options.sheetGuides() ? geometry : new PageGeometry(geometry.paper(), geometry.orientation(),
+                geometry.marginPoints(), geometry.headerBandPoints(), 0, geometry.overlapPoints());
+    }
+
     /** The paper's width as turned by the orientation. */
     public double paperWidthPoints() {
         return orientation == PageOrientation.PORTRAIT ? paper.widthPoints() : paper.heightPoints();

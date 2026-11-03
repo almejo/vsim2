@@ -13,8 +13,10 @@ import java.awt.font.LineMetrics;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Optional;
 
 /**
@@ -46,6 +48,10 @@ final class PageDecorations {
     /** The rule between a band and the drawing sits this far inside the band. */
     private static final double RULE_INSET_POINTS = 3;
     private static final double TEXT_GAP_POINTS = 8;
+    /** The little triangle that points to the neighbouring sheet. */
+    private static final double ARROW_LENGTH_POINTS = 5;
+    private static final double ARROW_WIDTH_POINTS = 5;
+    private static final double ARROW_GAP_POINTS = 2;
     private static final double SAMPLE_LENGTH_POINTS = 18;
     private static final double SAMPLE_GAP_POINTS = 3;
     private static final double LEGEND_ITEM_GAP_POINTS = 9;
@@ -59,6 +65,20 @@ final class PageDecorations {
             new LegendEntry(WireState.HIGH_IMPEDANCE, "print.legend.highImpedance"),
             new LegendEntry(WireState.UNKNOWN, "print.legend.unknown"),
             new LegendEntry(WireState.CONFLICT, "print.legend.conflict"));
+
+    /** The numbers (from 1) of the sheets next to a tiled sheet; empty where there is none. */
+    record Neighbours(OptionalInt left, OptionalInt right, OptionalInt above, OptionalInt below) {
+    }
+
+    /** The sheets around {@code page} in {@code layout}, numbered as in «Hoja n de N». */
+    static Neighbours neighbours(PageLayout layout, PrintPage page) {
+        int number = page.index() + 1;
+        return new Neighbours(
+                page.column() > 0 ? OptionalInt.of(number - 1) : OptionalInt.empty(),
+                page.column() < layout.columns() - 1 ? OptionalInt.of(number + 1) : OptionalInt.empty(),
+                page.row() > 0 ? OptionalInt.of(number - layout.columns()) : OptionalInt.empty(),
+                page.row() < layout.rows() - 1 ? OptionalInt.of(number + layout.columns()) : OptionalInt.empty());
+    }
 
     private record LegendEntry(WireState state, String labelKey) {
     }
@@ -100,9 +120,98 @@ final class PageDecorations {
             horizontalMarks(graphics, window, window.getMaxY() - halfOverlap);
         }
         double strip = layout.geometry().marksStripPoints();
-        String fitted = fitted(label, markFont, window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS);
-        drawText(graphics, fitted, markFont, window.getCenterX() - width(fitted, markFont) / 2,
+        Neighbours neighbours = neighbours(layout, page);
+        // the label starts after the mark of the left overlap; the number of the sheet below stays centred
+        double labelLeft = window.getX() + halfOverlap + TEXT_GAP_POINTS / 2;
+        double labelRoom = window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;
+        if (neighbours.below().isPresent()) {
+            double belowWidth = neighbourWidth(neighbours.below().getAsInt());
+            labelRoom = Math.min(labelRoom, window.getCenterX() - belowWidth / 2 - TEXT_GAP_POINTS - labelLeft);
+        }
+        drawText(graphics, fitted(label, markFont, labelRoom), markFont, labelLeft,
                 baselineIn(window.getMaxY(), strip, markFont));
+        double alongHorizontal = window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;
+        double alongVertical = window.getHeight() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;
+        neighbours.above().ifPresent(number -> paintHorizontalNeighbour(graphics, number, window.getCenterX(),
+                window.getY() - strip, strip, true, alongHorizontal));
+        neighbours.below().ifPresent(number -> paintHorizontalNeighbour(graphics, number, window.getCenterX(),
+                window.getMaxY(), strip, false, alongHorizontal));
+        neighbours.left().ifPresent(number -> paintVerticalNeighbour(graphics, number, window.getCenterY(),
+                window.getX() - strip, strip, true, alongVertical));
+        neighbours.right().ifPresent(number -> paintVerticalNeighbour(graphics, number, window.getCenterY(),
+                window.getMaxX(), strip, false, alongVertical));
+    }
+
+    private static String neighbourText(int number) {
+        return Messages.format("print.sheet.neighbour", number);
+    }
+
+    private double neighbourWidth(int number) {
+        return ARROW_LENGTH_POINTS + ARROW_GAP_POINTS + width(neighbourText(number), markFont);
+    }
+
+    /**
+     * «▲ Hoja 2» or «▼ Hoja 8», centred on {@code centreX} in the strip from {@code stripTop}, {@code strip} high. The
+     * arrow is a small triangle drawn here, so it never depends on the font having the glyph.
+     */
+    private void paintHorizontalNeighbour(Graphics2D graphics, int number, double centreX, double stripTop,
+                                          double strip, boolean pointsUp, double maximumWidth) {
+        String text = fitted(neighbourText(number), markFont, maximumWidth - ARROW_LENGTH_POINTS - ARROW_GAP_POINTS);
+        double total = ARROW_LENGTH_POINTS + ARROW_GAP_POINTS + width(text, markFont);
+        double left = centreX - total / 2;
+        double centreY = stripTop + strip / 2;
+        double half = ARROW_WIDTH_POINTS / 2;
+        double tipY = centreY + (pointsUp ? -half : half);
+        double baseY = centreY + (pointsUp ? half : -half);
+        Path2D.Double arrow = new Path2D.Double();
+        arrow.moveTo(left + ARROW_LENGTH_POINTS / 2, tipY);
+        arrow.lineTo(left, baseY);
+        arrow.lineTo(left + ARROW_LENGTH_POINTS, baseY);
+        arrow.closePath();
+        graphics.setColor(INK);
+        graphics.fill(arrow);
+        drawText(graphics, text, markFont, left + ARROW_LENGTH_POINTS + ARROW_GAP_POINTS,
+                baselineIn(stripTop, strip, markFont));
+    }
+
+    /**
+     * «◀ Hoja 1» or «Hoja 3 ▶» turned on its side so it fits the narrow strip beside the window, centred on
+     * {@code centreY}: on the left it reads from the bottom up with the arrow (pointing left) first, on the right from
+     * the top down with the arrow (pointing right) last, both arrows at the bottom end.
+     */
+    private void paintVerticalNeighbour(Graphics2D graphics, int number, double centreY, double stripLeft,
+                                        double strip, boolean onLeft, double maximumLength) {
+        String text = fitted(neighbourText(number), markFont, maximumLength - ARROW_LENGTH_POINTS - ARROW_GAP_POINTS);
+        double textWidth = width(text, markFont);
+        double total = ARROW_LENGTH_POINTS + ARROW_GAP_POINTS + textWidth;
+        double bottom = centreY + total / 2;
+        double centreX = stripLeft + strip / 2;
+        LineMetrics metrics = markFont.getLineMetrics("Ag", MEASURE);
+        double shift = (metrics.getAscent() - metrics.getDescent()) / 2;
+        double half = ARROW_WIDTH_POINTS / 2;
+        Path2D.Double arrow = new Path2D.Double();
+        double tipX = centreX + (onLeft ? -half : half);
+        double baseX = centreX + (onLeft ? half : -half);
+        double arrowTop = bottom - ARROW_LENGTH_POINTS;
+        arrow.moveTo(tipX, arrowTop + ARROW_LENGTH_POINTS / 2);
+        arrow.lineTo(baseX, arrowTop);
+        arrow.lineTo(baseX, bottom);
+        arrow.closePath();
+        graphics.setColor(INK);
+        graphics.fill(arrow);
+        if (text.isEmpty()) {
+            return;
+        }
+        TextLayout layout = new TextLayout(text, markFont, MEASURE);
+        AffineTransform turn;
+        if (onLeft) {
+            turn = AffineTransform.getTranslateInstance(centreX + shift, arrowTop - ARROW_GAP_POINTS);
+            turn.rotate(-Math.PI / 2);
+        } else {
+            turn = AffineTransform.getTranslateInstance(centreX - shift, arrowTop - ARROW_GAP_POINTS - textWidth);
+            turn.rotate(Math.PI / 2);
+        }
+        graphics.fill(layout.getOutline(turn));
     }
 
     private static void verticalMarks(Graphics2D graphics, Rectangle2D window, double x) {

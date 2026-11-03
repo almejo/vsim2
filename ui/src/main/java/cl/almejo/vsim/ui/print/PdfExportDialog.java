@@ -266,6 +266,10 @@ public final class PdfExportDialog extends JPanel {
     private final JCheckBox includeStickyNotes = new JCheckBox(Messages.text("print.includeStickyNotes"));
     private final JCheckBox headerFooter = new JCheckBox(Messages.text("print.headerFooter"));
     private final JTextField titleField = new JTextField(18);
+    private final JCheckBox showDate = new JCheckBox(Messages.text("print.headerDate"));
+    private final JCheckBox showFileName = new JCheckBox(Messages.text("print.headerFileName"));
+    private final JCheckBox showSheetNumber = new JCheckBox(Messages.text("print.headerSheetNumber"));
+    private final JCheckBox sheetGuides = new JCheckBox(Messages.text("print.sheetGuides"));
     private final JButton refresh = new JButton(Messages.text("print.refresh"));
     private final PagePreview preview = new PagePreview();
     private final JLabel status = new JLabel();
@@ -407,6 +411,10 @@ public final class PdfExportDialog extends JPanel {
         titleLabel.setLabelFor(titleField);
         options.add(titleLabel, "gapleft 20");
         options.add(titleField);
+        options.add(showDate, "span 2, gapleft 20, hidemode 3");
+        options.add(showFileName, "span 2, gapleft 20, hidemode 3");
+        options.add(showSheetNumber, "span 2, gapleft 20, hidemode 3");
+        options.add(sheetGuides, "span 2, hidemode 3");
         options.add(refresh, "span 2, gaptop 12, growx 0");
         refresh.setToolTipText(Messages.text("print.refresh.tip"));
     }
@@ -486,6 +494,10 @@ public final class PdfExportDialog extends JPanel {
         includeStickyNotes.setSelected(remembered.includeStickyNotes());
         headerFooter.setSelected(remembered.headerFooter());
         titleField.setText(remembered.title());
+        sheetGuides.setSelected(remembered.sheetGuides());
+        showDate.setSelected(remembered.showDate());
+        showFileName.setSelected(remembered.showFileName());
+        showSheetNumber.setSelected(remembered.showSheetNumber());
     }
 
     private void fillFrames() {
@@ -506,7 +518,8 @@ public final class PdfExportDialog extends JPanel {
 
     private void listen() {
         List.of(scopeWhole, scopeSelection, scopeFrame, portrait, landscape, withValues, blackAndWhite,
-                includeStickyNotes, headerFooter).forEach(button -> button.addActionListener(event -> update()));
+                includeStickyNotes, headerFooter, showDate, showFileName, showSheetNumber, sheetGuides)
+                .forEach(button -> button.addActionListener(event -> update()));
         frameChoice.addActionListener(event -> update());
         paperChoice.addActionListener(event -> {
             paperTouched |= !updating;
@@ -540,7 +553,8 @@ public final class PdfExportDialog extends JPanel {
         return new PrintOptions(scope, (Paper) paperChoice.getSelectedItem(),
                 landscape.isSelected() ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT, mode,
                 withValues.isSelected(), blackAndWhite.isSelected(), headerFooter.isSelected(), titleField.getText(),
-                includeStickyNotes.isSelected());
+                includeStickyNotes.isSelected(), sheetGuides.isSelected(), showDate.isSelected(),
+                showFileName.isSelected(), showSheetNumber.isSelected());
     }
 
     /** The area of {@code scope}, measured with the frozen font (labels change the bounds). */
@@ -573,9 +587,10 @@ public final class PdfExportDialog extends JPanel {
             preview.clear();
             return;
         }
-        PageLayout layout = PageLayout.of(area.get().gridArea(), PageGeometry.standard(options.paper(),
-                options.orientation(), options.headerFooter(), marginPoints), options.scaleMode());
+        PageLayout layout = PageLayout.of(area.get().gridArea(), PageGeometry.standard(options, marginPoints),
+                options.scaleMode());
         plan = Optional.of(new Plan(options, area.get(), layout));
+        sheetGuides.setVisible(layout.tiled());
         if (layout.problem().isPresent()) {
             show("", "", Notice.hint(Messages.text(layout.problem().get())));
             enableOutputs(false);
@@ -637,8 +652,12 @@ public final class PdfExportDialog extends JPanel {
         frameChoice.setEnabled(idle && scopeFrame.isSelected() && !input.frames().isEmpty());
         percentSpinner.setEnabled(idle && scaleChoice.getSelectedItem() == ScaleChoice.OTHER);
         titleField.setEnabled(idle && headerFooter.isSelected());
+        List.of(showDate, showFileName, showSheetNumber).forEach(item -> {
+            item.setVisible(headerFooter.isSelected());
+            item.setEnabled(idle);
+        });
         List.<JComponent>of(scopeWhole, paperChoice, portrait, landscape, scaleChoice, withValues, blackAndWhite,
-                includeStickyNotes, headerFooter, refresh, split, fit).forEach(control -> control.setEnabled(idle));
+                includeStickyNotes, headerFooter, sheetGuides, refresh, split, fit).forEach(control -> control.setEnabled(idle));
     }
 
     /** Shows (or hides) why the values cannot be printed, when «with values» is on. */
@@ -1075,6 +1094,22 @@ public final class PdfExportDialog extends JPanel {
 
     JCheckBox headerFooter() {
         return headerFooter;
+    }
+
+    JCheckBox sheetGuides() {
+        return sheetGuides;
+    }
+
+    JCheckBox showDate() {
+        return showDate;
+    }
+
+    JCheckBox showFileName() {
+        return showFileName;
+    }
+
+    JCheckBox showSheetNumber() {
+        return showSheetNumber;
     }
 
     JTextField titleField() {
