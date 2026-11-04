@@ -52,11 +52,17 @@ class NetlistSnapshotTest {
             try (Stream<Path> files = Files.walk(directory)) {
                 files.filter(path -> path.toString().endsWith(".vsim") || path.toString().endsWith(".json"))
                         .sorted()
-                        .forEach(path -> examples.add(new Example(
-                                RESOURCES.relativize(path).toString().replace('/', '-'), path)));
+                        .forEach(path -> examples.add(new Example(snapshotName(RESOURCES.relativize(path)), path)));
             }
         }
         return examples.stream();
+    }
+
+    /** The relative path's names joined with «-», the same on every system (Windows separates them with «\»). */
+    private static String snapshotName(Path relative) {
+        List<String> names = new ArrayList<>();
+        relative.forEach(name -> names.add(name.toString()));
+        return String.join("-", names);
     }
 
     @ParameterizedTest
