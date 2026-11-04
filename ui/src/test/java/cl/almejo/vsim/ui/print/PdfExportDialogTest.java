@@ -214,7 +214,7 @@ class PdfExportDialogTest {
         assertThat(layout.columns()).isGreaterThan(1);
         assertThat(layout.rows()).isEqualTo(1);
         assertThat(dialog.statusText()).isEqualTo(layout.columns() + " × 1 hojas · " + layout.pageCount()
-                + " en total · escala 100 %");
+                + " en total · escala 100 % · se imprimen 2");
     }
 
     @Test
@@ -393,6 +393,7 @@ class PdfExportDialogTest {
         place(0, 0);
         place(2000, 0);
         open();
+        dialog.skipEmptySheets().doClick(); // every sheet goes out, the empty ones between the switches too
         dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
         dialog.percentSpinner().setValue(400);
         long count = dialog.pageLayout().orElseThrow().pageCountExact();

@@ -6,9 +6,11 @@ import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.print.PrintedSheets;
 import cl.almejo.vsim.ui.print.SheetGrid;
 
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
@@ -25,7 +27,8 @@ import java.util.Optional;
 /**
  * Draws the print sheets on one pane (sheets spec §3, §6, §7): each visible sheet's window as a 1 px dashed rectangle,
  * the overlap bands lightly filled, «Hoja n» inside each sheet big enough on screen (stuck to the visible corner when
- * the sheet's own is scrolled away), and a solid amber outline around each part or frame a border cuts. In logical
+ * the sheet's own is scrolled away), and a solid amber outline around each part or frame a border cuts. With «Saltar
+ * hojas vacías» an empty sheet is drawn dimmer, says «Hoja n · vacía» and has no band toward it. In logical
  * screen pixels, so lines stay 1 px and text keeps its size at any zoom; only the sheets the pane shows are visited.
  * A canvas overlay, which image export and the PDF never run: the sheets never reach a file or paper. The summary
  * label is the pane's {@link SheetSummaryHandle}.
@@ -43,6 +46,8 @@ final class SheetOverlay implements CanvasOverlay {
     private static final int CUT_MARGIN = 2;
     /** Length of a dash and of the gap after it, in logical pixels (as the guide lines). */
     private static final float DASH = 4;
+    /** How much of the sheet colour's opacity an empty sheet «Saltar hojas vacías» skips keeps: dimmer, still there. */
+    private static final float EMPTY_SHEET_OPACITY = 0.4f;
     /** How finely the logical-pixel transform is rounded ({@link #withoutRoundingErrors}). */
     private static final double MATRIX_PRECISION = 1e6;
 
@@ -94,7 +99,13 @@ final class SheetOverlay implements CanvasOverlay {
         Stroke dashed = new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, new float[]{DASH, DASH},
                 0);
         screen.setStroke(dashed);
-        screen.setColor(scheme.sheet());
+        Color sheet = scheme.sheet();
+        screen.setColor(new Color(sheet.getRed(), sheet.getGreen(), sheet.getBlue(),
+                Math.round(sheet.getAlpha() * EMPTY_SHEET_OPACITY)));
+        for (Rectangle border : drawing.emptyBorders()) {
+            screen.drawRect(border.x, border.y, border.width, border.height);
+        }
+        screen.setColor(sheet);
         for (Rectangle border : drawing.borders()) {
             screen.drawRect(border.x, border.y, border.width, border.height);
         }
@@ -120,33 +131,54 @@ final class SheetOverlay implements CanvasOverlay {
         Point2D visibleBottomRight = viewport.screenToGrid(pane.getWidth(), pane.getHeight());
         SheetGrid.Range columns = grid.columnsBetween(visibleTopLeft.getX(), visibleBottomRight.getX());
         SheetGrid.Range rows = grid.rowsBetween(visibleTopLeft.getY(), visibleBottomRight.getY());
+        PrintedSheets printed = picture.get().printed();
         List<Rectangle> borders = new ArrayList<>();
+        List<Rectangle> emptyBorders = new ArrayList<>();
         Area bands = new Area();
         List<SheetLabel> labels = new ArrayList<>();
         for (int row = rows.start(); row < rows.end(); row++) {
             for (int column = columns.start(); column < columns.end(); column++) {
                 Rectangle sheet = onScreen(grid.sheetRectangle(column, row));
-                borders.add(sheet);
-                for (Rectangle2D band : grid.overlapBands(column, row)) {
-                    bands.add(new Area(onScreen(band))); // joined: where four sheets meet the fill stays even
-                }
+                boolean empty = printed.isSkipped(column, row);
+                (empty ? emptyBorders : borders).add(sheet);
+                addBands(bands, grid, printed, column, row);
                 if (grid.tiled()) {
-                    label(sheet, grid.sheetNumber(column, row)).ifPresent(labels::add);
+                    label(sheet, grid.sheetNumber(column, row), empty).ifPresent(labels::add);
                 }
             }
         }
-        return new SheetDrawing(borders, bands, labels, cuts(picture.get()));
+        return new SheetDrawing(borders, emptyBorders, bands, labels, cuts(picture.get()));
     }
 
     /**
-     * «Hoja n» inside {@code sheet}'s top-left corner, or inside the top-left of its visible part when that corner is
-     * scrolled out; none when the sheet is small on screen or its visible part has no room for it.
+     * The overlap bands of sheet {@code (column, row)} toward its right and lower neighbours, each only when both
+     * sheets go out (nothing is glued to a skipped sheet), joined into {@code bands}: where four sheets meet the fill
+     * stays even.
      */
-    private Optional<SheetLabel> label(Rectangle sheet, int number) {
+    private void addBands(Area bands, SheetGrid grid, PrintedSheets printed, int column, int row) {
+        if (printed.isSkipped(column, row)) {
+            return;
+        }
+        Optional<Rectangle2D> right = grid.rightOverlap(column, row);
+        if (right.isPresent() && !printed.isSkipped(column + 1, row)) {
+            bands.add(new Area(onScreen(right.get())));
+        }
+        Optional<Rectangle2D> below = grid.belowOverlap(column, row);
+        if (below.isPresent() && !printed.isSkipped(column, row + 1)) {
+            bands.add(new Area(onScreen(below.get())));
+        }
+    }
+
+    /**
+     * «Hoja n» (or «Hoja n · vacía» for a skipped sheet) inside {@code sheet}'s top-left corner, or inside the
+     * top-left of its visible part when that corner is scrolled out; none when the sheet is small on screen or its
+     * visible part has no room for it.
+     */
+    private Optional<SheetLabel> label(Rectangle sheet, int number, boolean empty) {
         if (sheet.width < LABEL_MINIMUM_WIDTH || sheet.height < LABEL_MINIMUM_HEIGHT) {
             return Optional.empty();
         }
-        String text = Messages.format("sheets.label", number);
+        String text = Messages.format(empty ? "sheets.label.empty" : "sheets.label", number);
         Rectangle box = SheetText.box(pane, text, Math.max(sheet.x, STICKY_INSET) + LABEL_INSET,
                 Math.max(sheet.y, STICKY_INSET) + LABEL_INSET);
         return sheet.contains(box) ? Optional.of(new SheetLabel(text, box)) : Optional.empty();

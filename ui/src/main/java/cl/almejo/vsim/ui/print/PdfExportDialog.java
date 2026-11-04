@@ -214,8 +214,8 @@ public final class PdfExportDialog extends JPanel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PdfExportDialog.class);
 
-    /** The options, their area and their layout, computed together. */
-    private record Plan(PrintOptions options, PrintArea area, PageLayout layout) {
+    /** The options, their area, their layout and the sheets of it that go out, computed together. */
+    private record Plan(PrintOptions options, PrintArea area, PageLayout layout, PrintedSheets printed) {
     }
 
     private final Mode mode;
@@ -274,6 +274,7 @@ public final class PdfExportDialog extends JPanel {
     private final JCheckBox showFileName = new JCheckBox(Messages.text("print.headerFileName"));
     private final JCheckBox showSheetNumber = new JCheckBox(Messages.text("print.headerSheetNumber"));
     private final JCheckBox sheetGuides = new JCheckBox(Messages.text("print.sheetGuides"));
+    private final JCheckBox skipEmptySheets = new JCheckBox(Messages.text("print.skipEmptySheets"));
     private final JButton refresh = new JButton(Messages.text("print.refresh"));
     private final PagePreview preview = new PagePreview();
     private final JLabel status = new JLabel();
@@ -423,6 +424,7 @@ public final class PdfExportDialog extends JPanel {
         options.add(showFileName, "span 2, gapleft 20, hidemode 3");
         options.add(showSheetNumber, "span 2, gapleft 20, hidemode 3");
         options.add(sheetGuides, "span 2, hidemode 3");
+        options.add(skipEmptySheets, "span 2, hidemode 3");
         options.add(refresh, "span 2, gaptop 12, growx 0");
         refresh.setToolTipText(Messages.text("print.refresh.tip"));
     }
@@ -508,6 +510,7 @@ public final class PdfExportDialog extends JPanel {
         headerFooter.setSelected(remembered.headerFooter());
         titleField.setText(remembered.title());
         sheetGuides.setSelected(remembered.sheetGuides());
+        skipEmptySheets.setSelected(remembered.skipEmptySheets());
         showDate.setSelected(remembered.showDate());
         showFileName.setSelected(remembered.showFileName());
         showSheetNumber.setSelected(remembered.showSheetNumber());
@@ -531,8 +534,8 @@ public final class PdfExportDialog extends JPanel {
 
     private void listen() {
         List.of(scopeWhole, scopeSelection, scopeFrame, portrait, landscape, withValues, blackAndWhite,
-                includeStickyNotes, headerFooter, showDate, showFileName, showSheetNumber, sheetGuides)
-                .forEach(button -> button.addActionListener(event -> update()));
+                includeStickyNotes, headerFooter, showDate, showFileName, showSheetNumber, sheetGuides,
+                skipEmptySheets).forEach(button -> button.addActionListener(event -> update()));
         frameChoice.addActionListener(event -> update());
         paperChoice.addActionListener(event -> {
             paperTouched |= !updating;
@@ -568,7 +571,7 @@ public final class PdfExportDialog extends JPanel {
                 landscape.isSelected() ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT, mode,
                 withValues.isSelected(), blackAndWhite.isSelected(), headerFooter.isSelected(), titleField.getText(),
                 includeStickyNotes.isSelected(), sheetGuides.isSelected(), showDate.isSelected(),
-                showFileName.isSelected(), showSheetNumber.isSelected());
+                showFileName.isSelected(), showSheetNumber.isSelected(), skipEmptySheets.isSelected());
     }
 
     /** The area of {@code scope}, measured with the frozen font (labels change the bounds). */
@@ -605,18 +608,17 @@ public final class PdfExportDialog extends JPanel {
         }
         PageGeometry geometry = PageGeometry.standard(options, marginPoints);
         PageLayout layout = layoutOf(options, area.get(), geometry);
-        plan = Optional.of(new Plan(options, area.get(), layout));
+        PrintedSheets printed = PrintedSheets.of(input, area.get(), options, layout);
+        plan = Optional.of(new Plan(options, area.get(), layout, printed));
         sheetGuides.setVisible(layout.tiled());
+        skipEmptySheets.setVisible(layout.tiled());
         if (layout.problem().isPresent()) {
             show("", "", Notice.hint(Messages.text(layout.problem().get())));
             enableOutputs(false);
             previewTimer.restart();
             return;
         }
-        String statusText = layout.pageCountExact() == 1
-                ? Messages.format("print.status.one", layout.scale() * 100)
-                : Messages.format("print.status.many", layout.columns(), layout.rows(), layout.pageCountExact(),
-                layout.scale() * 100);
+        String statusText = statusText(layout, printed);
         double smallest = layout.smallestTextPoints(smallestTextPixels(area.get(), options));
         String warningText = options.scaleMode() instanceof ScaleMode.FitToOnePage && layout.scale() < 1
                 && smallest < MINIMUM_LEGIBLE_POINTS ? Messages.format("print.warning.smallText", smallest) : "";
@@ -627,6 +629,20 @@ public final class PdfExportDialog extends JPanel {
                 : paperMismatch(options));
         enableOutputs(idle && !tooMany);
         previewTimer.restart();
+    }
+
+    /**
+     * «1 hoja · escala 63 %», «2 × 3 hojas · 6 en total · escala 100 %», and « · se imprimen 4» after it when some
+     * empty sheets are skipped.
+     */
+    private static String statusText(PageLayout layout, PrintedSheets printed) {
+        if (layout.pageCountExact() == 1) {
+            return Messages.format("print.status.one", layout.scale() * 100);
+        }
+        String sheets = Messages.format("print.status.many", layout.columns(), layout.rows(),
+                layout.pageCountExact(), layout.scale() * 100);
+        return printed.skippedCount() > 0 ? sheets + Messages.format("print.status.printed", printed.count())
+                : sheets;
     }
 
     /**
@@ -720,7 +736,8 @@ public final class PdfExportDialog extends JPanel {
             item.setEnabled(idle);
         });
         List.<JComponent>of(scopeWhole, paperChoice, portrait, landscape, scaleChoice, withValues, blackAndWhite,
-                includeStickyNotes, headerFooter, sheetGuides, refresh, split, fit).forEach(control -> control.setEnabled(idle));
+                includeStickyNotes, headerFooter, sheetGuides, skipEmptySheets, refresh, split, fit)
+                .forEach(control -> control.setEnabled(idle));
     }
 
     /** Shows (or hides) why the values cannot be printed, when «with values» is on. */
@@ -825,14 +842,14 @@ public final class PdfExportDialog extends JPanel {
     }
 
     /**
-     * Whether the sheets of {@code chosen} may go out: never above {@link PdfExport#REFUSE_ABOVE_PAGES}, and above
-     * {@link PdfExport#CONFIRM_ABOVE_PAGES} only when the user says so.
+     * Whether the sheets of {@code chosen} may go out: never a layout above {@link PdfExport#REFUSE_ABOVE_PAGES}, and
+     * more than {@link PdfExport#CONFIRM_ABOVE_PAGES} printed sheets only when the user says so.
      */
     private boolean sheetCountAccepted(Plan chosen) {
-        long count = chosen.layout().pageCountExact();
-        if (count > PdfExport.REFUSE_ABOVE_PAGES) {
+        if (chosen.layout().pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES) {
             return false;
         }
+        int count = chosen.printed().count();
         return count <= PdfExport.CONFIRM_ABOVE_PAGES
                 || collaborators.confirm().test(this, Messages.format("print.confirm.manyPages", count));
     }
@@ -1096,6 +1113,11 @@ public final class PdfExportDialog extends JPanel {
         return plan.map(Plan::layout);
     }
 
+    /** The sheets of {@link #pageLayout()} that go out. */
+    Optional<PrintedSheets> printedSheets() {
+        return plan.map(Plan::printed);
+    }
+
     boolean exporting() {
         return exporting;
     }
@@ -1183,6 +1205,10 @@ public final class PdfExportDialog extends JPanel {
 
     JCheckBox sheetGuides() {
         return sheetGuides;
+    }
+
+    JCheckBox skipEmptySheets() {
+        return skipEmptySheets;
     }
 
     JCheckBox showDate() {

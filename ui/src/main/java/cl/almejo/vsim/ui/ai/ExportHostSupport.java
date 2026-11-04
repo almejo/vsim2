@@ -252,9 +252,12 @@ final class ExportHostSupport {
         ScaleMode scaleMode = chosen.scalePercent() == 0 ? new ScaleMode.FitToOnePage()
                 : new ScaleMode.Percentage(chosen.scalePercent());
         String title = chosen.title().isBlank() ? withoutExtension(document.displayName()) : chosen.title();
+        // «Saltar hojas vacías» as the user left it in the dialog, for the whole circuit only (like the sheets shown)
+        boolean skipEmptySheets = request.scope() instanceof ExportRequest.Scope.WholeCircuit
+                && preferences.map(remembered -> remembered.printOptions(title).skipEmptySheets()).orElse(false);
         PrintOptions options = new PrintOptions(scope, Paper.valueOf(chosen.paper()),
                 PageOrientation.valueOf(chosen.orientation()), scaleMode, chosen.withValues(), chosen.blackAndWhite(),
-                chosen.headerFooter(), title, request.includeStickyNotes());
+                chosen.headerFooter(), title, request.includeStickyNotes()).withSkipEmptySheets(skipEmptySheets);
         PrintArea area = PrintScopes.area(input, scope, request.includeStickyNotes()).orElseThrow(ExportHostSupport::nothing);
         // 1 cm as always, but while sheets are shown the margin they were laid out with, so the lattice is the same
         double margin = sheetAnchor.isPresent() ? preferences.map(AppPreferences::printMarginPoints)

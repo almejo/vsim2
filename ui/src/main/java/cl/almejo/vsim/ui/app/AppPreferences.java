@@ -196,6 +196,7 @@ public final class AppPreferences {
     static final String PRINT_SHOW_DATE = "print.showDate";
     static final String PRINT_SHOW_FILE_NAME = "print.showFileName";
     static final String PRINT_SHOW_SHEET_NUMBER = "print.showSheetNumber";
+    static final String PRINT_SKIP_EMPTY_SHEETS = "print.skipEmptySheets";
     static final String PRINT_DIRECTORY = "print.directory";
     static final String PRINT_MARGIN_POINTS = "print.marginPoints";
     private static final String PRINT_FIT = "fit";
@@ -482,7 +483,8 @@ public final class AppPreferences {
                 flag(PRINT_SHEET_GUIDES, defaults.sheetGuides()),
                 flag(PRINT_SHOW_DATE, defaults.showDate()),
                 flag(PRINT_SHOW_FILE_NAME, defaults.showFileName()),
-                flag(PRINT_SHOW_SHEET_NUMBER, defaults.showSheetNumber()));
+                flag(PRINT_SHOW_SHEET_NUMBER, defaults.showSheetNumber()),
+                flag(PRINT_SKIP_EMPTY_SHEETS, defaults.skipEmptySheets()));
     }
 
     private ScaleMode printScale(ScaleMode fallback) {
@@ -536,6 +538,7 @@ public final class AppPreferences {
         putFlag(PRINT_SHOW_DATE, options.showDate());
         putFlag(PRINT_SHOW_FILE_NAME, options.showFileName());
         putFlag(PRINT_SHOW_SHEET_NUMBER, options.showSheetNumber());
+        putFlag(PRINT_SKIP_EMPTY_SHEETS, options.skipEmptySheets());
     }
 
     /**

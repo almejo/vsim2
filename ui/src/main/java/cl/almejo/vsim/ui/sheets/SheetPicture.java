@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.sheets;
 
+import cl.almejo.vsim.ui.print.PrintedSheets;
 import cl.almejo.vsim.ui.print.SheetGrid;
 
 import java.awt.geom.Point2D;
@@ -9,13 +10,16 @@ import java.util.Objects;
 
 /**
  * The print sheets of one view as its panes draw them, laid out once per change ({@link SheetsFeatures#picture()}):
- * the grid of sheets (none when the paper leaves no room), the «Todo» area it was laid out over, the drawn bounds of
- * the parts and frames a border cuts, and the summary label's text. Grid units throughout.
+ * the grid of sheets (none when the paper leaves no room), which of them go out (with «Saltar hojas vacías» the
+ * empty ones do not, and are drawn as empty), the «Todo» area it was laid out over, the drawn bounds of the parts and
+ * frames a border cuts, and the summary label's text. Grid units throughout.
  */
-record SheetPicture(SheetGrid grid, Rectangle2D area, List<Rectangle2D> cuts, String summary) {
+record SheetPicture(SheetGrid grid, PrintedSheets printed, Rectangle2D area, List<Rectangle2D> cuts,
+                    String summary) {
 
     SheetPicture {
         Objects.requireNonNull(grid, "grid");
+        Objects.requireNonNull(printed, "printed");
         area = (Rectangle2D) Objects.requireNonNull(area, "area").clone();
         cuts = List.copyOf(cuts);
         Objects.requireNonNull(summary, "summary");

@@ -230,6 +230,71 @@ class SheetOverlayTest {
         assertThat(amberish).as("amber pixels on the mark's top edge").isGreaterThan((mark.width - 4) / 2);
     }
 
+    /** A switch and a lamp about 200 units apart: on A4 portrait at 100 % the sheets between them are empty. */
+    private void farApart() {
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 200, 0, Map.of());
+    }
+
+    /** How dark the darkest pixel of row {@code y} between {@code fromX} and {@code toX} is (0 white, 255 black). */
+    private static int darkest(BufferedImage image, int fromX, int toX, int y) {
+        int darkest = 0;
+        for (int x = fromX; x < toX; x++) {
+            Color pixel = new Color(image.getRGB(x, y));
+            darkest = Math.max(darkest, 255 - (pixel.getRed() + pixel.getGreen() + pixel.getBlue()) / 3);
+        }
+        return darkest;
+    }
+
+    @Test
+    void skippingEmptySheetsTheyAreDimmedSayEmptyAndHaveNoBandTowardThem() {
+        farApart();
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(100), true));
+        preferences.setShowSheets(true);
+        showAt(0.3, 100, 40);
+        SheetGrid grid = grid();
+        int columns = grid.columns();
+        assertThat(columns).as("the fixture: empty sheets between the parts").isGreaterThan(2);
+        assertThat(grid.rows()).isEqualTo(1);
+
+        SheetDrawing drawing = overlay().drawing();
+
+        Rectangle first = onScreen(grid.sheetRectangle(0, 0));
+        Rectangle last = onScreen(grid.sheetRectangle(columns - 1, 0));
+        assertThat(drawing.borders()).containsExactly(first, last);
+        assertThat(drawing.emptyBorders()).hasSize(columns - 2);
+        List<String> expectedLabels = new ArrayList<>(List.of("Hoja 1"));
+        for (int column = 1; column < columns - 1; column++) {
+            expectedLabels.add("Hoja " + (column + 1) + " · vacía");
+        }
+        expectedLabels.add("Hoja " + columns);
+        assertThat(drawing.labels()).extracting(SheetLabel::text).containsExactlyElementsOf(expectedLabels);
+        assertThat(drawing.bands().isEmpty()).as("every band touches an empty sheet").isTrue();
+        Rectangle empty = drawing.emptyBorders().getFirst();
+        BufferedImage image = paint();
+        int normalDarkness = darkest(image, first.x + 2, empty.x - 2, first.y);
+        int nextSheet = onScreen(grid.sheetRectangle(2, 0)).x;
+        int emptyDarkness = darkest(image, first.x + first.width + 2, nextSheet - 2, empty.y);
+        assertThat(normalDarkness).as("the fixture: a dashed border").isPositive();
+        assertThat(emptyDarkness).as("dimmer than a printed sheet's border").isPositive()
+                .isLessThan(normalDarkness);
+    }
+
+    @Test
+    void withTheOptionOffEmptySheetsLookLikeTheOthers() {
+        farApart();
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(100), false));
+        preferences.setShowSheets(true);
+        showAt(0.3, 100, 40);
+
+        SheetDrawing drawing = overlay().drawing();
+
+        assertThat(drawing.borders()).hasSize(grid().columns());
+        assertThat(drawing.emptyBorders()).isEmpty();
+        assertThat(drawing.labels()).extracting(SheetLabel::text).noneMatch(text -> text.contains("vacía"));
+        assertThat(drawing.bands().isEmpty()).isFalse();
+    }
+
     @Test
     void oneSheetIsJustItsBorder() {
         place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());

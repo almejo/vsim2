@@ -6,6 +6,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * The sheets of a {@link PageLayout} as the canvas draws them (sheets spec §3), in grid units: each sheet's whole
@@ -133,18 +134,32 @@ public final class SheetGrid {
      * them first.
      */
     public List<Rectangle2D> overlapBands(int column, int row) {
-        requireSheet(column, row);
-        Rectangle2D sheet = sheetRectangle(column, row);
-        double overlapX = sheetWidth - stepX;
-        double overlapY = sheetHeight - stepY;
         List<Rectangle2D> bands = new ArrayList<>(2);
-        if (column + 1 < columns && overlapX > 0) {
-            bands.add(new Rectangle2D.Double(sheet.getMaxX() - overlapX, sheet.getY(), overlapX, sheetHeight));
-        }
-        if (row + 1 < rows && overlapY > 0) {
-            bands.add(new Rectangle2D.Double(sheet.getX(), sheet.getMaxY() - overlapY, sheetWidth, overlapY));
-        }
+        rightOverlap(column, row).ifPresent(bands::add);
+        belowOverlap(column, row).ifPresent(bands::add);
         return List.copyOf(bands);
+    }
+
+    /** Where sheet {@code (column, row)} overlaps its right neighbour; none on the last column or a single sheet. */
+    public Optional<Rectangle2D> rightOverlap(int column, int row) {
+        requireSheet(column, row);
+        double overlapX = sheetWidth - stepX;
+        if (column + 1 >= columns || overlapX <= 0) {
+            return Optional.empty();
+        }
+        Rectangle2D sheet = sheetRectangle(column, row);
+        return Optional.of(new Rectangle2D.Double(sheet.getMaxX() - overlapX, sheet.getY(), overlapX, sheetHeight));
+    }
+
+    /** Where sheet {@code (column, row)} overlaps its lower neighbour; none on the last row or a single sheet. */
+    public Optional<Rectangle2D> belowOverlap(int column, int row) {
+        requireSheet(column, row);
+        double overlapY = sheetHeight - stepY;
+        if (row + 1 >= rows || overlapY <= 0) {
+            return Optional.empty();
+        }
+        Rectangle2D sheet = sheetRectangle(column, row);
+        return Optional.of(new Rectangle2D.Double(sheet.getX(), sheet.getMaxY() - overlapY, sheetWidth, overlapY));
     }
 
     /**

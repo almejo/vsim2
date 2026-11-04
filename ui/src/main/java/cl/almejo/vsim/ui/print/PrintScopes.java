@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.export.CircuitImage;
+import cl.almejo.vsim.ui.paint.TextFonts;
 
 import java.awt.geom.Rectangle2D;
 import java.util.LinkedHashSet;
@@ -63,6 +64,29 @@ public final class PrintScopes {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(registry, "registry");
         return DrawnBounds.of(counted(document, includeStickyNotes), registry).map(PrintScopes::withMargin);
+    }
+
+    /**
+     * Where each element «Todo el circuito» paints is drawn, in grid units ({@link DrawnBounds}, the notion its area is
+     * made of): what the canvas tells empty sheets by ({@link PrintedSheets}), as {@link #drawnBounds} does for a
+     * capture.
+     */
+    public static List<Bounds> wholeCircuitDrawnBounds(CircuitDocument document, ComponentTypeRegistry registry,
+                                                       boolean includeStickyNotes) {
+        Objects.requireNonNull(document, "document");
+        Objects.requireNonNull(registry, "registry");
+        return counted(document, includeStickyNotes).stream().map(element -> DrawnBounds.of(element, registry))
+                .toList();
+    }
+
+    /**
+     * Where each element {@code area} paints is drawn, in grid units, measured with the capture's frozen text font:
+     * what the paper tells empty sheets by ({@link PrintedSheets}).
+     */
+    static List<Bounds> drawnBounds(PrintInput input, PrintArea area) {
+        return TextFonts.withFont(input.textFont(), () -> area.elements().stream()
+                .map(id -> input.document().element(id)).flatMap(Optional::stream)
+                .map(element -> DrawnBounds.of(element, input.registry())).toList());
     }
 
     private static boolean counts(DocumentElement element, boolean includeStickyNotes) {

@@ -28,6 +28,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -35,7 +36,9 @@ import java.util.OptionalInt;
  * The preview of «Exportar a PDF…» (spec §3.5): a page map (the circuit with the sheet grid over it, the selected
  * sheet highlighted; click or arrow keys to pick a sheet) and the selected sheet enlarged with its own zoom. Both are
  * painted by the same {@link PagePainter} as the PDF, so the preview is the PDF; only the map and the visible sheet are
- * painted, never every sheet. Sheets are white whatever the theme; everything around them follows the theme.
+ * painted, never every sheet. It walks and outlines only the sheets that go out (empty ones «Saltar hojas vacías»
+ * skips are left out), each named by its grid number. Sheets are white whatever the theme; everything around them
+ * follows the theme.
  */
 final class PagePreview extends JPanel {
 
@@ -100,11 +103,14 @@ final class PagePreview extends JPanel {
         updateControls();
     }
 
-    /** Shows the sheets of {@code shown} laid out by {@code shownLayout}; keeps the selected sheet when it exists. */
+    /**
+     * Shows the sheets of {@code shown} laid out by {@code shownLayout}, only those that go out (its
+     * {@link PagePainter#pages()}); keeps the selected sheet when it exists.
+     */
     void show(PagePainter shown, PageLayout shownLayout) {
         painter = Optional.of(shown);
         layout = Optional.of(shownLayout);
-        int count = shownLayout.pageCount();
+        int count = shown.pages().size();
         selected = count == 0 ? 0 : Math.min(selected, count - 1);
         changed();
     }
@@ -121,15 +127,22 @@ final class PagePreview extends JPanel {
         return painter;
     }
 
+    /** The selected sheet's position among the sheets that go out, from 0. */
     int selectedSheet() {
         return selected;
     }
 
+    /** How many sheets go out (the preview walks only those). */
     private int sheetCount() {
-        return layout.map(PageLayout::pageCount).orElse(0);
+        return painter.map(shown -> shown.pages().size()).orElse(0);
     }
 
-    /** Selects sheet {@code index}, kept inside the sheets. */
+    /** The selected sheet's index in the layout (its grid number minus one). */
+    private int selectedLayoutIndex() {
+        return painter.orElseThrow().pages().get(selected).layoutIndex();
+    }
+
+    /** Selects the {@code index}-th sheet that goes out, kept inside them. */
     void selectSheet(int index) {
         int count = sheetCount();
         if (count == 0) {
@@ -149,11 +162,13 @@ final class PagePreview extends JPanel {
         sheet.repaint();
     }
 
+    /** The buttons, and «Hoja n de N» with the grid's numbers, as on the sheet and on the canvas. */
     private void updateControls() {
         int count = sheetCount();
         previous.setEnabled(count > 0 && selected > 0);
         next.setEnabled(count > 0 && selected < count - 1);
-        sheetLabel.setText(count == 0 ? "" : Messages.format("print.sheet.number", selected + 1, count));
+        sheetLabel.setText(count == 0 ? "" : Messages.format("print.sheet.number", selectedLayoutIndex() + 1,
+                layout.orElseThrow().pageCount()));
     }
 
     String sheetLabel() {
@@ -218,23 +233,28 @@ final class PagePreview extends JPanel {
             getActionMap().put(name, Actions.unnamed(() -> key(keyCode)));
         }
 
-        /** An arrow key: left and right move one sheet, up and down one row. */
+        /**
+         * An arrow key: left and right move one sheet, up and down one row; a skipped sheet above or below is not
+         * there to move to.
+         */
         void key(int keyCode) {
+            if (sheetCount() == 0) {
+                return;
+            }
             int columns = layout.map(PageLayout::columns).orElse(1);
             switch (keyCode) {
                 case KeyEvent.VK_LEFT -> selectSheet(selected - 1);
                 case KeyEvent.VK_RIGHT -> selectSheet(selected + 1);
-                case KeyEvent.VK_UP -> {
-                    if (selected - columns >= 0) {
-                        selectSheet(selected - columns);
-                    }
-                }
-                case KeyEvent.VK_DOWN -> {
-                    if (selected + columns < sheetCount()) {
-                        selectSheet(selected + columns);
-                    }
-                }
+                case KeyEvent.VK_UP -> selectLayoutSheet(selectedLayoutIndex() - columns);
+                case KeyEvent.VK_DOWN -> selectLayoutSheet(selectedLayoutIndex() + columns);
                 default -> { }
+            }
+        }
+
+        /** Selects sheet {@code layoutIndex} of the layout, when there is one and it goes out. */
+        private void selectLayoutSheet(int layoutIndex) {
+            if (layoutIndex >= 0 && layoutIndex < layout.map(PageLayout::pageCount).orElse(0)) {
+                painter.orElseThrow().printedSheets().positionOf(layoutIndex).ifPresent(PagePreview.this::selectSheet);
             }
         }
 
@@ -242,21 +262,25 @@ final class PagePreview extends JPanel {
             sheetAt(point).ifPresent(PagePreview.this::selectSheet);
         }
 
-        /** The sheet under {@code point} (map pixels): the one whose centre is nearest among those that hold it. */
+        /**
+         * The sheet under {@code point} (map pixels), as its position among the sheets that go out: the one whose
+         * centre is nearest among those that hold it.
+         */
         OptionalInt sheetAt(Point2D point) {
-            if (layout.isEmpty() || !outlined(layout.get())) {
+            if (layout.isEmpty() || painter.isEmpty() || !outlined(layout.get())) {
                 return OptionalInt.empty();
             }
             Point2D grid = toGrid(point);
             int found = -1;
             double nearest = Double.MAX_VALUE;
-            for (int index = 0; index < layout.get().pageCount(); index++) {
-                Rectangle2D rectangle = layout.get().page(index).gridRectangle();
+            for (int position = 0; position < sheetCount(); position++) {
+                Rectangle2D rectangle = layout.get().page(painter.get().pages().get(position).layoutIndex())
+                        .gridRectangle();
                 if (rectangle.contains(grid)) {
                     double distance = grid.distance(rectangle.getCenterX(), rectangle.getCenterY());
                     if (distance < nearest) {
                         nearest = distance;
-                        found = index;
+                        found = position;
                     }
                 }
             }
@@ -377,13 +401,14 @@ final class PagePreview extends JPanel {
             Color outline = uiColor("Component.borderColor", Color.GRAY);
             Color accent = uiColor("Component.accentColor", uiColor("List.selectionBackground", Color.BLUE));
             canvas.setStroke(new BasicStroke(1f));
-            for (int index = 0; index < shownLayout.pageCount(); index++) {
-                if (index != selected) {
+            List<PagePainter.Page> pages = painter.orElseThrow().pages();
+            for (int position = 0; position < pages.size(); position++) {
+                if (position != selected) {
                     canvas.setColor(outline);
-                    canvas.draw(mapRectangle(shownLayout.page(index).gridRectangle()));
+                    canvas.draw(mapRectangle(shownLayout.page(pages.get(position).layoutIndex()).gridRectangle()));
                 }
             }
-            Rectangle2D chosen = mapRectangle(shownLayout.page(selected).gridRectangle());
+            Rectangle2D chosen = mapRectangle(shownLayout.page(selectedLayoutIndex()).gridRectangle());
             if (shownLayout.pageCount() > 1) {
                 canvas.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 32));
                 canvas.fill(chosen);
@@ -451,7 +476,7 @@ final class PagePreview extends JPanel {
                 canvas.translate(left, top);
                 canvas.scale(factor, factor);
                 canvas.clip(new Rectangle2D.Double(0, 0, size.get().widthPoints(), size.get().heightPoints()));
-                painter.get().paint(canvas, selected);
+                painter.get().paint(canvas, selectedLayoutIndex());
             } finally {
                 canvas.dispose();
             }

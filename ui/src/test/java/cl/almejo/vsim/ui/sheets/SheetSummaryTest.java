@@ -125,6 +125,36 @@ class SheetSummaryTest {
     }
 
     @Test
+    void skippingEmptySheetsTheSummarySaysHowManyArePrinted() {
+        place(openDocument, StandardComponentTypes.LED, 300, 0, Map.of());
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(100), true));
+        int columns = features.picture().orElseThrow().grid().columns();
+        assertThat(columns).as("the fixture: an empty sheet before the far lamp").isGreaterThan(3);
+        String sheets = "A4 vertical · 100 % · " + columns + " × 1 = " + columns + " hojas";
+
+        assertThat(summary()).matches(java.util.regex.Pattern.quote(sheets) + " · se imprimen [23]");
+
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(100), false));
+        assertThat(summary()).isEqualTo(sheets);
+    }
+
+    @Test
+    void theQuickOptionsSkipEmptySheetsLikeTheDialog() {
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(100), true));
+        JPopupMenu menu = openPopup();
+        JMenuItem skip = item(menu, "Saltar hojas vacías");
+        assertThat(skip).isInstanceOf(javax.swing.JCheckBoxMenuItem.class);
+        assertThat(skip.isSelected()).isTrue();
+
+        skip.doClick();
+
+        assertThat(preferences.printOptions("").skipEmptySheets()).isFalse();
+        assertThat(preferences.printOptions("").scaleMode()).isEqualTo(new ScaleMode.Percentage(100));
+        assertThat(item(openPopup(), "Saltar hojas vacías").isSelected()).isFalse();
+        assertThat(openDocument.isModified()).isFalse();
+    }
+
+    @Test
     void tooManySheetsForPrintingAreSaid() {
         place(openDocument, StandardComponentTypes.LED, 700, 900, Map.of());
         preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(400)));
@@ -154,7 +184,8 @@ class SheetSummaryTest {
 
         assertThat(texts(menu)).containsExactly("A4 (21 × 29,7 cm)", "Carta (21,6 × 27,9 cm)",
                 "Oficio (21,6 × 33 cm)", "A3 (29,7 × 42 cm)", "---", "Vertical", "Horizontal", "---",
-                "Ajustar a una hoja", "100 %", "75 %", "50 %", "---", "Más opciones…");
+                "Ajustar a una hoja", "100 %", "75 %", "50 %", "---", "Saltar hojas vacías", "---",
+                "Más opciones…");
         assertThat(item(menu, "A4 (21 × 29,7 cm)").isSelected()).isTrue();
         assertThat(item(menu, "100 %").isSelected()).isTrue();
         assertThat(view.selection().ids()).isEmpty();

@@ -164,7 +164,7 @@ class PagePainterTest {
      * whole pixels of the sheet (A4 is 595.28 pt wide).
      */
     private static BufferedImage render(PagePainter painter, int pageIndex, double pixelsPerPoint) {
-        PdfPages.PageSize size = painter.pages().get(pageIndex).size();
+        PdfPages.PageSize size = painter.pages().get(0).size(); // every sheet has the paper's size
         BufferedImage image = new BufferedImage((int) Math.floor(size.widthPoints() * pixelsPerPoint),
                 (int) Math.floor(size.heightPoints() * pixelsPerPoint), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
@@ -515,6 +515,84 @@ class PagePainterTest {
         return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
                 base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(),
                 base.sheetGuides(), date, fileName, sheetNumber);
+    }
+
+    private static PrintOptions skipping(PrintOptions base, boolean skipEmptySheets) {
+        return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
+                base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(),
+                base.sheetGuides(), base.showDate(), base.showFileName(), base.showSheetNumber(), skipEmptySheets);
+    }
+
+    // --- «Saltar hojas vacías» ---------------------------------------------------------------------------------
+
+    @Test
+    void skippingEmptySheetsListsOnlyTheSheetsWithSomethingInReadingOrder() {
+        bigCircuit();
+        PrintInput input = input();
+        assertThat(layoutOf(input, atFullSize()).pageCount()).isEqualTo(4);
+
+        PagePainter skipping = painter(input, skipping(atFullSize(), true));
+        PagePainter everything = painter(input, skipping(atFullSize(), false));
+
+        assertThat(skipping.pages()).extracting(PagePainter.Page::layoutIndex).containsExactly(0, 3);
+        assertThat(everything.pages()).extracting(PagePainter.Page::layoutIndex).containsExactly(0, 1, 2, 3);
+    }
+
+    @Test
+    void aPrintedSheetKeepsItsGridNumberInTheFooter() {
+        bigCircuit();
+        PrintInput input = input();
+        PrintOptions footer = guides(options(new PrintScope.WholeCircuit(), new ScaleMode.Percentage(100), true,
+                false, true), false);
+
+        BufferedImage skipped = render(painter(input, skipping(footer, true)), 3);
+        BufferedImage everything = render(painter(input, skipping(footer, false)), 3);
+
+        assertThat(samePixels(skipped, everything)).as("«Hoja 4 de 4», not «Hoja 2 de 2»").isTrue();
+    }
+
+    @Test
+    void theGuidesTowardASkippedNeighbourAreLeftOut() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, atFullSize());
+        PagePainter skipping = painter(input, skipping(atFullSize(), true));
+        PagePainter everything = painter(input, skipping(atFullSize(), false));
+        Rectangle2D window = layout.window();
+        double strip = layout.geometry().marksStripPoints();
+        double overlap = layout.overlapPoints();
+        Rectangle2D leftCutMark = new Rectangle2D.Double(window.getX() + overlap - 2, window.getY() - strip, 4,
+                strip);
+        Rectangle2D topCutMark = new Rectangle2D.Double(window.getX() - strip, window.getY() + overlap - 2, strip,
+                4);
+        Rectangle2D leftNumber = centred(window.getX() - strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D aboveNumber = centred(window.getCenterX(), window.getY() - strip / 2, 20, strip);
+        Rectangle2D rightNumber = centred(window.getMaxX() + strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D belowNumber = centred(window.getCenterX(), window.getMaxY() + strip / 2, 20, strip);
+        Rectangle2D rightTab = new Rectangle2D.Double(window.getMaxX() - overlap, window.getY() + overlap, overlap,
+                window.getHeight() - 2 * overlap);
+        Rectangle2D bottomTab = new Rectangle2D.Double(window.getX() + overlap, window.getMaxY() - overlap,
+                window.getWidth() - 2 * overlap, overlap);
+        Color band = PageDecorations.OVERLAP_BAND;
+
+        BufferedImage lastOfAll = render(everything, 3);
+        assertThat(ink(lastOfAll, leftCutMark)).as("the fixture: a mark toward sheet 3").isPositive();
+        assertThat(text(lastOfAll, leftNumber)).as("the fixture: ◀ Hoja 3").isPositive();
+        BufferedImage last = render(skipping, 3);
+        assertThat(ink(last, leftCutMark)).as("sheet 3 is skipped: nothing to cut toward it").isZero();
+        assertThat(ink(last, topCutMark)).as("sheet 2 is skipped").isZero();
+        assertThat(text(last, leftNumber)).as("no ◀ Hoja 3").isZero();
+        assertThat(text(last, aboveNumber)).as("no ▲ Hoja 2").isZero();
+
+        BufferedImage firstOfAll = render(everything, 0);
+        assertThat(pixelsOfColour(firstOfAll, rightTab, band)).as("the fixture: a glue tab").isPositive();
+        BufferedImage first = render(skipping, 0);
+        assertThat(pixelsOfColour(first, rightTab, band)).as("no glue tab toward a skipped sheet").isZero();
+        assertThat(pixelsOfColour(first, bottomTab, band)).isZero();
+        assertThat(text(first, rightNumber)).as("no Hoja 2 ▶").isZero();
+        assertThat(text(first, belowNumber)).as("no ▼ Hoja 3").isZero();
+        Rectangle2D labelStart = new Rectangle2D.Double(window.getX() + overlap, window.getMaxY(), 60, strip);
+        assertThat(ink(first, labelStart)).as("«Fila 1 · Columna 1 — Hoja 1 de 4» stays").isPositive();
     }
 
     private static PrintOptions threeByThree() {

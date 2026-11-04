@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.print.PageGeometry;
 import cl.almejo.vsim.ui.print.PageLayout;
 import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScopes;
+import cl.almejo.vsim.ui.print.PrintedSheets;
 import cl.almejo.vsim.ui.print.SheetGrid;
 import cl.almejo.vsim.ui.print.SheetPlan;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -199,7 +200,11 @@ public final class SheetsFeatures {
         }
         PageLayout layout = SheetPlan.layout(area.get(), geometry, options.scaleMode(), anchors.anchor(document()));
         SheetGrid grid = SheetGrid.of(layout);
-        return Optional.of(new SheetPicture(grid, area.get(), cuts(grid), SheetSummaryText.of(options, layout)));
+        // the paper's rule, on the live document: the empty sheets «Saltar hojas vacías» leaves out
+        PrintedSheets printed = PrintedSheets.of(grid, PrintScopes.wholeCircuitDrawnBounds(document(),
+                openDocument.registry(), options.includeStickyNotes()), Optional.empty(), options.skipEmptySheets());
+        return Optional.of(new SheetPicture(grid, printed, area.get(), cuts(grid),
+                SheetSummaryText.of(options, layout, printed)));
     }
 
     /** The drawn bounds of the parts and frames a border cuts although they would fit one sheet (spec §3.4). */

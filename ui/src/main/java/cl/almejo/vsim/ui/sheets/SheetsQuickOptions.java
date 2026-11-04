@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.window.EditorView;
 
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
@@ -21,10 +22,11 @@ import java.util.function.UnaryOperator;
 
 /**
  * The quick options popup of the summary label (sheets spec §5.5): the paper, the orientation and the scale as radio
- * items, then «Más opciones…», which opens Archivo ▸ «Exportar a PDF…» (it starts on «Todo el circuito»). A pick writes
- * the remembered print options at once ({@link AppPreferences#setPrintOptions}, the same keys the dialog reads), so the
- * canvas and the paper keep one configuration; the sheets redraw through the preference listeners. No command, no undo
- * step, the circuit is not modified.
+ * items, «Saltar hojas vacías» as a check item, then «Más opciones…», which opens Archivo ▸ «Exportar a PDF…» (it
+ * starts on «Todo el circuito»). A pick writes the remembered print options at once
+ * ({@link AppPreferences#setPrintOptions}, the same keys the dialog reads), so the canvas and the paper keep one
+ * configuration; the sheets redraw through the preference listeners. No command, no undo step, the circuit is not
+ * modified.
  */
 final class SheetsQuickOptions {
 
@@ -52,6 +54,8 @@ final class SheetsQuickOptions {
         addGroup(menu, orientationItems(options));
         menu.addSeparator();
         addGroup(menu, scaleItems(options));
+        menu.addSeparator();
+        menu.add(skipEmptySheetsItem(options));
         menu.addSeparator();
         menu.add(new JMenuItem(Messages.text("sheets.summary.moreOptions"))).addActionListener(event -> moreOptions());
         menuShower.show(menu, invoker, x, y);
@@ -107,6 +111,14 @@ final class SheetsQuickOptions {
         return item;
     }
 
+    /** «Saltar hojas vacías», checked as remembered; a pick remembers the other state, like the dialog's check box. */
+    private JCheckBoxMenuItem skipEmptySheetsItem(PrintOptions options) {
+        JCheckBoxMenuItem item = new JCheckBoxMenuItem(Messages.text("print.skipEmptySheets"),
+                options.skipEmptySheets());
+        item.addActionListener(event -> preferences.setPrintOptions(current().withSkipEmptySheets(item.isSelected())));
+        return item;
+    }
+
     private static void addGroup(JPopupMenu menu, List<JRadioButtonMenuItem> items) {
         ButtonGroup group = new ButtonGroup();
         for (JRadioButtonMenuItem item : items) {
@@ -120,7 +132,8 @@ final class SheetsQuickOptions {
                                      ScaleMode scale) {
         return new PrintOptions(options.scope(), paper, orientation, scale, options.withValues(),
                 options.blackAndWhite(), options.headerFooter(), options.title(), options.includeStickyNotes(),
-                options.sheetGuides(), options.showDate(), options.showFileName(), options.showSheetNumber());
+                options.sheetGuides(), options.showDate(), options.showFileName(), options.showSheetNumber(),
+                options.skipEmptySheets());
     }
 
     /** «Más opciones…»: the view's «Exportar a PDF…», when it is there and can export. */

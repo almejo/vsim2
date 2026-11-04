@@ -203,4 +203,51 @@ class PagePreviewTest {
         graphics.dispose();
         assertThat(preview.map().overviewRenders()).as("another painter").isEqualTo(3);
     }
+
+    // --- «Saltar hojas vacías» ---------------------------------------------------------------------------------
+
+    /** The same circuit with the empty sheets skipped. */
+    private PagePainter skipping() {
+        PrintInput input = PrintInput.capture(openDocument, Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
+        PrintArea area = PrintScopes.area(input, new PrintScope.WholeCircuit()).orElseThrow();
+        PrintOptions options = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
+                new ScaleMode.Percentage(100), true, false, false, "", false, true, true, true, true, true);
+        return new PagePainter(input, area, options, layout);
+    }
+
+    @Test
+    void skippingEmptySheetsThePreviewWalksOnlyThePrintedOnesByTheirGridNumbers() {
+        PagePainter skipping = skipping();
+        int printed = skipping.pages().size();
+        assertThat(printed).as("the fixture has empty sheets").isLessThan(layout.pageCount()).isGreaterThan(1);
+        int second = skipping.pages().get(1).layoutIndex();
+        assertThat(second).as("the fixture skips the second sheet").isGreaterThan(1);
+
+        preview.show(skipping, layout);
+        assertThat(preview.sheetLabel()).isEqualTo("Hoja 1 de " + layout.pageCount());
+        preview.nextButton().doClick();
+
+        assertThat(preview.selectedSheet()).isEqualTo(1);
+        assertThat(preview.sheetLabel()).isEqualTo("Hoja " + (second + 1) + " de " + layout.pageCount());
+        preview.map().key(KeyEvent.VK_LEFT);
+        assertThat(preview.selectedSheet()).isZero();
+        preview.selectSheet(printed + 5);
+        assertThat(preview.selectedSheet()).as("only the printed sheets").isEqualTo(printed - 1);
+        assertThat(preview.nextButton().isEnabled()).isFalse();
+    }
+
+    @Test
+    void skippingEmptySheetsTheMapCannotSelectASkippedSheet() {
+        PagePainter skipping = skipping();
+        preview.show(skipping, layout);
+        int skipped = 1;
+        assertThat(skipping.pages()).extracting(PagePainter.Page::layoutIndex).doesNotContain(skipped);
+        int last = skipping.pages().size() - 1;
+        int lastLayoutIndex = skipping.pages().get(last).layoutIndex();
+
+        assertThat(preview.map().sheetAt(mapPointOf(skipped))).isEmpty();
+        preview.map().select(mapPointOf(lastLayoutIndex));
+
+        assertThat(preview.selectedSheet()).isEqualTo(last);
+    }
 }

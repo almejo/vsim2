@@ -78,6 +78,24 @@ class SheetsInTheDialogTest {
         return options;
     }
 
+    /** Like {@link #rememberHundredPercent()}, with «Saltar hojas vacías» on. */
+    private PrintOptions rememberHundredPercentSkippingEmptySheets() {
+        PrintOptions options = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
+                new ScaleMode.Percentage(100), true, false, false, openDocument.displayName(), false, true, true,
+                true, true, true);
+        preferences.setPrintOptions(options);
+        return options;
+    }
+
+    /** The «Hoja n» numbers of the sheets that go out. */
+    private static List<Integer> sheetNumbers(PrintedSheets printed) {
+        List<Integer> numbers = new ArrayList<>();
+        for (int position = 0; position < printed.count(); position++) {
+            numbers.add(printed.layoutIndex(position) + 1);
+        }
+        return numbers;
+    }
+
     private double stepInGridUnits(PrintOptions options, double marginPoints) {
         PageLayout probe = PageLayout.of(new Rectangle2D.Double(0, 0, 4000, 4000),
                 PageGeometry.standard(options, marginPoints), options.scaleMode());
@@ -302,7 +320,7 @@ class SheetsInTheDialogTest {
     @ParameterizedTest
     @EnumSource(PdfExportDialog.Mode.class)
     void canvasEqualsPaperWithAndWithoutAnAnchor(PdfExportDialog.Mode mode) {
-        PrintOptions options = rememberHundredPercent();
+        PrintOptions options = rememberHundredPercentSkippingEmptySheets();
         preferences.setPrintMarginPoints(WIDER_MARGIN);
         placeAboutTwoSheetsWide(options, WIDER_MARGIN);
         for (Optional<GridPoint> anchor : List.of(Optional.<GridPoint>empty(),
@@ -311,10 +329,21 @@ class SheetsInTheDialogTest {
             PrintOptions remembered = preferences.printOptions(openDocument.displayName());
             PageLayout canvas = SheetPlan.layout(wholeArea(remembered), PageGeometry.standard(remembered,
                     preferences.printMarginPoints()), remembered.scaleMode(), anchor);
+            List<Integer> canvasPrinted = sheetNumbers(PrintedSheets.of(SheetGrid.of(canvas),
+                    TextFonts.withFont(TextFont.DEFAULT, () -> PrintScopes.wholeCircuitDrawnBounds(
+                            openDocument.document(), openDocument.registry(), remembered.includeStickyNotes())),
+                    Optional.empty(), remembered.skipEmptySheets()));
 
             open(mode, anchor);
             PageLayout paper = dialog.pageLayout().orElseThrow();
+            List<Integer> paperPrinted = sheetNumbers(dialog.printedSheets().orElseThrow());
             dialog.dispose();
+
+            assertThat(paperPrinted).as("the same sheets go out").isEqualTo(canvasPrinted);
+            if (anchor.isPresent()) {
+                assertThat(paperPrinted).as("the sheet between the parts is empty").hasSizeLessThan(
+                        paper.pageCount());
+            }
 
             SheetGrid canvasGrid = SheetGrid.of(canvas);
             SheetGrid paperGrid = SheetGrid.of(paper);
@@ -346,7 +375,7 @@ class SheetsInTheDialogTest {
     @ParameterizedTest
     @EnumSource(PdfExportDialog.Mode.class)
     void theDialogAgreesWithTheGridTheCanvasItselfPaints(PdfExportDialog.Mode mode) {
-        PrintOptions options = rememberHundredPercent();
+        PrintOptions options = rememberHundredPercentSkippingEmptySheets();
         placeAboutTwoSheetsWide(options, WIDER_MARGIN);
         for (double stored : new double[] {WIDER_MARGIN, 14}) {
             preferences.setPrintMarginPoints(stored);
@@ -357,12 +386,24 @@ class SheetsInTheDialogTest {
             view.canvas().setSize(800, 600);
             try (SheetsTestAccess canvas = SheetsTestAccess.install(anchors, view)) {
                 preferences.setShowSheets(true);
+                // held half a sheet to the left before they are laid out: the sheet between the parts is empty,
+                // at least with 40 pt
+                anchors.take(openDocument.document(), halfASheetIn(options,
+                        Math.max(PageGeometry.CENTIMETRE_POINTS, stored)));
                 SheetGrid canvasGrid = canvas.canvasGrid().orElseThrow();
                 assertThat(canvasGrid.tiled()).isTrue();
                 open(mode, anchors.anchor(openDocument.document()));
                 PageLayout paper = dialog.pageLayout().orElseThrow();
+                List<Integer> paperPrinted = sheetNumbers(dialog.printedSheets().orElseThrow());
                 dialog.dispose();
                 SheetGrid paperGrid = SheetGrid.of(paper);
+
+                assertThat(paperPrinted).as("the same sheets go out, margin " + stored)
+                        .isEqualTo(sheetNumbers(canvas.canvasPrintedSheets().orElseThrow()));
+                if (stored == WIDER_MARGIN) {
+                    assertThat(paperPrinted).as("the sheet between the parts is skipped")
+                            .hasSizeLessThan(paper.pageCount());
+                }
 
                 assertThat(canvasGrid.layout().geometry().marginPoints()).as("margin " + stored)
                         .isEqualTo(Math.max(PageGeometry.CENTIMETRE_POINTS, stored));

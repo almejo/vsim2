@@ -226,6 +226,7 @@ class ExportHostSupportTest {
                 Optional.empty(), ExportRequest.ImageOptions.DEFAULT, hundredPercent);
         PrintOptions options = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
                 new ScaleMode.Percentage(100), true, false, false, "Sumador.vsim");
+        preferences.setPrintOptions(skipping(options, false)); // every sheet of the lattice counts here
         PageGeometry geometry = PageGeometry.standard(options, PageGeometry.CENTIMETRE_POINTS);
         Rectangle2D area = onEditor(() -> PrintScopes.wholeCircuitArea(document.document(), document.registry(),
                 false)).orElseThrow();
@@ -241,6 +242,34 @@ class ExportHostSupportTest {
                 .isEqualTo(automatic.pageCount());
         sheetAnchors.take(document.document(), anchor);
         assertThat(export(request).pages()).as("sheets shown: their lattice").isEqualTo(anchored.pageCount());
+    }
+
+    /** «Saltar hojas vacías» as the user left it in the dialog, for the whole circuit like the sheets shown. */
+    @Test
+    void aPdfOfTheWholeCircuitSkipsTheEmptySheetsAsTheUserRemembered() throws Exception {
+        preferences.setPrintDirectory(remembered);
+        onEditor(() -> place(document, StandardComponentTypes.AND, 200, 0, Map.of()));
+        ExportRequest request = new ExportRequest(ID, ExportRequest.Format.PDF,
+                new ExportRequest.Scope.WholeCircuit(), Optional.empty(), ExportRequest.ImageOptions.DEFAULT,
+                new ExportRequest.PdfOptions("A4", "PORTRAIT", 100, true, false, false, ""));
+        PrintOptions hundredPercent = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4,
+                PageOrientation.PORTRAIT, new ScaleMode.Percentage(100), true, false, false, "Sumador.vsim");
+        Rectangle2D area = onEditor(() -> PrintScopes.wholeCircuitArea(document.document(), document.registry(),
+                false)).orElseThrow();
+        int every = PageLayout.of(area, PageGeometry.standard(hundredPercent, PageGeometry.CENTIMETRE_POINTS),
+                hundredPercent.scaleMode()).pageCount();
+        assertThat(every).as("the fixture: sheets between the two gates").isGreaterThan(2);
+
+        preferences.setPrintOptions(skipping(hundredPercent, true));
+        assertThat(export(request).pages()).as("only the gates' sheets").isEqualTo(2);
+        preferences.setPrintOptions(skipping(hundredPercent, false));
+        assertThat(export(request).pages()).as("off: every sheet").isEqualTo(every);
+    }
+
+    private static PrintOptions skipping(PrintOptions base, boolean skipEmptySheets) {
+        return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
+                base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(),
+                base.sheetGuides(), base.showDate(), base.showFileName(), base.showSheetNumber(), skipEmptySheets);
     }
 
     @Test

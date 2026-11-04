@@ -96,6 +96,12 @@ class SheetsFeaturesTest {
                 false, "");
     }
 
+    /** {@link #options(Paper, ScaleMode)} with «Saltar hojas vacías» on or off. */
+    static PrintOptions options(Paper paper, ScaleMode scale, boolean skipEmptySheets) {
+        return new PrintOptions(new PrintScope.WholeCircuit(), paper, PageOrientation.PORTRAIT, scale, true, false,
+                false, "", false, true, true, true, true, skipEmptySheets);
+    }
+
     /** A switch at the left and a lamp about 100 units to its right: two A4 portrait columns at 100 %. */
     private Component twoColumns() {
         Component left = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());

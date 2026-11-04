@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.sheets;
 
+import cl.almejo.vsim.ui.print.PrintedSheets;
 import cl.almejo.vsim.ui.print.SheetGrid;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -22,6 +23,11 @@ public final class SheetsTestAccess implements AutoCloseable {
     /** The grid of the canvas's cached picture; empty while hidden. */
     public Optional<SheetGrid> canvasGrid() {
         return features.picture().map(SheetPicture::grid);
+    }
+
+    /** Which sheets of the canvas's cached picture go out (the others are drawn as empty); empty while hidden. */
+    public Optional<PrintedSheets> canvasPrintedSheets() {
+        return features.picture().map(SheetPicture::printed);
     }
 
     @Override

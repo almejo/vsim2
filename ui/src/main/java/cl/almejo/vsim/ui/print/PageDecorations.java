@@ -72,18 +72,45 @@ final class PageDecorations {
             new LegendEntry(WireState.UNKNOWN, "print.legend.unknown"),
             new LegendEntry(WireState.CONFLICT, "print.legend.conflict"));
 
-    /** The numbers (from 1) of the sheets next to a tiled sheet; empty where there is none. */
+    /**
+     * The numbers (from 1) of the sheets next to a tiled sheet that go out; empty where there is none, or where it is
+     * skipped as empty (nothing to glue there).
+     */
     record Neighbours(OptionalInt left, OptionalInt right, OptionalInt above, OptionalInt below) {
+
+        boolean hasLeft() {
+            return left.isPresent();
+        }
+
+        boolean hasRight() {
+            return right.isPresent();
+        }
+
+        boolean hasAbove() {
+            return above.isPresent();
+        }
+
+        boolean hasBelow() {
+            return below.isPresent();
+        }
     }
 
-    /** The sheets around {@code page} in {@code layout}, numbered as in «Hoja n de N». */
-    static Neighbours neighbours(PageLayout layout, PrintPage page) {
-        int number = page.index() + 1;
+    /** The printed sheets around {@code page} in {@code layout}, numbered as in «Hoja n de N». */
+    static Neighbours neighbours(PageLayout layout, PrintPage page, PrintedSheets printed) {
         return new Neighbours(
-                page.column() > 0 ? OptionalInt.of(number - 1) : OptionalInt.empty(),
-                page.column() < layout.columns() - 1 ? OptionalInt.of(number + 1) : OptionalInt.empty(),
-                page.row() > 0 ? OptionalInt.of(number - layout.columns()) : OptionalInt.empty(),
-                page.row() < layout.rows() - 1 ? OptionalInt.of(number + layout.columns()) : OptionalInt.empty());
+                neighbour(layout, page.column() - 1, page.row(), printed),
+                neighbour(layout, page.column() + 1, page.row(), printed),
+                neighbour(layout, page.column(), page.row() - 1, printed),
+                neighbour(layout, page.column(), page.row() + 1, printed));
+    }
+
+    /** The number of sheet {@code (column, row)}, when the layout has it and it goes out. */
+    private static OptionalInt neighbour(PageLayout layout, int column, int row, PrintedSheets printed) {
+        if (column < 0 || column >= layout.columns() || row < 0 || row >= layout.rows()
+                || printed.isSkipped(column, row)) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(row * layout.columns() + column + 1);
     }
 
     private record LegendEntry(WireState state, String labelKey) {
@@ -107,16 +134,17 @@ final class PageDecorations {
 
     /**
      * The glue tabs of a tiled sheet: inside its window, the strip along the right edge and the one along the bottom
-     * edge, each only when there is a neighbour on that side, filled in {@link #OVERLAP_BAND} and marked with
+     * edge, each only when there is a printed neighbour on that side, filled in {@link #OVERLAP_BAND} and marked with
      * «Pegar aquí» ({@link #GLUE_TEXT}), repeated along a long tab. The neighbour on the right (below) is cut at the
      * inner edge of its own left (top) overlap and laid over the tab, so that no grey is left. Opaque, so the corner
      * where both tabs meet is not darker. Painted before the circuit, so everything the circuit draws stays on top.
      */
-    void paintGlueTabs(Graphics2D graphics, PageLayout layout, PrintPage page) {
+    void paintGlueTabs(Graphics2D graphics, PageLayout layout, PrintPage page, PrintedSheets printed) {
         Rectangle2D paper = page.paperRectangle();
         double overlap = layout.overlapPoints();
-        boolean hasRight = page.column() < layout.columns() - 1;
-        boolean hasBelow = page.row() < layout.rows() - 1;
+        Neighbours neighbours = neighbours(layout, page, printed);
+        boolean hasRight = neighbours.hasRight();
+        boolean hasBelow = neighbours.hasBelow();
         graphics.setColor(OVERLAP_BAND);
         if (hasRight) {
             graphics.fill(new Rectangle2D.Double(paper.getMaxX() - overlap, paper.getMinY(), overlap,
@@ -168,24 +196,23 @@ final class PageDecorations {
 
     /**
      * The cut marks of a tiled sheet, in the strip around the window, at the inner edge of the overlap on the left and
-     * top edges that have a neighbour (cut the repeated strip off along them and lay the sheet over the glue tab of
-     * the neighbour); none on the right and bottom, where the glue tab is. And {@code label} under the window, clear
-     * of the marks.
+     * top edges that have a printed neighbour (cut the repeated strip off along them and lay the sheet over the glue
+     * tab of the neighbour); none on the right and bottom, where the glue tab is. And {@code label} under the window,
+     * clear of the marks.
      */
-    void paintMarks(Graphics2D graphics, PageLayout layout, PrintPage page, String label) {
+    void paintMarks(Graphics2D graphics, PageLayout layout, PrintPage page, PrintedSheets printed, String label) {
         Rectangle2D window = layout.window();
         double overlap = layout.overlapPoints();
-        double halfOverlap = overlap / 2;
+        Neighbours neighbours = neighbours(layout, page, printed);
         graphics.setColor(INK);
         graphics.setStroke(HAIRLINE);
-        if (page.column() > 0) {
+        if (neighbours.hasLeft()) {
             verticalMarks(graphics, window, window.getX() + overlap);
         }
-        if (page.row() > 0) {
+        if (neighbours.hasAbove()) {
             horizontalMarks(graphics, window, window.getY() + overlap);
         }
         double strip = layout.geometry().marksStripPoints();
-        Neighbours neighbours = neighbours(layout, page);
         // the label starts after the mark of the left overlap; the number of the sheet below stays centred
         double labelLeft = window.getX() + overlap + TEXT_GAP_POINTS / 2;
         double labelRoom = window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;

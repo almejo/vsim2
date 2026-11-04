@@ -167,6 +167,29 @@ class PrintPageableTest {
     }
 
     @Test
+    void skippingEmptySheetsTheJobHasOnlyThePrintedSheetsAndTheProgressCountsThem() throws PrinterException {
+        bigCircuit();
+        PrintOptions base = options(A4_PORTRAIT, new ScaleMode.Percentage(100));
+        PrintOptions skipping = new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(),
+                base.withValues(), base.blackAndWhite(), base.headerFooter(), base.title(), false, true, true, true,
+                true, true);
+        PrintInput input = input();
+        PrintArea area = PrintScopes.area(input, skipping.scope()).orElseThrow();
+        PageGeometry geometry = PageGeometry.standard(Paper.A4, PageOrientation.PORTRAIT, true,
+                PageGeometry.CENTIMETRE_POINTS);
+        PagePainter painter = new PagePainter(input, area, skipping, PageLayout.of(area.gridArea(), geometry,
+                skipping.scaleMode()));
+        PrintPageable pageable = pageable(painter, A4_PORTRAIT);
+
+        assertThat(pageable.getNumberOfPages()).isEqualTo(2);
+        printed(pageable, 0);
+        printed(pageable, 1);
+
+        assertThat(progress.done).containsExactly(1, 2);
+        assertThat(progress.totals).containsExactly(2, 2);
+    }
+
+    @Test
     void pastTheLastSheetThereIsNoSuchPage() throws PrinterException {
         bigCircuit();
         PrintPageable pageable = pageable(painter(input(), A4_PORTRAIT, new ScaleMode.Percentage(100)), A4_PORTRAIT);

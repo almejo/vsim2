@@ -508,6 +508,20 @@ class AppPreferencesTest {
     }
 
     @Test
+    void skippingEmptySheetsStartsOnAndIsRemembered() {
+        assertThat(preferences.printOptions("").skipEmptySheets()).isTrue();
+        PrintOptions current = preferences.printOptions("");
+
+        preferences.setPrintOptions(new PrintOptions(current.scope(), current.paper(), current.orientation(),
+                current.scaleMode(), current.withValues(), current.blackAndWhite(), current.headerFooter(),
+                current.title(), current.includeStickyNotes(), current.sheetGuides(), current.showDate(),
+                current.showFileName(), current.showSheetNumber(), false));
+
+        assertThat(new AppPreferences(node).printOptions("").skipEmptySheets()).isFalse();
+        assertThat(node.get("print.skipEmptySheets", null)).isEqualTo("false");
+    }
+
+    @Test
     void fitToOnePageIsStoredAsFit() {
         preferences.setPrintOptions(new PrintOptions(new PrintScope.WholeCircuit(), Paper.A3,
                 PageOrientation.PORTRAIT, new ScaleMode.FitToOnePage(), true, false, false, ""));
