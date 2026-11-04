@@ -113,24 +113,27 @@ class MemoryInspectorRowsTest {
     }
 
     @Test
-    void theMemoryRowsFitTheDefaultSidebarWidth() {
-        for (String type : List.of(StandardComponentTypes.RAM, StandardComponentTypes.ROM)) {
-            Component memory = place(document, type, 0, 0, Map.of());
-            Container inspector = inspectorShowing(memory);
-            int width = cl.almejo.vsim.ui.window.InspectorPanel.PREFERRED_WIDTH;
-            inspector.setSize(width, 900);
-            layOut(inspector);
+    void theMemoryRowsFitTheDefaultSidebarWidthAndANarrowerOne() {
+        // Narrower than the default stands for a wider system font too (DejaVu Sans on GitHub's Ubuntu runners).
+        int defaultWidth = cl.almejo.vsim.ui.window.InspectorPanel.PREFERRED_WIDTH;
+        for (int width : List.of(defaultWidth, defaultWidth - 40)) {
+            for (String type : List.of(StandardComponentTypes.RAM, StandardComponentTypes.ROM)) {
+                Component memory = place(document, type, 0, 0, Map.of());
+                Container inspector = inspectorShowing(memory);
+                inspector.setSize(width, 900);
+                layOut(inspector);
 
-            List<String> outside = new ArrayList<>();
-            collectOutside(inspector, inspector, width, outside);
-            assertThat(outside).as(type).isEmpty();
-            assertThat(inspector.getMinimumSize().width).as(type).isLessThanOrEqualTo(width);
-            for (String parameter : List.of(MemoryTypes.WIDTH, "delay")) {
-                assertThat(named(inspector, parameter, javax.swing.JComponent.class).getWidth())
-                        .as(type + " " + parameter).isGreaterThan(20);
+                List<String> outside = new ArrayList<>();
+                collectOutside(inspector, inspector, width, outside);
+                assertThat(outside).as(type + " at " + width).isEmpty();
+                assertThat(inspector.getMinimumSize().width).as(type + " at " + width).isLessThanOrEqualTo(width);
+                for (String parameter : List.of(MemoryTypes.WIDTH, "delay")) {
+                    assertThat(named(inspector, parameter, javax.swing.JComponent.class).getWidth())
+                            .as(type + " " + parameter).isGreaterThan(20);
+                }
+                view.dispose();
+                view = null;
             }
-            view.dispose();
-            view = null;
         }
     }
 

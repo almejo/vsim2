@@ -540,10 +540,12 @@ public final class ParameterForm extends JPanel {
     /**
      * Moves every row (group headers included) into {@code host}, whose layout is a two column grid (caption, field)
      * that wraps after the field, so they share the host's columns with its own rows. The form keeps reading,
-     * validating and listening to the editors; it is left empty and is not added anywhere.
+     * validating and listening to the editors; it is left empty and is not added anywhere. The fields may be narrower
+     * than they would like (a choice box then ends its text in «…»), so with a wide font or a narrow side panel no
+     * field runs past the panel's edge.
      */
     public void addRowsTo(JPanel host) {
-        layOut(host, "");
+        layOut(host, "wmin 0");
     }
 
     /** The label of a parameter: its name, plus « (t)» for a time parameter. Error messages use the plain name. */
