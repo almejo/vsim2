@@ -515,7 +515,7 @@ class PresentationScenariosTest {
         assertThat(refused).containsEntry("error", "NOT_ALLOWED");
         assertThat(onEditor(() -> circuit.document().components())).as("only the step applied before «Detener»")
                 .hasSize(1);
-        assertThat(heard).contains("stepDiscarded STOPPED");
+        awaitHeard(event -> event.equals("stepDiscarded STOPPED")); // heard on its own thread: wait, never poll once
     }
 
     // --- IA.3: the commands, followed ---

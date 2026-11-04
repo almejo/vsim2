@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -526,8 +528,11 @@ class MemoryEditorDialogTest {
         Component component = ram(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.CONTENTS, "@0 5"));
         MemoryEditorDialog dialog = dialogOn(component);
         document.pause();
-        waitUntil(() -> !document.latestSnapshot().running()
-                && document.latestSnapshot().componentState(component.id().value()) != null);
+        // Every request so far (the RAM's rebuild, the pause) applied and published: polling the fields could take a
+        // snapshot from before them for the paused one (a slow CI runner).
+        SimulationSnapshot paused = awaitSimulation(document);
+        assertThat(paused.running()).isFalse();
+        assertThat(paused.componentState(component.id().value())).isNotNull();
         dialog.pollLive().get(10, TimeUnit.SECONDS);
         assertThat(dialog.model().isShowingLive()).isTrue();
         assertThat(dialog.model().valueAt(0)).isEqualTo(5);
