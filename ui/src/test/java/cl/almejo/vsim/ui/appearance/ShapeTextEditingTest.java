@@ -78,11 +78,11 @@ class ShapeTextEditingTest {
     void theEditorFollowsThePanAndZoomOfTheCanvas() {
         ShapeCanvas canvas = canvasWith(UNO);
         editTextAt(canvas);
-        int before = canvas.textEditor().textComponent().getParent().getX();
+        int before = canvas.textEditor().confirmButton().getParent().getX();
 
         canvas.setZoom(2);
 
-        assertThat(canvas.textEditor().textComponent().getParent().getX()).isNotEqualTo(before);
+        assertThat(canvas.textEditor().confirmButton().getParent().getX()).isNotEqualTo(before);
     }
 
     @Test

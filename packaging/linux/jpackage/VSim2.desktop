@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=VSim 2
+GenericName=Simulador de circuitos digitales
+GenericName[en]=Digital circuit simulator
+Comment=APPLICATION_DESCRIPTION
+Comment[en]=Digital circuit simulator for teaching
+Exec=APPLICATION_LAUNCHER %F
+Icon=APPLICATION_ICON
+Terminal=false
+Type=Application
+Categories=DEPLOY_BUNDLE_CATEGORY
+StartupWMClass=cl-almejo-vsim-ui-app-Main
+DESKTOP_MIMES

@@ -1,0 +1,25 @@
+name: Suggest an idea
+description: Something you would like VSim 2 to do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell us your idea. **Mind your data:** do not upload circuits or screenshots with personal data (Chilean Law 21.719).
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: What you would like to do
+      description: The problem you want to solve, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: como-repetirlo
+    attributes:
+      label: How you do it today
+      description: If there is a workaround, tell us.
+  - type: textarea
+    id: circuito
+    attributes:
+      label: Example circuit
+      description: Optional. Check it has no personal data.

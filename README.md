@@ -2,6 +2,8 @@
 
 # VSim 2
 
+[![CI](https://github.com/almejo/vsim2/actions/workflows/ci.yml/badge.svg)](https://github.com/almejo/vsim2/actions/workflows/ci.yml)
+
 Simulador de circuitos digitales: se dibuja el circuito, se simula y se ve cómo avanza cada señal.
 
 Sus focos son **aprender y enseñar** y la **facilidad de uso**. Toma las buenas ideas que ya existen en otros
@@ -20,10 +22,9 @@ Está hecho en Java 21 con Swing. Es la tercera versión, después de
 
 ## Descargar y usar
 
-1. Instala **OpenJDK 21** (en Linux, el paquete `openjdk-21-jre` de tu distribución; en Windows y macOS, el
-   instalador de OpenJDK 21 que prefieras).
-2. Descarga `vsim2-<versión>.jar` de la versión más nueva en [Releases](https://github.com/almejo/vsim2/releases).
-3. Ábrelo con doble clic, o en una terminal con `java -jar vsim2-<versión>.jar`.
+Descarga de [Releases](https://github.com/almejo/vsim2/releases) el instalador de tu sistema (Windows, Linux) o el
+`.jar` (necesita Java 21). Los pasos por sistema, los avisos de Windows y macOS y cómo reportar un problema están en
+[Cómo instalar y probar](docs/instalar.md).
 
 Para empezar, mira Archivo ▸ Ejemplos o abre los circuitos de [examples/](examples/).
 
@@ -127,6 +128,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Interfaz, preferencias y sesión
 
+- [Pantalla de inicio](docs/funciones/interfaz-preferencias-y-sesion.md#pantalla-de-inicio): un semisumador en el lienzo, el logo y la versión mientras VSim abre, al menos 3 segundos y en la pantalla del mouse.
 - [Ventanas y vistas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-vistas): varias vistas del mismo circuito.
 - [Dividir la vista](docs/funciones/interfaz-preferencias-y-sesion.md#dividir-la-vista) en 2 o 4 paneles del mismo circuito, como en Excel: arrastrando las pestañitas de los bordes o desde Ventana ▸ «Dividir ▸», cada panel con su zoom y una sola selección; lo que arrastras (un cable, un recuadro, piezas, un marco) sigue de un panel a otro; se recuerda por archivo, nunca en el .vsim.
 - [Zoom y desplazamiento](docs/funciones/interfaz-preferencias-y-sesion.md#zoom-y-desplazamiento) con rueda, teclado, botón del medio, la herramienta Zoom (Z: un recuadro se ve en grande, un clic acerca, Alt o Mayús + clic aleja), «Ver todo el circuito» (Mayús+1), «Zoom a la selección» (Mayús+2) y un control en la barra de estado: un deslizador con 100 % al medio y el porcentaje para escribir o elegir.
@@ -139,6 +141,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Pestaña Componentes](docs/funciones/interfaz-preferencias-y-sesion.md#pestaña-componentes): el árbol del circuito con sus valores.
 - [Preferencias](docs/funciones/interfaz-preferencias-y-sesion.md#preferencias): tema, esquemas de colores (entre ellos «Placa», que dibuja el circuito como una placa de circuito impreso verde con pines dorados) y esquemas propios, idioma, letra y librería.
 - [Acerca de VSim 2…](docs/funciones/interfaz-preferencias-y-sesion.md#acerca-de-vsim-2): versión, licencia, créditos y enlaces, con un botón para copiar la información de tu instalación.
+- [Reportar un problema…](docs/funciones/interfaz-preferencias-y-sesion.md#reportar-un-problema): Ayuda ▸ «Reportar un problema…» abre en GitHub el formulario de problemas con tu versión y sistema ya puestos.
 - [Sesión y recuperación](docs/funciones/interfaz-preferencias-y-sesion.md#sesión-y-recuperación): copias automáticas, recientes y continuar donde quedaste.
 
 ### IA (MCP)
@@ -169,6 +172,13 @@ Jar ejecutable, con todas las dependencias adentro:
     java -jar ui/build/libs/vsim2-<versión>.jar
 
 `./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
+
+Instaladores con su propio Java (deb y rpm en Linux, msi y zip portátil en Windows, dmg en macOS):
+
+    ./gradlew :ui:nativePackages         # deja los de este sistema en ui/build/distribution/
+    ./gradlew :ui:packagedRuntimeCheck   # comprueba que el Java incluido basta para VSim
+
+Requisitos y detalles en [packaging/README.md](packaging/README.md). Una etiqueta `vX.Y` arma todos los instaladores y deja la release en borrador ([Publicar una versión](packaging/README.md#publicar-una-versión)).
 
 ### Pruebas
 

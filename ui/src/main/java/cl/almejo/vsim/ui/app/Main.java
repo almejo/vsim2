@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.VsimVersion;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
@@ -15,10 +16,12 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.KeyboardFocusManager;
 import java.awt.Taskbar;
+import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 public final class Main {
 
@@ -35,16 +38,22 @@ public final class Main {
                 Locale.getDefault()));
         Locale.setDefault(Messages.locale());
         JComponent.setDefaultLocale(Messages.locale());
+        Optional<StartupSplash> splash = StartupSplash.show(VsimVersion.current(), Messages.text("splash.loading"));
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         // M6-D5: asked here, on the main thread, so the EDT never waits up to 2 s for the system's answer.
         ThemeManager.askSystemBeforeStart(preferences);
+        // Installed now: macOS may send the open-file event before the Application exists; it waits in `incoming`.
+        SystemOpenFiles incoming = new SystemOpenFiles();
+        installOpenFileHandler(incoming);
+        splash.ifPresent(StartupSplash::awaitFirstPaint);
         SwingUtilities.invokeLater(() -> {
             Application application = new Application(preferences);
+            application.setSystemOpenFiles(incoming);
             installQuitHandler(application);
             installPreferencesHandler(application);
             installAboutHandler();
             installDockIcon();
-            application.start(files);
+            application.start(files, () -> splash.ifPresent(StartupSplash::awaitMinimumTime));
         });
     }
 
@@ -60,6 +69,18 @@ public final class Main {
             } else {
                 response.cancelQuit();
             }
+        });
+    }
+
+    /** macOS Finder double click / drop on the Dock icon: the files wait in {@code incoming}. No-op elsewhere. */
+    private static void installOpenFileHandler(SystemOpenFiles incoming) {
+        if (GraphicsEnvironment.isHeadless() || !Desktop.isDesktopSupported()
+                || !Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_FILE)) {
+            return;
+        }
+        Desktop.getDesktop().setOpenFileHandler(event -> {
+            List<Path> files = event.getFiles().stream().map(File::toPath).toList();
+            SwingUtilities.invokeLater(() -> incoming.receive(files));
         });
     }
 

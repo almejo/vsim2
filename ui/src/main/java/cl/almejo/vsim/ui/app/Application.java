@@ -135,6 +135,7 @@ public final class Application {
     private final ThemeManager themeManager;
     private final TextFontManager textFontManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
+    private SystemOpenFiles systemOpenFiles = new SystemOpenFiles();
     private final RecentFiles recentFiles;
     private final SessionStore sessionStore;
     private final RecoveryStore recoveryStore;
@@ -322,6 +323,14 @@ public final class Application {
      * recovery folder is scanned off the EDT (it reads every copy); the dialog and the windows come on the EDT.
      */
     public void start(List<Path> files) {
+        start(files, () -> { });
+    }
+
+    /**
+     * Starts and runs {@code beforeWindows} on the recovery-scan thread, off the EDT, before the first window opens
+     * (the splash's minimum time, {@link StartupSplash}).
+     */
+    public void start(List<Path> files, Runnable beforeWindows) {
         themeManager.start();
         textFontManager.start();
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
@@ -331,6 +340,7 @@ public final class Application {
             Optional<RecoveryChoices<RecoveryCopy>> choices = Optional.empty();
             try {
                 choices = scanRecoveryCopies();
+                beforeWindows.run();
             } finally {
                 // Even after an Error on this thread the application starts, then without a recovery offer.
                 Optional<RecoveryChoices<RecoveryCopy>> offered = choices;
@@ -384,6 +394,29 @@ public final class Application {
                 windows.all().get(0).openOrImport(components);
             }
         }, () -> startAutosave(reopened));
+        // Files the system sent while the start was running (macOS open-file events) open now, after the start's own.
+        systemOpenFiles.attach(this::openFromSystem);
+    }
+
+    /**
+     * The window system asks to open these files (macOS Finder double click, drop on the Dock icon): the same path as
+     * the command line. Component files are imported into the library; with no window left one is made first.
+     */
+    void openFromSystem(List<Path> files) {
+        List<Path> components = files.stream().filter(LibraryDirectory::isComponentFile).toList();
+        List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
+        StartupSteps.openEach(circuits, file -> openPaths(List.of(file), null));
+        if (!components.isEmpty()) {
+            if (windows.isEmpty()) {
+                newDocument();
+            }
+            windows.all().get(0).openOrImport(components);
+        }
+    }
+
+    /** Where the system's open-file events wait until the start is over; set before {@link #start}. */
+    public void setSystemOpenFiles(SystemOpenFiles incoming) {
+        systemOpenFiles = Objects.requireNonNull(incoming);
     }
 
     private void startAutosave(List<RecoveryCopy> reopened) {

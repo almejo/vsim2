@@ -1,0 +1,44 @@
+name: Report a problem
+description: Something does not work as you expected in VSim 2.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for letting us know. **Mind your data:** circuits and screenshots may contain personal data (names, emails, paths with your user name). Upload only what is needed and remove personal data before posting (Chilean Law 21.719).
+  - type: input
+    id: version
+    attributes:
+      label: VSim 2 version
+      description: Shown in Help ▸ About VSim 2.
+    validations:
+      required: true
+  - type: input
+    id: sistema
+    attributes:
+      label: Operating system
+      description: For example Windows 11, Ubuntu 24.04, macOS 15.
+    validations:
+      required: true
+  - type: input
+    id: formato
+    attributes:
+      label: How you installed it
+      description: msi, zip, deb, rpm, appimage, flatpak, snap, dmg or jar.
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: What happened
+      description: What you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: como-repetirlo
+    attributes:
+      label: How to repeat it
+      description: The steps, one per line.
+  - type: textarea
+    id: circuito
+    attributes:
+      label: Circuit
+      description: If it helps, drag the .vsim file here (check it has no personal data first).

@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.inline;
 
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
-import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
@@ -14,6 +13,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -21,8 +21,10 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.JTextComponent;
+import javax.swing.text.View;
 import java.awt.AWTEvent;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -64,14 +66,20 @@ import java.util.function.Supplier;
  * A request for several lines (a note, IA.3) is edited in a text area instead: Shift+Enter adds a line break, Enter
  * still confirms, and the area keeps its top-left corner while it grows down and right with the text.
  * <p>
+ * The editor grows with the text up to the canvas's edge (never narrower than {@link #CRAMPED_MAXIMUM_WIDTH}); a
+ * longer text scrolls inside it so the caret stays in sight.
+ * <p>
  * One editor per canvas, reused: opening a new request confirms (or, when invalid, cancels) the current one. EDT only.
  */
 public final class InlineTextEditor {
 
     /** The field's font never gets smaller than this, however far the view is zoomed out. */
     public static final float MINIMUM_FONT_SIZE = 11f;
-    /** The widest the field gets, in canvas pixels; longer texts scroll inside it. */
-    public static final int MAXIMUM_WIDTH = 480;
+    /**
+     * The widest the field may get even when the canvas has less room than this beside the text, in canvas pixels;
+     * with more room it grows up to the canvas's edge. Longer texts scroll inside it.
+     */
+    public static final int CRAMPED_MAXIMUM_WIDTH = 480;
     /** The narrowest text room, so an empty text (a new one) still gives somewhere to type. */
     static final int MINIMUM_TEXT_WIDTH = 48;
     private static final int CARET_ROOM = 2;
@@ -94,6 +102,9 @@ public final class InlineTextEditor {
     private final JPanel panel = new JPanel(null);
     private final Field field = new Field();
     private final Area area = new Area();
+    /** Holds the {@link #area} without scroll bars, so it scrolls to the caret when its text is wider than it. */
+    private final JScrollPane areaScroller = new JScrollPane(area, JScrollPane.VERTICAL_SCROLLBAR_NEVER,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     private final JButton confirmButton;
     private final JButton cancelButton;
     private final JLabel problemText = new ProblemBadge();
@@ -130,7 +141,7 @@ public final class InlineTextEditor {
         cancelButton = iconButton(InlineIcons.CANCEL, "inline.cancel", this::cancel);
         configureSuggestionsAndProblem();
         panel.add(field);
-        panel.add(area);
+        panel.add(areaScroller);
         panel.add(confirmButton);
         panel.add(cancelButton);
         panel.add(suggestionList);
@@ -153,6 +164,7 @@ public final class InlineTextEditor {
         area.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
         area.setFocusTraversalKeysEnabled(false);
         area.setVisible(false);
+        areaScroller.setVisible(false);
     }
 
     private void configureSuggestionsAndProblem() {
@@ -219,10 +231,14 @@ public final class InlineTextEditor {
             case CENTER -> SwingConstants.CENTER;
             case RIGHT -> SwingConstants.RIGHT;
         });
-        // a text area has no field border: lend it the field's, so both look alike
-        area.setBorder(UIManager.getBorder("TextField.border"));
+        // a text area has no field border: lend its scroller the field's (it stays put while the text scrolls) and
+        // the area the field's margin, so both look alike
+        areaScroller.setBorder(UIManager.getBorder("TextField.border"));
+        area.setBorder(null);
+        area.setMargin(UIManager.getInsets("TextField.margin"));
         field.setVisible(!newRequest.multiLine());
         area.setVisible(newRequest.multiLine());
+        areaScroller.setVisible(newRequest.multiLine());
         area.setLineWrap(newRequest.wraps());
         area.setWrapStyleWord(newRequest.wraps());
         JTextComponent text = textComponent();
@@ -413,6 +429,7 @@ public final class InlineTextEditor {
         JTextComponent text = textComponent();
         problem = request.validator().apply(text.getText());
         text.putClientProperty(OUTLINE, problem.isPresent() ? OUTLINE_ERROR : null);
+        areaScroller.putClientProperty(OUTLINE, problem.isPresent() ? OUTLINE_ERROR : null);
         problemText.setText(problem.orElse(""));
         problemText.setVisible(problem.isPresent());
         confirmButton.setEnabled(problem.isEmpty());
@@ -490,14 +507,14 @@ public final class InlineTextEditor {
             text.setFont(font);
         }
         FontMetrics metrics = text.getFontMetrics(font);
-        Rectangle fieldBounds = fieldBoundsOver(area, text, metrics);
-        int fieldWidth = fieldBounds.width;
-        int fieldHeight = fieldBounds.height;
-        Insets textInsets = text.getInsets();
-        int verticalInsets = textInsets.top + textInsets.bottom;
-
         Dimension buttonSize = confirmButton.getPreferredSize();
         int side = Math.max(buttonSize.width, buttonSize.height);
+        Rectangle fieldBounds = fieldBoundsOver(area, text, 2 * side + GAP);
+        int fieldWidth = fieldBounds.width;
+        int fieldHeight = fieldBounds.height;
+        Insets textInsets = framingInsets();
+        int verticalInsets = textInsets.top + textInsets.bottom;
+
         // beside the first line of a note, beside the middle of a field
         int besideHeight = request.multiLine() ? metrics.getHeight() + verticalInsets : fieldHeight;
         int buttonY = fieldBounds.y + (besideHeight - side) / 2;
@@ -517,35 +534,69 @@ public final class InlineTextEditor {
             all = all.union(problemBounds);
         }
         panel.setBounds(all);
-        text.setBounds(relative(fieldBounds, all));
+        editingComponent().setBounds(relative(fieldBounds, all));
         confirmButton.setBounds(relative(confirmBounds, all));
         cancelButton.setBounds(relative(cancelBounds, all));
         suggestionList.setBounds(relative(suggestionBounds, all));
         problemText.setBounds(relative(problemBounds, all));
         panel.revalidate();
         panel.repaint();
+        if (request.multiLine()) {
+            keepTheCaretInSight();
+        }
     }
 
-    /** The field's bounds over the painted text in {@code area}, wide enough for what is typed. */
-    private Rectangle fieldBoundsOver(Rectangle2D area, JTextComponent text, FontMetrics metrics) {
-        Insets insets = text.getInsets();
+    /** What is laid out over the text: the field, or the scroller around the area. */
+    private JComponent editingComponent() {
+        return request.multiLine() ? areaScroller : field;
+    }
+
+    /** Between the edge of {@link #editingComponent} and the text: the field's insets, or the scroller's and area's. */
+    private Insets framingInsets() {
+        if (!request.multiLine()) {
+            return field.getInsets();
+        }
+        Insets outer = areaScroller.getInsets();
+        Insets inner = area.getInsets();
+        return new Insets(outer.top + inner.top, outer.left + inner.left, outer.bottom + inner.bottom,
+                outer.right + inner.right);
+    }
+
+    /** Lays the area out in its new size and scrolls it so the caret shows, as a field does by itself. */
+    private void keepTheCaretInSight() {
+        // directly, not with validate(): that waits for a native peer, and the editor must also lay out headless
+        areaScroller.doLayout();
+        areaScroller.getViewport().doLayout();
+        try {
+            Rectangle2D caret = area.modelToView2D(area.getCaretPosition());
+            if (caret != null) {
+                area.scrollRectToVisible(caret.getBounds());
+            }
+        } catch (BadLocationException exception) {
+            // the caret is always inside the text: nothing to scroll to otherwise
+        }
+    }
+
+    /**
+     * The field's bounds over the painted text in {@code area}, wide enough for what is typed while the canvas has
+     * room for it and for the {@code buttonsWidth} after it.
+     */
+    private Rectangle fieldBoundsOver(Rectangle2D area, JTextComponent text, int buttonsWidth) {
+        Insets insets = framingInsets();
         int horizontalInsets = insets.left + insets.right;
         int verticalInsets = insets.top + insets.bottom;
         int areaX = (int) Math.round(area.getX());
         int areaY = (int) Math.round(area.getY());
         int areaWidth = (int) Math.round(area.getWidth());
         int areaHeight = (int) Math.round(area.getHeight());
-        int textWidth = 0;
-        for (String line : request.multiLine() ? LabelLayout.noteLines(text.getText()) : List.of(text.getText())) {
-            textWidth = Math.max(textWidth, metrics.stringWidth(line));
-        }
-        textWidth += CARET_ROOM;
+        // the width the text is laid out at, as the text component paints it (its longest line for a note)
+        int textWidth = (int) Math.ceil(text.getUI().getRootView(text).getPreferredSpan(View.X_AXIS)) + CARET_ROOM;
         // a wrapping text keeps the width it is painted at (a sticky note's paper); the others grow with the text
         int fieldWidth = request.wraps() ? Math.max(areaWidth, MINIMUM_TEXT_WIDTH) + horizontalInsets
-                : Math.min(MAXIMUM_WIDTH, Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth)
-                + horizontalInsets);
+                : Math.min(widestFieldFor(area, insets, buttonsWidth),
+                Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth) + horizontalInsets);
         int fittedHeight = areaHeight + verticalInsets;
-        int fieldHeight = Math.max(fittedHeight, text.getPreferredSize().height);
+        int fieldHeight = Math.max(fittedHeight, editingComponent().getPreferredSize().height);
         int fieldX = switch (request.anchor()) {
             case LEFT -> areaX - insets.left;
             case CENTER -> (int) Math.round(area.getCenterX() - fieldWidth / 2.0);
@@ -555,6 +606,20 @@ public final class InlineTextEditor {
         int fieldY = request.multiLine() ? areaY - insets.top
                 : areaY - insets.top - (fieldHeight - fittedHeight) / 2;
         return new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
+    }
+
+    /**
+     * The widest the field may get without leaving the canvas (its buttons included), keeping the edge its anchor
+     * keeps; never narrower than {@link #CRAMPED_MAXIMUM_WIDTH}, so a text near the edge still has room.
+     */
+    private int widestFieldFor(Rectangle2D area, Insets insets, int buttonsWidth) {
+        int canvasWidth = canvas.component().getWidth();
+        int room = switch (request.anchor()) {
+            case LEFT -> canvasWidth - (int) Math.round(area.getX() - insets.left) - buttonsWidth;
+            case CENTER -> 2 * (int) Math.min(area.getCenterX(), canvasWidth - buttonsWidth - area.getCenterX());
+            case RIGHT -> (int) Math.round(area.getMaxX() + insets.right);
+        };
+        return Math.max(CRAMPED_MAXIMUM_WIDTH, room);
     }
 
     private static Rectangle relative(Rectangle bounds, Rectangle origin) {

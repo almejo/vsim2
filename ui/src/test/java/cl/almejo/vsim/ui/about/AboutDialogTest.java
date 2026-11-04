@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AboutDialogTest {
 
     private static final AboutInformation INFORMATION =
-            new AboutInformation("9.9", "21.0.1 (Test)", "Linux 7 amd64", "FlatLaf Light");
+            new AboutInformation("9.9", "21.0.1 (Test)", "Linux 7 amd64", "FlatLaf Light", "jar");
 
     private final List<String> copied = new ArrayList<>();
 
@@ -178,7 +178,7 @@ class AboutDialogTest {
     @Test
     void asTextHasTheVersionJavaAndTheSystem() {
         assertThat(INFORMATION.asText()).contains("9.9").contains("21.0.1").contains("Linux 7")
-                .contains("FlatLaf Light");
+                .contains("FlatLaf Light", "jar");
     }
 
     @Test

@@ -1,0 +1,25 @@
+name: Proponer una idea
+description: Algo que te gustaría que VSim 2 hiciera.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cuéntanos tu idea. **Cuida tus datos:** no subas circuitos ni capturas con datos personales (Ley 21.719).
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: Qué te gustaría poder hacer
+      description: El problema que quieres resolver, no solo la solución.
+    validations:
+      required: true
+  - type: textarea
+    id: como-repetirlo
+    attributes:
+      label: Cómo lo haces hoy
+      description: Si hay una forma de arreglártelas hoy, cuéntala.
+  - type: textarea
+    id: circuito
+    attributes:
+      label: Circuito de ejemplo
+      description: Opcional. Revisa que no tenga datos personales.

@@ -2,6 +2,12 @@
 
 Parte de las [funciones de VSim 2](../funciones.md).
 
+## Pantalla de inicio
+
+- Al abrir VSim aparece una pantalla de inicio oscura: a la izquierda, un trozo del lienzo con un semisumador (una XOR y una AND, con A = 1 y B = 0, la suma encendida y el acarreo apagado); a la derecha, el logo y el nombre. Abajo dice «Cargando…» (en el idioma de VSim) y la versión.
+- Sale centrada en la pantalla donde está el mouse, también con dos monitores.
+- Se queda al menos 3 segundos: si VSim abre más rápido, espera lo que falta; si tarda más (por ejemplo, al abrir un circuito pesado), no suma demora. Se cierra sola cuando aparece la primera ventana. En pantallas con escala 2× usa una imagen del doble de resolución.
+
 ## Ventanas y vistas
 
 - El menú Ventana lista todas las ventanas abiertas. Soltar un archivo .vsim o .json sobre una ventana lo abre (un `.vsimcomponent.json` se agrega a la librería); abrir un archivo ya abierto enfoca su ventana.
@@ -100,6 +106,14 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Ayuda ▸ «Acerca de VSim 2…» abre un diálogo fijo (no se puede redimensionar ni minimizar) titulado «Acerca de VSim 2». Arriba, el logo a la izquierda y a su lado el nombre, la versión y una línea de qué es; debajo, una grilla con Autor (Alejandro Vera), Licencia (GPL 3.0), Código y Versiones (github.com/almejo/vsim2 y su página de versiones), e Historia (JCSim 2001, VSim 2013, VSim 2 2026); y una línea con los créditos de las bibliotecas que usa y de las tipografías incluidas («IBM Plex Mono y VT323, licencia SIL OFL 1.1»). Las dos direcciones son enlaces (color de enlace del tema, subrayados al pasar el mouse) donde el sistema puede abrir un navegador, y texto que se puede seleccionar donde no. Abajo, una franja con «Copiar información» y «Cerrar» (Enter y Esc cierran). Los colores siguen al tema claro u oscuro.
 - «Copiar información» copia la versión de VSim, la de Java, el sistema operativo y la apariencia, para pegarlos en un reporte de error.
 - En macOS, el mismo diálogo se abre desde «Acerca de» del menú de la aplicación.
+
+## Reportar un problema
+
+- Ayuda ▸ «Reportar un problema…» (después de «Acerca de VSim 2…») abre en el navegador el formulario de problemas de GitHub (`github.com/almejo/vsim2/issues`), sin diálogo intermedio. Va con la versión de VSim, el sistema operativo y el formato de instalación (msi, zip, deb, rpm, appimage, flatpak, snap, dmg o jar) ya escritos; nada más (ni la versión de Java ni tus archivos). Falta escribir qué pasó y, si quieres, adjuntar el circuito.
+- El formulario sale en el idioma de VSim: en español si el programa está en español, en inglés en cualquier otro caso. También hay un formulario para proponer ideas, y los issues en blanco están desactivados.
+- Los formularios avisan que los circuitos y las capturas pueden tener datos personales (Ley 21.719): sube solo lo necesario.
+- Si el sistema no puede abrir un navegador, el comando no hace nada; la dirección de los issues es github.com/almejo/vsim2/issues.
+- «Copiar información» de Acerca de VSim 2 ahora incluye también una línea «Formato: …» con cómo se instaló (jar si se ejecuta el .jar suelto).
 
 ## Sesión y recuperación
 
