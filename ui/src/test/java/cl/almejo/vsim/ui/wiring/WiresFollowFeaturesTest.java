@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.wiring;
 import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -133,13 +134,17 @@ class WiresFollowFeaturesTest {
 
     @Test
     void theTooltipShowsTheKeyAndFollowsARebinding() {
-        features.toggleAction().putValue(Action.ACCELERATOR_KEY, javax.swing.KeyStroke.getKeyStroke(
-                java.awt.event.KeyEvent.VK_E, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        // The keys as this platform names them (⌃+E on macOS).
+        javax.swing.KeyStroke controlE = javax.swing.KeyStroke.getKeyStroke(
+                java.awt.event.KeyEvent.VK_E, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        javax.swing.KeyStroke controlK = javax.swing.KeyStroke.getKeyStroke(
+                java.awt.event.KeyEvent.VK_K, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        features.toggleAction().putValue(Action.ACCELERATOR_KEY, controlE);
         assertThat(buttonsNamed(view).get(0).getToolTipText())
-                .isEqualTo(NAME + " (Ctrl+E) — Mayús al arrastrar invierte");
-        features.toggleAction().putValue(Action.ACCELERATOR_KEY, javax.swing.KeyStroke.getKeyStroke(
-                java.awt.event.KeyEvent.VK_K, java.awt.event.InputEvent.CTRL_DOWN_MASK));
-        assertThat(buttonsNamed(view).get(0).getToolTipText()).contains("(Ctrl+K)").doesNotContain("Ctrl+E");
+                .isEqualTo(NAME + " (" + KeyBindings.describe(controlE) + ") — Mayús al arrastrar invierte");
+        features.toggleAction().putValue(Action.ACCELERATOR_KEY, controlK);
+        assertThat(buttonsNamed(view).get(0).getToolTipText()).contains("(" + KeyBindings.describe(controlK) + ")")
+                .doesNotContain(KeyBindings.describe(controlE));
         features.toggleAction().putValue(Action.ACCELERATOR_KEY, null);
         assertThat(buttonsNamed(view).get(0).getToolTipText()).doesNotContain("(");
     }

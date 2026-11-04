@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -19,7 +20,10 @@ import org.junit.jupiter.api.Test;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
+import javax.swing.KeyStroke;
 import java.awt.Component;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -89,7 +93,9 @@ class TidyToolbarTest {
         assertThat(redo).isPositive();
         AbstractButton tidy = (AbstractButton) components.get(redo + 1);
         assertThat(tidy.getAction().getValue(Action.NAME)).isEqualTo("Ordenar cables");
-        assertThat(tidy.getToolTipText()).isEqualTo("Ordenar cables (Ctrl+Alt+L)");
+        // Ctrl+Alt+L as this platform names it (⌃+⌥+L on macOS).
+        assertThat(tidy.getToolTipText()).isEqualTo("Ordenar cables (" + KeyBindings.describe(KeyStroke.getKeyStroke(
+                KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK)) + ")");
         assertThat(tidy.getHideActionText()).isTrue();
         assertThat(buttons()).noneMatch(button -> "Exportar imagen…".equals(button.getAction().getValue(Action.NAME)));
     }
