@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Font;
@@ -262,7 +263,8 @@ class InlineTextEditorTest {
         int longerWidth = editor.field().getWidth();
         assertThat(longerWidth).isGreaterThan(shortWidth);
         editor.field().setText("a".repeat(2000));
-        assertThat(editor.field().getWidth()).isLessThanOrEqualTo(InlineTextEditor.MAXIMUM_WIDTH);
+        assertThat(editor.cancelButton().getParent().getX() + editor.cancelButton().getParent().getWidth())
+                .isLessThanOrEqualTo(canvas.getWidth());
         assertThat(editor.confirmButton().getX()).isGreaterThanOrEqualTo(
                 editor.field().getX() + editor.field().getWidth());
     }
@@ -475,6 +477,11 @@ class InlineTextEditorTest {
         ((InlineTextEditor.Area) editor.area()).deliver(key(editor.area(), keyCode, modifiers));
     }
 
+    /** The part of the note's text area its scroller shows. */
+    private Rectangle shownOfTheNote() {
+        return ((JViewport) editor.area().getParent()).getViewRect();
+    }
+
     private Rectangle noteBounds() {
         return SwingUtilities.convertRectangle(editor.area().getParent(), editor.area().getBounds(), canvas);
     }
@@ -523,6 +530,36 @@ class InlineTextEditorTest {
         assertThat(threeLines.height).isGreaterThan(2 * oneLine.height - 4);
         assertThat(threeLines.width).isGreaterThanOrEqualTo(oneLine.width);
         assertThat(editor.confirmButton().getY()).isLessThan(threeLines.height / 2);
+    }
+
+    @Test
+    void aNoteWiderThanTheOldMaximumIsCoveredWholeWhileItFitsInTheCanvas() {
+        String line = "un texto libre bastante largo que pasa los cuatrocientos ochenta pixeles,"
+                + " y sigue un poco mas alla";
+        editor.open(noteRequest(line));
+        Rectangle visible = shownOfTheNote();
+        int textWidth = editor.area().getFontMetrics(editor.area().getFont()).stringWidth(line);
+
+        assertThat(textWidth).isGreaterThan(InlineTextEditor.CRAMPED_MAXIMUM_WIDTH);
+        assertThat(visible.x).isZero();
+        assertThat(visible.width).isGreaterThan(textWidth);
+        assertThat(editor.confirmButton().getX() + editor.confirmButton().getWidth())
+                .isLessThanOrEqualTo(canvas.getWidth());
+    }
+
+    @Test
+    void aNoteLongerThanTheCanvasScrollsSoTheCaretStaysInSight() throws Exception {
+        editor.open(noteRequest("corto"));
+        editor.area().setText("a".repeat(400));
+        editor.area().setCaretPosition(editor.area().getDocument().getLength());
+        SwingUtilities.invokeAndWait(() -> { }); // the caret scrolls once the edit settles
+
+        Rectangle editorBounds = SwingUtilities.convertRectangle(editor.cancelButton().getParent(),
+                editor.cancelButton().getBounds(), canvas);
+        assertThat(editorBounds.x + editorBounds.width).isLessThanOrEqualTo(canvas.getWidth());
+        Rectangle caret = editor.area().modelToView2D(editor.area().getCaretPosition()).getBounds();
+        assertThat(shownOfTheNote().contains(caret.x, caret.y)).isTrue();
+        assertThat(shownOfTheNote().x).isPositive();
     }
 
     @Test
