@@ -7,7 +7,12 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md). El primer párrafo de cada versión publicada (bajo su título, antes de
 «Agregado») es su «Resumen» de 2 a 4 líneas: es el texto que `packaging/release-notes.sh` pone en la página de la release.
 
-## Sin publicar
+## Versión 0.6 — 2026-11-04
+
+Terminal, Teclado y UART 16550 para que un circuito escriba y lea texto; imprimir y exportar a PDF en varias hojas;
+importar y exportar circuitos de Logisim (beta); y buses con grupos de bits. Desde esta versión hay instaladores con
+Java incluido para Windows y Linux (msi, zip portátil, deb, rpm, AppImage, Flatpak y Snap), y Ayuda ▸ «Reportar un
+problema» lleva directo a GitHub.
 
 ### Agregado
 
