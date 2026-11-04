@@ -70,12 +70,27 @@ final class NotePalette {
         if (color == NoteColor.BLACK || color == NoteColor.WHITE) {
             return Optional.of(tint);
         }
-        return Optional.of(apartFrom(board, tint));
+        return Optional.of(apartFrom(board, tint, deep));
     }
 
-    /** {@code tint}, moved away from {@code board} (lighter on a dark board, darker on a light one) until it shows. */
-    private static Color apartFrom(Color board, Color tint) {
+    /**
+     * {@code tint}, moved away from {@code board} (lighter on a dark board, darker on a light one) until it shows. On a
+     * mid-gray board that can leave a deep fill too light for white text (or a pale one too dark for black text):
+     * then it moves the other way, when that way reaches the board's distance too.
+     */
+    private static Color apartFrom(Color board, Color tint, boolean deep) {
         Color away = isDark(board) ? Color.WHITE : Color.BLACK;
+        Color moved = movedApart(board, tint, away);
+        Color textColor = deep ? Color.WHITE : Color.BLACK;
+        if (ReadableColors.contrast(textColor, moved) >= MINIMUM_TEXT_CONTRAST) {
+            return moved;
+        }
+        Color otherWay = movedApart(board, tint, away.equals(Color.WHITE) ? Color.BLACK : Color.WHITE);
+        return distance(otherWay, board) >= MINIMUM_BACKGROUND_DISTANCE ? otherWay : moved;
+    }
+
+    /** {@code tint} moved towards {@code away} in steps until it stands {@link #MINIMUM_BACKGROUND_DISTANCE} from the board. */
+    private static Color movedApart(Color board, Color tint, Color away) {
         Color moved = tint;
         for (int step = 1; distance(moved, board) < MINIMUM_BACKGROUND_DISTANCE && step <= STEPS; step++) {
             moved = mix(tint, away, (double) step / STEPS);
@@ -147,7 +162,17 @@ final class NotePalette {
         if (color == NoteColor.BLACK || color == NoteColor.WHITE) {
             return hue;
         }
-        Color towards = dark ? Color.WHITE : Color.BLACK;
+        Color shade = pushedUntilReadable(hue, surface, dark ? Color.WHITE : Color.BLACK);
+        if (ReadableColors.contrast(shade, surface) >= MINIMUM_TEXT_CONTRAST) {
+            return shade;
+        }
+        // a mid-gray surface: the other way may still reach it (black reads better than white on #787878)
+        Color otherWay = pushedUntilReadable(hue, surface, dark ? Color.BLACK : Color.WHITE);
+        return ReadableColors.contrast(otherWay, surface) > ReadableColors.contrast(shade, surface) ? otherWay : shade;
+    }
+
+    /** {@code hue} moved towards {@code towards} in steps until it reads on {@code surface} (or reaches it). */
+    private static Color pushedUntilReadable(Color hue, Color surface, Color towards) {
         Color shade = hue;
         for (int step = 1; ReadableColors.contrast(shade, surface) < MINIMUM_TEXT_CONTRAST && step <= STEPS; step++) {
             shade = mix(hue, towards, (double) step / STEPS);

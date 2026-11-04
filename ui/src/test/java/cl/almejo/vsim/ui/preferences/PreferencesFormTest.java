@@ -84,7 +84,7 @@ class PreferencesFormTest {
         PreferencesForm form = form();
         assertThat(labels(form.themeChoice())).containsExactly("Seguir sistema", "Claro", "Oscuro");
         assertThat(labels(form.schemeChoice())).containsExactly("Según el tema", "VSim clásico", "Claro", "Oscuro",
-                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Placa");
+                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Placa", "Logisim", "Chipmunk");
         assertThat(labels(form.languageChoice())).containsExactly("Sistema", "Español", "English");
     }
 
@@ -312,7 +312,7 @@ class PreferencesFormTest {
         preferences.setColorScheme(Optional.of(amber.id()));
         PreferencesForm form = schemeForm();
         assertThat(labels(form.schemeChoice())).containsExactly("Según el tema", "VSim clásico", "Claro", "Oscuro",
-                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Placa", "Zafiro", "Ámbar");
+                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Placa", "Logisim", "Chipmunk", "Zafiro", "Ámbar");
         assertThat(selected(form.schemeChoice())).contains(amber.id());
         assertThat(form.customizeSchemeButton().getText()).isEqualTo("Personalizar…");
         assertThat(form.deleteSchemeButton().getText()).isEqualTo("Borrar");

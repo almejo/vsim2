@@ -9,7 +9,8 @@ import java.util.Optional;
 /**
  * The circuit color schemes the user can choose (spec §6.7), independent of the Swing theme. CLASSIC, PASTEL, CSIM and
  * TWILIGHT take the "default", "pastel", "csim" and "Twilight" schemes of the original VSim
- * ({@code vsim/src/main/resources/config/colors.json}); PLACA draws the circuit as a printed circuit board.
+ * ({@code vsim/src/main/resources/config/colors.json}); PLACA draws the circuit as a printed circuit board; LOGISIM and
+ * CHIPMUNK recall the colours of Logisim-evolution and of Chipmunk's diglog (the drawing stays VSim's).
  */
 public final class ColorSchemes {
 
@@ -20,6 +21,8 @@ public final class ColorSchemes {
     public static final String CSIM_ID = "csim";
     public static final String TWILIGHT_ID = "twilight";
     public static final String PLACA_ID = "placa";
+    public static final String LOGISIM_ID = "logisim";
+    public static final String CHIPMUNK_ID = "chipmunk";
 
     /** VSim's colors: gray board, black 0, red 1, green Z, blue gates, purple labels, yellow selection. */
     public static final ColorScheme CLASSIC = new ColorScheme(
@@ -187,12 +190,74 @@ public final class ColorSchemes {
             new Color(0x4FC3F7),          // memoryRead     (the read light and row)
             new Color(0xFFA726));         // memoryWrite    (the write light and value)
 
+    /**
+     * «Logisim»: Logisim-evolution's default colours ({@code AppPreferences}): white canvas with gray dots, black parts
+     * on white, dark green 0, bright green 1, blue floating, red error, gray unknown; its seven-segment display's red
+     * and light-gray segments and its blue rectangle selection.
+     */
+    public static final ColorScheme LOGISIM = new ColorScheme(
+            new Color(0xFFFFFF),          // background      (canvas)
+            new Color(0x777777),          // grid            (grid dot)
+            ColorScheme.derivedGridLine(new Color(0xCCCCCC)), // gridLine (its zoomed-out dot, faint)
+            new Color(0x006400),          // wireZero        (false)
+            new Color(0x00D200),          // wireOne         (true)
+            new Color(0x2828FF),          // wireHighImpedance (unknown: a floating wire)
+            new Color(0xC00000),          // wireConflict    (error)
+            new Color(0x808080),          // wireUnknown     (nil)
+            new Color(0x000000),          // componentStroke (component)
+            new Color(0xFFFFFF),          // componentFill   (parts are not filled: the canvas shows through)
+            new Color(0xEEEEEE),          // componentShade
+            new Color(0, 0, 0, 40),       // shadow          (as the other light schemes)
+            new Color(0x000000),          // text
+            new Color(0x004080),          // selection       (the rectangle selection's line)
+            new Color(0x999999),          // preview         (the ghost of a part being placed)
+            new Color(0xFFFFFF),          // displayBackground (the display has no background of its own)
+            new Color(240, 0, 0),         // segmentOn
+            new Color(220, 220, 220),     // segmentOff
+            new Color(0xFFFFFF),          // diagramBackground (the chronogram)
+            new Color(0, 0, 0, 30),       // diagramGrid
+            new Color(0x000000),          // diagramTrace    (the chronogram's black lines)
+            new Color(0x1565C0),          // memoryRead     (the read light and row)
+            new Color(0xE65100));         // memoryWrite    (the write light and value)
+
+    /**
+     * «Chipmunk»: diglog's 4-bit colour table ({@code log.c}) and default roles: dark gray screen, cyan gates, red gate
+     * pins (the only scheme besides «Placa» whose pins are not its outline colour), dark-yellow labels, a white cursor;
+     * the wires as in its glow mode: red 1 ({@code ONLED}), black 0 ({@code OFFLED}) and the plain green of a wire with
+     * no value for Z. diglog draws no grid and has no conflict or unknown colour: those are ours, faint or apart.
+     */
+    public static final ColorScheme CHIPMUNK = new ColorScheme(
+            new Color(0x444444),          // background      (gray, 4/15)
+            new Color(0x555555),          // grid            (diglog shows none: barely there)
+            new Color(255, 255, 255, 14), // gridLine
+            new Color(0x000000),          // wireZero        (OFFLED: black)
+            new Color(0xFF0000),          // wireOne         (ONLED: red)
+            new Color(0x00FF00),          // wireHighImpedance (WIRE: green, a wire with no value)
+            new Color(0xFF00FF),          // wireConflict    (as CLASSIC; its CONFLICT is the red of a 1)
+            new Color(0xAAAAAA),          // wireUnknown     (light gray, 10/15)
+            new Color(0x00FFFF),          // componentStroke (GATE: cyan)
+            new Color(0x444444),          // componentFill   (gates are outlines on the screen)
+            new Color(0x3A3A3A),          // componentShade
+            new Color(0, 0, 0, 90),       // shadow          (as the other dark schemes)
+            new Color(0xCCCC00),          // text            (LABELTEXT: dark yellow)
+            new Color(0xFFFFFF),          // selection       (SELECT: white)
+            new Color(0xFFFFFF),          // preview         (CURSOR: white)
+            new Color(0x000000),          // displayBackground (OFFLED black)
+            new Color(0xFF0000),          // segmentOn       (ONLED: red)
+            new Color(255, 0, 0, 40),     // segmentOff      (a faint red, so the digit's shape shows)
+            new Color(0x444444),          // diagramBackground (the screen)
+            new Color(255, 255, 255, 40), // diagramGrid     (DIVISION: white, faint)
+            new Color(0xFFFF00),          // diagramTrace    (SCOPE: yellow)
+            new Color(0xFF0000),          // pad             (GATEPIN: red)
+            new Color(0x4FC3F7),          // memoryRead     (the read light and row)
+            new Color(0xFFA726));         // memoryWrite    (the write light and value)
+
     private ColorSchemes() {
     }
 
     /** Scheme ids in the order the preferences dialog lists them. */
     public static List<String> ids() {
-        return List.of(CLASSIC_ID, LIGHT_ID, DARK_ID, PASTEL_ID, CSIM_ID, TWILIGHT_ID, PLACA_ID);
+        return List.of(CLASSIC_ID, LIGHT_ID, DARK_ID, PASTEL_ID, CSIM_ID, TWILIGHT_ID, PLACA_ID, LOGISIM_ID, CHIPMUNK_ID);
     }
 
     public static Optional<ColorScheme> byId(String id) {
@@ -204,6 +269,8 @@ public final class ColorSchemes {
             case CSIM_ID -> Optional.of(CSIM);
             case TWILIGHT_ID -> Optional.of(TWILIGHT);
             case PLACA_ID -> Optional.of(PLACA);
+            case LOGISIM_ID -> Optional.of(LOGISIM);
+            case CHIPMUNK_ID -> Optional.of(CHIPMUNK);
             default -> Optional.empty();
         };
     }
@@ -223,6 +290,8 @@ public final class ColorSchemes {
             case CSIM_ID -> Messages.text("scheme.csim");
             case TWILIGHT_ID -> Messages.text("scheme.twilight");
             case PLACA_ID -> Messages.text("scheme.placa");
+            case LOGISIM_ID -> Messages.text("scheme.logisim");
+            case CHIPMUNK_ID -> Messages.text("scheme.chipmunk");
             default -> id;
         };
     }
