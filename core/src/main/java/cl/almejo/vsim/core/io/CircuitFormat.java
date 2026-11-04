@@ -33,6 +33,8 @@ import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.util.DefaultIndenter;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -237,9 +239,20 @@ public final class CircuitFormat {
     }
 
     private final ComponentTypeRegistry registry;
-    private final ObjectMapper mapper = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .enable(SerializationFeature.INDENT_OUTPUT);
+    private final ObjectMapper mapper = fileMapper();
+
+    /**
+     * The mapper for saved files: indented, every line ending in LF whatever the system's line separator (Jackson's
+     * default indenter uses the platform's, CRLF on Windows), so a file is the same bytes on every system.
+     */
+    static ObjectMapper fileMapper() {
+        DefaultPrettyPrinter printer = new DefaultPrettyPrinter()
+                .withObjectIndenter(new DefaultIndenter("  ", "\n"));
+        return new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                .setDefaultPrettyPrinter(printer);
+    }
 
     public CircuitFormat(ComponentTypeRegistry registry) {
         this.registry = registry;

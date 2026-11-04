@@ -113,7 +113,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Importar y exportar
 
-- [Abrir y guardar](docs/funciones/importar-y-exportar.md#abrir-y-guardar) circuitos de VSim 2 y del VSim original; cada archivo dice que es de VSim 2 y con qué versión se guardó, y un archivo que no se puede abrir explica por qué.
+- [Abrir y guardar](docs/funciones/importar-y-exportar.md#abrir-y-guardar) circuitos de VSim 2 y del VSim original; cada archivo dice que es de VSim 2 y con qué versión se guardó, es el mismo guardado en Windows, Linux o macOS, y un archivo que no se puede abrir explica por qué.
 - [Exportar imagen](docs/funciones/importar-y-exportar.md#exportar-imagen) en PNG o SVG.
 - [Exportar a PDF](docs/funciones/importar-y-exportar.md#exportar-a-pdf) vectorial, en una hoja o en varias para pegar, A4, Carta, Oficio o A3, también en blanco y negro.
 - [Importar componentes](docs/funciones/componentes.md#componentes-propios) a la librería y [tablas de verdad desde Excel o CSV](docs/funciones/tabla-de-verdad-karnaugh-y-expresiones.md#importar-una-tabla-desde-excel-o-csv).

@@ -76,6 +76,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- En Windows, los circuitos (`.vsim`) y componentes de la librería se guardaban con fin de línea CRLF, distinto de Linux y macOS: ahora las líneas terminan siempre con LF, así que el mismo circuito guardado en cualquier sistema es el mismo archivo. Ver [Abrir y guardar](docs/funciones/importar-y-exportar.md#abrir-y-guardar).
 - En la práctica de Karnaugh, un clic sin querer en la tabla ya no pierde lo practicado: aparece «Deshacer» (o Ctrl+Z) que devuelve la tabla y los grupos. Cerrar la práctica con grupos dibujados pregunta antes («¿Cerrar la práctica? Se perderán los grupos dibujados.»; «Seguir practicando» la deja abierta). Ver [Modo práctica de Karnaugh](docs/funciones/tabla-de-verdad-karnaugh-y-expresiones.md#modo-práctica-de-karnaugh).
 - Encender «Mostrar Q̅» en un flip-flop D antiguo ya no une Q y Q̅ en silencio cuando un cable que baja desde Q (u otro pin) pasa por el punto de Q̅: Propiedades lo rechaza con un aviso y no cambia nada, y `vsim_edit` responde con un error que pide mover el cable antes. Ver [Secuenciales](docs/funciones/componentes.md#secuenciales).
 - «Guardar salida»: la pregunta «¿Grabar ahí?» pertenece a la ventana del editor y se hace una sola vez por archivo en cada vez que usas VSim (antes se repetía al abrir el circuito de nuevo); un enlace simbólico o una ruta con `..` cuentan como el mismo archivo para la regla de que dos Terminales no graban en el mismo.

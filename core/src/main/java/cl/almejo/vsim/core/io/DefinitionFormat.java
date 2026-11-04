@@ -7,9 +7,7 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,9 +33,7 @@ public final class DefinitionFormat {
     }
 
     private final ComponentTypeRegistry registry;
-    private final ObjectMapper mapper = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .enable(SerializationFeature.INDENT_OUTPUT);
+    private final ObjectMapper mapper = CircuitFormat.fileMapper();
 
     public DefinitionFormat(ComponentTypeRegistry registry) {
         this.registry = registry;
