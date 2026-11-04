@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.VsimVersion;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
@@ -19,6 +20,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 public final class Main {
 
@@ -35,6 +37,8 @@ public final class Main {
                 Locale.getDefault()));
         Locale.setDefault(Messages.locale());
         JComponent.setDefaultLocale(Messages.locale());
+        Optional<StartupSplash> splash = StartupSplash.current();
+        splash.ifPresent(shown -> shown.paintTexts(VsimVersion.current(), Messages.text("splash.loading")));
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         // M6-D5: asked here, on the main thread, so the EDT never waits up to 2 s for the system's answer.
         ThemeManager.askSystemBeforeStart(preferences);
@@ -44,7 +48,7 @@ public final class Main {
             installPreferencesHandler(application);
             installAboutHandler();
             installDockIcon();
-            application.start(files);
+            application.start(files, () -> splash.ifPresent(StartupSplash::awaitMinimumTime));
         });
     }
 

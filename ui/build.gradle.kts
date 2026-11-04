@@ -45,6 +45,8 @@ tasks.named<JavaExec>("run") {
     // or VSIM_AI_PORT=47100, which the run inherits)
     (providers.systemProperty("vsim.ai.port").orNull ?: providers.gradleProperty("vsimAiPort").orNull)
         ?.let { systemProperty("vsim.ai.port", it) }
+    // The splash the jar shows through its manifest (StartupSplash); the run is not a jar, so it names the file.
+    jvmArgs("-splash:" + file("src/main/resources/splash/vsim2-splash.png").absolutePath)
 }
 
 // --- M4-D executable jar ---
@@ -93,6 +95,8 @@ val executableJar = tasks.register<Jar>("executableJar") {
             "Implementation-Title" to "VSim 2",
             "Implementation-Version" to project.version.toString(),
             "Multi-Release" to "true",
+            // Shown by the JVM before Main runs (StartupSplash); splash/vsim2-splash@2x.png on 2x screens.
+            "SplashScreen-Image" to "splash/vsim2-splash.png",
         )
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

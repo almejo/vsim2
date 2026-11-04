@@ -52,6 +52,15 @@ class ExecutableJarTest {
     }
 
     @Test
+    void theManifestNamesTheSplashScreenAndTheJarCarriesIt() throws IOException {
+        try (JarFile jarFile = new JarFile(jar().toFile())) {
+            assertThat(jarFile.getManifest().getMainAttributes().getValue("SplashScreen-Image"))
+                    .isEqualTo("splash/vsim2-splash.png");
+        }
+        assertThat(entryNames()).contains("splash/vsim2-splash.png", "splash/vsim2-splash@2x.png");
+    }
+
+    @Test
     void itCarriesTheBundlesTheCoreAndEveryLibrary() throws IOException {
         assertThat(entryNames()).contains(
                 "i18n/messages_es.properties",
