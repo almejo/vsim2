@@ -479,17 +479,23 @@ class PagePainterTest {
         ScaleMode full = new ScaleMode.Percentage(100);
         PrintOptions legend = options(new PrintScope.WholeCircuit(), full, true, true, true);
         PageGeometry geometry = layoutOf(input, legend).geometry();
-        Rectangle2D footerMiddle = slice(footerBand(geometry), 0.4, 0.6);
+        // Between the date and the sheet number, or under the footer when the font is too wide for that.
+        List<Rectangle2D> legendPlaces = List.of(slice(footerBand(geometry), 0.4, 0.6),
+                slice(bottomMargin(geometry), 0.4, 0.6));
         PagePainter withLegend = painter(input, legend);
-        assertThat(text(render(withLegend, 0), footerMiddle)).as("the legend").isPositive();
-        assertThat(text(render(withLegend, 1), footerMiddle)).as("only on the first sheet").isZero();
+        assertThat(text(render(withLegend, 0), legendPlaces)).as("the legend").isPositive();
+        assertThat(text(render(withLegend, 1), legendPlaces)).as("only on the first sheet").isZero();
         assertThat(text(render(painter(input, options(new PrintScope.WholeCircuit(), full, true, false, true)), 0),
-                footerMiddle)).as("not in colour").isZero();
+                legendPlaces)).as("not in colour").isZero();
         assertThat(text(render(painter(input, options(new PrintScope.WholeCircuit(), full, false, true, true)), 0),
-                footerMiddle)).as("not without values").isZero();
+                legendPlaces)).as("not without values").isZero();
         PrintInput unsimulated = input(SimulationSnapshot.EMPTY);
         assertThat(unsimulated.hasValues()).isFalse();
-        assertThat(text(render(painter(unsimulated, legend), 0), footerMiddle)).as("not «sin valores»").isZero();
+        assertThat(text(render(painter(unsimulated, legend), 0), legendPlaces)).as("not «sin valores»").isZero();
+    }
+
+    private static int text(BufferedImage image, List<Rectangle2D> regions) {
+        return regions.stream().mapToInt(region -> text(image, region)).sum();
     }
 
     @Test
