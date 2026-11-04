@@ -34,6 +34,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * VSim's splash screen: an undecorated window centred on the screen under the pointer (the JVM's own splash centres
@@ -57,10 +59,15 @@ final class StartupSplash {
     /** The image's own background, behind everything until the picture is painted. */
     private static final Color BACKGROUND = new Color(0x1E1F22);
 
-    private final Instant shownAt;
+    /** How long {@link #awaitFirstPaint()} waits at most before the start goes on anyway. */
+    private static final Duration FIRST_PAINT_LIMIT = Duration.ofMillis(1500);
 
-    private StartupSplash(Instant shownAt) {
+    private final Instant shownAt;
+    private final CountDownLatch painted;
+
+    private StartupSplash(Instant shownAt, CountDownLatch painted) {
         this.shownAt = shownAt;
+        this.painted = painted;
     }
 
     /** Shows the splash (on the EDT, soon) unless the run is headless or the image is missing. */
@@ -72,14 +79,27 @@ final class StartupSplash {
         if (picture.isEmpty()) {
             return Optional.empty();
         }
-        SwingUtilities.invokeLater(() -> open(picture.get()));
-        return Optional.of(new StartupSplash(Instant.now()));
+        CountDownLatch painted = new CountDownLatch(1);
+        SwingUtilities.invokeLater(() -> open(picture.get(), painted));
+        return Optional.of(new StartupSplash(Instant.now(), painted));
     }
 
     /** How long the start still has to wait so the splash lasts {@code minimum}; zero once it has. */
     static Duration remaining(Instant shownAt, Instant now, Duration minimum) {
         Duration left = minimum.minus(Duration.between(shownAt, now));
         return left.isNegative() ? Duration.ZERO : left;
+    }
+
+    /**
+     * Blocks until the splash has been painted once (at most {@link #FIRST_PAINT_LIMIT}). Call it before queueing the
+     * rest of the start on the EDT: queued first, that work held the paint back and the window stayed empty.
+     */
+    void awaitFirstPaint() {
+        try {
+            painted.await(FIRST_PAINT_LIMIT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** Blocks until the splash has been up {@link #MINIMUM_TIME}. Call it off the EDT, before the first window. */
@@ -132,11 +152,11 @@ final class StartupSplash {
         return composed;
     }
 
-    private static void open(Image picture) {
+    private static void open(Image picture, CountDownLatch painted) {
         try {
             JWindow window = new JWindow();
             window.setBackground(BACKGROUND);
-            window.setContentPane(new SplashPicture(picture));
+            window.setContentPane(new SplashPicture(picture, painted));
             window.pack();
             Rectangle screen = screenUnderPointer().getBounds();
             window.setLocation(screen.x + (screen.width - window.getWidth()) / 2,
@@ -145,6 +165,7 @@ final class StartupSplash {
             window.setVisible(true);
         } catch (RuntimeException exception) {
             LOGGER.warn("Cannot show the splash screen", exception);
+            painted.countDown();
         }
     }
 
@@ -175,9 +196,11 @@ final class StartupSplash {
     private static final class SplashPicture extends JComponent {
 
         private final Image picture;
+        private final CountDownLatch painted;
 
-        SplashPicture(Image picture) {
+        SplashPicture(Image picture, CountDownLatch painted) {
             this.picture = picture;
+            this.painted = painted;
             setOpaque(true);
             setBackground(BACKGROUND);
             setPreferredSize(new Dimension(IMAGE_WIDTH, IMAGE_HEIGHT));
@@ -193,6 +216,7 @@ final class StartupSplash {
                 graphics2D.drawImage(picture, 0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, null);
             } finally {
                 graphics2D.dispose();
+                painted.countDown();
             }
         }
     }

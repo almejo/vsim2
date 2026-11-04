@@ -41,6 +41,7 @@ public final class Main {
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         // M6-D5: asked here, on the main thread, so the EDT never waits up to 2 s for the system's answer.
         ThemeManager.askSystemBeforeStart(preferences);
+        splash.ifPresent(StartupSplash::awaitFirstPaint);
         SwingUtilities.invokeLater(() -> {
             Application application = new Application(preferences);
             installQuitHandler(application);
