@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -78,6 +79,10 @@ class AlignmentLinesNeverOnPaperTest {
         view = fixture.view();
         view.canvas().setSize(400, 300);
         features = new SnapFeatures(view);
+        // Every export reads the same simulation values: paused once a snapshot is out (slow CI runners exported
+        // the first image before the simulation had published its first values, and the next ones after).
+        openDocument.pause();
+        awaitSimulation(openDocument);
     }
 
     @AfterEach
