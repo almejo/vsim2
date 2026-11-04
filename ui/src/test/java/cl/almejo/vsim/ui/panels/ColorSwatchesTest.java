@@ -329,8 +329,12 @@ class ColorSwatchesTest {
             assertThat(lines(swatches)).isEqualTo(2);
             assertThat(swatches.getX() + swatches.getWidth()).isLessThanOrEqualTo(270);
             assertThat(swatches.swatch(0).getX()).as("aligned left").isZero();
-            assertThat(swatches.swatch(6).getX()).as("the second line starts at the left").isZero();
-            assertThat(swatches.swatch(6).getY()).isGreaterThan(swatches.swatch(0).getY());
+            // How many fit on the first line depends on the system's dialog insets (wider on macOS).
+            int secondLine = java.util.stream.IntStream.range(0, EIGHT.size())
+                    .filter(index -> swatches.swatch(index).getY() > swatches.swatch(0).getY())
+                    .findFirst().orElseThrow();
+            assertThat(secondLine).as("most of them on the first line").isGreaterThanOrEqualTo(4);
+            assertThat(swatches.swatch(secondLine).getX()).as("the second line starts at the left").isZero();
             assertThat(swatches.swatch(4).isSelected()).isTrue();
         }
 

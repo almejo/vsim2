@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
 import cl.almejo.vsim.ui.preferences.PreferencesDialog;
+import cl.almejo.vsim.ui.theme.MigLayoutDefaults;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ public final class Main {
     public static void main(String[] arguments) {
         System.setProperty("apple.laf.useScreenMenuBar", "true");
         System.setProperty("apple.awt.application.name", "VSim 2");
+        MigLayoutDefaults.install();
         AppPreferences preferences = AppPreferences.system();
         Messages.initialize(StartupLanguage.choose(System.getProperty("vsim.language", ""), preferences.language(),
                 Locale.getDefault()));

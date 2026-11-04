@@ -76,6 +76,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- En macOS, las listas desplegables, los campos numéricos y las pestañas ya no quedan unos píxeles corridos respecto de los demás campos (en Propiedades, el campo de un número empezaba más a la izquierda que el de un texto, y las pestañas de un mapa de Karnaugh se montaban sobre el margen); en Windows, lo mismo con las pestañas. VSim se ve igual en los tres sistemas, así que ya no corrige los bordes de los controles nativos que no usa.
 - En Propiedades, una lista desplegable con un texto largo (como «Datos» de una RAM) ya no se sale del panel cuando la letra del sistema es más ancha o el panel es angosto: se achica hasta el ancho de la columna y termina su texto en «…». Ver [Etiquetas, textos y Propiedades](docs/funciones/edicion.md#etiquetas-textos-y-propiedades).
 - En la barra de búsqueda, con una letra de sistema más ancha (como la de algunos Linux o macOS) ✕ ya no queda cortado en una ventana angosta: después del campo, también se achica el espacio que el contador guarda para «9999 de 9999». Ver [Barra de búsqueda](docs/funciones/buscar.md#barra-de-búsqueda).
 - En la ventanita de «Presentar» de la IA, con una letra más ancha (como la de algunos Linux) «Dejar solo el resultado» y los demás botones ya no se cortan: si no caben uno al lado del otro con su texto entero, van uno debajo del otro. Ver [Presentar](docs/funciones/ia-mcp.md#presentar).
