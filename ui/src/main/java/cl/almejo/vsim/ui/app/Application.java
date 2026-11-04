@@ -33,6 +33,7 @@ import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.print.PrintExtension;
 import cl.almejo.vsim.ui.print.PrinterAccess;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
@@ -155,6 +156,8 @@ public final class Application {
     private final Map<CircuitWindow, AppPreferences> windowPreferences = new WeakHashMap<>();
     /** What the AI's host may do with the windows; stateless, one for the whole application. */
     private final ApplicationWindows applicationWindows = new ApplicationWindows();
+    /** Where each document's print sheets are anchored while some view shows them; one for the whole application. */
+    private final SheetAnchors sheetAnchors = new SheetAnchors();
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
@@ -197,7 +200,8 @@ public final class Application {
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
                         new AiExtension(aiServer, automationHost::documentId, proposals,
-                                applicationWindows::settingsOverride), presentation, new PrintExtension()));
+                                applicationWindows::settingsOverride), presentation, new PrintExtension(),
+                        sheetAnchors));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -214,7 +218,7 @@ public final class Application {
     public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
                 path -> { }, AiExtension.inactive(), PresentationExtension.inactive(),
-                new PrintExtension(PrinterAccess.none()));
+                new PrintExtension(PrinterAccess.none()), new SheetAnchors());
     }
 
     /**
@@ -222,12 +226,12 @@ public final class Application {
      * {@code startDirectory} and {@code chosen} are the folder «Abrir» starts in and remembers, shared with the
      * table import's file chooser. {@code ai} is the AI's panel and status line over the application's server,
      * {@code presentation} its «Presentar» toggle and floating panel, {@code print} «Imprimir…» over the system's
-     * printers or none.
+     * printers or none, {@code sheetAnchors} where the shown print sheets of each document are anchored.
      */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs,
                                                   Supplier<Path> startDirectory, Consumer<Path> chosen,
                                                   AiExtension ai, PresentationExtension presentation,
-                                                  PrintExtension print) {
+                                                  PrintExtension print, SheetAnchors sheetAnchors) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
