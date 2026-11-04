@@ -44,16 +44,24 @@ final class StackLayout implements LayoutManager2 {
 
     private Dimension size(Container parent, boolean minimum) {
         List<Component> shown = visible(parent);
+        Insets insets = parent.getInsets();
+        int columnWidth = parent.getWidth() - insets.left - insets.right;
         int width = 0;
         int height = Math.max(0, shown.size() - 1) * gap;
         for (Component child : shown) {
             Dimension preferred = child.getPreferredSize();
             width = Math.max(width, preferred.width);
-            height += minimum && child == flexible ? child.getMinimumSize().height : preferred.height;
+            height += minimum && child == flexible ? child.getMinimumSize().height
+                    : preferredHeight(child, columnWidth);
         }
-        Insets insets = parent.getInsets();
         return new Dimension((minimum ? 0 : width) + insets.left + insets.right,
                 height + insets.top + insets.bottom);
+    }
+
+    /** A row of buttons is as tall as it is at the column's width (they stack when they do not fit side by side). */
+    private static int preferredHeight(Component child, int columnWidth) {
+        return child instanceof ButtonRow row && columnWidth > 0 ? row.heightFor(columnWidth)
+                : child.getPreferredSize().height;
     }
 
     @Override
@@ -66,7 +74,7 @@ final class StackLayout implements LayoutManager2 {
         int shortfall = Math.max(0, wanted - available);
         int y = insets.top;
         for (Component child : shown) {
-            int height = child.getPreferredSize().height;
+            int height = preferredHeight(child, width);
             if (child == flexible && shortfall > 0) {
                 height = Math.max(child.getMinimumSize().height, height - shortfall);
             }
