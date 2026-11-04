@@ -1,2 +1,9 @@
 *.bat text eol=crlf
 gradlew text eol=lf
+*.vsim text eol=lf
+*.vsimcomponent.json text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.hex text eol=lf
+*.properties text eol=lf
+*.svg text eol=lf

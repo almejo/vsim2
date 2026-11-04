@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The file type of a VSim 2 circuit, for Flatpak (the deb and rpm get theirs from jpackage). -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-vsim2">
+    <comment>Circuito de VSim 2</comment>
+    <comment xml:lang="en">VSim 2 circuit</comment>
+    <glob pattern="*.vsim"/>
+  </mime-type>
+</mime-info>

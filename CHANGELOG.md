@@ -4,12 +4,17 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones publicadas están en
 [GitHub Releases](https://github.com/almejo/vsim2/releases); antes de la 0.1, cada sección es un conjunto de
 funciones, con las fechas en que se hizo. El detalle de cada función está en
-[docs/funciones.md](docs/funciones.md).
+[docs/funciones.md](docs/funciones.md). El primer párrafo de cada versión publicada (bajo su título, antes de
+«Agregado») es su «Resumen» de 2 a 4 líneas: es el texto que `packaging/release-notes.sh` pone en la página de la release.
 
 ## Sin publicar
 
 ### Agregado
 
+- Cada versión con etiqueta (`vX.Y`) construye sola sus instaladores con Java incluido (msi y zip portátil, deb, rpm, AppImage, Flatpak y Snap; dmg desde la 1.0), los revisa instalados y deja una release en borrador con `SHA256SUMS` y notas sacadas del «Resumen» de la versión en este archivo. Ver [Publicar una versión](packaging/README.md#publicar-una-versión).
+- Una guía, [Cómo instalar y probar](docs/instalar.md), explica por sistema y formato cómo instalar VSim 2 (Windows, macOS, Linux y el jar), qué hacer con los avisos de SmartScreen y Gatekeeper, dónde quedan las preferencias y cómo reportar un problema. El README apunta a ella.
+- En macOS, un doble clic en un `.vsim` en Finder (o soltarlo sobre el icono del Dock) lo abre en VSim, también si el aviso llega mientras VSim arranca. Ver [Abrir y guardar](docs/funciones/importar-y-exportar.md#abrir-y-guardar).
+- Ayuda ▸ «Reportar un problema…» abre en GitHub el formulario de problemas (en el idioma de VSim) con la versión, el sistema y el formato de instalación ya completados; hay también un formulario para proponer ideas. «Copiar información» de Acerca de incluye ahora el formato de instalación. Ver [Reportar un problema](docs/funciones/interfaz-preferencias-y-sesion.md#reportar-un-problema).
 - Pantalla de inicio: al abrir, VSim muestra un semisumador en el lienzo, el logo, la versión y «Cargando…», al menos 3 segundos y centrada en la pantalla del mouse. Ver [Pantalla de inicio](docs/funciones/interfaz-preferencias-y-sesion.md#pantalla-de-inicio).
 - Un archivo que no se puede abrir ahora lo dice con un aviso (antes, desde la línea de comandos, solo quedaba en el registro): nombra el archivo y explica por qué, distinguiendo uno guardado con un VSim más nuevo (con ambas versiones), uno que no es de VSim (o parece de Logisim) y uno dañado (indica el componente o elemento que falló). El texto técnico está en «Detalles». Al arrancar, varios archivos con problemas dan un solo aviso.
 - El monitor de bytes de la ventana del Terminal marca con una fila «… N bytes perdidos …» los bytes que el registro descartó antes de que la ventana los leyera, en vez de saltárselos sin avisar. Ver [Terminal](docs/funciones/componentes.md#terminal).
@@ -46,9 +51,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - La UART 16550 con pantalla integrada tiene la «Salida esperada» del Terminal: la pestaña de su ventana compara lo que llegó con lo esperado, y la IA también lo lee. Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - Una UART 16550 con «Pines TX y RX» no reserva memoria para una pantalla ni para su historial, y al volver a «Integrada» la pantalla empieza vacía. Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - Con «Guardar salida» activa, el Terminal muestra bajo el archivo si esta sesión realmente graba o no (falta confirmar, «No grabar», otro Terminal en el mismo archivo o sin archivo).
+- VSim se puede empaquetar con su propio Java, sin tener que instalarlo aparte: `./gradlew :ui:nativePackages` arma el deb y el rpm en Linux, el msi y un zip portátil en Windows y el dmg en macOS, con ícono, entrada en el menú y los archivos `.vsim` asociados. Ver [Para desarrolladores](docs/funciones/para-desarrolladores.md#para-desarrolladores).
 
 ### Cambiado
 
+- Las pruebas del proyecto corren ahora en GitHub Actions en Linux, Windows y macOS con cada cambio a `main` y cada pull request (`.github/workflows/ci.yml`), y las versiones de las acciones se revisan cada semana (Dependabot). Los archivos de ejemplo y de prueba (`.vsim`, `.json`, `.txt`, `.hex`, `.properties`) se descargan siempre con fin de línea LF, también en Windows.
 - Los textos que nombran la entrada de una compuerta (Problemas, el globo de un pin, los nombres por defecto de las sondas, el aviso de conexiones al cambiar la forma) la cuentan desde 1: «entrada 1», «entrada 2», «entrada 3» (en inglés «input 1»…), en vez de `in0`, `in1`, `in2`. Los nombres internos no cambian: el archivo y la IA siguen usando `in0`.
 - La descripción del Teclado (su ayuda al pasar el mouse y en Propiedades) dice que Mayús+Esc envía el byte ESC.
 - En el Terminal, un `WE` sin conectar vale 1 en todos los modos (antes solo en el modo Logisim: VT100 y Teletipo no escribían hasta cablearlo). Con `WE` conectado todo sigue igual.
@@ -89,6 +96,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Un Terminal con «Efecto de pantalla» en «Suave» o «Fuerte» ya no pone lento el editor ni la simulación mientras recibe texto: el lienzo guarda una imagen de la pantalla con su efecto y, mientras nada cambia en ella, solo vuelve a dibujar el cursor, la última letra marcada y la imagen anterior que se desvanece. Ver [Terminal](docs/funciones/componentes.md#terminal).
 
 ## Versión 0.5 — 2026-10-28
+
+Memorias RAM y ROM con su editor de contenido y mapa de memoria, interruptores y LED de varios bits, compuertas
+con más entradas y ancho, nuevas piezas de aritmética, multiplexores y flip-flops, notas adhesivas, y una descripción
+para cada pieza. La paleta se reorganiza en nueve categorías que siguen un curso.
 
 ### Agregado
 

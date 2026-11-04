@@ -107,6 +107,14 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - «Copiar información» copia la versión de VSim, la de Java, el sistema operativo y la apariencia, para pegarlos en un reporte de error.
 - En macOS, el mismo diálogo se abre desde «Acerca de» del menú de la aplicación.
 
+## Reportar un problema
+
+- Ayuda ▸ «Reportar un problema…» (después de «Acerca de VSim 2…») abre en el navegador el formulario de problemas de GitHub (`github.com/almejo/vsim2/issues`), sin diálogo intermedio. Va con la versión de VSim, el sistema operativo y el formato de instalación (msi, zip, deb, rpm, appimage, flatpak, snap, dmg o jar) ya escritos; nada más (ni la versión de Java ni tus archivos). Falta escribir qué pasó y, si quieres, adjuntar el circuito.
+- El formulario sale en el idioma de VSim: en español si el programa está en español, en inglés en cualquier otro caso. También hay un formulario para proponer ideas, y los issues en blanco están desactivados.
+- Los formularios avisan que los circuitos y las capturas pueden tener datos personales (Ley 21.719): sube solo lo necesario.
+- Si el sistema no puede abrir un navegador, el comando no hace nada; la dirección de los issues es github.com/almejo/vsim2/issues.
+- «Copiar información» de Acerca de VSim 2 ahora incluye también una línea «Formato: …» con cómo se instaló (jar si se ejecuta el .jar suelto).
+
 ## Sesión y recuperación
 
 - Cada minuto VSim guarda en silencio una copia de cada circuito con cambios sin guardar, en la carpeta `recovery` dentro de la carpeta de datos de VSim (`~/.local/share/vsim2`, `~/Library/Application Support/VSim2` o `%APPDATA%\VSim2`). Las copias se borran al guardar, al cerrar sin guardar, al deshacer hasta lo guardado y al salir normalmente: solo quedan si VSim se cae o se mata.

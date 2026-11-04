@@ -8,7 +8,10 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.about.AboutInformation;
 import cl.almejo.vsim.ui.about.AboutPresenter;
+import cl.almejo.vsim.ui.about.LinkOpener;
+import cl.almejo.vsim.ui.about.ProblemReportLink;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
@@ -97,6 +100,7 @@ public final class EditorActions {
     private final Action step;
     private final Action newView;
     private final Action about;
+    private final Action reportProblem;
 
     /**
      * The actions of one window: {@code activePane} (its active pane) is resolved each time an action runs (zoom, centre,
@@ -105,6 +109,14 @@ public final class EditorActions {
      */
     public EditorActions(OpenDocument openDocument, Supplier<CircuitCanvas> activePane, Selection selection,
                          ToolChoice toolChoice, WindowCommands window, AboutPresenter aboutPresenter) {
+        this(openDocument, activePane, selection, toolChoice, window, aboutPresenter, LinkOpener.desktop(),
+                AboutInformation::current);
+    }
+
+    /** As above, with the browser and the installation data «Reportar un problema…» uses injected (tests). */
+    public EditorActions(OpenDocument openDocument, Supplier<CircuitCanvas> activePane, Selection selection,
+                         ToolChoice toolChoice, WindowCommands window, AboutPresenter aboutPresenter,
+                         LinkOpener links, Supplier<AboutInformation> information) {
         this.openDocument = openDocument;
         this.activePane = activePane;
         this.selection = selection;
@@ -165,6 +177,8 @@ public final class EditorActions {
         setStepUnits(stepUnits);
         newView = Actions.of(Messages.text("action.newWindow"), null, window::newView);
         about = Actions.of(Messages.text("action.about"), null, () -> aboutPresenter.show(activePane.get()));
+        reportProblem = Actions.of(Messages.text("action.reportProblem"), null,
+                () -> links.open(ProblemReportLink.url(information.get(), Messages.locale())));
 
         openDocument.history().addListener(historyListener);
         selection.addListener(this::refresh);
@@ -217,6 +231,8 @@ public final class EditorActions {
     public Action step() { return step; }
     public Action newView() { return newView; }
     public Action about() { return about; }
+
+    public Action reportProblem() { return reportProblem; }
 
     /**
      * The size of the fixed step (M6.1-B, spec §4.4): «Avanzar 100 t» and «Avanza la simulación 100 unidades de
@@ -295,6 +311,7 @@ public final class EditorActions {
         windowMenu.add(newView);
         JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
         help.add(about);
+        help.add(reportProblem);
         menuBar.add(file);
         menuBar.add(edit);
         menuBar.add(view);

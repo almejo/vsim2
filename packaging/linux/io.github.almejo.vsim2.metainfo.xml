@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream data for the AppImage, Flatpak and Snap (software centres read it). The «Tiendas» milestone completes
+     it for Flathub (screenshots from a tag, branding, a clean appstreamcli validate). -->
+<component type="desktop-application">
+  <id>io.github.almejo.vsim2</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>VSim 2</name>
+  <summary>Simulador de circuitos digitales para enseñar</summary>
+  <summary xml:lang="en">Digital circuit simulator for teaching</summary>
+  <developer id="io.github.almejo">
+    <name>Alejandro Vera</name>
+  </developer>
+  <description>
+    <p>
+      VSim 2 es un simulador de circuitos digitales pensado para enseñar: se arma el circuito con compuertas, flip-flops,
+      memorias y displays, y se ve funcionar en vivo, con formas de onda, tablas de verdad y mapas de Karnaugh.
+    </p>
+    <p xml:lang="en">
+      VSim 2 is a digital circuit simulator made for teaching: build the circuit from gates, flip-flops, memories and
+      displays and watch it run live, with waveforms, truth tables and Karnaugh maps.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.almejo.vsim2.desktop</launchable>
+  <url type="homepage">https://github.com/almejo/vsim2</url>
+  <url type="bugtracker">https://github.com/almejo/vsim2/issues</url>
+  <categories>
+    <category>Education</category>
+    <category>Electronics</category>
+  </categories>
+  <provides>
+    <mediatype>application/x-vsim2</mediatype>
+  </provides>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/almejo/vsim2/main/docs/screenshots/vsim2-sumadores.png</image>
+      <caption>Un sumador de 4 bits y un semisumador, cada uno en su marco</caption>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.5" date="2026-10-28"/>
+    <release version="0.4" date="2026-10-26"/>
+    <release version="0.3" date="2026-10-24"/>
+    <release version="0.2" date="2026-10-22"/>
+    <release version="0.1" date="2026-10-22"/>
+  </releases>
+</component>

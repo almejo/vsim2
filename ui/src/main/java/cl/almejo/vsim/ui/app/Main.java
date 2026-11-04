@@ -16,6 +16,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.KeyboardFocusManager;
 import java.awt.Taskbar;
+import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -41,9 +42,13 @@ public final class Main {
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         // M6-D5: asked here, on the main thread, so the EDT never waits up to 2 s for the system's answer.
         ThemeManager.askSystemBeforeStart(preferences);
+        // Installed now: macOS may send the open-file event before the Application exists; it waits in `incoming`.
+        SystemOpenFiles incoming = new SystemOpenFiles();
+        installOpenFileHandler(incoming);
         splash.ifPresent(StartupSplash::awaitFirstPaint);
         SwingUtilities.invokeLater(() -> {
             Application application = new Application(preferences);
+            application.setSystemOpenFiles(incoming);
             installQuitHandler(application);
             installPreferencesHandler(application);
             installAboutHandler();
@@ -64,6 +69,18 @@ public final class Main {
             } else {
                 response.cancelQuit();
             }
+        });
+    }
+
+    /** macOS Finder double click / drop on the Dock icon: the files wait in {@code incoming}. No-op elsewhere. */
+    private static void installOpenFileHandler(SystemOpenFiles incoming) {
+        if (GraphicsEnvironment.isHeadless() || !Desktop.isDesktopSupported()
+                || !Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_FILE)) {
+            return;
+        }
+        Desktop.getDesktop().setOpenFileHandler(event -> {
+            List<Path> files = event.getFiles().stream().map(File::toPath).toList();
+            SwingUtilities.invokeLater(() -> incoming.receive(files));
         });
     }
 
