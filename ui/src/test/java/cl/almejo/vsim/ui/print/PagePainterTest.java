@@ -554,11 +554,14 @@ class PagePainterTest {
         PrintOptions legend = skipping(options(new PrintScope.WholeCircuit(), full, true, true, true), true);
         PagePainter painter = painter(input, legend);
         assertThat(painter.pages().get(0).layoutIndex()).as("the fixture: sheet 1 is skipped").isPositive();
-        Rectangle2D footerMiddle = slice(footerBand(layoutOf(input, legend).geometry()), 0.4, 0.6);
+        PageGeometry geometry = layoutOf(input, legend).geometry();
+        // Between the date and the sheet number, or under the footer when the font is too wide for that.
+        List<Rectangle2D> legendPlaces = List.of(slice(footerBand(geometry), 0.4, 0.6),
+                slice(bottomMargin(geometry), 0.4, 0.6));
 
-        assertThat(text(render(painter, painter.pages().get(0).layoutIndex()), footerMiddle))
+        assertThat(text(render(painter, painter.pages().get(0).layoutIndex()), legendPlaces))
                 .as("the legend on the first sheet that goes out").isPositive();
-        assertThat(text(render(painter, painter.pages().get(1).layoutIndex()), footerMiddle))
+        assertThat(text(render(painter, painter.pages().get(1).layoutIndex()), legendPlaces))
                 .as("only on that one").isZero();
     }
 
@@ -768,6 +771,9 @@ class PagePainterTest {
                 .as("a single sheet").isZero();
     }
 
+    /** More than the gaps between the letters of one «Pegar aquí», less than the gap between two copies. */
+    private static final double GLUE_TEXT_GAP_POINTS = 20;
+
     @Test
     void theGlueTextRepeatsAlongALongTab() {
         bigCircuit();
@@ -775,15 +781,23 @@ class PagePainterTest {
         PageLayout layout = layoutOf(input, threeByThree());
         Rectangle2D window = layout.window();
         double overlap = layout.overlapPoints();
-        BufferedImage middle = render(painter(input, threeByThree()), 4);
+        // Four pixels per point: at one, a 7-point grey text leaves only a few fully covered pixels, and how many
+        // depends on the system's font (Arial on Windows left one copy without any).
+        int pixelsPerPoint = 4;
+        BufferedImage middle = render(painter(input, threeByThree()), 4, pixelsPerPoint);
         int segments = 0;
-        boolean inside = false;
-        for (int y = (int) (window.getY() + overlap); y < (int) (window.getMaxY() - overlap); y++) {
-            boolean row = glueTextPixels(middle, new Rectangle2D.Double(window.getMaxX() - overlap, y, overlap, 1)) > 0;
-            if (row && !inside) {
-                segments++;
+        double lastTextRow = Double.NEGATIVE_INFINITY;
+        for (int y = (int) ((window.getY() + overlap) * pixelsPerPoint);
+             y < (int) ((window.getMaxY() - overlap) * pixelsPerPoint); y++) {
+            Rectangle2D row = new Rectangle2D.Double((window.getMaxX() - overlap) * pixelsPerPoint, y,
+                    overlap * pixelsPerPoint, 1);
+            if (glueTextPixels(middle, row) > 0) {
+                // a new copy starts after a gap longer than the text could have inside one copy
+                if (y - lastTextRow > GLUE_TEXT_GAP_POINTS * pixelsPerPoint) {
+                    segments++;
+                }
+                lastTextRow = y;
             }
-            inside = row;
         }
         assertThat(segments).as("a text over a tab as long as the window").isGreaterThanOrEqualTo(2);
     }
