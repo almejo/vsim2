@@ -40,7 +40,7 @@ import java.util.OptionalInt;
 final class SwitchValueReading {
 
     /** The space between a caption and its value, in pixels. */
-    private static final int GAP = 6;
+    static final int GAP = 6;
 
     private final ComponentType type;
     private final Map<String, Object> initial;

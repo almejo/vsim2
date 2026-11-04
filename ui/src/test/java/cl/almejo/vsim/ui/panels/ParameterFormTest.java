@@ -24,6 +24,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JSpinner;
 import java.awt.Component;
+import java.awt.FontMetrics;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -506,12 +507,23 @@ class ParameterFormTest {
         ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 32));
         typeSwitchValue(form, "0x12345678");
 
-        layOutAt(290, form);
+        // The widths where 16 bits just fit and just do not, from this system's font (CI fonts are wider).
+        FontMetrics metrics = new JLabel().getFontMetrics(new JLabel().getFont());
+        int captions = List.of("binario", "hexa", "decimal").stream().mapToInt(metrics::stringWidth).max()
+                .orElseThrow();
+        int sixteenBits = metrics.stringWidth("0001 0010 0011 0100") + captions + SwitchValueReading.GAP;
+        int eightBits = metrics.stringWidth("0001 0010") + captions + SwitchValueReading.GAP;
+        layOutAt(400, form);
+        int besidesTheField = 400 - form.editor("value").getWidth();
+        assertThat(eightBits).isLessThan(sixteenBits - 1);
+
+        layOutAt(sixteenBits + besidesTheField, form);
+        assertThat(form.editor("value").getWidth()).isEqualTo(sixteenBits);
         assertThat(readingTexts(form)).startsWith("binario", "0001 0010 0011 0100", "", "0101 0110 0111 1000",
                 "hexa", "0x12345678");
         assertNoReadingWiderThanTheField(form);
 
-        layOutAt(240, form);
+        layOutAt(sixteenBits - 1 + besidesTheField, form);
         assertThat(readingTexts(form)).startsWith("binario", "0001 0010", "", "0011 0100", "", "0101 0110", "",
                 "0111 1000", "hexa", "0x12345678");
         assertNoReadingWiderThanTheField(form);
