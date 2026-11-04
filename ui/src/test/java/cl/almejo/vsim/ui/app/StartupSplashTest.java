@@ -34,7 +34,7 @@ class StartupSplashTest {
 
     @Test
     void headlessRunsHaveNoSplash() {
-        assertThat(StartupSplash.current()).isEmpty();
+        assertThat(StartupSplash.show("0.5", "Cargando…")).isEmpty();
     }
 
     @Test

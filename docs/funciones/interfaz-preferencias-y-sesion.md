@@ -4,9 +4,9 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Pantalla de inicio
 
-- Al abrir VSim aparece de inmediato una pantalla de inicio oscura: VSim dibujado como un chip DIP-14 en la primera página de una hoja de datos, con la patita 1 marcada en verde y los nombres de pines de un 7400. Abajo dice «Cargando…» (en el idioma de VSim) y arriba a la derecha la versión.
-- Se queda al menos 3 segundos: si VSim abre más rápido, espera lo que falta; si tarda más (por ejemplo, al abrir un circuito pesado), no suma demora. Se cierra sola cuando aparece la primera ventana.
-- La muestra Java al arrancar el jar (`java -jar vsim2-x.y.jar`), antes de cargar el resto de VSim. En pantallas con escala 2× usa una imagen del doble de resolución.
+- Al abrir VSim aparece una pantalla de inicio oscura: a la izquierda, un trozo del lienzo con un semisumador (una XOR y una AND, con A = 1 y B = 0, la suma encendida y el acarreo apagado); a la derecha, el logo y el nombre. Abajo dice «Cargando…» (en el idioma de VSim) y la versión.
+- Sale centrada en la pantalla donde está el mouse, también con dos monitores.
+- Se queda al menos 3 segundos: si VSim abre más rápido, espera lo que falta; si tarda más (por ejemplo, al abrir un circuito pesado), no suma demora. Se cierra sola cuando aparece la primera ventana. En pantallas con escala 2× usa una imagen del doble de resolución.
 
 ## Ventanas y vistas
 

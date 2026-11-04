@@ -10,7 +10,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
-- Pantalla de inicio: al abrir, VSim muestra la hoja de datos de un chip «VSIM-2» con la versión y «Cargando…», al menos 3 segundos. Ver [Pantalla de inicio](docs/funciones/interfaz-preferencias-y-sesion.md#pantalla-de-inicio).
+- Pantalla de inicio: al abrir, VSim muestra un semisumador en el lienzo, el logo, la versión y «Cargando…», al menos 3 segundos y centrada en la pantalla del mouse. Ver [Pantalla de inicio](docs/funciones/interfaz-preferencias-y-sesion.md#pantalla-de-inicio).
 - Un archivo que no se puede abrir ahora lo dice con un aviso (antes, desde la línea de comandos, solo quedaba en el registro): nombra el archivo y explica por qué, distinguiendo uno guardado con un VSim más nuevo (con ambas versiones), uno que no es de VSim (o parece de Logisim) y uno dañado (indica el componente o elemento que falló). El texto técnico está en «Detalles». Al arrancar, varios archivos con problemas dan un solo aviso.
 - El monitor de bytes de la ventana del Terminal marca con una fila «… N bytes perdidos …» los bytes que el registro descartó antes de que la ventana los leyera, en vez de saltárselos sin avisar. Ver [Terminal](docs/funciones/componentes.md#terminal).
 - Un lienzo completamente vacío muestra al centro un texto suave que dice cómo empezar («Arrastra una pieza desde la paleta para empezar» y «o abre un ejemplo en Archivo ▸ Ejemplos»). Desaparece al poner cualquier cosa, vuelve si borras todo y no sale en las imágenes, el PDF ni la impresión. Ver [Lienzo vacío](docs/funciones/interfaz-preferencias-y-sesion.md#lienzo-vacío).

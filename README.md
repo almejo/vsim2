@@ -125,7 +125,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Interfaz, preferencias y sesión
 
-- [Pantalla de inicio](docs/funciones/interfaz-preferencias-y-sesion.md#pantalla-de-inicio): VSim aparece como la hoja de datos de un chip mientras abre, al menos 3 segundos.
+- [Pantalla de inicio](docs/funciones/interfaz-preferencias-y-sesion.md#pantalla-de-inicio): un semisumador en el lienzo, el logo y la versión mientras VSim abre, al menos 3 segundos y en la pantalla del mouse.
 - [Ventanas y vistas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-vistas): varias vistas del mismo circuito.
 - [Dividir la vista](docs/funciones/interfaz-preferencias-y-sesion.md#dividir-la-vista) en 2 o 4 paneles del mismo circuito, como en Excel: arrastrando las pestañitas de los bordes o desde Ventana ▸ «Dividir ▸», cada panel con su zoom y una sola selección; lo que arrastras (un cable, un recuadro, piezas, un marco) sigue de un panel a otro; se recuerda por archivo, nunca en el .vsim.
 - [Zoom y desplazamiento](docs/funciones/interfaz-preferencias-y-sesion.md#zoom-y-desplazamiento) con rueda, teclado, botón del medio, la herramienta Zoom (Z: un recuadro se ve en grande, un clic acerca, Alt o Mayús + clic aleja), «Ver todo el circuito» (Mayús+1), «Zoom a la selección» (Mayús+2) y un control en la barra de estado: un deslizador con 100 % al medio y el porcentaje para escribir o elegir.

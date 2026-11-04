@@ -37,8 +37,7 @@ public final class Main {
                 Locale.getDefault()));
         Locale.setDefault(Messages.locale());
         JComponent.setDefaultLocale(Messages.locale());
-        Optional<StartupSplash> splash = StartupSplash.current();
-        splash.ifPresent(shown -> shown.paintTexts(VsimVersion.current(), Messages.text("splash.loading")));
+        Optional<StartupSplash> splash = StartupSplash.show(VsimVersion.current(), Messages.text("splash.loading"));
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         // M6-D5: asked here, on the main thread, so the EDT never waits up to 2 s for the system's answer.
         ThemeManager.askSystemBeforeStart(preferences);
