@@ -3,6 +3,8 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
 
+import java.util.Optional;
+
 /** File and window operations the editor delegates to its window/application. */
 public interface WindowCommands {
     void newDocument();
@@ -26,6 +28,17 @@ public interface WindowCommands {
      * Nothing happens outside a real window.
      */
     default void openUntitled(CircuitDocument document) {
+    }
+
+    /**
+     * Like {@link #openUntitled}, and says which editor view shows the document, for what must talk to it afterwards
+     * (the import's report goes to parts of it). The window shows {@code windowName} until the document is saved,
+     * while the circuit keeps its own name (an import: the {@code .circ} file's name over Logisim's main circuit's).
+     * Empty outside a real window.
+     */
+    default Optional<EditorView> showUntitled(CircuitDocument document, String windowName) {
+        openUntitled(document);
+        return Optional.empty();
     }
 
     /**

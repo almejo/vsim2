@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
 
@@ -88,6 +89,11 @@ public interface SelectToolDelegate {
     /** While a press of this delegate is held: the parts its preview shows changed ({@link Tool#previewedParts}). */
     default Map<ElementId, Component> previewedParts(ToolContext context) {
         return Map.of();
+    }
+
+    /** While a press of this delegate is held: the elements its move drags, where it shows them. None by default. */
+    default List<DocumentElement> movingElements(ToolContext context) {
+        return List.of();
     }
 
     /** Paints under the tool's own previews, in document coordinates. */

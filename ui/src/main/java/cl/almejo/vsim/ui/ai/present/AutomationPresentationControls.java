@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.ai.present;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.present.QuestionAnswer;
@@ -10,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import javax.swing.SwingUtilities;
 import java.util.Objects;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -30,11 +30,7 @@ public final class AutomationPresentationControls implements PresentationControl
 
     /** The calls run, in order, on a daemon thread of their own; the answers on the Swing thread. */
     public AutomationPresentationControls(AutomationApi api) {
-        this(api, Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "vsim-ai-presenting");
-            thread.setDaemon(true);
-            return thread;
-        }));
+        this(api, DaemonThreads.single("vsim-ai-presenting"));
     }
 
     /** @param background where the calls run: never the editor thread; the answers go to the Swing thread */

@@ -39,7 +39,7 @@ import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
 import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.ChangeParametersWithWiresCommand;
-import cl.almejo.vsim.core.command.NewPinTouch;
+import cl.almejo.vsim.core.command.PinJoinCheck;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
@@ -291,9 +291,12 @@ final class EditPlanner {
         requireKnownParameters(type, parameters);
         requireNotMemoryFiles(type, parameters);
         requireNotTerminalOutputFile(type, parameters);
+        BusGroupsProblems.require(type, parameters, "the new " + typeId);
+        Map<String, Object> stored = StandardComponentTypes.hasBitGroups(typeId)
+                ? StandardComponentTypes.withCanonicalGroups(parameters) : parameters;
         // A multi-bit Switch or LED asked for turned stays upright with its pin where the turn would put it.
         Component component = MultiBitOrientation.normalized(type.newComponent(candidate.newComponentId(),
-                new GridPoint(operation.x(), operation.y()), operation.rotation(), parameters,
+                new GridPoint(operation.x(), operation.y()), operation.rotation(), stored,
                 operation.label()), type);
         place(component, alias);
     }
@@ -344,21 +347,49 @@ final class EditPlanner {
         requireKnownParameters(type, operation.parameters());
         requireNotMemoryFiles(type, operation.parameters());
         requireNotTerminalOutputFile(type, operation.parameters());
-        Map<String, Object> merged = new HashMap<>(component.parameters());
-        merged.putAll(operation.parameters());
-        requireNoNewPinTouch(component, type.resolveParameters(merged));
+        Map<String, Object> merged = busGroupsFor(type, component, operation.parameters());
+        BusGroupsProblems.require(type, merged, component.id().value());
+        requireNoWrongJoin(component, merged);
         // the wires on pins the change moves follow them, as in the inspector (a wider Teclado carries AV and D)
         ChangeParametersWithWiresCommand.of(candidate, registry, component.id(), merged).apply(candidate);
     }
 
-    /** A pin that appears (Q̅ shown) over a wire or a pin would short silently: the AI is told to move the wire. */
-    private void requireNoNewPinTouch(Component component, Map<String, Object> resolved) {
-        Optional<String> pinName = NewPinTouch.find(candidate, registry, component, component.withParameters(resolved));
-        if (pinName.isPresent()) {
-            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The new pin " + pinName.get() + " of "
-                    + component.id() + " would land on a wire or a pin and join it silently; move that wire or part "
-                    + "first (nothing was changed)");
+    /**
+     * {@code component}'s parameters with {@code changed} over them. A bus splitter or joiner follows the editor: given
+     * only a new «Ancho» its groups are regrouped for it, as in Propiedades, and its groups are stored in their
+     * canonical text ({@code 0|1|2|3} on a 4-bit bus is {@code ""}).
+     */
+    private static Map<String, Object> busGroupsFor(ComponentType type, Component component,
+                                                    Map<String, Object> changed) {
+        Map<String, Object> merged = new HashMap<>(component.parameters());
+        merged.putAll(changed);
+        if (!StandardComponentTypes.hasBitGroups(type.id())) {
+            return merged;
         }
+        Map<String, Object> regrouped = changed.containsKey(StandardComponentTypes.GROUPS) ? merged
+                : StandardComponentTypes.regroupedForWidth(component.parameters(), merged);
+        return StandardComponentTypes.withCanonicalGroups(regrouped);
+    }
+
+    /**
+     * A pin that appears (Q̅ shown) over a wire or a pin would short silently, and a bus part's pin that lands on a wire
+     * of its own width would take another signal with no warning ({@link PinJoinCheck}, the editor's rule): the AI is
+     * told to move the wire.
+     */
+    private void requireNoWrongJoin(Component component, Map<String, Object> rawParameters) {
+        Optional<PinJoinCheck.PinJoin> join = PinJoinCheck.find(candidate, registry, component.id(), rawParameters);
+        if (join.isEmpty()) {
+            return;
+        }
+        String pinName = join.get().pinName();
+        throw new AutomationException(AutomationError.INVALID_PARAMETER, switch (join.get().kind()) {
+            case NEW_PIN_TOUCHES -> "The new pin " + pinName + " of " + component.id() + " would land on a wire or a "
+                    + "pin and join it silently; move that wire or part first (nothing was changed)";
+            case JOINS_ANOTHER_NET -> "The pin " + pinName + " of " + component.id() + " would land on a wire or pin "
+                    + "of the same width it was not joined to, and its signal would go elsewhere silently; move that "
+                    + "wire first or choose other groups (a touch of another width is allowed and shows as a width "
+                    + "mismatch; nothing was changed)";
+        });
     }
 
     /** A memory's contents and link are the user's (spec §9): the AI writes words with SetMemoryContents only. */

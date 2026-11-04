@@ -126,6 +126,7 @@ public final class SettingsOverride {
             case SNAP_TO_GRID_LINES -> windowPreferences.setSnapToGridLines(Boolean.parseBoolean(value));
             case SHOW_GUIDES -> windowPreferences.setShowGuides(Boolean.parseBoolean(value));
             case SHOW_BUS_VALUES -> windowPreferences.setShowBusValues(Boolean.parseBoolean(value));
+            case SHOW_SHEETS -> windowPreferences.setShowSheets(Boolean.parseBoolean(value));
             case GRID_STYLE -> windowPreferences.setGridStyle(AppPreferences.GridStyle.valueOf(value));
             case GRID_SPACING -> windowPreferences.setGridLineSpacing(Integer.parseInt(value));
             case WIRES_FOLLOW -> windowPreferences.setWiresFollow(Boolean.parseBoolean(value));
@@ -140,6 +141,7 @@ public final class SettingsOverride {
             case SNAP_TO_GRID_LINES -> PreferenceLayer.Setting.SNAP_TO_GRID_LINES;
             case SHOW_GUIDES -> PreferenceLayer.Setting.SHOW_GUIDES;
             case SHOW_BUS_VALUES -> PreferenceLayer.Setting.SHOW_BUS_VALUES;
+            case SHOW_SHEETS -> PreferenceLayer.Setting.SHOW_SHEETS;
             case GRID_STYLE -> PreferenceLayer.Setting.GRID_STYLE;
             case GRID_SPACING -> PreferenceLayer.Setting.GRID_LINE_SPACING;
             case WIRES_FOLLOW -> PreferenceLayer.Setting.WIRES_FOLLOW;
@@ -154,6 +156,7 @@ public final class SettingsOverride {
             case SNAP_TO_GRID_LINES -> EditorSetting.SNAP_TO_GRID_LINES;
             case SHOW_GUIDES -> EditorSetting.SHOW_GUIDES;
             case SHOW_BUS_VALUES -> EditorSetting.SHOW_BUS_VALUES;
+            case SHOW_SHEETS -> EditorSetting.SHOW_SHEETS;
             case GRID_STYLE -> EditorSetting.GRID_STYLE;
             case GRID_LINE_SPACING -> EditorSetting.GRID_SPACING;
             case WIRES_FOLLOW -> EditorSetting.WIRES_FOLLOW;

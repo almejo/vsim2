@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
@@ -39,20 +40,21 @@ class ColorSchemesTest {
     private static final double SILKSCREEN = 1.2;
 
     private static final List<ColorScheme> ALL = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT, ColorSchemes.DARK,
-            ColorSchemes.PASTEL, ColorSchemes.CSIM, ColorSchemes.TWILIGHT, ColorSchemes.PLACA);
+            ColorSchemes.PASTEL, ColorSchemes.CSIM, ColorSchemes.TWILIGHT, ColorSchemes.PLACA, ColorSchemes.LOGISIM,
+            ColorSchemes.CHIPMUNK);
     /** Schemes whose labels and outlines must read as body text. */
     private static final List<ColorScheme> STRICT = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT,
             ColorSchemes.DARK, ColorSchemes.PLACA);
     /** VSim's other schemes, ported with their own colors. */
     private static final List<ColorScheme> PORTS = List.of(ColorSchemes.PASTEL, ColorSchemes.CSIM,
-            ColorSchemes.TWILIGHT);
+            ColorSchemes.TWILIGHT, ColorSchemes.LOGISIM, ColorSchemes.CHIPMUNK);
     private static final List<Function<ColorScheme, Color>> WIRE_STATES = List.of(ColorScheme::wireZero,
             ColorScheme::wireOne, ColorScheme::wireHighImpedance, ColorScheme::wireConflict, ColorScheme::wireUnknown);
 
     @Test
     void schemesAreFoundByIdInMenuOrder() {
         assertThat(ColorSchemes.ids()).containsExactly("classic", "light", "dark", "pastel", "csim", "twilight",
-                "placa");
+                "placa", "logisim", "chipmunk");
         assertThat(ColorSchemes.byId("classic")).containsSame(ColorSchemes.CLASSIC);
         assertThat(ColorSchemes.byId("light")).containsSame(ColorScheme.LIGHT);
         assertThat(ColorSchemes.byId("dark")).containsSame(ColorSchemes.DARK);
@@ -60,6 +62,8 @@ class ColorSchemesTest {
         assertThat(ColorSchemes.byId("csim")).containsSame(ColorSchemes.CSIM);
         assertThat(ColorSchemes.byId("twilight")).containsSame(ColorSchemes.TWILIGHT);
         assertThat(ColorSchemes.byId("placa")).containsSame(ColorSchemes.PLACA);
+        assertThat(ColorSchemes.byId("logisim")).containsSame(ColorSchemes.LOGISIM);
+        assertThat(ColorSchemes.byId("chipmunk")).containsSame(ColorSchemes.CHIPMUNK);
         assertThat(ColorSchemes.byId("Twilight")).isEmpty();
         assertThat(ColorSchemes.byId("neon")).isEmpty();
         assertThat(ColorSchemes.byId("")).isEmpty();
@@ -138,7 +142,7 @@ class ColorSchemesTest {
     void schemesHaveSpanishNames() {
         assertThat(ColorSchemes.ids().stream().map(ColorSchemes::displayName))
                 .containsExactly("VSim clásico", "Claro", "Oscuro", "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)",
-                        "Placa");
+                        "Placa", "Logisim", "Chipmunk");
         assertThat(ColorSchemes.displayName("neon")).isEqualTo("neon");
     }
 
@@ -147,6 +151,8 @@ class ColorSchemesTest {
         Messages.initialize(Locale.ENGLISH);
         try {
             assertThat(ColorSchemes.displayName("placa")).isEqualTo("Board");
+            assertThat(ColorSchemes.displayName("logisim")).isEqualTo("Logisim");
+            assertThat(ColorSchemes.displayName("chipmunk")).isEqualTo("Chipmunk");
         } finally {
             Messages.initialize(Messages.SPANISH);
         }
@@ -218,6 +224,31 @@ class ColorSchemesTest {
     }
 
     @Test
+    void theSheetLinesAndTheCutMarksStandOutFromEveryBoard() {
+        for (ColorScheme scheme : ALL) {
+            Color background = scheme.background();
+            assertThat(contrast(ReadableColors.over(scheme.sheet(), background), background)).as("%s", scheme)
+                    .isGreaterThanOrEqualTo(3);
+            assertThat(contrast(ReadableColors.over(scheme.sheetCut(), background), background)).as("%s", scheme)
+                    .isGreaterThanOrEqualTo(3);
+        }
+    }
+
+    @Test
+    void theSheetsAreGreyAndOnlyTheCutMarksAreColoured() {
+        for (ColorScheme scheme : ALL) {
+            Color sheet = scheme.sheet();
+            assertThat(sheet.getRed()).as("neutral grey: %s", scheme).isEqualTo(sheet.getGreen())
+                    .isEqualTo(sheet.getBlue());
+            assertThat(scheme.sheetBand().getRGB() & 0xFFFFFF).as("%s", scheme)
+                    .isEqualTo(scheme.sheet().getRGB() & 0xFFFFFF);
+            assertThat(scheme.sheetBand().getAlpha()).isLessThan(scheme.sheet().getAlpha());
+            Color cut = scheme.sheetCut();
+            assertThat(cut.getRed()).as("amber: red over blue").isGreaterThan(cut.getBlue() + 60);
+        }
+    }
+
+    @Test
     void textAndOutlinesAreReadable() {
         for (ColorScheme scheme : STRICT) {
             assertThat(contrast(scheme.text(), scheme.background())).isGreaterThanOrEqualTo(READABLE);
@@ -275,10 +306,51 @@ class ColorSchemesTest {
     void padsAreTheOutlineColourInEveryOtherScheme() {
         List<ColorScheme> schemes = new ArrayList<>(ALL);
         schemes.remove(ColorSchemes.PLACA);
+        schemes.remove(ColorSchemes.CHIPMUNK);
         schemes.add(MonochromeScheme.of(ColorScheme.LIGHT));
         for (ColorScheme scheme : schemes) {
             assertThat(scheme.pad()).as("%s", scheme).isEqualTo(scheme.componentStroke());
         }
+    }
+
+    /** Logisim-evolution's default colours ({@code AppPreferences}): white canvas, black parts, its wire values. */
+    @Test
+    void logisimTakesTheDefaultColorsOfLogisimEvolution() {
+        ColorScheme logisim = ColorSchemes.LOGISIM;
+        assertThat(logisim.background()).isEqualTo(new Color(0xFFFFFF));
+        assertThat(logisim.grid()).isEqualTo(new Color(0x777777));
+        assertThat(logisim.wireZero()).isEqualTo(new Color(0x006400));
+        assertThat(logisim.wireOne()).isEqualTo(new Color(0x00D200));
+        assertThat(logisim.wireHighImpedance()).isEqualTo(new Color(0x2828FF));
+        assertThat(logisim.wireConflict()).isEqualTo(new Color(0xC00000));
+        assertThat(logisim.wireUnknown()).isEqualTo(new Color(0x808080));
+        assertThat(logisim.componentStroke()).isEqualTo(new Color(0x000000));
+        assertThat(logisim.componentFill()).isEqualTo(new Color(0xFFFFFF));
+        assertThat(logisim.text()).isEqualTo(new Color(0x000000));
+        assertThat(logisim.segmentOn()).isEqualTo(new Color(240, 0, 0));
+        assertThat(logisim.segmentOff()).isEqualTo(new Color(220, 220, 220));
+        assertThat(logisim.isDark()).isFalse();
+        assertThat(logisim.pad()).isEqualTo(logisim.componentStroke());
+    }
+
+    /**
+     * Chipmunk's diglog: its 4-bit colour table ({@code log.c}) and default roles: gray board, cyan gates, red gate
+     * pins, dark-yellow labels, white cursor; its green wires at 0, the red of a lit LED ({@code ONLED}) at 1, a dim
+     * green Z; the scope is yellow; the grid barely shows (diglog has none).
+     */
+    @Test
+    void chipmunkTakesTheColorsOfDiglog() {
+        ColorScheme chipmunk = ColorSchemes.CHIPMUNK;
+        assertThat(chipmunk.background()).isEqualTo(new Color(0x444444));
+        assertThat(chipmunk.wireZero()).isEqualTo(new Color(0x00FF00));
+        assertThat(chipmunk.wireOne()).isEqualTo(new Color(0xFF0000));
+        assertThat(chipmunk.wireHighImpedance()).isEqualTo(new Color(0x007700));
+        assertThat(chipmunk.componentStroke()).isEqualTo(new Color(0x00FFFF));
+        assertThat(chipmunk.pad()).isEqualTo(new Color(0xFF0000));
+        assertThat(chipmunk.text()).isEqualTo(new Color(0xCCCC00));
+        assertThat(chipmunk.selection()).isEqualTo(new Color(0xFFFFFF));
+        assertThat(chipmunk.diagramTrace()).isEqualTo(new Color(0xFFFF00));
+        assertThat(chipmunk.isDark()).isTrue();
     }
 
     /** Gold pads on the green board, apart from the white silkscreen of the leads (spec §3.1: ≥ 3:1). */

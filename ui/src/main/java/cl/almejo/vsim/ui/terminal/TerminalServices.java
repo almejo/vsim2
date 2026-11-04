@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.terminal;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.ui.about.ClipboardTarget;
 import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.FileNames;
@@ -22,7 +23,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 /**
@@ -50,11 +50,7 @@ public record TerminalServices(TerminalWindowServices windows, Supplier<FrameTic
 
     /** The editor's: real dialogs, the system clipboard, Swing timers, sound unless headless, one writer thread. */
     public static TerminalServices standard() {
-        ExecutorService files = Executors.newSingleThreadExecutor(work -> {
-            Thread thread = new Thread(work, "vsim-terminal-files");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ExecutorService files = DaemonThreads.single("vsim-terminal-files");
         TerminalWindowServices windows = new TerminalWindowServices(new DialogTerminalWindowFactory(),
                 ClipboardTarget.system(), () -> FragmentClipboard.system().readPlainText(),
                 TerminalServices::chooseTextFile, files, SwingUtilities::invokeLater, TerminalScreenRenderer.standard(),

@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 import cl.almejo.vsim.ui.icons.Icons;
@@ -171,17 +172,17 @@ public final class FramePainter {
         graphics.clipRect((int) Math.floor(bar.getX()), (int) Math.floor(bar.getY()),
                 (int) Math.ceil(bar.getWidth()), (int) Math.ceil(bar.getHeight()));
         graphics.setColor(scheme.frameTitle());
-        graphics.drawString(shown, (float) (bar.getX() + TITLE_PADDING), (float) baseline);
+        FallbackText.draw(graphics, shown, (float) (bar.getX() + TITLE_PADDING), (float) baseline);
         graphics.setClip(previousClip);
     }
 
     private static String fit(String title, FontMetrics metrics, double available) {
-        if (metrics.stringWidth(title) <= available) {
+        if (FallbackText.stringWidth(metrics, title) <= available) {
             return title;
         }
         for (int length = title.length() - 1; length > 0; length--) {
             String candidate = title.substring(0, length) + ELLIPSIS;
-            if (metrics.stringWidth(candidate) <= available) {
+            if (FallbackText.stringWidth(metrics, candidate) <= available) {
                 return candidate;
             }
         }

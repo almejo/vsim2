@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProblemsReaderTest {
 
@@ -83,15 +84,17 @@ class ProblemsReaderTest {
         });
     }
 
+    /** A loose pin of a part is no problem any more (the checks report it apart): the AI never receives one. */
     @Test
-    void anUnconnectedGateInputKeepsItsInternalPinIdForTheAi() {
+    void aLooseInnerPinIsNeverAProblemTheAiReceives() {
         Component gate = fixture.place(StandardComponentTypes.AND, 0, 0, Rotation.R0,
                 Map.of(StandardComponentTypes.GATE_INPUTS, 3), "");
+        publish(0);
+
+        assertThat(ProblemsReader.read(fixture.source()).problems()).isEmpty();
         publish(0, new ConnectivityProblem("n:pin", gate.id().value(), 2, GridPoint.ORIGIN));
-
-        ProblemView problem = ProblemsReader.read(fixture.source()).problems().get(0);
-
-        assertThat(problem.pins()).containsExactly(new PinReference(gate.id().value(), "in2", 0));
+        assertThatThrownBy(() -> ProblemsReader.read(fixture.source()))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("never published");
     }
 
     @Test
@@ -126,31 +129,23 @@ class ProblemsReaderTest {
     }
 
     @Test
+    void aLoneTunnelWithoutDirectionIsAWarningThatSaysSo() {
+        publish(0, new TunnelProblem("n:5", TunnelProblem.Kind.LONE_TUNNEL, "BUS", List.of("c9")));
+
+        ProblemView problem = ProblemsReader.read(fixture.source()).problems().getFirst();
+
+        assertThat(problem.kind()).isEqualTo("TUNNEL_LONE_TUNNEL");
+        assertThat(problem.warning()).isTrue();
+        assertThat(problem.message()).contains("\"BUS\"").contains("without direction");
+    }
+
+    @Test
     void aSnapshotOfAnOlderCircuitIsNotUpToDate() {
         fixture.place(StandardComponentTypes.BUFFER, 0, 0);
         fixture.useSnapshot(new SimulationSnapshot(0, fixture.document.revision() - 1, 0, true, Map.of(), Map.of(),
                 List.of(), Optional.empty()));
 
         assertThat(ProblemsReader.read(fixture.source()).upToDate()).isFalse();
-    }
-
-    @Test
-    void disconnectedPinsAndLooseWireEndsAreWarningsWithUsableReferences() {
-        fixture.document.putDefinition(ExampleDefinitions.inverter());
-        Component instance = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 10);
-        Wire wire = new Wire(new ElementId("wire"), GridPoint.ORIGIN, new GridPoint(5, 0));
-        fixture.document.add(wire);
-        String inside = instance.id().value() + "/c2";
-        publish(0, new ConnectivityProblem("n:pin", inside, 1, GridPoint.ORIGIN),
-                new ConnectivityProblem("n:wire", wire.id().value(), -1, wire.end()));
-
-        List<ProblemView> problems = ProblemsReader.read(fixture.source()).problems();
-
-        assertThat(problems).extracting(ProblemView::kind).containsExactly("DISCONNECTED_PIN", "LOOSE_WIRE_END");
-        assertThat(problems).allMatch(ProblemView::warning);
-        assertThat(problems.getFirst().elementIds()).containsExactly(instance.id().value());
-        assertThat(problems.getFirst().insidePaths()).containsExactly(inside);
-        assertThat(problems.getLast().elementIds()).containsExactly(wire.id().value());
     }
 
     @Test

@@ -78,6 +78,31 @@ class SettingsOverrideTest {
     }
 
     @Test
+    void theShowSheetsSettingIsLayeredReportedAndGivenBack() {
+        override.set(EditorSetting.SHOW_SHEETS, "true");
+
+        assertThat(aiWindow.showSheets()).isTrue();
+        assertThat(saved.showSheets()).isFalse();
+        assertThat(otherWindow.showSheets()).isFalse();
+        assertThat(override.changes()).extracting(SettingsOverride.Change::setting)
+                .containsExactly(EditorSetting.SHOW_SHEETS);
+
+        override.dropEditorSettings();
+
+        assertThat(aiWindow.showSheets()).isFalse();
+        assertThat(override.changes()).isEmpty();
+    }
+
+    @Test
+    void keepingTheShowSheetsSettingSavesIt() {
+        override.set(EditorSetting.SHOW_SHEETS, "true");
+
+        override.keep();
+
+        assertThat(saved.showSheets()).isTrue();
+    }
+
+    @Test
     void keepingTheBusValuesSettingSavesIt() {
         override.set(EditorSetting.SHOW_BUS_VALUES, "false");
 

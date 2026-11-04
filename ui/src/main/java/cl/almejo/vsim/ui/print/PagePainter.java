@@ -82,6 +82,8 @@ public final class PagePainter {
      */
     private final Map<ElementId, Set<ElementId>> verticalWireCompanions;
     private final boolean cutsToSheet;
+    /** The sheets of the layout that go out: all of them, or with «Saltar hojas vacías» the non-empty ones. */
+    private final PrintedSheets printed;
     private final PageDecorations decorations;
     private final PdfPages.PageSize pageSize;
     private final String title;
@@ -101,6 +103,19 @@ public final class PagePainter {
      * clip cut it (only for tests that check that leaving the other sheets' elements out changes nothing).
      */
     PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout, boolean cutsToSheet) {
+        this(input, area, options, layout, cutsToSheet, null);
+    }
+
+    /**
+     * Like the public constructor, with the sheets that go out already worked out ({@link PrintedSheets#of} for
+     * these very arguments: the dialog has it from its plan, so one change computes it once).
+     */
+    PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout, PrintedSheets printed) {
+        this(input, area, options, layout, true, Objects.requireNonNull(printed, "printed"));
+    }
+
+    private PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout,
+                        boolean cutsToSheet, PrintedSheets knownPrinted) {
         this.cutsToSheet = cutsToSheet;
         this.input = Objects.requireNonNull(input, "input");
         this.area = Objects.requireNonNull(area, "area");
@@ -119,6 +134,7 @@ public final class PagePainter {
                 .orElse(Map.of());
         this.busWires = busWires(input);
         this.verticalWireCompanions = verticalWireCompanions(input, drawnBounds.keySet());
+        this.printed = knownPrinted != null ? knownPrinted : PrintedSheets.of(input, area, options, layout);
         this.decorations = new PageDecorations(input.textFont().installedFamily());
         this.pageSize = new PdfPages.PageSize(layout.geometry().paperWidthPoints(),
                 layout.geometry().paperHeightPoints());
@@ -241,29 +257,38 @@ public final class PagePainter {
     }
 
     /**
-     * The sheets in order: the circuit's tiles in reading order (later, annexes after them). Counted, not stored, so
-     * a huge layout costs nothing until a sheet is painted; empty when the layout has no room.
+     * The sheets that go out, in order: the circuit's tiles in reading order, without the empty ones when «Saltar
+     * hojas vacías» skips them (later, annexes after them). Counted, not stored, so a huge layout costs nothing until
+     * a sheet is painted; empty when the layout has no room.
      */
     public List<Page> pages() {
         return new AbstractList<>() {
             @Override
             public Page get(int index) {
                 Objects.checkIndex(index, size());
-                return new Page(pageSize, index);
+                return new Page(pageSize, printed.layoutIndex(index));
             }
 
             @Override
             public int size() {
-                return layout.pageCount();
+                return printed.count();
             }
         };
     }
 
-    /** Paints sheet {@code pageIndex} of {@link #pages()} into {@code graphics}, in points. */
-    public void paint(Graphics2D graphics, int pageIndex) {
+    /** Which sheets of the layout go out (what {@link #pages()} lists), for the preview to walk them. */
+    PrintedSheets printedSheets() {
+        return printed;
+    }
+
+    /**
+     * Paints sheet {@code layoutIndex} of the layout (a {@link Page#layoutIndex()}) into {@code graphics}, in points.
+     * It keeps its grid number («Hoja 5 de 6») whatever sheets are skipped, so it matches the canvas.
+     */
+    public void paint(Graphics2D graphics, int layoutIndex) {
         int pageCount = layout.pageCount();
-        Objects.checkIndex(pageIndex, pageCount);
-        PrintPage page = layout.page(pageIndex);
+        Objects.checkIndex(layoutIndex, pageCount);
+        PrintPage page = layout.page(layoutIndex);
         Graphics2D sheet = (Graphics2D) graphics.create();
         try {
             sheet.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -271,6 +296,9 @@ public final class PagePainter {
             sheet.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
             sheet.setColor(Color.WHITE);
             sheet.fill(new Rectangle2D.Double(0, 0, pageSize.widthPoints(), pageSize.heightPoints()));
+            if (layout.tiled() && options.sheetGuides()) {
+                decorations.paintGlueTabs(sheet, layout, page, printed);
+            }
             TextFonts.runWithFont(input.textFont(), () -> paintCircuit(sheet, page));
             paintDecorations(sheet, page, pageCount);
         } finally {
@@ -334,7 +362,7 @@ public final class PagePainter {
             Bounds imageBounds = image.get().gridBounds();
             circuit.translate(paper.getX() + (imageBounds.x() - grid.getX()) * pointsPerGridUnit,
                     paper.getY() + (imageBounds.y() - grid.getY()) * pointsPerGridUnit);
-            sheetShare(grid).paint(circuit, layout.scale(), policy);
+            sheetShare(grid).paint(circuit, layout.scale(), policy, false);
         } finally {
             circuit.dispose();
         }
@@ -369,15 +397,17 @@ public final class PagePainter {
 
     private void paintDecorations(Graphics2D sheet, PrintPage page, int pageCount) {
         int sheetNumber = page.index() + 1;
-        if (layout.tiled()) {
-            decorations.paintMarks(sheet, layout, page, Messages.format(SHEET_POSITION, page.row() + 1,
+        if (layout.tiled() && options.sheetGuides()) {
+            decorations.paintMarks(sheet, layout, page, printed, Messages.format(SHEET_POSITION, page.row() + 1,
                     page.column() + 1, sheetNumber, pageCount));
         }
-        boolean legend = showsValues && options.blackAndWhite() && page.index() == 0;
+        // the legend goes on the first sheet that goes out
+        boolean legend = showsValues && options.blackAndWhite() && page.index() == printed.layoutIndex(0);
         if (options.headerFooter()) {
-            decorations.paintHeader(sheet, layout.geometry(), title, input.fileName());
-            decorations.paintFooter(sheet, layout.geometry(), date,
-                    Messages.format(SHEET_NUMBER, sheetNumber, pageCount), legend);
+            decorations.paintHeader(sheet, layout.geometry(), title,
+                    options.showFileName() ? input.fileName() : Optional.empty());
+            decorations.paintFooter(sheet, layout.geometry(), options.showDate() ? date : "",
+                    options.showSheetNumber() ? Messages.format(SHEET_NUMBER, sheetNumber, pageCount) : "", legend);
         } else if (legend) {
             PageGeometry geometry = layout.geometry();
             decorations.paintLegendBelow(sheet, geometry, geometry.paperHeightPoints() - geometry.marginPoints());

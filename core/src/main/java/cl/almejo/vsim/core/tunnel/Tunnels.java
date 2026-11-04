@@ -39,6 +39,16 @@ public final class Tunnels {
     public static final String NAME = "name";
     /** The entrada's colour parameter: an index into the tunnel palette (0 .. {@link #COLOR_COUNT} - 1). */
     public static final String COLOR = "color";
+    /**
+     * The tunnel's «Dirección» parameter, on both kinds: {@link #DIRECTED} (the default, left out of files) or
+     * {@link #UNDIRECTED}. A tunnel without direction is the same wire as every tunnel of its name and any of them may
+     * be driven, like Logisim's; it is drawn without the arrow and never gets an entrada's or salida's warnings.
+     */
+    public static final String DIRECTION = "direction";
+    /** «Con dirección»: an entrada gives its signal to the salidas of its name (today's tunnels). */
+    public static final String DIRECTED = "directed";
+    /** «Sin dirección»: any tunnel of the name may take the signal in or give it out. */
+    public static final String UNDIRECTED = "undirected";
     /** How many colours the tunnel palette has. */
     public static final int COLOR_COUNT = 8;
     /** {@link #colorOf} for a name without entrada: its salidas are drawn grey. */
@@ -58,21 +68,57 @@ public final class Tunnels {
 
     private static final ParameterSpec NAME_PARAMETER = ParameterSpec.text(NAME, DEFAULT_NAME, Tunnels::normalizeName);
     private static final ParameterSpec COLOR_PARAMETER = ParameterSpec.integer(COLOR, 0, 0, COLOR_COUNT - 1);
+    private static final ParameterSpec DIRECTION_PARAMETER = ParameterSpec.choice(DIRECTION, DIRECTED,
+            List.of(DIRECTED, UNDIRECTED));
 
     private Tunnels() {
     }
 
-    /** The tunnels of one name in one circuit, in document order. */
-    public record TunnelGroup(String name, List<ElementId> entrances, List<ElementId> exits) {
+    /**
+     * The tunnels of one name in one circuit, in document order: {@code entrances} and {@code exits} by part (with or
+     * without direction), {@code undirected} those of both with «Sin dirección».
+     */
+    public record TunnelGroup(String name, List<ElementId> entrances, List<ElementId> exits,
+                              List<ElementId> undirected) {
         public TunnelGroup {
             entrances = List.copyOf(entrances);
             exits = List.copyOf(exits);
+            undirected = List.copyOf(undirected);
+        }
+
+        /** A group whose tunnels all have direction. */
+        public TunnelGroup(String name, List<ElementId> entrances, List<ElementId> exits) {
+            this(name, entrances, exits, List.of());
+        }
+
+        /** The entradas with direction: the ones a name may have only one of. */
+        public List<ElementId> directedEntrances() {
+            return entrances.stream().filter(id -> !undirected.contains(id)).toList();
+        }
+
+        /** The salidas with direction: the ones that need an entrada (or a tunnel without direction). */
+        public List<ElementId> directedExits() {
+            return exits.stream().filter(id -> !undirected.contains(id)).toList();
         }
     }
 
-    /** The parameters of {@code kind}: the name, and the colour for an entrada only (salidas take its colour). */
+    /** True when tunnel {@code tunnel} is «Sin dirección»; false for one with direction and for any other part. */
+    public static boolean isUndirected(Component tunnel) {
+        return isTunnel(tunnel.typeId()) && UNDIRECTED.equals(tunnel.parameters().get(DIRECTION));
+    }
+
+    /** True for an entrada with direction: the tunnel that gives its name's salidas their signal. */
+    private static boolean isDirectedEntrance(Component component) {
+        return kindOf(component).orElse(null) == TunnelKind.ENTRANCE && !isUndirected(component);
+    }
+
+    /**
+     * The parameters of {@code kind}: the name, the colour for an entrada only (salidas take its colour) and the
+     * direction.
+     */
     public static List<ParameterSpec> parameters(TunnelKind kind) {
-        return kind == TunnelKind.ENTRANCE ? List.of(NAME_PARAMETER, COLOR_PARAMETER) : List.of(NAME_PARAMETER);
+        return kind == TunnelKind.ENTRANCE ? List.of(NAME_PARAMETER, COLOR_PARAMETER, DIRECTION_PARAMETER)
+                : List.of(NAME_PARAMETER, DIRECTION_PARAMETER);
     }
 
     /**
@@ -127,17 +173,21 @@ public final class Tunnels {
     public static Map<String, TunnelGroup> groups(CircuitDocument document) {
         Map<String, List<ElementId>> entrances = new HashMap<>();
         Map<String, List<ElementId>> exits = new HashMap<>();
+        Map<String, List<ElementId>> undirected = new HashMap<>();
         for (Component component : document.components()) {
             Optional<TunnelKind> kind = kindOf(component);
             if (kind.isPresent()) {
                 Map<String, List<ElementId>> byName = kind.get() == TunnelKind.ENTRANCE ? entrances : exits;
                 byName.computeIfAbsent(nameOf(component), name -> new ArrayList<>()).add(component.id());
+                if (isUndirected(component)) {
+                    undirected.computeIfAbsent(nameOf(component), name -> new ArrayList<>()).add(component.id());
+                }
             }
         }
         Map<String, TunnelGroup> groups = new TreeMap<>();
         for (String name : unionOfKeys(entrances, exits)) {
             groups.put(name, new TunnelGroup(name, entrances.getOrDefault(name, List.of()),
-                    exits.getOrDefault(name, List.of())));
+                    exits.getOrDefault(name, List.of()), undirected.getOrDefault(name, List.of())));
         }
         return Collections.unmodifiableMap(groups);
     }
@@ -206,17 +256,18 @@ public final class Tunnels {
      * entrada of {@code document} already has takes the first free {@code NAME_2}, {@code NAME_3}, … (free among every
      * tunnel of both), together with every tunnel of that name in {@code components}, each kept at its pin
      * ({@link #renamedInPlace}), so a name never gets a second entrada and the pasted group stays joined to itself.
-     * Salidas alone keep their name (reusing a signal); names the document does not use as an entrada are kept.
+     * Salidas alone keep their name (reusing a signal); names the document does not use as an entrada are kept. Only
+     * entradas with direction count: a name may have any number of tunnels without direction.
      */
     public static List<Component> renamedEntrancesApart(CircuitDocument document, List<Component> components,
                                                         ComponentTypeRegistry registry) {
-        Set<String> entranceNamesOutside = entranceNames(document);
+        Set<String> entranceNamesOutside = directedEntranceNames(document);
         Set<String> taken = new HashSet<>(tunnelNames(document.components()));
         taken.addAll(tunnelNames(components));
         Map<String, String> renames = new HashMap<>();
         for (Component component : components) {
             String name = nameOf(component);
-            if (kindOf(component).orElse(null) == TunnelKind.ENTRANCE && entranceNamesOutside.contains(name)
+            if (isDirectedEntrance(component) && entranceNamesOutside.contains(name)
                     && !renames.containsKey(name)) {
                 String free = freeVariantOf(name, taken);
                 taken.add(free);
@@ -372,15 +423,16 @@ public final class Tunnels {
     }
 
     /**
-     * True when renaming {@code tunnel} to {@code newName} renames every tunnel of its current name: it is the only
-     * entrada of that name and no other entrada has {@code newName}.
+     * True when renaming {@code tunnel} to {@code newName} renames every tunnel of its current name (those without
+     * direction too): it is the only entrada with direction of that name and no other one has {@code newName}. A
+     * tunnel without direction renames only itself, like a salida.
      */
     private static boolean carriesItsName(CircuitDocument document, Component tunnel, String newName) {
-        if (kindOf(tunnel).orElseThrow() != TunnelKind.ENTRANCE) {
+        if (!isDirectedEntrance(tunnel)) {
             return false;
         }
         String oldName = nameOf(tunnel);
-        return entrances(document).stream()
+        return directedEntrances(document).stream()
                 .filter(entrance -> !entrance.id().equals(tunnel.id()))
                 .map(Tunnels::nameOf)
                 .noneMatch(name -> name.equals(oldName) || name.equals(newName));
@@ -402,6 +454,14 @@ public final class Tunnels {
         return document.components().stream()
                 .filter(component -> kindOf(component).orElse(null) == TunnelKind.ENTRANCE)
                 .toList();
+    }
+
+    private static List<Component> directedEntrances(CircuitDocument document) {
+        return document.components().stream().filter(Tunnels::isDirectedEntrance).toList();
+    }
+
+    private static Set<String> directedEntranceNames(CircuitDocument document) {
+        return directedEntrances(document).stream().map(Tunnels::nameOf).collect(Collectors.toSet());
     }
 
     private static Set<String> entranceNames(CircuitDocument document) {

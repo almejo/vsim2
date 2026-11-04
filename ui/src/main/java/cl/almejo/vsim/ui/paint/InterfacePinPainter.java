@@ -92,9 +92,13 @@ public final class InterfacePinPainter implements ComponentPainter {
 
     /**
      * The value box of a pin of more than one bit, in document pixels: where to place a value editor. Empty for a
-     * 1-bit pin, which draws no box.
+     * 1-bit pin, which draws no box, and for every part that is not an interface pin (a bus splitter's pin 0 is its
+     * bus, and the box beside it once inflated the splitter's selection outline).
      */
     public static Optional<Rectangle2D> valueBox(ComponentType type, Component component) {
+        if (!InterfacePins.isInterface(component.typeId())) {
+            return Optional.empty();
+        }
         ComponentType shaped = type.specializedFor(component.parameters());
         if (shaped.pin(0).width() <= 1) {
             return Optional.empty();

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.print.PageGeometry;
 import cl.almejo.vsim.ui.print.PageOrientation;
 import cl.almejo.vsim.ui.print.Paper;
 import cl.almejo.vsim.ui.print.PrintOptions;
@@ -9,6 +10,7 @@ import cl.almejo.vsim.ui.print.PrintScope;
 import cl.almejo.vsim.ui.print.ScaleMode;
 import org.junit.jupiter.api.Test;
 
+import java.awt.Dimension;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
@@ -415,6 +417,59 @@ class AppPreferencesTest {
     }
 
     @Test
+    void thePrintSheetsAreHiddenByDefaultAndTheChoiceRoundTripsAndNotifies() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.showSheets()).isFalse();
+
+        preferences.setShowSheets(true);
+        preferences.setShowSheets(true);
+
+        assertThat(changes).hasValue(1);
+        assertThat(node.get("sheets.show", "")).isEqualTo("true");
+        assertThat(new AppPreferences(node).showSheets()).isTrue();
+    }
+
+    @Test
+    void theAiCanShowTheSheetsInOneWindowOnly() {
+        AppPreferences window = preferences.layered();
+
+        window.layer().orElseThrow().put(PreferenceLayer.Setting.SHOW_SHEETS, "true");
+
+        assertThat(window.showSheets()).isTrue();
+        assertThat(preferences.showSheets()).as("the saved value and the other windows").isFalse();
+    }
+
+    @Test
+    void theRememberedPrintMarginIsOneCentimetreUntilAPrintSetsIt() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+
+        preferences.setPrintMarginPoints(42.5);
+
+        assertThat(changes).hasValue(1);
+        assertThat(new AppPreferences(node).printMarginPoints()).isEqualTo(42.5);
+    }
+
+    @Test
+    void aNarrowerStoredPrintMarginReadsAsOneCentimetre() {
+        node.put("print.marginPoints", "14");
+        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+        node.put("print.marginPoints", "0");
+        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+    }
+
+    @Test
+    void anUnreadableRememberedPrintMarginIsOneCentimetre() {
+        for (String stored : new String[] {"ancho", "-3", "NaN", "Infinity"}) {
+            node.put("print.marginPoints", stored);
+            assertThat(preferences.printMarginPoints()).as(stored).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+        }
+        assertThatThrownBy(() -> preferences.setPrintMarginPoints(-1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> preferences.setPrintMarginPoints(Double.NaN))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void anUnknownStoredInvertKeyFallsBackToShift() {
         node.put("invertModifier", "HYPER");
         assertThat(preferences.invertModifier()).isEqualTo(AppPreferences.InvertModifier.SHIFT);
@@ -431,6 +486,19 @@ class AppPreferencesTest {
         assertThat(alt.isHeld(false, true)).isTrue();
         assertThat(alt.isHeld(true, false)).isFalse();
         assertThat(none.isHeld(true, true)).isFalse();
+    }
+
+    @Test
+    void theLogisimReportSizeIsRememberedAndAnUnusableOneIsIgnored() {
+        assertThat(preferences.logisimReportSize()).isEmpty();
+        preferences.setLogisimReportSize(new Dimension(900, 640));
+        assertThat(preferences.logisimReportSize()).contains(new Dimension(900, 640));
+        assertThat(new AppPreferences(node).logisimReportSize()).contains(new Dimension(900, 640));
+
+        node.put("logisim.reportWidth", "10");
+        assertThat(preferences.logisimReportSize()).isEmpty();
+        node.put("logisim.reportWidth", "wide");
+        assertThat(preferences.logisimReportSize()).isEmpty();
     }
 
     // --- Exportar a PDF e imprimir ---
@@ -452,6 +520,20 @@ class AppPreferencesTest {
         assertThat(reread.printDirectory()).contains(home.resolve("pdf").toAbsolutePath());
         assertThat(node.get("print.paper", null)).isEqualTo("OFICIO");
         assertThat(node.get("print.scale", null)).isEqualTo("75");
+    }
+
+    @Test
+    void skippingEmptySheetsStartsOnAndIsRemembered() {
+        assertThat(preferences.printOptions("").skipEmptySheets()).isTrue();
+        PrintOptions current = preferences.printOptions("");
+
+        preferences.setPrintOptions(new PrintOptions(current.scope(), current.paper(), current.orientation(),
+                current.scaleMode(), current.withValues(), current.blackAndWhite(), current.headerFooter(),
+                current.title(), current.includeStickyNotes(), current.sheetGuides(), current.showDate(),
+                current.showFileName(), current.showSheetNumber(), false));
+
+        assertThat(new AppPreferences(node).printOptions("").skipEmptySheets()).isFalse();
+        assertThat(node.get("print.skipEmptySheets", null)).isEqualTo("false");
     }
 
     @Test

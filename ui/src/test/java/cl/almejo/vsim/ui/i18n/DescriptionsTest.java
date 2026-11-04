@@ -45,6 +45,8 @@ class DescriptionsTest {
         List<String> ids = new ArrayList<>();
         REGISTRY.all().forEach(type -> ids.add(type.id()));
         StandardComponentTypes.presets().forEach(preset -> ids.add(preset.id()));
+        // the name ids a type takes from its parameters (StandardComponentTypes.nameId) have their own description
+        ids.add(StandardComponentTypes.TUNNEL_UNDIRECTED);
         return ids;
     }
 

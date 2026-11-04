@@ -13,8 +13,10 @@ import java.awt.font.LineMetrics;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Optional;
 
 /**
@@ -38,6 +40,12 @@ final class PageDecorations {
     static final float LEGEND_TEXT_POINTS = 7;
 
     private static final Color INK = new Color(0x333333);
+    /** The glue tab: the strip of the overlap on a sheet's right and bottom edges: light enough to spare toner. */
+    static final Color OVERLAP_BAND = new Color(0xEBEBEB);
+    /** «Pegar aquí» on the glue tab: clearly darker than the band, still light. */
+    static final Color GLUE_TEXT = new Color(0x9A9A9A);
+    /** «Pegar aquí» repeats along a long tab about every 9 cm. */
+    private static final double GLUE_TEXT_SPACING_POINTS = 9 * 72 / 2.54;
     private static final Color RULE = MonochromeScheme.LIGHT_GREY;
     private static final BasicStroke HAIRLINE = new BasicStroke(0.5f);
     /** A cut mark starts this far from the window, so it never touches the drawing, and is this long. */
@@ -46,6 +54,10 @@ final class PageDecorations {
     /** The rule between a band and the drawing sits this far inside the band. */
     private static final double RULE_INSET_POINTS = 3;
     private static final double TEXT_GAP_POINTS = 8;
+    /** The little triangle that points to the neighbouring sheet. */
+    private static final double ARROW_LENGTH_POINTS = 5;
+    private static final double ARROW_WIDTH_POINTS = 5;
+    private static final double ARROW_GAP_POINTS = 2;
     private static final double SAMPLE_LENGTH_POINTS = 18;
     private static final double SAMPLE_GAP_POINTS = 3;
     private static final double LEGEND_ITEM_GAP_POINTS = 9;
@@ -60,6 +72,47 @@ final class PageDecorations {
             new LegendEntry(WireState.UNKNOWN, "print.legend.unknown"),
             new LegendEntry(WireState.CONFLICT, "print.legend.conflict"));
 
+    /**
+     * The numbers (from 1) of the sheets next to a tiled sheet that go out; empty where there is none, or where it is
+     * skipped as empty (nothing to glue there).
+     */
+    record Neighbours(OptionalInt left, OptionalInt right, OptionalInt above, OptionalInt below) {
+
+        boolean hasLeft() {
+            return left.isPresent();
+        }
+
+        boolean hasRight() {
+            return right.isPresent();
+        }
+
+        boolean hasAbove() {
+            return above.isPresent();
+        }
+
+        boolean hasBelow() {
+            return below.isPresent();
+        }
+    }
+
+    /** The printed sheets around {@code page} in {@code layout}, numbered as in «Hoja n de N». */
+    static Neighbours neighbours(PageLayout layout, PrintPage page, PrintedSheets printed) {
+        return new Neighbours(
+                neighbour(layout, page.column() - 1, page.row(), printed),
+                neighbour(layout, page.column() + 1, page.row(), printed),
+                neighbour(layout, page.column(), page.row() - 1, printed),
+                neighbour(layout, page.column(), page.row() + 1, printed));
+    }
+
+    /** The number of sheet {@code (column, row)}, when the layout has it and it goes out. */
+    private static OptionalInt neighbour(PageLayout layout, int column, int row, PrintedSheets printed) {
+        if (column < 0 || column >= layout.columns() || row < 0 || row >= layout.rows()
+                || printed.isSkipped(column, row)) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(row * layout.columns() + column + 1);
+    }
+
     private record LegendEntry(WireState state, String labelKey) {
     }
 
@@ -67,6 +120,7 @@ final class PageDecorations {
     private final Font headerFont;
     private final Font titleFont;
     private final Font legendFont;
+    private final Font glueFont;
 
     /** The decorations in {@code family} (the frozen text font's installed family). */
     PageDecorations(String family) {
@@ -75,34 +129,181 @@ final class PageDecorations {
         this.headerFont = base.deriveFont(HEADER_TEXT_POINTS);
         this.titleFont = base.deriveFont(Font.BOLD, HEADER_TEXT_POINTS);
         this.legendFont = base.deriveFont(LEGEND_TEXT_POINTS);
+        this.glueFont = base.deriveFont(MARK_TEXT_POINTS);
     }
 
     /**
-     * The cut marks of a tiled sheet, in the strip around the window at the middle of each overlap with a neighbour
-     * (cut one sheet there and lay it on the other with the marks matching), and {@code label} centred under the
-     * window, clear of the marks.
+     * The glue tabs of a tiled sheet: inside its window, the strip along the right edge and the one along the bottom
+     * edge, each only when there is a printed neighbour on that side, filled in {@link #OVERLAP_BAND} and marked with
+     * «Pegar aquí» ({@link #GLUE_TEXT}), repeated along a long tab. The neighbour on the right (below) is cut at the
+     * inner edge of its own left (top) overlap and laid over the tab, so that no grey is left. Opaque, so the corner
+     * where both tabs meet is not darker. Painted before the circuit, so everything the circuit draws stays on top.
      */
-    void paintMarks(Graphics2D graphics, PageLayout layout, PrintPage page, String label) {
+    void paintGlueTabs(Graphics2D graphics, PageLayout layout, PrintPage page, PrintedSheets printed) {
+        Rectangle2D paper = page.paperRectangle();
+        double overlap = layout.overlapPoints();
+        Neighbours neighbours = neighbours(layout, page, printed);
+        boolean hasRight = neighbours.hasRight();
+        boolean hasBelow = neighbours.hasBelow();
+        graphics.setColor(OVERLAP_BAND);
+        if (hasRight) {
+            graphics.fill(new Rectangle2D.Double(paper.getMaxX() - overlap, paper.getMinY(), overlap,
+                    paper.getHeight()));
+        }
+        if (hasBelow) {
+            graphics.fill(new Rectangle2D.Double(paper.getMinX(), paper.getMaxY() - overlap, paper.getWidth(),
+                    overlap));
+        }
+        String text = Messages.text("print.sheet.glueHere");
+        double textWidth = width(text, glueFont);
+        graphics.setColor(GLUE_TEXT);
+        if (hasRight) {
+            double from = paper.getMinY() + TEXT_GAP_POINTS;
+            double to = paper.getMaxY() - (hasBelow ? overlap : 0) - TEXT_GAP_POINTS;
+            LineMetrics metrics = glueFont.getLineMetrics("Ag", MEASURE);
+            double shift = (metrics.getAscent() - metrics.getDescent()) / 2;
+            double centreX = paper.getMaxX() - overlap / 2;
+            for (double centre : glueCentres(from, to, textWidth)) {
+                AffineTransform turn = AffineTransform.getTranslateInstance(centreX - shift,
+                        centre - textWidth / 2);
+                turn.rotate(Math.PI / 2);
+                graphics.fill(new TextLayout(text, glueFont, MEASURE).getOutline(turn));
+            }
+        }
+        if (hasBelow) {
+            double from = paper.getMinX() + TEXT_GAP_POINTS;
+            double to = paper.getMaxX() - (hasRight ? overlap : 0) - TEXT_GAP_POINTS;
+            double baseline = baselineIn(paper.getMaxY() - overlap, overlap, glueFont);
+            for (double centre : glueCentres(from, to, textWidth)) {
+                drawText(graphics, text, glueFont, centre - textWidth / 2, baseline);
+            }
+        }
+    }
+
+    /** Where to centre the text along {@code from..to}: once per {@link #GLUE_TEXT_SPACING_POINTS}, at least once. */
+    private static List<Double> glueCentres(double from, double to, double textWidth) {
+        double length = to - from;
+        if (length < textWidth) {
+            return List.of();
+        }
+        int count = Math.max(1, (int) Math.round(length / GLUE_TEXT_SPACING_POINTS));
+        List<Double> centres = new java.util.ArrayList<>();
+        for (int index = 0; index < count; index++) {
+            centres.add(from + length * (index + 0.5) / count);
+        }
+        return centres;
+    }
+
+    /**
+     * The cut marks of a tiled sheet, in the strip around the window, at the inner edge of the overlap on the left and
+     * top edges that have a printed neighbour (cut the repeated strip off along them and lay the sheet over the glue
+     * tab of the neighbour); none on the right and bottom, where the glue tab is. And {@code label} under the window,
+     * clear of the marks.
+     */
+    void paintMarks(Graphics2D graphics, PageLayout layout, PrintPage page, PrintedSheets printed, String label) {
         Rectangle2D window = layout.window();
-        double halfOverlap = layout.overlapPoints() / 2;
+        double overlap = layout.overlapPoints();
+        Neighbours neighbours = neighbours(layout, page, printed);
         graphics.setColor(INK);
         graphics.setStroke(HAIRLINE);
-        if (page.column() > 0) {
-            verticalMarks(graphics, window, window.getX() + halfOverlap);
+        if (neighbours.hasLeft()) {
+            verticalMarks(graphics, window, window.getX() + overlap);
         }
-        if (page.column() < layout.columns() - 1) {
-            verticalMarks(graphics, window, window.getMaxX() - halfOverlap);
-        }
-        if (page.row() > 0) {
-            horizontalMarks(graphics, window, window.getY() + halfOverlap);
-        }
-        if (page.row() < layout.rows() - 1) {
-            horizontalMarks(graphics, window, window.getMaxY() - halfOverlap);
+        if (neighbours.hasAbove()) {
+            horizontalMarks(graphics, window, window.getY() + overlap);
         }
         double strip = layout.geometry().marksStripPoints();
-        String fitted = fitted(label, markFont, window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS);
-        drawText(graphics, fitted, markFont, window.getCenterX() - width(fitted, markFont) / 2,
+        // the label starts after the mark of the left overlap; the number of the sheet below stays centred
+        double labelLeft = window.getX() + overlap + TEXT_GAP_POINTS / 2;
+        double labelRoom = window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;
+        if (neighbours.below().isPresent()) {
+            double belowWidth = neighbourWidth(neighbours.below().getAsInt());
+            labelRoom = Math.min(labelRoom, window.getCenterX() - belowWidth / 2 - TEXT_GAP_POINTS - labelLeft);
+        }
+        drawText(graphics, fitted(label, markFont, labelRoom), markFont, labelLeft,
                 baselineIn(window.getMaxY(), strip, markFont));
+        double alongHorizontal = window.getWidth() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;
+        double alongVertical = window.getHeight() - layout.overlapPoints() - 2 * TEXT_GAP_POINTS;
+        neighbours.above().ifPresent(number -> paintHorizontalNeighbour(graphics, number, window.getCenterX(),
+                window.getY() - strip, strip, true, alongHorizontal));
+        neighbours.below().ifPresent(number -> paintHorizontalNeighbour(graphics, number, window.getCenterX(),
+                window.getMaxY(), strip, false, alongHorizontal));
+        neighbours.left().ifPresent(number -> paintVerticalNeighbour(graphics, number, window.getCenterY(),
+                window.getX() - strip, strip, true, alongVertical));
+        neighbours.right().ifPresent(number -> paintVerticalNeighbour(graphics, number, window.getCenterY(),
+                window.getMaxX(), strip, false, alongVertical));
+    }
+
+    private static String neighbourText(int number) {
+        return Messages.format("print.sheet.neighbour", number);
+    }
+
+    private double neighbourWidth(int number) {
+        return ARROW_LENGTH_POINTS + ARROW_GAP_POINTS + width(neighbourText(number), markFont);
+    }
+
+    /**
+     * «▲ Hoja 2» or «▼ Hoja 8», centred on {@code centreX} in the strip from {@code stripTop}, {@code strip} high. The
+     * arrow is a small triangle drawn here, so it never depends on the font having the glyph.
+     */
+    private void paintHorizontalNeighbour(Graphics2D graphics, int number, double centreX, double stripTop,
+                                          double strip, boolean pointsUp, double maximumWidth) {
+        String text = fitted(neighbourText(number), markFont, maximumWidth - ARROW_LENGTH_POINTS - ARROW_GAP_POINTS);
+        double total = ARROW_LENGTH_POINTS + ARROW_GAP_POINTS + width(text, markFont);
+        double left = centreX - total / 2;
+        double centreY = stripTop + strip / 2;
+        double half = ARROW_WIDTH_POINTS / 2;
+        double tipY = centreY + (pointsUp ? -half : half);
+        double baseY = centreY + (pointsUp ? half : -half);
+        Path2D.Double arrow = new Path2D.Double();
+        arrow.moveTo(left + ARROW_LENGTH_POINTS / 2, tipY);
+        arrow.lineTo(left, baseY);
+        arrow.lineTo(left + ARROW_LENGTH_POINTS, baseY);
+        arrow.closePath();
+        graphics.setColor(INK);
+        graphics.fill(arrow);
+        drawText(graphics, text, markFont, left + ARROW_LENGTH_POINTS + ARROW_GAP_POINTS,
+                baselineIn(stripTop, strip, markFont));
+    }
+
+    /**
+     * «◀ Hoja 1» or «Hoja 3 ▶» turned on its side so it fits the narrow strip beside the window, centred on
+     * {@code centreY}: on the left it reads from the bottom up with the arrow (pointing left) first, on the right from
+     * the top down with the arrow (pointing right) last, both arrows at the bottom end.
+     */
+    private void paintVerticalNeighbour(Graphics2D graphics, int number, double centreY, double stripLeft,
+                                        double strip, boolean onLeft, double maximumLength) {
+        String text = fitted(neighbourText(number), markFont, maximumLength - ARROW_LENGTH_POINTS - ARROW_GAP_POINTS);
+        double textWidth = width(text, markFont);
+        double total = ARROW_LENGTH_POINTS + ARROW_GAP_POINTS + textWidth;
+        double bottom = centreY + total / 2;
+        double centreX = stripLeft + strip / 2;
+        LineMetrics metrics = markFont.getLineMetrics("Ag", MEASURE);
+        double shift = (metrics.getAscent() - metrics.getDescent()) / 2;
+        double half = ARROW_WIDTH_POINTS / 2;
+        Path2D.Double arrow = new Path2D.Double();
+        double tipX = centreX + (onLeft ? -half : half);
+        double baseX = centreX + (onLeft ? half : -half);
+        double arrowTop = bottom - ARROW_LENGTH_POINTS;
+        arrow.moveTo(tipX, arrowTop + ARROW_LENGTH_POINTS / 2);
+        arrow.lineTo(baseX, arrowTop);
+        arrow.lineTo(baseX, bottom);
+        arrow.closePath();
+        graphics.setColor(INK);
+        graphics.fill(arrow);
+        if (text.isEmpty()) {
+            return;
+        }
+        TextLayout layout = new TextLayout(text, markFont, MEASURE);
+        AffineTransform turn;
+        if (onLeft) {
+            turn = AffineTransform.getTranslateInstance(centreX + shift, arrowTop - ARROW_GAP_POINTS);
+            turn.rotate(-Math.PI / 2);
+        } else {
+            turn = AffineTransform.getTranslateInstance(centreX - shift, arrowTop - ARROW_GAP_POINTS - textWidth);
+            turn.rotate(Math.PI / 2);
+        }
+        graphics.fill(layout.getOutline(turn));
     }
 
     private static void verticalMarks(Graphics2D graphics, Rectangle2D window, double x) {

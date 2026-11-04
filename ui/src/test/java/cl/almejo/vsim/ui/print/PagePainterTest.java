@@ -51,6 +51,7 @@ import java.util.Set;
 import static cl.almejo.vsim.ui.UiTestSupport.frame;
 import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** One sheet of the PDF, painted into an image: what goes on it, where, and that the destination changes nothing. */
@@ -146,13 +147,13 @@ class PagePainterTest {
     }
 
     private static PagePainter painter(PrintInput input, PrintArea area, PrintOptions options) {
-        PageGeometry geometry = PageGeometry.standard(options.paper(), options.orientation(), options.headerFooter());
+        PageGeometry geometry = PageGeometry.standard(options, PageGeometry.CENTIMETRE_POINTS);
         return new PagePainter(input, area, options, PageLayout.of(area.gridArea(), geometry, options.scaleMode()));
     }
 
     private static PageLayout layoutOf(PrintInput input, PrintOptions options) {
         PrintArea area = PrintScopes.area(input, options.scope()).orElseThrow();
-        PageGeometry geometry = PageGeometry.standard(options.paper(), options.orientation(), options.headerFooter());
+        PageGeometry geometry = PageGeometry.standard(options, PageGeometry.CENTIMETRE_POINTS);
         return PageLayout.of(area.gridArea(), geometry, options.scaleMode());
     }
 
@@ -163,7 +164,7 @@ class PagePainterTest {
      * whole pixels of the sheet (A4 is 595.28 pt wide).
      */
     private static BufferedImage render(PagePainter painter, int pageIndex, double pixelsPerPoint) {
-        PdfPages.PageSize size = painter.pages().get(pageIndex).size();
+        PdfPages.PageSize size = painter.pages().get(0).size(); // every sheet has the paper's size
         BufferedImage image = new BufferedImage((int) Math.floor(size.widthPoints() * pixelsPerPoint),
                 (int) Math.floor(size.heightPoints() * pixelsPerPoint), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
@@ -349,20 +350,30 @@ class PagePainterTest {
         Rectangle2D window = layout.window();
         Rectangle2D topLeftCorner = new Rectangle2D.Double(window.getX(), window.getY(), 80, 80);
         assertThat(ink(first, topLeftCorner)).as("the gate at the top-left").isPositive();
-        assertThat(ink(last, topLeftCorner)).as("the last sheet starts further right and down").isZero();
+        // its top-left corner is the overlap band: grey, but no circuit ink
+        assertThat(text(last, topLeftCorner)).as("the last sheet starts further right and down").isZero();
 
         double strip = layout.geometry().marksStripPoints();
-        double halfOverlap = layout.overlapPoints() / 2;
-        Rectangle2D rightNeighbourMark = new Rectangle2D.Double(window.getMaxX() - halfOverlap - 2,
+        double overlap = layout.overlapPoints();
+        Rectangle2D rightTabMark = new Rectangle2D.Double(window.getMaxX() - overlap / 2 - 2,
                 window.getY() - strip, 4, strip);
-        Rectangle2D leftNeighbourMark = new Rectangle2D.Double(window.getX() + halfOverlap - 2,
+        Rectangle2D rightTabEdgeMark = new Rectangle2D.Double(window.getMaxX() - overlap - 2,
                 window.getY() - strip, 4, strip);
-        Rectangle2D lowerNeighbourMark = new Rectangle2D.Double(window.getX() - strip,
-                window.getMaxY() - halfOverlap - 2, strip, 4);
-        assertThat(ink(first, rightNeighbourMark)).as("a mark towards the sheet on the right").isPositive();
-        assertThat(ink(first, lowerNeighbourMark)).as("a mark towards the sheet below").isPositive();
-        assertThat(ink(first, leftNeighbourMark)).as("no sheet on the left, no mark").isZero();
-        assertThat(ink(last, leftNeighbourMark)).as("the last sheet has a neighbour on its left").isPositive();
+        Rectangle2D leftCutMark = new Rectangle2D.Double(window.getX() + overlap - 2,
+                window.getY() - strip, 4, strip);
+        Rectangle2D leftMiddleMark = new Rectangle2D.Double(window.getX() + overlap / 2 - 2,
+                window.getY() - strip, 4, strip);
+        Rectangle2D topCutMark = new Rectangle2D.Double(window.getX() - strip,
+                window.getY() + overlap - 2, strip, 4);
+        Rectangle2D bottomTabMark = new Rectangle2D.Double(window.getX() - strip,
+                window.getMaxY() - overlap / 2 - 2, strip, 4);
+        assertThat(ink(first, rightTabMark)).as("no cut marks on the glue-tab side (right)").isZero();
+        assertThat(ink(first, rightTabEdgeMark)).as("nor at the tab's inner edge").isZero();
+        assertThat(ink(first, bottomTabMark)).as("no cut marks on the bottom tab side").isZero();
+        assertThat(ink(first, leftCutMark)).as("no sheet on the left, no mark").isZero();
+        assertThat(ink(last, leftCutMark)).as("the cut is at the inner edge of the left overlap").isPositive();
+        assertThat(ink(last, leftMiddleMark)).as("not at the middle of the overlap any more").isZero();
+        assertThat(ink(last, topCutMark)).as("the cut is at the inner edge of the top overlap").isPositive();
         Rectangle2D labelStrip = new Rectangle2D.Double(window.getCenterX() - 60, window.getMaxY(), 120, strip);
         assertThat(ink(first, labelStrip)).as("«Fila 1 · Columna 1 — Hoja 1 de 4»").isPositive();
     }
@@ -498,6 +509,396 @@ class PagePainterTest {
         return regions.stream().mapToInt(region -> text(image, region)).sum();
     }
 
+    // --- the sheet-joining guides and the header and footer items ----------------------------------------------
+
+    private static PrintOptions guides(PrintOptions base, boolean sheetGuides) {
+        return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
+                base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(), sheetGuides,
+                base.showDate(), base.showFileName(), base.showSheetNumber());
+    }
+
+    private static PrintOptions items(PrintOptions base, boolean date, boolean fileName, boolean sheetNumber) {
+        return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
+                base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(),
+                base.sheetGuides(), date, fileName, sheetNumber);
+    }
+
+    private static PrintOptions skipping(PrintOptions base, boolean skipEmptySheets) {
+        return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
+                base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(),
+                base.sheetGuides(), base.showDate(), base.showFileName(), base.showSheetNumber(), skipEmptySheets);
+    }
+
+    // --- «Saltar hojas vacías» ---------------------------------------------------------------------------------
+
+    @Test
+    void skippingEmptySheetsListsOnlyTheSheetsWithSomethingInReadingOrder() {
+        bigCircuit();
+        PrintInput input = input();
+        assertThat(layoutOf(input, atFullSize()).pageCount()).isEqualTo(4);
+
+        PagePainter skipping = painter(input, skipping(atFullSize(), true));
+        PagePainter everything = painter(input, skipping(atFullSize(), false));
+
+        assertThat(skipping.pages()).extracting(PagePainter.Page::layoutIndex).containsExactly(0, 3);
+        assertThat(everything.pages()).extracting(PagePainter.Page::layoutIndex).containsExactly(0, 1, 2, 3);
+    }
+
+    @Test
+    void theLegendMovesToTheFirstPrintedSheetWhenSheetOneIsSkipped() {
+        // one part at the left, low down, another at the top, far right: nothing falls on the corner sheet
+        add(StandardComponentTypes.AND, 4, 200, Map.of());
+        add(StandardComponentTypes.AND, 300, 4, Map.of());
+        PrintInput input = input();
+        ScaleMode full = new ScaleMode.Percentage(100);
+        PrintOptions legend = skipping(options(new PrintScope.WholeCircuit(), full, true, true, true), true);
+        PagePainter painter = painter(input, legend);
+        assertThat(painter.pages().get(0).layoutIndex()).as("the fixture: sheet 1 is skipped").isPositive();
+        Rectangle2D footerMiddle = slice(footerBand(layoutOf(input, legend).geometry()), 0.4, 0.6);
+
+        assertThat(text(render(painter, painter.pages().get(0).layoutIndex()), footerMiddle))
+                .as("the legend on the first sheet that goes out").isPositive();
+        assertThat(text(render(painter, painter.pages().get(1).layoutIndex()), footerMiddle))
+                .as("only on that one").isZero();
+    }
+
+    @Test
+    void aPrintedSheetKeepsItsGridNumberInTheFooter() {
+        bigCircuit();
+        PrintInput input = input();
+        PrintOptions footer = guides(options(new PrintScope.WholeCircuit(), new ScaleMode.Percentage(100), true,
+                false, true), false);
+
+        BufferedImage skipped = render(painter(input, skipping(footer, true)), 3);
+        BufferedImage everything = render(painter(input, skipping(footer, false)), 3);
+
+        assertThat(samePixels(skipped, everything)).as("«Hoja 4 de 4», not «Hoja 2 de 2»").isTrue();
+    }
+
+    @Test
+    void theGuidesTowardASkippedNeighbourAreLeftOut() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, atFullSize());
+        PagePainter skipping = painter(input, skipping(atFullSize(), true));
+        PagePainter everything = painter(input, skipping(atFullSize(), false));
+        Rectangle2D window = layout.window();
+        double strip = layout.geometry().marksStripPoints();
+        double overlap = layout.overlapPoints();
+        Rectangle2D leftCutMark = new Rectangle2D.Double(window.getX() + overlap - 2, window.getY() - strip, 4,
+                strip);
+        Rectangle2D topCutMark = new Rectangle2D.Double(window.getX() - strip, window.getY() + overlap - 2, strip,
+                4);
+        Rectangle2D leftNumber = centred(window.getX() - strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D aboveNumber = centred(window.getCenterX(), window.getY() - strip / 2, 20, strip);
+        Rectangle2D rightNumber = centred(window.getMaxX() + strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D belowNumber = centred(window.getCenterX(), window.getMaxY() + strip / 2, 20, strip);
+        Rectangle2D rightTab = new Rectangle2D.Double(window.getMaxX() - overlap, window.getY() + overlap, overlap,
+                window.getHeight() - 2 * overlap);
+        Rectangle2D bottomTab = new Rectangle2D.Double(window.getX() + overlap, window.getMaxY() - overlap,
+                window.getWidth() - 2 * overlap, overlap);
+        Color band = PageDecorations.OVERLAP_BAND;
+
+        BufferedImage lastOfAll = render(everything, 3);
+        assertThat(ink(lastOfAll, leftCutMark)).as("the fixture: a mark toward sheet 3").isPositive();
+        assertThat(text(lastOfAll, leftNumber)).as("the fixture: ◀ Hoja 3").isPositive();
+        BufferedImage last = render(skipping, 3);
+        assertThat(ink(last, leftCutMark)).as("sheet 3 is skipped: nothing to cut toward it").isZero();
+        assertThat(ink(last, topCutMark)).as("sheet 2 is skipped").isZero();
+        assertThat(text(last, leftNumber)).as("no ◀ Hoja 3").isZero();
+        assertThat(text(last, aboveNumber)).as("no ▲ Hoja 2").isZero();
+
+        BufferedImage firstOfAll = render(everything, 0);
+        assertThat(pixelsOfColour(firstOfAll, rightTab, band)).as("the fixture: a glue tab").isPositive();
+        BufferedImage first = render(skipping, 0);
+        assertThat(pixelsOfColour(first, rightTab, band)).as("no glue tab toward a skipped sheet").isZero();
+        assertThat(pixelsOfColour(first, bottomTab, band)).isZero();
+        assertThat(text(first, rightNumber)).as("no Hoja 2 ▶").isZero();
+        assertThat(text(first, belowNumber)).as("no ▼ Hoja 3").isZero();
+        Rectangle2D labelStart = new Rectangle2D.Double(window.getX() + overlap, window.getMaxY(), 60, strip);
+        assertThat(ink(first, labelStart)).as("«Fila 1 · Columna 1 — Hoja 1 de 4» stays").isPositive();
+    }
+
+    private static PrintOptions threeByThree() {
+        return new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
+                new ScaleMode.Percentage(160), true, false, false, "");
+    }
+
+    private static Rectangle2D centred(double centreX, double centreY, double width, double height) {
+        return new Rectangle2D.Double(centreX - width / 2, centreY - height / 2, width, height);
+    }
+
+    @Test
+    void theMiddleSheetOfThreeByThreeNamesItsFourNeighboursAndACornerSheetTwo() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, threeByThree());
+        assertThat(layout.columns()).isEqualTo(3);
+        assertThat(layout.rows()).isEqualTo(3);
+        PagePainter painter = painter(input, threeByThree());
+        Rectangle2D window = layout.window();
+        double strip = layout.geometry().marksStripPoints();
+        Rectangle2D left = centred(window.getX() - strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D right = centred(window.getMaxX() + strip / 2, window.getCenterY(), strip, 20);
+        Rectangle2D above = centred(window.getCenterX(), window.getY() - strip / 2, 20, strip);
+        Rectangle2D below = centred(window.getCenterX(), window.getMaxY() + strip / 2, 20, strip);
+        BufferedImage middle = render(painter, 4);
+        assertThat(text(middle, left)).as("◀ Hoja 4").isPositive();
+        assertThat(text(middle, right)).as("Hoja 6 ▶").isPositive();
+        assertThat(text(middle, above)).as("▲ Hoja 2").isPositive();
+        assertThat(text(middle, below)).as("▼ Hoja 8").isPositive();
+        BufferedImage corner = render(painter, 0);
+        assertThat(text(corner, left)).as("nothing on the left").isZero();
+        assertThat(text(corner, above)).as("nothing above").isZero();
+        assertThat(text(corner, right)).as("◀ Hoja 2").isPositive();
+        assertThat(text(corner, below)).as("▼ Hoja 4").isPositive();
+        assertThat(inkOutside(middle, new Rectangle2D.Double(layout.geometry().marginPoints(),
+                layout.geometry().marginPoints(), layout.geometry().paperWidthPoints() - 2
+                * layout.geometry().marginPoints(), layout.geometry().paperHeightPoints() - 2
+                * layout.geometry().marginPoints()))).as("inside the printable area").isZero();
+    }
+
+    private static int pixelsOfColour(BufferedImage image, Rectangle2D region, Color colour) {
+        int count = 0;
+        for (int x = Math.max(0, (int) Math.ceil(region.getMinX())); x < Math.min(image.getWidth(),
+                (int) Math.floor(region.getMaxX())); x++) {
+            for (int y = Math.max(0, (int) Math.ceil(region.getMinY())); y < Math.min(image.getHeight(),
+                    (int) Math.floor(region.getMaxY())); y++) {
+                if (image.getRGB(x, y) == colour.getRGB()) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static double area(Rectangle2D region) {
+        return region.getWidth() * region.getHeight();
+    }
+
+    @Test
+    void tiledSheetsPaintTheGlueTabInSoftGreyOnlyOnTheRightAndBottomEdgesWithANeighbour() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, threeByThree());
+        PagePainter painter = painter(input, threeByThree());
+        Rectangle2D window = layout.window();
+        double overlap = layout.overlapPoints();
+        Color band = PageDecorations.OVERLAP_BAND;
+        Rectangle2D leftStrip = new Rectangle2D.Double(window.getX(), window.getY() + overlap, overlap,
+                window.getHeight() - 2 * overlap);
+        Rectangle2D rightStrip = new Rectangle2D.Double(window.getMaxX() - overlap, window.getY() + overlap, overlap,
+                window.getHeight() - 2 * overlap);
+        Rectangle2D topStrip = new Rectangle2D.Double(window.getX() + overlap, window.getY(),
+                window.getWidth() - 2 * overlap, overlap);
+        Rectangle2D bottomStrip = new Rectangle2D.Double(window.getX() + overlap, window.getMaxY() - overlap,
+                window.getWidth() - 2 * overlap, overlap);
+        BufferedImage middle = render(painter, 4);
+        for (Rectangle2D strip : List.of(rightStrip, bottomStrip)) {
+            assertThat(pixelsOfColour(middle, strip, band)).as("glue tab " + strip)
+                    .isGreaterThan((int) (area(strip) * 0.5));
+        }
+        for (Rectangle2D strip : List.of(leftStrip, topStrip)) {
+            assertThat(pixelsOfColour(middle, strip, band)).as("no tab on " + strip).isZero();
+        }
+        BufferedImage corner = render(painter, 0);
+        assertThat(pixelsOfColour(corner, leftStrip, band)).as("no neighbour on the left").isZero();
+        assertThat(pixelsOfColour(corner, topStrip, band)).as("no neighbour above").isZero();
+        assertThat(pixelsOfColour(corner, rightStrip, band)).isGreaterThan((int) (area(rightStrip) * 0.5));
+        assertThat(pixelsOfColour(corner, bottomStrip, band)).isGreaterThan((int) (area(bottomStrip) * 0.5));
+        Rectangle2D inside = new Rectangle2D.Double(window.getX() + overlap, window.getY() + overlap,
+                window.getWidth() - 2 * overlap, window.getHeight() - 2 * overlap);
+        assertThat(pixelsOfColour(middle, inside, band)).as("only the tabs").isLessThan((int) (area(inside) * 0.02));
+        int inkOnTheBand = 0;
+        for (int index = 0; index < painter.pages().size(); index++) {
+            BufferedImage sheet = render(painter, index);
+            for (Rectangle2D strip : List.of(rightStrip, bottomStrip)) {
+                inkOnTheBand += pixelsDarkerThan(sheet, strip, 200);
+            }
+        }
+        assertThat(inkOnTheBand).as("the circuit stays on top of the band").isPositive();
+    }
+
+    /** Pixels of the «Pegar aquí» text's mid grey (the band, the circuit's black and its colours do not match). */
+    private static int glueTextPixels(BufferedImage image, Rectangle2D region) {
+        int count = 0;
+        for (int x = Math.max(0, (int) Math.ceil(region.getMinX())); x < Math.min(image.getWidth(),
+                (int) Math.floor(region.getMaxX())); x++) {
+            for (int y = Math.max(0, (int) Math.ceil(region.getMinY())); y < Math.min(image.getHeight(),
+                    (int) Math.floor(region.getMaxY())); y++) {
+                Color color = new Color(image.getRGB(x, y));
+                int grey = color.getRed();
+                if (Math.abs(color.getGreen() - grey) <= 2 && Math.abs(color.getBlue() - grey) <= 2
+                        && grey >= 0x8A && grey <= 0xB0) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    @Test
+    void theGlueTabsSayGlueHereOnTheRightAndBottomEdgesOnlyAndNotWithoutGuides() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, threeByThree());
+        PagePainter painter = painter(input, threeByThree());
+        Rectangle2D window = layout.window();
+        double overlap = layout.overlapPoints();
+        Rectangle2D rightTab = new Rectangle2D.Double(window.getMaxX() - overlap, window.getY() + overlap, overlap,
+                window.getHeight() - 2 * overlap);
+        Rectangle2D bottomTab = new Rectangle2D.Double(window.getX() + overlap, window.getMaxY() - overlap,
+                window.getWidth() - 2 * overlap, overlap);
+        Rectangle2D leftStrip = new Rectangle2D.Double(window.getX(), window.getY() + overlap, overlap,
+                window.getHeight() - 2 * overlap);
+        Rectangle2D topStrip = new Rectangle2D.Double(window.getX() + overlap, window.getY(),
+                window.getWidth() - 2 * overlap, overlap);
+        BufferedImage middle = render(painter, 4);
+        assertThat(glueTextPixels(middle, rightTab)).as("«Pegar aquí» turned on the right tab").isPositive();
+        assertThat(glueTextPixels(middle, bottomTab)).as("«Pegar aquí» on the bottom tab").isPositive();
+        assertThat(glueTextPixels(middle, leftStrip)).as("nothing on the left").isZero();
+        assertThat(glueTextPixels(middle, topStrip)).as("nothing on the top").isZero();
+        BufferedImage last = render(painter, 8);
+        assertThat(glueTextPixels(last, rightTab)).as("no neighbour on the right").isZero();
+        assertThat(glueTextPixels(last, bottomTab)).as("no neighbour below").isZero();
+        PrintOptions off = guides(threeByThree(), false);
+        assertThat(glueTextPixels(render(painter(input, off), 4), layoutOf(input, off).window())).as("guides off")
+                .isZero();
+        assertThat(glueTextPixels(render(painter(input, fit()), 0), layoutOf(input, fit()).window()))
+                .as("a single sheet").isZero();
+    }
+
+    @Test
+    void theGlueTextRepeatsAlongALongTab() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, threeByThree());
+        Rectangle2D window = layout.window();
+        double overlap = layout.overlapPoints();
+        BufferedImage middle = render(painter(input, threeByThree()), 4);
+        int segments = 0;
+        boolean inside = false;
+        for (int y = (int) (window.getY() + overlap); y < (int) (window.getMaxY() - overlap); y++) {
+            boolean row = glueTextPixels(middle, new Rectangle2D.Double(window.getMaxX() - overlap, y, overlap, 1)) > 0;
+            if (row && !inside) {
+                segments++;
+            }
+            inside = row;
+        }
+        assertThat(segments).as("a text over a tab as long as the window").isGreaterThanOrEqualTo(2);
+    }
+
+    @Test
+    void theTabShowsWhatTheNeighbourShowsInItsStripAndCuttingAtTheInnerEdgeContinuesTheDrawing() {
+        bigCircuit();
+        PrintInput input = input();
+        PageLayout layout = layoutOf(input, threeByThree());
+        double overlap = layout.overlapPoints();
+        double pointsPerGridUnit = GridPoint.PIXELS_PER_UNIT * layout.scale();
+        Rectangle2D window = layout.window();
+        PrintPage sheet = layout.page(4);
+        PrintPage right = layout.page(5);
+        PrintPage below = layout.page(7);
+        double tabStartX = sheet.gridRectangle().getX() + (window.getWidth() - overlap) / pointsPerGridUnit;
+        assertThat(right.gridRectangle().getX()).as("the tab starts where the neighbour's strip starts")
+                .isEqualTo(tabStartX, within(1e-9));
+        double tabEndX = sheet.gridRectangle().getX() + window.getWidth() / pointsPerGridUnit;
+        assertThat(right.gridRectangle().getX() + overlap / pointsPerGridUnit)
+                .as("cut at window.x + overlap, laid with that edge at the tab's outer edge, the drawing goes on")
+                .isEqualTo(tabEndX, within(1e-9));
+        double tabStartY = sheet.gridRectangle().getY() + (window.getHeight() - overlap) / pointsPerGridUnit;
+        assertThat(below.gridRectangle().getY()).isEqualTo(tabStartY, within(1e-9));
+        double tabEndY = sheet.gridRectangle().getY() + window.getHeight() / pointsPerGridUnit;
+        assertThat(below.gridRectangle().getY() + overlap / pointsPerGridUnit).isEqualTo(tabEndY, within(1e-9));
+    }
+
+    @Test
+    void theOverlapBandAlsoShowsInBlackAndWhiteAndIsGoneWithoutGuidesOrOnASingleSheet() {
+        bigCircuit();
+        PrintInput input = input();
+        PrintOptions blackAndWhite = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4,
+                PageOrientation.PORTRAIT, new ScaleMode.Percentage(160), true, true, false, "");
+        PageLayout layout = layoutOf(input, blackAndWhite);
+        Rectangle2D window = layout.window();
+        Rectangle2D rightStrip = new Rectangle2D.Double(window.getMaxX() - layout.overlapPoints(), window.getY(),
+                layout.overlapPoints(), window.getHeight());
+        assertThat(pixelsOfColour(render(painter(input, blackAndWhite), 0), rightStrip, PageDecorations.OVERLAP_BAND))
+                .isPositive();
+        PrintOptions off = guides(threeByThree(), false);
+        PageLayout withoutGuides = layoutOf(input, off);
+        Rectangle2D unguided = withoutGuides.window();
+        BufferedImage page = render(painter(input, off), 0);
+        assertThat(pixelsOfColour(page, unguided, PageDecorations.OVERLAP_BAND)).as("a few antialiased pixels at most")
+                .isLessThan(20);
+        PageLayout single = layoutOf(input, fit());
+        assertThat(pixelsOfColour(render(painter(input, fit()), 0), single.window(), PageDecorations.OVERLAP_BAND))
+                .isLessThan(20);
+    }
+
+    @Test
+    void withoutTheGuidesATiledSheetHasNoMarksLabelNorNumbersAndTheStripIsGivenBack() {
+        bigCircuit();
+        PrintInput input = input();
+        PrintOptions off = guides(threeByThree(), false);
+        PageLayout without = layoutOf(input, off);
+        PageLayout with = layoutOf(input, threeByThree());
+        assertThat(without.geometry().marksStripPoints()).isZero();
+        assertThat(without.window().getWidth()).isEqualTo(with.window().getWidth() + 2
+                * with.geometry().marksStripPoints(), org.assertj.core.api.Assertions.within(1e-9));
+        assertThat(without.pageCountExact()).isLessThanOrEqualTo(with.pageCountExact());
+        PagePainter painter = painter(input, off);
+        for (int index = 0; index < painter.pages().size(); index++) {
+            assertThat(inkOutside(render(painter, index), without.window())).as("sheet " + index).isZero();
+        }
+    }
+
+    @Test
+    void aSingleSheetHasNoGuidesWhetherTheyAreOnOrOff() {
+        bigCircuit();
+        PrintInput input = input();
+        assertThat(layoutOf(input, fit()).tiled()).isFalse();
+        BufferedImage page = render(painter(input, fit()), 0);
+        assertThat(inkOutside(page, layoutOf(input, fit()).window())).isZero();
+        assertThat(samePixels(page, render(painter(input, guides(fit(), false)), 0))).isTrue();
+    }
+
+    @Test
+    void eachHeaderAndFooterItemCanBeLeftOutAlone() {
+        smallCircuit();
+        PrintInput input = input();
+        PrintOptions all = options(new PrintScope.WholeCircuit(), new ScaleMode.FitToOnePage(), true, false, true);
+        PageGeometry geometry = layoutOf(input, all).geometry();
+        Rectangle2D title = slice(headerBand(geometry), 0, 0.3);
+        Rectangle2D fileName = slice(headerBand(geometry), 0.7, 1);
+        Rectangle2D date = slice(footerBand(geometry), 0, 0.3);
+        Rectangle2D sheetNumber = slice(footerBand(geometry), 0.7, 1);
+        BufferedImage withoutDate = render(painter(input, items(all, false, true, true)), 0);
+        assertThat(text(withoutDate, date)).as("no date").isZero();
+        assertThat(text(withoutDate, title)).isPositive();
+        assertThat(text(withoutDate, fileName)).isPositive();
+        assertThat(text(withoutDate, sheetNumber)).isPositive();
+        BufferedImage withoutName = render(painter(input, items(all, true, false, true)), 0);
+        assertThat(text(withoutName, fileName)).as("no file name").isZero();
+        assertThat(text(withoutName, title)).as("the title stays").isPositive();
+        assertThat(text(withoutName, date)).isPositive();
+        BufferedImage withoutNumber = render(painter(input, items(all, true, true, false)), 0);
+        assertThat(text(withoutNumber, sheetNumber)).as("no sheet number").isZero();
+        assertThat(text(withoutNumber, date)).isPositive();
+        BufferedImage none = render(painter(input, items(all, false, false, false)), 0);
+        assertThat(text(none, date) + text(none, fileName) + text(none, sheetNumber)).isZero();
+        assertThat(text(none, title)).isPositive();
+    }
+
+    @Test
+    void theLegendStillGoesInTheFooterWhenItsItemsAreLeftOut() {
+        bigCircuit();
+        PrintInput input = input();
+        PrintOptions legend = items(options(new PrintScope.WholeCircuit(), new ScaleMode.Percentage(100), true, true,
+                true), false, true, false);
+        PageGeometry geometry = layoutOf(input, legend).geometry();
+        assertThat(text(render(painter(input, legend), 0), slice(footerBand(geometry), 0.4, 0.6))).isPositive();
+    }
+
     @Test
     void theSmallestTextIsWhatThePaintersReallyDraw() {
         Component input = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
@@ -630,10 +1031,10 @@ class PagePainterTest {
         Rectangle2D window = layout.window();
         BufferedImage first = PdfReading.render(file, 0, 1);
         assertThat(ink(first, new Rectangle2D.Double(window.getX(), window.getY(), 80, 80))).isPositive();
-        Rectangle2D rightNeighbourMark = new Rectangle2D.Double(window.getMaxX() - layout.overlapPoints() / 2 - 2,
+        Rectangle2D leftCutMark = new Rectangle2D.Double(window.getX() + layout.overlapPoints() - 2,
                 window.getY() - layout.geometry().marksStripPoints(), 4, layout.geometry().marksStripPoints());
-        assertThat(ink(first, rightNeighbourMark)).isPositive();
-        assertThat(ink(PdfReading.render(file, 3, 1), new Rectangle2D.Double(window.getX(), window.getY(), 80, 80)))
+        assertThat(ink(PdfReading.render(file, 3, 1), leftCutMark)).isPositive();
+        assertThat(text(PdfReading.render(file, 3, 1), new Rectangle2D.Double(window.getX(), window.getY(), 80, 80)))
                 .isZero();
     }
 

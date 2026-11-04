@@ -40,6 +40,13 @@ class PinTextTest {
     }
 
     @Test
+    void aGroupedSplitterPinShowsItsWholeLabelHoweverLong() {
+        assertThat(describe(StandardComponentTypes.BUS_SPLITTER, Map.of(StandardComponentTypes.WIDTH, 32,
+                StandardComponentTypes.GROUPS, "7-11,25-31|15-19"), 1, false, Optional.empty()))
+                .isEqualTo("b7-11,25-31 · 12 bits");
+    }
+
+    @Test
     void aTunnelsPinIsNamedAfterTheTunnelAndShowsItsNetsWidth() {
         assertThat(describe(StandardComponentTypes.TUNNEL_EXIT, Map.of("name", "CLK"), 0, false, Optional.empty()))
                 .isEqualTo("«CLK»");

@@ -66,47 +66,60 @@ class ProblemTextTest {
         Component three = place(StandardComponentTypes.AND, 0, 10, "", Map.of(StandardComponentTypes.GATE_INPUTS, 3));
         Component four = place(StandardComponentTypes.AND, 0, 20, "", Map.of(StandardComponentTypes.GATE_INPUTS, 4));
         ConnectivityProblem pinThree = new ConnectivityProblem("n", three.id().value(), 2, new GridPoint(0, 0),
-                ConnectivityProblem.Cause.INNER_PIN);
+                ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE);
         ConnectivityProblem pinFour = new ConnectivityProblem("n", four.id().value(), 2, new GridPoint(0, 0),
-                ConnectivityProblem.Cause.INNER_PIN);
+                ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE);
 
         String textThree = ProblemText.describe(pinThree, document, registry);
         String textFour = ProblemText.describe(pinFour, document, registry);
 
-        assertThat(textThree).isEqualTo("AND de 3 entradas: la entrada 3 está desconectada");
-        assertThat(textFour).isEqualTo("AND de 4 entradas: la entrada 3 está desconectada");
+        assertThat(textThree).isEqualTo("Pin desconectado al cambiar la forma: AND de 3 entradas · entrada 3");
+        assertThat(textFour).isEqualTo("Pin desconectado al cambiar la forma: AND de 4 entradas · entrada 3");
     }
 
     @Test
     void anUnconnectedGateInputIsCountedFromOneAndEnglishSaysInput() {
         ConnectivityProblem problem = new ConnectivityProblem("n", andGate.id().value(), 1, new GridPoint(0, 0),
-                ConnectivityProblem.Cause.INNER_PIN);
+                ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE);
         Messages.initialize(Locale.ENGLISH);
 
-        assertThat(ProblemText.describe(problem, document, registry)).contains("input 2 is disconnected")
+        assertThat(ProblemText.describe(problem, document, registry)).contains("input 2")
                 .doesNotContain("in1");
+    }
+
+    @Test
+    void aLooseInnerPinOrWireEndHasNoTextBecauseTheCanvasRuleNeverPublishesOne() {
+        ConnectivityProblem pin = new ConnectivityProblem("n", andGate.id().value(), 1, new GridPoint(0, 0),
+                ConnectivityProblem.Cause.INNER_PIN);
+        ConnectivityProblem wire = new ConnectivityProblem("n", andGate.id().value(), -1, new GridPoint(0, 0),
+                ConnectivityProblem.Cause.LOOSE_WIRE_END);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ProblemText.describe(pin, document, registry))
+                .isInstanceOf(IllegalStateException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ProblemText.describe(wire, document, registry))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void aLabeledGateUsesItsLabelInProblems() {
         ConnectivityProblem problem = new ConnectivityProblem("n", andGate.id().value(), 1, new GridPoint(0, 0),
-                ConnectivityProblem.Cause.INNER_PIN);
+                ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE);
 
         assertThat(ProblemText.describe(problem, document, registry))
-                .isEqualTo("U3 (AND): la entrada 2 está desconectada");
+                .isEqualTo("Pin desconectado al cambiar la forma: U3 · entrada 2");
     }
 
     @Test
     void anUnlabeledGateIsNamedAlikeInTheTreeAndInProblems() {
         Component three = place(StandardComponentTypes.AND, 0, 10, "", Map.of(StandardComponentTypes.GATE_INPUTS, 3));
         ConnectivityProblem problem = new ConnectivityProblem("n", three.id().value(), 0, new GridPoint(0, 0),
-                ConnectivityProblem.Cause.INNER_PIN);
+                ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE);
 
         String treeText = ComponentTreeModel.build("Circuito", document, registry, false).children().stream()
                 .filter(node -> node.path().equals(three.id().value())).findFirst().orElseThrow().text();
 
         assertThat(treeText).isEqualTo("AND de 3 entradas");
-        assertThat(ProblemText.describe(problem, document, registry)).startsWith(treeText + ": ");
+        assertThat(ProblemText.describe(problem, document, registry)).contains(": " + treeText + " · ");
     }
 
     @Test
@@ -269,6 +282,9 @@ class ProblemTextTest {
         assertThat(ProblemText.describe(new TunnelProblem("n", TunnelProblem.Kind.EXIT_DRIVEN, "CLK",
                 List.of("c1")), document, registry))
                 .isEqualTo("La salida «CLK» recibe una señal: ¿querías una entrada?");
+        assertThat(ProblemText.describe(new TunnelProblem("n", TunnelProblem.Kind.LONE_TUNNEL, "CLK",
+                List.of("c1")), document, registry))
+                .isEqualTo("El túnel sin dirección «CLK» está solo: no hay otro túnel con su nombre.");
     }
 
     @Test

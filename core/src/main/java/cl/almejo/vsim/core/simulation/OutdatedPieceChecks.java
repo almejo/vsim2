@@ -112,7 +112,7 @@ public final class OutdatedPieceChecks {
     private static Optional<List<ConnectivityProblem>> problemsOf(CircuitDocument document,
                                                                   ComponentTypeRegistry baseRegistry) {
         try {
-            return Optional.of(ConnectivityChecks.problems(document,
+            return Optional.of(ConnectivityChecks.everyLooseEnd(document,
                     baseRegistry.extendedWith(SubcircuitTypes.resolverFor(document))));
         } catch (RuntimeException exception) {
             LOGGER.debug("The circuit cannot be checked for outdated pieces", exception);

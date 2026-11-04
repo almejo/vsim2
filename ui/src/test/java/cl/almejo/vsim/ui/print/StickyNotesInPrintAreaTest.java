@@ -57,6 +57,17 @@ class StickyNotesInPrintAreaTest {
     }
 
     @Test
+    void theLiveWholeCircuitAreaFollowsTheSameStickyNoteRule() {
+        PrintInput input = input();
+        for (boolean includeStickyNotes : new boolean[] {false, true}) {
+            assertThat(PrintScopes.wholeCircuitArea(document, registry, includeStickyNotes))
+                    .as("%s", includeStickyNotes)
+                    .contains(PrintScopes.area(input, new PrintScope.WholeCircuit(), includeStickyNotes)
+                            .orElseThrow().gridArea());
+        }
+    }
+
+    @Test
     void aSelectionThatIsOnlyANoteHasNoAreaUnlessAsked() {
         PrintInput input = input();
         PrintScope onlyTheNote = new PrintScope.Selection(Set.of(farNote.id()));

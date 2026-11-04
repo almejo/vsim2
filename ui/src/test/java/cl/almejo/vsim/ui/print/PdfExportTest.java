@@ -229,6 +229,25 @@ class PdfExportTest {
     }
 
     @Test
+    void skippingEmptySheetsWritesOnlyThePrintedOnesAndCountsThem(@TempDir Path folder) throws IOException {
+        wideCircuit();
+        PrintOptions options = options(Paper.A4, PageOrientation.PORTRAIT, new ScaleMode.Percentage(100));
+        PagePainter painter = painter(new PrintOptions(options.scope(), options.paper(), options.orientation(),
+                options.scaleMode(), options.withValues(), options.blackAndWhite(), options.headerFooter(),
+                options.title(), false, true, true, true, true, true));
+        assertThat(painter.pages()).extracting(PagePainter.Page::layoutIndex).as("the gate's and the wire's")
+                .containsExactly(0, 5);
+        Path target = folder.resolve("circuito.pdf");
+        RecordingProgress progress = never();
+
+        new PdfExport(executor).export(painter, target, progress);
+        executor.runAll();
+
+        assertThat(PdfReading.pageCount(target)).isEqualTo(2);
+        assertThat(progress.calls).containsExactly("1/2", "2/2");
+    }
+
+    @Test
     void anExistingFileIsReplacedOnSuccess(@TempDir Path folder) throws IOException {
         smallCircuit();
         Path target = folder.resolve("circuito.pdf");

@@ -60,6 +60,24 @@ class NoteColorsTest {
         }
     }
 
+    /** A mid-gray board (Chipmunk's, or the user's own): a fill moved apart from it still carries its text. */
+    @Test
+    void everyTextColourReadsOnTheBackgroundsOfAnyGrayBoard() {
+        for (int level = 0x20; level <= 0xA0; level += 4) {
+            Color board = new Color(level, level, level);
+            ColorScheme scheme = ColorSchemes.DARK.with(ColorRole.BACKGROUND, board);
+            for (NoteColor background : NoteColor.values()) {
+                for (NoteColor text : texts(background)) {
+                    NoteStyle style = new NoteStyle(background, text, NoteColor.NONE);
+                    Color surface = scheme.noteBackground(style).orElse(board);
+                    assertThat(ReadableColors.contrast(scheme.noteText(style), surface))
+                            .as("%s text on %s on %s", text, background, board)
+                            .isGreaterThanOrEqualTo(READABLE);
+                }
+            }
+        }
+    }
+
     @Test
     void everyBorderShowsOnTheBoard() {
         for (ColorScheme scheme : schemes()) {

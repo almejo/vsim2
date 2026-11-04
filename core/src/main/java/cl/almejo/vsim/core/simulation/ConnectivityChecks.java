@@ -27,7 +27,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/** Checks geometry at every instance level, independently of signal values and simulation state. */
+/**
+ * Checks geometry at every instance level, independently of signal values and simulation state.
+ * <p>
+ * {@link #problems} uses the canvas rule at every level (the user, 2026-11-04): a loose pin of a part inside a
+ * component's body is not a problem, as it would not be one on the canvas, and neither is a loose wire end there. An
+ * outer terminal whose interface element reaches nothing inside is ({@link
+ * ConnectivityProblem.Cause#UNCONNECTED_INTERFACE}); tunnels and shorts are checked elsewhere, at every level too.
+ * {@link #everyLooseEnd} still finds every loose pin and wire end inside the bodies: an update of a definition is
+ * judged by the inner connections it would loosen ({@link OutdatedPieceChecks}).
+ */
 public final class ConnectivityChecks {
 
     // Match the flattener's safety bound; valid definitions form an acyclic graph.
@@ -36,11 +45,28 @@ public final class ConnectivityChecks {
     private ConnectivityChecks() {
     }
 
-    /** A fresh immutable diagnostic list; definitions are compiled once and reported separately per instance. */
+    /**
+     * The problems the editor shows: one per outer terminal whose interface element is unconnected inside, at any
+     * depth; a fresh immutable list. Definitions are compiled once and reported separately per instance.
+     */
     public static List<ConnectivityProblem> problems(CircuitDocument document, ComponentTypeRegistry registry) {
+        return check(document, registry, false);
+    }
+
+    /**
+     * {@link #problems} plus every loose pin of a part and every loose wire end inside a component's body ({@link
+     * ConnectivityProblem.Cause#INNER_PIN}, {@link ConnectivityProblem.Cause#LOOSE_WIRE_END}): not shown as problems,
+     * but they tell whether updating a definition would loosen connections that were made.
+     */
+    public static List<ConnectivityProblem> everyLooseEnd(CircuitDocument document, ComponentTypeRegistry registry) {
+        return check(document, registry, true);
+    }
+
+    private static List<ConnectivityProblem> check(CircuitDocument document, ComponentTypeRegistry registry,
+                                                   boolean innerEnds) {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(registry, "registry");
-        Check check = new Check(registry);
+        Check check = new Check(registry, innerEnds);
         check.visit(document, "", 0);
         return List.copyOf(check.problems);
     }
@@ -54,9 +80,12 @@ public final class ConnectivityChecks {
         private final NetlistCompiler compiler;
         private final Map<ComponentDefinition, Level> bodies = new IdentityHashMap<>();
         private final List<ConnectivityProblem> problems = new ArrayList<>();
+        /** Whether loose pins and wire ends inside the bodies are collected too ({@link #everyLooseEnd}). */
+        private final boolean innerEnds;
 
-        Check(ComponentTypeRegistry registry) {
+        Check(ComponentTypeRegistry registry, boolean innerEnds) {
             this.registry = registry;
+            this.innerEnds = innerEnds;
             this.compiler = new NetlistCompiler(registry);
         }
 
@@ -71,7 +100,9 @@ public final class ConnectivityChecks {
             Set<GridPoint> pinPositions = new HashSet<>();
             for (Component component : level.document().components()) {
                 ComponentType type = registry.typeOf(component);
-                checkPins(level, component, type, prefix, pinPositions);
+                if (innerEnds) {
+                    checkPins(level, component, type, prefix, pinPositions);
+                }
                 SubcircuitTypes.definitionOf(type).ifPresent(definition -> {
                     Level body = bodies.computeIfAbsent(definition, this::compileBody);
                     checkInterface(body, definition, component, type, prefix);
@@ -80,7 +111,7 @@ public final class ConnectivityChecks {
             }
             // The circuit itself is the user's work in progress: its loose wire ends are not faults, only those
             // inside a component's body are.
-            if (!prefix.isEmpty()) {
+            if (innerEnds && !prefix.isEmpty()) {
                 checkWireEnds(level, prefix, pinPositions);
             }
         }

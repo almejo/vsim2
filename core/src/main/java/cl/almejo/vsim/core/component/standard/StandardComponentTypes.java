@@ -18,9 +18,12 @@ import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.stream.IntStream;
 
 /** The built-in components, with VSim's geometry converted to grid units. */
 public final class StandardComponentTypes {
@@ -86,6 +89,14 @@ public final class StandardComponentTypes {
     public static final String MUX = "mux";
     public static final String DECODER = "decoder";
     public static final String REGISTER = "register";
+    /** The register's «Disparo»: an edge ({@code falling}, {@code rising}) or a latch level. */
+    public static final String TRIGGER = "trigger";
+    /** «Disparo: Nivel alto»: a latch, open while CLK is 1. */
+    public static final String TRIGGER_HIGH = "high";
+    /** «Disparo: Nivel bajo»: a latch, open while CLK is 0. */
+    public static final String TRIGGER_LOW = "low";
+    private static final ParameterSpec TRIGGER_PARAMETER = ParameterSpec.choice(TRIGGER, StandardParameters.FALLING,
+            List.of(StandardParameters.FALLING, StandardParameters.RISING, TRIGGER_HIGH, TRIGGER_LOW));
     public static final String COUNTER = "counter";
     /** «RAM» (see {@link MemoryTypes}). */
     public static final String RAM = "ram";
@@ -95,10 +106,17 @@ public final class StandardComponentTypes {
     public static final String TUNNEL_ENTRANCE = "tunnel-in";
     /** «Túnel (salida)»: puts the signal of its name on its wire. */
     public static final String TUNNEL_EXIT = "tunnel-out";
+    /** The name id of either tunnel with «Sin dirección» ({@link #nameId}): it has its own name and description. */
+    public static final String TUNNEL_UNDIRECTED = "tunnel-undirected";
     /** The name of a 7-segment display's bus input. */
     public static final String DISPLAY_BUS_PIN = "bus";
     /** The parameter that sets a bus component's width in bits. */
     public static final String WIDTH = "width";
+    /**
+     * The groups of bits of a «Separador de bus» / «Unión de bus» ({@link BitGroups} text, {@code ""} = one bit per
+     * pin), edited through «Bits por pin» and the «Grupos» window rather than as a field.
+     */
+    public static final String GROUPS = "groups";
     /** A Switch's «Valor»: what it drives; a click on the switch changes it (see {@link SwitchValues}). */
     public static final String VALUE = "value";
 
@@ -135,7 +153,15 @@ public final class StandardComponentTypes {
             new ComponentPreset(INVERTER_CONTROLLED_PRESET, TRI_STATE, Map.of(NEGATE, true)));
     /** A register shows its binary value in one line up to 16 bits and in two lines of 16 above. */
     public static final int REGISTER_ONE_LINE_BITS = 16;
-    private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, 8, 2, 32);
+    private static final int BUS_DEFAULT_WIDTH = 8;
+    private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, BUS_DEFAULT_WIDTH, 2, 32);
+    /** The groups of a bus part: hidden (Propiedades shows «Bits por pin» instead), short, and the layout reads it. */
+    private static final ParameterSpec BUS_GROUPS = ParameterSpec.text(GROUPS, "", BitGroups::normalize)
+            .asHidden().asShapeKey();
+    /** The rows between two pins of a bus part with a pin of several bits, so two thick leads never touch. */
+    public static final int GROUPED_PIN_SPACING = 2;
+    /** How many characters of a grouped pin's label fit in one unit of its lead (the painter's small font). */
+    public static final int GROUP_LABEL_CHARACTERS_PER_UNIT = 2;
     /**
      * Tunnels only join nets: the flattener leaves them out, so this behaviour never runs; it exists because every
      * type has one.
@@ -236,12 +262,16 @@ public final class StandardComponentTypes {
                 parameters -> new ComponentShape(new GridSize(2, 2),
                         List.of(PinSpec.input("pin", 0, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> newValueProbe()));
-        registry.register(ComponentType.parameterized(BUS_SPLITTER, ComponentCategory.WIRING, List.of(BUS_WIDTH),
-                parameters -> busShape((Integer) parameters.get(WIDTH), false),
-                parameters -> new BusSplitterBehavior((Integer) parameters.get(WIDTH))));
-        registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.WIRING, List.of(BUS_WIDTH),
-                parameters -> busShape((Integer) parameters.get(WIDTH), true),
-                parameters -> new BusJoinerBehavior((Integer) parameters.get(WIDTH))));
+        registry.register(ComponentType.parameterized(BUS_SPLITTER, ComponentCategory.WIRING,
+                List.of(BUS_WIDTH, BUS_GROUPS),
+                parameters -> busShape(bitGroupsOf(parameters), false),
+                StandardComponentTypes::checkBusGroups,
+                parameters -> new BusSplitterBehavior(bitGroupsOf(parameters))));
+        registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.WIRING,
+                List.of(BUS_WIDTH, BUS_GROUPS),
+                parameters -> busShape(bitGroupsOf(parameters), true),
+                StandardComponentTypes::checkBusGroups,
+                parameters -> new BusJoinerBehavior(bitGroupsOf(parameters))));
         for (TunnelKind kind : TunnelKind.values()) {
             registry.register(ComponentType.parameterized(kind.typeId(), ComponentCategory.WIRING,
                     Tunnels.parameters(kind), parameters -> Tunnels.shape(kind, parameters),
@@ -274,10 +304,10 @@ public final class StandardComponentTypes {
                 parameters -> aluShape((Integer) parameters.get(WIDTH)),
                 parameters -> new AluBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
         registry.register(ComponentType.parameterized(REGISTER, ComponentCategory.SEQUENTIAL,
-                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
+                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER, TRIGGER_PARAMETER),
                 parameters -> registerShape((Integer) parameters.get(WIDTH)),
                 parameters -> new RegisterBehavior((Integer) parameters.get(WIDTH),
-                        (Integer) parameters.get("delay"))));
+                        (Integer) parameters.get("delay"), String.valueOf(parameters.get(TRIGGER)))));
         registry.register(ComponentType.parameterized(COUNTER, ComponentCategory.SEQUENTIAL,
                 List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
                 parameters -> counterShape((Integer) parameters.get(WIDTH)),
@@ -524,10 +554,13 @@ public final class StandardComponentTypes {
 
     /**
      * The id that names a part of {@code typeId} with {@code parameters} (the message key {@code component.<id>}):
-     * {@code nand}, {@code nor}, {@code xnor}, {@code not} or {@code inverter-controlled} for a gate, Buffer or tri-state buffer with «Negar salida» on, the type id
-     * otherwise.
+     * {@code nand}, {@code nor}, {@code xnor}, {@code not} or {@code inverter-controlled} for a gate, Buffer or tri-state buffer with «Negar salida» on,
+     * {@code tunnel-undirected} for a tunnel «Sin dirección», the type id otherwise.
      */
     public static String nameId(String typeId, Map<String, Object> parameters) {
+        if (Tunnels.isTunnel(typeId) && Tunnels.UNDIRECTED.equals(parameters.get(Tunnels.DIRECTION))) {
+            return TUNNEL_UNDIRECTED;
+        }
         if (!Boolean.TRUE.equals(parameters.get(NEGATE))) {
             return typeId;
         }
@@ -568,17 +601,107 @@ public final class StandardComponentTypes {
     }
 
     /**
-     * A splitter of {@code width} bits: a 2 x width box, the bus pin at (0, 0) and bits b0..b(width-1) at (2, 1)..
-     * (2, width). The joiner mirrors it: bits in at (0, 1)..(0, width), the bus out at (2, 0).
+     * The bus on the top row, then one pin per group, named {@code b<label>} and as wide as its group. With one bit per
+     * pin (in any order) that is the part of before groups: two units wide, {@code b0} at row 1 and a pin per row.
+     * When some pin carries several bits the pins go every {@link #GROUPED_PIN_SPACING} rows (thick leads never touch)
+     * and the lead from the spine to the pins is long enough for the longest label written above it
+     * ({@link #groupedLeadLength}). The splitter's bus is at (0, 0) and its pins at (width, 1), (width, 1 + spacing)…;
+     * the joiner mirrors it: pins in at x = 0, the bus out at (width, 0).
      */
-    private static ComponentShape busShape(int width, boolean joining) {
+    private static ComponentShape busShape(BitGroups groups, boolean joining) {
+        boolean grouped = IntStream.range(0, groups.pinCount()).anyMatch(pin -> groups.widthOf(pin) > 1);
+        int spacing = grouped ? GROUPED_PIN_SPACING : 1;
+        int width = 1 + (grouped ? groupedLeadLength(groups) : 1);
         List<PinSpec> pins = new ArrayList<>();
-        pins.add(new PinSpec("bus", new GridPoint(joining ? 2 : 0, 0),
-                joining ? PinDirection.OUTPUT : PinDirection.INPUT, width));
-        for (int bit = 0; bit < width; bit++) {
-            pins.add(new PinSpec("b" + bit, new GridPoint(joining ? 0 : 2, bit + 1),
-                    joining ? PinDirection.INPUT : PinDirection.OUTPUT, 1));
+        pins.add(new PinSpec("bus", new GridPoint(joining ? width : 0, 0),
+                joining ? PinDirection.OUTPUT : PinDirection.INPUT, groups.width()));
+        for (int pin = 0; pin < groups.pinCount(); pin++) {
+            pins.add(new PinSpec(groups.pinName(pin), new GridPoint(joining ? 0 : width, 1 + pin * spacing),
+                    joining ? PinDirection.INPUT : PinDirection.OUTPUT, groups.widthOf(pin)));
         }
-        return new ComponentShape(new GridSize(2, width), pins);
+        return new ComponentShape(new GridSize(width, 1 + (groups.pinCount() - 1) * spacing), pins);
+    }
+
+    /**
+     * The units from the spine to the pins of a grouped bus part: {@link #GROUP_LABEL_CHARACTERS_PER_UNIT} characters
+     * of its longest label a unit, plus one character of air at the spine (the painter writes the label in a small
+     * font whose characters are narrower than half a unit).
+     */
+    private static int groupedLeadLength(BitGroups groups) {
+        int longest = IntStream.range(0, groups.pinCount()).map(pin -> groups.label(pin).length()).max().orElse(1);
+        return Math.max(1, Math.ceilDiv(longest + 1, GROUP_LABEL_CHARACTERS_PER_UNIT));
+    }
+
+    /** Whether parts of {@code typeId} group their bus bits into pins: the «Separador de bus» and the «Unión de bus». */
+    public static boolean hasBitGroups(String typeId) {
+        return BUS_SPLITTER.equals(typeId) || BUS_JOINER.equals(typeId);
+    }
+
+    /**
+     * The parameters {@code changed} of a bus part whose resolved parameters are {@code current}, with the groups its
+     * new «Ancho» needs ({@link BitGroups#resized}): equal pins stay equal with the same bits per pin, custom groups
+     * lose the bits beyond a narrower bus. Propiedades and the AI's {@code SetParameters} give only the width; without
+     * this a narrower bus would be refused for bits it no longer has and a wider one would leave its new bits unused.
+     * The same width, or one that cannot be read or is out of range (the width parameter reports it), changes nothing.
+     */
+    public static Map<String, Object> regroupedForWidth(Map<String, Object> current, Map<String, Object> changed) {
+        OptionalInt newWidth = busWidthOf(changed);
+        if (newWidth.isEmpty() || !(current.get(WIDTH) instanceof Integer width) || width == newWidth.getAsInt()
+                || !(current.get(GROUPS) instanceof String groups) || BitGroups.problem(groups, width).isPresent()) {
+            return changed;
+        }
+        Map<String, Object> regrouped = new HashMap<>(changed);
+        regrouped.put(GROUPS, BitGroups.parse(groups, width).resized(newWidth.getAsInt()).canonical());
+        return regrouped;
+    }
+
+    /**
+     * {@code raw} with its groups in the text they are stored as for its width: {@code ""} for one bit per pin, so
+     * {@code 0|1|2|3} on a 4-bit bus is stored like a part that never had groups. Groups with a problem are left for the
+     * parameter check to report.
+     */
+    public static Map<String, Object> withCanonicalGroups(Map<String, Object> raw) {
+        OptionalInt width = busWidthOf(raw);
+        if (width.isEmpty() || !(raw.get(GROUPS) instanceof String groups)
+                || BitGroups.problem(groups, width.getAsInt()).isPresent()) {
+            return raw;
+        }
+        Map<String, Object> canonical = new HashMap<>(raw);
+        canonical.put(GROUPS, BitGroups.parse(groups, width.getAsInt()).canonical());
+        return canonical;
+    }
+
+    /** The groups of a bus part's resolved parameters. */
+    private static BitGroups bitGroupsOf(Map<String, Object> parameters) {
+        return BitGroups.parse((String) parameters.get(GROUPS), (Integer) parameters.get(WIDTH));
+    }
+
+    /**
+     * The groups must fit the width: no bit beyond it, no bit in two pins, no empty pin, at most 32 pins, readable
+     * text. A width out of range is left to the width parameter itself.
+     */
+    private static Optional<ParameterProblem> checkBusGroups(Map<String, Object> raw) {
+        Object rawGroups = raw == null ? null : raw.get(GROUPS);
+        if (rawGroups == null) {
+            return Optional.empty();
+        }
+        OptionalInt width = busWidthOf(raw);
+        return width.isEmpty() ? Optional.empty() : BitGroups.problem(rawGroups.toString(), width.getAsInt());
+    }
+
+    /**
+     * The «Ancho» of a bus part's raw parameters (a number or its text; the default when missing), empty when it cannot
+     * be read or is out of range.
+     */
+    private static OptionalInt busWidthOf(Map<String, Object> raw) {
+        Object rawWidth = raw.get(WIDTH);
+        int width;
+        try {
+            width = rawWidth == null ? BUS_DEFAULT_WIDTH : rawWidth instanceof Number number ? number.intValue()
+                    : Integer.parseInt(rawWidth.toString().trim());
+        } catch (NumberFormatException exception) {
+            return OptionalInt.empty();
+        }
+        return width < BUS_WIDTH.minimum() || width > BUS_WIDTH.maximum() ? OptionalInt.empty() : OptionalInt.of(width);
     }
 }

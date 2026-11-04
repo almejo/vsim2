@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.theme;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -12,7 +13,6 @@ import javax.swing.SwingUtilities;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 /**
@@ -76,8 +76,7 @@ public final class ThemeManager {
     /** FlatLaf and the platform dark-mode checks of the running system, with the answer {@code Main} asked for. */
     public static ThemeManager forCurrentPlatform(AppPreferences preferences, Appearance appearance) {
         String osName = System.getProperty("os.name", "");
-        Executor probeExecutor = Executors.newSingleThreadExecutor(
-                Thread.ofPlatform().name("vsim-dark-mode-probe").daemon().factory());
+        Executor probeExecutor = DaemonThreads.single("vsim-dark-mode-probe");
         return new ThemeManager(preferences, appearance, platformProbe(osName), new FlatLafInstaller(osName),
                 takeStartupSystemDark(), probeExecutor, SwingUtilities::invokeLater);
     }

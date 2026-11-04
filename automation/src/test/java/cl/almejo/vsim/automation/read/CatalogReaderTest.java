@@ -84,8 +84,9 @@ class CatalogReaderTest {
                 Map.of());
 
         assertThat(splitter.parameters()).containsExactly(
-                new ParameterView("width", "INTEGER", 8, 2, 32, java.util.List.of(), false));
-        assertThat(splitter.parameterValues()).containsEntry("width", 8);
+                new ParameterView("width", "INTEGER", 8, 2, 32, java.util.List.of(), false),
+                new ParameterView("groups", "TEXT", "", null, null, java.util.List.of(), false));
+        assertThat(splitter.parameterValues()).containsEntry("width", 8).containsEntry("groups", "");
     }
 
     @Test

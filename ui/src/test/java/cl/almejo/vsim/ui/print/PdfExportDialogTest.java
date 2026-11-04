@@ -214,7 +214,24 @@ class PdfExportDialogTest {
         assertThat(layout.columns()).isGreaterThan(1);
         assertThat(layout.rows()).isEqualTo(1);
         assertThat(dialog.statusText()).isEqualTo(layout.columns() + " × 1 hojas · " + layout.pageCount()
-                + " en total · escala 100 %");
+                + " en total · escala 100 % · se imprimen 2");
+    }
+
+    @Test
+    void severalSheetsOfferTheWayBackToOneSheet() {
+        place(0, 0);
+        place(200, 0);
+        open();
+        assertThat(dialog.fitButton().isVisible()).as("one sheet already").isFalse();
+        dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.HUNDRED);
+        assertThat(dialog.fitButton().isVisible()).isTrue();
+        assertThat(dialog.fitButton().getText()).isEqualTo("Ajustar a una hoja");
+
+        dialog.fitButton().doClick();
+
+        assertThat(dialog.options().scaleMode()).isEqualTo(new ScaleMode.FitToOnePage());
+        assertThat(dialog.pageLayout().orElseThrow().pageCount()).isEqualTo(1);
+        assertThat(dialog.fitButton().isVisible()).isFalse();
     }
 
     @Test
@@ -278,6 +295,87 @@ class PdfExportDialogTest {
     }
 
     @Test
+    void theJoiningGuidesAppearOnlyWithSeveralSheetsAndStartOn() {
+        place(10, 10);
+        open();
+        assertThat(dialog.sheetGuides().isSelected()).as("on by default").isTrue();
+        assertThat(dialog.sheetGuides().isVisible()).as("one sheet, nothing to join").isFalse();
+        dialog.dispose();
+        place(2000, 0);
+        open();
+        dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
+        dialog.percentSpinner().setValue(400);
+        assertThat(dialog.pageLayout().orElseThrow().tiled()).isTrue();
+        assertThat(dialog.sheetGuides().isVisible()).isTrue();
+        assertThat(dialog.sheetGuides().isEnabled()).isTrue();
+        assertThat(dialog.options().sheetGuides()).isTrue();
+    }
+
+    @Test
+    void withoutTheGuidesTheLayoutKeepsNoMarksStrip() {
+        place(0, 0);
+        place(2000, 0);
+        open();
+        dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
+        dialog.percentSpinner().setValue(400);
+        double stripWith = dialog.pageLayout().orElseThrow().geometry().marksStripPoints();
+        double widthWith = dialog.pageLayout().orElseThrow().window().getWidth();
+        assertThat(stripWith).isPositive();
+        dialog.sheetGuides().doClick();
+        assertThat(dialog.options().sheetGuides()).isFalse();
+        assertThat(dialog.pageLayout().orElseThrow().geometry().marksStripPoints()).isZero();
+        assertThat(dialog.pageLayout().orElseThrow().window().getWidth()).isEqualTo(widthWith + 2 * stripWith,
+                org.assertj.core.api.Assertions.within(1e-9));
+        assertThat(dialog.sheetGuides().isVisible()).as("still there to turn back on").isTrue();
+    }
+
+    @Test
+    void theHeaderItemsShowOnlyWithTheHeaderAndStartOn() {
+        place(10, 10);
+        open();
+        for (javax.swing.JCheckBox item : List.of(dialog.showDate(), dialog.showFileName(),
+                dialog.showSheetNumber())) {
+            assertThat(item.isSelected()).as("on by default").isTrue();
+            assertThat(item.isVisible()).as("hidden without the header").isFalse();
+        }
+        dialog.headerFooter().doClick();
+        for (javax.swing.JCheckBox item : List.of(dialog.showDate(), dialog.showFileName(),
+                dialog.showSheetNumber())) {
+            assertThat(item.isVisible()).isTrue();
+            assertThat(item.isEnabled()).isTrue();
+        }
+        dialog.showDate().doClick();
+        dialog.showSheetNumber().doClick();
+        assertThat(dialog.options().showDate()).isFalse();
+        assertThat(dialog.options().showFileName()).isTrue();
+        assertThat(dialog.options().showSheetNumber()).isFalse();
+        dialog.headerFooter().doClick();
+        assertThat(dialog.showDate().isVisible()).isFalse();
+    }
+
+    @Test
+    void theGuidesAndTheHeaderItemsAreRememberedAfterASavedExport() {
+        place(10, 10);
+        open();
+        dialog.headerFooter().doClick();
+        dialog.showFileName().doClick();
+        dialog.sheetGuides().doClick();
+        chosenFile = Optional.of(directory.resolve("a.pdf"));
+        dialog.saveButton().doClick();
+        exporter.future.complete(null);
+        PrintOptions remembered = preferences.printOptions("x");
+        assertThat(remembered.sheetGuides()).isFalse();
+        assertThat(remembered.showFileName()).isFalse();
+        assertThat(remembered.showDate()).isTrue();
+        assertThat(remembered.showSheetNumber()).isTrue();
+        dialog.dispose();
+        open();
+        assertThat(dialog.sheetGuides().isSelected()).isFalse();
+        assertThat(dialog.showFileName().isSelected()).isFalse();
+        assertThat(dialog.showDate().isSelected()).isTrue();
+    }
+
+    @Test
     void thePreviewIsRebuiltOnlyWhenTheCoalescingTimerFires() {
         place(10, 10);
         open();
@@ -295,6 +393,7 @@ class PdfExportDialogTest {
         place(0, 0);
         place(2000, 0);
         open();
+        dialog.skipEmptySheets().doClick(); // every sheet goes out, the empty ones between the switches too
         dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
         dialog.percentSpinner().setValue(400);
         long count = dialog.pageLayout().orElseThrow().pageCountExact();
@@ -318,8 +417,15 @@ class PdfExportDialogTest {
         dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
         dialog.percentSpinner().setValue(400);
         assertThat(dialog.pageLayout().orElseThrow().pageCountExact()).isGreaterThan(1000);
+        assertThat(dialog.skipEmptySheets().isSelected()).as("the fixture: skipping is on").isTrue();
+        assertThat(dialog.printedSheets().orElseThrow().count()).as("only the corners go out").isLessThan(10);
+        assertThat(dialog.saveButton().isEnabled()).as("the sheets that go out are what counts").isTrue();
+        dialog.skipEmptySheets().doClick();
         assertThat(dialog.saveButton().isEnabled()).isFalse();
         assertThat(dialog.hintText()).contains("demasiadas hojas");
+        dialog.skipEmptySheets().doClick();
+        assertThat(dialog.saveButton().isEnabled()).isTrue();
+        dialog.skipEmptySheets().doClick();
         dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.FIT);
         assertThat(dialog.saveButton().isEnabled()).isTrue();
         assertThat(dialog.hintText()).isEmpty();
@@ -359,6 +465,35 @@ class PdfExportDialogTest {
         assertThat(preferences.printOptions("x").blackAndWhite()).isTrue();
         assertThat(preferences.printOptions("x").paper()).isEqualTo(Paper.LETTER);
         assertThat(preferences.printDirectory()).contains(target.getParent().toAbsolutePath());
+    }
+
+    @Test
+    void aSavedPdfKeepsTheWiderMarginItWasLaidOutWith() {
+        preferences.setPrintMarginPoints(40);
+        place(10, 10);
+        open();
+        chosenFile = Optional.of(directory.resolve("circuito.pdf"));
+        dialog.saveButton().doClick();
+        assertThat(preferences.printMarginPoints()).as("nothing saved before it is written").isEqualTo(40);
+
+        exporter.future.complete(null);
+
+        assertThat(preferences.printMarginPoints()).as("the dialog was laid out with the remembered margin")
+                .isEqualTo(40);
+    }
+
+    @Test
+    void aCancelledExportKeepsTheRememberedMargin() {
+        preferences.setPrintMarginPoints(40);
+        place(10, 10);
+        open();
+        chosenFile = Optional.of(directory.resolve("circuito.pdf"));
+        dialog.saveButton().doClick();
+        dialog.cancelButton().doClick();
+
+        exporter.future.completeExceptionally(new CancellationException());
+
+        assertThat(preferences.printMarginPoints()).isEqualTo(40);
     }
 
     @Test

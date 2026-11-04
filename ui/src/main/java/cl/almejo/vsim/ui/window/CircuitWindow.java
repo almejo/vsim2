@@ -242,6 +242,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
+    public Optional<EditorView> showUntitled(CircuitDocument document, String windowName) {
+        return Optional.of(application.openUntitled(document, windowName, this).view());
+    }
+
+    @Override
     public void openNewCircuit(String name, Command creation, String notice) {
         CircuitWindow created = application.openNewCircuit(name, creation);
         if (!notice.isEmpty()) {

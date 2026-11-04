@@ -7,7 +7,11 @@ public class CircuitFormatException extends Exception {
         /** A VSim 2 file of a newer {@code formatVersion} than this build reads; the detail is that version. */
         NEWER_FORMAT,
         /** JSON that is not a VSim file: no {@code "format": "vsim2"} marker and no {@code formatVersion}. */
-        NOT_VSIM_FILE
+        NOT_VSIM_FILE,
+        /** A file to import as XML (a Logisim {@code .circ}) whose text is not XML at all. */
+        NOT_XML,
+        /** XML whose root is not a Logisim {@code <project>}. */
+        NOT_LOGISIM_PROJECT
     }
 
     private final Reason reason;

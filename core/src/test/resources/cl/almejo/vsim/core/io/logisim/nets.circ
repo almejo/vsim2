@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project source="2.7.1" version="1.0">
+  A hand-written fixture for the nets step: one circuit per case. Splitters face east with appear=left, so their bus
+  end is at the location and end k at (x + 20, y - 10 * fanout + 10 * k).
+
+  <lib desc="#Wiring" name="0"/>
+  <lib desc="#Gates" name="1"/>
+  <lib desc="#Memory" name="4"/>
+  <main name="split"/>
+  <options/>
+  <circuit name="split">
+    <wire from="(100,100)" to="(150,100)"/>
+    <wire from="(170,80)" to="(200,80)"/>
+    <wire from="(170,90)" to="(220,90)"/>
+    <comp lib="0" loc="(100,100)" name="Pin"><a name="width" val="4"/></comp>
+    <comp lib="0" loc="(150,100)" name="Splitter">
+      <a name="incoming" val="4"/><a name="bit1" val="0"/><a name="bit2" val="1"/><a name="bit3" val="1"/>
+    </comp>
+    <comp lib="0" loc="(200,80)" name="Pin">
+      <a name="facing" val="west"/><a name="output" val="true"/><a name="width" val="2"/>
+    </comp>
+    <comp lib="0" loc="(220,90)" name="Pin">
+      <a name="facing" val="west"/><a name="output" val="true"/><a name="width" val="2"/>
+    </comp>
+  </circuit>
+  <circuit name="join">
+    <wire from="(100,100)" to="(150,100)"/>
+    <wire from="(170,80)" to="(200,80)"/>
+    <wire from="(170,90)" to="(220,90)"/>
+    <comp lib="0" loc="(100,100)" name="Pin">
+      <a name="facing" val="west"/><a name="output" val="true"/><a name="width" val="4"/>
+    </comp>
+    <comp lib="0" loc="(150,100)" name="Splitter">
+      <a name="incoming" val="4"/><a name="bit1" val="0"/><a name="bit2" val="1"/><a name="bit3" val="1"/>
+    </comp>
+    <comp lib="0" loc="(200,80)" name="Pin"><a name="facing" val="west"/><a name="width" val="2"/></comp>
+    <comp lib="0" loc="(220,90)" name="Pin"><a name="facing" val="west"/><a name="width" val="2"/></comp>
+  </circuit>
+  <circuit name="both">
+    <wire from="(100,100)" to="(150,100)"/>
+    <wire from="(170,80)" to="(200,80)"/>
+    <comp lib="0" loc="(100,100)" name="Pin"><a name="width" val="4"/></comp>
+    <comp lib="0" loc="(150,100)" name="Splitter">
+      <a name="incoming" val="4"/><a name="bit1" val="0"/><a name="bit2" val="1"/><a name="bit3" val="1"/>
+    </comp>
+    <comp lib="0" loc="(200,80)" name="Pin"><a name="facing" val="west"/><a name="width" val="2"/></comp>
+  </circuit>
+  <circuit name="through tunnels">
+    <wire from="(50,100)" to="(60,100)"/>
+    <wire from="(100,100)" to="(150,100)"/>
+    <wire from="(170,80)" to="(200,80)"/>
+    <comp lib="0" loc="(50,100)" name="Pin"><a name="width" val="4"/></comp>
+    <comp lib="0" loc="(60,100)" name="Tunnel"><a name="facing" val="west"/><a name="label" val="x"/><a name="width" val="4"/></comp>
+    <comp lib="0" loc="(100,100)" name="Tunnel"><a name="label" val="x"/><a name="width" val="4"/></comp>
+    <comp lib="0" loc="(150,100)" name="Splitter">
+      <a name="incoming" val="4"/><a name="bit1" val="0"/><a name="bit2" val="1"/><a name="bit3" val="1"/>
+    </comp>
+    <comp lib="0" loc="(200,80)" name="Pin">
+      <a name="facing" val="west"/><a name="output" val="true"/><a name="width" val="2"/>
+    </comp>
+  </circuit>
+  <circuit name="wires">
+    <wire from="(100,100)" to="(200,100)"/>
+    <wire from="(150,100)" to="(150,150)"/>
+    <wire from="(100,300)" to="(150,300)"/>
+    <wire from="(150,300)" to="(200,300)"/>
+    <wire from="(150,300)" to="(150,350)"/>
+    <wire from="(100,500)" to="(200,500)"/>
+    <wire from="(150,450)" to="(150,550)"/>
+  </circuit>
+  <circuit name="tunnels">
+    <wire from="(100,100)" to="(150,100)"/>
+    <wire from="(300,100)" to="(350,100)"/>
+    <wire from="(100,200)" to="(150,200)"/>
+    <wire from="(100,250)" to="(150,250)"/>
+    <wire from="(300,200)" to="(350,200)"/>
+    <wire from="(300,300)" to="(350,300)"/>
+    <wire from="(300,350)" to="(350,350)"/>
+    <comp lib="0" loc="(100,100)" name="Pin"/>
+    <comp lib="0" loc="(150,100)" name="Tunnel"><a name="facing" val="west"/><a name="label" val="a"/></comp>
+    <comp lib="0" loc="(300,100)" name="Tunnel"><a name="label" val="a"/></comp>
+    <comp lib="0" loc="(350,100)" name="Pin"><a name="facing" val="west"/><a name="output" val="true"/></comp>
+    <comp lib="0" loc="(300,200)" name="Tunnel"><a name="label" val="b"/></comp>
+    <comp lib="0" loc="(350,200)" name="Pin"><a name="facing" val="west"/><a name="output" val="true"/></comp>
+    <comp lib="0" loc="(100,200)" name="Pin"/>
+    <comp lib="0" loc="(150,200)" name="Tunnel"><a name="facing" val="west"/><a name="label" val="b"/></comp>
+    <comp lib="0" loc="(100,250)" name="Pin"/>
+    <comp lib="0" loc="(150,250)" name="Tunnel"><a name="facing" val="west"/><a name="label" val="b"/></comp>
+    <comp lib="0" loc="(300,300)" name="Tunnel"><a name="label" val="c"/></comp>
+    <comp lib="0" loc="(350,300)" name="Pin"><a name="facing" val="west"/><a name="output" val="true"/></comp>
+    <comp lib="0" loc="(300,350)" name="Tunnel"><a name="label" val="c"/></comp>
+    <comp lib="0" loc="(350,350)" name="Pin"><a name="facing" val="west"/><a name="output" val="true"/></comp>
+  </circuit>
+  <circuit name="lone tunnels">
+    <wire from="(300,100)" to="(350,100)"/>
+    <comp lib="0" loc="(300,100)" name="Tunnel"><a name="label" val="d"/></comp>
+    <comp lib="0" loc="(350,100)" name="Pin"><a name="facing" val="west"/><a name="output" val="true"/></comp>
+    <comp lib="0" loc="(300,200)" name="Tunnel"><a name="label" val="e"/></comp>
+  </circuit>
+  <circuit name="lacking">
+    <wire from="(250,340)" to="(250,400)"/>
+    <comp lib="4" loc="(300,300)" name="RAM"><a name="bus" val="separate"/></comp>
+    <comp lib="0" loc="(250,400)" name="Pin"><a name="facing" val="north"/></comp>
+  </circuit>
+  <circuit name="junction">
+    <wire from="(50,100)" to="(100,100)"/>
+    <wire from="(120,90)" to="(150,90)"/>
+    <comp lib="0" loc="(50,100)" name="Pin"/>
+    <comp lib="0" loc="(100,100)" name="Splitter"><a name="incoming" val="1"/><a name="fanout" val="1"/></comp>
+    <comp lib="0" loc="(150,90)" name="Pin"><a name="facing" val="west"/><a name="output" val="true"/></comp>
+  </circuit>
+</project>

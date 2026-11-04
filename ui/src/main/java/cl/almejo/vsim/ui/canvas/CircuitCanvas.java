@@ -445,6 +445,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return List.copyOf(guides);
     }
 
+    /**
+     * The elements the moves shown on this canvas drag, where their previews show them (see
+     * {@link Tool#movingElements}): this canvas's tool's and those of a gesture of another pane of the window that
+     * crosses over here. Read-only; empty when nothing is being moved.
+     */
+    public List<DocumentElement> movingElements() {
+        List<DocumentElement> own = tool.movingElements(this);
+        List<CircuitCanvas> sharing = panesSharingAGesture();
+        if (sharing.isEmpty()) {
+            return own;
+        }
+        List<DocumentElement> moving = new ArrayList<>(own);
+        for (CircuitCanvas pane : sharing) {
+            moving.addAll(pane.tool.movingElements(new CrossPaneContext(pane, this)));
+        }
+        return List.copyOf(moving);
+    }
+
     /** True while this canvas's tool holds a gesture that the other panes of the window show. */
     private boolean sharesGesture() {
         return gestureUnderWay && tool.crossesPanes();

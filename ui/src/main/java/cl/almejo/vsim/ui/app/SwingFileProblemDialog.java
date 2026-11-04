@@ -16,7 +16,7 @@ import java.awt.Dimension;
 import java.awt.Window;
 
 /** The real dialog: the message, and a «Detalles» button that opens the technical text under it. */
-final class SwingFileProblemDialog implements FileProblemDialog {
+public final class SwingFileProblemDialog implements FileProblemDialog {
 
     private static final int TEXT_WIDTH_PIXELS = 420;
 

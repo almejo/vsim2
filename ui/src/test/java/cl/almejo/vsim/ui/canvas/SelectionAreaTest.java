@@ -47,4 +47,28 @@ class SelectionAreaTest {
         assertThat(SelectionArea.of(component, registry))
                 .isEqualTo(ComponentDrawing.documentBounds(registry.typeOf(component), component));
     }
+
+    /**
+     * Fix round 3: a bus splitter's pin 0 is its bus, so the value box of a bus pin was added to its outline (an
+     * outline about 12 units wide around a part 2 to 4 units wide). Only interface pins draw a value box.
+     */
+    @Test
+    void aMultiBitPartThatIsNotAnInterfacePinIsSelectedByItsBodyOnly() {
+        List<Map<String, Object>> splitterParameters = List.of(
+                Map.of("width", 8), Map.of("width", 4),
+                Map.of("width", 32, StandardComponentTypes.GROUPS, "0-6|7-11|12-14|15-19|20-24|25-31"));
+        for (String typeId : List.of(StandardComponentTypes.BUS_SPLITTER, StandardComponentTypes.BUS_JOINER)) {
+            for (Map<String, Object> parameters : splitterParameters) {
+                for (Rotation rotation : Rotation.values()) {
+                    Component component = pin(typeId, rotation, parameters);
+                    ComponentType type = registry.typeOf(component);
+                    assertThat(SelectionArea.of(component, registry)).as(typeId + " " + parameters + " " + rotation)
+                            .isEqualTo(ComponentDrawing.documentBounds(type, component));
+                }
+            }
+        }
+        Component adder = pin(StandardComponentTypes.ADDER, Rotation.R0, Map.of("width", 8));
+        assertThat(SelectionArea.of(adder, registry))
+                .isEqualTo(ComponentDrawing.documentBounds(registry.typeOf(adder), adder));
+    }
 }

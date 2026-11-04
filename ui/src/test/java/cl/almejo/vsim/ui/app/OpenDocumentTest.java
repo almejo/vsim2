@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -162,6 +163,50 @@ class OpenDocumentTest {
     }
 
     @Test
+    void aNewCircuitTakesTheFileNameOnItsFirstSave(@TempDir Path directory) throws Exception {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        assertThat(document.circuitName()).isEqualTo("Sin título");
+
+        document.save(directory.resolve("contador.vsim"));
+
+        assertThat(document.document().name()).isEqualTo("contador");
+        assertThat(document.circuitName()).isEqualTo("contador");
+        assertThat(document.isModified()).isFalse();
+        assertThat(track(OpenDocument.open(directory.resolve("contador.vsim"), registry)).document().name())
+                .isEqualTo("contador");
+    }
+
+    @Test
+    void savingUnderAnotherFileKeepsTheCircuitNameAndTheWindowShowsTheFile(@TempDir Path directory)
+            throws Exception {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        document.document().setName("Sumador de 4 bits");
+        document.save(directory.resolve("primero.vsim"));
+        document.save(directory.resolve("segundo.vsim"));
+
+        assertThat(document.document().name()).isEqualTo("Sumador de 4 bits");
+        assertThat(document.displayName()).isEqualTo("segundo");
+        OpenDocument reopened = track(OpenDocument.open(directory.resolve("segundo.vsim"), registry));
+        assertThat(reopened.circuitName()).isEqualTo("Sumador de 4 bits");
+        assertThat(reopened.displayName()).isEqualTo("segundo");
+    }
+
+    @Test
+    void anUntitledDocumentShowsTheNameItWasOpenedUnderNotItsCircuitName(@TempDir Path directory)
+            throws Exception {
+        CircuitDocument imported = new CircuitDocument();
+        imported.setName("Simple Uprog Lrv32im");
+        OpenDocument document = track(new OpenDocument(imported, registry, null, false));
+        document.showUntitledAs("lrv32im-up");
+
+        assertThat(document.displayName()).isEqualTo("lrv32im-up");
+        assertThat(document.suggestedFileName()).isEqualTo("lrv32im-up.vsim");
+        assertThat(document.circuitName()).isEqualTo("Simple Uprog Lrv32im");
+        document.save(directory.resolve("lrv32im-up.vsim"));
+        assertThat(document.document().name()).isEqualTo("Simple Uprog Lrv32im");
+    }
+
+    @Test
     void importedDocumentNeedsSaveAs() throws Exception {
         OpenDocument document = track(OpenDocument.open(Path.of("../core/src/test/resources/vsim1/one-gate.json"), registry));
         assertThat(document.isImportedFromVsim1()).isTrue();
@@ -298,7 +343,7 @@ class OpenDocumentTest {
         Path copy = directory.resolve("copy.vsim");
         OpenDocument source = track(OpenDocument.createEmpty(registry));
         place(source, StandardComponentTypes.LED, 4, 4, Map.of());
-        source.save(copy);
+        Files.writeString(copy, source.serialized());
 
         OpenDocument recovered = track(OpenDocument.openRecovered(copy, null, registry));
         assertThat(recovered.isModified()).isTrue();
@@ -313,10 +358,35 @@ class OpenDocumentTest {
         Path original = directory.resolve("contador.vsim");
         Path copy = directory.resolve("1b2c3d.vsim");
         OpenDocument source = track(OpenDocument.createEmpty(registry));
-        source.save(copy);
+        Files.writeString(copy, source.serialized());
 
         OpenDocument recovered = track(OpenDocument.openRecovered(copy, original, registry));
         assertThat(recovered.document().name()).isEmpty();
         assertThat(recovered.displayName()).isEqualTo("contador");
+    }
+
+    @Test
+    void aRecoveredUntitledCopyKeepsTheWindowNameItHad(@TempDir Path directory) throws Exception {
+        Path copy = directory.resolve("copy.vsim");
+        OpenDocument source = track(OpenDocument.createEmpty(registry));
+        source.document().setName("Simple Uprog Lrv32im");
+        source.showUntitledAs("lrv32im-up");
+        Files.writeString(copy, source.serialized());
+
+        OpenDocument recovered = track(OpenDocument.openRecovered(copy, null, "lrv32im-up", registry));
+        assertThat(recovered.displayName()).isEqualTo("lrv32im-up");
+        assertThat(recovered.circuitName()).isEqualTo("Simple Uprog Lrv32im");
+    }
+
+    @Test
+    void aRecoveredUntitledCopyDoesNotFreezeTheUntitledText(@TempDir Path directory) throws Exception {
+        Path copy = directory.resolve("copy.vsim");
+        OpenDocument source = track(OpenDocument.createEmpty(registry));
+        Files.writeString(copy, source.serialized());
+
+        OpenDocument recovered = track(OpenDocument.openRecovered(copy, null,
+                cl.almejo.vsim.ui.i18n.Messages.text("document.untitled"), registry));
+        recovered.document().setName("Otro");
+        assertThat(recovered.displayName()).isEqualTo("Otro");
     }
 }

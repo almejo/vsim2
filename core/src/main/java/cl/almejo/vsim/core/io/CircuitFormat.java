@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.MultiBitOrientation;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.StandardParameters;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -31,6 +33,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
@@ -173,7 +176,8 @@ public final class CircuitFormat {
     /**
      * The parameters a file keeps, sorted. M7: an input or output pin's «Mostrar como» is left out while it is
      * «Automático», and a Switch or LED's one-bit width and default side too ({@link MultiBitLayout#withoutDefaults}),
-     * so parts written before them keep their bytes (reading fills them back in).
+     * a bus splitter or joiner's empty groups (one bit per pin) and a RAM's «Flanco» while it is «Bajada» and a register's «Disparo» while it is «Flanco de bajada» and a tunnel's «Dirección» while it is «Con dirección», so parts
+     * written before them keep their bytes (reading fills them back in).
      */
     private static Map<String, Object> writtenParameters(Component component) {
         Map<String, Object> written = new TreeMap<>(
@@ -181,6 +185,20 @@ public final class CircuitFormat {
         if (InterfacePins.isInterface(component.typeId())
                 && ConstantValue.AUTO.equals(written.get(ConstantValue.FORMAT))) {
             written.remove(ConstantValue.FORMAT);
+        }
+        if ("".equals(written.get(StandardComponentTypes.GROUPS))) {
+            written.remove(StandardComponentTypes.GROUPS);
+        }
+        if (StandardComponentTypes.RAM.equals(component.typeId())
+                && StandardParameters.FALLING.equals(written.get(StandardParameters.EDGE.name()))) {
+            written.remove(StandardParameters.EDGE.name());
+        }
+        if (StandardComponentTypes.REGISTER.equals(component.typeId())
+                && StandardParameters.FALLING.equals(written.get(StandardComponentTypes.TRIGGER))) {
+            written.remove(StandardComponentTypes.TRIGGER);
+        }
+        if (Tunnels.isTunnel(component.typeId()) && Tunnels.DIRECTED.equals(written.get(Tunnels.DIRECTION))) {
+            written.remove(Tunnels.DIRECTION);
         }
         return written;
     }

@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.ExportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +73,7 @@ class TidyToolbarTest {
 
     @Test
     void bothActionsGetTheirIconsInTheMenuAndTheToolbarSizes() {
-        Action export = item(view.menu(MenuId.FILE), "Exportar imagen…").getAction();
+        Action export = item(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow(), "Imagen…").getAction();
         Action tidy = item(view.menu(MenuId.EDIT), "Ordenar cables").getAction();
         assertThat(export.getValue(Action.SMALL_ICON)).isSameAs(Icons.get(ExportIcons.EXPORT_IMAGE, Icons.MENU_SIZE));
         assertThat(export.getValue(Action.LARGE_ICON_KEY))

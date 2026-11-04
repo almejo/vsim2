@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -11,7 +12,9 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -44,13 +47,18 @@ class ConnectivityProblemsTest {
     private ComponentDefinition broken;
     private Component outer;
 
+    /**
+     * «Padre» holds «Hijo» (instance A1), whose input «Luz» reaches nothing inside: the only problem, since a loose
+     * pin of an inner part is not one (the canvas rule).
+     */
     @BeforeEach
     void create() {
         openDocument = OpenDocument.createEmpty(registry);
-        Component lamp = registry.require(StandardComponentTypes.LED).newComponent(new ElementId("lamp"),
+        Component input = registry.require(InterfacePins.INPUT_PIN).newComponent(new ElementId("input"),
                 GridPoint.ORIGIN, Rotation.R0, Map.of(), "Luz");
-        broken = new ComponentDefinition("child", "Hijo", "", new GridSize(4, 4), List.of(),
-                new CircuitFragment(List.of(lamp), List.of(), List.of()));
+        broken = new ComponentDefinition("child", "Hijo", "", new GridSize(4, 4),
+                List.of(new DefinitionPin(PinSpec.input("Luz", 0, 1), input.id())),
+                new CircuitFragment(List.of(input), List.of(), List.of()));
         openDocument.document().putDefinition(broken);
         Component child = openDocument.registry().require(SubcircuitTypes.typeIdOf("child"))
                 .newComponent(new ElementId("child-instance"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "A1");
@@ -82,7 +90,20 @@ class ConnectivityProblemsTest {
         assertThat(view.problems().nextProblem().isEnabled()).isTrue();
         ConnectivityProblem problem = openDocument.connectivityProblems().getFirst();
         assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
-                .contains("Padre", "A1", "Luz").contains("la entrada «").contains("» está desconectada");
+                .contains("Padre", "A1", "Luz").contains("no está conectado por dentro");
+    }
+
+    @Test
+    void aLoosePinOfAPartInsideAComponentIsNoProblemAsOnTheCanvas() {
+        openDocument.document().putDefinition(new ComponentDefinition("lamp-only", "Lámpara", "", new GridSize(4, 4),
+                List.of(), new CircuitFragment(List.of(registry.require(StandardComponentTypes.LED)
+                        .newComponent(new ElementId("lamp"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "")),
+                        List.of(), List.of())));
+        List<ConnectivityProblem> before = openDocument.connectivityProblems();
+
+        place(openDocument, SubcircuitTypes.typeIdOf("lamp-only"), 30, 0, Map.of());
+
+        assertThat(openDocument.connectivityProblems()).containsExactlyElementsOf(before);
     }
 
     @Test
@@ -139,10 +160,9 @@ class ConnectivityProblemsTest {
         ConnectivityProblem problem = openDocument.connectivityProblems().getFirst();
 
         assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
-                .startsWith("Padre › A1 › Luz")
-                .contains("la entrada «")
-                .endsWith("» está desconectada");
-        assertThat(problem.path()).hasSize(3).first().isEqualTo(outer.id());
+                .startsWith("Padre › A1")
+                .endsWith("el terminal «Luz» no está conectado por dentro");
+        assertThat(problem.path()).hasSize(2).first().isEqualTo(outer.id());
     }
 
     private int bodyPixel(ConnectivityOverlay overlay) {
@@ -165,12 +185,16 @@ class ConnectivityProblemsTest {
         return image.getRGB(114, 87);
     }
 
+    /** «Hijo» again with a lamp whose input lands on the input pin's own pin. */
     private void repairChild() {
-        Component lamp = broken.body().components().getFirst();
-        Component source = registry.require(StandardComponentTypes.SWITCH).newComponent(new ElementId("source"),
-                new GridPoint(-3, 2), Rotation.R0, Map.of(), "");
+        Component input = broken.body().components().getFirst();
+        GridPoint inputPin = registry.typeOf(input).pinLocation(input, 0);
+        Component lampAtOrigin = registry.require(StandardComponentTypes.LED).newComponent(new ElementId("lamp"),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        GridPoint lampPin = registry.typeOf(lampAtOrigin).pinLocation(lampAtOrigin, 0);
+        Component lamp = lampAtOrigin.translate(inputPin.x() - lampPin.x(), inputPin.y() - lampPin.y());
         ComponentDefinition repaired = new ComponentDefinition(broken.id(), broken.name(), broken.description(),
-                broken.size(), broken.pinout(), new CircuitFragment(List.of(lamp, source), List.of(), List.of()));
+                broken.size(), broken.pinout(), new CircuitFragment(List.of(input, lamp), List.of(), List.of()));
 
         openDocument.execute(ReplaceDefinitionCommand.prepare(openDocument.document(), openDocument.registry(),
                 new DefinitionBundle(repaired, List.of())));

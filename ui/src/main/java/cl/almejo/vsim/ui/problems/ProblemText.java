@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
-import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -100,8 +99,9 @@ public final class ProblemText {
     private static String connectivity(ConnectivityProblem problem, CircuitDocument document,
                                        ComponentTypeRegistry registry) {
         return switch (problem.cause()) {
-            case INNER_PIN -> innerPin(problem, document, registry);
-            case LOOSE_WIRE_END -> looseWire(problem, document);
+            // Inside a component the canvas rule holds (a loose inner pin or wire end is no problem), so these two
+            // are never published; only the library-update check looks for them ({@code everyLooseEnd}).
+            case INNER_PIN, LOOSE_WIRE_END -> throw new IllegalStateException("never published: " + problem.cause());
             case UNCONNECTED_INTERFACE -> Messages.format("problem.connectivity.interface",
                     path(problem.elementId(), document).orElse(problem.elementId()),
                     pinName(problem, document, registry));
@@ -113,32 +113,6 @@ public final class ProblemText {
             case OUTDATED_CANNOT_UPDATE -> Messages.format("problem.connectivity.outdatedNested",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document),
                     String.join(", ", DefinitionUpdateSafety.containingNames(document, outdatedDefinitionId(problem))));
-        };
-    }
-
-    private static String looseWire(ConnectivityProblem problem, CircuitDocument document) {
-        String location = InstancePath.isNested(problem.elementId())
-                ? path(problem.elementId().substring(0, problem.elementId().lastIndexOf('/')), document)
-                        .orElse(problem.elementId())
-                : Messages.text("problem.connectivity.circuit");
-        return Messages.format("problem.connectivity.looseWire", location,
-                problem.position().x(), problem.position().y());
-    }
-
-    /** «Padre › A1 › AND: entrada B desconectada»: the whole path, then the pin by its direction and name. */
-    private static String innerPin(ConnectivityProblem problem, CircuitDocument document,
-                                   ComponentTypeRegistry registry) {
-        String componentPath = path(problem.elementId(), document).orElse(problem.elementId());
-        String pinName = pinName(problem, document, registry);
-        Optional<PinDirection> direction = pinType(problem, document, registry)
-                .map(type -> type.pin(problem.pinIndex()).direction());
-        return switch (direction.orElse(PinDirection.BIDIRECTIONAL)) {
-            case INPUT -> PinNames.isNumberedInput(pinName)
-                    ? Messages.format("problem.connectivity.pin.numberedInput", componentPath,
-                            PinNames.display(pinName))
-                    : Messages.format("problem.connectivity.pin.input", componentPath, pinName);
-            case OUTPUT -> Messages.format("problem.connectivity.pin.output", componentPath, pinName);
-            case BIDIRECTIONAL -> Messages.format("problem.connectivity.pin", componentPath, pinName);
         };
     }
 
@@ -192,6 +166,7 @@ public final class ProblemText {
             case EXIT_WITHOUT_ENTRANCE -> Messages.format("problem.tunnel.exitWithoutEntrance", problem.name());
             case ENTRANCE_WITHOUT_EXITS -> Messages.format("problem.tunnel.entranceWithoutExits", problem.name());
             case EXIT_DRIVEN -> Messages.format("problem.tunnel.exitDriven", problem.name());
+            case LONE_TUNNEL -> Messages.format("problem.tunnel.lone", problem.name());
         };
     }
 

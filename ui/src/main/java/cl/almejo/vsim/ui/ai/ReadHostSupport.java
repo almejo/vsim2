@@ -63,7 +63,8 @@ final class ReadHostSupport {
 
     /** @param library the user's component library, which the AI may also place from */
     ReadSource source(DocumentId id, OpenDocument document, List<DefinitionBundle> library) {
-        return new ReadSource(id, version(document), document.displayName(), document.document(),
+        // The circuit's own name (list_documents gives the window's, the file's).
+        return new ReadSource(id, version(document), document.circuitName(), document.document(),
                 document.registry(), document.netlist(), document.netlistToken(), document.latestSnapshot(), NAMES,
                 library, LabelTextMeasure.INSTANCE, document.path());
     }

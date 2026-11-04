@@ -56,9 +56,12 @@ public final class ShortcutCatalog {
         window(entries, "file.open", "action.open", MenuId.FILE, stroke(KeyEvent.VK_O, menu));
         window(entries, "file.save", "action.save", MenuId.FILE, stroke(KeyEvent.VK_S, menu));
         window(entries, "file.saveAs", "action.saveAs", MenuId.FILE, stroke(KeyEvent.VK_S, menu | shift));
+        // right after «Guardar como…», as in the menu
+        window(entries, "file.print", "action.print", MenuId.FILE, stroke(KeyEvent.VK_P, menu));
         window(entries, "file.exportImage", "action.exportImage", MenuId.FILE, null);
-        // no default: Ctrl/⌘+P stays free for «Imprimir…»
+        // no default: Ctrl/⌘+P is «Imprimir…»
         window(entries, "file.exportPdf", "action.exportPdf", MenuId.FILE, null);
+        window(entries, "file.exportLogisim", "action.exportLogisim", MenuId.FILE, null);
         window(entries, "file.importTruthTable", "action.importTruthTable", MenuId.FILE, null);
         window(entries, "file.preferences", "action.preferences", MenuId.FILE, null);
         window(entries, "file.close", "action.close", MenuId.FILE, stroke(KeyEvent.VK_W, menu));
@@ -115,6 +118,7 @@ public final class ShortcutCatalog {
         window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);
         window(entries, "view.addVerticalGuide", "action.addVerticalGuide", MenuId.VIEW, null);
         window(entries, "view.clearGuides", "action.clearGuides", MenuId.VIEW, null);
+        window(entries, "view.showSheets", "action.showSheets", MenuId.VIEW, null);
         canvasView(entries, "view.nextProblem", "action.nextProblem", stroke(KeyEvent.VK_F8, 0));
         canvasView(entries, "view.previousProblem", "action.previousProblem", stroke(KeyEvent.VK_F8, shift));
         window(entries, "waveforms.toggle", "menu.view.waveforms", MenuId.VIEW, null);

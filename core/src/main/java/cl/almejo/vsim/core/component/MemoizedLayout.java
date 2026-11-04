@@ -13,7 +13,8 @@ import java.util.stream.Collectors;
  * component (asked on every paint and hit test) do not run its layout again. Keeps at most {@link #LIMIT} shapes per
  * type. Equal to another memo of the same layout, so types stay equal however often they are built. The hidden
  * <em>text</em> parameters (a memory's contents, possibly megabytes of text) never key a shape, so a layout must not
- * depend on them; the other hidden parameters (the side of a multi-bit Switch's pin) are small and do key it.
+ * depend on them, unless they are marked {@linkplain ParameterSpec#keysShape() as keys} (a splitter's groups, a short
+ * text); the other hidden parameters (the side of a multi-bit Switch's pin) are small and do key it.
  */
 final class MemoizedLayout implements ComponentLayout {
 
@@ -37,7 +38,7 @@ final class MemoizedLayout implements ComponentLayout {
     }
 
     private static boolean isBulky(ParameterSpec parameter) {
-        return parameter.hidden() && parameter.kind() == ParameterKind.TEXT;
+        return parameter.hidden() && parameter.kind() == ParameterKind.TEXT && !parameter.keysShape();
     }
 
     /** {@code resolvedParameters} without the hidden ones: what keys a shape. */

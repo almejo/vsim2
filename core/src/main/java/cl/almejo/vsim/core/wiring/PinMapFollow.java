@@ -35,6 +35,7 @@ final class PinMapFollow implements ContactProbe.Layout {
     private final Map<PinRef, GridPoint> pinsBefore = new LinkedHashMap<>();
     private final Map<PinRef, GridPoint> pinsAfter = new LinkedHashMap<>();
     private final Map<PinRef, String> pinNames = new HashMap<>();
+    private final Set<GridPoint> addedPinPlaces;
     private final Map<GridPoint, GridPoint> movedEnds = new LinkedHashMap<>();
     private final Map<ElementId, GridPoint> wireRoots = new HashMap<>();
     private final List<Wire> placed = new ArrayList<>();
@@ -48,6 +49,7 @@ final class PinMapFollow implements ContactProbe.Layout {
                          Supplier<ElementId> newWireIds) {
         this.document = Objects.requireNonNull(document, "document");
         this.newWireIds = Objects.requireNonNull(newWireIds, "newWireIds");
+        this.addedPinPlaces = moves.addedPinPlaces();
         Map<GridPoint, List<PinRef>> pinsAt = new HashMap<>();
         for (Component component : document.components()) {
             ComponentType type = registry.typeOf(component);
@@ -234,7 +236,7 @@ final class PinMapFollow implements ContactProbe.Layout {
             Wire segment = new Wire(ROUTE_SEGMENT_ID, points.get(index), points.get(index + 1));
             boolean touchesPin = pinsAfter.entrySet().stream().anyMatch(pin -> segment.contains(pin.getValue())
                     && !root.equals(original.find(pinsBefore.get(pin.getKey()))));
-            if (touchesPin) {
+            if (touchesPin || addedPinPlaces.stream().anyMatch(segment::contains)) {
                 return false;
             }
             for (Wire existing : placed) {

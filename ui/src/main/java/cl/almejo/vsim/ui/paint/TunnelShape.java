@@ -137,6 +137,24 @@ public final class TunnelShape {
         return arrow;
     }
 
+    /**
+     * What a tunnel «Sin dirección» has where the others have their arrow: two triangles back to back, one pointing
+     * toward the hole and one away from it, in the same slot, so it reads as «both ways».
+     */
+    public Path2D twoWayMark() {
+        double near = fromWireSide(arrowNear());
+        double far = fromWireSide(arrowNear() + ARROW_LENGTH);
+        double middle = (near + far) / 2;
+        Path2D mark = new Path2D.Double();
+        for (double tip : new double[]{near, far}) {
+            mark.moveTo(middle, MIDDLE - ARROW_HALF_HEIGHT);
+            mark.lineTo(tip, MIDDLE);
+            mark.lineTo(middle, MIDDLE + ARROW_HALF_HEIGHT);
+            mark.closePath();
+        }
+        return mark;
+    }
+
     /** Where the name goes: the rest of the tag after the arrow, on the side away from the wire. */
     public Rectangle2D textBox() {
         double near = fromWireSide(arrowNear() + ARROW_LENGTH + TEXT_GAP);

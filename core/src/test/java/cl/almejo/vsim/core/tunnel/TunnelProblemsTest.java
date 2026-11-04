@@ -5,8 +5,10 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.TunnelProblem.Kind;
+import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -146,5 +148,69 @@ class TunnelProblemsTest {
             assertThat(problem.tunnels()).allSatisfy(id -> assertThat(InstancePath.topLevel(id))
                     .isEqualTo(instance.id().value()));
         });
+    }
+    // --- Tunnels without direction ---
+
+    @Test
+    void tunnelsWithoutDirectionJoinWithoutProblemsWhicheverIsDriven() {
+        circuit.undirected("BUS", circuit.pin(ledAt(40, 20), 0));
+        Component source = circuit.place(StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
+        circuit.undirectedExit("BUS", circuit.pin(source, 0));
+        Component led = ledAt(40, 40);
+        circuit.undirected("BUS", circuit.pin(led, 0));
+
+        assertThat(problems()).isEmpty();
+        assertThat(circuit.valueAt(circuit.simulate(), led, 0)).isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void aLoneTunnelWithoutDirectionIsAWarning() {
+        Component lone = circuit.undirected("BUS", circuit.pin(switchAt(0, 0), 0));
+
+        assertThat(problems()).singleElement().satisfies(problem -> {
+            assertThat(problem.kind()).isEqualTo(Kind.LONE_TUNNEL);
+            assertThat(problem.name()).isEqualTo("BUS");
+            assertThat(problem.tunnels()).containsExactly(lone.id().value());
+            assertThat(problem.isWarning()).isTrue();
+        });
+    }
+
+    @Test
+    void exitsWithoutEntranceAreFineWhenTheNameHasTunnelsWithoutDirection() {
+        circuit.undirected("CLK", circuit.pin(switchAt(0, 0), 0));
+        circuit.exit("CLK", circuit.pin(ledAt(40, 20), 0));
+        circuit.exit("CLK", circuit.pin(ledAt(40, 40), 0));
+
+        assertThat(problems()).isEmpty();
+    }
+
+    @Test
+    void anEntranceWithOnlyTunnelsWithoutDirectionHasExits() {
+        circuit.entrance("CLK", circuit.pin(switchAt(0, 0), 0));
+        circuit.undirected("CLK", circuit.pin(ledAt(40, 20), 0));
+
+        assertThat(problems()).isEmpty();
+    }
+
+    @Test
+    void entrancesWithoutDirectionAreNeverDuplicates() {
+        circuit.entrance("CLK", circuit.pin(switchAt(0, 0), 0));
+        circuit.undirected("CLK", circuit.pin(ledAt(40, 20), 0));
+        circuit.undirected("CLK", circuit.pin(ledAt(40, 40), 0));
+        circuit.exit("CLK", circuit.pin(ledAt(40, 60), 0));
+
+        assertThat(problems()).isEmpty();
+    }
+
+    @Test
+    void twoDriversThroughTunnelsWithoutDirectionAreTheUsualShort() {
+        Component high = circuit.place(StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
+        circuit.undirected("BUS", circuit.pin(high, 0));
+        Component low = circuit.place(StandardComponentTypes.SWITCH, 0, 20, Map.of("value", "0"));
+        circuit.undirected("BUS", circuit.pin(low, 0));
+
+        assertThat(problems()).isEmpty();
+        assertThat(circuit.simulate().problems()).anySatisfy(problem ->
+                assertThat(problem).isInstanceOf(ShortCircuit.class));
     }
 }

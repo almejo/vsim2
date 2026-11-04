@@ -4,13 +4,26 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
-/** Packs pins b0..b(width-1) (pins 1..width) into the bus on pin 0 with no delay; b0 is bit 0 and a Z bit stays Z. */
+/**
+ * Packs the pins (pins 1..n, one per group) into the bus on pin 0 with no delay: bit {@code k} of a pin goes to the
+ * {@code k}-th lowest bus bit of its group. A Z bit stays Z, and so do the bus bits in no group. Each group is placed
+ * by its {@linkplain BitRun runs}, worked out once.
+ */
 final class BusJoinerBehavior implements Behavior {
 
     private final int width;
+    private final BitRun[][] runsByPin;
+    private final long unusedMask;
 
-    BusJoinerBehavior(int width) {
-        this.width = width;
+    BusJoinerBehavior(BitGroups groups) {
+        this.width = groups.width();
+        this.runsByPin = new BitRun[groups.pinCount()][];
+        for (int pin = 0; pin < groups.pinCount(); pin++) {
+            runsByPin[pin] = BitRun.of(groups.bitsOf(pin));
+        }
+        this.unusedMask = groups.unusedBits().stream()
+                .mapToLong(bit -> 1L << bit)
+                .reduce(0L, (mask, bitMask) -> mask | bitMask);
     }
 
     @Override
@@ -25,14 +38,14 @@ final class BusJoinerBehavior implements Behavior {
 
     private void join(BehaviorContext context) {
         long bits = 0L;
-        long highImpedance = 0L;
-        for (int bit = 0; bit < width; bit++) {
-            switch (context.input(bit + 1).bit(0)) {
-                case ONE -> bits |= 1L << bit;
-                case HIGH_IMPEDANCE -> highImpedance |= 1L << bit;
-                case ZERO -> {
-                    // A zero bit sets neither mask: it stays clear in both.
-                }
+        long highImpedance = unusedMask;
+        for (int pin = 0; pin < runsByPin.length; pin++) {
+            Value input = context.input(pin + 1);
+            // a bit beyond a narrower input reads Z
+            long inputHighImpedance = input.highImpedanceMask() | ~Value.maskFor(input.width());
+            for (BitRun run : runsByPin[pin]) {
+                bits |= run.toBus(input.bits());
+                highImpedance |= run.toBus(inputHighImpedance);
             }
         }
         context.drive(0, new Value(width, bits, highImpedance, false), 0);

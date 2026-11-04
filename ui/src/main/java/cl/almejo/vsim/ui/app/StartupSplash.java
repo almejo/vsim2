@@ -3,23 +3,47 @@ package cl.almejo.vsim.ui.app;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import javax.swing.JComponent;
+import javax.swing.JWindow;
+import javax.swing.SwingUtilities;
+import java.awt.AWTEvent;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
+import java.awt.Image;
+import java.awt.MouseInfo;
+import java.awt.PointerInfo;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.SplashScreen;
+import java.awt.Toolkit;
+import java.awt.event.AWTEventListener;
+import java.awt.event.WindowEvent;
+import java.awt.image.BaseMultiResolutionImage;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
- * The splash screen the JVM shows before {@link Main} runs ({@code SplashScreen-Image} in the jar's manifest,
- * {@code -splash:} for {@code ./gradlew :ui:run}). The image is {@code docs/logo/splash.html}; the version and the
- * «Cargando…» line are painted here so they follow the build and the language. It stays at least
- * {@link #MINIMUM_TIME} on screen: the JVM closes it when the first window shows, so the start waits the rest.
+ * VSim's splash screen: an undecorated window centred on the screen under the pointer (the JVM's own splash centres
+ * on the whole desktop, between two monitors). The image is {@code docs/logo/splash.html}; the version and the
+ * «Cargando…» line are painted here so they follow the build and the language. The picture is composed before the
+ * window shows (the first text drawn loads the fonts, which takes about a second), so it never opens empty. It stays at least
+ * {@link #MINIMUM_TIME} on screen ({@link #awaitMinimumTime()} holds the first window back) and closes itself when
+ * another window opens.
  */
 final class StartupSplash {
 
@@ -27,35 +51,37 @@ final class StartupSplash {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StartupSplash.class);
 
-    /** The image's own size; the overlay is drawn in these units and scaled to the splash's size. */
-    private static final double IMAGE_WIDTH = 640;
-    private static final Color VERSION_COLOR = new Color(0x4A5462);
-    private static final Color LOADING_COLOR = new Color(0x56606D);
+    private static final int IMAGE_WIDTH = 640;
+    private static final int IMAGE_HEIGHT = 400;
+    private static final String[] IMAGE_RESOURCES = {"/splash/vsim2-splash.png", "/splash/vsim2-splash@2x.png"};
+    private static final Color LOADING_COLOR = new Color(0x8A8F98);
+    private static final Color VERSION_COLOR = new Color(0x5A5E66);
+    /** The image's own background, behind everything until the picture is painted. */
+    private static final Color BACKGROUND = new Color(0x1E1F22);
 
-    private final SplashScreen splashScreen;
+    /** How long {@link #awaitFirstPaint()} waits at most before the start goes on anyway. */
+    private static final Duration FIRST_PAINT_LIMIT = Duration.ofMillis(1500);
+
     private final Instant shownAt;
+    private final CountDownLatch painted;
 
-    private StartupSplash(SplashScreen splashScreen, Instant shownAt) {
-        this.splashScreen = splashScreen;
+    private StartupSplash(Instant shownAt, CountDownLatch painted) {
         this.shownAt = shownAt;
+        this.painted = painted;
     }
 
-    /** The splash on screen, if the JVM shows one (never in headless runs or when started without it). */
-    static Optional<StartupSplash> current() {
+    /** Shows the splash (on the EDT, soon) unless the run is headless or the image is missing. */
+    static Optional<StartupSplash> show(String version, String loading) {
         if (GraphicsEnvironment.isHeadless()) {
             return Optional.empty();
         }
-        try {
-            SplashScreen splashScreen = SplashScreen.getSplashScreen();
-            if (splashScreen == null) {
-                return Optional.empty();
-            }
-            Instant shownAt = ProcessHandle.current().info().startInstant().orElseGet(Instant::now);
-            return Optional.of(new StartupSplash(splashScreen, shownAt));
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Cannot read the splash screen", exception);
+        Optional<Image> picture = composePicture("v" + version, loading);
+        if (picture.isEmpty()) {
             return Optional.empty();
         }
+        CountDownLatch painted = new CountDownLatch(1);
+        SwingUtilities.invokeLater(() -> open(picture.get(), painted));
+        return Optional.of(new StartupSplash(Instant.now(), painted));
     }
 
     /** How long the start still has to wait so the splash lasts {@code minimum}; zero once it has. */
@@ -64,31 +90,15 @@ final class StartupSplash {
         return left.isNegative() ? Duration.ZERO : left;
     }
 
-    /** Paints «REV x.y» under «HOJA DE DATOS» and the loading line at the bottom left. Cosmetic, never fails. */
-    void paintTexts(String version, String loading) {
+    /**
+     * Blocks until the splash has been painted once (at most {@link #FIRST_PAINT_LIMIT}). Call it before queueing the
+     * rest of the start on the EDT: queued first, that work held the paint back and the window stayed empty.
+     */
+    void awaitFirstPaint() {
         try {
-            if (!splashScreen.isVisible()) {
-                return;
-            }
-            Graphics2D graphics = splashScreen.createGraphics();
-            try {
-                Dimension size = splashScreen.getSize();
-                double scale = size.width / IMAGE_WIDTH;
-                graphics.scale(scale, scale);
-                graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 10));
-                FontMetrics metrics = graphics.getFontMetrics();
-                String revision = "REV " + version;
-                graphics.setColor(VERSION_COLOR);
-                graphics.drawString(revision, 610 - metrics.stringWidth(revision), 59);
-                graphics.setColor(LOADING_COLOR);
-                graphics.drawString(loading, 30, 374);
-            } finally {
-                graphics.dispose();
-            }
-            splashScreen.update();
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Cannot paint over the splash screen", exception);
+            painted.await(FIRST_PAINT_LIMIT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -102,6 +112,112 @@ final class StartupSplash {
             Thread.sleep(left);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Each image variant (1x, 2x) with the two lines already drawn at its own resolution. */
+    private static Optional<Image> composePicture(String version, String loading) {
+        List<Image> variants = new ArrayList<>();
+        for (String resource : IMAGE_RESOURCES) {
+            try (InputStream stream = StartupSplash.class.getResourceAsStream(resource)) {
+                BufferedImage variant = stream == null ? null : ImageIO.read(stream);
+                if (variant != null) {
+                    variants.add(withTexts(variant, version, loading));
+                }
+            } catch (IOException exception) {
+                LOGGER.warn("Cannot read the splash image {}", resource, exception);
+            }
+        }
+        return variants.isEmpty() ? Optional.empty()
+                : Optional.of(new BaseMultiResolutionImage(variants.toArray(Image[]::new)));
+    }
+
+    private static BufferedImage withTexts(BufferedImage image, String version, String loading) {
+        BufferedImage composed = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = composed.createGraphics();
+        try {
+            graphics.drawImage(image, 0, 0, null);
+            double scale = image.getWidth() / (double) IMAGE_WIDTH;
+            graphics.scale(scale, scale);
+            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+            graphics.setColor(LOADING_COLOR);
+            graphics.drawString(loading, 416, 344);
+            FontMetrics metrics = graphics.getFontMetrics();
+            graphics.setColor(VERSION_COLOR);
+            graphics.drawString(version, 606 - metrics.stringWidth(version), 376);
+        } finally {
+            graphics.dispose();
+        }
+        return composed;
+    }
+
+    private static void open(Image picture, CountDownLatch painted) {
+        try {
+            JWindow window = new JWindow();
+            window.setBackground(BACKGROUND);
+            window.setContentPane(new SplashPicture(picture, painted));
+            window.pack();
+            Rectangle screen = screenUnderPointer().getBounds();
+            window.setLocation(screen.x + (screen.width - window.getWidth()) / 2,
+                    screen.y + (screen.height - window.getHeight()) / 2);
+            closeWhenAnotherWindowOpens(window);
+            window.setVisible(true);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Cannot show the splash screen", exception);
+            painted.countDown();
+        }
+    }
+
+    private static GraphicsConfiguration screenUnderPointer() {
+        PointerInfo pointer = MouseInfo.getPointerInfo();
+        GraphicsDevice device = pointer == null ? null : pointer.getDevice();
+        if (device == null) {
+            device = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+        }
+        return device.getDefaultConfiguration();
+    }
+
+    private static void closeWhenAnotherWindowOpens(JWindow splash) {
+        Toolkit toolkit = Toolkit.getDefaultToolkit();
+        AWTEventListener listener = new AWTEventListener() {
+            @Override
+            public void eventDispatched(AWTEvent event) {
+                if (event.getID() == WindowEvent.WINDOW_OPENED && event.getSource() != splash) {
+                    toolkit.removeAWTEventListener(this);
+                    splash.dispose();
+                }
+            }
+        };
+        toolkit.addAWTEventListener(listener, AWTEvent.WINDOW_EVENT_MASK);
+    }
+
+    /** The composed picture at 640 × 400 (its 2x variant on scaled screens). */
+    private static final class SplashPicture extends JComponent {
+
+        private final Image picture;
+        private final CountDownLatch painted;
+
+        SplashPicture(Image picture, CountDownLatch painted) {
+            this.picture = picture;
+            this.painted = painted;
+            setOpaque(true);
+            setBackground(BACKGROUND);
+            setPreferredSize(new Dimension(IMAGE_WIDTH, IMAGE_HEIGHT));
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D graphics2D = (Graphics2D) graphics.create();
+            try {
+                graphics2D.setColor(BACKGROUND);
+                graphics2D.fillRect(0, 0, getWidth(), getHeight());
+                graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                graphics2D.drawImage(picture, 0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, null);
+            } finally {
+                graphics2D.dispose();
+                painted.countDown();
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.io.LegacyGateMigration;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.print.PageGeometry;
 import cl.almejo.vsim.ui.print.PageOrientation;
 import cl.almejo.vsim.ui.print.Paper;
 import cl.almejo.vsim.ui.print.PrintOptions;
@@ -83,6 +84,18 @@ public final class AppPreferences {
         putFlag(SHOW_GUIDES, show);
     }
 
+    /**
+     * «Mostrar hojas de impresión»: where the printed sheets fall, drawn over the circuit; off by default (a tool the
+     * user turns on to arrange for print). The AI may layer it in one window.
+     */
+    public boolean showSheets() {
+        return flag(SHOW_SHEETS, false);
+    }
+
+    public void setShowSheets(boolean show) {
+        putFlag(SHOW_SHEETS, show);
+    }
+
     /** «Valores de los buses»: the value written above each bus (canvas and exports); on by default. */
     public boolean showBusValues() {
         return flag(SHOW_BUS_VALUES, true);
@@ -145,6 +158,8 @@ public final class AppPreferences {
     static final String SHORTCUTS = "shortcuts";
     static final String STEP_UNITS = "simulation.stepUnits";
     static final String EXPORT_DIRECTORY = "export.directory";
+    static final String LOGISIM_REPORT_WIDTH = "logisim.reportWidth";
+    static final String LOGISIM_REPORT_HEIGHT = "logisim.reportHeight";
     static final String EXPORT_SCALE = "export.scale";
     static final String EXPORT_PRINT_BACKGROUND = "export.printBackground";
     static final String EXPORT_INCLUDE_STICKY_NOTES = "export.includeStickyNotes";
@@ -158,6 +173,7 @@ public final class AppPreferences {
     static final String SNAP_TO_GRID_LINES = "snap.gridLines";
     static final String SHOW_GUIDES = "guides.show";
     static final String SHOW_BUS_VALUES = "view.busValues";
+    static final String SHOW_SHEETS = "sheets.show";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
     static final String TERMINAL_WINDOWS = "terminal-windows";
@@ -178,7 +194,13 @@ public final class AppPreferences {
     static final String PRINT_BLACK_AND_WHITE = "print.blackAndWhite";
     static final String PRINT_HEADER_FOOTER = "print.headerFooter";
     static final String PRINT_INCLUDE_STICKY_NOTES = "print.includeStickyNotes";
+    static final String PRINT_SHEET_GUIDES = "print.sheetGuides";
+    static final String PRINT_SHOW_DATE = "print.showDate";
+    static final String PRINT_SHOW_FILE_NAME = "print.showFileName";
+    static final String PRINT_SHOW_SHEET_NUMBER = "print.showSheetNumber";
+    static final String PRINT_SKIP_EMPTY_SHEETS = "print.skipEmptySheets";
     static final String PRINT_DIRECTORY = "print.directory";
+    static final String PRINT_MARGIN_POINTS = "print.marginPoints";
     private static final String PRINT_FIT = "fit";
     static final String AI_PORT = "ai.port";
     static final String AI_SECRET = "ai.secret";
@@ -379,6 +401,31 @@ public final class AppPreferences {
         put(STEP_UNITS, Long.toString(units));
     }
 
+    // --- Importar y exportar con Logisim ---
+
+    /** The smallest size of the report window that is remembered; a smaller stored one is ignored. */
+    private static final int MINIMUM_REPORT_SIDE = 200;
+    private static final int MAXIMUM_REPORT_SIDE = 10_000;
+
+    /** The size the user gave the import / export report window; empty until they resize it (or if unreadable). */
+    public Optional<java.awt.Dimension> logisimReportSize() {
+        try {
+            int width = Integer.parseInt(read(LOGISIM_REPORT_WIDTH, ""));
+            int height = Integer.parseInt(read(LOGISIM_REPORT_HEIGHT, ""));
+            boolean usable = width >= MINIMUM_REPORT_SIDE && width <= MAXIMUM_REPORT_SIDE
+                    && height >= MINIMUM_REPORT_SIDE && height <= MAXIMUM_REPORT_SIDE;
+            return usable ? Optional.of(new java.awt.Dimension(width, height)) : Optional.empty();
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public void setLogisimReportSize(java.awt.Dimension size) {
+        Objects.requireNonNull(size, "size");
+        store(LOGISIM_REPORT_WIDTH, Integer.toString(size.width));
+        store(LOGISIM_REPORT_HEIGHT, Integer.toString(size.height));
+    }
+
     // --- M6.2 export image ---
 
     /** The folder of the last image export; empty until the first one. */
@@ -459,7 +506,12 @@ public final class AppPreferences {
                 flag(PRINT_BLACK_AND_WHITE, false),
                 flag(PRINT_HEADER_FOOTER, false),
                 title,
-                flag(PRINT_INCLUDE_STICKY_NOTES, false));
+                flag(PRINT_INCLUDE_STICKY_NOTES, false),
+                flag(PRINT_SHEET_GUIDES, defaults.sheetGuides()),
+                flag(PRINT_SHOW_DATE, defaults.showDate()),
+                flag(PRINT_SHOW_FILE_NAME, defaults.showFileName()),
+                flag(PRINT_SHOW_SHEET_NUMBER, defaults.showSheetNumber()),
+                flag(PRINT_SKIP_EMPTY_SHEETS, defaults.skipEmptySheets()));
     }
 
     private ScaleMode printScale(ScaleMode fallback) {
@@ -493,7 +545,10 @@ public final class AppPreferences {
         }
     }
 
-    /** Remembers everything of {@code options} but the scope and the title; called only when a PDF was saved. */
+    /**
+     * Remembers everything of {@code options} but the scope and the title; called when a PDF was saved or a print
+     * went out.
+     */
     public void setPrintOptions(PrintOptions options) {
         Objects.requireNonNull(options, "options");
         put(PRINT_PAPER, options.paper().name());
@@ -506,6 +561,34 @@ public final class AppPreferences {
         putFlag(PRINT_BLACK_AND_WHITE, options.blackAndWhite());
         putFlag(PRINT_HEADER_FOOTER, options.headerFooter());
         putFlag(PRINT_INCLUDE_STICKY_NOTES, options.includeStickyNotes());
+        putFlag(PRINT_SHEET_GUIDES, options.sheetGuides());
+        putFlag(PRINT_SHOW_DATE, options.showDate());
+        putFlag(PRINT_SHOW_FILE_NAME, options.showFileName());
+        putFlag(PRINT_SHOW_SHEET_NUMBER, options.showSheetNumber());
+        putFlag(PRINT_SKIP_EMPTY_SHEETS, options.skipEmptySheets());
+    }
+
+    /**
+     * The blank border of the sheets the canvas lays out, in points: 1 cm until a print on a printer with a wider
+     * hardware margin (or a PDF saved with one) remembers it, so the canvas shows what the next print gives. Never less
+     * than 1 cm (the least any sheet is laid out with): an unreadable, negative or narrower stored value reads as 1 cm.
+     */
+    public double printMarginPoints() {
+        try {
+            double stored = Double.parseDouble(read(PRINT_MARGIN_POINTS, ""));
+            return Double.isFinite(stored) ? Math.max(PageGeometry.CENTIMETRE_POINTS, stored)
+                    : PageGeometry.CENTIMETRE_POINTS;
+        } catch (NumberFormatException exception) {
+            return PageGeometry.CENTIMETRE_POINTS;
+        }
+    }
+
+    /** Remembers the margin of a successful print or PDF; {@code marginPoints} must be finite and {@code >= 0}. */
+    public void setPrintMarginPoints(double marginPoints) {
+        if (!Double.isFinite(marginPoints) || marginPoints < 0) {
+            throw new IllegalArgumentException("marginPoints must be finite and >= 0: " + marginPoints);
+        }
+        put(PRINT_MARGIN_POINTS, Double.toString(marginPoints));
     }
 
     /** The folder of the last saved PDF; empty until the first one. */

@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.GridPoint;
 
+import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 import java.awt.Font;
@@ -259,7 +260,7 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
             int high = text.length();
             while (low < high) {
                 int middle = (low + high + 1) >>> 1;
-                if (metrics.stringWidth(text.substring(0, middle)) <= width) {
+                if (FallbackText.stringWidth(metrics, text.substring(0, middle)) <= width) {
                     low = middle;
                 } else {
                     high = middle - 1;
@@ -270,7 +271,7 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
 
         private String ellipsized(String text, double width) {
             String kept = text.stripTrailing();
-            while (!kept.isEmpty() && metrics.stringWidth(kept + ELLIPSIS) > width) {
+            while (!kept.isEmpty() && FallbackText.stringWidth(metrics, kept + ELLIPSIS) > width) {
                 kept = kept.substring(0, kept.length() - 1);
             }
             return kept + ELLIPSIS;

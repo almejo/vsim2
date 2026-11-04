@@ -14,12 +14,16 @@ import javax.swing.JSpinner;
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigureDialogTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
+
+    private static final Function<Map<String, Object>, Optional<String>> NOTHING_REFUSED = values -> Optional.empty();
 
     private ParameterForm notForm() {
         return new ParameterForm(registry.require(StandardComponentTypes.BUFFER), Map.of());
@@ -44,7 +48,7 @@ class ConfigureDialogTest {
         ParameterForm form = notForm();
         typeInto((JSpinner) form.editor("delay"), "0");
         JLabel error = new JLabel(" ");
-        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error)).isFalse();
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error, NOTHING_REFUSED)).isFalse();
         assertThat(error.getText()).contains("Retardo");
     }
 
@@ -53,9 +57,9 @@ class ConfigureDialogTest {
         ParameterForm form = notForm();
         JLabel error = new JLabel(" ");
         typeInto((JSpinner) form.editor("delay"), "0");
-        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error)).isFalse();
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error, NOTHING_REFUSED)).isFalse();
         typeInto((JSpinner) form.editor("delay"), "4");
-        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error)).isTrue();
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error, NOTHING_REFUSED)).isTrue();
         assertThat(error.getText()).isEqualTo(" ");
         assertThat(form.rawValues()).containsEntry("delay", 4);
     }
@@ -67,8 +71,18 @@ class ConfigureDialogTest {
                 Map.of("width", 4, "value", "1"));
         ((javax.swing.JTextField) form.editor("value")).setText("0x1F");
         JLabel error = new JLabel(" ");
-        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error)).isFalse();
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error, NOTHING_REFUSED)).isFalse();
         assertThat(error.getText()).isEqualTo("No cabe en 4 bits");
+    }
+
+    @Test
+    void okThatTheDocumentRefusesKeepsTheDialogOpenAndShowsWhy() {
+        ParameterForm form = notForm();
+        JLabel error = new JLabel(" ");
+
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error,
+                values -> Optional.of("El pin b4 quedaría unido"))).isFalse();
+        assertThat(error.getText()).isEqualTo("El pin b4 quedaría unido");
     }
 
     @Test
@@ -76,8 +90,8 @@ class ConfigureDialogTest {
         ParameterForm form = notForm();
         typeInto((JSpinner) form.editor("delay"), "0");
         JLabel error = new JLabel(" ");
-        assertThat(ConfigureDialog.acceptChoice(JOptionPane.CANCEL_OPTION, form, error)).isTrue();
-        assertThat(ConfigureDialog.acceptChoice(JOptionPane.CLOSED_OPTION, form, error)).isTrue();
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.CANCEL_OPTION, form, error, NOTHING_REFUSED)).isTrue();
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.CLOSED_OPTION, form, error, NOTHING_REFUSED)).isTrue();
         assertThat(error.getText()).isEqualTo(" ");
     }
 

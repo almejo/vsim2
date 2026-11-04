@@ -40,4 +40,18 @@ tasks.named<Test>("test") {
     if (toolVariables.any { variable -> System.getenv(variable) != null }) {
         outputs.upToDateWhen { false }
     }
+    // The local run against a real Logisim file that cannot be in the repository (LogisimSampleTest): pass its path
+    // with -Dvsim.logisim.sample=…; the test prints its report, so it always runs and shows its output.
+    val logisimSample = System.getProperty("vsim.logisim.sample")
+    if (logisimSample != null) {
+        systemProperty("vsim.logisim.sample", logisimSample)
+        // Optional: Logisim's own dump of that file (every end's place), to check LogisimEnds against it.
+        System.getProperty("vsim.logisim.sampleDump")?.let { systemProperty("vsim.logisim.sampleDump", it) }
+        // Optional: where LogisimImporterSampleTest saves the imported circuit (never inside the repository).
+        System.getProperty("vsim.logisim.sampleOutput")?.let { systemProperty("vsim.logisim.sampleOutput", it) }
+        // Optional: where LogisimExporterSampleTest writes the sample exported back to Logisim (never in the repository).
+        System.getProperty("vsim.logisim.exportOutput")?.let { systemProperty("vsim.logisim.exportOutput", it) }
+        testLogging.showStandardStreams = true
+        outputs.upToDateWhen { false }
+    }
 }

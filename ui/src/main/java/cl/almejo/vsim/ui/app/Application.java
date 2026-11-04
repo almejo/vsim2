@@ -28,9 +28,15 @@ import cl.almejo.vsim.ui.ai.present.PresentationEvents;
 import cl.almejo.vsim.ui.ai.present.PresentationExtension;
 import cl.almejo.vsim.ui.appearance.AppearanceExtension;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
+import cl.almejo.vsim.ui.logisim.LogisimExportExtension;
+import cl.almejo.vsim.ui.logisim.LogisimImportExtension;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
+import cl.almejo.vsim.ui.print.PrintExtension;
+import cl.almejo.vsim.ui.print.PrinterAccess;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
+import cl.almejo.vsim.ui.sheets.SheetsExtension;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
@@ -55,6 +61,7 @@ import cl.almejo.vsim.ui.library.TemplatesExtension;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.groups.GroupsExtension;
 import cl.almejo.vsim.ui.memory.MemoryEditorExtension;
 import cl.almejo.vsim.ui.memory.MemoryEditorLauncher;
 import cl.almejo.vsim.ui.memory.MemoryLinks;
@@ -113,7 +120,6 @@ import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 /** Open windows and documents of the running application (EDT only). A document closes with its last window. */
 public final class Application {
@@ -154,13 +160,16 @@ public final class Application {
     private final Map<CircuitWindow, AppPreferences> windowPreferences = new WeakHashMap<>();
     /** What the AI's host may do with the windows; stateless, one for the whole application. */
     private final ApplicationWindows applicationWindows = new ApplicationWindows();
+    /** Where each document's print sheets are anchored while some view shows them; one for the whole application. */
+    private final SheetAnchors sheetAnchors = new SheetAnchors();
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
         this.libraryService = new LibraryService(preferences, library, registry);
         this.proposals = new PreferenceProposals(preferences);
         this.automationHost = new EditorAutomationHost(windows::documents,
-                document -> ShownWindow.activeFirst(windows.windowsOf(document)), applicationWindows, proposals);
+                document -> ShownWindow.activeFirst(windows.windowsOf(document)), applicationWindows, proposals,
+                sheetAnchors);
         this.automationApi = new AutomationApi(automationHost);
         this.presentationControls = new AutomationPresentationControls(automationApi);
         this.presentationWatcher = new PresentationModeWatcher(windows::documents,
@@ -196,7 +205,8 @@ public final class Application {
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
                         new AiExtension(aiServer, automationHost::documentId, proposals,
-                                applicationWindows::settingsOverride), presentation));
+                                applicationWindows::settingsOverride), presentation, new PrintExtension(sheetAnchors),
+                        sheetAnchors));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -207,23 +217,27 @@ public final class Application {
     }
 
     /**
-     * The extensions with the import's file chooser starting in the user's home and remembering nothing (tests, also
-     * outside this package: every extension in every pane).
+     * The extensions with the import's file chooser starting in the user's home and remembering nothing, and no
+     * printers (tests, also outside this package: every extension in every pane; none may reach a real printer).
      */
     public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
+        SheetAnchors sheetAnchors = new SheetAnchors();
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
-                path -> { }, AiExtension.inactive(), PresentationExtension.inactive());
+                path -> { }, AiExtension.inactive(), PresentationExtension.inactive(),
+                new PrintExtension(PrinterAccess.none(), sheetAnchors), sheetAnchors);
     }
 
     /**
      * The extensions of every editor view, in install order. Package-private so a test can install them all.
      * {@code startDirectory} and {@code chosen} are the folder «Abrir» starts in and remembers, shared with the
      * table import's file chooser. {@code ai} is the AI's panel and status line over the application's server,
-     * {@code presentation} its «Presentar» toggle and floating panel.
+     * {@code presentation} its «Presentar» toggle and floating panel, {@code print} «Imprimir…» over the system's
+     * printers or none, {@code sheetAnchors} where the shown print sheets of each document are anchored.
      */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs,
                                                   Supplier<Path> startDirectory, Consumer<Path> chosen,
-                                                  AiExtension ai, PresentationExtension presentation) {
+                                                  AiExtension ai, PresentationExtension presentation,
+                                                  PrintExtension print, SheetAnchors sheetAnchors) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
@@ -234,7 +248,9 @@ public final class Application {
         editorExtensions.add(new StepModeExtension());
         editorExtensions.add(new TruthTableExtension());
         editorExtensions.add(new ExportImageExtension());
-        editorExtensions.add(new ExportPdfExtension());
+        editorExtensions.add(new ExportPdfExtension(sheetAnchors));
+        editorExtensions.add(new LogisimExportExtension()); // after «PDF…» in Archivo ▸ Exportar
+        editorExtensions.add(print); // its item goes right after «Guardar como…»
         editorExtensions.add(new TidyWiresExtension());
         // the «Texto» tool before sticky notes: its button lands after «Nota adhesiva»
         editorExtensions.add(new TextToolExtension());
@@ -249,9 +265,11 @@ public final class Application {
         editorExtensions.add(new MemoryMapExtension(view -> MemoryMapActions.of(view, memoryLauncher)));
         editorExtensions.add(new WiresFollowExtension());
         editorExtensions.add(new BusPinMenuExtension());
+        editorExtensions.add(new GroupsExtension()); // «Bits por pin» and the «Grupos» window of bus parts
         editorExtensions.add(new GridExtension());
         editorExtensions.add(new SnapExtension());
         editorExtensions.add(new GuidesExtension());
+        editorExtensions.add(new SheetsExtension(sheetAnchors)); // its Ver item right after «Borrar guías»
         editorExtensions.add(new BusValuesExtension());
         editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
@@ -268,6 +286,7 @@ public final class Application {
         editorExtensions.add(new PreferencesFeature(ai.server()));
         editorExtensions.add(new RecentFilesFeature());
         editorExtensions.add(new ExamplesFeature());
+        editorExtensions.add(new LogisimImportExtension(startDirectory, chosen)); // the last item of Importar
         editorExtensions.add(new ShortcutsExtension());
         return List.copyOf(editorExtensions);
     }
@@ -341,11 +360,7 @@ public final class Application {
      * arrive in order and never hold a shared pool while they wait for the editor (review M6).
      */
     private static Executor presentationModeThread() {
-        return Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "vsim-ai-presentation-mode");
-            thread.setDaemon(true);
-            return thread;
-        });
+        return DaemonThreads.single("vsim-ai-presentation-mode");
     }
 
     /**
@@ -474,10 +489,23 @@ public final class Application {
     /**
      * Archivo ▸ Ejemplos (M6.1-A): {@code document} in a new window as an untitled, unmodified document, so Guardar
      * asks for a file name and nothing is added to Recientes. Like Abrir, a pristine requester window goes away.
+     *
+     * @return the new window
      */
-    public void openUntitled(CircuitDocument document, CircuitWindow requester) {
-        show(new OpenDocument(document, registry, null, false));
+    public CircuitWindow openUntitled(CircuitDocument document, CircuitWindow requester) {
+        return openUntitled(document, "", requester);
+    }
+
+    /**
+     * Like {@link #openUntitled(CircuitDocument, CircuitWindow)}, the window showing {@code windowName} until the
+     * document is saved instead of the circuit's own name (an import shows its file's name); blank shows the circuit's.
+     */
+    public CircuitWindow openUntitled(CircuitDocument document, String windowName, CircuitWindow requester) {
+        OpenDocument opened = new OpenDocument(document, registry, null, false);
+        opened.showUntitledAs(windowName);
+        CircuitWindow window = show(opened);
         windows.replacedBy(requester).forEach(CircuitWindow::closeQuietly);
+        return window;
     }
 
     /** Asks once per modified document; true when all windows were closed. The session is remembered first. */
@@ -630,7 +658,7 @@ public final class Application {
         RecoveryCopy copy = recovered.copy();
         try {
             OpenDocument document = OpenDocument.openRecovered(copy.content(), copy.originalPath().orElse(null),
-                    registry);
+                    copy.displayName(), registry);
             List<WindowState> states = recovered.windows().isEmpty()
                     ? copy.originalPath().flatMap(recentFiles::stateFor).stream().toList()
                     : recovered.windows();

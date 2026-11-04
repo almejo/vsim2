@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * «Túnel (entrada)» and «Túnel (salida)» (spec §3, sketch v5): a rounded tag with a border in the tunnel's colour,
  * the pin outside it, a wire stub from the pin into the centre of the hole, the arrow next to the hole (pointing at it
- * for an entrada, away for a salida) and the name, upright when the tag is horizontal and sideways when vertical. The
+ * for an entrada, away for a salida; two back-to-back triangles for a tunnel «Sin dirección») and the name, upright when the tag is horizontal and sideways when vertical. The
  * geometry is {@link TunnelShape}'s. On the canvas the colour of a salida is its entrada's and the stub is drawn like
  * its wire ({@link Look}); without a circuit (palette icon) the painter uses the tunnel's own colour parameter (palette
  * colour 0 for a salida) and a plain stub. A ghost being placed or pasted gets its colour from the tool that knows the
@@ -63,15 +63,17 @@ public final class TunnelPainter implements ComponentPainter {
         Object color = resolved.get(Tunnels.COLOR);
         int colorIndex = color instanceof Number number ? number.intValue() : 0;
         paint(graphics, TunnelShape.of(kind, (String) resolved.get(Tunnels.NAME)), (String) resolved.get(Tunnels.NAME),
+                !Tunnels.UNDIRECTED.equals(resolved.get(Tunnels.DIRECTION)),
                 new Look(scheme.tunnelColor(colorIndex), scheme.componentStroke(), false), scheme);
     }
 
     /** Paints {@code tunnel} in its local coordinates (ComponentDrawing's placement) with {@code look}. */
     public void paint(Graphics2D graphics, Component tunnel, Look look, ColorScheme scheme) {
-        paint(graphics, TunnelShape.of(tunnel), Tunnels.nameOf(tunnel), look, scheme);
+        paint(graphics, TunnelShape.of(tunnel), Tunnels.nameOf(tunnel), !Tunnels.isUndirected(tunnel), look, scheme);
     }
 
-    private static void paint(Graphics2D graphics, TunnelShape shape, String name, Look look, ColorScheme scheme) {
+    private static void paint(Graphics2D graphics, TunnelShape shape, String name, boolean withArrow, Look look,
+                              ColorScheme scheme) {
         graphics.setColor(scheme.tunnelSurface());
         graphics.fill(shape.tag());
         graphics.setStroke(TAG_BORDER);
@@ -81,7 +83,7 @@ public final class TunnelPainter implements ComponentPainter {
         paintStub(graphics, shape, look);
         paintPin(graphics, shape, look.bus(), scheme);
         graphics.setColor(look.color());
-        graphics.fill(shape.arrow());
+        graphics.fill(withArrow ? shape.arrow() : shape.twoWayMark());
         Rectangle2D textBox = shape.textBox();
         PainterSupport.textAlong(graphics, name, textBox, TEXT_SIZE, look.color());
     }

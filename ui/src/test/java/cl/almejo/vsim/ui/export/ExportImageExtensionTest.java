@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.ExportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,9 +70,8 @@ class ExportImageExtensionTest {
     }
 
     @Test
-    void theItemSitsRightAfterSaveAsAndIsDisabledOnAnEmptyDocument() {
-        List<String> texts = texts(view.menu(MenuId.FILE));
-        assertThat(texts.indexOf("Exportar imagen…")).isEqualTo(texts.indexOf("Guardar como…") + 1);
+    void theItemSitsInTheExportSubmenuAndIsDisabledOnAnEmptyDocument() {
+        assertThat(texts(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow())).containsExactly("Imagen…");
         assertThat(features.action().isEnabled()).isFalse();
         place(openDocument, StandardComponentTypes.SWITCH, 10, 10, Map.of());
         assertThat(features.action().isEnabled()).isTrue();

@@ -52,6 +52,18 @@ class PageLayoutTest {
     }
 
     @Test
+    void aPrinterMarginWiderThanACentimetreReplacesOnlyTheMargin() {
+        PageGeometry printer = PageGeometry.standard(Paper.A4, PageOrientation.LANDSCAPE, true, 42.5);
+        PageGeometry standard = PageGeometry.standard(Paper.A4, PageOrientation.LANDSCAPE, true);
+
+        assertThat(printer.marginPoints()).isEqualTo(42.5);
+        assertThat(printer).isEqualTo(new PageGeometry(Paper.A4, PageOrientation.LANDSCAPE, 42.5,
+                standard.headerBandPoints(), standard.marksStripPoints(), standard.overlapPoints()));
+        assertThat(PageGeometry.standard(Paper.A4, PageOrientation.LANDSCAPE, true, PageGeometry.CENTIMETRE_POINTS))
+                .isEqualTo(standard);
+    }
+
+    @Test
     void theStandardGeometryLeavesRoomOnEveryPaper() {
         for (Paper paper : Paper.values()) {
             for (PageOrientation orientation : PageOrientation.values()) {

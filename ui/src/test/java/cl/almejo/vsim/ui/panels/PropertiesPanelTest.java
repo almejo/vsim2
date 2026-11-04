@@ -120,6 +120,55 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void nothingSelectedShowsTheCircuitNameAndEditingItIsOneUndoStep() {
+        openDocument.document().setName("Sumador");
+        panel.refresh();
+        JTextField name = panel.circuitNameField();
+        assertThat(name.getText()).isEqualTo("Sumador");
+        assertThat(captionOf(name)).isEqualTo("Nombre del circuito");
+
+        name.setText("Sumador de 4 bits");
+        name.postActionEvent();
+
+        assertThat(openDocument.document().name()).isEqualTo("Sumador de 4 bits");
+        assertThat(openDocument.isModified()).isTrue();
+        assertThat(openDocument.history().undoDescription()).contains("command.renameCircuit");
+        openDocument.history().undo();
+        assertThat(openDocument.document().name()).isEqualTo("Sumador");
+        assertThat(panel.circuitNameField().getText()).isEqualTo("Sumador");
+        openDocument.history().redo();
+        assertThat(panel.circuitNameField().getText()).isEqualTo("Sumador de 4 bits");
+    }
+
+    @Test
+    void aBlankCircuitNameIsRefusedWithAMessage() {
+        openDocument.document().setName("Sumador");
+        panel.refresh();
+        long changes = openDocument.changeCount();
+
+        panel.circuitNameField().setText("   ");
+        panel.circuitNameField().postActionEvent();
+
+        assertThat(openDocument.document().name()).isEqualTo("Sumador");
+        assertThat(openDocument.changeCount()).isEqualTo(changes);
+        assertThat(panel.error()).isEqualTo("El nombre del circuito no puede quedar vacío");
+    }
+
+    @Test
+    void selectingSomethingHidesTheCircuitName() {
+        Component gate = gate(0);
+        selection.select(gate.id());
+
+        assertThat(panel.circuitNameField()).isNull();
+    }
+
+    private String captionOf(java.awt.Component editor) {
+        return Arrays.stream(panel.getComponents())
+                .filter(child -> child instanceof javax.swing.JLabel label && label.getLabelFor() == editor)
+                .map(child -> ((javax.swing.JLabel) child).getText()).findFirst().orElse(null);
+    }
+
+    @Test
     void severalElementsShowTheirCount() {
         Component first = gate(0);
         Component second = gate(10);
@@ -429,6 +478,44 @@ class PropertiesPanelTest {
         assertThat(panel.error()).contains("Q̅").isNotBlank();
         assertThat(current(flipFlop).parameters()).containsEntry(StandardComponentTypes.SHOW_INVERTED, false);
         assertThat(openDocument.history().undoDescription()).isEqualTo(undoBefore);
+    }
+
+    /**
+     * Fix round 3: a long error on one line widened the whole sidebar (its preferred width) and ate the canvas; it
+     * wraps within the panel's width instead.
+     */
+    @Test
+    void aLongErrorWrapsWithinThePanelInsteadOfWideningIt() throws Exception {
+        Component flipFlop = place(openDocument, StandardComponentTypes.FLIP_FLOP_DATA, 0, 0,
+                Map.of(StandardComponentTypes.SHOW_INVERTED, false));
+        openDocument.execute(new AddWireCommand(new Wire(openDocument.document().newWireId(), new GridPoint(4, 2),
+                new GridPoint(4, 6))));
+        int narrow = 240;
+        // on the EDT: the Q̅ texts lay out through Swing's shared FlowView strategy, which a concurrent EDT layout breaks
+        int[] widthWithoutError = new int[1];
+        int[] widthWithError = new int[1];
+        java.awt.Rectangle[] errorBounds = new java.awt.Rectangle[1];
+        javax.swing.SwingUtilities.invokeAndWait(() -> {
+            selection.select(flipFlop.id());
+            widthWithoutError[0] = panel.getPreferredSize().width;
+
+            ((javax.swing.JCheckBox) panel.parameterForm().editor(StandardComponentTypes.SHOW_INVERTED)).doClick();
+
+            panel.invalidate();
+            widthWithError[0] = panel.getPreferredSize().width;
+            panel.setSize(narrow, 900);
+            layOut(panel);
+            panel.setSize(narrow, panel.getPreferredSize().height);
+            layOut(panel);
+            errorBounds[0] = panel.errorLabel().getBounds();
+        });
+
+        assertThat(panel.error()).contains("Q̅");
+        assertThat(widthWithError[0]).isLessThanOrEqualTo(widthWithoutError[0]);
+        java.awt.Component error = panel.errorLabel();
+        int lineHeight = error.getFontMetrics(error.getFont()).getHeight();
+        assertThat(errorBounds[0].x + errorBounds[0].width).isLessThanOrEqualTo(narrow);
+        assertThat(errorBounds[0].height).isGreaterThanOrEqualTo(2 * lineHeight);
     }
 
     @Test
@@ -1081,7 +1168,8 @@ class PropertiesPanelTest {
                 recorder.forget();
                 onEventThread(selection::clear);
                 assertThat(panel.heading()).isEqualTo("Sin selección");
-                assertThat(panel.getComponents()).hasSize(2);
+                // the heading, «Nombre del circuito» with its field, and the error line
+                assertThat(panel.getComponents()).hasSize(4);
                 assertThat(recorder.invalidated).as("laid out again after %s", typeId).contains(panel);
                 assertThat(recorder.repainted).as("painted again after %s", typeId).contains(panel);
 
@@ -1096,5 +1184,39 @@ class PropertiesPanelTest {
         } finally {
             javax.swing.RepaintManager.setCurrentManager(previous);
         }
+    }
+
+    @Test
+    void changingATunnelsDirectionSaysSoInTheStatusAndUndoIsOneStep() {
+        List<String> notices = new java.util.ArrayList<>();
+        panel.onNotice(notices::add);
+        Component entrance = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 0, 0,
+                Map.of(Tunnels.NAME, "BUS"));
+        selection.select(entrance.id());
+
+        ((javax.swing.JComboBox<?>) panel.parameterForm().editor(Tunnels.DIRECTION)).setSelectedItem(Tunnels.UNDIRECTED);
+
+        assertThat(notices).containsExactly("El túnel «BUS» ahora no tiene dirección. Ctrl+Z para deshacer.");
+        assertThat(current(entrance).parameters()).containsEntry(Tunnels.DIRECTION, Tunnels.UNDIRECTED);
+
+        ((javax.swing.JComboBox<?>) panel.parameterForm().editor(Tunnels.DIRECTION)).setSelectedItem(Tunnels.DIRECTED);
+
+        assertThat(notices).hasSize(2).last()
+                .isEqualTo("El túnel «BUS» ahora es una entrada. Ctrl+Z para deshacer.");
+    }
+
+    @Test
+    void anOtherChangeToATunnelSaysNothing() {
+        List<String> notices = new java.util.ArrayList<>();
+        panel.onNotice(notices::add);
+        Component entrance = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 0, 0,
+                Map.of(Tunnels.NAME, "BUS"));
+        selection.select(entrance.id());
+        JTextField name = (JTextField) panel.parameterForm().editor(Tunnels.NAME);
+
+        name.setText("RELOJ");
+        name.postActionEvent();
+
+        assertThat(notices).isEmpty();
     }
 }

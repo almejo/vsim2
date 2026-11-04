@@ -70,6 +70,18 @@ public final class TunnelCircuit {
         return tunnelAt(StandardComponentTypes.TUNNEL_EXIT, Map.of("name", name), pin);
     }
 
+    /** A tunnel without direction named {@code name} whose pin is at {@code pin}: an entrada with «Sin dirección». */
+    public Component undirected(String name, GridPoint pin) {
+        return tunnelAt(StandardComponentTypes.TUNNEL_ENTRANCE,
+                Map.of(Tunnels.NAME, name, Tunnels.DIRECTION, Tunnels.UNDIRECTED), pin);
+    }
+
+    /** A salida with «Sin dirección» named {@code name} whose pin is at {@code pin}. */
+    public Component undirectedExit(String name, GridPoint pin) {
+        return tunnelAt(StandardComponentTypes.TUNNEL_EXIT,
+                Map.of(Tunnels.NAME, name, Tunnels.DIRECTION, Tunnels.UNDIRECTED), pin);
+    }
+
     private Component tunnelAt(String typeId, Map<String, Object> parameters, GridPoint pin) {
         ComponentType type = registry.require(typeId);
         Component atOrigin = type.newComponent(document.newComponentId(), GridPoint.ORIGIN, Rotation.R0,

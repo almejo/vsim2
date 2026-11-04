@@ -17,17 +17,20 @@ import java.util.function.UnaryOperator;
  * {@code parameter.group.<group>}); a {@code multiline} text gets a box of several lines; a {@code visibility}
  * condition shows its row only while another parameter has a given value (the encoding only with 8 bits). None of
  * them changes what is stored or simulated.
+ *
+ * <p>{@code keysShape} marks a hidden text the layout reads ({@link #asShapeKey}), so it keys the memoized shape.
  */
 public record ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                             int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
                             boolean displayOnly, boolean hidden, boolean liveValue,
-                            Optional<String> group, boolean multiline, Optional<VisibilityCondition> visibility) {
+                            Optional<String> group, boolean multiline, Optional<VisibilityCondition> visibility,
+                            boolean keysShape) {
 
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                          int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
                          boolean displayOnly, boolean hidden, boolean liveValue) {
         this(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, hidden, liveValue,
-                Optional.empty(), false, Optional.empty());
+                Optional.empty(), false, Optional.empty(), false);
     }
 
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
@@ -94,7 +97,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
     /** This parameter marked as {@linkplain #displayOnly() display-only}. */
     public ParameterSpec asDisplayOnly() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true, hidden,
-                liveValue, group, multiline, visibility);
+                liveValue, group, multiline, visibility, keysShape);
     }
 
     /**
@@ -103,7 +106,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
      */
     public ParameterSpec asHidden() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, true,
-                liveValue, group, multiline, visibility);
+                liveValue, group, multiline, visibility, keysShape);
     }
 
     /**
@@ -112,7 +115,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
      */
     public ParameterSpec asLiveValue() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
-                hidden, true, group, multiline, visibility);
+                hidden, true, group, multiline, visibility, keysShape);
     }
 
     /**
@@ -122,7 +125,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
     public ParameterSpec inGroup(String groupKey) {
         Objects.requireNonNull(groupKey, "groupKey");
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
-                hidden, liveValue, Optional.of(groupKey), multiline, visibility);
+                hidden, liveValue, Optional.of(groupKey), multiline, visibility, keysShape);
     }
 
     /**
@@ -133,7 +136,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
      */
     public ParameterSpec asMultiline() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
-                hidden, liveValue, group, true, visibility);
+                hidden, liveValue, group, true, visibility, keysShape);
     }
 
     /**
@@ -142,7 +145,18 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
      */
     public ParameterSpec visibleWhen(String parameter, Object value) {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
-                hidden, liveValue, group, multiline, Optional.of(new VisibilityCondition(parameter, value)));
+                hidden, liveValue, group, multiline, Optional.of(new VisibilityCondition(parameter, value)),
+                keysShape);
+    }
+
+    /**
+     * This {@linkplain #hidden() hidden} text parameter marked as one the layout reads (a splitter's groups): it keys
+     * the memoized shape like a visible parameter does, where the other hidden texts (a memory's contents, possibly
+     * megabytes) never do.
+     */
+    public ParameterSpec asShapeKey() {
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
+                hidden, liveValue, group, multiline, visibility, true);
     }
 
     /** Converts a raw value (from JSON or a dialog) to the canonical type, or throws IllegalArgumentException. */

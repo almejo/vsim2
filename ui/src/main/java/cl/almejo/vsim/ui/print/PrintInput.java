@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -66,10 +67,12 @@ public final class PrintInput {
     private final LocalDate date;
     private final List<FrameEntry> frames;
     private final boolean showBusValues;
+    private final Optional<GridPoint> sheetAnchor;
 
     private PrintInput(LiveCircuit live, CircuitDocument copy, Set<ElementId> viewSelection, ColorScheme scheme,
-                       TextFont textFont, Clock clock, boolean showBusValues) {
+                       TextFont textFont, Clock clock, boolean showBusValues, Optional<GridPoint> sheetAnchor) {
         this.showBusValues = showBusValues;
+        this.sheetAnchor = Objects.requireNonNull(sheetAnchor, "sheetAnchor");
         this.document = copy;
         this.registry = registryFor(live.registry(), copy);
         this.netlist = live.netlist();
@@ -116,7 +119,30 @@ public final class PrintInput {
 
     static PrintInput capture(LiveCircuit live, Set<ElementId> viewSelection, ColorScheme scheme, TextFont textFont,
                               Clock clock, boolean showBusValues) {
-        return new PrintInput(live, copyOf(live.document()), viewSelection, scheme, textFont, clock, showBusValues);
+        return capture(live, viewSelection, scheme, textFont, clock, showBusValues, Optional.empty());
+    }
+
+    static PrintInput capture(LiveCircuit live, Set<ElementId> viewSelection, ColorScheme scheme, TextFont textFont,
+                              Clock clock, boolean showBusValues, Optional<GridPoint> sheetAnchor) {
+        return new PrintInput(live, copyOf(live.document()), viewSelection, scheme, textFont, clock, showBusValues,
+                sheetAnchor);
+    }
+
+    /**
+     * Like the overload without {@code sheetAnchor}, with the corner the sheets shown on the canvas are anchored at
+     * (sheets on the canvas, spec §0a): «Todo el circuito» is laid out on those sheets ({@link SheetPlan}).
+     */
+    public static PrintInput capture(OpenDocument openDocument, Set<ElementId> viewSelection, ColorScheme scheme,
+                                     TextFont textFont, Clock clock, boolean showBusValues,
+                                     Optional<GridPoint> sheetAnchor) {
+        return capture(new LiveCircuit(openDocument.document(), openDocument.registry(), openDocument.netlist(),
+                openDocument.netlistToken(), openDocument.latestSnapshot(), openDocument.displayName(),
+                openDocument.path()), viewSelection, scheme, textFont, clock, showBusValues, sheetAnchor);
+    }
+
+    /** The corner the sheets shown on the canvas were anchored at when this copy was taken; empty when hidden. */
+    public Optional<GridPoint> sheetAnchor() {
+        return sheetAnchor;
     }
 
     /** Whether the paper writes the value above each bus. */

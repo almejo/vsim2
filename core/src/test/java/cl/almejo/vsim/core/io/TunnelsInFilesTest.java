@@ -29,7 +29,7 @@ class TunnelsInFilesTest {
         assertThat(loaded.component(entrance.id())).contains(entrance);
         assertThat(loaded.component(exit.id())).contains(exit);
         assertThat(loaded.component(entrance.id()).orElseThrow().parameters())
-                .isEqualTo(Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3));
+                .isEqualTo(Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3, Tunnels.DIRECTION, Tunnels.DIRECTED));
     }
 
     @Test
@@ -49,5 +49,18 @@ class TunnelsInFilesTest {
         String written = format.write(circuit.document());
 
         assertThat(format.write(format.read(written))).isEqualTo(written);
+    }
+    @Test
+    void aDirectedTunnelWritesNoDirectionAndOneWithoutDirectionKeepsIt() throws CircuitFormatException {
+        circuit.entrance("CLK", 3, new GridPoint(0, 0));
+        Component undirected = circuit.undirectedExit("CLK", new GridPoint(10, 10));
+
+        String written = format.write(circuit.document());
+        CircuitDocument loaded = format.read(written);
+
+        assertThat(written).containsOnlyOnce("\"" + Tunnels.DIRECTION + "\"");
+        assertThat(loaded.component(undirected.id())).contains(undirected);
+        assertThat(Tunnels.isUndirected(loaded.component(undirected.id()).orElseThrow())).isTrue();
+        assertThat(Tunnels.isUndirected(loaded.components().get(0))).isFalse();
     }
 }

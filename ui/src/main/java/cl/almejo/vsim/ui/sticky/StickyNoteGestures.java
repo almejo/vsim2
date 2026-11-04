@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.sticky;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.StickyNote;
@@ -263,6 +264,14 @@ public final class StickyNoteGestures implements SelectToolDelegate {
             return Set.of();
         }
         return movePreview.hiddenWires(context, context.selection().effectiveIds(), deltaX, deltaY);
+    }
+
+    @Override
+    public List<DocumentElement> movingElements(ToolContext context) {
+        if (grabbed == null || resizing) {
+            return List.of();
+        }
+        return MovePreview.movedElements(context, context.selection().effectiveIds(), deltaX, deltaY);
     }
 
     @Override

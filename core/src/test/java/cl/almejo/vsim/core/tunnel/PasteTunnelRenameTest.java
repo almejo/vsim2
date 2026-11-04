@@ -86,4 +86,13 @@ class PasteTunnelRenameTest {
         paste.apply(target.document());
         assertThat(namesOf(target, TunnelKind.ENTRANCE)).containsExactly("A", "A_2");
     }
+    @Test
+    void tunnelsWithoutDirectionKeepTheirNameSinceANameMayHaveManyOfThem() {
+        target.undirected("A", new GridPoint(10, 10));
+        target.entrance("B", new GridPoint(10, 30));
+        Component undirected = source.undirected("B", new GridPoint(0, 0));
+        Component entrance = source.entrance("A", new GridPoint(0, 10));
+        new PasteCommand(fragmentOf(undirected, entrance), new GridPoint(0, 40)).apply(target.document());
+        assertThat(namesOf(target, TunnelKind.ENTRANCE)).containsExactly("A", "B", "B", "A");
+    }
 }

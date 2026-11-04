@@ -33,7 +33,9 @@ import java.util.function.Supplier;
  * inputs. The wires are planned with {@link WireFollow#plan(CircuitDocument, ComponentTypeRegistry, PinMoves, Supplier)}
  * against the document as it is before the change. A pin the change removes moves no wire: its wires stay where they
  * were, as before wires followed edits. A pin that would land where a removed pin was keeps its wires where they are
- * too, so a gate going from three inputs to two never joins the drivers of {@code in1} and {@code in2}.
+ * too, so a gate going from three inputs to two never joins the drivers of {@code in1} and {@code in2}. A wire that
+ * follows its pin is routed off the places of the pins the change adds, so it leaves no corner on a new pin (a
+ * splitter whose {@code b0} moves down while a new {@code b4-7} takes its row).
  */
 public final class ChangeParametersWithWiresCommand implements Command {
 
@@ -76,16 +78,19 @@ public final class ChangeParametersWithWiresCommand implements Command {
      */
     static FollowPlan wirePlan(CircuitDocument document, ComponentTypeRegistry registry, Component component,
                                Map<String, Object> rawParameters, Supplier<ElementId> newWireIds) {
-        Map<PinRef, GridPoint> moves = pinMoves(registry, component, rawParameters);
-        if (moves.isEmpty()) {
+        PinMoves moves = pinMoves(registry, component, rawParameters);
+        if (moves.after().isEmpty()) {
             return FollowPlan.EMPTY;
         }
-        return WireFollow.plan(document, registry, new PinMoves(moves), newWireIds);
+        return WireFollow.plan(document, registry, moves, newWireIds);
     }
 
-    /** Where each pin of {@code component} that keeps its name goes, when that is somewhere else. */
-    private static Map<PinRef, GridPoint> pinMoves(ComponentTypeRegistry registry, Component component,
-                                                   Map<String, Object> rawParameters) {
+    /**
+     * Where each pin of {@code component} that keeps its name goes, when that is somewhere else, and where the pins
+     * the change adds will be (the wires that follow keep off them).
+     */
+    private static PinMoves pinMoves(ComponentTypeRegistry registry, Component component,
+                                     Map<String, Object> rawParameters) {
         ComponentType before = registry.typeOf(component);
         Component changed = MultiBitOrientation.withParameters(component,
                 before.resolveParameters(rawParameters), before);
@@ -107,7 +112,13 @@ public final class ChangeParametersWithWiresCommand implements Command {
                 moves.put(new PinRef(component.id(), pinIndex), target);
             }
         }
-        return moves;
+        Set<GridPoint> addedPinPlaces = new HashSet<>();
+        for (int pinIndex = 0; pinIndex < after.pinCount(); pinIndex++) {
+            if (!successors.contains(pinIndex)) {
+                addedPinPlaces.add(after.pinLocation(changed, pinIndex));
+            }
+        }
+        return new PinMoves(moves, addedPinPlaces);
     }
 
     /**

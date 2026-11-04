@@ -32,7 +32,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 - Editar ▸ «Ordenar cables» (Ctrl+Alt+L) ordena los cables de una vez con las opciones guardadas; Editar ▸ «Ordenar cables…» (Ctrl+Alt+Mayús+L) abre antes un diálogo con las opciones. Ambos actúan sobre los cables seleccionados si hay alguno (solo esos pueden cambiar) y, si no, sobre todo el circuito. Los dos van al final del menú Editar y sus teclas se pueden cambiar en Atajos de teclado. En algunos escritorios Linux (KDE, Xfce) Ctrl+Alt+L bloquea la pantalla: asígnale otra tecla en Atajos de teclado.
 - El diálogo «Ordenar cables» tiene «Dónde» («Selección», solo si hay cables seleccionados, o «Todo el circuito») y tres opciones: «Borrar puntas sueltas» (quita los cables que terminan en el aire; una red de cables sin ningún pin desaparece, salvo que un canal de formas de onda la mire), «Unir tramos alineados» (junta dos cables en línea recta en uno solo, salvo que ahí haya una conexión que se perdería) y «Aplanar vueltas en U» (desactivada por defecto; acorta una U de tres tramos moviendo el tramo del medio, solo si no toca nada nuevo). Un resumen bajo las opciones se recalcula al cambiar cualquiera («Se borrarán 3 puntas sueltas, se unirán 2 tramos y se aplanará 1 vuelta») y «Ordenar» queda deshabilitado cuando no hay nada que hacer. Las opciones se recuerdan y las usa la acción directa.
-- Los dos comandos tienen ícono (de 16 px en los menús). «Ordenar cables» además tiene un botón en la barra de herramientas, justo después de «Rehacer»: solo el ícono, con el tooltip «Ordenar cables (Ctrl+Alt+L)» (la tecla que tengas asignada). «Exportar imagen…» está solo en el menú.
+- Los dos comandos tienen ícono (de 16 px en los menús). «Ordenar cables» además tiene un botón en la barra de herramientas, justo después de «Rehacer»: solo el ícono, con el tooltip «Ordenar cables (Ctrl+Alt+L)» (la tecla que tengas asignada). Archivo ▸ Exportar ▸ «Imagen…» está solo en el menú.
 - Ordenar nunca cambia lo que está conectado: cada cambio se valida contra las conexiones de los pines antes de aceptarlo (y los canales de formas de onda siguen mirando lo mismo). Es un solo paso de deshacer («Deshacer ordenar cables»); al terminar, la barra de estado cuenta durante 4 s lo que se hizo («Se borraron 3 puntas sueltas y se unieron 2 tramos»), o dice «Los cables ya estaban ordenados» y no deja nada en el historial.
 - Ordenar nunca congela la ventana: se calcula en segundo plano, y si pasan más de 2 s aparece una ventanita «Ordenando cables…» con la pasada actual y «Cancelar» (no cambia nada y avisa «Ordenar cables cancelado»); si el circuito cambia mientras se calcula, se descarta el resultado y avisa «El circuito cambió; vuelve a ordenar». El resumen del diálogo también se calcula en segundo plano («Calculando…») y «Ordenar» espera a que esté listo.
 
@@ -40,11 +40,69 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 - Un cable es un bus cuando une pines de más de un bit: se dibuja más grueso y muestra su valor en hexadecimal (`0x3F`; `Z` en un dígito con todos sus bits en alta impedancia, `?` si solo algunos lo están). Al pasar el mouse se ve «Bus de 8 bits = 0x3F (0011 1111)», con los bits en binario; el árbol de componentes también muestra los buses en hexadecimal.
 - Ver ▸ «Valores de los buses» (casilla, también un botón de la barra de herramientas junto a los de las herramientas; se recuerda y vale para todos los paneles y ventanas) oculta el valor que se escribe sobre cada bus, para presentar o para un lienzo más limpio. Solo se ocultan las etiquetas del lienzo: el globo al pasar el mouse, el árbol de componentes y las formas de onda siguen mostrando el valor. La imagen (PNG/SVG), el PDF y la impresión hacen lo mismo que el lienzo, así que salen sin los valores mientras esté apagado. No tiene tecla por omisión (se puede asignar en Atajos de teclado), y la IA puede apagarlo durante una tarea; aparece en «Ajustes que tocó la IA».
-- «Separador de bus» y «Unión de bus» (en Cableado) pasan de un bus a sus bits y al revés, sin retardo. «Ancho (bits)» (2 a 32, 8 por omisión) se cambia con doble click y los pines aparecen o desaparecen al instante; el bit 0 es el de arriba. Los pines de más de un bit se marcan con un cuadrado.
+- «Separador de bus» y «Unión de bus» (en Cableado) pasan de un bus a sus bits y al revés, sin retardo, o a [grupos de bits](#grupos-de-bits). «Ancho (bits)» (2 a 32, 8 por omisión) se cambia con doble click y los pines aparecen o desaparecen al instante; el bit 0 es el de arriba. Los pines de más de un bit se marcan con un cuadrado.
 - Clic derecho sobre un pin de bus de un componente (de 2 a 32 bits) ofrece «Agregar separador de bus» en una salida y «Agregar unión de bus» en una entrada: pone la pieza del mismo ancho a 2 cuadros del pin, hacia afuera del componente y con los bits apuntando lejos, unida por un cable. Es un solo paso de deshacer (quita pieza y cable juntos) y la pieza nueva queda seleccionada para arrastrarla. Si el pin ya tiene un cable, el cable nuevo se une a la misma red; los pines de 1 bit no ofrecen nada.
 - «Pin de entrada» y «Pin de salida» tienen «Ancho (bits)» (1 a 64): un componente creado con ellos tiene pines de ese ancho (en la caja se leen como `a[8]`). Al probar el circuito, un pin de entrada de varios bits pone todos sus bits en 0, 1 o Z y un click alterna entre todo 0 y todo 1.
 - Unir pines de anchos distintos es un problema: el cable se ve rojo y punteado, junto a cada pin aparece su ancho, la barra de estado cuenta «⚠ 1 ancho incompatible» (junto a los cortocircuitos), F8 lleva a él y al pasar el mouse se listan los pines. Esa red queda en Z.
 - Los circuitos y componentes guardados antes de que existieran los buses se abren igual: todo es de 1 bit.
+
+### Grupos de bits
+
+Un «Separador de bus» o una «Unión de bus» puede sacar o juntar **grupos de bits** en vez de un bit por pin: cada pin
+lleva un grupo y es un bus del ancho de ese grupo.
+
+- En Propiedades, bajo «Ancho (bits)», **«Bits por pin»** (de 1 al ancho) parte el bus en pines iguales: 4 en un bus de
+  8 da dos pines de 4 bits (`0-3` y `4-7`), 8 en uno de 32 da los cuatro bytes. Si el último pin no se completa, lleva
+  lo que queda, y Propiedades lo dice: «(el último de 1)» junto a «Bits por pin» y «2 pines de 7 bits (el último de
+  1)» en el resumen. Es un solo paso de deshacer; un número fuera de rango se avisa en la barra de estado y no cambia nada.
+- **«Configuración avanzada…»** abre la ventana «Grupos del separador» (o «de la unión»), modal, con Aceptar y Cancelar:
+  - una tabla con un pin por fila; cada pin tiene uno o más **tramos** «desde – hasta» («+ tramo», «quitar») y su
+    ancho; «+ Agregar pin» suma un pin con el primer bit libre y «quitar pin» lo saca;
+  - la **tira de bits** (el bit más alto a la izquierda, cada pin en su color): un clic en un bit lo pasa al pin marcado
+    en la tabla, o lo saca si ya era suyo; un bit «sin usar» no tiene relleno (solo un borde punteado y el número atenuado) y un bit en dos pines se marca en rojo. Cada pin tiene un color propio, ninguno gris. También se usa con
+    las flechas y la barra espaciadora;
+  - los problemas (un bit en dos pines, un pin sin bits, más de 32 pines, un texto que no se entiende) y los bits sin
+    usar;
+  - el mismo arreglo **como texto**, editable: un pin por `|` y sus tramos separados por coma, como `7-11,25-31|15-19`
+    (Enter lo aplica y, si no queda ningún problema, es Aceptar: cierra la ventana y aplica todo en un paso; con un
+    problema lo muestra y la ventana sigue abierta; salir del campo solo lo aplica). Un tramo se puede escribir desde
+    cualquiera de sus puntas: `11-7` es lo mismo que `7-11` (en la tabla, «desde» puede ser mayor que «hasta»); al
+    leer el texto, la tabla muestra cada tramo de menor a mayor (`7 – 11`), y el texto guardado lo ordena;
+  - una **vista previa** de la pieza con sus etiquetas, compacta (una pieza muy alta se desplaza dentro de ella).
+
+  Aceptar queda apagado mientras hay un problema (salvo que hayas escrito un texto nuevo, que Aceptar lee primero);
+  Aceptar aplica todo en un solo paso de deshacer, y Cancelar, Esc o cerrar la ventana no cambian nada. Aceptar y
+  Cancelar quedan fijos abajo: aunque la tabla crezca o se achique, no se mueven. Aceptar es el botón principal
+  (destacado en el color de la apariencia): Enter lo pulsa desde cualquier parte de la ventana. La ventana toma el
+  alto de lo que muestra (la tabla con todas sus filas, la tira de bits entera y la pieza completa; solo una tabla
+  de muchos pines o una pieza muy alta se desplazan) y crece o se achica al agregar o quitar pines.
+- Con grupos que no son iguales, Propiedades dice «Personalizado» junto a «Bits por pin» y, bajo el botón, un resumen:
+  cada pin con su color, sus bits y su ancho («1: 7-11,25-31 (12 bits)») y los bits sin usar. Con pines iguales el
+  resumen es una línea («2 pines de 4 bits»).
+- Dentro de un pin los bits van **del más bajo al más alto** del bus, como en Logisim: un pin `7-11,25-31` (el inmediato
+  de la instrucción `sw` de RISC-V) tiene los bits 7-11 del bus como sus bits 0-4 y los bits 25-31 como sus bits 5-11.
+- Un bit que no está en ningún pin queda **sin usar**: el Separador lo ignora y la Unión lo deja en Z en el bus.
+- Cada pin se llama `b` y sus bits (`b5`, `b0-3`, `b7-11,25-31`), así que con un bit por pin los nombres son los de
+  siempre. Un pin de varios bits se dibuja grueso y su etiqueta dice sus bits; el globo del pin dice lo mismo.
+- Con algún pin de varios bits la pieza cambia de forma para que todo se lea: los pines van **cada dos cuadros** (dos
+  buses gruesos nunca se tocan) y la pieza se **ensancha** hasta que la etiqueta más larga (`7-11,25-31`) cabe entera
+  sobre su pin, en el color del texto y lejos del lomo; girada, la etiqueta corre a lo largo del pin. Con un bit por
+  pin la pieza es la de siempre, así que los circuitos de antes no se mueven. Si la forma cambia (otros grupos, otro
+  «Ancho»), los cables siguen a sus pines como se explica abajo, en un solo paso de deshacer.
+- Al cambiar los grupos, un cable sigue al pin que lleva los mismos bits; si su pin desaparece, el cable queda donde
+  estaba (y si toca un pin de otro ancho aparece el aviso de anchos incompatibles). Al cambiar «Ancho (bits)», los
+  pines iguales siguen iguales con los mismos bits por pin y los grupos a mano pierden los bits que ya no existen;
+  la IA, si cambia solo el ancho, sigue la misma regla.
+- Un cambio de grupos o de «Ancho» que dejaría un pin, nuevo o movido, sobre un cable o un pin **de su mismo ancho** al
+  que no estaba unido se rechaza y no cambia nada: la señal llegaría a otro lado sin ningún aviso (por ejemplo, pasar
+  a `0-3|4|5|6|7` un separador con un cable por bit pondría `b4` sobre el cable del bit 2). El aviso nombra el pin:
+  en la ventana de grupos queda entre los problemas, con «Bits por pin» en la barra de estado, y en Propiedades y
+  «Configurar…» bajo los parámetros. Mueve ese cable y vuelve a intentarlo. Si el pin toca algo de **otro ancho** el
+  cambio se acepta, porque se ve: el cable queda rojo con el aviso de anchos incompatibles. Las demás piezas siguen
+  como antes: un pin nuevo (Q̅ al mostrarlo) no puede caer sobre ningún cable ni pin. La IA sigue la misma regla.
+- Los circuitos guardados antes de los grupos se abren igual: sin grupos cada bit es su propio pin. La IA cambia los
+  grupos con el parámetro `groups` (el mismo texto, guardado igual que desde la ventana: un bit por pin queda vacío);
+  un texto con problemas se rechaza.
 
 ## Túneles de cables
 
@@ -52,6 +110,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - Se ven como una etiqueta redondeada con el nombre: el pin queda afuera y el cable entra hasta el centro de un hoyito; junto al hoyo, una flecha apunta hacia él en una entrada y hacia afuera en una salida, gire como gire la pieza. Sin girar, la entrada tiene el pin, el hoyo y la flecha a la izquierda (el cable llega por la izquierda) y la salida los tiene a la derecha (el cable sale hacia la derecha), así se distinguen de un vistazo, también en la paleta. En horizontal el nombre siempre se lee derecho; en vertical va de lado, de abajo hacia arriba.
 - El color lo pone la entrada (en Propiedades, una fila de 8 muestras con su nombre al pasar el mouse) y sus salidas lo toman solas. Una entrada nueva propone el primer nombre libre (T1, T2…) y el primer color que no usa otra entrada; una salida nueva propone el nombre de la última entrada que pusiste o renombraste. Una salida sin entrada se ve gris. Mientras pones o pegas una salida, su vista previa ya muestra el color de la entrada de su nombre en el circuito (o el de una entrada que viene en lo pegado); sin entrada, se ve en el primer color.
 - El nombre se cambia en el lugar: doble clic sobre el túnel (o F2 con él seleccionado), con ✓/Intro y ✗/Esc. No puede quedar vacío ni empezar o terminar con espacios. Al renombrar una entrada se renombran también sus salidas, en un solo paso de deshacer (salvo que el nombre nuevo ya tenga entrada, o que haya otra entrada con el mismo nombre, como una copia pegada: entonces cambia solo esa, así renombrar la copia arregla el duplicado). El pin no se mueve al cambiar el nombre, aunque la etiqueta crezca. En una salida, bajo el campo aparecen los nombres que tienen entrada para elegir uno (clic, o ↓/↑ e Intro). Propiedades y «Configurar…» también cambian el nombre, con las mismas reglas.
+- **«Dirección»** en Propiedades, en los dos túneles: «Con dirección» (por omisión, lo de arriba) o «Sin dirección». Un túnel sin dirección es el mismo cable que todos los túneles de su nombre y cualquiera de ellos puede recibir la señal o entregarla, como en Logisim; se dibuja con dos triángulos «◂▸» donde los demás tienen la flecha, para que no parezca un túnel al que le falta algo, y se llama «Túnel (sin dirección)» en Propiedades, en el buscador, en Problemas y en el árbol, con su propia descripción. Al cambiar «Dirección» en Propiedades, la barra de estado lo dice («El túnel «BUS» ahora no tiene dirección. Ctrl+Z para deshacer.»). Se cambia en cualquier túnel y en los dos sentidos, de a uno, cada cambio un paso de deshacer; un nombre puede mezclar túneles con y sin dirección. Un túnel sin dirección no cuenta como entrada repetida, le da señal a las salidas de su nombre (que entonces no piden entrada) y la recibe de la entrada (que entonces no queda sin salidas). Si queda solo con su nombre aparece un aviso, y si dos piezas le dan valores distintos, el cortocircuito de siempre. Al renombrar la única entrada de un nombre también cambian sus túneles sin dirección; renombrar uno sin dirección cambia solo ese. Pegar uno sin dirección conserva su nombre. Los circuitos anteriores quedan «Con dirección» y se guardan igual que antes.
 - Pegar (o duplicar) una entrada cuyo nombre ya tiene entrada en el circuito le pone el primer nombre libre `NOMBRE_2`, `NOMBRE_3`… (libre entre todos los túneles), junto con las salidas de ese nombre que vienen en lo pegado, así lo pegado queda unido a sí mismo y no aparece «Hay 2 entradas». Una salida pegada sola conserva su nombre (así se reutiliza una señal), y en otro circuito donde el nombre está libre también se conserva.
-- Al pasar el mouse por un túnel se marcan todos los de su nombre, con un contorno de su color, y la barra de estado dice «CLK: 1 entrada, 3 salidas». En el menú contextual: «Nombre…», «Ir a la entrada» (en una salida) y «Siguiente salida» (pasa por todas, en ronda), que viajan hasta allá.
-- Problemas (y F8): dos entradas con el mismo nombre, una salida sin entrada (errores, que también cuenta la barra de estado), una entrada sin salidas y una salida que recibe una señal por su propio cable (avisos). Los nombres valen dentro de un circuito: los de un componente propio no se mezclan con los de afuera. Si «Crear componente» deja de un lado del borde parte de los túneles de un nombre, un mensaje dice cuáles quedaron cortados. Al «Desarmar» un componente cuyos túneles usan un nombre que ya está en tu circuito, esos túneles cambian a un nombre libre («A» → «A_2») para no unirse con los de afuera, y un mensaje lo dice. Un túnel sin cable muestra su pin como sin conectar (el anillo hueco), aunque su nombre lo una con otros; al pasar el mouse por el pin se ve el nombre del túnel y, en un bus, su ancho.
+- Al pasar el mouse por un túnel se marcan todos los de su nombre, con un contorno de su color, y la barra de estado dice «CLK: 1 entrada, 3 salidas» (los túneles sin dirección se cuentan aparte: «CLK: 4 túneles sin dirección», o «CLK: 1 entrada, 1 salida, 2 túneles sin dirección» si el nombre los mezcla). En el menú contextual: «Nombre…», «Ir a la entrada» (en una salida con dirección) y «Siguiente salida» (pasa por las salidas con dirección, en ronda), que viajan hasta allá; un túnel sin dirección ofrece en cambio «Siguiente túnel del nombre», que pasa por todos los túneles del nombre, en ronda.
+- Problemas (y F8): dos entradas con el mismo nombre, una salida sin entrada (errores, que también cuenta la barra de estado), una entrada sin salidas, una salida que recibe una señal por su propio cable y un túnel sin dirección solo con su nombre (avisos). Los nombres valen dentro de un circuito: los de un componente propio no se mezclan con los de afuera. Si «Crear componente» deja de un lado del borde parte de los túneles de un nombre, un mensaje dice cuáles quedaron cortados. Al «Desarmar» un componente cuyos túneles usan un nombre que ya está en tu circuito, esos túneles cambian a un nombre libre («A» → «A_2») para no unirse con los de afuera, y un mensaje lo dice. Un túnel sin cable muestra su pin como sin conectar (el anillo hueco), aunque su nombre lo una con otros; al pasar el mouse por el pin se ve el nombre del túnel y, en un bus, su ancho.

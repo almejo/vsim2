@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
+import cl.almejo.vsim.ui.panels.PinJoinRefusal;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.ZoomTool;
@@ -261,7 +262,8 @@ public final class EditorActions {
         if (type.parameters().isEmpty()) {
             return;
         }
-        ConfigureDialog.show(activePane.get(), type, component, activePane.get()::scheme)
+        ConfigureDialog.show(activePane.get(), type, component, activePane.get()::scheme,
+                        values -> PinJoinRefusal.of(openDocument, component.id(), values))
                 .ifPresent(values -> TunnelNames.applyParameters(openDocument, component.id(), type, values));
     }
 

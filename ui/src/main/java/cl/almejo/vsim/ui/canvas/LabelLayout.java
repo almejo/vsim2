@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
+import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 import java.awt.Font;
@@ -187,7 +188,7 @@ public final class LabelLayout {
         double width = 0;
         for (String line : lines) {
             if (!line.isEmpty()) {
-                width = Math.max(width, font.getStringBounds(line, RENDER_CONTEXT).getWidth());
+                width = Math.max(width, FallbackText.width(font, line, RENDER_CONTEXT));
             }
         }
         String sample = lines.getFirst().isEmpty() ? " " : lines.getFirst();

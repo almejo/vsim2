@@ -169,6 +169,13 @@ class PaintersTest {
                     assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 400, parameters);
                 }
             }
+            // grouped pins: thick leads and long labels stay near the part too
+            Map<String, Object> grouped = Map.of(StandardComponentTypes.WIDTH, 32, StandardComponentTypes.GROUPS,
+                    "7-11,25-31|15-19|0-3");
+            ComponentType type = registry.require(typeId).specializedFor(grouped);
+            for (Rotation rotation : Rotation.values()) {
+                assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 400, grouped);
+            }
         }
     }
 
@@ -356,6 +363,8 @@ class PaintersTest {
                     .filter(path -> !path.getFileName().toString().equals("PainterSupport.java"))
                     // a Graphics2D that passes text on, not a painter
                     .filter(path -> !path.getFileName().toString().equals("MonochromeGraphics.java"))
+                    // draws a text in place, with borrowed glyphs; the upright helper calls it
+                    .filter(path -> !path.getFileName().toString().equals("FallbackText.java"))
                     .filter(path -> {
                         String source = readSource(path);
                         return source.contains("drawString(") || source.contains("drawGlyphVector(")

@@ -68,7 +68,8 @@ class MemoryTypesTest {
         assertThat(MemoryTypes.kindOf(StandardComponentTypes.REGISTER)).isEmpty();
         assertThat(ram.parameters()).extracting(ParameterSpec::name).containsExactly(MemoryTypes.WORDS,
                 MemoryTypes.WIDTH, MemoryTypes.CONNECTION, MemoryTypes.DATA, MemoryTypes.WRITE,
-                MemoryTypes.SHOW_CONTENTS, "delay", MemoryTypes.CONTENTS, MemoryTypes.LINK);
+                StandardParameters.EDGE.name(), MemoryTypes.SHOW_CONTENTS, "delay", MemoryTypes.CONTENTS,
+                MemoryTypes.LINK);
         assertThat(rom.parameters()).extracting(ParameterSpec::name).containsExactly(MemoryTypes.WORDS,
                 MemoryTypes.WIDTH, MemoryTypes.CONNECTION, MemoryTypes.SHOW_CONTENTS, "delay", MemoryTypes.CONTENTS,
                 MemoryTypes.LINK);
@@ -77,6 +78,7 @@ class MemoryTypesTest {
                 .containsEntry(MemoryTypes.CONNECTION, MemoryTypes.CONNECTION_BUS)
                 .containsEntry(MemoryTypes.DATA, MemoryTypes.DATA_SEPARATE)
                 .containsEntry(MemoryTypes.WRITE, MemoryTypes.WRITE_CLOCK)
+                .containsEntry(StandardParameters.EDGE.name(), StandardParameters.FALLING)
                 .containsEntry(MemoryTypes.SHOW_CONTENTS, MemoryTypes.SHOW_CONTENTS_YES)
                 .containsEntry(MemoryTypes.CONTENTS, "").containsEntry(MemoryTypes.LINK, "");
         assertThat(ram.parameters()).filteredOn(ParameterSpec::hidden).extracting(ParameterSpec::name)
@@ -187,13 +189,24 @@ class MemoryTypesTest {
                 new FlatComponent("second", secondType, secondParameters)));
         List<FlatNet> nets = new ArrayList<>();
         for (String input : List.of("A", "D", "WE", "CLK")) {
-            int width = pinNamed(firstType, input).width();
+            // «sin reloj» RAMs have no CLK pin: the input is then wired to whichever RAM has it (or none)
+            boolean inFirst = pinIndexOrMinusOne(firstType, input) >= 0;
+            boolean inSecond = pinIndexOrMinusOne(secondType, input) >= 0;
+            if (!inFirst && !inSecond) {
+                continue;
+            }
+            int width = pinNamed(inFirst ? firstType : secondType, input).width();
             Map<String, Object> source = Map.of("value", "0", InterfacePins.WIDTH, width);
             components.add(new FlatComponent(input, registry.require(InterfacePins.INPUT_PIN).specializedFor(source),
                     source));
-            nets.add(new FlatNet("n-" + input, List.of(new FlatPinRef(input, 0),
-                    new FlatPinRef("first", pinIndex(firstType, input)),
-                    new FlatPinRef("second", pinIndex(secondType, input))), width, false));
+            List<FlatPinRef> references = new ArrayList<>(List.of(new FlatPinRef(input, 0)));
+            if (inFirst) {
+                references.add(new FlatPinRef("first", pinIndex(firstType, input)));
+            }
+            if (inSecond) {
+                references.add(new FlatPinRef("second", pinIndex(secondType, input)));
+            }
+            nets.add(new FlatNet("n-" + input, references, width, false));
         }
         nets.add(new FlatNet("q-first", List.of(new FlatPinRef("first", pinIndex(firstType, "Q"))), 8, false));
         nets.add(new FlatNet("q-second", List.of(new FlatPinRef("second", pinIndex(secondType, "Q"))), 8, false));
@@ -231,5 +244,75 @@ class MemoryTypesTest {
         engine.advance(10);
         assertThat(engine.snapshot().netValue("q-first")).as("new initial contents").isEqualTo(Value.of(8, 0x11));
         assertThat(engine.snapshot().netValue("q-second")).as("untouched").isEqualTo(Value.of(8, 0x5A));
+    }
+
+    /** Sets A = 3, D = {@code value}, WE = 1 and lets it settle (the clock is left alone: «sin reloj» RAMs have none). */
+    private void prepareWriteAtThree(long value) {
+        engine.setInput("A", Value.of(4, 3));
+        engine.setInput("D", Value.of(8, value));
+        engine.setInput("WE", Value.ONE);
+        engine.advance(10);
+    }
+
+    @Test
+    void aRisingRamWritesOnTheZeroToOneStepOnly() {
+        Map<String, Object> rising = Map.of(StandardParameters.EDGE.name(), StandardParameters.RISING);
+        engine.update(twoRams(rising, Map.of()));
+        prepareWriteAtThree(0x5A);
+        engine.setInput("CLK", Value.ZERO);
+        engine.advance(10);
+        engine.setInput("CLK", Value.ONE);
+        engine.advance(10);
+        assertThat(engine.snapshot().netValue("q-first")).as("rising RAM wrote on 0 to 1")
+                .isEqualTo(Value.of(8, 0x5A));
+        assertThat(engine.snapshot().netValue("q-second")).as("falling RAM waits for 1 to 0")
+                .isNotEqualTo(Value.of(8, 0x5A));
+        engine.setInput("A", Value.of(4, 4));
+        engine.setInput("D", Value.of(8, 0x33));
+        engine.setInput("CLK", Value.ZERO);
+        engine.advance(10);
+        engine.setInput("A", Value.of(4, 3));
+        engine.advance(10);
+        assertThat(engine.snapshot().netValue("q-first")).as("the falling step wrote nothing in the rising RAM")
+                .isEqualTo(Value.of(8, 0x5A));
+        assertThat(engine.snapshot().netValue("q-second")).as("the falling RAM wrote 0x33 at 4, not at 3")
+                .isNotEqualTo(Value.of(8, 0x5A));
+    }
+
+    @Test
+    void theDefaultRamStillWritesOnTheFallingEdge() {
+        engine.update(twoRams(Map.of(), Map.of()));
+        writeThreeInBoth(0x5A);
+        assertThat(engine.snapshot().netValue("q-first")).isEqualTo(Value.of(8, 0x5A));
+        assertThat(engine.snapshot().netValue("q-second")).isEqualTo(Value.of(8, 0x5A));
+    }
+
+    @Test
+    void levelWritingIgnoresTheEdge() {
+        Map<String, Object> levelRising = Map.of(MemoryTypes.WRITE, MemoryTypes.WRITE_LEVEL,
+                StandardParameters.EDGE.name(), StandardParameters.RISING);
+        Map<String, Object> level = Map.of(MemoryTypes.WRITE, MemoryTypes.WRITE_LEVEL);
+        engine.update(twoRams(levelRising, level));
+        prepareWriteAtThree(0x5A);
+        assertThat(engine.snapshot().netValue("q-first")).isEqualTo(Value.of(8, 0x5A));
+        assertThat(engine.snapshot().netValue("q-second")).isEqualTo(Value.of(8, 0x5A));
+    }
+
+    @Test
+    void theEdgeIsVisibleOnlyForClockedWriting() {
+        ComponentType ram = registry.require(StandardComponentTypes.RAM);
+        ParameterSpec edge = ram.parameters().stream()
+                .filter(spec -> spec.name().equals(StandardParameters.EDGE.name())).findFirst().orElseThrow();
+        assertThat(edge.visibility()).hasValueSatisfying(condition -> {
+            assertThat(condition.parameter()).isEqualTo(MemoryTypes.WRITE);
+            assertThat(condition.value()).isEqualTo(MemoryTypes.WRITE_CLOCK);
+        });
+        assertThat(edge.defaultValue()).isEqualTo(StandardParameters.FALLING);
+    }
+
+    @Test
+    void aRamSavedWithoutAnEdgeLoadsFalling() {
+        assertThat(ram(Map.of(MemoryTypes.WORDS, "16")).resolveParameters(Map.of(MemoryTypes.WORDS, "16")))
+                .containsEntry(StandardParameters.EDGE.name(), StandardParameters.FALLING);
     }
 }

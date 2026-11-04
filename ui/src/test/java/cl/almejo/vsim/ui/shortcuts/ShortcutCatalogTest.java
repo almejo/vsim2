@@ -36,10 +36,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFortyEightHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFortyNineHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(48);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(49);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -185,14 +185,22 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void exportPdfFollowsExportImageWithNoDefaultStrokeAndLeavesCtrlPFree() {
+    void exportPdfFollowsExportImageWithNoDefaultStroke() {
         assertThat(ids()).containsSubsequence("file.exportImage", "file.exportPdf");
         assertThat(ids().indexOf("file.exportPdf")).isEqualTo(ids().indexOf("file.exportImage") + 1);
         ShortcutEntry entry = ShortcutCatalog.find("file.exportPdf").orElseThrow();
         assertThat(entry.scope()).isEqualTo(Scope.WINDOW);
         assertThat(entry.group()).isEqualTo(MenuId.FILE);
         assertThat(entry.defaultStroke()).isEmpty();
+    }
+
+    @Test
+    void printFollowsSaveAsAndIsTheOnlyOneOnCtrlP() {
+        assertThat(ids().indexOf("file.print")).isEqualTo(ids().indexOf("file.saveAs") + 1);
         KeyStroke print = KeyStroke.getKeyStroke(KeyEvent.VK_P, ShortcutCatalog.menuMask());
-        assertThat(ShortcutCatalog.entries()).noneMatch(each -> each.defaultStroke().equals(Optional.of(print)));
+        assertThat(ShortcutCatalog.find("file.print")).contains(new ShortcutEntry("file.print", "action.print",
+                MenuId.FILE, Scope.WINDOW, Optional.of(print)));
+        assertThat(ShortcutCatalog.entries()).filteredOn(each -> each.defaultStroke().equals(Optional.of(print)))
+                .extracting(ShortcutEntry::id).containsExactly("file.print");
     }
 }

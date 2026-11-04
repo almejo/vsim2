@@ -9,6 +9,7 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
@@ -18,6 +19,7 @@ import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.print.PageGeometry;
 import cl.almejo.vsim.ui.print.PageLayout;
 import cl.almejo.vsim.ui.print.PageOrientation;
@@ -31,6 +33,7 @@ import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScope;
 import cl.almejo.vsim.ui.print.PrintScopes;
 import cl.almejo.vsim.ui.print.ScaleMode;
+import cl.almejo.vsim.ui.print.SheetPlan;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -54,7 +57,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * The AI's exports (spec §7, Exports row): Archivo ▸ «Exportar imagen…» and «Exportar a PDF…» without their dialogs,
+ * The AI's exports (spec §7, Exports row): Archivo ▸ Exportar ▸ «Imagen…» and «PDF…» without their dialogs,
  * through the same code ({@link CircuitImage}, {@link ImageExport}, {@link PrintInput}, {@link PagePainter},
  * {@link PdfExport}) and with the same options. The file goes only into the folder VSim remembers for that export
  * (an image: the image export's folder; a PDF: the PDF's; each falls back on the other, and with neither on the
@@ -82,6 +85,7 @@ final class ExportHostSupport {
     private final Executor editorThread;
     private final Clock clock;
     private final FolderOpener folderOpener;
+    private final SheetAnchors sheetAnchors;
 
     /**
      * @param windowsOf    the windows showing a circuit (their preferences, scheme and status line); EDT only
@@ -89,9 +93,11 @@ final class ExportHostSupport {
      * @param writer       where files are written (never the EDT)
      * @param editorThread runs the status notices on the EDT
      * @param folderOpener «Abrir carpeta» on the notice
+     * @param sheetAnchors where the print sheets shown on the canvas are anchored: a PDF of the whole circuit uses them
      */
     ExportHostSupport(Function<OpenDocument, List<ShownWindow>> windowsOf, Supplier<Path> home, Executor writer,
-                      Executor editorThread, Clock clock, FolderOpener folderOpener) {
+                      Executor editorThread, Clock clock, FolderOpener folderOpener, SheetAnchors sheetAnchors) {
+        this.sheetAnchors = Objects.requireNonNull(sheetAnchors, "sheetAnchors");
         this.windowsOf = Objects.requireNonNull(windowsOf, "windowsOf");
         this.home = Objects.requireNonNull(home, "home");
         this.writer = Objects.requireNonNull(writer, "writer");
@@ -124,7 +130,8 @@ final class ExportHostSupport {
         return switch (request.format()) {
             case PNG, SVG -> prepareImage(id, version, document, request, folder, baseName, windowScheme,
                     showBusValues);
-            case PDF -> preparePdf(id, version, document, request, folder, baseName, windowScheme, showBusValues);
+            case PDF -> preparePdf(id, version, document, request, folder, baseName, windowScheme, showBusValues,
+                    Optional.ofNullable(preferences));
         };
     }
 
@@ -223,12 +230,17 @@ final class ExportHostSupport {
     // --- PDF ---
 
     private Prepared preparePdf(DocumentId id, DocumentVersion version, OpenDocument document, ExportRequest request,
-                                Path folder, String baseName, ColorScheme windowScheme, boolean showBusValues) {
+                                Path folder, String baseName, ColorScheme windowScheme, boolean showBusValues,
+                                Optional<AppPreferences> preferences) {
         ExportRequest.PdfOptions chosen = request.pdf();
         Set<ElementId> selection = request.scope() instanceof ExportRequest.Scope.Elements elements
                 ? elementIds(document, elements.elementIds()) : Set.of();
+        // The sheets shown on the canvas hold «Todo el circuito» only (sheets spec §0a); a selection or a frame is
+        // laid out on its own.
+        Optional<GridPoint> sheetAnchor = request.scope() instanceof ExportRequest.Scope.WholeCircuit
+                ? sheetAnchors.anchor(document.document()) : Optional.empty();
         PrintInput input = PrintInput.capture(document, selection, windowScheme, TextFonts.current(), clock,
-                showBusValues);
+                showBusValues, sheetAnchor);
         PrintScope scope = switch (request.scope()) {
             case ExportRequest.Scope.WholeCircuit whole -> new PrintScope.WholeCircuit();
             case ExportRequest.Scope.Elements elements -> new PrintScope.Selection(selection);
@@ -240,25 +252,32 @@ final class ExportHostSupport {
         ScaleMode scaleMode = chosen.scalePercent() == 0 ? new ScaleMode.FitToOnePage()
                 : new ScaleMode.Percentage(chosen.scalePercent());
         String title = chosen.title().isBlank() ? withoutExtension(document.displayName()) : chosen.title();
+        // «Saltar hojas vacías» as the user left it in the dialog, in every scope, as the dialog applies it
+        boolean skipEmptySheets = preferences.map(remembered -> remembered.printOptions(title).skipEmptySheets())
+                .orElse(false);
         PrintOptions options = new PrintOptions(scope, Paper.valueOf(chosen.paper()),
                 PageOrientation.valueOf(chosen.orientation()), scaleMode, chosen.withValues(), chosen.blackAndWhite(),
-                chosen.headerFooter(), title, request.includeStickyNotes());
+                chosen.headerFooter(), title, request.includeStickyNotes()).withSkipEmptySheets(skipEmptySheets);
         PrintArea area = PrintScopes.area(input, scope, request.includeStickyNotes()).orElseThrow(ExportHostSupport::nothing);
-        PageLayout layout = PageLayout.of(area.gridArea(), PageGeometry.standard(options.paper(),
-                options.orientation(), options.headerFooter()), options.scaleMode());
+        // 1 cm as always, but while sheets are shown the margin they were laid out with, so the lattice is the same
+        double margin = sheetAnchor.isPresent() ? preferences.map(AppPreferences::printMarginPoints)
+                .orElse(PageGeometry.CENTIMETRE_POINTS) : PageGeometry.CENTIMETRE_POINTS;
+        PageLayout layout = SheetPlan.layout(area.gridArea(), PageGeometry.standard(options, margin),
+                options.scaleMode(), input.sheetAnchor());
         if (layout.problem().isPresent()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "The circuit does not fit on the sheet "
                     + "with these options; try another paper, orientation or scale",
                     Map.of("problem", layout.problem().get()));
         }
-        if (layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES) {
-            throw new AutomationException(AutomationError.INVALID_PARAMETER, "That would be "
-                    + layout.pageCountExact() + " sheets; at most " + PdfExport.REFUSE_ABOVE_PAGES
-                    + " (fit it to one sheet or use a smaller scale)",
-                    Map.of("maximum", PdfExport.REFUSE_ABOVE_PAGES));
-        }
         PagePainter painter = new PagePainter(input, area, options, layout);
         int pages = painter.pages().size();
+        // the sheets that go out count (empty ones skipped when the option is on), as in the dialog
+        if (pages > PdfExport.REFUSE_ABOVE_PAGES) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "That would be "
+                    + (pages == Integer.MAX_VALUE ? layout.pageCountExact() : pages) + " sheets; at most "
+                    + PdfExport.REFUSE_ABOVE_PAGES + " (fit it to one sheet or use a smaller scale)",
+                    Map.of("maximum", PdfExport.REFUSE_ABOVE_PAGES));
+        }
         PdfExporter exporter = new PdfExport(Runnable::run);
         return new Prepared(id, version, document, request.format(), folder, baseName,
                 target -> exporter.export(painter, target, new PdfExporter.ProgressListener() {

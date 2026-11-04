@@ -15,6 +15,10 @@ public final class StandardParameters {
     /** «Flanco»: the clock edge a part acts on, «Subida» or «Bajada»; see {@link ClockEdgeDetector}. */
     public static final ParameterSpec EDGE = ParameterSpec.choice("edge", RISING, List.of(RISING, FALLING));
 
+    /** {@link #EDGE} for a part whose files and behaviour before «Flanco» existed always acted on the falling edge. */
+    public static final ParameterSpec EDGE_FALLING_BY_DEFAULT =
+            ParameterSpec.choice(EDGE.name(), FALLING, List.of(RISING, FALLING));
+
     private StandardParameters() {
     }
 }

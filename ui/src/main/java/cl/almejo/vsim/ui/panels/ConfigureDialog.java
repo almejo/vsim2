@@ -19,6 +19,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -31,10 +32,12 @@ public final class ConfigureDialog {
     }
 
     /**
-     * {@code scheme} gives the colours the canvas paints with now, for the colour swatches.
+     * {@code scheme} gives the colours the canvas paints with now, for the colour swatches; {@code refusal} says why
+     * the document refuses valid values (empty when it takes them), and OK then keeps the dialog open.
      */
     public static Optional<Map<String, Object>> show(java.awt.Component owner, ComponentType type,
-                                                     Component component, Supplier<ColorScheme> scheme) {
+                                                     Component component, Supplier<ColorScheme> scheme,
+                                                     Function<Map<String, Object>, Optional<String>> refusal) {
         ParameterForm form = new ParameterForm(type, component.parameters(), scheme);
         JLabel error = newErrorLabel();
         JPanel content = content(form, error);
@@ -56,7 +59,7 @@ public final class ConfigureDialog {
             if (choice == JOptionPane.UNINITIALIZED_VALUE) {
                 return;
             }
-            if (acceptChoice(choice, form, error)) {
+            if (acceptChoice(choice, form, error, refusal)) {
                 dialog.setVisible(false);
             } else {
                 pane.setValue(JOptionPane.UNINITIALIZED_VALUE);
@@ -87,14 +90,16 @@ public final class ConfigureDialog {
     }
 
     /**
-     * What a button press or close does: true closes the dialog. An OK with invalid values shows the error in
-     * {@code error} and returns false; a valid OK clears it.
+     * What a button press or close does: true closes the dialog. An OK with invalid values, or with values the document
+     * refuses ({@code refusal} gives why, e.g. {@link PinJoinRefusal}), shows the error in {@code error} and returns
+     * false; a valid OK clears it.
      */
-    static boolean acceptChoice(Object choice, ParameterForm form, JLabel error) {
+    static boolean acceptChoice(Object choice, ParameterForm form, JLabel error,
+                                Function<Map<String, Object>, Optional<String>> refusal) {
         if (!isOk(choice)) {
             return true;
         }
-        Optional<String> problem = form.validationError();
+        Optional<String> problem = form.validationError().or(() -> refusal.apply(form.rawValues()));
         error.setText(problem.orElse(" "));
         return problem.isEmpty();
     }

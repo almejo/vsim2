@@ -4,8 +4,6 @@ import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JPopupMenu;
-import javax.swing.JSeparator;
 import java.awt.Component;
 import java.util.Optional;
 
@@ -18,8 +16,6 @@ public final class ImportMenu {
 
     /** The client property that marks the submenu. */
     static final String MARK = "vsim.file.importMenu";
-    /** The client property of the submenu that holds the separator inserted with it. */
-    private static final String SEPARATOR = "vsim.file.importMenu.separator";
 
     private ImportMenu() {
     }
@@ -35,9 +31,8 @@ public final class ImportMenu {
     }
 
     /**
-     * Adds {@code item} at the end of the «Importar» submenu of {@code file}. A missing submenu is made with a separator
-     * before it, right before the first separator of the menu (after the saving and exporting items), or at the end
-     * of a menu without separators.
+     * Adds {@code item} at the end of the «Importar» submenu of {@code file}. A missing submenu is made first in the group it
+     * shares with «Exportar» ({@link ImportExportGroup}), after the saving items.
      *
      * @return what takes the item back; it also removes the submenu and its separator once the submenu is empty
      */
@@ -47,10 +42,7 @@ public final class ImportMenu {
         return () -> {
             menu.remove(item);
             if (menu.getMenuComponentCount() == 0) {
-                file.remove(menu);
-                if (menu.getClientProperty(SEPARATOR) instanceof Component separator) {
-                    file.remove(separator);
-                }
+                ImportExportGroup.remove(file, menu);
             }
         };
     }
@@ -58,17 +50,7 @@ public final class ImportMenu {
     private static JMenu create(JMenu file) {
         JMenu menu = new JMenu(Messages.text("menu.file.import"));
         menu.putClientProperty(MARK, Boolean.TRUE);
-        int position = file.getMenuComponentCount();
-        for (int index = 0; index < file.getMenuComponentCount(); index++) {
-            if (file.getMenuComponent(index) instanceof JSeparator) {
-                position = index;
-                break;
-            }
-        }
-        JPopupMenu.Separator separator = new JPopupMenu.Separator();
-        file.getPopupMenu().insert(separator, position);
-        file.insert(menu, position + 1);
-        menu.putClientProperty(SEPARATOR, separator);
+        ImportExportGroup.insert(file, menu, true);
         return menu;
     }
 }

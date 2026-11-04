@@ -9,7 +9,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JComponent;
+import javax.swing.JLabel;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
@@ -56,6 +60,34 @@ class PagePreviewTest {
     private Point2D mapPointOf(int sheet) {
         Rectangle2D grid = layout.page(sheet).gridRectangle();
         return preview.map().toMap(grid.getCenterX(), grid.getCenterY());
+    }
+
+    @Test
+    void theZoomIsAMagnifierNextToTheComboNotAScaleLabel() {
+        JLabel zoomLabel = labelFor(preview, preview.zoomChoice());
+
+        assertThat(zoomLabel.getText()).isNullOrEmpty();
+        assertThat(zoomLabel.getIcon()).isNotNull();
+        assertThat(zoomLabel.getToolTipText()).isEqualTo("Zoom de la vista previa (no cambia la escala del papel)");
+        assertThat(zoomLabel.getAccessibleContext().getAccessibleName())
+                .isEqualTo("Zoom de la vista previa (no cambia la escala del papel)");
+        assertThat(preview.zoomChoice().getToolTipText()).isEqualTo("Zoom de la vista previa (no cambia la escala"
+                + " del papel)");
+    }
+
+    private static JLabel labelFor(Container container, JComponent labelled) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JLabel label && label.getLabelFor() == labelled) {
+                return label;
+            }
+            if (child instanceof Container inner) {
+                JLabel found = labelFor(inner, labelled);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     @Test
@@ -170,5 +202,93 @@ class PagePreviewTest {
         preview.map().paint(graphics);
         graphics.dispose();
         assertThat(preview.map().overviewRenders()).as("another painter").isEqualTo(3);
+    }
+
+    // --- «Saltar hojas vacías» ---------------------------------------------------------------------------------
+
+    /** The same circuit with the empty sheets skipped. */
+    private PagePainter skipping() {
+        PrintInput input = PrintInput.capture(openDocument, Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
+        PrintArea area = PrintScopes.area(input, new PrintScope.WholeCircuit()).orElseThrow();
+        PrintOptions options = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
+                new ScaleMode.Percentage(100), true, false, false, "", false, true, true, true, true, true);
+        return new PagePainter(input, area, options, layout);
+    }
+
+    @Test
+    void skippingEmptySheetsThePreviewWalksOnlyThePrintedOnesByTheirGridNumbers() {
+        PagePainter skipping = skipping();
+        int printed = skipping.pages().size();
+        assertThat(printed).as("the fixture has empty sheets").isLessThan(layout.pageCount()).isGreaterThan(1);
+        int second = skipping.pages().get(1).layoutIndex();
+        assertThat(second).as("the fixture skips the second sheet").isGreaterThan(1);
+
+        preview.show(skipping, layout);
+        assertThat(preview.sheetLabel()).isEqualTo("Hoja 1 de " + layout.pageCount());
+        preview.nextButton().doClick();
+
+        assertThat(preview.selectedSheet()).isEqualTo(1);
+        assertThat(preview.sheetLabel()).isEqualTo("Hoja " + (second + 1) + " de " + layout.pageCount());
+        preview.map().key(KeyEvent.VK_LEFT);
+        assertThat(preview.selectedSheet()).isZero();
+        preview.selectSheet(printed + 5);
+        assertThat(preview.selectedSheet()).as("only the printed sheets").isEqualTo(printed - 1);
+        assertThat(preview.nextButton().isEnabled()).isFalse();
+    }
+
+    @Test
+    void ticksSkippingKeepsTheSameGridSheetWhenItIsStillPrinted() {
+        PagePainter skipping = skipping();
+        int lastPrinted = skipping.pages().get(skipping.pages().size() - 1).layoutIndex();
+        preview.selectSheet(lastPrinted); // every sheet goes out now: position and grid index are the same
+
+        preview.show(skipping, layout);
+
+        assertThat(preview.sheetLabel()).as("the same grid sheet").isEqualTo("Hoja " + (lastPrinted + 1) + " de "
+                + layout.pageCount());
+        assertThat(preview.selectedSheet()).isEqualTo(skipping.pages().size() - 1);
+    }
+
+    @Test
+    void unticksSkippingKeepsTheSameGridSheetToo() {
+        PagePainter skipping = skipping();
+        preview.show(skipping, layout);
+        preview.selectSheet(skipping.pages().size() - 1);
+        int grid = skipping.pages().get(skipping.pages().size() - 1).layoutIndex();
+        assertThat(grid).as("the fixture: position and grid index differ").isGreaterThan(skipping.pages().size() - 1);
+
+        preview.show(painter, layout); // every sheet again
+
+        assertThat(preview.sheetLabel()).isEqualTo("Hoja " + (grid + 1) + " de " + layout.pageCount());
+    }
+
+    @Test
+    void skippingKeepsTheNearestPrintedSheetWhenTheSelectedOneIsSkipped() {
+        PagePainter skipping = skipping();
+        int skippedIndex = 1;
+        assertThat(skipping.printedSheets().isSkipped(skippedIndex)).as("the fixture skips sheet 2").isTrue();
+        preview.selectSheet(skippedIndex);
+
+        preview.show(skipping, layout);
+
+        int shown = skipping.pages().get(preview.selectedSheet()).layoutIndex();
+        for (PagePainter.Page page : skipping.pages()) {
+            assertThat(Math.abs(page.layoutIndex() - skippedIndex)).isGreaterThanOrEqualTo(Math.abs(shown - skippedIndex));
+        }
+    }
+
+    @Test
+    void skippingEmptySheetsTheMapCannotSelectASkippedSheet() {
+        PagePainter skipping = skipping();
+        preview.show(skipping, layout);
+        int skipped = 1;
+        assertThat(skipping.pages()).extracting(PagePainter.Page::layoutIndex).doesNotContain(skipped);
+        int last = skipping.pages().size() - 1;
+        int lastLayoutIndex = skipping.pages().get(last).layoutIndex();
+
+        assertThat(preview.map().sheetAt(mapPointOf(skipped))).isEmpty();
+        preview.map().select(mapPointOf(lastLayoutIndex));
+
+        assertThat(preview.selectedSheet()).isEqualTo(last);
     }
 }

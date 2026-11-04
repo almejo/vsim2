@@ -600,7 +600,19 @@ public final class ParameterForm extends JPanel {
             values.put(parameter.name(), editor == null ? initial.get(parameter.name()) : valueOf(editor));
         }
         readNegativeValueAsUnsigned(values);
+        regroupForNewWidth(values);
         return values;
+    }
+
+    /**
+     * A bus splitter or joiner given a new «Ancho» keeps its groups sensible
+     * ({@link StandardComponentTypes#regroupedForWidth}, the AI's rule too). The groups are hidden, so without this a
+     * narrower bus would be refused for bits it no longer has.
+     */
+    private void regroupForNewWidth(Map<String, Object> values) {
+        if (StandardComponentTypes.hasBitGroups(type.id())) {
+            values.putAll(StandardComponentTypes.regroupedForWidth(initial, values));
+        }
     }
 
     /**

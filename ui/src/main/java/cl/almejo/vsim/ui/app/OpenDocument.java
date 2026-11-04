@@ -91,6 +91,8 @@ public final class OpenDocument implements AutoCloseable {
     private Path path;
     private Path backingFile;
     private boolean importedFromVsim1;
+    /** See {@link #showUntitledAs}; blank when the window shows the circuit's name. */
+    private String untitledName = "";
     private Netlist netlist = Netlist.EMPTY;
     private List<ConnectivityProblem> connectivityProblems = List.of();
     /** The pins each applied command left unconnected and that are still loose ({@link #loosenedPins()}). */
@@ -169,6 +171,15 @@ public final class OpenDocument implements AutoCloseable {
      */
     public static OpenDocument openRecovered(Path copy, Path originalPath, ComponentTypeRegistry registry)
             throws CircuitFormatException {
+        return openRecovered(copy, originalPath, null, registry);
+    }
+
+    /**
+     * As {@link #openRecovered(Path, Path, ComponentTypeRegistry)}; an untitled document (null {@code originalPath})
+     * also gets back the window name it had ({@link #showUntitledAs}), which may differ from its circuit's name.
+     */
+    public static OpenDocument openRecovered(Path copy, Path originalPath, String untitledWindowName,
+                                             ComponentTypeRegistry registry) throws CircuitFormatException {
         // Not CircuitReader.open: it would name a nameless document after the copy file.
         String content;
         try {
@@ -180,6 +191,14 @@ public final class OpenDocument implements AutoCloseable {
         OpenDocument openDocument = new OpenDocument(recoveredDocument, registry, originalPath, false);
         openDocument.backingFile = originalPath == null ? null : FileNames.normalized(originalPath);
         openDocument.history.markUnsaved();
+        // Only a name really apart from the circuit's and from the localized untitled text is kept; the others follow
+        // the circuit name (and the language) as before.
+        if (originalPath == null && untitledWindowName != null
+                && !untitledWindowName.isBlank()
+                && !untitledWindowName.strip().equals(recoveredDocument.name())
+                && !untitledWindowName.strip().equals(Messages.text("document.untitled"))) {
+            openDocument.showUntitledAs(untitledWindowName);
+        }
         return openDocument;
     }
 
@@ -218,13 +237,38 @@ public final class OpenDocument implements AutoCloseable {
         return path == null;
     }
 
+    /**
+     * What the window of this document shows until it is saved, instead of the circuit's own name: an imported
+     * Logisim project shows its {@code .circ} file's name while its circuit keeps Logisim's main circuit name. Blank
+     * goes back to the circuit's name. Not an edit: nothing is recorded.
+     */
+    public void showUntitledAs(String windowName) {
+        untitledName = windowName == null ? "" : windowName.strip();
+    }
+
+    /**
+     * The circuit's own name (Propiedades ▸ «Nombre del circuito»), kept in the file and apart from the file's name;
+     * {@link #displayName()} while the circuit has none (a new one, until its first save).
+     */
+    public String circuitName() {
+        return document.name().isBlank() ? displayName() : document.name();
+    }
+
+    /** What the window shows: the file's name; before the first save, the name given to the window or the circuit's. */
     public String displayName() {
         if (path != null) {
-            String fileName = path.getFileName().toString();
-            int dot = fileName.lastIndexOf('.');
-            return dot > 0 ? fileName.substring(0, dot) : fileName;
+            return fileStem(path);
+        }
+        if (!untitledName.isBlank()) {
+            return untitledName;
         }
         return document.name().isBlank() ? Messages.text("document.untitled") : document.name();
+    }
+
+    private static String fileStem(Path file) {
+        String fileName = file.getFileName().toString();
+        int dot = fileName.lastIndexOf('.');
+        return dot > 0 ? fileName.substring(0, dot) : fileName;
     }
 
     /** {@code preferred} when given, else the folder of this document's file, else the user's home. */
@@ -896,17 +940,30 @@ public final class OpenDocument implements AutoCloseable {
      */
     public void save(Path target) throws IOException {
         Path absolute = target.toAbsolutePath();
+        String previousName = document.name();
+        if (previousName.isBlank()) {
+            // A circuit without a name of its own (a new one) takes its file's on the first save; Guardar como never
+            // renames one that has it. Not an edit: the name is part of what this save writes, not an undo step.
+            document.setName(fileStem(absolute));
+        }
         String content;
         try {
             content = serializedFor(Optional.of(absolute));
         } catch (IllegalStateException exception) {
+            document.setName(previousName);
             throw new IOException(exception.getMessage(), exception);
         }
-        if (Files.exists(absolute) && !Files.isWritable(absolute)) {
-            // M2 ruling: saving over a read-only file fails (with an error dialog), it does not replace it
-            throw new AccessDeniedException(absolute.toString(), null, "the file is read-only");
+        try {
+            if (Files.exists(absolute) && !Files.isWritable(absolute)) {
+                // M2 ruling: saving over a read-only file fails (with an error dialog), it does not replace it
+                throw new AccessDeniedException(absolute.toString(), null, "the file is read-only");
+            }
+            AtomicFiles.writeString(absolute, content);
+        } catch (IOException exception) {
+            // On failure nothing changes, the name taken for this save included.
+            document.setName(previousName);
+            throw exception;
         }
-        AtomicFiles.writeString(absolute, content);
         path = absolute;
         backingFile = FileNames.normalized(absolute);
         importedFromVsim1 = false;
