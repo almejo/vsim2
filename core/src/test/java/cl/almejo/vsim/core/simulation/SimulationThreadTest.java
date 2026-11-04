@@ -178,7 +178,8 @@ class SimulationThreadTest {
     }
 
     @Test
-    void realThreadKeepsServingPauseWhileAnOscillatorRuns() throws Exception {
+    @SuppressWarnings("try")
+    void realThreadKeepsServingPauseWhileAnOscillatorRuns()throws Exception {
         try (SimulationThread realThread = new SimulationThread(new SimulationEngine())) {
             realThread.start();
             realThread.update(inverterLoop());

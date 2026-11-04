@@ -82,6 +82,7 @@ class AiServerLifecycleTest {
     }
 
     @Test
+    @SuppressWarnings("try")
     void aSlowProbeOfATakenPortNeverHoldsTheCaller() throws Exception {
         ExecutorService realServerThread = Executors.newSingleThreadExecutor();
         // takes connections and never answers: the probe of «another VSim?» waits for its whole timeout

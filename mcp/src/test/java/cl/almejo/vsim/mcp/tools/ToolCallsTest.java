@@ -20,6 +20,7 @@ import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.json.schema.JsonSchemaValidator;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -313,7 +314,7 @@ class ToolCallsTest {
 
         Map<String, Object> read = call("vsim_read_memory", Map.of("document", "circuit-1", "component", memory,
                 "firstAddress", 3, "count", 4));
-        assertThat((List<Object>) read.get("words")).isEqualTo(List.of("0000000000000000", "00000000DEADBEEF",
+        assertThat(read.get("words")).asInstanceOf(InstanceOfAssertFactories.LIST).isEqualTo(List.of("0000000000000000", "00000000DEADBEEF",
                 "0000000000000001", "0000000000000000"));
         assertThat(read).containsEntry("totalWords", 16777216L).containsEntry("width", 64)
                 .containsEntry("linked", false).containsEntry("nonZeroWords", 2L);
@@ -332,7 +333,8 @@ class ToolCallsTest {
 
         assertThat(refusal("vsim_edit", edit(task, 1, List.of(Map.of("op", "SetMemoryContents", "component", memory,
                 "firstAddress", 0, "words", List.of("1", "10")))))).containsEntry("error", "INVALID_PARAMETER");
-        assertThat((List<Object>) call("vsim_read_memory", Map.of("document", "circuit-1", "component", memory)).get("words"))
+        assertThat(call("vsim_read_memory", Map.of("document", "circuit-1", "component", memory)).get("words"))
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
                 .containsOnly("0");
     }
 
@@ -636,7 +638,7 @@ class ToolCallsTest {
 
         assertThat(read).containsEntry("rows", 24).containsEntry("columns", 80).containsEntry("mode", "VT")
                 .containsEntry("profile", "vt").containsEntry("cursorRow", 1).containsEntry("cursorColumn", 5);
-        assertThat(read.get("screen")).asList().startsWith("hola", "mundo").hasSize(24);
+        assertThat(read.get("screen")).asInstanceOf(InstanceOfAssertFactories.LIST).startsWith("hola", "mundo").hasSize(24);
         assertThat(list(read, "bytes")).extracting(entry -> entry.get("character"))
                 .containsExactly("u", "n", "d", "o");
         assertThat(read).doesNotContainKey("expected");
