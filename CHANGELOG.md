@@ -48,6 +48,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - La UART 16550 con pantalla integrada tiene la «Salida esperada» del Terminal: la pestaña de su ventana compara lo que llegó con lo esperado, y la IA también lo lee. Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - Una UART 16550 con «Pines TX y RX» no reserva memoria para una pantalla ni para su historial, y al volver a «Integrada» la pantalla empieza vacía. Ver [UART 16550](docs/funciones/componentes.md#uart-16550).
 - Con «Guardar salida» activa, el Terminal muestra bajo el archivo si esta sesión realmente graba o no (falta confirmar, «No grabar», otro Terminal en el mismo archivo o sin archivo).
+- VSim se puede empaquetar con su propio Java, sin tener que instalarlo aparte: `./gradlew :ui:nativePackages` arma el deb y el rpm en Linux, el msi y un zip portátil en Windows y el dmg en macOS, con ícono, entrada en el menú y los archivos `.vsim` asociados. Ver [Para desarrolladores](docs/funciones/para-desarrolladores.md#para-desarrolladores).
 
 ### Cambiado
 
