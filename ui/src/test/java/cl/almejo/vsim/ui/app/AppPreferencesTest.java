@@ -271,13 +271,14 @@ class AppPreferencesTest {
         preferences.setTheme(AppPreferences.Theme.DARK);
         preferences.setColorScheme(Optional.of("classic"));
         preferences.setLanguage(Optional.of("en"));
-        preferences.setLibraryDirectory(Optional.of(Path.of("/data/components")));
+        Path components = Path.of("/data/components").toAbsolutePath(); // absolute on every system (D:\data\… on Windows)
+        preferences.setLibraryDirectory(Optional.of(components));
 
         AppPreferences reread = new AppPreferences(node);
         assertThat(reread.theme()).isEqualTo(AppPreferences.Theme.DARK);
         assertThat(reread.colorScheme()).contains("classic");
         assertThat(reread.language()).contains("en");
-        assertThat(reread.libraryDirectory()).isEqualTo(Path.of("/data/components"));
+        assertThat(reread.libraryDirectory()).isEqualTo(components);
         assertThat(reread.usesDefaultLibraryDirectory()).isFalse();
         assertThat(changes).hasValue(4);
 

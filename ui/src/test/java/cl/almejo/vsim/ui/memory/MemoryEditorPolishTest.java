@@ -24,6 +24,7 @@ import java.awt.FontMetrics;
 import java.awt.Rectangle;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -143,12 +144,14 @@ class MemoryEditorPolishTest {
 
     @Test
     void theLinkBarAndTheStatusShowTheFileNameWithTheFullPathAsTooltip() {
+        // Absolute on every system (D:\home\… on Windows).
+        Path linked = Path.of("/home/someone/deep/folder/para-enlazar.hex").toAbsolutePath();
         MemoryEditorDialog dialog = dialog(StandardComponentTypes.ROM, Map.of(MemoryTypes.WORDS, "16",
-                MemoryTypes.LINK, "/home/someone/deep/folder/para-enlazar.hex"));
+                MemoryTypes.LINK, linked.toString()));
         ElidedLabel text = (ElidedLabel) find(dialog.linkBar(), "memory.linkBar.text");
-        assertThat(text.getText()).contains("para-enlazar.hex").doesNotContain("/home/someone");
-        assertThat(text.getToolTipText()).isEqualTo("/home/someone/deep/folder/para-enlazar.hex");
-        assertThat(dialog.status().getText()).contains("para-enlazar.hex").doesNotContain("/home/someone");
+        assertThat(text.getText()).contains("para-enlazar.hex").doesNotContain("someone");
+        assertThat(text.getToolTipText()).isEqualTo(linked.toString());
+        assertThat(dialog.status().getText()).contains("para-enlazar.hex").doesNotContain("someone");
     }
 
     @Test
