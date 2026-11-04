@@ -335,16 +335,16 @@ class ColorSchemesTest {
 
     /**
      * Chipmunk's diglog: its 4-bit colour table ({@code log.c}) and default roles: gray board, cyan gates, red gate
-     * pins, dark-yellow labels, white cursor, and the glow mode's red 1 ({@code ONLED}), black 0 ({@code OFFLED}) and
-     * the green of a wire with no value; the scope is yellow.
+     * pins, dark-yellow labels, white cursor; its green wires at 0, the red of a lit LED ({@code ONLED}) at 1, a dim
+     * green Z; the scope is yellow; the grid barely shows (diglog has none).
      */
     @Test
     void chipmunkTakesTheColorsOfDiglog() {
         ColorScheme chipmunk = ColorSchemes.CHIPMUNK;
         assertThat(chipmunk.background()).isEqualTo(new Color(0x444444));
-        assertThat(chipmunk.wireZero()).isEqualTo(new Color(0x000000));
+        assertThat(chipmunk.wireZero()).isEqualTo(new Color(0x00FF00));
         assertThat(chipmunk.wireOne()).isEqualTo(new Color(0xFF0000));
-        assertThat(chipmunk.wireHighImpedance()).isEqualTo(new Color(0x00FF00));
+        assertThat(chipmunk.wireHighImpedance()).isEqualTo(new Color(0x007700));
         assertThat(chipmunk.componentStroke()).isEqualTo(new Color(0x00FFFF));
         assertThat(chipmunk.pad()).isEqualTo(new Color(0xFF0000));
         assertThat(chipmunk.text()).isEqualTo(new Color(0xCCCC00));

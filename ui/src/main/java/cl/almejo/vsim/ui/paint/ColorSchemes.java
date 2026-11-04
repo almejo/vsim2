@@ -223,16 +223,17 @@ public final class ColorSchemes {
     /**
      * «Chipmunk»: diglog's 4-bit colour table ({@code log.c}) and default roles: dark gray screen, cyan gates, red gate
      * pins (the only scheme besides «Placa» whose pins are not its outline colour), dark-yellow labels, a white cursor;
-     * the wires as in its glow mode: red 1 ({@code ONLED}), black 0 ({@code OFFLED}) and the plain green of a wire with
-     * no value for Z. diglog draws no grid and has no conflict or unknown colour: those are ours, faint or apart.
+     * diglog draws every wire green whatever its value (the value shows only inside switches and LEDs: red on, black
+     * off), so a resting circuit looks like diglog: 0 is its green wire, 1 the red of a lit LED ({@code ONLED}), Z a dim
+     * green. diglog draws no grid and has no conflict or unknown colour: the grid is barely there, the rest is ours.
      */
     public static final ColorScheme CHIPMUNK = new ColorScheme(
             new Color(0x444444),          // background      (gray, 4/15)
-            new Color(0x555555),          // grid            (diglog shows none: barely there)
-            new Color(255, 255, 255, 14), // gridLine
-            new Color(0x000000),          // wireZero        (OFFLED: black)
-            new Color(0xFF0000),          // wireOne         (ONLED: red)
-            new Color(0x00FF00),          // wireHighImpedance (WIRE: green, a wire with no value)
+            new Color(0x4C4C4C),          // grid            (diglog shows none: barely there)
+            new Color(255, 255, 255, 6),  // gridLine
+            new Color(0x00FF00),          // wireZero        (WIRE: green, every wire of diglog)
+            new Color(0xFF0000),          // wireOne         (ONLED: red, a lit LED)
+            new Color(0x007700),          // wireHighImpedance (a dim green: a wire nobody drives)
             new Color(0xFF00FF),          // wireConflict    (as CLASSIC; its CONFLICT is the red of a 1)
             new Color(0xAAAAAA),          // wireUnknown     (light gray, 10/15)
             new Color(0x00FFFF),          // componentStroke (GATE: cyan)
