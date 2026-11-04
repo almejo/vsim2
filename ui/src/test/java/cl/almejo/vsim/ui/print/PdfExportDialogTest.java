@@ -460,7 +460,7 @@ class PdfExportDialogTest {
     }
 
     @Test
-    void aSavedPdfRemembersTheMarginItWasLaidOutWith() {
+    void aSavedPdfKeepsTheWiderMarginItWasLaidOutWith() {
         preferences.setPrintMarginPoints(40);
         place(10, 10);
         open();
@@ -470,7 +470,8 @@ class PdfExportDialogTest {
 
         exporter.future.complete(null);
 
-        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+        assertThat(preferences.printMarginPoints()).as("the dialog was laid out with the remembered margin")
+                .isEqualTo(40);
     }
 
     @Test

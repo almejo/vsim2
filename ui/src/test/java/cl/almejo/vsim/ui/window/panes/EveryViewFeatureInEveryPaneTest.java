@@ -28,6 +28,7 @@ import cl.almejo.vsim.ui.print.PrintExtension;
 import cl.almejo.vsim.ui.print.PrinterAccess;
 import cl.almejo.vsim.ui.search.FindExtension;
 import cl.almejo.vsim.ui.search.SearchField;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
@@ -166,9 +167,9 @@ class EveryViewFeatureInEveryPaneTest {
                 Arguments.of("Exportar imagen", (Function<LibraryService, EditorExtension>) libraryService ->
                         new ExportImageExtension(), false),
                 Arguments.of("Exportar a PDF", (Function<LibraryService, EditorExtension>) libraryService ->
-                        new ExportPdfExtension(), false),
+                        new ExportPdfExtension(new SheetAnchors()), false),
                 Arguments.of("Imprimir", (Function<LibraryService, EditorExtension>) libraryService ->
-                        new PrintExtension(PrinterAccess.none()), false));
+                        new PrintExtension(PrinterAccess.none(), new SheetAnchors()), false));
     }
 
     @ParameterizedTest(name = "{0}")

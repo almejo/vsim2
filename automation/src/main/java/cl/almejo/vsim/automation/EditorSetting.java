@@ -18,6 +18,8 @@ public enum EditorSetting {
     SNAP_TO_GRID_LINES(Values.BOOLEAN),
     /** «Mostrar guías»: the rulers and the guides. */
     SHOW_GUIDES(Values.BOOLEAN),
+    /** «Mostrar hojas de impresión»: the print sheets drawn over the circuit. */
+    SHOW_SHEETS(Values.BOOLEAN),
     /** «Valores de los buses»: the value written above each bus, on the canvas and in the exports. */
     SHOW_BUS_VALUES(Values.BOOLEAN),
     /** «Cuadrícula ▸»: dots, lines or nothing. */

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -24,21 +25,26 @@ public final class PrintExtension implements EditorExtension {
     private final PdfExportDialog.Collaborators collaborators;
     private final PdfExportDialog.Presenter presenter;
     private final Clock clock;
+    private final SheetAnchors sheetAnchors;
 
     /** The system's printers; prints and PDFs go out one at a time on the PDF export's thread. */
-    public PrintExtension() {
-        this(new SystemPrinterAccess(ExportPdfExtension.EXPORT_THREAD, LOOKUP_THREAD));
+    public PrintExtension(SheetAnchors sheetAnchors) {
+        this(new SystemPrinterAccess(ExportPdfExtension.EXPORT_THREAD, LOOKUP_THREAD), sheetAnchors);
     }
 
     /** The real dialogs over {@code printers} ({@link PrinterAccess#none()} where no printer may be reached). */
-    public PrintExtension(PrinterAccess printers) {
+    public PrintExtension(PrinterAccess printers, SheetAnchors sheetAnchors) {
         this(PdfExportDialog.Collaborators.swing(new PdfExport(ExportPdfExtension.EXPORT_THREAD), printers),
-                PdfExportDialog.Presenter.modal(), Clock.systemDefaultZone());
+                PdfExportDialog.Presenter.modal(), Clock.systemDefaultZone(), sheetAnchors);
     }
 
-    /** {@code collaborators} write, print and ask, {@code presenter} shows the dialog, {@code clock} dates the sheets. */
+    /**
+     * {@code collaborators} write, print and ask, {@code presenter} shows the dialog, {@code clock} dates the sheets,
+     * {@code sheetAnchors} where the sheets shown on the canvas are anchored (the dialog lays «Todo» on them).
+     */
     public PrintExtension(PdfExportDialog.Collaborators collaborators, PdfExportDialog.Presenter presenter,
-                          Clock clock) {
+                          Clock clock, SheetAnchors sheetAnchors) {
+        this.sheetAnchors = Objects.requireNonNull(sheetAnchors, "sheetAnchors");
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
         this.presenter = Objects.requireNonNull(presenter, "presenter");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -46,7 +52,7 @@ public final class PrintExtension implements EditorExtension {
 
     @Override
     public Runnable install(EditorView view) {
-        PrintFeatures features = new PrintFeatures(view, collaborators, presenter, clock);
+        PrintFeatures features = new PrintFeatures(view, collaborators, presenter, clock, sheetAnchors);
         return features::dispose;
     }
 }

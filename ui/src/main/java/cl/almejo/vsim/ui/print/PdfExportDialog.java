@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.TextFonts;
@@ -237,8 +238,11 @@ public final class PdfExportDialog extends JPanel {
     private volatile boolean cancelRequested;
     private boolean disposed;
     private String valuesProblemText = "";
-    /** The blank border of every sheet: 1 cm, or the wider hardware margin of the printer that answered last. */
-    private double marginPoints = PageGeometry.CENTIMETRE_POINTS;
+    /**
+     * The blank border of every sheet: the remembered one (1 cm, or the wider hardware margin of the printer that
+     * printed last, so this dialog, the sheets on the canvas and the paper agree) until a printer answers.
+     */
+    private double marginPoints;
     /** What the printer's last answer asks the user to check; shown when no other hint is. */
     private Notice printerNotice = Notice.NONE;
     /** The paper the printer prints on unless told otherwise, once it has said so. */
@@ -273,6 +277,9 @@ public final class PdfExportDialog extends JPanel {
     private final JButton refresh = new JButton(Messages.text("print.refresh"));
     private final PagePreview preview = new PagePreview();
     private final JLabel status = new JLabel();
+    /** «Se usan las hojas que ves en el circuito.»: under the status line while the shown sheets set the layout. */
+    private final JLabel sheetNote = new JLabel(Messages.text("print.sheetsShown"));
+    private final JButton showOnCanvas = new JButton(Messages.text("print.showOnCanvas"));
     private final JLabel warning = new JLabel();
     private final JButton split = new JButton(Messages.text("print.split"));
     /** «Ajustar a una hoja» next to the sheet count: the way back after «Dividir en varias hojas». */
@@ -305,6 +312,7 @@ public final class PdfExportDialog extends JPanel {
         this.startDirectory = Objects.requireNonNull(startDirectory, "startDirectory");
         this.suggestedName = Objects.requireNonNull(suggestedName, "suggestedName");
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
+        this.marginPoints = Math.max(PageGeometry.CENTIMETRE_POINTS, preferences.printMarginPoints());
         this.previewTimer = collaborators.timerFactory().apply(this::refreshPreview);
         build();
         updating = true;
@@ -421,13 +429,16 @@ public final class PdfExportDialog extends JPanel {
 
     /** The preview column, the progress bar and the bottom button row. */
     private void buildPreviewColumn() {
-        JPanel right = new JPanel(new MigLayout("wrap 1, insets 0, gap 4", "[grow, fill]", "[grow, fill][][][]"));
+        JPanel right = new JPanel(new MigLayout("wrap 1, insets 0, gap 4", "[grow, fill]", "[grow, fill][][][][]"));
         right.add(preview);
         JPanel statusRow = new JPanel(new MigLayout("insets 0", "[grow, fill][]"));
         statusRow.add(status);
         statusRow.add(fit, "hidemode 3");
         fit.setVisible(false);
         right.add(statusRow);
+        hinted(sheetNote);
+        sheetNote.setVisible(false);
+        right.add(sheetNote, "hidemode 3");
         JPanel warningRow = new JPanel(new MigLayout("insets 0", "[grow, fill][]"));
         warningRow.add(warning);
         warningRow.add(split);
@@ -440,12 +451,14 @@ public final class PdfExportDialog extends JPanel {
         add(progress, "span 2, growx, hidemode 3, wrap");
         add(new JSeparator(), "span 2, growx, wrap");
         if (mode == Mode.PRINT) {
-            add(save, "span 2, split 3, tag other");
+            add(save, "span 2, split 4, tag other");
+            add(showOnCanvas, "tag other");
             add(printButton, "tag ok");
         } else {
             JLabel note = new JLabel(Messages.text("print.note"));
             hinted(note);
-            add(note, "span 2, split 3, growx");
+            add(note, "span 2, split 4, growx");
+            add(showOnCanvas, "tag other");
             add(save, "tag ok");
         }
         add(cancel, "tag cancel");
@@ -531,6 +544,7 @@ public final class PdfExportDialog extends JPanel {
         split.addActionListener(event -> scaleChoice.setSelectedItem(ScaleChoice.HUNDRED));
         fit.addActionListener(event -> scaleChoice.setSelectedItem(ScaleChoice.FIT));
         refresh.addActionListener(event -> refresh());
+        showOnCanvas.addActionListener(event -> showOnCanvas());
         save.addActionListener(event -> save());
         printButton.addActionListener(event -> print());
         cancel.addActionListener(event -> cancel());
@@ -580,15 +594,17 @@ public final class PdfExportDialog extends JPanel {
         dropPrinterHintWhenAnotherSheetIsShown(options);
         fit.setVisible(false);
         Optional<PrintArea> area = area(options.scope());
+        updateShowOnCanvas(options, idle && area.isPresent());
         if (area.isEmpty()) {
             plan = Optional.empty();
+            sheetNote.setVisible(false);
             show("", "", Notice.hint(Messages.text(mode == Mode.PRINT ? "print.nothing.print" : "print.nothing")));
             enableOutputs(false);
             preview.clear();
             return;
         }
-        PageLayout layout = PageLayout.of(area.get().gridArea(), PageGeometry.standard(options, marginPoints),
-                options.scaleMode());
+        PageGeometry geometry = PageGeometry.standard(options, marginPoints);
+        PageLayout layout = layoutOf(options, area.get(), geometry);
         plan = Optional.of(new Plan(options, area.get(), layout));
         sheetGuides.setVisible(layout.tiled());
         if (layout.problem().isPresent()) {
@@ -611,6 +627,39 @@ public final class PdfExportDialog extends JPanel {
                 : paperMismatch(options));
         enableOutputs(idle && !tooMany);
         previewTimer.restart();
+    }
+
+    /**
+     * The sheets of {@code area}: for «Todo el circuito» on the lattice of the sheets shown on the canvas when there
+     * are some and the layout is tiled ({@link SheetPlan}; the note says so), else the automatic layout.
+     */
+    private PageLayout layoutOf(PrintOptions options, PrintArea area, PageGeometry geometry) {
+        boolean whole = options.scope() instanceof PrintScope.WholeCircuit;
+        Optional<GridPoint> anchor = whole ? input.sheetAnchor() : Optional.empty();
+        PageLayout layout = SheetPlan.layout(area.gridArea(), geometry, options.scaleMode(), anchor);
+        sheetNote.setVisible(SheetPlan.anchorApplies(PageLayout.of(area.gridArea(), geometry, options.scaleMode()),
+                anchor));
+        return layout;
+    }
+
+    /** «Ver hojas en el circuito» is for «Todo el circuito» only, and says so in its tooltip when it is off. */
+    private void updateShowOnCanvas(PrintOptions options, boolean canShow) {
+        boolean whole = options.scope() instanceof PrintScope.WholeCircuit;
+        showOnCanvas.setEnabled(whole && canShow);
+        showOnCanvas.setToolTipText(Messages.text(whole ? "print.showOnCanvas.tip" : "print.showOnCanvas.wholeOnly"));
+    }
+
+    /**
+     * «Ver hojas en el circuito»: remembers the options and margin like a save would, turns the sheets on the canvas
+     * on and closes; the canvas then shows the sheets of what this dialog shows.
+     */
+    void showOnCanvas() {
+        if (exporting || disposed || plan.isEmpty() || !showOnCanvas.isEnabled()) {
+            return;
+        }
+        remember(plan.get().options(), marginPoints);
+        preferences.setShowSheets(true);
+        close.run();
     }
 
     /** «Guardar PDF…» and «Imprimir…» by whether the sheets can go out; printing also needs a printer. */
@@ -1019,6 +1068,15 @@ public final class PdfExportDialog extends JPanel {
     }
 
     // --- for tests ---
+
+    JButton showOnCanvasButton() {
+        return showOnCanvas;
+    }
+
+    /** The note under the status line; empty while it is hidden. */
+    String sheetNoteText() {
+        return sheetNote.isVisible() ? sheetNote.getText() : "";
+    }
 
     Optional<PageLayout> pageLayout() {
         return plan.map(Plan::layout);

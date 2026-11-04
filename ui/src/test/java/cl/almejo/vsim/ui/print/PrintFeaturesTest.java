@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.ExportIcons;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -36,6 +37,7 @@ class PrintFeaturesTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-02T15:30:00Z"), ZoneOffset.UTC);
 
     private final AppPreferences preferences = AppPreferences.inMemory();
+    private final SheetAnchors sheetAnchors = new SheetAnchors();
     private final FakePrinterAccess printers = new FakePrinterAccess();
     private final List<PdfExportDialog> presented = new ArrayList<>();
     private EditorFixture fixture;
@@ -49,7 +51,8 @@ class PrintFeaturesTest {
         fixture = EditorFixture.create(preferences);
         openDocument = fixture.openDocument();
         view = fixture.view();
-        pdfFeatures = new ExportPdfFeatures(view, collaborators(), (parent, dialog) -> presented.add(dialog), CLOCK);
+        pdfFeatures = new ExportPdfFeatures(view, collaborators(), (parent, dialog) -> presented.add(dialog), CLOCK,
+                sheetAnchors);
     }
 
     private PdfExportDialog.Collaborators collaborators() {
@@ -59,7 +62,8 @@ class PrintFeaturesTest {
     }
 
     private PrintFeatures install() {
-        features = new PrintFeatures(view, collaborators(), (parent, dialog) -> presented.add(dialog), CLOCK);
+        features = new PrintFeatures(view, collaborators(), (parent, dialog) -> presented.add(dialog), CLOCK,
+                sheetAnchors);
         return features;
     }
 
@@ -165,6 +169,21 @@ class PrintFeaturesTest {
         assertThat(presented).hasSize(1);
         assertThat(presented.get(0).defaultButton()).isSameAs(presented.get(0).printButton());
         assertThat(presented.get(0).title()).isEqualTo("Imprimir");
+    }
+
+    @Test
+    void theDialogLaysTheWholeCircuitOnTheSheetsAnchoredForThisDocument() {
+        preferences.setPrintOptions(new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4,
+                PageOrientation.PORTRAIT, new ScaleMode.Percentage(100), true, false, false,
+                openDocument.displayName()));
+        UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 10, 10, Map.of());
+        UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 1000, 10, Map.of());
+        install();
+        sheetAnchors.take(openDocument.document(), new cl.almejo.vsim.core.geometry.GridPoint(0, 0));
+
+        perform(features.action());
+
+        assertThat(presented.get(0).sheetNoteText()).isEqualTo("Se usan las hojas que ves en el circuito.");
     }
 
     @Test

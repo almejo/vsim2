@@ -164,7 +164,8 @@ public final class Application {
         this.libraryService = new LibraryService(preferences, library, registry);
         this.proposals = new PreferenceProposals(preferences);
         this.automationHost = new EditorAutomationHost(windows::documents,
-                document -> ShownWindow.activeFirst(windows.windowsOf(document)), applicationWindows, proposals);
+                document -> ShownWindow.activeFirst(windows.windowsOf(document)), applicationWindows, proposals,
+                sheetAnchors);
         this.automationApi = new AutomationApi(automationHost);
         this.presentationControls = new AutomationPresentationControls(automationApi);
         this.presentationWatcher = new PresentationModeWatcher(windows::documents,
@@ -200,7 +201,7 @@ public final class Application {
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
                         new AiExtension(aiServer, automationHost::documentId, proposals,
-                                applicationWindows::settingsOverride), presentation, new PrintExtension(),
+                                applicationWindows::settingsOverride), presentation, new PrintExtension(sheetAnchors),
                         sheetAnchors));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
@@ -216,9 +217,10 @@ public final class Application {
      * printers (tests, also outside this package: every extension in every pane; none may reach a real printer).
      */
     public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
+        SheetAnchors sheetAnchors = new SheetAnchors();
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
                 path -> { }, AiExtension.inactive(), PresentationExtension.inactive(),
-                new PrintExtension(PrinterAccess.none()), new SheetAnchors());
+                new PrintExtension(PrinterAccess.none(), sheetAnchors), sheetAnchors);
     }
 
     /**
@@ -242,7 +244,7 @@ public final class Application {
         editorExtensions.add(new StepModeExtension());
         editorExtensions.add(new TruthTableExtension());
         editorExtensions.add(new ExportImageExtension());
-        editorExtensions.add(new ExportPdfExtension());
+        editorExtensions.add(new ExportPdfExtension(sheetAnchors));
         editorExtensions.add(print); // after «Exportar a PDF…»: its item goes right after that one
         editorExtensions.add(new TidyWiresExtension());
         // the «Texto» tool before sticky notes: its button lands after «Nota adhesiva»

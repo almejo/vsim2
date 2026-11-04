@@ -22,6 +22,16 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.print.PageGeometry;
+import cl.almejo.vsim.ui.print.PageLayout;
+import cl.almejo.vsim.ui.print.PageOrientation;
+import cl.almejo.vsim.ui.print.Paper;
+import cl.almejo.vsim.ui.print.PrintOptions;
+import cl.almejo.vsim.ui.print.PrintScope;
+import cl.almejo.vsim.ui.print.PrintScopes;
+import cl.almejo.vsim.ui.print.ScaleMode;
+import cl.almejo.vsim.ui.print.SheetPlan;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
@@ -31,6 +41,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import javax.swing.SwingUtilities;
+import java.awt.geom.Rectangle2D;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -63,6 +74,7 @@ class ExportHostSupportTest {
     private final List<EditorView> views = new ArrayList<>();
     private final AppPreferences preferences = AppPreferences.inMemory();
     private final FakeOpener opener = new FakeOpener();
+    private final SheetAnchors sheetAnchors = new SheetAnchors();
     private OpenDocument document;
     private ExportHostSupport exports;
 
@@ -91,7 +103,7 @@ class ExportHostSupportTest {
         document = new OpenDocument(circuit, StandardComponentTypes.registry(), null, false);
         exports = new ExportHostSupport(open -> List.copyOf(windows), () -> home, Runnable::run,
                 SwingUtilities::invokeLater, Clock.fixed(Instant.parse("2026-10-21T12:00:00Z"), ZoneOffset.UTC),
-                opener);
+                opener, sheetAnchors);
         onEditor(() -> place(document, StandardComponentTypes.AND, 0, 0, Map.of(StandardComponentTypes.NEGATE, true)));
         AtomicReference<EditorView> created = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -201,6 +213,34 @@ class ExportHostSupportTest {
         assertThat(receipt.pages()).isEqualTo(1);
         assertThat(Files.readString(Path.of(receipt.path()), java.nio.charset.StandardCharsets.ISO_8859_1))
                 .startsWith("%PDF");
+    }
+
+    /** The sheets of the canvas are the sheets of the AI's PDF of the whole circuit (and of nothing else). */
+    @Test
+    void aPdfOfTheWholeCircuitUsesTheSheetsShownOnTheCircuit() throws Exception {
+        preferences.setPrintDirectory(remembered);
+        onEditor(() -> place(document, StandardComponentTypes.AND, 95, 0, Map.of()));
+        ExportRequest.PdfOptions hundredPercent = new ExportRequest.PdfOptions("A4", "PORTRAIT", 100, true, false,
+                false, "");
+        ExportRequest request = new ExportRequest(ID, ExportRequest.Format.PDF, new ExportRequest.Scope.WholeCircuit(),
+                Optional.empty(), ExportRequest.ImageOptions.DEFAULT, hundredPercent);
+        PrintOptions options = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
+                new ScaleMode.Percentage(100), true, false, false, "Sumador.vsim");
+        PageGeometry geometry = PageGeometry.standard(options, PageGeometry.CENTIMETRE_POINTS);
+        Rectangle2D area = onEditor(() -> PrintScopes.wholeCircuitArea(document.document(), document.registry(),
+                false)).orElseThrow();
+        PageLayout automatic = PageLayout.of(area, geometry, options.scaleMode());
+        double step = (automatic.window().getWidth() - automatic.overlapPoints())
+                / (GridPoint.PIXELS_PER_UNIT * automatic.scale());
+        GridPoint anchor = new GridPoint((int) Math.floor(area.getX() + step / 2), (int) Math.floor(area.getY()));
+        PageLayout anchored = SheetPlan.layout(area, geometry, options.scaleMode(), Optional.of(anchor));
+        assertThat(anchored.pageCount()).as("the fixture must make the anchor matter")
+                .isNotEqualTo(automatic.pageCount());
+
+        assertThat(export(request).pages()).as("no sheets shown: the automatic layout")
+                .isEqualTo(automatic.pageCount());
+        sheetAnchors.take(document.document(), anchor);
+        assertThat(export(request).pages()).as("sheets shown: their lattice").isEqualTo(anchored.pageCount());
     }
 
     @Test

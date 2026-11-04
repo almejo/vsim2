@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -25,15 +26,21 @@ public final class ExportPdfExtension implements EditorExtension {
     private final PdfExportDialog.Collaborators collaborators;
     private final PdfExportDialog.Presenter presenter;
     private final Clock clock;
+    private final SheetAnchors sheetAnchors;
 
-    public ExportPdfExtension() {
+    /** {@code sheetAnchors}: where the sheets shown on the canvas are anchored (the dialog lays «Todo» on them). */
+    public ExportPdfExtension(SheetAnchors sheetAnchors) {
         this(PdfExportDialog.Collaborators.swing(realExporter(EXPORT_THREAD)), PdfExportDialog.Presenter.modal(),
-                Clock.systemDefaultZone());
+                Clock.systemDefaultZone(), sheetAnchors);
     }
 
-    /** {@code collaborators} write and ask, {@code presenter} shows the dialog, {@code clock} dates the sheets. */
+    /**
+     * {@code collaborators} write and ask, {@code presenter} shows the dialog, {@code clock} dates the sheets,
+     * {@code sheetAnchors} where the sheets shown on the canvas are anchored.
+     */
     public ExportPdfExtension(PdfExportDialog.Collaborators collaborators, PdfExportDialog.Presenter presenter,
-                              Clock clock) {
+                              Clock clock, SheetAnchors sheetAnchors) {
+        this.sheetAnchors = Objects.requireNonNull(sheetAnchors, "sheetAnchors");
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
         this.presenter = Objects.requireNonNull(presenter, "presenter");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -45,7 +52,7 @@ public final class ExportPdfExtension implements EditorExtension {
 
     @Override
     public Runnable install(EditorView view) {
-        ExportPdfFeatures features = new ExportPdfFeatures(view, collaborators, presenter, clock);
+        ExportPdfFeatures features = new ExportPdfFeatures(view, collaborators, presenter, clock, sheetAnchors);
         return features::dispose;
     }
 }

@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.ExportIcons;
 import cl.almejo.vsim.ui.export.FileExportFeatures;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorView;
 
 import java.nio.file.Path;
@@ -25,15 +26,17 @@ public final class ExportPdfFeatures extends FileExportFeatures {
     private final PdfExportDialog.Collaborators collaborators;
     private final PdfExportDialog.Presenter presenter;
     private final Clock clock;
+    private final SheetAnchors sheetAnchors;
 
     public ExportPdfFeatures(EditorView view, PdfExportDialog.Collaborators collaborators,
-                             PdfExportDialog.Presenter presenter, Clock clock) {
+                             PdfExportDialog.Presenter presenter, Clock clock, SheetAnchors sheetAnchors) {
         // Right after «Exportar imagen…», else after «Guardar como…», else at the end.
         super(view, "action.exportPdf", ExportIcons.EXPORT_PDF, SHORTCUT_ID,
                 indexAfter(view, view.shortcutActions().get(EXPORT_IMAGE_ID), view.actions().saveAs()));
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
         this.presenter = Objects.requireNonNull(presenter, "presenter");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.sheetAnchors = Objects.requireNonNull(sheetAnchors, "sheetAnchors");
     }
 
     /** Freezes the circuit and opens the dialog on it; the dialog does the rest. */
@@ -42,7 +45,7 @@ public final class ExportPdfFeatures extends FileExportFeatures {
         if (!available()) {
             return;
         }
-        PdfExportDialog dialog = new PdfExportDialog(capture(view(), clock), () -> capture(view(), clock),
+        PdfExportDialog dialog = new PdfExportDialog(capture(view(), clock, sheetAnchors), () -> capture(view(), clock, sheetAnchors),
                 view().services().preferences(), startDirectory(), suggestedName(view().openDocument()),
                 collaborators);
         presenter.present(view(), dialog);
@@ -50,12 +53,13 @@ public final class ExportPdfFeatures extends FileExportFeatures {
 
     /**
      * The circuit of {@code view} as it is now, with its selection, scheme and font; nothing in the document
-     * changes. Shared with «Imprimir…».
+     * changes, and the anchor of the sheets shown on the canvas as it is now. Shared with «Imprimir…».
      */
-    static PrintInput capture(EditorView view, Clock clock) {
+    static PrintInput capture(EditorView view, Clock clock, SheetAnchors sheetAnchors) {
         return PrintInput.capture(view.openDocument(), view.selection().ids(),
                 view.services().appearance().scheme(), TextFonts.current(), clock,
-                view.services().preferences().showBusValues());
+                view.services().preferences().showBusValues(),
+                sheetAnchors.anchor(view.openDocument().document()));
     }
 
     /** The last PDF folder, else the document's folder, else the user's home. */

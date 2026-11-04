@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.print;
 import cl.almejo.vsim.ui.export.ExportIcons;
 import cl.almejo.vsim.ui.export.FileExportFeatures;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
@@ -32,6 +33,7 @@ public final class PrintFeatures extends FileExportFeatures {
     private final PdfExportDialog.Collaborators collaborators;
     private final PdfExportDialog.Presenter presenter;
     private final Clock clock;
+    private final SheetAnchors sheetAnchors;
     private final MenuListener fileMenuListener;
     /**
      * Set once a lookup answered that no printer is installed. Left without an initializer on purpose: the super
@@ -43,13 +45,14 @@ public final class PrintFeatures extends FileExportFeatures {
     private boolean disposed;
 
     public PrintFeatures(EditorView view, PdfExportDialog.Collaborators collaborators,
-                         PdfExportDialog.Presenter presenter, Clock clock) {
+                         PdfExportDialog.Presenter presenter, Clock clock, SheetAnchors sheetAnchors) {
         // Right after «Exportar a PDF…», else after «Guardar como…», else at the end.
         super(view, "action.print", ExportIcons.PRINT, SHORTCUT_ID,
                 indexAfter(view, view.shortcutActions().get(ExportPdfFeatures.SHORTCUT_ID), view.actions().saveAs()));
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
         this.presenter = Objects.requireNonNull(presenter, "presenter");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.sheetAnchors = Objects.requireNonNull(sheetAnchors, "sheetAnchors");
         this.fileMenuListener = Menus.onOpen(view.menu(MenuId.FILE), this::lookUpPrinters);
         lookUpPrinters();
     }
@@ -89,7 +92,8 @@ public final class PrintFeatures extends FileExportFeatures {
             return;
         }
         PdfExportDialog dialog = new PdfExportDialog(PdfExportDialog.Mode.PRINT,
-                ExportPdfFeatures.capture(view(), clock), () -> ExportPdfFeatures.capture(view(), clock),
+                ExportPdfFeatures.capture(view(), clock, sheetAnchors),
+                () -> ExportPdfFeatures.capture(view(), clock, sheetAnchors),
                 view().services().preferences(), startDirectory(view().services().preferences().printDirectory()),
                 ExportPdfFeatures.suggestedName(view().openDocument()), collaborators);
         presenter.present(view(), dialog);

@@ -9,6 +9,7 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
@@ -18,6 +19,7 @@ import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.print.PageGeometry;
 import cl.almejo.vsim.ui.print.PageLayout;
 import cl.almejo.vsim.ui.print.PageOrientation;
@@ -31,6 +33,7 @@ import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScope;
 import cl.almejo.vsim.ui.print.PrintScopes;
 import cl.almejo.vsim.ui.print.ScaleMode;
+import cl.almejo.vsim.ui.print.SheetPlan;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -82,6 +85,7 @@ final class ExportHostSupport {
     private final Executor editorThread;
     private final Clock clock;
     private final FolderOpener folderOpener;
+    private final SheetAnchors sheetAnchors;
 
     /**
      * @param windowsOf    the windows showing a circuit (their preferences, scheme and status line); EDT only
@@ -89,9 +93,11 @@ final class ExportHostSupport {
      * @param writer       where files are written (never the EDT)
      * @param editorThread runs the status notices on the EDT
      * @param folderOpener «Abrir carpeta» on the notice
+     * @param sheetAnchors where the print sheets shown on the canvas are anchored: a PDF of the whole circuit uses them
      */
     ExportHostSupport(Function<OpenDocument, List<ShownWindow>> windowsOf, Supplier<Path> home, Executor writer,
-                      Executor editorThread, Clock clock, FolderOpener folderOpener) {
+                      Executor editorThread, Clock clock, FolderOpener folderOpener, SheetAnchors sheetAnchors) {
+        this.sheetAnchors = Objects.requireNonNull(sheetAnchors, "sheetAnchors");
         this.windowsOf = Objects.requireNonNull(windowsOf, "windowsOf");
         this.home = Objects.requireNonNull(home, "home");
         this.writer = Objects.requireNonNull(writer, "writer");
@@ -124,7 +130,8 @@ final class ExportHostSupport {
         return switch (request.format()) {
             case PNG, SVG -> prepareImage(id, version, document, request, folder, baseName, windowScheme,
                     showBusValues);
-            case PDF -> preparePdf(id, version, document, request, folder, baseName, windowScheme, showBusValues);
+            case PDF -> preparePdf(id, version, document, request, folder, baseName, windowScheme, showBusValues,
+                    Optional.ofNullable(preferences));
         };
     }
 
@@ -223,12 +230,17 @@ final class ExportHostSupport {
     // --- PDF ---
 
     private Prepared preparePdf(DocumentId id, DocumentVersion version, OpenDocument document, ExportRequest request,
-                                Path folder, String baseName, ColorScheme windowScheme, boolean showBusValues) {
+                                Path folder, String baseName, ColorScheme windowScheme, boolean showBusValues,
+                                Optional<AppPreferences> preferences) {
         ExportRequest.PdfOptions chosen = request.pdf();
         Set<ElementId> selection = request.scope() instanceof ExportRequest.Scope.Elements elements
                 ? elementIds(document, elements.elementIds()) : Set.of();
+        // The sheets shown on the canvas hold «Todo el circuito» only (sheets spec §0a); a selection or a frame is
+        // laid out on its own.
+        Optional<GridPoint> sheetAnchor = request.scope() instanceof ExportRequest.Scope.WholeCircuit
+                ? sheetAnchors.anchor(document.document()) : Optional.empty();
         PrintInput input = PrintInput.capture(document, selection, windowScheme, TextFonts.current(), clock,
-                showBusValues);
+                showBusValues, sheetAnchor);
         PrintScope scope = switch (request.scope()) {
             case ExportRequest.Scope.WholeCircuit whole -> new PrintScope.WholeCircuit();
             case ExportRequest.Scope.Elements elements -> new PrintScope.Selection(selection);
@@ -244,8 +256,12 @@ final class ExportHostSupport {
                 PageOrientation.valueOf(chosen.orientation()), scaleMode, chosen.withValues(), chosen.blackAndWhite(),
                 chosen.headerFooter(), title, request.includeStickyNotes());
         PrintArea area = PrintScopes.area(input, scope, request.includeStickyNotes()).orElseThrow(ExportHostSupport::nothing);
-        PageLayout layout = PageLayout.of(area.gridArea(), PageGeometry.standard(options,
-                PageGeometry.CENTIMETRE_POINTS), options.scaleMode());
+        // 1 cm as always, but while sheets are shown the margin they were laid out with, so the lattice is the same
+        double margin = sheetAnchor.isPresent() ? preferences.map(AppPreferences::printMarginPoints)
+                .map(remembered -> Math.max(PageGeometry.CENTIMETRE_POINTS, remembered))
+                .orElse(PageGeometry.CENTIMETRE_POINTS) : PageGeometry.CENTIMETRE_POINTS;
+        PageLayout layout = SheetPlan.layout(area.gridArea(), PageGeometry.standard(options, margin),
+                options.scaleMode(), input.sheetAnchor());
         if (layout.problem().isPresent()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "The circuit does not fit on the sheet "
                     + "with these options; try another paper, orientation or scale",

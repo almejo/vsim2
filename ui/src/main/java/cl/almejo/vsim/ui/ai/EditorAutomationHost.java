@@ -31,6 +31,7 @@ import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
 
 import javax.swing.SwingUtilities;
 import java.nio.file.Path;
@@ -94,25 +95,36 @@ public final class EditorAutomationHost implements AutomationHost {
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
                                 Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
                                 PreferenceProposals proposals) {
-        this(openDocuments, windowsOf, windows, Optional.of(proposals), StepPacer.system());
+        this(openDocuments, windowsOf, windows, Optional.of(proposals), StepPacer.system(), new SheetAnchors());
+    }
+
+    /**
+     * Everything, with the application's {@code sheetAnchors}: the PDFs the AI exports of the whole circuit use the
+     * sheets the user shows on the canvas.
+     */
+    public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
+                                Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
+                                PreferenceProposals proposals, SheetAnchors sheetAnchors) {
+        this(openDocuments, windowsOf, windows, Optional.of(proposals), StepPacer.system(), sheetAnchors);
     }
 
     /** Everything, with «De corrido»'s clock and timer given (tests move them by hand). */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
                                 Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
                                 PreferenceProposals proposals, StepPacer stepPacer) {
-        this(openDocuments, windowsOf, windows, Optional.of(proposals), stepPacer);
+        this(openDocuments, windowsOf, windows, Optional.of(proposals), stepPacer, new SheetAnchors());
     }
 
     private EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
                                  Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
                                  Optional<PreferenceProposals> proposals) {
-        this(openDocuments, windowsOf, windows, proposals, StepPacer.system());
+        this(openDocuments, windowsOf, windows, proposals, StepPacer.system(), new SheetAnchors());
     }
 
     private EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
                                  Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
-                                 Optional<PreferenceProposals> proposals, StepPacer stepPacer) {
+                                 Optional<PreferenceProposals> proposals, StepPacer stepPacer,
+                                 SheetAnchors sheetAnchors) {
         this.stepPacer = Objects.requireNonNull(stepPacer, "stepPacer");
         this.openDocuments = Objects.requireNonNull(openDocuments, "openDocuments");
         this.windows = Objects.requireNonNull(windows, "windows");
@@ -124,7 +136,7 @@ public final class EditorAutomationHost implements AutomationHost {
         this.edits = new EditHostSupport(id -> Optional.of(documentOf(id)), this.windows::libraryComponents, queue);
         this.exports = new ExportHostSupport(windowsOf, () -> Path.of(System.getProperty("user.home")),
                 ForkJoinPool.commonPool(), SwingUtilities::invokeLater, Clock.systemDefaultZone(),
-                FolderOpener.desktop());
+                FolderOpener.desktop(), sheetAnchors);
     }
 
     @Override
