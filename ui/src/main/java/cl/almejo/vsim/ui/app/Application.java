@@ -309,6 +309,14 @@ public final class Application {
      * recovery folder is scanned off the EDT (it reads every copy); the dialog and the windows come on the EDT.
      */
     public void start(List<Path> files) {
+        start(files, () -> { });
+    }
+
+    /**
+     * Starts and runs {@code beforeWindows} on the recovery-scan thread, off the EDT, before the first window opens
+     * (the splash's minimum time, {@link StartupSplash}).
+     */
+    public void start(List<Path> files, Runnable beforeWindows) {
         themeManager.start();
         textFontManager.start();
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
@@ -318,6 +326,7 @@ public final class Application {
             Optional<RecoveryChoices<RecoveryCopy>> choices = Optional.empty();
             try {
                 choices = scanRecoveryCopies();
+                beforeWindows.run();
             } finally {
                 // Even after an Error on this thread the application starts, then without a recovery offer.
                 Optional<RecoveryChoices<RecoveryCopy>> offered = choices;
