@@ -75,6 +75,7 @@ class ActionIconsTest {
         used.addAll(cl.almejo.vsim.ui.memory.MemoryIcons.names());
         used.addAll(cl.almejo.vsim.ui.wiring.WiresFollowIcons.names());
         used.addAll(cl.almejo.vsim.ui.busvalues.BusValuesIcons.names());
+        used.addAll(cl.almejo.vsim.ui.sheets.SheetsIcons.names());
         used.addAll(cl.almejo.vsim.ui.snap.SnapIcons.names());
         used.addAll(cl.almejo.vsim.ui.print.PrintIcons.names());
         used.addAll(cl.almejo.vsim.ui.ai.present.PresentationIcons.names());

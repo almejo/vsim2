@@ -34,6 +34,7 @@ import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.print.PrintExtension;
 import cl.almejo.vsim.ui.print.PrinterAccess;
 import cl.almejo.vsim.ui.sheets.SheetAnchors;
+import cl.almejo.vsim.ui.sheets.SheetsExtension;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
@@ -263,6 +264,7 @@ public final class Application {
         editorExtensions.add(new GridExtension());
         editorExtensions.add(new SnapExtension());
         editorExtensions.add(new GuidesExtension());
+        editorExtensions.add(new SheetsExtension(sheetAnchors)); // its Ver item right after «Borrar guías»
         editorExtensions.add(new BusValuesExtension());
         editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));

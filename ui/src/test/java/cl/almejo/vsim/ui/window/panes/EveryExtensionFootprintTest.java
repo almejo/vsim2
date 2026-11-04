@@ -90,6 +90,7 @@ class EveryExtensionFootprintTest {
     void create() {
         preferences.setLibraryDirectory(Optional.of(directory.resolve("library")));
         preferences.setShowGuides(true);
+        preferences.setShowSheets(true); // so the sheets put their overlay and label on every pane
         service = new LibraryService(preferences, library, registry, Runnable::run);
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 preferences, library, List.of());
