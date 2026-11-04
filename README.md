@@ -175,7 +175,7 @@ Instaladores con su propio Java (deb y rpm en Linux, msi y zip portátil en Wind
     ./gradlew :ui:nativePackages         # deja los de este sistema en ui/build/distribution/
     ./gradlew :ui:packagedRuntimeCheck   # comprueba que el Java incluido basta para VSim
 
-Requisitos y detalles en [packaging/README.md](packaging/README.md).
+Requisitos y detalles en [packaging/README.md](packaging/README.md). Una etiqueta `vX.Y` arma todos los instaladores y deja la release en borrador ([Publicar una versión](packaging/README.md#publicar-una-versión)).
 
 ### Pruebas
 
