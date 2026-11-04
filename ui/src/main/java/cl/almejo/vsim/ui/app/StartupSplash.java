@@ -38,7 +38,8 @@ import java.util.Optional;
 /**
  * VSim's splash screen: an undecorated window centred on the screen under the pointer (the JVM's own splash centres
  * on the whole desktop, between two monitors). The image is {@code docs/logo/splash.html}; the version and the
- * «Cargando…» line are painted here so they follow the build and the language. It stays at least
+ * «Cargando…» line are painted here so they follow the build and the language. The picture is composed before the
+ * window shows (the first text drawn loads the fonts, which takes about a second), so it never opens empty. It stays at least
  * {@link #MINIMUM_TIME} on screen ({@link #awaitMinimumTime()} holds the first window back) and closes itself when
  * another window opens.
  */
@@ -53,6 +54,8 @@ final class StartupSplash {
     private static final String[] IMAGE_RESOURCES = {"/splash/vsim2-splash.png", "/splash/vsim2-splash@2x.png"};
     private static final Color LOADING_COLOR = new Color(0x8A8F98);
     private static final Color VERSION_COLOR = new Color(0x5A5E66);
+    /** The image's own background, behind everything until the picture is painted. */
+    private static final Color BACKGROUND = new Color(0x1E1F22);
 
     private final Instant shownAt;
 
@@ -65,11 +68,11 @@ final class StartupSplash {
         if (GraphicsEnvironment.isHeadless()) {
             return Optional.empty();
         }
-        Optional<Image> image = readImage();
-        if (image.isEmpty()) {
+        Optional<Image> picture = composePicture("v" + version, loading);
+        if (picture.isEmpty()) {
             return Optional.empty();
         }
-        SwingUtilities.invokeLater(() -> open(image.get(), "v" + version, loading));
+        SwingUtilities.invokeLater(() -> open(picture.get()));
         return Optional.of(new StartupSplash(Instant.now()));
     }
 
@@ -92,13 +95,14 @@ final class StartupSplash {
         }
     }
 
-    private static Optional<Image> readImage() {
+    /** Each image variant (1x, 2x) with the two lines already drawn at its own resolution. */
+    private static Optional<Image> composePicture(String version, String loading) {
         List<Image> variants = new ArrayList<>();
         for (String resource : IMAGE_RESOURCES) {
             try (InputStream stream = StartupSplash.class.getResourceAsStream(resource)) {
                 BufferedImage variant = stream == null ? null : ImageIO.read(stream);
                 if (variant != null) {
-                    variants.add(variant);
+                    variants.add(withTexts(variant, version, loading));
                 }
             } catch (IOException exception) {
                 LOGGER.warn("Cannot read the splash image {}", resource, exception);
@@ -108,10 +112,31 @@ final class StartupSplash {
                 : Optional.of(new BaseMultiResolutionImage(variants.toArray(Image[]::new)));
     }
 
-    private static void open(Image image, String version, String loading) {
+    private static BufferedImage withTexts(BufferedImage image, String version, String loading) {
+        BufferedImage composed = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = composed.createGraphics();
+        try {
+            graphics.drawImage(image, 0, 0, null);
+            double scale = image.getWidth() / (double) IMAGE_WIDTH;
+            graphics.scale(scale, scale);
+            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+            graphics.setColor(LOADING_COLOR);
+            graphics.drawString(loading, 416, 344);
+            FontMetrics metrics = graphics.getFontMetrics();
+            graphics.setColor(VERSION_COLOR);
+            graphics.drawString(version, 606 - metrics.stringWidth(version), 376);
+        } finally {
+            graphics.dispose();
+        }
+        return composed;
+    }
+
+    private static void open(Image picture) {
         try {
             JWindow window = new JWindow();
-            window.setContentPane(new SplashPicture(image, version, loading));
+            window.setBackground(BACKGROUND);
+            window.setContentPane(new SplashPicture(picture));
             window.pack();
             Rectangle screen = screenUnderPointer().getBounds();
             window.setLocation(screen.x + (screen.width - window.getWidth()) / 2,
@@ -146,17 +171,15 @@ final class StartupSplash {
         toolkit.addAWTEventListener(listener, AWTEvent.WINDOW_EVENT_MASK);
     }
 
-    /** The image at 640 × 400 (its 2x variant on scaled screens) and the two painted lines. */
+    /** The composed picture at 640 × 400 (its 2x variant on scaled screens). */
     private static final class SplashPicture extends JComponent {
 
-        private final Image image;
-        private final String version;
-        private final String loading;
+        private final Image picture;
 
-        SplashPicture(Image image, String version, String loading) {
-            this.image = image;
-            this.version = version;
-            this.loading = loading;
+        SplashPicture(Image picture) {
+            this.picture = picture;
+            setOpaque(true);
+            setBackground(BACKGROUND);
             setPreferredSize(new Dimension(IMAGE_WIDTH, IMAGE_HEIGHT));
         }
 
@@ -164,15 +187,10 @@ final class StartupSplash {
         protected void paintComponent(Graphics graphics) {
             Graphics2D graphics2D = (Graphics2D) graphics.create();
             try {
+                graphics2D.setColor(BACKGROUND);
+                graphics2D.fillRect(0, 0, getWidth(), getHeight());
                 graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-                graphics2D.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                graphics2D.drawImage(image, 0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, null);
-                graphics2D.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-                graphics2D.setColor(LOADING_COLOR);
-                graphics2D.drawString(loading, 416, 344);
-                FontMetrics metrics = graphics2D.getFontMetrics();
-                graphics2D.setColor(VERSION_COLOR);
-                graphics2D.drawString(version, 606 - metrics.stringWidth(version), 376);
+                graphics2D.drawImage(picture, 0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, null);
             } finally {
                 graphics2D.dispose();
             }
