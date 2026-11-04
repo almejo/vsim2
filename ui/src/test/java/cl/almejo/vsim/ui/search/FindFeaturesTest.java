@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -277,6 +278,23 @@ class FindFeaturesTest {
 
         assertThat(bar.closeButton().getBounds().getMaxX()).isLessThanOrEqualTo(400);
         assertThat(bar.field().getWidth()).isLessThan(260).isGreaterThanOrEqualTo(100);
+    }
+
+    @Test
+    void withAWiderFontTheEmptyCounterGivesUpItsRoomBeforeTheCloseButtonIsCut() {
+        FindBar bar = features.bar();
+        bar.counterLabel().setFont(bar.counterLabel().getFont().deriveFont(18f)); // as a wide system font would
+        bar.setSize(400, bar.getPreferredSize().height);
+        bar.doLayout();
+
+        assertThat(bar.closeButton().getBounds().getMaxX()).isLessThanOrEqualTo(400);
+        assertThat(bar.field().getWidth()).isEqualTo(100);
+
+        bar.showState("12 de 99", "", false);
+        bar.doLayout();
+        JLabel counter = bar.counterLabel();
+        assertThat(counter.getWidth()).as("the counter shows its whole text")
+                .isGreaterThanOrEqualTo(counter.getFontMetrics(counter.getFont()).stringWidth("12 de 99"));
     }
 
     @Test

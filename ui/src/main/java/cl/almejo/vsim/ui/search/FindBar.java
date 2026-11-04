@@ -49,7 +49,7 @@ public final class FindBar extends JPanel {
 
     FindBar() {
         super(new MigLayout("insets 3 6 3 6, gap 2, novisualpadding, hidemode 3",
-                "[]6[]4[][]8[][][]8[grow, fill]8[]", "[center]"));
+                "[]6[shrinkprio 50]4[][]8[][][]8[grow, fill]8[]", "[center]")); // the field gives way first
         setBorder(new BottomLine());
         counter.setBorder(new EmptyBorder(1, 4, 1, 4)); // room for the badge around the text
         message.setBorder(new EmptyBorder(1, 4, 1, 4));
@@ -177,7 +177,7 @@ public final class FindBar extends JPanel {
         }
     }
 
-    /** As wide as its widest text, whatever it shows now, so the arrows after it never move. */
+    /** As wide as its widest text, whatever it shows now, so the arrows after it never move (while there is room). */
     private static final class CounterLabel extends StateLabel {
 
         @Override
@@ -192,9 +192,13 @@ public final class FindBar extends JPanel {
             return new Dimension(widest + insets.left + insets.right + 2, size.height);
         }
 
+        /**
+         * Only its current text: in a narrow window (or with a wide font) the reserved room goes after the field has
+         * given way, before ✕ is cut.
+         */
         @Override
         public Dimension getMinimumSize() {
-            return getPreferredSize();
+            return super.getPreferredSize();
         }
     }
 

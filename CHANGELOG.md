@@ -76,6 +76,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- En la barra de búsqueda, con una letra de sistema más ancha (como la de algunos Linux o macOS) ✕ ya no queda cortado en una ventana angosta: después del campo, también se achica el espacio que el contador guarda para «9999 de 9999». Ver [Barra de búsqueda](docs/funciones/buscar.md#barra-de-búsqueda).
 - En la ventanita de «Presentar» de la IA, con una letra más ancha (como la de algunos Linux) «Dejar solo el resultado» y los demás botones ya no se cortan: si no caben uno al lado del otro con su texto entero, van uno debajo del otro. Ver [Presentar](docs/funciones/ia-mcp.md#presentar).
 - En Windows, los circuitos (`.vsim`) y componentes de la librería se guardaban con fin de línea CRLF, distinto de Linux y macOS: ahora las líneas terminan siempre con LF, así que el mismo circuito guardado en cualquier sistema es el mismo archivo. Ver [Abrir y guardar](docs/funciones/importar-y-exportar.md#abrir-y-guardar).
 - En la práctica de Karnaugh, un clic sin querer en la tabla ya no pierde lo practicado: aparece «Deshacer» (o Ctrl+Z) que devuelve la tabla y los grupos. Cerrar la práctica con grupos dibujados pregunta antes («¿Cerrar la práctica? Se perderán los grupos dibujados.»; «Seguir practicando» la deja abierta). Ver [Modo práctica de Karnaugh](docs/funciones/tabla-de-verdad-karnaugh-y-expresiones.md#modo-práctica-de-karnaugh).
