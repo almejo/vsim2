@@ -25,7 +25,7 @@ public final class SelectionArea {
     public static Rectangle2D of(ComponentType type, Component component) {
         Rectangle2D body = ComponentDrawing.documentBounds(type, component);
         return InterfacePinPainter.valueBox(type, component)
-                .map(box -> (Rectangle2D) body.createUnion(box))
+                .map(box -> body.createUnion(box))
                 .orElse(body);
     }
 }

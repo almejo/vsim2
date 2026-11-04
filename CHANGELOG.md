@@ -51,6 +51,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Las pruebas del proyecto corren ahora en GitHub Actions en Linux, Windows y macOS con cada cambio a `main` y cada pull request (`.github/workflows/ci.yml`), y las versiones de las acciones se revisan cada semana (Dependabot). Los archivos de ejemplo y de prueba (`.vsim`, `.json`, `.txt`, `.hex`, `.properties`) se descargan siempre con fin de línea LF, también en Windows.
 - Los textos que nombran la entrada de una compuerta (Problemas, el globo de un pin, los nombres por defecto de las sondas, el aviso de conexiones al cambiar la forma) la cuentan desde 1: «entrada 1», «entrada 2», «entrada 3» (en inglés «input 1»…), en vez de `in0`, `in1`, `in2`. Los nombres internos no cambian: el archivo y la IA siguen usando `in0`.
 - La descripción del Teclado (su ayuda al pasar el mouse y en Propiedades) dice que Mayús+Esc envía el byte ESC.
 - En el Terminal, un `WE` sin conectar vale 1 en todos los modos (antes solo en el modo Logisim: VT100 y Teletipo no escribían hasta cablearlo). Con `WE` conectado todo sigue igual.

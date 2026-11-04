@@ -2,6 +2,8 @@
 
 # VSim 2
 
+[![CI](https://github.com/almejo/vsim2/actions/workflows/ci.yml/badge.svg)](https://github.com/almejo/vsim2/actions/workflows/ci.yml)
+
 Simulador de circuitos digitales: se dibuja el circuito, se simula y se ve cómo avanza cada señal.
 
 Sus focos son **aprender y enseñar** y la **facilidad de uso**. Toma las buenas ideas que ya existen en otros
