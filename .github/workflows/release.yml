@@ -11,6 +11,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+    branches: [distribucion]   # TEMPORARY: test runs before the merge to main; remove before merging
   workflow_dispatch:
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
           echo "build.gradle.kts version: $version"
           macos=false
           prerelease=false
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+          if [[ "$GITHUB_REF" != refs/tags/* ]]; then
             macos=true
           else
             tag="${GITHUB_REF_NAME}"
