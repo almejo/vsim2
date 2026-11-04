@@ -20,10 +20,9 @@ Está hecho en Java 21 con Swing. Es la tercera versión, después de
 
 ## Descargar y usar
 
-1. Instala **OpenJDK 21** (en Linux, el paquete `openjdk-21-jre` de tu distribución; en Windows y macOS, el
-   instalador de OpenJDK 21 que prefieras).
-2. Descarga `vsim2-<versión>.jar` de la versión más nueva en [Releases](https://github.com/almejo/vsim2/releases).
-3. Ábrelo con doble clic, o en una terminal con `java -jar vsim2-<versión>.jar`.
+Descarga de [Releases](https://github.com/almejo/vsim2/releases) el instalador de tu sistema (Windows, Linux) o el
+`.jar` (necesita Java 21). Los pasos por sistema, los avisos de Windows y macOS y cómo reportar un problema están en
+[Cómo instalar y probar](docs/instalar.md).
 
 Para empezar, mira Archivo ▸ Ejemplos o abre los circuitos de [examples/](examples/).
 

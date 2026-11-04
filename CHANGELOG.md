@@ -10,6 +10,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- Una guía, [Cómo instalar y probar](docs/instalar.md), explica por sistema y formato cómo instalar VSim 2 (Windows, macOS, Linux y el jar), qué hacer con los avisos de SmartScreen y Gatekeeper, dónde quedan las preferencias y cómo reportar un problema. El README apunta a ella.
 - Un archivo que no se puede abrir ahora lo dice con un aviso (antes, desde la línea de comandos, solo quedaba en el registro): nombra el archivo y explica por qué, distinguiendo uno guardado con un VSim más nuevo (con ambas versiones), uno que no es de VSim (o parece de Logisim) y uno dañado (indica el componente o elemento que falló). El texto técnico está en «Detalles». Al arrancar, varios archivos con problemas dan un solo aviso.
 - El monitor de bytes de la ventana del Terminal marca con una fila «… N bytes perdidos …» los bytes que el registro descartó antes de que la ventana los leyera, en vez de saltárselos sin avisar. Ver [Terminal](docs/funciones/componentes.md#terminal).
 - Un lienzo completamente vacío muestra al centro un texto suave que dice cómo empezar («Arrastra una pieza desde la paleta para empezar» y «o abre un ejemplo en Archivo ▸ Ejemplos»). Desaparece al poner cualquier cosa, vuelve si borras todo y no sale en las imágenes, el PDF ni la impresión. Ver [Lienzo vacío](docs/funciones/interfaz-preferencias-y-sesion.md#lienzo-vacío).
