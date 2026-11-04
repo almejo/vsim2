@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.print.PageGeometry;
 import cl.almejo.vsim.ui.print.PageOrientation;
 import cl.almejo.vsim.ui.print.Paper;
 import cl.almejo.vsim.ui.print.PrintOptions;
@@ -411,6 +412,51 @@ class AppPreferencesTest {
         assertThat(changes).hasValue(1);
         assertThat(node.get("view.busValues", "")).isEqualTo("false");
         assertThat(new AppPreferences(node).showBusValues()).isFalse();
+    }
+
+    @Test
+    void thePrintSheetsAreHiddenByDefaultAndTheChoiceRoundTripsAndNotifies() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.showSheets()).isFalse();
+
+        preferences.setShowSheets(true);
+        preferences.setShowSheets(true);
+
+        assertThat(changes).hasValue(1);
+        assertThat(node.get("sheets.show", "")).isEqualTo("true");
+        assertThat(new AppPreferences(node).showSheets()).isTrue();
+    }
+
+    @Test
+    void theAiCanShowTheSheetsInOneWindowOnly() {
+        AppPreferences window = preferences.layered();
+
+        window.layer().orElseThrow().put(PreferenceLayer.Setting.SHOW_SHEETS, "true");
+
+        assertThat(window.showSheets()).isTrue();
+        assertThat(preferences.showSheets()).as("the saved value and the other windows").isFalse();
+    }
+
+    @Test
+    void theRememberedPrintMarginIsOneCentimetreUntilAPrintSetsIt() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+
+        preferences.setPrintMarginPoints(42.5);
+
+        assertThat(changes).hasValue(1);
+        assertThat(new AppPreferences(node).printMarginPoints()).isEqualTo(42.5);
+    }
+
+    @Test
+    void anUnreadableRememberedPrintMarginIsOneCentimetre() {
+        for (String stored : new String[] {"ancho", "-3", "NaN", "Infinity"}) {
+            node.put("print.marginPoints", stored);
+            assertThat(preferences.printMarginPoints()).as(stored).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+        }
+        assertThatThrownBy(() -> preferences.setPrintMarginPoints(-1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> preferences.setPrintMarginPoints(Double.NaN))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

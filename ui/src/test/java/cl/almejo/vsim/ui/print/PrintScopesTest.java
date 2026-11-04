@@ -80,6 +80,20 @@ class PrintScopesTest {
     }
 
     @Test
+    void theWholeCircuitAreaOfTheLiveDocumentIsTheAreaOfItsCapture() {
+        addWire(openDocument, -30, -20, -10, -20);
+        UiTestSupport.place(openDocument, StandardComponentTypes.LED, 30, 5, Map.of());
+
+        assertThat(PrintScopes.wholeCircuitArea(openDocument.document(), openDocument.registry(), false))
+                .contains(PrintScopes.area(capture(), new PrintScope.WholeCircuit()).orElseThrow().gridArea());
+    }
+
+    @Test
+    void anEmptyCircuitHasNoWholeCircuitArea() {
+        assertThat(PrintScopes.wholeCircuitArea(openDocument.document(), openDocument.registry(), true)).isEmpty();
+    }
+
+    @Test
     void aWholeCircuitWithANegativeOriginKeepsIt() {
         addWire(openDocument, -30, -20, -10, -20);
         PrintArea area = PrintScopes.area(capture(), new PrintScope.WholeCircuit()).orElseThrow();

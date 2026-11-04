@@ -460,6 +460,34 @@ class PdfExportDialogTest {
     }
 
     @Test
+    void aSavedPdfRemembersTheMarginItWasLaidOutWith() {
+        preferences.setPrintMarginPoints(40);
+        place(10, 10);
+        open();
+        chosenFile = Optional.of(directory.resolve("circuito.pdf"));
+        dialog.saveButton().doClick();
+        assertThat(preferences.printMarginPoints()).as("nothing saved before it is written").isEqualTo(40);
+
+        exporter.future.complete(null);
+
+        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+    }
+
+    @Test
+    void aCancelledExportKeepsTheRememberedMargin() {
+        preferences.setPrintMarginPoints(40);
+        place(10, 10);
+        open();
+        chosenFile = Optional.of(directory.resolve("circuito.pdf"));
+        dialog.saveButton().doClick();
+        dialog.cancelButton().doClick();
+
+        exporter.future.completeExceptionally(new CancellationException());
+
+        assertThat(preferences.printMarginPoints()).isEqualTo(40);
+    }
+
+    @Test
     void cancelDuringTheExportStopsItAndSavesNothing() {
         place(10, 10);
         open();

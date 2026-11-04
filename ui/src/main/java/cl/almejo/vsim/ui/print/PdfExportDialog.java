@@ -756,8 +756,9 @@ public final class PdfExportDialog extends JPanel {
         update();
         PdfExporter.ProgressListener listener = progressListener();
         Path file = target.get();
+        double laidOutMargin = marginPoints;
         collaborators.exporter().export(painter, file, listener).whenComplete((ignored, failure) ->
-                collaborators.edt().execute(() -> finished(chosen.options(), file, failure)));
+                collaborators.edt().execute(() -> finished(chosen.options(), laidOutMargin, file, failure)));
     }
 
     /**
@@ -884,16 +885,18 @@ public final class PdfExportDialog extends JPanel {
         update();
         collaborators.printers().print(accepted.job(), painter, accepted.effective(), progressListener())
                 .whenComplete((ignored, failure) ->
-                        collaborators.edt().execute(() -> printFinished(chosen.options(), failure)));
+                        collaborators.edt().execute(() -> printFinished(chosen.options(),
+                                accepted.effective().marginPoints(), failure)));
     }
 
-    private void printFinished(PrintOptions options, Throwable failure) {
+    /** @param effectiveMargin the printer's margin the sheets went out with, remembered for the canvas's sheets */
+    private void printFinished(PrintOptions options, double effectiveMargin, Throwable failure) {
         exporting = false;
         progress.setVisible(false);
         cancel.setEnabled(true);
         Throwable cause = unwrap(failure);
         if (cause == null) {
-            preferences.setPrintOptions(options);
+            remember(options, effectiveMargin);
             close.run();
             return;
         }
@@ -902,6 +905,15 @@ public final class PdfExportDialog extends JPanel {
             collaborators.messages().accept(this, Messages.text("print.failed"));
         }
         update();
+    }
+
+    /**
+     * What the sheets on the canvas follow (sheets spec §0.2–§0.3): the options and the margin of a PDF that was
+     * saved or a print that went out; never of a cancelled or failed one.
+     */
+    private void remember(PrintOptions options, double margin) {
+        preferences.setPrintOptions(options);
+        preferences.setPrintMarginPoints(margin);
     }
 
     /** Asks the system for printers off the EDT; the answer turns «Imprimir…» on or off. */
@@ -953,13 +965,14 @@ public final class PdfExportDialog extends JPanel {
         };
     }
 
-    private void finished(PrintOptions options, Path file, Throwable failure) {
+    /** @param laidOutMargin the margin the saved sheets were laid out with, remembered for the canvas's sheets */
+    private void finished(PrintOptions options, double laidOutMargin, Path file, Throwable failure) {
         exporting = false;
         progress.setVisible(false);
         cancel.setEnabled(true);
         Throwable cause = unwrap(failure);
         if (cause == null) {
-            preferences.setPrintOptions(options);
+            remember(options, laidOutMargin);
             Path folder = file.toAbsolutePath().getParent();
             if (folder != null) {
                 preferences.setPrintDirectory(folder);

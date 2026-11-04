@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.io.LegacyGateMigration;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.print.PageGeometry;
 import cl.almejo.vsim.ui.print.PageOrientation;
 import cl.almejo.vsim.ui.print.Paper;
 import cl.almejo.vsim.ui.print.PrintOptions;
@@ -83,6 +84,18 @@ public final class AppPreferences {
         putFlag(SHOW_GUIDES, show);
     }
 
+    /**
+     * «Mostrar hojas de impresión»: where the printed sheets fall, drawn over the circuit; off by default (a tool the
+     * user turns on to arrange for print). The AI may layer it in one window.
+     */
+    public boolean showSheets() {
+        return flag(SHOW_SHEETS, false);
+    }
+
+    public void setShowSheets(boolean show) {
+        putFlag(SHOW_SHEETS, show);
+    }
+
     /** «Valores de los buses»: the value written above each bus (canvas and exports); on by default. */
     public boolean showBusValues() {
         return flag(SHOW_BUS_VALUES, true);
@@ -158,6 +171,7 @@ public final class AppPreferences {
     static final String SNAP_TO_GRID_LINES = "snap.gridLines";
     static final String SHOW_GUIDES = "guides.show";
     static final String SHOW_BUS_VALUES = "view.busValues";
+    static final String SHOW_SHEETS = "sheets.show";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
     static final String TERMINAL_WINDOWS = "terminal-windows";
@@ -183,6 +197,7 @@ public final class AppPreferences {
     static final String PRINT_SHOW_FILE_NAME = "print.showFileName";
     static final String PRINT_SHOW_SHEET_NUMBER = "print.showSheetNumber";
     static final String PRINT_DIRECTORY = "print.directory";
+    static final String PRINT_MARGIN_POINTS = "print.marginPoints";
     private static final String PRINT_FIT = "fit";
     static final String AI_PORT = "ai.port";
     static final String AI_SECRET = "ai.secret";
@@ -501,7 +516,10 @@ public final class AppPreferences {
         }
     }
 
-    /** Remembers everything of {@code options} but the scope and the title; called only when a PDF was saved. */
+    /**
+     * Remembers everything of {@code options} but the scope and the title; called when a PDF was saved or a print
+     * went out.
+     */
     public void setPrintOptions(PrintOptions options) {
         Objects.requireNonNull(options, "options");
         put(PRINT_PAPER, options.paper().name());
@@ -518,6 +536,28 @@ public final class AppPreferences {
         putFlag(PRINT_SHOW_DATE, options.showDate());
         putFlag(PRINT_SHOW_FILE_NAME, options.showFileName());
         putFlag(PRINT_SHOW_SHEET_NUMBER, options.showSheetNumber());
+    }
+
+    /**
+     * The blank border of the sheets the canvas lays out, in points: 1 cm until a print on a printer with a wider
+     * hardware margin (or a PDF saved with one) remembers it, so the canvas shows what the next print gives. An
+     * unreadable or negative stored value reads as 1 cm.
+     */
+    public double printMarginPoints() {
+        try {
+            double stored = Double.parseDouble(read(PRINT_MARGIN_POINTS, ""));
+            return Double.isFinite(stored) && stored >= 0 ? stored : PageGeometry.CENTIMETRE_POINTS;
+        } catch (NumberFormatException exception) {
+            return PageGeometry.CENTIMETRE_POINTS;
+        }
+    }
+
+    /** Remembers the margin of a successful print or PDF; {@code marginPoints} must be finite and {@code >= 0}. */
+    public void setPrintMarginPoints(double marginPoints) {
+        if (!Double.isFinite(marginPoints) || marginPoints < 0) {
+            throw new IllegalArgumentException("marginPoints must be finite and >= 0: " + marginPoints);
+        }
+        put(PRINT_MARGIN_POINTS, Double.toString(marginPoints));
     }
 
     /** The folder of the last saved PDF; empty until the first one. */

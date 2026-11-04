@@ -157,6 +157,7 @@ public final class SettingsOverride {
             case GRID_STYLE -> EditorSetting.GRID_STYLE;
             case GRID_LINE_SPACING -> EditorSetting.GRID_SPACING;
             case WIRES_FOLLOW -> EditorSetting.WIRES_FOLLOW;
+            case SHOW_SHEETS -> null;
             case AI_PACE, AI_PAUSE_MILLIS -> null;
         });
     }

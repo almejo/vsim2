@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.ui.export.CircuitImage;
 import java.awt.geom.Rectangle2D;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -51,18 +53,31 @@ public final class PrintScopes {
         };
     }
 
+    /**
+     * The area of «Todo el circuito» (drawn bounds plus the image export's margin) of any document, the live one
+     * included: what the sheets on the canvas are laid out over, and what {@link #area} gives a capture of it, so
+     * the canvas and the paper start from the same rectangle. Empty when nothing counts.
+     */
+    public static Optional<Rectangle2D> wholeCircuitArea(CircuitDocument document, ComponentTypeRegistry registry,
+                                                         boolean includeStickyNotes) {
+        Objects.requireNonNull(document, "document");
+        Objects.requireNonNull(registry, "registry");
+        return DrawnBounds.of(counted(document, includeStickyNotes), registry).map(PrintScopes::withMargin);
+    }
+
     private static boolean counts(DocumentElement element, boolean includeStickyNotes) {
         return includeStickyNotes || !(element instanceof StickyNote);
     }
 
+    private static List<DocumentElement> counted(CircuitDocument document, boolean includeStickyNotes) {
+        return document.elements().stream().filter(element -> counts(element, includeStickyNotes)).toList();
+    }
+
     private static Optional<PrintArea> wholeCircuit(PrintInput input, boolean includeStickyNotes) {
-        CircuitDocument document = input.document();
-        List<DocumentElement> counted = document.elements().stream()
-                .filter(element -> counts(element, includeStickyNotes)).toList();
         Set<ElementId> everything = new LinkedHashSet<>();
-        counted.forEach(element -> everything.add(element.id()));
-        return DrawnBounds.of(counted, input.registry())
-                .map(bounds -> new PrintArea(withMargin(bounds), everything, Optional.empty()));
+        counted(input.document(), includeStickyNotes).forEach(element -> everything.add(element.id()));
+        return wholeCircuitArea(input.document(), input.registry(), includeStickyNotes)
+                .map(area -> new PrintArea(area, everything, Optional.empty()));
     }
 
     private static Optional<PrintArea> selection(PrintInput input, Set<ElementId> ids,

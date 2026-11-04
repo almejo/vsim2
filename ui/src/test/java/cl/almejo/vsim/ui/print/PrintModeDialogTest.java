@@ -293,6 +293,33 @@ class PrintModeDialogTest {
     }
 
     @Test
+    void aSuccessfulPrintRemembersThePrintersWiderMargin() {
+        openToPrint();
+        double wide = 15 * 72 / 25.4;
+        printers.accepting(new PrintSetup(Paper.A4, PageOrientation.PORTRAIT, wide));
+        dialog.printButton().doClick();
+        dialog.printButton().doClick();
+        FakePrinterAccess.PrintCall call = printers.prints.get(0);
+        assertThat(preferences.printMarginPoints()).as("nothing saved before it printed").isEqualTo(CENTIMETRE);
+
+        call.result().complete(null);
+
+        assertThat(preferences.printMarginPoints()).isCloseTo(wide, within(1e-9));
+    }
+
+    @Test
+    void aFailedPrintKeepsTheRememberedMargin() {
+        openToPrint();
+        printers.accepting(new PrintSetup(Paper.A4, PageOrientation.PORTRAIT, 15 * 72 / 25.4));
+        dialog.printButton().doClick();
+        dialog.printButton().doClick();
+
+        printers.prints.get(0).result().completeExceptionally(new PrinterException("lpr: printer offline"));
+
+        assertThat(preferences.printMarginPoints()).isEqualTo(CENTIMETRE);
+    }
+
+    @Test
     void aFailedPrintIsReportedInPlainWordsAndTheDialogStaysUsable() {
         openToPrint();
         dialog.printButton().doClick();

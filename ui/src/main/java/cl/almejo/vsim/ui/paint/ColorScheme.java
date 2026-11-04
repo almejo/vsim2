@@ -90,6 +90,13 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     /** The ten-unit line is the grid line at about twice its alpha. */
     private static final int MAJOR_GRID_LINE_FACTOR = 2;
     private static final int GUIDE_ALPHA = 220;
+    private static final int SHEET_ALPHA = 190;
+    private static final int SHEET_BAND_ALPHA = 28;
+    private static final int SHEET_CUT_ALPHA = 220;
+    /** A little above the 3:1 the sheets must reach, so rounding never brings them under it. */
+    private static final double STANDING_OUT_CONTRAST = 3.2;
+    /** Tenths of the way to black or white: enough to reach any board. */
+    private static final int STANDING_OUT_STEPS = 10;
     private static final double STICKY_FOLD_SHARE = 0.18;
     private static final Color STICKY_DARK_TEXT = new Color(0x1F1F1F);
     private static final Color STICKY_LIGHT_TEXT = new Color(0xF5F5F5);
@@ -275,6 +282,56 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
      */
     public Color frameVeil() {
         return new Color(0, 0, 0, isDark() ? DARK_VEIL_ALPHA : LIGHT_VEIL_ALPHA);
+    }
+
+    /**
+     * The print sheets drawn on the canvas (sheets spec §7, derived, not a role): a neutral grey as light as the
+     * scheme's text, slightly translucent, so the dashed borders and the «Hoja n» labels read on light and dark boards
+     * without looking like a wire, a frame or a warning. Pushed towards black or white when a scheme's text is too
+     * close to its board, so it reaches 3:1 there too.
+     */
+    public Color sheet() {
+        int grey = (int) Math.round(ReadableColors.perceivedBrightness(text) * 255);
+        return standingOut(new Color(grey, grey, grey, SHEET_ALPHA));
+    }
+
+    /** The overlap band between neighbouring sheets: {@link #sheet()}'s grey, barely there. */
+    public Color sheetBand() {
+        return new Color((sheet().getRGB() & 0xFFFFFF) | (SHEET_BAND_ALPHA << 24), true);
+    }
+
+    /**
+     * The outline of a part a sheet border cuts although it would fit one sheet: amber, the only coloured piece of the
+     * sheets, because it is what the user has to act on; deep on a light board, light on a dark one, darker still on
+     * a grey board so it reaches 3:1.
+     */
+    public Color sheetCut() {
+        return standingOut(isDark() ? new Color(0xFF, 0xB7, 0x4D, SHEET_CUT_ALPHA)
+                : new Color(0xB2, 0x6A, 0x00, SHEET_CUT_ALPHA));
+    }
+
+    /**
+     * {@code color}, mixed step by step towards black on a light board (white on a dark one), until it reaches
+     * {@link #STANDING_OUT_CONTRAST} as painted over the background, keeping its alpha.
+     */
+    private Color standingOut(Color color) {
+        Color mixed = color;
+        for (int step = 1; step <= STANDING_OUT_STEPS && !standsOut(mixed); step++) {
+            mixed = towardsTheExtreme(color, step * 255 / STANDING_OUT_STEPS);
+        }
+        return mixed;
+    }
+
+    private boolean standsOut(Color color) {
+        return ReadableColors.contrast(ReadableColors.over(color, background), background) >= STANDING_OUT_CONTRAST;
+    }
+
+    /** {@code color} with {@code share} (0–255) of black on a light board or white on a dark one, same alpha. */
+    private Color towardsTheExtreme(Color color, int share) {
+        int extreme = isDark() ? 255 : 0;
+        Color opaque = ReadableColors.over(new Color(extreme, extreme, extreme, share),
+                new Color(color.getRGB() & 0xFFFFFF));
+        return new Color((opaque.getRGB() & 0xFFFFFF) | (color.getAlpha() << 24), true);
     }
 
     /**

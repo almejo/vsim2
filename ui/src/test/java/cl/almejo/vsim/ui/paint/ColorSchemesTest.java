@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
@@ -214,6 +215,31 @@ class ColorSchemesTest {
             for (Function<ColorScheme, Color> state : WIRE_STATES) {
                 assertThat(guide).as("%s", scheme).isNotEqualTo(state.apply(scheme));
             }
+        }
+    }
+
+    @Test
+    void theSheetLinesAndTheCutMarksStandOutFromEveryBoard() {
+        for (ColorScheme scheme : ALL) {
+            Color background = scheme.background();
+            assertThat(contrast(ReadableColors.over(scheme.sheet(), background), background)).as("%s", scheme)
+                    .isGreaterThanOrEqualTo(3);
+            assertThat(contrast(ReadableColors.over(scheme.sheetCut(), background), background)).as("%s", scheme)
+                    .isGreaterThanOrEqualTo(3);
+        }
+    }
+
+    @Test
+    void theSheetsAreGreyAndOnlyTheCutMarksAreColoured() {
+        for (ColorScheme scheme : ALL) {
+            Color sheet = scheme.sheet();
+            assertThat(sheet.getRed()).as("neutral grey: %s", scheme).isEqualTo(sheet.getGreen())
+                    .isEqualTo(sheet.getBlue());
+            assertThat(scheme.sheetBand().getRGB() & 0xFFFFFF).as("%s", scheme)
+                    .isEqualTo(scheme.sheet().getRGB() & 0xFFFFFF);
+            assertThat(scheme.sheetBand().getAlpha()).isLessThan(scheme.sheet().getAlpha());
+            Color cut = scheme.sheetCut();
+            assertThat(cut.getRed()).as("amber: red over blue").isGreaterThan(cut.getBlue() + 60);
         }
     }
 
