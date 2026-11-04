@@ -77,3 +77,26 @@ se vuelve a calcular con
     jdeps --multi-release 21 --ignore-missing-deps --print-module-deps ui/build/libs/vsim2-<v>.jar
 
 y se corre `./gradlew :ui:packagedRuntimeCheck`.
+
+## Publicar una versión
+
+El flujo `.github/workflows/release.yml` arma todos los instaladores y deja una release **en borrador** (nunca la
+publica):
+
+1. Sube la versión en `build.gradle.kts` y escribe el «Resumen» de la versión en `CHANGELOG.md` (el primer párrafo bajo
+   `## Versión X.Y — fecha`, de 2 a 4 líneas; lo lee `packaging/release-notes.sh`).
+2. Crea y sube la etiqueta: `git tag vX.Y && git push origin vX.Y`. La etiqueta debe ser `v` + la versión de
+   `build.gradle.kts` (con un sufijo, `vX.Y-rc1`, la release queda como pre-release). Si no coincide, el flujo falla
+   antes de construir.
+3. El flujo corre las pruebas y arma el jar, `msi` y zip portátil (Windows), `deb`, `rpm`, AppImage, Flatpak y Snap
+   (Linux); cada paquete se instala (o se desempaqueta, el rpm) en su máquina y corre `PackagedRuntimeCheck` con su propio
+   Java. macOS (dmg `arm64` y `x64`) se construye solo desde la versión 1.0 o en una ejecución manual.
+4. Si todo pasó, el último trabajo escribe `SHA256SUMS` y crea la release en borrador con las notas de
+   `release-notes.sh` y cada archivo adjunto. Revisa el borrador en GitHub y publícalo a mano.
+
+Ejecutar a mano (Actions ▸ Release ▸ Run workflow) construye todo, macOS incluido, como artefactos y no crea release.
+Los scripts se pueden correr en local: `packaging/linux/build-appimage.sh <carpeta-imagen> <versión> <salida>` (baja
+appimagetool 1.9.1 si no está), `packaging/linux/build-flatpak.sh` (pide `flatpak-builder` y Flathub),
+`packaging/snap/prepare-snap.sh` (deja la carpeta que construye snapcraft) y `packaging/release-notes.sh <versión>`.
+La imagen de jpackage de cada formato (`-PvsimPackageFormat=appimage|flatpak|snap`) se arma en la misma carpeta, así
+que se construyen uno tras otro.

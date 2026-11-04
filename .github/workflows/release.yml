@@ -1,0 +1,435 @@
+# Packages VSim 2 for every system and, on a version tag, leaves a DRAFT GitHub release.
+#
+#   git tag v0.6 && git push origin v0.6      builds everything and creates the draft release (never published here)
+#   Actions ▸ Release ▸ Run workflow          builds everything (macOS too) as artifacts, creates no release
+#
+# The tag must be v<version> from build.gradle.kts (or v<version>-<suffix>, which makes a pre-release draft). macOS
+# bundles are built on a manual run, or when the version is 1.0 or later. Each package is installed (or unpacked) on its
+# runner and PackagedRuntimeCheck runs with the package's own Java. The release job only runs when everything passed.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CHECK_CLASS: cl.almejo.vsim.ui.app.PackagedRuntimeCheck
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      macos: ${{ steps.read.outputs.macos }}
+      prerelease: ${{ steps.read.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: read
+        shell: bash
+        run: |
+          version=$(grep -m1 -oP '^\s*version = "\K[^"]+' build.gradle.kts)
+          echo "build.gradle.kts version: $version"
+          macos=false
+          prerelease=false
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            macos=true
+          else
+            tag="${GITHUB_REF_NAME}"
+            if [[ ! "$tag" =~ ^v"$version"(-[A-Za-z0-9.]+)?$ ]]; then
+              echo "::error::The tag $tag does not match build.gradle.kts' version $version (expected v$version)"
+              exit 1
+            fi
+            if [ "$tag" != "v$version" ]; then prerelease=true; fi
+            if [ "${version%%.*}" -ge 1 ]; then macos=true; fi
+            RELEASE_TAG="$tag" packaging/release-notes.sh "$version" > /dev/null
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "macos=$macos" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
+  test:
+    name: Tests
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Test
+        run: ./gradlew test :ui:executableJarTest --continue
+
+  jar:
+    name: Jar
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew :ui:executableJar
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-jar
+          path: ui/build/libs/vsim2-${{ needs.version.outputs.version }}.jar
+          if-no-files-found: error
+
+  deb-and-rpm:
+    name: deb and rpm
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Install the packaging and screen tools
+        run: sudo apt-get update && sudo apt-get install -y rpm fakeroot xvfb cpio
+      - name: Build the deb and the rpm
+        run: ./gradlew :ui:nativePackages
+      - name: Both files must exist (the build skips the rpm with a warning when rpmbuild is missing)
+        run: |
+          ls -la ui/build/distribution
+          test -s "ui/build/distribution/VSim2-$VERSION-linux-amd64.deb"
+          test -s "ui/build/distribution/VSim2-$VERSION-linux-x86_64.rpm"
+      - name: Install the deb and run the check with its own Java
+        run: |
+          sudo apt-get install -y "./ui/build/distribution/VSim2-$VERSION-linux-amd64.deb"
+          /opt/vsim2/lib/runtime/bin/java -cp "/opt/vsim2/lib/app/vsim2-$VERSION.jar" "$CHECK_CLASS" | tee check.txt
+          grep -qx 'PackagedRuntimeCheck OK' check.txt
+          grep -q -- '-Dvsim.packageFormat=deb' /opt/vsim2/lib/app/VSim2.cfg
+      - name: Launch the installed deb for 15 seconds
+        run: |
+          xvfb-run -a -s "-screen 0 1280x800x24" bash -c '
+            /opt/vsim2/bin/VSim2 > launch.txt 2>&1 &
+            application=$!
+            sleep 15
+            if kill -0 $application; then echo "VSim is still open: OK"; kill $application; else cat launch.txt; exit 1; fi
+          '
+      - name: Check the rpm (metadata, contents, and the check with its own Java from the unpacked rpm)
+        run: |
+          rpm="ui/build/distribution/VSim2-$VERSION-linux-x86_64.rpm"
+          rpm -qip "$rpm"
+          rpm -qlp "$rpm" > rpm-files.txt
+          grep -qx '/opt/vsim2/bin/VSim2' rpm-files.txt
+          grep -q "/opt/vsim2/lib/app/vsim2-$VERSION.jar" rpm-files.txt
+          mkdir rpm-root
+          (cd rpm-root && rpm2cpio "../$rpm" | cpio -idm --quiet)
+          rpm-root/opt/vsim2/lib/runtime/bin/java -cp "rpm-root/opt/vsim2/lib/app/vsim2-$VERSION.jar" "$CHECK_CLASS" | tee rpm-check.txt
+          grep -qx 'PackagedRuntimeCheck OK' rpm-check.txt
+          grep -q -- '-Dvsim.packageFormat=rpm' rpm-root/opt/vsim2/lib/app/VSim2.cfg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-linux-deb-rpm
+          path: |
+            ui/build/distribution/*.deb
+            ui/build/distribution/*.rpm
+          if-no-files-found: error
+
+  appimage:
+    name: AppImage
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Install the screen tools
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Build the app image and the AppImage (appimagetool 1.9.1)
+        run: |
+          ./gradlew :ui:jpackageImage -PvsimPackageFormat=appimage
+          packaging/linux/build-appimage.sh ui/build/packaging/image/VSim2 "$VERSION" \
+            "ui/build/distribution/VSim2-$VERSION-x86_64.AppImage"
+      - name: Run the check with the AppImage's own Java
+        run: |
+          appimage="ui/build/distribution/VSim2-$VERSION-x86_64.AppImage"
+          mkdir extracted
+          (cd extracted && "../$appimage" --appimage-extract > /dev/null)
+          extracted/squashfs-root/lib/runtime/bin/java -cp "extracted/squashfs-root/lib/app/vsim2-$VERSION.jar" "$CHECK_CLASS" | tee check.txt
+          grep -qx 'PackagedRuntimeCheck OK' check.txt
+          grep -q -- '-Dvsim.packageFormat=appimage' extracted/squashfs-root/lib/app/VSim2.cfg
+      - name: Launch the AppImage for 15 seconds
+        run: |
+          xvfb-run -a -s "-screen 0 1280x800x24" bash -c '
+            "ui/build/distribution/VSim2-'"$VERSION"'-x86_64.AppImage" > launch.txt 2>&1 &
+            application=$!
+            sleep 15
+            if kill -0 $application; then echo "AppImage is still open: OK"; kill $application; else cat launch.txt; exit 1; fi
+          '
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-linux-appimage
+          path: ui/build/distribution/*.AppImage
+          if-no-files-found: error
+
+  flatpak:
+    name: Flatpak
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Install flatpak and flatpak-builder, add Flathub
+        run: |
+          sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+      - name: Build the app image and the Flatpak bundle
+        run: |
+          ./gradlew :ui:jpackageImage -PvsimPackageFormat=flatpak
+          packaging/linux/build-flatpak.sh ui/build/packaging/image/VSim2 "$VERSION" \
+            "ui/build/distribution/VSim2-$VERSION-linux-x86_64.flatpak"
+      - name: Install the bundle and run the check with its own Java
+        run: |
+          flatpak install --user -y "ui/build/distribution/VSim2-$VERSION-linux-x86_64.flatpak"
+          flatpak run --command=/app/vsim2/lib/runtime/bin/java io.github.almejo.vsim2 \
+            -cp "/app/vsim2/lib/app/vsim2-$VERSION.jar" "$CHECK_CLASS" | tee check.txt
+          grep -qx 'PackagedRuntimeCheck OK' check.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-linux-flatpak
+          path: ui/build/distribution/*.flatpak
+          if-no-files-found: error
+
+  snap:
+    name: Snap
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build the app image and lay out the snap build folder
+        run: |
+          ./gradlew :ui:jpackageImage -PvsimPackageFormat=snap
+          packaging/snap/prepare-snap.sh ui/build/packaging/image/VSim2 "$VERSION" ui/build/snap-input
+      - uses: snapcore/action-build@v1
+        id: snapcraft
+        with:
+          path: ui/build/snap-input
+      - name: Install the snap and run the check inside its confinement
+        run: |
+          sudo snap install --dangerous "${{ steps.snapcraft.outputs.snap }}"
+          snap run --shell vsim2 -c "\$SNAP/lib/runtime/bin/java -cp \$SNAP/lib/app/vsim2-$VERSION.jar $CHECK_CLASS" | tee check.txt
+          grep -qx 'PackagedRuntimeCheck OK' check.txt
+      - name: Name the file for the release
+        run: |
+          mkdir -p ui/build/distribution
+          cp "${{ steps.snapcraft.outputs.snap }}" "ui/build/distribution/VSim2-$VERSION-linux-amd64.snap"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-linux-snap
+          path: ui/build/distribution/*.snap
+          if-no-files-found: error
+
+  windows:
+    name: Windows (msi and portable zip)
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Make sure WiX 3 is there (JDK 21's jpackage needs candle and light)
+        run: |
+          $candle = Get-Command candle.exe -ErrorAction SilentlyContinue
+          if ($candle) { "WiX was already there: $($candle.Source)" } else {
+            choco install wixtoolset -y --no-progress
+          }
+          $wixBin = Get-ChildItem "C:\Program Files (x86)" -Directory -Filter "WiX Toolset v3*" |
+            Select-Object -First 1 | ForEach-Object { Join-Path $_.FullName "bin" }
+          if ($wixBin) { $wixBin | Out-File -FilePath $env:GITHUB_PATH -Append; "WiX bin: $wixBin" }
+      - name: Build the msi and the portable zip
+        shell: bash
+        run: ./gradlew :ui:nativePackages
+      - name: Both files must exist
+        run: |
+          Get-ChildItem ui\build\distribution
+          foreach ($name in "VSim2-$env:VERSION-windows-x64.msi", "VSim2-$env:VERSION-windows-x64-portable.zip") {
+            if (-not (Test-Path "ui\build\distribution\$name")) { throw "$name was not built" }
+          }
+      - name: Install the msi silently and run the check with its own Java
+        run: |
+          New-Item -ItemType Directory -Force evidence | Out-Null
+          $msi = (Resolve-Path "ui\build\distribution\VSim2-$env:VERSION-windows-x64.msi").Path
+          $install = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /l*v evidence\install.log" -Wait -PassThru
+          "msiexec exited with $($install.ExitCode)"
+          if ($install.ExitCode -ne 0) { exit 1 }
+          $launcher = Get-ChildItem $env:LOCALAPPDATA, $env:ProgramFiles -Recurse -Filter "VSim2.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $launcher) { throw "VSim2.exe was not found after the install" }
+          $root = $launcher.Directory.FullName
+          "installed in $root"
+          $output = & "$root\runtime\bin\java.exe" -cp "$root\app\vsim2-$env:VERSION.jar" $env:CHECK_CLASS
+          $checkExit = $LASTEXITCODE
+          $output
+          if ($checkExit -ne 0 -or ($output -notcontains "PackagedRuntimeCheck OK")) { throw "PackagedRuntimeCheck failed" }
+          if (-not (Select-String -Path "$root\app\VSim2.cfg" -Pattern "-Dvsim.packageFormat=msi" -SimpleMatch -Quiet)) {
+            throw "VSim2.cfg does not say vsim.packageFormat=msi"
+          }
+          $application = Start-Process $launcher.FullName -PassThru
+          Start-Sleep -Seconds 15
+          if ($application.HasExited) { "VSim closed by itself (exit $($application.ExitCode))"; exit 1 }
+          "VSim is still open: OK"
+          Stop-Process -Id $application.Id -Force
+      - name: Unzip the portable zip and run the check with its own Java
+        run: |
+          Expand-Archive "ui\build\distribution\VSim2-$env:VERSION-windows-x64-portable.zip" -DestinationPath portable
+          $root = (Get-ChildItem portable -Directory | Select-Object -First 1).FullName
+          $output = & "$root\runtime\bin\java.exe" -cp "$root\app\vsim2-$env:VERSION.jar" $env:CHECK_CLASS
+          $checkExit = $LASTEXITCODE
+          $output
+          if ($checkExit -ne 0 -or ($output -notcontains "PackagedRuntimeCheck OK")) { throw "PackagedRuntimeCheck failed" }
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evidence-windows
+          path: evidence/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-windows
+          path: |
+            ui/build/distribution/*.msi
+            ui/build/distribution/*.zip
+          if-no-files-found: error
+
+  macos:
+    name: macOS dmg (${{ matrix.os }})
+    needs: version
+    if: needs.version.outputs.macos == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel]
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build the dmg
+        run: ./gradlew :ui:nativePackages
+      - name: Install from the dmg and run the check with its own Java
+        run: |
+          ls -la ui/build/distribution
+          dmg=$(ls ui/build/distribution/VSim2-"$VERSION"-macos-*.dmg | head -1)
+          hdiutil attach "$dmg" -mountpoint /Volumes/VSim2-release -nobrowse
+          cp -R /Volumes/VSim2-release/*.app /Applications/
+          hdiutil detach /Volumes/VSim2-release
+          bundle=$(ls -d /Applications/VSim*.app | head -1)
+          echo "bundle: $bundle"
+          "$bundle/Contents/runtime/Contents/Home/bin/java" -cp "$bundle/Contents/app/vsim2-$VERSION.jar" "$CHECK_CLASS" | tee check.txt
+          grep -qx 'PackagedRuntimeCheck OK' check.txt
+          grep -q -- '-Dvsim.packageFormat=dmg' "$bundle/Contents/app/VSim2.cfg"
+          "$bundle/Contents/MacOS/VSim2" > launch.txt 2>&1 &
+          application=$!
+          sleep 15
+          if kill -0 $application; then echo "VSim is still open: OK"; kill $application; else cat launch.txt; exit 1; fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-macos-${{ matrix.os }}
+          path: ui/build/distribution/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: Draft release
+    needs: [version, test, jar, deb-and-rpm, appimage, flatpak, snap, windows, macos]
+    # macOS is skipped (not failed) before 1.0; any failure stops the release.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: package-*
+          path: release-files
+          merge-multiple: true
+      - name: Check every file is there, once, and write SHA256SUMS
+        run: |
+          expected=(
+            "VSim2-$VERSION-windows-x64.msi"
+            "VSim2-$VERSION-windows-x64-portable.zip"
+            "VSim2-$VERSION-linux-amd64.deb"
+            "VSim2-$VERSION-linux-x86_64.rpm"
+            "VSim2-$VERSION-x86_64.AppImage"
+            "VSim2-$VERSION-linux-x86_64.flatpak"
+            "VSim2-$VERSION-linux-amd64.snap"
+            "vsim2-$VERSION.jar"
+          )
+          if [ "${{ needs.version.outputs.macos }}" = "true" ]; then
+            expected+=("VSim2-$VERSION-macos-arm64.dmg" "VSim2-$VERSION-macos-x64.dmg")
+          fi
+          ls -la release-files
+          for name in "${expected[@]}"; do
+            test -s "release-files/$name" || { echo "::error::$name is missing"; exit 1; }
+          done
+          actual=$(ls release-files | wc -l)
+          if [ "$actual" -ne "${#expected[@]}" ]; then
+            echo "::error::Expected ${#expected[@]} files, found $actual"
+            exit 1
+          fi
+          (cd release-files && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+      - name: Create the draft release
+        run: |
+          RELEASE_TAG="$GITHUB_REF_NAME" packaging/release-notes.sh "$VERSION" > release-notes.md
+          prerelease_flag=""
+          if [ "${{ needs.version.outputs.prerelease }}" = "true" ]; then prerelease_flag="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag $prerelease_flag \
+            --title "VSim 2 $VERSION" --notes-file release-notes.md release-files/*

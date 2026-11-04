@@ -1,0 +1,43 @@
+# The Snap of VSim 2. Not built from here: packaging/snap/prepare-snap.sh lays out the build folder (this file with
+# @VERSION@ replaced, the app image as «image», the icon and desktop entry under snap/gui) and snapcore/action-build
+# runs snapcraft on it.
+name: vsim2
+title: VSim 2
+base: core24
+version: '@VERSION@'
+summary: Simulador de circuitos digitales para enseñar
+description: |
+  VSim 2 es un simulador de circuitos digitales pensado para enseñar: arma circuitos con compuertas, memorias y
+  buses, simúlalos y mira las señales en vivo. Trae su propio Java.
+license: GPL-3.0-or-later
+grade: stable
+confinement: strict
+icon: snap/gui/vsim2.png
+
+apps:
+  vsim2:
+    command: bin/VSim2
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/lib/runtime/lib:$LD_LIBRARY_PATH
+    plugs:
+      - desktop
+      - x11
+      - wayland
+      - home
+      - removable-media
+      - network
+      - network-bind
+
+parts:
+  vsim2:
+    plugin: dump
+    source: image
+    stage-packages:
+      - libx11-6
+      - libxext6
+      - libxi6
+      - libxrender1
+      - libxtst6
+      - libfreetype6
+      - libfontconfig1
+      - fonts-dejavu-core

@@ -4,12 +4,14 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones publicadas están en
 [GitHub Releases](https://github.com/almejo/vsim2/releases); antes de la 0.1, cada sección es un conjunto de
 funciones, con las fechas en que se hizo. El detalle de cada función está en
-[docs/funciones.md](docs/funciones.md).
+[docs/funciones.md](docs/funciones.md). El primer párrafo de cada versión publicada (bajo su título, antes de
+«Agregado») es su «Resumen» de 2 a 4 líneas: es el texto que `packaging/release-notes.sh` pone en la página de la release.
 
 ## Sin publicar
 
 ### Agregado
 
+- Cada versión con etiqueta (`vX.Y`) construye sola sus instaladores con Java incluido (msi y zip portátil, deb, rpm, AppImage, Flatpak y Snap; dmg desde la 1.0), los revisa instalados y deja una release en borrador con `SHA256SUMS` y notas sacadas del «Resumen» de la versión en este archivo. Ver [Publicar una versión](packaging/README.md#publicar-una-versión).
 - Una guía, [Cómo instalar y probar](docs/instalar.md), explica por sistema y formato cómo instalar VSim 2 (Windows, macOS, Linux y el jar), qué hacer con los avisos de SmartScreen y Gatekeeper, dónde quedan las preferencias y cómo reportar un problema. El README apunta a ella.
 - En macOS, un doble clic en un `.vsim` en Finder (o soltarlo sobre el icono del Dock) lo abre en VSim, también si el aviso llega mientras VSim arranca. Ver [Abrir y guardar](docs/funciones/importar-y-exportar.md#abrir-y-guardar).
 - Ayuda ▸ «Reportar un problema…» abre en GitHub el formulario de problemas (en el idioma de VSim) con la versión, el sistema y el formato de instalación ya completados; hay también un formulario para proponer ideas. «Copiar información» de Acerca de incluye ahora el formato de instalación. Ver [Reportar un problema](docs/funciones/interfaz-preferencias-y-sesion.md#reportar-un-problema).
@@ -94,6 +96,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Un Terminal con «Efecto de pantalla» en «Suave» o «Fuerte» ya no pone lento el editor ni la simulación mientras recibe texto: el lienzo guarda una imagen de la pantalla con su efecto y, mientras nada cambia en ella, solo vuelve a dibujar el cursor, la última letra marcada y la imagen anterior que se desvanece. Ver [Terminal](docs/funciones/componentes.md#terminal).
 
 ## Versión 0.5 — 2026-10-28
+
+Memorias RAM y ROM con su editor de contenido y mapa de memoria, interruptores y LED de varios bits, compuertas
+con más entradas y ancho, nuevas piezas de aritmética, multiplexores y flip-flops, notas adhesivas, y una descripción
+para cada pieza. La paleta se reorganiza en nueve categorías que siguen un curso.
 
 ### Agregado
 
