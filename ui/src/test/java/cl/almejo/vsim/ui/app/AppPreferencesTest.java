@@ -449,6 +449,14 @@ class AppPreferencesTest {
     }
 
     @Test
+    void aNarrowerStoredPrintMarginReadsAsOneCentimetre() {
+        node.put("print.marginPoints", "14");
+        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+        node.put("print.marginPoints", "0");
+        assertThat(preferences.printMarginPoints()).isEqualTo(PageGeometry.CENTIMETRE_POINTS);
+    }
+
+    @Test
     void anUnreadableRememberedPrintMarginIsOneCentimetre() {
         for (String stored : new String[] {"ancho", "-3", "NaN", "Infinity"}) {
             node.put("print.marginPoints", stored);

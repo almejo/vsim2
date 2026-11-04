@@ -312,7 +312,7 @@ public final class PdfExportDialog extends JPanel {
         this.startDirectory = Objects.requireNonNull(startDirectory, "startDirectory");
         this.suggestedName = Objects.requireNonNull(suggestedName, "suggestedName");
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
-        this.marginPoints = Math.max(PageGeometry.CENTIMETRE_POINTS, preferences.printMarginPoints());
+        this.marginPoints = preferences.printMarginPoints();
         this.previewTimer = collaborators.timerFactory().apply(this::refreshPreview);
         build();
         updating = true;
@@ -638,8 +638,22 @@ public final class PdfExportDialog extends JPanel {
         Optional<GridPoint> anchor = whole ? input.sheetAnchor() : Optional.empty();
         PageLayout layout = SheetPlan.layout(area.gridArea(), geometry, options.scaleMode(), anchor);
         sheetNote.setVisible(SheetPlan.anchorApplies(PageLayout.of(area.gridArea(), geometry, options.scaleMode()),
-                anchor));
+                anchor) && sameSheetsAsTheCanvas(options));
         return layout;
+    }
+
+    /**
+     * Whether the options that decide the sheets (paper, orientation, scale, header and footer, sheet guides, sticky
+     * notes, margin) are the remembered ones the canvas lays out with; the note «las hojas que ves» is honest only then.
+     */
+    private boolean sameSheetsAsTheCanvas(PrintOptions options) {
+        PrintOptions remembered = preferences.printOptions(input.circuitName());
+        return options.paper() == remembered.paper() && options.orientation() == remembered.orientation()
+                && options.scaleMode().equals(remembered.scaleMode())
+                && options.headerFooter() == remembered.headerFooter()
+                && options.sheetGuides() == remembered.sheetGuides()
+                && options.includeStickyNotes() == remembered.includeStickyNotes()
+                && marginPoints == preferences.printMarginPoints();
     }
 
     /** «Ver hojas en el circuito» is for «Todo el circuito» only, and says so in its tooltip when it is off. */

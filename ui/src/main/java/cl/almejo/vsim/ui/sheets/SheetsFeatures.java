@@ -165,7 +165,8 @@ public final class SheetsFeatures {
 
     /**
      * The sheets as the panes draw them now; empty while hidden or when the circuit has nothing to lay out. Laid out
-     * once per change and read by every pane. Laying them out tiled while none is held takes the anchor.
+     * once per change and read by every pane. Laying them out tiled while none is held takes the anchor; laying them out
+     * on one sheet drops it.
      */
     Optional<SheetPicture> picture() {
         if (stale) {
@@ -188,7 +189,12 @@ public final class SheetsFeatures {
         }
         PageGeometry geometry = PageGeometry.standard(options, preferences.printMarginPoints());
         PageLayout automatic = PageLayout.of(area.get(), geometry, options.scaleMode());
-        if (automatic.tiled() && anchors.anchor(document()).isEmpty()) {
+        if (!automatic.tiled()) {
+            // one sheet or «Ajustar a una hoja»: nothing is anchored; the next tiled layout takes it again
+            if (anchors.anchor(document()).isPresent()) {
+                anchors.clear(document());
+            }
+        } else if (anchors.anchor(document()).isEmpty()) {
             anchors.take(document(), SheetPlan.anchorOf(automatic));
         }
         PageLayout layout = SheetPlan.layout(area.get(), geometry, options.scaleMode(), anchors.anchor(document()));

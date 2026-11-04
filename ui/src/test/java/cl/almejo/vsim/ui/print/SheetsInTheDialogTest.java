@@ -9,7 +9,14 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
+import cl.almejo.vsim.ui.sheets.SheetsTestAccess;
+import cl.almejo.vsim.ui.window.EditorServices;
+import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import org.junit.jupiter.api.AfterEach;
@@ -135,6 +142,34 @@ class SheetsInTheDialogTest {
         assertThat(shown.gridArea()).isEqualTo(expected.gridArea());
         assertThat(dialog.sheetNoteText()).isEqualTo(NOTE);
         assertThat(dialog.statusText()).contains(shown.pageCount() + " en total");
+    }
+
+    @Test
+    void theNoteGoesWhenTheDialogsPaperIsNotTheOneOnTheCanvas() {
+        PrintOptions options = rememberHundredPercent();
+        placeAboutTwoSheetsWide(options, PageGeometry.CENTIMETRE_POINTS);
+        open(PdfExportDialog.Mode.PDF, Optional.of(halfASheetIn(options, PageGeometry.CENTIMETRE_POINTS)));
+        assertThat(dialog.sheetNoteText()).isEqualTo(NOTE);
+
+        dialog.paperChoice().setSelectedItem(Paper.A3);
+        assertThat(dialog.pageLayout().orElseThrow().tiled()).isTrue();
+        assertThat(dialog.sheetNoteText()).as("another paper than the canvas's").isEmpty();
+
+        dialog.paperChoice().setSelectedItem(Paper.A4);
+        assertThat(dialog.sheetNoteText()).as("back to the canvas's paper").isEqualTo(NOTE);
+    }
+
+    @Test
+    void theNoteGoesWhenTheMarginIsNotTheRememberedOne() {
+        PrintOptions options = rememberHundredPercent();
+        placeAboutTwoSheetsWide(options, PageGeometry.CENTIMETRE_POINTS);
+        open(PdfExportDialog.Mode.PDF, Optional.of(halfASheetIn(options, PageGeometry.CENTIMETRE_POINTS)));
+        assertThat(dialog.sheetNoteText()).isEqualTo(NOTE);
+
+        preferences.setPrintMarginPoints(WIDER_MARGIN);
+        dialog.blackAndWhite().doClick();
+
+        assertThat(dialog.sheetNoteText()).isEmpty();
     }
 
     @Test
@@ -300,6 +335,50 @@ class SheetsInTheDialogTest {
             if (anchor.isPresent()) {
                 assertThat(paper.pageCount()).as("the anchor changed the sheets")
                         .isGreaterThan(automaticLayout(remembered, WIDER_MARGIN).pageCount());
+            }
+        }
+    }
+
+    /**
+     * Canvas = paper, read from the canvas's own picture (the grid its overlay paints), not rebuilt by hand: with a
+     * wider remembered margin and with a stored one narrower than 1 cm, which every layout clamps to 1 cm.
+     */
+    @ParameterizedTest
+    @EnumSource(PdfExportDialog.Mode.class)
+    void theDialogAgreesWithTheGridTheCanvasItselfPaints(PdfExportDialog.Mode mode) {
+        PrintOptions options = rememberHundredPercent();
+        placeAboutTwoSheetsWide(options, WIDER_MARGIN);
+        for (double stored : new double[] {WIDER_MARGIN, 14}) {
+            preferences.setPrintMarginPoints(stored);
+            SheetAnchors anchors = new SheetAnchors();
+            EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
+                    preferences, new ComponentLibrary(), List.of());
+            EditorView view = new EditorView(openDocument, services, UiTestSupport.NO_WINDOW);
+            view.canvas().setSize(800, 600);
+            try (SheetsTestAccess canvas = SheetsTestAccess.install(anchors, view)) {
+                preferences.setShowSheets(true);
+                SheetGrid canvasGrid = canvas.canvasGrid().orElseThrow();
+                assertThat(canvasGrid.tiled()).isTrue();
+                open(mode, anchors.anchor(openDocument.document()));
+                PageLayout paper = dialog.pageLayout().orElseThrow();
+                dialog.dispose();
+                SheetGrid paperGrid = SheetGrid.of(paper);
+
+                assertThat(canvasGrid.layout().geometry().marginPoints()).as("margin " + stored)
+                        .isEqualTo(Math.max(PageGeometry.CENTIMETRE_POINTS, stored));
+                assertThat(paperGrid.columns()).isEqualTo(canvasGrid.columns());
+                assertThat(paperGrid.rows()).isEqualTo(canvasGrid.rows());
+                for (int row = 0; row < canvasGrid.rows(); row++) {
+                    for (int column = 0; column < canvasGrid.columns(); column++) {
+                        assertThat(paperGrid.sheetRectangle(column, row))
+                                .isEqualTo(canvasGrid.sheetRectangle(column, row));
+                        assertThat(paperGrid.sheetNumber(column, row))
+                                .isEqualTo(canvasGrid.sheetNumber(column, row));
+                    }
+                }
+            } finally {
+                preferences.setShowSheets(false);
+                view.dispose();
             }
         }
     }

@@ -258,7 +258,6 @@ final class ExportHostSupport {
         PrintArea area = PrintScopes.area(input, scope, request.includeStickyNotes()).orElseThrow(ExportHostSupport::nothing);
         // 1 cm as always, but while sheets are shown the margin they were laid out with, so the lattice is the same
         double margin = sheetAnchor.isPresent() ? preferences.map(AppPreferences::printMarginPoints)
-                .map(remembered -> Math.max(PageGeometry.CENTIMETRE_POINTS, remembered))
                 .orElse(PageGeometry.CENTIMETRE_POINTS) : PageGeometry.CENTIMETRE_POINTS;
         PageLayout layout = SheetPlan.layout(area.gridArea(), PageGeometry.standard(options, margin),
                 options.scaleMode(), input.sheetAnchor());

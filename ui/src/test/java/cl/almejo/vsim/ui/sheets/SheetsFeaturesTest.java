@@ -312,10 +312,53 @@ class SheetsFeaturesTest {
 
         preferences.setPrintOptions(options(Paper.A3, new ScaleMode.Percentage(150)));
         assertThat(features.picture().orElseThrow().grid().layout().geometry().paper()).isEqualTo(Paper.A3);
+        assertThat(anchor()).contains(first);
         preferences.setPrintOptions(options(Paper.A4, new ScaleMode.FitToOnePage()));
         assertThat(features.picture().orElseThrow().grid().tiled()).isFalse();
+        assertThat(anchor()).as("one sheet holds no anchor").isEmpty();
+    }
 
-        assertThat(anchor()).contains(first);
+    @Test
+    void aOneSheetStateDropsTheAnchorSoTheNextTiledLayoutStartsFromTheCircuitsCorner() {
+        twoColumns();
+        preferences.setShowSheets(true);
+        features.picture();
+        GridPoint first = anchor().orElseThrow();
+
+        preferences.setPrintOptions(options(Paper.A4, new ScaleMode.FitToOnePage()));
+        assertThat(features.picture().orElseThrow().grid().tiled()).isFalse();
+        assertThat(anchor()).as("no anchor while on one sheet").isEmpty();
+
+        List<cl.almejo.vsim.core.document.ElementId> everything = openDocument.document().elements().stream()
+                .map(cl.almejo.vsim.core.document.DocumentElement::id).toList();
+        openDocument.execute(new MoveElementsCommand(everything, 150, 0));
+        preferences.setPrintOptions(options(Paper.A4, new ScaleMode.Percentage(100)));
+        SheetGrid grid = features.picture().orElseThrow().grid();
+
+        assertThat(grid.tiled()).isTrue();
+        assertThat(anchor()).isPresent().get().isNotEqualTo(first);
+        assertThat(anchor().orElseThrow().x()).isEqualTo(first.x() + 150);
+        assertThat(grid.columns()).as("the automatic grid, not one on the old lattice").isEqualTo(2);
+    }
+
+    @Test
+    void redefiningAUserComponentThatResizesItsInstancesLaysTheSheetsOutAgain() {
+        cl.almejo.vsim.core.library.ComponentDefinition small = new cl.almejo.vsim.core.library.ComponentDefinition(
+                "box", "Caja", "", new cl.almejo.vsim.core.geometry.GridSize(4, 4), List.of(),
+                new cl.almejo.vsim.core.io.CircuitFragment(List.of(), List.of(), List.of()));
+        openDocument.document().putDefinition(small);
+        place(openDocument, cl.almejo.vsim.core.library.SubcircuitTypes.typeIdOf("box"), 0, 0, Map.of());
+        preferences.setShowSheets(true);
+        double before = features.picture().orElseThrow().area().getWidth();
+
+        cl.almejo.vsim.core.library.ComponentDefinition large = new cl.almejo.vsim.core.library.ComponentDefinition(
+                "box", "Caja", "", new cl.almejo.vsim.core.geometry.GridSize(300, 4), List.of(),
+                new cl.almejo.vsim.core.io.CircuitFragment(List.of(), List.of(), List.of()));
+        openDocument.execute(cl.almejo.vsim.core.command.ReplaceDefinitionCommand.prepare(openDocument.document(),
+                openDocument.registry(), new cl.almejo.vsim.core.library.DefinitionBundle(large, List.of())));
+
+        assertThat(features.picture().orElseThrow().area().getWidth()).isGreaterThan(before + 200);
+        assertThat(features.picture().orElseThrow().grid().tiled()).isTrue();
     }
 
     @Test

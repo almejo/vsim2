@@ -540,13 +540,14 @@ public final class AppPreferences {
 
     /**
      * The blank border of the sheets the canvas lays out, in points: 1 cm until a print on a printer with a wider
-     * hardware margin (or a PDF saved with one) remembers it, so the canvas shows what the next print gives. An
-     * unreadable or negative stored value reads as 1 cm.
+     * hardware margin (or a PDF saved with one) remembers it, so the canvas shows what the next print gives. Never less
+     * than 1 cm (the least any sheet is laid out with): an unreadable, negative or narrower stored value reads as 1 cm.
      */
     public double printMarginPoints() {
         try {
             double stored = Double.parseDouble(read(PRINT_MARGIN_POINTS, ""));
-            return Double.isFinite(stored) && stored >= 0 ? stored : PageGeometry.CENTIMETRE_POINTS;
+            return Double.isFinite(stored) ? Math.max(PageGeometry.CENTIMETRE_POINTS, stored)
+                    : PageGeometry.CENTIMETRE_POINTS;
         } catch (NumberFormatException exception) {
             return PageGeometry.CENTIMETRE_POINTS;
         }
