@@ -138,3 +138,11 @@ tasks.test {
 tasks.check {
     dependsOn(executableJarTest)
 }
+
+// --- Distribución: jlink, jpackage and the packaged-runtime check ---
+apply(from = rootProject.file("packaging/packaging.gradle.kts"))
+
+tasks.test {
+    // PackagingFilesTest reads the desktop entry, the file association and the icons from here
+    systemProperty("vsim.packagingDirectory", rootProject.file("packaging").absolutePath)
+}

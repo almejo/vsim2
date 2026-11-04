@@ -168,6 +168,13 @@ Jar ejecutable, con todas las dependencias adentro:
 
 `./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
 
+Instaladores con su propio Java (deb y rpm en Linux, msi y zip portátil en Windows, dmg en macOS):
+
+    ./gradlew :ui:nativePackages         # deja los de este sistema en ui/build/distribution/
+    ./gradlew :ui:packagedRuntimeCheck   # comprueba que el Java incluido basta para VSim
+
+Requisitos y detalles en [packaging/README.md](packaging/README.md).
+
 ### Pruebas
 
     ./gradlew test                            # todas las pruebas (core, automation, mcp y ui)
