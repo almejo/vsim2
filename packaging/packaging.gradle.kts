@@ -203,6 +203,7 @@ fun installerArguments(): List<String> {
         PackagingSystem.MAC -> macArguments()
         PackagingSystem.LINUX -> listOf(
             "--linux-package-name", "vsim2",
+            "--linux-deb-maintainer", "alejandro.vera@gmail.com",
             "--linux-app-category", "Education",
             "--linux-menu-group", "Education;Electronics;",
             "--linux-shortcut",
