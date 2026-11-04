@@ -6,3 +6,4 @@ gradlew text eol=lf
 *.txt text eol=lf
 *.hex text eol=lf
 *.properties text eol=lf
+*.svg text eol=lf
