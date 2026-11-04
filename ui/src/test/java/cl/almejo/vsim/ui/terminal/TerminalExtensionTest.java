@@ -317,7 +317,8 @@ class TerminalExtensionTest {
         awaitSimulation(document);
         ticker.advance(100);
 
-        assertThat(questions).containsExactly("consola → " + file);
+        // The question names the real path: long names on Windows (not RUNNER~1), /private/var on macOS.
+        assertThat(questions).containsExactly("consola → " + file.toRealPath());
         assertThat(Files.readString(file)).isEqualTo("years of work");
     }
 

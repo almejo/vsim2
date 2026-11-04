@@ -19,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -119,7 +120,7 @@ class MemoryEditorExtensionTest {
         assertThat(memoryProblems(view)).singleElement().satisfies(problem -> {
             assertThat(((LinkedFileProblem) problem).elementId()).isEqualTo(rom.id().value());
             assertThat(ProblemText.describe(problem, document.document(), document.registry()))
-                    .contains(file.toString(), "no se encuentra");
+                    .contains(file.toString().replace(File.separatorChar, '/'), "no se encuentra"); // links show «/»
         });
         assertThat(view.problems().nextProblem().isEnabled()).isTrue();
         assertThat(view.problems().navigator().navigateTo(memoryProblems(view).getFirst())).isTrue();

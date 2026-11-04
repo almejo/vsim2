@@ -237,7 +237,8 @@ class TerminalOutputRecorderTest {
         Files.writeString(file, "years of work", StandardCharsets.UTF_8);
         Component terminal = terminalSavingTo(file);
         start();
-        assertThat(questions).containsExactly("consola → " + file);
+        // The question names the real path: long names on Windows (not RUNNER~1), /private/var on macOS.
+        assertThat(questions).containsExactly("consola → " + file.toRealPath());
 
         Map<String, Object> parameters = new HashMap<>(type.resolveParameters(terminal.parameters()));
         parameters.put(TerminalTypes.ROWS, 5);

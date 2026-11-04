@@ -32,7 +32,9 @@ class TableSourcesTest {
 
         Optional<Path> chosen = chooser.choose(null);
 
-        assertThat(startFolders).containsExactly(directory.toFile());
+        // JFileChooser keeps the folder in the system's own form (long names on Windows): the same real folder.
+        assertThat(startFolders).singleElement()
+                .satisfies(folder -> assertThat(folder.toPath().toRealPath()).isEqualTo(directory.toRealPath()));
         assertThat(chosen).contains(table);
         assertThat(remembered).containsExactly(table);
     }
