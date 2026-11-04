@@ -27,6 +27,8 @@ import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.print.PrintExtension;
 import cl.almejo.vsim.ui.print.PrinterAccess;
 import cl.almejo.vsim.ui.search.FindExtension;
+import cl.almejo.vsim.ui.sheets.SheetAnchors;
+import cl.almejo.vsim.ui.sheets.SheetsExtension;
 import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
@@ -126,6 +128,7 @@ class EveryViewFeatureInEveryPaneTest {
     void create() {
         preferences.setLibraryDirectory(Optional.of(directory.resolve("library")));
         preferences.setAnimateViewMoves(false);
+        preferences.setShowSheets(true); // the print sheets are on every pane only while shown
         service = new LibraryService(preferences, library, registry, Runnable::run);
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 preferences, library, List.of());
@@ -168,7 +171,9 @@ class EveryViewFeatureInEveryPaneTest {
                 Arguments.of("Exportar a PDF", (Function<LibraryService, EditorExtension>) libraryService ->
                         new ExportPdfExtension(), false),
                 Arguments.of("Imprimir", (Function<LibraryService, EditorExtension>) libraryService ->
-                        new PrintExtension(PrinterAccess.none()), false));
+                        new PrintExtension(PrinterAccess.none()), false),
+                Arguments.of("Hojas de impresión", (Function<LibraryService, EditorExtension>) libraryService ->
+                        new SheetsExtension(new SheetAnchors()), true));
     }
 
     @ParameterizedTest(name = "{0}")

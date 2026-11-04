@@ -116,6 +116,7 @@ public final class ShortcutCatalog {
         window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);
         window(entries, "view.addVerticalGuide", "action.addVerticalGuide", MenuId.VIEW, null);
         window(entries, "view.clearGuides", "action.clearGuides", MenuId.VIEW, null);
+        window(entries, "view.showSheets", "action.showSheets", MenuId.VIEW, null);
         canvasView(entries, "view.nextProblem", "action.nextProblem", stroke(KeyEvent.VK_F8, 0));
         canvasView(entries, "view.previousProblem", "action.previousProblem", stroke(KeyEvent.VK_F8, shift));
         window(entries, "waveforms.toggle", "menu.view.waveforms", MenuId.VIEW, null);
