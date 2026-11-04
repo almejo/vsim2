@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
 
@@ -89,6 +90,16 @@ public interface Tool {
      * Empty when no gesture is under way; the default has none.
      */
     default List<Guide> snappedGuides() {
+        return List.of();
+    }
+
+    /**
+     * The elements the move under way drags, where its preview shows them (moved by the drag's delta; for a Ctrl
+     * copy, where the copies would go); asked while painting by overlays that follow a drag (the print sheets' cut
+     * outline). Read-only: nothing is committed until the release. Empty when no move is under way; the default has
+     * none.
+     */
+    default List<DocumentElement> movingElements(ToolContext context) {
         return List.of();
     }
 

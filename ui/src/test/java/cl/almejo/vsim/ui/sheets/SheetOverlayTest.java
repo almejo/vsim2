@@ -2,18 +2,24 @@ package cl.almejo.vsim.ui.sheets;
 
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.export.ExportChoice;
 import cl.almejo.vsim.ui.export.ExportImageFeatures;
+import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.print.Paper;
 import cl.almejo.vsim.ui.print.ScaleMode;
@@ -28,6 +34,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -37,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeSet;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
@@ -46,8 +55,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * What one pane draws of the sheets (sheets spec §3, §6, §7): dashed borders and overlap bands where the grid says,
  * only for the visible sheets; «Hoja n» inside each sheet unless it is small on screen, stuck to the visible corner
- * when the sheet's own corner is scrolled away; cut marks around parts and frames a border cuts; nothing when hidden
- * or empty, and never in an exported image.
+ * when the sheet's own corner is scrolled away; cut marks around parts and frames a border cuts; the lattice of the
+ * sheets going on, fainter, over the whole pane while they are tiled; an amber outline around a dragged part or frame
+ * a border would cut; nothing when hidden or empty, and never in an exported image.
  */
 class SheetOverlayTest {
 
@@ -69,7 +79,7 @@ class SheetOverlayTest {
     void create() {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
+                preferences, new ComponentLibrary(), List.of(new FramesExtension()));
         view = new EditorView(openDocument, services, NO_WINDOW);
         pane = view.canvas();
         pane.setSize(WIDTH, HEIGHT);
@@ -330,6 +340,284 @@ class SheetOverlayTest {
                 .isTrue();
     }
 
+    /** Two columns and two rows of A4 portrait sheets at 100 %. */
+    private void twoByTwo() {
+        twoColumns();
+        place(openDocument, StandardComponentTypes.LED, 0, 150, Map.of());
+    }
+
+    /** Where the sheet lattice continued over the whole plane has an edge between {@code from} and {@code to}. */
+    private static List<Double> extendedLattice(double origin, double step, double overlap, double from, double to) {
+        TreeSet<Double> edges = new TreeSet<>();
+        for (long index = (long) Math.floor((from - origin) / step) - 1; origin + index * step <= to; index++) {
+            for (double edge : new double[]{origin + index * step, origin + index * step + overlap}) {
+                if (edge >= from && edge <= to) {
+                    edges.add(edge);
+                }
+            }
+        }
+        return List.copyOf(edges);
+    }
+
+    @Test
+    void theLatticeGoesOnOverTheWholePaneWhereTheGridSays() {
+        twoByTwo();
+        preferences.setShowSheets(true);
+        SheetGrid grid = grid();
+        assertThat(grid.columns()).as("the fixture").isEqualTo(2);
+        assertThat(grid.rows()).as("the fixture").isEqualTo(2);
+        Rectangle2D first = grid.sheetRectangle(0, 0);
+        Rectangle2D last = grid.sheetRectangle(1, 1);
+        int tallHeight = 2 * HEIGHT; // room for a row of the lattice above and below the sheets
+        pane.setSize(WIDTH, tallHeight);
+        pane.viewport().showAt(Viewport.MINIMUM_ZOOM, (first.getX() + last.getMaxX()) / 2,
+                (first.getY() + last.getMaxY()) / 2, WIDTH, tallHeight);
+        double stepX = grid.sheetRectangle(1, 0).getX() - first.getX();
+        double stepY = grid.sheetRectangle(0, 1).getY() - first.getY();
+        double overlapX = grid.rightOverlap(0, 0).orElseThrow().getWidth();
+        double overlapY = grid.belowOverlap(0, 0).orElseThrow().getHeight();
+        Viewport viewport = pane.viewport();
+        Point2D visibleTopLeft = viewport.screenToGrid(0, 0);
+        Point2D visibleBottomRight = viewport.screenToGrid(WIDTH, tallHeight);
+
+        SheetDrawing drawing = overlay().drawing();
+
+        List<Integer> expectedColumns = extendedLattice(first.getX(), stepX, overlapX, visibleTopLeft.getX(),
+                visibleBottomRight.getX()).stream()
+                .map(edge -> (int) Math.round(viewport.gridToScreen(edge, 0).getX())).distinct().toList();
+        List<Integer> expectedRows = extendedLattice(first.getY(), stepY, overlapY, visibleTopLeft.getY(),
+                visibleBottomRight.getY()).stream()
+                .map(edge -> (int) Math.round(viewport.gridToScreen(0, edge).getY())).distinct().toList();
+        assertThat(drawing.latticeColumns()).containsExactlyElementsOf(expectedColumns);
+        assertThat(drawing.latticeRows()).containsExactlyElementsOf(expectedRows);
+        Rectangle occupied = onScreen(new Rectangle2D.Double(first.getX(), first.getY(),
+                last.getMaxX() - first.getX(), last.getMaxY() - first.getY()));
+        assertThat(drawing.latticeColumns()).as("left of the sheets").anyMatch(x -> x < occupied.x);
+        assertThat(drawing.latticeColumns()).as("right of the sheets").anyMatch(x -> x > occupied.getMaxX());
+        assertThat(drawing.latticeRows()).as("above the sheets").anyMatch(y -> y < occupied.y);
+        assertThat(drawing.latticeRows()).as("below the sheets").anyMatch(y -> y > occupied.getMaxY());
+        assertThat(drawing.occupied()).isEqualTo(occupied);
+        assertThat(drawing.borders()).hasSize(4);
+    }
+
+    @Test
+    void oneSheetOrHiddenSheetsHaveNoLattice() {
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        preferences.setShowSheets(true);
+        showAt(Viewport.MINIMUM_ZOOM, 0, 0);
+
+        assertThat(overlay().drawing().latticeColumns()).isEmpty();
+        assertThat(overlay().drawing().latticeRows()).isEmpty();
+
+        place(openDocument, StandardComponentTypes.LED, 100, 0, Map.of());
+        SheetOverlay overlay = overlay();
+        assertThat(overlay.drawing().latticeColumns()).as("the fixture: tiled now").isNotEmpty();
+        preferences.setShowSheets(false);
+        assertThat(overlay.drawing().latticeColumns()).isEmpty();
+        assertThat(overlay.drawing().latticeRows()).isEmpty();
+    }
+
+    @Test
+    void theLatticeOutsideIsFainterThanTheSheetsBorders() {
+        assertThat(SheetOverlay.latticeColor(ColorScheme.LIGHT).getAlpha())
+                .isLessThan(ColorScheme.LIGHT.sheet().getAlpha() / 2);
+        assertThat(SheetOverlay.latticeColor(ColorSchemes.forTheme(true)).getAlpha())
+                .isLessThan(ColorSchemes.forTheme(true).sheet().getAlpha() / 2);
+
+        twoColumns();
+        preferences.setShowSheets(true);
+        Rectangle2D first = grid().sheetRectangle(0, 0);
+        showAt(0.5, first.getX(), first.getCenterY());
+        SheetDrawing drawing = overlay().drawing();
+        Rectangle sheet = onScreen(first);
+        int outsideX = drawing.latticeColumns().stream().filter(x -> x < sheet.x).findFirst().orElseThrow();
+        BufferedImage image = paint();
+
+        int outside = darkestInColumn(image, outsideX, sheet.y + 4, sheet.y + sheet.height - 4);
+        int inside = darkestInColumn(image, sheet.x, sheet.y + 4, sheet.y + sheet.height - 4);
+        assertThat(outside).as("a dashed lattice line").isPositive();
+        assertThat(outside).isLessThan(inside);
+    }
+
+    /** How dark the darkest pixel of column {@code x} between {@code fromY} and {@code toY} is (0 white). */
+    private static int darkestInColumn(BufferedImage image, int x, int fromY, int toY) {
+        int darkest = 0;
+        for (int y = fromY; y < toY; y++) {
+            Color pixel = new Color(image.getRGB(x, y));
+            darkest = Math.max(darkest, 255 - (pixel.getRed() + pixel.getGreen() + pixel.getBlue()) / 3);
+        }
+        return darkest;
+    }
+
+    @Test
+    void aLatticeTooDenseOnScreenIsLeftOut() {
+        assertThat(SheetOverlay.latticeIsReadable(SheetOverlay.MINIMUM_LATTICE_STEP,
+                SheetOverlay.MINIMUM_LATTICE_STEP)).isTrue();
+        assertThat(SheetOverlay.latticeIsReadable(SheetOverlay.MINIMUM_LATTICE_STEP - 0.5, 100)).isFalse();
+        assertThat(SheetOverlay.latticeIsReadable(100, SheetOverlay.MINIMUM_LATTICE_STEP - 0.5)).isFalse();
+
+        twoColumns();
+        preferences.setPrintMarginPoints(260);
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(400)));
+        preferences.setShowSheets(true);
+        showAt(Viewport.MINIMUM_ZOOM, 50, 40);
+
+        SheetDrawing drawing = overlay().drawing();
+
+        assertThat(drawing.borders()).as("the occupied sheets are still drawn").isNotEmpty();
+        assertThat(drawing.borders().getFirst().width).as("the fixture: tiny sheets")
+                .isLessThan((int) SheetOverlay.MINIMUM_LATTICE_STEP);
+        assertThat(drawing.latticeColumns()).isEmpty();
+        assertThat(drawing.latticeRows()).isEmpty();
+    }
+
+    private static MouseEvent mouse(CircuitCanvas canvas, int id, Point2D screen, int modifiers, int button) {
+        return new MouseEvent(canvas, id, 0, modifiers, (int) Math.round(screen.getX()),
+                (int) Math.round(screen.getY()), 1, false, button);
+    }
+
+    /** Presses at grid point {@code from} and drags, without releasing, {@code deltaX} grid units to the right. */
+    private void pressAndDrag(Point2D from, int deltaX) {
+        Point2D pressed = pane.viewport().gridToScreen(from.getX(), from.getY());
+        Point2D dragged = pane.viewport().gridToScreen(from.getX() + deltaX, from.getY());
+        pane.getMouseListeners()[0].mousePressed(mouse(pane, MouseEvent.MOUSE_PRESSED, pressed,
+                InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+        pane.getMouseMotionListeners()[0].mouseDragged(mouse(pane, MouseEvent.MOUSE_DRAGGED, dragged,
+                InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+    }
+
+    private Rectangle2D drawn(DocumentElement element) {
+        Bounds bounds = DrawnBounds.of(element, openDocument.registry());
+        return new Rectangle2D.Double(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+    }
+
+    /** A double seven-segment display at the origin and a lamp 100 units to its right: two columns of sheets. */
+    private Component displayAndLamp() {
+        Component display = place(openDocument, StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 100, 0, Map.of());
+        return display;
+    }
+
+    /** How many grid units to the right move {@code bounds}' centre onto {@code target}. */
+    private static int deltaTo(Rectangle2D bounds, double target) {
+        return (int) Math.round(target - bounds.getCenterX());
+    }
+
+    /** The middle of the pair of lattice edges one step left of the first sheet's left edge. */
+    private double boundaryLeftOfTheSheets() {
+        SheetGrid grid = grid();
+        Rectangle2D first = grid.sheetRectangle(0, 0);
+        double step = grid.sheetRectangle(1, 0).getX() - first.getX();
+        return first.getX() - step + grid.rightOverlap(0, 0).orElseThrow().getWidth() / 2;
+    }
+
+    /** Shows the cell of the lattice left of the first sheet in the middle of the pane, at 50 %. */
+    private void showTheCellLeftOfTheSheets() {
+        SheetGrid grid = grid();
+        Rectangle2D first = grid.sheetRectangle(0, 0);
+        double step = grid.sheetRectangle(1, 0).getX() - first.getX();
+        showAt(0.5, first.getX() - step / 2, first.getCenterY());
+    }
+
+    @Test
+    void aPartDraggedAcrossALatticeBorderLeftOfTheSheetsIsOutlinedInAmberWithoutEditing() {
+        Component display = displayAndLamp();
+        preferences.setShowSheets(true);
+        SheetGrid grid = grid();
+        Rectangle2D first = grid.sheetRectangle(0, 0);
+        double step = grid.sheetRectangle(1, 0).getX() - first.getX();
+        double overlap = grid.rightOverlap(0, 0).orElseThrow().getWidth();
+        Rectangle2D bounds = drawn(display);
+        assertThat(bounds.getWidth()).as("the fixture: wider than the overlap").isGreaterThan(overlap + 2);
+        showTheCellLeftOfTheSheets();
+        long revision = openDocument.document().revision();
+
+        pressAndDrag(new Point2D.Double(bounds.getCenterX(), bounds.getCenterY()),
+                deltaTo(bounds, boundaryLeftOfTheSheets()));
+
+        assertThat(pane.movingElements()).singleElement()
+                .satisfies(moving -> assertThat(moving.id()).isEqualTo(display.id()));
+        Rectangle2D moved = drawn(pane.movingElements().getFirst());
+        assertThat(moved.getMinX()).as("the preview straddles the border").isLessThan(first.getX() - step)
+                .isGreaterThan(first.getX() - 2 * step);
+        assertThat(moved.getMaxX()).isGreaterThan(first.getX() - step + overlap);
+        SheetDrawing drawing = overlay().drawing();
+        assertThat(drawing.movingCuts()).singleElement()
+                .satisfies(mark -> assertThat(mark.contains(onScreen(moved))).isTrue());
+        Rectangle mark = drawing.movingCuts().getFirst();
+        Color amber = pane.scheme().sheetCut();
+        BufferedImage image = paint();
+        int amberish = 0;
+        for (int x = mark.x + 2; x < mark.x + mark.width - 2; x++) {
+            Color pixel = new Color(image.getRGB(x, mark.y), true);
+            if (pixel.getRed() - pixel.getBlue() > 60 && Math.abs(pixel.getRed() - amber.getRed()) < 60) {
+                amberish++;
+            }
+        }
+        assertThat(amberish).as("amber pixels on the outline's top edge").isGreaterThan((mark.width - 4) / 2);
+        assertThat(openDocument.document().revision()).as("nothing is edited during the drag").isEqualTo(revision);
+        assertThat(openDocument.document().element(display.id())).contains(display);
+        assertThat(grid().columns()).as("the sheets do not move").isEqualTo(2);
+    }
+
+    @Test
+    void aPartDraggedInsideALatticeCellIsNotOutlined() {
+        Component display = displayAndLamp();
+        preferences.setShowSheets(true);
+        SheetGrid grid = grid();
+        Rectangle2D first = grid.sheetRectangle(0, 0);
+        double step = grid.sheetRectangle(1, 0).getX() - first.getX();
+        double overlap = grid.rightOverlap(0, 0).orElseThrow().getWidth();
+        Rectangle2D bounds = drawn(display);
+        showTheCellLeftOfTheSheets();
+        double cellMiddle = first.getX() - step / 2 + overlap / 2;
+
+        pressAndDrag(new Point2D.Double(bounds.getCenterX(), bounds.getCenterY()), deltaTo(bounds, cellMiddle));
+
+        assertThat(pane.movingElements()).hasSize(1);
+        assertThat(grid.isCut(drawn(pane.movingElements().getFirst())))
+                .as("the fixture: outside the occupied sheets").isTrue();
+        assertThat(overlay().drawing().movingCuts()).isEmpty();
+    }
+
+    /** A frame {@code width} units wide below the display, created as the user would. */
+    private Frame frameBelow(int width) {
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(0, 40), width, 6, "",
+                FrameTint.NONE, false);
+        openDocument.execute(new CreateFrameCommand(frame));
+        return frame;
+    }
+
+    @Test
+    void aFrameDraggedByItsTitleAcrossABorderIsOutlined() {
+        displayAndLamp();
+        Frame frame = frameBelow(12);
+        preferences.setShowSheets(true);
+        showTheCellLeftOfTheSheets();
+        long revision = openDocument.document().revision();
+
+        pressAndDrag(new Point2D.Double(frame.topLeft().x() + 3, frame.topLeft().y() + 0.5),
+                deltaTo(drawn(frame), boundaryLeftOfTheSheets()));
+
+        assertThat(pane.movingElements()).extracting(DocumentElement::id).containsExactly(frame.id());
+        assertThat(overlay().drawing().movingCuts()).hasSize(1);
+        assertThat(openDocument.document().revision()).isEqualTo(revision);
+    }
+
+    @Test
+    void aFrameBiggerThanASheetIsNotOutlinedWhileDragged() {
+        displayAndLamp();
+        preferences.setShowSheets(true);
+        Frame frame = frameBelow((int) Math.ceil(grid().sheetRectangle(0, 0).getWidth()) + 4);
+        showTheCellLeftOfTheSheets();
+
+        pressAndDrag(new Point2D.Double(frame.topLeft().x() + 3, frame.topLeft().y() + 0.5),
+                deltaTo(drawn(frame), boundaryLeftOfTheSheets()));
+
+        assertThat(pane.movingElements()).extracting(DocumentElement::id).containsExactly(frame.id());
+        assertThat(overlay().drawing().movingCuts()).as("cut anyway, so not marked").isEmpty();
+    }
+
     @Test
     void anExportedImageIsTheSameWithTheSheetsShownOrHidden() throws Exception {
         twoColumns();
@@ -346,6 +634,8 @@ class SheetOverlayTest {
             perform(export.action());
             preferences.setShowSheets(true);
             features.picture();
+            assertThat(overlay().drawing().latticeColumns()).as("the fixture: the lattice is on the canvas")
+                    .isNotEmpty();
             perform(export.action());
             preferences.setShowSheets(false);
             perform(export.action());

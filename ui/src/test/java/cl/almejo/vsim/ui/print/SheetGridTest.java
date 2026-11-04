@@ -131,6 +131,46 @@ class SheetGridTest {
     }
 
     @Test
+    void theLatticeGoesOnBeyondTheSheetsWithAPairOfEdgesPerBoundary() {
+        // left 0, step 57.5, overlap 2.5: sheet k starts at 57.5·k and the one before it ends 2.5 further
+        assertThat(THREE_BY_TWO.latticeEdgesX(-120, 120)).containsExactly(-115.0, -112.5, -57.5, -55.0, 0.0, 2.5,
+                57.5, 60.0, 115.0, 117.5);
+        assertThat(THREE_BY_TWO.latticeEdgesX(300, 350)).as("far past the last column")
+                .containsExactly(345.0, 347.5);
+        // top 0, step 80, overlap 2.5
+        assertThat(THREE_BY_TWO.latticeEdgesY(-90, 85)).containsExactly(-80.0, -77.5, 0.0, 2.5, 80.0, 82.5);
+        assertThat(THREE_BY_TWO.latticeEdgesX(10, 50)).as("between two boundaries").isEmpty();
+        assertThat(THREE_BY_TWO.columnStep()).isCloseTo(57.5, within(TOLERANCE));
+        assertThat(THREE_BY_TWO.rowStep()).isCloseTo(80, within(TOLERANCE));
+    }
+
+    @Test
+    void oneSheetOrNoRoomHasNoLattice() {
+        PageGeometry noRoom = new PageGeometry(Paper.LETTER, PageOrientation.PORTRAIT, 400, 0, 10, 20);
+        SheetGrid refused = SheetGrid.of(PageLayout.of(new Rectangle2D.Double(0, 0, 125, 87.5), noRoom, FULL_SIZE));
+
+        assertThat(ONE_SHEET.latticeEdgesX(-1000, 1000)).isEmpty();
+        assertThat(ONE_SHEET.latticeEdgesY(-1000, 1000)).isEmpty();
+        assertThat(refused.latticeEdgesX(-1000, 1000)).isEmpty();
+    }
+
+    @Test
+    void theLatticeCutsAPartAcrossABoundaryOutsideTheSheetsToo() {
+        Rectangle2D insideACellLeftOfTheSheets = new Rectangle2D.Double(-50, 10, 20, 5);
+        assertThat(THREE_BY_TWO.isCut(insideACellLeftOfTheSheets)).as("no occupied sheet holds it").isTrue();
+        assertThat(THREE_BY_TWO.isCutOnLattice(insideACellLeftOfTheSheets)).isFalse();
+        assertThat(THREE_BY_TWO.isCutOnLattice(new Rectangle2D.Double(-62, 10, 10, 5))).isTrue();
+        assertThat(THREE_BY_TWO.isCutOnLattice(new Rectangle2D.Double(300, 300, 10, 10))).isFalse();
+        assertThat(THREE_BY_TWO.isCutOnLattice(new Rectangle2D.Double(340, 300, 10, 10))).isTrue();
+        assertThat(THREE_BY_TWO.isCutOnLattice(new Rectangle2D.Double(10, -85, 5, 10))).isTrue();
+        assertThat(THREE_BY_TWO.isCutOnLattice(new Rectangle2D.Double(-57, -79.5, 1.5, 1.5)))
+                .as("inside an overlap where four cells meet").isFalse();
+        assertThat(THREE_BY_TWO.isCutOnLattice(new Rectangle2D.Double(-500, -500, 70, 10)))
+                .as("larger than a sheet").isFalse();
+        assertThat(ONE_SHEET.isCutOnLattice(new Rectangle2D.Double(-100, 20, 12.5, 10))).isFalse();
+    }
+
+    @Test
     void anAnchoredGridIsTheWidenedLayoutsGrid() {
         PageLayout layout = SheetPlan.layout(new Rectangle2D.Double(0, 0, 125, 87.5), GEOMETRY, FULL_SIZE,
                 Optional.of(new GridPoint(30, 10)));

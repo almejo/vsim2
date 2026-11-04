@@ -116,7 +116,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Exportar imagen](docs/funciones/importar-y-exportar.md#exportar-imagen) en PNG o SVG.
 - [Exportar a PDF](docs/funciones/importar-y-exportar.md#exportar-a-pdf) vectorial, en una hoja o en varias para pegar (cada hoja nombra a sus vecinas, y las vacías se saltan), A4, Carta, Oficio o A3, también en blanco y negro; con «Ver hojas en el circuito» sale en las hojas que ves sobre el circuito.
 - [Imprimir](docs/funciones/importar-y-exportar.md#imprimir) (Ctrl+P) las mismas hojas que muestra la vista previa; si la impresora usa otro papel, primero rehace la vista previa, y avisa en verde o ámbar antes de imprimir en un papel distinto del de la impresora.
-- [Hojas de impresión en el lienzo](docs/funciones/importar-y-exportar.md#hojas-de-impresión-en-el-lienzo): Ver ▸ «Mostrar hojas de impresión» (o su botón) dibuja sobre el circuito dónde caen las hojas, con su número, las vacías tenues y lo que queda cortado; mientras se ven quedan quietas y la impresión y el PDF las respetan.
+- [Hojas de impresión en el lienzo](docs/funciones/importar-y-exportar.md#hojas-de-impresión-en-el-lienzo): Ver ▸ «Mostrar hojas de impresión» (o su botón) dibuja sobre el circuito dónde caen las hojas, con su número, las vacías tenues, su cuadrícula siguiendo por todo el lienzo y lo que queda cortado (también mientras arrastras); mientras se ven quedan quietas y la impresión y el PDF las respetan.
 - [Importar componentes](docs/funciones/componentes.md#componentes-propios) a la librería y [tablas de verdad desde Excel o CSV](docs/funciones/tabla-de-verdad-karnaugh-y-expresiones.md#importar-una-tabla-desde-excel-o-csv).
 
 ### Buscar

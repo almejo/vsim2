@@ -169,23 +169,87 @@ public final class SheetGrid {
      * nothing. O(1): the lattice gives the only sheets that could hold it.
      */
     public boolean isCut(Rectangle2D drawnBounds) {
+        return isCut(drawnBounds, columns - 1, rows - 1);
+    }
+
+    /**
+     * {@link #isCut} against the lattice of this grid continued over the whole plane (a sheet at every column and row
+     * index, negative or past the last): whether a border would cut a part or frame with these drawn bounds wherever
+     * it lies, e.g. while it is dragged outside the sheets (sheets spec §3.4, §5.3). Nothing on a single sheet.
+     */
+    public boolean isCutOnLattice(Rectangle2D drawnBounds) {
+        return isCut(drawnBounds, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+    }
+
+    private boolean isCut(Rectangle2D drawnBounds, double lastColumn, double lastRow) {
         Objects.requireNonNull(drawnBounds, "drawnBounds");
         if (!tiled() || drawnBounds.getWidth() > sheetWidth + EPSILON
                 || drawnBounds.getHeight() > sheetHeight + EPSILON) {
             return false;
         }
-        boolean heldAcross = held(drawnBounds.getX(), drawnBounds.getMaxX(), left, stepX, sheetWidth, columns);
-        boolean heldDown = held(drawnBounds.getY(), drawnBounds.getMaxY(), top, stepY, sheetHeight, rows);
+        double firstColumn = Double.isInfinite(lastColumn) ? Double.NEGATIVE_INFINITY : 0;
+        double firstRow = Double.isInfinite(lastRow) ? Double.NEGATIVE_INFINITY : 0;
+        boolean heldAcross = held(drawnBounds.getX(), drawnBounds.getMaxX(), left, stepX, sheetWidth, firstColumn,
+                lastColumn);
+        boolean heldDown = held(drawnBounds.getY(), drawnBounds.getMaxY(), top, stepY, sheetHeight, firstRow,
+                lastRow);
         return !(heldAcross && heldDown);
     }
 
-    /** Whether one sheet of the lattice spans {@code from..to} on this axis. */
-    private static boolean held(double from, double to, double origin, double step, double length, int count) {
+    /** Whether one sheet of the lattice between indices {@code first} and {@code last} spans {@code from..to}. */
+    private static boolean held(double from, double to, double origin, double step, double length, double first,
+                                double last) {
         // sheet k holds it when origin + k·step <= from and to <= origin + k·step + length
         double lowest = Math.ceil((to - origin - length) / step - EPSILON);
         double highest = Math.floor((from - origin) / step + EPSILON);
-        return Math.max(0, lowest) <= Math.min(count - 1, highest);
+        return Math.max(first, lowest) <= Math.min(last, highest);
     }
+
+    /** How far apart the columns of sheets start, in grid units (a sheet's width less the overlap). */
+    public double columnStep() {
+        return stepX;
+    }
+
+    /** How far apart the rows of sheets start, in grid units (a sheet's height less the overlap). */
+    public double rowStep() {
+        return stepY;
+    }
+
+    /**
+     * Where the lattice of the sheets, continued over the whole plane, has a vertical edge between {@code fromX} and
+     * {@code toX} (both included), ascending: for every column index {@code k}, negative or past the last, the left
+     * edge of sheet {@code k} ({@code left + k·step}) and the right edge of sheet {@code k − 1}, the overlap further
+     * on; one edge when there is no overlap. None unless the layout is tiled. As many edges as the range holds, so a
+     * caller keeps the range to what is drawn (a visible pane).
+     */
+    public List<Double> latticeEdgesX(double fromX, double toX) {
+        return latticeEdges(fromX, toX, left, stepX, sheetWidth - stepX);
+    }
+
+    /** {@link #latticeEdgesX} for the horizontal edges, between {@code fromY} and {@code toY}. */
+    public List<Double> latticeEdgesY(double fromY, double toY) {
+        return latticeEdges(fromY, toY, top, stepY, sheetHeight - stepY);
+    }
+
+    private List<Double> latticeEdges(double from, double to, double origin, double step, double overlap) {
+        if (!tiled() || columns == 0 || rows == 0 || !(step > 0) || to < from) {
+            return List.of();
+        }
+        double extra = Math.max(0, overlap);
+        List<Double> edges = new ArrayList<>();
+        long last = (long) Math.floor((to - origin) / step);
+        for (long index = (long) Math.floor((from - origin - extra) / step); index <= last; index++) {
+            double edge = origin + index * step;
+            if (edge >= from && edge <= to) {
+                edges.add(edge);
+            }
+            if (extra > 0 && edge + extra >= from && edge + extra <= to) {
+                edges.add(edge + extra);
+            }
+        }
+        return List.copyOf(edges);
+    }
+
 
     /**
      * The «Hoja n» of sheet {@code (column, row)}: reading order (row by row, columns left to right) from 1, as

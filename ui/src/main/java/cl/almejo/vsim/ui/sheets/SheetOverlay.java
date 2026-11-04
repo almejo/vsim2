@@ -1,7 +1,12 @@
 package cl.almejo.vsim.ui.sheets;
 
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -28,7 +33,10 @@ import java.util.Optional;
  * Draws the print sheets on one pane (sheets spec §3, §6, §7): each visible sheet's window as a 1 px dashed rectangle,
  * the overlap bands lightly filled, «Hoja n» inside each sheet big enough on screen (stuck to the visible corner when
  * the sheet's own is scrolled away), and a solid amber outline around each part or frame a border cuts. With «Saltar
- * hojas vacías» an empty sheet is drawn dimmer, says «Hoja n · vacía» and has no band toward it. In logical
+ * hojas vacías» an empty sheet is drawn dimmer, says «Hoja n · vacía» and has no band toward it. While the sheets are
+ * tiled, their lattice goes on over the rest of the pane, much fainter (no numbers, no bands; left out where it would
+ * be too dense to read), and a part or frame a move under way drags is outlined in amber where a border of that
+ * lattice would cut it (read from the pane's move preview; the sheets do not move during the drag). In logical
  * screen pixels, so lines stay 1 px and text keeps its size at any zoom; only the sheets the pane shows are visited.
  * A canvas overlay, which image export and the PDF never run: the sheets never reach a file or paper. The summary
  * label is the pane's {@link SheetSummaryHandle}.
@@ -48,6 +56,16 @@ final class SheetOverlay implements CanvasOverlay {
     private static final float DASH = 4;
     /** How much of the sheet colour's opacity an empty sheet «Saltar hojas vacías» skips keeps: dimmer, still there. */
     private static final float EMPTY_SHEET_OPACITY = 0.4f;
+    /**
+     * How much of the sheet colour's opacity the lattice outside the sheets keeps: clearly fainter than their borders
+     * (the mockup's 0.22 against 0.8), so the sheets that print still stand out.
+     */
+    private static final float LATTICE_OPACITY = 0.28f;
+    /**
+     * Under this distance on screen between two columns (or rows) of sheets the lattice outside them is left out: with
+     * a pair of lines per step it would be denser than a line every 8 logical pixels, a grey wash rather than a grid.
+     */
+    static final double MINIMUM_LATTICE_STEP = 16;
     /** How finely the logical-pixel transform is rounded ({@link #withoutRoundingErrors}). */
     private static final double MATRIX_PRECISION = 1e6;
 
@@ -94,11 +112,12 @@ final class SheetOverlay implements CanvasOverlay {
         // crisp 1 px lines on the pixels drawing() names (the circuit paints with pure, antialiased strokes)
         screen.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
         screen.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_NORMALIZE);
-        screen.setColor(scheme.sheetBand());
-        screen.fill(drawing.bands());
         Stroke dashed = new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, new float[]{DASH, DASH},
                 0);
         screen.setStroke(dashed);
+        paintLattice(screen, drawing, scheme);
+        screen.setColor(scheme.sheetBand());
+        screen.fill(drawing.bands());
         Color sheet = scheme.sheet();
         screen.setColor(new Color(sheet.getRed(), sheet.getGreen(), sheet.getBlue(),
                 Math.round(sheet.getAlpha() * EMPTY_SHEET_OPACITY)));
@@ -114,9 +133,51 @@ final class SheetOverlay implements CanvasOverlay {
         for (Rectangle cut : drawing.cuts()) {
             screen.drawRect(cut.x, cut.y, cut.width, cut.height);
         }
+        for (Rectangle cut : drawing.movingCuts()) {
+            screen.drawRect(cut.x, cut.y, cut.width, cut.height);
+        }
         for (SheetLabel label : drawing.labels()) {
             SheetText.paint(screen, pane, scheme, label.text(), label.box(), false);
         }
+    }
+
+    /**
+     * The lattice's lines across the whole pane, faint and dashed as the sheets' borders, everywhere but over the block
+     * the sheets cover (their own borders are drawn there; two dash patterns on one line would blur it).
+     */
+    private void paintLattice(Graphics2D screen, SheetDrawing drawing, ColorScheme scheme) {
+        if (drawing.latticeColumns().isEmpty() && drawing.latticeRows().isEmpty()) {
+            return;
+        }
+        Graphics2D outside = (Graphics2D) screen.create();
+        try {
+            Area clip = new Area(new Rectangle(0, 0, pane.getWidth(), pane.getHeight()));
+            Rectangle occupied = drawing.occupied();
+            // a border drawn with drawRect covers its last column and row too
+            clip.subtract(new Area(new Rectangle(occupied.x, occupied.y, occupied.width + 1, occupied.height + 1)));
+            outside.clip(clip);
+            outside.setColor(latticeColor(scheme));
+            for (int x : drawing.latticeColumns()) {
+                outside.drawLine(x, 0, x, pane.getHeight());
+            }
+            for (int y : drawing.latticeRows()) {
+                outside.drawLine(0, y, pane.getWidth(), y);
+            }
+        } finally {
+            outside.dispose();
+        }
+    }
+
+    /** The colour of the lattice outside the sheets: {@code scheme}'s sheet grey, much fainter; read at paint time. */
+    static Color latticeColor(ColorScheme scheme) {
+        Color sheet = scheme.sheet();
+        return new Color(sheet.getRed(), sheet.getGreen(), sheet.getBlue(),
+                Math.round(sheet.getAlpha() * LATTICE_OPACITY));
+    }
+
+    /** Whether the lattice outside the sheets is sparse enough on screen to draw (see {@link #MINIMUM_LATTICE_STEP}). */
+    static boolean latticeIsReadable(double columnStepPixels, double rowStepPixels) {
+        return columnStepPixels >= MINIMUM_LATTICE_STEP && rowStepPixels >= MINIMUM_LATTICE_STEP;
     }
 
     /** What this pane shows of the sheets now, in logical screen pixels; empty while hidden or with nothing to show. */
@@ -147,7 +208,63 @@ final class SheetOverlay implements CanvasOverlay {
                 }
             }
         }
-        return new SheetDrawing(borders, emptyBorders, bands, labels, cuts(picture.get()));
+        if (!grid.tiled() || grid.columns() == 0 || grid.rows() == 0) {
+            return new SheetDrawing(borders, emptyBorders, bands, labels, cuts(picture.get()), List.of(), List.of(),
+                    new Rectangle(), List.of());
+        }
+        Rectangle2D first = grid.sheetRectangle(0, 0);
+        Rectangle2D last = grid.sheetRectangle(grid.columns() - 1, grid.rows() - 1);
+        Rectangle occupied = onScreen(new Rectangle2D.Double(first.getX(), first.getY(),
+                last.getMaxX() - first.getX(), last.getMaxY() - first.getY()));
+        List<Integer> latticeColumns = new ArrayList<>();
+        List<Integer> latticeRows = new ArrayList<>();
+        double pixelsPerUnit = viewport.pixelsPerUnit();
+        if (latticeIsReadable(grid.columnStep() * pixelsPerUnit, grid.rowStep() * pixelsPerUnit)) {
+            for (double edge : grid.latticeEdgesX(visibleTopLeft.getX(), visibleBottomRight.getX())) {
+                addOnce(latticeColumns, (int) Math.round(viewport.gridToScreen(edge, 0).getX()));
+            }
+            for (double edge : grid.latticeEdgesY(visibleTopLeft.getY(), visibleBottomRight.getY())) {
+                addOnce(latticeRows, (int) Math.round(viewport.gridToScreen(0, edge).getY()));
+            }
+        }
+        return new SheetDrawing(borders, emptyBorders, bands, labels, cuts(picture.get()), latticeColumns,
+                latticeRows, occupied, movingCuts(grid));
+    }
+
+    /** Adds {@code pixel} unless it is the last one added (two edges of the lattice rounded onto one pixel). */
+    private static void addOnce(List<Integer> pixels, int pixel) {
+        if (pixels.isEmpty() || pixels.getLast() != pixel) {
+            pixels.add(pixel);
+        }
+    }
+
+    /**
+     * The outlines of the parts and frames a move under way drags where a border of the lattice would cut them although
+     * they would fit one sheet (spec §3.4 against the lattice continued over the plane, so outside the sheets too):
+     * read from the pane's move preview, nothing committed; the sheets themselves stay put during the drag (§5.3).
+     */
+    private List<Rectangle> movingCuts(SheetGrid grid) {
+        List<DocumentElement> moving = pane.movingElements();
+        if (moving.isEmpty()) {
+            return List.of();
+        }
+        Rectangle visible = new Rectangle(0, 0, pane.getWidth(), pane.getHeight());
+        List<Rectangle> marks = new ArrayList<>();
+        for (DocumentElement element : moving) {
+            if (!(element instanceof Component) && !(element instanceof Frame)) {
+                continue;
+            }
+            Bounds bounds = DrawnBounds.of(element, pane.openDocument().registry());
+            Rectangle2D drawn = new Rectangle2D.Double(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+            if (grid.isCutOnLattice(drawn)) {
+                Rectangle mark = onScreen(drawn);
+                mark.grow(CUT_MARGIN, CUT_MARGIN);
+                if (mark.intersects(visible)) {
+                    marks.add(mark);
+                }
+            }
+        }
+        return marks;
     }
 
     /**

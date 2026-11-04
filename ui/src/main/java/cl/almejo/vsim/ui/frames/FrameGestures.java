@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.frames;
 
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.Guide;
@@ -232,6 +233,14 @@ public final class FrameGestures implements SelectToolDelegate {
             return Set.of();
         }
         return movePreview.hiddenWires(context, context.selection().effectiveIds(), deltaX, deltaY);
+    }
+
+    @Override
+    public List<DocumentElement> movingElements(ToolContext context) {
+        if (grabbed == null || part.resizes()) {
+            return List.of();
+        }
+        return MovePreview.movedElements(context, context.selection().effectiveIds(), deltaX, deltaY);
     }
 
     @Override

@@ -938,6 +938,17 @@ public final class SelectTool implements Tool {
     }
 
     @Override
+    public List<DocumentElement> movingElements(ToolContext context) {
+        if (activeDelegate != null) {
+            return activeDelegate.movingElements(context);
+        }
+        if (pressPoint == null || wire != null || bandStart != null || labelOffset != null) {
+            return List.of();
+        }
+        return MovePreview.movedElements(context, context.selection().effectiveIds(), deltaX, deltaY);
+    }
+
+    @Override
     public Map<ElementId, Component> previewedParts(ToolContext context) {
         return activeDelegate == null ? Map.of() : activeDelegate.previewedParts(context);
     }
