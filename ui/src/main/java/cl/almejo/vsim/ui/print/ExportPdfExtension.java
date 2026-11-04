@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -8,20 +9,15 @@ import java.time.Clock;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-/** Adds Archivo ▸ «Exportar a PDF…» (spec 2026-10-19 §3) to every editor view. */
+/** Adds Archivo ▸ Exportar ▸ «PDF…» (spec 2026-10-19 §3) to every editor view. */
 public final class ExportPdfExtension implements EditorExtension {
 
     /**
      * Writes the PDFs and sends the prints («Imprimir…» shares it), one at a time, off the EDT; a daemon thread, so it
      * never keeps the app alive.
      */
-    static final ExecutorService EXPORT_THREAD = Executors.newSingleThreadExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "vsim-pdf-export");
-        thread.setDaemon(true);
-        return thread;
-    });
+    static final ExecutorService EXPORT_THREAD = DaemonThreads.single("vsim-pdf-export");
 
     private final PdfExportDialog.Collaborators collaborators;
     private final PdfExportDialog.Presenter presenter;

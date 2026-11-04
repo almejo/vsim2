@@ -8,7 +8,10 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.logic.ExpressionProblem;
+import cl.almejo.vsim.core.io.logisim.LogisimNotes;
 import cl.almejo.vsim.core.logic.ImportProblem;
+import cl.almejo.vsim.ui.logisim.LogisimExportTexts;
+import cl.almejo.vsim.ui.logisim.LogisimImportTexts;
 import cl.almejo.vsim.core.search.SearchProblem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -110,6 +113,21 @@ class MessagesTest {
     @Test
     void everyTableImportProblemHasAMessage() {
         assertThat(missing(ImportProblem.MESSAGE_KEYS)).isEmpty();
+    }
+
+    @Test
+    void everyLogisimImportNoteHasAMessage() {
+        assertThat(missing(LogisimNotes.MESSAGE_KEYS)).isEmpty();
+    }
+
+    @Test
+    void everyLogisimImportScreenTextHasAMessage() {
+        assertThat(missing(LogisimImportTexts.MESSAGE_KEYS)).isEmpty();
+    }
+
+    @Test
+    void everyLogisimExportScreenTextHasAMessage() {
+        assertThat(missing(LogisimExportTexts.MESSAGE_KEYS)).isEmpty();
     }
 
     @Test

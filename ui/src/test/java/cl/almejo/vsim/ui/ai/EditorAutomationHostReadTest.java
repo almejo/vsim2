@@ -96,6 +96,18 @@ class EditorAutomationHostReadTest {
     }
 
     @Test
+    void theCircuitIsReadUnderItsOwnNameAndListedUnderItsWindowsName() {
+        OpenDocument document = document("Simple Uprog Lrv32im");
+        document.showUntitledAs("lrv32im-up");
+
+        CircuitView view = api.readCircuit(idOf(document), ReadFilter.SUMMARY, Optional.empty());
+
+        assertThat(view.name()).isEqualTo("Simple Uprog Lrv32im");
+        assertThat(api.listDocuments()).singleElement()
+                .satisfies(summary -> assertThat(summary.name()).isEqualTo("lrv32im-up"));
+    }
+
+    @Test
     void aShortCircuitShowsUpInTheProblemsWithItsPins() throws Exception {
         OpenDocument document = document("Corto");
         Component high = onEditor(() -> place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1")));

@@ -17,7 +17,7 @@ import java.util.Set;
 
 /**
  * A RAM or a ROM while simulating (memory spec §2). Reading is combinational: Q (or a shared D) shows the word at A
- * {@code delay} after A changes. A RAM writes D at A on the clock's falling edge, A, D, WE and CS sampled at the edge,
+ * {@code delay} after A changes. A RAM writes D at A on the clock's edge (falling unless «Flanco» says rising), A, D, WE and CS sampled at the edge,
  * or, writing «sin reloj», all the time WE = 1. Only with CS = 1 (unconnected counts as 1) and WE = 1 (unconnected
  * counts as 0); a conflict on either, or an address with a Z bit, writes nothing and reads all Z; an undefined D
  * stores an undefined word, which reads back all Z.
@@ -43,7 +43,7 @@ public final class MemoryBehavior implements Behavior {
     /** Addresses whose word was written undefined; they read all Z until written again. */
     private final Set<Long> undefinedWords = new HashSet<>();
 
-    private Value previousClock = Value.HIGH_IMPEDANCE;
+    private final ClockEdgeDetector edgeDetector;
     /** The address of the last counted read, or -1 when the next defined read counts whatever its address. */
     private long lastReadAddress = -1;
     /** The last write «sin reloj»: address and value, so a level write is counted once while nothing changes. */
@@ -67,7 +67,9 @@ public final class MemoryBehavior implements Behavior {
     private long dataGeneration;
     private VisibleState.MemoryState visibleState;
 
-    MemoryBehavior(MemoryPinout pinout, long words, int delay, MemoryContents contents) {
+    MemoryBehavior(MemoryPinout pinout, long words, int delay, MemoryContents contents,
+                   ClockEdgeDetector edgeDetector) {
+        this.edgeDetector = edgeDetector;
         this.pinout = pinout;
         this.words = words;
         this.delay = delay;
@@ -112,20 +114,15 @@ public final class MemoryBehavior implements Behavior {
     @Override
     public void initialize(BehaviorContext context) {
         if (pinout.clocked()) {
-            previousClock = context.input(pinout.clock());
+            edgeDetector.start(context.input(pinout.clock()));
         }
         refresh(context, true);
     }
 
     @Override
     public void inputChanged(BehaviorContext context, int pinIndex) {
-        boolean fallingEdge = false;
-        if (pinIndex == pinout.clock()) {
-            Value clock = context.input(pinIndex);
-            fallingEdge = previousClock.equals(Value.ONE) && clock.equals(Value.ZERO);
-            previousClock = clock;
-        }
-        boolean wrote = pinout.isRam() && writeIfDue(context, fallingEdge);
+        boolean clockEdge = pinIndex == pinout.clock() && edgeDetector.step(context.input(pinIndex));
+        boolean wrote = pinout.isRam() && writeIfDue(context, clockEdge);
         // While writing «sin reloj» every evaluation is part of the write, never a read.
         boolean levelWriting = pinout.isRam() && !pinout.clocked() && writing(context);
         refresh(context, !wrote && !levelWriting);
@@ -147,13 +144,13 @@ public final class MemoryBehavior implements Behavior {
         refresh(context, false);
     }
 
-    /** Writes D at A when this is the moment to (the falling edge, or WE = 1 «sin reloj»); true when it wrote. */
-    private boolean writeIfDue(BehaviorContext context, boolean fallingEdge) {
+    /** Writes D at A when this is the moment to (the chosen clock edge, or WE = 1 «sin reloj»); true when it wrote. */
+    private boolean writeIfDue(BehaviorContext context, boolean clockEdge) {
         if (!writing(context)) {
             lastLevelWriteAddress = -1;
             return false;
         }
-        if (pinout.clocked() ? !fallingEdge : sharedDataStillDriven()) {
+        if (pinout.clocked() ? !clockEdge : sharedDataStillDriven()) {
             return false;
         }
         OptionalLong address = address(context);

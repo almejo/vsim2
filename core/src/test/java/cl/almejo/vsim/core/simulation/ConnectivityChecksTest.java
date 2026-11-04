@@ -97,9 +97,9 @@ class ConnectivityChecksTest {
                 new CircuitFragment(List.of(inverter), List.of(), List.of())));
         document.add(component(SubcircuitTypes.typeIdOf("broken"), "outer", 0, 0));
 
-        assertThat(problems()).filteredOn(ConnectivityProblem::isPin).extracting(ConnectivityProblem::elementId)
+        assertThat(looseEnds()).filteredOn(ConnectivityProblem::isPin).extracting(ConnectivityProblem::elementId)
                 .containsExactly("outer/gate", "outer/gate");
-        assertThat(problems()).filteredOn(ConnectivityProblem::isPin).extracting(ConnectivityProblem::pinIndex)
+        assertThat(looseEnds()).filteredOn(ConnectivityProblem::isPin).extracting(ConnectivityProblem::pinIndex)
                 .containsExactly(0, 1);
     }
 
@@ -114,7 +114,7 @@ class ConnectivityChecksTest {
         document.add(component(SubcircuitTypes.typeIdOf("parent"), "first", 0, 0));
         document.add(component(SubcircuitTypes.typeIdOf("parent"), "second", 10, 0));
 
-        assertThat(problems()).extracting(ConnectivityProblem::elementId)
+        assertThat(looseEnds()).extracting(ConnectivityProblem::elementId)
                 .containsExactly("first/child/lamp", "second/child/lamp");
     }
 
@@ -128,11 +128,34 @@ class ConnectivityChecksTest {
                         List.of(), List.of())));
         document.add(component(SubcircuitTypes.typeIdOf("parent"), "first", 0, 0));
 
-        assertThat(problems()).singleElement().satisfies(problem -> {
+        assertThat(looseEnds()).singleElement().satisfies(problem -> {
             assertThat(problem.cause()).isEqualTo(ConnectivityProblem.Cause.INNER_PIN);
             assertThat(problem.path()).containsExactly(new ElementId("first"), new ElementId("child"),
                     new ElementId("lamp"));
         });
+    }
+
+    @Test
+    void aLoosePinOfAPartInsideABodyIsNoProblemAsOnTheCanvas() {
+        document.putDefinition(new ComponentDefinition("loose", "Loose", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(component(StandardComponentTypes.LED, "lamp", 0, 0)),
+                        List.of(), List.of())));
+        document.add(component(SubcircuitTypes.typeIdOf("loose"), "outer", 0, 0));
+
+        assertThat(problems()).isEmpty();
+        assertThat(looseEnds()).singleElement().extracting(ConnectivityProblem::cause)
+                .isEqualTo(ConnectivityProblem.Cause.INNER_PIN);
+    }
+
+    @Test
+    void aLooseWireEndInsideABodyIsNoProblemAsOnTheCanvas() {
+        Wire dangling = new Wire(new ElementId("dangling"), new GridPoint(0, 0), new GridPoint(5, 0));
+        document.putDefinition(new ComponentDefinition("dangling", "Dangling", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(), List.of(dangling), List.of())));
+        document.add(component(SubcircuitTypes.typeIdOf("dangling"), "outer", 0, 0));
+
+        assertThat(problems()).isEmpty();
+        assertThat(looseEnds()).hasSize(2).allMatch(problem -> !problem.isPin());
     }
 
     @Test
@@ -242,10 +265,8 @@ class ConnectivityChecksTest {
 
     @Test
     void warningsAreRecomputedFromTheEmbeddedCopyAfterSavingAndReopening() throws Exception {
-        document.putDefinition(new ComponentDefinition("broken", "Broken", "", new GridSize(4, 4), List.of(),
-                new CircuitFragment(List.of(component(StandardComponentTypes.LED, "lamp", 0, 0)),
-                        List.of(), List.of())));
-        document.add(component(SubcircuitTypes.typeIdOf("broken"), "outer", 0, 0));
+        putInterfaceOnlyDefinition();
+        document.add(component(SubcircuitTypes.typeIdOf("interface-only"), "outer", 0, 0));
         CircuitFormat format = new CircuitFormat(StandardComponentTypes.registry());
 
         CircuitDocument reopened = format.read(format.write(document));
@@ -257,10 +278,8 @@ class ConnectivityChecksTest {
 
     @Test
     void theEnginePublishesStructuralWarningsWithoutAdvancingSimulationTime() {
-        document.putDefinition(new ComponentDefinition("broken", "Broken", "", new GridSize(4, 4), List.of(),
-                new CircuitFragment(List.of(component(StandardComponentTypes.LED, "lamp", 0, 0)),
-                        List.of(), List.of())));
-        document.add(component(SubcircuitTypes.typeIdOf("broken"), "outer", 0, 0));
+        putInterfaceOnlyDefinition();
+        document.add(component(SubcircuitTypes.typeIdOf("interface-only"), "outer", 0, 0));
         SimulationEngine engine = new SimulationEngine();
         engine.update(new CircuitFlattener(registry).flatten(document,
                 new NetlistCompiler(registry).compile(document)));
@@ -285,7 +304,7 @@ class ConnectivityChecksTest {
                 new CircuitFragment(List.of(component(SubcircuitTypes.typeIdOf("inverter"), "child", 0, 0)),
                         List.of(), List.of())));
         document.add(component(SubcircuitTypes.typeIdOf("parent"), "outer", 0, 0));
-        assertThat(problems()).anyMatch(problem -> problem.elementId().equals("outer/child/c2"));
+        assertThat(looseEnds()).anyMatch(problem -> problem.elementId().equals("outer/child/c2"));
 
         CircuitDocument repair = new CircuitDocument();
         repair.putDefinition(broken.root());
@@ -308,9 +327,17 @@ class ConnectivityChecksTest {
         ReplaceDefinitionCommand update = ReplaceDefinitionCommand.prepare(document, registry, fixed);
         update.apply(document);
 
-        assertThat(problems()).noneMatch(problem -> problem.elementId().equals("outer/child/" + gate.id().value()));
+        assertThat(looseEnds()).noneMatch(problem -> problem.elementId().equals("outer/child/" + gate.id().value()));
         update.revert(document);
-        assertThat(problems()).anyMatch(problem -> problem.elementId().equals("outer/child/c2"));
+        assertThat(looseEnds()).anyMatch(problem -> problem.elementId().equals("outer/child/c2"));
+    }
+
+    /** A component whose only input reaches nothing inside: its outer terminal is a problem. */
+    private void putInterfaceOnlyDefinition() {
+        Component input = component(InterfacePins.INPUT_PIN, "interface", 0, 0);
+        document.putDefinition(new ComponentDefinition("interface-only", "Interface", "", new GridSize(4, 4),
+                List.of(new DefinitionPin(PinSpec.input("A", 0, 1), input.id())),
+                new CircuitFragment(List.of(input), List.of(), List.of())));
     }
 
     private Component component(String typeId, String id, int x, int y) {
@@ -319,6 +346,10 @@ class ConnectivityChecksTest {
 
     private List<ConnectivityProblem> problems() {
         return ConnectivityChecks.problems(document, registry);
+    }
+
+    private List<ConnectivityProblem> looseEnds() {
+        return ConnectivityChecks.everyLooseEnd(document, registry);
     }
 
     private List<ConnectivityProblem> internalProblems() {
@@ -330,6 +361,6 @@ class ConnectivityChecksTest {
                 .extendedWith(SubcircuitTypes.resolverFor(parent));
         parent.add(wrappedRegistry.require(SubcircuitTypes.typeIdOf("test-wrapper"))
                 .newComponent(new ElementId("wrapper"), GridPoint.ORIGIN, Rotation.R0, Map.of(), ""));
-        return ConnectivityChecks.problems(parent, wrappedRegistry);
+        return ConnectivityChecks.everyLooseEnd(parent, wrappedRegistry);
     }
 }

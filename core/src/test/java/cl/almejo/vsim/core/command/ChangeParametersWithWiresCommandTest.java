@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.command;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.KeyboardTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
@@ -199,5 +200,90 @@ class ChangeParametersWithWiresCommandTest {
         assertThat(command.plan().isEmpty()).isTrue();
         assertThat(document.wires()).containsExactlyElementsOf(wiresBefore);
         assertThat(current(and).parameters()).containsEntry("delay", 5);
+    }
+
+    /** An 8-bit «Separador de bus» at (20, 10): b0 at (22, 11) wired to a NOT gate whose input is at (30, 11). */
+    private Component splitterWithWiredFirstBit() {
+        Component splitter = place(registry, document, StandardComponentTypes.BUS_SPLITTER, 20, 10, "");
+        gate(registry, document, 30, 9);
+        wire(document, 22, 11, 30, 11);
+        return splitter;
+    }
+
+    @Test
+    void groupingTheBitsOfASplitterLeavesTheWireOfARemovedPinWhereItWasAndUndoRestoresIt() {
+        Component splitter = splitterWithWiredFirstBit();
+        Map<DocumentElement, Long> before = snapshot();
+        List<Wire> wiresBefore = document.wires();
+        History history = new History(document);
+
+        history.execute(edit(splitter, StandardComponentTypes.GROUPS, "0-3|4-7"));
+
+        assertThat(registry.typeOf(current(splitter)).pins()).extracting(PinSpec::name)
+                .containsExactly("bus", "b0-3", "b4-7");
+        assertThat(document.wires()).containsExactlyElementsOf(wiresBefore);
+        history.undo();
+        assertThat(snapshot()).containsExactlyEntriesOf(before);
+        assertThat(history.canUndo()).isFalse();
+    }
+
+    @Test
+    void aSplitterPinThatKeepsItsBitsCarriesItsWireToItsNewRow() {
+        Component splitter = splitterWithWiredFirstBit();
+        Component reader = driverAt(30, 9);
+
+        new History(document).execute(edit(splitter, StandardComponentTypes.GROUPS, "4-7|0|1|2|3"));
+
+        int firstBit = 2;
+        ComponentType type = registry.typeOf(current(splitter));
+        assertThat(type.pin(firstBit).name()).isEqualTo("b0");
+        // grouped: pins two rows apart at the end of a three-unit part
+        assertThat(type.pinLocation(current(splitter), firstBit)).isEqualTo(new GridPoint(23, 13));
+        assertThat(connected(new PinRef(splitter.id(), firstBit), new PinRef(reader.id(), 0))).isTrue();
+        assertThat(connected(new PinRef(splitter.id(), 1), new PinRef(reader.id(), 0))).isFalse();
+    }
+
+    @Test
+    void swappingTwoGroupsOfASplitterCarriesEachWireWithItsBitsAndJoinsNothing() {
+        Component splitter = registry.require(StandardComponentTypes.BUS_SPLITTER).newComponent(
+                document.newComponentId(), new GridPoint(20, 10), Rotation.R0,
+                Map.of(StandardComponentTypes.WIDTH, 8, StandardComponentTypes.GROUPS, "0-3|4-7"), "");
+        document.add(splitter);
+        Component lowReader = gate(registry, document, 30, 9);
+        Component highReader = gate(registry, document, 40, 11);
+        // grouped: the pins are two units apart, at the end of a lead of two units
+        wire(document, 23, 11, 30, 11);
+        wire(document, 23, 13, 40, 13);
+
+        new History(document).execute(edit(splitter, StandardComponentTypes.GROUPS, "4-7|0-3"));
+
+        int high = 1;
+        int low = 2;
+        assertThat(connected(new PinRef(splitter.id(), low), new PinRef(lowReader.id(), 0))).isTrue();
+        assertThat(connected(new PinRef(splitter.id(), high), new PinRef(highReader.id(), 0))).isTrue();
+        assertThat(connected(new PinRef(lowReader.id(), 0), new PinRef(highReader.id(), 0))).isFalse();
+    }
+
+    @Test
+    void aGroupedPinCarriesItsWireWhenALongerLabelWidensThePartAndUndoRestoresIt() {
+        Component splitter = registry.require(StandardComponentTypes.BUS_SPLITTER).newComponent(
+                document.newComponentId(), new GridPoint(20, 10), Rotation.R0,
+                Map.of(StandardComponentTypes.WIDTH, 8, StandardComponentTypes.GROUPS, "0-3|4-7"), "");
+        document.add(splitter);
+        Component reader = gate(registry, document, 30, 9);
+        wire(document, 23, 11, 30, 11);
+        Map<DocumentElement, Long> before = snapshot();
+        History history = new History(document);
+
+        history.execute(edit(splitter, StandardComponentTypes.GROUPS, "0-3|4,6-7"));
+
+        ComponentType type = registry.typeOf(current(splitter));
+        assertThat(type.pin(1).name()).isEqualTo("b0-3");
+        assertThat(type.pinLocation(current(splitter), 1)).as("«4,6-7» asks for a lead of 3 units")
+                .isEqualTo(new GridPoint(24, 11));
+        assertThat(connected(new PinRef(splitter.id(), 1), new PinRef(reader.id(), 0))).isTrue();
+        history.undo();
+        assertThat(snapshot()).containsExactlyEntriesOf(before);
+        assertThat(history.canUndo()).isFalse();
     }
 }

@@ -52,6 +52,25 @@ class ParameterFormTest {
     }
 
     @Test
+    void aNewBusWidthRegroupsTheBitsOfASplitter() {
+        ParameterForm uniform = form(StandardComponentTypes.BUS_SPLITTER,
+                Map.of(StandardComponentTypes.WIDTH, 8, StandardComponentTypes.GROUPS, "0-3|4-7"));
+        ((JSpinner) uniform.editor(StandardComponentTypes.WIDTH)).setValue(12);
+        assertThat(uniform.rawValues()).containsEntry(StandardComponentTypes.GROUPS, "0-3|4-7|8-11");
+        assertThat(uniform.validationError()).isEmpty();
+
+        ParameterForm custom = form(StandardComponentTypes.BUS_JOINER,
+                Map.of(StandardComponentTypes.WIDTH, 32, StandardComponentTypes.GROUPS, "7-11,25-31|15-19"));
+        ((JSpinner) custom.editor(StandardComponentTypes.WIDTH)).setValue(10);
+        assertThat(custom.rawValues()).containsEntry(StandardComponentTypes.GROUPS, "7-9");
+        assertThat(custom.validationError()).isEmpty();
+
+        ParameterForm onePerPin = form(StandardComponentTypes.BUS_SPLITTER, Map.of());
+        ((JSpinner) onePerPin.editor(StandardComponentTypes.WIDTH)).setValue(4);
+        assertThat(onePerPin.rawValues()).containsEntry(StandardComponentTypes.GROUPS, "");
+    }
+
+    @Test
     void unchangedValuesReportNoChanges() {
         ParameterForm form = form(StandardComponentTypes.BUFFER, Map.of("delay", 3));
         assertThat(form.validationError()).isEmpty();

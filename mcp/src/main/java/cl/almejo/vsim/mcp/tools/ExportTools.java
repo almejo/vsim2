@@ -44,7 +44,7 @@ final class ExportTools {
 
     private static Tool export(AutomationApi api) {
         return new Tool(EXPORT, "Export the circuit to a file",
-                "Exports as Archivo ▸ «Exportar a PDF…» or «Exportar imagen…» (PNG or SVG) do, with their options, "
+                "Exports as Archivo ▸ Exportar ▸ «PDF…» or «Imagen…» (PNG or SVG) do, with their options, "
                         + "of the whole circuit, one frame or some elements. The file goes only into the export "
                         + "folder VSim remembers (the last one the user exported to; none yet: the VSim folder in "
                         + "the user's home), under a new name: the name given (or the circuit's), with -2, -3… "

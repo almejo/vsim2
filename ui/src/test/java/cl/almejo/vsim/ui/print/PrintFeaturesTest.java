@@ -89,11 +89,12 @@ class PrintFeaturesTest {
     }
 
     @Test
-    void theItemSitsRightAfterExportPdfWithThePrintIcon() {
+    void theItemSitsInFileRightAfterSaveAsWithThePrintIcon() {
         install();
         List<String> texts = texts(view.menu(MenuId.FILE));
 
-        assertThat(texts.indexOf("Imprimir…")).isEqualTo(texts.indexOf("Exportar a PDF…") + 1);
+        // the exports live in Archivo ▸ Exportar; «Imprimir…» stays in Archivo itself
+        assertThat(texts.indexOf("Imprimir…")).isEqualTo(texts.indexOf("Guardar como…") + 1);
         assertThat(features.action().getValue(Action.SMALL_ICON)).isSameAs(Icons.get(ExportIcons.PRINT,
                 Icons.MENU_SIZE));
         assertThat(view.shortcutActions().get("file.print")).isSameAs(features.action());

@@ -18,7 +18,9 @@ public record TunnelProblem(String netId, Kind kind, String name, List<String> t
         /** An entrada whose name has no salida. */
         ENTRANCE_WITHOUT_EXITS,
         /** A salida whose own wire (as drawn, before joining by name) has a driver: maybe it should be an entrada. */
-        EXIT_DRIVEN
+        EXIT_DRIVEN,
+        /** A tunnel without direction alone with its name: it joins nothing. */
+        LONE_TUNNEL
     }
 
     public TunnelProblem {
@@ -30,7 +32,7 @@ public record TunnelProblem(String netId, Kind kind, String name, List<String> t
 
     /** True for the softer kinds, which may be on purpose while the circuit is being built. */
     public boolean isWarning() {
-        return kind == Kind.ENTRANCE_WITHOUT_EXITS || kind == Kind.EXIT_DRIVEN;
+        return kind == Kind.ENTRANCE_WITHOUT_EXITS || kind == Kind.EXIT_DRIVEN || kind == Kind.LONE_TUNNEL;
     }
 
     /** This problem found inside the instance whose ids start with {@code prefix} ({@code "c5/"}). */

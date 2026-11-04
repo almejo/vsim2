@@ -40,7 +40,9 @@ import java.util.stream.Stream;
 /**
  * What a view adds for wire tunnels (spec §7): hovering a tunnel lights every tunnel of its name (an outline in its
  * colour) and the status bar counts them («CLK: 1 entrada, 3 salidas»); the context menu of a tunnel offers its name
- * («Nombre…»), «Ir a la entrada» (on a salida) and «Siguiente salida» (cycling), which travel there. {@link #dispose}
+ * («Nombre…»), «Ir a la entrada» (on a salida) and «Siguiente salida» (cycling), which travel there; a tunnel without direction has
+ * neither but «Siguiente túnel», which cycles through every tunnel of the name. A name with tunnels without direction
+ * counts them apart in the hint. {@link #dispose}
  * takes back the listeners, the overlay and the menu items.
  */
 public final class TunnelFeatures {
@@ -140,12 +142,22 @@ public final class TunnelFeatures {
         statusBar.showHint(hoveredName().map(this::hint).orElse(""));
     }
 
-    /** «CLK: 1 entrada, 3 salidas». */
+    /**
+     * «CLK: 1 entrada, 3 salidas» for tunnels with direction, «CLK: 4 túneles sin dirección» for the ones without,
+     * and both lists joined for a name that mixes them.
+     */
     private String hint(String name) {
         Tunnels.TunnelGroup group = Tunnels.groups(openDocument.document()).get(name);
-        int entrances = group == null ? 0 : group.entrances().size();
-        int exits = group == null ? 0 : group.exits().size();
-        return Messages.format("tunnel.hover", name, entrances, exits);
+        int entrances = group == null ? 0 : group.directedEntrances().size();
+        int exits = group == null ? 0 : group.directedExits().size();
+        int undirected = group == null ? 0 : group.undirected().size();
+        if (undirected == 0) {
+            return Messages.format("tunnel.hover", name, entrances, exits);
+        }
+        if (entrances + exits == 0) {
+            return Messages.format("tunnel.hover.undirected", name, undirected);
+        }
+        return Messages.format("tunnel.hover.mixed", name, entrances, exits, undirected);
     }
 
     private List<ElementId> tunnelsNamed(String name) {
@@ -183,25 +195,36 @@ public final class TunnelFeatures {
         }
         menu.add(item("tunnel.rename", () -> view.labelFeatures().actions().editValue(tunnel)));
         Tunnels.TunnelGroup group = Tunnels.groups(openDocument.document()).get(Tunnels.nameOf(tunnel));
+        if (Tunnels.isUndirected(tunnel)) {
+            nextTunnel(group, tunnel.id()).ifPresent(next -> menu.add(item("tunnel.nextTunnel", () -> travelTo(next))));
+            return;
+        }
         boolean exit = Tunnels.kindOf(tunnel).orElseThrow() == TunnelKind.EXIT;
-        if (exit && !group.entrances().isEmpty()) {
-            ElementId entrance = group.entrances().getFirst();
+        if (exit && !group.directedEntrances().isEmpty()) {
+            ElementId entrance = group.directedEntrances().getFirst();
             menu.add(item("tunnel.goToEntrance", () -> travelTo(entrance)));
         }
         nextExit(group, tunnel.id()).ifPresent(next -> menu.add(item("tunnel.nextExit", () -> travelTo(next))));
     }
 
     /**
-     * The salida after {@code from} among its name's salidas, in document order and wrapping around (the first one
-     * from an entrada); empty when there is no other salida to go to.
+     * The salida with direction after {@code from} among its name's, in document order and wrapping around (the
+     * first one from an entrada); empty when there is no other one to go to.
      */
     private static Optional<ElementId> nextExit(Tunnels.TunnelGroup group, ElementId from) {
-        List<ElementId> exits = group.exits();
+        List<ElementId> exits = group.directedExits();
         int index = exits.indexOf(from);
         if (index < 0) {
             return exits.isEmpty() ? Optional.empty() : Optional.of(exits.getFirst());
         }
         return exits.size() < 2 ? Optional.empty() : Optional.of(exits.get((index + 1) % exits.size()));
+    }
+
+    /** The tunnel after {@code from} among all of its name, whatever their direction; empty when it is alone. */
+    private static Optional<ElementId> nextTunnel(Tunnels.TunnelGroup group, ElementId from) {
+        List<ElementId> all = Stream.concat(group.entrances().stream(), group.exits().stream()).toList();
+        int index = all.indexOf(from);
+        return all.size() < 2 || index < 0 ? Optional.empty() : Optional.of(all.get((index + 1) % all.size()));
     }
 
     /** Selects tunnel {@code id} and takes the active pane there with the smooth travel. */

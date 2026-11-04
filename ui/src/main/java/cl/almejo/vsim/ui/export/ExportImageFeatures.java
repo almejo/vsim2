@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
- * The image export of one editor view: the menu item right after «Guardar como…», the action (off for an empty
+ * The image export of one editor view: its item in Archivo ▸ Exportar, the action (off for an empty
  * document), the shortcut registration and the remembered options. {@link #dispose()} takes all of it back.
  */
 public final class ExportImageFeatures extends FileExportFeatures {
@@ -26,8 +26,7 @@ public final class ExportImageFeatures extends FileExportFeatures {
     private final BiConsumer<Component, String> messages;
 
     public ExportImageFeatures(EditorView view, ExportChooser chooser, BiConsumer<Component, String> messages) {
-        super(view, "action.exportImage", ExportIcons.EXPORT_IMAGE, "file.exportImage",
-                indexAfter(view, view.actions().saveAs()));
+        super(view, "action.exportImage", "menu.file.export.image", ExportIcons.EXPORT_IMAGE, "file.exportImage");
         this.chooser = chooser;
         this.messages = messages;
     }

@@ -169,6 +169,13 @@ class PaintersTest {
                     assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 400, parameters);
                 }
             }
+            // grouped pins: thick leads and long labels stay near the part too
+            Map<String, Object> grouped = Map.of(StandardComponentTypes.WIDTH, 32, StandardComponentTypes.GROUPS,
+                    "7-11,25-31|15-19|0-3");
+            ComponentType type = registry.require(typeId).specializedFor(grouped);
+            for (Rotation rotation : Rotation.values()) {
+                assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 400, grouped);
+            }
         }
     }
 

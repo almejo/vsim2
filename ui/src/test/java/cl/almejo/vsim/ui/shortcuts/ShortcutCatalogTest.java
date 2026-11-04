@@ -195,8 +195,8 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void printFollowsExportPdfAndIsTheOnlyOneOnCtrlP() {
-        assertThat(ids().indexOf("file.print")).isEqualTo(ids().indexOf("file.exportPdf") + 1);
+    void printFollowsSaveAsAndIsTheOnlyOneOnCtrlP() {
+        assertThat(ids().indexOf("file.print")).isEqualTo(ids().indexOf("file.saveAs") + 1);
         KeyStroke print = KeyStroke.getKeyStroke(KeyEvent.VK_P, ShortcutCatalog.menuMask());
         assertThat(ShortcutCatalog.find("file.print")).contains(new ShortcutEntry("file.print", "action.print",
                 MenuId.FILE, Scope.WINDOW, Optional.of(print)));

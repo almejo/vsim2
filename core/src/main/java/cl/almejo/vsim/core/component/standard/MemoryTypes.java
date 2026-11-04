@@ -35,7 +35,7 @@ public final class MemoryTypes {
     public static final String DATA = "data";
     public static final String DATA_SEPARATE = "separate";
     public static final String DATA_SHARED = "shared";
-    /** «Escritura» (RAM only): on the clock's falling edge ({@link #WRITE_CLOCK}) or while WE = 1 ({@link #WRITE_LEVEL}). */
+    /** «Escritura» (RAM only): on the clock's edge («Flanco», {@link #WRITE_CLOCK}) or while WE = 1 ({@link #WRITE_LEVEL}). */
     public static final String WRITE = "write";
     public static final String WRITE_CLOCK = "clock";
     public static final String WRITE_LEVEL = "level";
@@ -60,6 +60,9 @@ public final class MemoryTypes {
             List.of(DATA_SEPARATE, DATA_SHARED));
     private static final ParameterSpec WRITE_PARAMETER = ParameterSpec.choice(WRITE, WRITE_CLOCK,
             List.of(WRITE_CLOCK, WRITE_LEVEL));
+    /** «Flanco» (RAM only, «Con reloj» only): falling by default, as every RAM was before the parameter existed. */
+    private static final ParameterSpec EDGE_PARAMETER =
+            StandardParameters.EDGE_FALLING_BY_DEFAULT.visibleWhen(WRITE, WRITE_CLOCK);
     private static final ParameterSpec SHOW_CONTENTS_PARAMETER = ParameterSpec.choice(SHOW_CONTENTS,
             SHOW_CONTENTS_YES, List.of(SHOW_CONTENTS_YES, SHOW_CONTENTS_NO)).asDisplayOnly();
     private static final ParameterSpec CONTENTS_PARAMETER = ParameterSpec.text(CONTENTS, "",
@@ -83,8 +86,8 @@ public final class MemoryTypes {
 
     static void register(ComponentTypeRegistry registry) {
         registry.register(memory(MemoryKind.RAM, List.of(WORDS_PARAMETER, WIDTH_PARAMETER, CONNECTION_PARAMETER,
-                DATA_PARAMETER, WRITE_PARAMETER, SHOW_CONTENTS_PARAMETER, StandardComponentTypes.DELAY,
-                CONTENTS_PARAMETER, LINK_PARAMETER)));
+                DATA_PARAMETER, WRITE_PARAMETER, EDGE_PARAMETER, SHOW_CONTENTS_PARAMETER,
+                StandardComponentTypes.DELAY, CONTENTS_PARAMETER, LINK_PARAMETER)));
         registry.register(memory(MemoryKind.ROM, List.of(WORDS_PARAMETER, WIDTH_PARAMETER, CONNECTION_PARAMETER,
                 SHOW_CONTENTS_PARAMETER, StandardComponentTypes.DELAY, CONTENTS_PARAMETER, LINK_PARAMETER)));
     }
@@ -93,7 +96,9 @@ public final class MemoryTypes {
         return ComponentType.parameterized(kind.id(), ComponentCategory.MEMORY, parameters,
                 resolved -> MemoryPinout.of(kind, resolved).shape(),
                 resolved -> new MemoryBehavior(MemoryPinout.of(kind, resolved), words(resolved),
-                        (Integer) resolved.get("delay"), MemoryContents.decode((String) resolved.get(CONTENTS))));
+                        (Integer) resolved.get("delay"), MemoryContents.decode((String) resolved.get(CONTENTS)),
+                        ClockEdgeDetector.forEdge(String.valueOf(resolved.getOrDefault(StandardParameters.EDGE.name(),
+                                StandardParameters.FALLING)))));
     }
 
     /** The kind of memory {@code typeId} is, empty for every other type. */

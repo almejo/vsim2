@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project source="2.7.1" version="1.0">
+  A hand-written fixture: every built-in Logisim 2.7 part once, with no attributes, so each takes Logisim's defaults.
+
+  <lib desc="#Wiring" name="0">
+    <tool name="Pin">
+      <a name="facing" val="south"/>
+    </tool>
+  </lib>
+  <lib desc="#Gates" name="1"/>
+  <lib desc="#Plexers" name="2"/>
+  <lib desc="#Arithmetic" name="3"/>
+  <lib desc="#Memory" name="4"/>
+  <lib desc="#I/O" name="5"/>
+  <lib desc="#Base" name="6"/>
+  <main name="main"/>
+  <options/>
+  <circuit name="main">
+    <comp lib="0" loc="(100,100)" name="Splitter"/>
+    <comp lib="0" loc="(100,200)" name="Pin"/>
+    <comp lib="0" loc="(100,300)" name="Probe"/>
+    <comp lib="0" loc="(100,400)" name="Tunnel"/>
+    <comp lib="0" loc="(100,500)" name="Pull Resistor"/>
+    <comp lib="0" loc="(100,600)" name="Clock"/>
+    <comp lib="0" loc="(100,700)" name="Constant"/>
+    <comp lib="0" loc="(100,800)" name="Power"/>
+    <comp lib="0" loc="(100,900)" name="Ground"/>
+    <comp lib="0" loc="(100,1000)" name="Transistor"/>
+    <comp lib="0" loc="(100,1100)" name="Transmission Gate"/>
+    <comp lib="0" loc="(100,1200)" name="Bit Extender"/>
+    <comp lib="1" loc="(300,100)" name="NOT Gate"/>
+    <comp lib="1" loc="(300,200)" name="Buffer"/>
+    <comp lib="1" loc="(300,300)" name="AND Gate"/>
+    <comp lib="1" loc="(300,400)" name="OR Gate"/>
+    <comp lib="1" loc="(300,500)" name="NAND Gate"/>
+    <comp lib="1" loc="(300,600)" name="NOR Gate"/>
+    <comp lib="1" loc="(300,700)" name="XOR Gate"/>
+    <comp lib="1" loc="(300,800)" name="XNOR Gate"/>
+    <comp lib="1" loc="(300,900)" name="Odd Parity"/>
+    <comp lib="1" loc="(300,1000)" name="Even Parity"/>
+    <comp lib="1" loc="(300,1100)" name="Controlled Buffer"/>
+    <comp lib="1" loc="(300,1200)" name="Controlled Inverter"/>
+    <comp lib="2" loc="(500,100)" name="Multiplexer"/>
+    <comp lib="2" loc="(500,200)" name="Demultiplexer"/>
+    <comp lib="2" loc="(500,300)" name="Decoder"/>
+    <comp lib="2" loc="(500,400)" name="Priority Encoder"/>
+    <comp lib="2" loc="(500,500)" name="BitSelector"/>
+    <comp lib="3" loc="(700,100)" name="Adder"/>
+    <comp lib="3" loc="(700,200)" name="Subtractor"/>
+    <comp lib="3" loc="(700,300)" name="Multiplier"/>
+    <comp lib="3" loc="(700,400)" name="Divider"/>
+    <comp lib="3" loc="(700,500)" name="Negator"/>
+    <comp lib="3" loc="(700,600)" name="Comparator"/>
+    <comp lib="3" loc="(700,700)" name="Shifter"/>
+    <comp lib="3" loc="(700,800)" name="BitAdder"/>
+    <comp lib="3" loc="(700,900)" name="BitFinder"/>
+    <comp lib="4" loc="(900,100)" name="D Flip-Flop"/>
+    <comp lib="4" loc="(900,200)" name="T Flip-Flop"/>
+    <comp lib="4" loc="(900,300)" name="J-K Flip-Flop"/>
+    <comp lib="4" loc="(900,400)" name="S-R Flip-Flop"/>
+    <comp lib="4" loc="(900,500)" name="Register"/>
+    <comp lib="4" loc="(900,600)" name="Counter"/>
+    <comp lib="4" loc="(900,700)" name="Shift Register"/>
+    <comp lib="4" loc="(900,800)" name="Random"/>
+    <comp lib="4" loc="(900,900)" name="RAM"/>
+    <comp lib="4" loc="(900,1000)" name="ROM"/>
+    <comp lib="5" loc="(1100,100)" name="Button"/>
+    <comp lib="5" loc="(1100,200)" name="Joystick"/>
+    <comp lib="5" loc="(1100,300)" name="Keyboard"/>
+    <comp lib="5" loc="(1100,400)" name="LED"/>
+    <comp lib="5" loc="(1100,500)" name="7-Segment Display"/>
+    <comp lib="5" loc="(1100,600)" name="Hex Digit Display"/>
+    <comp lib="5" loc="(1100,700)" name="DotMatrix"/>
+    <comp lib="5" loc="(1100,800)" name="TTY"/>
+    <comp lib="6" loc="(1300,100)" name="Text"/>
+  </circuit>
+</project>

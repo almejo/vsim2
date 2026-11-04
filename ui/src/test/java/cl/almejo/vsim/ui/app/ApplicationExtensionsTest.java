@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.groups.GroupsExtension;
 import cl.almejo.vsim.ui.memory.MemoryEditorExtension;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
@@ -20,6 +21,7 @@ import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
+import cl.almejo.vsim.ui.window.ExportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,6 +93,12 @@ class ApplicationExtensionsTest {
     }
 
     @Test
+    void theBusGroupsRowsAreAmongTheExtensions() {
+        assertThat(Application.editorExtensions(service, SwingLibraryDialogs.INSTANCE))
+                .hasAtLeastOneElementOfType(GroupsExtension.class);
+    }
+
+    @Test
     void theMemoryContentEditorIsAmongTheExtensionsBeforeTheIcons() {
         List<EditorExtension> extensions = Application.editorExtensions(service, SwingLibraryDialogs.INSTANCE);
         int editor = -1;
@@ -111,12 +119,14 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Ejemplos",
-                    "Guardar", "Guardar como…", "Exportar imagen…", "Exportar a PDF…", "Imprimir…", "---", "Importar", "---",
+                    "Guardar", "Guardar como…", "Imprimir…", "---", "Importar", "Exportar", "---",
                     "Preferencias…", "---",
                     "Cerrar ventana", "Salir");
+            assertThat(texts(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow())).containsExactly("Imagen…",
+                    "PDF…", "Circuito de Logisim (.circ) (beta)…");
             JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();
             assertThat(texts(importMenu)).containsExactly("Componente…", "Tabla de verdad desde Excel/CSV…",
-                    "Memoria desde archivo…");
+                    "Memoria desde archivo…", "Circuito de Logisim (.circ) (beta)…");
             assertThat(view.shortcutActions().get("file.importTruthTable"))
                     .isSameAs(importMenu.getItem(1).getAction());
             assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",

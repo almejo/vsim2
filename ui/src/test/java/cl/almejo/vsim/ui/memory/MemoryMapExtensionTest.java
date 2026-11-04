@@ -52,6 +52,7 @@ class MemoryMapExtensionTest {
             int snapshotListenersPlain = plainView.canvas().snapshotListenerCount();
             plainView.dispose();
             int snapshotListenersPlainDisposed = plainView.canvas().snapshotListenerCount();
+            int documentListenersPlainDisposed = openDocument.changeListenerCount();
 
             EditorView view = new EditorView(openDocument, plain.withExtensions(List.of(new MemoryMapExtension(mapView -> new MemoryMapActions() { }))),
                     NO_WINDOW);
@@ -68,7 +69,7 @@ class MemoryMapExtensionTest {
                 assertThat(panel.request()).contains(new MemoryMapRequest(ram.id().value(), 0, 1, 64));
 
                 view.dispose();
-                assertThat(openDocument.changeListenerCount()).isEqualTo(documentListenersPlain);
+                assertThat(openDocument.changeListenerCount()).isEqualTo(documentListenersPlainDisposed);
                 assertThat(view.canvas().snapshotListenerCount()).isEqualTo(snapshotListenersPlainDisposed);
                 assertThat(panel.request()).as("no more frames once closed").isEmpty();
             } finally {

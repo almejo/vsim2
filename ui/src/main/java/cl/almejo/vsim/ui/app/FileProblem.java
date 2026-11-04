@@ -35,7 +35,7 @@ record FileProblem(String message, String details) {
                 : "\n" + exception.getCause());
         String message = switch (exception.reason()) {
             case NEWER_FORMAT -> newer(name, exception);
-            case NOT_VSIM_FILE -> notVsim(name, file);
+            case NOT_VSIM_FILE, NOT_XML, NOT_LOGISIM_PROJECT -> notVsim(name, file);
             case INVALID_JSON -> looksLikeVsim2(sniff(file)) ? damaged(name, exception) : notVsim(name, file);
             case READ_ERROR -> Messages.format("fileproblem.unreadable", name);
             case UNSUPPORTED_VERSION -> Messages.format("fileproblem.unsupported", name);

@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.StandardParameters;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -510,5 +511,17 @@ class MemoryPainterTest {
                 new MemoryLights(false, -1, true, 2), stroke)[0];
         assertThat(ramIdle).as("a RAM lights its WR pill").isNotEqualTo(ramOneLit);
         assertThat(romIdle).as("a ROM has no WR pill to light").isEqualTo(romLit);
+    }
+
+    @Test
+    void theClockMarkLooksTheSameForEitherEdge() {
+        Map<String, Object> falling = Map.of(StandardParameters.EDGE.name(), StandardParameters.FALLING);
+        Map<String, Object> rising = Map.of(StandardParameters.EDGE.name(), StandardParameters.RISING);
+        BufferedImage fallingDrawing = draw(StandardComponentTypes.RAM, Rotation.R0, falling, READING, SCHEME);
+        BufferedImage defaultDrawing = draw(StandardComponentTypes.RAM, Rotation.R0, Map.of(), READING, SCHEME);
+        BufferedImage risingDrawing = draw(StandardComponentTypes.RAM, Rotation.R0, rising, READING, SCHEME);
+        assertThat(countDifferences(fallingDrawing, defaultDrawing)).as("falling is the default").isZero();
+        assertThat(countDifferences(fallingDrawing, risingDrawing))
+                .as("no bubble: it would read as an unconnected pin; the edge is only in Propiedades").isZero();
     }
 }

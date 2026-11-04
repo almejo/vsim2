@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.truthtable;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.core.truthtable.Preparation;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.truthtable.TruthTableEvaluator;
@@ -8,7 +9,6 @@ import javax.swing.SwingUtilities;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 /**
  * Evaluates truth tables away from the EDT, one at a time per view (spec §5.2): {@link #start} cancels the running
@@ -60,11 +60,7 @@ public final class TruthTableRunner {
 
     /** A runner with its own daemon thread, delivering with {@link SwingUtilities#invokeLater}. */
     public static TruthTableRunner create() {
-        ExecutorService executor = Executors.newSingleThreadExecutor(task -> {
-            Thread thread = new Thread(task, "vsim-truth-table");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ExecutorService executor = DaemonThreads.single("vsim-truth-table");
         return new TruthTableRunner(executor, SwingUtilities::invokeLater, executor::shutdownNow);
     }
 

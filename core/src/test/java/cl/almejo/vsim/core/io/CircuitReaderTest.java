@@ -51,6 +51,24 @@ class CircuitReaderTest {
     }
 
     @Test
+    void openingAFileKeepsTheCircuitNameItStores(@TempDir Path directory) throws Exception {
+        CircuitDocument document = new CircuitDocument();
+        document.setName("Simple Uprog Lrv32im");
+        Path file = directory.resolve("lrv32im-up.vsim");
+        Files.writeString(file, format.write(document));
+        assertThat(reader.read(file).name()).isEqualTo("Simple Uprog Lrv32im");
+    }
+
+    @Test
+    void aFileWithABlankNameTakesTheFileName(@TempDir Path directory) throws Exception {
+        CircuitDocument document = new CircuitDocument();
+        document.setName("   ");
+        Path file = directory.resolve("contador.vsim");
+        Files.writeString(file, format.write(document));
+        assertThat(reader.read(file).name()).isEqualTo("contador");
+    }
+
+    @Test
     void missingFileIsAReadError(@TempDir Path directory) {
         assertThatThrownBy(() -> reader.read(directory.resolve("nope.vsim")))
                 .isInstanceOf(CircuitFormatException.class)

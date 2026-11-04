@@ -258,6 +258,29 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     }
 
     /**
+     * The fill of pin {@code pin}'s bits (from 0) in the «Grupos» window and the swatches of the Propiedades summary
+     * of a bus splitter or joiner: soft hues, light on a light board and deep on a dark one, repeating after eight.
+     */
+    public Color bitGroupColor(int pin) {
+        return new Color(BitGroupPalette.fill(pin, isDark()));
+    }
+
+    /** The fill of a bit in no pin («sin usar»). */
+    public Color bitGroupUnused() {
+        return new Color(BitGroupPalette.unused(isDark()));
+    }
+
+    /** The text written on a {@link #bitGroupColor group fill}. */
+    public Color bitGroupText() {
+        return new Color(BitGroupPalette.text(isDark()));
+    }
+
+    /** The text written on the {@link #bitGroupUnused unused fill}, quieter. */
+    public Color bitGroupUnusedText() {
+        return new Color(BitGroupPalette.unusedText(isDark()));
+    }
+
+    /**
      * The colour of the alignment guides (spec §6, derived, not a role): cyan as in Photoshop, slightly translucent so
      * it does not compete with the wires, a deep cyan on a light board and a light one on a dark board. Guides are
      * drawn dashed, so even next to a blue «Z» wire they read as an aid, not a wire.

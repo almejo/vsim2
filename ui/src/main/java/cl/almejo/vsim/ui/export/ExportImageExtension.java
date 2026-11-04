@@ -7,7 +7,7 @@ import javax.swing.JOptionPane;
 import java.awt.Component;
 import java.util.function.BiConsumer;
 
-/** Adds Archivo ▸ «Exportar imagen…» (spec M6.2 §1) to every editor view. */
+/** Adds Archivo ▸ Exportar ▸ «Imagen…» (spec M6.2 §1) to every editor view. */
 public final class ExportImageExtension implements EditorExtension {
 
     private final ExportChooser chooser;

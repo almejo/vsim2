@@ -158,6 +158,8 @@ public final class AppPreferences {
     static final String SHORTCUTS = "shortcuts";
     static final String STEP_UNITS = "simulation.stepUnits";
     static final String EXPORT_DIRECTORY = "export.directory";
+    static final String LOGISIM_REPORT_WIDTH = "logisim.reportWidth";
+    static final String LOGISIM_REPORT_HEIGHT = "logisim.reportHeight";
     static final String EXPORT_SCALE = "export.scale";
     static final String EXPORT_PRINT_BACKGROUND = "export.printBackground";
     static final String EXPORT_INCLUDE_STICKY_NOTES = "export.includeStickyNotes";
@@ -397,6 +399,31 @@ public final class AppPreferences {
             throw new IllegalArgumentException("step units out of range: " + units);
         }
         put(STEP_UNITS, Long.toString(units));
+    }
+
+    // --- Importar y exportar con Logisim ---
+
+    /** The smallest size of the report window that is remembered; a smaller stored one is ignored. */
+    private static final int MINIMUM_REPORT_SIDE = 200;
+    private static final int MAXIMUM_REPORT_SIDE = 10_000;
+
+    /** The size the user gave the import / export report window; empty until they resize it (or if unreadable). */
+    public Optional<java.awt.Dimension> logisimReportSize() {
+        try {
+            int width = Integer.parseInt(read(LOGISIM_REPORT_WIDTH, ""));
+            int height = Integer.parseInt(read(LOGISIM_REPORT_HEIGHT, ""));
+            boolean usable = width >= MINIMUM_REPORT_SIDE && width <= MAXIMUM_REPORT_SIDE
+                    && height >= MINIMUM_REPORT_SIDE && height <= MAXIMUM_REPORT_SIDE;
+            return usable ? Optional.of(new java.awt.Dimension(width, height)) : Optional.empty();
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public void setLogisimReportSize(java.awt.Dimension size) {
+        Objects.requireNonNull(size, "size");
+        store(LOGISIM_REPORT_WIDTH, Integer.toString(size.width));
+        store(LOGISIM_REPORT_HEIGHT, Integer.toString(size.height));
     }
 
     // --- M6.2 export image ---

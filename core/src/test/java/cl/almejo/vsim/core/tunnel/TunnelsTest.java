@@ -154,9 +154,10 @@ class TunnelsTest {
         ComponentType exit = circuit.registry().require(StandardComponentTypes.TUNNEL_EXIT);
         ComponentType entrance = circuit.registry().require(StandardComponentTypes.TUNNEL_ENTRANCE);
 
-        assertThat(exit.parameters()).extracting(parameter -> parameter.name()).containsExactly(Tunnels.NAME);
+        assertThat(exit.parameters()).extracting(parameter -> parameter.name()).containsExactly(Tunnels.NAME,
+                Tunnels.DIRECTION);
         assertThat(entrance.parameters()).extracting(parameter -> parameter.name())
-                .containsExactly(Tunnels.NAME, Tunnels.COLOR);
+                .containsExactly(Tunnels.NAME, Tunnels.COLOR, Tunnels.DIRECTION);
     }
 
     @Test
@@ -311,5 +312,57 @@ class TunnelsTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> Tunnels.renameCommand(circuit.document(), circuit.registry(),
                 new ElementId("c99"), "B")).isInstanceOf(IllegalArgumentException.class);
+    }
+    @Test
+    void bothTunnelKindsHaveADirectionThatIsDirectedByDefault() {
+        Component entrance = circuit.entrance("A", new GridPoint(0, 0));
+        Component exit = circuit.exit("A", new GridPoint(0, 10));
+        Component undirected = circuit.undirectedExit("A", new GridPoint(0, 20));
+
+        for (TunnelKind kind : TunnelKind.values()) {
+            assertThat(Tunnels.parameters(kind)).anySatisfy(parameter -> {
+                assertThat(parameter.name()).isEqualTo(Tunnels.DIRECTION);
+                assertThat(parameter.defaultValue()).isEqualTo(Tunnels.DIRECTED);
+                assertThat(parameter.choices()).containsExactly(Tunnels.DIRECTED, Tunnels.UNDIRECTED);
+            });
+        }
+        assertThat(Tunnels.isUndirected(entrance)).isFalse();
+        assertThat(Tunnels.isUndirected(exit)).isFalse();
+        assertThat(Tunnels.isUndirected(undirected)).isTrue();
+    }
+
+    @Test
+    void groupsListTheTunnelsWithoutDirectionOfEachName() {
+        Component entrance = circuit.entrance("CLK", new GridPoint(0, 0));
+        Component undirectedEntrance = circuit.undirected("CLK", new GridPoint(0, 10));
+        Component undirectedExit = circuit.undirectedExit("CLK", new GridPoint(0, 20));
+
+        Tunnels.TunnelGroup group = Tunnels.groups(circuit.document()).get("CLK");
+
+        assertThat(group.entrances()).containsExactly(entrance.id(), undirectedEntrance.id());
+        assertThat(group.exits()).containsExactly(undirectedExit.id());
+        assertThat(group.undirected()).containsExactly(undirectedEntrance.id(), undirectedExit.id());
+        assertThat(group.directedEntrances()).containsExactly(entrance.id());
+        assertThat(group.directedExits()).isEmpty();
+    }
+
+    @Test
+    void renamingTheOnlyEntranceCarriesTunnelsWithoutDirectionAlongButTheyRenameOnlyThemselves() {
+        Component entrance = circuit.entrance("CLK", new GridPoint(0, 0));
+        Component exit = circuit.exit("CLK", new GridPoint(0, 10));
+        Component undirected = circuit.undirected("CLK", new GridPoint(0, 20));
+
+        Tunnels.renameCommand(circuit.document(), circuit.registry(), entrance.id(), "CLOCK")
+                .apply(circuit.document());
+
+        assertThat(nameOf(entrance)).isEqualTo("CLOCK");
+        assertThat(nameOf(exit)).isEqualTo("CLOCK");
+        assertThat(nameOf(undirected)).isEqualTo("CLOCK");
+
+        Tunnels.renameCommand(circuit.document(), circuit.registry(), undirected.id(), "OTHER")
+                .apply(circuit.document());
+
+        assertThat(nameOf(entrance)).isEqualTo("CLOCK");
+        assertThat(nameOf(undirected)).isEqualTo("OTHER");
     }
 }

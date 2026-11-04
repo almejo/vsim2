@@ -1,10 +1,10 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import javax.swing.SwingUtilities;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -19,11 +19,7 @@ public record Background(Executor worker, Executor edt) {
 
     /** One daemon thread for the whole application, made the first time it is needed. */
     private static final class SharedWorker {
-        private static final ExecutorService INSTANCE = Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "vsim-table-circuits");
-            thread.setDaemon(true);
-            return thread;
-        });
+        private static final ExecutorService INSTANCE = DaemonThreads.single("vsim-table-circuits");
     }
 
     /** The application's: a background thread, results on the EDT. */

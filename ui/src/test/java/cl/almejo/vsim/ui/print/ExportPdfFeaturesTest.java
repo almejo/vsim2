@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.export.ExportImageFeatures;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.ExportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
@@ -79,8 +80,7 @@ class ExportPdfFeaturesTest {
 
     @Test
     void theItemSitsRightAfterExportImageAndIsOffOnAnEmptyDocument() {
-        List<String> texts = texts(view.menu(MenuId.FILE));
-        assertThat(texts.indexOf("Exportar a PDF…")).isEqualTo(texts.indexOf("Exportar imagen…") + 1);
+        assertThat(texts(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow())).containsExactly("Imagen…", "PDF…");
         assertThat(features.action().isEnabled()).isFalse();
         UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 10, 10, Map.of());
         assertThat(features.action().isEnabled()).isTrue();
@@ -103,7 +103,7 @@ class ExportPdfFeaturesTest {
         int listeners = openDocument.changeListenerCount();
         features.dispose();
         assertThat(view.shortcutActions()).doesNotContainKey("file.exportPdf");
-        assertThat(texts(view.menu(MenuId.FILE))).doesNotContain("Exportar a PDF…");
+        assertThat(texts(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow())).containsExactly("Imagen…");
         assertThat(openDocument.changeListenerCount()).isEqualTo(listeners - 1);
     }
 

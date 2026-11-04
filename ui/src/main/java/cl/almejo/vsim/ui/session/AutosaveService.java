@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.session;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -70,8 +70,7 @@ public final class AutosaveService {
 
     /** The application's service: the system clock and one daemon writer thread. The timer starts with {@link #start()}. */
     public static AutosaveService create(RecoveryStore store) {
-        ExecutorService writer = Executors.newSingleThreadExecutor(
-                Thread.ofPlatform().name("vsim-autosave").daemon().factory());
+        ExecutorService writer = DaemonThreads.single("vsim-autosave");
         return new AutosaveService(store, Clock.systemDefaultZone(), writer);
     }
 

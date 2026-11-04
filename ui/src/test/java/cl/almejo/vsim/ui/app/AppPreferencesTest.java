@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.print.PrintScope;
 import cl.almejo.vsim.ui.print.ScaleMode;
 import org.junit.jupiter.api.Test;
 
+import java.awt.Dimension;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
@@ -484,6 +485,19 @@ class AppPreferencesTest {
         assertThat(alt.isHeld(false, true)).isTrue();
         assertThat(alt.isHeld(true, false)).isFalse();
         assertThat(none.isHeld(true, true)).isFalse();
+    }
+
+    @Test
+    void theLogisimReportSizeIsRememberedAndAnUnusableOneIsIgnored() {
+        assertThat(preferences.logisimReportSize()).isEmpty();
+        preferences.setLogisimReportSize(new Dimension(900, 640));
+        assertThat(preferences.logisimReportSize()).contains(new Dimension(900, 640));
+        assertThat(new AppPreferences(node).logisimReportSize()).contains(new Dimension(900, 640));
+
+        node.put("logisim.reportWidth", "10");
+        assertThat(preferences.logisimReportSize()).isEmpty();
+        node.put("logisim.reportWidth", "wide");
+        assertThat(preferences.logisimReportSize()).isEmpty();
     }
 
     // --- Exportar a PDF e imprimir ---

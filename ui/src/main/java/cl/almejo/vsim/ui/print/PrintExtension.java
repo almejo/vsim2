@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -7,7 +8,6 @@ import cl.almejo.vsim.ui.window.EditorView;
 import java.time.Clock;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /** Adds Archivo ▸ «Imprimir…» (spec 2026-10-19 §4) to every editor view. */
 public final class PrintExtension implements EditorExtension {
@@ -16,11 +16,7 @@ public final class PrintExtension implements EditorExtension {
      * Looks up the installed printers, which can take a while with CUPS; a daemon thread of its own, so a long print
      * never delays the answer and the thread never keeps the app alive.
      */
-    private static final ExecutorService LOOKUP_THREAD = Executors.newSingleThreadExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "vsim-printer-lookup");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final ExecutorService LOOKUP_THREAD = DaemonThreads.single("vsim-printer-lookup");
 
     private final PdfExportDialog.Collaborators collaborators;
     private final PdfExportDialog.Presenter presenter;

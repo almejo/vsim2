@@ -145,4 +145,61 @@ class TunnelFeaturesTest {
         assertThat(item(menuFor(only), "tunnel.nextExit")).isEmpty();
         assertThat(item(menuFor(entrance), "tunnel.nextExit")).isPresent();
     }
+
+    private Component undirected(String name, int x, int y) {
+        return place(openDocument, StandardComponentTypes.TUNNEL_EXIT, x, y,
+                Map.of(Tunnels.NAME, name, Tunnels.DIRECTION, Tunnels.UNDIRECTED));
+    }
+
+    @Test
+    void hoveringTunnelsWithoutDirectionCountsThemAsSuch() {
+        undirected("CLK", 0, 0);
+        undirected("CLK", 20, 0);
+        undirected("CLK", 20, 10);
+        undirected("CLK", 20, 20);
+
+        features.hoverAt(new Point2D.Double(22, 11));
+
+        assertThat(view.statusBar().text()).contains("CLK: 4 túneles sin dirección")
+                .doesNotContain("entrada").doesNotContain("salida");
+    }
+
+    @Test
+    void aMixedNameCountsTheDirectedOnesAndTheUndirectedOnesSeparately() {
+        entrance("CLK", 0, 0);
+        exit("CLK", 20, 0);
+        undirected("CLK", 20, 10);
+        undirected("CLK", 20, 20);
+
+        features.hoverAt(new Point2D.Double(22, 1));
+
+        assertThat(view.statusBar().text()).contains("CLK: 1 entrada, 1 salida, 2 túneles sin dirección");
+    }
+
+    @Test
+    void anUndirectedTunnelOffersNextTunnelAmongAllOfTheNameAndNeitherEntranceNorExit() {
+        Component first = undirected("CLK", 0, 0);
+        Component second = undirected("CLK", 40, 0);
+        Component third = undirected("CLK", 40, 10);
+
+        assertThat(item(menuFor(first), "tunnel.goToEntrance")).isEmpty();
+        assertThat(item(menuFor(first), "tunnel.nextExit")).isEmpty();
+        item(menuFor(first), "tunnel.nextTunnel").orElseThrow().doClick();
+        assertThat(view.canvas().selection().ids()).containsExactly(second.id());
+        item(menuFor(second), "tunnel.nextTunnel").orElseThrow().doClick();
+        assertThat(view.canvas().selection().ids()).containsExactly(third.id());
+        item(menuFor(third), "tunnel.nextTunnel").orElseThrow().doClick();
+        assertThat(view.canvas().selection().ids()).containsExactly(first.id());
+    }
+
+    @Test
+    void aLoneUndirectedTunnelHasNowhereToGoAndADirectedExitIgnoresUndirectedEntrances() {
+        Component lone = undirected("LOST", 0, 0);
+        undirected("MIX", 0, 20);
+        Component exit = exit("MIX", 40, 20);
+
+        assertThat(item(menuFor(lone), "tunnel.nextTunnel")).isEmpty();
+        assertThat(item(menuFor(exit), "tunnel.goToEntrance")).isEmpty();
+        assertThat(item(menuFor(exit), "tunnel.nextTunnel")).isEmpty();
+    }
 }

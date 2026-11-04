@@ -3,8 +3,8 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.ChangeParametersWithWiresCommand;
-import cl.almejo.vsim.core.command.NewPinTouch;
 import cl.almejo.vsim.core.command.CompositeCommand;
+import cl.almejo.vsim.core.command.RenameCircuitCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetNoteStyleCommand;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -14,6 +14,8 @@ import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.tunnel.TunnelKind;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
@@ -35,7 +37,7 @@ import cl.almejo.vsim.ui.i18n.StickyColorNames;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.sticky.StickyNoteEdits;
 import cl.almejo.vsim.ui.sticky.StickyNoteLock;
-import cl.almejo.vsim.ui.theme.ErrorTextLabel;
+import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
@@ -70,6 +72,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -83,15 +86,21 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     private static final int UNIT_INCREMENT = 16;
     private static final String WHEEL_HANDED_UP = "vsim.wheelHandedUp";
+    private static final String ERROR_CONSTRAINTS = "span 2, growx, wmin 0";
 
     private final OpenDocument openDocument;
     private final Selection selection;
     private final SelectionMoves selectionMoves;
     private final DocumentListener documentListener = this::documentChanged;
+    /** Undo and redo of «Nombre del circuito» touch no element: the history says when to show the name again. */
+    private final Runnable historyListener = this::historyChanged;
     private final JLabel heading = new JLabel();
-    private final JLabel error = new ErrorTextLabel(" ");
+    /** The inline error, wrapped within the panel: a long sentence never widens the sidebar over the canvas. */
+    private final WrappedErrorText error = new WrappedErrorText(" ");
     private Set<ElementId> shown = Set.of();
     private JTextField textField;
+    /** «Nombre del circuito», shown with nothing selected; null otherwise. */
+    private JTextField circuitNameField;
     private NoteTextArea noteArea;
     private ParameterForm parameterForm;
     private final Supplier<ColorScheme> scheme;
@@ -103,8 +112,13 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private Map<NoteStyle.Role, ColorSwatches<NoteColor>> noteStyleRows = Map.of();
     private Runnable pendingEdits = () -> { };
     private final List<ComponentRows> componentRows = new ArrayList<>();
+    /** What the {@link ComponentRows} added for the component shown, so the panel's own edit can ask them again. */
+    private final List<java.awt.Component> extensionRowParts = new ArrayList<>();
     private int generation;
     private boolean applying;
+    private Consumer<String> noticeSink = text -> { };
+    /** What to tell about a tunnel's new direction once the edit that changes it ran; empty when it did not. */
+    private Optional<String> directionNotice = Optional.empty();
     private boolean disposed;
     private boolean refreshPending;
     private BooleanSupplier typingProbe = this::focusInside;
@@ -129,6 +143,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         heading.putClientProperty("FlatLaf.styleClass", "h4");
         selection.addListener(this::selectionChanged);
         openDocument.document().addListener(documentListener);
+        openDocument.addChangeListener(historyListener);
         rebuild();
     }
 
@@ -138,6 +153,11 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
      * needs no scrolling of its own hands the mouse wheel to this pane (Swing forwards the wheel from a scroll pane
      * whose bar is hidden).
      */
+    /** Where the short messages about an edit go (the status bar's notice); without one they are not shown. */
+    public void onNotice(Consumer<String> sink) {
+        this.noticeSink = sink;
+    }
+
     public static JScrollPane inScrollPane(PropertiesPanel panel) {
         JScrollPane scroll = new JScrollPane(panel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -249,6 +269,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     public void dispose() {
         disposed = true;
         openDocument.document().removeListener(documentListener);
+        openDocument.removeChangeListener(historyListener);
     }
 
     String heading() {
@@ -257,6 +278,10 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     JTextField textField() {
         return textField;
+    }
+
+    JTextField circuitNameField() {
+        return circuitNameField;
     }
 
     /** The text of the note shown, of one or more lines; null when no note is shown. */
@@ -277,7 +302,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         return error.getText();
     }
 
-    JLabel errorLabel() {
+    WrappedErrorText errorLabel() {
         return error;
     }
 
@@ -303,6 +328,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         if (applying) {
             // the editors stay; «Negar salida» turns an AND into a NAND, with the NAND's description
             renameShownComponent();
+            reAddExtensionRows();
             describeShownComponent();
         } else {
             rebuild();
@@ -346,6 +372,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         removeAll();
         descriptionBox = null;
         textField = null;
+        circuitNameField = null;
         noteArea = null;
         parameterForm = null;
         frameColor = null;
@@ -353,12 +380,14 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         stickyColor = null;
         stickyKind = null;
         noteStyleRows = Map.of();
+        extensionRowParts.clear();
         pendingEdits = () -> { };
         error.setText(" ");
         shown = selection.ids();
         add(heading, "span 2, align left");
         if (shown.isEmpty()) {
             heading.setText(Messages.text("properties.none"));
+            showCircuitName();
         } else if (shown.size() > 1) {
             heading.setText(Messages.format("properties.several", shown.size()));
             List<TextLabel> notes = shownNotes();
@@ -368,7 +397,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         } else {
             showElement(openDocument.document().element(shown.iterator().next()).orElse(null));
         }
-        add(error, "span 2, align left");
+        add(error, ERROR_CONSTRAINTS);
         describeShownComponent();
         handWheelUp(this);
     }
@@ -391,6 +420,41 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             if (child instanceof java.awt.Container nested) {
                 handWheelUp(nested);
             }
+        }
+    }
+
+    /** With nothing selected: the circuit's own name, kept apart from its file's; each change one undo step. */
+    private void showCircuitName() {
+        JTextField field = addTextRow(Messages.text("properties.circuitName"), openDocument.document().name());
+        // A new circuit has no name yet: it takes its file's on the first save.
+        field.putClientProperty("JTextField.placeholderText", Messages.text("properties.circuitName.placeholder"));
+        int built = generation;
+        Runnable apply = () -> applyIfCurrent(built, () -> renameCircuit(field));
+        listenForCommit(field, apply);
+        circuitNameField = field;
+        pendingEdits = apply;
+    }
+
+    private void renameCircuit(JTextField field) {
+        if (field.getText().isBlank()) {
+            error.setText(Messages.text("properties.emptyCircuitName"));
+            return;
+        }
+        error.setText(" ");
+        RenameCircuitCommand.renaming(openDocument.document(), field.getText()).ifPresent(openDocument::execute);
+        // the name kept has no outer spaces
+        field.setText(openDocument.document().name());
+    }
+
+    /** Shows the circuit's name again after an undo, a redo or the AI changed it, unless the user is typing it. */
+    private void historyChanged() {
+        if (disposed || applying || circuitNameField == null || typingProbe.getAsBoolean()) {
+            return;
+        }
+        String name = openDocument.document().name();
+        if (!circuitNameField.getText().equals(name)) {
+            circuitNameField.setText(name);
+            error.setText(" ");
         }
     }
 
@@ -424,17 +488,44 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         // the parameter rows join this panel's grid, so «Etiqueta» and the parameters share the same columns
         form.addRowsTo(this);
         Runnable applyParameters = () -> applyIfCurrent(built, () -> TunnelNames.executeRemembering(openDocument, id,
-                () -> parametersCommand(id, type, form).ifPresent(openDocument::execute)));
+                () -> {
+                    parametersCommand(id, type, form).ifPresent(openDocument::execute);
+                    flushDirectionNotice();
+                }));
         form.addCommitListener(applyParameters);
         parameterForm = form;
         // Both editors still pending (selection change, focus leaving the panel) are one user action: one undo step.
         pendingEdits = () -> applyIfCurrent(built, () -> TunnelNames.executeRemembering(openDocument, id,
-                () -> executeTogether(Stream.of(labelCommand(id, field), parametersCommand(id, type, form))
-                        .flatMap(Optional::stream).toList())));
+                () -> {
+                    executeTogether(Stream.of(labelCommand(id, field), parametersCommand(id, type, form))
+                            .flatMap(Optional::stream).toList());
+                    flushDirectionNotice();
+                }));
         addExtensionRows(component);
     }
 
+    /**
+     * Asks the {@link ComponentRows} again after this panel's own edit, which keeps the editors: their rows describe
+     * the parameters (a bus part's «Bits por pin» and summary after «Ancho» 8 → 6 must say «(el último de 2)»). The
+     * error line stays under them.
+     */
+    private void reAddExtensionRows() {
+        if (shown.size() != 1 || extensionRowParts.isEmpty()) {
+            return;
+        }
+        Optional<Component> component = openDocument.document().component(shown.iterator().next());
+        if (component.isEmpty()) {
+            return;
+        }
+        extensionRowParts.forEach(this::remove);
+        extensionRowParts.clear();
+        remove(error);
+        addExtensionRows(component.get());
+        add(error, ERROR_CONSTRAINTS);
+    }
+
     private void addExtensionRows(Component component) {
+        int before = getComponentCount();
         Rows rows = new Rows() {
             @Override
             public void add(String caption, java.awt.Component editor) {
@@ -449,6 +540,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         for (ComponentRows contributor : List.copyOf(componentRows)) {
             contributor.addRows(component, rows);
         }
+        extensionRowParts.addAll(List.of(getComponents()).subList(before, getComponentCount()));
     }
 
     private void showText(TextLabel label) {
@@ -744,11 +836,12 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         if (values.equals(current)) {
             return Optional.empty();
         }
-        if (NewPinTouch.find(openDocument.document(), openDocument.registry(), component.get(),
-                component.get().withParameters(values)).isPresent()) {
-            error.setText(Messages.text("properties.newPinTouches"));
+        Optional<String> refusal = PinJoinRefusal.of(openDocument, id, values);
+        if (refusal.isPresent()) {
+            error.setText(refusal.get());
             return Optional.empty();
         }
+        directionNotice = directionNotice(component.get(), values);
         if (!form.commitDescription().equals(ParameterForm.CONFIGURE)) {
             // a profile chosen or a «↺»: its own name in «Deshacer …» (a profiled part is never a tunnel)
             return Optional.of(ChangeParametersWithWiresCommand.of(openDocument.document(), openDocument.registry(),
@@ -756,6 +849,25 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         }
         // a tunnel whose name changed follows the rename rules (spec §7), as «Configurar…» does
         return Optional.of(TunnelNames.parametersCommand(openDocument, id, type, values));
+    }
+
+    /** What to say when {@code values} change the direction of tunnel {@code component}; empty for anything else. */
+    private static Optional<String> directionNotice(Component component, Map<String, Object> values) {
+        if (!Tunnels.isTunnel(component.typeId()) || Tunnels.isUndirected(component)
+                == Tunnels.UNDIRECTED.equals(values.get(Tunnels.DIRECTION))) {
+            return Optional.empty();
+        }
+        String name = Tunnels.nameOf(component);
+        if (Tunnels.UNDIRECTED.equals(values.get(Tunnels.DIRECTION))) {
+            return Optional.of(Messages.format("tunnel.direction.undirected", name));
+        }
+        boolean entrance = Tunnels.kindOf(component).orElseThrow() == TunnelKind.ENTRANCE;
+        return Optional.of(Messages.format(entrance ? "tunnel.direction.entrance" : "tunnel.direction.exit", name));
+    }
+
+    private void flushDirectionNotice() {
+        directionNotice.ifPresent(noticeSink);
+        directionNotice = Optional.empty();
     }
 
     /** One undo step for whatever the editors asked for. */

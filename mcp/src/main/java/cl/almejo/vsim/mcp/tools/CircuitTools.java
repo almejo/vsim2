@@ -49,7 +49,8 @@ final class CircuitTools {
                         .property("cursor", Schema.string("nextCursor of the previous page"))
                         .required("document").build(),
                 Common.versionedResult("One page of the circuit")
-                        .property("name", Schema.string("The circuit's name"))
+                        .property("name", Schema.string("The circuit's own name (Propiedades with nothing selected), "
+                                + "kept apart from its file's name, which list_documents gives"))
                         .property("summary", Schema.result("The whole circuit in numbers: parts, wires, frames, "
                                 + "notes, sticky notes, guides, nets, bounds, parts by type, user components").build())
                         .property("parts", Schema.array("Placed parts: id, typeId, label, position, rotation, "

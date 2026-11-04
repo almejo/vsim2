@@ -14,7 +14,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * «Exportar a PDF…» of one editor view: the menu item right after «Exportar imagen…» (off for an empty document), the
+ * «Exportar a PDF…» of one editor view: its item in Archivo ▸ Exportar after «Imagen…» (off for an empty document), the
  * shortcut registration ({@code file.exportPdf}, no default stroke) and the dialog, opened on a frozen copy of the
  * circuit with the selection of this view. {@link #dispose()} takes all of it back.
  */
@@ -30,9 +30,9 @@ public final class ExportPdfFeatures extends FileExportFeatures {
 
     public ExportPdfFeatures(EditorView view, PdfExportDialog.Collaborators collaborators,
                              PdfExportDialog.Presenter presenter, Clock clock, SheetAnchors sheetAnchors) {
-        // Right after «Exportar imagen…», else after «Guardar como…», else at the end.
-        super(view, "action.exportPdf", ExportIcons.EXPORT_PDF, SHORTCUT_ID,
-                indexAfter(view, view.shortcutActions().get(EXPORT_IMAGE_ID), view.actions().saveAs()));
+        // Right after «Imagen…» in Archivo ▸ Exportar, else last.
+        super(view, "action.exportPdf", "menu.file.export.pdf", ExportIcons.EXPORT_PDF, SHORTCUT_ID,
+                view.shortcutActions().get(EXPORT_IMAGE_ID));
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
         this.presenter = Objects.requireNonNull(presenter, "presenter");
         this.clock = Objects.requireNonNull(clock, "clock");

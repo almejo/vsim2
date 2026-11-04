@@ -72,21 +72,16 @@ public final class ProblemsReader {
                         linkedFileMessage(source, linkedFile));
             }
             case ConnectivityProblem connectivity -> {
-                if (connectivity.isPin()) {
-                    references.pin(connectivity.elementId(), connectivity.pinIndex());
-                } else {
-                    references.element(connectivity.elementId());
+                // Only an outer terminal with nothing inside is published; the other causes are the library-update
+                // check's or the editor's own and never reach a snapshot.
+                if (connectivity.cause() != ConnectivityProblem.Cause.UNCONNECTED_INTERFACE) {
+                    throw new IllegalStateException("never published: " + connectivity.cause());
                 }
-                if (connectivity.cause() == ConnectivityProblem.Cause.UNCONNECTED_INTERFACE) {
-                    yield references.view("INTERFACE_UNCONNECTED_INSIDE", true, problem.netId(),
-                            "Terminal " + connectivity.pinIndex() + " of " + connectivity.elementId()
-                                    + " is not connected to anything inside the component; the fault is inside,"
-                                    + " not in the wire outside");
-                }
-                yield references.view(connectivity.isPin() ? "DISCONNECTED_PIN" : "LOOSE_WIRE_END", true,
-                        problem.netId(), connectivity.isPin()
-                                ? "Disconnected pin " + connectivity.pinIndex() + " of " + connectivity.elementId()
-                                : "Loose wire end of " + connectivity.elementId() + " at " + connectivity.position());
+                references.pin(connectivity.elementId(), connectivity.pinIndex());
+                yield references.view("INTERFACE_UNCONNECTED_INSIDE", true, problem.netId(),
+                        "Terminal " + connectivity.pinIndex() + " of " + connectivity.elementId()
+                                + " is not connected to anything inside the component; the fault is inside,"
+                                + " not in the wire outside");
             }
         };
     }
@@ -125,6 +120,8 @@ public final class ProblemsReader {
             case ENTRANCE_WITHOUT_EXITS -> "The tunnel entrance " + name + " has no exits";
             case EXIT_DRIVEN -> "A tunnel exit named " + name + " has a driver on its own wire: maybe it should be"
                     + " an entrance";
+            case LONE_TUNNEL -> "The tunnel " + name + " is without direction and no other tunnel has its name: it"
+                    + " joins nothing";
         };
     }
 

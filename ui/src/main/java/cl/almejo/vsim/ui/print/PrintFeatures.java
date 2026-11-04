@@ -16,7 +16,7 @@ import java.time.Clock;
 import java.util.Objects;
 
 /**
- * «Imprimir…» of one editor view (spec 2026-10-19 §4): the menu item right after «Exportar a PDF…», the shortcut
+ * «Imprimir…» of one editor view (spec 2026-10-19 §4): the menu item right after «Guardar como…», the shortcut
  * ({@code file.print}, Ctrl/⌘+P) and the dialog in its {@link PdfExportDialog.Mode#PRINT} mode, on a frozen copy of
  * the circuit like the PDF's.
  *
@@ -46,9 +46,8 @@ public final class PrintFeatures extends FileExportFeatures {
 
     public PrintFeatures(EditorView view, PdfExportDialog.Collaborators collaborators,
                          PdfExportDialog.Presenter presenter, Clock clock, SheetAnchors sheetAnchors) {
-        // Right after «Exportar a PDF…», else after «Guardar como…», else at the end.
-        super(view, "action.print", ExportIcons.PRINT, SHORTCUT_ID,
-                indexAfter(view, view.shortcutActions().get(ExportPdfFeatures.SHORTCUT_ID), view.actions().saveAs()));
+        // In «Archivo» itself, right after «Guardar como…» (the exports live in Archivo ▸ Exportar), else at the end.
+        super(view, "action.print", ExportIcons.PRINT, SHORTCUT_ID, indexAfter(view, view.actions().saveAs()));
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
         this.presenter = Objects.requireNonNull(presenter, "presenter");
         this.clock = Objects.requireNonNull(clock, "clock");

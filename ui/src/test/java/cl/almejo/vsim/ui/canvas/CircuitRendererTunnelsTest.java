@@ -83,6 +83,35 @@ class CircuitRendererTunnelsTest {
         assertThat(ColorSchemes.DARK.tunnelColor(3)).isNotEqualTo(ColorScheme.LIGHT.tunnelColor(3));
     }
 
+    /** A pixel in the middle of the arrow of an entrada at {@code position} (its arrow is 21.5 to 27.5 px in). */
+    private static Color arrowMiddle(BufferedImage image, GridPoint position) {
+        return new Color(image.getRGB(position.x() * UNIT + 24, position.y() * UNIT + UNIT));
+    }
+
+    /** A pixel in the arrow's slot, 3 px above its middle line: the two-way mark covers it, the arrow does not. */
+    private static Color aboveArrowMiddle(BufferedImage image, GridPoint position) {
+        return new Color(image.getRGB(position.x() * UNIT + 24, position.y() * UNIT + UNIT - 3));
+    }
+
+    @Test
+    void aTunnelWithoutDirectionIsDrawnWithTheTwoWayMarkNotTheArrow() {
+        GridPoint directed = new GridPoint(2, 2);
+        GridPoint undirected = new GridPoint(2, 8);
+        add(TunnelKind.ENTRANCE, directed, Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3));
+        add(TunnelKind.ENTRANCE, undirected, Map.of(Tunnels.NAME, "BUS", Tunnels.COLOR, 3,
+                Tunnels.DIRECTION, Tunnels.UNDIRECTED));
+
+        for (ColorScheme scheme : List.of(ColorScheme.LIGHT, ColorSchemes.DARK)) {
+            BufferedImage image = render(scheme, Map.of());
+
+            assertThat(arrowMiddle(image, directed)).isEqualTo(scheme.tunnelColor(3));
+            // the two-way mark is wider than the arrow (see TunnelPainterTest): above the middle line it fills the slot
+            assertThat(aboveArrowMiddle(image, undirected)).isNotEqualTo(scheme.tunnelSurface());
+            assertThat(aboveArrowMiddle(image, directed)).isEqualTo(scheme.tunnelSurface());
+            assertThat(tagBorder(image, undirected)).isEqualTo(scheme.tunnelColor(3));
+        }
+    }
+
     @Test
     void aSalidaWithoutEntradaIsGrey() {
         GridPoint exit = new GridPoint(2, 8);

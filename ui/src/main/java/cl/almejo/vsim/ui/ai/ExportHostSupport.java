@@ -57,7 +57,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * The AI's exports (spec §7, Exports row): Archivo ▸ «Exportar imagen…» and «Exportar a PDF…» without their dialogs,
+ * The AI's exports (spec §7, Exports row): Archivo ▸ Exportar ▸ «Imagen…» and «PDF…» without their dialogs,
  * through the same code ({@link CircuitImage}, {@link ImageExport}, {@link PrintInput}, {@link PagePainter},
  * {@link PdfExport}) and with the same options. The file goes only into the folder VSim remembers for that export
  * (an image: the image export's folder; a PDF: the PDF's; each falls back on the other, and with neither on the

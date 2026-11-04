@@ -20,9 +20,4 @@ public final class PinNames {
         Matcher matcher = NUMBERED_INPUT.matcher(pinName);
         return matcher.matches() ? Messages.format("pin.input", Integer.parseInt(matcher.group(1)) + 1) : pinName;
     }
-
-    /** True when {@code pinName} is a numbered input ({@code in0}, {@code in1}…), which {@link #display} renames. */
-    public static boolean isNumberedInput(String pinName) {
-        return NUMBERED_INPUT.matcher(pinName).matches();
-    }
 }

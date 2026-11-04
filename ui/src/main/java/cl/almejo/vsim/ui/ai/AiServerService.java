@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.ai;
 
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
@@ -37,7 +38,6 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -169,8 +169,8 @@ public final class AiServerService {
      */
     public AiServerService(AppPreferences preferences, AutomationApi api, QueuedWork queuedWork,
                            SessionPort sessionPort) {
-        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, daemonThread("vsim-ai-tasks"),
-                queuedWork, sessionPort, daemonThread("vsim-ai-server"), Clock.systemDefaultZone());
+        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, DaemonThreads.single("vsim-ai-tasks"),
+                queuedWork, sessionPort, DaemonThreads.single("vsim-ai-server"), Clock.systemDefaultZone());
     }
 
     AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
@@ -223,14 +223,6 @@ public final class AiServerService {
         preferences.addListener(this::followPreferences);
         tasks.addListener(new TaskEvents(editorThread, runningTasks, listeners, this::notifyStateChanged));
         tasks.addPresentationListener(new WhatTheAiSays(this::onEditor));
-    }
-
-    private static Executor daemonThread(String name) {
-        return Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, name);
-            thread.setDaemon(true);
-            return thread;
-        });
     }
 
     // --- The server ---

@@ -24,6 +24,17 @@ public final class FileDialogs {
                 : Optional.empty();
     }
 
+    /** An open dialog titled {@code title} that lists the files {@code filter} accepts. */
+    public static Optional<Path> chooseOpen(java.awt.Component parent, Path directory, String title,
+                                            FileFilter filter) {
+        JFileChooser chooser = new JFileChooser(directory.toFile());
+        chooser.setDialogTitle(title);
+        chooser.setFileFilter(filter);
+        return chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION
+                ? Optional.of(chooser.getSelectedFile().toPath())
+                : Optional.empty();
+    }
+
     public static Optional<Path> chooseSave(java.awt.Component parent, Path directory, String suggestedName) {
         return chooseSave(parent, directory, suggestedName,
                 new FileNameExtensionFilter(Messages.text("file.filter.circuits"), "vsim"), FileNames::withExtension);
