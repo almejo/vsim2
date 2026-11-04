@@ -191,6 +191,20 @@ class SheetsInTheDialogTest {
     }
 
     @Test
+    void theNoteGoesWhenSkippingEmptySheetsIsNotTheCanvasChoice() {
+        PrintOptions options = rememberHundredPercent();
+        placeAboutTwoSheetsWide(options, PageGeometry.CENTIMETRE_POINTS);
+        open(PdfExportDialog.Mode.PDF, Optional.of(halfASheetIn(options, PageGeometry.CENTIMETRE_POINTS)));
+        assertThat(dialog.sheetNoteText()).isEqualTo(NOTE);
+
+        dialog.skipEmptySheets().doClick();
+        assertThat(dialog.sheetNoteText()).as("the canvas dims the empty sheets, the paper prints them").isEmpty();
+
+        dialog.skipEmptySheets().doClick();
+        assertThat(dialog.sheetNoteText()).isEqualTo(NOTE);
+    }
+
+    @Test
     void withoutAnAnchorNothingChangesAndThereIsNoNote() {
         PrintOptions options = rememberHundredPercent();
         placeAboutTwoSheetsWide(options, PageGeometry.CENTIMETRE_POINTS);
@@ -331,7 +345,8 @@ class SheetsInTheDialogTest {
                     preferences.printMarginPoints()), remembered.scaleMode(), anchor);
             List<Integer> canvasPrinted = sheetNumbers(PrintedSheets.of(SheetGrid.of(canvas),
                     TextFonts.withFont(TextFont.DEFAULT, () -> PrintScopes.wholeCircuitDrawnBounds(
-                            openDocument.document(), openDocument.registry(), remembered.includeStickyNotes())),
+                            openDocument.document(), openDocument.registry(), remembered.includeStickyNotes(),
+                            remembered.blackAndWhite())),
                     Optional.empty(), remembered.skipEmptySheets()));
 
             open(mode, anchor);

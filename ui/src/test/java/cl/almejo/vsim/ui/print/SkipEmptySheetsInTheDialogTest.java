@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.print;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -42,6 +43,7 @@ class SkipEmptySheetsInTheDialogTest {
     private final PdfExportDialogTest.FakeExporter exporter = new PdfExportDialogTest.FakeExporter();
     private final FakePrinterAccess printers = new FakePrinterAccess();
     private PdfExportDialog dialog;
+    private Set<ElementId> selection = Set.of();
 
     @AfterEach
     void close() {
@@ -52,7 +54,7 @@ class SkipEmptySheetsInTheDialogTest {
     }
 
     private PrintInput capture() {
-        return PrintInput.capture(openDocument, Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
+        return PrintInput.capture(openDocument, selection, ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
     }
 
     private PdfExportDialog open(PdfExportDialog.Mode mode) {
@@ -162,6 +164,25 @@ class SkipEmptySheetsInTheDialogTest {
 
         assertThat(confirmations).as("only the two switches' sheets go out").isEmpty();
         assertThat(exporter.painters).hasSize(1);
+        assertThat(exporter.painters.get(0).pages()).hasSize(printedCount());
+    }
+
+    @Test
+    void theSelectionScopeSkipsTheSheetsOfWhatIsNotSelected() {
+        UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 100, 75, Map.of());
+        selection = Set.of(UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of()).id(),
+                UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 200, 150, Map.of()).id());
+        open(PdfExportDialog.Mode.PDF);
+        atOneHundredPercent();
+        int whole = printedCount();
+
+        dialog.scopeSelection().doClick();
+
+        PageLayout layout = dialog.pageLayout().orElseThrow();
+        assertThat(layout.tiled()).isTrue();
+        assertThat(printedCount()).as("the unselected switch in the middle takes no sheet").isLessThan(whole);
+        assertThat(printedCount()).isLessThan(layout.pageCount());
+        dialog.saveButton().doClick();
         assertThat(exporter.painters.get(0).pages()).hasSize(printedCount());
     }
 

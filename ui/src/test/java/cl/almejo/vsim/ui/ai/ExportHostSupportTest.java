@@ -266,6 +266,49 @@ class ExportHostSupportTest {
         assertThat(export(request).pages()).as("off: every sheet").isEqualTo(every);
     }
 
+    /** The option as the user left it applies to every scope, as the dialog applies it (a selection here). */
+    @Test
+    void aPdfOfASelectionSkipsTheEmptySheetsToo() throws Exception {
+        preferences.setPrintDirectory(remembered);
+        Set<String> both = onEditor(() -> {
+            Component left = place(document, StandardComponentTypes.AND, 0, 0, Map.of());
+            Component right = place(document, StandardComponentTypes.AND, 200, 0, Map.of());
+            return Set.of(left.id().value(), right.id().value());
+        });
+        ExportRequest request = new ExportRequest(ID, ExportRequest.Format.PDF,
+                new ExportRequest.Scope.Elements(both), Optional.empty(), ExportRequest.ImageOptions.DEFAULT,
+                new ExportRequest.PdfOptions("A4", "PORTRAIT", 100, true, false, false, ""));
+        PrintOptions hundredPercent = new PrintOptions(new PrintScope.Selection(Set.of()), Paper.A4,
+                PageOrientation.PORTRAIT, new ScaleMode.Percentage(100), true, false, false, "Sumador.vsim");
+
+        preferences.setPrintOptions(skipping(hundredPercent, false));
+        int every = export(request).pages();
+        assertThat(every).as("the fixture: sheets between the two gates").isGreaterThan(2);
+        preferences.setPrintOptions(skipping(hundredPercent, true));
+        assertThat(export(request).pages()).as("only the gates' sheets").isEqualTo(2);
+    }
+
+    /** The refusal above 1 000 sheets counts the sheets that go out, as the dialog does. */
+    @Test
+    void theThousandSheetRefusalCountsTheSheetsThatGoOut() throws Exception {
+        preferences.setPrintDirectory(remembered);
+        onEditor(() -> {
+            place(document, StandardComponentTypes.AND, 0, 0, Map.of());
+            return place(document, StandardComponentTypes.AND, 2000, 1000, Map.of());
+        });
+        ExportRequest request = new ExportRequest(ID, ExportRequest.Format.PDF,
+                new ExportRequest.Scope.WholeCircuit(), Optional.empty(), ExportRequest.ImageOptions.DEFAULT,
+                new ExportRequest.PdfOptions("A4", "PORTRAIT", 400, true, false, false, ""));
+        PrintOptions fourHundred = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4,
+                PageOrientation.PORTRAIT, new ScaleMode.Percentage(400), true, false, false, "Sumador.vsim");
+
+        preferences.setPrintOptions(skipping(fourHundred, false));
+        assertThatThrownBy(() -> export(request)).isInstanceOfSatisfying(AutomationException.class,
+                refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
+        preferences.setPrintOptions(skipping(fourHundred, true));
+        assertThat(export(request).pages()).as("only the corners go out").isBetween(1, 10);
+    }
+
     private static PrintOptions skipping(PrintOptions base, boolean skipEmptySheets) {
         return new PrintOptions(base.scope(), base.paper(), base.orientation(), base.scaleMode(), base.withValues(),
                 base.blackAndWhite(), base.headerFooter(), base.title(), base.includeStickyNotes(),

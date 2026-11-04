@@ -6,12 +6,14 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.export.CircuitImage;
+import cl.almejo.vsim.ui.frames.FramePainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 import java.awt.geom.Rectangle2D;
@@ -72,21 +74,42 @@ public final class PrintScopes {
      * capture.
      */
     public static List<Bounds> wholeCircuitDrawnBounds(CircuitDocument document, ComponentTypeRegistry registry,
-                                                       boolean includeStickyNotes) {
+                                                       boolean includeStickyNotes, boolean blackAndWhite) {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(registry, "registry");
-        return counted(document, includeStickyNotes).stream().map(element -> DrawnBounds.of(element, registry))
-                .toList();
+        return counted(document, includeStickyNotes).stream()
+                .flatMap(element -> paintedBounds(element, registry, blackAndWhite).stream()).toList();
     }
 
     /**
      * Where each element {@code area} paints is drawn, in grid units, measured with the capture's frozen text font:
      * what the paper tells empty sheets by ({@link PrintedSheets}).
      */
-    static List<Bounds> drawnBounds(PrintInput input, PrintArea area) {
+    static List<Bounds> drawnBounds(PrintInput input, PrintArea area, boolean blackAndWhite) {
         return TextFonts.withFont(input.textFont(), () -> area.elements().stream()
                 .map(id -> input.document().element(id)).flatMap(Optional::stream)
-                .map(element -> DrawnBounds.of(element, input.registry())).toList());
+                .flatMap(element -> paintedBounds(element, input.registry(), blackAndWhite).stream()).toList());
+    }
+
+    /**
+     * Where {@code element} paints. A frame paints only its border (four lines), its title bar and, in colour with a
+     * tint, its inside: an untinted or black-and-white frame is not on the sheets its empty inside crosses.
+     */
+    private static List<Bounds> paintedBounds(DocumentElement element, ComponentTypeRegistry registry,
+                                              boolean blackAndWhite) {
+        if (!(element instanceof Frame frame)) {
+            return List.of(DrawnBounds.of(element, registry));
+        }
+        Bounds whole = new Bounds(frame.topLeft().x(), frame.topLeft().y(), frame.width(), frame.height());
+        if (!blackAndWhite && frame.tint() != FrameTint.NONE) {
+            return List.of(whole);
+        }
+        int titleBar = (int) Math.ceil(FramePainter.TITLE_BAR_HEIGHT / GridPoint.PIXELS_PER_UNIT);
+        return List.of(new Bounds(whole.x(), whole.y(), whole.width(), 0),
+                new Bounds(whole.x(), whole.maximumY(), whole.width(), 0),
+                new Bounds(whole.x(), whole.y(), 0, whole.height()),
+                new Bounds(whole.maximumX(), whole.y(), 0, whole.height()),
+                new Bounds(whole.x(), whole.y(), whole.width(), Math.min(titleBar, whole.height())));
     }
 
     private static boolean counts(DocumentElement element, boolean includeStickyNotes) {

@@ -35,7 +35,7 @@ final class SheetSummaryText {
         }
         String sheets = Messages.format("sheets.summary.many", paper, orientation, percent, layout.columns(),
                 layout.rows(), layout.pageCountExact());
-        if (layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES) {
+        if (printed.tooMany()) {
             return sheets + Messages.format("sheets.summary.tooMany", PdfExport.REFUSE_ABOVE_PAGES);
         }
         return printed.skippedCount() > 0 ? sheets + Messages.format("sheets.summary.printed", printed.count())

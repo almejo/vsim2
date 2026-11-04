@@ -108,11 +108,32 @@ final class PagePreview extends JPanel {
      * {@link PagePainter#pages()}); keeps the selected sheet when it exists.
      */
     void show(PagePainter shown, PageLayout shownLayout) {
+        int keptLayoutIndex = painter.isPresent() && sheetCount() > 0 ? selectedLayoutIndex() : -1;
         painter = Optional.of(shown);
         layout = Optional.of(shownLayout);
         int count = shown.pages().size();
-        selected = count == 0 ? 0 : Math.min(selected, count - 1);
+        selected = count == 0 ? 0 : nearestPosition(shown.pages(), keptLayoutIndex, selected);
         changed();
+    }
+
+    /**
+     * The position of the sheet of grid index {@code layoutIndex} among {@code printedPages}, or of the nearest one
+     * that goes out; {@code fallback} (kept inside) when there was no sheet selected.
+     */
+    private static int nearestPosition(List<PagePainter.Page> printedPages, int layoutIndex, int fallback) {
+        if (layoutIndex < 0 || printedPages.size() > PdfExport.REFUSE_ABOVE_PAGES) {
+            // (a refused layout is not walked: its sheets are all of them, in order)
+            return Math.min(layoutIndex < 0 ? fallback : layoutIndex, printedPages.size() - 1);
+        }
+        int nearest = 0;
+        for (int position = 1; position < printedPages.size(); position++) {
+            int distance = Math.abs(printedPages.get(position).layoutIndex() - layoutIndex);
+            int best = Math.abs(printedPages.get(nearest).layoutIndex() - layoutIndex);
+            if (distance < best) {
+                nearest = position;
+            }
+        }
+        return nearest;
     }
 
     /** Shows nothing (no area, or a layout that has no room). */

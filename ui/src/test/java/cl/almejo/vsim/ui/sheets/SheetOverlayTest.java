@@ -1,11 +1,15 @@
 package cl.almejo.vsim.ui.sheets;
 
+import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
@@ -478,12 +482,34 @@ class SheetOverlayTest {
 
     /** Presses at grid point {@code from} and drags, without releasing, {@code deltaX} grid units to the right. */
     private void pressAndDrag(Point2D from, int deltaX) {
+        pressAndDrag(from, deltaX, InputEvent.BUTTON1_DOWN_MASK);
+    }
+
+    /** As {@link #pressAndDrag(Point2D, int)}, the drag with {@code dragModifiers} (Ctrl copies). */
+    private void pressAndDrag(Point2D from, int deltaX, int dragModifiers) {
         Point2D pressed = pane.viewport().gridToScreen(from.getX(), from.getY());
         Point2D dragged = pane.viewport().gridToScreen(from.getX() + deltaX, from.getY());
         pane.getMouseListeners()[0].mousePressed(mouse(pane, MouseEvent.MOUSE_PRESSED, pressed,
                 InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
         pane.getMouseMotionListeners()[0].mouseDragged(mouse(pane, MouseEvent.MOUSE_DRAGGED, dragged,
-                InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+                dragModifiers, MouseEvent.NOBUTTON));
+    }
+
+    private void release(Point2D at) {
+        pane.getMouseListeners()[0].mouseReleased(mouse(pane, MouseEvent.MOUSE_RELEASED, at, 0,
+                MouseEvent.BUTTON1));
+    }
+
+    /** Drags the display of {@link #displayAndLamp()} to straddle the border left of the sheets; returns where. */
+    private Component dragTheDisplayAcrossTheBorder(int dragModifiers) {
+        Component display = displayAndLamp();
+        preferences.setShowSheets(true);
+        Rectangle2D bounds = drawn(display);
+        showTheCellLeftOfTheSheets();
+        pressAndDrag(new Point2D.Double(bounds.getCenterX(), bounds.getCenterY()),
+                deltaTo(bounds, boundaryLeftOfTheSheets()), dragModifiers);
+        assertThat(overlay().drawing().movingCuts()).as("the fixture: outlined while dragged").hasSize(1);
+        return display;
     }
 
     private Rectangle2D drawn(DocumentElement element) {
@@ -558,6 +584,123 @@ class SheetOverlayTest {
         assertThat(openDocument.document().revision()).as("nothing is edited during the drag").isEqualTo(revision);
         assertThat(openDocument.document().element(display.id())).contains(display);
         assertThat(grid().columns()).as("the sheets do not move").isEqualTo(2);
+    }
+
+    @Test
+    void theOutlineGoesWhenTheDragIsReleased() {
+        Component display = dragTheDisplayAcrossTheBorder(InputEvent.BUTTON1_DOWN_MASK);
+        Rectangle2D moved = drawn(pane.movingElements().getFirst());
+
+        release(pane.viewport().gridToScreen(moved.getCenterX(), moved.getCenterY()));
+
+        assertThat(pane.movingElements()).isEmpty();
+        assertThat(overlay().drawing().movingCuts()).isEmpty();
+        assertThat(openDocument.document().element(display.id())).as("the move is committed").isPresent();
+    }
+
+    @Test
+    void theOutlineGoesWithEscape() {
+        Component display = dragTheDisplayAcrossTheBorder(InputEvent.BUTTON1_DOWN_MASK);
+
+        assertThat(pane.pressKeyOnTool(java.awt.event.KeyEvent.VK_ESCAPE, false)).isTrue();
+
+        assertThat(pane.movingElements()).isEmpty();
+        assertThat(overlay().drawing().movingCuts()).isEmpty();
+        assertThat(openDocument.document().element(display.id()).orElseThrow()).as("nothing moved")
+                .isEqualTo(display);
+    }
+
+    @Test
+    void theOutlineGoesWhenTheToolIsSwitched() {
+        dragTheDisplayAcrossTheBorder(InputEvent.BUTTON1_DOWN_MASK);
+
+        pane.useDefaultTool();
+        pane.setTool(new cl.almejo.vsim.ui.tools.WireTool());
+
+        assertThat(pane.movingElements()).isEmpty();
+        assertThat(overlay().drawing().movingCuts()).isEmpty();
+    }
+
+    @Test
+    void aCtrlCopyIsOutlinedWhereTheCopyWouldLand() {
+        Component display = dragTheDisplayAcrossTheBorder(InputEvent.BUTTON1_DOWN_MASK
+                | InputEvent.CTRL_DOWN_MASK);
+
+        assertThat(pane.movingElements()).singleElement()
+                .satisfies(moving -> assertThat(moving.id()).isEqualTo(display.id()));
+        Rectangle2D copy = drawn(pane.movingElements().getFirst());
+        assertThat(overlay().drawing().movingCuts().getFirst().contains(onScreen(copy))).isTrue();
+        assertThat(openDocument.document().element(display.id()).orElseThrow()).as("the original stays")
+                .isEqualTo(display);
+    }
+
+    @Test
+    void aStickyNoteDragOutlinesNothingAndDoesNotFail() {
+        displayAndLamp();
+        preferences.setShowSheets(true);
+        StickyNote note = new StickyNote(openDocument.document().newStickyNoteId(), new GridPoint(0, 60), 8, 6,
+                StickyColor.YELLOW, new StickyText("nota"), false);
+        openDocument.execute(new AddElementsCommand(List.of(note)));
+        showTheCellLeftOfTheSheets();
+
+        pressAndDrag(new Point2D.Double(note.position().x() + 3, note.position().y() + 3),
+                deltaTo(drawn(note), boundaryLeftOfTheSheets()));
+
+        assertThat(overlay().drawing().movingCuts()).as("notes are not parts or frames").isEmpty();
+    }
+
+    @Test
+    void aDragInAnotherPaneIsOutlinedHereToo() {
+        Component display = displayAndLamp();
+        preferences.setShowSheets(true);
+        view.canvasPanes().split(cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation.VERTICAL, 0.5);
+        CircuitCanvas other = view.panes().get(1);
+        other.setSize(WIDTH, HEIGHT);
+        SheetGrid grid = grid();
+        Rectangle2D first = grid.sheetRectangle(0, 0);
+        double step = grid.sheetRectangle(1, 0).getX() - first.getX();
+        other.viewport().showAt(0.5, first.getX() - step / 2, first.getCenterY(), WIDTH, HEIGHT);
+        showTheCellLeftOfTheSheets();
+        Rectangle2D bounds = drawn(display);
+
+        pressAndDrag(new Point2D.Double(bounds.getCenterX(), bounds.getCenterY()),
+                deltaTo(bounds, boundaryLeftOfTheSheets()));
+
+        SheetOverlay otherOverlay = other.overlays().stream().filter(SheetOverlay.class::isInstance)
+                .map(SheetOverlay.class::cast).findFirst().orElseThrow();
+        assertThat(other.movingElements()).extracting(DocumentElement::id).containsExactly(display.id());
+        assertThat(otherOverlay.drawing().movingCuts()).as("the other pane outlines it too").hasSize(1);
+    }
+
+    @Test
+    void theMovingPartsAreMeasuredOncePerChangeOfThePreviewNotAtEveryRepaint() {
+        dragTheDisplayAcrossTheBorder(InputEvent.BUTTON1_DOWN_MASK);
+        int measured = overlay().movingMeasurements();
+
+        overlay().drawing();
+        paint();
+        overlay().drawing();
+
+        assertThat(overlay().movingMeasurements()).as("same preview, nothing measured again").isEqualTo(measured);
+        Rectangle2D moved = drawn(pane.movingElements().getFirst());
+        pane.getMouseMotionListeners()[0].mouseDragged(mouse(pane, MouseEvent.MOUSE_DRAGGED,
+                pane.viewport().gridToScreen(moved.getCenterX() + 1, moved.getCenterY()),
+                InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+        overlay().drawing();
+        assertThat(overlay().movingMeasurements()).as("another offset").isGreaterThan(measured);
+    }
+
+    @Test
+    void theLatticeDashesKeepThePhaseOfTheSheetsCorner() {
+        assertThat(SheetOverlay.dashStart(3)).as("the last dash period at or before the edge").isEqualTo(-5);
+        assertThat(SheetOverlay.dashStart(-3)).isEqualTo(-3);
+        assertThat(SheetOverlay.dashStart(8)).isZero();
+        assertThat(SheetOverlay.dashStart(100)).isEqualTo(-4);
+        for (int anchor = -50; anchor < 50; anchor++) {
+            assertThat(SheetOverlay.dashStart(anchor)).isLessThanOrEqualTo(0).isGreaterThan(-8);
+            assertThat(Math.floorMod(SheetOverlay.dashStart(anchor) - anchor, 8)).as("same phase as %d", anchor)
+                    .isZero();
+        }
     }
 
     @Test

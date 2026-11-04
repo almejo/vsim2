@@ -88,7 +88,8 @@ public final class SheetsFeatures {
         this.preferences = view.services().preferences();
         this.anchors = anchors;
         this.extension = extension;
-        this.quickOptions = new SheetsQuickOptions(view, preferences, menuShower);
+        this.quickOptions = new SheetsQuickOptions(view, preferences, menuShower,
+                () -> picture().map(shown -> shown.grid().tiled()).orElse(false));
         this.toggle = new AbstractAction(Messages.text("action.showSheets")) {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -202,7 +203,8 @@ public final class SheetsFeatures {
         SheetGrid grid = SheetGrid.of(layout);
         // the paper's rule, on the live document: the empty sheets «Saltar hojas vacías» leaves out
         PrintedSheets printed = PrintedSheets.of(grid, PrintScopes.wholeCircuitDrawnBounds(document(),
-                openDocument.registry(), options.includeStickyNotes()), Optional.empty(), options.skipEmptySheets());
+                openDocument.registry(), options.includeStickyNotes(), options.blackAndWhite()), Optional.empty(),
+                options.skipEmptySheets());
         return Optional.of(new SheetPicture(grid, printed, area.get(), cuts(grid),
                 SheetSummaryText.of(options, layout, printed)));
     }

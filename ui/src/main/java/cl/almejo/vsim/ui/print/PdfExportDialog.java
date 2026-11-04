@@ -622,7 +622,7 @@ public final class PdfExportDialog extends JPanel {
         double smallest = layout.smallestTextPoints(smallestTextPixels(area.get(), options));
         String warningText = options.scaleMode() instanceof ScaleMode.FitToOnePage && layout.scale() < 1
                 && smallest < MINIMUM_LEGIBLE_POINTS ? Messages.format("print.warning.smallText", smallest) : "";
-        boolean tooMany = layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES;
+        boolean tooMany = printed.tooMany();
         fit.setVisible(layout.pageCountExact() > 1);
         show(statusText, warningText, tooMany
                 ? Notice.hint(Messages.format("print.tooManyPages", PdfExport.REFUSE_ABOVE_PAGES))
@@ -660,7 +660,7 @@ public final class PdfExportDialog extends JPanel {
 
     /**
      * Whether the options that decide the sheets (paper, orientation, scale, header and footer, sheet guides, sticky
-     * notes, margin) are the remembered ones the canvas lays out with; the note «las hojas que ves» is honest only then.
+     * notes, skipping empty sheets, margin) are the remembered ones the canvas lays out with; the note «las hojas que ves» is honest only then.
      */
     private boolean sameSheetsAsTheCanvas(PrintOptions options) {
         PrintOptions remembered = preferences.printOptions(input.circuitName());
@@ -669,6 +669,7 @@ public final class PdfExportDialog extends JPanel {
                 && options.headerFooter() == remembered.headerFooter()
                 && options.sheetGuides() == remembered.sheetGuides()
                 && options.includeStickyNotes() == remembered.includeStickyNotes()
+                && options.skipEmptySheets() == remembered.skipEmptySheets()
                 && marginPoints == preferences.printMarginPoints();
     }
 
@@ -796,7 +797,7 @@ public final class PdfExportDialog extends JPanel {
     }
 
     private PagePainter painterOf(Plan chosen) {
-        return new PagePainter(input, chosen.area(), chosen.options(), chosen.layout());
+        return new PagePainter(input, chosen.area(), chosen.options(), chosen.layout(), chosen.printed());
     }
 
     /** «Actualizar»: a new copy of the circuit as it is now. */
@@ -846,7 +847,7 @@ public final class PdfExportDialog extends JPanel {
      * more than {@link PdfExport#CONFIRM_ABOVE_PAGES} printed sheets only when the user says so.
      */
     private boolean sheetCountAccepted(Plan chosen) {
-        if (chosen.layout().pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES) {
+        if (chosen.printed().tooMany()) {
             return false;
         }
         int count = chosen.printed().count();

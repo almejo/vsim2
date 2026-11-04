@@ -155,6 +155,39 @@ class SheetSummaryTest {
     }
 
     @Test
+    void theQuickOptionsOfferSkippingOnlyWithSeveralSheets() {
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(25), true));
+        assertThat(features.picture().orElseThrow().grid().tiled()).as("the fixture: one sheet").isFalse();
+        assertThat(texts(openPopup())).doesNotContain("Saltar hojas vacías");
+
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(100), true));
+        assertThat(texts(openPopup())).contains("Saltar hojas vacías");
+    }
+
+    @Test
+    void oneSheetThatGoesOutIsSaidInTheSingularInBothLanguages() {
+        String[] keys = {"sheets.summary.printed", "print.status.printed"};
+        for (String key : keys) {
+            assertThat(cl.almejo.vsim.ui.i18n.Messages.format(key, 1)).as(key).isEqualTo(" · se imprime 1");
+            assertThat(cl.almejo.vsim.ui.i18n.Messages.format(key, 4)).as(key).isEqualTo(" · se imprimen 4");
+            java.util.ResourceBundle english = java.util.ResourceBundle.getBundle("i18n.messages",
+                    java.util.Locale.ENGLISH);
+            assertThat(new java.text.MessageFormat(english.getString(key), java.util.Locale.ENGLISH)
+                    .format(new Object[] {1})).as(key).isEqualTo(" · 1 sheet printed");
+            assertThat(new java.text.MessageFormat(english.getString(key), java.util.Locale.ENGLISH)
+                    .format(new Object[] {4})).as(key).isEqualTo(" · 4 sheets printed");
+        }
+    }
+
+    @Test
+    void tooManyGridSheetsAreNotTooManyWhenFewGoOut() {
+        place(openDocument, StandardComponentTypes.LED, 700, 900, Map.of());
+        preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(400), true));
+
+        assertThat(summary()).doesNotContain("demasiadas").contains(" · se imprimen ");
+    }
+
+    @Test
     void tooManySheetsForPrintingAreSaid() {
         place(openDocument, StandardComponentTypes.LED, 700, 900, Map.of());
         preferences.setPrintOptions(SheetsFeaturesTest.options(Paper.A4, new ScaleMode.Percentage(400)));

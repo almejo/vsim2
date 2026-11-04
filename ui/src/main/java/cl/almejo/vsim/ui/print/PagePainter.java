@@ -103,6 +103,19 @@ public final class PagePainter {
      * clip cut it (only for tests that check that leaving the other sheets' elements out changes nothing).
      */
     PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout, boolean cutsToSheet) {
+        this(input, area, options, layout, cutsToSheet, null);
+    }
+
+    /**
+     * Like the public constructor, with the sheets that go out already worked out ({@link PrintedSheets#of} for
+     * these very arguments: the dialog has it from its plan, so one change computes it once).
+     */
+    PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout, PrintedSheets printed) {
+        this(input, area, options, layout, true, Objects.requireNonNull(printed, "printed"));
+    }
+
+    private PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout,
+                        boolean cutsToSheet, PrintedSheets knownPrinted) {
         this.cutsToSheet = cutsToSheet;
         this.input = Objects.requireNonNull(input, "input");
         this.area = Objects.requireNonNull(area, "area");
@@ -121,7 +134,7 @@ public final class PagePainter {
                 .orElse(Map.of());
         this.busWires = busWires(input);
         this.verticalWireCompanions = verticalWireCompanions(input, drawnBounds.keySet());
-        this.printed = PrintedSheets.of(input, area, options, layout);
+        this.printed = knownPrinted != null ? knownPrinted : PrintedSheets.of(input, area, options, layout);
         this.decorations = new PageDecorations(input.textFont().installedFamily());
         this.pageSize = new PdfPages.PageSize(layout.geometry().paperWidthPoints(),
                 layout.geometry().paperHeightPoints());

@@ -417,8 +417,15 @@ class PdfExportDialogTest {
         dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.OTHER);
         dialog.percentSpinner().setValue(400);
         assertThat(dialog.pageLayout().orElseThrow().pageCountExact()).isGreaterThan(1000);
+        assertThat(dialog.skipEmptySheets().isSelected()).as("the fixture: skipping is on").isTrue();
+        assertThat(dialog.printedSheets().orElseThrow().count()).as("only the corners go out").isLessThan(10);
+        assertThat(dialog.saveButton().isEnabled()).as("the sheets that go out are what counts").isTrue();
+        dialog.skipEmptySheets().doClick();
         assertThat(dialog.saveButton().isEnabled()).isFalse();
         assertThat(dialog.hintText()).contains("demasiadas hojas");
+        dialog.skipEmptySheets().doClick();
+        assertThat(dialog.saveButton().isEnabled()).isTrue();
+        dialog.skipEmptySheets().doClick();
         dialog.scaleChoice().setSelectedItem(PdfExportDialog.ScaleChoice.FIT);
         assertThat(dialog.saveButton().isEnabled()).isTrue();
         assertThat(dialog.hintText()).isEmpty();

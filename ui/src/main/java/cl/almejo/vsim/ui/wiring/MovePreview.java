@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.wiring;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.wiring.FollowPlan;
@@ -107,8 +109,8 @@ public final class MovePreview {
     }
 
     /**
-     * The elements {@code ids} names, where moving them by the delta would put them (read-only: the document is not
-     * touched); none for a zero delta, as the preview shows nothing then. For the canvas overlays that follow a drag,
+     * The parts and frames {@code ids} names (the rest, wires above all, are not translated: nobody outlines them),
+     * where moving them by the delta would put them (read-only: the document is not touched); none for a zero delta, as the preview shows nothing then. For the canvas overlays that follow a drag,
      * such as the sheets' cut outline ({@link cl.almejo.vsim.ui.tools.Tool#movingElements}).
      */
     public static List<DocumentElement> movedElements(ToolContext context, Set<ElementId> ids, int deltaX,
@@ -119,7 +121,8 @@ public final class MovePreview {
         CircuitDocument document = context.openDocument().document();
         List<DocumentElement> moved = new ArrayList<>();
         for (ElementId id : ids) {
-            document.element(id).ifPresent(element -> moved.add(element.translate(deltaX, deltaY)));
+            document.element(id).filter(element -> element instanceof Component || element instanceof Frame)
+                    .ifPresent(element -> moved.add(element.translate(deltaX, deltaY)));
         }
         return List.copyOf(moved);
     }

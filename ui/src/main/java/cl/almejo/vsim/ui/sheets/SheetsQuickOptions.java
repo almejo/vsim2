@@ -18,6 +18,7 @@ import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -38,8 +39,12 @@ final class SheetsQuickOptions {
     private final EditorView view;
     private final AppPreferences preferences;
     private final SheetsFeatures.MenuShower menuShower;
+    /** Whether the sheets on the canvas are several: «Saltar hojas vacías» does nothing on one. */
+    private final BooleanSupplier severalSheets;
 
-    SheetsQuickOptions(EditorView view, AppPreferences preferences, SheetsFeatures.MenuShower menuShower) {
+    SheetsQuickOptions(EditorView view, AppPreferences preferences, SheetsFeatures.MenuShower menuShower,
+                       BooleanSupplier severalSheets) {
+        this.severalSheets = severalSheets;
         this.view = view;
         this.preferences = preferences;
         this.menuShower = menuShower;
@@ -55,8 +60,10 @@ final class SheetsQuickOptions {
         menu.addSeparator();
         addGroup(menu, scaleItems(options));
         menu.addSeparator();
-        menu.add(skipEmptySheetsItem(options));
-        menu.addSeparator();
+        if (severalSheets.getAsBoolean()) {
+            menu.add(skipEmptySheetsItem(options));
+            menu.addSeparator();
+        }
         menu.add(new JMenuItem(Messages.text("sheets.summary.moreOptions"))).addActionListener(event -> moreOptions());
         menuShower.show(menu, invoker, x, y);
     }

@@ -539,6 +539,24 @@ class PagePainterTest {
     }
 
     @Test
+    void theLegendMovesToTheFirstPrintedSheetWhenSheetOneIsSkipped() {
+        // one part at the left, low down, another at the top, far right: nothing falls on the corner sheet
+        add(StandardComponentTypes.AND, 4, 200, Map.of());
+        add(StandardComponentTypes.AND, 300, 4, Map.of());
+        PrintInput input = input();
+        ScaleMode full = new ScaleMode.Percentage(100);
+        PrintOptions legend = skipping(options(new PrintScope.WholeCircuit(), full, true, true, true), true);
+        PagePainter painter = painter(input, legend);
+        assertThat(painter.pages().get(0).layoutIndex()).as("the fixture: sheet 1 is skipped").isPositive();
+        Rectangle2D footerMiddle = slice(footerBand(layoutOf(input, legend).geometry()), 0.4, 0.6);
+
+        assertThat(text(render(painter, painter.pages().get(0).layoutIndex()), footerMiddle))
+                .as("the legend on the first sheet that goes out").isPositive();
+        assertThat(text(render(painter, painter.pages().get(1).layoutIndex()), footerMiddle))
+                .as("only on that one").isZero();
+    }
+
+    @Test
     void aPrintedSheetKeepsItsGridNumberInTheFooter() {
         bigCircuit();
         PrintInput input = input();

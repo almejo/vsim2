@@ -17,11 +17,14 @@ import java.util.OptionalInt;
  * A sheet is empty when no drawn element of the printed area (its {@code DrawnBounds}, cut to a frame's crop)
  * reaches into the sheet's whole window, the overlap strips included: an element in a strip counts for both sheets,
  * and an element only touching a border does not count for the sheet beyond it. Nothing is skipped on a single
- * sheet, when every sheet would be empty (then the layout goes out as always), or above
- * {@link PdfExport#REFUSE_ABOVE_PAGES} sheets (which never go out anyway). Sheets keep their numbers: a skipped sheet
+ * sheet, when every sheet would be empty (then the layout goes out as always), or above a million sheets (which
+ * never go out anyway). The refusal above {@link PdfExport#REFUSE_ABOVE_PAGES} counts the sheets that go out. Sheets keep their numbers: a skipped sheet
  * leaves a gap, «Hoja 5 de 6» stays «Hoja 5 de 6». Immutable.
  */
 public final class PrintedSheets {
+
+    /** Above this many sheets of the grid nothing is told apart: such a layout is refused whatever is empty. */
+    static final int SCAN_LIMIT = 1_000_000;
 
     private final int sheetCount;
     private final int columns;
@@ -50,7 +53,7 @@ public final class PrintedSheets {
         Objects.requireNonNull(drawnBounds, "drawnBounds");
         Objects.requireNonNull(clip, "clip");
         PageLayout layout = grid.layout();
-        if (!skipEmptySheets || !grid.tiled() || layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES) {
+        if (!skipEmptySheets || !grid.tiled() || layout.pageCountExact() > SCAN_LIMIT) {
             return all(layout);
         }
         boolean[] used = new boolean[layout.pageCount()];
@@ -78,7 +81,7 @@ public final class PrintedSheets {
         if (!options.skipEmptySheets() || !layout.tiled()) {
             return all(layout);
         }
-        return of(SheetGrid.of(layout), PrintScopes.drawnBounds(input, area), area.clip(), true);
+        return of(SheetGrid.of(layout), PrintScopes.drawnBounds(input, area, options.blackAndWhite()), area.clip(), true);
     }
 
     /** Where {@code bounds} is drawn once cut to {@code clip}; empty when the clip cuts it all away. */
@@ -119,6 +122,11 @@ public final class PrintedSheets {
     /** How many sheets go out. */
     public int count() {
         return printedIndices == null ? sheetCount : printedIndices.length;
+    }
+
+    /** Whether too many sheets go out ({@link PdfExport#REFUSE_ABOVE_PAGES}): they are refused, not printed. */
+    public boolean tooMany() {
+        return count() > PdfExport.REFUSE_ABOVE_PAGES;
     }
 
     /** How many empty sheets are skipped; 0 when every sheet goes out. */

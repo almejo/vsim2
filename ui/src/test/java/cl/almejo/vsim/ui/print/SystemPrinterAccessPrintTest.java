@@ -175,11 +175,16 @@ class SystemPrinterAccessPrintTest {
 
     /** Four A4 portrait sheets at 100 %. */
     private PagePainter fourSheets() {
+        return fourSheets(false);
+    }
+
+    /** The four sheets of {@link #fourSheets()} with «Saltar hojas vacías»: only sheets 1 and 4 go out. */
+    private PagePainter fourSheets(boolean skipEmptySheets) {
         document.add(registry.require(StandardComponentTypes.AND).newComponent(document.newComponentId(),
                 new GridPoint(4, 4), Rotation.R0, Map.of(), ""));
         wire(document, 95, 125, 100, 125);
         PrintOptions options = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4, PageOrientation.PORTRAIT,
-                new ScaleMode.Percentage(100), true, false, false, "");
+                new ScaleMode.Percentage(100), true, false, false, "").withSkipEmptySheets(skipEmptySheets);
         PrintInput input = input();
         PrintArea area = PrintScopes.area(input, options.scope()).orElseThrow();
         return new PagePainter(input, area, options, PageLayout.of(area.gridArea(),
@@ -223,6 +228,21 @@ class SystemPrinterAccessPrintTest {
                 .isEqualTo(new PageRanges(2, 3));
         assertThat(printerJob.asked).isEqualTo(8);
         assertThat(done).as("only the range's sheets count: 2 of 2 at the end").containsExactly(1, 2);
+    }
+
+    /** A page range of the printer's dialog counts the sheets that go out: «2» is the second printed one. */
+    @Test
+    void aPageRangeCountsThePrintedSheetsWhenEmptyOnesAreSkipped() throws Exception {
+        attributes.add(new PageRanges(2, 2));
+        PagePainter skipping = fourSheets(true);
+        assertThat(skipping.pages()).extracting(PagePainter.Page::layoutIndex).as("the fixture")
+                .containsExactly(0, 3);
+
+        print(skipping).get();
+
+        assertThat(printerJob.pageable.getNumberOfPages()).isEqualTo(2);
+        assertThat(done).as("one sheet in the range: the last printed one").containsExactly(1);
+        assertThat(SystemPrinterAccess.printedPages(attributes, 2)).containsExactly(1);
     }
 
     @Test

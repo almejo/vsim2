@@ -252,9 +252,9 @@ final class ExportHostSupport {
         ScaleMode scaleMode = chosen.scalePercent() == 0 ? new ScaleMode.FitToOnePage()
                 : new ScaleMode.Percentage(chosen.scalePercent());
         String title = chosen.title().isBlank() ? withoutExtension(document.displayName()) : chosen.title();
-        // «Saltar hojas vacías» as the user left it in the dialog, for the whole circuit only (like the sheets shown)
-        boolean skipEmptySheets = request.scope() instanceof ExportRequest.Scope.WholeCircuit
-                && preferences.map(remembered -> remembered.printOptions(title).skipEmptySheets()).orElse(false);
+        // «Saltar hojas vacías» as the user left it in the dialog, in every scope, as the dialog applies it
+        boolean skipEmptySheets = preferences.map(remembered -> remembered.printOptions(title).skipEmptySheets())
+                .orElse(false);
         PrintOptions options = new PrintOptions(scope, Paper.valueOf(chosen.paper()),
                 PageOrientation.valueOf(chosen.orientation()), scaleMode, chosen.withValues(), chosen.blackAndWhite(),
                 chosen.headerFooter(), title, request.includeStickyNotes()).withSkipEmptySheets(skipEmptySheets);
@@ -269,14 +269,15 @@ final class ExportHostSupport {
                     + "with these options; try another paper, orientation or scale",
                     Map.of("problem", layout.problem().get()));
         }
-        if (layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES) {
-            throw new AutomationException(AutomationError.INVALID_PARAMETER, "That would be "
-                    + layout.pageCountExact() + " sheets; at most " + PdfExport.REFUSE_ABOVE_PAGES
-                    + " (fit it to one sheet or use a smaller scale)",
-                    Map.of("maximum", PdfExport.REFUSE_ABOVE_PAGES));
-        }
         PagePainter painter = new PagePainter(input, area, options, layout);
         int pages = painter.pages().size();
+        // the sheets that go out count (empty ones skipped when the option is on), as in the dialog
+        if (pages > PdfExport.REFUSE_ABOVE_PAGES) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "That would be "
+                    + (pages == Integer.MAX_VALUE ? layout.pageCountExact() : pages) + " sheets; at most "
+                    + PdfExport.REFUSE_ABOVE_PAGES + " (fit it to one sheet or use a smaller scale)",
+                    Map.of("maximum", PdfExport.REFUSE_ABOVE_PAGES));
+        }
         PdfExporter exporter = new PdfExport(Runnable::run);
         return new Prepared(id, version, document, request.format(), folder, baseName,
                 target -> exporter.export(painter, target, new PdfExporter.ProgressListener() {

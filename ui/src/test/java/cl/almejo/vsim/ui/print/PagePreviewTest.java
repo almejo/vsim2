@@ -237,6 +237,47 @@ class PagePreviewTest {
     }
 
     @Test
+    void ticksSkippingKeepsTheSameGridSheetWhenItIsStillPrinted() {
+        PagePainter skipping = skipping();
+        int lastPrinted = skipping.pages().get(skipping.pages().size() - 1).layoutIndex();
+        preview.selectSheet(lastPrinted); // every sheet goes out now: position and grid index are the same
+
+        preview.show(skipping, layout);
+
+        assertThat(preview.sheetLabel()).as("the same grid sheet").isEqualTo("Hoja " + (lastPrinted + 1) + " de "
+                + layout.pageCount());
+        assertThat(preview.selectedSheet()).isEqualTo(skipping.pages().size() - 1);
+    }
+
+    @Test
+    void unticksSkippingKeepsTheSameGridSheetToo() {
+        PagePainter skipping = skipping();
+        preview.show(skipping, layout);
+        preview.selectSheet(skipping.pages().size() - 1);
+        int grid = skipping.pages().get(skipping.pages().size() - 1).layoutIndex();
+        assertThat(grid).as("the fixture: position and grid index differ").isGreaterThan(skipping.pages().size() - 1);
+
+        preview.show(painter, layout); // every sheet again
+
+        assertThat(preview.sheetLabel()).isEqualTo("Hoja " + (grid + 1) + " de " + layout.pageCount());
+    }
+
+    @Test
+    void skippingKeepsTheNearestPrintedSheetWhenTheSelectedOneIsSkipped() {
+        PagePainter skipping = skipping();
+        int skippedIndex = 1;
+        assertThat(skipping.printedSheets().isSkipped(skippedIndex)).as("the fixture skips sheet 2").isTrue();
+        preview.selectSheet(skippedIndex);
+
+        preview.show(skipping, layout);
+
+        int shown = skipping.pages().get(preview.selectedSheet()).layoutIndex();
+        for (PagePainter.Page page : skipping.pages()) {
+            assertThat(Math.abs(page.layoutIndex() - skippedIndex)).isGreaterThanOrEqualTo(Math.abs(shown - skippedIndex));
+        }
+    }
+
+    @Test
     void skippingEmptySheetsTheMapCannotSelectASkippedSheet() {
         PagePainter skipping = skipping();
         preview.show(skipping, layout);

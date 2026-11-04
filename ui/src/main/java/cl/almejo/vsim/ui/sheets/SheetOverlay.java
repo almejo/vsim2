@@ -71,6 +71,11 @@ final class SheetOverlay implements CanvasOverlay {
 
     private final SheetsFeatures features;
     private final CircuitCanvas pane;
+    /** What the last measure of the moving parts was made on, and gave (see {@link #cutsOfTheMoving}). */
+    private SheetGrid measuredGrid;
+    private List<DocumentElement> measuredMoving = List.of();
+    private List<Rectangle2D> measuredCuts = List.of();
+    private int movingMeasurements;
 
     SheetOverlay(SheetsFeatures features, CircuitCanvas pane) {
         this.features = features;
@@ -157,15 +162,29 @@ final class SheetOverlay implements CanvasOverlay {
             clip.subtract(new Area(new Rectangle(occupied.x, occupied.y, occupied.width + 1, occupied.height + 1)));
             outside.clip(clip);
             outside.setColor(latticeColor(scheme));
+            // each line starts a whole dash period before the pane's edge, counted from the sheets' own corner: the dashes
+            // scroll with the circuit and keep the phase of the sheets' borders, instead of crawling with the pane
+            int fromY = dashStart(occupied.y);
+            int fromX = dashStart(occupied.x);
             for (int x : drawing.latticeColumns()) {
-                outside.drawLine(x, 0, x, pane.getHeight());
+                outside.drawLine(x, fromY, x, pane.getHeight());
             }
             for (int y : drawing.latticeRows()) {
-                outside.drawLine(0, y, pane.getWidth(), y);
+                outside.drawLine(fromX, y, pane.getWidth(), y);
             }
         } finally {
             outside.dispose();
         }
+    }
+
+    /**
+     * Where a lattice line crossing the pane starts so that its dashes keep the phase of a line that starts at
+     * {@code anchor} (the sheets' corner, which moves with the circuit): the last whole dash period at or before the
+     * pane's edge (0).
+     */
+    static int dashStart(int anchor) {
+        int period = (int) (2 * DASH);
+        return anchor + Math.floorDiv(-anchor, period) * period;
     }
 
     /** The colour of the lattice outside the sheets: {@code scheme}'s sheet grey, much fainter; read at paint time. */
@@ -250,21 +269,44 @@ final class SheetOverlay implements CanvasOverlay {
         }
         Rectangle visible = new Rectangle(0, 0, pane.getWidth(), pane.getHeight());
         List<Rectangle> marks = new ArrayList<>();
-        for (DocumentElement element : moving) {
-            if (!(element instanceof Component) && !(element instanceof Frame)) {
-                continue;
-            }
-            Bounds bounds = DrawnBounds.of(element, pane.openDocument().registry());
-            Rectangle2D drawn = new Rectangle2D.Double(bounds.x(), bounds.y(), bounds.width(), bounds.height());
-            if (grid.isCutOnLattice(drawn)) {
-                Rectangle mark = onScreen(drawn);
-                mark.grow(CUT_MARGIN, CUT_MARGIN);
-                if (mark.intersects(visible)) {
-                    marks.add(mark);
-                }
+        for (Rectangle2D drawn : cutsOfTheMoving(grid, moving)) {
+            Rectangle mark = onScreen(drawn);
+            mark.grow(CUT_MARGIN, CUT_MARGIN);
+            if (mark.intersects(visible)) {
+                marks.add(mark);
             }
         }
         return marks;
+    }
+
+    /**
+     * Where the moving parts and frames are drawn, those a border cuts, in grid units: measured once per change of the
+     * preview (another offset or element set, or other sheets), not at every repaint of this pane.
+     */
+    private List<Rectangle2D> cutsOfTheMoving(SheetGrid grid, List<DocumentElement> moving) {
+        if (grid != measuredGrid || !moving.equals(measuredMoving)) {
+            List<Rectangle2D> cut = new ArrayList<>();
+            for (DocumentElement element : moving) {
+                if (!(element instanceof Component) && !(element instanceof Frame)) {
+                    continue;
+                }
+                Bounds bounds = DrawnBounds.of(element, pane.openDocument().registry());
+                Rectangle2D drawn = new Rectangle2D.Double(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+                if (grid.isCutOnLattice(drawn)) {
+                    cut.add(drawn);
+                }
+            }
+            measuredGrid = grid;
+            measuredMoving = List.copyOf(moving);
+            measuredCuts = List.copyOf(cut);
+            movingMeasurements++;
+        }
+        return measuredCuts;
+    }
+
+    /** How many times the moving parts were measured (for tests: a repaint without a change measures nothing). */
+    int movingMeasurements() {
+        return movingMeasurements;
     }
 
     /**
