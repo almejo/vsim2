@@ -131,6 +131,7 @@ public final class Application {
     private final ThemeManager themeManager;
     private final TextFontManager textFontManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
+    private SystemOpenFiles systemOpenFiles = new SystemOpenFiles();
     private final RecentFiles recentFiles;
     private final SessionStore sessionStore;
     private final RecoveryStore recoveryStore;
@@ -370,6 +371,29 @@ public final class Application {
                 windows.all().get(0).openOrImport(components);
             }
         }, () -> startAutosave(reopened));
+        // Files the system sent while the start was running (macOS open-file events) open now, after the start's own.
+        systemOpenFiles.attach(this::openFromSystem);
+    }
+
+    /**
+     * The window system asks to open these files (macOS Finder double click, drop on the Dock icon): the same path as
+     * the command line. Component files are imported into the library; with no window left one is made first.
+     */
+    void openFromSystem(List<Path> files) {
+        List<Path> components = files.stream().filter(LibraryDirectory::isComponentFile).toList();
+        List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
+        StartupSteps.openEach(circuits, file -> openPaths(List.of(file), null));
+        if (!components.isEmpty()) {
+            if (windows.isEmpty()) {
+                newDocument();
+            }
+            windows.all().get(0).openOrImport(components);
+        }
+    }
+
+    /** Where the system's open-file events wait until the start is over; set before {@link #start}. */
+    public void setSystemOpenFiles(SystemOpenFiles incoming) {
+        systemOpenFiles = Objects.requireNonNull(incoming);
     }
 
     private void startAutosave(List<RecoveryCopy> reopened) {
