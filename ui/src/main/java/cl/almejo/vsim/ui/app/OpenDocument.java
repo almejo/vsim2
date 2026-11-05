@@ -1,7 +1,9 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.command.Command;
+import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.LoosensPins;
 import cl.almejo.vsim.core.command.SetSwitchValueCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -18,6 +20,11 @@ import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.OpenedCircuit;
+import cl.almejo.vsim.core.library.BodyEdits;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
+import cl.almejo.vsim.core.library.InstancePaths;
+import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
@@ -75,6 +82,13 @@ import java.util.function.Function;
 /**
  * One circuit being edited: document, undo history, compiled netlist and its own simulation thread.
  * Use it from the Swing event thread only.
+ *
+ * <p>A <em>body place</em> ({@link #openBody}, spec §10.3) is the same class in body mode: one definition's body
+ * opened as a place of its document. Its {@link #document()} is a working copy of the body (shared by every place of
+ * that definition, {@link BodyWorkingCopy}); history, registry, file and simulation are the document's; its snapshot
+ * is the document's seen from inside the context instance ({@link #contextPath()}); inputs go to that instance by
+ * path, never as edits; and every command is written back to the definition as one undo step of the document
+ * ({@link EditInsideCommand}). The ~50 users of this class (canvas, tools, panels, extensions) work on either.
  */
 public final class OpenDocument implements AutoCloseable {
 
@@ -103,8 +117,8 @@ public final class OpenDocument implements AutoCloseable {
      * yet. Cleared from the simulation thread.
      */
     private final Map<ElementId, Value> unpublishedValues = new ConcurrentHashMap<>();
-    /** The push buttons pressed and not yet let go, by any pane or window of this document. */
-    private final Set<ElementId> heldButtons = new LinkedHashSet<>();
+    /** The push buttons pressed and not yet let go (simulation ids), by any pane, window or place of this document. */
+    private final Set<String> heldButtons = new LinkedHashSet<>();
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
@@ -118,9 +132,54 @@ public final class OpenDocument implements AutoCloseable {
     /** Whether the simulated circuit has a clock, also inside a user component (M6.1-B); set with each recompile. */
     private boolean hasClock;
     private final Listeners<Runnable> stepModeListeners = new Listeners<>();
+    /** The working copies of the bodies opened from this document, by definition id (main document only). */
+    private final Map<String, BodyWorkingCopy> workingCopies = new HashMap<>();
+    /** The pieces each applied inside edit could not give a new pin where it goes ({@link #keptOldShapes()}). */
+    private final Map<Command, List<KeptOldShape>> keptByCommand = new LinkedHashMap<>();
+    /** Null for a document; for a body place, its document and working copy. */
+    private final Body body;
+    /** A body place's context instance path; empty is «Sin valores» (always empty for a document). */
+    private volatile Optional<String> contextPath = Optional.empty();
+    private final Listeners<Runnable> refreshListeners = new Listeners<>();
+    private final Listeners<Runnable> bodyRemovedListeners = new Listeners<>();
+    /** A body place's last remapped snapshot and what it was made from; replaced whole, so any thread may read it. */
+    private volatile Remapped remapped;
+
+    /** {@code result} is {@code from} seen under {@code context} with {@code token}. */
+    private record Remapped(SimulationSnapshot from, Optional<String> context, long token, SimulationSnapshot result) {
+        boolean isFor(SimulationSnapshot snapshot, Optional<String> path, long expectedToken) {
+            return from == snapshot && context.equals(path) && token == expectedToken;
+        }
+    }
+
+    /**
+     * What a body place hangs on: its document, the working copy it shares, the document change listener it added,
+     * and how far it has followed the copy's refreshes and the definition's removal.
+     */
+    private static final class Body {
+        private final OpenDocument parent;
+        private final BodyWorkingCopy workingCopy;
+        private final Runnable parentListener;
+        private long seenRefreshes;
+        private boolean removalNotified;
+
+        private Body(OpenDocument parent, BodyWorkingCopy workingCopy, Runnable parentListener) {
+            this.parent = parent;
+            this.workingCopy = workingCopy;
+            this.parentListener = parentListener;
+            this.seenRefreshes = workingCopy.refreshes();
+        }
+    }
+
+    /** No token of a body's netlist: the snapshot of «Sin valores» never matches, so nothing shows a value. */
+    private static final long NO_VALUES_TOKEN = Long.MIN_VALUE;
+
+    /** The bundle key of the phase-1 refusal (spec §6.2 c). */
+    private static final String INTERFACE_LOCKED = "inside.interfaceLocked";
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
                         boolean importedFromVsim1) {
+        this.body = null;
         this.document = document;
         // Each document resolves the subcircuit:<id> types of its own definitions (spec §5.6 embedded copies).
         this.registry = baseRegistry.copy();
@@ -155,6 +214,203 @@ public final class OpenDocument implements AutoCloseable {
 
     public static OpenDocument createEmpty(ComponentTypeRegistry registry) {
         return new OpenDocument(new CircuitDocument(), registry, null, false);
+    }
+
+    /** A body place of {@code parent} on {@code workingCopy}; see {@link #openBody}. No thread of its own. */
+    private OpenDocument(OpenDocument parent, BodyWorkingCopy workingCopy, Optional<String> contextPath) {
+        this.document = workingCopy.document();
+        this.registry = parent.registry;
+        this.history = parent.history;
+        this.compiler = parent.compiler;
+        this.flattener = parent.flattener;
+        this.simulation = parent.simulation;
+        this.contextPath = contextPath;
+        Runnable parentListener = this::parentChanged;
+        this.body = new Body(parent, workingCopy, parentListener);
+        parent.addChangeListener(parentListener);
+    }
+
+    /**
+     * Opens the body of {@code definitionId} as a place of this document, showing the values of the instance at
+     * {@code contextPath} (empty: «Sin valores»). Places of one definition share one working copy, made when the first
+     * opens and dropped when the last {@linkplain #close() closes}. On a body place it opens from its document.
+     *
+     * @throws IllegalArgumentException when the document has no such definition
+     */
+    public OpenDocument openBody(String definitionId, Optional<String> contextPath) {
+        if (body != null) {
+            return body.parent.openBody(definitionId, contextPath);
+        }
+        ComponentDefinition definition = document.definition(definitionId).orElseThrow(() ->
+                new IllegalArgumentException("the circuit has no definition " + definitionId));
+        BodyWorkingCopy workingCopy = workingCopies.computeIfAbsent(definitionId,
+                id -> new BodyWorkingCopy(this, definition));
+        workingCopy.acquire();
+        return new OpenDocument(this, workingCopy, Objects.requireNonNull(contextPath, "contextPath"));
+    }
+
+    /** True for a body place ({@link #openBody}), false for a document. */
+    public boolean isBody() {
+        return body != null;
+    }
+
+    /** A body place's document; empty for a document. */
+    public Optional<OpenDocument> parent() {
+        return body == null ? Optional.empty() : Optional.of(body.parent);
+    }
+
+    /** The definition a body place edits; empty for a document. */
+    public Optional<String> definitionId() {
+        return body == null ? Optional.empty() : Optional.of(body.workingCopy.definitionId());
+    }
+
+    /** The instance path whose values a body place shows; empty is «Sin valores» (and always so for a document). */
+    public Optional<String> contextPath() {
+        return contextPath;
+    }
+
+    /**
+     * Shows the values of another instance (empty: «Sin valores»): not an edit; the change listeners hear it and the
+     * next {@link #latestSnapshot()} is remapped under the new path. Ignored on a document.
+     */
+    public void setContextPath(Optional<String> newContextPath) {
+        Objects.requireNonNull(newContextPath, "newContextPath");
+        if (body == null || newContextPath.equals(contextPath)) {
+            return;
+        }
+        contextPath = newContextPath;
+        fireChanged();
+    }
+
+    /** What a tab of this place is called: a body place's definition name; a document's {@link #displayName()}. */
+    public String definitionName() {
+        if (body == null) {
+            return displayName();
+        }
+        return body.parent.document.definition(body.workingCopy.definitionId()).map(ComponentDefinition::name)
+                .orElse("");
+    }
+
+    /** Every place {@code definitionId} is used in the document, parents first (the contexts a body tab offers). */
+    public List<InstancePaths.InstanceUse> instancePaths(String definitionId) {
+        return InstancePaths.usesOf(main().document, definitionId);
+    }
+
+    /**
+     * Phase 1 of spec §6.2 c: true for a body place whose definition is used inside another placed definition. Its
+     * interface (the «Pin de entrada / salida» parts: adding, removing, renaming, widening) cannot change yet, and
+     * {@link #execute} refuses such an edit before applying it.
+     */
+    public boolean interfaceLocked() {
+        return body != null && InstancePaths.isUsedInsideAnother(body.parent.document,
+                body.workingCopy.definitionId());
+    }
+
+    /** The document's pieces that could not take a new pin of an inside edit where it goes, while it is applied. */
+    public List<KeptOldShape> keptOldShapes() {
+        if (body != null) {
+            return body.parent.keptOldShapes();
+        }
+        List<KeptOldShape> kept = new ArrayList<>();
+        keptByCommand.values().forEach(kept::addAll);
+        return List.copyOf(kept);
+    }
+
+    /** Runs after the working copy followed a change made elsewhere (the canvas cancels its gesture there). */
+    public void addRefreshListener(Runnable listener) {
+        refreshListeners.add(listener);
+    }
+
+    public void removeRefreshListener(Runnable listener) {
+        refreshListeners.remove(listener);
+    }
+
+    /** For tests: views must remove the refresh listeners they add when disposed. */
+    public int refreshListenerCount() {
+        return refreshListeners.size();
+    }
+
+    /** Runs once when a body place's definition is removed from the document (its tab closes). */
+    public void addBodyRemovedListener(Runnable listener) {
+        bodyRemovedListeners.add(listener);
+    }
+
+    public void removeBodyRemovedListener(Runnable listener) {
+        bodyRemovedListeners.remove(listener);
+    }
+
+    /** The document itself; for a body place, its document. */
+    private OpenDocument main() {
+        return body == null ? this : body.parent;
+    }
+
+    /**
+     * A body place hears every change of its document: the working copy follows it (and the refresh listeners run
+     * when it did), a removed definition is told once, a context instance that is gone falls back to the first
+     * remaining use (or «Sin valores»), and the place's own change listeners run.
+     */
+    private void parentChanged() {
+        BodyWorkingCopy workingCopy = body.workingCopy;
+        workingCopy.synchronize();
+        if (workingCopy.isRemoved()) {
+            if (!body.removalNotified) {
+                body.removalNotified = true;
+                bodyRemovedListeners.fire(Runnable::run);
+            }
+            return;
+        }
+        if (workingCopy.refreshes() != body.seenRefreshes) {
+            body.seenRefreshes = workingCopy.refreshes();
+            refreshListeners.fire(Runnable::run);
+        }
+        contextPath.ifPresent(path -> fallBackIfGone(path, workingCopy.definitionId()));
+        fireChanged();
+    }
+
+    private void fallBackIfGone(String path, String definitionId) {
+        List<InstancePaths.InstanceUse> uses = instancePaths(definitionId);
+        if (uses.stream().noneMatch(use -> use.path().equals(path))) {
+            contextPath = uses.stream().findFirst().map(InstancePaths.InstanceUse::path);
+        }
+    }
+
+    /**
+     * A body place's edit: refused before anything changes when it would change a locked interface
+     * ({@link #interfaceLocked()}), else one undo step of the document that writes the body back.
+     */
+    private void executeInside(Command command) {
+        BodyWorkingCopy workingCopy = body.workingCopy;
+        String definitionId = workingCopy.definitionId();
+        if (interfaceLocked()) {
+            refuseInterfaceChange(command, definitionId);
+        }
+        EditInsideCommand inside = new EditInsideCommand(definitionId, command, workingCopy.document(), registry);
+        workingCopy.write(() -> body.parent.execute(inside));
+    }
+
+    /** Tries {@code command} on a copy of the working copy and refuses it when the interface would change. */
+    private void refuseInterfaceChange(Command command, String definitionId) {
+        ComponentDefinition definition = body.parent.document.definition(definitionId).orElseThrow();
+        CircuitDocument scratch = document.copy();
+        command.apply(scratch);
+        if (BodyEdits.interfaceChanged(definition, BodyEdits.rebuilt(definition, scratch))) {
+            List<String> containing = DefinitionUpdateSafety.containingNames(body.parent.document, definitionId);
+            throw new InsideEditRefusedException(INTERFACE_LOCKED, List.of(definition.name(), containing.getFirst()));
+        }
+    }
+
+    /** {@code id} as the simulation names it: under the context path in a body place, as it is in a document. */
+    private String flatId(String id) {
+        return contextPath.map(path -> InstancePath.child(path, id)).orElse(id);
+    }
+
+    private String flatId(ElementId id) {
+        return flatId(id.value());
+    }
+
+    /** A body place with no context: nothing is simulated there, so its inputs go nowhere (spec §6.3). */
+    private boolean showsNoValues() {
+        return body != null && contextPath.isEmpty();
     }
 
     public static OpenDocument open(Path path, ComponentTypeRegistry registry) throws CircuitFormatException {
@@ -220,21 +476,22 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     public Optional<Path> path() {
-        return Optional.ofNullable(path);
+        return Optional.ofNullable(main().path);
     }
 
     /** True for the file this document was opened from (also a VSim 1 import) or last saved to, in any spelling. */
     public boolean isBackedBy(Path file) {
-        return backingFile != null && backingFile.equals(FileNames.normalized(file));
+        OpenDocument main = main();
+        return main.backingFile != null && main.backingFile.equals(FileNames.normalized(file));
     }
 
     public boolean isImportedFromVsim1() {
-        return importedFromVsim1;
+        return main().importedFromVsim1;
     }
 
     /** True when Save must ask for a file: never saved, or imported from VSim 1 (never overwrite the old file). */
     public boolean needsSaveAs() {
-        return path == null;
+        return main().path == null;
     }
 
     /**
@@ -243,6 +500,10 @@ public final class OpenDocument implements AutoCloseable {
      * goes back to the circuit's name. Not an edit: nothing is recorded.
      */
     public void showUntitledAs(String windowName) {
+        if (body != null) {
+            body.parent.showUntitledAs(windowName);
+            return;
+        }
         untitledName = windowName == null ? "" : windowName.strip();
     }
 
@@ -251,11 +512,17 @@ public final class OpenDocument implements AutoCloseable {
      * {@link #displayName()} while the circuit has none (a new one, until its first save).
      */
     public String circuitName() {
+        if (body != null) {
+            return body.parent.circuitName();
+        }
         return document.name().isBlank() ? displayName() : document.name();
     }
 
     /** What the window shows: the file's name; before the first save, the name given to the window or the circuit's. */
     public String displayName() {
+        if (body != null) {
+            return body.parent.displayName();
+        }
         if (path != null) {
             return fileStem(path);
         }
@@ -290,17 +557,23 @@ public final class OpenDocument implements AutoCloseable {
      * an untitled copy, a VSim 1 file that must be saved in the new format).
      */
     public boolean canSave() {
+        if (body != null) {
+            return body.parent.canSave();
+        }
         return isModified() || (path == null && !document.isEmpty());
     }
 
     /** A fresh, empty, untouched document — opening a file may replace its window. */
     public boolean isPristine() {
+        if (body != null) {
+            return body.parent.isPristine();
+        }
         return path == null && !importedFromVsim1 && document.isEmpty() && !isModified();
     }
 
     /** Stable id of this document's recovery copy (M6-B); it never changes while the document is open. */
     public UUID recoveryId() {
-        return recoveryId;
+        return main().recoveryId;
     }
 
     /**
@@ -308,7 +581,7 @@ public final class OpenDocument implements AutoCloseable {
      * modified document when this moved since its last copy, so every change made through {@link #execute} counts.
      */
     public long changeCount() {
-        return changeCount;
+        return main().changeCount;
     }
 
     /**
@@ -318,11 +591,11 @@ public final class OpenDocument implements AutoCloseable {
      * for a switch's value set by a click ({@link SetSwitchValueCommand}), an input like before.
      */
     public long contentVersion() {
-        return contentVersion;
+        return main().contentVersion;
     }
 
     public Netlist netlist() {
-        return netlist;
+        return body == null ? netlist : body.workingCopy.netlist();
     }
 
     /**
@@ -330,12 +603,29 @@ public final class OpenDocument implements AutoCloseable {
      * compiled from (switch clicks since do not change it); compare with {@code snapshot.token()}.
      */
     public long netlistToken() {
-        return netlistToken;
+        return body == null ? netlistToken : body.workingCopy.netlistToken();
     }
 
-    /** Current wiring warnings, available immediately after a document edit without a simulation tick. */
+    /**
+     * Current wiring warnings, available immediately after a document edit without a simulation tick. A body place
+     * has its document's that lie inside the context instance, with the path taken off (so they glow inside);
+     * none for «Sin valores».
+     */
     public List<ConnectivityProblem> connectivityProblems() {
-        return connectivityProblems;
+        if (body == null) {
+            return connectivityProblems;
+        }
+        if (contextPath.isEmpty()) {
+            return List.of();
+        }
+        String prefix = contextPath.get() + InstancePath.SEPARATOR;
+        return body.parent.connectivityProblems.stream()
+                .filter(problem -> problem.elementId().startsWith(prefix))
+                .map(problem -> new ConnectivityProblem(problem.netId().startsWith(prefix)
+                        ? problem.netId().substring(prefix.length()) : problem.netId(),
+                        problem.elementId().substring(prefix.length()), problem.pinIndex(), problem.position(),
+                        problem.cause()))
+                .toList();
     }
 
     /**
@@ -346,6 +636,9 @@ public final class OpenDocument implements AutoCloseable {
      * revert, and checked against the netlist compiled before the other listeners run). Read-only.
      */
     public Set<PinRef> loosenedPins() {
+        if (body != null) {
+            return Set.of(); // the document's, listed in Problemas
+        }
         Set<PinRef> pins = new LinkedHashSet<>();
         loosenedByCommand.values().forEach(pins::addAll);
         pins.removeIf(pin -> !isPinOfThisCircuit(pin) || isOnANetWithAnotherPin(pin));
@@ -360,8 +653,19 @@ public final class OpenDocument implements AutoCloseable {
         return changed.lastChange().filter(SetSwitchValueCommand.class::isInstance).isPresent();
     }
 
-    /** Runs {@code command} as one undo step; one that may loosen pins gets its pins marked while it is applied. */
+    /**
+     * Runs {@code command} as one undo step; one that may loosen pins gets its pins marked while it is applied. On a
+     * body place the command edits the working copy and is written back to the definition as one undo step of the
+     * document ({@link EditInsideCommand}).
+     *
+     * @throws InsideEditRefusedException on a body place, before anything changes, when the edit would change the
+     *                                    interface of a definition used inside another one ({@link #interfaceLocked()})
+     */
     public void execute(Command command) {
+        if (body != null) {
+            executeInside(command);
+            return;
+        }
         history.execute(command instanceof LoosensPins loosening ? new MarkingCommand(command, loosening) : command);
     }
 
@@ -405,17 +709,24 @@ public final class OpenDocument implements AutoCloseable {
 
         @Override
         public void apply(CircuitDocument target) {
-            loosenedByCommand.put(this, new LinkedHashSet<>(loosening.loosenedPins()));
+            Set<PinRef> marks = new LinkedHashSet<>(loosening.loosenedPins());
+            loosenedByCommand.put(this, marks);
             try {
                 command.apply(target);
             } catch (RuntimeException exception) {
                 loosenedByCommand.remove(this);
                 throw exception;
             }
+            // an inside edit plans its write-back while it applies: its pins are known only now
+            marks.addAll(loosening.loosenedPins());
+            if (command instanceof EditInsideCommand inside && !inside.keptOldShapes().isEmpty()) {
+                keptByCommand.put(this, inside.keptOldShapes());
+            }
         }
 
         @Override
         public void revert(CircuitDocument target) {
+            keptByCommand.remove(this);
             Set<PinRef> marks = loosenedByCommand.remove(this);
             try {
                 command.revert(target);
@@ -436,14 +747,40 @@ public final class OpenDocument implements AutoCloseable {
         public boolean changesNothing() {
             return command.changesNothing();
         }
+
+        /** Merges as the command it marks does (a run of nudges or of typing inside a component). */
+        @Override
+        public Optional<Command> mergedWith(Command next) {
+            Command following = next instanceof MarkingCommand marking ? marking.command : next;
+            return command.mergedWith(following).map(merged -> merged instanceof LoosensPins mergedLoosening
+                    ? new MarkingCommand(merged, mergedLoosening) : merged);
+        }
+    }
+
+    /**
+     * The inside edit {@code command} is or carries (the history holds it inside the mark of its loosened pins), so
+     * the undo items can name its place; empty for any other command.
+     */
+    public static Optional<EditInsideCommand> insideEditOf(Command command) {
+        Command unwrapped = command instanceof OpenDocument.MarkingCommand marking ? marking.command : command;
+        return unwrapped instanceof EditInsideCommand inside ? Optional.of(inside) : Optional.empty();
     }
 
     /**
      * A click on an interactive part while simulating: an input event at the current time (also while paused, as a
      * step). On a Switch it is also an edit of its «Valor» (decided 2026-10-28), so Propiedades, the file and the
      * simulation agree: one undo step for a run of clicks on that switch ({@link SetSwitchValueCommand}).
+     *
+     * <p>Inside a component (a body place) it is a live input of the context instance only: never an edit of the
+     * definition, nothing for «Sin valores» (spec §6.4).
      */
     public void interact(ElementId componentId) {
+        if (body != null) {
+            if (!showsNoValues()) {
+                simulation.interact(flatId(componentId));
+            }
+            return;
+        }
         Optional<SwitchClick> click = switchClick(componentId, value -> Optional.of(SwitchValues.toggled(value)));
         simulation.interact(componentId.value());
         click.ifPresent(this::record);
@@ -451,6 +788,12 @@ public final class OpenDocument implements AutoCloseable {
 
     /** Clicks bit {@code bit} of a multi-bit Switch: an input event like {@link #interact}, and an edit of «Valor». */
     public void interactBit(ElementId componentId, int bit) {
+        if (body != null) {
+            if (!showsNoValues()) {
+                simulation.interactBit(flatId(componentId), bit);
+            }
+            return;
+        }
         Optional<SwitchClick> click = switchClick(componentId, value -> SwitchValues.withBitFlipped(value, bit));
         simulation.interactBit(componentId.value(), bit);
         click.ifPresent(this::record);
@@ -539,7 +882,9 @@ public final class OpenDocument implements AutoCloseable {
      * contents without restarting the rest of the simulation. Not a document change, no undo step.
      */
     public void restoreMemory(ElementId componentId) {
-        simulation.restoreMemory(componentId.value());
+        if (!showsNoValues()) {
+            simulation.restoreMemory(flatId(componentId));
+        }
     }
 
     /**
@@ -547,7 +892,10 @@ public final class OpenDocument implements AutoCloseable {
      * completed on the simulation thread, empty when the engine has no such memory. Never wait for it on the EDT.
      */
     public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(ElementId componentId) {
-        return simulation.requestMemoryContents(componentId.value());
+        if (showsNoValues()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return simulation.requestMemoryContents(flatId(componentId));
     }
 
     /**
@@ -556,12 +904,18 @@ public final class OpenDocument implements AutoCloseable {
      */
     public CompletableFuture<Optional<TerminalReading>> requestTerminal(ElementId componentId, int historyLines,
                                                                         int byteCount) {
-        return simulation.requestTerminalReading(componentId.value(), historyLines, byteCount);
+        if (showsNoValues()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return simulation.requestTerminalReading(flatId(componentId), historyLines, byteCount);
     }
 
     /** How many bytes the typing queue of {@code componentId} (a Teclado) holds now; empty without such a queue. */
     public CompletableFuture<OptionalInt> requestTypingQueueSize(ElementId componentId) {
-        return simulation.requestTypingQueueSize(componentId.value());
+        if (showsNoValues()) {
+            return CompletableFuture.completedFuture(OptionalInt.empty());
+        }
+        return simulation.requestTypingQueueSize(flatId(componentId));
     }
 
     /**
@@ -569,10 +923,15 @@ public final class OpenDocument implements AutoCloseable {
      * click on a switch, not a document change and no undo step; the saved values are untouched.
      */
     public void setInputs(Map<ElementId, Value> values) {
+        if (showsNoValues()) {
+            return;
+        }
         Map<String, Value> byId = new HashMap<>();
-        values.forEach((componentId, value) -> byId.put(componentId.value(), value));
+        values.forEach((componentId, value) -> byId.put(flatId(componentId), value));
         simulation.setInputs(byId);
-        values.forEach(this::expectPublishedIfSwitch);
+        if (body == null) {
+            values.forEach(this::expectPublishedIfSwitch);
+        }
     }
 
     /** {@link #expectPublished} when {@code componentId} is a switch of the width of {@code value}. */
@@ -590,7 +949,9 @@ public final class OpenDocument implements AutoCloseable {
      * value stays.
      */
     public void setInputValue(ElementId componentId, Value value) {
-        simulation.setInputs(Map.of(componentId.value(), value));
+        if (!showsNoValues()) {
+            simulation.setInputs(Map.of(flatId(componentId), value));
+        }
     }
 
     /**
@@ -599,14 +960,26 @@ public final class OpenDocument implements AutoCloseable {
      * {@link #releaseButton}, and by {@link #releaseButtons} when the simulation stops.
      */
     public void pressButton(ElementId componentId) {
-        heldButtons.add(componentId);
-        simulation.pressButton(componentId.value());
+        if (!showsNoValues()) {
+            main().pressButtonAt(flatId(componentId));
+        }
+    }
+
+    private void pressButtonAt(String flatId) {
+        heldButtons.add(flatId);
+        simulation.pressButton(flatId);
     }
 
     /** Push button {@code componentId} is let go: it drives 0 again. Nothing happens for one that is not held. */
     public void releaseButton(ElementId componentId) {
-        if (heldButtons.remove(componentId)) {
-            simulation.releaseButton(componentId.value());
+        if (!showsNoValues()) {
+            main().releaseButtonAt(flatId(componentId));
+        }
+    }
+
+    private void releaseButtonAt(String flatId) {
+        if (heldButtons.remove(flatId)) {
+            simulation.releaseButton(flatId);
         }
     }
 
@@ -616,7 +989,10 @@ public final class OpenDocument implements AutoCloseable {
      * Completes off the EDT with how many bytes the part took; never wait for it on the EDT.
      */
     public CompletableFuture<Integer> typeBytes(String componentId, byte[] bytes) {
-        return simulation.typeBytes(componentId, bytes);
+        if (showsNoValues()) {
+            return CompletableFuture.completedFuture(0);
+        }
+        return simulation.typeBytes(flatId(componentId), bytes);
     }
 
     /**
@@ -624,27 +1000,41 @@ public final class OpenDocument implements AutoCloseable {
      * queue is full); completes with how many characters it took. Like {@link #typeBytes}, not an edit.
      */
     public CompletableFuture<Integer> typeCharacters(String componentId, List<byte[]> characters) {
-        return simulation.typeCharacters(componentId, characters);
+        if (showsNoValues()) {
+            return CompletableFuture.completedFuture(0);
+        }
+        return simulation.typeCharacters(flatId(componentId), characters);
     }
 
     /** An edit of the typed text {@code componentId} has not read yet (its arrows, Inicio, Fin, Supr); not an edit. */
     public void editTyping(String componentId, TypingEdit edit) {
-        simulation.editTyping(componentId, edit);
+        if (!showsNoValues()) {
+            simulation.editTyping(flatId(componentId), edit);
+        }
     }
 
     /** Lets go every push button still held (the simulation pauses or restarts), so none stays stuck at 1. */
     public void releaseButtons() {
-        List.copyOf(heldButtons).forEach(this::releaseButton);
+        OpenDocument main = main();
+        List.copyOf(main.heldButtons).forEach(main::releaseButtonAt);
     }
 
     /** Iniciar: runs the simulation and leaves «Paso a paso» (M6.1-B). */
     public void resume() {
+        if (body != null) {
+            body.parent.resume();
+            return;
+        }
         setStepMode(false);
         simulation.resume();
     }
 
     /** Pausar: a push button held now is let go first, so the paused circuit does not keep it pressed. */
     public void pause() {
+        if (body != null) {
+            body.parent.pause();
+            return;
+        }
         releaseButtons();
         simulation.pause();
     }
@@ -664,16 +1054,38 @@ public final class OpenDocument implements AutoCloseable {
 
     /** Session option, off by default and not saved: pause the simulation when a new short circuit appears. */
     public boolean pauseOnShortCircuit() {
-        return pauseOnShortCircuit;
+        return main().pauseOnShortCircuit;
     }
 
     public void setPauseOnShortCircuit(boolean enabled) {
+        if (body != null) {
+            body.parent.setPauseOnShortCircuit(enabled);
+            return;
+        }
         pauseOnShortCircuit = enabled;
         simulation.setPauseOnShortCircuit(enabled);
     }
 
+    /**
+     * The latest published values. A body place shows its document's seen from inside the context instance
+     * ({@link SnapshotRemap}), with its own netlist's token while both netlists are current; for «Sin valores» no
+     * values and a token that never matches (nothing shows a value).
+     */
     public SimulationSnapshot latestSnapshot() {
-        return simulation.latestSnapshot();
+        SimulationSnapshot latest = simulation.latestSnapshot();
+        if (body == null) {
+            return latest;
+        }
+        Optional<String> path = contextPath;
+        long token = path.isEmpty() || latest.token() != body.parent.netlistToken()
+                ? NO_VALUES_TOKEN : netlistToken();
+        Remapped cached = remapped;
+        if (cached == null || !cached.isFor(latest, path, token)) {
+            cached = new Remapped(latest, path, token,
+                    SnapshotRemap.withToken(SnapshotRemap.under(latest, path), token));
+            remapped = cached;
+        }
+        return cached.result();
     }
 
     /**
@@ -681,6 +1093,9 @@ public final class OpenDocument implements AutoCloseable {
      * before the first and after «Reiniciar». Read it after {@link #latestSnapshot()}: it is written first.
      */
     public Optional<PauseNotice> latestPauseNotice() {
+        if (body != null) {
+            return body.parent.latestPauseNotice();
+        }
         return simulation.latestPauseNotice().map(this::withPartName);
     }
 
@@ -724,12 +1139,29 @@ public final class OpenDocument implements AutoCloseable {
      * stops the frames. One request per document: the last one set wins.
      */
     public void setMemoryMapRequest(Optional<MemoryMapRequest> request) {
-        simulation.setMemoryMapRequest(request);
+        if (showsNoValues()) {
+            return;
+        }
+        simulation.setMemoryMapRequest(request.map(asked -> new MemoryMapRequest(flatId(asked.componentId()),
+                asked.firstAddress(), asked.wordsPerCell(), asked.cells())));
     }
 
     /** The latest memory map frame (at most every 16 ms); safe to read from any thread. */
     public Optional<MemoryMapFrame> latestMemoryMap() {
-        return simulation.latestMemoryMap();
+        Optional<MemoryMapFrame> latest = simulation.latestMemoryMap();
+        if (body == null) {
+            return latest;
+        }
+        if (showsNoValues()) {
+            return Optional.empty();
+        }
+        String prefix = contextPath.get() + InstancePath.SEPARATOR;
+        return latest.filter(frame -> frame.request().componentId().startsWith(prefix)).map(frame -> {
+            MemoryMapRequest asked = frame.request();
+            return new MemoryMapFrame(new MemoryMapRequest(asked.componentId().substring(prefix.length()),
+                    asked.firstAddress(), asked.wordsPerCell(), asked.cells()), frame.reads(), frame.writes(),
+                    frame.values(), frame.recent(), frame.time(), frame.wordsPerCounter());
+        });
     }
 
     /**
@@ -738,22 +1170,32 @@ public final class OpenDocument implements AutoCloseable {
      * per Terminal: the last one set for it wins, the other Terminals keep theirs.
      */
     public void setTerminalRequest(TerminalRequest request) {
-        simulation.setTerminalRequest(request);
+        if (!showsNoValues()) {
+            simulation.setTerminalRequest(new TerminalRequest(flatId(request.componentId()), request.historyLines(),
+                    request.bytesSince()));
+        }
     }
 
     /** Stops the frames of the Terminal {@code componentId}. */
     public void removeTerminalRequest(String componentId) {
-        simulation.removeTerminalRequest(componentId);
+        if (!showsNoValues()) {
+            simulation.removeTerminalRequest(flatId(componentId));
+        }
     }
 
     /** The latest frame of the Terminal {@code componentId} (at most every 16 ms); safe from any thread. */
     public Optional<TerminalWindowFrame> latestTerminalFrame(String componentId) {
-        return simulation.latestTerminalFrame(componentId);
+        if (showsNoValues()) {
+            return Optional.empty();
+        }
+        return simulation.latestTerminalFrame(flatId(componentId));
     }
 
     /** The reader of {@code componentId} has the bytes up to {@code sequence} of screen {@code owner}. */
     public void acknowledgeTerminalBytes(String componentId, long owner, long sequence) {
-        simulation.acknowledgeTerminalBytes(componentId, owner, sequence);
+        if (!showsNoValues()) {
+            simulation.acknowledgeTerminalBytes(flatId(componentId), owner, sequence);
+        }
     }
 
     /**
@@ -761,7 +1203,9 @@ public final class OpenDocument implements AutoCloseable {
      * Not a document change, no undo step.
      */
     public void clearTerminal(ElementId componentId) {
-        simulation.clearTerminal(componentId.value());
+        if (!showsNoValues()) {
+            simulation.clearTerminal(flatId(componentId));
+        }
     }
 
     /**
@@ -769,7 +1213,9 @@ public final class OpenDocument implements AutoCloseable {
      * glyphs it read and read the codes on its screen again. Not a document change, no undo step.
      */
     public void rereadTerminalGlyphs(ElementId componentId) {
-        simulation.rereadTerminalGlyphs(componentId.value());
+        if (!showsNoValues()) {
+            simulation.rereadTerminalGlyphs(flatId(componentId));
+        }
     }
 
     /**
@@ -786,7 +1232,7 @@ public final class OpenDocument implements AutoCloseable {
 
     /** «Paso a paso» (M6.1-B): a session mode of the document, shared by all its views; off when opened. */
     public boolean stepMode() {
-        return stepMode;
+        return main().stepMode;
     }
 
     /**
@@ -794,6 +1240,10 @@ public final class OpenDocument implements AutoCloseable {
      * {@link #resume()}). The step-mode listeners hear only real changes.
      */
     public void setStepMode(boolean enabled) {
+        if (body != null) {
+            body.parent.setStepMode(enabled);
+            return;
+        }
         if (enabled == stepMode) {
             return;
         }
@@ -806,16 +1256,16 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     public void addStepModeListener(Runnable listener) {
-        stepModeListeners.add(listener);
+        main().stepModeListeners.add(listener);
     }
 
     public void removeStepModeListener(Runnable listener) {
-        stepModeListeners.remove(listener);
+        main().stepModeListeners.remove(listener);
     }
 
     /** For tests: views must remove the step-mode listeners they add when disposed. */
     public int stepModeListenerCount() {
-        return stepModeListeners.size();
+        return main().stepModeListeners.size();
     }
 
     /** «Avanzar al próximo evento» (M6.1-B): ignored while the simulation runs. */
@@ -833,7 +1283,7 @@ public final class OpenDocument implements AutoCloseable {
 
     /** True when the circuit has a clock, also inside a user component; follows every edit (M6.1-B). */
     public boolean hasClock() {
-        return hasClock;
+        return main().hasClock;
     }
 
     /**
@@ -842,6 +1292,10 @@ public final class OpenDocument implements AutoCloseable {
      * running or paused and the step mode stay as they were. A push button held now is let go first.
      */
     public void restart() {
+        if (body != null) {
+            body.parent.restart();
+            return;
+        }
         releaseButtons();
         try {
             simulation.restart(flattener.flatten(document, netlist), updateProbeNets());
@@ -863,7 +1317,17 @@ public final class OpenDocument implements AutoCloseable {
 
     /** The components (flat ids) with an event at the next event time; empty while running (M6.1-B). */
     public Set<String> latestPendingComponents() {
-        return simulation.latestPendingComponents();
+        Set<String> pending = simulation.latestPendingComponents();
+        if (body == null) {
+            return pending;
+        }
+        if (showsNoValues()) {
+            return Set.of();
+        }
+        String prefix = contextPath.get() + InstancePath.SEPARATOR;
+        Set<String> inside = new LinkedHashSet<>();
+        pending.stream().filter(id -> id.startsWith(prefix)).forEach(id -> inside.add(id.substring(prefix.length())));
+        return Collections.unmodifiableSet(inside);
     }
 
     // --- IA.1: simulation requests with an event budget and one receipt each (SimulationThread, A§7) ---
@@ -873,6 +1337,11 @@ public final class OpenDocument implements AutoCloseable {
      * circuit, simulation only like a truth-table row tried in it (not a document change, no undo step). EDT only.
      */
     public CompletableFuture<RequestReport> setInputsWithin(List<InputAssignment> inputs, long eventBudget) {
+        if (body != null) {
+            return body.parent.setInputsWithin(showsNoValues() ? List.of() : inputs.stream()
+                    .map(input -> new InputAssignment(flatId(input.componentId()), input.value())).toList(),
+                    eventBudget);
+        }
         CompletableFuture<RequestReport> report = simulation.setInputsWithin(inputs, eventBudget);
         inputs.forEach(input -> expectPublishedIfSwitch(new ElementId(input.componentId()), input.value()));
         return report;
@@ -899,6 +1368,9 @@ public final class OpenDocument implements AutoCloseable {
      * as for the user, pauses the simulation with the failure).
      */
     public CompletableFuture<RequestReport> restartWithin(long eventBudget) {
+        if (body != null) {
+            return body.parent.restartWithin(eventBudget);
+        }
         releaseButtons();
         try {
             return simulation.restartWithin(flattener.flatten(document, netlist), updateProbeNets(), eventBudget);
@@ -916,7 +1388,7 @@ public final class OpenDocument implements AutoCloseable {
 
     /** Probe id → top-level net id for the probes that resolve in the current netlist; the others are absent. */
     public Map<String, String> probeNets() {
-        return probeNets;
+        return body == null ? probeNets : Map.of();
     }
 
     /**
@@ -926,6 +1398,9 @@ public final class OpenDocument implements AutoCloseable {
      * @throws IllegalStateException when the document cannot be written (an instance whose definition is missing)
      */
     public String serialized() {
+        if (body != null) {
+            return body.parent.serialized();
+        }
         return serializedFor(Optional.ofNullable(path));
     }
 
@@ -939,6 +1414,10 @@ public final class OpenDocument implements AutoCloseable {
      * reopened (an instance whose definition is missing) fails with an IOException before anything is written.
      */
     public void save(Path target) throws IOException {
+        if (body != null) {
+            body.parent.save(target);
+            return;
+        }
         Path absolute = target.toAbsolutePath();
         String previousName = document.name();
         if (previousName.isBlank()) {
@@ -985,9 +1464,22 @@ public final class OpenDocument implements AutoCloseable {
 
     @Override
     public void close() {
-        if (!closed) {
-            closed = true;
+        if (closed) {
+            return;
+        }
+        closed = true;
+        if (body == null) {
             simulation.close();
+            return;
+        }
+        body.parent.removeChangeListener(body.parentListener);
+        body.parent.releaseWorkingCopy(body.workingCopy);
+    }
+
+    /** One body place less on {@code workingCopy}; the last one drops it (a new place starts a fresh copy). */
+    private void releaseWorkingCopy(BodyWorkingCopy workingCopy) {
+        if (workingCopy.release()) {
+            workingCopies.remove(workingCopy.definitionId(), workingCopy);
         }
     }
 
