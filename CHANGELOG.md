@@ -9,6 +9,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ## Sin publicar
 
+### Agregado
+
+- Velocidad ×1000 en el selector de la barra, entre ×100 y «Máxima»: un circuito grande, como el LRV32IM importado de Logisim, corre lo bastante rápido para que su Terminal escriba de a poco. Ver [Interfaz, preferencias y sesión](docs/funciones/interfaz-preferencias-y-sesion.md).
+
 ### Arreglado
 
 - El «Desplazador» ya no deja toda la salida en Z cuando algún bit de A está en Z: con S definida, cada bit se mueve a su lugar (también los que están en Z) y los que entran valen 0, como en Logisim. El LRV32IM importado de Logisim leía 0 del Teclado (el byte llega con el resto del bus suelto) y ahora lee la tecla. Ver [Bloques de N bits](docs/funciones/componentes.md#bloques-de-n-bits).

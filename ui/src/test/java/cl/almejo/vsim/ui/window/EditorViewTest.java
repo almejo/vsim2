@@ -444,10 +444,12 @@ class EditorViewTest {
         assertThat(rendered(speed, 10.0, -1)).as("the closed combo").isEqualTo("Velocidad ×10");
         assertThat(rendered(speed, 10.0, 2)).as("the open list").isEqualTo("×10");
         assertThat(rendered(speed, 0.1, -1)).isEqualTo("Velocidad ×0,1");
-        assertThat(speed.getItemCount()).isEqualTo(5);
-        assertThat(speed.getItemAt(4)).isEqualTo(Double.POSITIVE_INFINITY);
+        assertThat(speed.getItemCount()).isEqualTo(6);
+        assertThat(speed.getItemAt(4)).as("between ×100 and Máxima").isEqualTo(1000.0);
+        assertThat(rendered(speed, 1000.0, -1)).isEqualTo("Velocidad ×1.000");
+        assertThat(speed.getItemAt(5)).isEqualTo(Double.POSITIVE_INFINITY);
         assertThat(rendered(speed, Double.POSITIVE_INFINITY, -1)).isEqualTo("Velocidad máxima");
-        assertThat(rendered(speed, Double.POSITIVE_INFINITY, 4)).isEqualTo("Máxima");
+        assertThat(rendered(speed, Double.POSITIVE_INFINITY, 5)).isEqualTo("Máxima");
         JLabel icon = (JLabel) view.toolBar().getComponent(index - 1);
         assertThat(icon.getIcon()).isSameAs(Icons.get("speed", Icons.MENU_SIZE));
         assertThat(icon.getToolTipText()).isEqualTo(speed.getToolTipText());

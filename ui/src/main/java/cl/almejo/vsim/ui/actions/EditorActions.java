@@ -53,7 +53,7 @@ import java.util.function.Supplier;
 public final class EditorActions {
 
     /** The speed selector's choices in units per millisecond; the infinite one runs as fast as the engine can. */
-    public static final List<Double> SPEEDS = List.of(0.1, 1.0, 10.0, 100.0, Double.POSITIVE_INFINITY);
+    public static final List<Double> SPEEDS = List.of(0.1, 1.0, 10.0, 100.0, 1000.0, Double.POSITIVE_INFINITY);
 
     /** The icon before the speed selector in the toolbar, by file name under {@code icons/} (M6.1-E). */
     public static final String SPEED_ICON = "speed";
