@@ -3,12 +3,14 @@ package cl.almejo.vsim.ui.terminal;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.sound.TerminalSounds;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -30,6 +32,9 @@ final class TerminalDocument {
     private final TerminalSoundController sounds;
     private final List<Consumer<String>> noticeListeners = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener = this::documentChanged;
+    private final Runnable placeListener = this::placeChanged;
+    /** The instance whose Terminals a component tab's features read (always empty on the circuit's tab). */
+    private Optional<String> shownContext;
     /** The editor window that owns the question about the output file; the last view installed supplies it. */
     private final AtomicReference<Supplier<java.awt.Component>> ownerWindow = new AtomicReference<>(() -> null);
 
@@ -47,6 +52,10 @@ final class TerminalDocument {
         sounds = new TerminalSoundController(document,
                 new TerminalSounds(services.sound(), services.windows().nanoClock()), windows::flash);
         document.document().addListener(documentListener);
+        shownContext = document.contextPath();
+        if (document.isBody()) {
+            document.addChangeListener(placeListener); // only a component tab changes the instance it shows
+        }
         updateTicker();
     }
 
@@ -75,6 +84,7 @@ final class TerminalDocument {
 
     /** The last window of the document closed. */
     void dispose() {
+        document.removeChangeListener(placeListener);
         document.document().removeListener(documentListener);
         ticker.stop();
         windows.dispose();
@@ -91,6 +101,22 @@ final class TerminalDocument {
         feeds.poll();
         sounds.poll(document.latestSnapshot());
         windows.tick();
+    }
+
+    /**
+     * A component tab now shows another instance (spec §10.7): its Terminal windows showed the instance it left, so
+     * they close (opening one again shows the new instance), and what reads its Terminals asks the new instance.
+     */
+    private void placeChanged() {
+        Optional<String> now = document.contextPath();
+        if (now.equals(shownContext)) {
+            return;
+        }
+        Optional<String> left = shownContext;
+        shownContext = now;
+        windows.closeAll();
+        feeds.askAgain(componentId -> left.ifPresent(path -> document.parent().ifPresent(circuit ->
+                circuit.removeTerminalRequest(InstancePath.child(path, componentId)))));
     }
 
     private void documentChanged(CircuitDocument changed, DocumentChange change) {

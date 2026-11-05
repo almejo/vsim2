@@ -181,6 +181,11 @@ final class CrossPaneContext implements ToolContext {
     }
 
     @Override
+    public void showNotice(String text) {
+        owner.showNotice(text);
+    }
+
+    @Override
     public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
         return owner.memoryFoldToggleAt(component, gridPosition);
     }

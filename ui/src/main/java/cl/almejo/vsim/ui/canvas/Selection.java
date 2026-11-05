@@ -111,6 +111,13 @@ public final class Selection {
         }
     }
 
+    /** Keeps only the ids {@code present} holds (a component tab's body that followed a change made elsewhere). */
+    public void retainAll(Set<ElementId> present) {
+        if (ids.retainAll(present)) {
+            fire();
+        }
+    }
+
     /** Drops the ids that {@code change} reports as removed. */
     public void retain(DocumentChange change) {
         if (ids.removeAll(change.removed())) {

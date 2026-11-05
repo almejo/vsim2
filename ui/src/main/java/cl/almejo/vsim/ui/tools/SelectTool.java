@@ -30,6 +30,7 @@ import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.MultiBitCells;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
@@ -401,7 +402,11 @@ public final class SelectTool implements Tool {
             Optional<Component> pinOfBox = busInputValueBoxAt(context, event.gridPosition());
             if (pinOfBox.isPresent()) {
                 context.selection().select(pinOfBox.get().id());
-                context.editValue(pinOfBox.get());
+                if (takesValueFromOutside(context, pinOfBox.get())) {
+                    context.showNotice(Messages.text("inside.pinValueFromOutside"));
+                } else {
+                    context.editValue(pinOfBox.get());
+                }
                 return true;
             }
         }
@@ -431,7 +436,8 @@ public final class SelectTool implements Tool {
                         context.openDocument().registry().typeOf(component), component, event.gridPosition())) {
                     context.editTerminal(component);
                 } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
-                        || InterfacePins.isBusInput(component) || Tunnels.isTunnel(component.typeId())) {
+                        || InterfacePins.isBusInput(component) && !takesValueFromOutside(context, component)
+                        || Tunnels.isTunnel(component.typeId())) {
                     context.editValue(component);
                 } else {
                     context.configure(component);
@@ -1132,6 +1138,11 @@ public final class SelectTool implements Tool {
                 && labelComponent == null;
     }
 
+    @Override
+    public boolean holdsGesture() {
+        return !isIdle() || heldButton != null;
+    }
+
     /** Forgets the press in progress without changing the document: the drag goes on outside the canvas. */
     public void cancelMove(ToolContext context) {
         reset();
@@ -1191,6 +1202,12 @@ public final class SelectTool implements Tool {
     }
 
     private void toggleIfInteractive(ToolContext context, CanvasMouseEvent event) {
+        if (pressedElement instanceof Component component && takesValueFromOutside(context, component)) {
+            if (isInteractive(context, component)) {
+                context.showNotice(Messages.text("inside.pinValueFromOutside"));
+            }
+            return;
+        }
         if (pressedElement instanceof Component component && isInteractive(context, component)) {
             ComponentType type = context.openDocument().registry().typeOf(component);
             if (MultiBitLayout.isMultiBit(type)) {
@@ -1308,7 +1325,7 @@ public final class SelectTool implements Tool {
         if (isPushButton(component)) {
             return onPushButtonCap(component, event.gridPosition());
         }
-        if (!isInteractive(context, component)) {
+        if (!isInteractive(context, component) || takesValueFromOutside(context, component)) {
             return false;
         }
         ComponentType type = context.openDocument().registry().typeOf(component);
@@ -1325,6 +1342,14 @@ public final class SelectTool implements Tool {
 
     /** A type and the resolved parameters of a part of it: what decides whether the part takes typing. */
     private record TypingKey(String typeId, Map<String, Object> parameters) {
+    }
+
+    /**
+     * Inside a component its interface pins take their value from outside (spec §6.3): they are not toggled nor typed
+     * into; their value is the context instance's, read from the remapped snapshot.
+     */
+    private static boolean takesValueFromOutside(ToolContext context, Component component) {
+        return context.openDocument().isBody() && InterfacePins.isInterface(component.typeId());
     }
 
     private boolean isInteractive(ToolContext context, Component component) {

@@ -77,6 +77,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -142,6 +143,7 @@ public final class OpenDocument implements AutoCloseable {
     private volatile Optional<String> contextPath = Optional.empty();
     private final Listeners<Runnable> refreshListeners = new Listeners<>();
     private final Listeners<Runnable> bodyRemovedListeners = new Listeners<>();
+    private final Listeners<Consumer<InsideEditRefusedException>> refusalListeners = new Listeners<>();
     /** A body place's last remapped snapshot and what it was made from; replaced whole, so any thread may read it. */
     private volatile Remapped remapped;
 
@@ -343,6 +345,16 @@ public final class OpenDocument implements AutoCloseable {
         bodyRemovedListeners.remove(listener);
     }
 
+    /**
+     * {@code listener} explains a refused edit of this body place (its tab's status line and place bar): while a body
+     * place has one, {@link #execute} tells it instead of throwing, so an edit made from the editor's menus, keys or
+     * mouse is never refused silently nor ends up as an uncaught exception (spec §6.2). Without one (the AI) the
+     * refusal is thrown. Nothing changes in either case. The runnable removes the listener.
+     */
+    public Runnable addRefusalListener(Consumer<InsideEditRefusedException> listener) {
+        return refusalListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
     /** The document itself; for a body place, its document. */
     private OpenDocument main() {
         return body == null ? this : body.parent;
@@ -383,13 +395,22 @@ public final class OpenDocument implements AutoCloseable {
 
     /**
      * A body place's edit: refused before anything changes when it would change a locked interface
-     * ({@link #interfaceLocked()}), else one undo step of the document that writes the body back.
+     * ({@link #interfaceLocked()}), else one undo step of the document that writes the body back. A refusal goes to the
+     * {@linkplain #addRefusalListener refusal listeners} when the place has any, else it is thrown.
      */
     private void executeInside(Command command) {
         BodyWorkingCopy workingCopy = body.workingCopy;
         String definitionId = workingCopy.definitionId();
         if (interfaceLocked()) {
-            refuseInterfaceChange(command, definitionId);
+            try {
+                refuseInterfaceChange(command, definitionId);
+            } catch (InsideEditRefusedException refusal) {
+                if (refusalListeners.size() == 0) {
+                    throw refusal;
+                }
+                refusalListeners.fire(listener -> listener.accept(refusal));
+                return;
+            }
         }
         EditInsideCommand inside = new EditInsideCommand(definitionId, command, workingCopy.document(), registry);
         workingCopy.write(() -> body.parent.execute(inside));
@@ -666,7 +687,9 @@ public final class OpenDocument implements AutoCloseable {
      * document ({@link EditInsideCommand}).
      *
      * @throws InsideEditRefusedException on a body place, before anything changes, when the edit would change the
-     *                                    interface of a definition used inside another one ({@link #interfaceLocked()})
+     *                                    interface of a definition used inside another one ({@link #interfaceLocked()}),
+     *                                    unless the place has a {@linkplain #addRefusalListener refusal listener}
+     *                                    (its tab), which is told instead
      */
     public void execute(Command command) {
         if (body != null) {

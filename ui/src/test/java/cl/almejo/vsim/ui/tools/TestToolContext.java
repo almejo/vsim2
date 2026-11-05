@@ -243,6 +243,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
         entered = component;
     }
 
+    @Override
+    public void showNotice(String text) {
+        notices.add(text);
+    }
+
     /** As the editor answers: the square the memory painter draws. */
     @Override
     public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {

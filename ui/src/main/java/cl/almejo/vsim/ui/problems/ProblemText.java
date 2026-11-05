@@ -108,6 +108,9 @@ public final class ProblemText {
             case LOOSENED_BY_SHAPE_CHANGE -> Messages.format("problem.connectivity.loosened",
                     pieceName(problem.elementId(), document),
                     PinNames.display(pinName(problem, document, registry)));
+            case PIN_PLACED_ELSEWHERE -> Messages.format("problem.keptOldShape",
+                    pieceName(problem.elementId(), document),
+                    PinNames.display(pinName(problem, document, registry)));
             case OUTDATED_WOULD_BREAK -> Messages.format("problem.connectivity.outdated",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document));
             case OUTDATED_CANNOT_UPDATE -> Messages.format("problem.connectivity.outdatedNested",

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -14,6 +15,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
@@ -131,6 +133,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     private Consumer<Component> terminalEditor;
     private final WindowCommands windowCommands;
     private Consumer<TruthTableSpec> tableWizard;
+    /** Keeps the «Sin valores» hint of a component tab in step with its context. */
+    private final Runnable placeHintListener = this::showPlaceHint;
+    /** Takes back the explanation of refused edits a component tab shows (none on the circuit's tab). */
+    private Runnable removeRefusalListener = () -> { };
     private Consumer<List<Path>> circuitOpener = files -> {
     };
 
@@ -206,6 +212,11 @@ public final class EditorView extends JPanel implements CanvasHost {
         labelFeatures = LabelFeatures.install(this);
         labelFeatures.properties().addComponentRows(new KeyboardInspectorRows(openDocument));
         problems = new ProblemsController(this);
+        if (openDocument.isBody()) {
+            openDocument.addChangeListener(placeHintListener);
+            removeRefusalListener = openDocument.addRefusalListener(this::explainRefusal);
+            showPlaceHint();
+        }
         appearanceListener = this::repaintPanes;
         services.appearance().addListener(appearanceListener);
         textFontListener = this::repaintPanes;
@@ -502,6 +513,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         extensionDisposers.clear();
         steps.add(() -> services.appearance().removeListener(appearanceListener));
         steps.add(() -> TextFonts.removeListener(textFontListener));
+        steps.add(() -> openDocument.removeChangeListener(placeHintListener));
+        steps.add(removeRefusalListener);
         steps.add(statusBar::dispose);
         steps.add(palette::dispose);
         steps.add(problems::dispose);
@@ -561,6 +574,25 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void configure(Component component) {
         actions.configure(component);
+    }
+
+    @Override
+    public void showNotice(String text) {
+        statusBar.showNotice(text);
+    }
+
+    /** A component tab without an instance to show («Sin valores», spec §6.3) says where to choose one. */
+    private void showPlaceHint() {
+        boolean noValues = openDocument.isBody() && openDocument.contextPath().isEmpty();
+        statusBar.showPlaceHint(noValues ? Messages.text("inside.noValuesHint") : "");
+    }
+
+    /**
+     * An edit refused inside this component tab (its pins cannot change yet, spec §6.2 c): nothing changed, and the
+     * status line says why instead of the edit failing silently.
+     */
+    private void explainRefusal(InsideEditRefusedException refusal) {
+        statusBar.showNotice(Messages.format(refusal.messageKey(), refusal.arguments().toArray()));
     }
 
     @Override

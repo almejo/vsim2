@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.problems;
 
+import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MultiBitLayout;
@@ -10,8 +11,10 @@ import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
@@ -63,10 +66,16 @@ import java.util.function.Consumer;
 public final class ProblemsController {
 
     private static final String LOOSENED_NET_PREFIX = "loosened:";
+    private static final String PLACED_ELSEWHERE_NET_PREFIX = "placedElsewhere:";
     private static final KeyStroke NEXT_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0);
     private static final KeyStroke PREVIOUS_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F8, InputEvent.SHIFT_DOWN_MASK);
 
     private final OpenDocument openDocument;
+    /**
+     * The circuit whose problems are listed: the view's own document, or the circuit of a component tab (every tab of
+     * a circuit lists the same problems, spec §6.7).
+     */
+    private final OpenDocument circuit;
     private final EditorView view;
     private final StatusBar statusBar;
     private final JMenu viewMenu;
@@ -85,6 +94,7 @@ public final class ProblemsController {
     private final MenuListener pauseListener;
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
     private final DocumentListener structureListener = (document, change) -> refreshStructure();
+    private final HistoryListener historyListener = history -> refreshStructure();
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private List<ConnectivityProblem> outdatedPieces = List.of();
@@ -94,6 +104,7 @@ public final class ProblemsController {
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
+        this.circuit = openDocument.parent().orElse(openDocument);
         this.view = view;
         this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
@@ -101,8 +112,8 @@ public final class ProblemsController {
         this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
         this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime);
         this.connectivityOverlay = new ConnectivityOverlay(openDocument, () -> view.canvas().scheme(), this::linkedFileProblems);
-        this.navigator = new ProblemNavigator(view::canvas, blink);
-        this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
+        this.navigator = new ProblemNavigator(view::canvas, blink, this::showElsewhere);
+        this.panel = new ProblemsPanel(this::describe, navigator::navigateTo);
 
         nextProblem = Actions.of(Messages.text("action.nextProblem"), navigator::next);
         nextProblem.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.nextProblem"));
@@ -152,7 +163,47 @@ public final class ProblemsController {
         };
         simulationMenu.addMenuListener(pauseListener);
         openDocument.document().addListener(structureListener);
+        if (circuit != openDocument) {
+            circuit.document().addListener(structureListener);
+        }
+        // pieces that took a new pin elsewhere are known once the inside edit is applied, after its document change
+        circuit.history().addListener(historyListener);
         showSnapshot(SimulationSnapshot.EMPTY);
+    }
+
+    /**
+     * A problem in words: the view's own memory and library warnings with its own document, the circuit's problems
+     * with the circuit (a component tab names them by their route from the circuit).
+     */
+    private String describe(Problem problem) {
+        OpenDocument named = isOwn(problem) ? openDocument : circuit;
+        return ProblemText.describe(problem, named.document(), named.registry());
+    }
+
+    /** The problems this view finds itself (linked memory files, outdated pieces), about its own document. */
+    private boolean isOwn(Problem problem) {
+        return outdatedPieces.contains(problem) || reportedLinkedFiles.contains(problem);
+    }
+
+    /**
+     * Shows {@code problem} in the tab where its part is, when that is not this canvas (spec §6.7): from the circuit's
+     * tab a problem inside a component enters that component with the instance of its route and selects the part;
+     * from a component tab every problem of the circuit goes to its place. False when this canvas shows it (also
+     * outside a real window, where there are no other tabs: the circuit's canvas then selects the piece on it).
+     */
+    private boolean showElsewhere(Problem problem) {
+        if (isOwn(problem)) {
+            return false;
+        }
+        Optional<String> focus = ProblemPlaces.focusOf(problem);
+        boolean inside = focus.filter(InstancePath::isNested).isPresent();
+        if (!openDocument.isBody() && !inside) {
+            return false;
+        }
+        return focus.flatMap(id -> ProblemPlaces.targetOf(id, circuit.document()))
+                .map(target -> view.windowCommands().goToPart(circuit, target.definitionId(), target.contextPath(),
+                        target.part()))
+                .orElse(false);
     }
 
     /**
@@ -209,10 +260,11 @@ public final class ProblemsController {
     }
 
     private void refreshProblems() {
-        List<Problem> problems = new ArrayList<>(snapshot.problems().stream()
+        List<Problem> problems = new ArrayList<>(listedSnapshot().problems().stream()
                 .filter(problem -> !(problem instanceof ConnectivityProblem)).toList());
-        problems.addAll(openDocument.connectivityProblems());
+        problems.addAll(circuit.connectivityProblems());
         problems.addAll(loosenedPinProblems());
+        problems.addAll(pinsPlacedElsewhere());
         problems.addAll(outdatedPieces);
         problems.addAll(linkedFileProblems());
         SimulationSnapshot combined = new SimulationSnapshot(snapshot.revision(), openDocument.netlistToken(),
@@ -225,15 +277,53 @@ public final class ProblemsController {
         previousProblem.setEnabled(anyProblem);
     }
 
-    /** One problem per pin a shape change left loose in this session, for the pieces still on the canvas. */
-    private List<ConnectivityProblem> loosenedPinProblems() {
-        List<ConnectivityProblem> loosened = new ArrayList<>();
-        for (PinRef pin : openDocument.loosenedPins()) {
-            Optional<Component> component = openDocument.document().component(pin.componentId());
+    /**
+     * The snapshot whose problems are listed: the one shown, or in a component tab the circuit's latest (the canvas
+     * shows the context instance's part of it), while it belongs to the circuit's current netlist.
+     */
+    private SimulationSnapshot listedSnapshot() {
+        if (circuit == openDocument) {
+            return snapshot;
+        }
+        SimulationSnapshot latest = circuit.latestSnapshot();
+        return latest.token() == circuit.netlistToken() ? latest : SimulationSnapshot.EMPTY;
+    }
+
+    /**
+     * One problem per new pin an inside edit could not put where its component puts it, for the pieces still on the
+     * canvas (spec §6.2 a): the pin is on another spot of the piece's edge, and its old shape stays.
+     */
+    private List<ConnectivityProblem> pinsPlacedElsewhere() {
+        List<ConnectivityProblem> placed = new ArrayList<>();
+        for (KeptOldShape kept : circuit.keptOldShapes()) {
+            Optional<Component> component = circuit.document().component(kept.instance());
             if (component.isEmpty()) {
                 continue;
             }
-            ComponentType type = openDocument.registry().typeOf(component.get());
+            ComponentType type = circuit.registry().typeOf(component.get());
+            for (String pinName : kept.newPinNames()) {
+                for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                    if (type.pin(pinIndex).name().equals(pinName)) {
+                        placed.add(new ConnectivityProblem(PLACED_ELSEWHERE_NET_PREFIX + kept.instance().value() + ":"
+                                + pinIndex, kept.instance().value(), pinIndex,
+                                type.pinLocation(component.get(), pinIndex),
+                                ConnectivityProblem.Cause.PIN_PLACED_ELSEWHERE));
+                    }
+                }
+            }
+        }
+        return placed;
+    }
+
+    /** One problem per pin a shape change left loose in this session, for the pieces still on the canvas. */
+    private List<ConnectivityProblem> loosenedPinProblems() {
+        List<ConnectivityProblem> loosened = new ArrayList<>();
+        for (PinRef pin : circuit.loosenedPins()) {
+            Optional<Component> component = circuit.document().component(pin.componentId());
+            if (component.isEmpty()) {
+                continue;
+            }
+            ComponentType type = circuit.registry().typeOf(component.get());
             if (pin.pinIndex() < type.pinCount()) {
                 loosened.add(new ConnectivityProblem(LOOSENED_NET_PREFIX + pin.componentId().value() + ":"
                         + pin.pinIndex(), pin.componentId().value(), pin.pinIndex(),
@@ -346,6 +436,8 @@ public final class ProblemsController {
         }
         disposed = true;
         openDocument.document().removeListener(structureListener);
+        circuit.document().removeListener(structureListener);
+        circuit.history().removeListener(historyListener);
         blink.dispose();
         pulse.dispose();
         removeFromPanes.run();

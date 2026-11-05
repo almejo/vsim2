@@ -998,10 +998,22 @@ public final class MemoryEditorDialog {
         closer.run();
     }
 
+    /**
+     * «Contenido de RAM1 · RAM · 1K × 8». A ROM inside a component says that its contents are the component's, the same
+     * in every piece (spec §6.6): «Contenido de ROM1 de Ram — todas las piezas · …». A RAM inside shows the live words
+     * of the tab's instance.
+     */
+    String title() {
+        String shown = document.isBody() && kind == MemoryKind.ROM
+                ? Messages.format("memory.title.allPieces", name, document.definitionName())
+                : name;
+        return Messages.format("memory.editor.title", shown, summary());
+    }
+
     /** Shows the editor in a modal dialog over {@code parent}'s window, at {@code address} when given. */
     public void show(java.awt.Component parent, OptionalLong address) {
         JDialog dialog = new JDialog(parent == null ? null : SwingUtilities.getWindowAncestor(parent),
-                Messages.format("memory.editor.title", name, summary()), Dialog.ModalityType.APPLICATION_MODAL);
+                title(), Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         dialog.addWindowListener(new WindowAdapter() {
             @Override

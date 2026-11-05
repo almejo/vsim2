@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.actions;
 
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
@@ -411,16 +412,27 @@ public final class EditorActions {
         return Messages.format(closed ? "speed.closed" : "speed.label", speed);
     }
 
+    /**
+     * «Deshacer agregar», or «Deshacer agregar (en Ram)» for a step made inside a component (spec §10.4), whichever tab
+     * undoes it: the view never jumps to the tab, so the text says where the step was.
+     */
+    private static String stepName(Command command, String namedKey, String insideKey) {
+        String name = Messages.commandName(command.description());
+        return OpenDocument.insideEditOf(command)
+                .map(inside -> Messages.format(insideKey, name, inside.placeName()))
+                .orElseGet(() -> Messages.format(namedKey, name));
+    }
+
     public void refresh() {
         History history = openDocument.history();
         save.setEnabled(openDocument.canSave());
         undo.setEnabled(history.canUndo());
-        undo.putValue(Action.NAME, history.undoDescription()
-                .map(key -> Messages.format("action.undoNamed", Messages.commandName(key)))
+        undo.putValue(Action.NAME, history.undoCommand()
+                .map(command -> stepName(command, "action.undoNamed", "action.undoInside"))
                 .orElse(Messages.text("action.undo")));
         redo.setEnabled(history.canRedo());
-        redo.putValue(Action.NAME, history.redoDescription()
-                .map(key -> Messages.format("action.redoNamed", Messages.commandName(key)))
+        redo.putValue(Action.NAME, history.redoCommand()
+                .map(command -> stepName(command, "action.redoNamed", "action.redoInside"))
                 .orElse(Messages.text("action.redo")));
         Set<ElementId> selected = selection.ids();
         delete.setEnabled(!selected.isEmpty());

@@ -138,6 +138,8 @@ public final class PalettePanel extends JPanel {
     private List<String> favoriteIds = List.of();
     private List<String> recentIds = List.of();
     private final Listeners<Runnable> entriesListeners = new Listeners<>();
+    /** The entries that cannot be chosen here, by palette id, with the tooltip that says why. */
+    private final Map<String, String> disabledReasons = new HashMap<>();
 
     /** The ids (type or preset) shown as favourites now; read live by the tree, the renderer and the popup. */
     List<String> favoriteIds() {
@@ -351,8 +353,45 @@ public final class PalettePanel extends JPanel {
         return entries.size();
     }
 
+    /**
+     * Disables the entry {@code paletteId} (a type, preset or user component id) with {@code reason} as its tooltip, or
+     * enables it again when empty: a disabled entry cannot be chosen, placed or dragged. Inside a component tab the
+     * component itself, its ancestors and, while its interface is locked, the pin parts are disabled (spec §6.5).
+     */
+    public void setDisabledReason(String paletteId, Optional<String> reason) {
+        Objects.requireNonNull(paletteId, "paletteId");
+        Optional<String> before = disabledReason(paletteId);
+        reason.ifPresentOrElse(text -> disabledReasons.put(paletteId, text), () -> disabledReasons.remove(paletteId));
+        if (before.equals(reason)) {
+            return;
+        }
+        if (reason.isPresent() && selectedId().filter(paletteId::equals).isPresent()) {
+            clearSelection(); // what was being placed cannot be placed here any more
+        }
+        tree.repaint();
+    }
+
+    /** Why the entry {@code paletteId} is disabled; empty while it can be chosen. */
+    public Optional<String> disabledReason(String paletteId) {
+        return Optional.ofNullable(disabledReasons.get(paletteId));
+    }
+
+    /** Whether the tree row of {@code item} is a disabled entry ({@link #setDisabledReason}). */
+    boolean isDisabled(Object item) {
+        return isEntryItem(item) && disabledReasons.containsKey(idOf(item));
+    }
+
+    private Optional<String> selectedId() {
+        TreePath path = tree.getSelectionPath();
+        Object item = path == null ? null : ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
+        return isEntryItem(item) ? Optional.of(idOf(item)) : Optional.empty();
+    }
+
     /** Starts the same placement as choosing the entry in the palette, including library-version warnings. */
     public void chooseEntry(PaletteEntry entry) {
+        if (disabledReasons.containsKey(entry.id())) {
+            return;
+        }
         if (entry.userComponent().isPresent()) {
             userChooser.accept(entry.userComponent().get());
         } else {
@@ -395,7 +434,7 @@ public final class PalettePanel extends JPanel {
         tree.setRowHeight(ICON_SIZE + 4);
         tree.setCellRenderer(new PaletteRowRenderer(this));
         ToolTipManager.sharedInstance().registerComponent(tree);
-        tree.setSelectionModel(new HintSkippingSelectionModel(tree));
+        tree.setSelectionModel(new HintSkippingSelectionModel(tree, this::isDisabled));
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         tree.addTreeSelectionListener(event -> {
             if (!updating) {

@@ -37,4 +37,9 @@ public final class PalettePanelAccess {
     public static int dragSourceActions(PalettePanel palette) {
         return palette.dragSourceActions();
     }
+
+    /** The tooltip the palette shows over the entry {@code typeId}, if any. */
+    public static java.util.Optional<String> toolTip(PalettePanel palette, String typeId) {
+        return palette.toolTipFor(typeId);
+    }
 }

@@ -73,6 +73,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -139,6 +140,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
     private final EdgeController edgeController = new EdgeController(this::getSize);
     private final DocumentListener documentListener;
+    private final Runnable refreshListener = this::bodyRefreshed;
     private final SelectionMoves selectionMoves;
     private FileDropTarget fileDropTarget = (files, gridPosition) -> {
     };
@@ -210,6 +212,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         setOpaque(true);
         setPreferredSize(new Dimension(900, 650));
         openDocument.document().addListener(documentListener);
+        openDocument.addRefreshListener(refreshListener);
         selection.addListener(selectionListener);
         MouseHandler mouseHandler = new MouseHandler();
         addMouseListener(mouseHandler);
@@ -598,7 +601,31 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         terminalTicker.stop();
         watchWindow(null);
         openDocument.document().removeListener(documentListener);
+        openDocument.removeRefreshListener(refreshListener);
         selection.removeListener(selectionListener);
+    }
+
+    /**
+     * A component tab's body followed a change made elsewhere (an undo from the circuit's tab, «Actualizar desde la
+     * librería», the AI; spec §10.4): the gesture in progress is cancelled as Escape would, since what it holds may be
+     * gone, and the selection keeps the ids that still exist.
+     */
+    private void bodyRefreshed() {
+        if (disposed) {
+            return;
+        }
+        cancelEdgeGesture();
+        if (tool.holdsGesture()) {
+            boolean shared = sharesGesture();
+            tool.keyPressed(toolContext(), KeyEvent.VK_ESCAPE, false);
+            endGesture();
+            repaintOtherPanesIfTheGestureEnded(shared);
+            updateAnimation();
+        }
+        Set<ElementId> present = new HashSet<>();
+        openDocument.document().elements().forEach(element -> present.add(element.id()));
+        selection.retainAll(present);
+        repaint();
     }
 
     public Tool tool() {
@@ -1442,6 +1469,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     @Override
     public void enterComponent(Component component) {
         host.enterComponent(component);
+    }
+
+    @Override
+    public void showNotice(String text) {
+        host.showNotice(text);
     }
 
     @Override

@@ -95,6 +95,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 ### Pestañas y componentes
 
 - [Pestañas y grupos; entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente): un doble clic en una pieza de un componente propio (o su botón «Entrar ↘», «Entrar» en el clic derecho, Enter) abre el componente en una pestaña del grupo de su circuito, con los valores de esa pieza; lo que se cambia adentro cambia el componente en todo el circuito, en un solo paso de deshacer.
+- [Adentro de un componente](docs/funciones/pestanas-y-componentes.md#adentro-de-un-componente-qué-cambia): la paleta no deja poner el componente dentro de sí mismo, los pines del componente toman su valor de afuera, «Sin valores» cuando no hay pieza que mostrar, Problemas con el camino de cada problema (F8 entra al componente), memorias y Terminales de la pieza que se ve, y «Deshacer … (en Ram)».
 
 ### Simulación y paso a paso
 

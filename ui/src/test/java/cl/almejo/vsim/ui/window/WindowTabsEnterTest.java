@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -80,6 +81,34 @@ class WindowTabsEnterTest {
 
     private EditorView enter(OpenDocument document, int instanceIndex) {
         return tabs.enter(document, INVERTER, Optional.of(instance(document, instanceIndex)), Optional.empty());
+    }
+
+    @Test
+    void goToPartEntersWithTheContextAndSelectsThePart() {
+        OpenDocument document = withTwoInverters();
+        tabs.addTab(document, Optional.empty());
+
+        EditorView shown = tabs.goToPart(document, Optional.of(INVERTER), Optional.of(instance(document, 1)),
+                new ElementId("c2"));
+
+        assertThat(tabs.activeView()).isSameAs(shown);
+        assertThat(shown.openDocument().definitionId()).contains(INVERTER);
+        assertThat(shown.openDocument().contextPath()).contains(instance(document, 1));
+        assertThat(shown.selection().ids()).containsExactly(new ElementId("c2"));
+    }
+
+    @Test
+    void goToPartOfTheCircuitActivatesItsMainTab() {
+        OpenDocument document = withTwoInverters();
+        EditorView main = tabs.addTab(document, Optional.empty());
+        enter(document, 0);
+        ElementId piece = new ElementId(instance(document, 1));
+
+        EditorView shown = tabs.goToPart(document, Optional.empty(), Optional.empty(), piece);
+
+        assertThat(shown).isSameAs(main);
+        assertThat(tabs.activeView()).isSameAs(main);
+        assertThat(main.selection().ids()).containsExactly(piece);
     }
 
     @Test

@@ -46,6 +46,8 @@ public final class StatusBar extends JPanel {
     private final JLabel failure = new ErrorTextLabel();
     /** «Simulación detenida en t = …: …»: why a part paused the simulation, while it stays paused. */
     private final JLabel pauseNotice = new JLabel();
+    /** What stays true of the place shown while it is shown («Sin valores» in a component tab). */
+    private final JLabel placeHint = new JLabel();
     private boolean clickable;
     private boolean running;
     /** The time of the last snapshot shown. */
@@ -87,6 +89,7 @@ public final class StatusBar extends JPanel {
         add(shortCircuits);
         add(failure);
         add(pauseNotice);
+        add(placeHint, YIELDING_CONSTRAINTS);
         achievedSpeed.setVisible(false);
         selection.setVisible(false);
         hint.setVisible(false);
@@ -95,6 +98,7 @@ public final class StatusBar extends JPanel {
         shortCircuits.setVisible(false);
         failure.setVisible(false);
         pauseNotice.setVisible(false);
+        placeHint.setVisible(false);
     }
 
     public void showSnapshot(SimulationSnapshot snapshot) {
@@ -325,6 +329,16 @@ public final class StatusBar extends JPanel {
         hint.setVisible(!text.isEmpty());
     }
 
+    /**
+     * Shows {@code text} for as long as it holds of the place the window shows (a component tab with «Sin valores»
+     * says where to choose an instance); an empty text hides it. Unlike a notice it does not go by itself.
+     */
+    public void showPlaceHint(String text) {
+        placeHint.setText(text);
+        placeHint.setToolTipText(text.isEmpty() ? null : text);
+        placeHint.setVisible(!text.isEmpty());
+    }
+
     /** How long a notice stays, in milliseconds. */
     public static final int NOTICE_MILLISECONDS = 4000;
     /** How long a notice with a button stays, so there is time to reach the button. */
@@ -393,7 +407,7 @@ public final class StatusBar extends JPanel {
     /** Visible texts joined with " · " (what the user reads, left to right), the zoom percentage last («125 %»). */
     public String text() {
         Stream<String> labels = Stream.of(simulation, time, achievedSpeed, selection, hint, notice, shortCircuits,
-                        failure, pauseNotice)
+                        failure, pauseNotice, placeHint)
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText);
         Stream<String> zoom = zoomControl != null && zoomControl.isVisible() ? Stream.of(zoomControl.text())
