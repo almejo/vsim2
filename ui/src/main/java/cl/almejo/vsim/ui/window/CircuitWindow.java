@@ -267,6 +267,12 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
+    public void enter(OpenDocument document, String definitionId, Optional<String> contextPath,
+                      Optional<ViewState> from) {
+        tabs.enter(document, definitionId, contextPath, from);
+    }
+
+    @Override
     public void openUntitled(CircuitDocument document) {
         application.openUntitled(document, this);
     }

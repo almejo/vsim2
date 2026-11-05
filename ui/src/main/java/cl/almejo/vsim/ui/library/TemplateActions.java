@@ -39,6 +39,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
@@ -308,8 +309,8 @@ public final class TemplateActions {
 
     /**
      * Context menu: "Crear componente desde selección…" (and "Actualizar componente…" when enabled) on a
-     * multi-selection or a selection with interface pins or test parts (a single clock, switch, LED…); "Desarmar" and, when outdated, "Actualizar desde la
-     * librería" on a single instance.
+     * multi-selection or a selection with interface pins or test parts (a single clock, switch, LED…); «Entrar»,
+     * "Desarmar" and, when outdated, "Actualizar desde la librería" on a single instance.
      */
     public ContextMenuContributor contributor() {
         return (menu, target, selection, gridPosition) -> {
@@ -325,12 +326,20 @@ public final class TemplateActions {
                 }
             }
             if (!multiple && target.get() instanceof Component instance && definitionIdOf(instance).isPresent()) {
+                if (EnterableInstances.definitionOf(openDocument, instance).isPresent()) {
+                    menu.add(new JMenuItem(enterAction(instance)));
+                }
                 menu.add(new JMenuItem(disassembleAction(instance)));
                 if (isOutdated(instance)) {
                     menu.add(new JMenuItem(updateFromLibraryAction(instance)));
                 }
             }
         };
+    }
+
+    /** «Entrar» for {@code instance}: its component opens in a tab of the circuit's group (spec §4.4). */
+    Action enterAction(Component instance) {
+        return Actions.of(Messages.text("action.enter"), () -> canvas.get().enterComponent(instance));
     }
 
     /** "Desarmar" for {@code instance}, with its icon. */

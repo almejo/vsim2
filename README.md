@@ -92,6 +92,10 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Forma de los componentes propios](docs/funciones/componentes.md#forma-de-los-componentes-propios): editor de formas con figuras (también multilíneas y polígonos, y las tres herramientas de línea se dibujan con clic o con arrastre), nodos que se agregan y se quitan con un clic, tramos curvos con dos manijas siempre a la vista que se toman directamente y nodos suaves o esquinas, plantillas (incluido el círculo), cuadrícula de fondo como la del editor principal con un botón para mostrarla u ocultarla, pines movibles con guía, textos de varias líneas escritos en el editor en el lugar, con tamaño fijo y un rectángulo de selección que los rodea, pines grandes con ayuda al pasar el mouse, colores de letra, borde, relleno y línea con la paleta de las notas, la forma predeterminada como figuras editables desde el principio, una caja que cambia de tamaño llevando lo que toca su borde y dejando centrado lo demás (o escalando todo, con Ctrl), y cables que siguen a los pines al cambiar la forma o actualizar el componente.
 - [Conexiones pendientes](docs/funciones/componentes.md#conexiones-pendientes): dentro de un componente rige la regla del lienzo; un pin del componente que no llega a nada por dentro brilla en rojo y Problemas lo nombra.
 
+### Pestañas y componentes
+
+- [Pestañas y grupos; entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente): un doble clic en una pieza de un componente propio (o su botón «Entrar ↘», «Entrar» en el clic derecho, Enter) abre el componente en una pestaña del grupo de su circuito, con los valores de esa pieza; lo que se cambia adentro cambia el componente en todo el circuito, en un solo paso de deshacer.
+
 ### Simulación y paso a paso
 
 - [Cortocircuitos](docs/funciones/simulacion-y-paso-a-paso.md#cortocircuitos) marcados en el circuito, listados en Problemas y recorridos con F8.

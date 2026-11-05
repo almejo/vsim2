@@ -354,6 +354,9 @@ public final class OpenDocument implements AutoCloseable {
      * remaining use (or «Sin valores»), and the place's own change listeners run.
      */
     private void parentChanged() {
+        if (closed) {
+            return; // closed while the document was telling its listeners (a tab closing on a removed definition)
+        }
         BodyWorkingCopy workingCopy = body.workingCopy;
         workingCopy.synchronize();
         if (workingCopy.isRemoved()) {

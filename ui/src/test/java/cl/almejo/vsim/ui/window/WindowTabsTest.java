@@ -20,7 +20,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.swing.JMenuBar;
 import java.awt.Point;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -41,40 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class WindowTabsTest {
 
-    /** What a frame and the application would do, recorded. */
-    private static final class RecordingHost implements WindowTabs.Host {
-        JMenuBar menuBar;
-        boolean lastHolder = true;
-        boolean answerToSave = true;
-        final List<OpenDocument> saveQuestions = new ArrayList<>();
-        final List<OpenDocument> closedGroups = new ArrayList<>();
-        final List<OpenDocument> closingGroups = new ArrayList<>();
-        final List<OpenDocument> changed = new ArrayList<>();
-        final List<OpenDocument> droppedOutside = new ArrayList<>();
-        int emptied;
-        int activeChanges;
-
-        @Override public void showMenuBar(JMenuBar shown) { menuBar = shown; }
-        @Override public boolean isMaximized() { return false; }
-        @Override public boolean isLastHolder(OpenDocument document) { return lastHolder; }
-        @Override public boolean confirmSave(OpenDocument document) {
-            saveQuestions.add(document);
-            return answerToSave;
-        }
-        @Override public void tabsChanged(OpenDocument document) { changed.add(document); }
-        @Override public void groupClosing(OpenDocument document) { closingGroups.add(document); }
-        @Override public void groupClosed(OpenDocument document) { closedGroups.add(document); }
-        @Override public void emptied() { emptied++; }
-        @Override public void activeTabChanged() { activeChanges++; }
-        @Override public int viewNumber(OpenDocument document, int mainTabIndex) { return 0; }
-        @Override public void droppedOutside(OpenDocument document, Point screenPoint) {
-            droppedOutside.add(document);
-        }
-        @Override public List<WindowMenu.Entry> everyTab() { return List.of(); }
-    }
-
-    private final RecordingHost host = new RecordingHost();
-    private final RecordingHost otherHost = new RecordingHost();
+    private final RecordingWindowHost host = new RecordingWindowHost();
+    private final RecordingWindowHost otherHost = new RecordingWindowHost();
     private final List<OpenDocument> documents = new ArrayList<>();
     private final AppPreferences preferences = AppPreferences.inMemory();
     private WindowTabs tabs;
@@ -94,7 +61,7 @@ class WindowTabsTest {
         documents.forEach(OpenDocument::close);
     }
 
-    private WindowTabs newTabs(RecordingHost recording) {
+    private WindowTabs newTabs(RecordingWindowHost recording) {
         return new WindowTabs(recording,
                 place -> new EditorView(place, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW),
                 new SplitLayoutStore(preferences), () -> false);

@@ -38,6 +38,13 @@ public interface CanvasHost {
         configure(component);
     }
 
+    /**
+     * Enters the user component {@code instance} is an instance of: a tab of its definition in the circuit's group,
+     * showing that instance's values (spec §4.4). Hosts without tabs ignore it.
+     */
+    default void enterComponent(Component instance) {
+    }
+
     /** Opens the content editor of a RAM or ROM; hosts without one open the configure dialog. */
     default void editMemory(Component component) {
         configure(component);

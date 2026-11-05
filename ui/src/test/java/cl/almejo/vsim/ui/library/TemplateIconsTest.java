@@ -57,7 +57,8 @@ class TemplateIconsTest {
         JPopupMenu menu = new JPopupMenu();
         fixture.features.actions().contributor().contribute(menu, Optional.of(instance),
                 fixture.view.canvas().selection(), new Point2D.Double());
-        JMenuItem disassemble = (JMenuItem) menu.getComponent(0);
+        assertThat(((JMenuItem) menu.getComponent(0)).getText()).isEqualTo("Entrar"); // first of the instance's section
+        JMenuItem disassemble = (JMenuItem) menu.getComponent(1);
         assertThat(disassemble.getText()).isEqualTo("Desarmar");
         assertThat(disassemble.getIcon()).isSameAs(Icons.get(TemplateIcons.DISASSEMBLE, Icons.MENU_SIZE));
     }

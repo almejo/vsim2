@@ -1,10 +1,12 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
@@ -17,9 +19,11 @@ import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
+import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.ZoomTargets;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
@@ -36,6 +40,7 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.terminal.CapturedKeys;
 import cl.almejo.vsim.ui.terminal.KeyboardCapture;
 import cl.almejo.vsim.ui.terminal.KeyboardInspectorRows;
+import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
@@ -527,6 +532,30 @@ public final class EditorView extends JPanel implements CanvasHost {
     public void showContextMenu(CircuitCanvas source, Optional<DocumentElement> target, Point2D screenPosition) {
         Point2D gridPosition = source.viewport().screenToGrid(screenPosition.getX(), screenPosition.getY());
         contextMenu(target, gridPosition).show(source, (int) screenPosition.getX(), (int) screenPosition.getY());
+    }
+
+    /**
+     * Enters the user component {@code instance} is an instance of (spec §4.4): the window opens or focuses its tab in
+     * the circuit's group, with the values of this instance (its path under this place's context). With «Animación»
+     * on, the new tab starts where the instance is drawn here and grows to the whole body. Built-in parts never enter.
+     */
+    @Override
+    public void enterComponent(Component instance) {
+        EnterableInstances.definitionOf(openDocument, instance).ifPresent(definitionId -> {
+            OpenDocument circuit = openDocument.parent().orElse(openDocument);
+            Optional<ViewState> from = services.preferences().animateViewMoves()
+                    ? enteringStart(circuit, definitionId, instance) : Optional.empty();
+            windowCommands.enter(circuit, definitionId, EnterableInstances.contextOf(openDocument, instance), from);
+        });
+    }
+
+    /** Where the entered body's view starts: on screen where, and as big as, {@code instance} is drawn now. */
+    private Optional<ViewState> enteringStart(OpenDocument circuit, String definitionId, Component instance) {
+        Optional<Bounds> body = circuit.document().definition(definitionId)
+                .flatMap(definition -> CircuitBounds.of(definition.bodyDocument(circuit.document()),
+                        openDocument.registry()));
+        Bounds box = ElementBounds.of(instance, openDocument.registry());
+        return body.map(bodyBounds -> EnteringView.start(canvas().viewState(), box, bodyBounds));
     }
 
     @Override

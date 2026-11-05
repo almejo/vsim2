@@ -12,6 +12,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Agregado
 
 - Pestañas: una ventana tiene varios circuitos en pestañas, agrupadas por circuito con su color. Abrir, Recientes, Ejemplos, Nuevo o soltar un archivo lo abren como pestaña en la ventana; Ctrl+Tab y Ctrl+Mayús+Tab las recorren, Ctrl+W cierra la pestaña y Ctrl+Mayús+W la ventana. Arrastrar una pestaña lleva su grupo entero a otro lugar de la fila, a otra ventana o a una ventana nueva; un doble clic en la pestaña del circuito pliega su grupo. Ventana ▸ «Nueva ventana con este circuito» (Ctrl+Mayús+N) hace lo que antes hacía «Nueva vista». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
+- Entrar a un componente propio: un doble clic en su pieza, el botón «Entrar ↘» que aparece al pasar el mouse, «Entrar» en el clic derecho o Enter con la pieza seleccionada abren el componente en una pestaña del grupo de su circuito. La pestaña muestra los valores de esa pieza mientras simula, y lo que cambias adentro cambia el componente en todo el circuito, en un solo paso de deshacer. Entrar de nuevo trae la misma pestaña con la pieza nueva. Si el componente sale del circuito, sus pestañas se cierran con un aviso. Ver [Entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente).
 
 - Velocidad ×1000 en el selector de la barra, entre ×100 y «Máxima»: un circuito grande, como el LRV32IM importado de Logisim, corre lo bastante rápido para que su Terminal escriba de a poco. Ver [Interfaz, preferencias y sesión](docs/funciones/interfaz-preferencias-y-sesion.md).
 
@@ -19,6 +20,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 - Continuar donde quedaste recuerda cada ventana con sus pestañas: el orden de los grupos, el zoom de cada pestaña, la activa, los grupos plegados y, en una pestaña de componente, la pieza cuyos valores mostraba; una pestaña de componente recuerda su propia división de la vista. Un componente que ya no está en su circuito se avisa junto con los archivos que faltan. Ver [Sesión y recuperación](docs/funciones/interfaz-preferencias-y-sesion.md#sesión-y-recuperación).
 - «Crear componente desde selección…» y «Convertir en componente…» de un marco llevan adentro del componente los marcos de la selección, en el mismo lugar (antes se perdían); las notas adhesivas se siguen quedando en el lienzo. Ver [Componentes propios](docs/funciones/componentes.md#componentes-propios).
+- El doble clic en una pieza de un componente propio entra al componente en vez de abrir sus Propiedades, que siguen en el inspector y en el clic derecho. Ver [Entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente).
 - Ventana ▸ «Nueva vista» ahora se llama «Nueva pestaña del mismo circuito» y abre una pestaña en la misma ventana; Archivo ▸ «Cerrar ventana» pasó a Ctrl+Mayús+W y Ctrl+W es ahora «Cerrar pestaña». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
 
 ### Arreglado

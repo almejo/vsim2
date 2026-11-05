@@ -44,6 +44,8 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public Component memoryEdited;
     /** The Terminal whose window a double click on its screen asked for ({@link #editTerminal}). */
     public Component terminalEdited;
+    /** The user component a double click, Enter or the «Entrar ↘» chip asked to enter ({@link #enterComponent}). */
+    public Component entered;
     public int repaints;
     public double selectionDashPhase;
     public final List<CanvasCursor> cursors = new ArrayList<>();
@@ -234,6 +236,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public void editTerminal(Component component) {
         terminalEdited = component;
+    }
+
+    @Override
+    public void enterComponent(Component component) {
+        entered = component;
     }
 
     /** As the editor answers: the square the memory painter draws. */

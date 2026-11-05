@@ -4,6 +4,9 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.document.Component;
@@ -913,5 +916,93 @@ class SelectToolTest {
         assertThat(context.openDocument().history().undoDescription()).contains("command.paste");
         context.openDocument().history().undo();
         assertThat(context.openDocument().document().components()).containsExactly(gate);
+    }
+
+    // --- entering a user component (spec §4.4) ---
+
+    private Component inverterInstance(int x, int y) {
+        if (context.openDocument().document().definition(ExampleDefinitions.INVERTER).isEmpty()) {
+            context.openDocument().execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        }
+        return place(context.openDocument(), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), x, y, Map.of());
+    }
+
+    @Test
+    void doubleClickOnACustomInstanceEnters() {
+        Component instance = inverterInstance(0, 0);
+        doubleClick(2, 1);
+        assertThat(context.entered).isEqualTo(instance);
+        assertThat(context.configured).isNull();
+        assertThat(context.selection.ids()).containsExactly(instance.id());
+    }
+
+    @Test
+    void doubleClickOnABuiltInPartStillConfigures() {
+        Component gate = not(0, 0);
+        doubleClick(2, 2);
+        assertThat(context.configured).isEqualTo(gate);
+        assertThat(context.entered).isNull();
+    }
+
+    @Test
+    void doubleClickOnTheLabelOfACustomInstanceStillEditsIt() {
+        Component instance = inverterInstance(0, 10);
+        context.openDocument().execute(new SetLabelCommand(instance.id(), "U4"));
+        Component labelled = context.openDocument().document().component(instance.id()).orElseThrow();
+        Rectangle2D labelBounds = LabelLayout.componentLabel(context.openDocument().registry().typeOf(labelled),
+                labelled).orElseThrow().bounds();
+        doubleClick(labelBounds.getCenterX() / GridPoint.PIXELS_PER_UNIT,
+                labelBounds.getCenterY() / GridPoint.PIXELS_PER_UNIT);
+        assertThat(context.editedLabel).isEqualTo(labelled);
+        assertThat(context.entered).isNull();
+    }
+
+    @Test
+    void enterWithExactlyOneCustomInstanceSelectedEnters() {
+        Component instance = inverterInstance(0, 0);
+        context.selection.select(instance.id());
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ENTER, false)).isTrue();
+        assertThat(context.entered).isEqualTo(instance);
+    }
+
+    @Test
+    void enterWithAnythingElseSelectedIsNotTaken() {
+        Component instance = inverterInstance(0, 0);
+        Component gate = not(0, 20);
+        context.selection.select(gate.id());
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ENTER, false)).isFalse();
+        context.selection.select(instance.id());
+        context.selection.add(gate.id());
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ENTER, false)).isFalse();
+        assertThat(context.entered).isNull();
+    }
+
+    @Test
+    void hoveringACustomInstanceShowsTheEnterChipAndAClickOnItEnters() {
+        Component instance = inverterInstance(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(2, 1));
+        Rectangle2D chip = tool.enterChipBounds(context).orElseThrow();
+        double gridX = chip.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        double gridY = chip.getCenterY() / GridPoint.PIXELS_PER_UNIT;
+        tool.mouseMoved(context, TestToolContext.at(gridX, gridY));
+        assertThat(tool.enterChipBounds(context)).contains(chip); // still shown with the pointer on it
+
+        context.click(tool, gridX, gridY);
+
+        assertThat(context.entered).isEqualTo(instance);
+        assertThat(context.openDocument().document().component(instance.id()).orElseThrow().position())
+                .isEqualTo(instance.position());
+    }
+
+    @Test
+    void aBuiltInPartOrEmptySpaceShowsNoChip() {
+        not(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(2, 2));
+        assertThat(tool.enterChipBounds(context)).isEmpty();
+        inverterInstance(0, 20);
+        tool.mouseMoved(context, TestToolContext.at(2, 21));
+        assertThat(tool.enterChipBounds(context)).isPresent();
+        tool.mouseMoved(context, TestToolContext.at(40, 40));
+        assertThat(tool.enterChipBounds(context)).isEmpty();
     }
 }

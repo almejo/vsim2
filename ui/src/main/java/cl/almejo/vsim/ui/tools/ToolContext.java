@@ -122,6 +122,13 @@ public interface ToolContext {
         configure(component);
     }
 
+    /**
+     * Enters the user component {@code component} is an instance of (spec §4.4: a double click on its body, Enter, the
+     * «Entrar ↘» chip): its tab opens in the circuit's group. Hosts without tabs ignore it.
+     */
+    default void enterComponent(Component component) {
+    }
+
     /** Opens the window of a Terminal (a double click on its screen); by default the configure dialog. */
     default void editTerminal(Component component) {
         configure(component);

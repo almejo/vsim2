@@ -177,6 +177,8 @@ public final class SelectTool implements Tool {
     /** Where the dragged label would land; {@code null} until the drag passes the threshold. */
     private LabelOffset labelOffset;
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
+    /** The «Entrar ↘» chip of the user-component instance under the idle pointer (spec §4.4). */
+    private final EnterChip enterChip = new EnterChip();
 
     /** For tests: the delegates installed now, in the order they are asked. */
     public List<SelectToolDelegate> delegates() {
@@ -201,12 +203,20 @@ public final class SelectTool implements Tool {
         releaseHeldButton(context);
         hoverPin = null;
         hoverWidth = 1;
+        enterChip.clear();
         reset();
         context.repaint();
     }
 
     @Override
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
+        if (activeDelegate == null && enterChip.pressed(context, event)) {
+            reset();
+            return;
+        }
+        if (enterChip.clear()) {
+            context.repaint(); // no chip while a gesture is under way; the next move shows it again
+        }
         if (delegatePress(context, event)) {
             return;
         }
@@ -410,6 +420,9 @@ public final class SelectTool implements Tool {
                     // the first click toggled the pin: put its value back, then edit that value
                     context.openDocument().setInputValue(component.id(), toggledByFirstClick.valueBefore());
                     context.editValue(component, toggledByFirstClick.valueBefore());
+                } else if (EnterableInstances.definitionOf(context.openDocument(), component).isPresent()) {
+                    // a user component opens inside; its Propiedades stay in the inspector and the menu (spec §4.4)
+                    context.enterComponent(component);
                 } else if (MemoryTypes.kindOf(component.typeId()).isPresent()) {
                     context.editMemory(component);
                 } else if ((component.typeId().equals(StandardComponentTypes.TERMINAL)
@@ -657,6 +670,9 @@ public final class SelectTool implements Tool {
     @Override
     public void mouseExited(ToolContext context) {
         lastHover = null;
+        if (enterChip.clear()) {
+            context.repaint();
+        }
         delegates.forEach(delegate -> delegate.exited(context));
         if (hoverPin != null) {
             hoverPin = null;
@@ -666,6 +682,9 @@ public final class SelectTool implements Tool {
 
     private void updateHover(ToolContext context, CanvasMouseEvent event) {
         lastHover = event;
+        if (enterChip.hover(context, event)) {
+            context.repaint();
+        }
         Optional<CanvasCursor> delegateCursor = Optional.empty();
         for (SelectToolDelegate delegate : delegates) {
             Optional<CanvasCursor> answer = delegate.moved(context, event);
@@ -867,6 +886,11 @@ public final class SelectTool implements Tool {
                 copying());
     }
 
+    /** For tests: the «Entrar ↘» chip shown now, in document pixels. */
+    Optional<Rectangle2D> enterChipBounds(ToolContext context) {
+        return enterChip.bounds(context);
+    }
+
     /** For tests: the alignment lines the current move draws. */
     List<SnapMatch> alignmentMatches() {
         return snappedMove.matches();
@@ -874,6 +898,9 @@ public final class SelectTool implements Tool {
 
     @Override
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
+        if (keyCode == KeyEvent.VK_ENTER) {
+            return enterSelectedInstance(context);
+        }
         if (keyCode != KeyEvent.VK_ESCAPE) {
             return false;
         }
@@ -895,10 +922,25 @@ public final class SelectTool implements Tool {
         return true;
     }
 
+    /** Enter with exactly one user-component instance selected enters it (spec §4.4); false when not taken. */
+    private boolean enterSelectedInstance(ToolContext context) {
+        Set<ElementId> selected = context.selection().ids();
+        if (!isIdle() || selected.size() != 1) {
+            return false;
+        }
+        Optional<Component> instance = context.openDocument().document().component(selected.iterator().next())
+                .filter(component -> EnterableInstances.definitionOf(context.openDocument(), component).isPresent());
+        instance.ifPresent(context::enterComponent);
+        return instance.isPresent();
+    }
+
     @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
         for (SelectToolDelegate delegate : delegates) {
             delegate.paintOverlay(graphics, context);
+        }
+        if (isIdle()) {
+            enterChip.paint(graphics, context);
         }
         Rectangle2D band = rubberBand();
         if (band != null) {

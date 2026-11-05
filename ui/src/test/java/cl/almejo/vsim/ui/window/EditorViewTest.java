@@ -2,6 +2,9 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -49,6 +52,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
@@ -76,7 +80,13 @@ class EditorViewTest {
         @Override public void previousTab() { windowCalls.add("previousTab"); }
         @Override public void closeTab() { windowCalls.add("closeTab"); }
         @Override public void closeComponents() { windowCalls.add("closeComponents"); }
+        @Override public void enter(OpenDocument document, String definitionId, Optional<String> contextPath,
+                                    Optional<cl.almejo.vsim.ui.canvas.ViewState> from) {
+            enteredDocuments.add(document);
+            windowCalls.add("enter " + definitionId + " " + contextPath.orElse("-"));
+        }
     };
+    private final List<OpenDocument> enteredDocuments = new ArrayList<>();
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -809,5 +819,51 @@ class EditorViewTest {
         assertThatThrownBy(() -> view.shortcutActions().clear()).isInstanceOf(UnsupportedOperationException.class);
         removeFirst.run();
         assertThat(view.shortcutActions()).containsOnlyKeys("test.second");
+    }
+
+    // --- entering a user component (spec §4.4) ---
+
+    @Test
+    void enterWithOneCustomInstanceSelected() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 0, 0,
+                Map.of());
+        view.selection().select(instance.id());
+
+        assertThat(view.canvas().pressKeyOnTool(KeyEvent.VK_ENTER, false)).isTrue();
+
+        assertThat(windowCalls).containsExactly("enter inverter " + instance.id().value());
+        assertThat(enteredDocuments).containsExactly(openDocument);
+    }
+
+    @Test
+    void enteringFromInsideAComponentEntersTheNestedOneWithItsPathInTheCircuit() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter(),
+                ExampleDefinitions.doubleInverter())));
+        Component outer = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 0, 0,
+                Map.of());
+        OpenDocument body = openDocument.openBody(ExampleDefinitions.DOUBLE_INVERTER, Optional.of(outer.id().value()));
+        EditorView inside = new EditorView(body, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        try {
+            Component nested = body.document().component(new cl.almejo.vsim.core.document.ElementId("c3"))
+                    .orElseThrow();
+            inside.enterComponent(nested);
+            body.setContextPath(Optional.empty());
+            inside.enterComponent(nested);
+        } finally {
+            inside.dispose();
+            body.close();
+        }
+        assertThat(windowCalls).containsExactly("enter inverter " + outer.id().value() + "/c3", "enter inverter -");
+        assertThat(enteredDocuments).containsExactly(openDocument, openDocument);
+    }
+
+    @Test
+    void aBuiltInPartIsNeverEntered() {
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of());
+        view.enterComponent(gate);
+        view.selection().select(gate.id());
+        view.canvas().pressKeyOnTool(KeyEvent.VK_ENTER, false);
+        assertThat(windowCalls).isEmpty();
     }
 }

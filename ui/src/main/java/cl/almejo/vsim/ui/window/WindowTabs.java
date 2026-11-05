@@ -4,8 +4,10 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.session.TabState;
 import cl.almejo.vsim.ui.session.WindowSession;
@@ -39,6 +41,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelListener;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -107,7 +110,10 @@ public final class WindowTabs extends JPanel {
     private record MovedTab(Optional<String> definitionId, OpenDocument place, ViewState view, boolean active) {
     }
 
-    /** One tab: its view on its place, and what opens its view the first time it shows. */
+    /**
+     * One tab: its view on its place, and what opens its view the first time it shows. A component tab owns its body
+     * place: the place is closed (its working copy and document listener released) when the tab goes.
+     */
     private static final class TabEntry {
         private final String id;
         private final OpenDocument document;
@@ -119,6 +125,15 @@ public final class WindowTabs extends JPanel {
         private final RememberedSplit rememberedSplit;
         private Optional<ViewState> initialViewState;
         private boolean initialViewShown;
+        /** Stops hearing that the definition left the circuit; nothing to stop for a main tab. */
+        private Runnable bodyRemovedRemover = () -> {
+        };
+        /** An entered tab opens on the whole body («Ver todo»), travelling there from its initial view. */
+        private boolean fitsBodyWhenShown;
+        /** When it was last activated (a counter): re-entering focuses the most recent tab of a definition. */
+        private long lastActivation;
+        /** The definition's last known name: the notice still names it once it left the circuit. */
+        private String definitionName;
 
         private TabEntry(String id, OpenDocument document, Optional<String> definitionId, OpenDocument place,
                          EditorView view, InitialView initialView, Runnable initialViewWatch,
@@ -132,10 +147,15 @@ public final class WindowTabs extends JPanel {
             this.initialViewWatch = initialViewWatch;
             this.rememberedSplit = rememberedSplit;
             this.initialViewState = initialViewState;
+            this.definitionName = definitionId.map(definition -> nameOf(document, definition)).orElse("");
         }
 
         private boolean isMain() {
             return definitionId.isEmpty();
+        }
+
+        private boolean shows(String definition) {
+            return definitionId.filter(definition::equals).isPresent();
         }
     }
 
@@ -150,6 +170,7 @@ public final class WindowTabs extends JPanel {
     private final Map<String, TabEntry> entries = new LinkedHashMap<>();
     private final Map<OpenDocument, Runnable> followedDocuments = new HashMap<>();
     private int nextTabNumber;
+    private long activations;
     private String shownId;
     private boolean windowOpened;
     private boolean disposed;
@@ -269,6 +290,11 @@ public final class WindowTabs extends JPanel {
                 Delay.swing());
         new WindowMenu(view.menu(MenuId.WINDOW), host::everyTab);
         TabEntry entry = new TabEntry(id, document, definitionId, place, view, watcher, watch, split, initialView);
+        definitionId.filter(definition -> place.isBody()).ifPresent(definition -> {
+            Runnable listener = () -> definitionGone(document, definition);
+            place.addBodyRemovedListener(listener);
+            entry.bodyRemovedRemover = () -> place.removeBodyRemovedListener(listener);
+        });
         entries.put(id, entry);
         cards.add(view, id);
         follow(document);
@@ -327,6 +353,54 @@ public final class WindowTabs extends JPanel {
             pane.removeMouseListener(pressListener);
             pane.removeMouseWheelListener(wheelListener);
         };
+    }
+
+    // --- entering (spec §4.4) ---
+
+    /**
+     * Enters definition {@code definitionId} of {@code document}: the group's tab of that definition most recently
+     * active is activated and shows {@code contextPath} (empty: «Sin valores») — the others keep theirs; without one a
+     * new component tab opens on a body place, at the end of the group, on the whole body (travelling there from
+     * {@code from} when given). The group is unfolded, and brought here first when this window has none.
+     *
+     * @throws IllegalArgumentException when the document has no such definition
+     */
+    public EditorView enter(OpenDocument document, String definitionId, Optional<String> contextPath,
+                            Optional<ViewState> from) {
+        if (model.group(document).isEmpty()) {
+            addTab(document, Optional.empty());
+        }
+        model.fold(document, false);
+        Optional<TabEntry> existing = entriesOf(document).stream().filter(entry -> entry.shows(definitionId))
+                .max(Comparator.comparingLong(entry -> entry.lastActivation));
+        if (existing.isPresent()) {
+            existing.get().place.setContextPath(contextPath);
+            model.activate(existing.get().id);
+            return existing.get().view;
+        }
+        OpenDocument place = document.openBody(definitionId, contextPath);
+        EditorView view = addComponentTab(document, definitionId, place, from);
+        entryOf(view).ifPresent(entry -> entry.fitsBodyWhenShown = true);
+        return view;
+    }
+
+    /**
+     * The definition left the circuit (an undo, «Actualizar desde la librería», the AI): its tabs here close, and the
+     * group's main tab says so once (spec §4.5).
+     */
+    private void definitionGone(OpenDocument document, String definitionId) {
+        List<TabEntry> gone = entriesOf(document).stream().filter(entry -> entry.shows(definitionId)).toList();
+        if (gone.isEmpty()) {
+            return; // another tab of the definition already closed them all
+        }
+        String name = gone.getFirst().definitionName;
+        gone.forEach(this::removeTab);
+        entriesOf(document).stream().filter(TabEntry::isMain).findFirst().ifPresent(main ->
+                main.view.statusBar().showNotice(Messages.format("inside.definitionGone", name)));
+    }
+
+    private static String nameOf(OpenDocument document, String definitionId) {
+        return document.document().definition(definitionId).map(ComponentDefinition::name).orElse(definitionId);
     }
 
     // --- what the window reads ---
@@ -457,6 +531,7 @@ public final class WindowTabs extends JPanel {
             return;
         }
         TabEntry entry = shown.get();
+        entry.lastActivation = ++activations;
         cardLayout.show(cards, entry.id);
         toolBarSlot.add(entry.view.toolBar(), BorderLayout.CENTER);
         toolBarSlot.revalidate();
@@ -495,8 +570,17 @@ public final class WindowTabs extends JPanel {
         if (entry == null) {
             return;
         }
-        entry.initialViewState.ifPresentOrElse(state -> entry.view.canvas().applyViewState(state),
-                () -> entry.view.canvas().centerCircuit());
+        CircuitCanvas canvas = entry.view.canvas();
+        entry.initialViewState.ifPresentOrElse(canvas::applyViewState, () -> {
+            if (!entry.fitsBodyWhenShown) {
+                canvas.centerCircuit();
+            }
+        });
+        if (entry.fitsBodyWhenShown) {
+            // «Ver todo» on the body; from where the instance was, it travels when «Animación» is on
+            entry.initialViewState = Optional.empty();
+            CircuitBounds.of(entry.place.document(), entry.place.registry()).ifPresent(canvas::zoomToFit);
+        }
         entry.rememberedSplit.showRemembered();
     }
 
@@ -628,10 +712,12 @@ public final class WindowTabs extends JPanel {
             group.componentTabs().forEach(tab -> byDefinition
                     .computeIfAbsent(tab.definitionId().orElseThrow(), key -> new ArrayList<>()).add(tab));
             byDefinition.forEach((definitionId, tabs) -> {
-                String name = document.document().definition(definitionId).map(ComponentDefinition::name)
-                        .orElse(definitionId);
+                String name = nameOf(document, definitionId);
                 for (int index = 0; index < tabs.size(); index++) {
                     TabStripModel.Tab tab = tabs.get(index);
+                    if (document.document().definition(definitionId).isPresent()) {
+                        entries.get(tab.id()).definitionName = name;
+                    }
                     model.update(new TabStripModel.Tab(tab.id(), document, tab.definitionId(),
                             DocumentWindows.viewTitle(name, tabs.size() > 1 ? index + 1 : 0), false));
                 }
@@ -717,10 +803,15 @@ public final class WindowTabs extends JPanel {
         try {
             entry.rememberedSplit.close();
             entry.initialViewWatch.run();
+            entry.bodyRemovedRemover.run();
             entry.view.dispose();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the tab, or the window, open
             LOGGER.error("Could not release the editor of {}", entry.document.displayName(), exception);
+        } finally {
+            if (entry.place.isBody()) {
+                entry.place.close(); // the tab's own body place: its working copy and document listener go
+            }
         }
     }
 
@@ -745,7 +836,8 @@ public final class WindowTabs extends JPanel {
         TabEntry active = activeEntry().orElseThrow(() -> new IllegalStateException("the window has no tabs"));
         Optional<ViewState> state = Optional.of(active.view.canvas().viewState());
         return active.definitionId
-                .map(definitionId -> addComponentTab(active.document, definitionId, active.place, state))
+                .map(definitionId -> addComponentTab(active.document, definitionId,
+                        ownPlace(active.document, active.definitionId, active.place), state))
                 .orElseGet(() -> addTab(active.document, state));
     }
 
@@ -778,7 +870,8 @@ public final class WindowTabs extends JPanel {
             if (merging && tab.definitionId().isEmpty()) {
                 continue;
             }
-            TabEntry entry = createEntry(document, tab.definitionId(), tab.place(), Optional.of(tab.view()));
+            TabEntry entry = createEntry(document, tab.definitionId(),
+                    ownPlace(document, tab.definitionId(), tab.place()), Optional.of(tab.view()));
             arriving.add(new TabStripModel.Tab(entry.id, document, tab.definitionId(), document.displayName(),
                     false));
             if (tab.active()) {
@@ -790,6 +883,17 @@ public final class WindowTabs extends JPanel {
         model.activate(activate != null ? activate : firstMain);
         host.tabsChanged(document);
         refreshTitles();
+    }
+
+    /**
+     * The place of another tab like one on {@code place}: the same place for a main tab; a new body place on the same
+     * definition and context for a component tab, since each component tab owns (and closes) its own.
+     */
+    private static OpenDocument ownPlace(OpenDocument document, Optional<String> definitionId, OpenDocument place) {
+        if (!place.isBody()) {
+            return place;
+        }
+        return document.openBody(definitionId.orElseThrow(), place.contextPath());
     }
 
     /** What a drop of a dragged group means (spec §4.3). */

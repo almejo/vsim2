@@ -2,6 +2,8 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.ViewState;
 
 import java.util.Optional;
 
@@ -75,6 +77,23 @@ public interface WindowCommands {
 
     /** Archivo / Ventana ▸ «Cerrar pestaña» (Ctrl+W): closes the active tab, asking to save only as spec §4.5 says. */
     default void closeTab() {
+    }
+
+    /**
+     * Enters definition {@code definitionId} of {@code document} (spec §4.4): a component tab in the document's group,
+     * showing the instance at {@code contextPath} (empty: «Sin valores»); the group's tab of that definition most
+     * recently active is focused and re-contexted instead when there is one. Nothing happens outside a real window.
+     */
+    default void enter(OpenDocument document, String definitionId, Optional<String> contextPath) {
+        enter(document, definitionId, contextPath, Optional.empty());
+    }
+
+    /**
+     * As {@link #enter(OpenDocument, String, Optional)}; a new tab's view starts at {@code from} (where the instance
+     * was drawn) and travels to the whole body, when entering animates.
+     */
+    default void enter(OpenDocument document, String definitionId, Optional<String> contextPath,
+                       Optional<ViewState> from) {
     }
 
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
