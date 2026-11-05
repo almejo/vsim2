@@ -50,7 +50,11 @@ class CatalogMatchesEditorTest {
         actions.put("file.open", view.actions().open());
         actions.put("file.save", view.actions().save());
         actions.put("file.saveAs", view.actions().saveAs());
-        actions.put("file.close", view.actions().closeWindow());
+        actions.put("window.closeTab", view.actions().closeTab());
+        actions.put("window.closeWindow", view.actions().closeWindow());
+        actions.put("window.newWindow", view.actions().newWindowWithCircuit());
+        actions.put("window.nextTab", view.actions().nextTab());
+        actions.put("window.previousTab", view.actions().previousTab());
         actions.put("file.exit", view.actions().exit());
         actions.put("edit.undo", view.actions().undo());
         actions.put("edit.redo", view.actions().redo());

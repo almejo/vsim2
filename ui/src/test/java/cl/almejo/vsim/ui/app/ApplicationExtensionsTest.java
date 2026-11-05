@@ -121,7 +121,7 @@ class ApplicationExtensionsTest {
             assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Ejemplos",
                     "Guardar", "Guardar como…", "Imprimir…", "---", "Importar", "Exportar", "---",
                     "Preferencias…", "---",
-                    "Cerrar ventana", "Salir");
+                    "Cerrar pestaña", "Cerrar ventana", "Salir");
             assertThat(texts(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow())).containsExactly("Imagen…",
                     "PDF…", "Circuito de Logisim (.circ) (beta)…");
             JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();
@@ -285,7 +285,10 @@ class ApplicationExtensionsTest {
     void theShortcutsExtensionBindsTheWindowMenuAcceleratorsAndCanvasKeys() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva vista", "Dividir", "Siguiente panel");
+            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
+                    "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
+                    "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---",
+                    "Dividir", "Afuera y adentro", "Siguiente panel");
             assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_S, ShortcutCatalog.menuMask()));
             assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)

@@ -165,7 +165,7 @@ class InlineTextEditorTest {
         pressOn(editor.confirmButton().getParent(), 1, 1);
         assertThat(editor.isOpen()).isTrue();
 
-        pressOn(view.toolBar(), 3, 3);
+        pressOn(view.statusBar(), 3, 3); // the toolbar hangs on the window now, outside the view
         assertThat(confirmed).containsExactly("uno");
     }
 

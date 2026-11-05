@@ -5,8 +5,10 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,15 +17,21 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/** Which windows hold a tab of which document (spec §10.2), with plain strings as windows. */
 class DocumentWindowsTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final List<OpenDocument> opened = new ArrayList<>();
     private final DocumentWindows<String> windows = new DocumentWindows<>();
+
+    @BeforeEach
+    void spanish() {
+        Messages.initialize(Messages.SPANISH);
+    }
 
     @AfterEach
     void closeAll() {
@@ -46,42 +54,113 @@ class DocumentWindowsTest {
     void groupsWindowsByDocumentInOpeningOrder() {
         OpenDocument first = newDocument();
         OpenDocument second = newDocument();
-        windows.add(first, "first-1");
-        windows.add(second, "second-1");
-        windows.add(first, "first-2");
+        windows.add(first, "one");
+        windows.add(second, "one");
+        windows.add(first, "two");
         assertThat(windows.documents()).containsExactly(first, second);
-        assertThat(windows.windowsOf(first)).containsExactly("first-1", "first-2");
-        assertThat(windows.all()).containsExactly("first-1", "first-2", "second-1");
+        assertThat(windows.windowsOf(first)).containsExactly("one", "two");
+        assertThat(windows.documentsOf("one")).containsExactly(first, second);
+        assertThat(windows.all()).containsExactly("one", "two");
     }
 
     @Test
-    void theDocumentIsReleasedOnlyWithItsLastWindow() {
+    void addIsIdempotentForAWindowThatAlreadyHoldsTheDocument() {
+        OpenDocument document = newDocument();
+        windows.add(document, "one");
+        windows.add(document, "one");
+        assertThat(windows.windowsOf(document)).containsExactly("one");
+    }
+
+    @Test
+    void isLastHolder() {
+        OpenDocument document = newDocument();
+        windows.add(document, "one");
+        assertThat(windows.isLastHolder(document, "one")).isTrue();
+        windows.add(document, "two");
+        assertThat(windows.isLastHolder(document, "one")).isFalse();
+        assertThat(windows.isLastHolder(document, "ghost")).isFalse();
+        assertThat(windows.isLastHolder(newDocument(), "one")).isTrue();
+    }
+
+    @Test
+    void removeReturnsTrueWhenNoWindowHoldsIt() {
         OpenDocument document = newDocument();
         windows.add(document, "one");
         windows.add(document, "two");
-        assertThat(windows.isLastWindow("one")).isFalse();
-        assertThat(windows.remove("one")).isEmpty();
+        assertThat(windows.remove(document, "one")).isFalse();
         assertThat(windows.documents()).containsExactly(document);
-        assertThat(windows.isLastWindow("two")).isTrue();
-        assertThat(windows.remove("two")).contains(document);
+        assertThat(windows.remove(document, "two")).isTrue();
         assertThat(windows.isEmpty()).isTrue();
-        assertThat(windows.documents()).isEmpty();
         assertThat(windows.windowsOf(document)).isEmpty();
+        assertThat(windows.remove(document, "ghost")).isFalse();
     }
 
     @Test
-    void removingAnUnknownWindowChangesNothing() {
-        OpenDocument document = newDocument();
-        windows.add(document, "one");
-        assertThat(windows.remove("ghost")).isEmpty();
-        assertThat(windows.all()).containsExactly("one");
+    void removeWindowHandsBackTheDocumentsItWasTheLastHolderOf() {
+        OpenDocument shared = newDocument();
+        OpenDocument alone = newDocument();
+        windows.add(shared, "one");
+        windows.add(alone, "one");
+        windows.add(shared, "two");
+        assertThat(windows.removeWindow("one")).containsExactly(alone);
+        assertThat(windows.all()).containsExactly("two");
+        assertThat(windows.removeWindow("ghost")).isEmpty();
     }
 
     @Test
-    void aWindowCanBeRegisteredOnlyOnce() {
+    void viewNumberCountsMainTabsAcrossWindows() {
         OpenDocument document = newDocument();
         windows.add(document, "one");
-        assertThatThrownBy(() -> windows.add(newDocument(), "one")).isInstanceOf(IllegalArgumentException.class);
+        windows.add(document, "two");
+        Map<String, Integer> mainTabs = Map.of("one", 2, "two", 1);
+        assertThat(windows.viewNumber(document, "one", 0, (window, held) -> mainTabs.get(window))).isEqualTo(1);
+        assertThat(windows.viewNumber(document, "one", 1, (window, held) -> mainTabs.get(window))).isEqualTo(2);
+        assertThat(windows.viewNumber(document, "two", 0, (window, held) -> mainTabs.get(window))).isEqualTo(3);
+        assertThat(windows.viewNumber(document, "one", 0, (window, held) -> window.equals("one") ? 1 : 0))
+                .as("a lone main tab carries no number").isZero();
+    }
+
+    @Test
+    void menuEntriesGroupByWindow() {
+        windows.add(newDocument(), "one");
+        windows.add(newDocument(), "two");
+        List<String> focused = new ArrayList<>();
+        List<WindowMenu.Entry> entries = windows.menuEntries(window -> List.of(
+                new WindowMenu.Entry(window + "-a", false, () -> focused.add(window)),
+                new WindowMenu.Entry(window + "-b", true, () -> focused.add(window))));
+        assertThat(entries).extracting(WindowMenu.Entry::title)
+                .containsExactly("Ventana 1", "one-a", "one-b", "Ventana 2", "two-a", "two-b");
+        assertThat(entries).extracting(WindowMenu.Entry::header)
+                .containsExactly(true, false, false, true, false, false);
+        entries.get(4).focus().run();
+        assertThat(focused).containsExactly("two");
+    }
+
+    @Test
+    void aSingleWindowListsItsTabsWithoutAHeader() {
+        windows.add(newDocument(), "one");
+        List<WindowMenu.Entry> entries = windows.menuEntries(window -> List.of(
+                new WindowMenu.Entry("contador", true, () -> { })));
+        assertThat(entries).extracting(WindowMenu.Entry::title).containsExactly("contador");
+    }
+
+    @Test
+    void changeListenersHearEveryAddAndRemove() {
+        OpenDocument document = newDocument();
+        List<Integer> holders = new ArrayList<>();
+        Runnable listener = () -> holders.add(windows.windowsOf(document).size());
+        windows.addChangeListener(listener);
+        assertThat(windows.changeListenerCount()).isEqualTo(1);
+        windows.add(document, "one");
+        windows.add(document, "one");
+        windows.add(document, "two");
+        windows.remove(document, "ghost");
+        windows.remove(document, "one");
+        assertThat(holders).containsExactly(1, 1, 2, 1);
+        windows.removeChangeListener(listener);
+        windows.removeWindow("two");
+        assertThat(holders).hasSize(4);
+        assertThat(windows.changeListenerCount()).isZero();
     }
 
     @Test
@@ -96,69 +175,39 @@ class DocumentWindowsTest {
     }
 
     @Test
-    void menuEntriesNumberTheViewsOfADocumentWithSeveralAndMarkTheCurrentOne(@TempDir Path directory)
-            throws Exception {
-        windows.add(newDocument(), "untitled");
+    void openingAFileFromAWindowAddsAGroupThere(@TempDir Path directory) {
+        windows.add(newDocument(), "one");
+        assertThat(windows.targetFor(directory.resolve("nuevo.vsim"), Optional.of("one")))
+                .isEqualTo(new OpeningTarget.NewGroup<>("one"));
+    }
+
+    @Test
+    void openingAnAlreadyOpenFileFocusesItsMainTab(@TempDir Path directory) throws Exception {
         OpenDocument saved = savedDocument(directory.resolve("sumador.vsim"));
-        windows.add(saved, "saved-1");
-        windows.add(saved, "saved-2");
-        List<String> focused = new ArrayList<>();
-        List<WindowMenu.Entry> entries = windows.menuEntries("saved-2", focused::add);
-        assertThat(entries).extracting(WindowMenu.Entry::title)
-                .containsExactly("Sin título", "sumador (1)", "sumador (2)");
-        assertThat(entries).extracting(WindowMenu.Entry::current).containsExactly(false, false, true);
-        entries.get(1).focus().run();
-        assertThat(focused).containsExactly("saved-1");
+        windows.add(newDocument(), "one");
+        windows.add(saved, "two");
+        assertThat(windows.targetFor(directory.resolve("sumador.vsim"), Optional.of("one")))
+                .isEqualTo(new OpeningTarget.FocusTab<>("two", saved));
+        assertThat(windows.targetFor(directory.resolve("sumador.vsim"), Optional.empty()))
+                .isEqualTo(new OpeningTarget.FocusTab<>("two", saved));
     }
 
     @Test
-    void viewNumbersCountOnlyWhenADocumentHasSeveralWindowsAndFollowClosing() {
-        OpenDocument document = newDocument();
-        OpenDocument other = newDocument();
-        windows.add(document, "a-1");
-        windows.add(other, "b-1");
-        assertThat(windows.viewNumber("a-1")).isZero();
-        windows.add(document, "a-2");
-        windows.add(document, "a-3");
-        assertThat(windows.viewNumber("a-1")).isEqualTo(1);
-        assertThat(windows.viewNumber("a-2")).isEqualTo(2);
-        assertThat(windows.viewNumber("a-3")).isEqualTo(3);
-        assertThat(windows.viewNumber("b-1")).isZero();
-        windows.remove("a-2");
-        assertThat(windows.viewNumber("a-3")).isEqualTo(2);
-        windows.remove("a-1");
-        assertThat(windows.viewNumber("a-3")).isZero();
-        assertThat(windows.viewNumber("ghost")).isZero();
+    void startupOpensAWindowPerDocument(@TempDir Path directory) {
+        assertThat(windows.targetFor(directory.resolve("a.vsim"), Optional.empty()))
+                .isEqualTo(new OpeningTarget.NewWindow<String>());
     }
 
     @Test
-    void changeListenersHearEveryAddAndRemoveAfterTheChange() {
-        OpenDocument document = newDocument();
-        List<Integer> secondViewNumbers = new ArrayList<>();
-        Runnable listener = () -> secondViewNumbers.add(windows.viewNumber("two"));
-        windows.addChangeListener(listener);
-        assertThat(windows.changeListenerCount()).isEqualTo(1);
-        windows.add(document, "one");
-        windows.add(document, "two");
-        windows.remove("ghost");
-        windows.remove("one");
-        assertThat(secondViewNumbers).containsExactly(0, 2, 0);
-        windows.removeChangeListener(listener);
-        windows.remove("two");
-        assertThat(secondViewNumbers).hasSize(3);
-        assertThat(windows.changeListenerCount()).isZero();
-    }
-
-    @Test
-    void somethingNewReplacesOnlyTheWindowsOfAPristineRequester(@TempDir Path directory) throws Exception {
+    void somethingNewReplacesOnlyThePristineDocumentsOfTheRequester(@TempDir Path directory) throws Exception {
         OpenDocument pristine = newDocument();
         OpenDocument saved = savedDocument(directory.resolve("sumador.vsim"));
-        windows.add(pristine, "pristine-1");
-        windows.add(saved, "saved");
-        windows.add(pristine, "pristine-2");
+        windows.add(pristine, "one");
+        windows.add(saved, "one");
+        windows.add(saved, "two");
 
-        assertThat(windows.replacedBy("pristine-2")).containsExactly("pristine-1", "pristine-2");
-        assertThat(windows.replacedBy("saved")).isEmpty();
+        assertThat(windows.replacedBy("one")).containsExactly(pristine);
+        assertThat(windows.replacedBy("two")).isEmpty();
         assertThat(windows.replacedBy("ghost")).isEmpty();
         assertThat(windows.replacedBy(null)).isEmpty();
     }

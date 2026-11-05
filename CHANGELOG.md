@@ -11,7 +11,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- Pestañas: una ventana tiene varios circuitos en pestañas, agrupadas por circuito con su color. Abrir, Recientes, Ejemplos, Nuevo o soltar un archivo lo abren como pestaña en la ventana; Ctrl+Tab y Ctrl+Mayús+Tab las recorren, Ctrl+W cierra la pestaña y Ctrl+Mayús+W la ventana. Arrastrar una pestaña lleva su grupo entero a otro lugar de la fila, a otra ventana o a una ventana nueva; un doble clic en la pestaña del circuito pliega su grupo. Ventana ▸ «Nueva ventana con este circuito» (Ctrl+Mayús+N) hace lo que antes hacía «Nueva vista». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
+
 - Velocidad ×1000 en el selector de la barra, entre ×100 y «Máxima»: un circuito grande, como el LRV32IM importado de Logisim, corre lo bastante rápido para que su Terminal escriba de a poco. Ver [Interfaz, preferencias y sesión](docs/funciones/interfaz-preferencias-y-sesion.md).
+
+### Cambiado
+
+- Ventana ▸ «Nueva vista» ahora se llama «Nueva pestaña del mismo circuito» y abre una pestaña en la misma ventana; Archivo ▸ «Cerrar ventana» pasó a Ctrl+Mayús+W y Ctrl+W es ahora «Cerrar pestaña». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
 
 ### Arreglado
 
