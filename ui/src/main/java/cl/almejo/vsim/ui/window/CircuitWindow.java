@@ -273,6 +273,12 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
+    public Optional<EditorView> showPlace(OpenDocument document, Optional<String> definitionId,
+                                          Optional<String> contextPath) {
+        return Optional.of(tabs.showPlace(document, definitionId, contextPath));
+    }
+
+    @Override
     public void openUntitled(CircuitDocument document) {
         application.openUntitled(document, this);
     }

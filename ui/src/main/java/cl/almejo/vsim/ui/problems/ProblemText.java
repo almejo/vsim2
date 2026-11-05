@@ -7,7 +7,6 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
-import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
@@ -21,6 +20,7 @@ import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.PinNames;
+import cl.almejo.vsim.ui.window.InstanceNames;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -243,37 +243,17 @@ public final class ProblemText {
         return Optional.of(String.join(PATH_SEPARATOR, names));
     }
 
-    /** The components named by each segment of {@code hierarchicalId}, outermost first. */
+
+    // the naming itself lives in InstanceNames, shared with the place bar and the Proyecto panel
     private static Optional<List<Component>> chain(String hierarchicalId, CircuitDocument document) {
-        List<Component> level = document.components();
-        List<Component> found = new ArrayList<>();
-        for (String segment : InstancePath.segments(hierarchicalId)) {
-            Optional<Component> component = level.stream()
-                    .filter(candidate -> candidate.id().value().equals(segment))
-                    .findFirst();
-            if (component.isEmpty()) {
-                return Optional.empty();
-            }
-            found.add(component.get());
-            level = definitionOf(component.get(), document)
-                    .map(definition -> definition.body().components())
-                    .orElse(List.of());
-        }
-        return Optional.of(found);
+        return InstanceNames.chain(hierarchicalId, document);
     }
 
-    private static Optional<ComponentDefinition> definitionOf(Component component, CircuitDocument document) {
-        return SubcircuitTypes.definitionIdOf(component.typeId()).flatMap(document::definition);
-    }
-
-    /** The name of a part without a label, told apart from its siblings: «AND de 3 entradas». Same as the tree. */
     private static String unlabeledName(Component component, CircuitDocument document) {
-        return Messages.distinguishedName(typeName(component, document), component.parameters());
+        return InstanceNames.unlabeledName(component, document);
     }
 
-    /** The name of the document's definition for a sub-circuit instance, the bundle name of a standard type. */
     private static String typeName(Component component, CircuitDocument document) {
-        return definitionOf(component, document).map(ComponentDefinition::name)
-                .orElseGet(() -> Messages.componentName(component.typeId(), component.parameters()));
+        return InstanceNames.typeName(component, document);
     }
 }

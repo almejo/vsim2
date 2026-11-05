@@ -276,4 +276,30 @@ class WindowTabsEnterTest {
         assertThat(tabs.viewsOf(document)).hasSize(1);
         assertThat(other.viewsOf(document)).hasSize(1);
     }
+
+    @Test
+    void showPlaceActivatesTheMainTabOrEntersTheDefinition() {
+        OpenDocument document = withTwoInverters();
+        EditorView main = tabs.addTab(document, Optional.empty());
+        EditorView component = enter(document, 0);
+        assertThat(tabs.activeView()).isSameAs(component);
+
+        assertThat(tabs.showPlace(document, Optional.empty(), Optional.empty())).isSameAs(main);
+        assertThat(tabs.activeView()).isSameAs(main);
+
+        EditorView again = tabs.showPlace(document, Optional.of(INVERTER), Optional.of(instance(document, 1)));
+        assertThat(again).isSameAs(component);
+        assertThat(tabs.activeView()).isSameAs(component);
+        assertThat(component.openDocument().contextPath()).contains(instance(document, 1));
+    }
+
+    @Test
+    void showPlaceBringsTheCircuitsGroupToAWindowThatHasNone() {
+        OpenDocument document = withTwoInverters();
+
+        EditorView main = tabs.showPlace(document, Optional.empty(), Optional.empty());
+
+        assertThat(tabs.viewsOf(document)).containsExactly(main);
+        assertThat(tabs.activeView()).isSameAs(main);
+    }
 }

@@ -95,6 +95,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 ### Pestañas y componentes
 
 - [Pestañas y grupos; entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente): un doble clic en una pieza de un componente propio (o su botón «Entrar ↘», «Entrar» en el clic derecho, Enter) abre el componente en una pestaña del grupo de su circuito, con los valores de esa pieza; lo que se cambia adentro cambia el componente en todo el circuito, en un solo paso de deshacer.
+- [La barra de lugar](docs/funciones/pestanas-y-componentes.md#la-barra-de-lugar): cada pestaña de componente muestra su ruta («circuito › Ram (c5) › …»), con qué pieza se simulan sus valores, en cuántos lugares se usa, «Ver la pieza» y «Guardar en mi librería».
 - [Panel Proyecto](docs/funciones/pestanas-y-componentes.md#panel-proyecto): arriba de la paleta, el circuito y todas sus piezas de componentes propios nivel por nivel; un doble clic o Enter entra a la pieza, y su clic derecho ofrece «Entrar», «Ver la pieza», «Cambiar forma…» y «Propiedades».
 
 ### Simulación y paso a paso

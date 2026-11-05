@@ -48,6 +48,28 @@ Cómo se crean y se guardan los componentes propios está en
 - **Al volver a abrir VSim**: las pestañas de componentes vuelven con su pieza, como el resto de la sesión. Ver
   [Sesión y recuperación](interfaz-preferencias-y-sesion.md#sesión-y-recuperación).
 
+## La barra de lugar
+
+Debajo de la fila de pestañas, cada pestaña de componente muestra una barra con el color de su grupo. Las pestañas
+de circuito no la tienen.
+
+- **Ruta**: `▤ circuito › ⬚ Ram (c5) › ⬚ Selector (c2)`. Cada paso es el componente con la referencia de la pieza (su
+  etiqueta, o su número si no tiene). Un clic en el circuito trae su pestaña; un clic en un paso entra a ese
+  componente con la ruta anterior como valores. El último paso es donde estás y no hace nada.
+- **Valores de**: lista todas las piezas por las que se llega a este componente, como «c3 en Doble inversor (c2)» o,
+  si está puesto en el circuito mismo, «c1 en lrv32im» (con el nombre del circuito). Elegir una cambia los valores que se ven y la ruta.
+  «Sin valores (no se simula)» deja la pestaña sin valores; es lo único que hay cuando ninguna pieza usa el componente.
+- **Se usa en N lugares**: dice cuántas piezas usan el componente («Se usa en 1 lugar», «No se usa en ninguna pieza»).
+  Con más de un lugar el texto va en ámbar, para recordar que lo que cambias adentro cambia todos.
+- **Ver la pieza ↗**: lleva a la pestaña que contiene la pieza de la ruta (la del circuito, o la de otro componente),
+  la selecciona y mueve la vista hasta ella. Está apagado sin valores.
+- **Guardar en mi librería / Agregar a mi librería**: «Agregar» aparece cuando la librería no tiene el componente
+  (pregunta lo mismo que la paleta si el id ya existe); «Guardar» aparece cuando la copia del circuito es distinta de
+  la de la librería y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe
+  en la librería por sí solo.
+- **Pines bloqueados**: si el componente está dentro de otro componente que el circuito usa, la barra lo explica:
+  «Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía».
+
 ## Panel Proyecto
 
 Arriba de la paleta, en la columna de la izquierda, el panel «Proyecto» lista el circuito y todas las piezas de
