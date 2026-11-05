@@ -217,6 +217,34 @@ class LibraryPaletteTest {
         assertThat(second.view.palette().visibleTypeIds()).doesNotContain("subcircuit:inverter");
     }
 
+    @Test
+    void aComponentTabShowsThePlaceBarOverItsCanvasAndTheMainTabDoesNot() throws Exception {
+        putAndPlace(ExampleDefinitions.inverter());
+        assertThat(placeBarsOf(fixture.view)).isEmpty();
+
+        int before = fixture.library.listenerCount();
+        OpenDocument body = fixture.openDocument.openBody(ExampleDefinitions.INVERTER, Optional.empty());
+        TemplateFixture inside = new TemplateFixture(fixture, body);
+
+        assertThat(placeBarsOf(inside.view)).hasSize(1);
+        inside.close();
+        assertThat(placeBarsOf(inside.view)).isEmpty();
+        assertThat(fixture.library.listenerCount()).isEqualTo(before);
+    }
+
+    private static List<java.awt.Component> placeBarsOf(java.awt.Container container) {
+        List<java.awt.Component> found = new ArrayList<>();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof cl.almejo.vsim.ui.window.PlaceBar) {
+                found.add(child);
+            }
+            if (child instanceof java.awt.Container nested) {
+                found.addAll(placeBarsOf(nested));
+            }
+        }
+        return found;
+    }
+
     /** Puts {@code root} (with {@code dependencies}) and places one instance of it: one undo step. */
     private void putAndPlace(ComponentDefinition root, ComponentDefinition... dependencies) {
         List<ComponentDefinition> definitions = new ArrayList<>(List.of(dependencies));

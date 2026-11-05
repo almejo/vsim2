@@ -96,6 +96,16 @@ public interface WindowCommands {
                        Optional<ViewState> from) {
     }
 
+    /**
+     * Brings the place to the front: {@code definitionId} empty is the document's main tab, else its component tab
+     * showing {@code contextPath} (as {@link #enter}); the view that shows it, for what must select in it. Empty
+     * outside a real window.
+     */
+    default Optional<EditorView> showPlace(OpenDocument document, Optional<String> definitionId,
+                                           Optional<String> contextPath) {
+        return Optional.empty();
+    }
+
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
     default void closeComponents() {
     }

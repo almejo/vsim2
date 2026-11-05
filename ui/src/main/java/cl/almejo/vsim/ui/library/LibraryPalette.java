@@ -7,7 +7,10 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionNames;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.panels.PalettePanel;
+import cl.almejo.vsim.ui.window.PlaceBar;
+import cl.almejo.vsim.ui.window.SeePiece;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +43,8 @@ public final class LibraryPalette {
     private final LibraryImport importer;
     private final Action importComponent;
     private final Runnable refresher = this::refresh;
+    private PlaceBar placeBar;
+    private Runnable removePlaceBar = () -> { };
 
     public LibraryPalette(EditorView view, LibraryService service, LibraryDialogs dialogs, LibraryImport importer,
                           Action importComponent) {
@@ -57,11 +62,53 @@ public final class LibraryPalette {
         service.library().addListener(refresher);
         view.openDocument().addChangeListener(refresher);
         refresh();
+        installPlaceBar();
+    }
+
+    /** A component tab shows the place bar over its canvas (spec §5.1); it needs the library, so it lives here. */
+    private void installPlaceBar() {
+        OpenDocument place = view.openDocument();
+        if (!place.isBody()) {
+            return;
+        }
+        OpenDocument parent = place.parent().orElseThrow();
+        placeBar = new PlaceBar(place, service.library(), new PlaceBar.Callbacks() {
+            @Override
+            public void showMain() {
+                view.windowCommands().showPlace(parent, Optional.empty(), Optional.empty());
+            }
+
+            @Override
+            public void enter(String definitionId, Optional<String> contextPath) {
+                view.windowCommands().enter(parent, definitionId, contextPath);
+            }
+
+            @Override
+            public void seePiece() {
+                SeePiece.show(view);
+            }
+
+            @Override
+            public void saveToLibrary(DefinitionBundle bundle) {
+                save(bundle);
+            }
+
+            @Override
+            public void addToLibrary(DefinitionBundle bundle) {
+                LibraryPalette.this.addToLibrary(bundle);
+            }
+        });
+        removePlaceBar = view.addAboveCanvas(placeBar);
     }
 
     public void dispose() {
         service.library().removeListener(refresher);
         view.openDocument().removeChangeListener(refresher);
+        if (placeBar != null) {
+            removePlaceBar.run();
+            placeBar.dispose();
+            placeBar = null;
+        }
     }
 
     /**

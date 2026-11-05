@@ -385,6 +385,23 @@ public final class WindowTabs extends JPanel {
     }
 
     /**
+     * Brings a place of {@code document}'s group to the front: its main tab when {@code definitionId} is empty (the
+     * group is added, and unfolded, when needed), else the component tab entered as {@link #enter} does.
+     */
+    public EditorView showPlace(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath) {
+        if (definitionId.isPresent()) {
+            return enter(document, definitionId.get(), contextPath, Optional.empty());
+        }
+        Optional<TabEntry> main = entriesOf(document).stream().filter(TabEntry::isMain).findFirst();
+        if (main.isEmpty()) {
+            return addTab(document, Optional.empty());
+        }
+        model.fold(document, false);
+        model.activate(main.get().id);
+        return main.get().view;
+    }
+
+    /**
      * The definition left the circuit (an undo, «Actualizar desde la librería», the AI): its tabs here close, and the
      * group's main tab says so once (spec §4.5).
      */
