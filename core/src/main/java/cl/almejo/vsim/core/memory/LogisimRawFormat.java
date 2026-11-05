@@ -83,7 +83,8 @@ public final class LogisimRawFormat implements MemoryFileFormat {
         } catch (NumberFormatException exception) {
             throw new MemoryFileProblem(lineNumber, "memory.file.notHex", List.of(token));
         }
-        if (count < 1 || count > MAXIMUM_RUN) {
+        // A run of 0 words is nothing, as in Logisim (the LRV32IM's BinaryConverter2 writes «0*0»).
+        if (count < 0 || count > MAXIMUM_RUN) {
             throw new MemoryFileProblem(lineNumber, "memory.file.badRun", List.of(token));
         }
         return count;

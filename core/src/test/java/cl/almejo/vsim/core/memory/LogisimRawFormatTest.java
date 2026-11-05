@@ -28,6 +28,25 @@ class LogisimRawFormatTest {
         assertThat(file.contents().word(3)).isZero();
     }
 
+    /** Logisim takes a run of 0 words as nothing; the LRV32IM's BinaryConverter2 writes some («0*0»). */
+    @Test
+    void aRunOfZeroWordsIsNothing() throws MemoryFileProblem {
+        MemoryFile file = format.read("v2.0 raw\n58\n2e\n0*0\n10 0*7 20\n");
+
+        assertThat(file.contents().word(0)).isEqualTo(0x58);
+        assertThat(file.contents().word(1)).isEqualTo(0x2E);
+        assertThat(file.contents().word(2)).isEqualTo(0x10);
+        assertThat(file.contents().word(3)).isEqualTo(0x20);
+        assertThat(file.contents().count()).isEqualTo(4);
+    }
+
+    @Test
+    void aNegativeRunIsAProblem() {
+        assertThatThrownBy(() -> format.read("v2.0 raw\n-1*5\n"))
+                .isInstanceOfSatisfying(MemoryFileProblem.class,
+                        problem -> assertThat(problem.messageKey()).isEqualTo("memory.file.badRun"));
+    }
+
     @Test
     void reportsTheLineOfABadToken() {
         assertThatThrownBy(() -> format.read("v2.0 raw\n1 2\nzz\n"))
