@@ -34,6 +34,7 @@ import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.print.PrintExtension;
+import cl.almejo.vsim.ui.project.ProjectPanelExtension;
 import cl.almejo.vsim.ui.print.PrinterAccess;
 import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.sheets.SheetsExtension;
@@ -249,6 +250,7 @@ public final class Application {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
+        editorExtensions.add(new ProjectPanelExtension()); // the Proyecto panel above the palette
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new AppearanceExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());

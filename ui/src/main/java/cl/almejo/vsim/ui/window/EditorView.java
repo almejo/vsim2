@@ -90,6 +90,7 @@ import java.util.function.Supplier;
 public final class EditorView extends JPanel implements CanvasHost {
 
     private static final int PALETTE_WIDTH = 230;
+    private static final int DEFAULT_PROJECT_HEIGHT = 170;
 
     private final OpenDocument openDocument;
     /** The one selection of this window, shown and changed by every pane. */
@@ -102,6 +103,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final EditorActions actions;
     private final SelectionActions selectionActions;
     private final PalettePanel palette;
+    /** The left column: the palette alone, or {@link #addAbovePalette} over it. */
+    private final JPanel leftColumn = new JPanel(new BorderLayout());
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
@@ -178,7 +181,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.canvasArea = new CanvasArea(canvasPanes);
         this.bottomDock = new BottomDock(canvasArea);
         JSplitPane inspectorSplit = new InspectorSplit(bottomDock, inspector);
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, inspectorSplit);
+        leftColumn.add(palette, BorderLayout.CENTER);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
         split.setResizeWeight(0);
@@ -363,6 +367,41 @@ public final class EditorView extends JPanel implements CanvasHost {
             throw new IllegalStateException("the menu bar has no " + id + " menu");
         }
         return menu;
+    }
+
+    /**
+     * Shows {@code component} above the palette in the left column (the Proyecto panel, spec §5.2), in a vertical split
+     * whose divider is remembered in the preferences ({@code ui.project.split}). The returned runnable takes it away
+     * again, leaving the palette alone; calling it twice does nothing.
+     */
+    public Runnable addAbovePalette(JComponent component) {
+        Objects.requireNonNull(component, "component");
+        JSplitPane column = new JSplitPane(JSplitPane.VERTICAL_SPLIT, component, palette);
+        column.setContinuousLayout(true);
+        column.setResizeWeight(0);
+        column.setDividerLocation(services.preferences().projectSplit().orElse(DEFAULT_PROJECT_HEIGHT));
+        java.beans.PropertyChangeListener remember = change -> {
+            if (column.isShowing() || column.getHeight() > 0) {
+                services.preferences().setProjectSplit(column.getDividerLocation());
+            }
+        };
+        column.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, remember);
+        leftColumn.removeAll();
+        leftColumn.add(column, BorderLayout.CENTER);
+        leftColumn.revalidate();
+        boolean[] removed = {false};
+        return () -> {
+            if (removed[0]) {
+                return;
+            }
+            removed[0] = true;
+            column.removePropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, remember);
+            column.removeAll();
+            leftColumn.removeAll();
+            leftColumn.add(palette, BorderLayout.CENTER);
+            leftColumn.revalidate();
+            leftColumn.repaint();
+        };
     }
 
     /**

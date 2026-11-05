@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -31,7 +32,9 @@ import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.JCheckBox;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -42,6 +45,8 @@ import javax.swing.tree.TreeSelectionModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Enumeration;
@@ -100,6 +105,7 @@ public final class ComponentTreePanel extends JPanel {
     private Map<String, String> values = Map.of();
     private ComponentTreeNode root;
     private boolean rebuilding;
+    private EnterHandler enterHandler;
 
     /**
      * {@code canvas} is resolved when a row is chosen (the window's active pane); {@code followSnapshots} registers
@@ -121,6 +127,17 @@ public final class ComponentTreePanel extends JPanel {
         tree.setShowsRootHandles(true);
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         tree.addTreeSelectionListener(event -> selectionChanged());
+        tree.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                showContextMenu(event);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent event) {
+                showContextMenu(event);
+            }
+        });
         groupByType.addItemListener(event -> rebuild());
         filterField.putClientProperty("JTextField.showClearButton", true);
         filterField.onTextChange(this::filterChanged);
@@ -148,6 +165,57 @@ public final class ComponentTreePanel extends JPanel {
 
     JTree tree() {
         return tree;
+    }
+
+    /** What «Entrar» does with a row (spec §4.4): enters {@code definitionId} of {@code circuit} showing {@code contextPath}. */
+    public interface EnterHandler {
+        void enter(OpenDocument circuit, String definitionId, Optional<String> contextPath);
+    }
+
+    /** Gives the rows of user-component instances a context menu with «Entrar»; none without a handler. */
+    public void setEnterHandler(EnterHandler handler) {
+        enterHandler = handler;
+    }
+
+    /**
+     * The context menu of the row {@code nodePath}: «Entrar» for an instance of a user component whose definition the
+     * circuit has, at any depth (the context is the row's path, under the context of a body place); empty for any other
+     * row, and without a handler.
+     */
+    Optional<JPopupMenu> contextMenu(String nodePath) {
+        boolean component = Optional.ofNullable(nodesByPath.get(nodePath))
+                .map(node -> node.getUserObject() instanceof Row row
+                        && row.node().kind() == ComponentTreeNode.Kind.COMPONENT).orElse(false);
+        if (enterHandler == null || !component) {
+            return Optional.empty();
+        }
+        OpenDocument circuit = openDocument.parent().orElse(openDocument);
+        Optional<String> definitionId = effectiveType(nodePath).map(ComponentType::id)
+                .flatMap(SubcircuitTypes::definitionIdOf).filter(id -> circuit.document().definition(id).isPresent());
+        if (definitionId.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<String> context = openDocument.isBody()
+                ? openDocument.contextPath().map(path -> InstancePath.child(path, nodePath))
+                : Optional.of(nodePath);
+        JPopupMenu menu = new JPopupMenu();
+        menu.add(new JMenuItem(Actions.of(Messages.text("action.enter"),
+                () -> enterHandler.enter(circuit, definitionId.get(), context))));
+        return Optional.of(menu);
+    }
+
+    private void showContextMenu(MouseEvent event) {
+        if (!event.isPopupTrigger()) {
+            return;
+        }
+        TreePath path = tree.getPathForLocation(event.getX(), event.getY());
+        if (path != null && path.getLastPathComponent() instanceof DefaultMutableTreeNode node
+                && node.getUserObject() instanceof Row row) {
+            contextMenu(row.node().path()).ifPresent(menu -> {
+                tree.setSelectionPath(path);
+                menu.show(tree, event.getX(), event.getY());
+            });
+        }
     }
 
     JCheckBox groupByTypeToggle() {

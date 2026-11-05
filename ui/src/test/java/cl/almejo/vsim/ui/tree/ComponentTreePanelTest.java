@@ -22,6 +22,7 @@ import cl.almejo.vsim.core.search.CircuitSearch;
 import cl.almejo.vsim.core.search.SearchHit;
 import cl.almejo.vsim.core.search.SearchQuery;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.search.FindFeatures;
 import cl.almejo.vsim.ui.search.TypeNames;
@@ -51,6 +52,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ComponentTreePanelTest {
@@ -511,5 +513,39 @@ class ComponentTreePanelTest {
 
         panel.dispose();
         assertThat(appearance.listenerCount()).isEqualTo(listeners - 1);
+    }
+
+    @Test
+    void enterOnANestedInstanceUsesItsPath() {
+        openDocument.execute(new PutDefinitionsCommand(
+                List.of(ExampleDefinitions.inverter(), ExampleDefinitions.doubleInverter())));
+        Component outer = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 4, -1,
+                Map.of());
+        List<String> entered = new ArrayList<>();
+        panel.setEnterHandler((circuit, definitionId, contextPath) ->
+                entered.add(definitionId + "@" + contextPath.orElse("-")));
+        String nested = InstancePath.child(outer.id().value(), "c3");
+
+        javax.swing.JPopupMenu menu = panel.contextMenu(nested).orElseThrow();
+        assertThat(texts(menu)).containsExactly(Messages.text("action.enter"));
+        ((javax.swing.JMenuItem) menu.getComponent(0)).doClick();
+        ((javax.swing.JMenuItem) panel.contextMenu(outer.id().value()).orElseThrow().getComponent(0)).doClick();
+
+        assertThat(entered).containsExactly(ExampleDefinitions.INVERTER + "@" + nested,
+                ExampleDefinitions.DOUBLE_INVERTER + "@" + outer.id().value());
+    }
+
+    @Test
+    void onlyAnInstanceOfAUserComponentHasTheEnterMenu() {
+        openDocument.execute(new PutDefinitionsCommand(
+                List.of(ExampleDefinitions.inverter(), ExampleDefinitions.doubleInverter())));
+        Component outer = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 4, -1,
+                Map.of());
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of());
+        panel.setEnterHandler((circuit, definitionId, contextPath) -> { });
+
+        assertThat(panel.contextMenu(gate.id().value())).isEmpty();
+        assertThat(panel.contextMenu(InstancePath.child(outer.id().value(), "c1"))).isEmpty();
+        assertThat(panel.contextMenu(ComponentTreeNode.DOCUMENT_PATH)).isEmpty();
     }
 }

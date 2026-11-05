@@ -47,3 +47,26 @@ Cómo se crean y se guardan los componentes propios está en
   «El componente Ram ya no existe en el circuito; se cerró su pestaña».
 - **Al volver a abrir VSim**: las pestañas de componentes vuelven con su pieza, como el resto de la sesión. Ver
   [Sesión y recuperación](interfaz-preferencias-y-sesion.md#sesión-y-recuperación).
+
+## Panel Proyecto
+
+Arriba de la paleta, en la columna de la izquierda, el panel «Proyecto» lista el circuito y todas las piezas de
+componentes propios que tiene, de afuera hacia adentro.
+
+- **Las filas**: la primera es el circuito, con su nombre y «N piezas». Debajo va cada pieza de un componente propio,
+  con el nombre de su componente y, a la derecha, el nombre de la pieza (su etiqueta, o su identificador si no tiene).
+  Las piezas que están dentro de otros componentes van más a la derecha, un nivel por componente. Un circuito sin
+  componentes propios muestra solo la primera fila.
+- **Entrar**: un doble clic en una fila, o Enter con la fila elegida, entra a esa pieza (ver
+  [Entrar a un componente](#entrar-a-un-componente)): la pestaña del componente muestra los valores de esa pieza.
+- **La fila activa**: en la pestaña de un componente, la fila de la pieza cuyos valores se ven se pinta con el color
+  del grupo.
+- **Clic derecho en una fila**:
+  - «Entrar».
+  - «Ver la pieza»: selecciona la pieza y viaja hasta ella cuando es una pieza de la pestaña actual; si está dentro de
+    otro componente, abre la pestaña de ese componente. Está apagado para una pieza del circuito cuando la pestaña
+    actual es la de un componente.
+  - «Cambiar forma…» y «Propiedades»: de una pieza de la pestaña actual; apagados para las demás.
+- **El alto del panel**: se arrastra con el divisor que lo separa de la paleta, y VSim lo recuerda.
+- **Clic derecho en el árbol del inspector**: en la pestaña «Componentes» del inspector, una pieza de un componente
+  propio, a cualquier profundidad, también tiene «Entrar»; entra con la ruta de esa pieza.

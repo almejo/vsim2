@@ -14,6 +14,8 @@ public final class ComponentTreeExtension implements EditorExtension {
         ComponentTreePanel panel = new ComponentTreePanel(view.openDocument(), view::canvas,
                 listener -> EveryPane.addActivePaneSnapshotListener(view, listener), view.services().painters(),
                 view.services().appearance(), view.services().preferences());
+        panel.setEnterHandler((circuit, definitionId, contextPath) ->
+                view.windowCommands().enter(circuit, definitionId, contextPath));
         view.inspector().addTab(Messages.text("tree.tab"), panel);
         return panel::dispose;
     }
