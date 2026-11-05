@@ -35,8 +35,8 @@ public final class DefinitionBuilder {
     public static final int PIN_SPACING = 2;
     public static final int FIRST_PIN_Y = 2;
 
-    private static final String INPUT_PREFIX = "in";
-    private static final String OUTPUT_PREFIX = "out";
+    static final String INPUT_PREFIX = "in";
+    static final String OUTPUT_PREFIX = "out";
     private static final String CONVERTED_OUTPUT_PREFIX = "Y";
 
     private static final Comparator<Component> TOP_TO_BOTTOM = Comparator
@@ -147,7 +147,7 @@ public final class DefinitionBuilder {
     }
 
     /** {@code component} without its memory link (its contents stay); any other component as it is. */
-    private static Component withoutMemoryLink(Component component) {
+    static Component withoutMemoryLink(Component component) {
         if (!isLinkedMemory(component)) {
             return component;
         }
@@ -216,7 +216,9 @@ public final class DefinitionBuilder {
                         ? component.withLabel(relabels.get(component.id())) : component)
                 .map(DefinitionBuilder::withoutMemoryLink)
                 .toList();
-        CircuitFragment body = new CircuitFragment(components, selected.wires(), selected.labels());
+        // Frames inside the selection go into the body (spec §6.8); sticky notes stay on the canvas (2026-10-27).
+        CircuitFragment body = new CircuitFragment(components, selected.wires(), selected.labels(), List.of(),
+                selected.frames());
         ComponentDefinition definition = new ComponentDefinition(id, name, "",
                 boxSize(pinOrder.inputs().size(), pinOrder.outputs().size()), pinout, body);
         return new DefinitionBundle(definition, selected.definitions());
@@ -288,7 +290,7 @@ public final class DefinitionBuilder {
     }
 
     /** The first {@code base + number} (from {@code firstNumber} up) neither reserved nor taken; marks it taken. */
-    private static String firstFree(String base, int firstNumber, Set<String> reserved, Set<String> taken) {
+    static String firstFree(String base, int firstNumber, Set<String> reserved, Set<String> taken) {
         for (int number = firstNumber; ; number++) {
             String candidate = base + number;
             if (!reserved.contains(candidate) && !taken.contains(candidate)) {

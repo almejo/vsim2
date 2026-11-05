@@ -9,17 +9,20 @@ import cl.almejo.vsim.core.library.AppearanceReconciler;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
+import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.library.UpdateNote;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * «Actualizar componente» / «Actualizar desde la librería»: replaces a definition (adding missing dependencies) and
@@ -41,6 +44,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
     private final Map<String, ComponentDefinition> reconciledParents;
     private final PlannedShapeChange pieces;
     private final List<UpdateNote> notes;
+    private final List<KeptOldShape> keptOldShapes;
     private ComponentDefinition previous;
     private boolean wasApplied;
 
@@ -56,6 +60,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         this.reconciledParents = reconciledParents;
         this.pieces = new PlannedShapeChange(document, pieces.plan());
         this.notes = pieces.notes();
+        this.keptOldShapes = pieces.keptOldShapes();
     }
 
     /**
@@ -65,6 +70,28 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
      */
     public static ReplaceDefinitionCommand prepare(CircuitDocument document, ComponentTypeRegistry registry,
                                                    DefinitionBundle bundle) {
+        return prepare(document, registry, bundle, true);
+    }
+
+    /**
+     * Plans the write-back of an edit made inside the component (spec §6.2): like {@link #prepare}, but a new pin
+     * whose spot lands on a wire or a pin never refuses it — that piece keeps its old shape and is listed in
+     * {@link #keptOldShapes()} — and a definition that nothing placed uses never refuses it either (its pieces with
+     * their own shape follow, as those without one do). Wires that cannot follow are left loose
+     * ({@link #loosenedPins()}), as always.
+     *
+     * <p>Phase 1 of the nested case (spec §6.2 c): an interface change of a definition used inside a placed one is
+     * refused before it is applied by the body place ({@code interfaceLocked()}), so the check kept here
+     * ({@link DefinitionUpdateSafety#requireSafe}, the same condition) is only a backstop that the editor never
+     * reaches; the nested rewrite will replace both.
+     */
+    public static ReplaceDefinitionCommand prepareInside(CircuitDocument document, ComponentTypeRegistry registry,
+                                                         DefinitionBundle bundle) {
+        return prepare(document, registry, bundle, false);
+    }
+
+    private static ReplaceDefinitionCommand prepare(CircuitDocument document, ComponentTypeRegistry registry,
+                                                    DefinitionBundle bundle, boolean refuseBusyEdges) {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(registry, "registry");
         ComponentDefinition replacement = bundle.root();
@@ -72,11 +99,30 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         Optional<ComponentDefinition> before = document.definition(replacement.id());
         Map<String, ComponentDefinition> previousParents = new LinkedHashMap<>();
         Map<String, ComponentDefinition> reconciledParents = new LinkedHashMap<>();
-        before.ifPresent(old -> reconcileParents(document, old, replacement, previousParents, reconciledParents));
+        Set<String> followingParents = refuseBusyEdges ? Set.of() : unplacedDefinitionIds(document);
+        before.ifPresent(old -> reconcileParents(document, old, replacement, followingParents, previousParents,
+                reconciledParents));
         PieceUpdatePlanner.Result pieces = before
-                .map(old -> PieceUpdatePlanner.plan(document, registry, bundle, old))
+                .map(old -> PieceUpdatePlanner.plan(document, registry, bundle, old, refuseBusyEdges))
                 .orElseGet(() -> new PieceUpdatePlanner.Result(PieceUpdatePlanner.emptyPlan(), List.of()));
         return new ReplaceDefinitionCommand(document, bundle, previousParents, reconciledParents, pieces);
+    }
+
+    /** The definitions of {@code document} that no placed piece reaches, at any depth (left-over copies). */
+    private static Set<String> unplacedDefinitionIds(CircuitDocument document) {
+        Set<String> reachable = DefinitionUpdateSafety.reachableDefinitionIds(document);
+        Set<String> unplaced = new HashSet<>();
+        document.definitions().stream().map(ComponentDefinition::id).filter(id -> !reachable.contains(id))
+                .forEach(unplaced::add);
+        return unplaced;
+    }
+
+    /**
+     * For an inside edit, the placed pieces that could not take a new pin where the definition puts it (spec §6.2 a);
+     * always empty for {@link #prepare}, which refuses instead.
+     */
+    public List<KeptOldShape> keptOldShapes() {
+        return keptOldShapes;
     }
 
     /** What happens to the placed pieces: the pins left unconnected and the pieces that keep their old shape. */
@@ -144,31 +190,33 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
 
     /**
      * The pieces with their own shape inside other definitions' bodies follow renamed pin sources; their pins never
-     * move (the body's wires are not rewritten), so a change that would move them keeps the old copy.
+     * move (the body's wires are not rewritten), so a change that would move them keeps the old copy — except in the
+     * {@code following} parents (an inside edit's left-over copies that nothing placed uses), whose pieces follow.
      */
     private static void reconcileParents(CircuitDocument document, ComponentDefinition before,
-                                         ComponentDefinition replacement,
+                                         ComponentDefinition replacement, Set<String> following,
                                          Map<String, ComponentDefinition> previousParents,
                                          Map<String, ComponentDefinition> reconciledParents) {
         for (ComponentDefinition parent : document.definitions()) {
             if (parent.id().equals(replacement.id())) {
                 continue;
             }
+            boolean follows = following.contains(parent.id());
             List<Component> components = parent.body().components().stream()
-                    .map(component -> reconcileNested(before, replacement, parent, component)).toList();
+                    .map(component -> reconcileNested(before, replacement, parent, component, follows)).toList();
             if (!components.equals(parent.body().components())) {
                 CircuitFragment body = parent.body();
                 previousParents.put(parent.id(), parent);
                 reconciledParents.put(parent.id(), new ComponentDefinition(parent.id(), parent.name(),
                         parent.description(), parent.size(), parent.pinout(), new CircuitFragment(components,
-                        body.wires(), body.labels(), body.definitions(), body.frames()), parent.appearance(),
-                        parent.revision()));
+                        body.wires(), body.labels(), body.definitions(), body.frames(), body.stickyNotes()),
+                        parent.appearance(), parent.revision()));
             }
         }
     }
 
     private static Component reconcileNested(ComponentDefinition before, ComponentDefinition replacement,
-                                             ComponentDefinition parent, Component component) {
+                                             ComponentDefinition parent, Component component, boolean follows) {
         if (!component.typeId().equals(SubcircuitTypes.typeIdOf(replacement.id()))
                 || component.appearance().isEmpty()) {
             return component;
@@ -177,7 +225,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         Optional<ComponentAppearance> kept = AppearanceReconciler.reconcile(before, replacement,
                 component.appearance());
         ComponentAppearance after = kept.orElseGet(() -> ComponentAppearance.of(replacement));
-        if (!sameGeometry(original, after)) {
+        if (!follows && !sameGeometry(original, after)) {
             throw new UnsafeDefinitionUpdateException(replacement.id(), List.of(parent.name()));
         }
         return component.withAppearance(kept);
