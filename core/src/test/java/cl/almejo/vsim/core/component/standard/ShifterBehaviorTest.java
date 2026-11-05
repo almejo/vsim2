@@ -86,12 +86,51 @@ class ShifterBehaviorTest {
     }
 
     @Test
-    void undefinedInputsGiveZ() {
+    void anUndefinedAmountGivesZ() {
         BlockHarness harness = new BlockHarness(ArithmeticTypes.SHIFTER, parameters(8, "logical-left")).settle();
         harness.set(A, 1).set(AMOUNT, Value.highImpedance(3)).settle();
         assertThat(harness.output(Y)).isEqualTo(Value.highImpedance(8));
-        harness.set(AMOUNT, 1).set(A, Value.highImpedance(8)).settle();
-        assertThat(harness.output(Y)).isEqualTo(Value.highImpedance(8));
+    }
+
+    /** Like Logisim's: a defined amount moves every bit of A, Z bits included, and what comes in is defined. */
+    @Test
+    void zBitsOfTheDataMoveWithTheOthers() {
+        // 8 bits: ZZZZ0101 (a byte read from a part that drives only the low half of the bus).
+        Value lowNibble = new Value(8, 0b0101, 0xF0, false);
+        assertThat(shiftedValue("logical-left", 4, lowNibble)).isEqualTo(Value.of(8, 0x50));
+        assertThat(shiftedValue("logical-left", 1, lowNibble)).isEqualTo(new Value(8, 0b1010, 0xE0, false));
+        assertThat(shiftedValue("logical-right", 2, new Value(8, 0b0101_0000, 0x0F, false)))
+                .isEqualTo(new Value(8, 0b0001_0100, 0x03, false));
+        // The sign bit is Z: an arithmetic shift copies it, Z.
+        assertThat(shiftedValue("arithmetic-right", 2, new Value(8, 0, 0x80, false)))
+                .isEqualTo(new Value(8, 0, 0xE0, false));
+        assertThat(shiftedValue("rotate-left", 4, lowNibble)).isEqualTo(new Value(8, 0x50, 0x0F, false));
+        assertThat(shiftedValue("rotate-right", 4, lowNibble)).isEqualTo(new Value(8, 0x50, 0x0F, false));
+        assertThat(shiftedValue("logical-left", 0, lowNibble)).isEqualTo(lowNibble);
+        harnessAllZ();
+    }
+
+    /** The lbu of LRV32IM: a byte with the upper bits floating, moved left 24 and back right 24, is the byte. */
+    @Test
+    void aByteWithTheRestFloatingComesBackDefined() {
+        Value byteOnTheBus = new Value(32, 0x35, 0xFFFF_FF00L, false);
+        Value left = shiftedValue(32, "logical-left", 24, byteOnTheBus);
+        assertThat(left).isEqualTo(Value.of(32, 0x3500_0000L));
+        assertThat(shiftedValue(32, "logical-right", 24, left)).isEqualTo(Value.of(32, 0x35));
+    }
+
+    private static void harnessAllZ() {
+        assertThat(shiftedValue("logical-left", 1, Value.highImpedance(8))).isEqualTo(new Value(8, 0, 0xFE, false));
+    }
+
+    private static Value shiftedValue(String shiftType, int amount, Value data) {
+        return shiftedValue(8, shiftType, amount, data);
+    }
+
+    private static Value shiftedValue(int bits, String shiftType, int amount, Value data) {
+        BlockHarness harness = new BlockHarness(ArithmeticTypes.SHIFTER, parameters(bits, shiftType)).settle();
+        harness.set(AMOUNT, amount).set(A, data).settle();
+        return harness.output(Y);
     }
 
     @Test

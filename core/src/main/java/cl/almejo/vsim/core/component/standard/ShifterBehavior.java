@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
+import cl.almejo.vsim.core.value.Value;
 
 import java.util.OptionalLong;
 
@@ -9,7 +10,10 @@ import java.util.OptionalLong;
  * «Desplazador» of N bits: pins A[N], S[k], Y[N]. S counts the bits to move, as an unsigned number; the «Tipo» says
  * how: logical left or right (zeros come in), arithmetic right (copies the sign bit), rotate left or right. An amount
  * of N or more (possible when N is not a power of two) shifts everything out (logical: 0; arithmetic: all sign bits)
- * and rotates modulo N. Undefined A or S drive Y all Z ({@link BlockSignals}).
+ * and rotates modulo N. An undefined S, or a conflict on A, drives Y all Z ({@link BlockSignals}); with S defined,
+ * the Z bits of A move like the others (Logisim's shifter does the same: a shifter is wiring, a floating bit lands
+ * where it is moved, and the bits that come in are defined), so a byte read with the rest of the bus floating can be
+ * moved into place.
  */
 final class ShifterBehavior implements Behavior {
 
@@ -38,13 +42,18 @@ final class ShifterBehavior implements Behavior {
     }
 
     private void evaluate(BehaviorContext context) {
-        OptionalLong data = BlockSignals.unsigned(context.input(A));
+        Value data = context.input(A);
         OptionalLong amount = BlockSignals.unsigned(context.input(AMOUNT));
-        if (data.isEmpty() || amount.isEmpty()) {
+        if (data.conflict() || amount.isEmpty()) {
             context.drive(Y, BlockSignals.undefined(width), delay);
             return;
         }
-        context.drive(Y, BlockSignals.result(width, shift(data.getAsLong(), (int) amount.getAsLong())), delay);
+        int distance = (int) amount.getAsLong();
+        long mask = Value.maskFor(width);
+        long highImpedance = shift(data.highImpedanceMask(), distance) & mask;
+        long bits = shift(data.bits(), distance) & mask & ~highImpedance;
+        context.drive(Y, highImpedance == 0L ? BlockSignals.result(width, bits)
+                : new Value(width, bits, highImpedance, false), delay);
     }
 
     private long shift(long bits, int amount) {

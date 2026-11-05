@@ -7,6 +7,12 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md). El primer párrafo de cada versión publicada (bajo su título, antes de
 «Agregado») es su «Resumen» de 2 a 4 líneas: es el texto que `packaging/release-notes.sh` pone en la página de la release.
 
+## Sin publicar
+
+### Arreglado
+
+- El «Desplazador» ya no deja toda la salida en Z cuando algún bit de A está en Z: con S definida, cada bit se mueve a su lugar (también los que están en Z) y los que entran valen 0, como en Logisim. El LRV32IM importado de Logisim leía 0 del Teclado (el byte llega con el resto del bus suelto) y ahora lee la tecla. Ver [Bloques de N bits](docs/funciones/componentes.md#bloques-de-n-bits).
+
 ## Versión 0.6 — 2026-11-04
 
 Terminal, Teclado y UART 16550 para que un circuito escriba y lea texto; imprimir y exportar a PDF en varias hojas;
