@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.session.RecentFiles;
+import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import org.slf4j.Logger;
@@ -166,9 +167,12 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         return tabs.activeView().canvas().viewState();
     }
 
-    /** Where this window is and what its active tab shows (M6-B); a maximized window reports its earlier bounds. */
-    public WindowState windowState() {
-        return WindowState.of(normalBounds(), isMaximized(), viewState());
+    /**
+     * What the session remembers of this window (spec §4.7): where it is (a maximized window reports its earlier
+     * bounds) and its tabs of saved circuits; empty when it shows only untitled ones.
+     */
+    public Optional<WindowSession> windowState() {
+        return tabs.session(WindowState.of(normalBounds(), isMaximized(), viewState()));
     }
 
     /** Where this window is and what {@code document}'s first tab here shows (Recientes keeps it per file). */
@@ -344,6 +348,20 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     /** Closes this window without asking; the application closes the documents it was the last holder of. */
+    /**
+     * A window that never got a tab (bringing back a session window failed before its first one) goes without being
+     * shown and without telling the application it closed: it never held anything.
+     */
+    public void discardUnshown() {
+        if (!tabs.isEmpty()) {
+            throw new IllegalStateException("the window has tabs: close it instead");
+        }
+        closed = true;
+        application.removeWindowsListener(windowsListener);
+        tabs.disposeAll();
+        dispose();
+    }
+
     public void closeQuietly() {
         if (closed) {
             return;

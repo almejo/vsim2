@@ -10,6 +10,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -20,8 +21,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class StartupSequenceTest {
 
-    private static final WindowState LEFT = new WindowState(0, 0, 960, 1080, false, new ViewState(1.5, 10, -4));
-    private static final WindowState RIGHT = new WindowState(960, 0, 960, 1080, true, new ViewState(2.0, 0, 0));
+    private static final ViewState LEFT_VIEW = new ViewState(1.5, 10, -4);
+    private static final ViewState RIGHT_VIEW = new ViewState(2.0, 0, 0);
+    private static final WindowState LEFT = new WindowState(0, 0, 960, 1080, false, LEFT_VIEW);
+    private static final WindowState RIGHT = new WindowState(960, 0, 960, 1080, true, RIGHT_VIEW);
 
     @TempDir
     Path directory;
@@ -48,41 +51,62 @@ class StartupSequenceTest {
                 Optional.ofNullable(original), "copia", savedAt);
     }
 
-    @Test
-    void theLastSessionOpensEveryViewAndListsMissingFilesOnce() {
-        Plan plan = StartupSequence.plan(List.of(), true, List.of(
-                        new SessionDocument(counter, List.of(LEFT, RIGHT)),
-                        new SessionDocument(gone, List.of(LEFT)),
-                        new SessionDocument(adder, List.of(RIGHT)),
-                        new SessionDocument(counter, List.of(RIGHT))),
-                List.of(), exists);
+    /** One window with a main tab of each of {@code files}, the first active. */
+    private static WindowSession window(WindowState bounds, Path... files) {
+        return new WindowSession(bounds, Arrays.stream(files)
+                .map(file -> TabState.main(file, bounds.view())).toList(), 0, List.of());
+    }
 
-        assertThat(plan.openings()).containsExactly(new FromSession(counter, List.of(LEFT, RIGHT)),
-                new FromSession(adder, List.of(RIGHT)));
+    @Test
+    void theLastSessionOpensEveryFileOnceKeepsItsWindowsAndListsMissingFilesOnce() {
+        WindowSession both = window(LEFT, counter, gone, adder);
+        WindowSession again = window(RIGHT, counter, gone);
+        Plan plan = StartupSequence.plan(List.of(), true, List.of(both, again), List.of(), exists);
+
+        assertThat(plan.openings()).containsExactly(new FromSession(counter), new FromSession(adder));
+        assertThat(plan.windows()).containsExactly(window(LEFT, counter, adder), window(RIGHT, counter));
         assertThat(plan.missing()).containsExactly(gone);
         assertThat(plan.commandLineFiles()).isEmpty();
     }
 
     @Test
-    void aRecoveredCopyComesFirstReplacesItsSessionFileAndTakesItsViews() {
-        RecoveryCopy copy = copyOf(counter);
-        RecoveryCopy untitled = copyOf(null);
-        Plan plan = StartupSequence.plan(List.of(copy, untitled), true, List.of(
-                        new SessionDocument(counter, List.of(LEFT, RIGHT)),
-                        new SessionDocument(adder, List.of(RIGHT))),
+    void aWindowWhoseFilesAreAllGoneIsNotRestored() {
+        Plan plan = StartupSequence.plan(List.of(), true, List.of(window(LEFT, gone), window(RIGHT, adder)),
                 List.of(), exists);
 
-        assertThat(plan.openings()).containsExactly(new Recovered(copy, List.of(LEFT, RIGHT)),
-                new Recovered(untitled, List.of()), new FromSession(adder, List.of(RIGHT)));
+        assertThat(plan.windows()).containsExactly(window(RIGHT, adder));
+        assertThat(plan.missing()).containsExactly(gone);
+    }
+
+    @Test
+    void aRecoveredCopyComesFirstAndReplacesItsSessionFileWhoseTabsStay() {
+        RecoveryCopy copy = copyOf(counter);
+        RecoveryCopy untitled = copyOf(null);
+        Plan plan = StartupSequence.plan(List.of(copy, untitled), true,
+                List.of(window(LEFT, counter, adder), window(RIGHT, counter)), List.of(), exists);
+
+        assertThat(plan.openings()).containsExactly(new Recovered(copy), new Recovered(untitled),
+                new FromSession(adder));
+        assertThat(plan.windows()).containsExactly(window(LEFT, counter, adder), window(RIGHT, counter));
+        assertThat(plan.missing()).isEmpty();
+    }
+
+    @Test
+    void aRecoveredCopyOfAFileThatIsGoneKeepsItsTabs() {
+        RecoveryCopy copy = copyOf(gone);
+        Plan plan = StartupSequence.plan(List.of(copy), true, List.of(window(LEFT, gone)), List.of(), exists);
+
+        assertThat(plan.openings()).containsExactly(new Recovered(copy));
+        assertThat(plan.windows()).containsExactly(window(LEFT, gone));
         assertThat(plan.missing()).isEmpty();
     }
 
     @Test
     void filesOnTheCommandLineSkipTheSession() {
-        Plan plan = StartupSequence.plan(List.of(), true, List.of(new SessionDocument(counter, List.of(LEFT))),
-                List.of(adder), exists);
+        Plan plan = StartupSequence.plan(List.of(), true, List.of(window(LEFT, counter)), List.of(adder), exists);
 
         assertThat(plan.openings()).isEmpty();
+        assertThat(plan.windows()).isEmpty();
         assertThat(plan.missing()).isEmpty();
         assertThat(plan.commandLineFiles()).containsExactly(adder);
     }
@@ -92,17 +116,17 @@ class StartupSequenceTest {
         RecoveryCopy copy = copyOf(counter);
         Plan plan = StartupSequence.plan(List.of(copy), true, List.of(), List.of(counter, adder), exists);
 
-        assertThat(plan.openings()).containsExactly(new Recovered(copy, List.of()));
+        assertThat(plan.openings()).containsExactly(new Recovered(copy));
         assertThat(plan.commandLineFiles()).containsExactly(adder);
     }
 
     @Test
     void withTheOptionOffOnlyRecoveredCopiesAndCommandLineFilesOpen() {
         RecoveryCopy copy = copyOf(counter);
-        Plan plan = StartupSequence.plan(List.of(copy), false, List.of(new SessionDocument(adder, List.of(LEFT))),
-                List.of(), exists);
+        Plan plan = StartupSequence.plan(List.of(copy), false, List.of(window(LEFT, adder)), List.of(), exists);
 
-        assertThat(plan.openings()).containsExactly(new Recovered(copy, List.of()));
+        assertThat(plan.openings()).containsExactly(new Recovered(copy));
+        assertThat(plan.windows()).isEmpty();
         assertThat(plan.missing()).isEmpty();
     }
 
@@ -114,9 +138,10 @@ class StartupSequenceTest {
         RecoveryCopy untitled = copyOf(null, Instant.parse("2026-10-09T13:00:00Z"));
         RecoveryCopy untitledToo = copyOf(null, Instant.parse("2026-10-09T13:30:00Z"));
         Plan plan = StartupSequence.plan(List.of(older, untitled, newer, untitledToo), true,
-                List.of(new SessionDocument(counter, List.of(LEFT))), List.of(), exists);
+                List.of(window(LEFT, counter)), List.of(), exists);
 
-        assertThat(plan.openings()).containsExactly(new Recovered(untitled, List.of()),
-                new Recovered(newer, List.of(LEFT)), new Recovered(untitledToo, List.of()));
+        assertThat(plan.openings()).containsExactly(new Recovered(untitled), new Recovered(newer),
+                new Recovered(untitledToo));
+        assertThat(plan.windows()).containsExactly(window(LEFT, counter));
     }
 }

@@ -346,6 +346,15 @@ class OpenDocumentBodyTest {
         assertThat(openDocument.document().components()).hasSize(2);
     }
 
+    @Test
+    void openingWithAContextThatIsGoneFallsBackToTheFirstUseOrToNoValues() {
+        withTwoBlocks();
+
+        assertThat(body(BLOCK, Optional.of("c404")).contextPath()).contains(FIRST.value());
+        openDocument.execute(new PutDefinitionsCommand(List.of(leaf())));
+        assertThat(body("hoja", Optional.of("c404")).contextPath()).isEmpty();
+    }
+
     private OpenDocument body(String definitionId, Optional<String> context) {
         OpenDocument body = openDocument.openBody(definitionId, context);
         bodies.add(body);

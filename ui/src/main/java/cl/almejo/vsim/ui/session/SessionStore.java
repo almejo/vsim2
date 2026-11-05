@@ -12,9 +12,14 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
 /**
- * The circuits open when the application last ended (spec §4.1 «Continuar donde quedaste»), under
- * {@link AppPreferences#sessionNode()}: {@code session/<n>} holds {@code path}, {@code session/<n>/<m>} the state of
- * each view as plain keys. Broken entries are skipped; storage failures are logged, never thrown. EDT only.
+ * The circuit windows open when the application last ended (spec §4.1 «Continuar donde quedaste», §4.7), under
+ * {@link AppPreferences#sessionNode()}: {@code session/<n>} is a window, with its bounds ({@code x y width height
+ * maximized}), {@code active} (the index of its active tab) and {@code folded<k>} (the files whose groups were folded)
+ * as plain keys, and a child {@code tab<k>} per tab with {@code path}, {@code definition} and {@code name} (a
+ * component tab's), {@code context} (the instance it showed) and {@code zoom centerX centerY}. A session written
+ * before tabs ({@code session/<n>} holding a file's {@code path}, {@code session/<n>/<m>} the state of each of its
+ * windows) still loads, as one window with one main tab per state. Broken entries are skipped; storage failures are
+ * logged, never thrown. EDT only.
  */
 public final class SessionStore {
 
@@ -26,27 +31,15 @@ public final class SessionStore {
         this.preferences = preferences;
     }
 
-    /** Replaces the stored session with {@code documents}. */
-    public void save(List<SessionDocument> allDocuments) {
-        List<SessionDocument> documents = allDocuments.stream().filter(document -> {
-            boolean fits = SessionKeys.fitsInPreferences(document.path().toAbsolutePath());
-            if (!fits) {
-                LOGGER.warn("Not remembering a path of {} characters in the session",
-                        document.path().toAbsolutePath().toString().length());
-            }
-            return fits;
-        }).toList();
+    /** Replaces the stored session with {@code allWindows}; a tab whose path does not fit is left out. */
+    public void save(List<WindowSession> allWindows) {
+        List<WindowSession> windows = allWindows.stream()
+                .flatMap(window -> window.keeping(SessionStore::fits).stream()).toList();
         try {
             Preferences session = preferences.sessionNode();
             SessionKeys.removeChildren(session);
-            for (int documentIndex = 0; documentIndex < documents.size(); documentIndex++) {
-                SessionDocument document = documents.get(documentIndex);
-                Preferences documentNode = session.node(Integer.toString(documentIndex));
-                documentNode.put(SessionKeys.PATH, document.path().toAbsolutePath().toString());
-                for (int windowIndex = 0; windowIndex < document.windows().size(); windowIndex++) {
-                    SessionKeys.writeWindowState(documentNode.node(Integer.toString(windowIndex)),
-                            document.windows().get(windowIndex));
-                }
+            for (int windowIndex = 0; windowIndex < windows.size(); windowIndex++) {
+                write(session.node(Integer.toString(windowIndex)), windows.get(windowIndex));
             }
             session.flush();
         } catch (BackingStoreException | RuntimeException exception) {
@@ -54,25 +47,75 @@ public final class SessionStore {
         }
     }
 
-    public List<SessionDocument> load() {
-        List<SessionDocument> documents = new ArrayList<>();
+    private static boolean fits(Path path) {
+        boolean fits = SessionKeys.fitsInPreferences(path.toAbsolutePath());
+        if (!fits) {
+            LOGGER.warn("Not remembering a path of {} characters in the session",
+                    path.toAbsolutePath().toString().length());
+        }
+        return fits;
+    }
+
+    private static void write(Preferences node, WindowSession window) {
+        SessionKeys.writeBounds(node, window.bounds());
+        node.putInt(SessionKeys.ACTIVE, window.activeTab());
+        for (int tabIndex = 0; tabIndex < window.tabs().size(); tabIndex++) {
+            SessionKeys.writeTab(node.node(SessionKeys.TAB + tabIndex), window.tabs().get(tabIndex));
+        }
+        for (int foldedIndex = 0; foldedIndex < window.foldedDocuments().size(); foldedIndex++) {
+            node.put(SessionKeys.FOLDED + foldedIndex,
+                    window.foldedDocuments().get(foldedIndex).toAbsolutePath().toString());
+        }
+    }
+
+    public List<WindowSession> load() {
+        List<WindowSession> windows = new ArrayList<>();
         try {
             Preferences session = preferences.sessionNode();
-            for (String documentName : SessionKeys.numbered(session.childrenNames())) {
-                Preferences documentNode = session.node(documentName);
-                Optional<Path> path = SessionKeys.readPath(documentNode);
-                if (path.isEmpty()) {
-                    continue;
+            for (String name : SessionKeys.numbered(session.childrenNames())) {
+                Preferences node = session.node(name);
+                if (node.get(SessionKeys.PATH, null) != null) {
+                    windows.addAll(readBeforeTabs(node));
+                } else {
+                    read(node).ifPresent(windows::add);
                 }
-                List<WindowState> windows = new ArrayList<>();
-                for (String windowName : SessionKeys.numbered(documentNode.childrenNames())) {
-                    SessionKeys.readWindowState(documentNode.node(windowName)).ifPresent(windows::add);
-                }
-                documents.add(new SessionDocument(path.get(), windows));
             }
         } catch (BackingStoreException | RuntimeException exception) {
             LOGGER.warn("Could not read the session", exception);
         }
-        return documents;
+        return windows;
+    }
+
+    /** A window of the session; empty when it has no readable tab or no bounds. */
+    private static Optional<WindowSession> read(Preferences node) throws BackingStoreException {
+        List<TabState> tabs = new ArrayList<>();
+        for (String tabName : SessionKeys.numbered(node.childrenNames(), SessionKeys.TAB)) {
+            SessionKeys.readTab(node.node(tabName)).ifPresent(tabs::add);
+        }
+        if (tabs.isEmpty()) {
+            return Optional.empty();
+        }
+        int active = node.getInt(SessionKeys.ACTIVE, 0);
+        TabState activeTab = tabs.get(active >= 0 && active < tabs.size() ? active : 0);
+        List<Path> folded = new ArrayList<>();
+        for (String key : SessionKeys.numbered(node.keys(), SessionKeys.FOLDED)) {
+            SessionKeys.readPath(node, key).ifPresent(folded::add);
+        }
+        return SessionKeys.readBounds(node, activeTab.view())
+                .map(bounds -> new WindowSession(bounds, tabs, active, folded));
+    }
+
+    /** A file of a session written before tabs: one window with one main tab for each of its window states. */
+    private static List<WindowSession> readBeforeTabs(Preferences node) throws BackingStoreException {
+        Optional<Path> path = SessionKeys.readPath(node);
+        if (path.isEmpty()) {
+            return List.of();
+        }
+        List<WindowSession> windows = new ArrayList<>();
+        for (String windowName : SessionKeys.numbered(node.childrenNames())) {
+            SessionKeys.readWindowState(node.node(windowName)).ifPresent(state -> windows.add(
+                    new WindowSession(state, List.of(TabState.main(path.get(), state.view())), 0, List.of())));
+        }
+        return windows;
     }
 }

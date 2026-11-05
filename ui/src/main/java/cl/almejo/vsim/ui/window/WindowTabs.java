@@ -7,6 +7,9 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.ui.session.TabState;
+import cl.almejo.vsim.ui.session.WindowSession;
+import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.window.panes.RememberedSplit;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import cl.almejo.vsim.ui.window.tabs.TabStrip;
@@ -113,13 +116,13 @@ public final class WindowTabs extends JPanel {
         private final EditorView view;
         private final InitialView initialView;
         private final Runnable initialViewWatch;
-        private final Optional<RememberedSplit> rememberedSplit;
+        private final RememberedSplit rememberedSplit;
         private Optional<ViewState> initialViewState;
         private boolean initialViewShown;
 
         private TabEntry(String id, OpenDocument document, Optional<String> definitionId, OpenDocument place,
                          EditorView view, InitialView initialView, Runnable initialViewWatch,
-                         Optional<RememberedSplit> rememberedSplit, Optional<ViewState> initialViewState) {
+                         RememberedSplit rememberedSplit, Optional<ViewState> initialViewState) {
             this.id = id;
             this.document = document;
             this.definitionId = definitionId;
@@ -154,7 +157,7 @@ public final class WindowTabs extends JPanel {
     /**
      * @param viewFactory makes the editor of a tab on a place (the window gives its services and itself as the
      *                    view's {@link WindowCommands})
-     * @param splitStore  where main tabs remember their split per file
+     * @param splitStore  where tabs remember their split per place (file, and definition for a component tab)
      * @param animate     whether folding animates now (the «Animación» preference)
      */
     public WindowTabs(Host host, Function<OpenDocument, EditorView> viewFactory, SplitLayoutStore splitStore,
@@ -261,9 +264,9 @@ public final class WindowTabs extends JPanel {
         EditorView view = viewFactory.apply(place);
         InitialView watcher = new InitialView(() -> showInitialView(id));
         Runnable watch = watchForTheInitialView(view, watcher, host::isMaximized);
-        Optional<RememberedSplit> split = definitionId.isEmpty()
-                ? Optional.of(new RememberedSplit(splitStore, view.canvasPanes(), document::path, Delay.swing()))
-                : Optional.empty();
+        // a component tab keeps its own split, per (file, definition) (spec §10.6)
+        RememberedSplit split = new RememberedSplit(splitStore, view.canvasPanes(), document::path, definitionId,
+                Delay.swing());
         new WindowMenu(view.menu(MenuId.WINDOW), host::everyTab);
         TabEntry entry = new TabEntry(id, document, definitionId, place, view, watcher, watch, split, initialView);
         entries.put(id, entry);
@@ -494,7 +497,7 @@ public final class WindowTabs extends JPanel {
         }
         entry.initialViewState.ifPresentOrElse(state -> entry.view.canvas().applyViewState(state),
                 () -> entry.view.canvas().centerCircuit());
-        entry.rememberedSplit.ifPresent(RememberedSplit::showRemembered);
+        entry.rememberedSplit.showRemembered();
     }
 
     /** {@code view} opens at {@code state} instead of centering the circuit; call it before the tab is first shown. */
@@ -507,12 +510,105 @@ public final class WindowTabs extends JPanel {
      * was last time (when it fits). Call it right after adding the tab.
      */
     public void restoreRememberedSplit(EditorView view) {
-        entryOf(view).flatMap(entry -> entry.rememberedSplit).ifPresent(RememberedSplit::restoreWhenShown);
+        entryOf(view).ifPresent(entry -> entry.rememberedSplit.restoreWhenShown());
     }
 
     /** {@code document} was just written to {@code target} (before that {@code previous}): its splits follow. */
     public void saved(OpenDocument document, Optional<Path> previous, Path target) {
-        entriesOf(document).forEach(entry -> entry.rememberedSplit.ifPresent(split -> split.saved(previous, target)));
+        entriesOf(document).forEach(entry -> entry.rememberedSplit.saved(previous, target));
+    }
+
+    // --- the session ---
+
+    /**
+     * What the session remembers of this window (spec §4.7): every tab of a saved circuit in the strip's order (its
+     * place, the instance a component tab shows and where it looks), the active one and the folded groups, with
+     * {@code bounds}; untitled circuits are left out (they come back through recovery). Empty when no tab is left.
+     */
+    public Optional<WindowSession> session(WindowState bounds) {
+        String activeId = model.active().map(TabStripModel.Tab::id).orElse("");
+        List<TabState> tabs = new ArrayList<>();
+        int activeTab = 0;
+        for (TabStripModel.Tab tab : model.tabs()) {
+            TabEntry entry = entries.get(tab.id());
+            Optional<Path> path = entry.document.path();
+            if (path.isEmpty()) {
+                continue;
+            }
+            if (tab.id().equals(activeId)) {
+                activeTab = tabs.size();
+            }
+            tabs.add(tabState(entry, path.get()));
+        }
+        if (tabs.isEmpty()) {
+            return Optional.empty();
+        }
+        List<Path> folded = documents().stream().filter(model::isFolded)
+                .flatMap(document -> document.path().stream()).toList();
+        return Optional.of(new WindowSession(bounds, tabs, activeTab, folded));
+    }
+
+    /** A tab never shown yet still looks where it was going to open. */
+    private static TabState tabState(TabEntry entry, Path path) {
+        ViewState view = entry.initialViewShown ? entry.view.canvas().viewState()
+                : entry.initialViewState.orElseGet(() -> entry.view.canvas().viewState());
+        return entry.definitionId
+                .map(definitionId -> TabState.component(path, definitionId, entry.place.definitionName(),
+                        entry.place.contextPath(), view))
+                .orElseGet(() -> TabState.main(path, view));
+    }
+
+    /**
+     * Brings back a window of the session (spec §4.7): its groups in order (the main tabs first, each opening where it
+     * looked and split as it was), then the component tabs on body places of their documents, then the active tab and
+     * the folds. {@code documents} gives the open document of a file; the tabs of a file it has none for are left
+     * out (the file did not open, and that was told). A component tab whose definition is gone from its document is
+     * left out and returned, to be told once; one whose instance is gone shows the first remaining one, or «Sin
+     * valores» ({@link OpenDocument#openBody}).
+     *
+     * @return the component tabs left out because their definition is gone
+     */
+    public List<TabState> restore(WindowSession session, Function<Path, Optional<OpenDocument>> documents) {
+        List<TabState> tabs = session.tabs();
+        List<Optional<EditorView>> restored = new ArrayList<>();
+        tabs.forEach(tab -> restored.add(Optional.empty()));
+        for (int index = 0; index < tabs.size(); index++) {
+            TabState tab = tabs.get(index);
+            if (tab.isMain()) {
+                restored.set(index, documents.apply(tab.path()).map(document -> restoredTab(document, tab)));
+            }
+        }
+        List<TabState> skipped = new ArrayList<>();
+        for (int index = 0; index < tabs.size(); index++) {
+            TabState tab = tabs.get(index);
+            Optional<OpenDocument> document = documents.apply(tab.path());
+            if (tab.isMain() || document.isEmpty()) {
+                continue;
+            }
+            String definitionId = tab.definitionId().orElseThrow();
+            if (document.get().document().definition(definitionId).isEmpty()) {
+                skipped.add(tab);
+                continue;
+            }
+            if (model.group(document.get()).isEmpty()) {
+                restoredTab(document.get(), TabState.main(tab.path(), tab.view())); // never a component tab alone
+            }
+            OpenDocument place = document.get().openBody(definitionId, tab.contextPath());
+            EditorView view = addComponentTab(document.get(), definitionId, place, Optional.of(tab.view()));
+            restoreRememberedSplit(view);
+            restored.set(index, Optional.of(view));
+        }
+        restored.get(session.activeTab()).or(() -> views().stream().findFirst()).ifPresent(this::activate);
+        session.foldedDocuments().forEach(path -> documents.apply(path)
+                .filter(document -> model.group(document).isPresent())
+                .ifPresent(document -> model.fold(document, true)));
+        return skipped;
+    }
+
+    private EditorView restoredTab(OpenDocument document, TabState tab) {
+        EditorView view = addTab(document, Optional.of(tab.view()));
+        restoreRememberedSplit(view);
+        return view;
     }
 
     // --- titles ---
@@ -619,7 +715,7 @@ public final class WindowTabs extends JPanel {
 
     private static void release(TabEntry entry) {
         try {
-            entry.rememberedSplit.ifPresent(RememberedSplit::close);
+            entry.rememberedSplit.close();
             entry.initialViewWatch.run();
             entry.view.dispose();
         } catch (RuntimeException exception) {

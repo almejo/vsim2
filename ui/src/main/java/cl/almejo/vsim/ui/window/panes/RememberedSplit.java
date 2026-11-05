@@ -14,7 +14,8 @@ import java.util.function.Supplier;
  * and follows the file through «Guardar como». Nothing for an unsaved circuit. It never touches the document: the
  * split is not an edit. A window writes the store only once the split is its own (it applied the remembered one, or
  * the user split, moved or removed something in it): another view of the file, or a window whose remembered split did
- * not fit, leaves the remembered split as it was. EDT only.
+ * not fit, leaves the remembered split as it was. A component tab keeps its own split, per (file, definition). EDT
+ * only.
  */
 public final class RememberedSplit {
 
@@ -26,6 +27,7 @@ public final class RememberedSplit {
     private final SplitLayoutStore store;
     private final CanvasPanes panes;
     private final Supplier<Optional<Path>> file;
+    private final Optional<String> definitionId;
     private final Delay delay;
     private final Runnable removeLayoutListener;
     private Runnable stopPendingSave = () -> {
@@ -36,11 +38,22 @@ public final class RememberedSplit {
     /** This window's split is the one to keep: it was restored here, or the user changed it here. */
     private boolean owned;
 
-    /** @param file the circuit's file now (empty while unsaved); read every time, so Save As is followed */
+    /** The split of a main tab: {@link #RememberedSplit(SplitLayoutStore, CanvasPanes, Supplier, Optional, Delay)}. */
     public RememberedSplit(SplitLayoutStore store, CanvasPanes panes, Supplier<Optional<Path>> file, Delay delay) {
+        this(store, panes, file, Optional.empty(), delay);
+    }
+
+    /**
+     * @param file         the circuit's file now (empty while unsaved); read every time, so Save As is followed
+     * @param definitionId the definition whose body a component tab shows (its split is its own, spec §10.6); empty
+     *                     for a main tab
+     */
+    public RememberedSplit(SplitLayoutStore store, CanvasPanes panes, Supplier<Optional<Path>> file,
+                           Optional<String> definitionId, Delay delay) {
         this.store = store;
         this.panes = panes;
         this.file = file;
+        this.definitionId = definitionId;
         this.delay = delay;
         this.removeLayoutListener = panes.addLayoutListener(this::layoutChanged);
     }
@@ -63,7 +76,7 @@ public final class RememberedSplit {
             return;
         }
         if (toRestore.isEmpty()) {
-            toRestore = file.get().flatMap(store::layoutFor);
+            toRestore = file.get().flatMap(path -> store.layoutFor(path, definitionId));
         }
         toRestore.filter(this::fits).ifPresent(panes::apply);
     }
@@ -78,15 +91,15 @@ public final class RememberedSplit {
         Optional<Path> renamed = previous
                 .filter(old -> !FileNames.normalized(old).equals(FileNames.normalized(target)));
         if (owned) {
-            renamed.ifPresent(store::forget);
+            renamed.ifPresent(old -> store.forget(old, definitionId));
             stopPendingSave.run();
-            store.remember(target, panes.paneLayout());
+            store.remember(target, definitionId, panes.paneLayout());
             return;
         }
         renamed.ifPresent(old -> {
-            Optional<PaneLayout> layout = store.layoutFor(old);
-            store.forget(old);
-            layout.ifPresent(remembered -> store.remember(target, remembered));
+            Optional<PaneLayout> layout = store.layoutFor(old, definitionId);
+            store.forget(old, definitionId);
+            layout.ifPresent(remembered -> store.remember(target, definitionId, remembered));
         });
     }
 
@@ -134,6 +147,6 @@ public final class RememberedSplit {
     private void save() {
         stopPendingSave = () -> {
         };
-        file.get().ifPresent(path -> store.remember(path, panes.paneLayout()));
+        file.get().ifPresent(path -> store.remember(path, definitionId, panes.paneLayout()));
     }
 }

@@ -1,0 +1,64 @@
+package cl.almejo.vsim.ui.session;
+
+import cl.almejo.vsim.ui.app.FileNames;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+
+/**
+ * One circuit window of the last session (spec §4.7, §10.6): where it was ({@code bounds}, whose view is the active
+ * tab's), its tabs in the strip's order, which one was active (out of range: the first) and the documents whose
+ * groups were folded. Files are compared in any spelling ({@link FileNames#normalized}).
+ */
+public record WindowSession(WindowState bounds, List<TabState> tabs, int activeTab, List<Path> foldedDocuments) {
+
+    public WindowSession {
+        Objects.requireNonNull(bounds, "bounds");
+        tabs = List.copyOf(tabs);
+        foldedDocuments = List.copyOf(foldedDocuments);
+        if (tabs.isEmpty()) {
+            throw new IllegalArgumentException("a window of the session has at least one tab");
+        }
+        if (activeTab < 0 || activeTab >= tabs.size()) {
+            activeTab = 0;
+        }
+    }
+
+    /** The files of the tabs, each once, in the order of their first tab. */
+    public List<Path> documents() {
+        Set<Path> seen = new HashSet<>();
+        List<Path> documents = new ArrayList<>();
+        for (TabState tab : tabs) {
+            if (seen.add(FileNames.normalized(tab.path()))) {
+                documents.add(tab.path());
+            }
+        }
+        return documents;
+    }
+
+    /** This window with only the tabs whose file {@code kept} accepts; empty when none is left. */
+    public Optional<WindowSession> keeping(Predicate<Path> kept) {
+        List<TabState> keptTabs = new ArrayList<>();
+        int keptActive = 0;
+        for (int index = 0; index < tabs.size(); index++) {
+            TabState tab = tabs.get(index);
+            if (kept.test(tab.path())) {
+                if (index == activeTab) {
+                    keptActive = keptTabs.size();
+                }
+                keptTabs.add(tab);
+            }
+        }
+        if (keptTabs.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new WindowSession(bounds, keptTabs, keptActive,
+                foldedDocuments.stream().filter(kept).toList()));
+    }
+}

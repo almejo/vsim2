@@ -12,12 +12,13 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
 /**
- * Plain preference keys of a {@link WindowState} (spec §4.2, contract C4: no JSON), the stored path of an entry and the
- * numbered child nodes that hold lists. A missing or bad value means "no state", never an exception.
+ * Plain preference keys of a {@link WindowState} (spec §4.2, contract C4: no JSON) and of a session tab
+ * ({@link TabState}), the stored path of an entry and the numbered child nodes that hold lists. A missing or bad value
+ * means "no state", never an exception.
  */
 final class SessionKeys {
 
-    /** The file of a Recientes entry or a session document. */
+    /** The file of a Recientes entry, a session tab or (before tabs) a session document. */
     static final String PATH = "path";
     static final String X = "x";
     static final String Y = "y";
@@ -27,25 +28,41 @@ final class SessionKeys {
     static final String ZOOM = "zoom";
     static final String CENTER_X = "centerX";
     static final String CENTER_Y = "centerY";
+    /** A session window's tab nodes: {@code tab0}, {@code tab1}, … */
+    static final String TAB = "tab";
+    /** The definition a component tab shows (absent on a main tab), its name then, and the instance it showed. */
+    static final String DEFINITION = "definition";
+    static final String DEFINITION_NAME = "name";
+    static final String CONTEXT = "context";
+    /** The index of a session window's active tab. */
+    static final String ACTIVE = "active";
+    /** A session window's folded documents: {@code folded0}, {@code folded1}, … */
+    static final String FOLDED = "folded";
 
     private SessionKeys() {
     }
 
     static void writeWindowState(Preferences node, WindowState state) {
+        writeBounds(node, state);
+        writeView(node, state.view());
+    }
+
+    static Optional<WindowState> readWindowState(Preferences node) {
+        return readView(node).flatMap(view -> readBounds(node, view));
+    }
+
+    /** The place and size of a window, without a view (a session window's view is its active tab's). */
+    static void writeBounds(Preferences node, WindowState state) {
         node.putInt(X, state.x());
         node.putInt(Y, state.y());
         node.putInt(WIDTH, state.width());
         node.putInt(HEIGHT, state.height());
         node.putBoolean(MAXIMIZED, state.maximized());
-        node.putDouble(ZOOM, state.view().zoom());
-        node.putDouble(CENTER_X, state.view().centerX());
-        node.putDouble(CENTER_Y, state.view().centerY());
     }
 
-    static Optional<WindowState> readWindowState(Preferences node) {
+    /** The bounds of {@link #writeBounds}, with {@code view}. */
+    static Optional<WindowState> readBounds(Preferences node, ViewState view) {
         try {
-            ViewState view = new ViewState(Double.parseDouble(required(node, ZOOM)),
-                    Double.parseDouble(required(node, CENTER_X)), Double.parseDouble(required(node, CENTER_Y)));
             return Optional.of(new WindowState(Integer.parseInt(required(node, X)), Integer.parseInt(required(node, Y)),
                     Integer.parseInt(required(node, WIDTH)), Integer.parseInt(required(node, HEIGHT)),
                     parseBoolean(required(node, MAXIMIZED)), view));
@@ -54,9 +71,51 @@ final class SessionKeys {
         }
     }
 
+    static void writeTab(Preferences node, TabState tab) {
+        node.put(PATH, tab.path().toAbsolutePath().toString());
+        tab.definitionId().ifPresent(definitionId -> node.put(DEFINITION, definitionId));
+        tab.definitionName().ifPresent(name -> node.put(DEFINITION_NAME, name));
+        tab.contextPath().ifPresent(context -> node.put(CONTEXT, context));
+        writeView(node, tab.view());
+    }
+
+    /** A tab of {@link #writeTab}; empty without a path or a view. A component tab without a name is named by id. */
+    static Optional<TabState> readTab(Preferences node) {
+        Optional<Path> path = readPath(node);
+        Optional<ViewState> view = readView(node);
+        if (path.isEmpty() || view.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<String> definitionId = Optional.ofNullable(node.get(DEFINITION, null)).filter(id -> !id.isBlank());
+        Optional<String> name = definitionId.map(id -> node.get(DEFINITION_NAME, id));
+        Optional<String> context = definitionId.flatMap(id -> Optional.ofNullable(node.get(CONTEXT, null)))
+                .filter(stored -> !stored.isBlank());
+        return Optional.of(new TabState(path.get(), definitionId, name, context, view.get()));
+    }
+
+    private static void writeView(Preferences node, ViewState view) {
+        node.putDouble(ZOOM, view.zoom());
+        node.putDouble(CENTER_X, view.centerX());
+        node.putDouble(CENTER_Y, view.centerY());
+    }
+
+    private static Optional<ViewState> readView(Preferences node) {
+        try {
+            return Optional.of(new ViewState(Double.parseDouble(required(node, ZOOM)),
+                    Double.parseDouble(required(node, CENTER_X)), Double.parseDouble(required(node, CENTER_Y))));
+        } catch (IllegalArgumentException exception) { // NumberFormatException included
+            return Optional.empty();
+        }
+    }
+
     /** The stored {@link #PATH} of {@code node}; empty when it is missing, blank or not a path. */
     static Optional<Path> readPath(Preferences node) {
-        String stored = node.get(PATH, "");
+        return readPath(node, PATH);
+    }
+
+    /** The path stored under {@code key}; empty when it is missing, blank or not a path. */
+    static Optional<Path> readPath(Preferences node, String key) {
+        String stored = node.get(key, "");
         if (stored.isBlank()) {
             return Optional.empty();
         }
@@ -84,19 +143,36 @@ final class SessionKeys {
 
     /** The names that are plain non-negative numbers ({@code 0}, {@code 1}, …, not {@code 007}), in numeric order. */
     static List<String> numbered(String[] names) {
+        return numbered(names, "");
+    }
+
+    /**
+     * The names that are {@code prefix} followed by a plain non-negative number ({@code tab0}, {@code tab1}, …, not
+     * {@code tab007}), in numeric order.
+     */
+    static List<String> numbered(String[] names, String prefix) {
         List<String> numbered = new ArrayList<>();
         for (String name : names) {
-            try {
-                int index = Integer.parseInt(name);
-                if (index >= 0 && name.equals(Integer.toString(index))) {
-                    numbered.add(name);
-                }
-            } catch (NumberFormatException exception) {
-                // not one of ours: skipped
+            if (number(name, prefix) >= 0) {
+                numbered.add(name);
             }
         }
-        numbered.sort(Comparator.comparingInt(Integer::parseInt));
+        numbered.sort(Comparator.comparingInt(name -> number(name, prefix)));
         return numbered;
+    }
+
+    /** The number after {@code prefix} in {@code name}; -1 when the name is not one of ours. */
+    private static int number(String name, String prefix) {
+        if (!name.startsWith(prefix)) {
+            return -1;
+        }
+        String digits = name.substring(prefix.length());
+        try {
+            int index = Integer.parseInt(digits);
+            return index >= 0 && digits.equals(Integer.toString(index)) ? index : -1;
+        } catch (NumberFormatException exception) {
+            return -1; // not one of ours: skipped
+        }
     }
 
     private static String required(Preferences node, String key) {

@@ -17,6 +17,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Continuar donde quedaste recuerda cada ventana con sus pestañas: el orden de los grupos, el zoom de cada pestaña, la activa, los grupos plegados y, en una pestaña de componente, la pieza cuyos valores mostraba; una pestaña de componente recuerda su propia división de la vista. Un componente que ya no está en su circuito se avisa junto con los archivos que faltan. Ver [Sesión y recuperación](docs/funciones/interfaz-preferencias-y-sesion.md#sesión-y-recuperación).
 - «Crear componente desde selección…» y «Convertir en componente…» de un marco llevan adentro del componente los marcos de la selección, en el mismo lugar (antes se perdían); las notas adhesivas se siguen quedando en el lienzo. Ver [Componentes propios](docs/funciones/componentes.md#componentes-propios).
 - Ventana ▸ «Nueva vista» ahora se llama «Nueva pestaña del mismo circuito» y abre una pestaña en la misma ventana; Archivo ▸ «Cerrar ventana» pasó a Ctrl+Mayús+W y Ctrl+W es ahora «Cerrar pestaña». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
 

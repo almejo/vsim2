@@ -232,7 +232,8 @@ public final class OpenDocument implements AutoCloseable {
 
     /**
      * Opens the body of {@code definitionId} as a place of this document, showing the values of the instance at
-     * {@code contextPath} (empty: «Sin valores»). Places of one definition share one working copy, made when the first
+     * {@code contextPath} (empty: «Sin valores»; a path that is not one of its instances falls back to the first one,
+     * else «Sin valores», as when an instance goes). Places of one definition share one working copy, made when the first
      * opens and dropped when the last {@linkplain #close() closes}. On a body place it opens from its document.
      *
      * @throws IllegalArgumentException when the document has no such definition
@@ -246,7 +247,10 @@ public final class OpenDocument implements AutoCloseable {
         BodyWorkingCopy workingCopy = workingCopies.computeIfAbsent(definitionId,
                 id -> new BodyWorkingCopy(this, definition));
         workingCopy.acquire();
-        return new OpenDocument(this, workingCopy, Objects.requireNonNull(contextPath, "contextPath"));
+        OpenDocument place = new OpenDocument(this, workingCopy, Objects.requireNonNull(contextPath, "contextPath"));
+        // a path that is not an instance of the definition (any more: a remembered session tab) falls back
+        contextPath.ifPresent(path -> place.fallBackIfGone(path, definitionId));
+        return place;
     }
 
     /** True for a body place ({@link #openBody}), false for a document. */

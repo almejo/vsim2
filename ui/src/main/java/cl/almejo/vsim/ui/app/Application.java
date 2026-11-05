@@ -77,9 +77,10 @@ import cl.almejo.vsim.ui.session.RecoveryChoices;
 import cl.almejo.vsim.ui.session.RecoveryCopy;
 import cl.almejo.vsim.ui.session.RecoveryPrompt;
 import cl.almejo.vsim.ui.session.RecoveryStore;
-import cl.almejo.vsim.ui.session.SessionDocument;
 import cl.almejo.vsim.ui.session.SessionStore;
 import cl.almejo.vsim.ui.session.StartupSequence;
+import cl.almejo.vsim.ui.session.TabState;
+import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
@@ -114,12 +115,14 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.concurrent.Executor;
 
@@ -381,15 +384,32 @@ public final class Application {
             List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
             StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
                     circuits, Files::isRegularFile);
+            // Every file opens once; then the session's windows come back with their tabs (spec §4.7).
+            Map<Path, OpenDocument> opened = new LinkedHashMap<>();
+            List<OpenDocument> untitled = new ArrayList<>();
             StartupSteps.openEach(plan.openings(), opening -> {
                 switch (opening) {
-                    case StartupSequence.Recovered copy -> openRecovered(copy).ifPresent(reopened::add);
-                    case StartupSequence.FromSession session -> openFromSession(session);
+                    case StartupSequence.Recovered copy -> openRecovered(copy, reopened).ifPresent(document ->
+                            copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
+                                    original -> opened.put(original, document), () -> untitled.add(document)));
+                    case StartupSequence.FromSession session -> read(session.path(), null).ifPresent(document -> {
+                        rememberDirectory(session.path());
+                        opened.put(FileNames.normalized(session.path()), document);
+                    });
                 }
             });
-            if (!plan.missing().isEmpty()) {
-                JOptionPane.showMessageDialog(null, Messages.format("session.missing",
-                                String.join(", ", plan.missing().stream().map(Path::toString).toList())),
+            List<String> notOpened = new ArrayList<>(plan.missing().stream().map(Path::toString).toList());
+            StartupSteps.openEach(plan.windows(), window -> restoreWindow(window, opened).forEach(tab ->
+                    notOpened.add(Messages.format("session.missingComponent", tab.definitionName().orElseThrow(),
+                            tab.path().toString()))));
+            // A recovered copy not in the session, or a file whose window could not come back: a window of its own.
+            List<OpenDocument> unplaced = new ArrayList<>(untitled);
+            opened.values().stream().filter(document -> windows.windowsOf(document).isEmpty())
+                    .forEach(unplaced::add);
+            StartupSteps.openEach(unplaced, document -> showViews(document,
+                    document.path().flatMap(recentFiles::stateFor).stream().toList()));
+            if (!notOpened.isEmpty()) {
+                JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
                         Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
             }
             // Through the already-open check (no file opens twice); one file each so a failure skips only that one.
@@ -729,31 +749,51 @@ public final class Application {
         }
     }
 
-    /** Opens a recovered copy as its modified original, with the session's views or else Recientes' state. */
-    private Optional<RecoveryCopy> openRecovered(StartupSequence.Recovered recovered) {
+    /**
+     * Opens a recovered copy as its modified original (not shown yet: it takes its file's tabs in the session, else a
+     * window of its own) and adds the copy to {@code reopened}.
+     */
+    private Optional<OpenDocument> openRecovered(StartupSequence.Recovered recovered, List<RecoveryCopy> reopened) {
         RecoveryCopy copy = recovered.copy();
         try {
             OpenDocument document = OpenDocument.openRecovered(copy.content(), copy.originalPath().orElse(null),
                     copy.displayName(), registry);
-            List<WindowState> states = recovered.windows().isEmpty()
-                    ? copy.originalPath().flatMap(recentFiles::stateFor).stream().toList()
-                    : recovered.windows();
-            showViews(document, states);
             autosave.afterCopied(document, () -> discardQuietly(copy));
-            return Optional.of(copy);
+            reopened.add(copy);
+            return Optional.of(document);
         } catch (CircuitFormatException exception) {
             openingFiles.report(copy.originalPath().orElse(copy.content()), exception, null);
             return Optional.empty(); // the copy stays for the next start
         }
     }
 
-    /** A file of the last session; a session document without windows opens with Recientes' or default placement. */
-    private void openFromSession(StartupSequence.FromSession session) {
-        read(session.path(), null).ifPresent(document -> {
-            rememberDirectory(session.path());
-            showViews(document, session.windows().isEmpty()
-                    ? recentFiles.stateFor(session.path()).stream().toList() : session.windows());
-        });
+    /**
+     * A window of the last session, with its tabs on the documents {@code opened} holds (by normalized file), placed
+     * as it was (clamped to the screens). Nothing when none of its files opened.
+     *
+     * @return its component tabs left out because their definition is gone, to be told once
+     */
+    private List<TabState> restoreWindow(WindowSession session, Map<Path, OpenDocument> opened) {
+        Function<Path, Optional<OpenDocument>> documentOf =
+                path -> Optional.ofNullable(opened.get(FileNames.normalized(path)));
+        List<OpenDocument> documents = session.documents().stream().flatMap(path -> documentOf.apply(path).stream())
+                .toList();
+        if (documents.isEmpty()) {
+            return List.of();
+        }
+        CircuitWindow window = createWindow();
+        try {
+            return window.tabs().restore(session, documentOf);
+        } finally {
+            if (window.tabs().isEmpty()) {
+                windowPreferences.remove(window);
+                window.discardUnshown(); // its documents get a window of their own
+            } else {
+                documents.forEach(autosave::track); // M6-B: every open document is copied while modified
+                window.restoreWindowState(session.bounds().clampedTo(screens()));
+                window.setVisible(true);
+            }
+        }
     }
 
     /** One window per state, each placed and zoomed as it was; one plain window when there is no state. */
@@ -772,7 +812,7 @@ public final class Application {
     /** Capturing a window's state can fail (a window with no size); that must not stop the exit. */
     private void saveSession() {
         try {
-            sessionStore.save(SessionDocument.capture(windows, CircuitWindow::windowState));
+            sessionStore.save(windows.all().stream().flatMap(window -> window.windowState().stream()).toList());
         } catch (RuntimeException exception) {
             LOGGER.warn("Could not remember the session", exception);
         }
