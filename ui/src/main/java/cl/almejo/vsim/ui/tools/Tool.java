@@ -27,6 +27,15 @@ public interface Tool {
     default void focusLost(ToolContext context) {
     }
 
+    /**
+     * True while the tool is in the middle of a gesture on the document's elements (a move, a wire, a band, a label
+     * dragged, a button held) that Escape would cancel. A component tab whose body changed elsewhere cancels it then
+     * (spec §10.4). False by default: placing from the palette and pasting keep their ghost.
+     */
+    default boolean holdsGesture() {
+        return false;
+    }
+
     /** True while the tool paints a marching-ants outline of its own (the canvas keeps its animation clock running). */
     default boolean animatesOutline() {
         return false;

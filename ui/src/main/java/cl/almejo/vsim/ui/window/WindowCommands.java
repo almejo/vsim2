@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
 
@@ -104,6 +105,17 @@ public interface WindowCommands {
     default Optional<EditorView> showPlace(OpenDocument document, Optional<String> definitionId,
                                            Optional<String> contextPath) {
         return Optional.empty();
+    }
+
+    /**
+     * Shows part {@code part} of {@code document} where it is (F8 and the Problemas list, spec §6.7): in the circuit's
+     * own tab when {@code definitionId} is empty, else in the tab of that definition entered with the instance at
+     * {@code contextPath}; the part is selected and brought into view. False when there are no tabs to show it in
+     * (an editor outside a real window): nothing happens, and the caller shows what it can where it is.
+     */
+    default boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
+                             ElementId part) {
+        return false;
     }
 
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */

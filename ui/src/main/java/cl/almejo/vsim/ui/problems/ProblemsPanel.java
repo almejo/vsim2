@@ -20,6 +20,7 @@ import java.awt.event.MouseEvent;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * "Problemas" tab: short circuits and width mismatches of the displayed snapshot (double click navigates), then the
@@ -34,20 +35,29 @@ public final class ProblemsPanel extends JPanel {
     private final JLabel libraryHeader = new JLabel();
     private final DefaultListModel<String> libraryModel = new DefaultListModel<>();
     private final JScrollPane libraryScroll = new JScrollPane(new JList<>(libraryModel));
+    private final Function<Problem, String> describer;
     private List<Problem> shown;
     private int refreshCount;
 
     public ProblemsPanel(OpenDocument openDocument, Consumer<Problem> navigate) {
+        this(problem -> ProblemText.describe(problem, openDocument.document(), openDocument.registry()), navigate);
+    }
+
+    /**
+     * A list whose rows {@code describer} words at paint time (so a renamed label shows without waiting for the
+     * problems to change); a double click on a row hands its problem to {@code navigate}.
+     */
+    public ProblemsPanel(Function<Problem, String> describer, Consumer<Problem> navigate) {
         super(new MigLayout("insets 4, fill, wrap 1", "[grow, fill]", "[][grow, fill][][]"));
         this.navigate = navigate;
+        this.describer = describer;
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public java.awt.Component getListCellRendererComponent(JList<?> source, Object value, int index,
                                                                    boolean selected, boolean focused) {
                 super.getListCellRendererComponent(source, value, index, selected, focused);
-                // Described at paint time, so a renamed label shows without waiting for the problems to change.
-                setText(ProblemText.describe((Problem) value, openDocument.document(), openDocument.registry()));
+                setText(describer.apply((Problem) value));
                 return this;
             }
         });
@@ -113,6 +123,11 @@ public final class ProblemsPanel extends JPanel {
         if (index >= 0 && index < model.size()) {
             navigate.accept(model.get(index));
         }
+    }
+
+    /** The rows as the list words them, in order. */
+    List<String> problemTexts() {
+        return Collections.list(model.elements()).stream().map(describer).toList();
     }
 
     JList<Problem> problemList() {

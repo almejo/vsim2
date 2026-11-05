@@ -25,6 +25,11 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
         /** A pin of a placed piece left loose by «Aplicar y conectar a mano» (session only). */
         LOOSENED_BY_SHAPE_CHANGE,
         /**
+         * Pin {@code pinIndex} of piece {@code elementId}, added by an edit inside its component, went to another spot
+         * of its edge because its own spot touched a wire or a pin there (spec §6.2 a; while that edit is applied).
+         */
+        PIN_PLACED_ELSEWHERE,
+        /**
          * The piece {@code elementId} uses an older version of a definition than the library's and updating it would
          * break inner connections; {@code netId} is {@code "version:"} plus that definition's id.
          */

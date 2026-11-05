@@ -129,6 +129,10 @@ public interface ToolContext {
     default void enterComponent(Component component) {
     }
 
+    /** Shows {@code text} for a moment in the window's status line; hosts without one show nothing. */
+    default void showNotice(String text) {
+    }
+
     /** Opens the window of a Terminal (a double click on its screen); by default the configure dialog. */
     default void editTerminal(Component component) {
         configure(component);

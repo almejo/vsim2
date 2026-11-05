@@ -109,6 +109,8 @@ public final class MemoryMapPanel extends JPanel {
     private MemoryMapRequest request;
     /** What was last asked of the document (null: nothing), so it is asked only when it changes. */
     private MemoryMapRequest sentRequest;
+    /** The instance whose memory a component tab's map shows (always empty on the circuit's tab). */
+    private Optional<String> shownContext;
 
     // Per request: the last frame and what lit up (arrays reused while the cell count stays).
     private MemoryMapFrame lastFrame;
@@ -134,6 +136,7 @@ public final class MemoryMapPanel extends JPanel {
         super(new BorderLayout());
         this.scheme = Objects.requireNonNull(scheme, "scheme");
         this.document = Objects.requireNonNull(document, "document");
+        this.shownContext = document.contextPath();
         this.actions = Objects.requireNonNull(actions, "actions");
         this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
         this.active = active == null ? this::isShowing : active;
@@ -228,8 +231,17 @@ public final class MemoryMapPanel extends JPanel {
         showFollowed();
     }
 
-    /** The document changed: a deleted memory leaves the map; a renamed or resized one updates it. */
+    /**
+     * The document changed: a deleted memory leaves the map; a renamed or resized one updates it. In a component tab
+     * that now shows another instance the same memory is another one in the simulation: it is asked for again and its
+     * counters start over.
+     */
     public void documentChanged() {
+        if (!document.contextPath().equals(shownContext)) {
+            shownContext = document.contextPath();
+            sentRequest = null;
+            resetFrameState();
+        }
         showFollowed();
     }
 

@@ -59,8 +59,13 @@ public final class TerminalFeeds {
             }
         }
 
+        /** The Terminal read is another one now: the next frame of the new request starts the stream again. */
+        private void startOver() {
+            started = false;
+        }
+
         private void deliver(TerminalWindowFrame frame) {
-            if (!started && !frame.request().equals(feed.currentRequest)) {
+            if (!started && !answers(frame.request(), feed.currentRequest)) {
                 return;
             }
             started = true;
@@ -98,6 +103,31 @@ public final class TerminalFeeds {
             List.copyOf(subscriptions).forEach(subscription -> subscription.deliver(frame));
             acknowledged = frame.lastByteSequence();
             source.acknowledge(componentId, frame.owner(), acknowledged);
+        }
+    }
+
+    /**
+     * Whether a frame made for {@code answered} answers the feed's {@code current} request. The Terminal is the feed's
+     * own; its id is not compared, since inside a component tab the simulation names it under the instance's path
+     * ({@code c5/c3}) while the tab asked for {@code c3}.
+     */
+    private static boolean answers(TerminalRequest answered, TerminalRequest current) {
+        return current != null && answered.historyLines() == current.historyLines()
+                && answered.bytesSince() == current.bytesSince();
+    }
+
+    /**
+     * A component tab now shows another instance: each Terminal it reads is another one in the simulation, so every
+     * feed asks again, from the first byte the new one's log keeps; {@code stopPrevious} gets each id to stop asking
+     * for under the instance it left.
+     */
+    void askAgain(Consumer<String> stopPrevious) {
+        for (Feed feed : List.copyOf(feeds.values())) {
+            stopPrevious.accept(feed.componentId);
+            feed.lastDelivered = null;
+            feed.acknowledged = 0;
+            feed.subscriptions.forEach(Subscription::startOver);
+            feed.request(0);
         }
     }
 

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.Application;
 import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.FileDialogs;
@@ -276,6 +277,13 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     public Optional<EditorView> showPlace(OpenDocument document, Optional<String> definitionId,
                                           Optional<String> contextPath) {
         return Optional.of(tabs.showPlace(document, definitionId, contextPath));
+    }
+
+    @Override
+    public boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
+                            ElementId part) {
+        tabs.goToPart(document, definitionId, contextPath, part);
+        return true;
     }
 
     @Override

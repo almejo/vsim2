@@ -278,7 +278,7 @@ public final class PlaceBar extends JPanel {
 
     private void refreshLocked(OpenDocument parent, String definitionId) {
         if (place.interfaceLocked()) {
-            lockedLabel.setText(Messages.format("inside.interfaceLocked",
+            lockedLabel.setText(Messages.format("inside.interfaceLocked", place.definitionName(),
                     String.join(", ", DefinitionUpdateSafety.containingNames(parent.document(), definitionId))));
             lockedLabel.setVisible(true);
         } else {

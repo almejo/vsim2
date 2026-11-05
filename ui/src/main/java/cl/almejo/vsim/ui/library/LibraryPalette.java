@@ -4,10 +4,14 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.DefinitionNames;
+import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.ui.actions.Actions;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.window.PlaceBar;
 import cl.almejo.vsim.ui.window.SeePiece;
@@ -21,9 +25,12 @@ import javax.swing.JPopupMenu;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Keeps one view's palette in step with the library (every window) and with its document's own definitions, starts
@@ -45,6 +52,8 @@ public final class LibraryPalette {
     private final Runnable refresher = this::refresh;
     private PlaceBar placeBar;
     private Runnable removePlaceBar = () -> { };
+    /** The palette entries this view disabled last (inside a component tab). */
+    private Set<String> disabledIds = Set.of();
 
     public LibraryPalette(EditorView view, LibraryService service, LibraryDialogs dialogs, LibraryImport importer,
                           Action importComponent) {
@@ -118,7 +127,8 @@ public final class LibraryPalette {
      */
     public void refresh() {
         Set<String> libraryIds = service.library().ids();
-        CircuitDocument document = view.openDocument().document();
+        // inside a component tab the circuit's components are offered, not only those its body already uses
+        CircuitDocument document = circuitOf(view.openDocument()).document();
         List<DefinitionBundle> own = new ArrayList<>();
         for (ComponentDefinition definition : document.usedDefinitions().stream().sorted(BY_NAME).toList()) {
             if (libraryIds.contains(definition.id())) {
@@ -132,6 +142,64 @@ public final class LibraryPalette {
             }
         }
         view.palette().setUserComponents(service.library().entries(), own);
+        disableWhatCannotGoInside();
+    }
+
+    private static OpenDocument circuitOf(OpenDocument place) {
+        return place.parent().orElse(place);
+    }
+
+    /**
+     * Inside a component tab (spec §6.5, §6.2 c): the component itself and every component that contains it cannot be
+     * placed in its body, nor the interface pin parts while its pins cannot change; each says why. The circuit's own
+     * tab disables nothing.
+     */
+    private void disableWhatCannotGoInside() {
+        Map<String, String> reasons = new HashMap<>();
+        OpenDocument place = view.openDocument();
+        place.definitionId().ifPresent(definitionId -> {
+            CircuitDocument circuit = circuitOf(place).document();
+            for (PaletteEntry entry : view.palette().entries()) {
+                entry.userComponent().flatMap(component -> reasonInside(component.bundle(), definitionId, circuit))
+                        .ifPresent(reason -> reasons.put(entry.id(), reason));
+            }
+            if (place.interfaceLocked()) {
+                String locked = Messages.format("inside.interfaceLocked", place.definitionName(),
+                        DefinitionUpdateSafety.containingNames(circuit, definitionId).getFirst());
+                reasons.put(InterfacePins.INPUT_PIN, locked);
+                reasons.put(InterfacePins.OUTPUT_PIN, locked);
+            }
+        });
+        disabledIds.stream().filter(id -> !reasons.containsKey(id))
+                .forEach(id -> view.palette().setDisabledReason(id, Optional.empty()));
+        reasons.forEach((id, reason) -> view.palette().setDisabledReason(id, Optional.of(reason)));
+        disabledIds = Set.copyOf(reasons.keySet());
+    }
+
+    /**
+     * Why {@code bundle} cannot be placed inside {@code definitionId}: it is that component, or it contains it (in its
+     * own bundle or in the circuit's version of its definitions), which would make a component contain itself.
+     */
+    private static Optional<String> reasonInside(DefinitionBundle bundle, String definitionId,
+                                                 CircuitDocument circuit) {
+        String rootId = bundle.root().id();
+        if (rootId.equals(definitionId)) {
+            return Optional.of(Messages.text("inside.cannotNestItself"));
+        }
+        boolean contains = bundle.all().stream().anyMatch(definition -> definition.id().equals(definitionId))
+                || circuitClosureOf(rootId, circuit).contains(definitionId);
+        return contains ? Optional.of(Messages.text("inside.containsThisComponent")) : Optional.empty();
+    }
+
+    /** The ids the circuit's version of {@code rootId} uses, at any depth (none when the circuit lacks it). */
+    private static Set<String> circuitClosureOf(String rootId, CircuitDocument circuit) {
+        try {
+            return DefinitionGraph.knownClosure(List.of(rootId), circuit::definition).stream()
+                    .map(ComponentDefinition::id).collect(Collectors.toSet());
+        } catch (IllegalArgumentException recursive) {
+            LOGGER.warn("The circuit's definition {} is recursive", rootId, recursive);
+            return Set.of(rootId);
+        }
     }
 
     /** The palette's right-click menu for {@code entry} (none: only "Importar componente…"). */

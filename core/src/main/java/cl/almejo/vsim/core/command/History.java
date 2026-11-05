@@ -175,6 +175,11 @@ public final class History {
         return Optional.ofNullable(undoStack.peek());
     }
 
+    /** The command a redo would apply again now; empty when there is nothing to redo. */
+    public Optional<Command> redoCommand() {
+        return Optional.ofNullable(redoStack.peek());
+    }
+
     /**
      * The command undo would reach after undoing, from the top, every command {@code passedOver} accepts (the AI's
      * undo passes over the user's switch clicks on top of its steps); empty when there is no other.

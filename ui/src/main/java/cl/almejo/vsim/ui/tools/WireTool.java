@@ -73,6 +73,11 @@ public final class WireTool implements Tool {
     }
 
     @Override
+    public boolean holdsGesture() {
+        return drawing != null;
+    }
+
+    @Override
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
         if (keyCode != KeyEvent.VK_ESCAPE) {
             return false;

@@ -25,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /** Walks the problems of the displayed snapshot (F8 / Shift+F8) and shows each one on the canvas (spec §6.12). */
@@ -32,13 +33,23 @@ public final class ProblemNavigator {
 
     private final Supplier<CircuitCanvas> canvas;
     private final NetBlink blink;
+    private final Predicate<Problem> shownElsewhere;
     private List<Problem> problems = List.of();
     private int current = -1;
 
     /** {@code canvas} is resolved at every travel: the window's active pane. */
     public ProblemNavigator(Supplier<CircuitCanvas> canvas, NetBlink blink) {
+        this(canvas, blink, problem -> false);
+    }
+
+    /**
+     * {@code shownElsewhere} first gets every problem to show and answers true when it showed it in another tab (a
+     * problem inside a component is shown in that component's tab, spec §6.7); otherwise this canvas shows it.
+     */
+    public ProblemNavigator(Supplier<CircuitCanvas> canvas, NetBlink blink, Predicate<Problem> shownElsewhere) {
         this.canvas = canvas;
         this.blink = blink;
+        this.shownElsewhere = shownElsewhere;
     }
 
     /**
@@ -96,6 +107,10 @@ public final class ProblemNavigator {
         int index = problems.indexOf(problem);
         if (index >= 0) {
             current = index;
+        }
+        if (shownElsewhere.test(problem)) {
+            blink.stop();
+            return true;
         }
         if (problem instanceof ConnectivityProblem connectivity) {
             return navigateToConnectivity(connectivity);

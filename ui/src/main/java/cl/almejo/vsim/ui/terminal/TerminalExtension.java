@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.app.PlaceKey;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -64,7 +65,7 @@ public final class TerminalExtension implements EditorExtension {
         TerminalWindowOwner owner = new TerminalWindowOwner(view,
                 Optional.ofNullable(SwingUtilities.getWindowAncestor(view)), view.statusBar()::showNotice,
                 view.services().appearance()::scheme);
-        view.setTerminalEditor(component -> windows.open(component.id().value(), ownerOf(view, owner)));
+        view.setTerminalEditor(component -> open(document, windows, component.id(), ownerOf(view, owner)));
         removers.add(view::clearTerminalEditor);
         removers.add(terminals.addNoticeListener(view.statusBar()::showNotice));
         removers.add(terminals.setOwnerWindow(() -> SwingUtilities.getWindowAncestor(view)));
@@ -73,7 +74,7 @@ public final class TerminalExtension implements EditorExtension {
         // arming also changes without a document change (the answer to the prompt): the hint shows it
         removers.add(terminals.recorder().addArmingListener(view.labelFeatures().properties()::refresh));
         removers.add(view.addContextMenuContributor(new TerminalContextMenu(document,
-                component -> windows.open(component.id().value(), ownerOf(view, owner)),
+                component -> open(document, windows, component.id(), ownerOf(view, owner)),
                 services.windows().clipboardText(), view.statusBar()::showNotice)));
         removers.add(view.forEachPane(pane -> pane.addToolTipOverride(gridPoint -> TerminalCellToolTip.at(
                 document.document(), document.registry(), document.latestSnapshot(), gridPoint))));
@@ -108,6 +109,23 @@ public final class TerminalExtension implements EditorExtension {
         }
     }
 
+    /**
+     * Opens the window of {@code componentId} as {@code place} shows it, or brings it to the front when it is open —
+     * also when another tab showing the same piece opened it (spec §10.7: one window per circuit, component, instance
+     * and part), so two readers never ask for one Terminal.
+     */
+    private void open(OpenDocument place, TerminalWindows windows, ElementId componentId, TerminalWindowOwner owner) {
+        PlaceKey key = PlaceKey.of(place, componentId);
+        for (Shared shared : documents.values()) {
+            TerminalWindows other = shared.terminals.windows();
+            if (other != windows && other.isOpen(key)) {
+                other.toFront(componentId.value());
+                return;
+            }
+        }
+        windows.open(componentId.value(), owner);
+    }
+
     /** The owner with the editor window the view is in now (it may not have had one when the view was built). */
     private static TerminalWindowOwner ownerOf(EditorView view, TerminalWindowOwner owner) {
         return new TerminalWindowOwner(owner.key(), Optional.ofNullable(SwingUtilities.getWindowAncestor(view)),
@@ -115,22 +133,23 @@ public final class TerminalExtension implements EditorExtension {
     }
 
     /** «Mostrar: En el canvas y en una ventana»: the windows of the Terminals already on the circuit. */
-    private static void openShownWindows(OpenDocument document, TerminalWindows windows, EditorView view,
-                                         TerminalWindowOwner owner) {
+    private void openShownWindows(OpenDocument document, TerminalWindows windows, EditorView view,
+                                  TerminalWindowOwner owner) {
         for (Component component : List.copyOf(document.document().components())) {
             if (showsWindow(document, component)) {
-                windows.open(component.id().value(), ownerOf(view, owner));
+                open(document, windows, component.id(), ownerOf(view, owner));
             }
         }
     }
 
     /** A Terminal placed with «Mostrar: En el canvas y en una ventana» opens its window. */
-    private static void openPlacedWindows(CircuitDocument changed, DocumentChange change, TerminalWindows windows,
-                                          EditorView view, TerminalWindowOwner owner) {
+    private void openPlacedWindows(CircuitDocument changed, DocumentChange change, TerminalWindows windows,
+                                   EditorView view, TerminalWindowOwner owner) {
         for (ElementId added : change.added()) {
             changed.component(added).filter(component -> showsWindow(view.openDocument(), component))
                     .filter(component -> !windows.isOpen(component.id().value()))
-                    .ifPresent(component -> windows.open(component.id().value(), ownerOf(view, owner)));
+                    .ifPresent(component -> open(view.openDocument(), windows, component.id(),
+                            ownerOf(view, owner)));
         }
     }
 
