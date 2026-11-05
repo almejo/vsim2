@@ -2,12 +2,10 @@ package cl.almejo.vsim.ui.project;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InstancePaths;
 import cl.almejo.vsim.core.library.InstancePaths.InstanceUse;
-import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.window.InstanceNames;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +14,8 @@ import java.util.Optional;
 /**
  * The rows of the Proyecto panel (spec §5.2): the document first («{name}», «{n} piezas»), then every instance of a
  * user component nested by containment, parents before their children, each indented by its depth with the
- * definition's name and, on the right, the instance's own name. Pure: no Swing.
+ * definition's name and, on the right, the instance's reference ({@link InstanceNames#reference}: its label, else its
+ * id), as the place bar's route names it. Pure: no Swing.
  */
 public final class ProjectRows {
 
@@ -32,29 +31,15 @@ public final class ProjectRows {
 
     public static List<Row> of(CircuitDocument document, String documentName) {
         List<Row> rows = new ArrayList<>();
-        rows.add(new Row(0, documentName, Messages.format("project.pieces", document.components().size()),
-                Optional.empty()));
+        int pieces = document.components().size();
+        rows.add(new Row(0, documentName, pieces == 1 ? Messages.text("project.piecesOne")
+                : Messages.format("project.pieces", pieces), Optional.empty()));
         for (InstanceUse use : InstancePaths.of(document)) {
-            String definitionName = document.definition(use.definitionId()).map(ComponentDefinition::name)
-                    .orElse(use.definitionId());
-            rows.add(new Row(use.chain().size(), definitionName, nameOf(document, use), Optional.of(use)));
+            // InstancePaths only yields chains of the document, so the instance is found
+            Component instance = InstanceNames.chain(use.path(), document).orElseThrow().getLast();
+            rows.add(new Row(use.chain().size(), InstanceNames.typeName(instance, document),
+                    InstanceNames.reference(instance), Optional.of(use)));
         }
         return List.copyOf(rows);
-    }
-
-    /** The instance's label, else its id: «Reloj», «c5». */
-    private static String nameOf(CircuitDocument document, InstanceUse use) {
-        List<Component> level = document.components();
-        Component found = null;
-        for (ElementId id : use.chain()) {
-            found = level.stream().filter(component -> component.id().equals(id)).findFirst().orElse(null);
-            if (found == null) {
-                break;
-            }
-            level = SubcircuitTypes.definitionIdOf(found.typeId()).flatMap(document::definition)
-                    .map(definition -> definition.body().components()).orElse(List.of());
-        }
-        String id = use.chain().getLast().value();
-        return found == null || found.label().isBlank() ? id : found.label();
     }
 }

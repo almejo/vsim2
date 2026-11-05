@@ -126,6 +126,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final KeyboardCapture keyboardCapture;
     private final CapturedKeys capturedKeys;
     private TemplateActions templateActions;
+    private Optional<Consumer<ElementId>> instanceShapeEditor = Optional.empty();
     private final EditorServices services;
     private final Runnable appearanceListener;
     private final Runnable textFontListener;
@@ -347,6 +348,21 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** Set by the templates extension (and cleared with {@code null} when it is disposed). */
     public void setTemplateActions(TemplateActions actions) {
         this.templateActions = actions;
+    }
+
+    /**
+     * Set by the appearance extension: opens «Cambiar forma…» of a piece of this view, as its context menu does, for the
+     * panels that offer it too (the Proyecto panel). The runnable takes it back.
+     */
+    public Runnable setInstanceShapeEditor(Consumer<ElementId> editor) {
+        instanceShapeEditor = Optional.of(editor);
+        return () -> instanceShapeEditor = Optional.empty();
+    }
+
+    /** Opens «Cambiar forma…» of piece {@code instanceId}; false when no extension can (nothing happens then). */
+    public boolean changeShapeOf(ElementId instanceId) {
+        instanceShapeEditor.ifPresent(editor -> editor.accept(instanceId));
+        return instanceShapeEditor.isPresent();
     }
 
     /** The file and window operations of the window this view is in (a do-nothing stand-in in tests). */
@@ -628,10 +644,10 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /**
      * An edit refused inside this component tab (its pins cannot change yet, spec §6.2 c): nothing changed, and the
-     * status line says why instead of the edit failing silently.
+     * status line says why instead of the edit failing silently (the place bar says it too, from its own listener).
      */
     private void explainRefusal(InsideEditRefusedException refusal) {
-        statusBar.showNotice(Messages.format(refusal.messageKey(), refusal.arguments().toArray()));
+        statusBar.showNotice(PlaceBar.explanation(refusal));
     }
 
     @Override

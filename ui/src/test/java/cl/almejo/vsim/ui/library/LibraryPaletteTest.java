@@ -232,6 +232,48 @@ class LibraryPaletteTest {
         assertThat(fixture.library.listenerCount()).isEqualTo(before);
     }
 
+    @Test
+    void aRefusedEditInAComponentTabIsExplainedInThePlaceBarAndTheStatusLine() throws Exception {
+        putAndPlace(ExampleDefinitions.doubleInverter(), ExampleDefinitions.inverter());
+        String doubleInverter = fixture.openDocument.document().components().getFirst().id().value();
+        OpenDocument body = fixture.openDocument.openBody(ExampleDefinitions.INVERTER,
+                Optional.of(doubleInverter + "/c2"));
+        TemplateFixture inside = new TemplateFixture(fixture, body);
+        try {
+            String locked = "Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía";
+            inside.view.selection().set(List.of(new cl.almejo.vsim.core.document.ElementId("c1")));
+
+            cl.almejo.vsim.ui.UiTestSupport.perform(inside.view.actions().delete());
+
+            assertThat(inside.view.statusBar().text()).contains(locked);
+            java.awt.Container bar = (java.awt.Container) placeBarsOf(inside.view).getFirst();
+            assertThat(visibleLabelTexts(bar)).containsOnlyOnce(locked);
+            assertThat(visibleLabelTexts(bar, cl.almejo.vsim.ui.window.PlaceBar.REFUSAL_NAME)).containsExactly(locked);
+            assertThat(body.document().component(new cl.almejo.vsim.core.document.ElementId("c1"))).isPresent();
+        } finally {
+            inside.close();
+        }
+    }
+
+    private static List<String> visibleLabelTexts(java.awt.Container container) {
+        return visibleLabelTexts(container, null);
+    }
+
+    /** The texts of the visible labels under {@code container}; only those named {@code name} unless it is null. */
+    private static List<String> visibleLabelTexts(java.awt.Container container, String name) {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof javax.swing.JLabel label && label.isVisible() && !label.getText().isEmpty()
+                    && (name == null || name.equals(label.getName()))) {
+                texts.add(label.getText());
+            }
+            if (child instanceof java.awt.Container nested) {
+                texts.addAll(visibleLabelTexts(nested, name));
+            }
+        }
+        return texts;
+    }
+
     private static List<java.awt.Component> placeBarsOf(java.awt.Container container) {
         List<java.awt.Component> found = new ArrayList<>();
         for (java.awt.Component child : container.getComponents()) {

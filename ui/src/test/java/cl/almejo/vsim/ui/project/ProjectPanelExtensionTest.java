@@ -2,12 +2,14 @@ package cl.almejo.vsim.ui.project;
 
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -16,6 +18,7 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
 import java.awt.Container;
 import java.util.ArrayList;
@@ -32,6 +35,7 @@ class ProjectPanelExtensionTest {
 
     private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
     private final List<String> entered = new ArrayList<>();
+    private final List<String> shown = new ArrayList<>();
     private final WindowCommands window = new WindowCommands() {
         @Override public void newDocument() { }
         @Override public void open() { }
@@ -45,12 +49,82 @@ class ProjectPanelExtensionTest {
                           Optional<ViewState> from) {
             entered.add(definitionId + "@" + contextPath.orElse("-"));
         }
+
+        @Override
+        public boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
+                                ElementId part) {
+            shown.add(definitionId.orElse("-") + "@" + contextPath.orElse("-") + ":" + part.value());
+            return true;
+        }
     };
 
     private EditorView view() {
+        return viewOf(openDocument);
+    }
+
+    private EditorView viewOf(OpenDocument place) {
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 AppPreferences.inMemory(), new ComponentLibrary(), List.of(new ProjectPanelExtension()));
-        return new EditorView(openDocument, services, window);
+        return new EditorView(place, services, window);
+    }
+
+    /** An inverter on the circuit (c1) and a double inverter (c2) holding two more (c2/c2, c2/c3). */
+    private void inverterInThreePlaces() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter(),
+                ExampleDefinitions.doubleInverter())));
+        place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 0, 0, Map.of());
+        place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 30, 0, Map.of());
+    }
+
+    private static JMenuItem menuItem(ProjectPanel panel, String path, String text) {
+        ProjectRows.Row row = panel.rows().stream()
+                .filter(candidate -> candidate.instance().map(use -> use.path().equals(path)).orElse(false))
+                .findFirst().orElseThrow();
+        for (java.awt.Component item : panel.menuFor(row).orElseThrow().getComponents()) {
+            if (item instanceof JMenuItem menuItem && menuItem.getText().equals(text)) {
+                return menuItem;
+            }
+        }
+        throw new AssertionError("no item " + text);
+    }
+
+    @Test
+    void seePieceShowsEveryPartWhereItIsEvenFromAComponentTab() {
+        inverterInThreePlaces();
+        OpenDocument body = openDocument.openBody(ExampleDefinitions.INVERTER, Optional.of("c2/c3"));
+        EditorView inside = viewOf(body);
+        try {
+            ProjectPanel panel = panelIn(inside);
+            String seePiece = Messages.text("project.seePiece");
+
+            JMenuItem topLevel = menuItem(panel, "c1", seePiece);
+            JMenuItem nested = menuItem(panel, "c2/c3", seePiece);
+            assertThat(topLevel.isEnabled()).isTrue();
+            assertThat(nested.isEnabled()).isTrue();
+            topLevel.doClick(0);
+            nested.doClick(0);
+
+            assertThat(shown).containsExactly("-@-:c1", ExampleDefinitions.DOUBLE_INVERTER + "@c2:c3");
+        } finally {
+            inside.dispose();
+            body.close();
+        }
+    }
+
+    @Test
+    void changeShapeOpensTheShapeEditorOfThatPiece() {
+        inverterInThreePlaces();
+        EditorView view = view();
+        List<ElementId> shaped = new ArrayList<>();
+        Runnable removal = view.setInstanceShapeEditor(shaped::add);
+        try {
+            menuItem(panelIn(view), "c1", Messages.text("shape.change")).doClick(0);
+
+            assertThat(shaped).containsExactly(new ElementId("c1"));
+        } finally {
+            removal.run();
+            view.dispose();
+        }
     }
 
     private static ProjectPanel panelIn(Container container) {

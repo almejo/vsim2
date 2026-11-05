@@ -18,6 +18,8 @@ import java.util.Optional;
  */
 public final class InstanceNames {
 
+    private static final String PATH_SEPARATOR = " › ";
+
     private InstanceNames() {
     }
 
@@ -54,6 +56,31 @@ public final class InstanceNames {
     public static List<String> route(String path, CircuitDocument document) {
         return chain(path, document).map(components -> components.stream()
                 .map(component -> step(component, document)).toList()).orElse(List.of());
+    }
+
+    /**
+     * "U1 › U3 (AND de 2 entradas)" for a simulation id such as {@code c5/c2}, as Problemas words a part (spec §6.12):
+     * each level by its label, or by its type or definition name when unlabeled; a labeled innermost level also shows
+     * its type. Empty when a level cannot be found in the document and its definitions.
+     */
+    public static Optional<String> path(String hierarchicalId, CircuitDocument document) {
+        Optional<List<Component>> chain = chain(hierarchicalId, document);
+        if (chain.isEmpty()) {
+            return Optional.empty();
+        }
+        List<String> names = new ArrayList<>();
+        List<Component> levels = chain.get();
+        for (int index = 0; index < levels.size(); index++) {
+            Component component = levels.get(index);
+            if (component.label().isBlank()) {
+                names.add(unlabeledName(component, document));
+            } else if (index == levels.size() - 1) {
+                names.add(Messages.format("problem.pathLabeled", component.label(), typeName(component, document)));
+            } else {
+                names.add(component.label());
+            }
+        }
+        return Optional.of(String.join(PATH_SEPARATOR, names));
     }
 
     /** The components named by each segment of {@code hierarchicalId}, outermost first. */

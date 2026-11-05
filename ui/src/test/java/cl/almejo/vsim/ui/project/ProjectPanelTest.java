@@ -57,11 +57,6 @@ class ProjectPanelTest {
         public boolean editsHere(ProjectRows.Row row) {
             return true;
         }
-
-        @Override
-        public boolean canSee(ProjectRows.Row row) {
-            return true;
-        }
     };
 
     @BeforeEach
@@ -92,7 +87,7 @@ class ProjectPanelTest {
     void showsTheDocumentThenItsInstances() {
         assertThat(panel.rowList().getModel().getSize()).isEqualTo(2);
         assertThat(panel.rows().get(1).right()).isEqualTo(instanceId);
-        assertThat(panel.rows().get(0).right()).isEqualTo(Messages.format("project.pieces", 1));
+        assertThat(panel.rows().get(0).right()).isEqualTo(Messages.text("project.piecesOne"));
     }
 
     @Test

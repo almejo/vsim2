@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.DocumentWindows;
@@ -387,14 +386,16 @@ public final class WindowTabs extends JPanel {
     }
 
     /**
-     * Brings a place of {@code document}'s group to the front: its main tab when {@code definitionId} is empty (the
-     * group is added, and unfolded, when needed), else the component tab entered as {@link #enter} does.
+     * Brings a place of {@code document}'s group to the front: its main tab when {@code definitionId} is empty (the most
+     * recently active one; the group is added, and unfolded, when needed), else the component tab entered as
+     * {@link #enter} does.
      */
     public EditorView showPlace(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath) {
         if (definitionId.isPresent()) {
             return enter(document, definitionId.get(), contextPath, Optional.empty());
         }
-        Optional<TabEntry> main = entriesOf(document).stream().filter(TabEntry::isMain).findFirst();
+        Optional<TabEntry> main = entriesOf(document).stream().filter(TabEntry::isMain)
+                .max(Comparator.comparingLong(entry -> entry.lastActivation));
         if (main.isEmpty()) {
             return addTab(document, Optional.empty());
         }
@@ -404,34 +405,15 @@ public final class WindowTabs extends JPanel {
     }
 
     /**
-     * F8 and the Problemas list (spec §6.7): shows part {@code part} of {@code document} where it is — in the circuit's
-     * main tab most recently active when {@code definitionId} is empty, else in the tab of that definition entered with
-     * the instance at {@code contextPath} — selected and brought into view. Returns the tab's view.
+     * Shows part {@code part} of {@code document} where it is: the place {@link #showPlace} brings to the front, with the
+     * part selected and brought into view. F8 and the Problemas list (spec §6.7), «Ver la pieza» of the place bar and of
+     * the Proyecto panel (spec §5) all come here. Returns the tab's view.
      */
     public EditorView goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
                                ElementId part) {
-        EditorView view = definitionId.map(definition -> enter(document, definition, contextPath, Optional.empty()))
-                .orElseGet(() -> mainViewOf(document));
-        activate(view);
-        showPart(view, part);
+        EditorView view = showPlace(document, definitionId, contextPath);
+        SeePiece.selectAndTravel(view, part);
         return view;
-    }
-
-    private EditorView mainViewOf(OpenDocument document) {
-        return entriesOf(document).stream().filter(TabEntry::isMain)
-                .max(Comparator.comparingLong(entry -> entry.lastActivation)).map(entry -> entry.view)
-                .orElseGet(() -> addTab(document, Optional.empty()));
-    }
-
-    /** Selects {@code part} in {@code view} and travels to it (nothing to travel to when it is gone). */
-    private static void showPart(EditorView view, ElementId part) {
-        OpenDocument place = view.openDocument();
-        CircuitCanvas canvas = view.canvas();
-        place.document().component(part).map(component -> place.registry().typeOf(component).bounds(component))
-                .or(() -> place.document().wire(part).map(wire -> Bounds.of(wire.start(), wire.end())))
-                .ifPresent(canvas::travelTo);
-        view.selection().set(List.of(part));
-        canvas.requestFocusInWindow();
     }
 
     /**

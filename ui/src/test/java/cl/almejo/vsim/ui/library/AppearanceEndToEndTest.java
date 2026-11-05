@@ -104,6 +104,26 @@ class AppearanceEndToEndTest {
     }
 
     @Test
+    void theViewOpensThePieceShapeEditorForOtherPanelsUntilTheFeatureIsRemoved() {
+        try (TemplateFixture fixture = component()) {
+            Component instance = fixture.single("subcircuit:negador");
+            List<ShapeEditRequest> requests = new ArrayList<>();
+            Runnable remove = install(fixture, (owner, request) -> {
+                requests.add(request);
+                return Optional.empty();
+            }, new Prompts());
+
+            assertThat(fixture.view.changeShapeOf(instance.id())).isTrue();
+            assertThat(requests).hasSize(1);
+            assertThat(requests.getFirst().initialScope()).isEqualTo(ShapeEditScope.INSTANCE);
+
+            remove.run();
+            assertThat(fixture.view.changeShapeOf(instance.id())).isFalse();
+            assertThat(requests).hasSize(1);
+        }
+    }
+
+    @Test
     void aPieceMenuEndsWithChangeShapeAndOffersNoVersionReview() {
         try (TemplateFixture fixture = component()) {
             Component instance = fixture.single("subcircuit:negador");

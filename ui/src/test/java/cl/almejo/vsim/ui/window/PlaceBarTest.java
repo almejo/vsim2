@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The place bar of a component tab (spec §5.1), built over a body place and laid out, never shown: route crumbs, the
@@ -199,6 +202,32 @@ class PlaceBarTest {
         bar.showRefusal("No se puede");
 
         assertThat(bar.refusalText()).contains("No se puede");
+    }
+
+    @Test
+    void aRefusedEditInsideIsExplainedInTheBarOnce() {
+        inverterInThreePlaces();
+        PlaceBar bar = barOf(INVERTER, Optional.of("c2/c2"));
+        String locked = "Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía";
+        assertThat(bar.lockedText()).contains(locked);
+
+        // the inverter's input pin part «a»: its interface cannot change while a double inverter uses it
+        places.getFirst().execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+
+        assertThat(bar.refusalText()).contains(locked);
+        assertThat(bar.lockedText()).as("the same sentence is not shown twice").isEmpty();
+        assertThat(places.getFirst().document().component(new ElementId("c1"))).isPresent();
+    }
+
+    @Test
+    void aDisposedBarNoLongerExplainsRefusals() {
+        inverterInThreePlaces();
+        PlaceBar bar = barOf(INVERTER, Optional.of("c2/c2"));
+
+        bar.dispose();
+
+        assertThatThrownBy(() -> places.getFirst().execute(new RemoveElementsCommand(
+                List.of(new ElementId("c1"))))).isInstanceOf(InsideEditRefusedException.class);
     }
 
     @Test

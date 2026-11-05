@@ -29,7 +29,7 @@ class SeePieceTest {
     private final OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
     private WindowTabs tabs;
 
-    /** What a window does for a view: the tabs' own {@code showPlace} and {@code enter}. */
+    /** What a window does for a view: the tabs' own {@code goToPart}. */
     private WindowCommands windowOver(WindowTabs windowTabs) {
         return new WindowCommands() {
             @Override public void newDocument() { }
@@ -40,9 +40,10 @@ class SeePieceTest {
             @Override public void exit() { }
 
             @Override
-            public Optional<EditorView> showPlace(OpenDocument target, Optional<String> definitionId,
-                                                  Optional<String> contextPath) {
-                return Optional.of(windowTabs.showPlace(target, definitionId, contextPath));
+            public boolean goToPart(OpenDocument target, Optional<String> definitionId, Optional<String> contextPath,
+                                    ElementId part) {
+                windowTabs.goToPart(target, definitionId, contextPath, part);
+                return true;
             }
         };
     }

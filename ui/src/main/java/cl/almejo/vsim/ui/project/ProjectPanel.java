@@ -47,7 +47,7 @@ public final class ProjectPanel extends JPanel {
         /** Enters the instance of {@code row}, with its path as context. */
         void enter(ProjectRows.Row row);
 
-        /** Shows the instance in the place that holds it (see {@link #canSee}). */
+        /** Shows the instance in the place that holds it, selected («Ver la pieza»: always offered). */
         void seePiece(ProjectRows.Row row);
 
         /** Opens «Cambiar forma…» for the instance (only when {@link #editsHere}). */
@@ -58,9 +58,6 @@ public final class ProjectPanel extends JPanel {
 
         /** True when the instance is a part of the place this view shows: its shape and properties are edited here. */
         boolean editsHere(ProjectRows.Row row);
-
-        /** True when «Ver la pieza» can show the instance from this view. */
-        boolean canSee(ProjectRows.Row row);
     }
 
     private final OpenDocument openDocument;
@@ -138,7 +135,7 @@ public final class ProjectPanel extends JPanel {
         }
         JPopupMenu menu = new JPopupMenu();
         menu.add(item(Messages.text("action.enter"), true, () -> actions.enter(row)));
-        menu.add(item(Messages.text("project.seePiece"), actions.canSee(row), () -> actions.seePiece(row)));
+        menu.add(item(Messages.text("project.seePiece"), true, () -> actions.seePiece(row)));
         boolean editsHere = actions.editsHere(row);
         menu.add(item(Messages.text("shape.change"), editsHere, () -> actions.changeShape(row)));
         menu.add(item(Messages.text("project.properties"), editsHere, () -> actions.properties(row)));

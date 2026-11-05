@@ -69,13 +69,15 @@ de circuito no la tienen.
   en la librería por sí solo.
 - **Pines bloqueados**: si el componente está dentro de otro componente que el circuito usa, la barra lo explica:
   «Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía».
+- **Un cambio que no se hizo**: si intentas adentro un cambio que no se puede hacer (borrar un pin bloqueado, por
+  ejemplo), no cambia nada y la barra lo dice en ámbar durante unos segundos; la barra de estado también lo dice.
 
 ## Panel Proyecto
 
 Arriba de la paleta, en la columna de la izquierda, el panel «Proyecto» lista el circuito y todas las piezas de
 componentes propios que tiene, de afuera hacia adentro.
 
-- **Las filas**: la primera es el circuito, con su nombre y «N piezas». Debajo va cada pieza de un componente propio,
+- **Las filas**: la primera es el circuito, con su nombre y cuántas piezas tiene («1 pieza», «12 piezas»). Debajo va cada pieza de un componente propio,
   con el nombre de su componente y, a la derecha, el nombre de la pieza (su etiqueta, o su identificador si no tiene).
   Las piezas que están dentro de otros componentes van más a la derecha, un nivel por componente. Un circuito sin
   componentes propios muestra solo la primera fila.
@@ -85,9 +87,9 @@ componentes propios que tiene, de afuera hacia adentro.
   del grupo.
 - **Clic derecho en una fila**:
   - «Entrar».
-  - «Ver la pieza»: selecciona la pieza y viaja hasta ella cuando es una pieza de la pestaña actual; si está dentro de
-    otro componente, abre la pestaña de ese componente. Está apagado para una pieza del circuito cuando la pestaña
-    actual es la de un componente.
+  - «Ver la pieza»: igual que en la [barra de lugar](#la-barra-de-lugar), lleva a la pestaña que contiene la pieza (la
+    del circuito, o la del componente que la tiene adentro, con la ruta de esa pieza), la selecciona y mueve la vista
+    hasta ella. Funciona desde cualquier pestaña.
   - «Cambiar forma…» y «Propiedades»: de una pieza de la pestaña actual; apagados para las demás.
 - **El alto del panel**: se arrastra con el divisor que lo separa de la paleta, y VSim lo recuerda.
 - **Clic derecho en el árbol del inspector**: en la pestaña «Componentes» del inspector, una pieza de un componente
@@ -103,7 +105,7 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   hay adentro.
 - **Un componente que se usa dentro de otro**: por ahora sus pines no se pueden cambiar desde adentro. «Pin de
   entrada» y «Pin de salida» aparecen en gris en la paleta. Si se intenta borrar un pin, cambiarle el nombre o el
-  ancho, no cambia nada y la barra de estado dice por qué: «Este componente se usa dentro de Debugger: sus pines no se
+  ancho, no cambia nada y la barra de lugar y la barra de estado dicen por qué: «Este componente se usa dentro de Debugger: sus pines no se
   pueden cambiar todavía». Mover un pin adentro sí se puede, porque no cambia el componente por fuera.
 - **Los pines del componente**: su valor viene de afuera, de la pieza cuyos valores muestra la pestaña. Un clic no los
   cambia y no se les puede escribir un valor; la barra de estado dice «Su valor viene de afuera».

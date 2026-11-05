@@ -99,8 +99,8 @@ public interface WindowCommands {
 
     /**
      * Brings the place to the front: {@code definitionId} empty is the document's main tab, else its component tab
-     * showing {@code contextPath} (as {@link #enter}); the view that shows it, for what must select in it. Empty
-     * outside a real window.
+     * showing {@code contextPath} (as {@link #enter}); the view that shows it. Empty outside a real window. The place
+     * bar's document crumb; to show a part there, use {@link #goToPart}.
      */
     default Optional<EditorView> showPlace(OpenDocument document, Optional<String> definitionId,
                                            Optional<String> contextPath) {
@@ -108,10 +108,10 @@ public interface WindowCommands {
     }
 
     /**
-     * Shows part {@code part} of {@code document} where it is (F8 and the Problemas list, spec §6.7): in the circuit's
-     * own tab when {@code definitionId} is empty, else in the tab of that definition entered with the instance at
-     * {@code contextPath}; the part is selected and brought into view. False when there are no tabs to show it in
-     * (an editor outside a real window): nothing happens, and the caller shows what it can where it is.
+     * Shows part {@code part} of {@code document} where it is (F8 and the Problemas list, spec §6.7; «Ver la pieza» of
+     * the place bar and the Proyecto panel, spec §5, through {@link SeePiece}): the place {@link #showPlace} brings to
+     * the front, with the part selected and brought into view. False when there are no tabs to show it in (an editor
+     * outside a real window): nothing happens, and the caller shows what it can where it is.
      */
     default boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
                              ElementId part) {

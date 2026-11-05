@@ -1,18 +1,12 @@
 package cl.almejo.vsim.ui.project;
 
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.DocumentElement;
-import cl.almejo.vsim.core.library.InstancePaths;
-import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.SeePiece;
 
-import javax.swing.JMenuItem;
-import javax.swing.JPopupMenu;
-import java.awt.geom.Point2D;
 import java.util.Optional;
 
 /**
@@ -52,42 +46,23 @@ public final class ProjectPanelExtension implements EditorExtension {
             return !view.openDocument().isBody() && row.instance().map(use -> use.chain().size() == 1).orElse(false);
         }
 
-        @Override
-        public boolean canSee(ProjectRows.Row row) {
-            return editsHere(row) || row.instance().map(use -> use.chain().size() > 1).orElse(false);
-        }
-
         /**
-         * A part of this view's own place is selected and shown; a nested one opens its parent's place (the tab that
-         * holds it), where the part is one of the pieces.
+         * Shows the part where it is, as the place bar's «Ver la pieza» does: a part of the circuit in its main tab, a
+         * nested one in the tab of the component that holds it. Without a window, a part of this view is shown here.
          */
         @Override
         public void seePiece(ProjectRows.Row row) {
-            if (editsHere(row)) {
-                showHere(row);
-                return;
-            }
-            row.instance().filter(use -> use.chain().size() > 1).ifPresent(use -> {
-                String parentPath = use.path().substring(0, use.path().lastIndexOf(InstancePath.SEPARATOR));
-                InstancePaths.of(circuit().document()).stream().filter(other -> other.path().equals(parentPath))
-                        .findFirst().ifPresent(parent -> view.windowCommands().enter(circuit(),
-                                parent.definitionId(), Optional.of(parentPath)));
+            row.instance().ifPresent(use -> {
+                if (!SeePiece.show(view.windowCommands(), circuit(), use.path()) && editsHere(row)) {
+                    showHere(row);
+                }
             });
         }
 
         @Override
         public void changeShape(ProjectRows.Row row) {
             showHere(row);
-            componentOf(row).ifPresent(component -> {
-                JPopupMenu menu = view.contextMenu(Optional.of(component), new Point2D.Double(0, 0));
-                String text = Messages.text("shape.change");
-                for (java.awt.Component item : menu.getComponents()) {
-                    if (item instanceof JMenuItem menuItem && text.equals(menuItem.getText())) {
-                        menuItem.doClick();
-                        return;
-                    }
-                }
-            });
+            componentOf(row).ifPresent(component -> view.changeShapeOf(component.id()));
         }
 
         @Override
@@ -102,10 +77,7 @@ public final class ProjectPanelExtension implements EditorExtension {
 
         /** Selects the part of this view's place and travels to it. */
         private void showHere(ProjectRows.Row row) {
-            componentOf(row).ifPresent(component -> {
-                view.selection().select(component.id());
-                view.canvas().travelTo(DrawnBounds.of((DocumentElement) component, view.openDocument().registry()));
-            });
+            componentOf(row).ifPresent(component -> SeePiece.selectAndTravel(view, component.id()));
         }
     }
 }

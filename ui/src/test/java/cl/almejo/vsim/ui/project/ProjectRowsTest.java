@@ -53,6 +53,16 @@ class ProjectRowsTest {
     }
 
     @Test
+    void oneComponentIsOnePiece() {
+        Messages.initialize(Messages.SPANISH);
+        document.add(gate("g1"));
+
+        assertThat(ProjectRows.of(document, "uno").getFirst().right()).isEqualTo("1 pieza");
+        document.add(gate("g2"));
+        assertThat(ProjectRows.of(document, "dos").getFirst().right()).isEqualTo("2 piezas");
+    }
+
+    @Test
     void aDocumentWithOnlyBuiltInPartsHasOneRow() {
         document.add(gate("g1"));
 

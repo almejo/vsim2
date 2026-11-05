@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -22,6 +23,7 @@ import javax.swing.JPanel;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import java.awt.Color;
+import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -57,6 +59,9 @@ public final class PlaceBar extends JPanel {
     private static final int REFUSAL_MILLISECONDS = 4000;
     private static final float TINT = 0.10f;
 
+    /** The name of the line that explains a refused edit (what tests look for). */
+    public static final String REFUSAL_NAME = "placeBar.refusal";
+
     private final OpenDocument place;
     private final ComponentLibrary library;
     private final Callbacks callbacks;
@@ -76,6 +81,7 @@ public final class PlaceBar extends JPanel {
     private Optional<DefinitionBundle> libraryBundle = Optional.empty();
     private boolean updating;
     private boolean libraryOffersAdd;
+    private final Runnable removeRefusalListener;
 
     public PlaceBar(OpenDocument place, ComponentLibrary library, Callbacks callbacks) {
         super(new MigLayout("insets 4 12 4 12, gapx 14, fillx", "[][][][][]push[][]"));
@@ -83,6 +89,7 @@ public final class PlaceBar extends JPanel {
         this.library = library;
         this.callbacks = callbacks;
         refusalTimer.setRepeats(false);
+        refusalLabel.setName(REFUSAL_NAME);
         add(crumbPanel);
         add(valuesLabel, "split 2, gapx 14 4");
         add(valuesCombo);
@@ -100,20 +107,31 @@ public final class PlaceBar extends JPanel {
         libraryButton.addActionListener(action -> libraryAction());
         place.addChangeListener(refresher);
         library.addListener(refresher);
+        // an edit refused inside (spec §6.2 c) is explained here; the status line explains it too (EditorView)
+        removeRefusalListener = place.addRefusalListener(refusal -> showRefusal(explanation(refusal)));
         refresh();
+    }
+
+    /** The sentence that explains {@code refusal}, the same in the place bar and the status line. */
+    public static String explanation(InsideEditRefusedException refusal) {
+        return Messages.format(refusal.messageKey(), refusal.arguments().toArray());
     }
 
     /** Takes the listeners and the timer away; the bar is not used afterwards. */
     public void dispose() {
         place.removeChangeListener(refresher);
         library.removeListener(refresher);
+        removeRefusalListener.run();
         refusalTimer.stop();
     }
 
-    /** Shows {@code text} (an edit refused before anything changed) for four seconds, the place's explanation. */
+    /**
+     * Shows {@code text} (an edit refused before anything changed) for four seconds, the place's explanation, stressed.
+     * When it is the sentence the locked-interface line already says, that line gives way to it: shown once.
+     */
     public void showRefusal(String text) {
         refusalLabel.setText(text);
-        refusalLabel.setVisible(true);
+        updateExplanationLines();
         refusalTimer.restart();
         revalidate();
         repaint();
@@ -121,9 +139,16 @@ public final class PlaceBar extends JPanel {
 
     private void clearRefusal() {
         refusalLabel.setText("");
-        refusalLabel.setVisible(false);
+        updateExplanationLines();
         revalidate();
         repaint();
+    }
+
+    private void updateExplanationLines() {
+        boolean refused = !refusalLabel.getText().isEmpty();
+        refusalLabel.setVisible(refused);
+        lockedLabel.setVisible(!lockedLabel.getText().isEmpty()
+                && !(refused && refusalLabel.getText().equals(lockedLabel.getText())));
     }
 
     @Override
@@ -143,8 +168,14 @@ public final class PlaceBar extends JPanel {
             setBackground(mix(panel, group, TINT));
             crumbPanel.setBackground(getBackground());
         }
-        boolean dark = GroupColors.chromeIsDark();
-        useChip.setForeground(uses.size() > 1 ? new Color(dark ? 0xF5C16C : 0x8A5300) : mutedColor());
+        useChip.setForeground(uses.size() > 1 ? warningColor() : mutedColor());
+        refusalLabel.setForeground(warningColor());
+        refusalLabel.setFont(lockedLabel.getFont().deriveFont(Font.BOLD));
+    }
+
+    /** Amber, readable on the light or the dark chrome: the use chip with several uses and a refused edit. */
+    private static Color warningColor() {
+        return new Color(GroupColors.chromeIsDark() ? 0xF5C16C : 0x8A5300);
     }
 
     private static Color mutedColor() {
@@ -277,15 +308,10 @@ public final class PlaceBar extends JPanel {
     }
 
     private void refreshLocked(OpenDocument parent, String definitionId) {
-        if (place.interfaceLocked()) {
-            lockedLabel.setText(Messages.format("inside.interfaceLocked", place.definitionName(),
-                    String.join(", ", DefinitionUpdateSafety.containingNames(parent.document(), definitionId))));
-            lockedLabel.setVisible(true);
-        } else {
-            lockedLabel.setText("");
-            lockedLabel.setVisible(false);
-        }
-        refusalLabel.setVisible(!refusalLabel.getText().isEmpty());
+        lockedLabel.setText(place.interfaceLocked() ? Messages.format("inside.interfaceLocked",
+                place.definitionName(), String.join(", ",
+                        DefinitionUpdateSafety.containingNames(parent.document(), definitionId))) : "");
+        updateExplanationLines();
     }
 
     // --- actions (also what the tests press) ---
