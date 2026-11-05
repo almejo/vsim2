@@ -46,7 +46,7 @@ class InitialViewWatchTest {
                 }
                 initialView.viewChanged();
             });
-            CircuitWindow.watchForTheInitialView(view, initialView, () -> true);
+            WindowTabs.watchForTheInitialView(view, initialView, () -> true);
         });
     }
 

@@ -5,59 +5,81 @@ import cl.almejo.vsim.ui.window.WindowMenu;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.ToIntBiFunction;
 
 /**
- * Open windows grouped by the {@link OpenDocument} they show, in opening order. A document lives while it has a
- * window: {@link #remove} hands it back when its last window goes, so the caller can close it. A document with more
- * than one window numbers its views («contador (2)», {@link #viewNumber}), renumbered when one closes; change
- * listeners hear of every add and remove so titles follow. EDT only.
+ * Which windows hold a tab of which {@link OpenDocument} (spec §10.2), both in opening order. A window holds a document
+ * while it has a group of tabs of it; a document lives while some window holds it: {@link #remove} says when its last
+ * holder lets it go, so the caller can close it. Main tabs of a document across windows are numbered («contador (2)»,
+ * {@link #viewNumber}); change listeners hear of every add and remove so titles follow. EDT only.
  *
  * @param <W> the window type ({@code CircuitWindow} in the application, plain values in tests)
  */
 public final class DocumentWindows<W> {
 
     private final Map<OpenDocument, List<W>> windowsByDocument = new LinkedHashMap<>();
-    private final Map<W, OpenDocument> documentByWindow = new HashMap<>();
+    private final Map<W, List<OpenDocument>> documentsByWindow = new LinkedHashMap<>();
     private final Listeners<Runnable> changeListeners = new Listeners<>();
 
+    /**
+     * {@code window} holds a tab of {@code document} now. Idempotent for a window that already holds it; the listeners
+     * hear every call, since a tab added to a group may renumber the document's main tabs.
+     */
     public void add(OpenDocument document, W window) {
-        if (documentByWindow.putIfAbsent(window, document) != null) {
-            throw new IllegalArgumentException("window already registered: " + window);
+        List<W> holders = windowsByDocument.computeIfAbsent(document, key -> new ArrayList<>());
+        if (!holders.contains(window)) {
+            holders.add(window);
+            documentsByWindow.computeIfAbsent(window, key -> new ArrayList<>()).add(document);
         }
-        windowsByDocument.computeIfAbsent(document, key -> new ArrayList<>()).add(window);
         changed();
     }
 
-    /** Forgets {@code window}; returns its document when that was the document's last window. */
-    public Optional<OpenDocument> remove(W window) {
-        OpenDocument document = documentByWindow.remove(window);
-        if (document == null) {
-            return Optional.empty();
+    /**
+     * {@code window} no longer holds {@code document} (its group closed or moved away). True when no window holds the
+     * document any more, so the caller closes it; false for a window that did not hold it.
+     */
+    public boolean remove(OpenDocument document, W window) {
+        List<W> holders = windowsByDocument.get(document);
+        if (holders == null || !holders.remove(window)) {
+            return false;
         }
-        List<W> group = windowsByDocument.get(document);
-        group.remove(window);
-        boolean lastWindow = group.isEmpty();
-        if (lastWindow) {
+        List<OpenDocument> held = documentsByWindow.get(window);
+        held.remove(document);
+        if (held.isEmpty()) {
+            documentsByWindow.remove(window);
+        }
+        boolean lastHolder = holders.isEmpty();
+        if (lastHolder) {
             windowsByDocument.remove(document);
         }
         changed();
-        return lastWindow ? Optional.of(document) : Optional.empty();
+        return lastHolder;
     }
 
-    /** True when closing {@code window} would leave its document without windows (or the window is unknown). */
-    public boolean isLastWindow(W window) {
-        OpenDocument document = documentByWindow.get(window);
-        return document == null || windowsByDocument.get(document).size() == 1;
+    /** Forgets {@code window}; returns the documents it was the last holder of, in its order. */
+    public List<OpenDocument> removeWindow(W window) {
+        List<OpenDocument> released = new ArrayList<>();
+        for (OpenDocument document : documentsOf(window)) {
+            if (remove(document, window)) {
+                released.add(document);
+            }
+        }
+        return released;
+    }
+
+    /** True when {@code window} is the only window holding {@code document} (or no window holds it). */
+    public boolean isLastHolder(OpenDocument document, W window) {
+        List<W> holders = windowsByDocument.getOrDefault(document, List.of());
+        return holders.isEmpty() || holders.equals(List.of(window));
     }
 
     public boolean isEmpty() {
-        return documentByWindow.isEmpty();
+        return windowsByDocument.isEmpty();
     }
 
     public List<OpenDocument> documents() {
@@ -68,42 +90,67 @@ public final class DocumentWindows<W> {
         return List.copyOf(windowsByDocument.getOrDefault(document, List.of()));
     }
 
+    public List<OpenDocument> documentsOf(W window) {
+        return List.copyOf(documentsByWindow.getOrDefault(window, List.of()));
+    }
+
+    /** Every window holding something, in order of their first tab. */
     public List<W> all() {
-        List<W> result = new ArrayList<>();
-        windowsByDocument.values().forEach(result::addAll);
-        return result;
+        return List.copyOf(documentsByWindow.keySet());
     }
 
     /**
-     * The windows that something newly opened from {@code requester} replaces (Abrir, Ejemplos): every window of the
-     * requester's document when that document is pristine; none otherwise, nor for an unknown or null requester.
+     * The documents that something newly opened from {@code requester} replaces (Abrir, Ejemplos): the pristine
+     * documents it holds, whose groups close; none for an unknown or null requester.
      */
-    public List<W> replacedBy(W requester) {
-        OpenDocument document = requester == null ? null : documentByWindow.get(requester);
-        return document != null && document.isPristine() ? windowsOf(document) : List.of();
+    public List<OpenDocument> replacedBy(W requester) {
+        if (requester == null) {
+            return List.of();
+        }
+        return documentsOf(requester).stream().filter(OpenDocument::isPristine).toList();
     }
 
-    /** The first window of the document backed by {@code file}, if that file is already open. */
+    /** The first window holding the document backed by {@code file}, if that file is already open. */
     public Optional<W> firstShowing(Path file) {
-        for (Map.Entry<OpenDocument, List<W>> group : windowsByDocument.entrySet()) {
-            if (group.getKey().isBackedBy(file)) {
-                return Optional.of(group.getValue().get(0));
-            }
-        }
-        return Optional.empty();
+        return showing(file).map(document -> windowsByDocument.get(document).get(0));
     }
 
     /**
-     * The 1-based position of {@code window} among its document's windows, or 0 when the document has a single
-     * window (or the window is unknown): a lone view carries no number.
+     * Where opening {@code file} goes: the window already showing it, else a new group in {@code requester}, else a
+     * new window (nothing asked: start-up, command line).
      */
-    public int viewNumber(W window) {
-        OpenDocument document = documentByWindow.get(window);
-        if (document == null) {
-            return 0;
+    public OpeningTarget<W> targetFor(Path file, Optional<W> requester) {
+        Optional<OpenDocument> open = showing(file);
+        if (open.isPresent()) {
+            return new OpeningTarget.FocusTab<>(windowsByDocument.get(open.get()).get(0), open.get());
         }
-        List<W> group = windowsByDocument.get(document);
-        return group.size() > 1 ? group.indexOf(window) + 1 : 0;
+        return requester.<OpeningTarget<W>>map(OpeningTarget.NewGroup::new).orElseGet(OpeningTarget.NewWindow::new);
+    }
+
+    private Optional<OpenDocument> showing(Path file) {
+        return windowsByDocument.keySet().stream().filter(document -> document.isBackedBy(file)).findFirst();
+    }
+
+    /**
+     * The 1-based number of main tab {@code mainTabIndex} of {@code document} in {@code window}, counting the main tabs
+     * of the windows before it ({@code mainTabCount}); 0 when the document has a single main tab in all: a lone view
+     * carries no number.
+     */
+    public int viewNumber(OpenDocument document, W window, int mainTabIndex,
+                          ToIntBiFunction<W, OpenDocument> mainTabCount) {
+        int before = 0;
+        int total = 0;
+        boolean reached = false;
+        for (W holder : windowsOf(document)) {
+            int count = mainTabCount.applyAsInt(holder, document);
+            if (holder.equals(window)) {
+                reached = true;
+            } else if (!reached) {
+                before += count;
+            }
+            total += count;
+        }
+        return reached && total > 1 ? before + mainTabIndex + 1 : 0;
     }
 
     /** «contador (2)» for view 2, the plain name for 0. */
@@ -111,21 +158,24 @@ public final class DocumentWindows<W> {
         return viewNumber > 0 ? Messages.format("window.view", displayName, viewNumber) : displayName;
     }
 
-    /** One entry per window, «nombre (n)» when its document has several; choosing it calls {@code focus}. */
-    public List<WindowMenu.Entry> menuEntries(W current, Consumer<W> focus) {
+    /**
+     * The Ventana list and the «▾» list (spec §4.2, §4.8): the tabs of every window ({@code tabsOf}), each window
+     * under a «Ventana n» header when there are several.
+     */
+    public List<WindowMenu.Entry> menuEntries(Function<W, List<WindowMenu.Entry>> tabsOf) {
+        List<W> windows = all();
+        if (windows.size() == 1) {
+            return List.copyOf(tabsOf.apply(windows.get(0)));
+        }
         List<WindowMenu.Entry> entries = new ArrayList<>();
-        windowsByDocument.forEach((document, group) -> {
-            for (int index = 0; index < group.size(); index++) {
-                W window = group.get(index);
-                int viewNumber = group.size() > 1 ? index + 1 : 0;
-                entries.add(new WindowMenu.Entry(viewTitle(document.displayName(), viewNumber),
-                        window.equals(current), () -> focus.accept(window)));
-            }
-        });
+        for (int index = 0; index < windows.size(); index++) {
+            entries.add(WindowMenu.Entry.header(Messages.format("window.list.header", index + 1)));
+            entries.addAll(tabsOf.apply(windows.get(index)));
+        }
         return entries;
     }
 
-    /** Runs {@code listener} after every {@link #add} and every {@link #remove} of a known window. */
+    /** Runs {@code listener} after every {@link #add} and every {@link #remove} that changed something. */
     public void addChangeListener(Runnable listener) {
         changeListeners.add(listener);
     }

@@ -40,7 +40,7 @@ public final class PreferencesFeature implements EditorExtension {
         Action preferences = Actions.of(Messages.text("action.preferences"),
                 () -> opener.accept(view, view.services().preferences()));
         JSeparator separator = new JPopupMenu.Separator();
-        int position = insertionIndex(file, view.actions().closeWindow());
+        int position = insertionIndex(file, view.actions().closeTab());
         file.add(separator, position);
         Runnable itemRemover = Menus.install(view, MenuId.FILE, position + 1, preferences, "file.preferences");
         return () -> {
@@ -49,9 +49,9 @@ public final class PreferencesFeature implements EditorExtension {
         };
     }
 
-    /** Before the separator that precedes {@code closeWindow}, or at the end when the menu has no such item. */
-    static int insertionIndex(JMenu menu, Action closeWindow) {
-        int index = Menus.indexOf(menu, closeWindow);
+    /** Before the separator that precedes {@code closeTab}, or at the end when the menu has no such item. */
+    static int insertionIndex(JMenu menu, Action closeTab) {
+        int index = Menus.indexOf(menu, closeTab);
         if (index < 0) {
             return menu.getMenuComponentCount();
         }

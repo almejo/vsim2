@@ -14,7 +14,7 @@ import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 46 defaults are the editor's accelerators
+ * {@code <group>.<action>}; the name is the action's own menu text. The defaults are the editor's accelerators
  * (F5 for «Iniciar o pausar», F6 for «Avanzar N t», Ctrl+F, F3 and Mayús+F3 for «Buscar»), its canvas keys (the eight
  * arrows that move the selection, Z for the zoom tool, Mayús+1 and Mayús+2 for «Ver todo el circuito» and «Zoom a la
  * selección» included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a shortcut. Defaults use
@@ -64,7 +64,6 @@ public final class ShortcutCatalog {
         window(entries, "file.exportLogisim", "action.exportLogisim", MenuId.FILE, null);
         window(entries, "file.importTruthTable", "action.importTruthTable", MenuId.FILE, null);
         window(entries, "file.preferences", "action.preferences", MenuId.FILE, null);
-        window(entries, "file.close", "action.close", MenuId.FILE, stroke(KeyEvent.VK_W, menu));
         window(entries, "file.exit", "action.exit", MenuId.FILE, stroke(KeyEvent.VK_Q, menu));
         window(entries, "edit.undo", "action.undo", MenuId.EDIT, stroke(KeyEvent.VK_Z, menu));
         window(entries, "edit.redo", "action.redo", MenuId.EDIT, stroke(KeyEvent.VK_Z, menu | shift));
@@ -142,10 +141,25 @@ public final class ShortcutCatalog {
         window(entries, "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.TOOLS, null);
         window(entries, "tools.aiPanel", "action.aiPanel", MenuId.TOOLS, null);
         window(entries, "window.newView", "action.newWindow", MenuId.WINDOW, null);
+        // Pestañas y editar por dentro (spec §4.8): «Cerrar pestaña» took Ctrl+W from «Cerrar ventana», which is
+        // Ctrl+Mayús+W now; both are also in Archivo.
+        window(entries, "window.newWindow", "action.newWindowWithCircuit", MenuId.WINDOW,
+                stroke(KeyEvent.VK_N, menu | shift));
+        window(entries, "window.moveGroup", "action.moveGroup", MenuId.WINDOW, null);
+        window(entries, "window.foldGroup", "action.foldGroup", MenuId.WINDOW, null);
+        // Ctrl, not the menu modifier: ⌘+Tab is the system's application switcher on macOS
+        int control = InputEvent.CTRL_DOWN_MASK;
+        window(entries, "window.nextTab", "action.nextTab", MenuId.WINDOW, stroke(KeyEvent.VK_TAB, control));
+        window(entries, "window.previousTab", "action.previousTab", MenuId.WINDOW,
+                stroke(KeyEvent.VK_TAB, control | shift));
+        window(entries, "window.closeTab", "action.closeTab", MenuId.WINDOW, stroke(KeyEvent.VK_W, menu));
+        window(entries, "window.closeComponents", "action.closeComponents", MenuId.WINDOW, null);
+        window(entries, "window.closeWindow", "action.closeWindow", MenuId.WINDOW, stroke(KeyEvent.VK_W, menu | shift));
         // no defaults: F6 belongs to «Avanzar N t» (and to Swing's split-pane focus)
         window(entries, "window.splitHorizontal", "shortcut.splitHorizontal", MenuId.WINDOW, null);
         window(entries, "window.splitVertical", "shortcut.splitVertical", MenuId.WINDOW, null);
         window(entries, "window.removeSplit", "action.removeSplit", MenuId.WINDOW, null);
+        window(entries, "window.insideOutside", "action.insideOutside", MenuId.WINDOW, null);
         window(entries, "window.nextPane", "action.nextPane", MenuId.WINDOW, null);
         return List.copyOf(entries);
     }

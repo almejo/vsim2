@@ -70,6 +70,17 @@ class WindowMenuTest {
         assertThat(texts()).containsExactly("Otra cosa", "Nueva vista", "-", "sumador");
     }
 
+    @Test
+    void aWindowHeaderIsAnItemThatCannotBeChosen() {
+        entries.add(WindowMenu.Entry.header("Ventana 1"));
+        entries.add(entry("sumador", true));
+        windowMenu();
+        assertThat(texts()).containsExactly("Nueva vista", "-", "Ventana 1", "sumador");
+        JMenuItem header = (JMenuItem) menu.getMenuComponent(2);
+        assertThat(header).isNotInstanceOf(JCheckBoxMenuItem.class);
+        assertThat(header.isEnabled()).isFalse();
+    }
+
     private void openMenu() {
         for (MenuListener listener : menu.getMenuListeners()) {
             listener.menuSelected(new MenuEvent(menu));

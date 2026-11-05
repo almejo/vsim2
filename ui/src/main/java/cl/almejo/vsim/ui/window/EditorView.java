@@ -177,7 +177,6 @@ public final class EditorView extends JPanel implements CanvasHost {
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
         split.setResizeWeight(0);
-        add(toolBar, BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
         add(statusBar, BorderLayout.SOUTH);
 
@@ -346,6 +345,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
     public ProblemsController problems() { return problems; }
     public JMenuBar menuBar() { return menuBar; }
+    /**
+     * The toolbar this view builds; the window hangs the active tab's toolbar above its tab strip (spec §10.1), so the
+     * view does not hold it itself.
+     */
     public JToolBar toolBar() { return toolBar; }
 
     /** The menu {@code id} of this window's menu bar. */

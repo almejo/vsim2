@@ -15,11 +15,15 @@ public interface WindowCommands {
 
     void saveAs();
 
+    /** Archivo ▸ «Cerrar ventana» (Ctrl+Mayús+W): every tab of the window, asking once per document it last holds. */
     void closeWindow();
 
     void exit();
 
-    /** Ventana ▸ Nueva vista: another view of this document. Nothing happens outside a real window. */
+    /**
+     * Ventana ▸ «Nueva pestaña del mismo circuito»: another tab on the active tab's place, in its group. Nothing
+     * happens outside a real window.
+     */
     default void newView() {
     }
 
@@ -47,5 +51,33 @@ public interface WindowCommands {
      * Nothing happens outside a real window.
      */
     default void openNewCircuit(String name, Command creation, String notice) {
+    }
+
+    /** Ventana ▸ «Nueva ventana con este circuito»: a new window with a new main tab of this document. */
+    default void newWindowWithCircuit() {
+    }
+
+    /** Ventana ▸ «Mover el grupo a una ventana nueva»: the active tab's group goes to a window of its own. */
+    default void moveGroupToNewWindow() {
+    }
+
+    /** Ventana ▸ «Plegar / desplegar el grupo» of the active tab. */
+    default void toggleFold() {
+    }
+
+    /** Ventana ▸ «Pestaña siguiente» (Ctrl+Tab), wrapping. */
+    default void nextTab() {
+    }
+
+    /** Ventana ▸ «Pestaña anterior» (Ctrl+Mayús+Tab), wrapping. */
+    default void previousTab() {
+    }
+
+    /** Archivo / Ventana ▸ «Cerrar pestaña» (Ctrl+W): closes the active tab, asking to save only as spec §4.5 says. */
+    default void closeTab() {
+    }
+
+    /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
+    default void closeComponents() {
     }
 }

@@ -72,26 +72,29 @@ public final class SplitViewsFeatures {
         };
     }
 
-    /** «Dividir ▸» and «Siguiente panel» right after «Nueva vista» (the list of open windows stays at the end). */
+    /**
+     * «Dividir ▸» right before «Afuera y adentro» and «Siguiente panel» right after it (spec §4.8; the list of open
+     * tabs stays at the end).
+     */
     private void insertMenuItems() {
         JMenu split = new JMenu(Messages.text("menu.window.split"));
         split.add(new JMenuItem(splitHorizontal));
         split.add(new JMenuItem(splitVertical));
         split.addSeparator();
         split.add(new JMenuItem(removeSplit));
-        int index = indexAfterNewView();
+        int index = indexOfInsideOutside();
         windowMenu.insert(split, index);
         menuComponents.add(split);
         JMenuItem next = new JMenuItem(nextPane);
-        windowMenu.insert(next, index + 1);
+        windowMenu.insert(next, Math.min(index + 2, windowMenu.getMenuComponentCount()));
         menuComponents.add(next);
     }
 
-    private int indexAfterNewView() {
-        Action newView = view.actions().newView();
+    private int indexOfInsideOutside() {
+        Action insideOutside = view.actions().insideOutside();
         for (int index = 0; index < windowMenu.getMenuComponentCount(); index++) {
-            if (windowMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == newView) {
-                return index + 1;
+            if (windowMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == insideOutside) {
+                return index;
             }
         }
         return windowMenu.getMenuComponentCount();
