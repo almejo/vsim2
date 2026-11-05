@@ -38,6 +38,8 @@ final class SessionKeys {
     static final String ACTIVE = "active";
     /** A session window's folded documents: {@code folded0}, {@code folded1}, … */
     static final String FOLDED = "folded";
+    /** A session window's left-column panels folded to their header, comma-separated: {@code circuit,palette}. */
+    static final String FOLDED_PANELS = "foldedPanels";
 
     private SessionKeys() {
     }

@@ -95,8 +95,8 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 ### Pestañas y componentes
 
 - [Pestañas y grupos; entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente): un doble clic en una pieza de un componente propio (o su botón «Entrar ↘», «Entrar» en el clic derecho, Enter) abre el componente en una pestaña del grupo de su circuito, con los valores de esa pieza; lo que se cambia adentro cambia el componente en todo el circuito, en un solo paso de deshacer.
-- [La barra de lugar](docs/funciones/pestanas-y-componentes.md#la-barra-de-lugar): cada pestaña de componente muestra su ruta («circuito › Ram (c5) › …»), con qué pieza se simulan sus valores, en cuántos lugares se usa, «Ver la pieza» y «Guardar en mi librería».
-- [Panel Proyecto](docs/funciones/pestanas-y-componentes.md#panel-proyecto): arriba de la paleta, el circuito y todas sus piezas de componentes propios nivel por nivel; un doble clic o Enter entra a la pieza, y su clic derecho ofrece «Entrar», «Ver la pieza», «Cambiar forma…» y «Propiedades».
+- [La barra de lugar](docs/funciones/pestanas-y-componentes.md#la-barra-de-lugar): cada pestaña de componente muestra su ruta («circuito › Ram › Selector 2»), con qué pieza se simulan sus valores, en cuántos lugares se usa, «Ver la pieza» y «Guardar en mi librería».
+- [Árbol del circuito](docs/funciones/pestanas-y-componentes.md#árbol-del-circuito): arriba de la paleta, todas las piezas del circuito y las de adentro de cada componente, con su ícono y su nombre («Multiplexor 2»); un clic lleva a la pieza (a su pestaña si hace falta), un doble clic entra a un componente, y un buscador encuentra piezas en todo el circuito; el árbol y la paleta se pliegan como acordeón (Alt+1, Alt+2) y lo plegado se recuerda por ventana.
 - [Adentro de un componente](docs/funciones/pestanas-y-componentes.md#adentro-de-un-componente-qué-cambia): la paleta no deja poner el componente dentro de sí mismo, los pines del componente toman su valor de afuera, «Sin valores» cuando no hay pieza que mostrar, Problemas con el camino de cada problema (F8 entra al componente), memorias y Terminales de la pieza que se ve, y «Deshacer … (en Ram)».
 
 ### Simulación y paso a paso
@@ -132,7 +132,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 ### Buscar
 
 - [Barra de búsqueda](docs/funciones/buscar.md#barra-de-búsqueda) (Ctrl+F) por etiquetas, tipos, textos, marcos, pines y túneles.
-- [Filtrar el árbol de componentes](docs/funciones/buscar.md#filtrar-el-árbol-de-componentes) con las mismas reglas.
+- [Buscar en el árbol del circuito](docs/funciones/buscar.md#buscar-en-el-árbol-del-circuito) con las mismas reglas, también dentro de los componentes.
 - [Viaje suave de la vista](docs/funciones/buscar.md#viaje-suave-de-la-vista) hacia lo que VSim muestra y al volver a 100 %, sin resbalar hacia un lado al cambiar el zoom.
 
 ### Interfaz, preferencias y sesión
@@ -147,7 +147,6 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Reglas y guías](docs/funciones/interfaz-preferencias-y-sesion.md#reglas-y-guías): guías que se sacan de las reglas del borde del lienzo, se guardan con el circuito y no salen al exportar.
 - [Íconos, barra de herramientas y cursores](docs/funciones/interfaz-preferencias-y-sesion.md#íconos-barra-de-herramientas-y-cursores) que dicen qué hará cada cosa.
 - [Atajos de teclado](docs/funciones/interfaz-preferencias-y-sesion.md#atajos-de-teclado) que se pueden cambiar.
-- [Pestaña Componentes](docs/funciones/interfaz-preferencias-y-sesion.md#pestaña-componentes): el árbol del circuito con sus valores.
 - [Preferencias](docs/funciones/interfaz-preferencias-y-sesion.md#preferencias): tema, esquemas de colores (entre ellos «Placa», que dibuja el circuito como una placa de circuito impreso verde con pines dorados, y «Logisim» y «Chipmunk», con los colores de esos simuladores) y esquemas propios, idioma, letra y librería.
 - [Acerca de VSim 2…](docs/funciones/interfaz-preferencias-y-sesion.md#acerca-de-vsim-2): versión, licencia, créditos y enlaces, con un botón para copiar la información de tu instalación.
 - [Reportar un problema…](docs/funciones/interfaz-preferencias-y-sesion.md#reportar-un-problema): Ayuda ▸ «Reportar un problema…» abre en GitHub el formulario de problemas con tu versión y sistema ya puestos.

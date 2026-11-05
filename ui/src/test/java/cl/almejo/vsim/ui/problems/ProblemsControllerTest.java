@@ -255,13 +255,13 @@ class ProblemsControllerTest {
     void aShortedPinShowsItsNameAndThenTheDrivers() {
         view.problems().showSnapshot(shortSnapshot(openDocument.netlistToken()));
         assertThat(view.canvas().getToolTipText(hoverAt(32, 8))) // the output of «high» at (4, 1)
-                .isEqualTo("out · Interruptor → 1 · Interruptor → 0");
+                .isEqualTo("out · Interruptor 1 → 1 · Interruptor 2 → 0");
     }
 
     @Test
     void hoveringAShortedWireShowsItsDrivers() {
         view.problems().showSnapshot(shortSnapshot(openDocument.netlistToken()));
-        assertThat(view.canvas().getToolTipText(hoverAt(32, 32))).isEqualTo("Interruptor → 1 · Interruptor → 0");
+        assertThat(view.canvas().getToolTipText(hoverAt(32, 32))).isEqualTo("Interruptor 1 → 1 · Interruptor 2 → 0");
         assertThat(view.canvas().getToolTipText(hoverAt(200, 200))).isNull();
     }
 
@@ -273,7 +273,7 @@ class ProblemsControllerTest {
         assertThat(view.canvas().highlights().topLevelNets(openDocument.document(), openDocument.netlist()))
                 .as("the tooltip filled the shared memo").isSameAs(view.canvas().highlights()
                         .topLevelNets(openDocument.document(), openDocument.netlist()));
-        assertThat(view.canvas().getToolTipText(hoverAt(32, 32))).isEqualTo("Interruptor → 1 · Interruptor → 0");
+        assertThat(view.canvas().getToolTipText(hoverAt(32, 32))).isEqualTo("Interruptor 1 → 1 · Interruptor 2 → 0");
     }
 
     @Test
@@ -378,7 +378,7 @@ class ProblemsControllerTest {
         view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
                 Map.of(), List.of(mismatch), Optional.empty()));
         assertThat(view.canvas().getToolTipText(hoverAt(120, 0)))
-                .isEqualTo("⚠ Anchos incompatibles: Separador de bus (4 bits) · Interruptor (1 bit)");
+                .isEqualTo("⚠ Anchos incompatibles: Separador de bus (4 bits) · Interruptor 1 (1 bit)");
         assertThat(view.statusBar().text()).contains("⚠ 1 ancho incompatible");
         assertThat(view.problems().nextProblem().isEnabled()).isTrue();
     }
@@ -412,7 +412,7 @@ class ProblemsControllerTest {
         // grid (8, 1): on the wire, left of the entrada's tag
         assertThat(view.canvas().getToolTipText(hoverAt(64, 8)))
                 .startsWith("⚠ Anchos incompatibles: ")
-                .contains("Separador de bus (4 bits)", "Interruptor (1 bit)")
+                .contains("Separador de bus (4 bits)", "Interruptor 1 (1 bit)")
                 .doesNotContain("Túnel");
     }
 
@@ -424,7 +424,7 @@ class ProblemsControllerTest {
         String leftSide = view.canvas().getToolTipText(hoverAt(56, 160));   // grid (7, 20), on wire left
         String rightSide = view.canvas().getToolTipText(hoverAt(152, 160)); // grid (19, 20), on wire rightAcross
 
-        assertThat(leftSide).isEqualTo("Interruptor → 1 · Interruptor → 0");
+        assertThat(leftSide).isEqualTo("Interruptor 3 → 1 · Interruptor 4 → 0");
         assertThat(rightSide).isEqualTo(leftSide);
     }
 
@@ -449,7 +449,7 @@ class ProblemsControllerTest {
     @Test
     void theMergedNetsMemoRefreshesWhenTheNetlistChanges() {
         PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
-        String expected = "Interruptor → 1 · Interruptor → 0";
+        String expected = "Interruptor 3 → 1 · Interruptor 4 → 0";
 
         // Without the template instance the two sides are separate nets: the memo is rebuilt as "nothing merged".
         openDocument.execute(new RemoveElementsCommand(List.of(circuit.instance().id())));

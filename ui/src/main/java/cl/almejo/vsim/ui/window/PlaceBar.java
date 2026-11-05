@@ -213,9 +213,8 @@ public final class PlaceBar extends JPanel {
         crumbTexts.add(parent.displayName());
         addCrumb("▤ " + parent.displayName(), 0);
         CircuitDocument document = parent.document();
-        Optional<List<Component>> chain = place.contextPath().flatMap(path -> InstanceNames.chain(path, document));
-        List<String> steps = chain.map(components -> components.stream()
-                .map(component -> InstanceNames.step(component, document)).toList()).orElse(List.of());
+        List<String> steps = place.contextPath().map(path -> InstanceNames.route(path, document))
+                .orElse(List.of());
         if (steps.isEmpty()) {
             steps = List.of(place.definitionName());
         }
@@ -262,19 +261,17 @@ public final class PlaceBar extends JPanel {
         }
     }
 
-    /** «c3 en Doble inversor (c2)»; a use placed on the circuit itself: «c1 en {circuit name}». */
+    /**
+     * «Inversor 2 en Doble inversor», the instance and the piece that holds it named as the tree names them; a use
+     * placed on the circuit itself: «Inversor en {circuit name}».
+     */
     private static String valuesItem(InstancePaths.InstanceUse use, OpenDocument parent, CircuitDocument document) {
-        List<Component> chain = InstanceNames.chain(use.path(), document).orElse(List.of());
-        if (chain.isEmpty()) {
+        List<String> route = InstanceNames.route(use.path(), document);
+        if (route.isEmpty()) {
             return use.path();
         }
-        String reference = InstanceNames.reference(chain.getLast());
-        if (chain.size() == 1) {
-            return Messages.format("place.valuesItemTop", reference, parent.displayName());
-        }
-        Component container = chain.get(chain.size() - 2);
-        return Messages.format("place.valuesItem", reference, InstanceNames.typeName(container, document),
-                InstanceNames.reference(container));
+        String container = route.size() == 1 ? parent.displayName() : route.get(route.size() - 2);
+        return Messages.format("place.valuesItem", route.getLast(), container);
     }
 
     private void refreshUses() {

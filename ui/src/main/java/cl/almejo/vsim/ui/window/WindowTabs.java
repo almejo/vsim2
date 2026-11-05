@@ -42,16 +42,19 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelListener;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * The tabs of one circuit window (spec §4.1–4.6): a {@link TabStrip} of groups (one per open document: its main tabs,
@@ -129,6 +132,9 @@ public final class WindowTabs extends JPanel {
         /** Stops hearing that the definition left the circuit; nothing to stop for a main tab. */
         private Runnable bodyRemovedRemover = () -> {
         };
+        /** Stops keeping the window's tabs in step with this tab's left column. */
+        private Runnable foldListenerRemover = () -> {
+        };
         /** An entered tab opens on the whole body («Ver todo»), travelling there from its initial view. */
         private boolean fitsBodyWhenShown;
         /** When it was last activated (a counter): re-entering focuses the most recent tab of a definition. */
@@ -175,6 +181,9 @@ public final class WindowTabs extends JPanel {
     private String shownId;
     private boolean windowOpened;
     private boolean disposed;
+    /** The left-column panels folded in this window: every tab shows the same (spec §5.3), and the session keeps it. */
+    private Set<LeftColumn.Section> foldedPanels = Set.of();
+    private boolean foldingPanels;
 
     /**
      * @param viewFactory makes the editor of a tab on a place (the window gives its services and itself as the
@@ -296,6 +305,8 @@ public final class WindowTabs extends JPanel {
             place.addBodyRemovedListener(listener);
             entry.bodyRemovedRemover = () -> place.removeBodyRemovedListener(listener);
         });
+        foldedPanels.forEach(section -> view.leftColumn().setFolded(section, true));
+        entry.foldListenerRemover = view.leftColumn().addFoldListener(() -> panelsFolded(view));
         entries.put(id, entry);
         cards.add(view, id);
         follow(document);
@@ -407,7 +418,7 @@ public final class WindowTabs extends JPanel {
     /**
      * Shows part {@code part} of {@code document} where it is: the place {@link #showPlace} brings to the front, with the
      * part selected and brought into view. F8 and the Problemas list (spec §6.7), «Ver la pieza» of the place bar and of
-     * the Proyecto panel (spec §5) all come here. Returns the tab's view.
+     * the circuit tree (spec §5) all come here. Returns the tab's view.
      */
     public EditorView goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
                                ElementId part) {
@@ -661,7 +672,8 @@ public final class WindowTabs extends JPanel {
         }
         List<Path> folded = documents().stream().filter(model::isFolded)
                 .flatMap(document -> document.path().stream()).toList();
-        return Optional.of(new WindowSession(bounds, tabs, activeTab, folded));
+        Set<String> panels = foldedPanels.stream().map(WindowTabs::sessionName).collect(Collectors.toSet());
+        return Optional.of(new WindowSession(bounds, tabs, activeTab, folded, panels));
     }
 
     /** A tab never shown yet still looks where it was going to open. */
@@ -685,6 +697,10 @@ public final class WindowTabs extends JPanel {
      * @return the component tabs left out because their definition is gone
      */
     public List<TabState> restore(WindowSession session, Function<Path, Optional<OpenDocument>> documents) {
+        foldPanels(session.foldedPanels().stream()
+                .flatMap(name -> Arrays.stream(LeftColumn.Section.values())
+                        .filter(section -> sessionName(section).equals(name)))
+                .collect(Collectors.toSet()));
         List<TabState> tabs = session.tabs();
         List<Optional<EditorView>> restored = new ArrayList<>();
         tabs.forEach(tab -> restored.add(Optional.empty()));
@@ -719,6 +735,33 @@ public final class WindowTabs extends JPanel {
                 .filter(document -> model.group(document).isPresent())
                 .ifPresent(document -> model.fold(document, true)));
         return skipped;
+    }
+
+    /** How the session names a left-column panel: {@code circuit}, {@code palette}. */
+    private static String sessionName(LeftColumn.Section section) {
+        return section.name().toLowerCase(Locale.ROOT);
+    }
+
+    /** A tab's left column folded or unfolded a panel: the window's other tabs follow. */
+    private void panelsFolded(EditorView view) {
+        if (!foldingPanels) {
+            foldPanels(view.leftColumn().folded());
+        }
+    }
+
+    /** {@code folded} becomes this window's folded panels, in every tab. */
+    private void foldPanels(Set<LeftColumn.Section> folded) {
+        foldedPanels = Set.copyOf(folded);
+        foldingPanels = true; // the tabs' own fold listeners must not answer the changes made here
+        try {
+            for (TabEntry entry : entries.values()) {
+                for (LeftColumn.Section section : LeftColumn.Section.values()) {
+                    entry.view.leftColumn().setFolded(section, foldedPanels.contains(section));
+                }
+            }
+        } finally {
+            foldingPanels = false;
+        }
     }
 
     private EditorView restoredTab(OpenDocument document, TabState tab) {
@@ -836,6 +879,7 @@ public final class WindowTabs extends JPanel {
             entry.rememberedSplit.close();
             entry.initialViewWatch.run();
             entry.bodyRemovedRemover.run();
+            entry.foldListenerRemover.run();
             entry.view.dispose();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the tab, or the window, open

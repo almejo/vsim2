@@ -50,6 +50,7 @@ import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -92,7 +93,6 @@ import java.util.function.Supplier;
 public final class EditorView extends JPanel implements CanvasHost {
 
     private static final int PALETTE_WIDTH = 230;
-    private static final int DEFAULT_PROJECT_HEIGHT = 170;
 
     private final OpenDocument openDocument;
     /** The one selection of this window, shown and changed by every pane. */
@@ -105,8 +105,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final EditorActions actions;
     private final SelectionActions selectionActions;
     private final PalettePanel palette;
-    /** The left column: the palette alone, or {@link #addAbovePalette} over it. */
-    private final JPanel leftColumn = new JPanel(new BorderLayout());
+    /** The left column: the palette alone, or {@link #addAbovePalette} over it as an accordion. */
+    private final LeftColumn leftColumn;
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
@@ -174,8 +174,10 @@ public final class EditorView extends JPanel implements CanvasHost {
             setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
             canvas().requestFocusInWindow();
         });
+        this.leftColumn = new LeftColumn(palette, services.preferences());
         this.menuBar = actions.createMenuBar();
         indexMenus();
+        addLeftColumnItems();
         this.capturedKeys = new CapturedKeys(keyboardCapture, openDocument, new WindowShortcuts(),
                 statusBar::showNotice);
         capturedKeys.useClipboard(FragmentClipboard.system()::readPlainText);
@@ -188,7 +190,6 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.canvasArea = new CanvasArea(canvasPanes);
         this.bottomDock = new BottomDock(canvasArea);
         JSplitPane inspectorSplit = new InspectorSplit(bottomDock, inspector);
-        leftColumn.add(palette, BorderLayout.CENTER);
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
@@ -352,7 +353,7 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /**
      * Set by the appearance extension: opens «Cambiar forma…» of a piece of this view, as its context menu does, for the
-     * panels that offer it too (the Proyecto panel). The runnable takes it back.
+     * panels that offer it too (the circuit tree). The runnable takes it back.
      */
     public Runnable setInstanceShapeEditor(Consumer<ElementId> editor) {
         instanceShapeEditor = Optional.of(editor);
@@ -396,39 +397,26 @@ public final class EditorView extends JPanel implements CanvasHost {
         return menu;
     }
 
+    /** Ver ▸ «Árbol del circuito» (Alt+1) and «Paleta» (Alt+2) first, checked while their panel is open. */
+    private void addLeftColumnItems() {
+        JMenu view = menu(MenuId.VIEW);
+        view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.CIRCUIT)), 0);
+        view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.PALETTE)), 1);
+        view.insertSeparator(2);
+    }
+
+    /** The left column: the palette, and the circuit tree above it as an accordion (spec §5.3). */
+    public LeftColumn leftColumn() {
+        return leftColumn;
+    }
+
     /**
-     * Shows {@code component} above the palette in the left column (the Proyecto panel, spec §5.2), in a vertical split
-     * whose divider is remembered in the preferences ({@code ui.project.split}). The returned runnable takes it away
-     * again, leaving the palette alone; calling it twice does nothing.
+     * Shows {@code component} above the palette in the left column under the header {@code title} (the circuit tree,
+     * spec §5.3); the two fold as an accordion and share a remembered divider ({@link LeftColumn}). The returned
+     * runnable takes it away again, leaving the palette alone; calling it twice does nothing.
      */
-    public Runnable addAbovePalette(JComponent component) {
-        Objects.requireNonNull(component, "component");
-        JSplitPane column = new JSplitPane(JSplitPane.VERTICAL_SPLIT, component, palette);
-        column.setContinuousLayout(true);
-        column.setResizeWeight(0);
-        column.setDividerLocation(services.preferences().projectSplit().orElse(DEFAULT_PROJECT_HEIGHT));
-        java.beans.PropertyChangeListener remember = change -> {
-            if (column.isShowing() || column.getHeight() > 0) {
-                services.preferences().setProjectSplit(column.getDividerLocation());
-            }
-        };
-        column.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, remember);
-        leftColumn.removeAll();
-        leftColumn.add(column, BorderLayout.CENTER);
-        leftColumn.revalidate();
-        boolean[] removed = {false};
-        return () -> {
-            if (removed[0]) {
-                return;
-            }
-            removed[0] = true;
-            column.removePropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, remember);
-            column.removeAll();
-            leftColumn.removeAll();
-            leftColumn.add(palette, BorderLayout.CENTER);
-            leftColumn.revalidate();
-            leftColumn.repaint();
-        };
+    public Runnable addAbovePalette(String title, JComponent component) {
+        return leftColumn.addAbovePalette(title, component);
     }
 
     /**

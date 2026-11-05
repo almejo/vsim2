@@ -35,6 +35,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.SeePiece;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
@@ -200,10 +201,7 @@ public final class ProblemsController {
         if (!openDocument.isBody() && !inside) {
             return false;
         }
-        return focus.flatMap(id -> ProblemPlaces.targetOf(id, circuit.document()))
-                .map(target -> view.windowCommands().goToPart(circuit, target.definitionId(), target.contextPath(),
-                        target.part()))
-                .orElse(false);
+        return focus.map(id -> SeePiece.show(view.windowCommands(), circuit, id)).orElse(false);
     }
 
     /**

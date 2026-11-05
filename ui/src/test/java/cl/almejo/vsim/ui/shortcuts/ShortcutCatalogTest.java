@@ -20,7 +20,8 @@ class ShortcutCatalogTest {
     static final List<String> TRACK_C_IDS = List.of("file.new", "file.open", "file.save", "file.saveAs",
             "file.preferences", "file.exit", "edit.undo", "edit.redo", "edit.delete",
             "edit.rotateClockwise", "edit.rotateCounterClockwise", "edit.configure", "edit.cut", "edit.copy",
-            "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.selectTool", "view.wireTool",
+            "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.circuitTree", "view.palette",
+            "view.selectTool", "view.wireTool",
             "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
             "view.zoomField", "view.centerView", "view.nextProblem",
             "view.previousProblem", "simulation.start", "simulation.pause", "simulation.step", "window.newView",
@@ -40,10 +41,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFiftyThreeHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFiftyFiveHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(53);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(55);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -109,6 +110,17 @@ class ShortcutCatalogTest {
             assertThat(entry.defaultStroke()).isEmpty();
         });
         assertThat(ShortcutCatalog.find("help.about")).isEmpty();
+    }
+
+    @Test
+    void theLeftColumnPanelsFoldWithAltOneAndAltTwoUnderVer() {
+        int alt = InputEvent.ALT_DOWN_MASK;
+        assertThat(ShortcutCatalog.find("view.circuitTree")).contains(new ShortcutEntry("view.circuitTree",
+                "action.circuitTree", MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_1,
+                alt))));
+        assertThat(ShortcutCatalog.find("view.palette")).contains(new ShortcutEntry("view.palette",
+                "action.palette", MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_2,
+                alt))));
     }
 
     @Test

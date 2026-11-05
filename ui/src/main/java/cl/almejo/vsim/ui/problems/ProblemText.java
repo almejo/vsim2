@@ -84,9 +84,7 @@ public final class ProblemText {
 
     /** «La memoria «Programa» está enlazada a «rom.hex», que no se encuentra…»: the part by its label or type name. */
     private static String linkedFile(LinkedFileProblem problem, CircuitDocument document) {
-        String name = document.component(new ElementId(problem.elementId()))
-                .map(component -> InstanceNames.of(component, document))
-                .orElse(problem.elementId());
+        String name = pieceName(problem.elementId(), document);
         return switch (problem.kind()) {
             case MISSING -> Messages.format("problem.memoryFile.missing", name, problem.link());
             case UNREADABLE -> Messages.format("problem.memoryFile.unreadable", name, problem.link(),
@@ -130,11 +128,9 @@ public final class ProblemText {
                 .orElse(Integer.toString(problem.pinIndex()));
     }
 
-    /** A placed piece by its label, or by its type or definition name when it has none: «U5», «ALU». */
+    /** A placed piece by its name ({@link InstanceNames#name}): «U5», «ALU», «Multiplexor 2». */
     private static String pieceName(String hierarchicalId, CircuitDocument document) {
-        return InstanceNames.chain(hierarchicalId, document).map(List::getLast)
-                .map(component -> InstanceNames.of(component, document))
-                .orElse(hierarchicalId);
+        return InstanceNames.name(hierarchicalId, document).orElse(hierarchicalId);
     }
 
     private static String outdatedDefinitionId(ConnectivityProblem problem) {
@@ -196,7 +192,7 @@ public final class ProblemText {
         String name = InstanceNames.typeName(component.get(), document);
         String label = component.get().label();
         return label.isBlank()
-                ? Messages.format("problem.driver", InstanceNames.unlabeledName(component.get(), document), value)
+                ? Messages.format("problem.driver", pieceName(driver.componentId(), document), value)
                 : Messages.format("problem.driverLabeled", name, label, value);
     }
 
@@ -217,7 +213,7 @@ public final class ProblemText {
         }
         String name = InstanceNames.typeName(found, document);
         return found.label().isBlank()
-                ? Messages.format("problem.pin", InstanceNames.unlabeledName(found, document), width)
+                ? Messages.format("problem.pin", pieceName(pin.componentId(), document), width)
                 : Messages.format("problem.pinLabeled", name, found.label(), width);
     }
 }

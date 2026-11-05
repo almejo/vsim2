@@ -2,19 +2,25 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
- * How an instance of a piece is named for a person, in one place: the Problemas rows, the place bar and the Proyecto
- * panel all use it. The code has no designators («U4»): an instance is its label, else its unlabeled name, and a
- * route step adds the instance's reference (its label, else its id) to the definition's name: «Ram (c5)».
+ * How a piece is named for a person, in one place (spec §5.3): the circuit tree, the place bar's route and «Valores
+ * de», and the Problemas rows all use it. The code has no designators («U4»): a piece is its label, else its type
+ * name («AND de 3 entradas», «Ram»); when several unlabeled pieces of one type share a place (the circuit, or the body
+ * of one definition), they are numbered in document order: «Multiplexor 1» … «Multiplexor 4». The id is never part
+ * of the name.
  */
 public final class InstanceNames {
 
@@ -23,13 +29,43 @@ public final class InstanceNames {
     private InstanceNames() {
     }
 
-    /** The label of {@code instance}, else its unlabeled name («AND de 3 entradas», «Ram»). */
-    public static String of(Component instance, CircuitDocument document) {
-        return instance.label().isBlank() ? unlabeledName(instance, document) : instance.label();
+    /**
+     * The name of every piece of {@code place} (the circuit's components, or a definition's body) by its id: its label,
+     * else its type name, numbered when another unlabeled piece of {@code place} has the same type name.
+     */
+    public static Map<ElementId, String> names(List<Component> place, CircuitDocument document) {
+        Map<String, Integer> unlabeledCounts = new HashMap<>();
+        for (Component component : place) {
+            if (component.label().isBlank()) {
+                unlabeledCounts.merge(unlabeledName(component, document), 1, Integer::sum);
+            }
+        }
+        Map<String, Integer> numbersGiven = new HashMap<>();
+        Map<ElementId, String> names = new LinkedHashMap<>();
+        for (Component component : place) {
+            if (!component.label().isBlank()) {
+                names.put(component.id(), component.label());
+                continue;
+            }
+            String typeName = unlabeledName(component, document);
+            if (unlabeledCounts.get(typeName) > 1) {
+                int number = numbersGiven.merge(typeName, 1, Integer::sum);
+                names.put(component.id(), Messages.format("instance.numbered", typeName, number));
+            } else {
+                names.put(component.id(), typeName);
+            }
+        }
+        return names;
     }
 
-    /** The name of a part without a label, told apart from its siblings: «AND de 3 entradas». Same as the tree. */
-    public static String unlabeledName(Component component, CircuitDocument document) {
+    /** The name of the piece at {@code hierarchicalId} ({@code c5/c2}); empty when a level is not in the document. */
+    public static Optional<String> name(String hierarchicalId, CircuitDocument document) {
+        List<String> route = route(hierarchicalId, document);
+        return route.isEmpty() ? Optional.empty() : Optional.of(route.getLast());
+    }
+
+    /** The name of a part without a label, told apart from its siblings: «AND de 3 entradas». Same as the palette. */
+    private static String unlabeledName(Component component, CircuitDocument document) {
         return Messages.distinguishedName(typeName(component, document), component.parameters());
     }
 
@@ -39,46 +75,40 @@ public final class InstanceNames {
                 .orElseGet(() -> Messages.componentName(component.typeId(), component.parameters()));
     }
 
-    /** What points an instance out: its label, else its id («c5»). */
-    public static String reference(Component instance) {
-        return instance.label().isBlank() ? instance.id().value() : instance.label();
-    }
-
-    /** One step of a route: «Ram (c5)». */
-    public static String step(Component instance, CircuitDocument document) {
-        return Messages.format("place.step", typeName(instance, document), reference(instance));
-    }
-
     /**
-     * The route of an instance path ({@code c5/c2}), outermost first: «Ram (c5)», «Ram Selector (c2)». Empty when a
-     * segment names no instance of the document.
+     * The name of each level of an instance path ({@code c5/c2}), outermost first: «Ram», «Ram Selector 2». Empty when
+     * a segment names no piece of the document.
      */
-    public static List<String> route(String path, CircuitDocument document) {
-        return chain(path, document).map(components -> components.stream()
-                .map(component -> step(component, document)).toList()).orElse(List.of());
+    public static List<String> route(String hierarchicalId, CircuitDocument document) {
+        List<Component> place = document.components();
+        List<String> names = new ArrayList<>();
+        for (String segment : InstancePath.segments(hierarchicalId)) {
+            Optional<Component> component = place.stream()
+                    .filter(candidate -> candidate.id().value().equals(segment)).findFirst();
+            if (component.isEmpty()) {
+                return List.of();
+            }
+            names.add(names(place, document).get(component.get().id()));
+            place = bodyOf(component.get(), document);
+        }
+        return names;
     }
 
     /**
      * "U1 › U3 (AND de 2 entradas)" for a simulation id such as {@code c5/c2}, as Problemas words a part (spec §6.12):
-     * each level by its label, or by its type or definition name when unlabeled; a labeled innermost level also shows
-     * its type. Empty when a level cannot be found in the document and its definitions.
+     * each level by its {@linkplain #names name}; a labeled innermost level also shows its type. Empty when a level
+     * cannot be found in the document and its definitions.
      */
     public static Optional<String> path(String hierarchicalId, CircuitDocument document) {
-        Optional<List<Component>> chain = chain(hierarchicalId, document);
-        if (chain.isEmpty()) {
+        List<String> names = route(hierarchicalId, document);
+        if (names.isEmpty()) {
             return Optional.empty();
         }
-        List<String> names = new ArrayList<>();
-        List<Component> levels = chain.get();
-        for (int index = 0; index < levels.size(); index++) {
-            Component component = levels.get(index);
-            if (component.label().isBlank()) {
-                names.add(unlabeledName(component, document));
-            } else if (index == levels.size() - 1) {
-                names.add(Messages.format("problem.pathLabeled", component.label(), typeName(component, document)));
-            } else {
-                names.add(component.label());
-            }
+        Component innermost = chain(hierarchicalId, document).orElseThrow().getLast();
+        if (!innermost.label().isBlank()) {
+            names = new ArrayList<>(names);
+            names.set(names.size() - 1, Messages.format("problem.pathLabeled", innermost.label(),
+                    typeName(innermost, document)));
         }
         return Optional.of(String.join(PATH_SEPARATOR, names));
     }
@@ -95,9 +125,7 @@ public final class InstanceNames {
                 return Optional.empty();
             }
             found.add(component.get());
-            level = definitionOf(component.get(), document)
-                    .map(definition -> definition.body().components())
-                    .orElse(List.of());
+            level = bodyOf(component.get(), document);
         }
         return Optional.of(found);
     }
@@ -105,5 +133,11 @@ public final class InstanceNames {
     /** The definition a sub-circuit instance instantiates, when the document has it. */
     public static Optional<ComponentDefinition> definitionOf(Component component, CircuitDocument document) {
         return SubcircuitTypes.definitionIdOf(component.typeId()).flatMap(document::definition);
+    }
+
+    /** The pieces inside {@code component}: its definition's body; none for a built-in part. */
+    private static List<Component> bodyOf(Component component, CircuitDocument document) {
+        return definitionOf(component, document).map(definition -> definition.body().components())
+                .orElse(List.of());
     }
 }

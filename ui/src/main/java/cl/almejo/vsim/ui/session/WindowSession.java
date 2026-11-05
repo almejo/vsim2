@@ -14,20 +14,29 @@ import java.util.function.Predicate;
 /**
  * One circuit window of the last session (spec §4.7, §10.6): where it was ({@code bounds}, whose view is the active
  * tab's), its tabs in the strip's order, which one was active (out of range: the first) and the documents whose
- * groups were folded. Files are compared in any spelling ({@link FileNames#normalized}).
+ * groups were folded, and the panels of its left column folded to their header ({@code foldedPanels}: names such as
+ * {@code circuit} or {@code palette}, spec §5.3; none means both open). Files are compared in any spelling
+ * ({@link FileNames#normalized}).
  */
-public record WindowSession(WindowState bounds, List<TabState> tabs, int activeTab, List<Path> foldedDocuments) {
+public record WindowSession(WindowState bounds, List<TabState> tabs, int activeTab, List<Path> foldedDocuments,
+                            Set<String> foldedPanels) {
 
     public WindowSession {
         Objects.requireNonNull(bounds, "bounds");
         tabs = List.copyOf(tabs);
         foldedDocuments = List.copyOf(foldedDocuments);
+        foldedPanels = Set.copyOf(foldedPanels);
         if (tabs.isEmpty()) {
             throw new IllegalArgumentException("a window of the session has at least one tab");
         }
         if (activeTab < 0 || activeTab >= tabs.size()) {
             activeTab = 0;
         }
+    }
+
+    /** A window whose left column has both panels open (a session written before the circuit tree, too). */
+    public WindowSession(WindowState bounds, List<TabState> tabs, int activeTab, List<Path> foldedDocuments) {
+        this(bounds, tabs, activeTab, foldedDocuments, Set.of());
     }
 
     /** The files of the tabs, each once, in the order of their first tab. */
@@ -59,6 +68,6 @@ public record WindowSession(WindowState bounds, List<TabState> tabs, int activeT
             return Optional.empty();
         }
         return Optional.of(new WindowSession(bounds, keptTabs, keptActive,
-                foldedDocuments.stream().filter(kept).toList()));
+                foldedDocuments.stream().filter(kept).toList(), foldedPanels));
     }
 }

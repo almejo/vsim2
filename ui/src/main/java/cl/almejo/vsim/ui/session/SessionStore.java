@@ -6,16 +6,21 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 /**
  * The circuit windows open when the application last ended (spec §4.1 «Continuar donde quedaste», §4.7), under
  * {@link AppPreferences#sessionNode()}: {@code session/<n>} is a window, with its bounds ({@code x y width height
- * maximized}), {@code active} (the index of its active tab) and {@code folded<k>} (the files whose groups were folded)
- * as plain keys, and a child {@code tab<k>} per tab with {@code path}, {@code definition} and {@code name} (a
+ * maximized}), {@code active} (the index of its active tab), {@code folded<k>} (the files whose groups were folded)
+ * and {@code foldedPanels} (the left column's folded panels, {@code circuit,palette}; absent: both open) as plain
+ * keys, and a child {@code tab<k>} per tab with {@code path}, {@code definition} and {@code name} (a
  * component tab's), {@code context} (the instance it showed) and {@code zoom centerX centerY}. A session written
  * before tabs ({@code session/<n>} holding a file's {@code path}, {@code session/<n>/<m>} the state of each of its
  * windows) still loads, as one window with one main tab per state. Broken entries are skipped; storage failures are
@@ -24,6 +29,7 @@ import java.util.prefs.Preferences;
 public final class SessionStore {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SessionStore.class);
+    private static final String PANEL_SEPARATOR = ",";
 
     private final AppPreferences preferences;
 
@@ -66,6 +72,9 @@ public final class SessionStore {
             node.put(SessionKeys.FOLDED + foldedIndex,
                     window.foldedDocuments().get(foldedIndex).toAbsolutePath().toString());
         }
+        if (!window.foldedPanels().isEmpty()) {
+            node.put(SessionKeys.FOLDED_PANELS, String.join(PANEL_SEPARATOR, new TreeSet<>(window.foldedPanels())));
+        }
     }
 
     public List<WindowSession> load() {
@@ -101,8 +110,10 @@ public final class SessionStore {
         for (String key : SessionKeys.numbered(node.keys(), SessionKeys.FOLDED)) {
             SessionKeys.readPath(node, key).ifPresent(folded::add);
         }
+        Set<String> foldedPanels = Arrays.stream(node.get(SessionKeys.FOLDED_PANELS, "").split(PANEL_SEPARATOR))
+                .filter(name -> !name.isBlank()).collect(Collectors.toSet());
         return SessionKeys.readBounds(node, activeTab.view())
-                .map(bounds -> new WindowSession(bounds, tabs, active, folded));
+                .map(bounds -> new WindowSession(bounds, tabs, active, folded, foldedPanels));
     }
 
     /** A file of a session written before tabs: one window with one main tab for each of its window states. */

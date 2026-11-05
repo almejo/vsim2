@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.LeftColumn;
 
 import javax.swing.Action;
 import javax.swing.InputMap;
@@ -81,6 +82,8 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("edit.selectAll", selection.selectAll());
         map.put("edit.label", view.labelFeatures().actions().editLabel());
         map.putAll(actions.moveActions());
+        map.put("view.circuitTree", view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT));
+        map.put("view.palette", view.leftColumn().toggleAction(LeftColumn.Section.PALETTE));
         map.put("view.selectTool", actions.selectTool());
         map.put("view.wireTool", actions.wireTool());
         map.put("view.panTool", actions.panTool());

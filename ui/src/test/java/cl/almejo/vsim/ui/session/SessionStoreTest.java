@@ -72,6 +72,27 @@ class SessionStoreTest {
     }
 
     @Test
+    void foldedPanelsAreSavedInTheSession() throws Exception {
+        WindowSession folded = new WindowSession(RIGHT, List.of(TabState.main(file("contador.vsim"), RIGHT_VIEW)),
+                0, List.of(), java.util.Set.of("circuit"));
+
+        store.save(List.of(folded, single("sumador.vsim", LEFT)));
+
+        List<WindowSession> loaded = store.load();
+        assertThat(loaded.getFirst().foldedPanels()).containsExactly("circuit");
+        assertThat(loaded.get(1).foldedPanels()).as("both panels open").isEmpty();
+        assertThat(preferences.sessionNode().node("0").get("foldedPanels", null)).isEqualTo("circuit");
+    }
+
+    @Test
+    void aSessionWithoutFoldedPanelsLoadsWithBothOpen() throws Exception {
+        store.save(List.of(single("contador.vsim", RIGHT)));
+        preferences.sessionNode().node("0").remove("foldedPanels"); // written before the circuit tree
+
+        assertThat(store.load().getFirst().foldedPanels()).isEmpty();
+    }
+
+    @Test
     void eachWindowIsPlainKeysAndEachTabAChildNode() throws Exception {
         store.save(List.of(new WindowSession(RIGHT, List.of(TabState.main(file("contador.vsim"), RIGHT_VIEW),
                 TabState.component(file("contador.vsim"), "ram", "Ram", Optional.of("c5"), INSIDE_VIEW)), 0,

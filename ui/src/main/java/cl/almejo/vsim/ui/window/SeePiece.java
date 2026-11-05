@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -12,12 +14,18 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * «Ver la pieza» (spec §5): shows the place that holds an instance (the main tab, or the component tab of the
- * containing definition with the route above the instance as its context), selects the instance there and travels to
- * it. The place bar shows its context's instance; the Proyecto panel any row's. Both go through
- * {@link WindowCommands#goToPart}, as F8 does.
+ * «Ver la pieza» (spec §5): shows the place that holds a piece (the main tab, or the component tab of the containing
+ * definition with the route above the piece as its context), selects the piece there and travels to it. The place
+ * bar shows its context's instance; the circuit tree and F8 any piece. All go through {@link WindowCommands#goToPart}.
  */
 public final class SeePiece {
+
+    /**
+     * Where a piece is: part {@code part} of the circuit ({@code definitionId} empty) or of the body of
+     * {@code definitionId} with the values of the instance at {@code contextPath}.
+     */
+    public record Target(Optional<String> definitionId, Optional<String> contextPath, ElementId part) {
+    }
 
     private SeePiece() {
     }
@@ -33,26 +41,39 @@ public final class SeePiece {
     }
 
     /**
-     * Shows the instance at {@code instancePath} ({@code c5/c2}) of {@code circuit} where it is. False when the path
-     * names no instance or there is no window to show it in.
+     * Shows the piece at {@code path} ({@code c5/c2}) of {@code circuit} where it is. False when the path names no
+     * piece or there is no window to show it in.
      */
-    public static boolean show(WindowCommands window, OpenDocument circuit, String instancePath) {
-        Optional<List<Component>> chain = InstanceNames.chain(instancePath, circuit.document());
-        if (chain.isEmpty() || chain.get().isEmpty()) {
-            return false;
-        }
-        List<Component> route = chain.get();
-        Optional<String> containerPath = Optional.empty();
-        Optional<String> containerDefinition = Optional.empty();
-        if (route.size() > 1) {
-            containerPath = Optional.of(String.join(InstancePath.SEPARATOR, route.subList(0, route.size() - 1).stream()
-                    .map(component -> component.id().value()).toList()));
-            containerDefinition = SubcircuitTypes.definitionIdOf(route.get(route.size() - 2).typeId());
-            if (containerDefinition.isEmpty()) {
-                return false;
+    public static boolean show(WindowCommands window, OpenDocument circuit, String path) {
+        return targetOf(path, circuit.document())
+                .map(target -> window.goToPart(circuit, target.definitionId(), target.contextPath(), target.part()))
+                .orElse(false);
+    }
+
+    /**
+     * Where the piece {@code path} of {@code circuit} is: on the circuit when it is a top-level id, else in the body of
+     * the definition of the instance above it ({@code c5/c3/c2} → the definition of {@code c5/c3}, with {@code c5/c3}
+     * as the values, part {@code c2}). Empty when an instance above the part is not in the circuit any more (the part
+     * itself may be a wire: it is not looked for).
+     */
+    public static Optional<Target> targetOf(String path, CircuitDocument circuit) {
+        List<String> segments = InstancePath.segments(path);
+        ElementId part = new ElementId(segments.getLast());
+        List<Component> level = circuit.components();
+        Optional<ComponentDefinition> definition = Optional.empty();
+        for (String segment : segments.subList(0, segments.size() - 1)) {
+            Optional<Component> instance = level.stream()
+                    .filter(component -> component.id().value().equals(segment)).findFirst();
+            definition = instance.flatMap(found -> SubcircuitTypes.definitionIdOf(found.typeId()))
+                    .flatMap(circuit::definition);
+            if (definition.isEmpty()) {
+                return Optional.empty();
             }
+            level = definition.get().body().components();
         }
-        return window.goToPart(circuit, containerDefinition, containerPath, route.getLast().id());
+        Optional<String> container = segments.size() == 1 ? Optional.empty()
+                : Optional.of(path.substring(0, path.lastIndexOf(InstancePath.SEPARATOR)));
+        return Optional.of(new Target(definition.map(ComponentDefinition::id), container, part));
     }
 
     /** Selects {@code part} in {@code view} and travels to it (nothing to travel to when it is gone). */

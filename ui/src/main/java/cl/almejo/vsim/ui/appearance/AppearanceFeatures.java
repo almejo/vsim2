@@ -67,7 +67,7 @@ final class AppearanceFeatures {
         removals.add(view.palette().addUserMenuContributor((entry, menu) -> entry.ifPresent(component ->
                 menu.add(item("shape.change",
                         () -> edit(Optional.empty(), component.bundle().root().id(), component.inLibrary()))))));
-        // the same «Cambiar forma…» of a piece for the panels that offer it outside this menu (Proyecto)
+        // the same «Cambiar forma…» of a piece for the panels that offer it outside this menu (the circuit tree)
         removals.add(view.setInstanceShapeEditor(instanceId -> document().component(instanceId)
                 .flatMap(instance -> SubcircuitTypes.definitionIdOf(instance.typeId()))
                 .ifPresent(definitionId -> edit(Optional.of(instanceId), definitionId, false))));

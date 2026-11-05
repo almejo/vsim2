@@ -109,7 +109,7 @@ public interface WindowCommands {
 
     /**
      * Shows part {@code part} of {@code document} where it is (F8 and the Problemas list, spec §6.7; «Ver la pieza» of
-     * the place bar and the Proyecto panel, spec §5, through {@link SeePiece}): the place {@link #showPlace} brings to
+     * the place bar and the circuit tree, spec §5, through {@link SeePiece}): the place {@link #showPlace} brings to
      * the front, with the part selected and brought into view. False when there are no tabs to show it in (an editor
      * outside a real window): nothing happens, and the caller shows what it can where it is.
      */

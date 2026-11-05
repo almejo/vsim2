@@ -17,7 +17,8 @@ import java.util.Set;
  * {@code <group>.<action>}; the name is the action's own menu text. The defaults are the editor's accelerators
  * (F5 for «Iniciar o pausar», F6 for «Avanzar N t», Ctrl+F, F3 and Mayús+F3 for «Buscar»), its canvas keys (the eight
  * arrows that move the selection, Z for the zoom tool, Mayús+1 and Mayús+2 for «Ver todo el circuito» and «Zoom a la
- * selección» included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a shortcut. Defaults use
+ * selección» included), F7 and Mayús+F7 for M6.1-B's two advances, Alt+1 and Alt+2 for the left column's «Árbol del
+ * circuito» and «Paleta»; the others start without a shortcut. Defaults use
  * the platform menu modifier (⌘ on macOS).
  */
 public final class ShortcutCatalog {
@@ -91,6 +92,10 @@ public final class ShortcutCatalog {
         moveKeys(entries, "edit.moveRight", "action.moveRight", "action.moveRightFar", KeyEvent.VK_RIGHT);
         moveKeys(entries, "edit.moveUp", "action.moveUp", "action.moveUpFar", KeyEvent.VK_UP);
         moveKeys(entries, "edit.moveDown", "action.moveDown", "action.moveDownFar", KeyEvent.VK_DOWN);
+        // the left column's accordion (spec §5.3): Alt+digit, free of the canvas keys and of the menus' mnemonics
+        window(entries, "view.circuitTree", "action.circuitTree", MenuId.VIEW,
+                stroke(KeyEvent.VK_1, InputEvent.ALT_DOWN_MASK));
+        window(entries, "view.palette", "action.palette", MenuId.VIEW, stroke(KeyEvent.VK_2, InputEvent.ALT_DOWN_MASK));
         window(entries, "view.selectTool", "action.toolSelect", MenuId.VIEW, null);
         window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
         window(entries, "view.frameTool", "action.toolFrame", MenuId.VIEW, null);

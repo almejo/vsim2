@@ -453,4 +453,35 @@ class WindowTabsTest {
         assertThat(tabs.documents()).containsExactly(adder);
         assertThat(tabs.activeView().openDocument()).isSameAs(adder);
     }
+
+    // --- the left column's accordion, per window (spec §5.3) ---
+
+    @Test
+    void foldedPanelsAreSharedByTheTabsOfAWindowAndSavedInItsSession() throws Exception {
+        OpenDocument counter = saved("contador.vsim");
+        EditorView first = tabs.addTab(counter, Optional.of(MAIN_VIEW));
+        EditorView second = tabs.addTab(counter, Optional.of(MAIN_VIEW));
+
+        first.leftColumn().setFolded(LeftColumn.Section.PALETTE, true);
+
+        assertThat(second.leftColumn().isFolded(LeftColumn.Section.PALETTE)).isTrue();
+        EditorView third = tabs.addTab(counter, Optional.of(MAIN_VIEW));
+        assertThat(third.leftColumn().isFolded(LeftColumn.Section.PALETTE)).isTrue();
+        assertThat(tabs.session(BOUNDS).orElseThrow().foldedPanels()).containsExactly("palette");
+        assertThat(other.views()).isEmpty();
+    }
+
+    @Test
+    void restoringAWindowFoldsItsPanelsAndAnOldSessionKeepsBothOpen() throws Exception {
+        OpenDocument counter = saved("contador.vsim");
+        Path counterFile = counter.path().orElseThrow();
+
+        tabs.restore(new WindowSession(BOUNDS, List.of(TabState.main(counterFile, MAIN_VIEW)), 0, List.of(),
+                java.util.Set.of("circuit")), byFile(counter));
+        other.restore(new WindowSession(BOUNDS, List.of(TabState.main(counterFile, MAIN_VIEW)), 0, List.of()),
+                byFile(counter));
+
+        assertThat(tabs.activeView().leftColumn().folded()).containsExactly(LeftColumn.Section.CIRCUIT);
+        assertThat(other.activeView().leftColumn().folded()).isEmpty();
+    }
 }

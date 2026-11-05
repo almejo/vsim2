@@ -21,7 +21,7 @@ import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.tree.ComponentTreeModel;
+import cl.almejo.vsim.ui.tree.CircuitTreeModel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -115,8 +115,8 @@ class ProblemTextTest {
         ConnectivityProblem problem = new ConnectivityProblem("n", three.id().value(), 0, new GridPoint(0, 0),
                 ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE);
 
-        String treeText = ComponentTreeModel.build("Circuito", document, registry, false).children().stream()
-                .filter(node -> node.path().equals(three.id().value())).findFirst().orElseThrow().text();
+        String treeText = CircuitTreeModel.build("Circuito", document, registry).children().stream()
+                .filter(node -> node.path().equals(three.id().value())).findFirst().orElseThrow().name();
 
         assertThat(treeText).isEqualTo("AND de 3 entradas");
         assertThat(ProblemText.describe(problem, document, registry)).contains(": " + treeText + " · ");
@@ -234,7 +234,7 @@ class ProblemTextTest {
                 new DriverRef("c9/c2", 1, Value.ZERO)), 4);
 
         assertThat(ProblemText.drivers(shortCircuit, nestedDocument())).isEqualTo(
-                "U1 › U3 (NOT) → 1 · Inversor › U3 (NOT) → 0 · D › Inversor › U3 (NOT) → 1 · c9/c2 → 0");
+                "U1 › U3 (NOT) → 1 · Inversor › U3 (NOT) → 0 · D › Inversor 1 › U3 (NOT) → 1 · c9/c2 → 0");
     }
 
     @Test
