@@ -339,10 +339,9 @@ class SplitViewsFeaturesTest {
     }
 
     @Test
-    void theWindowMenuHasTheSplitSubmenuBeforeInsideOutsideAndTheNextPaneAfterIt() {
-        assertThat(texts(view.menu(MenuId.WINDOW))).containsSubsequence("---", "Dividir", "Afuera y adentro",
-                "Siguiente panel");
-        assertThat(texts(view.menu(MenuId.WINDOW))).endsWith("Dividir", "Afuera y adentro", "Siguiente panel");
+    void theWindowMenuHasTheSplitSubmenuAndTheNextPaneAtTheEnd() {
+        assertThat(texts(view.menu(MenuId.WINDOW))).containsSubsequence("---", "Dividir", "Siguiente panel");
+        assertThat(texts(view.menu(MenuId.WINDOW))).endsWith("Dividir", "Siguiente panel");
         assertThat(texts(splitMenu())).containsExactly("Arriba y abajo", "A los lados", "---", "Quitar división");
         assertThat(view.shortcutActions()).containsKeys("window.splitHorizontal", "window.splitVertical",
                 "window.removeSplit", "window.nextPane");
@@ -396,7 +395,7 @@ class SplitViewsFeaturesTest {
 
         assertThat(panes).allSatisfy(pane -> assertThat(grips(pane)).isEmpty());
         assertThat(texts(view.menu(MenuId.WINDOW))).doesNotContain("Dividir", "Siguiente panel")
-                .endsWith("Afuera y adentro");
+                .endsWith("---");
         assertThat(view.shortcutActions()).doesNotContainKeys("window.splitHorizontal", "window.splitVertical",
                 "window.removeSplit", "window.nextPane");
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);

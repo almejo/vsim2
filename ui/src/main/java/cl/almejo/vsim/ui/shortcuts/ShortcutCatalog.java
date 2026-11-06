@@ -165,7 +165,6 @@ public final class ShortcutCatalog {
         window(entries, "window.splitHorizontal", "shortcut.splitHorizontal", MenuId.WINDOW, null);
         window(entries, "window.splitVertical", "shortcut.splitVertical", MenuId.WINDOW, null);
         window(entries, "window.removeSplit", "action.removeSplit", MenuId.WINDOW, null);
-        window(entries, "window.insideOutside", "action.insideOutside", MenuId.WINDOW, null);
         window(entries, "window.nextPane", "action.nextPane", MenuId.WINDOW, null);
         return List.copyOf(entries);
     }

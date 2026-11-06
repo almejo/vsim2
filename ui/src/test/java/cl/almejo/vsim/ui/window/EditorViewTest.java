@@ -145,7 +145,7 @@ class EditorViewTest {
         for (MenuId id : MenuId.values()) {
             assertThat(view.menu(id)).isSameAs(view.menuBar().getMenu(id.ordinal()));
         }
-        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(11);
+        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(10);
         assertThat(view.menu(MenuId.WINDOW).getItem(0).getAction()).isSameAs(view.actions().newView());
     }
 
@@ -153,9 +153,7 @@ class EditorViewTest {
     void theWindowMenuHasTheTabItemsInTheSpecsOrder() {
         assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
                 "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
-                "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---",
-                "Afuera y adentro");
-        assertThat(view.actions().insideOutside().isEnabled()).as("until Afuera y adentro exists").isFalse();
+                "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---");
     }
 
     @Test

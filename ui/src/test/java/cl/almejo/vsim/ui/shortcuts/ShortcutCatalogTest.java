@@ -137,14 +137,13 @@ class ShortcutCatalogTest {
         expected.put("window.closeTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_W, control)));
         expected.put("window.closeComponents", Optional.empty());
         expected.put("window.closeWindow", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_W, control | shift)));
-        expected.put("window.insideOutside", Optional.empty());
         expected.forEach((id, stroke) -> {
             ShortcutEntry entry = ShortcutCatalog.find(id).orElseThrow();
             assertThat(entry.group()).as(id).isEqualTo(MenuId.WINDOW);
             assertThat(entry.scope()).as(id).isEqualTo(Scope.WINDOW);
             assertThat(entry.defaultStroke()).as(id).isEqualTo(stroke);
         });
-        assertThat(ids()).containsSubsequence("window.removeSplit", "window.insideOutside", "window.nextPane");
+        assertThat(ids()).containsSubsequence("window.removeSplit", "window.nextPane");
     }
 
     @Test

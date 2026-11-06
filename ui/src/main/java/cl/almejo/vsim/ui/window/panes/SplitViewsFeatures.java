@@ -73,8 +73,8 @@ public final class SplitViewsFeatures {
     }
 
     /**
-     * «Dividir ▸» right before «Afuera y adentro» and «Siguiente panel» right after it (spec §4.8; the list of open
-     * tabs stays at the end).
+     * «Dividir ▸» and «Siguiente panel» at the end of the menu, after the last separator (spec §4.8; the list of open
+     * tabs is added after them).
      */
     private void insertMenuItems() {
         JMenu split = new JMenu(Messages.text("menu.window.split"));
@@ -82,22 +82,12 @@ public final class SplitViewsFeatures {
         split.add(new JMenuItem(splitVertical));
         split.addSeparator();
         split.add(new JMenuItem(removeSplit));
-        int index = indexOfInsideOutside();
+        int index = windowMenu.getMenuComponentCount();
         windowMenu.insert(split, index);
         menuComponents.add(split);
         JMenuItem next = new JMenuItem(nextPane);
-        windowMenu.insert(next, Math.min(index + 2, windowMenu.getMenuComponentCount()));
+        windowMenu.insert(next, Math.min(index + 1, windowMenu.getMenuComponentCount()));
         menuComponents.add(next);
-    }
-
-    private int indexOfInsideOutside() {
-        Action insideOutside = view.actions().insideOutside();
-        for (int index = 0; index < windowMenu.getMenuComponentCount(); index++) {
-            if (windowMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == insideOutside) {
-                return index;
-            }
-        }
-        return windowMenu.getMenuComponentCount();
     }
 
     /** «Quitar división» and «Siguiente panel» only mean something while the window is split. */

@@ -108,7 +108,6 @@ public final class EditorActions {
     private final Action nextTab;
     private final Action previousTab;
     private final Action closeComponents;
-    private final Action insideOutside;
     private final Action about;
     private final Action reportProblem;
 
@@ -199,9 +198,6 @@ public final class EditorActions {
                 KeyStroke.getKeyStroke(KeyEvent.VK_TAB, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
                 window::previousTab);
         closeComponents = Actions.of(Messages.text("action.closeComponents"), null, window::closeComponents);
-        insideOutside = Actions.of(Messages.text("action.insideOutside"), null, () -> {
-        });
-        insideOutside.setEnabled(false);
         about = Actions.of(Messages.text("action.about"), null, () -> aboutPresenter.show(activePane.get()));
         reportProblem = Actions.of(Messages.text("action.reportProblem"), null,
                 () -> links.open(ProblemReportLink.url(information.get(), Messages.locale())));
@@ -232,8 +228,6 @@ public final class EditorActions {
     public Action closeTab() { return closeTab; }
     /** «Cerrar los componentes de este circuito». */
     public Action closeComponents() { return closeComponents; }
-    /** «Afuera y adentro»: disabled until it exists (phase 2 of the tabs milestone). */
-    public Action insideOutside() { return insideOutside; }
     public Action undo() { return undo; }
     public Action redo() { return redo; }
     public Action delete() { return delete; }
@@ -362,7 +356,7 @@ public final class EditorActions {
         windowMenu.add(closeTab);
         windowMenu.add(closeComponents);
         windowMenu.addSeparator();
-        windowMenu.add(insideOutside); // «Dividir ▸» goes before it and «Siguiente panel» after it (SplitViewsFeatures)
+        // «Dividir ▸» and «Siguiente panel» follow (SplitViewsFeatures)
         JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
         help.add(about);
         help.add(reportProblem);
