@@ -146,3 +146,21 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   mismo nombre en el circuito y adentro de un componente son dos ventanas distintas, y cada una recuerda su lugar y su
   tamaño. Si la pestaña pasa a mostrar otra pieza, la ventana de la pieza anterior se cierra. Abrirla desde otra
   pestaña de la misma pieza trae al frente la que ya estaba abierta.
+
+## Lupa: ver adentro sin entrar
+
+Para mirar qué hay dentro de un componente sin abrir su pestaña:
+
+- **Activar la Lupa**: el botón «Lupa» de la barra de herramientas o Ver ▸ «Lupa» (sin atajo de teclado por defecto;
+  se puede asignar en Atajos de teclado). Con la Lupa activada, cada pieza de un componente propio lleva una lupa
+  pequeña en su esquina inferior derecha.
+- **Ver adentro**: al pasar el mouse sobre una de esas piezas aparece un panel flotante con el interior del componente,
+  dibujado como en el lienzo y ajustado a 320 × 240 píxeles como máximo, con los valores de esa pieza mientras se
+  simula (si no hay valores que mostrar, se ve sin ellos). El panel no toma el foco ni se puede usar; sigue a la
+  simulación y se va al sacar el mouse de la pieza, al tocar el lienzo (un clic o arrastrar) o con Esc (no vuelve hasta
+  que el mouse salga de esa pieza y vuelva).
+- **Con Alt**: mantener Alt apretada mientras se pasa el mouse sobre una pieza de un componente propio muestra el
+  panel aunque la Lupa esté desactivada.
+- **Desde el clic derecho**: «Lupa: ver adentro», en una pieza de un componente propio, muestra su panel aunque la
+  Lupa esté desactivada, hasta que el mouse salga de la pieza.
+- La Lupa es de cada ventana y no se guarda al cerrarla. No cambia nada del circuito ni deja pasos de deshacer.
