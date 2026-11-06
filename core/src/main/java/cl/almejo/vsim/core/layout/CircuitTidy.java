@@ -139,7 +139,7 @@ public final class CircuitTidy {
         }
         new TidyWiresCommand(wires.get()).apply(copy);
         return Optional.of(new CircuitTidyPlan(copy, partsMoved(document, copy), textsMoved(document, copy),
-                notSeparated, wires.get()));
+                notSeparated, wires.get(), 0, 0, WireCorners.count(document), WireCorners.count(copy)));
     }
 
     /** The wires of {@code copy} the wire rules may change: those in scope plus the ones the moves made or changed. */
