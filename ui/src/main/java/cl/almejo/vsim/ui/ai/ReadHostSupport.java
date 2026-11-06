@@ -12,7 +12,10 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -66,12 +69,27 @@ final class ReadHostSupport {
         // The circuit's own name (list_documents gives the window's, the file's).
         return new ReadSource(id, version(document), document.circuitName(), document.document(),
                 document.registry(), document.netlist(), document.netlistToken(), document.latestSnapshot(), NAMES,
-                library, LabelTextMeasure.INSTANCE, document.path());
+                library, LabelTextMeasure.INSTANCE, document.path(), pieceMemory(document));
+    }
+
+    /**
+     * What the piece a body place shows stores for one of its memories (its own contents, else the outermost piece's
+     * that has some; {@link PieceMemories#effective}); nothing for the circuit itself or without a context piece.
+     */
+    private static Function<String, Optional<MemoryContents>> pieceMemory(OpenDocument document) {
+        return memoryId -> document.parent().flatMap(parent -> document.contextPath().flatMap(path ->
+                PieceMemories.effective(parent.document(), InstancePath.child(path, memoryId))));
     }
 
     /** The region picture painted, still to encode; the export one in the scheme of the circuit's first window. */
     AiPictures.Painted paintRegion(OpenDocument document, Optional<Bounds> region, boolean asOnScreen) {
-        Optional<ShownWindow> window = windowsOf.apply(document).stream().findFirst();
+        // a place inside a component has no window of its own: the circuit's one gives the scheme
+        Optional<ShownWindow> window = windowsOf.apply(document.parent().orElse(document)).stream().findFirst();
+        if (asOnScreen && document.isBody()) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE,
+                    "A place inside a component is pictured as the export paints it, not as on screen; ask for the "
+                            + "export picture instead", Map.of());
+        }
         if (asOnScreen) {
             ShownWindow shown = window.orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE,
                     "The circuit has no window on screen; ask for the export picture instead", Map.of()));

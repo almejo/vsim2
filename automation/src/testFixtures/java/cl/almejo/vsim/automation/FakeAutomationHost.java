@@ -1,5 +1,6 @@
 package cl.almejo.vsim.automation;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -11,6 +12,11 @@ import java.util.function.Supplier;
  * editor has open, {@link #run} to serialise the work, and the host methods it fakes.
  */
 public abstract class FakeAutomationHost implements AutomationHost {
+
+    /** The places the AI asked to open, as {@code document place}, in order. */
+    public final List<String> openedPlaces = new ArrayList<>();
+    /** The places {@code vsim_list_places} gives: the main circuit only unless a fake says otherwise. */
+    public List<PlaceSummary> places = List.of(new PlaceSummary(PlaceRef.MAIN, "main", List.of()));
 
     /** The circuits the editor has open: none unless a fake says otherwise. */
     protected List<DocumentSummary> openDocuments() {
@@ -28,6 +34,22 @@ public abstract class FakeAutomationHost implements AutomationHost {
 
     @Override
     public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-        return run(() -> work.apply(this::openDocuments));
+        return run(() -> work.apply(new EditorAccess() {
+            @Override
+            public List<DocumentSummary> openDocuments() {
+                return FakeAutomationHost.this.openDocuments();
+            }
+
+            @Override
+            public List<PlaceSummary> openPlaces(DocumentId document) {
+                return places;
+            }
+
+            @Override
+            public void openPlace(DocumentId document, PlaceRef place) {
+                openedPlaces.add(document.value() + " " + place.definition() + place.context().map(path -> "@" + path)
+                        .orElse(""));
+            }
+        }));
     }
 }

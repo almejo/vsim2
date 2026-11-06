@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
+import cl.almejo.vsim.automation.PlaceRef;
 import cl.almejo.vsim.automation.EditHost;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.ReplaceContentCommand;
 import cl.almejo.vsim.core.command.SetGuidesCommand;
 import cl.almejo.vsim.core.command.SetSwitchValueCommand;
+import cl.almejo.vsim.core.command.WrapsCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
@@ -108,6 +110,7 @@ public final class EditService {
         requireOperationId(request.operationId());
         Optional<AiTask> task = request.step().map(step -> requireTask(step.taskId()));
         task.ifPresent(found -> requireSameDocument(found, request.document()));
+        requireNoPieceMemoryWrite(request);
         return task;
     }
 
@@ -202,7 +205,7 @@ public final class EditService {
         int stageIndex = prepared.task().map(found -> stageOf(found, request)).orElse(AiEditCommand.NO_STAGE);
         AiEditCommand command = new AiEditCommand(prepared.content().rebasedOnSwitchValuesOf(circuit.document()),
                 prepared.task().map(found -> found.info().taskId()), stageIndex, AiEditCommand.DESCRIPTION);
-        circuit.history().execute(command);
+        circuit.execute(command);
         EditReceipt receipt = receipt(true, circuit.version(), prepared.planned(), prepared.changes(), List.of());
         log.record(request, receipt);
         prepared.task().ifPresent(found -> {
@@ -254,7 +257,7 @@ public final class EditService {
         DocumentVersion before = circuit.version();
         AiEditCommand command = new AiEditCommand(content, Optional.of(task.info().taskId()), stageIndex,
                 description);
-        circuit.history().execute(command);
+        circuit.execute(command);
         task.recordEdit(command, changes, List.of());
         if (transparent) {
             DocumentVersion after = circuit.version();
@@ -386,7 +389,7 @@ public final class EditService {
                 AiEditCommand.DESCRIPTION);
         AiEditCommand command = new AiEditCommand(content, Optional.of(task.info().taskId()),
                 AiEditCommand.CLEANUP_STAGE, AiEditCommand.DESCRIPTION);
-        circuit.history().execute(command);
+        circuit.execute(command);
         task.recordEdit(command, EditReceipt.ElementChanges.NONE, List.of());
         return removed;
     }
@@ -477,7 +480,9 @@ public final class EditService {
      * only changes an input (decided 2026-10-28), so the AI's undo passes over it and undoes it too.
      */
     private static Optional<AiEditCommand> topStepOf(History history, AiTask task) {
-        return history.undoCommandUnder(EditService::isSwitchClick).filter(AiEditCommand.class::isInstance)
+        // an edit inside a component is wrapped by the one that writes the body back (spec §12): see through it
+        return history.undoCommandUnder(EditService::isSwitchClick).map(WrapsCommand::unwrapped)
+                .filter(AiEditCommand.class::isInstance)
                 .map(AiEditCommand.class::cast).filter(edit -> edit.belongsTo(task.info().taskId()));
     }
 
@@ -533,8 +538,23 @@ public final class EditService {
                 "There is no task " + taskId + "; begin one first", Map.of("taskId", taskId)));
     }
 
+    /**
+     * The words of a memory inside a piece are that piece's own (spec §6.6b): writing them in the place of a piece
+     * would write the component's, every piece's. Refused, so the definition is never changed by accident; without a
+     * context («Sin valores») the words written are the component's, as the editor's are.
+     */
+    private static void requireNoPieceMemoryWrite(EditRequest request) {
+        boolean inAPiece = request.document().place().flatMap(PlaceRef::context).isPresent();
+        if (inAPiece && request.operations().stream().anyMatch(EditOperation.SetMemoryContents.class::isInstance)) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "SetMemoryContents with a place that has a "
+                    + "context would write the component's words, which every piece starts with; the words of one "
+                    + "piece are the user's to set (the memory editor, «Solo esta pieza»). Use the place without "
+                    + "context to change the component's words, or ask the user");
+        }
+    }
+
     private static void requireSameDocument(AiTask task, DocumentId document) {
-        if (!task.info().document().equals(document)) {
+        if (!task.info().document().base().equals(document.base())) {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, "The task " + task.info().taskId()
                     + " works on " + task.info().document().value() + ", not on " + document.value());
         }

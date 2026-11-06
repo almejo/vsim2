@@ -258,6 +258,22 @@ public final class AutomationApi {
         return simulation.truthTable(document, elementIds, maximumRows, eventBudget);
     }
 
+    /** The places of circuit {@code document}: the main circuit and every definition with where it is used. */
+    public List<PlaceSummary> listPlaces(DocumentId document) {
+        return onEditorThread(access -> access.openPlaces(document.base()));
+    }
+
+    /**
+     * Shows {@code place} of circuit {@code document} in the window the AI is attached to: «Entrar» for the AI, and
+     * the only call that changes the tab the user sees.
+     */
+    public void openPlace(DocumentId document, PlaceRef place) {
+        onEditorThread(access -> {
+            access.openPlace(document.base(), place);
+            return Boolean.TRUE;
+        });
+    }
+
     /** The open circuits, one per circuit however many windows show it. */
     public List<DocumentSummary> listDocuments() {
         return onEditorThread(EditorAccess::openDocuments);

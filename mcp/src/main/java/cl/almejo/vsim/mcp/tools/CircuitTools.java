@@ -38,6 +38,7 @@ final class CircuitTools {
                         + "the version read: refer to pins by part id and pin name." + Common.DATA_NOTE,
                 Schema.object("")
                         .property("document", Common.document())
+                        .property("place", Common.place())
                         .property("detail", Schema.enumeration("SUMMARY (default) or FULL",
                                 List.of("SUMMARY", "FULL")))
                         .property("kinds", Schema.array("Only these kinds of element",
@@ -109,6 +110,7 @@ final class CircuitTools {
                         + "the user, never saved.",
                 Schema.object("")
                         .property("document", Common.document())
+                        .property("place", Common.place())
                         .property("region", Schema.bounds("The region to paint"))
                         .property("asOnScreen", Schema.bool("Paint the active pane as the user sees it"))
                         .required("document").build(),

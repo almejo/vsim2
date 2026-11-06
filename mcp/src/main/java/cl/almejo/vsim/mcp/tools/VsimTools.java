@@ -24,6 +24,7 @@ public final class VsimTools {
     static List<Tool> tools(AutomationApi api) {
         List<Tool> tools = new ArrayList<>();
         tools.addAll(DocumentTools.tools(api));
+        tools.addAll(PlaceTools.tools(api));
         tools.addAll(CatalogTools.tools(api));
         tools.addAll(CircuitTools.tools(api));
         tools.addAll(MemoryTools.tools(api));

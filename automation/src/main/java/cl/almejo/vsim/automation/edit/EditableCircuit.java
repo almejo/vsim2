@@ -2,6 +2,7 @@ package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.check.TextMeasure;
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -23,6 +24,15 @@ public interface EditableCircuit {
 
     /** The circuit's undo history: the AI's edits are executed here, one step each. */
     History history();
+
+    /**
+     * Executes {@code command} as one undo step of the circuit's history. A place inside a component (spec §12) writes
+     * the edit back to its definition as the user's edits there do, so the AI's edits go through this, never straight
+     * to {@link #history()}.
+     */
+    default void execute(Command command) {
+        history().execute(command);
+    }
 
     /** The version an edit must have been prepared against (spec §8): it moves with every change of the history. */
     DocumentVersion version();

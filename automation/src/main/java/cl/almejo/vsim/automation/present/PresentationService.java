@@ -573,7 +573,8 @@ public final class PresentationService {
             pending = presentation.pending;
         }
         try {
-            edits.onCircuit(presentation.task.info().document(), circuit -> {
+            // where the step was prepared: a place inside a component when the AI edited one (spec §12)
+            edits.onCircuit(pending.prepared().request().document(), circuit -> {
                 applyPending(circuit, presentation, pending);
                 return Boolean.TRUE;
             });

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.LoosensPins;
 import cl.almejo.vsim.core.command.SetSwitchValueCommand;
+import cl.almejo.vsim.core.command.WrapsCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -749,13 +750,18 @@ public final class OpenDocument implements AutoCloseable {
      * the document listeners see the marks that belong to the change they are told about. Everything else is the
      * command's own.
      */
-    private final class MarkingCommand implements Command {
+    private final class MarkingCommand implements WrapsCommand {
         private final Command command;
         private final LoosensPins loosening;
 
         private MarkingCommand(Command command, LoosensPins loosening) {
             this.command = command;
             this.loosening = loosening;
+        }
+
+        @Override
+        public Command wrapped() {
+            return command;
         }
 
         @Override
@@ -1394,7 +1400,9 @@ public final class OpenDocument implements AutoCloseable {
                     eventBudget);
         }
         CompletableFuture<RequestReport> report = simulation.setInputsWithin(inputs, eventBudget);
-        inputs.forEach(input -> expectPublishedIfSwitch(new ElementId(input.componentId()), input.value()));
+        // an input of a piece's body (a place of the AI, «c5/c2») is not a switch of this circuit: nothing to expect
+        inputs.stream().filter(input -> !input.componentId().contains(InstancePath.SEPARATOR))
+                .forEach(input -> expectPublishedIfSwitch(new ElementId(input.componentId()), input.value()));
         return report;
     }
 

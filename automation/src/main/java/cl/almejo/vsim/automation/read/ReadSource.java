@@ -6,6 +6,7 @@ import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * What the readers see of one open circuit, given by the editor on its own thread ({@code ReadHost#reading}): valid
@@ -21,12 +23,15 @@ import java.util.Optional;
  * revision it was compiled from); {@code snapshot} is the latest published simulation, which may lag behind.
  * {@code library} is the user's component library («Mis componentes»), whose components the AI may also place;
  * {@code textMeasure} says where the editor draws texts (for the layout checks); {@code circuitFile} is where the
- * circuit is saved, empty when it is not (what the links of its memories are relative to).
+ * circuit is saved, empty when it is not (what the links of its memories are relative to). {@code pieceMemory} gives the
+ * contents a piece of a component stores for one of its memories, by the memory's id, when the source is that piece's
+ * body (spec §6.6b, §12); empty for the circuit itself.
  */
 public record ReadSource(DocumentId id, DocumentVersion version, String name, CircuitDocument document,
                          ComponentTypeRegistry registry, Netlist netlist, long netlistToken,
                          SimulationSnapshot snapshot, ComponentNames names, List<DefinitionBundle> library,
-                         TextMeasure textMeasure, Optional<Path> circuitFile) {
+                         TextMeasure textMeasure, Optional<Path> circuitFile,
+                         Function<String, Optional<MemoryContents>> pieceMemory) {
 
     public ReadSource {
         Objects.requireNonNull(id, "id");
@@ -40,6 +45,16 @@ public record ReadSource(DocumentId id, DocumentVersion version, String name, Ci
         library = List.copyOf(library);
         Objects.requireNonNull(textMeasure, "textMeasure");
         Objects.requireNonNull(circuitFile, "circuitFile");
+        Objects.requireNonNull(pieceMemory, "pieceMemory");
+    }
+
+    /** A source of the circuit itself, saved at {@code circuitFile} when it is. */
+    public ReadSource(DocumentId id, DocumentVersion version, String name, CircuitDocument document,
+                      ComponentTypeRegistry registry, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
+                      ComponentNames names, List<DefinitionBundle> library, TextMeasure textMeasure,
+                      Optional<Path> circuitFile) {
+        this(id, version, name, document, registry, netlist, netlistToken, snapshot, names, library, textMeasure,
+                circuitFile, memory -> Optional.empty());
     }
 
     /** A source of a circuit that is not saved anywhere. */
