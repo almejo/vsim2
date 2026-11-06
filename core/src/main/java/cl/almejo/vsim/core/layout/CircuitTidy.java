@@ -293,9 +293,9 @@ public final class CircuitTidy {
             /**
              * Moves every block of texts that covers a body, in id order, to the nearest place where it covers none:
              * along its own row first (right before left at the same distance), then up or down, at most its own
-             * size plus {@value #FALLBACK_SLACK_UNITS} away. Texts only make way for bodies, so no separation is
-             * needed: a block never pushes anything, and its lines move as one, keeping their order. True when any
-             * moved.
+             * size plus {@value #FALLBACK_SLACK_UNITS} away, and not onto other writing (a text or a label) it was not
+             * on already. Texts only make way for bodies, so no separation is needed: a block never pushes anything,
+             * and its lines move as one, keeping their order. True when any moved.
              */
             boolean placeTexts() {
                 boolean anyMoved = false;
@@ -457,7 +457,8 @@ public final class CircuitTidy {
              * its spot is not taken before it left.
              */
             private boolean isClear(LayoutItems.Item item, Bounds candidate) {
-                return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual);
+                return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual)
+                        && !(item.isText() && items.writesOverNewWriting(item, candidate, actual));
             }
 
             private static Bounds moved(LayoutItems.Item item, GridPoint shift) {

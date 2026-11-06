@@ -437,6 +437,84 @@ class CircuitTidyTest {
         assertThat(plan.notSeparated()).isEmpty();
     }
 
+    /** Free texts one unit per character wide and two high; component labels 6 x 2 right of the body. */
+    private static final TextBoxes LETTER_TEXTS = new TextBoxes() {
+        @Override
+        public Optional<Bounds> componentLabel(Component component) {
+            return WIDE_TEXTS.componentLabel(component);
+        }
+
+        @Override
+        public Bounds freeText(TextLabel label) {
+            return new Bounds(label.position().x(), label.position().y(), label.text().length(), 2);
+        }
+    };
+
+    private static boolean shareAnArea(Bounds first, Bounds second) {
+        return LayoutItems.overlaps(first, second, 0);
+    }
+
+    private CircuitTidyPlan tidyWithLetterTexts(CircuitDocument document, Set<ElementId> scope) {
+        return CircuitTidy.plan(document, registry, scope, CircuitTidyOptions.DEFAULTS, LETTER_TEXTS, NEVER,
+                round -> {
+                }).orElseThrow();
+    }
+
+    /** The final review's probe: the text moved off the body landed on the text one unit right of it. */
+    @Test
+    void aTextMovedOffABodyNeverLandsOnAnotherText() {
+        CircuitDocument document = new CircuitDocument();
+        Component covered = gate(registry, document, 0, 0);
+        Bounds body = body(document, covered.id());
+        TextLabel over = text(document, body.x() + 1, body.y() + 1, "abcd");
+        TextLabel neighbour = text(document, body.maximumX() + 2, body.y() + 1, "WXYZWXYZ");
+
+        CircuitTidyPlan plan = tidyWithLetterTexts(document, everything(document));
+
+        Bounds moved = LETTER_TEXTS.freeText(plan.after().label(over.id()).orElseThrow());
+        assertThat(plan.after().label(neighbour.id()).orElseThrow()).isEqualTo(neighbour);
+        assertThat(shareAnArea(moved, LETTER_TEXTS.freeText(neighbour))).isFalse();
+        assertThat(shareAnArea(moved, body(plan.after(), covered.id()))).isFalse();
+        assertThat(plan.textsMoved()).isEqualTo(1);
+    }
+
+    @Test
+    void aTextMovedOffABodyNeverLandsOnAPartsLabel() {
+        CircuitDocument document = new CircuitDocument();
+        Component labelled = place(registry, document, StandardComponentTypes.BUFFER, 0, 0, "Habilitar");
+        Bounds body = body(document, labelled.id());
+        TextLabel over = text(document, body.x() + 1, body.y() + 1, "abcd");
+
+        CircuitTidyPlan plan = tidyWithLetterTexts(document, Set.of(over.id()));
+
+        Bounds moved = LETTER_TEXTS.freeText(plan.after().label(over.id()).orElseThrow());
+        assertThat(shareAnArea(moved, LETTER_TEXTS.componentLabel(labelled).orElseThrow())).isFalse();
+        assertThat(shareAnArea(moved, body)).isFalse();
+    }
+
+    /** With no room clear of bodies and of other writing, the text stays and is counted, never hidden. */
+    @Test
+    void aTextWithNoPlaceOffOtherWritingStaysAndIsCounted() {
+        CircuitDocument document = new CircuitDocument();
+        Component covered = gate(registry, document, 0, 0);
+        Bounds body = body(document, covered.id());
+        TextLabel over = text(document, body.x() + 1, body.y() + 1, "abcd");
+        Bounds overBox = LETTER_TEXTS.freeText(over);
+        // fixed three-letter texts everywhere around, none touching the text (or it would join their block)
+        for (int x = body.x() - 20; x <= body.maximumX() + 20; x++) {
+            for (int y = body.y() - 20; y <= body.maximumY() + 20; y++) {
+                if (!LayoutItems.overlaps(new Bounds(x, y, 3, 2), overBox, 1)) {
+                    text(document, x, y, "XXX");
+                }
+            }
+        }
+
+        CircuitTidyPlan plan = tidyWithLetterTexts(document, Set.of(over.id()));
+
+        assertThat(plan.after().label(over.id()).orElseThrow()).isEqualTo(over);
+        assertThat(plan.notSeparated()).containsExactly(over.id());
+    }
+
     /**
      * The hand test on lrv32im-importado: a column of notes half a row off a column of tunnels (each line 2 units high,
      * sharing one row with a tunnel) stayed on top of them although the right side was empty.

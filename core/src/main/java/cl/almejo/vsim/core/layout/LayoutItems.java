@@ -334,6 +334,31 @@ final class LayoutItems {
     }
 
     /**
+     * True when the writing of {@code item} (its texts or labels) at {@code candidate} lies over the writing of an
+     * item it did not lie over from where it is now, each item where {@code now} says (items missing from it are where
+     * they started); by the rule of {@link #covers}: at least one row and more than {@value #TEXT_ROUNDING_COLUMNS}
+     * column. Writing over writing is never a reason to move, but a text moved off a body must not land where it can
+     * no longer be read (the final review, 2026-11-06).
+     */
+    boolean writesOverNewWriting(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
+        Bounds from = now.getOrDefault(item.id(), item.bounds());
+        List<Bounds> writingThere = movedWith(item.writing(), item, candidate);
+        List<Bounds> writingHere = movedWith(item.writing(), item, from);
+        for (Item other : items) {
+            if (other.id().equals(item.id()) || other.writing().isEmpty()) {
+                continue;
+            }
+            List<Bounds> otherWriting = movedWith(other.writing(), other,
+                    now.getOrDefault(other.id(), other.bounds()));
+            if (share(writingThere, otherWriting, TEXT_ROUNDING_COLUMNS, 0)
+                    && !share(writingHere, otherWriting, TEXT_ROUNDING_COLUMNS, 0)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * The ids of the other items that {@code item} covers, every item where {@code placed} says it is (items missing
      * from it are where they started), as the user sees it (spec §4.1): a body shares an area with a body, a label or
      * a text. Texts over texts or labels are not overlaps (placed so on purpose); being closer than the gap,
