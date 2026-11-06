@@ -50,6 +50,13 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         ComponentDefinition previous = document.definition(definitionId).orElseThrow(() ->
                 new IllegalStateException("the document has no definition " + definitionId));
         placeName = previous.name();
+        if (prepared && !copyMatches(document)) {
+            if (writeBack != null) {
+                writeBack.apply(document);
+            }
+            bringCopyToTheDefinition(document);
+            return;
+        }
         List<ComponentDefinition> definitionsBefore = prepared ? List.of() : workingCopy.definitions();
         bodyCommand.apply(workingCopy);
         try {
@@ -123,10 +130,42 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
 
     @Override
     public void revert(CircuitDocument document) {
+        if (!copyMatches(document)) {
+            if (writeBack != null) {
+                writeBack.revert(document);
+            }
+            bringCopyToTheDefinition(document);
+            return;
+        }
         bodyCommand.revert(workingCopy);
         if (writeBack != null) {
             writeBack.revert(document);
         }
+    }
+
+    /**
+     * True when the working copy is the document's definition as it is now, so {@link #bodyCommand} can be replayed
+     * on it. False for a copy no longer followed: its tab closed after it had followed a change made elsewhere, and
+     * that change was undone since (final review I4).
+     */
+    private boolean copyMatches(CircuitDocument document) {
+        return document.definition(definitionId)
+                .map(current -> BodyEdits.rebuilt(current, workingCopy).sameContentAs(current))
+                .orElse(false);
+    }
+
+    /**
+     * Brings a copy that no longer matches to the definition, ids kept, instead of replaying the edit on it: the
+     * document is the truth and the copy only a view of it, so undo and redo never stick on a stale copy.
+     */
+    private void bringCopyToTheDefinition(CircuitDocument document) {
+        document.definition(definitionId).ifPresent(definition -> {
+            ReplaceContentCommand refresh = ReplaceContentCommand.between(workingCopy,
+                    definition.bodyDocument(document), "inside.refresh");
+            if (!refresh.changesNothing()) {
+                refresh.apply(workingCopy);
+            }
+        });
     }
 
     @Override

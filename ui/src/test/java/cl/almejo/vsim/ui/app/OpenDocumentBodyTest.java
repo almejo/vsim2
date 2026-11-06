@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
+import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
@@ -314,6 +315,31 @@ class OpenDocumentBodyTest {
         assertThat(body.document().elements()).containsExactlyElementsOf(before);
         assertThat(openDocument.document().definition(BLOCK)).contains(definition);
         assertThat(openDocument.history().undoCommand()).containsSame(placed);
+    }
+
+    @Test
+    void undoAndRedoGoOnAfterTheTabOfACopyThatFollowedAnOutsideChangeClosed() {
+        // final review I4: the copy followed X, its tab closed, X was undone; the inside edit before X then goes back
+        withTwoBlocks();
+        OpenDocument body = body(BLOCK, Optional.of(FIRST.value()));
+        body.execute(new SetLabelCommand(INNER_SWITCH, "E1"));
+        ComponentDefinition labelled = openDocument.document().definition(BLOCK).orElseThrow();
+        ComponentDefinition withoutSwitch = new ComponentDefinition(BLOCK, labelled.name(), "", labelled.size(),
+                labelled.pinout(), new CircuitFragment(List.of(labelled.body().components().getFirst()), List.of(),
+                List.of())).revisedFrom(labelled);
+        openDocument.execute(ReplaceDefinitionCommand.prepare(openDocument.document(), openDocument.registry(),
+                new DefinitionBundle(withoutSwitch, List.of())));
+        assertThat(body.document().component(INNER_SWITCH)).isEmpty();
+        body.close();
+
+        openDocument.history().undo();
+        openDocument.history().undo();
+
+        assertThat(openDocument.document().definition(BLOCK)).contains(block());
+        openDocument.history().redo();
+        assertThat(openDocument.document().definition(BLOCK)).contains(labelled);
+        OpenDocument reopened = body(BLOCK, Optional.of(FIRST.value()));
+        assertThat(reopened.document().component(INNER_SWITCH).orElseThrow().label()).isEqualTo("E1");
     }
 
     @Test

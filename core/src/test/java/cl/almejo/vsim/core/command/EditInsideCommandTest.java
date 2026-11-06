@@ -254,6 +254,24 @@ class EditInsideCommandTest {
     }
 
     @Test
+    void aWorkingCopyThatNoLongerMatchesIsBroughtToTheDefinitionOnUndoAndRedo() {
+        // final review I4: a released copy that followed an outside change before its tab closed
+        List<DocumentElement> bodyBefore = workingCopy.elements();
+        history.execute(inside(new SetLabelCommand(new ElementId("c2"), "E1")));
+        ComponentDefinition labelled = document.definition(inverter.id()).orElseThrow();
+        workingCopy.remove(new ElementId("c2"));
+
+        history.undo();
+
+        assertOriginal(bodyBefore);
+        workingCopy.remove(new ElementId("c3"));
+        history.redo();
+        assertThat(document.definition(inverter.id())).containsSame(labelled);
+        assertThat(workingCopy.component(new ElementId("c2")).orElseThrow().label()).isEqualTo("E1");
+        assertThat(workingCopy.component(new ElementId("c3"))).isPresent();
+    }
+
+    @Test
     void aChangeOfAnotherDefinitionMadeThroughTheWorkingCopyIsRefusedWithNothingChanged() {
         // the working copy holds copies of the document's definitions: changing one there would never reach the
         // document, so the edit is refused instead of being kept only in the tab (final review C1)
