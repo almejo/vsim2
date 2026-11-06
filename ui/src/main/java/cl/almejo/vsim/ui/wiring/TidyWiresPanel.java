@@ -153,6 +153,24 @@ public final class TidyWiresPanel extends JPanel {
         summaryPlainText = text;
         String escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         summary.setText("<html><body style='width: " + SUMMARY_WIDTH_PIXELS + "px'>" + escaped + "</body></html>");
+        growWindowToFit();
+    }
+
+    /**
+     * The summary arrives after the dialog was packed (with «Calculando…»): when it needs more lines, the window grows
+     * downward so nothing is cut; it never shrinks, so it does not jump while the user changes options.
+     */
+    private void growWindowToFit() {
+        java.awt.Window window = javax.swing.SwingUtilities.getWindowAncestor(this);
+        if (window == null || !window.isDisplayable()) {
+            return;
+        }
+        window.validate();
+        java.awt.Dimension wanted = window.getPreferredSize();
+        if (wanted.height > window.getHeight() || wanted.width > window.getWidth()) {
+            window.setSize(Math.max(wanted.width, window.getWidth()), Math.max(wanted.height, window.getHeight()));
+            window.validate();
+        }
     }
 
     private void refresh() {
