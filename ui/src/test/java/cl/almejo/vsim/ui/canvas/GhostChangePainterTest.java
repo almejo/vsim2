@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.tools.TestToolContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,6 +81,24 @@ class GhostChangePainterTest {
         BufferedImage image = paint(List.of(gate(10, 5), wire), List.of());
 
         assertThat(differingPixels(image, 0, SIZE)).isPositive();
+    }
+
+    /** Pixel-free: each drawable arriving element is handed to the pane as a ghost, in order. */
+    @Test
+    void everyDrawableArrivingElementIsPaintedAsAGhostInOrder() {
+        Wire wire = new Wire(new ElementId("wire"), new GridPoint(0, 20), new GridPoint(5, 20));
+        Component unknown = new Component(new ElementId("unknown"), "subcircuit:not-yet", new GridPoint(0, 0),
+                Rotation.R0, Map.of(), "");
+        Component gate = gate(10, 5);
+        BufferedImage image = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try (TestToolContext pane = TestToolContext.withNewDocument()) {
+            painter.paint(graphics, List.of(gate), List.of(wire, unknown, gate), pane);
+
+            assertThat(pane.ghosts).containsExactly(wire, gate);
+        } finally {
+            graphics.dispose();
+        }
     }
 
     @Test
