@@ -23,22 +23,31 @@ final class WireCorners {
     static int count(CircuitDocument document) {
         List<Wire> wires = document.wires();
         Map<GridPoint, List<Wire>> endingAt = new HashMap<>();
+        Map<Integer, List<Wire>> horizontalByRow = new HashMap<>();
+        Map<Integer, List<Wire>> verticalByColumn = new HashMap<>();
         for (Wire wire : wires) {
             endingAt.computeIfAbsent(wire.start(), point -> new ArrayList<>()).add(wire);
             endingAt.computeIfAbsent(wire.end(), point -> new ArrayList<>()).add(wire);
+            if (wire.isHorizontal()) {
+                horizontalByRow.computeIfAbsent(wire.start().y(), row -> new ArrayList<>()).add(wire);
+            } else {
+                verticalByColumn.computeIfAbsent(wire.start().x(), column -> new ArrayList<>()).add(wire);
+            }
         }
         int corners = 0;
         for (Map.Entry<GridPoint, List<Wire>> point : endingAt.entrySet()) {
             List<Wire> ends = point.getValue();
             boolean bend = ends.size() == 2 && ends.get(0).isHorizontal() != ends.get(1).isHorizontal();
-            if (bend && !runsThrough(wires, point.getKey())) {
+            GridPoint at = point.getKey();
+            if (bend && !runsThrough(horizontalByRow.getOrDefault(at.y(), List.of()), at)
+                    && !runsThrough(verticalByColumn.getOrDefault(at.x(), List.of()), at)) {
                 corners++;
             }
         }
         return corners;
     }
 
-    /** True when a wire passes over {@code point} without ending there. */
+    /** True when one of {@code wires} passes over {@code point} without ending there. */
     private static boolean runsThrough(List<Wire> wires, GridPoint point) {
         for (Wire wire : wires) {
             if (wire.contains(point) && !wire.start().equals(point) && !wire.end().equals(point)) {

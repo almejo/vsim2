@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /**
  * Moves the items of one reading of the copy ({@link LayoutItems}) on the copy, with the rules every stage of «Ordenar
@@ -67,17 +68,34 @@ final class Placement {
      * remembered as the item's place.
      */
     boolean tryMove(LayoutItems.Item item, GridPoint shift) {
+        return tryMove(item, shift, () -> true);
+    }
+
+    /**
+     * Like {@link #tryMove}, and the move is undone too when the wires end with more corners
+     * ({@link WireCorners}) than before it: aligning and straightening are there to tidy, so a move that bends the
+     * wires that follow it more than it straightens is no gain.
+     */
+    boolean tryMoveAddingNoCorners(LayoutItems.Item item, GridPoint shift) {
+        if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
+            return false;
+        }
+        int cornersBefore = WireCorners.count(copy);
+        return tryMove(item, shift, () -> WireCorners.count(copy) <= cornersBefore);
+    }
+
+    private boolean tryMove(LayoutItems.Item item, GridPoint shift, BooleanSupplier stillWanted) {
         if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
             return false;
         }
         MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry,
                 new LinkedHashSet<>(item.members()), shift.x(), shift.y());
         move.apply(copy);
-        if (!item.isText() && !keepsTheMeaning(item)) {
+        // a text has no pins and no wire follows it: the nets cannot change
+        if (!item.isText() && !keepsTheMeaning(item) || !stillWanted.getAsBoolean()) {
             move.revert(copy);
             return false;
         }
-        // a text has no pins and no wire follows it: the nets cannot change
         places.put(item.id(), moved(item, shift));
         actual.put(item.id(), moved(item, shift));
         return true;

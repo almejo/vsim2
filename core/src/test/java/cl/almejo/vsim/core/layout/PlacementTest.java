@@ -112,4 +112,21 @@ class PlacementTest {
         assertThat(placement.keepsOrder(item, new Bounds(12, 0, 4, 4))).isFalse();
         assertThat(placement.keepsOrder(item, new Bounds(1, 0, 4, 4))).isTrue();
     }
+
+    @Test
+    void aMoveThatBendsAStraightWireIsUndoneWhenCornersMayNotGrow() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 0, 0);
+        Component receiver = gate(registry, document, 10, 0);
+        wire(document, 4, 2, 10, 2);
+        Set<DocumentElement> before = elements(document);
+        Placement placement = placementOn(document);
+        LayoutItems.Item item = placement.items().item(receiver.id()).orElseThrow();
+
+        boolean moved = placement.tryMoveAddingNoCorners(item, new GridPoint(0, 3));
+
+        assertThat(moved).isFalse();
+        assertThat(elements(document)).isEqualTo(before);
+        assertThat(placement.current(item)).isEqualTo(item.bounds());
+    }
 }

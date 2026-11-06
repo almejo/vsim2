@@ -17,8 +17,9 @@ import java.util.function.BooleanSupplier;
 /**
  * «Alinear en columnas» (spec 2026-11-06 §5.1): parts stacked one above the other whose left edges differ by at most
  * {@value #COLUMN_TOLERANCE} units form a column (chained: a–b and b–c), and the column's members move on x to the
- * left edge most of them already have (ties: the smallest x). Each move obeys the {@link Placement} rules and keeps
- * the order with the neighbours, so a member that cannot reach the edge stays.
+ * left edge most of them already have (ties: the smallest x). Each move obeys the {@link Placement} rules, keeps the
+ * order with the neighbours and leaves the wires with no more corners than before
+ * ({@link Placement#tryMoveAddingNoCorners}), so a member that cannot reach the edge stays.
  *
  * <p>Stacked: their bodies' x ranges overlap and their y ranges do not. A column that holds two parts side by side (a
  * row: their y ranges overlap) is not a column at all and is left alone. Texts never align.
@@ -61,7 +62,8 @@ final class ColumnAlignment {
                 continue;
             }
             GridPoint shift = new GridPoint(target - edge, 0);
-            if (placement.keepsOrder(member, Placement.moved(member, shift)) && placement.tryMove(member, shift)) {
+            if (placement.keepsOrder(member, Placement.moved(member, shift))
+                    && placement.tryMoveAddingNoCorners(member, shift)) {
                 moved += member.parts();
             }
         }
