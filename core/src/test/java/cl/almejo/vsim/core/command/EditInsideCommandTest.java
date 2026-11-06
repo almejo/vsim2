@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -251,6 +252,61 @@ class EditInsideCommandTest {
         assertThat(registry.typeOf(rewritten).pinCount()).isEqualTo(3);
         assertThat(document.component(outer.id()).orElseThrow().memoryContents())
                 .containsEntry("c2/c10", "v3.0 hex words\n2");
+    }
+
+    @Test
+    void aMergeThatFailsLeavesTheDefinitionAndTheCopyWithTheFirstEditApplied() {
+        // final review M1: the merged inside edit throws after the top was reverted
+        ElementId gate = new ElementId("c2");
+        history.execute(inside(new LabelThatMergesIntoAFailure(gate, "a")));
+        ComponentDefinition afterFirst = document.definition(inverter.id()).orElseThrow();
+
+        history.execute(inside(new SetLabelCommand(gate, "ab")));
+
+        assertThat(workingCopy.component(gate).orElseThrow().label()).isEqualTo("ab");
+        history.undo();
+        assertThat(document.definition(inverter.id()).orElseThrow().sameContentAs(afterFirst)).isTrue();
+        assertThat(workingCopy.component(gate).orElseThrow().label()).isEqualTo("a");
+        history.undo();
+        assertThat(document.definition(inverter.id()).orElseThrow().sameContentAs(inverter)).isTrue();
+        assertThat(workingCopy.component(gate).orElseThrow().label()).isEmpty();
+    }
+
+    /** Sets a label; whatever follows it merges into a command that throws when applied. */
+    private record LabelThatMergesIntoAFailure(ElementId id, String text) implements Command {
+        @Override
+        public void apply(CircuitDocument target) {
+            target.replace(target.component(id).orElseThrow().withLabel(text));
+        }
+
+        @Override
+        public void revert(CircuitDocument target) {
+            target.replace(target.component(id).orElseThrow().withLabel(""));
+        }
+
+        @Override
+        public String description() {
+            return "command.label";
+        }
+
+        @Override
+        public Optional<Command> mergedWith(Command next) {
+            return Optional.of(new Command() {
+                @Override
+                public void apply(CircuitDocument target) {
+                    throw new IllegalStateException("the merged edit cannot apply");
+                }
+
+                @Override
+                public void revert(CircuitDocument target) {
+                }
+
+                @Override
+                public String description() {
+                    return "command.label";
+                }
+            });
+        }
     }
 
     @Test
