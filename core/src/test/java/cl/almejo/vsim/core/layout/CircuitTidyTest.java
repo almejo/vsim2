@@ -437,6 +437,40 @@ class CircuitTidyTest {
         assertThat(plan.notSeparated()).isEmpty();
     }
 
+    /**
+     * The hand test on lrv32im-importado: a column of notes half a row off a column of tunnels (each line 2 units high,
+     * sharing one row with a tunnel) stayed on top of them although the right side was empty.
+     */
+    @Test
+    void aColumnOfTextsHalfOverAColumnOfTunnelsMovesOffThemKeepingItsOrder() {
+        CircuitDocument document = new CircuitDocument();
+        List<Component> tunnels = List.of(place(registry, document, StandardComponentTypes.TUNNEL_EXIT, 20, 0, ""),
+                place(registry, document, StandardComponentTypes.TUNNEL_EXIT, 20, 3, ""),
+                place(registry, document, StandardComponentTypes.TUNNEL_EXIT, 20, 6, ""));
+        List<TextLabel> column = List.of(text(document, 21, 1, "Simple microprogrammed"),
+                text(document, 21, 3, "physical architecture"), text(document, 21, 5, "64 MB RAM"),
+                text(document, 21, 7, "GPL Licence"));
+
+        CircuitTidyPlan plan = tidyWithWideTexts(document);
+
+        for (Component tunnel : tunnels) {
+            assertThat(plan.after().component(tunnel.id()).orElseThrow()).isEqualTo(tunnel);
+            for (TextLabel label : column) {
+                Bounds box = WIDE_TEXTS.freeText(plan.after().label(label.id()).orElseThrow());
+                assertThat(LayoutItems.overlaps(box, body(plan.after(), tunnel.id()), 0))
+                        .as("%s over %s", label.text(), tunnel.id()).isFalse();
+            }
+        }
+        GridPoint first = plan.after().label(column.get(0).id()).orElseThrow().position();
+        GridPoint shift = new GridPoint(first.x() - 21, first.y() - 1);
+        for (int index = 0; index < column.size(); index++) {
+            assertThat(plan.after().label(column.get(index).id()).orElseThrow().position())
+                    .isEqualTo(column.get(index).position().plus(shift));
+        }
+        assertThat(shift.y()).as("it moves along its row").isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
     @Test
     void aColumnOfTextsMovesTogetherAndKeepsItsOrder() {
         CircuitDocument document = new CircuitDocument();

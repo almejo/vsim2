@@ -31,9 +31,9 @@ import java.util.function.ToIntFunction;
  * checking their gaps too made dense inputs several times slower). Each overlapping pair gets one separation
  * constraint, which does ask for the larger of the two gaps, on the axis that needs the smaller displacement (ties: x,
  * which keeps the left-to-right flow), in the pair's current order (by centre, then by id). Every round solves both
- * axes from the original positions with all the constraints so far ({@link AxisProjection}), so the result is the least movement that meets them (each box's movement counted by
- * its {@linkplain LayoutBox#weight() weight}: a heavy box lets the light one move) and a pair, once separated, stays
- * separated. Rounds repeat while new overlaps appear, at most {@value #MAXIMUM_ROUNDS}.
+ * axes from the original positions with all the constraints so far ({@link AxisProjection}), so the result is the
+ * least movement that meets them (each box's movement counted by its {@linkplain LayoutBox#weight() weight}: a heavy
+ * box lets the light one move) and a pair, once separated, stays separated. Rounds repeat while new overlaps appear, at most {@value #MAXIMUM_ROUNDS}.
  */
 public final class OverlapSeparation {
 

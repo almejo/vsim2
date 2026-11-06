@@ -232,7 +232,7 @@ public final class CircuitTidy {
                  round++) {
                 items = currentItems();
             }
-            if (new Round(items).place(items.textSeparationGroups())) {
+            if (new Round(items).placeTexts()) {
                 items = currentItems();
             }
             return whatStillOverlaps(items);
@@ -288,6 +288,34 @@ public final class CircuitTidy {
 
             Round(LayoutItems items) {
                 this.items = items;
+            }
+
+            /**
+             * Moves every block of texts that covers a body, in id order, to the nearest place where it covers none:
+             * along its own row first (right before left at the same distance), then up or down, at most its own
+             * size plus {@value #FALLBACK_SLACK_UNITS} away. Texts only make way for bodies, so no separation is
+             * needed: a block never pushes anything, and its lines move as one, keeping their order. True when any
+             * moved.
+             */
+            boolean placeTexts() {
+                boolean anyMoved = false;
+                List<LayoutItems.Item> covering = items.items().stream().filter(item -> item.isText()
+                        && item.movable() && !items.coveredBodies(item, Map.of()).isEmpty()).toList();
+                for (int index = 0; index < covering.size(); index++) {
+                    LayoutItems.Item block = covering.get(index);
+                    progress.reached(CircuitTidyProgress.Stage.MOVING, index + 1, covering.size());
+                    checkCancelled();
+                    Optional<GridPoint> shift = nearestFree(block, true, List.of(1, -1))
+                            .or(() -> nearestFree(block, false, List.of(1, -1)));
+                    if (shift.isPresent() && tryMove(block, shift.get())) {
+                        places.put(block.id(), moved(block, shift.get()));
+                        actual.put(block.id(), moved(block, shift.get()));
+                        anyMoved = true;
+                    } else {
+                        refused.add(block.id());
+                    }
+                }
+                return anyMoved;
             }
 
             /** Separates {@code groups} and moves what it says; true when anything moved. */

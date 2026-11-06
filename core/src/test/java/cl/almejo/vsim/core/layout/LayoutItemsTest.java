@@ -207,7 +207,7 @@ class LayoutItemsTest {
         CircuitDocument document = new CircuitDocument();
         Component labelled = gate(registry, document, 0, 0).withLabel("Habilitar");
         document.replace(labelled);
-        Component neighbour = gate(registry, document, 6, 2);
+        Component neighbour = gate(registry, document, 6, 3);
         Component covering = gate(registry, document, 7, -1);
         TextBoxes labelToTheRight = new TextBoxes() {
             @Override

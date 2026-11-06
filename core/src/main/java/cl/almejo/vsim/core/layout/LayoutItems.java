@@ -39,7 +39,7 @@ import java.util.Set;
  * <p>Parts and texts are separated apart. Each area's parts ({@link #separationGroups}): its movable parts, every
  * fixed part, a thin box on each side just outside the area's frame (the walls keep its items in), every other frame
  * as an obstacle (so nothing enters it) and the wires that run through a foreign body (so the body moves off them).
- * Then the blocks of texts that cover a body, against the bodies ({@link #textSeparationGroups}). Frames are
+ * Then each block of texts that covers a body ({@link #coveredBodies}) is moved off it alone. Frames are
  * otherwise not boxes, and guides are ignored. What covers what follows the user's eye ({@link #covers}).
  */
 final class LayoutItems {
@@ -56,11 +56,13 @@ final class LayoutItems {
      */
     static final long MUCH_LIGHTER = 8;
     /**
-     * How much of a text's box, in grid units, may lie over a body without counting: text boxes are rounded outward
-     * to whole units, so a text drawn beside a part may reach into it by a fraction (the user's hand test,
-     * 2026-11-06). A text covers a body only when they share more than this on both axes.
+     * How many columns of a text's box, in grid units, may lie over a body without counting: text boxes are rounded
+     * outward to whole units, and a box's width grows by up to one unit (about one character) that may hold no ink, so
+     * a text drawn beside a part may reach into it by that column (the user's hand test, 2026-11-06). Its height grows
+     * only by a couple of pixels (a 14 px line takes 2 units of 8 px), so one shared row is a real overlap: a line
+     * half over a tunnel covers half of it (the hand test on lrv32im-importado, same day).
      */
-    static final int TEXT_ROUNDING = 1;
+    static final int TEXT_ROUNDING_COLUMNS = 1;
     /** Texts closer than this (touching, or overlapping) form one block: the lines of a table, a split caption. */
     private static final int TEXT_BLOCK_DISTANCE = 1;
 
@@ -76,7 +78,6 @@ final class LayoutItems {
     private static final String WALL_PREFIX = "wall-";
     private static final String FRAME_OBSTACLE_PREFIX = "frame-";
     private static final String WIRE_OBSTACLE_PREFIX = "wire-";
-    private static final String BODY_PREFIX = "body-";
 
     /**
      * One thing that moves as a whole: a component (with its label), a pin-on-pin cluster of components, or a block
@@ -191,35 +192,6 @@ final class LayoutItems {
         return groups;
     }
 
-    /**
-     * Like {@link #separationGroups} for the blocks of texts, once the parts are in place: only a block that covers a
-     * body moves, and only away from bodies (texts over texts, labels or wires are left as they are: the user placed
-     * them so on purpose, spec §4.1 as refined by the user on 2026-11-06). Every body is a fixed box.
-     */
-    List<List<LayoutBox>> textSeparationGroups() {
-        List<LayoutBox> bodies = new ArrayList<>();
-        for (Item part : parts()) {
-            for (int index = 0; index < part.bodies().size(); index++) {
-                // A body keeps its gap from a text that moves off it (the pair keeps the larger gap, spec §4.3).
-                bodies.add(new LayoutBox(new ElementId(BODY_PREFIX + part.id().value() + "-" + index),
-                        part.bodies().get(index), false, BODY_GAP));
-            }
-        }
-        List<List<LayoutBox>> groups = new ArrayList<>();
-        for (Optional<ElementId> region : regions()) {
-            List<LayoutBox> boxes = new ArrayList<>();
-            for (Item item : items) {
-                if (item.isText() && item.movable() && item.region().equals(region) && !coveredBodies(item,
-                        Map.of()).isEmpty()) {
-                    boxes.add(new LayoutBox(item.id(), item.bounds(), true, item.gap(), item.weight()));
-                }
-            }
-            boxes.addAll(bodies);
-            addIfAnyMoves(groups, boxes, regionObstacles(region, Optional.empty()));
-        }
-        return groups;
-    }
-
     private static void addIfAnyMoves(List<List<LayoutBox>> groups, List<LayoutBox> boxes, List<LayoutBox> obstacles) {
         if (boxes.stream().anyMatch(LayoutBox::movable)) {
             List<LayoutBox> group = new ArrayList<>(boxes);
@@ -300,14 +272,16 @@ final class LayoutItems {
     }
 
     /**
-     * True when a body of {@code item}, moved from {@code from} to {@code to}, comes closer than {@link #BODY_GAP} to a
-     * body of {@code other} (moved from {@code otherFrom} to {@code otherTo}) without having been drawn that close
-     * ({@link #touchedAsDrawn}): what moves keeps the gap between bodies.
+     * True when a body of {@code item} (a line, for a block of texts), moved from {@code from} to {@code to}, comes
+     * closer than {@link #BODY_GAP} to a body of {@code other} (moved from {@code otherFrom} to {@code otherTo})
+     * without having been drawn that close ({@link #touchedAsDrawn}): what moves keeps the gap from bodies.
      */
     private static boolean bodiesNewlyTooClose(Item item, Bounds from, Bounds to, Item other, Bounds otherFrom,
                                                Bounds otherTo) {
-        List<Bounds> bodiesFrom = movedWith(item.bodies(), item, from);
-        List<Bounds> bodiesTo = movedWith(item.bodies(), item, to);
+        // A text's lines keep the bodies' gap too when the text moves (the pair keeps the larger gap, spec §4.3).
+        List<Bounds> own = item.isText() ? item.shapes() : item.bodies();
+        List<Bounds> bodiesFrom = movedWith(own, item, from);
+        List<Bounds> bodiesTo = movedWith(own, item, to);
         List<Bounds> otherBodiesFrom = movedWith(other.bodies(), other, otherFrom);
         List<Bounds> otherBodiesTo = movedWith(other.bodies(), other, otherTo);
         for (int index = 0; index < bodiesTo.size(); index++) {
@@ -392,8 +366,8 @@ final class LayoutItems {
 
     /**
      * True when the two items, at the places given, cover each other as the user sees it: a body shares an area with
-     * a body, or with a label or text by more than {@value #TEXT_ROUNDING} unit on both axes. Writing over writing
-     * never counts.
+     * a body, or with a label or text by at least one row and more than {@value #TEXT_ROUNDING_COLUMNS} column.
+     * Writing over writing never counts.
      */
     static boolean covers(Item first, Bounds firstAt, Item second, Bounds secondAt) {
         if (!overlaps(firstAt, secondAt, 0)) {
@@ -401,20 +375,20 @@ final class LayoutItems {
         }
         List<Bounds> firstBodies = movedWith(first.bodies(), first, firstAt);
         List<Bounds> secondBodies = movedWith(second.bodies(), second, secondAt);
-        return share(firstBodies, secondBodies, 0)
-                || share(firstBodies, movedWith(second.writing(), second, secondAt), TEXT_ROUNDING)
-                || share(movedWith(first.writing(), first, firstAt), secondBodies, TEXT_ROUNDING);
+        return share(firstBodies, secondBodies, 0, 0)
+                || share(firstBodies, movedWith(second.writing(), second, secondAt), TEXT_ROUNDING_COLUMNS, 0)
+                || share(movedWith(first.writing(), first, firstAt), secondBodies, TEXT_ROUNDING_COLUMNS, 0);
     }
 
-    /** True when a box of each list share more than {@code margin} units on both axes. */
-    private static boolean share(List<Bounds> firstBoxes, List<Bounds> secondBoxes, int margin) {
+    /** True when a box of each list share more than {@code marginX} columns and more than {@code marginY} rows. */
+    private static boolean share(List<Bounds> firstBoxes, List<Bounds> secondBoxes, int marginX, int marginY) {
         for (Bounds firstBox : firstBoxes) {
             for (Bounds secondBox : secondBoxes) {
                 int sharedX = Math.min(firstBox.maximumX(), secondBox.maximumX())
                         - Math.max(firstBox.x(), secondBox.x());
                 int sharedY = Math.min(firstBox.maximumY(), secondBox.maximumY())
                         - Math.max(firstBox.y(), secondBox.y());
-                if (sharedX > margin && sharedY > margin) {
+                if (sharedX > marginX && sharedY > marginY) {
                     return true;
                 }
             }
