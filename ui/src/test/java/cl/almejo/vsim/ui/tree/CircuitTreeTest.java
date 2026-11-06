@@ -251,6 +251,22 @@ class CircuitTreeTest {
     }
 
     @Test
+    void theMatchIsBoldEvenWhenItOnlyExistsIgnoringAccents() {
+        inverterInThreePlaces();
+        openDocument.execute(new SetLabelCommand(new ElementId("c1"), "Mi Acción"));
+        CircuitTree tree = tree();
+
+        tree.searchField().setText("accion");
+        assertThat(tree.boldTextOf("c1")).contains("Acción");
+
+        tree.searchField().setText("cci");
+        assertThat(tree.boldTextOf("c1")).contains("cci");
+
+        tree.searchField().setText("zzz");
+        assertThat(tree.boldTextOf("c1")).isEmpty();
+    }
+
+    @Test
     void enterOnTheSearchGoesToTheFirst() {
         inverterInThreePlaces();
         CircuitTree tree = tree();

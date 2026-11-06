@@ -151,7 +151,7 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   «Propiedades». Las dos últimas llevan primero a la pieza, esté donde esté.
 - **Buscar**: el campo de arriba busca en todo el circuito, también dentro de los componentes, con las mismas reglas y
   opciones Aa y .\* que la barra de búsqueda. Los resultados se listan uno debajo de otro con su ruta en gris («en
-  Ram › Muldiv») y lo que coincide en negrita; debajo del campo dice cuántos hay, o «Nada se llama así en este
+  Ram › Muldiv») y lo que coincide en negrita (también cuando solo coincide sin tildes o sin distinguir mayúsculas: buscar «accion» pone en negrita «Acción»; con «.*» no se pone nada en negrita); debajo del campo dice cuántos hay, o «Nada se llama así en este
   circuito.». Enter va al primero; Esc vacía el campo y vuelve el árbol como estaba. Ctrl+F con el foco en el árbol va
   al campo.
 - **Sigue a la pestaña activa**: cada pestaña abre en el árbol su lugar (el circuito, o la pieza cuyos valores

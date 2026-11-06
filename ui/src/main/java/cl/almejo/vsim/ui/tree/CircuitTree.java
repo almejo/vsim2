@@ -103,6 +103,7 @@ public final class CircuitTree extends JPanel {
     private final Map<IconKey, Icon> icons = new HashMap<>();
     private final DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     private final JTree tree = new JTree(treeModel);
+    private final Renderer renderer = new Renderer();
     private final SearchField searchField = new SearchField(Messages.text("tree.search"));
     private final JLabel countLabel = new JLabel();
     private final Map<String, DefaultMutableTreeNode> nodesByPath = new HashMap<>();
@@ -142,7 +143,7 @@ public final class CircuitTree extends JPanel {
         this.preferences = view.services().preferences();
         this.matchCase = preferences.findMatchCase();
         this.regex = preferences.findRegex();
-        tree.setCellRenderer(new Renderer());
+        tree.setCellRenderer(renderer);
         tree.setRootVisible(true);
         tree.setShowsRootHandles(true);
         tree.setToggleClickCount(0); // a double click enters a component; the arrows fold
@@ -473,6 +474,11 @@ public final class CircuitTree extends JPanel {
                 .orElse(node.name());
     }
 
+    /** What the row of {@code path} shows in bold for the search now; empty when none is (for tests). */
+    Optional<String> boldTextOf(String path) {
+        return Optional.ofNullable(nodesByPath.get(path)).map(renderer::boldText).filter(text -> !text.isEmpty());
+    }
+
     /** The grey text at the right of the row: «N piezas» on the circuit's row. */
     Optional<String> rightText(String path) {
         return nodeAt(path).filter(CircuitTreeNode::isDocument).map(node -> node.children().size() == 1
@@ -655,13 +661,16 @@ public final class CircuitTree extends JPanel {
         }
 
         /**
-         * The name, its first plain occurrence of {@code query} in bold. Nothing is bold with «.*», or when the match
-         * is not literal (the search also ignores accents without «Aa»): the row is a result all the same.
+         * The name, the first plain match of {@code query} in bold, placed in the name as the search finds it (so a
+         * match that only exists ignoring accents or case is bold too). Nothing is bold with «.*»: the row is a result
+         * all the same.
          */
         private void showName(CircuitTreeNode node, String query, Font font, Color foreground) {
             String name = node.name();
-            int start = query.isEmpty() || regex ? -1 : firstOccurrence(name, query);
-            int end = start < 0 ? 0 : start + query.length();
+            Optional<CompiledQuery.Range> range = query.isEmpty() || regex ? Optional.empty()
+                    : new SearchQuery(query, matchCase, false).compile().firstPlainMatch(name);
+            int start = range.map(CompiledQuery.Range::start).orElse(-1);
+            int end = range.map(CompiledQuery.Range::end).orElse(0);
             before.setText(start < 0 ? name : name.substring(0, start));
             matched.setText(start < 0 ? "" : name.substring(start, end));
             after.setText(start < 0 ? "" : name.substring(end));
@@ -674,13 +683,10 @@ public final class CircuitTree extends JPanel {
             after.setForeground(foreground);
         }
 
-        private int firstOccurrence(String name, String query) {
-            if (matchCase) {
-                return name.indexOf(query);
-            }
-            String lowerName = name.toLowerCase(Locale.ROOT);
-            // lower case may change the length of a few letters: then the bold part could not be placed
-            return lowerName.length() == name.length() ? lowerName.indexOf(query.toLowerCase(Locale.ROOT)) : -1;
+        /** What the row of {@code node} shows in bold for the search now (for tests). */
+        String boldText(DefaultMutableTreeNode swingNode) {
+            getTreeCellRendererComponent(tree, swingNode, false, false, true, 0, false);
+            return matched.getText();
         }
 
         @Override
