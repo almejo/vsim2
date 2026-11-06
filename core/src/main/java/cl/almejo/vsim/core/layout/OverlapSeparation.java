@@ -6,10 +6,12 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,8 +41,8 @@ public final class OverlapSeparation {
     private final int[] currentX;
     private final int[] currentY;
     private final Set<Long> constrainedPairs = new HashSet<>();
-    private final AxisConstraints horizontal = new AxisConstraints();
-    private final AxisConstraints vertical = new AxisConstraints();
+    private final AxisConstraints horizontal;
+    private final AxisConstraints vertical;
 
     private OverlapSeparation(List<LayoutBox> boxes, BooleanSupplier cancelled) {
         this.boxes = boxes;
@@ -51,6 +53,8 @@ public final class OverlapSeparation {
             currentX[index] = boxes.get(index).bounds().x();
             currentY[index] = boxes.get(index).bounds().y();
         }
+        this.horizontal = new AxisConstraints(boxes.size());
+        this.vertical = new AxisConstraints(boxes.size());
     }
 
     /**
@@ -100,15 +104,36 @@ public final class OverlapSeparation {
     }
 
     private List<int[]> overlappingPairsWithoutAConstraint() {
+        return overlappingPairs().stream().filter(pair -> !constrainedPairs.contains(pairKey(pair[0], pair[1])))
+                .toList();
+    }
+
+    /**
+     * Every pair (at least one movable) whose interiors overlap at the current positions, ordered by first then
+     * second index: a sweep over the boxes sorted by left edge only compares boxes whose x ranges can still overlap.
+     */
+    private List<int[]> overlappingPairs() {
+        long[] byLeftEdge = new long[boxes.size()];
+        for (int index = 0; index < boxes.size(); index++) {
+            // The left edge in the high half and the index in the low half: one primitive sort, ties by index.
+            byLeftEdge[index] = ((long) currentX[index] << Integer.SIZE) | index;
+        }
+        Arrays.sort(byLeftEdge);
         List<int[]> pairs = new ArrayList<>();
-        for (int first = 0; first < boxes.size(); first++) {
-            for (int second = first + 1; second < boxes.size(); second++) {
-                if (eitherMoves(first, second) && !constrainedPairs.contains(pairKey(first, second))
-                        && overlap(first, second)) {
-                    pairs.add(new int[]{first, second});
+        for (int position = 0; position < byLeftEdge.length; position++) {
+            int first = (int) byLeftEdge[position];
+            long rightEdge = (long) currentX[first] + width(first);
+            for (int next = position + 1; next < byLeftEdge.length; next++) {
+                int second = (int) byLeftEdge[next];
+                if (currentX[second] >= rightEdge) {
+                    break;
+                }
+                if (eitherMoves(first, second) && overlap(first, second)) {
+                    pairs.add(new int[]{Math.min(first, second), Math.max(first, second)});
                 }
             }
         }
+        pairs.sort(Comparator.<int[]>comparingInt(pair -> pair[0]).thenComparingInt(pair -> pair[1]));
         return pairs;
     }
 
@@ -136,14 +161,22 @@ public final class OverlapSeparation {
         return secondCentreTimesTwo < firstCentreTimesTwo ? second : first;
     }
 
-    /** Solves one axis from the original positions over the boxes its constraints name; the others stay put. */
+    /**
+     * Solves again, from the original positions, only the parts of one axis whose constraints changed since the last
+     * solve: constraints that share no box are independent problems, and a part whose constraints did not change would
+     * give the same answer.
+     */
     private void solve(AxisConstraints axis, int[] current, ToIntFunction<Bounds> originalPosition) {
-        if (axis.constraints.isEmpty()) {
-            return;
+        for (List<AxisProjection.Constraint> component : axis.changedComponents()) {
+            solveComponent(component, current, originalPosition);
         }
+    }
+
+    private void solveComponent(List<AxisProjection.Constraint> component, int[] current,
+                                ToIntFunction<Bounds> originalPosition) {
         Map<Integer, Integer> variableOfBox = new HashMap<>();
         List<Integer> involved = new ArrayList<>();
-        for (AxisProjection.Constraint constraint : axis.constraints) {
+        for (AxisProjection.Constraint constraint : component) {
             for (int box : List.of(constraint.left(), constraint.right())) {
                 if (variableOfBox.putIfAbsent(box, involved.size()) == null) {
                     involved.add(box);
@@ -157,7 +190,7 @@ public final class OverlapSeparation {
             desired[variable] = originalPosition.applyAsInt(box.bounds());
             fixed[variable] = !box.movable();
         }
-        List<AxisProjection.Constraint> local = axis.constraints.stream().map(constraint -> new AxisProjection.Constraint(
+        List<AxisProjection.Constraint> local = component.stream().map(constraint -> new AxisProjection.Constraint(
                 variableOfBox.get(constraint.left()), variableOfBox.get(constraint.right()),
                 constraint.distance())).toList();
         long[] solved = AxisProjection.solve(desired, fixed, local, cancelled);
@@ -181,13 +214,9 @@ public final class OverlapSeparation {
 
     private Set<ElementId> stillOverlapping() {
         Set<ElementId> overlapping = new HashSet<>();
-        for (int first = 0; first < boxes.size(); first++) {
-            for (int second = first + 1; second < boxes.size(); second++) {
-                if (eitherMoves(first, second) && overlap(first, second)) {
-                    addIfMovable(overlapping, first);
-                    addIfMovable(overlapping, second);
-                }
-            }
+        for (int[] pair : overlappingPairs()) {
+            addIfMovable(overlapping, pair[0]);
+            addIfMovable(overlapping, pair[1]);
         }
         return overlapping;
     }
@@ -226,10 +255,24 @@ public final class OverlapSeparation {
         return (long) Math.min(first, second) * boxes.size() + Math.max(first, second);
     }
 
-    /** The separation constraints of one axis, kept acyclic so the axis always has a left-to-right order. */
+    /**
+     * The separation constraints of one axis, kept acyclic so the axis always has a left-to-right order, and grouped
+     * into components of boxes joined through constraints. A fixed box joins components too: only when two fixed
+     * boxes cannot both be met does the order of the solver's merges matter, and joining keeps that order as in one
+     * solve of the whole axis.
+     */
     private static final class AxisConstraints {
         private final List<AxisProjection.Constraint> constraints = new ArrayList<>();
         private final Map<Integer, List<Integer>> successors = new HashMap<>();
+        private final int[] parent;
+        private final List<Integer> touchedSinceLastSolve = new ArrayList<>();
+
+        AxisConstraints(int boxCount) {
+            this.parent = new int[boxCount];
+            for (int box = 0; box < parent.length; box++) {
+                parent[box] = box;
+            }
+        }
 
         /** Adds the constraint unless the right box already has to stay left of the left one (the pair stays). */
         void addUnlessCyclic(AxisProjection.Constraint constraint) {
@@ -238,6 +281,37 @@ public final class OverlapSeparation {
             }
             constraints.add(constraint);
             successors.computeIfAbsent(constraint.left(), key -> new ArrayList<>()).add(constraint.right());
+            parent[root(constraint.left())] = root(constraint.right());
+            touchedSinceLastSolve.add(constraint.left());
+        }
+
+        /** The constraints of every component that gained one since the last call, each in insertion order. */
+        List<List<AxisProjection.Constraint>> changedComponents() {
+            Set<Integer> changed = new HashSet<>();
+            touchedSinceLastSolve.forEach(box -> changed.add(root(box)));
+            touchedSinceLastSolve.clear();
+            Map<Integer, List<AxisProjection.Constraint>> components = new LinkedHashMap<>();
+            for (AxisProjection.Constraint constraint : constraints) {
+                int component = root(constraint.left());
+                if (changed.contains(component)) {
+                    components.computeIfAbsent(component, key -> new ArrayList<>()).add(constraint);
+                }
+            }
+            return new ArrayList<>(components.values());
+        }
+
+        private int root(int box) {
+            int root = box;
+            while (parent[root] != root) {
+                root = parent[root];
+            }
+            int walker = box;
+            while (parent[walker] != root) {
+                int next = parent[walker];
+                parent[walker] = root;
+                walker = next;
+            }
+            return root;
         }
 
         private boolean reaches(int from, int target) {
