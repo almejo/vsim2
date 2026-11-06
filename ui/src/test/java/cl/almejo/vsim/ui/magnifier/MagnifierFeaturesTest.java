@@ -41,6 +41,7 @@ class MagnifierFeaturesTest {
 
     private static final String NAME = "Mirar adentro";
     private static final String MENU_ITEM = "Mirar adentro";
+    private static final java.awt.geom.Point2D OUTSIDE = new java.awt.geom.Point2D.Double(5, 5);
 
     private EditorFixture fixture;
     private EditorView view;
@@ -145,7 +146,7 @@ class MagnifierFeaturesTest {
         features.hover().pointerMoved(view.canvas(), center(instance));
         assertThat(markedPixels(instance)).isPositive();
         assertThat(markedPixels(gate)).isZero();
-        features.hover().pointerExited();
+        features.hover().pointerExited(OUTSIDE);
         assertThat(markedPixels(instance)).isZero();
     }
 

@@ -29,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MagnifierHoverTest {
 
     private static final String INSTANCE = "c30";
+    private static final Point2D OUTSIDE_THE_PANEL = new Point2D.Double(5, 5);
+    private static final Point2D ON_THE_PANEL = new Point2D.Double(500, 500);
 
     private final List<String> calls = new ArrayList<>();
     private final MagnifierPresenter presenter = new MagnifierPresenter() {
@@ -40,6 +42,11 @@ class MagnifierHoverTest {
         @Override
         public void hide() {
             calls.add("hide");
+        }
+
+        @Override
+        public boolean covers(Point2D screenLocation) {
+            return screenLocation.equals(ON_THE_PANEL);
         }
     };
     private boolean toggled;
@@ -87,7 +94,7 @@ class MagnifierHoverTest {
 
         hover.pointerMoved(pane, onInstance);
         hover.pointerMoved(pane, onInstance);
-        hover.pointerExited();
+        hover.pointerExited(OUTSIDE_THE_PANEL);
 
         assertThat(calls).containsExactly("show " + INSTANCE, "hide");
     }
@@ -150,6 +157,32 @@ class MagnifierHoverTest {
         hover.requestedFromMenu(pane, instance, onInstance);
         hover.pointerMoved(pane, onInstance);
         hover.pointerMoved(pane, onGate);
+
+        assertThat(calls).containsExactly("show " + INSTANCE, "hide");
+    }
+
+    @Test
+    void leavingTheCanvasIntoThePanelKeepsItUntilThePointerLeavesThePanel() {
+        toggled = true;
+        hover.pointerMoved(pane, onInstance);
+
+        hover.pointerExited(ON_THE_PANEL);
+        assertThat(calls).containsExactly("show " + INSTANCE);
+        hover.pointerLeftPanel();
+
+        assertThat(calls).containsExactly("show " + INSTANCE, "hide");
+    }
+
+    @Test
+    void theMenuItemsPanelWaitsForThePointerToComeBackFromTheMenu() {
+        Component instance = fixture.openDocument().document().component(new ElementId(INSTANCE)).orElseThrow();
+        Point2D whereTheMenuItemWas = new Point2D.Double(onGate.getX(), onGate.getY() + 200);
+
+        hover.requestedFromMenu(pane, instance, onInstance);
+        hover.pointerMoved(pane, whereTheMenuItemWas);
+        hover.pointerMoved(pane, onInstance);
+        assertThat(calls).containsExactly("show " + INSTANCE);
+        hover.pointerMoved(pane, whereTheMenuItemWas);
 
         assertThat(calls).containsExactly("show " + INSTANCE, "hide");
     }

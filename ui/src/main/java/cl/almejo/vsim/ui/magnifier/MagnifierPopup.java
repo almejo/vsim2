@@ -9,10 +9,11 @@ import cl.almejo.vsim.ui.tools.EnterableInstances;
 import javax.swing.JWindow;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
-import java.awt.Dimension;
 import java.awt.GraphicsConfiguration;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 
@@ -25,12 +26,9 @@ import java.util.Optional;
 final class MagnifierPopup implements MagnifierPresenter {
 
     private static final int REPAINT_MILLISECONDS = 100;
-    /** Distance from the pointer, so the panel never sits under it and takes its hover. */
-    private static final int POINTER_OFFSET = 16;
-
-    private final PainterRegistry painters;
     private static final int FRAME_MILLISECONDS = 15;
 
+    private final PainterRegistry painters;
     private final Timer repaint = new Timer(REPAINT_MILLISECONDS, event -> repaintPicture());
     private final Timer frames = new Timer(FRAME_MILLISECONDS, event -> animate());
     private final PopupAnimation animation = new PopupAnimation(System::nanoTime);
@@ -39,6 +37,8 @@ final class MagnifierPopup implements MagnifierPresenter {
     private JWindow window;
     private OpenDocument place;
     private MagnifierPicture picture;
+    private CircuitCanvas shownFor;
+    private Runnable pointerLeftPanel = () -> { };
 
     MagnifierPopup(PainterRegistry painters) {
         this.painters = painters;
@@ -54,19 +54,50 @@ final class MagnifierPopup implements MagnifierPresenter {
         place = pane.openDocument().openBody(definitionId.get(), EnterableInstances.contextOf(pane.openDocument(),
                 instance));
         picture = new MagnifierPicture(place, painters, pane::scheme);
+        picture.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseExited(MouseEvent event) {
+                pointerLeftThePanelFor(event.getLocationOnScreen());
+            }
+        });
+        shownFor = pane;
         window = new JWindow(SwingUtilities.getWindowAncestor(pane));
         window.setFocusableWindowState(false);
         window.setContentPane(picture);
         window.pack();
-        Point location = locationFor(pane, screenPoint, window.getSize());
-        fullBounds = new Rectangle(location, window.getSize());
-        anchor = new Point((int) screenPoint.getX(), (int) screenPoint.getY());
-        SwingUtilities.convertPointToScreen(anchor, pane);
+        Point pointer = new Point((int) screenPoint.getX(), (int) screenPoint.getY());
+        SwingUtilities.convertPointToScreen(pointer, pane);
+        MagnifierPlacement placement = MagnifierPlacement.beside(pointer, window.getSize(),
+                Optional.ofNullable(pane.getGraphicsConfiguration()).map(GraphicsConfiguration::getBounds));
+        fullBounds = placement.full();
+        anchor = placement.anchor();
         window.setBounds(PopupAnimation.boundsAt(anchor, fullBounds, 0.0));
         animation.grow();
         window.setVisible(true);
         repaint.start();
         frames.start();
+    }
+
+    @Override
+    public boolean covers(Point2D screenLocation) {
+        return window != null && !animation.isShrinking() && fullBounds.contains(screenLocation);
+    }
+
+    @Override
+    public void whenThePointerLeavesThePanel(Runnable action) {
+        pointerLeftPanel = action;
+    }
+
+    /** Back onto the canvas its own moves decide; anywhere else the panel goes. */
+    private void pointerLeftThePanelFor(Point screenLocation) {
+        if (window == null || shownFor == null) {
+            return;
+        }
+        Point onPane = new Point(screenLocation);
+        SwingUtilities.convertPointFromScreen(onPane, shownFor);
+        if (!shownFor.contains(onPane)) {
+            pointerLeftPanel.run();
+        }
     }
 
     /** Shrinks back to the piece and then goes. */
@@ -108,25 +139,12 @@ final class MagnifierPopup implements MagnifierPresenter {
             place = null;
         }
         picture = null;
+        shownFor = null;
     }
 
     private void repaintPicture() {
         if (picture != null) {
             picture.repaint();
         }
-    }
-
-    /** Beside the pointer, kept inside the screen of the pane. */
-    private static Point locationFor(CircuitCanvas pane, Point2D screenPoint, Dimension size) {
-        Point location = new Point((int) screenPoint.getX() + POINTER_OFFSET, (int) screenPoint.getY() + POINTER_OFFSET);
-        SwingUtilities.convertPointToScreen(location, pane);
-        GraphicsConfiguration configuration = pane.getGraphicsConfiguration();
-        if (configuration == null) {
-            return location;
-        }
-        Rectangle screen = configuration.getBounds();
-        location.x = Math.max(screen.x, Math.min(location.x, screen.x + screen.width - size.width));
-        location.y = Math.max(screen.y, Math.min(location.y, screen.y + screen.height - size.height));
-        return location;
     }
 }

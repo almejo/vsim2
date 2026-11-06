@@ -14,6 +14,15 @@ interface MagnifierPresenter {
     /** Takes the picture away (the real panel shrinks back to the piece first); harmless when none shows. */
     void hide();
 
+    /** Whether the panel now covers {@code screenLocation} (pixels of the screen). */
+    default boolean covers(Point2D screenLocation) {
+        return false;
+    }
+
+    /** {@code action} runs when the pointer leaves the panel for a place outside the canvas it shows for. */
+    default void whenThePointerLeavesThePanel(Runnable action) {
+    }
+
     /** Takes the picture away at once, without animation; harmless when none shows. */
     default void close() {
         hide();

@@ -12,7 +12,8 @@ import java.util.function.BooleanSupplier;
 
 /**
  * When the magnifier shows (spec §8.2): while the pointer is over a user-component instance and the toggle is on, Alt
- * is held, or the instance menu asked for it. It goes when the pointer leaves the instance or the canvas, on a press
+ * is held, or the instance menu asked for it. It goes when the pointer leaves the instance or the canvas (not into the
+ * panel: then when it leaves the panel; the menu's panel waits for the pointer to come back from the menu), on a press
  * or a drag, on Escape (and stays away until the pointer has left that instance), and when none of the three reasons
  * holds any more. Pure state over a {@link MagnifierPresenter}: EDT only.
  */
@@ -26,6 +27,11 @@ final class MagnifierHover {
     private Optional<ElementId> dismissed = Optional.empty();
     /** The instance the menu item asked for: shown even with the toggle off, until the pointer leaves it. */
     private Optional<ElementId> requested = Optional.empty();
+    /**
+     * The menu item's panel waits for the pointer to come back from the menu: until it is over the instance again,
+     * moves elsewhere do not hide it.
+     */
+    private boolean requestAwaitsThePointer;
     private CircuitCanvas lastPane;
     private Point2D lastPoint;
 
@@ -46,6 +52,10 @@ final class MagnifierHover {
         lastPane = pane;
         lastPoint = screenPoint;
         Optional<Component> hovered = instanceAt(pane, screenPoint);
+        if (hovered.isEmpty() && requestAwaitsThePointer) {
+            return;
+        }
+        requestAwaitsThePointer = false;
         if (hovered.isEmpty()) {
             dismissed = Optional.empty();
             requested = Optional.empty();
@@ -75,8 +85,22 @@ final class MagnifierHover {
         return shown;
     }
 
-    /** The pointer left the canvas. */
-    void pointerExited() {
+    /** The pointer left the canvas for {@code screenLocation} (pixels of the screen). */
+    void pointerExited(Point2D screenLocation) {
+        if (presenter.covers(screenLocation)) {
+            // into the panel itself: it stays until the pointer leaves the panel too
+            return;
+        }
+        pointerLeft();
+    }
+
+    /** The pointer left the panel for a place outside the canvas. */
+    void pointerLeftPanel() {
+        pointerLeft();
+    }
+
+    private void pointerLeft() {
+        requestAwaitsThePointer = false;
         lastPane = null;
         lastPoint = null;
         dismissed = Optional.empty();
@@ -86,6 +110,7 @@ final class MagnifierHover {
 
     /** A press or a drag: the user is working, not looking. */
     void pointerPressed() {
+        requestAwaitsThePointer = false;
         dismissed = shown.or(() -> dismissed);
         hideIfShown();
     }
@@ -110,6 +135,7 @@ final class MagnifierHover {
         requested = Optional.of(instance.id());
         dismissed = Optional.empty();
         pointerMoved(pane, screenPoint);
+        requestAwaitsThePointer = shown.equals(Optional.of(instance.id()));
     }
 
     /** Re-evaluates what shows at the last pointer position (the toggle changed). */

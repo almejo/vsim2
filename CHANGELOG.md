@@ -40,6 +40,7 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 ### Arreglado
 
+- «Mirar adentro» ya no se encoge y desaparece apenas aparece (con el ojo activado y desde el clic derecho): el panel crecía bajo el mouse, el lienzo creía que el mouse se había ido y lo cerraba. Ahora crece desde al lado del mouse y nunca queda bajo él (cerca del borde de la pantalla va al otro lado); si el mouse entra al panel, se queda hasta que sale, y el de «Mirar adentro» del clic derecho espera a que el mouse vuelva del menú. Ver [Mirar adentro](docs/funciones/pestanas-y-componentes.md#mirar-adentro-ver-el-interior-sin-entrar).
 - La búsqueda del árbol del circuito pone en negrita lo que coincide también cuando solo coincide sin tildes (buscar «accion» marca «Acción»); antes la fila aparecía pero sin negrita.
 - Un atajo personalizado que guardaste para «Cerrar ventana» cuando era Ctrl+W (el id antiguo `file.close`) ya no se pierde sin aviso: pasa a «Cerrar ventana» de ahora (Ctrl+Mayús+W por defecto); si ya habías puesto otro o la tecla es de otra acción, se descarta y queda anotado en el registro.
 - Las pestañas que no estás viendo ya no refrescan su lienzo sesenta veces por segundo (con varios componentes abiertos en un circuito grande restaban velocidad); al volver a una se pone al día de inmediato.

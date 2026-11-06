@@ -71,7 +71,13 @@ public final class MagnifierFeatures {
                 presenter.hide();
                 EveryPane.repaint(view).run();
             }
+
+            @Override
+            public boolean covers(Point2D screenLocation) {
+                return presenter.covers(screenLocation);
+            }
         });
+        presenter.whenThePointerLeavesThePanel(hover::pointerLeftPanel);
         this.toggle = new AbstractAction(Messages.text("action.magnifier")) {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -135,7 +141,7 @@ public final class MagnifierFeatures {
 
             @Override
             public void mouseExited(MouseEvent event) {
-                hover.pointerExited();
+                hover.pointerExited(event.getLocationOnScreen());
             }
         };
         KeyAdapter keys = new KeyAdapter() {
