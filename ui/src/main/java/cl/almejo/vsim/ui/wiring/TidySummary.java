@@ -12,13 +12,13 @@ public final class TidySummary {
     private TidySummary() {
     }
 
-    /** «Se moverán 3 partes y 2 notas, se borrará 1 punta suelta», or «el circuito ya está ordenado». */
+    /** «Se moverán 3 partes, 2 textos y se borrará 1 punta suelta», or «el circuito ya está ordenado». */
     public static String preview(CircuitTidyPlan plan) {
         return describe(plan, "tidy.preview", "tidy.preview.alreadyTidy");
     }
 
     /**
-     * «Se movieron 3 partes y 2 notas; no se pudo separar 1 cosa», or «el circuito ya estaba ordenado». Only the
+     * «Se movieron 3 partes y 2 textos; no se pudo separar 1 cosa», or «el circuito ya estaba ordenado». Only the
      * count of what could not be separated, no reasons.
      */
     public static String notice(CircuitTidyPlan plan) {
@@ -36,32 +36,44 @@ public final class TidySummary {
     }
 
     private static String describe(CircuitTidyPlan plan, String prefix, String alreadyTidyKey) {
-        List<String> parts = new ArrayList<>();
-        addMoved(parts, prefix + ".moved", plan.partsMoved(), plan.textsMoved());
-        addPart(parts, prefix + ".stubs", plan.wires().stubsRemoved() + plan.wires().zeroLengthRemoved());
-        addPart(parts, prefix + ".merged", plan.wires().segmentsMerged());
-        addPart(parts, prefix + ".detours", plan.wires().detoursFlattened());
-        if (plan.isEmpty() || parts.isEmpty()) {
+        List<String> wireClauses = new ArrayList<>();
+        addPart(wireClauses, prefix + ".stubs", plan.wires().stubsRemoved() + plan.wires().zeroLengthRemoved());
+        addPart(wireClauses, prefix + ".merged", plan.wires().segmentsMerged());
+        addPart(wireClauses, prefix + ".detours", plan.wires().detoursFlattened());
+        List<String> clauses = new ArrayList<>();
+        addMoved(clauses, prefix + ".moved", plan.partsMoved(), plan.textsMoved(), !wireClauses.isEmpty());
+        clauses.addAll(wireClauses);
+        if (plan.isEmpty() || clauses.isEmpty()) {
             return Messages.text(alreadyTidyKey);
         }
-        String joined = parts.size() == 1 ? parts.get(0)
-                : String.join(", ", parts.subList(0, parts.size() - 1))
-                        + Messages.text("tidy.join.last") + parts.get(parts.size() - 1);
-        return capitalized(joined);
+        return capitalized(listed(clauses));
+    }
+
+    /** «a», «a y b», «a, b y c»: «y» only before the last one. */
+    private static String listed(List<String> items) {
+        if (items.size() == 1) {
+            return items.get(0);
+        }
+        return String.join(", ", items.subList(0, items.size() - 1)) + Messages.text("tidy.join.last")
+                + items.get(items.size() - 1);
     }
 
     private static String capitalized(String text) {
         return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
-    /** «se moverán 3 partes y 2 notas»: one verb for the parts and the notes together. */
-    private static void addMoved(List<String> parts, String keyPrefix, int partsMoved, int notesMoved) {
+    /**
+     * «se moverán 3 partes y 2 textos»: one verb for the parts and the texts (free texts and sticky notes) together.
+     * When more clauses follow, the two are separated by a comma (the «y» goes before the last clause only).
+     */
+    private static void addMoved(List<String> clauses, String keyPrefix, int partsMoved, int textsMoved,
+                                 boolean moreFollow) {
         List<String> nouns = new ArrayList<>();
         addNoun(nouns, "tidy.moved.part", partsMoved);
-        addNoun(nouns, "tidy.moved.note", notesMoved);
+        addNoun(nouns, "tidy.moved.text", textsMoved);
         if (!nouns.isEmpty()) {
-            String list = String.join(Messages.text("tidy.join.last"), nouns);
-            parts.add(Messages.format(keyPrefix + (partsMoved + notesMoved == 1 ? ".one" : ".other"), list));
+            String list = moreFollow ? String.join(", ", nouns) : listed(nouns);
+            clauses.add(Messages.format(keyPrefix + (partsMoved + textsMoved == 1 ? ".one" : ".other"), list));
         }
     }
 

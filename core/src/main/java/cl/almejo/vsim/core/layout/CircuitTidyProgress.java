@@ -7,8 +7,12 @@ package cl.almejo.vsim.core.layout;
 @FunctionalInterface
 public interface CircuitTidyProgress {
 
-    /** The stages, in the order they run. */
-    enum Stage { SEPARATING, MOVING, WIRES }
+    /**
+     * The stages, in the order they run: {@code SEPARATING} with each round of parts (of at most three), {@code MOVING}
+     * with each part placed (of the parts of that round), {@code MOVING_TEXTS} with each block of texts moved off a
+     * body (of those blocks) and {@code WIRES} with each pass of the wire rules (total unknown, 0).
+     */
+    enum Stage { SEPARATING, MOVING, MOVING_TEXTS, WIRES }
 
     CircuitTidyProgress NONE = (stage, done, total) -> { };
 

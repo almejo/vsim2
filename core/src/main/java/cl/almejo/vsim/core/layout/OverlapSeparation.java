@@ -18,7 +18,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
-import java.util.function.IntConsumer;
 import java.util.function.ToIntFunction;
 
 /**
@@ -71,18 +70,9 @@ public final class OverlapSeparation {
      * @throws IllegalArgumentException when two boxes share an id or a gap is negative
      */
     public static Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled) {
-        return separate(boxes, cancelled, round -> { });
-    }
-
-    /**
-     * Like {@link #separate(List, BooleanSupplier)}, telling {@code roundStarted} the number of each round (from 1,
-     * at most {@value #MAXIMUM_ROUNDS}) as it starts, for a progress window.
-     */
-    public static Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled, IntConsumer roundStarted) {
         Objects.requireNonNull(boxes, "boxes");
         Objects.requireNonNull(cancelled, "cancelled");
-        Objects.requireNonNull(roundStarted, "roundStarted");
-        return new OverlapSeparation(sortedById(boxes), cancelled).run(roundStarted);
+        return new OverlapSeparation(sortedById(boxes), cancelled).run();
     }
 
     private static List<LayoutBox> sortedById(List<LayoutBox> boxes) {
@@ -98,10 +88,9 @@ public final class OverlapSeparation {
         return boxes.stream().sorted(Comparator.comparing(box -> box.id().value())).toList();
     }
 
-    private Separation run(IntConsumer roundStarted) {
+    private Separation run() {
         for (int round = 0; round < MAXIMUM_ROUNDS; round++) {
             throwIfCancelled();
-            roundStarted.accept(round + 1);
             List<int[]> newPairs = overlappingPairsWithoutAConstraint();
             if (newPairs.isEmpty()) {
                 break;

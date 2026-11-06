@@ -163,7 +163,7 @@ class TidyWiresBackgroundTest {
         assertThat(progressEvents).containsExactly("open");
         release.countDown();
         drainEdt();
-        assertThat(progressEvents).startsWith("open", "wires 7/0", "wires 1/0");
+        assertThat(progressEvents).startsWith("open", "wires 7/0", "separating 1/3", "wires 1/0");
         assertThat(progressClosed).isTrue();
         assertThat(openDocument.document().wire(stub)).isEmpty();
     }
@@ -235,7 +235,7 @@ class TidyWiresBackgroundTest {
     @Test
     void aCheckboxChangeCancelsThePreviousComputationAndTheLatestWins() throws InterruptedException {
         List<Runnable> cancels = new ArrayList<>();
-        List<java.util.function.Consumer<CircuitTidyPlan>> results = new ArrayList<>();
+        List<TidyPlanner.Results> results = new ArrayList<>();
         TidyPlanner manual = (options, selectionOnly, onResult) -> {
             results.add(onResult);
             Runnable cancel = () -> cancels.add(null);

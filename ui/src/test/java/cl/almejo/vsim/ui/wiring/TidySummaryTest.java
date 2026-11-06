@@ -36,10 +36,18 @@ class TidySummaryTest {
     private static final CircuitTidyPlan EMPTY = plan(0, 0, 0, 0, 0, 0);
 
     @Test
-    void summaryCountsMovedPartsAndNotes() {
-        assertThat(TidySummary.preview(plan(3, 2, 0, 0, 0, 0))).isEqualTo("Se moverán 3 partes y 2 notas");
-        assertThat(TidySummary.preview(plan(1, 1, 0, 0, 0, 0))).isEqualTo("Se moverán 1 parte y 1 nota");
+    void summaryCountsMovedPartsAndTexts() {
+        assertThat(TidySummary.preview(plan(3, 2, 0, 0, 0, 0))).isEqualTo("Se moverán 3 partes y 2 textos");
+        assertThat(TidySummary.preview(plan(1, 1, 0, 0, 0, 0))).isEqualTo("Se moverán 1 parte y 1 texto");
         assertThat(TidySummary.notice(plan(3, 0, 0, 0, 2, 0))).isEqualTo("Se movieron 3 partes y se unieron 2 tramos");
+    }
+
+    @Test
+    void onlyTheLastItemOfTheSummaryTakesAnY() {
+        assertThat(TidySummary.preview(plan(1, 1, 0, 1, 0, 0)))
+                .isEqualTo("Se moverán 1 parte, 1 texto y se borrará 1 punta suelta");
+        assertThat(TidySummary.notice(plan(2, 3, 0, 1, 2, 0)))
+                .isEqualTo("Se movieron 2 partes, 3 textos, se borró 1 punta suelta y se unieron 2 tramos");
     }
 
     @Test

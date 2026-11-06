@@ -180,18 +180,33 @@ public final class TidyWiresPanel extends JPanel {
         plan = emptyPlan();
         showSummary(Messages.text("tidy.calculating"));
         changeListener.run();
-        Runnable cancel = planner.plan(options(), selectionOnly(), result -> {
-            if (mine != generation) {
-                return;
+        Runnable cancel = planner.plan(options(), selectionOnly(), new TidyPlanner.Results() {
+            @Override
+            public void accept(CircuitTidyPlan result) {
+                if (mine == generation) {
+                    plan = result;
+                    settle(TidySummary.preview(result));
+                }
             }
-            plan = result;
-            ready = true;
-            cancelRunning = () -> { };
-            showSummary(TidySummary.preview(plan));
-            changeListener.run();
+
+            @Override
+            public void failed(String message) {
+                if (mine == generation) {
+                    plan = emptyPlan();
+                    settle(Messages.format("tidy.failed", message));
+                }
+            }
         });
         if (mine == generation && !ready) {
             cancelRunning = cancel;
         }
+    }
+
+    /** The computation in flight ended: {@code text} is its summary. */
+    private void settle(String text) {
+        ready = true;
+        cancelRunning = () -> { };
+        showSummary(text);
+        changeListener.run();
     }
 }

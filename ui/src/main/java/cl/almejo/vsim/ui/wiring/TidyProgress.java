@@ -18,12 +18,17 @@ public interface TidyProgress {
     /** Shows the stage being computed and how far it is ({@code total} 0 when unknown). */
     void stage(CircuitTidyProgress.Stage stage, int done, int total);
 
-    /** The text of a stage: «Separando lo que se tapa… ronda 3 de 10», «Moviendo partes… 2 de 8», «Ordenando cables… pasada 2». */
+    /**
+     * The text of a stage: «Separando lo que se tapa… ronda 2 de 3», «Moviendo partes… 2 de 8», «Moviendo textos… 1 de
+     * 4», «Ordenando cables… pasada 2».
+     */
     static String describe(CircuitTidyProgress.Stage stage, int done, int total) {
         return switch (stage) {
             case SEPARATING -> total > 0 ? Messages.format("tidy.progress.separating", done, total)
                     : Messages.format("tidy.progress.separating.round", done);
             case MOVING -> total > 0 ? Messages.format("tidy.progress.moving", done, total)
+                    : Messages.text("tidy.progress.working");
+            case MOVING_TEXTS -> total > 0 ? Messages.format("tidy.progress.movingTexts", done, total)
                     : Messages.text("tidy.progress.working");
             case WIRES -> Messages.format("tidy.progress.round", done);
         };

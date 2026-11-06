@@ -4,6 +4,8 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -251,6 +253,26 @@ class TidyWiresFeaturesTest {
     }
 
     @Test
+    void aFailedPreviewSaysSoAndNeverThatTheCircuitIsTidy() {
+        TidyPlanner[] captured = new TidyPlanner[1];
+        features.dispose();
+        features = new TidyWiresFeatures(view, (parent, hasSelection, initial, planner) -> {
+            captured[0] = planner;
+            return Optional.empty();
+        }, directRunner(), new TidyRunner(Runnable::run, Runnable::run,
+                (snapshot, registry, scope, options, cancelled, progress) -> {
+                    throw new IllegalStateException("sin memoria");
+                }), (milliseconds, task) -> () -> { }, (parent, onCancel) -> null);
+        perform(features.tidyWithOptionsAction());
+
+        TidyWiresPanel panel = new TidyWiresPanel(false, CircuitTidyOptions.DEFAULTS, captured[0]);
+
+        assertThat(panel.summaryText()).isEqualTo("No se pudo ordenar el circuito: sin memoria");
+        assertThat(panel.isReady()).isTrue();
+        assertThat(panel.canApply()).isFalse();
+    }
+
+    @Test
     void theDialogPanelOffersTheSelectionWhenThereIsOne() {
         TidyWiresPanel panel = new TidyWiresPanel(true, CircuitTidyOptions.DEFAULTS, (options, selection, onResult) -> {
             onResult.accept(new CircuitTidyPlan(new CircuitDocument(), 0, 0, java.util.Set.of(), TidyPlan.EMPTY));
@@ -291,7 +313,7 @@ class TidyWiresFeaturesTest {
             onResult.accept(many);
             return () -> { };
         });
-        panel.showSummary("Se moverán 30 partes y 32 notas, se borrarán 34 puntas sueltas y se unirán 12 tramos; "
+        panel.showSummary("Se moverán 30 partes, 32 textos, se borrarán 34 puntas sueltas y se unirán 12 tramos; "
                 + "no se pudieron separar 15 cosas");
         javax.swing.JLabel summary = null;
         for (java.awt.Component child : panel.getComponents()) {
@@ -354,6 +376,21 @@ class TidyWiresFeaturesTest {
         openDocument.history().redo();
         assertThat(openDocument.document().component(second).orElseThrow().position()).isEqualTo(after);
         assertThat(openDocument.document().guides()).isEqualTo(guides);
+    }
+
+    @Test
+    void aSelectedFrameMeansWhatItHolds() {
+        ElementId second = addOverlappingGates();
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(-4, 16), 30, 14, "Bloque",
+                FrameTint.NONE, false);
+        openDocument.execute(new AddElementsCommand(List.of(frame)));
+        GridPoint before = openDocument.document().component(second).orElseThrow().position();
+        view.canvas().selection().set(List.of(frame.id()));
+
+        perform(features.tidyAction());
+
+        assertThat(openDocument.document().component(second).orElseThrow().position()).isNotEqualTo(before);
+        assertThat(openDocument.document().frame(frame.id())).contains(frame);
     }
 
     @Test

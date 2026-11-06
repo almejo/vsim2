@@ -603,6 +603,21 @@ class CircuitTidyTest {
     }
 
     @Test
+    void textsReportTheirOwnStageAndSeparatingCountsThePartRounds() {
+        CircuitDocument document = stackedAndGates();
+        text(document, 11, 11, "nota");
+        List<String> reports = new ArrayList<>();
+
+        CircuitTidy.plan(document, registry, everything(document), CircuitTidyOptions.DEFAULTS, WIDE_TEXTS, NEVER,
+                (stage, done, total) -> reports.add(stage + " " + done + "/" + total)).orElseThrow();
+
+        assertThat(reports).first().isEqualTo("SEPARATING 1/3");
+        assertThat(reports).filteredOn(report -> report.startsWith("SEPARATING"))
+                .allMatch(report -> report.endsWith("/3")).doesNotHaveDuplicates();
+        assertThat(reports).anyMatch(report -> report.startsWith("MOVING_TEXTS 1/"));
+    }
+
+    @Test
     void lockedFrameContentsStayInside() {
         CircuitDocument document = new CircuitDocument();
         Frame frame = new Frame(document.newFrameId(), new GridPoint(0, 0), 12, 8, "Bloque", FrameTint.NONE, true);

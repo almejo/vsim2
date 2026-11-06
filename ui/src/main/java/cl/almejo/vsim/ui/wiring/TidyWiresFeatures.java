@@ -5,10 +5,11 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.layout.CircuitTidyOptions;
 import cl.almejo.vsim.core.layout.CircuitTidyPlan;
 import cl.almejo.vsim.core.layout.CircuitTidyProgress;
-import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -28,7 +29,6 @@ import java.awt.Component;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
 
 /**
  * «Ordenar circuito» of one editor view: two items at the end of Editar (after a separator), their shortcut
@@ -122,15 +122,28 @@ public final class TidyWiresFeatures {
         return tidyWithOptions;
     }
 
-    /** The selected elements of any kind that are in the document (none: the whole circuit is tidied). */
+    /**
+     * The selected elements of any kind that are in the document (none: the whole circuit is tidied); a selected frame
+     * stands for what it holds, as for the AI's {@code TidyWires} (a frame itself never moves in the tidy).
+     */
     private Set<ElementId> selectedElements() {
+        CircuitDocument document = view.openDocument().document();
         Set<ElementId> selected = new LinkedHashSet<>();
         for (ElementId id : view.selection().ids()) {
-            if (view.openDocument().document().element(id).isPresent()) {
+            Optional<Frame> frame = document.frame(id);
+            if (frame.isPresent()) {
+                selected.addAll(FrameContents.of(document, view.openDocument().registry(), frame.get()));
+            } else if (document.element(id).isPresent()) {
                 selected.add(id);
             }
         }
         return selected;
+    }
+
+    /** True when something of the document is selected (an empty frame too: then nothing is tidied, not all). */
+    private boolean hasSelection() {
+        CircuitDocument document = view.openDocument().document();
+        return view.selection().ids().stream().anyMatch(id -> document.element(id).isPresent());
     }
 
     private Set<ElementId> allElements() {
@@ -157,8 +170,7 @@ public final class TidyWiresFeatures {
     }
 
     /** The planner of the dialog's live summary: background, cancellable, on a snapshot of the moment. */
-    private Runnable preview(CircuitTidyOptions options, boolean selectionOnly,
-                             Consumer<CircuitTidyPlan> onResult) {
+    private Runnable preview(CircuitTidyOptions options, boolean selectionOnly, TidyPlanner.Results results) {
         if (disposed) {
             return () -> { };
         }
@@ -172,12 +184,12 @@ public final class TidyWiresFeatures {
 
                     @Override
                     public void finished(CircuitTidyPlan plan) {
-                        onResult.accept(plan);
+                        results.accept(plan);
                     }
 
                     @Override
                     public void failed(Throwable throwable) {
-                        onResult.accept(new CircuitTidyPlan(snapshot, 0, 0, Set.of(), TidyPlan.EMPTY));
+                        results.failed(String.valueOf(throwable.getMessage()));
                     }
                 });
         Runnable cancel = job::cancel;
@@ -193,14 +205,14 @@ public final class TidyWiresFeatures {
         if (disposed) {
             return;
         }
-        run(view.services().preferences().tidyOptions(), !selectedElements().isEmpty());
+        run(view.services().preferences().tidyOptions(), hasSelection());
     }
 
     void tidyWithDialog() {
         if (disposed) {
             return;
         }
-        Optional<TidyChoice> choice = chooser.choose(view, !selectedElements().isEmpty(),
+        Optional<TidyChoice> choice = chooser.choose(view, hasSelection(),
                 view.services().preferences().tidyOptions(), this::preview);
         previewCancels.forEach(Runnable::run);
         previewCancels.clear();

@@ -79,9 +79,11 @@ public final class CircuitTidy {
 
     /**
      * Like {@link #plan(CircuitDocument, ComponentTypeRegistry, Set, CircuitTidyOptions, TextBoxes, BooleanSupplier,
-     * IntConsumer)}, reporting every stage to {@code progress}: {@code SEPARATING} with each round of the separation
-     * (of at most {@value OverlapSeparation#MAXIMUM_ROUNDS}), {@code MOVING} with each item placed (of the items to
-     * place) and {@code WIRES} with each round of the wire rules (total unknown, 0).
+     * IntConsumer)}, reporting every stage to {@code progress} ({@link CircuitTidyProgress.Stage}): {@code SEPARATING}
+     * with each round of parts (of at most {@value #MAXIMUM_PART_ROUNDS}), {@code MOVING} with each part placed in the
+     * round's first pass (of the parts to place), {@code MOVING_TEXTS} with each block of texts (of the blocks over a
+     * body) and {@code WIRES} with each round of the wire rules (total unknown, 0). No count starts again within one
+     * round of its stage.
      */
     public static Optional<CircuitTidyPlan> plan(CircuitDocument document, ComponentTypeRegistry registry,
                                                  Set<ElementId> scope, CircuitTidyOptions options, TextBoxes texts,
@@ -94,25 +96,10 @@ public final class CircuitTidy {
     @FunctionalInterface
     interface Separator {
 
-        /** The real geometry, with its rounds reported. */
-        Separator REAL = new Separator() {
-            @Override
-            public Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled) {
-                return OverlapSeparation.separate(boxes, cancelled);
-            }
-
-            @Override
-            public Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled, IntConsumer roundStarted) {
-                return OverlapSeparation.separate(boxes, cancelled, roundStarted);
-            }
-        };
+        /** The real geometry. */
+        Separator REAL = OverlapSeparation::separate;
 
         Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled);
-
-        /** Like {@link #separate(List, BooleanSupplier)}, telling {@code roundStarted} each round (stand-ins: none). */
-        default Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled, IntConsumer roundStarted) {
-            return separate(boxes, cancelled);
-        }
     }
 
     /** Like the public {@code plan}, with the geometry given (tests use a simple stand-in). */
@@ -228,8 +215,11 @@ public final class CircuitTidy {
         Set<ElementId> run() {
             // The items are read again only after something moved: reading them is a good part of the time.
             LayoutItems items = currentItems();
-            for (int round = 0; round < MAXIMUM_PART_ROUNDS && new Round(items).place(items.separationGroups());
-                 round++) {
+            for (int round = 0; round < MAXIMUM_PART_ROUNDS; round++) {
+                progress.reached(CircuitTidyProgress.Stage.SEPARATING, round + 1, MAXIMUM_PART_ROUNDS);
+                if (!new Round(items).place(items.separationGroups())) {
+                    break;
+                }
                 items = currentItems();
             }
             if (new Round(items).placeTexts()) {
@@ -303,7 +293,7 @@ public final class CircuitTidy {
                         && item.movable() && !items.coveredBodies(item, Map.of()).isEmpty()).toList();
                 for (int index = 0; index < covering.size(); index++) {
                     LayoutItems.Item block = covering.get(index);
-                    progress.reached(CircuitTidyProgress.Stage.MOVING, index + 1, covering.size());
+                    progress.reached(CircuitTidyProgress.Stage.MOVING_TEXTS, index + 1, covering.size());
                     checkCancelled();
                     Optional<GridPoint> shift = nearestFree(block, true, List.of(1, -1))
                             .or(() -> nearestFree(block, false, List.of(1, -1)));
@@ -337,8 +327,7 @@ public final class CircuitTidy {
                 Map<ElementId, GridPoint> deltas = new LinkedHashMap<>();
                 for (List<LayoutBox> group : groups) {
                     checkCancelled();
-                    Separation separation = separator.separate(group, cancelled, round -> progress.reached(
-                            CircuitTidyProgress.Stage.SEPARATING, round, OverlapSeparation.MAXIMUM_ROUNDS));
+                    Separation separation = separator.separate(group, cancelled);
                     for (LayoutBox box : group) {
                         GridPoint delta = separation.deltas().get(box.id());
                         if (box.movable() && delta != null && !delta.equals(GridPoint.ORIGIN)) {
@@ -350,8 +339,8 @@ public final class CircuitTidy {
             }
 
             /**
-             * Places the items in id order; those refused everywhere are tried again after the others moved. True
-             * when any moved.
+             * Places the items in id order; those refused everywhere are tried again after the others moved (quietly:
+             * the count of the first pass does not start again). True when any moved.
              */
             private boolean placeAll(List<LayoutItems.Item> pending, Map<ElementId, GridPoint> deltas) {
                 List<LayoutItems.Item> waiting = new ArrayList<>(pending);
@@ -360,7 +349,9 @@ public final class CircuitTidy {
                     List<LayoutItems.Item> refusedThisPass = new ArrayList<>();
                     for (int index = 0; index < waiting.size(); index++) {
                         LayoutItems.Item item = waiting.get(index);
-                        progress.reached(CircuitTidyProgress.Stage.MOVING, index + 1, waiting.size());
+                        if (pass == 0) {
+                            progress.reached(CircuitTidyProgress.Stage.MOVING, index + 1, waiting.size());
+                        }
                         if (placeOne(item, deltas.get(item.id()))) {
                             anyMoved = true;
                         } else {
