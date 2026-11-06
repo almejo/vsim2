@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -246,5 +247,68 @@ class CircuitFlattenerTest {
         assertThat(snapshot.problems()).filteredOn(WidthMismatch.class::isInstance).extracting(Problem::netId)
                 .containsExactly(netId);
         assertThat(snapshot.netValue(netId).isFullyHighImpedance()).isTrue();
+    }
+
+    @Test
+    void eachPieceStartsWithItsOwnContents() {
+        withTwoSmallMemories();
+        document.replace(document.component(new ElementId("c1")).orElseThrow()
+                .withMemoryContents(Map.of("c10", "@1 7")));
+
+        FlatCircuit flat = flattenDocument();
+
+        assertThat(contentsOf(flat, "c1/c10")).isEqualTo("@1 7");
+        assertThat(contentsOf(flat, "c2/c10")).isEqualTo("@0 5");
+    }
+
+    @Test
+    void aPieceWithoutOverrideUsesTheDefinition() {
+        withTwoSmallMemories();
+
+        FlatCircuit flat = flattenDocument();
+
+        assertThat(contentsOf(flat, "c1/c10")).isEqualTo("@0 5");
+        assertThat(contentsOf(flat, "c2/c10")).isEqualTo("@0 5");
+    }
+
+    @Test
+    void anOuterOverrideWinsOverTheDefinition() {
+        document.putDefinition(smallMemory());
+        Component inner = new Component(new ElementId("c3"), SubcircuitTypes.typeIdOf("memoria-chica"),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "").withMemoryContents(Map.of("c10", "@0 6"));
+        document.putDefinition(new ComponentDefinition("cpu", "CPU", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(inner), List.of(), List.of())));
+        add(SubcircuitTypes.typeIdOf("cpu"), "c1", 0, 0);
+        add(SubcircuitTypes.typeIdOf("cpu"), "c2", 10, 0);
+        document.replace(document.component(new ElementId("c1")).orElseThrow()
+                .withMemoryContents(Map.of("c3/c10", "@0 7")));
+
+        FlatCircuit flat = flattenDocument();
+
+        assertThat(contentsOf(flat, "c1/c3/c10")).isEqualTo("@0 7");
+        assertThat(contentsOf(flat, "c2/c3/c10")).isEqualTo("@0 6");
+    }
+
+    /** «Memoria chica»: RAM c10 with word 0 = 5, no pins; two pieces of it, c1 and c2. */
+    private void withTwoSmallMemories() {
+        document.putDefinition(smallMemory());
+        add(SubcircuitTypes.typeIdOf("memoria-chica"), "c1", 0, 0);
+        add(SubcircuitTypes.typeIdOf("memoria-chica"), "c2", 10, 0);
+    }
+
+    private ComponentDefinition smallMemory() {
+        Component memory = registry.require(StandardComponentTypes.RAM).newComponent(new ElementId("c10"),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(MemoryTypes.CONTENTS, "@0 5"), "");
+        return new ComponentDefinition("memoria-chica", "Memoria chica", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(memory), List.of(), List.of()));
+    }
+
+    private FlatCircuit flattenDocument() {
+        return new CircuitFlattener(registry).flatten(document, new NetlistCompiler(registry).compile(document));
+    }
+
+    private static Object contentsOf(FlatCircuit flat, String flatId) {
+        return flat.components().stream().filter(component -> component.id().equals(flatId)).findFirst()
+                .orElseThrow().parameters().get(MemoryTypes.CONTENTS);
     }
 }

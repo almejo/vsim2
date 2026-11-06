@@ -76,7 +76,7 @@ class CircuitFormatTest {
     static Stream<org.junit.jupiter.params.provider.Arguments> brokenFiles() {
         return Stream.of(
                 arguments("{", CircuitFormatException.Reason.INVALID_JSON),
-                arguments("{\"formatVersion\":6,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT),
+                arguments("{\"formatVersion\":7,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":\"2\",\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
                 arguments("{\"formatVersion\":2.5,\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
                 arguments("{\"kind\":\"circuit\"}", CircuitFormatException.Reason.NOT_VSIM_FILE),

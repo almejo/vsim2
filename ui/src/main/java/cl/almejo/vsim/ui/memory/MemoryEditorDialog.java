@@ -1,15 +1,19 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.core.command.SetInstanceMemoryContentsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MemoryFile;
 import cl.almejo.vsim.core.memory.MemoryHeader;
 import cl.almejo.vsim.core.memory.MemoryKind;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -20,6 +24,7 @@ import cl.almejo.vsim.ui.search.FindIcons;
 import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InstanceNames;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -72,8 +77,15 @@ import java.util.function.LongSupplier;
  * simulation runs a RAM's grid shows the live words and the last access. Built headless (the content is a plain
  * panel); {@link #show} puts it in a modal dialog. Everything is on the EDT, and the engine is only reached through
  * {@link OpenDocument}'s queued requests.
+ *
+ * <p>Opened from a component tab with «Valores de» a piece, it shows and writes that piece's own contents (spec
+ * §6.6b): Aceptar keeps them on the piece, «Usar para todas las piezas» makes them the component's and «Volver al del
+ * componente» forgets them. With «Sin valores» it edits the component's contents, for every piece.
  */
 public final class MemoryEditorDialog {
+
+    /** The undo text of «Usar para todas las piezas». */
+    static final String USE_FOR_EVERY_PIECE = "command.pieceMemoryForAll";
 
     /** The live grid is refreshed at most this often (5 times a second). */
     static final int LIVE_INTERVAL_MILLISECONDS = 200;
@@ -92,6 +104,10 @@ public final class MemoryEditorDialog {
     private final MemoryKind kind;
     private final MemoryGridModel model;
     private final String name;
+    /** In a component tab with a piece in «Valores de»: where that piece keeps its own contents of this memory. */
+    private final Optional<PieceMemories.Place> piece;
+    private final JButton useForEveryPieceButton = new JButton(Messages.text("memory.piece.useForAll"));
+    private final JButton backToComponentButton = new JButton(Messages.text("memory.piece.backToComponent"));
     private final JPanel content = new JPanel(new BorderLayout());
     private final JTable table;
     private final JPanel linkBar = new JPanel(new BorderLayout(8, 0));
@@ -141,7 +157,10 @@ public final class MemoryEditorDialog {
         Map<String, Object> resolved = type.resolveParameters(component.parameters());
         long words = MemoryTypes.words(resolved);
         int width = (Integer) resolved.get(MemoryTypes.WIDTH);
-        MemoryContents initialContents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS));
+        this.piece = document.isBody()
+                ? document.contextPath().map(path -> PieceMemories.placeOf(path, componentId))
+                : Optional.empty();
+        MemoryContents initialContents = currentContents(component);
         this.model = new MemoryGridModel(initialContents, width, words, MemoryRadix.HEX);
         this.name = MemoryNames.displayName(document.document(), component);
 
@@ -411,6 +430,7 @@ public final class MemoryEditorDialog {
         JPanel south = new JPanel(new BorderLayout());
         status.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
         south.add(status, BorderLayout.CENTER);
+        piece.ifPresent(place -> south.add(pieceButtons(), BorderLayout.NORTH));
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton accept = new JButton(Messages.text("memory.editor.accept"));
         accept.setName("memory.accept");
@@ -424,6 +444,20 @@ public final class MemoryEditorDialog {
         return south;
     }
 
+    /** «Usar para todas las piezas» and «Volver al del componente», only in a component tab with a piece. */
+    private JPanel pieceButtons() {
+        useForEveryPieceButton.setName("memory.piece.useForAll");
+        useForEveryPieceButton.setToolTipText(Messages.text("memory.piece.useForAll.tooltip"));
+        useForEveryPieceButton.addActionListener(event -> useForEveryPiece());
+        backToComponentButton.setName("memory.piece.backToComponent");
+        backToComponentButton.setToolTipText(Messages.text("memory.piece.backToComponent.tooltip"));
+        backToComponentButton.addActionListener(event -> backToTheComponent());
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        buttons.add(useForEveryPieceButton);
+        buttons.add(backToComponentButton);
+        return buttons;
+    }
+
     // Link state
 
     /** Re-reads the link from the document (a link action changed it) and shows the bar and the grid mode. */
@@ -434,9 +468,13 @@ public final class MemoryEditorDialog {
         boolean linked = !link.isEmpty();
         model.setReadOnly(linked);
         linkBar.setVisible(linked);
-        linkText.setText(Messages.format("memory.linkBar", linkedFileName()));
+        // a link is the part's, so the component's: inside a component it is the same for every piece
+        linkText.setText(Messages.format(document.isBody() ? "memory.linkBar.allPieces" : "memory.linkBar",
+                linkedFileName()));
         linkText.setDetail(fullLinkPath());
         externalButton.setEnabled(linked);
+        useForEveryPieceButton.setEnabled(!linked);
+        backToComponentButton.setEnabled(piece.flatMap(place -> PieceMemories.stored(circuit(), place)).isPresent());
     }
 
     /** The link as the user reads it: relative to the circuit when it is saved. */
@@ -983,14 +1021,59 @@ public final class MemoryEditorDialog {
         if (component.isEmpty()) {
             return false;
         }
-        MemoryContents current = MemoryContents.decode(
-                String.valueOf(component.get().parameters().getOrDefault(MemoryTypes.CONTENTS, "")));
-        if (!model.isReadOnly() && !model.edited().equals(current)) {
-            ComponentType type = document.registry().typeOf(component.get());
-            document.execute(new EditMemoryContentsCommand(component.get(), type, model.edited()));
+        if (!model.isReadOnly() && !model.edited().equals(currentContents(component.get()))) {
+            if (piece.isPresent()) {
+                circuitPlace().execute(SetInstanceMemoryContentsCommand.set(piece.get(), model.edited()));
+            } else {
+                ComponentType type = document.registry().typeOf(component.get());
+                document.execute(new EditMemoryContentsCommand(component.get(), type, model.edited()));
+            }
         }
         closer.run();
         return true;
+    }
+
+    /**
+     * «Usar para todas las piezas»: the words shown become the component's contents and the piece forgets its own, one
+     * undo step; closes the dialog.
+     */
+    private void useForEveryPiece() {
+        Optional<Component> component = document.document().component(componentId);
+        if (component.isEmpty() || piece.isEmpty()) {
+            return;
+        }
+        ComponentType type = document.registry().typeOf(component.get());
+        document.executeInsideWith(new EditMemoryContentsCommand(component.get(), type, model.edited()),
+                SetInstanceMemoryContentsCommand.clear(piece.get()), USE_FOR_EVERY_PIECE);
+        closer.run();
+    }
+
+    /** «Volver al del componente»: the piece forgets its own contents and uses the component's, one undo step. */
+    private void backToTheComponent() {
+        piece.ifPresent(place -> circuitPlace().execute(SetInstanceMemoryContentsCommand.clear(place)));
+        closer.run();
+    }
+
+    /**
+     * The contents the memory has now where this editor works: the piece's own (kept by it or by a piece around it)
+     * in a component tab with a piece, else the part's.
+     */
+    private MemoryContents currentContents(Component component) {
+        MemoryContents partContents = MemoryContents.decode(
+                String.valueOf(component.parameters().getOrDefault(MemoryTypes.CONTENTS, "")));
+        return document.contextPath().filter(path -> piece.isPresent())
+                .flatMap(path -> PieceMemories.effective(circuit(), InstancePath.child(path, componentId.value())))
+                .orElse(partContents);
+    }
+
+    /** The place that edits the circuit itself: this one, or the document of a component tab. */
+    private OpenDocument circuitPlace() {
+        return document.parent().orElse(document);
+    }
+
+    /** The circuit whose pieces keep their own contents. */
+    private CircuitDocument circuit() {
+        return circuitPlace().document();
     }
 
     /** Cancelar: nothing changes. */
@@ -999,14 +1082,18 @@ public final class MemoryEditorDialog {
     }
 
     /**
-     * «Contenido de RAM1 · RAM · 1K × 8». A ROM inside a component says that its contents are the component's, the same
-     * in every piece (spec §6.6): «Contenido de ROM1 de Ram — todas las piezas · …». A RAM inside shows the live words
-     * of the tab's instance.
+     * «Contenido de RAM1 · RAM · 1K × 8». Inside a component it says whose contents it edits (spec §6.6b): the piece's
+     * of «Valores de», «Contenido de RAM1 de Memoria chica — solo Memoria 1 · …», or with «Sin valores» the
+     * component's, «… — todas las piezas · …».
      */
     String title() {
-        String shown = document.isBody() && kind == MemoryKind.ROM
-                ? Messages.format("memory.title.allPieces", name, document.definitionName())
-                : name;
+        if (!document.isBody()) {
+            return Messages.format("memory.editor.title", name, summary());
+        }
+        String shown = document.contextPath()
+                .map(path -> Messages.format("memory.title.onePiece", name, document.definitionName(),
+                        InstanceNames.routeText(path, circuit())))
+                .orElseGet(() -> Messages.format("memory.title.allPieces", name, document.definitionName()));
         return Messages.format("memory.editor.title", shown, summary());
     }
 

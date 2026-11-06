@@ -139,9 +139,22 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 - **Un pin nuevo que no cabe**: si al agregar un pin adentro su lugar en el borde de una pieza toca un cable o un pin,
   esa pieza pone el pin nuevo en otro lugar libre de su borde y mantiene el resto como estaba, sin unir nada.
   Problemas lo dice: «Inversor: el pin b quedó en otro lugar (su lugar estaba ocupado)».
-- **Memorias**: una RAM abierta desde la pestaña muestra su contenido en la pieza cuyos valores se ven. El contenido de
-  una ROM es del componente, el mismo en todas sus piezas, y su editor lo dice en el título: «Contenido de ROM1 de Ram —
-  todas las piezas». El «Mapa de memoria» de la pestaña sigue a la pieza que se muestra.
+- **Memorias: cada pieza tiene su propio contenido**: una RAM o una ROM abierta desde la pestaña muestra el contenido
+  de la pieza que se ve en «Valores de», y lo que se escribe ahí (también lo que se importa con «Importar…») cambia
+  solo esa pieza: con dos «Memoria chica» en el circuito, escribir la palabra 1 adentro con «Valores de: Memoria 1» no
+  toca a Memoria 2. El título lo dice: «Contenido de RAM1 de Memoria chica — solo Memoria 1». Al iniciar la
+  simulación o con «Reiniciar», cada pieza parte de su propio contenido; se guarda con el circuito y Deshacer lo
+  quita. Dos botones más abajo:
+  - **«Usar para todas las piezas»**: lo que se ve pasa a ser el contenido del componente, en todas las piezas que no
+    tengan uno propio, y esta pieza deja de tener el suyo. Un solo paso de deshacer.
+  - **«Volver al del componente»**: la pieza olvida su contenido propio y vuelve a usar el del componente.
+
+  Con «Sin valores» el editor cambia el contenido del componente, el de todas las piezas, y el título dice «— todas
+  las piezas». Un archivo enlazado a una memoria de adentro es del componente, el mismo en todas las piezas, y la
+  barra del enlace lo dice. En Propiedades, una memoria de adentro con contenido propio en la pieza que se ve dice
+  «Contenido propio de Memoria 1». Si un componente tiene otro adentro, el contenido propio de la pieza de afuera
+  manda sobre el de las de adentro. El «Mapa de memoria» de la pestaña sigue a la pieza que se muestra. Al
+  desarmar una pieza, sus memorias se quedan con el contenido propio que tenía.
 - **Terminales**: la ventana de un Terminal de adentro muestra el de la pieza cuyos valores se ven. Un Terminal con el
   mismo nombre en el circuito y adentro de un componente son dos ventanas distintas, y cada una recuerda su lugar y su
   tamaño. Si la pestaña pasa a mostrar otra pieza, la ventana de la pieza anterior se cierra. Abrirla desde otra
