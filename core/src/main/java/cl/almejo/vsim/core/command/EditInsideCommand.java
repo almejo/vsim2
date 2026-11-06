@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.BodyEdits;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -12,6 +13,7 @@ import cl.almejo.vsim.core.netlist.PinRef;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * An edit made inside a component's tab (spec §6.1, §10.4): {@code bodyCommand} changes the working copy of the
@@ -85,10 +87,38 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         if (replacement.sameContentAs(previous)) {
             return null;
         }
+        Function<String, Optional<ComponentDefinition>> lookup =
+                id -> workingCopy.definition(id).or(() -> document.definition(id));
+        requireNotNestingItself(replacement, lookup);
         // definitions pasted into the body go to the document (spec §6.5); the ones it has already stay as they are
-        DefinitionBundle bundle = DefinitionBundle.of(replacement,
-                id -> workingCopy.definition(id).or(() -> document.definition(id)));
+        DefinitionBundle bundle = DefinitionBundle.of(replacement, lookup);
         return ReplaceDefinitionCommand.prepareInside(document, registry, bundle);
+    }
+
+    /**
+     * Refuses a body that would hold the definition itself or a piece of a definition that contains it (a paste, a
+     * dropped file or the AI go around the palette's grey entries, spec §6.5), with the palette's explanation and the
+     * name of the piece's component, instead of the cycle's {@link IllegalArgumentException}.
+     */
+    private void requireNotNestingItself(ComponentDefinition replacement,
+                                         Function<String, Optional<ComponentDefinition>> lookup) {
+        for (String usedId : replacement.usedDefinitionIds()) {
+            if (usedId.equals(definitionId)) {
+                throw new InsideEditRefusedException("inside.cannotNestItself", List.of());
+            }
+            Optional<ComponentDefinition> used = lookup.apply(usedId);
+            if (used.isPresent() && reaches(used.get(), lookup)) {
+                throw new InsideEditRefusedException("inside.pieceContainsThisComponent", List.of(used.get().name()));
+            }
+        }
+    }
+
+    /** True when {@code definition}'s body uses the edited definition at any depth. */
+    private boolean reaches(ComponentDefinition definition, Function<String, Optional<ComponentDefinition>> lookup) {
+        Function<String, Optional<ComponentDefinition>> stopAtEdited =
+                id -> id.equals(definitionId) ? Optional.empty() : lookup.apply(id);
+        return DefinitionGraph.knownClosure(List.of(definition.id()), stopAtEdited).stream()
+                .anyMatch(reached -> reached.usedDefinitionIds().contains(definitionId));
     }
 
     @Override

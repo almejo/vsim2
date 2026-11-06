@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
@@ -312,6 +313,28 @@ class OpenDocumentBodyTest {
         assertThat(told).extracting(InsideEditRefusedException::messageKey).containsExactly("inside.cannotNestItself");
         assertThat(body.document().elements()).containsExactlyElementsOf(before);
         assertThat(openDocument.document().definition(BLOCK)).contains(definition);
+        assertThat(openDocument.history().undoCommand()).containsSame(placed);
+    }
+
+    @Test
+    void pastingAPieceThatContainsThisComponentIsToldToTheTabNotThrown() {
+        withInverterInsideDoubleInverterAndOnItsOwn();
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c30"));
+        List<DocumentElement> before = body.document().elements();
+        List<InsideEditRefusedException> told = new ArrayList<>();
+        body.addRefusalListener(told::add);
+        Component container = new Component(new ElementId("c1"),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), new GridPoint(0, 0), Rotation.R0,
+                Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(container), List.of(), List.of(),
+                List.of(ExampleDefinitions.inverter(), ExampleDefinitions.doubleInverter()));
+        Command placed = openDocument.history().undoCommand().orElseThrow();
+
+        body.execute(new PasteCommand(fragment, new GridPoint(40, 40)));
+
+        assertThat(told).extracting(InsideEditRefusedException::messageKey)
+                .containsExactly("inside.pieceContainsThisComponent");
+        assertThat(body.document().elements()).containsExactlyElementsOf(before);
         assertThat(openDocument.history().undoCommand()).containsSame(placed);
     }
 

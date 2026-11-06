@@ -79,7 +79,8 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 - **La paleta**: el mismo componente y los componentes que lo contienen aparecen en gris y no se pueden poner adentro.
   Al pasar el mouse dicen por qué: «No se puede usar dentro de sí mismo» o «Contiene al componente que estás
   editando». En la sección «Componentes de este circuito» están todos los componentes del circuito, no solo los que ya
-  hay adentro.
+  hay adentro. Pegar o soltar una pieza así tampoco la pone adentro: no cambia nada y la barra de lugar dice por qué
+  («Doble inversor contiene al componente que estás editando: no se puede poner adentro»).
 - **Un componente que se usa dentro de otro** (el «Medio sumador» dentro del «Sumador completo», la ALU dentro del
   LRV32IM): sus pines se cambian desde adentro igual que los de cualquier componente. Agregar, borrar, renombrar o
   cambiar el ancho de un «Pin de entrada» o «Pin de salida» cambia también las piezas que están dentro de los otros

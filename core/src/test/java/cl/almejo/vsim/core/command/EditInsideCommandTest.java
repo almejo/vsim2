@@ -133,13 +133,36 @@ class EditInsideCommandTest {
     }
 
     @Test
-    void aReplacementThatFailsLeavesTheWorkingCopyAsItWas() {
+    void aPieceOfItselfIsRefusedAndLeavesTheWorkingCopyAsItWas() {
         List<DocumentElement> bodyBefore = workingCopy.elements();
         Component itself = new Component(workingCopy.newComponentId(), SubcircuitTypes.typeIdOf(inverter.id()),
                 new GridPoint(30, 30), Rotation.R0, Map.of(), "");
         EditInsideCommand inside = inside(new AddElementsCommand(List.of(itself)));
 
-        assertThatThrownBy(() -> history.execute(inside)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> assertThat(refusal.messageKey()).isEqualTo("inside.cannotNestItself"));
+
+        assertThat(workingCopy.elements()).containsExactlyElementsOf(bodyBefore);
+        assertThat(document.definition(inverter.id())).containsSame(inverter);
+        assertThat(history.canUndo()).isFalse();
+    }
+
+    @Test
+    void pastingAPieceThatContainsTheEditedComponentIsRefusedWithItsName() {
+        // final review I2: a CPU piece pasted inside the ALU it contains
+        ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter();
+        List<DocumentElement> bodyBefore = workingCopy.elements();
+        Component container = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(doubleInverter.id()),
+                new GridPoint(0, 0), Rotation.R0, Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(container), List.of(), List.of(),
+                List.of(inverter, doubleInverter));
+        EditInsideCommand inside = inside(new PasteCommand(fragment, new GridPoint(40, 40)));
+
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> {
+                    assertThat(refusal.messageKey()).isEqualTo("inside.pieceContainsThisComponent");
+                    assertThat(refusal.arguments()).containsExactly(doubleInverter.name());
+                });
 
         assertThat(workingCopy.elements()).containsExactlyElementsOf(bodyBefore);
         assertThat(document.definition(inverter.id())).containsSame(inverter);
