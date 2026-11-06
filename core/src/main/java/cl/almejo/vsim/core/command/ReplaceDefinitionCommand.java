@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.library.UpdateNote;
@@ -46,6 +47,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
     private final List<UpdateNote> notes;
     private final List<KeptOldShape> keptOldShapes;
     private final List<DefinitionUpdateProblem> nestedProblems;
+    private final List<RemovedPinWire> removedPinWires;
     private ComponentDefinition previous;
     private boolean wasApplied;
 
@@ -53,7 +55,8 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
                                      Map<String, ComponentDefinition> previousParents,
                                      Map<String, ComponentDefinition> reconciledParents,
                                      PieceUpdatePlanner.Result pieces,
-                                     List<DefinitionUpdateProblem> nestedProblems) {
+                                     List<DefinitionUpdateProblem> nestedProblems,
+                                     List<RemovedPinWire> removedPinWires) {
         this.target = document;
         this.startingRevision = document.revision();
         this.replacement = bundle.root();
@@ -64,6 +67,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         this.notes = pieces.notes();
         this.keptOldShapes = pieces.keptOldShapes();
         this.nestedProblems = List.copyOf(nestedProblems);
+        this.removedPinWires = List.copyOf(removedPinWires);
     }
 
     /**
@@ -102,19 +106,22 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         Map<String, ComponentDefinition> previousParents = new LinkedHashMap<>();
         Map<String, ComponentDefinition> reconciledParents = new LinkedHashMap<>();
         List<DefinitionUpdateProblem> nestedProblems = new ArrayList<>();
+        List<RemovedPinWire> removedPinWires = new ArrayList<>();
         before.ifPresent(old -> {
             if (refuseBusyEdges) {
                 reconcileParents(document, old, replacement, previousParents, reconciledParents);
             } else {
                 rewriteContainingBodies(document, registry, bundle, old, previousParents, reconciledParents,
-                        nestedProblems);
+                        nestedProblems, removedPinWires);
+                removedPinWires.addAll(PieceUpdatePlanner.removedPinWires(document, registry, old, replacement,
+                        Optional.empty()));
             }
         });
         PieceUpdatePlanner.Result pieces = before
                 .map(old -> PieceUpdatePlanner.plan(document, registry, bundle, old, refuseBusyEdges))
                 .orElseGet(() -> new PieceUpdatePlanner.Result(PieceUpdatePlanner.emptyPlan(), List.of()));
         return new ReplaceDefinitionCommand(document, bundle, previousParents, reconciledParents, pieces,
-                nestedProblems);
+                nestedProblems, removedPinWires);
     }
 
     /**
@@ -129,7 +136,8 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
                                                 DefinitionBundle bundle, ComponentDefinition before,
                                                 Map<String, ComponentDefinition> previousParents,
                                                 Map<String, ComponentDefinition> rewrittenParents,
-                                                List<DefinitionUpdateProblem> nestedProblems) {
+                                                List<DefinitionUpdateProblem> nestedProblems,
+                                                List<RemovedPinWire> removedPinWires) {
         ComponentDefinition replacement = bundle.root();
         if (before.size().equals(replacement.size()) && before.pinout().equals(replacement.pinout())) {
             return;
@@ -139,6 +147,8 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
                 continue;
             }
             CircuitDocument body = parent.bodyDocument(document);
+            removedPinWires.addAll(PieceUpdatePlanner.removedPinWires(body, registry, before, replacement,
+                    Optional.of(parent.id())));
             PieceUpdatePlanner.Result planned = PieceUpdatePlanner.plan(body, registry, bundle, before, false);
             planned.plan().disconnected().forEach(pin -> nestedProblems.add(new DefinitionUpdateProblem(parent.id(),
                     pin, DefinitionUpdateProblem.Kind.LOOSENED)));
@@ -188,6 +198,14 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
      */
     public List<DefinitionUpdateProblem> nestedProblems() {
         return nestedProblems;
+    }
+
+    /**
+     * For an inside edit, the wire ends a removed pin left loose (spec §6.1), on the placed pieces and in the bodies
+     * that contain the definition. Always empty for {@link #prepare}.
+     */
+    public List<RemovedPinWire> removedPinWires() {
+        return removedPinWires;
     }
 
     /** What happens to the placed pieces: the pins left unconnected and the pieces that keep their old shape. */

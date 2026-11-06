@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
@@ -252,6 +254,26 @@ class EditInsideCommandTest {
         assertThat(registry.typeOf(rewritten).pinCount()).isEqualTo(3);
         assertThat(document.component(outer.id()).orElseThrow().memoryContents())
                 .containsEntry("c2/c10", "v3.0 hex words\n2");
+    }
+
+    @Test
+    void removingAPinListsTheWiresItLeavesLooseOutsideAndInTheBodiesThatContainIt() {
+        // spec §6.1: removing an interface pin leaves its outside wires loose and listed (debt of task 15)
+        document.add(new Wire(new ElementId("w90"), new GridPoint(6, 12), new GridPoint(10, 12)));
+        Component nested = new Component(new ElementId("c2"), SubcircuitTypes.typeIdOf(inverter.id()),
+                new GridPoint(2, 0), Rotation.R0, Map.of(), "");
+        document.putDefinition(new ComponentDefinition("parent", "Padre", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(nested), List.of(new Wire(new ElementId("w1"), new GridPoint(0, 2),
+                        new GridPoint(2, 2))), List.of())));
+        document.add(new Component(new ElementId("c40"), SubcircuitTypes.typeIdOf("parent"), new GridPoint(10, 40),
+                Rotation.R0, Map.of(), ""));
+        EditInsideCommand inside = inside(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+
+        history.execute(inside);
+
+        assertThat(inside.removedPinWires()).containsExactly(
+                new RemovedPinWire(Optional.of("parent"), new ElementId("c2"), "a", new GridPoint(2, 2)),
+                new RemovedPinWire(Optional.empty(), first.id(), "a", new GridPoint(10, 12)));
     }
 
     @Test

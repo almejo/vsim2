@@ -18,6 +18,12 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
     /** The start of the net id of an {@link Cause#OWN_CONTENTS_FOR_NOTHING} problem; the memory's path follows. */
     public static final String OWN_CONTENTS_PREFIX = "ownContents:";
 
+    /**
+     * The start of the net id of a {@link Cause#WIRE_OF_REMOVED_PIN} problem; the element id, a {@code :} and the
+     * removed pin's name follow (element ids never hold a {@code :}).
+     */
+    public static final String REMOVED_PIN_PREFIX = "removedPin:";
+
     /** What kind of fault this is; it decides how the editor marks and words it. */
     public enum Cause {
         /** A pin of a part inside a component's body connects to nothing (at any depth). */
@@ -50,6 +56,11 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
          * piece. Listed by the editor, which offers to forget them.
          */
         OWN_CONTENTS_FOR_NOTHING,
+        /**
+         * A wire end at {@code position} went to a pin of the piece {@code elementId} that an edit inside its
+         * component removed (spec §6.1): the wire stays, loose ({@code pinIndex} -1; while that edit is applied).
+         */
+        WIRE_OF_REMOVED_PIN,
         /**
          * The memory {@code elementId} ({@code c5/c10}: its path through the circuit's piece that keeps the contents)
          * is linked to a file, but that piece starts from its own contents, not from the file (the user, 2026-11-06).

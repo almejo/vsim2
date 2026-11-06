@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -192,6 +193,24 @@ class ProblemsInsideTest {
         circuit.history().undo();
         main.problems().navigator().next();
         assertThat(wentTo).containsExactly("memoria-chica c5 c10");
+    }
+
+    @Test
+    void removingAPinListsTheWireItLeftLooseUntilUndone() {
+        // spec §6.1 (debt of task 15): the pin's outside wire stays, loose, and Problemas lists it
+        circuit.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        place("c20", SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 10);
+        circuit.execute(new AddElementsCommand(List.of(new Wire(new ElementId("w90"), new GridPoint(6, 12),
+                new GridPoint(10, 12)))));
+        EditorView main = view(circuit);
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c20"));
+
+        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+
+        assertThat(main.problems().panel().problemTexts())
+                .contains("Inversor: el pin a ya no existe; su cable quedó suelto");
+        circuit.history().undo();
+        assertThat(main.problems().panel().problemTexts()).noneMatch(text -> text.contains("ya no existe"));
     }
 
     /** «Memoria chica»: a RAM c10 inside, no pins. */

@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.List;
@@ -204,6 +205,14 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
      */
     public List<DefinitionUpdateProblem> nestedProblems() {
         return writeBack == null ? List.of() : writeBack.nestedProblems();
+    }
+
+    /**
+     * The wire ends a removed pin left loose, on the placed pieces and in the bodies that contain the definition
+     * (spec §6.1); empty before the first apply.
+     */
+    public List<RemovedPinWire> removedPinWires() {
+        return writeBack == null ? List.of() : writeBack.removedPinWires();
     }
 
     @Override

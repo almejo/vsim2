@@ -27,6 +27,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.InstancePaths;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
@@ -145,6 +146,8 @@ public final class OpenDocument implements AutoCloseable {
      * ({@link #insideProblems()}), while it is applied, as {@link #keptOldShapes()}.
      */
     private final Map<Command, List<DefinitionUpdateProblem>> nestedByCommand = new LinkedHashMap<>();
+    /** The wire ends each applied inside edit left loose by removing a pin ({@link #insideProblems()}). */
+    private final Map<Command, List<RemovedPinWire>> removedByCommand = new LinkedHashMap<>();
     /** Null for a document; for a body place, its document and working copy. */
     private final Body body;
     /** A body place's context instance path; empty is «Sin valores» (always empty for a document). */
@@ -338,7 +341,29 @@ public final class OpenDocument implements AutoCloseable {
                 problems.addAll(placesOf(problem));
             }
         }
+        for (List<RemovedPinWire> applied : removedByCommand.values()) {
+            for (RemovedPinWire loose : applied) {
+                problems.addAll(placesOf(loose));
+            }
+        }
         return List.copyOf(problems);
+    }
+
+    /**
+     * {@code loose} on the circuit (while its piece is there) or under every place the body that holds it is used,
+     * as a {@link ConnectivityProblem.Cause#WIRE_OF_REMOVED_PIN} at the loose end.
+     */
+    private List<ConnectivityProblem> placesOf(RemovedPinWire loose) {
+        List<String> elementIds = new ArrayList<>();
+        if (loose.containingDefinition().isEmpty()) {
+            document.component(loose.piece()).ifPresent(piece -> elementIds.add(piece.id().value()));
+        } else {
+            InstancePaths.usesOf(document, loose.containingDefinition().get())
+                    .forEach(use -> elementIds.add(InstancePath.child(use.path(), loose.piece().value())));
+        }
+        return elementIds.stream().map(elementId -> new ConnectivityProblem(ConnectivityProblem.REMOVED_PIN_PREFIX
+                + elementId + ":" + loose.pinName(), elementId, -1, loose.position(),
+                ConnectivityProblem.Cause.WIRE_OF_REMOVED_PIN)).toList();
     }
 
     /** {@code problem} under every place its body is used; none when its piece or pin is gone. */
@@ -816,12 +841,16 @@ public final class OpenDocument implements AutoCloseable {
             if (command instanceof EditInsideCommand inside && !inside.nestedProblems().isEmpty()) {
                 nestedByCommand.put(this, inside.nestedProblems());
             }
+            if (command instanceof EditInsideCommand inside && !inside.removedPinWires().isEmpty()) {
+                removedByCommand.put(this, inside.removedPinWires());
+            }
         }
 
         @Override
         public void revert(CircuitDocument target) {
             keptByCommand.remove(this);
             nestedByCommand.remove(this);
+            removedByCommand.remove(this);
             Set<PinRef> marks = loosenedByCommand.remove(this);
             try {
                 command.revert(target);

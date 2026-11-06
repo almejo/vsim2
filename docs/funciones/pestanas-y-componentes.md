@@ -90,6 +90,10 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   el componente que lo contiene: «Sumador completo › Medio sumador 2: el pin b quedó en otro lugar (su lugar estaba
   ocupado)» o «Sumador completo › Medio sumador 2: pin b sin conectar». Mover un pin adentro no cambia nada por
   fuera.
+- **Quitar un pin**: borrar un «Pin de entrada» o «Pin de salida» adentro quita ese pin de todas las piezas. Los
+  cables que llegaban a él, en el circuito o dentro de otros componentes, se quedan donde estaban, sueltos, y
+  Problemas los lista con la pieza: «Inversor: el pin a ya no existe; su cable quedó suelto». La fila se va al
+  deshacer el cambio; como las demás filas de un cambio adentro, no se guarda con el circuito.
 - **Cambiar un componente que está adentro**: en la pestaña de un componente, «Editar descripción…», «Cambiar
   forma…» para todas las piezas y «Actualizar desde la librería» sobre una pieza de adentro cambian ese componente en
   el circuito, en un solo paso de deshacer, igual que desde la pestaña del circuito y con sus mismas reglas (una forma
