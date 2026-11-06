@@ -124,13 +124,11 @@ public final class CircuitTidy {
             return Optional.empty();
         }
         CircuitDocument copy = document.copy();
-        Set<ElementId> notSeparated = Set.of();
-        if (options.separateOverlaps()) {
-            try {
-                notSeparated = new Separating(copy, registry, scope, texts, cancelled, progress, separator).run();
-            } catch (CancellationException cancellation) {
-                return Optional.empty();
-            }
+        Stages stages = new Stages(copy, registry, scope, texts, cancelled, progress, separator);
+        try {
+            stages.run(options);
+        } catch (CancellationException cancellation) {
+            return Optional.empty();
         }
         Optional<TidyPlan> wires = WireTidy.plan(copy, registry, wiresInScope(document, copy, scope),
                 options.wires(), cancelled, round -> progress.reached(CircuitTidyProgress.Stage.WIRES, round, 0));
@@ -139,7 +137,8 @@ public final class CircuitTidy {
         }
         new TidyWiresCommand(wires.get()).apply(copy);
         return Optional.of(new CircuitTidyPlan(copy, partsMoved(document, copy), textsMoved(document, copy),
-                notSeparated, wires.get(), 0, 0, WireCorners.count(document), WireCorners.count(copy)));
+                stages.notSeparated(), wires.get(), stages.partsAligned(), 0, WireCorners.count(document),
+                WireCorners.count(copy)));
     }
 
     /** The wires of {@code copy} the wire rules may change: those in scope plus the ones the moves made or changed. */
@@ -180,8 +179,11 @@ public final class CircuitTidy {
         return moved;
     }
 
-    /** The separation of one run on the copy: the rounds of parts, then the texts, then what is left counted. */
-    private static final class Separating {
+    /**
+     * The stages of one run on the copy that move items, in the order of spec §5: the rounds of separating parts,
+     * aligning columns, straightening, then the texts off bodies, then what still overlaps counted.
+     */
+    private static final class Stages {
 
         private final CircuitDocument copy;
         private final ComponentTypeRegistry registry;
@@ -190,12 +192,16 @@ public final class CircuitTidy {
         private final BooleanSupplier cancelled;
         private final CircuitTidyProgress progress;
         private final Separator separator;
-        /** Which pins are connected to which before any move: every move must keep it. */
-        private final Set<Set<PinRef>> originalNets;
+        /** Which pins are connected to which before any move; read when the first stage starts. */
+        private Set<Set<PinRef>> originalNets;
         /** The items whose every place was refused in some round: counted first, when they still cover something. */
         private final Set<ElementId> refused = new LinkedHashSet<>();
+        /** The latest reading of the copy; null once a move changed it (read again when next needed). */
+        private LayoutItems reading;
+        private Set<ElementId> notSeparated = Set.of();
+        private int partsAligned;
 
-        Separating(CircuitDocument copy, ComponentTypeRegistry registry, Set<ElementId> scope, TextBoxes texts,
+        Stages(CircuitDocument copy, ComponentTypeRegistry registry, Set<ElementId> scope, TextBoxes texts,
                    BooleanSupplier cancelled, CircuitTidyProgress progress, Separator separator) {
             this.copy = copy;
             this.registry = registry;
@@ -204,24 +210,74 @@ public final class CircuitTidy {
             this.cancelled = cancelled;
             this.progress = progress;
             this.separator = separator;
-            this.originalNets = Placement.netsOf(copy, registry);
         }
 
-        /** Separates and returns what still covers something (items partly in scope only). */
-        Set<ElementId> run() {
-            // The items are read again only after something moved: reading them is a good part of the time.
-            LayoutItems items = currentItems();
+        /**
+         * Runs the stages {@code options} turns on. The texts are moved off bodies after every stage that moves
+         * parts, so a text the aligning or straightening covered is freed too; what still overlaps is counted only
+         * when separating is on.
+         */
+        void run(CircuitTidyOptions options) {
+            if (!options.separateOverlaps() && !options.alignColumns() && !options.straighten()) {
+                return;
+            }
+            originalNets = Placement.netsOf(copy, registry);
+            if (options.separateOverlaps()) {
+                separateParts();
+            }
+            if (options.alignColumns()) {
+                partsAligned = alignColumns();
+            }
+            if (options.separateOverlaps() || partsAligned > 0) {
+                placeTexts();
+            }
+            if (options.separateOverlaps()) {
+                notSeparated = whatStillOverlaps(items());
+            }
+        }
+
+        /** The items in scope that still cover something at the end (empty when separating is off). */
+        Set<ElementId> notSeparated() {
+            return notSeparated;
+        }
+
+        int partsAligned() {
+            return partsAligned;
+        }
+
+        /** Up to {@value #MAXIMUM_PART_ROUNDS} rounds, each from the boxes and wires the round before left. */
+        private void separateParts() {
             for (int round = 0; round < MAXIMUM_PART_ROUNDS; round++) {
                 progress.reached(CircuitTidyProgress.Stage.SEPARATING, round + 1, MAXIMUM_PART_ROUNDS);
+                LayoutItems items = items();
                 if (!new Round(items).place(items.separationGroups())) {
                     break;
                 }
-                items = currentItems();
+                reading = null;
             }
-            if (new Round(items).placeTexts()) {
-                items = currentItems();
+        }
+
+        private int alignColumns() {
+            int moved = ColumnAlignment.align(new Placement(copy, registry, items(), originalNets), progress,
+                    cancelled);
+            if (moved > 0) {
+                reading = null;
             }
-            return whatStillOverlaps(items);
+            return moved;
+        }
+
+        private void placeTexts() {
+            if (new Round(items()).placeTexts()) {
+                reading = null;
+            }
+        }
+
+        /** The items are read again only after something moved: reading them is a good part of the time. */
+        private LayoutItems items() {
+            if (reading == null) {
+                reading = currentItems();
+            }
+            return reading;
         }
 
         private LayoutItems currentItems() {
