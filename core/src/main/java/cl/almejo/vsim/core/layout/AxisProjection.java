@@ -92,6 +92,7 @@ final class AxisProjection {
      * 1: a heavier one moves less); fixed variables keep their desired position.
      *
      * @throws CancellationException when {@code cancelled} says yes between two refinement rounds
+     * @throws ArithmeticException   when the weights are too large for the exact arithmetic (never a wrong answer)
      */
     static long[] solve(long[] desired, long[] weights, boolean[] fixed, List<Constraint> constraints,
                         BooleanSupplier cancelled) {
@@ -291,11 +292,13 @@ final class AxisProjection {
         Map<Integer, Long> subtreeSum = new HashMap<>();
         for (int index = visitOrder.size() - 1; index > 0; index--) {
             int variable = visitOrder.get(index);
-            long ownTerm = block.numerator + block.denominator * (offset[variable] - desired[variable]);
-            long sum = subtreeSum.getOrDefault(variable, 0L) + weights[variable] * ownTerm;
+            long ownTerm = Math.addExact(block.numerator,
+                    Math.multiplyExact(block.denominator, offset[variable] - desired[variable]));
+            long sum = Math.addExact(subtreeSum.getOrDefault(variable, 0L),
+                    Math.multiplyExact(weights[variable], ownTerm));
             int edge = edgeToParent.get(variable);
             multipliers.put(edge, constraints.get(edge).right() == variable ? sum : -sum);
-            subtreeSum.merge(otherEnd(edge, variable), sum, Long::sum);
+            subtreeSum.merge(otherEnd(edge, variable), sum, Math::addExact);
         }
         return multipliers;
     }
@@ -371,8 +374,8 @@ final class AxisProjection {
         long sum = 0;
         long weight = 0;
         for (int member : block.members) {
-            sum += weights[member] * (desired[member] - offset[member]);
-            weight += weights[member];
+            sum = Math.addExact(sum, Math.multiplyExact(weights[member], desired[member] - offset[member]));
+            weight = Math.addExact(weight, weights[member]);
         }
         block.numerator = sum;
         block.denominator = weight;
@@ -386,8 +389,9 @@ final class AxisProjection {
         if (left == right) {
             return whole;
         }
-        return left.numerator * right.denominator + whole * left.denominator * right.denominator
-                - right.numerator * left.denominator;
+        long bothDenominators = Math.multiplyExact(left.denominator, right.denominator);
+        return Math.subtractExact(Math.addExact(Math.multiplyExact(left.numerator, right.denominator),
+                Math.multiplyExact(whole, bothDenominators)), Math.multiplyExact(right.numerator, left.denominator));
     }
 
     private double violation(Constraint constraint) {

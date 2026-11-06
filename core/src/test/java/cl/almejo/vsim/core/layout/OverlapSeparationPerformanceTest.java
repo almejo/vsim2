@@ -13,12 +13,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Separating stays fast on big inputs: before, every round compared all pairs of boxes and solved each axis as one
- * problem, so 3000 densely overlapping boxes took over a second and a 2000-part circuit with a few overlaps ~60 ms.
- * The bound is generous (many times what a slow machine needs) so that only a return to that growth fails.
+ * problem, so 3000 densely overlapping boxes took over a second and a 2000-part circuit with a few overlaps ~60 ms
+ * (today about 0.3 s and 15 ms on the author's machine). The bound is very generous, some sixty times today's time,
+ * so that a slow or busy CI runner (Windows, macOS) never fails it: it catches a runaway (a loop that no longer ends
+ * soon, a growth far worse than the old one), not a return to the old growth itself.
  */
 class OverlapSeparationPerformanceTest {
 
-    private static final Duration GENEROUS = Duration.ofSeconds(3);
+    private static final Duration GENEROUS = Duration.ofSeconds(20);
     private static final int BODY_GAP = 1;
     private static final int GRID_COLUMNS = 50;
     private static final int GRID_PITCH = 10;

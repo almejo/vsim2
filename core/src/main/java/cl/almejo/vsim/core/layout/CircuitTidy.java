@@ -433,8 +433,12 @@ public final class CircuitTidy {
                 MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry,
                         new LinkedHashSet<>(item.members()), shift.x(), shift.y());
                 move.apply(copy);
+                if (item.isText()) {
+                    // a text has no pins and no wire follows it: the nets cannot change
+                    return true;
+                }
                 // Checked after the move, on the wires as they end up: the wires on the item's pins follow it.
-                boolean crossed = !item.isText() && LayoutItems.crossedByForeignWire(copy, registry, item.members());
+                boolean crossed = LayoutItems.crossedByForeignWire(copy, registry, item.members());
                 if (!crossed && nets().equals(originalNets)) {
                     return true;
                 }

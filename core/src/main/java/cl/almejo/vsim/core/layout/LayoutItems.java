@@ -114,12 +114,15 @@ final class LayoutItems {
     }
 
     private final List<Item> items;
+    /** The items that hold parts (not texts), read once: they are looked through for every place tried. */
+    private final List<Item> parts;
     private final Map<ElementId, Item> itemsById;
     private final List<Frame> frames;
     private final List<LayoutBox> wireObstacles;
 
     private LayoutItems(List<Item> items, List<Frame> frames, List<LayoutBox> wireObstacles) {
         this.items = List.copyOf(items);
+        this.parts = this.items.stream().filter(item -> !item.isText()).toList();
         this.frames = List.copyOf(frames);
         this.wireObstacles = List.copyOf(wireObstacles);
         Map<ElementId, Item> byId = new LinkedHashMap<>();
@@ -209,7 +212,7 @@ final class LayoutItems {
     }
 
     private List<Item> parts() {
-        return items.stream().filter(item -> !item.isText()).toList();
+        return parts;
     }
 
     /**
@@ -537,12 +540,20 @@ final class LayoutItems {
     }
 
     /**
-     * How much a part with {@code pinCount} pins resists moving: (pins + 1)³, so of two overlapping parts the simpler
-     * one (a tunnel, a lamp, a constant) moves and the one with many wires stays, unless they are alike, when they
-     * share the push. A text weighs {@value #TEXT_WEIGHT}: it is the cheapest thing to move.
+     * Pins beyond this many make a part no heavier: a part with 15 pins is already far heavier than a gate (4096
+     * against 64), and the separation's exact arithmetic multiplies weights, so a block of large subcircuits with
+     * hundreds of pins each would overflow a {@code long} (the final review, 2026-11-06).
+     */
+    static final int WEIGHT_PIN_CAP = 15;
+
+    /**
+     * How much a part with {@code pinCount} pins resists moving: (pins + 1)³, pins counted up to
+     * {@value #WEIGHT_PIN_CAP}, so of two overlapping parts the simpler one (a tunnel, a lamp, a constant) moves and
+     * the one with many wires stays, unless they are alike, when they share the push. A text weighs
+     * {@value #TEXT_WEIGHT}: it is the cheapest thing to move.
      */
     static long weightOf(int pinCount) {
-        long base = pinCount + 1L;
+        long base = Math.min(pinCount, WEIGHT_PIN_CAP) + 1L;
         return base * base * base;
     }
 

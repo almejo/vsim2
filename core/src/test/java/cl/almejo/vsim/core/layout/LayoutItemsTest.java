@@ -87,6 +87,15 @@ class LayoutItemsTest {
     }
 
     @Test
+    void aPartsWeightGrowsWithItsPinsUpToACap() {
+        assertThat(LayoutItems.weightOf(1)).isEqualTo(8);
+        assertThat(LayoutItems.weightOf(3)).isEqualTo(64);
+        assertThat(LayoutItems.weightOf(200)).isEqualTo(LayoutItems.weightOf(LayoutItems.WEIGHT_PIN_CAP));
+        assertThat(LayoutItems.weightOf(LayoutItems.WEIGHT_PIN_CAP))
+                .isGreaterThan(LayoutItems.weightOf(LayoutItems.WEIGHT_PIN_CAP - 1));
+    }
+
+    @Test
     void theIdOrderIsNatural() {
         assertThat(LayoutItems.ID_ORDER.compare(new ElementId("c2"), new ElementId("c10"))).isNegative();
         assertThat(LayoutItems.ID_ORDER.compare(new ElementId("c10"), new ElementId("l1"))).isNegative();

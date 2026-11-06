@@ -712,7 +712,7 @@ final class EditPlanner {
                 new CircuitTidyOptions(true, TidyOptions.DEFAULTS), TextBoxes.NONE, () -> false, round -> { })
                 .orElseThrow();
         if (!plan.notSeparated().isEmpty()) {
-            warnings.add(at() + "could not be separated without joining another net or leaving its frame: "
+            warnings.add(at() + "could not be separated (no free place nearby that keeps the nets and the frames): "
                     + plan.notSeparated().stream().map(ElementId::value).sorted().toList());
         }
         if (plan.isEmpty()) {

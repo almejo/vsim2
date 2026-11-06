@@ -51,6 +51,16 @@ class AxisProjectionTest {
     }
 
     @Test
+    void weightsTooLargeForExactArithmeticFailLoudlyInsteadOfOverflowing() {
+        long huge = 1L << 40;
+        List<AxisProjection.Constraint> apart = List.of(new AxisProjection.Constraint(0, 1, 3),
+                new AxisProjection.Constraint(1, 2, 3));
+
+        assertThatThrownBy(() -> AxisProjection.solve(new long[]{0, 0, 0}, new long[]{huge, huge, huge},
+                new boolean[]{false, false, false}, apart, NEVER_CANCELLED)).isInstanceOf(ArithmeticException.class);
+    }
+
+    @Test
     void weightsShareAPushInProportion() {
         // Pushed 10 apart, the one four times as heavy moves a fifth of it: the least Σ weight · movement².
         long[] positions = AxisProjection.solve(new long[]{0, 0}, new long[]{1, 4}, new boolean[]{false, false},

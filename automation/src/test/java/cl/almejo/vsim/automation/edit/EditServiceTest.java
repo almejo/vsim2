@@ -812,6 +812,8 @@ class EditServiceTest {
 
         assertThat(receipt.warnings()).anyMatch(warning -> warning.contains("could not be separated")
                 && (warning.contains(placed.aliases().get("first")) || warning.contains(placed.aliases().get("second"))));
+        // no fixed reason: room, fixed neighbours, nets and frames may each be the cause
+        assertThat(receipt.warnings()).noneMatch(warning -> warning.contains("without joining"));
     }
 
     private Set<Set<cl.almejo.vsim.core.netlist.PinRef>> connectedPins() {
