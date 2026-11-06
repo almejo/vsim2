@@ -300,14 +300,10 @@ public final class ProblemsController {
             }
             ComponentType type = circuit.registry().typeOf(component.get());
             for (String pinName : kept.newPinNames()) {
-                for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-                    if (type.pin(pinIndex).name().equals(pinName)) {
-                        placed.add(new ConnectivityProblem(PLACED_ELSEWHERE_NET_PREFIX + kept.instance().value() + ":"
-                                + pinIndex, kept.instance().value(), pinIndex,
-                                type.pinLocation(component.get(), pinIndex),
-                                ConnectivityProblem.Cause.PIN_PLACED_ELSEWHERE));
-                    }
-                }
+                type.pinIndexOf(pinName).ifPresent(pinIndex -> placed.add(new ConnectivityProblem(
+                        PLACED_ELSEWHERE_NET_PREFIX + kept.instance().value() + ":" + pinIndex,
+                        kept.instance().value(), pinIndex, type.pinLocation(component.get(), pinIndex),
+                        ConnectivityProblem.Cause.PIN_PLACED_ELSEWHERE)));
             }
         }
         return placed;

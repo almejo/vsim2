@@ -373,7 +373,6 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         };
     }
 
-    /** Closes this window without asking; the application closes the documents it was the last holder of. */
     /**
      * A window that never got a tab (bringing back a session window failed before its first one) goes without being
      * shown and without telling the application it closed: it never held anything.
@@ -388,6 +387,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         dispose();
     }
 
+    /** Closes this window without asking; the application closes the documents it was the last holder of. */
     public void closeQuietly() {
         if (closed) {
             return;

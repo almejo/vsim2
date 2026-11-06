@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -129,6 +130,21 @@ public record ComponentDefinition(String id, String name, String description, Gr
             return this;
         }
         return new ComponentDefinition(id, name, next, size, pinout, body, appearance, Math.incrementExact(revision));
+    }
+
+    /** The same revision of this definition with {@code newBody} (its outside is unchanged). */
+    public ComponentDefinition withBody(CircuitFragment newBody) {
+        return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision);
+    }
+
+    /** The index of the pin named {@code pinName} in the pinout (names are unique); empty when there is none. */
+    public OptionalInt pinIndexOf(String pinName) {
+        for (int index = 0; index < pinout.size(); index++) {
+            if (pinout.get(index).spec().name().equals(pinName)) {
+                return OptionalInt.of(index);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     public ComponentDefinition withAppearance(Optional<SymbolDrawing> newAppearance) {

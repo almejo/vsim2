@@ -35,6 +35,8 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 ### Arreglado
 
+- Las pestañas que no estás viendo ya no refrescan su lienzo sesenta veces por segundo (con varios componentes abiertos en un circuito grande restaban velocidad); al volver a una se pone al día de inmediato.
+- Continuar donde quedaste: si una pestaña guardada no se podía leer, la pestaña activa ya no cambia por la que quedó en su lugar.
 - La IA por dentro de un componente: un `place` con un camino que no es de ningún uso del componente (se borró la pieza, o un error de tipeo) ya no cae en otra pieza sin avisar: vuelve como error con la explicación y `vsim_list_places` para ver los usos. Y una `@` (o un `%`) en el id del componente o en el camino ya no rompe la codificación del lugar.
 - La IA escribe las palabras de la memoria de una pieza: `SetMemoryContents` en el lugar de una pieza concreta escribe el contenido propio de esa pieza (un Ctrl+Z, como «Solo esta pieza» del editor) en vez de rechazarse; esa llamada lleva solo escrituras de memoria.
 - La columna izquierda: el divisor entre «Circuito» y «Paleta» ahora se arrastra (y se recuerda), y plegar y volver a abrir la Paleta (o el Circuito) ya no hace desaparecer el otro panel: vuelven los dos con su altura anterior.

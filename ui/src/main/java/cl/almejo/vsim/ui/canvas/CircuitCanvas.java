@@ -236,6 +236,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         canvasDragOut.listenForDragExit();
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
+                showingChanged(isShowing());
                 updateAnimation();
             }
         });
@@ -567,10 +568,36 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         requestFocusInWindow();
     }
 
+    /**
+     * The canvas was shown or hidden (a tab's card that is not the shown one is hidden yet stays added): hidden, it
+     * stops its frame timer, which would remap the snapshot and call its listeners sixty times a second for nothing;
+     * shown, it starts again and catches up with the latest snapshot at once.
+     */
+    void showingChanged(boolean showing) {
+        if (disposed || !isDisplayable()) {
+            return;
+        }
+        if (showing && !frameTimer.isRunning()) {
+            frameTimer.start();
+            refreshSnapshot();
+        } else if (!showing) {
+            frameTimer.stop();
+        }
+    }
+
+    /** Whether the frame timer runs (a hidden tab's does not). */
+    boolean framesRunning() {
+        return frameTimer.isRunning();
+    }
+
     @Override
     public void addNotify() {
         super.addNotify();
-        frameTimer.start();
+        Window window = SwingUtilities.getWindowAncestor(this);
+        // added hidden to a window already on screen (a tab's card): the showing event starts it when it is shown
+        if (isShowing() || window == null || !window.isShowing()) {
+            frameTimer.start();
+        }
         animationSuspended = false;
         watchWindow(SwingUtilities.getWindowAncestor(this));
         updateAnimation();

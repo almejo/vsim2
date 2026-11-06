@@ -145,7 +145,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
             for (KeptOldShape kept : planned.keptOldShapes()) {
                 for (String pinName : kept.newPinNames()) {
                     nestedProblems.add(new DefinitionUpdateProblem(parent.id(),
-                            new PinRef(kept.instance(), pinIndexOf(replacement, pinName)),
+                            new PinRef(kept.instance(), replacement.pinIndexOf(pinName).orElseThrow()),
                             DefinitionUpdateProblem.Kind.PLACED_ELSEWHERE));
                 }
             }
@@ -156,21 +156,10 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
             change.apply(body);
             CircuitFragment original = parent.body();
             previousParents.put(parent.id(), parent);
-            rewrittenParents.put(parent.id(), new ComponentDefinition(parent.id(), parent.name(),
-                    parent.description(), parent.size(), parent.pinout(), new CircuitFragment(body.components(),
-                    body.wires(), body.labels(), original.definitions(), body.frames(), body.stickyNotes()),
-                    parent.appearance(), parent.revision()).revisedFrom(parent));
+            rewrittenParents.put(parent.id(), parent.withBody(new CircuitFragment(body.components(),
+                    body.wires(), body.labels(), original.definitions(), body.frames(), body.stickyNotes()))
+                    .revisedFrom(parent));
         }
-    }
-
-    /** The index of the pin named {@code pinName} in {@code definition}'s pinout (names are unique). */
-    private static int pinIndexOf(ComponentDefinition definition, String pinName) {
-        for (int index = 0; index < definition.pinout().size(); index++) {
-            if (definition.pinout().get(index).spec().name().equals(pinName)) {
-                return index;
-            }
-        }
-        throw new IllegalStateException("no pin " + pinName + " in " + definition.id());
     }
 
     /**
@@ -271,10 +260,8 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
             if (!components.equals(parent.body().components())) {
                 CircuitFragment body = parent.body();
                 previousParents.put(parent.id(), parent);
-                reconciledParents.put(parent.id(), new ComponentDefinition(parent.id(), parent.name(),
-                        parent.description(), parent.size(), parent.pinout(), new CircuitFragment(components,
-                        body.wires(), body.labels(), body.definitions(), body.frames(), body.stickyNotes()),
-                        parent.appearance(), parent.revision()));
+                reconciledParents.put(parent.id(), parent.withBody(new CircuitFragment(components,
+                        body.wires(), body.labels(), body.definitions(), body.frames(), body.stickyNotes())));
             }
         }
     }

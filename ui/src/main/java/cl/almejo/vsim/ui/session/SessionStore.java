@@ -98,14 +98,23 @@ public final class SessionStore {
     /** A window of the session; empty when it has no readable tab or no bounds. */
     private static Optional<WindowSession> read(Preferences node) throws BackingStoreException {
         List<TabState> tabs = new ArrayList<>();
+        // «active» is the number of the tab node as it was written; a broken tab skipped before it shifts the list
+        String activeName = SessionKeys.TAB + node.getInt(SessionKeys.ACTIVE, 0);
+        int activeIndex = 0;
         for (String tabName : SessionKeys.numbered(node.childrenNames(), SessionKeys.TAB)) {
-            SessionKeys.readTab(node.node(tabName)).ifPresent(tabs::add);
+            Optional<TabState> tab = SessionKeys.readTab(node.node(tabName));
+            if (tab.isPresent()) {
+                if (tabName.equals(activeName)) {
+                    activeIndex = tabs.size();
+                }
+                tabs.add(tab.get());
+            }
         }
         if (tabs.isEmpty()) {
             return Optional.empty();
         }
-        int active = node.getInt(SessionKeys.ACTIVE, 0);
-        TabState activeTab = tabs.get(active >= 0 && active < tabs.size() ? active : 0);
+        int active = activeIndex;
+        TabState activeTab = tabs.get(active);
         List<Path> folded = new ArrayList<>();
         for (String key : SessionKeys.numbered(node.keys(), SessionKeys.FOLDED)) {
             SessionKeys.readPath(node, key).ifPresent(folded::add);

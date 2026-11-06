@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.function.Function;
 
 /**
@@ -234,6 +235,16 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
 
     public PinSpec pin(int index) {
         return pins.get(index);
+    }
+
+    /** The index of the pin named {@code pinName}; empty when this type has none. */
+    public OptionalInt pinIndexOf(String pinName) {
+        for (int index = 0; index < pins.size(); index++) {
+            if (pins.get(index).name().equals(pinName)) {
+                return OptionalInt.of(index);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     /**

@@ -160,6 +160,31 @@ class SessionStoreTest {
     }
 
     @Test
+    void theActiveTabIsTheSameOneWhenABrokenTabBeforeItIsSkipped() {
+        Preferences window = preferences.sessionNode().node("0");
+        window.putInt("x", 0);
+        window.putInt("y", 0);
+        window.putInt("width", 960);
+        window.putInt("height", 1080);
+        window.putBoolean("maximized", false);
+        window.putInt("active", 2);
+        window.node("tab0").put("zoom", "2"); // no path: skipped
+        for (String name : List.of("contador.vsim", "sumador.vsim")) {
+            Preferences tab = window.node("tab" + (name.startsWith("c") ? 1 : 2));
+            tab.put("path", file(name).toString());
+            tab.putDouble("zoom", 2.0);
+            tab.putDouble("centerX", 0);
+            tab.putDouble("centerY", 0);
+        }
+
+        WindowSession loaded = store.load().getFirst();
+
+        assertThat(loaded.tabs()).extracting(TabState::path).containsExactly(file("contador.vsim"),
+                file("sumador.vsim"));
+        assertThat(loaded.activeTab()).isEqualTo(1);
+    }
+
+    @Test
     void aPathTooLongForThePreferencesIsSkippedAndTheOthersAreSaved() {
         Path tooLong = Path.of("/" + "a".repeat(Preferences.MAX_VALUE_LENGTH) + ".vsim");
         store.save(List.of(single("kept.vsim", LEFT)));
