@@ -396,6 +396,49 @@ class CircuitTreeTest {
     }
 
     @Test
+    void showingTheCircuitsTabChoosesItsRowWithoutTravelling() {
+        inverterInThreePlaces();
+        CircuitTree main = tree();
+        main.choose("c1");
+
+        views.getLast().tabShown();
+
+        assertThat(main.chosenRow()).contains(CircuitTreeNode.DOCUMENT_PATH);
+        assertThat(shown).isEmpty();
+        assertThat(places).isEmpty();
+        assertThat(entered).isEmpty();
+    }
+
+    @Test
+    void aComponentTabChoosesThePieceWhoseValuesItShowsAndFollowsValoresDe() {
+        inverterInThreePlaces();
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c3/c3"));
+        CircuitTree inside = treeOf(body);
+        inside.choose("c1");
+
+        views.getLast().tabShown();
+        assertThat(inside.chosenRow()).contains("c3/c3");
+        assertThat(inside.isExpanded("c3")).isTrue();
+        body.setContextPath(Optional.of("c2"));
+
+        assertThat(inside.chosenRow()).contains("c2");
+        assertThat(shown).as("following never travels").isEmpty();
+        assertThat(places).isEmpty();
+    }
+
+    @Test
+    void sinValoresChoosesTheFirstUseOfTheComponent() {
+        inverterInThreePlaces();
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.empty());
+        CircuitTree inside = treeOf(body);
+        inside.choose("c1");
+
+        views.getLast().tabShown();
+
+        assertThat(inside.chosenRow()).contains(body.instancePaths(ExampleDefinitions.INVERTER).getFirst().path());
+    }
+
+    @Test
     void choosingAPieceOnTheCanvasChoosesItsRow() {
         inverterInThreePlaces();
         OpenDocument body = body(ExampleDefinitions.DOUBLE_INVERTER, Optional.of("c3"));

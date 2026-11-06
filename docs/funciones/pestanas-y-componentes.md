@@ -181,7 +181,10 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   circuito.». Enter va al primero; Esc vacía el campo y vuelve el árbol como estaba. Ctrl+F con el foco en el árbol va
   al campo.
 - **Sigue a la pestaña activa**: cada pestaña abre en el árbol su lugar (el circuito, o la pieza cuyos valores
-  muestra) y lo marca con el color del grupo. Elegir una sola pieza en el lienzo elige su fila.
+  muestra) y lo marca con el color del grupo. Al pasar a una pestaña, y al cambiar «Valores de», el árbol elige la
+  fila de ese lugar y la muestra (desplegando el camino hasta ella): la del circuito en su pestaña, la de la pieza de
+  «Valores de» en la de un componente, y con «Sin valores» la del primer uso del componente. Elegirla así no lleva a
+  ninguna parte ni le quita el foco a lo que lo tenía. Elegir una sola pieza en el lienzo elige su fila.
 - **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic, y el otro ocupa el espacio. Alt+1 y
   Alt+2 (se pueden cambiar en Atajos de teclado; también Ver ▸ «Árbol del circuito» y «Paleta») funcionan como las
   ventanas de herramientas de un IDE: si el panel está plegado lo abren y le dan el foco; si está abierto sin el foco,

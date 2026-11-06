@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
+import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
@@ -131,6 +132,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JMenuBar menuBar;
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> tabShownListeners = new Listeners<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
     private final EditorToolBar editorToolBar;
     private final JToolBar toolBar;
@@ -356,6 +358,19 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /** Where the focus is and how the view's panels ask for it: Swing's, or the one {@link #useKeyboardFocus} gave. */
     public KeyboardFocus keyboardFocus() { return viewFocus; }
+
+    /**
+     * Runs {@code listener} each time this view's tab comes to the front of its window (the circuit tree follows the
+     * tab); returns its removal.
+     */
+    public Runnable addTabShownListener(Runnable listener) {
+        return tabShownListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** The window brought this view's tab to the front. */
+    public void tabShown() {
+        tabShownListeners.fire(Runnable::run);
+    }
 
     /** Replaces Swing's focus for the view's panels (tests: nothing gets the focus headless). */
     public void useKeyboardFocus(KeyboardFocus focus) { keyboardFocus = Objects.requireNonNull(focus, "focus"); }

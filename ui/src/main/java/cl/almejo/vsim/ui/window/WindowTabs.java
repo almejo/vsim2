@@ -608,6 +608,7 @@ public final class WindowTabs extends JPanel {
         TabEntry entry = shown.get();
         entry.lastActivation = ++activations;
         cardLayout.show(cards, entry.id);
+        entry.view.tabShown();
         toolBarSlot.add(entry.view.toolBar(), BorderLayout.CENTER);
         toolBarSlot.revalidate();
         toolBarSlot.repaint();

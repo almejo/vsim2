@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.InstancePaths;
 import cl.almejo.vsim.core.search.CompiledQuery;
 import cl.almejo.vsim.core.search.SearchProblem;
 import cl.almejo.vsim.core.search.SearchQuery;
@@ -121,6 +122,9 @@ public final class CircuitTree extends JPanel {
     };
     private final Runnable preferenceListener = this::preferencesChanged;
     private final Runnable selectionListener = this::followSelection;
+    private final Runnable tabShownRemover;
+    /** The place row last followed: a new one (another context) is chosen once, then the user decides. */
+    private Optional<String> followedPlace = Optional.empty();
     private CircuitTreeNode root;
     private List<CircuitTreeModel.Match> matches = List.of();
     private boolean matchCase;
@@ -128,8 +132,6 @@ public final class CircuitTree extends JPanel {
     private boolean searching;
     /** The rows expanded when searching started, brought back when the search is cleared. */
     private Set<String> expandedBeforeSearch = Set.of();
-    /** The place last expanded: a new one (another context) is expanded once, then the user decides. */
-    private Optional<String> expandedPlace = Optional.empty();
     /** Cancels the click on a user component that waits to see whether a double click follows. */
     private Runnable pendingClick = () -> {
     };
@@ -182,6 +184,7 @@ public final class CircuitTree extends JPanel {
         appearance.addListener(appearanceListener);
         preferences.addListener(preferenceListener);
         view.selection().addListener(selectionListener);
+        tabShownRemover = view.addTabShownListener(this::followPlace);
         refresh();
     }
 
@@ -192,6 +195,7 @@ public final class CircuitTree extends JPanel {
         appearance.removeListener(appearanceListener);
         preferences.removeListener(preferenceListener);
         view.selection().removeListener(selectionListener);
+        tabShownRemover.run();
     }
 
     private OpenDocument circuit() {
@@ -221,6 +225,37 @@ public final class CircuitTree extends JPanel {
             showTree(expanded);
         }
         chosen.flatMap(this::treePath).ifPresent(tree::setSelectionPath);
+        Optional<String> placeRow = placeRow();
+        if (!placeRow.equals(followedPlace)) {
+            followedPlace = placeRow;
+            followPlace();
+        }
+    }
+
+    /**
+     * The row this tab follows: the circuit, the instance whose values a component tab shows, or with «Sin valores»
+     * the component's first use.
+     */
+    private Optional<String> placeRow() {
+        if (!place.isBody()) {
+            return Optional.of(CircuitTreeNode.DOCUMENT_PATH);
+        }
+        return place.contextPath().or(() -> place.definitionId().flatMap(definition ->
+                place.instancePaths(definition).stream().findFirst().map(InstancePaths.InstanceUse::path)));
+    }
+
+    /**
+     * Chooses the row of this tab's place, its route expanded and the row scrolled into view: when the tab comes to the
+     * front and when «Valores de» changes. Never travels nor takes the focus (the rows act only on a click or a key).
+     */
+    private void followPlace() {
+        if (searching) {
+            return;
+        }
+        placeRow().ifPresent(path -> {
+            expandTo(path);
+            choose(path);
+        });
     }
 
     private void showTree(Set<String> expanded) {
@@ -229,11 +264,6 @@ public final class CircuitTree extends JPanel {
         treeModel.setRoot(rootNode);
         tree.expandPath(new TreePath(rootNode));
         expanded.forEach(path -> treePath(path).ifPresent(tree::expandPath));
-        Optional<String> placePath = placePath();
-        if (!placePath.equals(expandedPlace)) {
-            expandedPlace = placePath;
-            placePath.ifPresent(this::expandTo);
-        }
     }
 
     private DefaultMutableTreeNode toSwing(CircuitTreeNode node) {

@@ -105,6 +105,21 @@ class WindowTabsTest {
     }
 
     @Test
+    void activatingATabTellsItsViewItIsShown() {
+        EditorView first = tabs.addTab(newDocument(), Optional.empty());
+        EditorView second = tabs.addTab(newDocument(), Optional.empty());
+        List<String> shownTabs = new ArrayList<>();
+        first.addTabShownListener(() -> shownTabs.add("first"));
+        Runnable removal = second.addTabShownListener(() -> shownTabs.add("second"));
+
+        tabs.activate(first);
+        removal.run();
+        tabs.activate(second);
+
+        assertThat(shownTabs).containsExactly("first");
+    }
+
+    @Test
     void aThemeChangeReachesTheToolbarAndMenuBarOfATabNotShown() {
         EditorView hidden = tabs.addTab(newDocument(), Optional.empty());
         tabs.addTab(newDocument(), Optional.empty());
