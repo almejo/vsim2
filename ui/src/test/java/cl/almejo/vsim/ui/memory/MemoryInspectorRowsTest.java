@@ -204,6 +204,39 @@ class MemoryInspectorRowsTest {
         }
     }
 
+    /** Debt of task 9b: the warnings read the contents of the piece of «Valores de», not the component's. */
+    @Test
+    void insideAComponentTheWarningsReadThePiecesOwnContents() {
+        ElementId memoryId = new ElementId("c3");
+        Component memory = StandardComponentTypes.registry().require(StandardComponentTypes.RAM).newComponent(
+                memoryId, GridPoint.ORIGIN, Rotation.R0, Map.of(MemoryTypes.WORDS, "256"), "");
+        document.execute(new PutDefinitionsCommand(List.of(new ComponentDefinition("memoria-chica", "Memoria chica",
+                "", new GridSize(4, 4), List.of(), new CircuitFragment(List.of(memory), List.of(), List.of())))));
+        Component first = place(document, SubcircuitTypes.typeIdOf("memoria-chica"), 0, 0, Map.of());
+        document.execute(SetInstanceMemoryContentsCommand.set(new PieceMemories.Place(first.id(), "c3"),
+                MemoryContents.empty().with(0, 1).with(299, 0xFF)));
+        OpenDocument body = document.openBody("memoria-chica", Optional.of(first.id().value()));
+        try {
+            EditorServices services = new EditorServices(PainterRegistry.standard(),
+                    new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(),
+                    List.of(new MemoryEditorExtension(launcher, links)));
+            view = new EditorView(body, services, NO_WINDOW);
+            view.selection().select(memoryId);
+
+            assertThat(named(view.labelFeatures().properties(), "memory.inspector.grow", AbstractButton.class)
+                    .getText()).isEqualTo("Agrandar a 512");
+            body.setContextPath(Optional.empty());
+            view.selection().clear();
+            view.selection().select(memoryId);
+            assertThat(named(view.labelFeatures().properties(), "memory.inspector.grow", AbstractButton.class))
+                    .isNull();
+        } finally {
+            view.dispose();
+            view = null;
+            body.close();
+        }
+    }
+
     @Test
     void aLinkedMemoryShowsItsFileAndOpensItInTheExternalEditor() throws Exception {
         Path file = folder.resolve("programas/rom.hex");

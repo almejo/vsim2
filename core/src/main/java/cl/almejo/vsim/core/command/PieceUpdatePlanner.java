@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.library.UpdateNote;
@@ -244,6 +245,64 @@ final class PieceUpdatePlanner {
             }
         }
         return pinsThere > 1; // the new pin itself is one of them
+    }
+
+    /**
+     * The wire ends of {@code document} that went to a pin of a piece of {@code before} that {@code replacement}
+     * removes and that touch no other pin there (spec §6.1: removing a pin leaves its wires loose, and listed), one
+     * per removed pin of each piece, attributed to {@code containingDefinition}. Planned on {@code document} as it is.
+     */
+    static List<RemovedPinWire> removedPinWires(CircuitDocument document, ComponentTypeRegistry registry,
+                                                ComponentDefinition before, ComponentDefinition replacement,
+                                                Optional<String> containingDefinition) {
+        List<DefinitionPin> continuing = AppearanceReconciler.previousPins(before, replacement).stream()
+                .flatMap(Optional::stream).toList();
+        List<Integer> removed = new ArrayList<>();
+        for (int index = 0; index < before.pinout().size(); index++) {
+            if (!continuing.contains(before.pinout().get(index))) {
+                removed.add(index);
+            }
+        }
+        List<RemovedPinWire> loose = new ArrayList<>();
+        if (removed.isEmpty()) {
+            return loose;
+        }
+        String typeId = SubcircuitTypes.typeIdOf(before.id());
+        for (Component piece : document.components()) {
+            if (!piece.typeId().equals(typeId)) {
+                continue;
+            }
+            ComponentType type = registry.typeOf(piece);
+            for (int index : removed) {
+                GridPoint point = type.pinLocation(piece, index);
+                if (aWireEndsAt(document, point) && !anotherPinAt(document, registry, piece, point)) {
+                    loose.add(new RemovedPinWire(containingDefinition, piece.id(),
+                            before.pinout().get(index).spec().name(), point));
+                }
+            }
+        }
+        return loose;
+    }
+
+    private static boolean aWireEndsAt(CircuitDocument document, GridPoint point) {
+        return document.wires().stream().anyMatch(wire -> wire.start().equals(point) || wire.end().equals(point));
+    }
+
+    /** True when a pin of a component other than {@code piece} is at {@code point}: the wire stays connected. */
+    private static boolean anotherPinAt(CircuitDocument document, ComponentTypeRegistry registry, Component piece,
+                                        GridPoint point) {
+        for (Component component : document.components()) {
+            if (component.id().equals(piece.id())) {
+                continue;
+            }
+            ComponentType type = registry.typeOf(component);
+            for (int index = 0; index < type.pinCount(); index++) {
+                if (type.pinLocation(component, index).equals(point)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** «El pin D se ubicó en el borde derecho» for each new pin, «El pin C ya no existe» for each removed one. */

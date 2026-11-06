@@ -73,11 +73,12 @@ public final class BodyEdits {
         return !DefinitionUpdateSafety.sameInterface(before, after);
     }
 
-    /** The working copy as a body: every element at its coordinates, memories without their file link. */
+    /**
+     * The working copy as a body: every element at its coordinates. A memory keeps its file link: a link made inside
+     * a component is the component's, the same in every piece (the user, 2026-11-06).
+     */
     private static CircuitFragment bodyOf(CircuitDocument workingCopy) {
-        List<Component> components = workingCopy.components().stream()
-                .map(DefinitionBuilder::withoutMemoryLink).toList();
-        return new CircuitFragment(components, workingCopy.wires(), workingCopy.labels(), List.of(),
+        return new CircuitFragment(workingCopy.components(), workingCopy.wires(), workingCopy.labels(), List.of(),
                 workingCopy.frames(), workingCopy.stickyNotes());
     }
 

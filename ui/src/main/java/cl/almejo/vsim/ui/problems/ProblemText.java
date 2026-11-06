@@ -118,6 +118,15 @@ public final class ProblemText {
             case OUTDATED_CANNOT_UPDATE -> Messages.format("problem.connectivity.outdatedNested",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document),
                     String.join(", ", DefinitionUpdateSafety.containingNames(document, outdatedDefinitionId(problem))));
+            case WIRE_OF_REMOVED_PIN -> Messages.format("problem.removedPinWire",
+                    InstancePath.isNested(problem.elementId())
+                            ? InstanceNames.routeText(problem.elementId(), document)
+                            : pieceName(problem.elementId(), document),
+                    PinNames.display(removedPinName(problem)));
+            case OWN_CONTENTS_FOR_NOTHING -> Messages.format("problem.ownContentsForNothing",
+                    pieceName(problem.elementId(), document), ownContentsPath(problem));
+            case OWN_CONTENTS_OVER_LINK -> Messages.format("problem.ownContentsOverLink",
+                    InstanceNames.routeText(problem.elementId(), document));
         };
     }
 
@@ -137,6 +146,17 @@ public final class ProblemText {
     /** A placed piece by its name ({@link InstanceNames#name}): «U5», «ALU», «Multiplexor 2». */
     private static String pieceName(String hierarchicalId, CircuitDocument document) {
         return InstanceNames.name(hierarchicalId, document).orElse(hierarchicalId);
+    }
+
+    /** The name the removed pin had: what follows the element id in the net id. */
+    private static String removedPinName(ConnectivityProblem problem) {
+        String rest = problem.netId().substring(ConnectivityProblem.REMOVED_PIN_PREFIX.length());
+        return rest.substring(rest.indexOf(':') + 1);
+    }
+
+    /** The memory's path inside the piece a piece's own contents are kept for ({@code c3/c10}). */
+    private static String ownContentsPath(ConnectivityProblem problem) {
+        return problem.netId().substring(ConnectivityProblem.OWN_CONTENTS_PREFIX.length());
     }
 
     private static String outdatedDefinitionId(ConnectivityProblem problem) {

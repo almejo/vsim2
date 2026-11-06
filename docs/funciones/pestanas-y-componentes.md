@@ -81,7 +81,8 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 - **La paleta**: el mismo componente y los componentes que lo contienen aparecen en gris y no se pueden poner adentro.
   Al pasar el mouse dicen por qué: «No se puede usar dentro de sí mismo» o «Contiene al componente que estás
   editando». En la sección «Componentes de este circuito» están todos los componentes del circuito, no solo los que ya
-  hay adentro.
+  hay adentro. Pegar o soltar una pieza así tampoco la pone adentro: no cambia nada y la barra de lugar dice por qué
+  («Doble inversor contiene al componente que estás editando: no se puede poner adentro»).
 - **Un componente que se usa dentro de otro** (el «Medio sumador» dentro del «Sumador completo», la ALU dentro del
   LRV32IM): sus pines se cambian desde adentro igual que los de cualquier componente. Agregar, borrar, renombrar o
   cambiar el ancho de un «Pin de entrada» o «Pin de salida» cambia también las piezas que están dentro de los otros
@@ -89,8 +90,19 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   circuito. Los componentes que lo contienen no cambian por fuera. Todo es un solo paso de deshacer, que devuelve
   cada componente como estaba. Lo que no puede seguir se lista en Problemas con su camino, en cada lugar donde se usa
   el componente que lo contiene: «Sumador completo › Medio sumador 2: el pin b quedó en otro lugar (su lugar estaba
-  ocupado)» o «Sumador completo › Medio sumador 2: pin b sin conectar». Mover un pin adentro no cambia nada por
-  fuera.
+  ocupado)» o «Sumador completo › Medio sumador 2: pin b sin conectar». Estas filas duran mientras el cambio esté
+  aplicado en la sesión: no se guardan con el circuito, y al volver a abrirlo la pieza conserva su pin donde quedó,
+  sin fila. Mover un pin adentro no cambia nada por fuera.
+- **Quitar un pin**: borrar un «Pin de entrada» o «Pin de salida» adentro quita ese pin de todas las piezas. Los
+  cables que llegaban a él, en el circuito o dentro de otros componentes, se quedan donde estaban, sueltos, y
+  Problemas los lista con la pieza: «Inversor: el pin a ya no existe; su cable quedó suelto». La fila se va al
+  deshacer el cambio; como las demás filas de un cambio adentro, no se guarda con el circuito.
+- **Cambiar un componente que está adentro**: en la pestaña de un componente, «Editar descripción…», «Cambiar
+  forma…» para todas las piezas y «Actualizar desde la librería» sobre una pieza de adentro cambian ese componente en
+  el circuito, en un solo paso de deshacer, igual que desde la pestaña del circuito y con sus mismas reglas (una forma
+  que movería los pines de un componente usado dentro de otro se rechaza y se dice por qué). «Crear componente desde
+  selección…» sin reemplazar la selección agrega el componente al circuito. Un cambio así que llegue por otro camino
+  no se hace, y la barra de lugar dice «Inversor no se cambia desde aquí: usa su menú en la pestaña del circuito».
 - **Los pines del componente**: su valor viene de afuera, de la pieza cuyos valores muestra la pestaña. Un clic no los
   cambia y no se les puede escribir un valor; la barra de estado dice «Su valor viene de afuera».
 - **Interruptores y botones de adentro**: actúan solo sobre la pieza que muestra la pestaña, como una entrada de la
@@ -119,10 +131,20 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 
   Con «Sin valores» el editor cambia el contenido del componente, el de todas las piezas, y el título dice «— todas
   las piezas». Un archivo enlazado a una memoria de adentro es del componente, el mismo en todas las piezas, y la
-  barra del enlace lo dice. En Propiedades, una memoria de adentro con contenido propio en la pieza que se ve dice
-  «Contenido propio de Memoria 1». Si un componente tiene otro adentro, el contenido propio de la pieza de afuera
+  barra del enlace lo dice; se guarda con el circuito (relativo a su carpeta, como los enlaces del circuito) y sigue
+  enlazado al volver a abrirlo. Soltar un archivo de memoria en la pestaña de un componente lo deja enlazado igual.
+  VSim vuelve a leer el archivo cuando cambia mientras hay una pestaña del componente abierta. Una pieza que tiene
+  su propio contenido de esa memoria sigue partiendo de él, no del archivo, y Problemas lo dice: «Memoria chica 1 ›
+  RAM: usa su propio contenido, no el archivo enlazado». F8 lleva a la memoria con los valores de esa pieza (su
+  editor tiene «Volver al del componente»), y el clic derecho en la fila ofrece lo mismo. En Propiedades, una memoria de adentro con contenido propio en la pieza que se ve dice
+  «Contenido propio de Memoria 1»; el dibujo de la memoria en la pestaña (su ventana de contenido sin simular y el
+  aviso de que el contenido no cabe) y los avisos de Propiedades («Agrandar a…», «Ensanchar a…») siguen el contenido
+  de esa pieza. Si un componente tiene otro adentro, el contenido propio de la pieza de afuera
   manda sobre el de las de adentro. El «Mapa de memoria» de la pestaña sigue a la pieza que se muestra. Al
-  desarmar una pieza, sus memorias se quedan con el contenido propio que tenía.
+  desarmar una pieza, sus memorias se quedan con el contenido propio que tenía. Si una pieza guarda contenido propio
+  de una memoria que ya no está en el componente (se borró adentro), ese contenido no se usa y Problemas lo dice:
+  «Memoria chica: guarda contenido propio de una memoria que ya no está en el componente (c10)»; el clic derecho en la
+  fila ofrece «Olvidar ese contenido», un solo paso de deshacer.
 - **Terminales**: la ventana de un Terminal de adentro muestra el de la pieza cuyos valores se ven. Un Terminal con el
   mismo nombre en el circuito y adentro de un componente son dos ventanas distintas, y cada una recuerda su lugar y su
   tamaño. Si la pestaña pasa a mostrar otra pieza, la ventana de la pieza anterior se cierra. Abrirla desde otra

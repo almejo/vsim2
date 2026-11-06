@@ -5,9 +5,12 @@ import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
+import cl.almejo.vsim.core.command.SetInstanceMemoryContentsCommand;
+import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
@@ -29,6 +32,8 @@ import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.PieceMemories;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -312,6 +317,72 @@ class OpenDocumentBodyTest {
         assertThat(told).extracting(InsideEditRefusedException::messageKey).containsExactly("inside.cannotNestItself");
         assertThat(body.document().elements()).containsExactlyElementsOf(before);
         assertThat(openDocument.document().definition(BLOCK)).contains(definition);
+        assertThat(openDocument.history().undoCommand()).containsSame(placed);
+    }
+
+    @Test
+    void aBodyPlaceShowsTheMemoryContentsOfItsContextPiece() {
+        // debt of task 9b: the drawing of a memory inside a component read the component's contents
+        Component ram = registry.require(StandardComponentTypes.RAM).newComponent(new ElementId("c3"),
+                new GridPoint(0, 0), Rotation.R0, Map.of(), "");
+        openDocument.execute(new PutDefinitionsCommand(List.of(new ComponentDefinition("memoria", "Memoria", "",
+                new GridSize(4, 4), List.of(), new CircuitFragment(List.of(ram), List.of(), List.of())))));
+        Component first = place("c5", SubcircuitTypes.typeIdOf("memoria"), 0);
+        place("c9", SubcircuitTypes.typeIdOf("memoria"), 30);
+        openDocument.execute(SetInstanceMemoryContentsCommand.set(new PieceMemories.Place(first.id(), "c3"),
+                MemoryContents.decode("@0 7")));
+
+        assertThat(body("memoria", Optional.of("c5")).pieceMemoryContents())
+                .containsExactly(Map.entry(new ElementId("c3"), MemoryContents.decode("@0 7").encode()));
+        assertThat(body("memoria", Optional.of("c9")).pieceMemoryContents()).isEmpty();
+        assertThat(body("memoria", Optional.empty()).pieceMemoryContents()).isEmpty();
+        assertThat(openDocument.pieceMemoryContents()).isEmpty();
+    }
+
+    @Test
+    void undoAndRedoGoOnAfterTheTabOfACopyThatFollowedAnOutsideChangeClosed() {
+        // final review I4: the copy followed X, its tab closed, X was undone; the inside edit before X then goes back
+        withTwoBlocks();
+        OpenDocument body = body(BLOCK, Optional.of(FIRST.value()));
+        body.execute(new SetLabelCommand(INNER_SWITCH, "E1"));
+        ComponentDefinition labelled = openDocument.document().definition(BLOCK).orElseThrow();
+        ComponentDefinition withoutSwitch = new ComponentDefinition(BLOCK, labelled.name(), "", labelled.size(),
+                labelled.pinout(), new CircuitFragment(List.of(labelled.body().components().getFirst()), List.of(),
+                List.of())).revisedFrom(labelled);
+        openDocument.execute(ReplaceDefinitionCommand.prepare(openDocument.document(), openDocument.registry(),
+                new DefinitionBundle(withoutSwitch, List.of())));
+        assertThat(body.document().component(INNER_SWITCH)).isEmpty();
+        body.close();
+
+        openDocument.history().undo();
+        openDocument.history().undo();
+
+        assertThat(openDocument.document().definition(BLOCK)).contains(block());
+        openDocument.history().redo();
+        assertThat(openDocument.document().definition(BLOCK)).contains(labelled);
+        OpenDocument reopened = body(BLOCK, Optional.of(FIRST.value()));
+        assertThat(reopened.document().component(INNER_SWITCH).orElseThrow().label()).isEqualTo("E1");
+    }
+
+    @Test
+    void pastingAPieceThatContainsThisComponentIsToldToTheTabNotThrown() {
+        withInverterInsideDoubleInverterAndOnItsOwn();
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c30"));
+        List<DocumentElement> before = body.document().elements();
+        List<InsideEditRefusedException> told = new ArrayList<>();
+        body.addRefusalListener(told::add);
+        Component container = new Component(new ElementId("c1"),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), new GridPoint(0, 0), Rotation.R0,
+                Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(container), List.of(), List.of(),
+                List.of(ExampleDefinitions.inverter(), ExampleDefinitions.doubleInverter()));
+        Command placed = openDocument.history().undoCommand().orElseThrow();
+
+        body.execute(new PasteCommand(fragment, new GridPoint(40, 40)));
+
+        assertThat(told).extracting(InsideEditRefusedException::messageKey)
+                .containsExactly("inside.pieceContainsThisComponent");
+        assertThat(body.document().elements()).containsExactlyElementsOf(before);
         assertThat(openDocument.history().undoCommand()).containsSame(placed);
     }
 

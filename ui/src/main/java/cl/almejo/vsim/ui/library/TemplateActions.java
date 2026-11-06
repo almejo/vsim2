@@ -290,7 +290,7 @@ public final class TemplateActions {
             return;
         }
         DefinitionBundle bundle = found.get();
-        CircuitDocument document = openDocument.document();
+        CircuitDocument document = circuit().document();
         if (wouldNestItself(document, bundle)) {
             dialogs.showError(canvas.get(), Messages.text("template.updateFromLibrary.recursive"));
             return;
@@ -380,7 +380,7 @@ public final class TemplateActions {
      * keeping the same text changes nothing.
      */
     public void editDescription(Component instance) {
-        CircuitDocument document = openDocument.document();
+        CircuitDocument document = circuit().document();
         Optional<ComponentDefinition> found = definitionIdOf(instance).flatMap(document::definition);
         if (found.isEmpty()) {
             return;
@@ -390,7 +390,7 @@ public final class TemplateActions {
         if (answer.isEmpty() || answer.get().strip().equals(definition.description())) {
             return;
         }
-        openDocument.execute(new EditDescriptionCommand(definition.id(), answer.get().strip(),
+        circuit().execute(new EditDescriptionCommand(definition.id(), answer.get().strip(),
                 service.library()::find, this::saveToLibrary));
     }
 
@@ -444,7 +444,9 @@ public final class TemplateActions {
             }
         }
         message = withDroppedLinks(message, linkedMemories);
-        openDocument.execute(new CompositeCommand("command.createComponent", steps));
+        // only adding the definitions changes no body: from a component tab they go to the circuit directly
+        OpenDocument target = instance == null ? circuit() : openDocument;
+        target.execute(new CompositeCommand("command.createComponent", steps));
         if (instance != null) {
             canvas.get().selection().select(instance.id());
         }
@@ -489,7 +491,7 @@ public final class TemplateActions {
         }
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
                 result.pinOrder(), result.pinNames(), openDocument.registry());
-        Optional<ComponentDefinition> previous = document.definition(bundle.root().id());
+        Optional<ComponentDefinition> previous = circuit().document().definition(bundle.root().id());
         if (previous.isPresent()) {
             ComponentDefinition candidate = AppearanceReconciler.preserveGeneralAppearance(previous.get(),
                     bundle.root().withDescription(result.description()));
@@ -517,7 +519,7 @@ public final class TemplateActions {
     private boolean replaceDefinition(DefinitionBundle bundle) {
         ReplaceDefinitionCommand command;
         try {
-            command = ReplaceDefinitionCommand.prepare(openDocument.document(), openDocument.registry(), bundle);
+            command = ReplaceDefinitionCommand.prepare(circuit().document(), circuit().registry(), bundle);
         } catch (UnsafeDefinitionUpdateException exception) {
             dialogs.showMessage(canvas.get(), Messages.format(exception.messageKey(),
                     String.join(", ", exception.containingNames())));
@@ -525,10 +527,10 @@ public final class TemplateActions {
         }
         ShapeChangePlan plan = command.plan();
         boolean needsAnswer = !plan.disconnected().isEmpty() || !plan.keptOldShape().isEmpty();
-        if (needsAnswer && !connectionsConfirmation.test(plan) || command.isStale(openDocument.document())) {
+        if (needsAnswer && !connectionsConfirmation.test(plan) || command.isStale(circuit().document())) {
             return false;
         }
-        openDocument.execute(command);
+        circuit().execute(command);
         List<String> lines = new ArrayList<>(command.notes().stream()
                 .map(note -> Messages.format(note.messageKey(), note.arguments().toArray())).toList());
         if (!plan.disconnected().isEmpty()) {
@@ -559,6 +561,14 @@ public final class TemplateActions {
         List<Component> selected = ids.stream().map(document::component).flatMap(Optional::stream).toList();
         return document.definitionsUsedBy(selected).stream()
                 .anyMatch(definition -> definition.id().equals(definitionId));
+    }
+
+    /**
+     * The circuit whose definitions change: the document itself, also from a component tab, whose working copy only
+     * edits the body and follows the document (a definition changed there would never reach the circuit).
+     */
+    private OpenDocument circuit() {
+        return openDocument.parent().orElse(openDocument);
     }
 
     private Optional<String> definitionIdOf(Component instance) {

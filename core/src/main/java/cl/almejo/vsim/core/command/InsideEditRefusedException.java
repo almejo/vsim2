@@ -6,9 +6,10 @@ import java.util.Objects;
 /**
  * An edit inside a component refused while it applies, before anything changed (spec §6.2: never silently). Carries
  * the bundle key and arguments of the explanation the editor (the component tab's place bar and status line) and the
- * AI show; the document, the working copy and the history are as they were. No edit of the editor is refused today:
- * the interface of a definition used inside another one changes too, and the bodies that contain it follow (spec
- * §6.2 c); the path stays for a rule that needs it.
+ * AI show; the document, the working copy and the history are as they were. An interface change is never refused
+ * (the bodies that contain the definition follow, spec §6.2 c); what is refused is a body that would hold the
+ * definition itself or a piece that contains it (a paste, a dropped file, the AI), and a change of another
+ * definition through the working copy, which would never reach the document ({@link EditInsideCommand}).
  */
 public final class InsideEditRefusedException extends RuntimeException {
 

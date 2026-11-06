@@ -89,6 +89,32 @@ class PieceMemoriesTest {
         assertThat(pasted.components().getFirst().parameters()).containsEntry(MemoryTypes.CONTENTS, "@0 9");
     }
 
+    @Test
+    void contentsKeptForAMemoryThatIsNoLongerThereAreFound() {
+        // debt of task 9b: an orphan entry was ignored and nothing showed it
+        document.replace(document.component(new ElementId("c1")).orElseThrow()
+                .withMemoryContents(Map.of("c3/c10", "@0 7", "c3/c99", "@0 8", "c7/c10", "@0 9")));
+
+        assertThat(PieceMemories.storedContentsIssues(document)).containsExactly(
+                new PieceMemories.StoredContentsIssue(new PieceMemories.Place(new ElementId("c1"), "c3/c99"),
+                        PieceMemories.StoredContentsIssue.Kind.FOR_NOTHING),
+                new PieceMemories.StoredContentsIssue(new PieceMemories.Place(new ElementId("c1"), "c7/c10"),
+                        PieceMemories.StoredContentsIssue.Kind.FOR_NOTHING));
+    }
+
+    @Test
+    void contentsKeptForALinkedMemoryAreFoundBecauseTheyHideTheFile() {
+        // the user's decision (2026-11-06): the piece keeps its contents, but Problemas says the file is not used
+        Component linked = registry.require(StandardComponentTypes.RAM).newComponent(MEMORY, GridPoint.ORIGIN,
+                Rotation.R0, Map.of(MemoryTypes.CONTENTS, "@0 5", MemoryTypes.LINK, "/home/maria/programa.hex"), "");
+        document.putDefinition(definition("memoria-chica", "Memoria chica", linked));
+        document.add(piece("c4", "memoria-chica").withMemoryContents(Map.of("c10", "@0 9")));
+
+        assertThat(PieceMemories.storedContentsIssues(document)).containsExactly(
+                new PieceMemories.StoredContentsIssue(new PieceMemories.Place(new ElementId("c4"), "c10"),
+                        PieceMemories.StoredContentsIssue.Kind.OVER_LINK));
+    }
+
     private Component piece(String id, String definitionId) {
         return new Component(new ElementId(id), SubcircuitTypes.typeIdOf(definitionId), GridPoint.ORIGIN,
                 Rotation.R0, Map.of(), "");

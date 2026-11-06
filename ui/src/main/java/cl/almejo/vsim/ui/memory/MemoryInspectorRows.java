@@ -55,7 +55,10 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
         Map<String, Object> resolved = type.resolveParameters(component.parameters());
         long words = MemoryTypes.words(resolved);
         int width = (Integer) resolved.get(MemoryTypes.WIDTH);
-        MemoryContents contents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS));
+        // inside a component, the piece of «Valores de» may start from its own contents (spec §6.6b)
+        String text = view.openDocument().pieceMemoryContents().getOrDefault(component.id(),
+                (String) resolved.get(MemoryTypes.CONTENTS));
+        MemoryContents contents = MemoryContents.decode(text);
         addContentRows(component, rows);
         watcher.problem(component.id()).ifPresent(problem ->
                 rows.addWide(named(new WrappedErrorText(problem), "memory.inspector.problem")));

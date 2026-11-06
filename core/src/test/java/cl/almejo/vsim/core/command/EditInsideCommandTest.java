@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -15,12 +16,14 @@ import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -133,13 +136,36 @@ class EditInsideCommandTest {
     }
 
     @Test
-    void aReplacementThatFailsLeavesTheWorkingCopyAsItWas() {
+    void aPieceOfItselfIsRefusedAndLeavesTheWorkingCopyAsItWas() {
         List<DocumentElement> bodyBefore = workingCopy.elements();
         Component itself = new Component(workingCopy.newComponentId(), SubcircuitTypes.typeIdOf(inverter.id()),
                 new GridPoint(30, 30), Rotation.R0, Map.of(), "");
         EditInsideCommand inside = inside(new AddElementsCommand(List.of(itself)));
 
-        assertThatThrownBy(() -> history.execute(inside)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> assertThat(refusal.messageKey()).isEqualTo("inside.cannotNestItself"));
+
+        assertThat(workingCopy.elements()).containsExactlyElementsOf(bodyBefore);
+        assertThat(document.definition(inverter.id())).containsSame(inverter);
+        assertThat(history.canUndo()).isFalse();
+    }
+
+    @Test
+    void pastingAPieceThatContainsTheEditedComponentIsRefusedWithItsName() {
+        // final review I2: a CPU piece pasted inside the ALU it contains
+        ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter();
+        List<DocumentElement> bodyBefore = workingCopy.elements();
+        Component container = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(doubleInverter.id()),
+                new GridPoint(0, 0), Rotation.R0, Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(container), List.of(), List.of(),
+                List.of(inverter, doubleInverter));
+        EditInsideCommand inside = inside(new PasteCommand(fragment, new GridPoint(40, 40)));
+
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> {
+                    assertThat(refusal.messageKey()).isEqualTo("inside.pieceContainsThisComponent");
+                    assertThat(refusal.arguments()).containsExactly(doubleInverter.name());
+                });
 
         assertThat(workingCopy.elements()).containsExactlyElementsOf(bodyBefore);
         assertThat(document.definition(inverter.id())).containsSame(inverter);
@@ -228,6 +254,120 @@ class EditInsideCommandTest {
         assertThat(registry.typeOf(rewritten).pinCount()).isEqualTo(3);
         assertThat(document.component(outer.id()).orElseThrow().memoryContents())
                 .containsEntry("c2/c10", "v3.0 hex words\n2");
+    }
+
+    @Test
+    void removingAPinListsTheWiresItLeavesLooseOutsideAndInTheBodiesThatContainIt() {
+        // spec §6.1: removing an interface pin leaves its outside wires loose and listed (debt of task 15)
+        document.add(new Wire(new ElementId("w90"), new GridPoint(6, 12), new GridPoint(10, 12)));
+        Component nested = new Component(new ElementId("c2"), SubcircuitTypes.typeIdOf(inverter.id()),
+                new GridPoint(2, 0), Rotation.R0, Map.of(), "");
+        document.putDefinition(new ComponentDefinition("parent", "Padre", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(nested), List.of(new Wire(new ElementId("w1"), new GridPoint(0, 2),
+                        new GridPoint(2, 2))), List.of())));
+        document.add(new Component(new ElementId("c40"), SubcircuitTypes.typeIdOf("parent"), new GridPoint(10, 40),
+                Rotation.R0, Map.of(), ""));
+        EditInsideCommand inside = inside(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+
+        history.execute(inside);
+
+        assertThat(inside.removedPinWires()).containsExactly(
+                new RemovedPinWire(Optional.of("parent"), new ElementId("c2"), "a", new GridPoint(2, 2)),
+                new RemovedPinWire(Optional.empty(), first.id(), "a", new GridPoint(10, 12)));
+    }
+
+    @Test
+    void aMergeThatFailsLeavesTheDefinitionAndTheCopyWithTheFirstEditApplied() {
+        // final review M1: the merged inside edit throws after the top was reverted
+        ElementId gate = new ElementId("c2");
+        history.execute(inside(new LabelThatMergesIntoAFailure(gate, "a")));
+        ComponentDefinition afterFirst = document.definition(inverter.id()).orElseThrow();
+
+        history.execute(inside(new SetLabelCommand(gate, "ab")));
+
+        assertThat(workingCopy.component(gate).orElseThrow().label()).isEqualTo("ab");
+        history.undo();
+        assertThat(document.definition(inverter.id()).orElseThrow().sameContentAs(afterFirst)).isTrue();
+        assertThat(workingCopy.component(gate).orElseThrow().label()).isEqualTo("a");
+        history.undo();
+        assertThat(document.definition(inverter.id()).orElseThrow().sameContentAs(inverter)).isTrue();
+        assertThat(workingCopy.component(gate).orElseThrow().label()).isEmpty();
+    }
+
+    /** Sets a label; whatever follows it merges into a command that throws when applied. */
+    private record LabelThatMergesIntoAFailure(ElementId id, String text) implements Command {
+        @Override
+        public void apply(CircuitDocument target) {
+            target.replace(target.component(id).orElseThrow().withLabel(text));
+        }
+
+        @Override
+        public void revert(CircuitDocument target) {
+            target.replace(target.component(id).orElseThrow().withLabel(""));
+        }
+
+        @Override
+        public String description() {
+            return "command.label";
+        }
+
+        @Override
+        public Optional<Command> mergedWith(Command next) {
+            return Optional.of(new Command() {
+                @Override
+                public void apply(CircuitDocument target) {
+                    throw new IllegalStateException("the merged edit cannot apply");
+                }
+
+                @Override
+                public void revert(CircuitDocument target) {
+                }
+
+                @Override
+                public String description() {
+                    return "command.label";
+                }
+            });
+        }
+    }
+
+    @Test
+    void aWorkingCopyThatNoLongerMatchesIsBroughtToTheDefinitionOnUndoAndRedo() {
+        // final review I4: a released copy that followed an outside change before its tab closed
+        List<DocumentElement> bodyBefore = workingCopy.elements();
+        history.execute(inside(new SetLabelCommand(new ElementId("c2"), "E1")));
+        ComponentDefinition labelled = document.definition(inverter.id()).orElseThrow();
+        workingCopy.remove(new ElementId("c2"));
+
+        history.undo();
+
+        assertOriginal(bodyBefore);
+        workingCopy.remove(new ElementId("c3"));
+        history.redo();
+        assertThat(document.definition(inverter.id())).containsSame(labelled);
+        assertThat(workingCopy.component(new ElementId("c2")).orElseThrow().label()).isEqualTo("E1");
+        assertThat(workingCopy.component(new ElementId("c3"))).isPresent();
+    }
+
+    @Test
+    void aChangeOfAnotherDefinitionMadeThroughTheWorkingCopyIsRefusedWithNothingChanged() {
+        // the working copy holds copies of the document's definitions: changing one there would never reach the
+        // document, so the edit is refused instead of being kept only in the tab (final review C1)
+        ComponentDefinition doubleInverter = placeDoubleInverter();
+        CircuitDocument containerCopy = doubleInverter.bodyDocument(document);
+        EditInsideCommand inside = new EditInsideCommand(doubleInverter.id(),
+                new ChangeDefinitionDescriptionCommand(inverter.id(), "nueva"), containerCopy, registry);
+
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> {
+                    assertThat(refusal.messageKey()).isEqualTo("inside.otherDefinitionChanged");
+                    assertThat(refusal.arguments()).containsExactly(inverter.name());
+                });
+
+        assertThat(containerCopy.definition(inverter.id())).contains(inverter);
+        assertThat(document.definition(inverter.id())).containsSame(inverter);
+        assertThat(document.definition(doubleInverter.id())).containsSame(doubleInverter);
+        assertThat(history.canUndo()).isFalse();
     }
 
     /** The double inverter (two inverters inside) in the document, one piece of it placed; returns the definition. */
