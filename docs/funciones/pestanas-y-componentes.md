@@ -88,8 +88,9 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   circuito. Los componentes que lo contienen no cambian por fuera. Todo es un solo paso de deshacer, que devuelve
   cada componente como estaba. Lo que no puede seguir se lista en Problemas con su camino, en cada lugar donde se usa
   el componente que lo contiene: «Sumador completo › Medio sumador 2: el pin b quedó en otro lugar (su lugar estaba
-  ocupado)» o «Sumador completo › Medio sumador 2: pin b sin conectar». Mover un pin adentro no cambia nada por
-  fuera.
+  ocupado)» o «Sumador completo › Medio sumador 2: pin b sin conectar». Estas filas duran mientras el cambio esté
+  aplicado en la sesión: no se guardan con el circuito, y al volver a abrirlo la pieza conserva su pin donde quedó,
+  sin fila. Mover un pin adentro no cambia nada por fuera.
 - **Quitar un pin**: borrar un «Pin de entrada» o «Pin de salida» adentro quita ese pin de todas las piezas. Los
   cables que llegaban a él, en el circuito o dentro de otros componentes, se quedan donde estaban, sueltos, y
   Problemas los lista con la pieza: «Inversor: el pin a ya no existe; su cable quedó suelto». La fila se va al
