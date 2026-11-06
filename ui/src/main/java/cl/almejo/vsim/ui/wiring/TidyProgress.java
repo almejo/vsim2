@@ -30,6 +30,8 @@ public interface TidyProgress {
                     : Messages.text("tidy.progress.working");
             case MOVING_TEXTS -> total > 0 ? Messages.format("tidy.progress.movingTexts", done, total)
                     : Messages.text("tidy.progress.working");
+            // their own texts come with phase 2's dialog task
+            case ALIGNING, STRAIGHTENING -> Messages.text("tidy.progress.working");
             case WIRES -> Messages.format("tidy.progress.round", done);
         };
     }
