@@ -804,6 +804,36 @@ class EditServiceTest {
     }
 
     @Test
+    void tidyWiresWithStraightenStraightensTheJog() {
+        service.edit(request(place("source", "switch", 0, 0), place("lamp", "led", 20, 5),
+                connect("new:source", "out", "new:lamp", "in")));
+        List<GridPoint> before = circuit.document().components().stream().map(Component::position).toList();
+        var netsBefore = connectedPins();
+
+        EditReceipt receipt = service.edit(request(new TidyWires(List.of(), false, false, true)));
+
+        // one of the two parts moved up or down (which one is the planner's choice) and the wire lost its jog
+        assertThat(circuit.document().components().stream().map(Component::position).toList()).isNotEqualTo(before);
+        assertThat(connectedPins()).isEqualTo(netsBefore);
+        assertThat(receipt.warnings()).anyMatch(warning -> warning.contains("straightened 1")
+                && warning.contains("corners 2 -> 0"));
+    }
+
+    @Test
+    void withoutTheFlagsNothingAlignsOrStraightens() {
+        service.edit(request(place("source", "switch", 0, 0), place("lamp", "led", 20, 5),
+                connect("new:source", "out", "new:lamp", "in")));
+        List<GridPoint> before = circuit.document().components().stream().map(Component::position).toList();
+
+        service.edit(request(new TidyWires(List.of(), true)));
+
+        assertThat(circuit.document().components().stream().map(Component::position).toList()).isEqualTo(before);
+        TidyWires plain = new TidyWires(List.of());
+        assertThat(plain.alignColumns()).isFalse();
+        assertThat(plain.straighten()).isFalse();
+    }
+
+    @Test
     void aPartItCouldNotSeparateIsAWarning() {
         EditReceipt placed = service.edit(request(place("first", "and", 10, 10), place("second", "and", 11, 11),
                 new MakeFrame(Optional.of("box"), "Caja", List.of("new:first", "new:second"), Optional.empty(), false)));

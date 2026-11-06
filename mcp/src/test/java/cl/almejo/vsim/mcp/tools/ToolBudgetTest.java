@@ -28,11 +28,11 @@ class ToolBudgetTest {
      * budget is 45,600; 45,671 with the gates (the NAND example places «and» with negate, the catalogue hint on
      * «inputs»), so 45,700; 45,764 with set_inputs saying a switch keeps its value, so 45,800 (still enough when it
      * says instead that the values are the simulation's only); about 45,850 with vsim_step's NEXT_CLOCK_CYCLE and
-     * clockEdge, so 45,900; 46,116 with the presets listed in vsim_edit (generated, about 216), so 46,150; 47,326 with the two Terminal tools (vsim_read_terminal and vsim_type_text, about 590 each), so 47,350; 47,371 with SetParameters saying wires follow pins that move, so 47,375; 47,412 with the SHOW_SHEETS editor setting, so 47,425; 47,535 with TidyWires' separateOverlaps (about 110), so 47,540.
+     * clockEdge, so 45,900; 46,116 with the presets listed in vsim_edit (generated, about 216), so 46,150; 47,326 with the two Terminal tools (vsim_read_terminal and vsim_type_text, about 590 each), so 47,350; 47,371 with SetParameters saying wires follow pins that move, so 47,375; 47,412 with the SHOW_SHEETS editor setting, so 47,425; 47,535 with TidyWires' separateOverlaps (about 110), so 47,540; 47,645 with TidyWires' alignColumns and straighten (about 105), so 47,650.
      */
-    private static final int ALL_TOOLS_BUDGET = 47_540;
-    /** 10,371 characters after the fix round; 12,244 with SetComponentShape (the shape editor, about 1,000); 13,474 with the sticky notes (AddStickyNote, SetStickyItem and their rule, about 1,240); 13,425 with those descriptions shortened; the budget is 13,470; 13,959 with SetMemoryContents (about 530), so the budget is 14,000; 14,037 with the NAND example as «and» + negate, so 14,050; 14,266 with the presets list, so 14,300; 14,416 with TidyWires' separateOverlaps, so 14,420. */
-    private static final int EDIT_BUDGET = 14_420;
+    private static final int ALL_TOOLS_BUDGET = 47_650;
+    /** 10,371 characters after the fix round; 12,244 with SetComponentShape (the shape editor, about 1,000); 13,474 with the sticky notes (AddStickyNote, SetStickyItem and their rule, about 1,240); 13,425 with those descriptions shortened; the budget is 13,470; 13,959 with SetMemoryContents (about 530), so the budget is 14,000; 14,037 with the NAND example as «and» + negate, so 14,050; 14,266 with the presets list, so 14,300; 14,416 with TidyWires' separateOverlaps, so 14,420; 14,525 with its alignColumns and straighten, so 14,530. */
+    private static final int EDIT_BUDGET = 14_530;
     /** The answer to four parts and three Connects: 590 characters after the fix round. */
     private static final int TYPICAL_EDIT_ANSWER_BUDGET = 650;
 

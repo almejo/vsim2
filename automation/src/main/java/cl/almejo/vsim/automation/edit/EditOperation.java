@@ -241,15 +241,27 @@ public sealed interface EditOperation {
     /**
      * «Ordenar circuito» on the targets (every wire of the circuit when there are no targets). With
      * {@code separateOverlaps} it also moves the parts and texts of the targets' elements (a frame's contents, a wire,
-     * a part; everything when there are no targets) that cover each other; without it only the wires change.
+     * a part; everything when there are no targets) that cover each other; {@code alignColumns} lines parts up in
+     * columns and {@code straighten} moves parts up or down so the wires between them run straight; without any of
+     * the three only the wires change.
      */
-    record TidyWires(List<String> targets, boolean separateOverlaps) implements EditOperation {
+    record TidyWires(List<String> targets, boolean separateOverlaps, boolean alignColumns, boolean straighten)
+            implements EditOperation {
         public TidyWires {
             targets = List.copyOf(targets);
         }
 
+        public TidyWires(List<String> targets, boolean separateOverlaps) {
+            this(targets, separateOverlaps, false, false);
+        }
+
         public TidyWires(List<String> targets) {
-            this(targets, false);
+            this(targets, false, false, false);
+        }
+
+        /** Whether parts (not only wires) may move. */
+        public boolean movesParts() {
+            return separateOverlaps || alignColumns || straighten;
         }
     }
 }

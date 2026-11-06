@@ -135,6 +135,18 @@ class VsimToolsTest {
         int tidyStart = schema.indexOf("separateOverlaps");
         assertThat(tidyStart).isPositive();
         assertThat(schema.substring(tidyStart, Math.min(schema.length(), tidyStart + 200)))
-                .startsWith("separateOverlaps={type=boolean}}, required=[op]");
+                .startsWith("separateOverlaps={type=boolean}, alignColumns={type=boolean}");
+    }
+
+    @Test
+    void tidyWiresListsAlignColumnsAndStraightenAsOptionalBooleans() {
+        Tool edit = VsimTools.tools(api).stream().filter(tool -> tool.name().equals("vsim_edit")).findFirst()
+                .orElseThrow();
+        String schema = edit.inputSchema().toString();
+        int tidyStart = schema.indexOf("alignColumns");
+        assertThat(tidyStart).isPositive();
+        String tidy = schema.substring(tidyStart, Math.min(schema.length(), tidyStart + 300));
+        assertThat(tidy).contains("alignColumns={type=boolean}").contains("straighten={type=boolean}")
+                .contains("required=[op]");
     }
 }

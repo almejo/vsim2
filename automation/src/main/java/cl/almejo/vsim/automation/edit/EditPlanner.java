@@ -681,7 +681,7 @@ final class EditPlanner {
     private void tidyWires(TidyWires operation) {
         Set<ElementId> scope = new LinkedHashSet<>();
         if (operation.targets().isEmpty()) {
-            List<? extends DocumentElement> all = operation.separateOverlaps() ? candidate.elements()
+            List<? extends DocumentElement> all = operation.movesParts() ? candidate.elements()
                     : candidate.wires();
             all.stream().filter(element -> !(element instanceof Frame)).forEach(element -> scope.add(element.id()));
         }
@@ -689,14 +689,14 @@ final class EditPlanner {
             DocumentElement element = requireElement(target);
             if (element instanceof Frame frame) {
                 FrameContents.of(candidate, registry, frame).stream()
-                        .filter(id -> operation.separateOverlaps() || candidate.wire(id).isPresent())
+                        .filter(id -> operation.movesParts() || candidate.wire(id).isPresent())
                         .forEach(scope::add);
-            } else if (operation.separateOverlaps() || element instanceof Wire) {
+            } else if (operation.movesParts() || element instanceof Wire) {
                 scope.add(element.id());
             }
         }
-        if (operation.separateOverlaps()) {
-            separateAndTidy(scope);
+        if (operation.movesParts()) {
+            separateAndTidy(scope, operation);
             return;
         }
         TidyPlan plan = WireTidy.plan(candidate, registry, scope, TidyOptions.DEFAULTS);
@@ -707,9 +707,10 @@ final class EditPlanner {
         new TidyWiresCommand(plan).apply(candidate);
     }
 
-    private void separateAndTidy(Set<ElementId> scope) {
+    private void separateAndTidy(Set<ElementId> scope, TidyWires operation) {
         CircuitTidyPlan plan = CircuitTidy.plan(candidate, registry, scope,
-                new CircuitTidyOptions(true, TidyOptions.DEFAULTS), TextBoxes.NONE, () -> false, round -> { })
+                new CircuitTidyOptions(operation.separateOverlaps(), operation.alignColumns(),
+                        operation.straighten(), TidyOptions.DEFAULTS), TextBoxes.NONE, () -> false, round -> { })
                 .orElseThrow();
         if (!plan.notSeparated().isEmpty()) {
             warnings.add(at() + "could not be separated (no free place nearby that keeps the nets and the frames): "
@@ -718,6 +719,11 @@ final class EditPlanner {
         if (plan.isEmpty()) {
             warnings.add(at() + "the circuit was tidy already");
             return;
+        }
+        if (plan.partsAligned() > 0 || plan.pairsStraightened() > 0) {
+            warnings.add(at() + "aligned " + plan.partsAligned() + " parts in columns and straightened "
+                    + plan.pairsStraightened() + " wires (corners " + plan.cornersBefore() + " -> "
+                    + plan.cornersAfter() + ")");
         }
         ReplaceContentCommand.between(candidate, plan.after(), "command.tidyCircuit").apply(candidate);
     }
