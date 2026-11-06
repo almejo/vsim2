@@ -118,9 +118,22 @@ class LayoutItemsTest {
                 new StickyText("recordar"), false);
         document.add(sticky);
 
-        LayoutItems items = items(document);
+        TextBoxes fiveWide = new TextBoxes() {
+            @Override
+            public Optional<Bounds> componentLabel(Component component) {
+                return Optional.empty();
+            }
 
-        assertThat(items.item(note.id()).orElseThrow().bounds()).isEqualTo(new Bounds(3, 4, 0, 0));
+            @Override
+            public Bounds freeText(TextLabel label) {
+                return new Bounds(label.position().x(), label.position().y(), 5, 1);
+            }
+        };
+
+        LayoutItems items = LayoutItems.of(document, registry, everything(document), fiveWide);
+
+        assertThat(items(document).item(note.id())).as("a text with no size is no item").isEmpty();
+        assertThat(items.item(note.id()).orElseThrow().bounds()).isEqualTo(new Bounds(3, 4, 5, 1));
         assertThat(items.item(note.id()).orElseThrow().gap()).isEqualTo(LayoutItems.TEXT_GAP);
         assertThat(items.item(note.id()).orElseThrow().texts()).isEqualTo(1);
         assertThat(items.item(sticky.id()).orElseThrow().bounds()).isEqualTo(new Bounds(10, 10, 8, 6));

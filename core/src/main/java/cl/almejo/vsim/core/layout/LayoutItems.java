@@ -93,7 +93,7 @@ final class LayoutItems {
 
     /**
      * The items of {@code document}. {@code scope} holds the ids allowed to change; {@code texts} measures labels
-     * and free texts. Components of an unknown type have no size and are left out.
+     * and free texts. Components of an unknown type and free texts with no size cover nothing and are left out.
      */
     static LayoutItems of(CircuitDocument document, ComponentTypeRegistry registry, Set<ElementId> scope,
                           TextBoxes texts) {
@@ -103,7 +103,11 @@ final class LayoutItems {
             items.add(componentItem(cluster, registry, scope, texts, frames));
         }
         for (TextLabel label : document.labels()) {
-            items.add(textItem(label.id(), texts.freeText(label), scope, frames));
+            Bounds box = texts.freeText(label);
+            // A text with no size (TextBoxes.NONE) covers nothing: as a point inside a body it would still be pushed.
+            if (box.width() > 0 && box.height() > 0) {
+                items.add(textItem(label.id(), box, scope, frames));
+            }
         }
         for (StickyNote note : document.stickyNotes()) {
             items.add(textItem(note.id(), new Bounds(note.position().x(), note.position().y(), note.visibleWidth(),

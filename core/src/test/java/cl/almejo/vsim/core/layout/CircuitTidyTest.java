@@ -233,6 +233,19 @@ class CircuitTidyTest {
     }
 
     @Test
+    void aTextWithoutSizeCoversNothing() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 0, 0);
+        document.add(new TextLabel(document.newLabelId(), new GridPoint(2, 2), "hola"));
+
+        CircuitTidyPlan plan = tidyForReal(document);
+
+        assertThat(plan.textsMoved()).isZero();
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
     void aWireThatEntersALampToReachItsPinIsNotAnOverlap() {
         CircuitDocument document = new CircuitDocument();
         place(registry, document, StandardComponentTypes.SWITCH, 0, 0, "");
