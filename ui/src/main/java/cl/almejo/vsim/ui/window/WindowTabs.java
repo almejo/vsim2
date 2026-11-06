@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -20,7 +21,7 @@ import cl.almejo.vsim.ui.window.tabs.TabStripModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
@@ -30,9 +31,9 @@ import javax.swing.SwingUtilities;
 import java.awt.AWTKeyStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
-import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.InputEvent;
@@ -68,8 +69,11 @@ import java.util.stream.Collectors;
 public final class WindowTabs extends JPanel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(WindowTabs.class);
-    private static final String NEXT_TAB_KEY = "vsim.window.nextTab";
-    private static final String PREVIOUS_TAB_KEY = "vsim.window.previousTab";
+    /** Ctrl+AvPág / Ctrl+RePág: the other keys of «Pestaña siguiente / anterior», fixed (spec §4.2). */
+    private static final KeyStroke NEXT_TAB_PAGE = KeyStroke.getKeyStroke(KeyEvent.VK_PAGE_DOWN,
+            InputEvent.CTRL_DOWN_MASK);
+    private static final KeyStroke PREVIOUS_TAB_PAGE = KeyStroke.getKeyStroke(KeyEvent.VK_PAGE_UP,
+            InputEvent.CTRL_DOWN_MASK);
 
     /** What the tabs need from their window and the application. */
     public interface Host {
@@ -184,6 +188,7 @@ public final class WindowTabs extends JPanel {
     /** The left-column panels folded in this window: every tab shows the same (spec §5.3), and the session keeps it. */
     private Set<LeftColumn.Section> foldedPanels = Set.of();
     private boolean foldingPanels;
+    private final KeyEventDispatcher tabKeys = this::takeTabKey;
 
     /**
      * @param viewFactory makes the editor of a tab on a place (the window gives its services and itself as the
@@ -234,30 +239,57 @@ public final class WindowTabs extends JPanel {
 
     /**
      * Ctrl+Tab and Ctrl+Mayús+Tab are the window's (spec §4.2), not Swing's focus traversal, which keeps Tab and
-     * Mayús+Tab; Ctrl+AvPág and Ctrl+RePág cycle the tabs too.
+     * Mayús+Tab; Ctrl+AvPág and Ctrl+RePág cycle the tabs too. The components' own Ctrl+Tab bindings are passed over
+     * by {@link #tabKeys()}.
      */
     private void bindTabKeys() {
         setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
                 Set.of(AWTKeyStroke.getAWTKeyStroke(KeyEvent.VK_TAB, 0)));
         setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
                 Set.of(AWTKeyStroke.getAWTKeyStroke(KeyEvent.VK_TAB, InputEvent.SHIFT_DOWN_MASK)));
-        int control = InputEvent.CTRL_DOWN_MASK;
-        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_PAGE_DOWN, control), NEXT_TAB_KEY);
-        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_PAGE_UP, control), PREVIOUS_TAB_KEY);
-        getActionMap().put(NEXT_TAB_KEY, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                nextTab();
-            }
-        });
-        getActionMap().put(PREVIOUS_TAB_KEY, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                previousTab();
-            }
-        });
+    }
+
+    /**
+     * Takes «Pestaña siguiente» / «Pestaña anterior» (Ctrl+Tab, Ctrl+Mayús+Tab, or what the user bound them to) and
+     * Ctrl+AvPág / Ctrl+RePág before any component of this window sees them: split panes bind Ctrl+Tab to leave
+     * themselves and tabbed panes (the inspector) Ctrl+Tab and Ctrl+AvPág to cycle their own tabs, and both win over a
+     * menu accelerator or a binding of this panel. Installed while the window shows. Package-private for tests.
+     */
+    KeyEventDispatcher tabKeys() {
+        return tabKeys;
+    }
+
+    private boolean takeTabKey(KeyEvent event) {
+        Optional<TabEntry> active = activeEntry();
+        if (event.getID() != KeyEvent.KEY_PRESSED || event.isConsumed() || active.isEmpty()
+                || !(event.getSource() instanceof java.awt.Component source)
+                || !SwingUtilities.isDescendingFrom(source, this)) {
+            return false;
+        }
+        KeyStroke stroke = KeyStroke.getKeyStrokeForEvent(event);
+        EditorActions actions = active.get().view.actions();
+        if (stroke.equals(NEXT_TAB_PAGE) || stroke.equals(actions.nextTab().getValue(Action.ACCELERATOR_KEY))) {
+            nextTab();
+        } else if (stroke.equals(PREVIOUS_TAB_PAGE)
+                || stroke.equals(actions.previousTab().getValue(Action.ACCELERATOR_KEY))) {
+            previousTab();
+        } else {
+            return false;
+        }
+        event.consume();
+        return true;
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(tabKeys);
+    }
+
+    @Override
+    public void removeNotify() {
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(tabKeys);
+        super.removeNotify();
     }
 
     // --- adding tabs ---

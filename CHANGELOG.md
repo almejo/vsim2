@@ -39,6 +39,7 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 ### Arreglado
 
+- Ctrl+Tab y Ctrl+Mayús+Tab cambian de pestaña esté donde esté el foco: antes, desde el lienzo el primero llevaba el foco al inspector y desde ahí recorría las pestañas del inspector. Ctrl+Av Pág y Ctrl+Re Pág también cambian de pestaña con el foco en el inspector. Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
 - La búsqueda del árbol del circuito pone en negrita lo que coincide también cuando solo coincide sin tildes (buscar «accion» marca «Acción»); antes la fila aparecía pero sin negrita.
 - Un atajo personalizado que guardaste para «Cerrar ventana» cuando era Ctrl+W (el id antiguo `file.close`) ya no se pierde sin aviso: pasa a «Cerrar ventana» de ahora (Ctrl+Mayús+W por defecto); si ya habías puesto otro o la tecla es de otra acción, se descarta y queda anotado en el registro.
 - Las pestañas que no estás viendo ya no refrescan su lienzo sesenta veces por segundo (con varios componentes abiertos en un circuito grande restaban velocidad); al volver a una se pone al día de inmediato.
