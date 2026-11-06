@@ -28,6 +28,11 @@ public final class CompositeCommand implements Command {
         });
     }
 
+    /** The commands, in the order they apply. */
+    public List<Command> commands() {
+        return commands;
+    }
+
     @Override
     public String description() {
         return description;

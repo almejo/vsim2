@@ -280,6 +280,12 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
+    public Optional<EditorView> showPlaceOfStep(OpenDocument document, Optional<String> definitionId,
+                                                Optional<String> contextPath) {
+        return Optional.of(tabs.showPlaceOfStep(document, definitionId, contextPath));
+    }
+
+    @Override
     public boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
                             ElementId part) {
         tabs.goToPart(document, definitionId, contextPath, part);

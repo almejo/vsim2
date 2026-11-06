@@ -33,17 +33,29 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
     private final Command bodyCommand;
     private final CircuitDocument workingCopy;
     private final ComponentTypeRegistry registry;
+    private final Optional<String> contextPath;
     /** The write-back, prepared on the first apply; null while not applied yet or when the body did not change. */
     private ReplaceDefinitionCommand writeBack;
     private boolean prepared;
     private String placeName = "";
 
+    /** An edit made with no instance's values shown («Sin valores», or by a caller that has no tab). */
     public EditInsideCommand(String definitionId, Command bodyCommand, CircuitDocument workingCopy,
                              ComponentTypeRegistry registry) {
+        this(definitionId, bodyCommand, workingCopy, registry, Optional.empty());
+    }
+
+    /**
+     * @param contextPath the instance whose values the tab showed when the edit was made («Valores de»; empty: «Sin
+     *                    valores»): undo and redo reopen a closed tab there
+     */
+    public EditInsideCommand(String definitionId, Command bodyCommand, CircuitDocument workingCopy,
+                             ComponentTypeRegistry registry, Optional<String> contextPath) {
         this.definitionId = Objects.requireNonNull(definitionId, "definitionId");
         this.bodyCommand = Objects.requireNonNull(bodyCommand, "bodyCommand");
         this.workingCopy = Objects.requireNonNull(workingCopy, "workingCopy");
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.contextPath = Objects.requireNonNull(contextPath, "contextPath");
     }
 
     @Override
@@ -183,6 +195,11 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         return definitionId;
     }
 
+    /** The instance whose values the edit's tab showed («Valores de»); empty for «Sin valores». */
+    public Optional<String> contextPath() {
+        return contextPath;
+    }
+
     /** The edit made on the body: what the caller executed inside the component. */
     @Override
     public Command wrapped() {
@@ -227,7 +244,7 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
 
     /**
      * A run of edits in the same definition and working copy whose inner commands merge (keyboard nudges, a label
-     * typed) is one undo step, as in the main circuit.
+     * typed) is one undo step, as in the main circuit; it keeps the «Valores de» of its first edit.
      */
     @Override
     public Optional<Command> mergedWith(Command next) {
@@ -236,6 +253,6 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
             return Optional.empty();
         }
         return bodyCommand.mergedWith(following.bodyCommand)
-                .map(merged -> new EditInsideCommand(definitionId, merged, workingCopy, registry));
+                .map(merged -> new EditInsideCommand(definitionId, merged, workingCopy, registry, contextPath));
     }
 }

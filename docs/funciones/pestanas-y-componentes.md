@@ -35,7 +35,7 @@ Cómo se crean y se guardan los componentes propios está en
 
 - **Qué se edita**: lo que se cambia en la pestaña de un componente cambia el componente del circuito. Afecta a todas
   sus piezas, y cada cambio es un solo paso de deshacer del circuito, que se puede deshacer desde cualquiera de sus
-  pestañas. La librería no cambia sola.
+  pestañas (primero se pasa a la pestaña donde se hizo; ver **Deshacer** más abajo). La librería no cambia sola.
 - **Qué valores se ven**: la pestaña muestra los valores de una sola pieza mientras el circuito simula: la pieza por
   la que entraste. Si esa pieza se borra, la pestaña pasa a mostrar otra pieza del mismo componente. Si no queda
   ninguna, la pestaña queda sin valores.
@@ -110,8 +110,13 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 - **Sin valores**: si el componente no tiene piezas en el circuito, o si se eligió no mostrar ninguna, la pestaña no
   simula. Todo se ve sin valor, nada brilla, los clics en interruptores y botones no hacen nada, y la barra de estado
   dice «Sin valores: elige una pieza en “Valores de”».
-- **Deshacer**: Edición ▸ Deshacer y Rehacer dicen dónde fue el paso: «Deshacer agregar (en Ram)». Se puede deshacer
-  desde cualquier pestaña del circuito, y la vista no salta a la pestaña del componente.
+- **Deshacer**: el circuito tiene un solo historial, y Edición ▸ Deshacer y Rehacer dicen dónde fue el paso:
+  «Deshacer agregar (en Ram)». Si el paso se hizo en otro lugar del grupo (en la pestaña del circuito estando en la de
+  un componente, en la de un componente estando en la del circuito, o en otro componente), Ctrl+Z y Ctrl+Mayús+Z
+  primero pasan a la pestaña de ese lugar (la abren si estaba cerrada, con los valores de la pieza que mostraba cuando
+  se hizo el paso; si está abierta, queda con la pieza que muestra) y deshacen o rehacen ahí, y lo que el paso tocó
+  brilla 1,5 s, como con «Ver la pieza» (si estaba fuera de la vista, la vista viaja hasta ahí). Nunca se deshace algo
+  que no estás viendo. Un paso hecho en la misma pestaña se deshace como siempre, sin saltos ni brillo.
 - **Si el componente cambia desde otra parte** (deshacer en la pestaña del circuito, «Actualizar desde la librería»,
   la IA): la pestaña se pone al día. Si en ese momento estabas arrastrando algo o dibujando un cable adentro, ese
   gesto se cancela, como con Esc. La selección conserva lo que sigue existiendo.

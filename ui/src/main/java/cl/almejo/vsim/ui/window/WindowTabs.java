@@ -448,6 +448,26 @@ public final class WindowTabs extends JPanel {
     }
 
     /**
+     * Brings to the front the place where a step of the history was made ({@link WindowCommands#showPlaceOfStep}): the
+     * main tab, or the most recently active tab of the definition as it is (its «Valores de» stays), or a new component
+     * tab on {@code contextPath} when none is open.
+     */
+    public EditorView showPlaceOfStep(OpenDocument document, Optional<String> definitionId,
+                                      Optional<String> contextPath) {
+        if (definitionId.isEmpty()) {
+            return showPlace(document, Optional.empty(), Optional.empty());
+        }
+        Optional<TabEntry> open = entriesOf(document).stream().filter(entry -> entry.shows(definitionId.get()))
+                .max(Comparator.comparingLong(entry -> entry.lastActivation));
+        if (open.isEmpty()) {
+            return enter(document, definitionId.get(), contextPath, Optional.empty());
+        }
+        model.fold(document, false);
+        model.activate(open.get().id);
+        return open.get().view;
+    }
+
+    /**
      * Shows part {@code part} of {@code document} where it is: the place {@link #showPlace} brings to the front, with the
      * part selected and brought into view. F8 and the Problemas list (spec §6.7), «Ver la pieza» of the place bar and of
      * the circuit tree (spec §5) all come here. Returns the tab's view.

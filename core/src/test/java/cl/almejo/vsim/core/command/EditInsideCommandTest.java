@@ -123,6 +123,19 @@ class EditInsideCommandTest {
     }
 
     @Test
+    void anEditKeepsTheValoresDeItWasMadeInAndAMergedRunKeepsTheFirst() {
+        List<ElementId> gate = List.of(new ElementId("c2"));
+        history.execute(new EditInsideCommand(inverter.id(), MoveElementsCommand.nudge(gate, 1, 0), workingCopy,
+                registry, Optional.of("c20")));
+        history.execute(new EditInsideCommand(inverter.id(), MoveElementsCommand.nudge(gate, 1, 0), workingCopy,
+                registry, Optional.of("c21")));
+
+        EditInsideCommand run = (EditInsideCommand) history.undoCommand().orElseThrow();
+        assertThat(run.contextPath()).contains("c20");
+        assertThat(inside(MoveElementsCommand.nudge(gate, 1, 0)).contextPath()).as("«Sin valores»").isEmpty();
+    }
+
+    @Test
     void mergedWithRefusesAnotherDefinition() {
         document.putDefinition(ExampleDefinitions.byteBuffer());
         CircuitDocument otherCopy = ExampleDefinitions.byteBuffer().bodyDocument(document);

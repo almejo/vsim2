@@ -184,6 +184,7 @@ public final class EditorView extends JPanel implements CanvasHost {
                 useDefaultToolOnEveryPane();
             }
         }, window, AboutPresenter.swing());
+        actions.runStepsWith(new UndoInItsPlace(this));
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {

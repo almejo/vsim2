@@ -513,7 +513,7 @@ public final class OpenDocument implements AutoCloseable {
     private void executeInside(Command command, UnaryOperator<Command> together) {
         BodyWorkingCopy workingCopy = body.workingCopy;
         EditInsideCommand inside = new EditInsideCommand(workingCopy.definitionId(), command, workingCopy.document(),
-                registry);
+                registry, contextPath);
         try {
             workingCopy.write(() -> body.parent.execute(together.apply(inside)));
         } catch (InsideEditRefusedException refusal) {
@@ -904,11 +904,16 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
-     * The inside edit {@code command} is or carries (the history holds it inside the mark of its loosened pins), so
-     * the undo items can name its place; empty for any other command.
+     * The inside edit {@code command} is or carries (the history holds it inside the mark of its loosened pins, and
+     * {@link #executeInsideWith} together with a document edit), so the undo items can name its place and undo can
+     * show it; empty for any other command.
      */
     public static Optional<EditInsideCommand> insideEditOf(Command command) {
         Command unwrapped = command instanceof OpenDocument.MarkingCommand marking ? marking.command : command;
+        if (unwrapped instanceof CompositeCommand composite) {
+            return composite.commands().stream().map(OpenDocument::insideEditOf).flatMap(Optional::stream)
+                    .findFirst();
+        }
         return unwrapped instanceof EditInsideCommand inside ? Optional.of(inside) : Optional.empty();
     }
 

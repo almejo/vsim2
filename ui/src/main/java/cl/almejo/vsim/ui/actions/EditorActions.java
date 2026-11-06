@@ -44,6 +44,7 @@ import java.awt.event.KeyEvent;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -76,6 +77,7 @@ public final class EditorActions {
     private final Action closeWindow;
     private final Action exit;
     private final Action undo;
+    private StepRunner steps;
     private final Action redo;
     private final Action delete;
     private final List<Consumer<Set<ElementId>>> deleteListeners = new CopyOnWriteArrayList<>();
@@ -127,6 +129,17 @@ public final class EditorActions {
                          ToolChoice toolChoice, WindowCommands window, AboutPresenter aboutPresenter,
                          LinkOpener links, Supplier<AboutInformation> information) {
         this.openDocument = openDocument;
+        this.steps = new StepRunner() {
+            @Override
+            public void undo() {
+                openDocument.history().undo();
+            }
+
+            @Override
+            public void redo() {
+                openDocument.history().redo();
+            }
+        };
         this.activePane = activePane;
         this.selection = selection;
         newDocument = Actions.of(Messages.text("action.new"), shortcut(KeyEvent.VK_N, 0), window::newDocument);
@@ -138,10 +151,9 @@ public final class EditorActions {
         closeWindow = Actions.of(Messages.text("action.closeWindow"),
                 shortcut(KeyEvent.VK_W, InputEvent.SHIFT_DOWN_MASK), window::closeWindow);
         exit = Actions.of(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
-        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0),
-                () -> openDocument.history().undo());
+        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), () -> steps.undo());
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
-                () -> openDocument.history().redo());
+                () -> steps.redo());
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
         delete.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.delete"));
         rotateClockwise = Actions.of(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
@@ -228,6 +240,21 @@ public final class EditorActions {
     public Action closeTab() { return closeTab; }
     /** «Cerrar los componentes de este circuito». */
     public Action closeComponents() { return closeComponents; }
+    /**
+     * What Deshacer / Rehacer run: by default the history's step, here; the view gives one that shows the place of a
+     * step made in another tab first ({@code UndoInItsPlace}).
+     */
+    public interface StepRunner {
+        void undo();
+
+        void redo();
+    }
+
+    /** Deshacer and Rehacer run their step through {@code runner} from now on. */
+    public void runStepsWith(StepRunner runner) {
+        steps = Objects.requireNonNull(runner, "runner");
+    }
+
     public Action undo() { return undo; }
     public Action redo() { return redo; }
     public Action delete() { return delete; }
@@ -408,7 +435,7 @@ public final class EditorActions {
 
     /**
      * «Deshacer agregar», or «Deshacer agregar (en Ram)» for a step made inside a component (spec §10.4), whichever tab
-     * undoes it: the view never jumps to the tab, so the text says where the step was.
+     * shows the item: the text says where the step goes back before the view goes there.
      */
     private static String stepName(Command command, String namedKey, String insideKey) {
         String name = Messages.commandName(command.description());
