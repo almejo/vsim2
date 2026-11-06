@@ -19,7 +19,7 @@ import java.util.function.BooleanSupplier;
  * {@value #COLUMN_TOLERANCE} units form a column (chained: a–b and b–c), and the column's members move on x to the
  * left edge most of them already have (ties: the smallest x). Each move obeys the {@link Placement} rules, keeps the
  * order with the neighbours and leaves the wires with no more corners than before
- * ({@link Placement#tryMoveAddingNoCorners}), so a member that cannot reach the edge stays.
+ * ({@link Placement#tryTidyingMove}), so a member that cannot reach the edge stays.
  *
  * <p>Stacked: their bodies' x ranges overlap and their y ranges do not. A column that holds two parts side by side (a
  * row: their y ranges overlap) is not a column at all and is left alone. Texts never align.
@@ -63,7 +63,7 @@ final class ColumnAlignment {
             }
             GridPoint shift = new GridPoint(target - edge, 0);
             if (placement.keepsOrder(member, Placement.moved(member, shift))
-                    && placement.tryMoveAddingNoCorners(member, shift)) {
+                    && placement.tryTidyingMove(member, shift)) {
                 moved += member.parts();
             }
         }

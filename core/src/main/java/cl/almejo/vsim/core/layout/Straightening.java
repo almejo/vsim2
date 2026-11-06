@@ -1,0 +1,304 @@
+package cl.almejo.vsim.core.layout;
+
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinDirection;
+import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.netlist.PinRef;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+
+/**
+ * «Enderezar cables moviendo partes» (spec 2026-11-06 §5.2): moves parts up or down so the wires between a driver and
+ * its receivers run straight.
+ *
+ * <p>Every net with exactly one output pin (the driver) gives a pair for each input pin of another item on it. Only
+ * the pairs that are horizontal when the stage starts (|dx| ≥ |dy|) count, and the set never changes while it runs:
+ * a part pushed far enough to make a pair vertical gains nothing by it. The score is (pairs with dy = 0, then −Σ|dy|),
+ * compared lexicographically. Each round visits the movable parts left to right (then top, then id); a part's
+ * candidate shifts are the distinct dy that zero one of its pairs, tried best score first (ties: the smaller shift,
+ * then up), and the first that raises the score and passes every rule is taken: {@link Placement}'s, the order in its
+ * column ({@link Placement#keepsOrder}), no more wire corners than before ({@link Placement#tryTidyingMove})
+ * and the circuit's bounds grown by at most {@value #BOUNDS_SLACK} units above and below. Every taken move strictly
+ * raises the score, so the rounds settle; at most {@value #MAXIMUM_ROUNDS}.
+ */
+final class Straightening {
+
+    /** Rounds of the local search at most (spec §5.2): real circuits settle in two or three. */
+    static final int MAXIMUM_ROUNDS = 10;
+    /**
+     * How far above the topmost or below the bottommost part, in grid units, a part may go (spec §5.2): a long chain
+     * pulled one way cannot drift the whole circuit.
+     */
+    static final int BOUNDS_SLACK = 2;
+
+    /** What the stage did: the pairs that ended straight that were not, and how many moves it made. */
+    record Result(int pairsStraightened, int moves) {
+    }
+
+    /** A driver's output pin and one receiver's input pin on its net. */
+    record Pair(PinRef driver, PinRef receiver) {
+    }
+
+    private final CircuitDocument copy;
+    private final ComponentTypeRegistry registry;
+    private final Set<Set<PinRef>> originalNets;
+    private final Supplier<LayoutItems> reader;
+    private final CircuitTidyProgress progress;
+    private final BooleanSupplier cancelled;
+    /** The horizontal pairs, fixed when the stage starts. */
+    private List<Pair> pairs = List.of();
+    /** The pairs each component's pins are in. */
+    private final Map<ElementId, List<Pair>> pairsByComponent = new HashMap<>();
+    /** Where each pin of a pair is now. */
+    private final Map<PinRef, GridPoint> pins = new HashMap<>();
+    private int topLimit;
+    private int bottomLimit;
+    private int moves;
+
+    private Straightening(CircuitDocument copy, ComponentTypeRegistry registry, Set<Set<PinRef>> originalNets,
+                          Supplier<LayoutItems> reader, CircuitTidyProgress progress, BooleanSupplier cancelled) {
+        this.copy = copy;
+        this.registry = registry;
+        this.originalNets = originalNets;
+        this.reader = reader;
+        this.progress = progress;
+        this.cancelled = cancelled;
+    }
+
+    /**
+     * Straightens on {@code copy}, reading its items with {@code reader} at the start of every round and reporting
+     * {@code STRAIGHTENING} with each round (of {@value #MAXIMUM_ROUNDS}).
+     *
+     * @param originalNets which pins are connected to which before the clean-up: every move keeps it
+     * @return how many pairs ended straight that were not (dy ≠ 0 before, 0 after), and the moves made
+     * @throws CancellationException when {@code cancelled} says yes (polled before every part)
+     */
+    static Result straighten(CircuitDocument copy, ComponentTypeRegistry registry, Set<Set<PinRef>> originalNets,
+                          Supplier<LayoutItems> reader, CircuitTidyProgress progress, BooleanSupplier cancelled) {
+        return new Straightening(copy, registry, originalNets, reader, progress, cancelled).run();
+    }
+
+    private Result run() {
+        LayoutItems items = reader.get();
+        readPins();
+        pairs = horizontalPairs(items);
+        if (pairs.isEmpty()) {
+            return new Result(0, 0);
+        }
+        pairs.forEach(pair -> {
+            pairsByComponent.computeIfAbsent(pair.driver().componentId(), id -> new ArrayList<>()).add(pair);
+            pairsByComponent.computeIfAbsent(pair.receiver().componentId(), id -> new ArrayList<>()).add(pair);
+        });
+        setBoundsLimits(items);
+        Set<Pair> crookedAtStart = new LinkedHashSet<>();
+        pairs.stream().filter(pair -> deltaY(pair) != 0).forEach(crookedAtStart::add);
+        for (int round = 1; round <= MAXIMUM_ROUNDS; round++) {
+            progress.reached(CircuitTidyProgress.Stage.STRAIGHTENING, round, MAXIMUM_ROUNDS);
+            if (round > 1) {
+                items = reader.get();
+            }
+            if (!runRound(items)) {
+                break;
+            }
+        }
+        return new Result((int) crookedAtStart.stream().filter(pair -> deltaY(pair) == 0).count(), moves);
+    }
+
+    /** One visit of every movable part; true when any moved. */
+    private boolean runRound(LayoutItems items) {
+        Placement placement = new Placement(copy, registry, items, originalNets);
+        boolean anyMoved = false;
+        for (LayoutItems.Item item : visitingOrder(items)) {
+            if (cancelled.getAsBoolean()) {
+                throw new CancellationException();
+            }
+            for (Candidate candidate : candidates(item)) {
+                Bounds place = Placement.moved(item, candidate.shift());
+                if (withinLimits(place) && placement.keepsOrder(item, place)
+                        && placement.tryTidyingMove(item, candidate.shift())) {
+                    shiftPins(item, candidate.shift());
+                    moves++;
+                    anyMoved = true;
+                    break;
+                }
+            }
+        }
+        return anyMoved;
+    }
+
+    /** The movable parts with a pair, left to right, then top to bottom, then by id. */
+    private List<LayoutItems.Item> visitingOrder(LayoutItems items) {
+        return items.items().stream()
+                .filter(item -> item.movable() && !item.isText()
+                        && item.members().stream().anyMatch(pairsByComponent::containsKey))
+                .sorted(Comparator.comparingInt((LayoutItems.Item item) -> item.bounds().x())
+                        .thenComparingInt(item -> item.bounds().y())
+                        .thenComparing(LayoutItems.Item::id, LayoutItems.ID_ORDER))
+                .toList();
+    }
+
+    /** A vertical shift and how it changes the score: more pairs straight, then less Σ|dy|. */
+    private record Candidate(GridPoint shift, int straightGained, long distanceGained) {
+
+        /** True when it raises the score. */
+        boolean raises() {
+            return straightGained > 0 || straightGained == 0 && distanceGained > 0;
+        }
+    }
+
+    /** The shifts of {@code item} that zero one of its pairs and raise the score, best first. */
+    private List<Candidate> candidates(LayoutItems.Item item) {
+        Set<ElementId> members = new LinkedHashSet<>(item.members());
+        List<Pair> own = ownPairs(members);
+        Set<Integer> shifts = new LinkedHashSet<>();
+        for (Pair pair : own) {
+            int deltaY = deltaY(pair);
+            if (deltaY != 0) {
+                shifts.add(members.contains(pair.receiver().componentId()) ? -deltaY : deltaY);
+            }
+        }
+        List<Candidate> candidates = new ArrayList<>();
+        for (int shift : shifts) {
+            Candidate candidate = scored(members, own, shift);
+            if (candidate.raises()) {
+                candidates.add(candidate);
+            }
+        }
+        candidates.sort(Comparator.comparingInt(Candidate::straightGained).reversed()
+                .thenComparing(Comparator.comparingLong(Candidate::distanceGained).reversed())
+                .thenComparingInt(candidate -> Math.abs(candidate.shift().y()))
+                .thenComparingInt(candidate -> candidate.shift().y()));
+        return candidates;
+    }
+
+    /** The pairs with one end in {@code members} and the other outside (a pair inside one item never moves). */
+    private List<Pair> ownPairs(Set<ElementId> members) {
+        Set<Pair> own = new LinkedHashSet<>();
+        for (ElementId member : members) {
+            for (Pair pair : pairsByComponent.getOrDefault(member, List.of())) {
+                if (members.contains(pair.driver().componentId()) != members.contains(pair.receiver().componentId())) {
+                    own.add(pair);
+                }
+            }
+        }
+        return List.copyOf(own);
+    }
+
+    /** {@code members} moved by {@code shift} on y: how many of {@code own} become straight and how much closer. */
+    private Candidate scored(Set<ElementId> members, List<Pair> own, int shift) {
+        int straightGained = 0;
+        long distanceGained = 0;
+        for (Pair pair : own) {
+            int before = deltaY(pair);
+            int after = members.contains(pair.receiver().componentId()) ? before + shift : before - shift;
+            straightGained += (after == 0 ? 1 : 0) - (before == 0 ? 1 : 0);
+            distanceGained += Math.abs(before) - Math.abs(after);
+        }
+        return new Candidate(new GridPoint(0, shift), straightGained, distanceGained);
+    }
+
+    private int deltaY(Pair pair) {
+        return pins.get(pair.receiver()).y() - pins.get(pair.driver()).y();
+    }
+
+    private boolean withinLimits(Bounds place) {
+        return place.y() >= topLimit && place.maximumY() <= bottomLimit;
+    }
+
+    private void shiftPins(LayoutItems.Item item, GridPoint shift) {
+        for (ElementId member : item.members()) {
+            for (Pair pair : pairsByComponent.getOrDefault(member, List.of())) {
+                for (PinRef pin : List.of(pair.driver(), pair.receiver())) {
+                    if (pin.componentId().equals(member)) {
+                        pins.put(pin, pins.get(pin).plus(shift));
+                    }
+                }
+            }
+        }
+    }
+
+    // --- reading the pairs ---
+
+    private void readPins() {
+        for (Component component : copy.components()) {
+            Optional<ComponentType> type = registry.findTypeOf(component);
+            if (type.isEmpty()) {
+                continue;
+            }
+            List<GridPoint> locations = type.get().pinLocations(component);
+            for (int pinIndex = 0; pinIndex < locations.size(); pinIndex++) {
+                pins.put(new PinRef(component.id(), pinIndex), locations.get(pinIndex));
+            }
+        }
+    }
+
+    /** The driver–receiver pairs of the original nets that are horizontal now, in a stable order. */
+    private List<Pair> horizontalPairs(LayoutItems items) {
+        Map<ElementId, ElementId> itemOf = new HashMap<>();
+        items.items().forEach(item -> item.members().forEach(member -> itemOf.put(member, item.id())));
+        List<Pair> found = new ArrayList<>();
+        for (Set<PinRef> net : originalNets) {
+            List<PinRef> drivers = net.stream().filter(pin -> hasDirection(pin, PinDirection.OUTPUT)).toList();
+            if (drivers.size() != 1) {
+                continue;
+            }
+            PinRef driver = drivers.get(0);
+            for (PinRef receiver : net) {
+                boolean otherItem = itemOf.containsKey(receiver.componentId())
+                        && !itemOf.get(receiver.componentId()).equals(itemOf.get(driver.componentId()));
+                if (otherItem && hasDirection(receiver, PinDirection.INPUT) && isHorizontal(driver, receiver)) {
+                    found.add(new Pair(driver, receiver));
+                }
+            }
+        }
+        found.sort(Comparator.comparing((Pair pair) -> pair.driver().componentId(), LayoutItems.ID_ORDER)
+                .thenComparingInt(pair -> pair.driver().pinIndex())
+                .thenComparing(pair -> pair.receiver().componentId(), LayoutItems.ID_ORDER)
+                .thenComparingInt(pair -> pair.receiver().pinIndex()));
+        return List.copyOf(found);
+    }
+
+    private boolean isHorizontal(PinRef driver, PinRef receiver) {
+        GridPoint from = pins.get(driver);
+        GridPoint to = pins.get(receiver);
+        int deltaX = Math.abs(to.x() - from.x());
+        return deltaX != 0 && deltaX >= Math.abs(to.y() - from.y());
+    }
+
+    /** True for a pin of a known part with that direction and its own width (tunnel pins neither drive nor read). */
+    private boolean hasDirection(PinRef pin, PinDirection direction) {
+        if (!pins.containsKey(pin)) {
+            return false;
+        }
+        Optional<Component> component = copy.component(pin.componentId());
+        Optional<ComponentType> type = component.flatMap(registry::findTypeOf);
+        if (type.isEmpty() || pin.pinIndex() >= type.get().pinCount()) {
+            return false;
+        }
+        PinSpec spec = type.get().pin(pin.pinIndex());
+        return spec.direction() == direction && !spec.isAdaptiveWidth();
+    }
+
+    private void setBoundsLimits(LayoutItems items) {
+        Optional<Bounds> all = items.items().stream().filter(item -> !item.isText()).map(LayoutItems.Item::bounds)
+                .reduce(Bounds::union);
+        topLimit = all.map(Bounds::y).orElse(0) - BOUNDS_SLACK;
+        bottomLimit = all.map(Bounds::maximumY).orElse(0) + BOUNDS_SLACK;
+    }
+}

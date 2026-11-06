@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -13,6 +14,7 @@ import cl.almejo.vsim.core.wiring.Connectivity;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import static cl.almejo.vsim.core.DocumentFixtures.gate;
@@ -123,10 +125,38 @@ class PlacementTest {
         Placement placement = placementOn(document);
         LayoutItems.Item item = placement.items().item(receiver.id()).orElseThrow();
 
-        boolean moved = placement.tryMoveAddingNoCorners(item, new GridPoint(0, 3));
+        boolean moved = placement.tryTidyingMove(item, new GridPoint(0, 3));
 
         assertThat(moved).isFalse();
         assertThat(elements(document)).isEqualTo(before);
         assertThat(placement.current(item)).isEqualTo(item.bounds());
+    }
+
+    /** Free texts six units wide and two high at their position; parts have no label. */
+    private static final TextBoxes SIX_BY_TWO_TEXTS = new TextBoxes() {
+        @Override
+        public Optional<Bounds> componentLabel(Component component) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Bounds freeText(TextLabel label) {
+            return new Bounds(label.position().x(), label.position().y(), 6, 2);
+        }
+    };
+
+    @Test
+    void aTidyingMoveNeverPutsABodyOverAText() {
+        CircuitDocument document = new CircuitDocument();
+        Component mover = gate(registry, document, 0, 0);
+        document.add(new TextLabel(document.newLabelId(), new GridPoint(0, 6), "nota"));
+        Set<DocumentElement> before = elements(document);
+        LayoutItems items = LayoutItems.of(document, registry, everything(document), SIX_BY_TWO_TEXTS);
+        Placement placement = new Placement(document, registry, items, nets(document));
+
+        boolean moved = placement.tryTidyingMove(items.item(mover.id()).orElseThrow(), new GridPoint(0, 3));
+
+        assertThat(moved).isFalse();
+        assertThat(elements(document)).isEqualTo(before);
     }
 }

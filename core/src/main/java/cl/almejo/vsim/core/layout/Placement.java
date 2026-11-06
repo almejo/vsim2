@@ -72,16 +72,34 @@ final class Placement {
     }
 
     /**
-     * Like {@link #tryMove}, and the move is undone too when the wires end with more corners
-     * ({@link WireCorners}) than before it: aligning and straightening are there to tidy, so a move that bends the
-     * wires that follow it more than it straightens is no gain.
+     * A move of the stages that tidy (aligning, straightening): {@link #tryMove}'s rules, and also no body lands over
+     * a text it did not cover ({@link #coversNoNewText}) and the wires end with no more corners ({@link WireCorners})
+     * than before; otherwise the move is undone. Those stages are there to tidy, so a move that bends the wires that
+     * follow it more than it straightens, or hides a text, is no gain.
      */
-    boolean tryMoveAddingNoCorners(LayoutItems.Item item, GridPoint shift) {
-        if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
+    boolean tryTidyingMove(LayoutItems.Item item, GridPoint shift) {
+        Bounds candidate = moved(item, shift);
+        if (shift.equals(GridPoint.ORIGIN) || !isClear(item, candidate) || !coversNoNewText(item, candidate)) {
             return false;
         }
         int cornersBefore = WireCorners.count(copy);
         return tryMove(item, shift, () -> WireCorners.count(copy) <= cornersBefore);
+    }
+
+    /** True when {@code item} at {@code candidate} covers no block of texts it does not cover where it is now. */
+    private boolean coversNoNewText(LayoutItems.Item item, Bounds candidate) {
+        Bounds from = current(item);
+        for (LayoutItems.Item other : items.items()) {
+            if (!other.isText() || other.id().equals(item.id())) {
+                continue;
+            }
+            Bounds otherNow = current(other);
+            if (LayoutItems.covers(item, candidate, other, otherNow)
+                    && !LayoutItems.covers(item, from, other, otherNow)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean tryMove(LayoutItems.Item item, GridPoint shift, BooleanSupplier stillWanted) {

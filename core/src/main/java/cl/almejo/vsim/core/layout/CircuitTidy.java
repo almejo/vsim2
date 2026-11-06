@@ -27,18 +27,20 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /**
- * «Ordenar circuito» (spec 2026-11-06 §4): separates parts, labels and notes that cover each other, keeping what the
+ * «Ordenar circuito» (spec 2026-11-06 §4, §5): separates parts, labels and notes that cover each other, aligns parts
+ * in columns ({@link ColumnAlignment}) and moves parts so wires run straight ({@link Straightening}), keeping what the
  * circuit means, then runs the wire rules. Pure: it works on a copy and never changes {@code document}.
  *
  * <p>The boxes come from {@link LayoutItems}; {@link OverlapSeparation} says how far each one moves. The moves are
- * applied on the copy one item at a time, in id order, with the wires following ({@link Placement}: the rules every stage shares).
- * A move that would change which pins are connected (a pin landing on a foreign wire or pin) is undone and other
- * places are tried: the other axis, the opposite side, then one and two units further; with none left the item stays
- * and is counted in {@link CircuitTidyPlan#notSeparated()}.
+ * applied on the copy one item at a time, in id order, with the wires following; every stage obeys the same rules
+ * ({@link Placement}). A move that would change which pins are connected (a pin landing on a foreign wire or pin) is
+ * undone and other places are tried: the other axis, the opposite side, then one and two units further; with none
+ * left the item stays and is counted in {@link CircuitTidyPlan#notSeparated()}.
  *
  * <p>Parts are separated first, in up to {@value #MAXIMUM_PART_ROUNDS} rounds, each reading the boxes (and the wires
  * through bodies) again from the copy as the moves left it; then the blocks of texts that still cover a body move off
- * it. Texts never push parts, and texts over texts are left alone.
+ * it, again after aligning and straightening when they moved parts. Texts never push parts, and texts over texts are
+ * left alone.
  */
 public final class CircuitTidy {
 
@@ -77,9 +79,10 @@ public final class CircuitTidy {
      * Like {@link #plan(CircuitDocument, ComponentTypeRegistry, Set, CircuitTidyOptions, TextBoxes, BooleanSupplier,
      * IntConsumer)}, reporting every stage to {@code progress} ({@link CircuitTidyProgress.Stage}): {@code SEPARATING}
      * with each round of parts (of at most {@value #MAXIMUM_PART_ROUNDS}), {@code MOVING} with each part placed in the
-     * round's first pass (of the parts to place), {@code MOVING_TEXTS} with each block of texts (of the blocks over a
-     * body) and {@code WIRES} with each round of the wire rules (total unknown, 0). No count starts again within one
-     * round of its stage.
+     * round's first pass (of the parts to place), {@code ALIGNING} with each column (of the columns found),
+     * {@code STRAIGHTENING} with each round (of {@value Straightening#MAXIMUM_ROUNDS}), {@code MOVING_TEXTS} with each
+     * block of texts (of the blocks over a body) and {@code WIRES} with each round of the wire rules (total unknown,
+     * 0). No count starts again within one round of its stage.
      */
     public static Optional<CircuitTidyPlan> plan(CircuitDocument document, ComponentTypeRegistry registry,
                                                  Set<ElementId> scope, CircuitTidyOptions options, TextBoxes texts,
@@ -137,8 +140,8 @@ public final class CircuitTidy {
         }
         new TidyWiresCommand(wires.get()).apply(copy);
         return Optional.of(new CircuitTidyPlan(copy, partsMoved(document, copy), textsMoved(document, copy),
-                stages.notSeparated(), wires.get(), stages.partsAligned(), 0, WireCorners.count(document),
-                WireCorners.count(copy)));
+                stages.notSeparated(), wires.get(), stages.partsAligned(), stages.pairsStraightened(),
+                WireCorners.count(document), WireCorners.count(copy)));
     }
 
     /** The wires of {@code copy} the wire rules may change: those in scope plus the ones the moves made or changed. */
@@ -200,9 +203,12 @@ public final class CircuitTidy {
         private LayoutItems reading;
         private Set<ElementId> notSeparated = Set.of();
         private int partsAligned;
+        private int pairsStraightened;
+        /** True once aligning or straightening moved a part: the texts are moved off bodies again after them. */
+        private boolean laterStagesMoved;
 
         Stages(CircuitDocument copy, ComponentTypeRegistry registry, Set<ElementId> scope, TextBoxes texts,
-                   BooleanSupplier cancelled, CircuitTidyProgress progress, Separator separator) {
+               BooleanSupplier cancelled, CircuitTidyProgress progress, Separator separator) {
             this.copy = copy;
             this.registry = registry;
             this.scope = scope;
@@ -228,7 +234,10 @@ public final class CircuitTidy {
             if (options.alignColumns()) {
                 partsAligned = alignColumns();
             }
-            if (options.separateOverlaps() || partsAligned > 0) {
+            if (options.straighten()) {
+                straighten();
+            }
+            if (options.separateOverlaps() || laterStagesMoved) {
                 placeTexts();
             }
             if (options.separateOverlaps()) {
@@ -245,6 +254,10 @@ public final class CircuitTidy {
             return partsAligned;
         }
 
+        int pairsStraightened() {
+            return pairsStraightened;
+        }
+
         /** Up to {@value #MAXIMUM_PART_ROUNDS} rounds, each from the boxes and wires the round before left. */
         private void separateParts() {
             for (int round = 0; round < MAXIMUM_PART_ROUNDS; round++) {
@@ -257,13 +270,28 @@ public final class CircuitTidy {
             }
         }
 
+        private void straighten() {
+            Straightening.Result result = Straightening.straighten(copy, registry, originalNets,
+                    this::currentItems, progress, cancelled);
+            pairsStraightened = result.pairsStraightened();
+            if (result.moves() > 0) {
+                partsChanged();
+            }
+        }
+
         private int alignColumns() {
             int moved = ColumnAlignment.align(new Placement(copy, registry, items(), originalNets), progress,
                     cancelled);
             if (moved > 0) {
-                reading = null;
+                partsChanged();
             }
             return moved;
+        }
+
+        /** After aligning or straightening moved parts: the copy must be read again and texts may now be covered. */
+        private void partsChanged() {
+            reading = null;
+            laterStagesMoved = true;
         }
 
         private void placeTexts() {
