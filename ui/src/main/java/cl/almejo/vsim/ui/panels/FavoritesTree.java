@@ -65,6 +65,30 @@ final class FavoritesTree extends JTree {
     }
 
     /**
+     * The keys move through the rows without choosing (Enter chooses, round C): the palette hears that a selection
+     * comes from a key while this runs — the bindings (the arrows, Home, End) and the type-ahead of the tree's UI.
+     */
+    @Override
+    protected void processKeyEvent(KeyEvent event) {
+        boolean before = panel.setMovingWithKeys(true);
+        try {
+            super.processKeyEvent(event);
+        } finally {
+            panel.setMovingWithKeys(before);
+        }
+    }
+
+    @Override
+    protected boolean processKeyBinding(KeyStroke stroke, KeyEvent event, int condition, boolean pressed) {
+        boolean before = panel.setMovingWithKeys(true);
+        try {
+            return super.processKeyBinding(stroke, event, condition, pressed);
+        } finally {
+            panel.setMovingWithKeys(before);
+        }
+    }
+
+    /**
      * The row under the pointer, worked out from where the pointer is rather than kept as a path: a section that
      * changes under it (a click on the star) leaves the star of the row now under the pointer showing.
      */

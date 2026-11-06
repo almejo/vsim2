@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.actions.EditorActions;
+import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -103,6 +104,19 @@ public final class EditorView extends JPanel implements CanvasHost {
     private Supplier<? extends Tool> toolChoice;
     private boolean spreadingDefaultTool;
     private final EditorActions actions;
+    private KeyboardFocus keyboardFocus = KeyboardFocus.SWING;
+    /** What the panels hold: always the current {@link #keyboardFocus}. */
+    private final KeyboardFocus viewFocus = new KeyboardFocus() {
+        @Override
+        public Optional<java.awt.Component> owner() {
+            return keyboardFocus.owner();
+        }
+
+        @Override
+        public void request(java.awt.Component target) {
+            keyboardFocus.request(target);
+        }
+    };
     private final SelectionActions selectionActions;
     private final PalettePanel palette;
     /** The left column: the palette alone, or {@link #addAbovePalette} over it as an accordion. */
@@ -174,7 +188,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
             canvas().requestFocusInWindow();
         });
-        this.leftColumn = new LeftColumn(palette, services.preferences());
+        this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
         this.menuBar = actions.createMenuBar();
         indexMenus();
         addLeftColumnItems();
@@ -212,6 +226,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         bindZoomKeys();
         bindEscapeToTheTool();
         palette.setFocusAfterMouseChoice(() -> canvas().requestFocusInWindow());
+        palette.useKeyboardFocus(viewFocus);
+        palette.setEscapeAction(this::escapeToCanvas);
         toolChanged(canvas.tool());
         palette.setFileDropHandler(this::dropFiles);
         installSelectionActions();
@@ -337,6 +353,12 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /** Which part has this window's keyboard (decision 5): painters and the Terminal window read it. */
     public KeyboardCapture keyboardCapture() { return keyboardCapture; }
+
+    /** Where the focus is and how the view's panels ask for it: Swing's, or the one {@link #useKeyboardFocus} gave. */
+    public KeyboardFocus keyboardFocus() { return viewFocus; }
+
+    /** Replaces Swing's focus for the view's panels (tests: nothing gets the focus headless). */
+    public void useKeyboardFocus(KeyboardFocus focus) { keyboardFocus = Objects.requireNonNull(focus, "focus"); }
 
     /** The keys of this window while a part has its keyboard (the clipboard a paste reads is injectable). */
     public CapturedKeys capturedKeys() { return capturedKeys; }
@@ -846,6 +868,18 @@ public final class EditorView extends JPanel implements CanvasHost {
                 }
             }
         });
+    }
+
+    /**
+     * Esc in a tree of the left column: what Esc does to the canvas's tool wherever the focus is (a placement is
+     * cancelled), and the canvas gets the focus.
+     */
+    public void escapeToCanvas() {
+        CircuitCanvas canvas = canvas();
+        if (canvas.tool() != canvas.defaultTool()) {
+            canvas.pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
+        }
+        viewFocus.request(canvas);
     }
 
     /**

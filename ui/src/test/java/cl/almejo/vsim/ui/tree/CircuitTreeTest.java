@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -194,9 +196,90 @@ class CircuitTreeTest {
 
         assertThat(entered).containsExactly(ExampleDefinitions.INVERTER + "@c3/c3");
         assertThat(pending).as("the double click cancelled the single one").isEmpty();
+    }
+
+    // --- the keyboard (round C, item 3) ---
+
+    private final List<java.awt.Component> focusRequests = new ArrayList<>();
+    private final KeyboardFocus recordingFocus = new KeyboardFocus() {
+        @Override
+        public Optional<java.awt.Component> owner() {
+            return focusRequests.isEmpty() ? Optional.empty() : Optional.of(focusRequests.getLast());
+        }
+
+        @Override
+        public void request(java.awt.Component target) {
+            focusRequests.add(target);
+        }
+    };
+
+    /** A tree whose view records the focus requests. */
+    private CircuitTree keyboardTree() {
+        CircuitTree tree = tree();
+        views.getLast().useKeyboardFocus(recordingFocus);
+        return tree;
+    }
+
+    private static boolean press(javax.swing.JComponent focused, int keyCode) {
+        return SwingUtilities.processKeyBindings(new KeyEvent(focused, KeyEvent.KEY_PRESSED, 0, 0, keyCode,
+                KeyEvent.CHAR_UNDEFINED));
+    }
+
+    @Test
+    void enterOnARowGoesThereLikeAClickEvenOnAUserComponent() {
+        inverterInThreePlaces();
+        CircuitTree tree = keyboardTree();
         tree.choose("c3");
-        tree.pressEnter();
-        assertThat(entered).endsWith(ExampleDefinitions.DOUBLE_INVERTER + "@c3");
+
+        assertThat(press(tree.tree(), KeyEvent.VK_ENTER)).isTrue();
+        tree.choose("c1");
+        press(tree.tree(), KeyEvent.VK_ENTER);
+
+        assertThat(shown).containsExactly("-@-:c3", "-@-:c1");
+        assertThat(entered).as("a double click or «Entrar» enters").isEmpty();
+        assertThat(pending).as("no waiting for a double click").isEmpty();
+    }
+
+    @Test
+    void upOnTheFirstRowFocusesTheSearchAndDownFromTheSearchComesBack() {
+        inverterInThreePlaces();
+        CircuitTree tree = keyboardTree();
+        tree.choose("c1");
+
+        press(tree.tree(), KeyEvent.VK_UP);
+        assertThat(tree.chosenRow()).contains(CircuitTreeNode.DOCUMENT_PATH);
+        assertThat(focusRequests).isEmpty();
+        press(tree.tree(), KeyEvent.VK_UP);
+        assertThat(focusRequests).containsExactly(tree.searchField());
+        press(tree.searchField(), KeyEvent.VK_DOWN);
+
+        assertThat(tree.chosenRow()).contains(CircuitTreeNode.DOCUMENT_PATH);
+        assertThat(focusRequests).containsExactly(tree.searchField(), tree.tree());
+        assertThat(shown).as("moving never travels").isEmpty();
+        assertThat(places).isEmpty();
+    }
+
+    @Test
+    void downFromASearchGoesToTheFirstResult() {
+        inverterInThreePlaces();
+        CircuitTree tree = keyboardTree();
+        tree.searchField().setText("not");
+
+        press(tree.searchField(), KeyEvent.VK_DOWN);
+
+        assertThat(tree.chosenRow()).contains(tree.resultPaths().getFirst());
+        assertThat(focusRequests).containsExactly(tree.tree());
+    }
+
+    @Test
+    void escapeInTheTreeGivesTheFocusToTheCanvas() {
+        inverterInThreePlaces();
+        CircuitTree tree = keyboardTree();
+        tree.choose("c1");
+
+        assertThat(press(tree.tree(), KeyEvent.VK_ESCAPE)).isTrue();
+
+        assertThat(focusRequests).containsExactly(views.getLast().canvas());
     }
 
     @Test

@@ -166,9 +166,13 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   componente que la tiene adentro, con los valores de esa pieza, abriéndola si hace falta); después la selecciona y la
   vista viaja hasta ella, y el inspector muestra sus propiedades. Es el mismo «Ver la pieza» de la barra de lugar y de
   F8. Un clic en la fila del circuito trae su pestaña.
-- **Doble clic o Enter** en una pieza de un componente propio entra a ella (ver
+- **Doble clic** en una pieza de un componente propio entra a ella (ver
   [Entrar a un componente](#entrar-a-un-componente)). En esas filas el clic simple espera un instante, por si viene el
   segundo.
+- **Con el teclado**: Alt+1 lleva el foco al árbol (y lo abre si estaba plegado). Las flechas recorren las filas, Enter
+  hace lo mismo que un clic (lleva a la pieza, también si es un componente propio; para entrar, doble clic o «Entrar»),
+  la flecha arriba en la primera fila pasa al buscador y la flecha abajo en el buscador vuelve al árbol (al primer
+  resultado si estás buscando), y Esc devuelve el foco al lienzo.
 - **Clic derecho**: «Entrar» (en un componente propio), «Ver la pieza», «Cambiar forma…» (en un componente propio) y
   «Propiedades». Las dos últimas llevan primero a la pieza, esté donde esté.
 - **Buscar**: el campo de arriba busca en todo el circuito, también dentro de los componentes, con las mismas reglas y
@@ -178,8 +182,10 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   al campo.
 - **Sigue a la pestaña activa**: cada pestaña abre en el árbol su lugar (el circuito, o la pieza cuyos valores
   muestra) y lo marca con el color del grupo. Elegir una sola pieza en el lienzo elige su fila.
-- **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic (o con Alt+1 y Alt+2, que se pueden
-  cambiar en Atajos de teclado; también en Ver ▸ «Árbol del circuito» y «Paleta»), y el otro ocupa el espacio. Con
+- **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic, y el otro ocupa el espacio. Alt+1 y
+  Alt+2 (se pueden cambiar en Atajos de teclado; también Ver ▸ «Árbol del circuito» y «Paleta») funcionan como las
+  ventanas de herramientas de un IDE: si el panel está plegado lo abren y le dan el foco; si está abierto sin el foco,
+  le dan el foco; si ya lo tiene, lo pliegan y el foco vuelve al lienzo. Con
   los dos abiertos, el divisor entre ellos se arrastra y VSim lo recuerda. Lo plegado es de cada ventana, vale para
   todas sus pestañas y vuelve al abrir VSim.
 

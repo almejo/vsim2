@@ -355,4 +355,66 @@ class PalettePanelTest {
             Messages.initialize(Messages.SPANISH);
         }
     }
+
+    // --- the keyboard (round C, item 3) ---
+
+    private final List<java.awt.Component> focusRequests = new ArrayList<>();
+    private final cl.almejo.vsim.ui.actions.KeyboardFocus recordingFocus =
+            new cl.almejo.vsim.ui.actions.KeyboardFocus() {
+                @Override
+                public Optional<java.awt.Component> owner() {
+                    return focusRequests.isEmpty() ? Optional.empty() : Optional.of(focusRequests.getLast());
+                }
+
+                @Override
+                public void request(java.awt.Component target) {
+                    focusRequests.add(target);
+                }
+            };
+
+    private static boolean press(javax.swing.JComponent focused, int keyCode) {
+        return javax.swing.SwingUtilities.processKeyBindings(new java.awt.event.KeyEvent(focused,
+                java.awt.event.KeyEvent.KEY_PRESSED, 0, 0, keyCode, java.awt.event.KeyEvent.CHAR_UNDEFINED));
+    }
+
+    @Test
+    void theArrowsMoveWithoutPickingAndEnterPicksLikeAClick() {
+        javax.swing.JTree tree = palette.tree();
+        palette.setFilter("and");
+        tree.setSelectionRow(0); // the category
+
+        press(tree, java.awt.event.KeyEvent.VK_DOWN);
+        press(tree, java.awt.event.KeyEvent.VK_DOWN);
+        assertThat(tree.getSelectionRows()).containsExactly(2);
+        assertThat(chosen).as("moving does not start placing").isEmpty();
+        assertThat(press(tree, java.awt.event.KeyEvent.VK_ENTER)).isTrue();
+
+        assertThat(chosen).containsExactly(palette.visibleTypeIds().get(1));
+    }
+
+    @Test
+    void upOnTheFirstRowFocusesTheSearchAndDownFromTheSearchGoesToTheFirstEntry() {
+        javax.swing.JTree tree = palette.tree();
+        palette.useKeyboardFocus(recordingFocus);
+        palette.setFilter("and");
+        tree.setSelectionRow(0);
+
+        press(tree, java.awt.event.KeyEvent.VK_UP);
+        assertThat(focusRequests).containsExactly(palette.searchField());
+        press(palette.searchField(), java.awt.event.KeyEvent.VK_DOWN);
+
+        assertThat(tree.getSelectionRows()).containsExactly(1);
+        assertThat(focusRequests).containsExactly(palette.searchField(), tree);
+        assertThat(chosen).isEmpty();
+    }
+
+    @Test
+    void escapeInTheTreeRunsTheEscapeTheViewGave() {
+        List<String> escapes = new ArrayList<>();
+        palette.setEscapeAction(() -> escapes.add("escape"));
+
+        assertThat(press(palette.tree(), java.awt.event.KeyEvent.VK_ESCAPE)).isTrue();
+
+        assertThat(escapes).containsExactly("escape");
+    }
 }
