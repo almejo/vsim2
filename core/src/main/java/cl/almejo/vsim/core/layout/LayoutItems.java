@@ -216,7 +216,7 @@ final class LayoutItems {
             if (type.isEmpty()) {
                 continue;
             }
-            pins.addAll(pinPoints(component.get(), type.get()));
+            pins.addAll(type.get().pinLocations(component.get()));
             bodies.add(type.get().bounds(component.get()).translate(deltaX, deltaY));
         }
         for (Wire wire : document.wires()) {
@@ -246,7 +246,7 @@ final class LayoutItems {
         Map<GridPoint, ElementId> firstOnPin = new HashMap<>();
         for (Component component : known) {
             joins.add(component.id());
-            for (GridPoint pin : pinPoints(component, registry.typeOf(component))) {
+            for (GridPoint pin : registry.typeOf(component).pinLocations(component)) {
                 ElementId previous = firstOnPin.putIfAbsent(pin, component.id());
                 if (previous != null) {
                     joins.union(previous, component.id());
@@ -368,7 +368,7 @@ final class LayoutItems {
         Set<GridPoint> allPins = new HashSet<>();
         for (Component component : document.components()) {
             registry.findTypeOf(component).ifPresent(type -> {
-                Set<GridPoint> pins = new HashSet<>(pinPoints(component, type));
+                Set<GridPoint> pins = new HashSet<>(type.pinLocations(component));
                 pinsByComponent.put(component.id(), pins);
                 bodies.put(component.id(), type.bounds(component));
                 allPins.addAll(pins);
@@ -444,14 +444,6 @@ final class LayoutItems {
 
     private static LayoutBox fixed(String name, Bounds bounds) {
         return new LayoutBox(new ElementId(name), bounds, false, 0);
-    }
-
-    private static List<GridPoint> pinPoints(Component component, ComponentType type) {
-        List<GridPoint> points = new ArrayList<>(type.pinCount());
-        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-            points.add(type.pinLocation(component, pinIndex));
-        }
-        return points;
     }
 
     private static String idPrefix(ElementId id) {

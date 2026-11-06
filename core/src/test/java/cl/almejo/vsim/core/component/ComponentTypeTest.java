@@ -81,6 +81,14 @@ class ComponentTypeTest {
     }
 
     @Test
+    void pinLocationsListsEveryPinInIndexOrder() {
+        Component component = new Component(new ElementId("c1"), buffer.id(), new GridPoint(10, 10), Rotation.R90,
+                Map.of(), "");
+        assertThat(buffer.pinLocations(component))
+                .containsExactly(buffer.pinLocation(component, 0), buffer.pinLocation(component, 1));
+    }
+
+    @Test
     void pinDirectionsHelpers() {
         assertThat(buffer.pin(0).isInput()).isTrue();
         assertThat(buffer.pin(0).isDriver()).isFalse();

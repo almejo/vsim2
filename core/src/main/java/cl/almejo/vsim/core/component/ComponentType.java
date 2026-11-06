@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -299,6 +300,15 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     public GridPoint pinLocation(Component component, int pinIndex) {
         PinSpec pin = hasOwnShape(component) ? pins.get(pinIndex) : shapeOf(component).pins().get(pinIndex);
         return component.position().plus(component.rotation().apply(pin.position()));
+    }
+
+    /** Where every pin of {@code component} is, in pin index order (see {@link #pinLocation}). */
+    public List<GridPoint> pinLocations(Component component) {
+        List<GridPoint> locations = new ArrayList<>(pinCount());
+        for (int pinIndex = 0; pinIndex < pinCount(); pinIndex++) {
+            locations.add(pinLocation(component, pinIndex));
+        }
+        return locations;
     }
 
     /** The box of {@code component}, with the size its parameters give. */

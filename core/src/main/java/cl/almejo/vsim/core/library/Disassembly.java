@@ -60,12 +60,12 @@ public final class Disassembly {
         Set<GridPoint> outsidePins = new HashSet<>();
         for (Component component : document.components()) {
             if (!component.id().equals(instance.id())) {
-                outsidePins.addAll(PinBridges.pinPoints(component, registry));
+                outsidePins.addAll(registry.typeOf(component).pinLocations(component));
             }
         }
         Set<GridPoint> pastedPoints = new HashSet<>();
         for (Component component : body.components()) {
-            pastedPoints.addAll(PinBridges.pinPoints(component, registry));
+            pastedPoints.addAll(registry.typeOf(component).pinLocations(component));
         }
         body.wires().forEach(wire -> {
             pastedPoints.add(wire.start());

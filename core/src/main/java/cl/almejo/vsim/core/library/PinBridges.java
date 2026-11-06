@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.library;
 
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -56,7 +55,7 @@ public final class PinBridges {
         Set<GridPoint> outsidePins = new HashSet<>();
         for (Component component : document.components()) {
             if (!removed.contains(component.id())) {
-                outsidePins.addAll(pinPoints(component, registry));
+                outsidePins.addAll(registry.typeOf(component).pinLocations(component));
             }
         }
         List<String> names = new ArrayList<>();
@@ -145,15 +144,6 @@ public final class PinBridges {
             }
         }
         return false;
-    }
-
-    static List<GridPoint> pinPoints(Component component, ComponentTypeRegistry registry) {
-        ComponentType type = registry.typeOf(component);
-        List<GridPoint> points = new ArrayList<>();
-        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-            points.add(type.pinLocation(component, pinIndex));
-        }
-        return points;
     }
 
     static boolean touchesOutside(GridPoint point, Set<GridPoint> outsidePins, List<Wire> outsideWires) {

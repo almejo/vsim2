@@ -59,7 +59,7 @@ public final class ContactProbe {
         this.documentComponents = document.components();
         this.documentWires = document.wires();
         for (Component component : documentComponents) {
-            documentPinPoints.put(component.id(), pinPoints(registry, component));
+            documentPinPoints.put(component.id(), registry.typeOf(component).pinLocations(component));
         }
     }
 
@@ -142,15 +142,6 @@ public final class ContactProbe {
             documentNets = new PointNets(pins, documentWires);
         }
         return documentNets;
-    }
-
-    private static List<GridPoint> pinPoints(ComponentTypeRegistry registry, Component component) {
-        ComponentType type = registry.typeOf(component);
-        List<GridPoint> points = new ArrayList<>(type.pinCount());
-        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-            points.add(type.pinLocation(component, pinIndex));
-        }
-        return points;
     }
 
     // --- the shared rule ---
