@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
+import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ExportMenu;
@@ -31,7 +32,7 @@ import java.util.List;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The icons of «Exportar imagen…» and «Ordenar circuito» and the toolbar button of the latter (M6.2). */
+/** The icons of «Exportar imagen…» and «Ordenar circuito» and the toolbar buttons of the latter (M6.2). */
 class TidyToolbarTest {
 
     private OpenDocument openDocument;
@@ -102,12 +103,35 @@ class TidyToolbarTest {
     }
 
     @Test
+    void anArrowRightAfterTheTidyButtonOpensTheDialog() {
+        List<Component> components = List.of(view.toolBar().getComponents());
+        int tidy = -1;
+        for (int index = 0; index < components.size(); index++) {
+            if (components.get(index) instanceof AbstractButton button && button.getAction() != null
+                    && "Ordenar circuito".equals(button.getAction().getValue(Action.NAME))) {
+                tidy = index;
+            }
+        }
+        assertThat(tidy).isPositive();
+        AbstractButton arrow = (AbstractButton) components.get(tidy + 1);
+        Action options = item(view.menu(MenuId.EDIT), "Ordenar circuito…").getAction();
+        assertThat(arrow.getAction()).isSameAs(options);
+        assertThat(arrow.getIcon()).isSameAs(Icons.get(StepIcons.SIZE_MENU, Icons.MENU_SIZE));
+        assertThat(arrow.getHideActionText()).isTrue();
+        assertThat(arrow.isFocusable()).isFalse();
+        // Ctrl+Alt+Mayús+L as this platform names it.
+        assertThat(arrow.getToolTipText()).isEqualTo("Ordenar circuito… (" + KeyBindings.describe(
+                KeyStroke.getKeyStroke(KeyEvent.VK_L,
+                        InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)) + ")");
+    }
+
+    @Test
     void disposingTheViewTakesTheButtonBack() {
         EditorView second = new EditorView(openDocument, EditorServices.of(PainterRegistry.standard(),
                 ColorScheme.LIGHT).withExtensions(List.of(new TidyWiresExtension())), NO_WINDOW);
-        int withButton = second.toolBar().getComponentCount();
+        int withButtons = second.toolBar().getComponentCount();
         second.dispose();
-        assertThat(second.toolBar().getComponentCount()).isEqualTo(withButton - 1);
+        assertThat(second.toolBar().getComponentCount()).isEqualTo(withButtons - 2);
         assertThat(buttons()).anyMatch(button -> "Ordenar circuito".equals(button.getAction().getValue(Action.NAME)));
     }
 }

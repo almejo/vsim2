@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -31,8 +32,8 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * «Ordenar circuito» of one editor view: two items at the end of Editar (after a separator), their shortcut
- * registrations and the notice. {@link #dispose()} takes all of it back.
+ * «Ordenar circuito» of one editor view: two items at the end of Editar (after a separator), the toolbar button with
+ * its ▾ to the dialog, their shortcut registrations and the notice. {@link #dispose()} takes all of it back.
  */
 public final class TidyWiresFeatures {
 
@@ -49,6 +50,8 @@ public final class TidyWiresFeatures {
     private final JMenuItem optionsItem;
     private final JToolBar toolBar;
     private final JButton toolBarButton;
+    /** The small ▾ right after the button, which opens the dialog: «Ordenar circuito» as a split button. */
+    private final JButton optionsArrow;
     private final Runnable tidyShortcutRemover;
     private final Runnable optionsShortcutRemover;
     private final TidyRunner runner;
@@ -98,9 +101,24 @@ public final class TidyWiresFeatures {
         editMenu.add(optionsItem);
         this.toolBar = view.toolBar();
         this.toolBarButton = new JButton(tidy);
-        toolBar.add(toolBarButton, indexAfterRedo());
+        int afterRedo = indexAfterRedo();
+        toolBar.add(toolBarButton, afterRedo);
+        this.optionsArrow = optionsArrow(tidyWithOptions);
+        toolBar.add(optionsArrow, afterRedo + 1);
         this.tidyShortcutRemover = view.registerShortcutAction("edit.tidyWires", tidy);
         this.optionsShortcutRemover = view.registerShortcutAction("edit.tidyWiresOptions", tidyWithOptions);
+    }
+
+    /**
+     * The arrow of the split button, as the fixed step's ({@code StepSizeButton}): the same ▾ icon, not focusable. Its
+     * action is «Ordenar circuito…», so the shortcuts extension gives it the tooltip «Ordenar circuito… (shortcut)».
+     */
+    private static JButton optionsArrow(Action options) {
+        JButton arrow = new JButton(options);
+        arrow.setHideActionText(true);
+        arrow.setIcon(Icons.get(StepIcons.SIZE_MENU, Icons.MENU_SIZE));
+        arrow.setFocusable(false);
+        return arrow;
     }
 
     /** Right after the «Rehacer» button (the end of the toolbar if it is not there). */
@@ -320,6 +338,7 @@ public final class TidyWiresFeatures {
         tidyShortcutRemover.run();
         optionsShortcutRemover.run();
         toolBar.remove(toolBarButton);
+        toolBar.remove(optionsArrow);
         editMenu.remove(tidyItem);
         editMenu.remove(optionsItem);
         editMenu.remove(separator);
