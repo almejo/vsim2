@@ -145,6 +145,18 @@ class TemplateEditingTest {
         assertThat(texts(contribute(wired.led()))).doesNotContain("Entrar");
     }
 
+    /** Spec §4.4: «Entrar» is the first item of the piece's whole menu, in a group of its own. */
+    @Test
+    void theWholeMenuOfACustomInstanceStartsWithEntrarAndASeparator() {
+        Wired wired = wiredInverter("1");
+        fixture.select(wired.instance());
+
+        List<String> texts = texts(fixture.view.contextMenu(Optional.of(wired.instance()), new Point2D.Double()));
+
+        assertThat(texts).startsWith("Entrar", "---", "Configurar…");
+        assertThat(texts).containsOnlyOnce("Entrar");
+    }
+
     @Test
     void disassemblingKeepsTheOutsideConnections() {
         Wired wired = wiredInverter("1");

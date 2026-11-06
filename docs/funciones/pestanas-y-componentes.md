@@ -12,7 +12,7 @@ Cómo se crean y se guardan los componentes propios está en
   entra de estas otras formas:
   - con un clic en el botón **«Entrar ↘»**, que aparece en la esquina de arriba a la derecha de la pieza al pasar el
     mouse;
-  - con **«Entrar»**, la primera opción del clic derecho de la pieza, antes de «Desarmar»;
+  - con **«Entrar»**, la primera opción del clic derecho de la pieza, sola arriba de «Configurar…»;
   - con **Enter**, si la única pieza seleccionada es de un componente propio.
 - **Qué piezas se pueden entrar**: las de los componentes que están en el circuito, incluidas las copias que vinieron
   de la librería o de un circuito de Logisim. Las piezas de la paleta (compuertas, memorias, Terminal…) no se pueden

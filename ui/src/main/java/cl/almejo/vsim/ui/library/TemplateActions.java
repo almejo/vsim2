@@ -36,6 +36,7 @@ import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
+import cl.almejo.vsim.ui.actions.ContextMenuEntry;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -327,7 +328,7 @@ public final class TemplateActions {
             }
             if (!multiple && target.get() instanceof Component instance && definitionIdOf(instance).isPresent()) {
                 if (EnterableInstances.definitionOf(openDocument, instance).isPresent()) {
-                    menu.add(new JMenuItem(enterAction(instance)));
+                    menu.add(ContextMenuEntry.ENTER.tag(new JMenuItem(enterAction(instance))));
                 }
                 menu.add(new JMenuItem(disassembleAction(instance)));
                 if (isOutdated(instance)) {
