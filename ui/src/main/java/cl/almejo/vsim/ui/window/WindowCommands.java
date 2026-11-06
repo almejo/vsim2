@@ -108,6 +108,17 @@ public interface WindowCommands {
     }
 
     /**
+     * Brings to the front the place where a step of the history was made, before undoing or redoing it there (round C):
+     * the document's main tab when {@code definitionId} is empty, else the component tab of {@code definitionId} most
+     * recently active (keeping its «Valores de»), or a new one showing {@code contextPath} when none is open. The view
+     * that shows it; empty outside a real window.
+     */
+    default Optional<EditorView> showPlaceOfStep(OpenDocument document, Optional<String> definitionId,
+                                                 Optional<String> contextPath) {
+        return Optional.empty();
+    }
+
+    /**
      * Shows part {@code part} of {@code document} where it is (F8 and the Problemas list, spec §6.7; «Ver la pieza» of
      * the place bar and the circuit tree, spec §5, through {@link SeePiece}): the place {@link #showPlace} brings to
      * the front, with the part selected and brought into view. False when there are no tabs to show it in (an editor

@@ -35,7 +35,7 @@ Cómo se crean y se guardan los componentes propios está en
 
 - **Qué se edita**: lo que se cambia en la pestaña de un componente cambia el componente del circuito. Afecta a todas
   sus piezas, y cada cambio es un solo paso de deshacer del circuito, que se puede deshacer desde cualquiera de sus
-  pestañas. La librería no cambia sola.
+  pestañas (primero se pasa a la pestaña donde se hizo; ver **Deshacer** más abajo). La librería no cambia sola.
 - **Qué valores se ven**: la pestaña muestra los valores de una sola pieza mientras el circuito simula: la pieza por
   la que entraste. Si esa pieza se borra, la pestaña pasa a mostrar otra pieza del mismo componente. Si no queda
   ninguna, la pestaña queda sin valores.
@@ -110,8 +110,13 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 - **Sin valores**: si el componente no tiene piezas en el circuito, o si se eligió no mostrar ninguna, la pestaña no
   simula. Todo se ve sin valor, nada brilla, los clics en interruptores y botones no hacen nada, y la barra de estado
   dice «Sin valores: elige una pieza en “Valores de”».
-- **Deshacer**: Edición ▸ Deshacer y Rehacer dicen dónde fue el paso: «Deshacer agregar (en Ram)». Se puede deshacer
-  desde cualquier pestaña del circuito, y la vista no salta a la pestaña del componente.
+- **Deshacer**: el circuito tiene un solo historial, y Edición ▸ Deshacer y Rehacer dicen dónde fue el paso:
+  «Deshacer agregar (en Ram)». Si el paso se hizo en otro lugar del grupo (en la pestaña del circuito estando en la de
+  un componente, en la de un componente estando en la del circuito, o en otro componente), Ctrl+Z y Ctrl+Mayús+Z
+  primero pasan a la pestaña de ese lugar (la abren si estaba cerrada, con los valores de la pieza que mostraba cuando
+  se hizo el paso; si está abierta, queda con la pieza que muestra) y deshacen o rehacen ahí, y lo que el paso tocó
+  brilla 1,5 s, como con «Ver la pieza» (si estaba fuera de la vista, la vista viaja hasta ahí). Nunca se deshace algo
+  que no estás viendo. Un paso hecho en la misma pestaña se deshace como siempre, sin saltos ni brillo.
 - **Si el componente cambia desde otra parte** (deshacer en la pestaña del circuito, «Actualizar desde la librería»,
   la IA): la pestaña se pone al día. Si en ese momento estabas arrastrando algo o dibujando un cable adentro, ese
   gesto se cancela, como con Esc. La selección conserva lo que sigue existiendo.
@@ -166,9 +171,13 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   componente que la tiene adentro, con los valores de esa pieza, abriéndola si hace falta); después la selecciona y la
   vista viaja hasta ella, y el inspector muestra sus propiedades. Es el mismo «Ver la pieza» de la barra de lugar y de
   F8. Un clic en la fila del circuito trae su pestaña.
-- **Doble clic o Enter** en una pieza de un componente propio entra a ella (ver
+- **Doble clic** en una pieza de un componente propio entra a ella (ver
   [Entrar a un componente](#entrar-a-un-componente)). En esas filas el clic simple espera un instante, por si viene el
   segundo.
+- **Con el teclado**: Alt+1 lleva el foco al árbol (y lo abre si estaba plegado). Las flechas recorren las filas, Enter
+  hace lo mismo que un clic (lleva a la pieza, también si es un componente propio; para entrar, doble clic o «Entrar»),
+  la flecha arriba en la primera fila pasa al buscador y la flecha abajo en el buscador vuelve al árbol (al primer
+  resultado si estás buscando), y Esc devuelve el foco al lienzo.
 - **Clic derecho**: «Entrar» (en un componente propio), «Ver la pieza», «Cambiar forma…» (en un componente propio) y
   «Propiedades». Las dos últimas llevan primero a la pieza, esté donde esté.
 - **Buscar**: el campo de arriba busca en todo el circuito, también dentro de los componentes, con las mismas reglas y
@@ -177,9 +186,14 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   circuito.». Enter va al primero; Esc vacía el campo y vuelve el árbol como estaba. Ctrl+F con el foco en el árbol va
   al campo.
 - **Sigue a la pestaña activa**: cada pestaña abre en el árbol su lugar (el circuito, o la pieza cuyos valores
-  muestra) y lo marca con el color del grupo. Elegir una sola pieza en el lienzo elige su fila.
-- **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic (o con Alt+1 y Alt+2, que se pueden
-  cambiar en Atajos de teclado; también en Ver ▸ «Árbol del circuito» y «Paleta»), y el otro ocupa el espacio. Con
+  muestra) y lo marca con el color del grupo. Al pasar a una pestaña, y al cambiar «Valores de», el árbol elige la
+  fila de ese lugar y la muestra (desplegando el camino hasta ella): la del circuito en su pestaña, la de la pieza de
+  «Valores de» en la de un componente, y con «Sin valores» la del primer uso del componente. Elegirla así no lleva a
+  ninguna parte ni le quita el foco a lo que lo tenía. Elegir una sola pieza en el lienzo elige su fila.
+- **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic, y el otro ocupa el espacio. Alt+1 y
+  Alt+2 (se pueden cambiar en Atajos de teclado; también Ver ▸ «Árbol del circuito» y «Paleta») funcionan como las
+  ventanas de herramientas de un IDE: si el panel está plegado lo abren y le dan el foco; si está abierto sin el foco,
+  le dan el foco; si ya lo tiene, lo pliegan y el foco vuelve al lienzo. Con
   los dos abiertos, el divisor entre ellos se arrastra y VSim lo recuerda. Lo plegado es de cada ventana, vale para
   todas sus pestañas y vuelve al abrir VSim.
 

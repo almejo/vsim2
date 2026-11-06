@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -13,6 +14,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.JTree;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
@@ -21,6 +25,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
@@ -79,8 +84,13 @@ class LeftColumnTest {
         assertThat(view.leftColumn().title(LeftColumn.Section.PALETTE)).contains(Messages.text("leftColumn.palette"));
     }
 
+    /** Folds or unfolds {@code section} as a click on its header does. */
+    private void toggle(LeftColumn.Section section) {
+        view.leftColumn().setFolded(section, !view.leftColumn().isFolded(section));
+    }
+
     @Test
-    void accordionFoldsOnePanelAndAltOneTogglesIt() {
+    void accordionFoldsOnePanelAndTheShortcutsAreAltOneAndAltTwo() {
         JLabel tree = new JLabel("árbol");
         view.addAbovePalette("Circuito", tree);
         layOut(view);
@@ -96,7 +106,7 @@ class LeftColumnTest {
                 .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_2, InputEvent.ALT_DOWN_MASK));
         assertThat(circuit.getValue(Action.SELECTED_KEY)).isEqualTo(true);
 
-        perform(circuit);
+        toggle(LeftColumn.Section.CIRCUIT);
         layOut(view);
 
         assertThat(view.leftColumn().isFolded(LeftColumn.Section.CIRCUIT)).isTrue();
@@ -105,8 +115,8 @@ class LeftColumnTest {
         assertThat(view.palette().getHeight()).as("the palette takes the space").isGreaterThan(paletteHeight);
         assertThat(changes).containsExactly("[CIRCUIT]");
 
-        perform(circuit);
-        perform(palette);
+        toggle(LeftColumn.Section.CIRCUIT);
+        toggle(LeftColumn.Section.PALETTE);
         layOut(view);
 
         assertThat(shown(tree)).isTrue();
@@ -200,13 +210,12 @@ class LeftColumnTest {
         view.addAbovePalette("Circuito", tree);
         layOut(view);
         int treeHeight = tree.getHeight();
-        Action palette = view.leftColumn().toggleAction(LeftColumn.Section.PALETTE);
 
-        perform(palette);
+        toggle(LeftColumn.Section.PALETTE);
         layOut(view);
         assertThat(shown(tree)).isTrue();
         assertThat(shown(view.palette())).isFalse();
-        perform(palette);
+        toggle(LeftColumn.Section.PALETTE);
         layOut(view);
 
         assertThat(shown(tree)).isTrue();
@@ -221,27 +230,146 @@ class LeftColumnTest {
         view.addAbovePalette("Circuito", tree);
         layOut(view);
         int treeHeight = tree.getHeight();
-        Action circuit = view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT);
-        Action palette = view.leftColumn().toggleAction(LeftColumn.Section.PALETTE);
 
-        perform(circuit);
-        perform(circuit);
+        toggle(LeftColumn.Section.CIRCUIT);
+        toggle(LeftColumn.Section.CIRCUIT);
         layOut(view);
         assertThat(shown(tree)).isTrue();
         assertThat(shown(view.palette())).isTrue();
         assertThat(tree.getHeight()).isEqualTo(treeHeight);
 
-        perform(circuit);
-        perform(palette);
+        toggle(LeftColumn.Section.CIRCUIT);
+        toggle(LeftColumn.Section.PALETTE);
         layOut(view);
         assertThat(shown(tree)).isFalse();
         assertThat(shown(view.palette())).isFalse();
-        perform(palette);
-        perform(circuit);
+        toggle(LeftColumn.Section.PALETTE);
+        toggle(LeftColumn.Section.CIRCUIT);
         layOut(view);
 
         assertThat(shown(tree)).isTrue();
         assertThat(shown(view.palette())).isTrue();
         assertThat(tree.getHeight()).isEqualTo(treeHeight);
+    }
+
+    // --- Alt+1 / Alt+2 as tool windows (round C, item 3) ---
+
+    /** The focus as a recording: what was asked for has it. */
+    private final List<Component> focusRequests = new ArrayList<>();
+    private Optional<Component> focusOwner = Optional.empty();
+    private final KeyboardFocus recordingFocus = new KeyboardFocus() {
+        @Override
+        public Optional<Component> owner() {
+            return focusOwner;
+        }
+
+        @Override
+        public void request(Component target) {
+            focusRequests.add(target);
+            focusOwner = Optional.of(target);
+        }
+    };
+
+    /** A panel body whose tree takes the focus, as «Circuito» and «Paleta» have. */
+    private static JPanel bodyWithTree(JTree tree) {
+        JPanel body = new JPanel(new java.awt.BorderLayout());
+        body.add(new JTextField(), java.awt.BorderLayout.NORTH);
+        body.add(tree, java.awt.BorderLayout.CENTER);
+        body.putClientProperty(KeyboardFocus.TARGET_PROPERTY, tree);
+        return body;
+    }
+
+    @Test
+    void altOneOnAFoldedCircuitUnfoldsItAndFocusesItsTree() {
+        JTree circuitTree = new JTree();
+        view.addAbovePalette("Circuito", bodyWithTree(circuitTree));
+        view.useKeyboardFocus(recordingFocus);
+        view.leftColumn().setFolded(LeftColumn.Section.CIRCUIT, true);
+
+        perform(view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT));
+
+        assertThat(view.leftColumn().isFolded(LeftColumn.Section.CIRCUIT)).isFalse();
+        assertThat(focusRequests).containsExactly(circuitTree);
+        assertThat(view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT).getValue(Action.SELECTED_KEY))
+                .isEqualTo(true);
+    }
+
+    @Test
+    void altOneOnAnOpenCircuitWithoutTheFocusOnlyFocusesItsTree() {
+        JTree circuitTree = new JTree();
+        view.addAbovePalette("Circuito", bodyWithTree(circuitTree));
+        view.useKeyboardFocus(recordingFocus);
+        focusOwner = Optional.of(view.canvas());
+
+        perform(view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT));
+
+        assertThat(view.leftColumn().isFolded(LeftColumn.Section.CIRCUIT)).isFalse();
+        assertThat(focusRequests).containsExactly(circuitTree);
+        assertThat(view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT).getValue(Action.SELECTED_KEY))
+                .as("the Ver item stays checked").isEqualTo(true);
+    }
+
+    @Test
+    void altOneWithTheFocusInsideFoldsTheCircuitAndGivesTheFocusBackToTheCanvas() {
+        JTree circuitTree = new JTree();
+        JPanel body = bodyWithTree(circuitTree);
+        view.addAbovePalette("Circuito", body);
+        view.useKeyboardFocus(recordingFocus);
+        focusOwner = Optional.of(body.getComponent(0)); // the search box is inside the panel too
+
+        perform(view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT));
+
+        assertThat(view.leftColumn().isFolded(LeftColumn.Section.CIRCUIT)).isTrue();
+        assertThat(focusRequests).containsExactly(view.canvas());
+    }
+
+    @Test
+    void altTwoFocusesThePalettesTreeAndFoldsItWhenItHasTheFocus() {
+        view.addAbovePalette("Circuito", bodyWithTree(new JTree()));
+        view.useKeyboardFocus(recordingFocus);
+        Action palette = view.leftColumn().toggleAction(LeftColumn.Section.PALETTE);
+
+        perform(palette);
+        Component paletteTree = focusRequests.getLast();
+        assertThat(SwingUtilities.isDescendingFrom(paletteTree, view.palette())).isTrue();
+        assertThat(paletteTree).isInstanceOf(JTree.class);
+        perform(palette);
+
+        assertThat(view.leftColumn().isFolded(LeftColumn.Section.PALETTE)).isTrue();
+        assertThat(focusRequests).containsExactly(paletteTree, view.canvas());
+    }
+
+    @Test
+    void aClickOnTheHeaderStillOnlyFoldsAndUnfolds() {
+        JTree circuitTree = new JTree();
+        view.addAbovePalette("Circuito", bodyWithTree(circuitTree));
+        view.useKeyboardFocus(recordingFocus);
+        javax.swing.JButton header = headerButton("Circuito");
+
+        header.doClick();
+        assertThat(view.leftColumn().isFolded(LeftColumn.Section.CIRCUIT)).isTrue();
+        header.doClick();
+
+        assertThat(view.leftColumn().isFolded(LeftColumn.Section.CIRCUIT)).isFalse();
+        assertThat(focusRequests).isEmpty();
+    }
+
+    private javax.swing.JButton headerButton(String title) {
+        return findButton(view.leftColumn(), title).orElseThrow();
+    }
+
+    private static Optional<javax.swing.JButton> findButton(java.awt.Container container, String title) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof javax.swing.JButton button && button.getText().endsWith(title)) {
+                return Optional.of(button);
+            }
+            if (child instanceof java.awt.Container inner) {
+                Optional<javax.swing.JButton> found = findButton(inner, title);
+                if (found.isPresent()) {
+                    return found;
+                }
+            }
+        }
+        return Optional.empty();
     }
 }

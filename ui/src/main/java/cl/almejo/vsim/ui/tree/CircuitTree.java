@@ -4,12 +4,14 @@ import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.InstancePaths;
 import cl.almejo.vsim.core.search.CompiledQuery;
 import cl.almejo.vsim.core.search.SearchProblem;
 import cl.almejo.vsim.core.search.SearchQuery;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.Keys;
+import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -72,14 +74,17 @@ import java.util.function.Consumer;
  *
  * <p>A click on a piece goes to it — its place's tab comes to the front (the component tab opens with the right
  * instance when needed), the piece is selected and the view travels there: the same {@link WindowCommands#goToPart}
- * as F8 and «Ver la pieza». A double click or Enter on a user-component instance enters it; its single click waits
- * the double-click time first, so a double click never goes to another tab on the way. The context menu has «Entrar»,
+ * as F8 and «Ver la pieza». A double click on a user-component instance enters it; its single click waits the
+ * double-click time first, so a double click never goes to another tab on the way. The context menu has «Entrar»,
  * «Ver la pieza», «Cambiar forma…» and «Propiedades». Choosing a single piece on the canvas chooses its row (without
  * travelling).
  *
+ * <p>The keyboard (Alt+1 focuses the tree): the arrows move, Enter does what a click does, Up on the first row goes to
+ * the search box and Down there comes back, Esc gives the focus to the canvas.
+ *
  * <p>The search field on top looks through the whole circuit, inside components too, with the find bar's rules and
  * its «Aa» / «.*» options; matches are listed flat with their route in grey («en Ram › Muldiv») and the matched text in
- * bold. Enter goes to the first; Esc clears it. Ctrl+F inside the tree focuses it ({@link
+ * bold. Enter goes to the first, Down chooses it in the tree; Esc clears it. Ctrl+F inside the tree focuses it ({@link
  * FindFeatures#FILTER_FOCUS_PROPERTY}). No values are shown. {@link #dispose()} stops every listener.
  */
 public final class CircuitTree extends JPanel {
@@ -91,6 +96,9 @@ public final class CircuitTree extends JPanel {
     private static final String ENTER_KEY = "circuitTree.enter";
     private static final String CLEAR_SEARCH_KEY = "circuitTree.clearSearch";
     private static final String FIRST_RESULT_KEY = "circuitTree.firstResult";
+    private static final String UP_KEY = "circuitTree.up";
+    private static final String TO_THE_ROWS_KEY = "circuitTree.toTheRows";
+    private static final String TO_THE_CANVAS_KEY = "circuitTree.toTheCanvas";
     private static final String ROUTE_SEPARATOR = " › ";
 
     private final EditorView view;
@@ -114,6 +122,9 @@ public final class CircuitTree extends JPanel {
     };
     private final Runnable preferenceListener = this::preferencesChanged;
     private final Runnable selectionListener = this::followSelection;
+    private final Runnable tabShownRemover;
+    /** The place row last followed: a new one (another context) is chosen once, then the user decides. */
+    private Optional<String> followedPlace = Optional.empty();
     private CircuitTreeNode root;
     private List<CircuitTreeModel.Match> matches = List.of();
     private boolean matchCase;
@@ -121,8 +132,6 @@ public final class CircuitTree extends JPanel {
     private boolean searching;
     /** The rows expanded when searching started, brought back when the search is cleared. */
     private Set<String> expandedBeforeSearch = Set.of();
-    /** The place last expanded: a new one (another context) is expanded once, then the user decides. */
-    private Optional<String> expandedPlace = Optional.empty();
     /** Cancels the click on a user component that waits to see whether a double click follows. */
     private Runnable pendingClick = () -> {
     };
@@ -152,12 +161,18 @@ public final class CircuitTree extends JPanel {
         tree.addMouseListener(new Mouse());
         Keys.bind(tree, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), ENTER_KEY,
                 this::pressEnter);
+        Keys.bind(tree, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), UP_KEY, this::pressUp);
+        Keys.bind(tree, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), TO_THE_CANVAS_KEY,
+                view::escapeToCanvas);
+        putClientProperty(KeyboardFocus.TARGET_PROPERTY, tree);
         searchField.putClientProperty("JTextField.showClearButton", true);
         searchField.onTextChange(this::searchChanged);
         Keys.bind(searchField, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 CLEAR_SEARCH_KEY, () -> !searchField.getText().isEmpty(), () -> searchField.setText(""));
         Keys.bind(searchField, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0),
                 FIRST_RESULT_KEY, () -> !matches.isEmpty(), () -> goTo(matches.getFirst().node().path()));
+        Keys.bind(searchField, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0),
+                TO_THE_ROWS_KEY, this::downFromTheSearch);
         JPanel top = new JPanel(new MigLayout("insets 4 4 2 4, gap 2, wrap 1, fillx", "[grow, fill]"));
         top.add(searchField);
         top.add(countLabel, "hidemode 3");
@@ -169,6 +184,7 @@ public final class CircuitTree extends JPanel {
         appearance.addListener(appearanceListener);
         preferences.addListener(preferenceListener);
         view.selection().addListener(selectionListener);
+        tabShownRemover = view.addTabShownListener(this::followPlace);
         refresh();
     }
 
@@ -179,6 +195,7 @@ public final class CircuitTree extends JPanel {
         appearance.removeListener(appearanceListener);
         preferences.removeListener(preferenceListener);
         view.selection().removeListener(selectionListener);
+        tabShownRemover.run();
     }
 
     private OpenDocument circuit() {
@@ -208,6 +225,37 @@ public final class CircuitTree extends JPanel {
             showTree(expanded);
         }
         chosen.flatMap(this::treePath).ifPresent(tree::setSelectionPath);
+        Optional<String> placeRow = placeRow();
+        if (!placeRow.equals(followedPlace)) {
+            followedPlace = placeRow;
+            followPlace();
+        }
+    }
+
+    /**
+     * The row this tab follows: the circuit, the instance whose values a component tab shows, or with «Sin valores»
+     * the component's first use.
+     */
+    private Optional<String> placeRow() {
+        if (!place.isBody()) {
+            return Optional.of(CircuitTreeNode.DOCUMENT_PATH);
+        }
+        return place.contextPath().or(() -> place.definitionId().flatMap(definition ->
+                place.instancePaths(definition).stream().findFirst().map(InstancePaths.InstanceUse::path)));
+    }
+
+    /**
+     * Chooses the row of this tab's place, its route expanded and the row scrolled into view: when the tab comes to the
+     * front and when «Valores de» changes. Never travels nor takes the focus (the rows act only on a click or a key).
+     */
+    private void followPlace() {
+        if (searching) {
+            return;
+        }
+        placeRow().ifPresent(path -> {
+            expandTo(path);
+            choose(path);
+        });
     }
 
     private void showTree(Set<String> expanded) {
@@ -216,11 +264,6 @@ public final class CircuitTree extends JPanel {
         treeModel.setRoot(rootNode);
         tree.expandPath(new TreePath(rootNode));
         expanded.forEach(path -> treePath(path).ifPresent(tree::expandPath));
-        Optional<String> placePath = placePath();
-        if (!placePath.equals(expandedPlace)) {
-            expandedPlace = placePath;
-            placePath.ifPresent(this::expandTo);
-        }
     }
 
     private DefaultMutableTreeNode toSwing(CircuitTreeNode node) {
@@ -267,7 +310,7 @@ public final class CircuitTree extends JPanel {
     // --- the search ---
 
     private void focusSearch() {
-        searchField.requestFocusInWindow();
+        view.keyboardFocus().request(searchField);
         searchField.selectAll();
     }
 
@@ -356,15 +399,31 @@ public final class CircuitTree extends JPanel {
         }
     }
 
-    /** Enter on the chosen row: enters a user component, goes to any other piece. */
+    /**
+     * Enter on the chosen row: what a click does, at once — goes to the piece, a user component too (a double click or
+     * «Entrar» enters it; the user's decision, round C).
+     */
     void pressEnter() {
-        chosenRow().flatMap(this::nodeAt).ifPresent(node -> {
-            if (node.isUserComponent()) {
-                enter(node);
-            } else {
-                goTo(node.path());
-            }
-        });
+        chosenRow().ifPresent(this::goTo);
+    }
+
+    /** Up moves to the row above; on the first row (or with none chosen) the search box above gets the focus. */
+    private void pressUp() {
+        int row = tree.getLeadSelectionRow();
+        if (row <= 0) {
+            focusSearch();
+            return;
+        }
+        tree.setSelectionRow(row - 1);
+        tree.scrollRowToVisible(row - 1);
+    }
+
+    /** Down in the search box: the tree gets the focus on its first row, the first result while searching. */
+    private void downFromTheSearch() {
+        int row = searching && !matches.isEmpty() ? 1 : 0;
+        tree.setSelectionRow(row);
+        tree.scrollRowToVisible(row);
+        view.keyboardFocus().request(tree);
     }
 
     private void enter(CircuitTreeNode node) {
@@ -507,6 +566,10 @@ public final class CircuitTree extends JPanel {
 
     SearchField searchField() {
         return searchField;
+    }
+
+    JTree tree() {
+        return tree;
     }
 
     List<String> resultPaths() {

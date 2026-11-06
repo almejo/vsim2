@@ -106,11 +106,12 @@ class EscapeCancelsPlacementTest {
     }
 
     @Test
-    void withTheSelectToolEscapeOutsideTheCanvasIsLeftAlone() {
+    void withTheSelectToolEscapeInThePaletteOnlyGoesBackToTheCanvas() {
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
 
-        assertThat(press(PalettePanelAccess.tree(view.palette()), KeyEvent.VK_ESCAPE)).isFalse();
+        // Esc in a tree of the left column gives the canvas the focus (round C); the selection stays
+        assertThat(press(PalettePanelAccess.tree(view.palette()), KeyEvent.VK_ESCAPE)).isTrue();
 
         assertThat(view.canvas().selection().ids()).containsExactly(gate.id());
     }

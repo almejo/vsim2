@@ -5,6 +5,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 ## Colocar componentes
 
 - Paleta: click en un componente y luego click en el canvas para colocarlo (vuelve solo a Selección; con Mayús se siguen colocando). También se puede arrastrar desde la paleta al canvas. R / Mayús+R rota antes de colocar. Esc cancela la colocación (también la de un componente de «Mis componentes» y lo pegado que flota) aunque el foco haya quedado en la paleta o en otra parte de la ventana.
+- Con el teclado: Alt+2 lleva el foco a la paleta (y la abre si estaba plegada); las flechas recorren la lista sin empezar a colocar, Enter elige como un clic, la flecha arriba en la primera fila pasa al buscador y la flecha abajo en el buscador vuelve a la primera pieza, y Esc devuelve el foco al lienzo (cancelando la colocación si había una). Alt+2 con el foco en la paleta la pliega y vuelve al lienzo.
 
 ## Favoritos
 
