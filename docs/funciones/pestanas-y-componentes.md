@@ -124,7 +124,7 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   solo esa pieza: con dos «Memoria chica» en el circuito, escribir la palabra 1 adentro con «Valores de: Memoria 1» no
   toca a Memoria 2. El título lo dice: «Contenido de RAM1 de Memoria chica — solo Memoria 1». Al iniciar la
   simulación o con «Reiniciar», cada pieza parte de su propio contenido; se guarda con el circuito y Deshacer lo
-  quita. Dos botones más abajo:
+  quita. Dos botones a la izquierda de Aceptar y Cancelar, que como ellos terminan la edición:
   - **«Usar para todas las piezas»**: lo que se ve pasa a ser el contenido del componente, en todas las piezas que no
     tengan uno propio, y esta pieza deja de tener el suyo. Un solo paso de deshacer.
   - **«Volver al del componente»**: la pieza olvida su contenido propio y vuelve a usar el del componente.

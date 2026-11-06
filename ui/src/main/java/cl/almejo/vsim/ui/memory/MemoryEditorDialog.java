@@ -430,7 +430,8 @@ public final class MemoryEditorDialog {
         JPanel south = new JPanel(new BorderLayout());
         status.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
         south.add(status, BorderLayout.CENTER);
-        piece.ifPresent(place -> south.add(pieceButtons(), BorderLayout.NORTH));
+        // they end the edit like Aceptar and Cancelar, so they share their row, on its left
+        piece.ifPresent(place -> south.add(pieceButtons(), BorderLayout.WEST));
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton accept = new JButton(Messages.text("memory.editor.accept"));
         accept.setName("memory.accept");

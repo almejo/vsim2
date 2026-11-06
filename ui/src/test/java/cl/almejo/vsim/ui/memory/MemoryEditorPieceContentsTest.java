@@ -19,7 +19,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.AbstractButton;
+import javax.swing.SwingUtilities;
 import java.awt.Container;
+import java.awt.Rectangle;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -162,6 +165,20 @@ class MemoryEditorPieceContentsTest {
     }
 
     @Test
+    void thePieceButtonsSitOnTheLeftOfTheAcceptAndCancelRow() {
+        MemoryEditorDialog dialog = editorInside(Optional.of("c5"));
+        dialog.content().setSize(900, 500);
+        layOut(dialog.content());
+
+        Rectangle accept = boundsIn(dialog.content(), button(dialog.content(), "memory.accept"));
+        for (String name : List.of("memory.piece.useForAll", "memory.piece.backToComponent")) {
+            Rectangle pieceButton = boundsIn(dialog.content(), button(dialog.content(), name));
+            assertThat(pieceButton.getCenterY()).as(name).isEqualTo(accept.getCenterY());
+            assertThat(pieceButton.getMaxX()).as(name).isLessThan(accept.getMinX());
+        }
+    }
+
+    @Test
     void importInsideWritesTheContextPiece() throws IOException {
         Path file = Files.writeString(folder.resolve("programa.hex"), "v2.0 raw\n05 09\n");
         MemoryEditorDialog dialog = editorInside(Optional.of("c9"));
@@ -197,6 +214,10 @@ class MemoryEditorPieceContentsTest {
     private String definitionContents() {
         return (String) circuit.document().definition("memoria-chica").orElseThrow().body().components().getFirst()
                 .parameters().get(MemoryTypes.CONTENTS);
+    }
+
+    private static Rectangle boundsIn(Container root, java.awt.Component child) {
+        return SwingUtilities.convertRectangle(child.getParent(), child.getBounds(), root);
     }
 
     private static AbstractButton button(Container root, String name) {
