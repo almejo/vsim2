@@ -140,9 +140,10 @@ public final class CircuitTidy {
             return Optional.empty();
         }
         new TidyWiresCommand(wires.get()).apply(copy);
+        boolean countsCorners = options.alignColumns() || options.straighten();
         return Optional.of(new CircuitTidyPlan(copy, partsMoved(document, copy), textsMoved(document, copy),
                 stages.notSeparated(), wires.get(), stages.partsAligned(), stages.pairsStraightened(),
-                WireCorners.count(document), WireCorners.count(copy)));
+                countsCorners ? WireCorners.count(document) : 0, countsCorners ? WireCorners.count(copy) : 0));
     }
 
     /** The wires of {@code copy} the wire rules may change: those in scope plus the ones the moves made or changed. */

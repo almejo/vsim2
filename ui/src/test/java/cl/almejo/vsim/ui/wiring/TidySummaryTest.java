@@ -96,20 +96,34 @@ class TidySummaryTest {
                 cornersBefore, cornersAfter);
     }
 
+    /** The aligned parts are among the moved ones: said inside the moved clause, never added as a second count. */
     @Test
     void summaryCountsAlignedStraightenedAndCorners() {
         CircuitTidyPlan plan = planWith(6, 4, 12, 140, 96, 0);
         assertThat(TidySummary.preview(plan))
-                .isEqualTo("Se moverán 6 partes, se alinearán 4 partes, se enderezarán 12 cables y codos: 140 → 96");
+                .isEqualTo("Se moverán 6 partes (4 para alinear), se enderezarán 12 cables y codos: 140 → 96");
         assertThat(TidySummary.notice(plan))
-                .isEqualTo("Se movieron 6 partes, se alinearon 4 partes, se enderezaron 12 cables y codos: 140 → 96");
+                .isEqualTo("Se movieron 6 partes (4 para alinear), se enderezaron 12 cables y codos: 140 → 96");
     }
 
     @Test
     void singularFormsAndCornersOnlyWhenTheyDiffer() {
         assertThat(TidySummary.preview(planWith(1, 1, 1, 5, 5, 0)))
-                .isEqualTo("Se moverá 1 parte, se alineará 1 parte y se enderezará 1 cable");
+                .isEqualTo("Se moverá 1 parte (para alinear) y se enderezará 1 cable");
+        assertThat(TidySummary.preview(planWith(3, 3, 0, 5, 5, 0)))
+                .isEqualTo("Se moverán 3 partes (para alinear)");
         assertThat(TidySummary.preview(planWith(2, 0, 0, 9, 7, 3)))
                 .isEqualTo("Se moverán 2 partes, se borrarán 3 puntas sueltas y codos: 9 → 7");
+    }
+
+    @Test
+    void theAlignedPartsInEnglish() {
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            assertThat(TidySummary.preview(planWith(6, 4, 0, 5, 5, 0))).startsWith("6 parts (4 of them to align)");
+            assertThat(TidySummary.preview(planWith(1, 1, 0, 5, 5, 0))).startsWith("1 part (to align)");
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
     }
 }

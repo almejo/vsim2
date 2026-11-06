@@ -815,8 +815,8 @@ class EditServiceTest {
         // one of the two parts moved up or down (which one is the planner's choice) and the wire lost its jog
         assertThat(circuit.document().components().stream().map(Component::position).toList()).isNotEqualTo(before);
         assertThat(connectedPins()).isEqualTo(netsBefore);
-        assertThat(receipt.warnings()).anyMatch(warning -> warning.contains("straightened 1")
-                && warning.contains("corners 2 -> 0"));
+        assertThat(receipt.warnings()).anyMatch(warning -> warning.contains("straightened 1 driver-to-input pairs")
+                && warning.contains("wire corners of the whole circuit: 2 -> 0"));
     }
 
     @Test

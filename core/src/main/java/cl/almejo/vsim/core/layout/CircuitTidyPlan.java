@@ -8,8 +8,10 @@ import java.util.Set;
 
 /**
  * What «Ordenar circuito» proposes: {@code after} is a new document (the original is untouched), with the counts for
- * the summary, the items it could not separate, the wire rules' own plan, the parts aligned in columns, the
- * driver–receiver pairs straightened and the wire corners before and after (spec §5.3).
+ * the summary, the items it could not separate, the wire rules' own plan, the parts aligned in columns (they are
+ * among {@code partsMoved}), the driver–receiver pairs straightened and the wire corners of the whole circuit before
+ * and after (spec §5.3). The corners are counted only when aligning or straightening ran, the stages that are there
+ * to lower them; otherwise both are 0.
  */
 public record CircuitTidyPlan(CircuitDocument after, int partsMoved, int textsMoved, Set<ElementId> notSeparated,
                               TidyPlan wires, int partsAligned, int pairsStraightened, int cornersBefore,

@@ -41,12 +41,11 @@ public final class TidySummary {
         addPart(wireClauses, prefix + ".merged", plan.wires().segmentsMerged());
         addPart(wireClauses, prefix + ".detours", plan.wires().detoursFlattened());
         List<String> layoutClauses = new ArrayList<>();
-        addPart(layoutClauses, prefix + ".aligned", plan.partsAligned());
         addPart(layoutClauses, prefix + ".straightened", plan.pairsStraightened());
         boolean cornersChange = plan.cornersBefore() != plan.cornersAfter();
         boolean moreFollow = !layoutClauses.isEmpty() || !wireClauses.isEmpty() || cornersChange;
         List<String> clauses = new ArrayList<>();
-        addMoved(clauses, prefix + ".moved", plan.partsMoved(), plan.textsMoved(), moreFollow);
+        addMoved(clauses, prefix + ".moved", plan, moreFollow);
         clauses.addAll(layoutClauses);
         clauses.addAll(wireClauses);
         if (plan.isEmpty() || clauses.isEmpty()) {
@@ -73,17 +72,29 @@ public final class TidySummary {
 
     /**
      * «se moverán 3 partes y 2 textos»: one verb for the parts and the texts (free texts and sticky notes) together.
-     * When more clauses follow, the two are separated by a comma (the «y» goes before the last clause only).
+     * When more clauses follow, the two are separated by a comma (the «y» goes before the last clause only). The parts
+     * moved to align a column are among the moved ones, so they are said in brackets after them, never counted twice:
+     * «6 partes (4 para alinear)», «3 partes (para alinear)» when they all were.
      */
-    private static void addMoved(List<String> clauses, String keyPrefix, int partsMoved, int textsMoved,
-                                 boolean moreFollow) {
+    private static void addMoved(List<String> clauses, String keyPrefix, CircuitTidyPlan plan, boolean moreFollow) {
+        int partsMoved = plan.partsMoved();
+        int textsMoved = plan.textsMoved();
         List<String> nouns = new ArrayList<>();
         addNoun(nouns, "tidy.moved.part", partsMoved);
+        if (partsMoved > 0 && plan.partsAligned() > 0) {
+            nouns.set(0, nouns.get(0) + alignedAmongThem(plan.partsAligned(), partsMoved));
+        }
         addNoun(nouns, "tidy.moved.text", textsMoved);
         if (!nouns.isEmpty()) {
             String list = moreFollow ? String.join(", ", nouns) : listed(nouns);
             clauses.add(Messages.format(keyPrefix + (partsMoved + textsMoved == 1 ? ".one" : ".other"), list));
         }
+    }
+
+    /** « (para alinear)» when every moved part was aligned, else « (4 para alinear)». */
+    private static String alignedAmongThem(int partsAligned, int partsMoved) {
+        return partsAligned >= partsMoved ? Messages.text("tidy.moved.part.allAligned")
+                : Messages.format("tidy.moved.part.someAligned", partsAligned);
     }
 
     private static void addNoun(List<String> nouns, String keyPrefix, int count) {

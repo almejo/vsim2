@@ -722,8 +722,8 @@ final class EditPlanner {
         }
         if (plan.partsAligned() > 0 || plan.pairsStraightened() > 0) {
             warnings.add(at() + "aligned " + plan.partsAligned() + " parts in columns and straightened "
-                    + plan.pairsStraightened() + " wires (corners " + plan.cornersBefore() + " -> "
-                    + plan.cornersAfter() + ")");
+                    + plan.pairsStraightened() + " driver-to-input pairs; wire corners of the whole circuit: "
+                    + plan.cornersBefore() + " -> " + plan.cornersAfter());
         }
         ReplaceContentCommand.between(candidate, plan.after(), "command.tidyCircuit").apply(candidate);
     }
