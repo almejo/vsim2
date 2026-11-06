@@ -74,6 +74,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
             public void windowOpened(WindowEvent event) {
                 tabs.windowOpened(isMaximized());
             }
+
+            @Override
+            public void windowActivated(WindowEvent event) {
+                application.windowActivated(CircuitWindow.this);
+            }
         });
         addComponentListener(new ComponentAdapter() {
             @Override

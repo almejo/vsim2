@@ -193,9 +193,39 @@ class DocumentWindowsTest {
     }
 
     @Test
-    void startupOpensAWindowPerDocument(@TempDir Path directory) {
+    void withNoWindowAFileOpenedWithoutARequesterGetsANewWindow(@TempDir Path directory) {
         assertThat(windows.targetFor(directory.resolve("a.vsim"), Optional.empty()))
                 .isEqualTo(new OpeningTarget.NewWindow<String>());
+    }
+
+    @Test
+    void aFileOpenedWithoutARequesterJoinsTheLastOpenedWindowAsANewGroup(@TempDir Path directory) {
+        windows.add(newDocument(), "one");
+        windows.add(newDocument(), "two");
+        assertThat(windows.targetFor(directory.resolve("a.vsim"), Optional.empty()))
+                .isEqualTo(new OpeningTarget.NewGroup<>("two"));
+    }
+
+    @Test
+    void aFileOpenedWithoutARequesterJoinsTheLastActivatedWindowStillOpen(@TempDir Path directory) {
+        windows.add(newDocument(), "one");
+        windows.add(newDocument(), "two");
+        windows.add(newDocument(), "three");
+        windows.activated("one");
+        windows.activated("three");
+        assertThat(windows.active()).contains("three");
+
+        windows.removeWindow("three");
+
+        assertThat(windows.active()).contains("one");
+        assertThat(windows.targetFor(directory.resolve("a.vsim"), Optional.empty()))
+                .isEqualTo(new OpeningTarget.NewGroup<>("one"));
+    }
+
+    @Test
+    void thereIsNoActiveWindowWhenNoWindowHoldsADocument() {
+        windows.activated("ghost");
+        assertThat(windows.active()).isEmpty();
     }
 
     @Test

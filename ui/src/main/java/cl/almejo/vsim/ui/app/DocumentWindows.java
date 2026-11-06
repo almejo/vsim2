@@ -25,6 +25,8 @@ public final class DocumentWindows<W> {
     private final Map<OpenDocument, List<W>> windowsByDocument = new LinkedHashMap<>();
     private final Map<W, List<OpenDocument>> documentsByWindow = new LinkedHashMap<>();
     private final Listeners<Runnable> changeListeners = new Listeners<>();
+    /** Windows in order of their last activation, the latest first; a window leaves it when it is forgotten. */
+    private final List<W> recentlyActivated = new ArrayList<>();
 
     /**
      * {@code window} holds a tab of {@code document} now. Idempotent for a window that already holds it; the listeners
@@ -63,6 +65,7 @@ public final class DocumentWindows<W> {
 
     /** Forgets {@code window}; returns the documents it was the last holder of, in its order. */
     public List<OpenDocument> removeWindow(W window) {
+        recentlyActivated.remove(window);
         List<OpenDocument> released = new ArrayList<>();
         for (OpenDocument document : documentsOf(window)) {
             if (remove(document, window)) {
@@ -116,15 +119,32 @@ public final class DocumentWindows<W> {
     }
 
     /**
-     * Where opening {@code file} goes: the window already showing it, else a new group in {@code requester}, else a
-     * new window (nothing asked: start-up, command line).
+     * Where opening {@code file} goes: the window already showing it, else a new group in {@code requester}, else
+     * (nothing asked: start-up, command line, the system's open-file events) a new group in the {@link #active}
+     * window, and a new window only when there is none.
      */
     public OpeningTarget<W> targetFor(Path file, Optional<W> requester) {
         Optional<OpenDocument> open = showing(file);
         if (open.isPresent()) {
             return new OpeningTarget.FocusTab<>(windowsByDocument.get(open.get()).get(0), open.get());
         }
-        return requester.<OpeningTarget<W>>map(OpeningTarget.NewGroup::new).orElseGet(OpeningTarget.NewWindow::new);
+        return requester.or(this::active).<OpeningTarget<W>>map(OpeningTarget.NewGroup::new)
+                .orElseGet(OpeningTarget.NewWindow::new);
+    }
+
+    /** {@code window} became the window the user works in (it was activated). */
+    public void activated(W window) {
+        recentlyActivated.remove(window);
+        recentlyActivated.addFirst(window);
+    }
+
+    /**
+     * The window the user works in: the last activated one still holding something, else the last opened (at start
+     * no window was activated yet, and the last restored one is on top). Empty when no window holds anything.
+     */
+    public Optional<W> active() {
+        return recentlyActivated.stream().filter(documentsByWindow::containsKey).findFirst()
+                .or(() -> all().stream().reduce((earlier, later) -> later));
     }
 
     private Optional<OpenDocument> showing(Path file) {

@@ -4,8 +4,8 @@ import java.util.Objects;
 
 /**
  * Where a circuit file being opened goes (spec §10.2): the window that already shows it (its main tab is focused), a
- * new group in the window that asked (Abrir, Recientes, Ejemplos, a drop), or a new window when nothing asked
- * (start-up, the command line, the system's open-file events).
+ * new group in the window that asked (Abrir, Recientes, Ejemplos, a drop) or, when nothing asked (start-up, the
+ * command line, the system's open-file events), in the active window, or a new window when there is no window.
  *
  * @param <W> the window type ({@code CircuitWindow} in the application, plain values in tests)
  */

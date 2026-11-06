@@ -102,13 +102,15 @@ class StartupSequenceTest {
     }
 
     @Test
-    void filesOnTheCommandLineSkipTheSession() {
-        Plan plan = StartupSequence.plan(List.of(), true, List.of(window(LEFT, counter)), List.of(adder), exists);
+    void filesOnTheCommandLineJoinTheRestoredSessionAndOneAlreadyThereIsOnlyFocused() {
+        Plan plan = StartupSequence.plan(List.of(), true, List.of(window(LEFT, counter)), List.of(adder, counter),
+                exists);
 
-        assertThat(plan.openings()).isEmpty();
-        assertThat(plan.windows()).isEmpty();
+        assertThat(plan.openings()).containsExactly(new FromSession(counter));
+        assertThat(plan.windows()).containsExactly(window(LEFT, counter));
         assertThat(plan.missing()).isEmpty();
-        assertThat(plan.commandLineFiles()).containsExactly(adder);
+        // Both still go through the already-open check: adder opens as a new group, counter's tab is focused.
+        assertThat(plan.commandLineFiles()).containsExactly(adder, counter);
     }
 
     @Test

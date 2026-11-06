@@ -17,7 +17,8 @@ import java.util.function.Predicate;
 
 /**
  * What to open at start (spec §4.1 "Order at start"), decided without Swing: the recovered copies first, then the
- * last session when the option is on and no circuit was given on the command line, then the command-line files. The
+ * last session when the option is on, then the command-line files, which join the restored windows as new groups (a
+ * file given on the command line never loses the session; one the session opens already is only focused). The
  * session's windows come back with their tabs (spec §4.7); each file opens once, whatever the number of its tabs. A
  * recovered copy replaces opening its original from the session or the command line and takes that file's tabs in the
  * session's windows; of several copies of one file only the newest opens. Files are compared in any spelling
@@ -43,7 +44,8 @@ public final class StartupSequence {
      * @param windows          the session's windows to restore, without the tabs of files that no longer exist (a
      *                         window left without tabs is not restored)
      * @param missing         session files that no longer exist, to be listed once
-     * @param commandLineFiles the command-line circuits still to open the usual way
+     * @param commandLineFiles the command-line circuits still to open the usual way, after the session (one the
+     *                         session opens already is only focused then)
      */
     public record Plan(List<Opening> openings, List<WindowSession> windows, List<Path> missing,
                        List<Path> commandLineFiles) {
@@ -56,7 +58,7 @@ public final class StartupSequence {
 
     public static Plan plan(List<RecoveryCopy> recovered, boolean restoreSession, List<WindowSession> session,
                             List<Path> commandLineFiles, Predicate<Path> exists) {
-        List<WindowSession> sessionWindows = restoreSession && commandLineFiles.isEmpty() ? session : List.of();
+        List<WindowSession> sessionWindows = restoreSession ? session : List.of();
         Set<Path> recoveredFiles = new HashSet<>();
         List<Opening> openings = new ArrayList<>();
         for (RecoveryCopy copy : newestOfEachOriginal(recovered)) {

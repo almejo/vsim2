@@ -117,10 +117,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -414,7 +416,8 @@ public final class Application {
                 JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
                         Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
             }
-            // Through the already-open check (no file opens twice); one file each so a failure skips only that one.
+            // Through the already-open check (a session file is only focused, never opened twice), as new groups of
+            // the active window (the last restored one); one file each so a failure skips only that one.
             StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
         }), () -> !windows.isEmpty(), this::newDocument, () -> {
             if (!components.isEmpty()) {
@@ -496,25 +499,33 @@ public final class Application {
     }
 
     /**
-     * Opens each file as a new group in {@code requester} (a new window when nothing asked: start-up, command line),
-     * or focuses the main tab of the file when it is open already (spec §10.2). When something new was opened from a
-     * window, the pristine placeholder documents of that window go away.
+     * Opens each file as a new group in {@code requester}, or, when nothing asked (start-up, command line, the
+     * system's open-file events), in the active window (a new window only when there is none), or focuses the main
+     * tab of the file when it is open already (spec §10.2). The pristine placeholder documents of a window that got
+     * something new go away.
      */
     public void openPaths(List<Path> paths, CircuitWindow requester) {
-        boolean openedAny = false;
+        Set<CircuitWindow> received = new LinkedHashSet<>();
         for (Path path : paths) {
             switch (windows.targetFor(path, Optional.ofNullable(requester))) {
                 case OpeningTarget.FocusTab<CircuitWindow> focusTab -> {
                     focus(focusTab.window());
                     focusTab.window().activateMainTab(focusTab.document());
                 }
-                case OpeningTarget.NewGroup<CircuitWindow> newGroup -> openedAny |= openFile(path, requester);
-                case OpeningTarget.NewWindow<CircuitWindow> newWindow -> openedAny |= openFile(path, null);
+                case OpeningTarget.NewGroup<CircuitWindow> newGroup -> {
+                    if (openFile(path, newGroup.window())) {
+                        received.add(newGroup.window());
+                    }
+                }
+                case OpeningTarget.NewWindow<CircuitWindow> newWindow -> openFile(path, null);
             }
         }
-        if (openedAny) {
-            closeReplaced(requester);
-        }
+        received.forEach(window -> {
+            closeReplaced(window);
+            if (window != requester) {
+                focus(window); // a file sent from outside brings its window to the front
+            }
+        });
     }
 
     /** Reads {@code path} and shows it in {@code requester}, or in a new window when it is null; false if unread. */
@@ -600,6 +611,11 @@ public final class Application {
     /** The Ventana list and «▾»: every tab of every window, grouped by window; {@code current}'s active tab checked. */
     public List<WindowMenu.Entry> windowEntries(CircuitWindow current) {
         return windows.menuEntries(window -> window.tabEntries(window == current, () -> focus(window)));
+    }
+
+    /** {@code window} was activated: files sent from outside and the AI's new circuits go there now. */
+    public void windowActivated(CircuitWindow window) {
+        windows.activated(window);
     }
 
     /** {@code window} added or removed a tab of {@code document}: it holds the document, and titles renumber. */
