@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.command.Command;
+import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
@@ -79,6 +80,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * One circuit being edited: document, undo history, compiled netlist and its own simulation thread.
@@ -399,6 +401,25 @@ public final class OpenDocument implements AutoCloseable {
      * {@linkplain #addRefusalListener refusal listeners} when the place has any, else it is thrown.
      */
     private void executeInside(Command command) {
+        executeInside(command, UnaryOperator.identity());
+    }
+
+    /**
+     * A body place's edit of its body made together with {@code documentCommand}, an edit of its document, as one undo
+     * step named {@code description}: «Usar para todas las piezas» gives the definition the piece's memory contents and
+     * makes the piece forget its own (spec §6.6b). Refused as {@link #execute} refuses an edit inside.
+     *
+     * @throws IllegalStateException on a document, which has no body to edit
+     */
+    public void executeInsideWith(Command bodyCommand, Command documentCommand, String description) {
+        if (body == null) {
+            throw new IllegalStateException("only a component tab edits a body");
+        }
+        executeInside(bodyCommand, inside -> new CompositeCommand(description, List.of(inside, documentCommand)));
+    }
+
+    /** {@link #executeInside(Command)}, the document's undo step being {@code together} applied to the inside edit. */
+    private void executeInside(Command command, UnaryOperator<Command> together) {
         BodyWorkingCopy workingCopy = body.workingCopy;
         String definitionId = workingCopy.definitionId();
         if (interfaceLocked()) {
@@ -413,7 +434,7 @@ public final class OpenDocument implements AutoCloseable {
             }
         }
         EditInsideCommand inside = new EditInsideCommand(definitionId, command, workingCopy.document(), registry);
-        workingCopy.write(() -> body.parent.execute(inside));
+        workingCopy.write(() -> body.parent.execute(together.apply(inside)));
     }
 
     /** Tries {@code command} on a copy of the working copy and refuses it when the interface would change. */

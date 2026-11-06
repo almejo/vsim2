@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -12,6 +13,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
@@ -37,7 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * each instance pin joins the outer net with the net of the matching interface pin inside. Interface pins inside an
  * instance become passive probes as wide as they are ({@link #interfaceProbe}), so their value stays visible under their own id. Merged nets keep
  * the id closest to the top level; the others become {@link FlatNet#aliases()}. Tunnels are left out (the netlist
- * already joined them by name); their problems, found per body, go in {@link FlatCircuit#tunnelProblems()}.
+ * already joined them by name); their problems, found per body, go in {@link FlatCircuit#tunnelProblems()}. A
+ * memory inside a piece starts with the piece's own contents when it keeps some ({@link PieceMemories}).
  */
 public final class CircuitFlattener {
 
@@ -72,7 +75,7 @@ public final class CircuitFlattener {
     }
 
     public FlatCircuit flatten(CircuitDocument document, Netlist netlist) {
-        Expansion expansion = new Expansion();
+        Expansion expansion = new Expansion(document);
         expansion.addLevel("", document, netlist, TunnelChecks.problems(document, netlist, registry), 0);
         // a netlist compiled at the structure revision still matches after switch clicks (live values only)
         return new FlatCircuit(document.structureRevision(), expansion.components, expansion.flatNets(),
@@ -107,6 +110,12 @@ public final class CircuitFlattener {
         final Map<String, String> parents = new HashMap<>();
         final Map<ComponentDefinition, Body> bodies = new IdentityHashMap<>();
         final List<TunnelProblem> tunnelProblems = new ArrayList<>();
+        /** The circuit flattened: its pieces keep their own memory contents ({@link PieceMemories}). */
+        final CircuitDocument root;
+
+        Expansion(CircuitDocument root) {
+            this.root = root;
+        }
 
         void addLevel(String prefix, CircuitDocument level, Netlist levelNetlist, List<TunnelProblem> levelProblems,
                       int depth) {
@@ -131,10 +140,24 @@ public final class CircuitFlattener {
                     addComponent(new FlatComponent(flatId, interfaceProbe(type.pin(0).width()), Map.of()), component,
                             levelNetlist, prefix);
                 } else {
-                    addComponent(new FlatComponent(flatId, type, component.parameters()), component, levelNetlist,
-                            prefix);
+                    addComponent(new FlatComponent(flatId, type, parametersOf(flatId, component)), component,
+                            levelNetlist, prefix);
                 }
             }
+        }
+
+        /** A memory inside a piece starts with the piece's own contents when one on its path keeps some. */
+        private Map<String, Object> parametersOf(String flatId, Component component) {
+            if (!InstancePath.isNested(flatId) || MemoryTypes.kindOf(component.typeId()).isEmpty()) {
+                return component.parameters();
+            }
+            Optional<String> pieceContents = PieceMemories.effectiveText(root, flatId);
+            if (pieceContents.isEmpty()) {
+                return component.parameters();
+            }
+            Map<String, Object> parameters = new HashMap<>(component.parameters());
+            parameters.put(MemoryTypes.CONTENTS, pieceContents.get());
+            return parameters;
         }
 
         private void addComponent(FlatComponent flat, Component component, Netlist levelNetlist, String prefix) {

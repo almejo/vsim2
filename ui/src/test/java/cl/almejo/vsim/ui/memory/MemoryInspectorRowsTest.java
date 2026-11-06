@@ -1,10 +1,19 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.command.SetInstanceMemoryContentsCommand;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.library.PieceMemories;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -26,6 +35,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
@@ -163,6 +173,35 @@ class MemoryInspectorRowsTest {
         named(inspector, "memory.inspector.edit", AbstractButton.class).doClick();
         assertThat(launched).containsExactly(ram.id().value() + OptionalLong.empty());
         assertThat(named(inspector, "memory.inspector.hidden", javax.swing.text.JTextComponent.class)).isNull();
+    }
+
+    /** Spec §6.6b: inside «Memoria chica» with «Valores de: Memoria 1», a RAM Memoria 1 keeps its own words says so. */
+    @Test
+    void insideAComponentAPieceWithItsOwnContentsSaysSo() {
+        ElementId memoryId = new ElementId("c3");
+        Component memory = StandardComponentTypes.registry().require(StandardComponentTypes.RAM).newComponent(
+                memoryId, GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        document.execute(new PutDefinitionsCommand(List.of(new ComponentDefinition("memoria-chica", "Memoria chica",
+                "", new GridSize(4, 4), List.of(), new CircuitFragment(List.of(memory), List.of(), List.of())))));
+        Component first = place(document, SubcircuitTypes.typeIdOf("memoria-chica"), 0, 0, Map.of());
+        place(document, SubcircuitTypes.typeIdOf("memoria-chica"), 20, 0, Map.of());
+        document.execute(SetInstanceMemoryContentsCommand.set(new PieceMemories.Place(first.id(), "c3"),
+                MemoryContents.decode("@0 7")));
+        OpenDocument body = document.openBody("memoria-chica", Optional.of(first.id().value()));
+        try {
+            EditorServices services = new EditorServices(PainterRegistry.standard(),
+                    new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(),
+                    List.of(new MemoryEditorExtension(launcher, links)));
+            view = new EditorView(body, services, NO_WINDOW);
+            view.selection().select(memoryId);
+
+            assertThat(named(view.labelFeatures().properties(), "memory.inspector.contents", JLabel.class).getText())
+                    .isEqualTo("Contenido propio de Memoria chica 1");
+        } finally {
+            view.dispose();
+            view = null;
+            body.close();
+        }
     }
 
     @Test

@@ -65,9 +65,9 @@ class FileHeaderTest {
 
     static Stream<Arguments> refusedFiles() {
         return Stream.of(
-                arguments("{\"format\":\"vsim2\",\"formatVersion\":6,\"kind\":\"circuit\"}",
-                        CircuitFormatException.Reason.NEWER_FORMAT, "6"),
-                arguments("{\"formatVersion\":7,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT, "7"),
+                arguments("{\"format\":\"vsim2\",\"formatVersion\":7,\"kind\":\"circuit\"}",
+                        CircuitFormatException.Reason.NEWER_FORMAT, "7"),
+                arguments("{\"formatVersion\":8,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT, "8"),
                 arguments("{\"name\":\"package.json\",\"version\":\"1.0\"}",
                         CircuitFormatException.Reason.NOT_VSIM_FILE, null),
                 arguments("[1, 2]", CircuitFormatException.Reason.NOT_VSIM_FILE, null),

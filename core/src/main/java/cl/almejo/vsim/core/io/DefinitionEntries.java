@@ -75,8 +75,9 @@ final class DefinitionEntries {
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE,
                         component.typeId() + " in definition " + definition.id()));
                 try {
-                    normalized.add(MultiBitOrientation.normalized(CircuitFormat.validateAppearance(
-                            component.withParameters(type.resolveParameters(component.parameters())), type), type));
+                    normalized.add(MultiBitOrientation.normalized(CircuitFormat.validateMemoryContents(
+                            CircuitFormat.validateAppearance(component.withParameters(
+                                    type.resolveParameters(component.parameters())), type), type), type));
                 } catch (IllegalArgumentException | NullPointerException exception) {
                     // A malformed parameter value can surface as a NullPointerException; no unchecked exception may
                     // escape to the caller (on a paste that would reach the EDT), so it becomes INVALID_ELEMENT.

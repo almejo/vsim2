@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Review focus 4 (spec §6.6, §10.7): the same memory id in the circuit and inside a component are two memories, each
- * edited where it is; a memory opened from a component tab shows its context instance, and a ROM's contents are the
- * component's, for every piece.
+ * edited where it is; a memory opened from a component tab shows its context instance, and its title says whose
+ * contents it edits (spec §6.6b).
  */
 class MemoryKeysInsideTest {
 
@@ -78,16 +78,20 @@ class MemoryKeysInsideTest {
         assertThat(body.requestMemoryContents(MEMORY).join()).isEmpty();
     }
 
+    /** Spec §6.6b: each piece has its own contents, ROM too; with «Sin valores» the component's, for every piece. */
     @Test
-    void romTitleSaysAllPieces() {
+    void romTitleSaysWhichPieces() {
         withABankHolding(StandardComponentTypes.ROM, "@0 22");
-        OpenDocument body = body(Optional.of("c5"));
 
-        MemoryEditorDialog inside = new MemoryEditorDialog(body, MEMORY, null, NoLinkActions.INSTANCE);
+        MemoryEditorDialog onePiece = new MemoryEditorDialog(body(Optional.of("c5")), MEMORY, null,
+                NoLinkActions.INSTANCE);
+        MemoryEditorDialog allPieces = new MemoryEditorDialog(body(Optional.empty()), MEMORY, null,
+                NoLinkActions.INSTANCE);
         MemoryEditorDialog outside = new MemoryEditorDialog(circuit,
                 place("c40", StandardComponentTypes.ROM, 40, 0, Map.of()).id(), null, NoLinkActions.INSTANCE);
 
-        assertThat(inside.title()).isEqualTo("Contenido de ROM1 de Banco — todas las piezas · ROM · 256 × 8");
+        assertThat(onePiece.title()).isEqualTo("Contenido de ROM1 de Banco — solo Banco 1 · ROM · 256 × 8");
+        assertThat(allPieces.title()).isEqualTo("Contenido de ROM1 de Banco — todas las piezas · ROM · 256 × 8");
         assertThat(outside.title()).isEqualTo("Contenido de ROM1 · ROM · 256 × 8");
     }
 

@@ -95,6 +95,15 @@ public final class InstanceNames {
     }
 
     /**
+     * The {@linkplain #route route} of {@code hierarchicalId} in one line, «CPU 1 › Memoria chica»; the id itself when a
+     * level cannot be found.
+     */
+    public static String routeText(String hierarchicalId, CircuitDocument document) {
+        List<String> route = route(hierarchicalId, document);
+        return route.isEmpty() ? hierarchicalId : String.join(PATH_SEPARATOR, route);
+    }
+
+    /**
      * "U1 › U3 (AND de 2 entradas)" for a simulation id such as {@code c5/c2}, as Problemas words a part (spec §6.12):
      * each level by its {@linkplain #names name}; a labeled innermost level also shows its type. Empty when a level
      * cannot be found in the document and its definitions.
