@@ -89,6 +89,12 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   el componente que lo contiene: «Sumador completo › Medio sumador 2: el pin b quedó en otro lugar (su lugar estaba
   ocupado)» o «Sumador completo › Medio sumador 2: pin b sin conectar». Mover un pin adentro no cambia nada por
   fuera.
+- **Cambiar un componente que está adentro**: en la pestaña de un componente, «Editar descripción…», «Cambiar
+  forma…» para todas las piezas y «Actualizar desde la librería» sobre una pieza de adentro cambian ese componente en
+  el circuito, en un solo paso de deshacer, igual que desde la pestaña del circuito y con sus mismas reglas (una forma
+  que movería los pines de un componente usado dentro de otro se rechaza y se dice por qué). «Crear componente desde
+  selección…» sin reemplazar la selección agrega el componente al circuito. Un cambio así que llegue por otro camino
+  no se hace, y la barra de lugar dice «Inversor no se cambia desde aquí: usa su menú en la pestaña del circuito».
 - **Los pines del componente**: su valor viene de afuera, de la pieza cuyos valores muestra la pestaña. Un clic no los
   cambia y no se les puede escribir un valor; la barra de estado dice «Su valor viene de afuera».
 - **Interruptores y botones de adentro**: actúan solo sobre la pieza que muestra la pestaña, como una entrada de la

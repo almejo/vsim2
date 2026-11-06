@@ -230,6 +230,27 @@ class EditInsideCommandTest {
                 .containsEntry("c2/c10", "v3.0 hex words\n2");
     }
 
+    @Test
+    void aChangeOfAnotherDefinitionMadeThroughTheWorkingCopyIsRefusedWithNothingChanged() {
+        // the working copy holds copies of the document's definitions: changing one there would never reach the
+        // document, so the edit is refused instead of being kept only in the tab (final review C1)
+        ComponentDefinition doubleInverter = placeDoubleInverter();
+        CircuitDocument containerCopy = doubleInverter.bodyDocument(document);
+        EditInsideCommand inside = new EditInsideCommand(doubleInverter.id(),
+                new ChangeDefinitionDescriptionCommand(inverter.id(), "nueva"), containerCopy, registry);
+
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> {
+                    assertThat(refusal.messageKey()).isEqualTo("inside.otherDefinitionChanged");
+                    assertThat(refusal.arguments()).containsExactly(inverter.name());
+                });
+
+        assertThat(containerCopy.definition(inverter.id())).contains(inverter);
+        assertThat(document.definition(inverter.id())).containsSame(inverter);
+        assertThat(document.definition(doubleInverter.id())).containsSame(doubleInverter);
+        assertThat(history.canUndo()).isFalse();
+    }
+
     /** The double inverter (two inverters inside) in the document, one piece of it placed; returns the definition. */
     private ComponentDefinition placeDoubleInverter() {
         ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter();

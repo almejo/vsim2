@@ -48,9 +48,11 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         ComponentDefinition previous = document.definition(definitionId).orElseThrow(() ->
                 new IllegalStateException("the document has no definition " + definitionId));
         placeName = previous.name();
+        List<ComponentDefinition> definitionsBefore = prepared ? List.of() : workingCopy.definitions();
         bodyCommand.apply(workingCopy);
         try {
             if (!prepared) {
+                requireOtherDefinitionsUnchanged(definitionsBefore);
                 writeBack = prepareWriteBack(document, previous);
                 prepared = true;
             }
@@ -60,6 +62,20 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         } catch (RuntimeException exception) {
             bodyCommand.revert(workingCopy);
             throw exception;
+        }
+    }
+
+    /**
+     * Refuses an edit that changed or dropped one of the working copy's definitions (a nested piece's description,
+     * shape or version): only the edited definition's body is written back, so such a change would stay in the tab
+     * and never reach the document. The editor runs those commands on the document itself; this keeps any other
+     * caller from losing them silently (spec §6.2: never silently). Definitions the edit added (a paste) are fine.
+     */
+    private void requireOtherDefinitionsUnchanged(List<ComponentDefinition> definitionsBefore) {
+        for (ComponentDefinition before : definitionsBefore) {
+            if (workingCopy.definition(before.id()).filter(after -> after == before || after.equals(before)).isEmpty()) {
+                throw new InsideEditRefusedException("inside.otherDefinitionChanged", List.of(before.name()));
+            }
         }
     }
 

@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.PinNames;
 import cl.almejo.vsim.ui.library.LibraryDialogs;
@@ -74,7 +75,7 @@ final class AppearanceFeatures {
         installOwnShapeMark();
         // «Actualizar componente» / «desde la librería» ask with the same connections sheet (spec §6.3 step 4).
         view.templateActions().ifPresent(actions ->
-                removals.add(actions.useConnectionsConfirmation(plan -> confirm(plan, false))));
+                removals.add(actions.useConnectionsConfirmation(plan -> confirm(plan, false, circuit().document()))));
     }
 
     private void installOwnShapeMark() {
@@ -110,7 +111,8 @@ final class AppearanceFeatures {
         Optional<DefinitionBundle> librarySnapshot = library.library().find(definitionId);
         while (true) {
             boolean appliesToCircuit = !libraryScope || librarySnapshot.filter(this::matchesCircuitBundle).isPresent();
-            List<String> parents = appliesToCircuit ? DefinitionUpdateSafety.containingNames(document(), definitionId) : List.of();
+            List<String> parents = appliesToCircuit
+                    ? DefinitionUpdateSafety.containingNames(circuit().document(), definitionId) : List.of();
             ShapeEditRequest request = buildRequest(starting, draft, scope, instanceId, instance, definitionId,
                     libraryScope, appliesToCircuit, parents);
             Optional<ShapeEditResult> result = editor.edit(view, request);
@@ -161,14 +163,14 @@ final class AppearanceFeatures {
                                           Optional<ElementId> instanceId, Optional<Component> instance,
                                           String definitionId, boolean libraryScope, boolean appliesToCircuit,
                                           List<String> parents) {
-        int count = (int) document().components().stream()
+        int count = (int) circuit().document().components().stream()
                 .filter(piece -> piece.typeId().equals(SubcircuitTypes.typeIdOf(definitionId)))
                 .filter(piece -> piece.appearance().isEmpty()).count();
         String instanceName = instance.map(piece -> piece.label().isBlank() ? piece.id().value() : piece.label()).orElse("");
         boolean savesToLibrary = !libraryScope
                 && library.library().find(definitionId).filter(this::matchesCircuitBundle).isPresent();
         boolean circuitUsesOtherVersion = libraryScope && !appliesToCircuit
-                && document().definition(definitionId).isPresent();
+                && circuit().document().definition(definitionId).isPresent();
         return new ShapeEditRequest(starting, draft, scope, instanceId.isPresent(),
                 !parents.isEmpty(), String.join(", ", parents), count, instanceName, savesToLibrary,
                 circuitUsesOtherVersion);
@@ -186,22 +188,25 @@ final class AppearanceFeatures {
             DefinitionBundle preserved = new DefinitionBundle(changed, expectedLibrary.orElseThrow().dependencies());
             return saveLibrary(preserved, false, expectedLibrary);
         }
+        // a piece's own shape is an edit of the place it lies in; a definition's shape is the circuit's (C1)
+        OpenDocument target = scope == ShapeEditScope.INSTANCE ? view.openDocument() : circuit();
         ChangeAppearanceCommand command = scope == ShapeEditScope.INSTANCE
-                ? ChangeAppearanceCommand.forInstance(document(), view.openDocument().registry(), instanceId.orElseThrow(), Optional.of(draft))
-                : ChangeAppearanceCommand.forDefinition(document(), view.openDocument().registry(), definitionId, draft);
-        if (!confirm(command.plan(), scope == ShapeEditScope.INSTANCE)) {
+                ? ChangeAppearanceCommand.forInstance(target.document(), target.registry(), instanceId.orElseThrow(), Optional.of(draft))
+                : ChangeAppearanceCommand.forDefinition(target.document(), target.registry(), definitionId, draft);
+        if (!confirm(command.plan(), scope == ShapeEditScope.INSTANCE, target.document())) {
             return false;
         }
-        if (command.isStale(document())) {
+        if (command.isStale(target.document())) {
             return false;
         }
         if (writesLibrary && !library.library().find(definitionId).equals(expectedLibrary)) {
             return false;
         }
-        view.openDocument().execute(command);
+        target.execute(command);
         if (writesLibrary) {
-            ComponentDefinition changed = document().definition(definitionId).orElseThrow();
-            saveLibrary(DefinitionBundle.of(changed, document()::definition), true, expectedLibrary);
+            CircuitDocument circuitDocument = circuit().document();
+            ComponentDefinition changed = circuitDocument.definition(definitionId).orElseThrow();
+            saveLibrary(DefinitionBundle.of(changed, circuitDocument::definition), true, expectedLibrary);
         }
         if (!command.plan().disconnected().isEmpty()) {
             view.statusBar().showNotice(Messages.format("shape.connections.notice", command.plan().disconnected().size()));
@@ -210,12 +215,14 @@ final class AppearanceFeatures {
     }
 
     private Optional<ComponentDefinition> source(String id, boolean libraryScope) {
-        return libraryScope ? library.library().find(id).map(DefinitionBundle::root) : document().definition(id);
+        return libraryScope ? library.library().find(id).map(DefinitionBundle::root)
+                : circuit().document().definition(id);
     }
 
     private boolean matchesCircuitBundle(DefinitionBundle bundle) {
-        return document().definition(bundle.root().id()).map(definition ->
-                DefinitionBundle.of(definition, document()::definition).equals(bundle)).orElse(false);
+        CircuitDocument circuitDocument = circuit().document();
+        return circuitDocument.definition(bundle.root().id()).map(definition ->
+                DefinitionBundle.of(definition, circuitDocument::definition).equals(bundle)).orElse(false);
     }
 
     private boolean saveLibrary(DefinitionBundle bundle, boolean circuitApplied, Optional<DefinitionBundle> expected) {
@@ -240,16 +247,18 @@ final class AppearanceFeatures {
     private void clear(ElementId instance) {
         ChangeAppearanceCommand command = ChangeAppearanceCommand.forInstance(document(), view.openDocument().registry(),
                 instance, Optional.empty());
-        if (confirm(command.plan(), true) && !command.isStale(document())) {
+        if (confirm(command.plan(), true, document()) && !command.isStale(document())) {
             view.openDocument().execute(command);
         }
     }
 
-    private boolean confirm(ShapeChangePlan plan, boolean instanceScope) {
+    /** Asks about {@code plan}, prepared on {@code planned} (where its pieces are named from). */
+    private boolean confirm(ShapeChangePlan plan, boolean instanceScope, CircuitDocument planned) {
         if (plan.disconnected().isEmpty() && plan.keptOldShape().isEmpty()) {
             return true;
         }
-        List<ConnectionsQuestion.Entry> disconnected = plan.disconnected().stream().map(this::entry).toList();
+        List<ConnectionsQuestion.Entry> disconnected = plan.disconnected().stream()
+                .map(pin -> entry(pin, planned)).toList();
         List<ConnectionsQuestion.Entry> kept = plan.keptOldShape().stream().map(contact ->
                 new ConnectionsQuestion.Entry(contact.instanceName(), PinNames.display(contact.pinName()), contact.touchedNetName())).toList();
         return prompts.confirmConnections(view, new ConnectionsQuestion(disconnected, kept, unaffectedPieces(plan),
@@ -268,8 +277,8 @@ final class AppearanceFeatures {
         return piece.label().isBlank() ? piece.id().value() : piece.label();
     }
 
-    private ConnectionsQuestion.Entry entry(PinRef pin) {
-        return document().component(pin.componentId()).map(component -> new ConnectionsQuestion.Entry(pieceName(component),
+    private ConnectionsQuestion.Entry entry(PinRef pin, CircuitDocument planned) {
+        return planned.component(pin.componentId()).map(component -> new ConnectionsQuestion.Entry(pieceName(component),
                 PinNames.display(view.openDocument().registry().typeOf(component).pin(pin.pinIndex()).name()), ""))
                 .orElse(new ConnectionsQuestion.Entry(pin.componentId().value(), "", ""));
     }
@@ -288,6 +297,14 @@ final class AppearanceFeatures {
 
     private CircuitDocument document() {
         return view.openDocument().document();
+    }
+
+    /**
+     * The circuit whose definitions change: the document itself, also from a component tab, whose working copy only
+     * edits the body (a definition's shape changed there would never reach the circuit).
+     */
+    private OpenDocument circuit() {
+        return view.openDocument().parent().orElse(view.openDocument());
     }
 
     private JMenuItem item(String key, Runnable action) {
