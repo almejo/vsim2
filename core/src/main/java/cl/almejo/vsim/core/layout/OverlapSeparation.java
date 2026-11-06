@@ -25,9 +25,10 @@ import java.util.function.ToIntFunction;
  * Pure geometry: it knows nothing about components, wires or documents.
  *
  * <p>Two boxes overlap when their interiors share an area (spec §4.1: touching edges is fine, and so is being closer
- * than the gap). Each overlapping pair gets one separation constraint, which does ask for the larger of the two gaps,
- * on the axis that needs the smaller displacement (ties: x, which keeps the left-to-right flow), in the pair's current
- * order (by centre, then by id). Every round solves both axes from the original positions with all the constraints so
+ * than the gap, as drawn); a box the separation moves closer than the gap to one it was not that close to counts too,
+ * so what moves keeps the gap. Each overlapping pair gets one separation constraint, which does ask for the larger of
+ * the two gaps, on the axis that needs the smaller displacement (ties: x, which keeps the left-to-right flow), in the
+ * pair's current order (by centre, then by id). Every round solves both axes from the original positions with all the constraints so
  * far ({@link AxisProjection}), so the result is the least movement that meets them (each box's movement counted by
  * its {@linkplain LayoutBox#weight() weight}: a heavy box lets the light one move) and a pair, once separated, stays
  * separated. Rounds repeat while new overlaps appear, at most {@value #MAXIMUM_ROUNDS}.
@@ -41,6 +42,8 @@ public final class OverlapSeparation {
     private final BooleanSupplier cancelled;
     private final int[] currentX;
     private final int[] currentY;
+    /** The largest gap any box asks for: how far past a box's right edge the sweep still looks. */
+    private final int largestGap;
     private final Set<Long> constrainedPairs = new HashSet<>();
     private final AxisConstraints horizontal;
     private final AxisConstraints vertical;
@@ -56,6 +59,7 @@ public final class OverlapSeparation {
         }
         this.horizontal = new AxisConstraints(boxes.size());
         this.vertical = new AxisConstraints(boxes.size());
+        this.largestGap = boxes.stream().mapToInt(LayoutBox::gap).max().orElse(0);
     }
 
     /**
@@ -123,13 +127,13 @@ public final class OverlapSeparation {
         List<int[]> pairs = new ArrayList<>();
         for (int position = 0; position < byLeftEdge.length; position++) {
             int first = (int) byLeftEdge[position];
-            long rightEdge = (long) currentX[first] + width(first);
+            long rightEdge = (long) currentX[first] + width(first) + largestGap;
             for (int next = position + 1; next < byLeftEdge.length; next++) {
                 int second = (int) byLeftEdge[next];
                 if (currentX[second] >= rightEdge) {
                     break;
                 }
-                if (eitherMoves(first, second) && overlap(first, second)) {
+                if (eitherMoves(first, second) && conflict(first, second)) {
                     pairs.add(new int[]{Math.min(first, second), Math.max(first, second)});
                 }
             }
@@ -232,6 +236,41 @@ public final class OverlapSeparation {
 
     private boolean eitherMoves(int first, int second) {
         return boxes.get(first).movable() || boxes.get(second).movable();
+    }
+
+    /**
+     * The pair needs separating at the current positions: their interiors share an area, or they came closer than
+     * their gap without having been that close at the start. Two boxes that already touched may keep touching (the
+     * circuit as drawn is fine); one pushed next to another keeps the gap.
+     */
+    private boolean conflict(int first, int second) {
+        if (overlap(first, second)) {
+            return true;
+        }
+        long gap = pairGap(first, second);
+        return gap > 0 && !(boxes.get(first).movable() && boxes.get(second).movable())
+                && closerThan(gap, currentX[first], currentY[first], first, currentX[second], currentY[second], second)
+                && !touchedAsDrawn(first, second, gap);
+    }
+
+    /** True when the two boxes were drawn closer than {@code gap} without meeting inside: they may stay so. */
+    private boolean touchedAsDrawn(int first, int second, long gap) {
+        Bounds firstBounds = boxes.get(first).bounds();
+        Bounds secondBounds = boxes.get(second).bounds();
+        boolean meetInside = sharedLength(firstBounds.x(), firstBounds.width(), secondBounds.x(), secondBounds.width()) > 0
+                && sharedLength(firstBounds.y(), firstBounds.height(), secondBounds.y(), secondBounds.height()) > 0;
+        return !meetInside && closerThan(gap, firstBounds.x(), firstBounds.y(), first, secondBounds.x(),
+                secondBounds.y(), second);
+    }
+
+    private static long sharedLength(long firstStart, long firstLength, long secondStart, long secondLength) {
+        return Math.min(firstStart + firstLength, secondStart + secondLength) - Math.max(firstStart, secondStart);
+    }
+
+    /** True when the two boxes, their top-left corners where given, are less than {@code gap} apart on both axes. */
+    private boolean closerThan(long gap, long firstX, long firstY, int first, long secondX, long secondY, int second) {
+        return Math.min(firstX + width(first), secondX + width(second)) - Math.max(firstX, secondX) > -gap
+                && Math.min(firstY + height(first), secondY + height(second)) - Math.max(firstY, secondY) > -gap;
     }
 
     /** The interiors share an area at the current positions; touching edges or corners do not count. */

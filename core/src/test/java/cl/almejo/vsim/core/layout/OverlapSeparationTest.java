@@ -66,6 +66,28 @@ class OverlapSeparationTest {
     }
 
     @Test
+    void aPushedBoxKeepsTheGapToANeighbourItDidNotTouchBefore() {
+        LayoutBox first = gate("a", 0, 0);
+        LayoutBox second = gate("b", 2, 0);
+        LayoutBox neighbour = new LayoutBox(id("c"), new Bounds(8, 0, GATE_SIZE, GATE_SIZE), false, BODY_GAP);
+
+        Separation separation = OverlapSeparation.separate(List.of(first, second, neighbour), NEVER_CANCELLED);
+
+        assertThat(overlapsWithGap(after(second, separation), neighbour.bounds(), BODY_GAP)).isFalse();
+        assertThat(overlapsWithGap(after(first, separation), after(second, separation), BODY_GAP)).isFalse();
+    }
+
+    @Test
+    void boxesThatAlreadyTouchedMayStillTouch() {
+        LayoutBox first = gate("a", 0, 0);
+        LayoutBox second = gate("b", 4, 0);
+
+        Separation separation = OverlapSeparation.separate(List.of(first, second), NEVER_CANCELLED);
+
+        assertThat(separation.deltas()).isEmpty();
+    }
+
+    @Test
     void boxesThatOverlapNothingDoNotMove() {
         LayoutBox first = gate("a", 0, 0);
         LayoutBox second = gate("b", 2, 0);

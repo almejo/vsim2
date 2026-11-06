@@ -202,7 +202,9 @@ final class LayoutItems {
 
     /**
      * True when {@code item} at {@code candidate} keeps clear of every other item where {@code placed} says it is
-     * (items missing from it are where they started), of its {@link #obstacles}, and stays in the same frames.
+     * (items missing from it are where they started) and of its {@link #obstacles}, and stays in the same frames, by
+     * the separation's own rule ({@link OverlapSeparation}): no shared area, and no coming closer than the gap,
+     * unless the two were drawn that close.
      */
     boolean isFree(Item item, Bounds candidate, Map<ElementId, Bounds> placed) {
         for (Item other : items) {
@@ -210,12 +212,14 @@ final class LayoutItems {
                 continue;
             }
             Bounds otherBounds = placed.getOrDefault(other.id(), other.bounds());
-            if (overlaps(candidate, otherBounds, Math.max(item.gap(), other.gap()))) {
+            int gap = Math.max(item.gap(), other.gap());
+            if (newlyTooClose(item.bounds(), candidate, other.bounds(), otherBounds, gap)) {
                 return false;
             }
         }
         for (LayoutBox obstacle : obstacles(item)) {
-            if (overlaps(candidate, obstacle.bounds(), Math.max(item.gap(), obstacle.gap()))) {
+            int gap = Math.max(item.gap(), obstacle.gap());
+            if (newlyTooClose(item.bounds(), candidate, obstacle.bounds(), obstacle.bounds(), gap)) {
                 return false;
             }
         }
@@ -223,16 +227,39 @@ final class LayoutItems {
     }
 
     /**
-     * True when {@code item} at {@code candidate} comes closer than the gap to no other item, each where {@code now}
-     * says it is (items missing from it are where they started), that it was not already that close to from where it
-     * is now: a move never makes a new overlap with a neighbour that may still have to stay.
+     * True when a box moved from {@code from} to {@code to} meets the inside of the other box (from {@code otherFrom}
+     * to {@code otherTo}; a line through it counts), or is closer than {@code gap} to it without having been drawn
+     * that close ({@link #touchedAsDrawn}).
+     */
+    private static boolean newlyTooClose(Bounds from, Bounds to, Bounds otherFrom, Bounds otherTo, int gap) {
+        return interiorsMeet(to, otherTo) || overlaps(to, otherTo, gap) && !touchedAsDrawn(from, otherFrom, gap);
+    }
+
+    /**
+     * True when the two boxes are closer than the gap without meeting inside: drawn touching (or nearly), which is
+     * fine and may stay. Two that overlapped are separated by the whole gap.
+     */
+    private static boolean touchedAsDrawn(Bounds first, Bounds second, int gap) {
+        return overlaps(first, second, gap) && !interiorsMeet(first, second);
+    }
+
+    /**
+     * True when {@code item} at {@code candidate} makes no new overlap with any other item, each where {@code now}
+     * says it is (items missing from it are where they started): it meets the inside of none it did not already meet
+     * from where it is now, nor comes closer than the gap to one it was not that close to. A move never makes a new
+     * overlap with a neighbour that may still have to stay.
      */
     boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());
         for (Item other : items) {
+            if (other.id().equals(item.id())) {
+                continue;
+            }
             Bounds otherNow = now.getOrDefault(other.id(), other.bounds());
             int gap = Math.max(item.gap(), other.gap());
-            if (!other.id().equals(item.id()) && overlaps(candidate, otherNow, gap) && !overlaps(from, otherNow, gap)) {
+            boolean newlyMeets = interiorsMeet(candidate, otherNow) && !interiorsMeet(from, otherNow);
+            boolean newlyClose = gap > 0 && overlaps(candidate, otherNow, gap) && !overlaps(from, otherNow, gap);
+            if (newlyMeets || newlyClose) {
                 return false;
             }
         }
