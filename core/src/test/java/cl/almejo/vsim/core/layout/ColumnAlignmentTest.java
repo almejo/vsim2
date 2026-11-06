@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static cl.almejo.vsim.core.DocumentFixtures.frame;
@@ -59,6 +62,37 @@ class ColumnAlignmentTest {
         assertThat(positionOf(plan, middle)).isEqualTo(middle.position());
         assertThat(positionOf(plan, bottom)).isEqualTo(bottom.position());
         assertThat(plan.partsAligned()).isEqualTo(1);
+    }
+
+    /** Free texts 6 x 2 from their position; parts have no label boxes. */
+    private static final TextBoxes NOTES = new TextBoxes() {
+        @Override
+        public Optional<Bounds> componentLabel(Component component) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Bounds freeText(TextLabel label) {
+            return new Bounds(label.position().x(), label.position().y(), 6, 2);
+        }
+    };
+
+    /** The final review's I2: the texts pass belongs to «Separar lo que se tapa», even when aligning moved a part. */
+    @Test
+    void withSeparatingOffAlignmentLeavesCoveredTextsAlone() {
+        CircuitDocument document = new CircuitDocument();
+        Component top = gate(registry, document, 0, 0);
+        gate(registry, document, 1, 8);
+        gate(registry, document, 1, 16);
+        TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(2, 17), "nota");
+        document.add(note);
+
+        CircuitTidyPlan plan = CircuitTidy.plan(document, registry, everything(document), ALIGN_ONLY, NOTES,
+                () -> false, CircuitTidyProgress.NONE).orElseThrow();
+
+        assertThat(positionOf(plan, top)).isEqualTo(new GridPoint(1, 0));
+        assertThat(plan.after().label(note.id()).orElseThrow()).isEqualTo(note);
+        assertThat(plan.textsMoved()).isZero();
     }
 
     @Test

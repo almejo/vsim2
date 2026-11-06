@@ -38,9 +38,10 @@ import java.util.function.Supplier;
  * left the item stays and is counted in {@link CircuitTidyPlan#notSeparated()}.
  *
  * <p>Parts are separated first, in up to {@value #MAXIMUM_PART_ROUNDS} rounds, each reading the boxes (and the wires
- * through bodies) again from the copy as the moves left it; then the blocks of texts that still cover a body move off
- * it, again after aligning and straightening when they moved parts. Texts never push parts, and texts over texts are
- * left alone.
+ * through bodies) again from the copy as the moves left it. With separating on, once every stage that moves parts
+ * (separating, aligning, straightening) is done, the blocks of texts that still cover a body move off it; aligning and
+ * straightening never cover a text themselves ({@link Placement#tryTidyingMove}), so with separating off no text
+ * moves. Texts never push parts, and texts over texts are left alone.
  */
 public final class CircuitTidy {
 
@@ -204,8 +205,6 @@ public final class CircuitTidy {
         private Set<ElementId> notSeparated = Set.of();
         private int partsAligned;
         private int pairsStraightened;
-        /** True once aligning or straightening moved a part: the texts are moved off bodies again after them. */
-        private boolean laterStagesMoved;
 
         Stages(CircuitDocument copy, ComponentTypeRegistry registry, Set<ElementId> scope, TextBoxes texts,
                BooleanSupplier cancelled, CircuitTidyProgress progress, Separator separator) {
@@ -219,9 +218,9 @@ public final class CircuitTidy {
         }
 
         /**
-         * Runs the stages {@code options} turns on. The texts are moved off bodies after every stage that moves
-         * parts, so a text the aligning or straightening covered is freed too; what still overlaps is counted only
-         * when separating is on.
+         * Runs the stages {@code options} turns on. Moving texts off bodies belongs to separating: aligning and
+         * straightening refuse any place that covers a new text, so without separating a text that covers a body
+         * covered it before the run, and the user chose to leave it.
          */
         void run(CircuitTidyOptions options) {
             if (!options.separateOverlaps() && !options.alignColumns() && !options.straighten()) {
@@ -237,10 +236,8 @@ public final class CircuitTidy {
             if (options.straighten()) {
                 straighten();
             }
-            if (options.separateOverlaps() || laterStagesMoved) {
-                placeTexts();
-            }
             if (options.separateOverlaps()) {
+                placeTexts();
                 notSeparated = whatStillOverlaps(items());
             }
         }
@@ -288,10 +285,9 @@ public final class CircuitTidy {
             return moved;
         }
 
-        /** After aligning or straightening moved parts: the copy must be read again and texts may now be covered. */
+        /** After aligning or straightening moved parts: the copy must be read again. */
         private void partsChanged() {
             reading = null;
-            laterStagesMoved = true;
         }
 
         private void placeTexts() {
