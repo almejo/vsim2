@@ -22,9 +22,9 @@ import java.util.function.ToIntFunction;
  * Moves overlapping boxes apart by the least it can, keeping each pair's order (spec «Ordenar circuito» §4.3).
  * Pure geometry: it knows nothing about components, wires or documents.
  *
- * <p>Two boxes overlap when they are closer than the larger of their gaps on both axes (with a gap of 0, touching
- * edges is fine; with a gap of 1, touching boxes still count). Each overlapping pair gets one separation constraint on
- * the axis that needs the smaller displacement (ties: x, which keeps the left-to-right flow), in the pair's current
+ * <p>Two boxes overlap when their interiors share an area (spec §4.1: touching edges is fine, and so is being closer
+ * than the gap). Each overlapping pair gets one separation constraint, which does ask for the larger of the two gaps,
+ * on the axis that needs the smaller displacement (ties: x, which keeps the left-to-right flow), in the pair's current
  * order (by centre, then by id). Every round solves both axes from the original positions with all the constraints so
  * far ({@link AxisProjection}), so the result is the least movement that meets them and a pair, once separated, stays
  * separated. Rounds repeat while new overlaps appear, at most {@value #MAXIMUM_ROUNDS}.
@@ -202,13 +202,12 @@ public final class OverlapSeparation {
         return boxes.get(first).movable() || boxes.get(second).movable();
     }
 
-    /** Closer than the pair's gap on both axes, at the current positions. */
+    /** The interiors share an area at the current positions; touching edges or corners do not count. */
     private boolean overlap(int first, int second) {
-        long gap = pairGap(first, second);
-        return currentX[first] < currentX[second] + width(second) + gap
-                && currentX[second] < currentX[first] + width(first) + gap
-                && currentY[first] < currentY[second] + height(second) + gap
-                && currentY[second] < currentY[first] + height(first) + gap;
+        return currentX[first] < currentX[second] + width(second)
+                && currentX[second] < currentX[first] + width(first)
+                && currentY[first] < currentY[second] + height(second)
+                && currentY[second] < currentY[first] + height(first);
     }
 
     private long pairGap(int first, int second) {

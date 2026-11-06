@@ -21,6 +21,7 @@ class OverlapSeparationTest {
     private static final int GATE_SIZE = 4;
     private static final int BODY_GAP = 1;
     private static final int TEXT_GAP = 0;
+    private static final int NO_GAP = 0;
     private static final BooleanSupplier NEVER_CANCELLED = () -> false;
 
     @Test
@@ -118,13 +119,13 @@ class OverlapSeparationTest {
 
             for (LayoutBox first : boxes) {
                 for (LayoutBox second : boxes) {
-                    if (first == second || !overlapsWithGap(first.bounds(), second.bounds(), BODY_GAP)) {
+                    if (first == second || !overlaps(first.bounds(), second.bounds())) {
                         continue;
                     }
                     Bounds firstAfter = after(first, separation);
                     Bounds secondAfter = after(second, separation);
-                    boolean separatedOnXOnly = !overlapsOnX(firstAfter, secondAfter, BODY_GAP)
-                            && overlapsOnY(firstAfter, secondAfter, BODY_GAP);
+                    boolean separatedOnXOnly = !overlapsOnX(firstAfter, secondAfter, NO_GAP)
+                            && overlapsOnY(firstAfter, secondAfter, NO_GAP);
                     if (separatedOnXOnly && centreTimesTwoX(first.bounds()) < centreTimesTwoX(second.bounds())) {
                         assertThat(firstAfter.x()).as("trial %d, %s left of %s", trial, first.id(), second.id())
                                 .isLessThan(secondAfter.x());
@@ -144,12 +145,53 @@ class OverlapSeparationTest {
 
             for (LayoutBox box : boxes) {
                 boolean overlapsSomething = boxes.stream().anyMatch(other -> other != box
-                        && overlapsWithGap(after(box, separation), after(other, separation), BODY_GAP));
+                        && overlaps(after(box, separation), after(other, separation)));
                 assertThat(separation.stillOverlapping().contains(box.id())).as("trial %d, %s", trial, box.id())
                         .isEqualTo(overlapsSomething);
             }
             assertThat(separation.stillOverlapping()).as("trial %d", trial).isEmpty();
+            for (LayoutBox first : boxes) {
+                for (LayoutBox second : boxes) {
+                    if (first != second && overlaps(first.bounds(), second.bounds())) {
+                        assertThat(overlapsWithGap(after(first, separation), after(second, separation), BODY_GAP))
+                                .as("trial %d: %s and %s end at least the gap apart", trial, first.id(), second.id())
+                                .isFalse();
+                    }
+                }
+            }
         }
+    }
+
+    @Test
+    void touchingBodiesDoNotMove() {
+        Separation separation = OverlapSeparation.separate(
+                List.of(gate("a", 0, 0), gate("b", 4, 0), gate("c", 0, 4), gate("d", 4, 4)), NEVER_CANCELLED);
+
+        assertThat(separation.deltas()).isEmpty();
+        assertThat(separation.stillOverlapping()).isEmpty();
+    }
+
+    @Test
+    void closeButNotOverlappingBodiesDoNotMove() {
+        LayoutBox wideGap = new LayoutBox(id("c"), new Bounds(5, 0, GATE_SIZE, GATE_SIZE), true, 3);
+
+        Separation separation = OverlapSeparation.separate(List.of(gate("a", 0, 0), wideGap), NEVER_CANCELLED);
+
+        assertThat(separation.deltas()).isEmpty();
+        assertThat(separation.stillOverlapping()).isEmpty();
+    }
+
+    @Test
+    void aPushedBoxMayEndTouchingANeighbourItDidNotOverlap() {
+        LayoutBox first = gate("a", 0, 0);
+        LayoutBox second = gate("b", 2, 0);
+        LayoutBox neighbour = gate("c", 8, 0);
+
+        Separation separation = OverlapSeparation.separate(List.of(first, second, neighbour), NEVER_CANCELLED);
+
+        assertThat(after(second, separation).x() - after(first, separation).maximumX()).isEqualTo(BODY_GAP);
+        assertThat(separation.deltas()).doesNotContainKey(id("c"));
+        assertThat(separation.stillOverlapping()).isEmpty();
     }
 
     @Test
@@ -215,6 +257,10 @@ class OverlapSeparationTest {
     private static int totalMovement(Separation separation) {
         return separation.deltas().values().stream()
                 .mapToInt(delta -> Math.abs(delta.x()) + Math.abs(delta.y())).sum();
+    }
+
+    private static boolean overlaps(Bounds first, Bounds second) {
+        return overlapsWithGap(first, second, NO_GAP);
     }
 
     private static boolean overlapsWithGap(Bounds first, Bounds second, int gap) {
