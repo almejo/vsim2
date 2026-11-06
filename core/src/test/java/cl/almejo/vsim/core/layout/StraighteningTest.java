@@ -250,20 +250,30 @@ class StraighteningTest {
         assertThat(plan.pairsStraightened()).isZero();
     }
 
+    /**
+     * With aligning and straightening off only phase 1 runs: on a circuit where straightening would move a gate, that
+     * gate and its jogged wire stay exactly as they were, while the overlap elsewhere is still separated.
+     */
     @Test
-    void bothOffEqualsPhaseOne() {
-        CircuitDocument document = oneJog();
-        gate(registry, document, 1, 1);
-        CircuitTidyOptions phaseOne = new CircuitTidyOptions(true, false, false, TidyOptions.DEFAULTS);
+    void withBothOffOnlyPhaseOneRuns() {
+        CircuitDocument document = new CircuitDocument();
+        Component driver = gate(registry, document, 0, 0);
+        Component jogged = gate(registry, document, 10, 2);
+        jog(document, 4, 2, 7, 10, 4);
+        gate(registry, document, 40, 0);
+        gate(registry, document, 41, 1);
+        CircuitTidyOptions phaseOne = new CircuitTidyOptions(true, TidyOptions.DEFAULTS);
 
         CircuitTidyPlan plan = CircuitTidy.plan(document, registry, everything(document), phaseOne, TextBoxes.NONE,
                 () -> false, CircuitTidyProgress.NONE).orElseThrow();
-        CircuitTidyPlan defaults = CircuitTidy.plan(document, registry, everything(document),
-                CircuitTidyOptions.DEFAULTS, TextBoxes.NONE, () -> false, CircuitTidyProgress.NONE).orElseThrow();
 
-        assertThat(snapshot(plan.after())).isEqualTo(snapshot(defaults.after()));
+        assertThat(positionOf(plan, driver)).isEqualTo(driver.position());
+        assertThat(positionOf(plan, jogged)).isEqualTo(jogged.position());
+        assertThat(plan.after().wires()).containsExactlyInAnyOrderElementsOf(document.wires());
+        assertThat(anyBodiesTooClose(plan.after())).isFalse();
+        assertThat(plan.partsMoved()).isPositive();
         assertThat(plan.partsAligned()).isZero();
         assertThat(plan.pairsStraightened()).isZero();
-        assertThat(plan.partsMoved()).isPositive();
+        assertThat(straighten(document).pairsStraightened()).isEqualTo(1);
     }
 }

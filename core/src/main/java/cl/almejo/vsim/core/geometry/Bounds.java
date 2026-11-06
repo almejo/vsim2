@@ -45,6 +45,19 @@ public record Bounds(int x, int y, int width, int height) {
         return other.x <= maximumX() && other.maximumX() >= x && other.y <= maximumY() && other.maximumY() >= y;
     }
 
+    /**
+     * True when the two x ranges share more than an edge: one rectangle is above or below the other in a column (or
+     * they overlap). Strict, unlike {@link #intersects}: rectangles side by side that only touch do not count.
+     */
+    public boolean overlapsOnX(Bounds other) {
+        return x < other.maximumX() && other.x < maximumX();
+    }
+
+    /** True when the two y ranges share more than an edge: the rectangles sit side by side in a row (or overlap). */
+    public boolean overlapsOnY(Bounds other) {
+        return y < other.maximumY() && other.y < maximumY();
+    }
+
     public Bounds union(Bounds other) {
         int minimumX = Math.min(x, other.x);
         int minimumY = Math.min(y, other.y);

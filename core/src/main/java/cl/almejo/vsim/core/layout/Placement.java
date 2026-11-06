@@ -68,7 +68,10 @@ final class Placement {
      * remembered as the item's place.
      */
     boolean tryMove(LayoutItems.Item item, GridPoint shift) {
-        return tryMove(item, shift, () -> true);
+        if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
+            return false;
+        }
+        return moveIfStillWanted(item, shift, () -> true);
     }
 
     /**
@@ -83,7 +86,7 @@ final class Placement {
             return false;
         }
         int cornersBefore = WireCorners.count(copy);
-        return tryMove(item, shift, () -> WireCorners.count(copy) <= cornersBefore);
+        return moveIfStillWanted(item, shift, () -> WireCorners.count(copy) <= cornersBefore);
     }
 
     /** True when {@code item} at {@code candidate} covers no block of texts it does not cover where it is now. */
@@ -102,10 +105,11 @@ final class Placement {
         return true;
     }
 
-    private boolean tryMove(LayoutItems.Item item, GridPoint shift, BooleanSupplier stillWanted) {
-        if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
-            return false;
-        }
+    /**
+     * Applies a move whose place the caller already found clear, and undoes it unless it keeps the meaning and
+     * {@code stillWanted} (asked on the moved copy) agrees.
+     */
+    private boolean moveIfStillWanted(LayoutItems.Item item, GridPoint shift, BooleanSupplier stillWanted) {
         MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry,
                 new LinkedHashSet<>(item.members()), shift.x(), shift.y());
         move.apply(copy);
@@ -147,8 +151,8 @@ final class Placement {
                 continue;
             }
             Bounds otherNow = current(other);
-            boolean sameColumn = from.x() < otherNow.maximumX() && otherNow.x() < from.maximumX();
-            boolean sameRow = from.y() < otherNow.maximumY() && otherNow.y() < from.maximumY();
+            boolean sameColumn = from.overlapsOnX(otherNow);
+            boolean sameRow = from.overlapsOnY(otherNow);
             if (sameColumn && !keepsSide(from.y(), from.maximumY(), candidate.y(), candidate.maximumY(),
                     otherNow.y(), otherNow.maximumY())) {
                 return false;

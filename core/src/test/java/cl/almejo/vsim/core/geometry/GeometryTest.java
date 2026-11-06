@@ -87,4 +87,17 @@ class GeometryTest {
         assertThat(bounds.intersects(new Bounds(3, 0, 1, 1))).isFalse();
         assertThat(bounds.intersects(new Bounds(0, -2, 2, 1))).isFalse();
     }
+
+    /** Strict: two bodies that only touch along an edge share no column (or row). */
+    @Test
+    void overlappingOnOneAxisNeedsSharedInteriorAlongIt() {
+        Bounds bounds = new Bounds(0, 0, 4, 4);
+
+        assertThat(bounds.overlapsOnX(new Bounds(3, 20, 4, 4))).isTrue();
+        assertThat(bounds.overlapsOnX(new Bounds(4, 0, 4, 4))).isFalse();
+        assertThat(bounds.overlapsOnX(new Bounds(-4, 0, 4, 4))).isFalse();
+        assertThat(bounds.overlapsOnY(new Bounds(20, 3, 4, 4))).isTrue();
+        assertThat(bounds.overlapsOnY(new Bounds(0, 4, 4, 4))).isFalse();
+        assertThat(bounds.overlapsOnY(new Bounds(0, -4, 4, 4))).isFalse();
+    }
 }

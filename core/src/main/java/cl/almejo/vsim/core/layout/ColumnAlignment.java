@@ -114,9 +114,8 @@ final class ColumnAlignment {
 
     /** True when the two bodies are one above the other with left edges close enough for a column. */
     private static boolean stacked(Bounds first, Bounds second) {
-        return Math.abs(first.x() - second.x()) <= COLUMN_TOLERANCE && rangesOverlap(first.x(), first.maximumX(),
-                second.x(), second.maximumX()) && !rangesOverlap(first.y(), first.maximumY(), second.y(),
-                second.maximumY());
+        return Math.abs(first.x() - second.x()) <= COLUMN_TOLERANCE && first.overlapsOnX(second)
+                && !first.overlapsOnY(second);
     }
 
     /** True when two members of {@code group} sit side by side: their y ranges overlap. */
@@ -125,16 +124,12 @@ final class ColumnAlignment {
             Bounds one = bodiesOf(group.get(first));
             for (int second = first + 1; second < group.size(); second++) {
                 Bounds other = bodiesOf(group.get(second));
-                if (rangesOverlap(one.y(), one.maximumY(), other.y(), other.maximumY())) {
+                if (one.overlapsOnY(other)) {
                     return true;
                 }
             }
         }
         return false;
-    }
-
-    private static boolean rangesOverlap(int start, int end, int otherStart, int otherEnd) {
-        return start < otherEnd && otherStart < end;
     }
 
     /** The box around the item's bodies, without its labels: what the user lines up by eye. */
