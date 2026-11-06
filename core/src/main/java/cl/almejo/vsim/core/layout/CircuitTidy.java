@@ -64,6 +64,18 @@ public final class CircuitTidy {
         return plan(document, registry, scope, options, texts, cancelled, progress, OverlapSeparation::separate);
     }
 
+    /**
+     * Like {@link #plan(CircuitDocument, ComponentTypeRegistry, Set, CircuitTidyOptions, TextBoxes, BooleanSupplier,
+     * IntConsumer)}, reporting every stage (separation rounds, moves applied, wire rounds) to {@code progress}.
+     */
+    public static Optional<CircuitTidyPlan> plan(CircuitDocument document, ComponentTypeRegistry registry,
+                                                 Set<ElementId> scope, CircuitTidyOptions options, TextBoxes texts,
+                                                 BooleanSupplier cancelled, CircuitTidyProgress progress) {
+        // only the wire rounds are reported for now; the separating and moving stages come with the core improvements
+        return plan(document, registry, scope, options, texts, cancelled,
+                round -> progress.reached(CircuitTidyProgress.Stage.WIRES, round, 0));
+    }
+
     /** How boxes are moved apart: {@link OverlapSeparation#separate} outside tests. */
     @FunctionalInterface
     interface Separator {
