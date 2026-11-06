@@ -40,6 +40,41 @@ class KeyBindingsTest {
     }
 
     @Test
+    void aShortcutSavedForTheRetiredCloseIdMovesToCloseWindow() {
+        preferences.shortcutsNode().put("file.close", "ctrl pressed K");
+
+        KeyBindings restarted = new KeyBindings(preferences);
+
+        assertThat(restarted.strokeFor("window.closeWindow")).contains(control(KeyEvent.VK_K));
+        assertThat(stored("file.close")).isNull();
+        assertThat(restarted.strokeFor("window.closeTab")).contains(control(KeyEvent.VK_W));
+    }
+
+    @Test
+    void aClearedRetiredCloseStaysClearedOnCloseWindow() {
+        preferences.shortcutsNode().put("file.close", "");
+
+        assertThat(new KeyBindings(preferences).strokeFor("window.closeWindow")).isEmpty();
+        assertThat(stored("file.close")).isNull();
+    }
+
+    @Test
+    void aRetiredShortcutThatCollidesOrWasAlreadyReplacedIsDroppedAndNeverTakesAnotherActionsKey() {
+        preferences.shortcutsNode().put("file.close", "ctrl pressed S"); // Guardar's
+        new KeyBindings(preferences);
+        assertThat(stored("file.close")).isNull();
+        assertThat(new KeyBindings(preferences).strokeFor("file.save")).contains(control(KeyEvent.VK_S));
+        assertThat(new KeyBindings(preferences).strokeFor("window.closeWindow"))
+                .contains(KeyStroke.getKeyStroke(KeyEvent.VK_W, CONTROL | InputEvent.SHIFT_DOWN_MASK));
+
+        preferences.shortcutsNode().put("window.closeWindow", "ctrl pressed J");
+        preferences.shortcutsNode().put("file.close", "ctrl pressed K");
+        KeyBindings alreadyCustom = new KeyBindings(preferences);
+        assertThat(alreadyCustom.strokeFor("window.closeWindow")).contains(control(KeyEvent.VK_J));
+        assertThat(stored("file.close")).isNull();
+    }
+
+    @Test
     void anAssignedStrokeIsStoredInKeyStrokeFormNotifiesOnceAndSurvivesARestart() {
         preferences.addListener(changes::incrementAndGet);
         bindings.assign("file.save", control(KeyEvent.VK_G));

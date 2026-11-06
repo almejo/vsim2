@@ -8,6 +8,7 @@ import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -33,6 +34,44 @@ public final class KeyBindings {
 
     public KeyBindings(AppPreferences preferences) {
         this.preferences = Objects.requireNonNull(preferences, "preferences");
+        migrateRetiredIds();
+    }
+
+    /** The ids the catalog dropped, with the one that does their action now. */
+    private static final Map<String, String> RETIRED = Map.of("file.close", "window.closeWindow");
+
+    /**
+     * A shortcut saved for an id the catalog no longer has («Cerrar ventana» was {@code file.close}; it is
+     * {@code window.closeWindow} now, and Ctrl+W closes the tab) moves to its successor, so a customization is not
+     * lost silently. It is dropped, with a warning in the log, when the successor already has a shortcut of its own or
+     * the stroke is no longer valid or belongs to another action; a cleared one stays cleared.
+     */
+    private void migrateRetiredIds() {
+        Preferences node = preferences.shortcutsNode();
+        for (Map.Entry<String, String> retired : RETIRED.entrySet()) {
+            String stored = node.get(retired.getKey(), null);
+            if (stored == null) {
+                continue;
+            }
+            node.remove(retired.getKey());
+            ShortcutEntry successor = require(retired.getValue());
+            if (node.get(successor.id(), null) != null) {
+                LOGGER.warn("Dropping the old shortcut {} = \"{}\": {} has its own", retired.getKey(), stored,
+                        successor.id());
+                continue;
+            }
+            if (stored.isEmpty()) {
+                node.put(successor.id(), "");
+                continue;
+            }
+            KeyStroke parsed = parse(stored);
+            if (parsed == null || !isAllowedFor(successor, parsed) || conflictFor(parsed, successor.id()).isPresent()) {
+                LOGGER.warn("Dropping the old shortcut {} = \"{}\": it is not valid for {} or another action uses it",
+                        retired.getKey(), stored, successor.id());
+                continue;
+            }
+            store(successor, Optional.of(parsed));
+        }
     }
 
     /** The current stroke of {@code id}; empty for no shortcut or an id the catalog does not have. */

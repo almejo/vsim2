@@ -36,6 +36,7 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 ### Arreglado
 
+- Un atajo personalizado que guardaste para «Cerrar ventana» cuando era Ctrl+W (el id antiguo `file.close`) ya no se pierde sin aviso: pasa a «Cerrar ventana» de ahora (Ctrl+Mayús+W por defecto); si ya habías puesto otro o la tecla es de otra acción, se descarta y queda anotado en el registro.
 - Las pestañas que no estás viendo ya no refrescan su lienzo sesenta veces por segundo (con varios componentes abiertos en un circuito grande restaban velocidad); al volver a una se pone al día de inmediato.
 - Continuar donde quedaste: si una pestaña guardada no se podía leer, la pestaña activa ya no cambia por la que quedó en su lugar.
 - La IA por dentro de un componente: un `place` con un camino que no es de ningún uso del componente (se borró la pieza, o un error de tipeo) ya no cae en otra pieza sin avisar: vuelve como error con la explicación y `vsim_list_places` para ver los usos. Y una `@` (o un `%`) en el id del componente o en el camino ya no rompe la codificación del lugar.
