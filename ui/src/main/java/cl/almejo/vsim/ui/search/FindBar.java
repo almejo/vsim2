@@ -21,6 +21,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Insets;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -45,11 +46,14 @@ public final class FindBar extends JPanel {
             "find.matchCase");
     private final JToggleButton regexToggle = iconButton(new JToggleButton(), FindIcons.REGEX, "find.regex");
     private final JToggleButton animateToggle = iconButton(new JToggleButton(), FindIcons.ANIMATE, "find.animate");
+    /** «Ir a:» and one button per open tab or component the text names (spec §8.3); hidden when there is none. */
+    private final JPanel goToRow = new JPanel(new MigLayout("insets 0, gap 4, novisualpadding", "", "[center]"));
+    private final List<JButton> goToButtons = new ArrayList<>();
     private final JButton closeButton = iconButton(new JButton(), FindIcons.CLOSE, "find.close");
 
     FindBar() {
         super(new MigLayout("insets 3 6 3 6, gap 2, novisualpadding, hidemode 3",
-                "[]6[shrinkprio 50]4[][]8[][][]8[grow, fill]8[]", "[center]")); // the field gives way first
+                "[]6[shrinkprio 50]4[][]8[][][]8[grow, fill]8[]", "[center][center]")); // the field gives way first
         setBorder(new BottomLine());
         counter.setBorder(new EmptyBorder(1, 4, 1, 4)); // room for the badge around the text
         message.setBorder(new EmptyBorder(1, 4, 1, 4));
@@ -62,6 +66,9 @@ public final class FindBar extends JPanel {
         add(animateToggle);
         add(message, "wmin 0");
         add(closeButton);
+        goToRow.add(new JLabel(Messages.text("find.goTo")));
+        goToRow.setVisible(false);
+        add(goToRow, "newline, span, growx");
     }
 
     public SearchField field() {
@@ -86,6 +93,38 @@ public final class FindBar extends JPanel {
 
     JToggleButton animateToggle() {
         return animateToggle;
+    }
+
+    JPanel goToRow() {
+        return goToRow;
+    }
+
+    List<JButton> goToButtons() {
+        return List.copyOf(goToButtons);
+    }
+
+    /** Shows one button per entry after «Ir a:», or hides the row when there are none. */
+    void showGoTo(List<GoToEntries.Entry> entries, Runnable afterChoosing) {
+        goToButtons.forEach(goToRow::remove);
+        goToButtons.clear();
+        for (GoToEntries.Entry entry : entries) {
+            JButton button = new JButton(entry.text());
+            button.putClientProperty("JButton.buttonType", "toolBarButton");
+            button.setFocusable(false); // the field keeps the focus, and its keys
+            button.setToolTipText(Messages.text("find.goTo.tooltip"));
+            button.addActionListener(action -> {
+                entry.choose().run();
+                afterChoosing.run();
+            });
+            goToButtons.add(button);
+            goToRow.add(button);
+        }
+        boolean visible = !entries.isEmpty();
+        if (goToRow.isVisible() != visible || visible) {
+            goToRow.setVisible(visible);
+            goToRow.revalidate();
+            goToRow.repaint();
+        }
     }
 
     JButton closeButton() {

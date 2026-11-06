@@ -50,6 +50,10 @@ import java.util.function.Supplier;
  * order) becomes current, without moving the view under the user's edits. Ctrl+F while the focus is inside a
  * component that has a filter of its own ({@link #FILTER_FOCUS_PROPERTY}, the component tree) focuses that filter.
  *
+ * <p>«Ir a…» (spec §8.3): under the field the bar also offers the window's open tabs and the circuit's components
+ * whose name the text matches ({@link GoToEntries}); a click, or Ctrl+Enter (Enter when the circuit has no match)
+ * on the first one, goes there and closes the bar.
+ *
  * <p>Searching runs on the EDT: the core caps texts and gives each search of a regular expression one step budget for
  * all its texts, so even a pathological one costs a bounded few tens of milliseconds per keystroke (then the bar says
  * it is too costly and highlights nothing), and the bundled examples search in well under a millisecond.
@@ -91,6 +95,8 @@ public final class FindFeatures {
     private final Runnable removeOverlays;
     private Runnable removeBar;
     private List<SearchHit> hits = List.of();
+    /** «Ir a…»: the open tabs and components the text names (spec §8.3). */
+    private List<GoToEntries.Entry> goToEntries = List.of();
     private int currentIndex = -1;
     /** The current match when the bar closed: reopening goes on from it (like a browser's find bar). */
     private Optional<HitKey> matchWhenClosed = Optional.empty();
@@ -205,12 +211,22 @@ public final class FindFeatures {
             focuser.accept(bar.field());
         }
         if (hits.isEmpty()) {
+            chooseFirstGoTo(); // nothing on the canvas: Enter goes to what «Ir a…» offers
             return;
         }
         currentIndex = currentIndex < 0 ? (direction > 0 ? 0 : hits.size() - 1)
                 : Math.floorMod(currentIndex + direction, hits.size());
         showResults();
         goToCurrent();
+    }
+
+    /** Ctrl+Enter, and Enter when the circuit has no match: the first tab or component of «Ir a…». */
+    private void chooseFirstGoTo() {
+        if (!goToEntries.isEmpty()) {
+            GoToEntries.Entry first = goToEntries.getFirst();
+            first.choose().run();
+            closeBar();
+        }
     }
 
     private void openBar(Reason reason) {
@@ -238,6 +254,8 @@ public final class FindFeatures {
         openDocument.removeChangeListener(documentListener);
         matchWhenClosed = current().map(HitKey::of);
         hits = List.of();
+        goToEntries = List.of();
+        bar.showGoTo(goToEntries, () -> { });
         currentIndex = -1;
         overlay.clear();
     }
@@ -262,6 +280,8 @@ public final class FindFeatures {
         Optional<SearchProblem> problem = query.problem(); // after the search: a regex may give up while searching
         int previousIndex = currentIndex;
         hits = found;
+        goToEntries = GoToEntries.of(openDocument, view.windowCommands(), query);
+        bar.showGoTo(goToEntries, this::closeBar);
         int index = -1;
         if (previousKey.isPresent()) {
             for (int candidate = 0; candidate < hits.size(); candidate++) {
@@ -342,6 +362,8 @@ public final class FindFeatures {
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "find.next", this::next);
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK),
                 "find.previous", this::previous);
+        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK),
+                "find.goTo", this::chooseFirstGoTo);
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "find.previous", this::previous);
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "find.close", this::close);
         bar.nextButton().addActionListener(event -> next());

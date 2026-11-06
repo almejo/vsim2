@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
 
+import java.util.List;
 import java.util.Optional;
 
 /** File and window operations the editor delegates to its window/application. */
@@ -116,6 +117,14 @@ public interface WindowCommands {
     default boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
                              ElementId part) {
         return false;
+    }
+
+    /**
+     * The open tabs of this window by their titles, each with what brings it to the front («Ir a…» of the find bar,
+     * spec §8.3). Empty outside a real window.
+     */
+    default List<WindowMenu.Entry> tabEntries() {
+        return List.of();
     }
 
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
