@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.CircuitFormat;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -92,22 +93,39 @@ public final class MemoryLinkPaths {
     }
 
     /**
-     * Makes every link of {@code document}'s memories absolute against {@code circuitFile} (a circuit just read; not
-     * an edit: no undo step, the document stays unmodified).
+     * Makes every link of {@code document}'s memories absolute against {@code circuitFile}, also those inside its
+     * definitions (a link made inside a component is the component's), a circuit just read; not an edit: no undo
+     * step, the document stays unmodified.
      */
     public static void absoluteLinks(CircuitDocument document, Optional<Path> circuitFile) {
+        UnaryOperator<Component> absolute = absoluteLink(circuitFile);
         for (Component component : List.copyOf(document.components())) {
-            Optional<Path> file = isMemory(component) ? linkedFile(component, circuitFile) : Optional.empty();
-            if (file.isPresent()) {
-                String absolute = storedLinkPath(file.get(), Optional.empty());
-                if (!absolute.equals(linkOf(component))) {
-                    document.replace(withLink(component, absolute));
-                }
+            Component changed = absolute.apply(component);
+            if (changed != component) {
+                document.replace(changed);
+            }
+        }
+        for (ComponentDefinition definition : document.definitions()) {
+            ComponentDefinition changed = definition.withBodyComponents(absolute);
+            if (changed != definition) {
+                document.putDefinition(changed);
             }
         }
     }
 
-    /** What {@link CircuitFormat} writes for each component: links relative to the circuit. */
+    /** A memory with its link absolute against {@code circuitFile}; any other component, or one already so, as is. */
+    private static UnaryOperator<Component> absoluteLink(Optional<Path> circuitFile) {
+        return component -> {
+            Optional<Path> file = isMemory(component) ? linkedFile(component, circuitFile) : Optional.empty();
+            if (file.isEmpty()) {
+                return component;
+            }
+            String absolute = storedLinkPath(file.get(), Optional.empty());
+            return absolute.equals(linkOf(component)) ? component : withLink(component, absolute);
+        };
+    }
+
+    /** What {@link CircuitFormat} writes for each component, inside definitions too: links relative to the circuit. */
     public static UnaryOperator<Component> relativeLinks(Optional<Path> circuitFile) {
         return component -> {
             Optional<Path> file = isMemory(component) ? linkedFile(component, Optional.empty()) : Optional.empty();

@@ -293,9 +293,9 @@ public final class CircuitFormat {
     }
 
     /**
-     * Like {@link #write(CircuitDocument)}, with each of the circuit's own components written as {@code written}
-     * gives it (the document is not touched): the editor writes a memory's linked file relative to where the circuit
-     * is saved.
+     * Like {@link #write(CircuitDocument)}, with each of the circuit's own components, and each component inside its
+     * definitions, written as {@code written} gives it (the document is not touched): the editor writes a memory's
+     * linked file relative to where the circuit is saved.
      */
     public String write(CircuitDocument document, UnaryOperator<Component> written) {
         List<ComponentDefinition> used;
@@ -309,7 +309,8 @@ public final class CircuitFormat {
                 document.components().stream().map(written).map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
-                used.stream().map(DefinitionEntries::entry).toList(),
+                used.stream().map(definition -> definition.withBodyComponents(written)).map(DefinitionEntries::entry)
+                        .toList(),
                 document.probes().stream().map(CircuitFormat::probeEntry).toList(),
                 document.frames().stream().map(CircuitFormat::frameEntry).toList(),
                 document.guides().stream().map(GuideEntries::entry).toList(),

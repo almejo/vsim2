@@ -1,9 +1,17 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -169,6 +177,57 @@ class MemoryLinksTest {
         assertThat(MemoryLinkPaths.resolve(parameter(reopened, again, MemoryTypes.LINK), reopened.path()))
                 .isEqualTo(file);
         assertThat(reopened.isModified()).isFalse();
+    }
+
+    @Test
+    void aLinkMadeInAComponentTabIsTheComponentsAndSurvivesSaveAndReopen() throws Exception {
+        // the user's decision (2026-11-06): a link made inside a component belongs to the component, every piece
+        OpenDocument document = newDocument();
+        Path file = program("curso/programas/rom.hex", "3A\n");
+        document.execute(new PutDefinitionsCommand(List.of(romInside())));
+        place(document, SubcircuitTypes.typeIdOf("memoria"), 0, 0, Map.of());
+        OpenDocument body = track(document.openBody("memoria", Optional.of("c1")));
+        prompts.linkFile = Optional.of(file);
+
+        links.link(view(body, AppPreferences.inMemory()), new ElementId("c1"));
+
+        assertThat(MemoryLinkPaths.linkOf(innerRom(document))).isEqualTo(file.toString());
+        Path circuit = folder.resolve("curso/cpu.vsim");
+        document.save(circuit);
+        assertThat(Files.readString(circuit)).contains("\"link\" : \"programas/rom.hex\"");
+        OpenDocument reopened = track(OpenDocument.open(circuit, StandardComponentTypes.registry()));
+        assertThat(MemoryLinkPaths.linkOf(innerRom(reopened))).isEqualTo(file.toString());
+        assertThat(MemoryContents.decode((String) innerRom(reopened).parameters().get(MemoryTypes.CONTENTS)))
+                .isEqualTo(MemoryContents.empty().with(0, 0x3A));
+        assertThat(reopened.isModified()).isFalse();
+    }
+
+    @Test
+    void aMemoryFileDroppedOnAComponentTabStaysLinkedInTheComponent() throws Exception {
+        OpenDocument document = newDocument();
+        Path file = program("rom.hex", "# vsim: rom name=Programa words=16 width=8\n@0\n3A\n");
+        document.execute(new PutDefinitionsCommand(List.of(romInside())));
+        place(document, SubcircuitTypes.typeIdOf("memoria"), 0, 0, Map.of());
+        OpenDocument body = track(document.openBody("memoria", Optional.of("c1")));
+
+        Component dropped = links.fileImport().importFile(view(body, AppPreferences.inMemory()), file,
+                new GridPoint(20, 20)).orElseThrow();
+
+        Component inside = document.document().definition("memoria").orElseThrow().body().components().stream()
+                .filter(component -> component.id().equals(dropped.id())).findFirst().orElseThrow();
+        assertThat(MemoryLinkPaths.linkOf(inside)).isEqualTo(file.toString());
+    }
+
+    /** «memoria»: a component with a ROM c1 inside and no pins. */
+    private static ComponentDefinition romInside() {
+        Component rom = StandardComponentTypes.registry().require(StandardComponentTypes.ROM).newComponent(
+                new ElementId("c1"), new GridPoint(0, 0), Rotation.R0, Map.of(), "");
+        return new ComponentDefinition("memoria", "Memoria", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(rom), List.of(), List.of()));
+    }
+
+    private static Component innerRom(OpenDocument document) {
+        return document.document().definition("memoria").orElseThrow().body().components().getFirst();
     }
 
     @Test

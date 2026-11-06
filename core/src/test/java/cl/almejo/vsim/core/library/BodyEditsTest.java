@@ -157,7 +157,8 @@ class BodyEditsTest {
     }
 
     @Test
-    void rebuiltStripsMemoryLinks() {
+    void rebuiltKeepsMemoryLinks() {
+        // the user's decision (2026-11-06): a link made inside a component is the component's, in every piece
         Component ram = registry.require(StandardComponentTypes.RAM).newComponent(workingCopy.newComponentId(),
                 new GridPoint(10, 10), Rotation.R0, Map.of(MemoryTypes.CONTENTS, "@0 3A", MemoryTypes.LINK,
                         "/home/student/programa.hex"), "");
@@ -167,7 +168,7 @@ class BodyEditsTest {
 
         Component inner = rebuilt.body().components().stream()
                 .filter(component -> component.id().equals(ram.id())).findFirst().orElseThrow();
-        assertThat(inner.parameters().get(MemoryTypes.LINK)).isEqualTo("");
+        assertThat(inner.parameters().get(MemoryTypes.LINK)).isEqualTo("/home/student/programa.hex");
         assertThat(inner.parameters().get(MemoryTypes.CONTENTS)).isEqualTo("@0 3A");
     }
 

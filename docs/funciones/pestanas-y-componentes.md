@@ -124,7 +124,9 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 
   Con «Sin valores» el editor cambia el contenido del componente, el de todas las piezas, y el título dice «— todas
   las piezas». Un archivo enlazado a una memoria de adentro es del componente, el mismo en todas las piezas, y la
-  barra del enlace lo dice. En Propiedades, una memoria de adentro con contenido propio en la pieza que se ve dice
+  barra del enlace lo dice; se guarda con el circuito (relativo a su carpeta, como los enlaces del circuito) y sigue
+  enlazado al volver a abrirlo. Soltar un archivo de memoria en la pestaña de un componente lo deja enlazado igual.
+  VSim vuelve a leer el archivo cuando cambia mientras hay una pestaña del componente abierta. En Propiedades, una memoria de adentro con contenido propio en la pieza que se ve dice
   «Contenido propio de Memoria 1». Si un componente tiene otro adentro, el contenido propio de la pieza de afuera
   manda sobre el de las de adentro. El «Mapa de memoria» de la pestaña sigue a la pieza que se muestra. Al
   desarmar una pieza, sus memorias se quedan con el contenido propio que tenía.
