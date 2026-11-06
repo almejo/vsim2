@@ -176,17 +176,19 @@ public final class DefinitionBuilder {
         if (!samePins(pinOrder.inputs(), found.inputs()) || !samePins(pinOrder.outputs(), found.outputs())) {
             throw new IllegalArgumentException("the pin order must list each selected interface pin once: " + pinOrder);
         }
-        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), renamed, registry);
+        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), renamed, false, registry);
     }
 
     /**
      * The definition of the selected elements with {@code pinOrder} (already checked) and its pins' default
      * {@code defaultNames}, except those in {@code renamed}, which also relabel their interface pin in the body; an
-     * empty order gives a definition without pins. A blank new name is refused.
+     * empty order gives a definition without pins. A blank new name is refused. The selection's linked memories keep
+     * their link when {@code keepMemoryLinks} (the link is then the component's), else only their contents.
      */
     static DefinitionBundle assemble(CircuitDocument document, Collection<ElementId> ids, String id, String name,
                                      PinOrder pinOrder, Map<ElementId, String> defaultNames,
-                                     Map<ElementId, String> renamed, ComponentTypeRegistry registry) {
+                                     Map<ElementId, String> renamed, boolean keepMemoryLinks,
+                                     ComponentTypeRegistry registry) {
         Map<ElementId, String> names = new HashMap<>(defaultNames);
         Map<ElementId, String> relabels = new HashMap<>();
         renamed.forEach((pin, newName) -> {
@@ -214,7 +216,7 @@ public final class DefinitionBuilder {
         List<Component> components = selected.components().stream()
                 .map(component -> relabels.containsKey(component.id())
                         ? component.withLabel(relabels.get(component.id())) : component)
-                .map(DefinitionBuilder::withoutMemoryLink)
+                .map(component -> keepMemoryLinks ? component : withoutMemoryLink(component))
                 .toList();
         // Frames inside the selection go into the body (spec §6.8); sticky notes stay on the canvas (2026-10-27).
         CircuitFragment body = new CircuitFragment(components, selected.wires(), selected.labels(), List.of(),

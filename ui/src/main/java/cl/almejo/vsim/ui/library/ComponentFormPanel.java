@@ -49,6 +49,7 @@ public final class ComponentFormPanel extends JPanel {
     private final JButton inputDown = new JButton(Messages.text("template.dialog.down"));
     private final JButton outputUp = new JButton(Messages.text("template.dialog.up"));
     private final JButton outputDown = new JButton(Messages.text("template.dialog.down"));
+    private final JCheckBox keepMemoryLinks = new JCheckBox(Messages.text("template.dialog.keepMemoryLinks"));
     private final JCheckBox replace = new JCheckBox(Messages.text("template.dialog.replace"));
     private final JComboBox<ComponentDefinition> target = new JComboBox<>();
     private final JLabel pinsHelp = new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
@@ -156,6 +157,11 @@ public final class ComponentFormPanel extends JPanel {
             replace.setSelected(form.replaceSelection());
             replace.addActionListener(event -> form.setReplaceSelection(replace.isSelected()));
             add(replace, "span 2");
+            if (form.offersMemoryLinks()) {
+                keepMemoryLinks.setSelected(form.keepMemoryLinks());
+                keepMemoryLinks.addActionListener(event -> form.setKeepMemoryLinks(keepMemoryLinks.isSelected()));
+                add(keepMemoryLinks, "span 2");
+            }
         }
     }
 
@@ -224,6 +230,10 @@ public final class ComponentFormPanel extends JPanel {
 
     JButton inputDownButton() {
         return inputDown;
+    }
+
+    JCheckBox keepMemoryLinksCheckBox() {
+        return keepMemoryLinks;
     }
 
     JCheckBox replaceCheckBox() {

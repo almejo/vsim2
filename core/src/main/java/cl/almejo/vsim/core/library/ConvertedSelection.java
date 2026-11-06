@@ -180,10 +180,20 @@ public final class ConvertedSelection {
      */
     public DefinitionBundle definition(String id, String name, PinOrder pinOrder, Map<ElementId, String> renamed,
                                        ComponentTypeRegistry registry) {
+        return definition(id, name, pinOrder, renamed, false, registry);
+    }
+
+    /**
+     * {@link #definition(String, String, PinOrder, Map, ComponentTypeRegistry)} where the selection's linked
+     * memories keep their file link when {@code keepMemoryLinks} (the link is the component's), else they keep only
+     * their contents.
+     */
+    public DefinitionBundle definition(String id, String name, PinOrder pinOrder, Map<ElementId, String> renamed,
+                                       boolean keepMemoryLinks, ComponentTypeRegistry registry) {
         if (!DefinitionBuilder.sameOrder(pinOrder, defaultPinOrder())) {
             throw new IllegalArgumentException("the pin order must list each pin once: " + pinOrder);
         }
-        return DefinitionBuilder.assemble(document, ids, id, name, pinOrder, pinNames(), renamed, registry);
+        return DefinitionBuilder.assemble(document, ids, id, name, pinOrder, pinNames(), renamed, keepMemoryLinks, registry);
     }
 
     /**

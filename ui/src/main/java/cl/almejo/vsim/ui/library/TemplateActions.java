@@ -172,7 +172,7 @@ public final class TemplateActions {
         ComponentForm form = ComponentForm.create(testParts, converted -> {
             ConvertedSelection selection = converter.apply(converted);
             return new ComponentForm.PinPlan(selection.defaultPinOrder(), selection.pinNames(), selection.parts());
-        }, takenNames(), takenIds());
+        }, takenNames(), takenIds(), !DefinitionBuilder.linkedMemories(document, ids).isEmpty());
         if (!proposedName.isBlank()) {
             form.setName(proposedName);
         }
@@ -184,7 +184,7 @@ public final class TemplateActions {
             Optional<String> missing = missingPins(result.get().pinOrder());
             if (missing.isEmpty() || dialogs.confirmMissingPins(canvas.get(), missing.get())) {
                 create(converter.apply(result.get().convertedParts()), result.get(), frameToRemove,
-                        DefinitionBuilder.linkedMemories(document, ids));
+                        DefinitionBuilder.linkedMemories(document, ids), form.keepMemoryLinks());
                 return;
             }
         }
@@ -410,11 +410,12 @@ public final class TemplateActions {
      * ({@link ConvertedSelection#keptParts()}); everything else goes.
      */
     private void create(ConvertedSelection converted, ComponentForm.Result result,
-                        Optional<ElementId> frameToRemove, List<Component> linkedMemories) {
+                        Optional<ElementId> frameToRemove, List<Component> linkedMemories,
+                        boolean keepMemoryLinks) {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
         DefinitionBundle built = converted.definition(result.definitionId(), result.name(), result.pinOrder(),
-                result.pinNames(), registry);
+                result.pinNames(), keepMemoryLinks, registry);
         DefinitionBundle bundle = new DefinitionBundle(described(built.root(), result.description()),
                 built.dependencies());
         List<Command> steps = new ArrayList<>();
@@ -443,7 +444,7 @@ public final class TemplateActions {
                 message = withSplitTunnels(message, Tunnels.namesSplitBy(document, converted.replacedIds()));
             }
         }
-        message = withDroppedLinks(message, linkedMemories);
+        message = keepMemoryLinks ? message : withDroppedLinks(message, linkedMemories);
         // only adding the definitions changes no body: from a component tab they go to the circuit directly
         OpenDocument target = instance == null ? circuit() : openDocument;
         target.execute(new CompositeCommand("command.createComponent", steps));

@@ -265,12 +265,15 @@ class TemplateActionsTest {
     }
 
     @Test
-    void aLinkedMemoryGoesIntoTheComponentWithItsWordsButWithoutItsLink() {
+    void aLinkedMemoryWithTheChoiceUncheckedGoesWithItsWordsButWithoutItsLink() {
         List<Component> parts = new java.util.ArrayList<>(fixture.drawInverter(0, 0));
         parts.add(fixture.place(StandardComponentTypes.RAM, 0, 20, Map.of(MemoryTypes.CONTENTS, "@0 3A",
                 MemoryTypes.LINK, "/home/curso/programas/datos.hex")));
         fixture.select(parts.toArray(Component[]::new));
-        fixture.dialogs.acceptForm(form -> form.setName("Con memoria"));
+        fixture.dialogs.acceptForm(form -> {
+            form.setName("Con memoria");
+            form.setKeepMemoryLinks(false);
+        });
 
         perform(fixture.features.actions().createComponent());
 
@@ -278,6 +281,116 @@ class TemplateActionsTest {
                 .stream().filter(component -> component.typeId().equals(StandardComponentTypes.RAM)).findFirst()
                 .orElseThrow();
         assertThat(inner.parameters()).containsEntry(MemoryTypes.CONTENTS, "@0 3A").containsEntry(MemoryTypes.LINK, "");
+        assertThat(fixture.dialogs.messages).containsExactly(
+                "El enlace a datos.hex no viaja dentro del componente; se guardó una copia");
+    }
+
+    private List<Component> inverterWithLinkedRam() {
+        List<Component> parts = new ArrayList<>(fixture.drawInverter(0, 0));
+        parts.add(fixture.place(StandardComponentTypes.RAM, 0, 20, Map.of(MemoryTypes.CONTENTS, "@0 3A",
+                MemoryTypes.LINK, "/home/curso/programas/datos.hex")));
+        fixture.select(parts.toArray(Component[]::new));
+        return parts;
+    }
+
+    private Component innerRam(String definitionId) {
+        return fixture.openDocument.document().definition(definitionId).orElseThrow().body().components().stream()
+                .filter(component -> component.typeId().equals(StandardComponentTypes.RAM)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void theKeepLinksChoiceIsOfferedOnlyWithALinkedMemoryAtTheFirstLevel() {
+        fixture.drawInverter(0, 0);
+        fixture.dialogs.acceptForm(form -> form.setName("Sin memoria"));
+        perform(fixture.features.actions().createComponent());
+        assertThat(fixture.dialogs.forms.get(0).offersMemoryLinks()).isFalse();
+
+        inverterWithLinkedRam();
+        fixture.dialogs.acceptForm(form -> form.setName("Con memoria"));
+        perform(fixture.features.actions().createComponent());
+        assertThat(fixture.dialogs.forms.get(1).offersMemoryLinks()).isTrue();
+        assertThat(fixture.dialogs.forms.get(1).keepMemoryLinks()).isTrue();
+    }
+
+    @Test
+    void aLinkedMemoryOnlyInsideANestedPieceDoesNotOfferTheChoice() {
+        Component innerRam = fixture.openDocument.registry().require(StandardComponentTypes.RAM).newComponent(
+                new cl.almejo.vsim.core.document.ElementId("c1"), new GridPoint(0, 0),
+                cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(MemoryTypes.LINK, "/home/curso/programas/datos.hex"),
+                "");
+        fixture.openDocument.execute(new cl.almejo.vsim.core.command.PutDefinitionsCommand(List.of(
+                new ComponentDefinition("memoria", "Memoria", "", new cl.almejo.vsim.core.geometry.GridSize(4, 4),
+                        List.of(), new cl.almejo.vsim.core.io.CircuitFragment(List.of(innerRam), List.of(),
+                        List.of())))));
+        Component nest = fixture.place(cl.almejo.vsim.core.library.SubcircuitTypes.typeIdOf("memoria"), 30, 0,
+                Map.of());
+        List<Component> parts = new ArrayList<>(fixture.drawInverter(0, 0));
+        parts.add(nest);
+        fixture.select(parts.toArray(Component[]::new));
+        fixture.dialogs.acceptForm(form -> form.setName("Envoltura"));
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(fixture.dialogs.forms).hasSize(1);
+        assertThat(fixture.dialogs.forms.get(0).offersMemoryLinks()).isFalse();
+        assertThat(fixture.dialogs.messages).isEmpty();
+    }
+
+    @Test
+    void keepingTheLinksPutsTheLinkInTheDefinitionAndItSurvivesSaveAndReopen() throws Exception {
+        inverterWithLinkedRam();
+        fixture.dialogs.acceptForm(form -> {
+            form.setName("Con memoria");
+            assertThat(form.keepMemoryLinks()).isTrue();
+        });
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(innerRam("con-memoria").parameters()).containsEntry(MemoryTypes.CONTENTS, "@0 3A")
+                .containsEntry(MemoryTypes.LINK, "/home/curso/programas/datos.hex");
+        assertThat(fixture.dialogs.messages).isEmpty();
+        assertThat(fixture.library.find("con-memoria").orElseThrow().root().body().components().stream()
+                .filter(component -> component.typeId().equals(StandardComponentTypes.RAM))
+                .map(component -> component.parameters().get(MemoryTypes.LINK))).containsExactly(
+                "/home/curso/programas/datos.hex");
+        Path circuit = directory.resolve("curso/cpu.vsim");
+        Files.createDirectories(circuit.getParent());
+        fixture.openDocument.save(circuit);
+        OpenDocument reopened = OpenDocument.open(circuit, fixture.openDocument.registry());
+        try {
+            Component inner = reopened.document().definition("con-memoria").orElseThrow().body().components()
+                    .stream().filter(component -> component.typeId().equals(StandardComponentTypes.RAM))
+                    .findFirst().orElseThrow();
+            assertThat(inner.parameters()).containsEntry(MemoryTypes.LINK, "/home/curso/programas/datos.hex");
+        } finally {
+            reopened.close();
+        }
+    }
+
+    @Test
+    void keepingTheLinksIsOneUndoStep() {
+        inverterWithLinkedRam();
+        fixture.dialogs.acceptForm(form -> form.setName("Con memoria"));
+        perform(fixture.features.actions().createComponent());
+
+        fixture.openDocument.history().undo();
+
+        assertThat(fixture.openDocument.document().definitions()).isEmpty();
+        assertThat(fixture.openDocument.document().components()).hasSize(4);
+    }
+
+    @Test
+    void uncheckingTheLinksDropsThemWithTheNotice() {
+        inverterWithLinkedRam();
+        fixture.dialogs.acceptForm(form -> {
+            form.setName("Con memoria");
+            form.setKeepMemoryLinks(false);
+        });
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(innerRam("con-memoria").parameters()).containsEntry(MemoryTypes.CONTENTS, "@0 3A")
+                .containsEntry(MemoryTypes.LINK, "");
         assertThat(fixture.dialogs.messages).containsExactly(
                 "El enlace a datos.hex no viaja dentro del componente; se guardó una copia");
     }

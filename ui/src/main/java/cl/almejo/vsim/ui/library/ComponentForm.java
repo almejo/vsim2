@@ -100,10 +100,15 @@ public final class ComponentForm {
     private String description;
     private ComponentDefinition target;
     private boolean replaceSelection;
+    /** Whether the selection has a memory linked to a file at its first level: then the dialog asks about it. */
+    private final boolean offersMemoryLinks;
+    private boolean keepMemoryLinks = true;
 
     private ComponentForm(Mode mode, List<TestParts.TestPart> testParts, Function<Set<ElementId>, PinPlan> planner,
-                          Collection<String> takenNames, Set<String> takenIds, List<ComponentDefinition> targets) {
+                          Collection<String> takenNames, Set<String> takenIds, List<ComponentDefinition> targets,
+                          boolean offersMemoryLinks) {
         this.mode = mode;
+        this.offersMemoryLinks = offersMemoryLinks;
         this.testParts = List.copyOf(testParts);
         this.planner = planner;
         testParts.forEach(part -> convertedParts.add(part.id()));
@@ -134,7 +139,17 @@ public final class ComponentForm {
      */
     public static ComponentForm create(List<TestParts.TestPart> testParts, Function<Set<ElementId>, PinPlan> planner,
                                        Collection<String> takenNames, Set<String> takenIds) {
-        return new ComponentForm(Mode.CREATE, testParts, planner, takenNames, takenIds, List.of());
+        return create(testParts, planner, takenNames, takenIds, false);
+    }
+
+    /**
+     * {@link #create(List, Function, Collection, Set)} that, when {@code offersMemoryLinks}, also asks whether the
+     * linked memories at the first level of the selection keep their link in the component (checked at first).
+     */
+    public static ComponentForm create(List<TestParts.TestPart> testParts, Function<Set<ElementId>, PinPlan> planner,
+                                       Collection<String> takenNames, Set<String> takenIds,
+                                       boolean offersMemoryLinks) {
+        return new ComponentForm(Mode.CREATE, testParts, planner, takenNames, takenIds, List.of(), offersMemoryLinks);
     }
 
     private static Function<Set<ElementId>, PinPlan> fixed(PinOrder order, Map<ElementId, String> pinNames) {
@@ -148,7 +163,7 @@ public final class ComponentForm {
         if (targets.isEmpty()) {
             throw new IllegalArgumentException("there is no definition to update");
         }
-        return new ComponentForm(Mode.UPDATE, List.of(), fixed(order, pinNames), takenNames, Set.of(), targets);
+        return new ComponentForm(Mode.UPDATE, List.of(), fixed(order, pinNames), takenNames, Set.of(), targets, false);
     }
 
     /** The visible reason for a name problem. */
@@ -214,6 +229,22 @@ public final class ComponentForm {
     public void setReplaceSelection(boolean replace) {
         if (mode == Mode.CREATE && replace != replaceSelection) {
             replaceSelection = replace;
+            fire();
+        }
+    }
+
+    public boolean offersMemoryLinks() {
+        return offersMemoryLinks;
+    }
+
+    /** True when the question is asked and the user keeps the link of the selection's linked memories. */
+    public boolean keepMemoryLinks() {
+        return offersMemoryLinks && keepMemoryLinks;
+    }
+
+    public void setKeepMemoryLinks(boolean keep) {
+        if (offersMemoryLinks && keep != keepMemoryLinks) {
+            keepMemoryLinks = keep;
             fire();
         }
     }
