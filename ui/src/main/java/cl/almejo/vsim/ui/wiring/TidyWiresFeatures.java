@@ -55,7 +55,7 @@ public final class TidyWiresFeatures {
     private final TidyRunner previewRunner;
     private final Delay delay;
     private final TidyProgress.Factory progressFactory;
-    private final Set<Runnable> previewCancels = new java.util.LinkedHashSet<>();
+    private final Set<Runnable> previewCancels = new LinkedHashSet<>();
     private Running running;
     private boolean disposed;
 
@@ -141,16 +141,13 @@ public final class TidyWiresFeatures {
         return everything;
     }
 
-    /** The document as the worker reads it: a copy made on the EDT, never touched by the editor afterwards. */
+    /**
+     * The document as the worker reads it: a detached copy made on the EDT, never touched by the editor afterwards.
+     * A whole copy (guides, probes, next ids), since the command is computed against it: what it left out would be
+     * taken out of the document by the tidy.
+     */
     private CircuitDocument snapshot() {
-        CircuitDocument original = view.openDocument().document();
-        CircuitDocument copy = new CircuitDocument();
-        original.definitions().forEach(copy::putDefinition);
-        for (DocumentElement element : original.elements()) {
-            copy.restore(element, original.orderOf(element.id()));
-        }
-        copy.setProbes(original.probes());
-        return copy;
+        return view.openDocument().document().copy();
     }
 
     private ComponentTypeRegistry registryFor(CircuitDocument snapshot) {

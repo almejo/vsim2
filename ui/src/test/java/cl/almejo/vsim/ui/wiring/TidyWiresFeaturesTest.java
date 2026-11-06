@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
@@ -335,6 +336,24 @@ class TidyWiresFeaturesTest {
         assertThat(openDocument.document().components().stream().map(Component::position).toList())
                 .isEqualTo(before);
         assertThat(openDocument.document().component(second)).isPresent();
+    }
+
+    @Test
+    void guidesSurviveTheTidyItsUndoAndItsRedo() {
+        ElementId second = addOverlappingGates();
+        List<Guide> guides = List.of(new Guide(Guide.Orientation.VERTICAL, 10));
+        openDocument.document().setGuides(guides);
+        GridPoint before = openDocument.document().component(second).orElseThrow().position();
+        perform(features.tidyAction());
+        GridPoint after = openDocument.document().component(second).orElseThrow().position();
+        assertThat(after).isNotEqualTo(before);
+        assertThat(openDocument.document().guides()).isEqualTo(guides);
+        openDocument.history().undo();
+        assertThat(openDocument.document().component(second).orElseThrow().position()).isEqualTo(before);
+        assertThat(openDocument.document().guides()).isEqualTo(guides);
+        openDocument.history().redo();
+        assertThat(openDocument.document().component(second).orElseThrow().position()).isEqualTo(after);
+        assertThat(openDocument.document().guides()).isEqualTo(guides);
     }
 
     @Test
