@@ -233,6 +233,51 @@ class CircuitTidyTest {
     }
 
     @Test
+    void aPartThatOverlapsNothingIsNotPushed() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 0, 0);
+        gate(registry, document, 2, 0);
+        Component bystander = gate(registry, document, 7, 0);
+
+        CircuitTidyPlan plan = tidyForReal(document);
+
+        assertThat(plan.after().component(bystander.id()).orElseThrow()).isEqualTo(bystander);
+        assertThat(anyBodiesTooClose(plan.after())).isFalse();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void aPartNeverMakesWayForAMuchSimplerOne() {
+        CircuitDocument document = new CircuitDocument();
+        Component crossedLamp = place(registry, document, StandardComponentTypes.LED, 0, 0, "");
+        wire(document, -10, 1, 10, 1);
+        Component gateWithThreePins = place(registry, document, StandardComponentTypes.AND, 0, 4, "");
+        place(registry, document, StandardComponentTypes.LED, 3, 6, "");
+
+        CircuitTidyPlan plan = tidy(document, everything(document),
+                new CircuitTidyOptions(true, new TidyOptions(false, false, false)), TextBoxes.NONE,
+                OverlapSeparation::separate);
+
+        assertThat(plan.after().component(gateWithThreePins.id()).orElseThrow()).isEqualTo(gateWithThreePins);
+        assertThat(LayoutItems.crossedByForeignWire(plan.after(), registry, List.of(crossedLamp.id()))).isFalse();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void theSimplerPartMovesAndTheOneWithMorePinsStays() {
+        CircuitDocument document = new CircuitDocument();
+        Component gateWithThreePins = place(registry, document, StandardComponentTypes.AND, 0, 0, "");
+        Component lamp = place(registry, document, StandardComponentTypes.LED, 2, 1, "");
+
+        CircuitTidyPlan plan = tidyForReal(document);
+
+        assertThat(plan.after().component(gateWithThreePins.id()).orElseThrow()).isEqualTo(gateWithThreePins);
+        assertThat(plan.after().component(lamp.id()).orElseThrow().position()).isNotEqualTo(lamp.position());
+        assertThat(plan.partsMoved()).isEqualTo(1);
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
     void aTextWithoutSizeCoversNothing() {
         CircuitDocument document = new CircuitDocument();
         gate(registry, document, 0, 0);

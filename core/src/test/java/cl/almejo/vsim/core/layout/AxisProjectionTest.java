@@ -35,6 +35,31 @@ class AxisProjectionTest {
     }
 
     @Test
+    void aHeavierVariableMovesLess() {
+        List<AxisProjection.Constraint> apart = List.of(new AxisProjection.Constraint(0, 1, 3));
+
+        long[] even = AxisProjection.solve(new long[]{0, 0}, new long[]{1, 1}, new boolean[]{false, false}, apart,
+                NEVER_CANCELLED);
+        long[] heavyRight = AxisProjection.solve(new long[]{0, 0}, new long[]{1, 8}, new boolean[]{false, false},
+                apart, NEVER_CANCELLED);
+        long[] heavyLeft = AxisProjection.solve(new long[]{0, 0}, new long[]{8, 1}, new boolean[]{false, false},
+                apart, NEVER_CANCELLED);
+
+        assertThat(even).containsExactly(-1, 2);
+        assertThat(heavyRight).containsExactly(-3, 0);
+        assertThat(heavyLeft).containsExactly(0, 3);
+    }
+
+    @Test
+    void weightsShareAPushInProportion() {
+        // Pushed 10 apart, the one four times as heavy moves a fifth of it: the least Σ weight · movement².
+        long[] positions = AxisProjection.solve(new long[]{0, 0}, new long[]{1, 4}, new boolean[]{false, false},
+                List.of(new AxisProjection.Constraint(0, 1, 10)), NEVER_CANCELLED);
+
+        assertThat(positions).containsExactly(-8, 2);
+    }
+
+    @Test
     void aTightConstraintThatPullsIsReleased() {
         // b must clear a and c must clear b; a is far from b, so only b and c need to share the push.
         long[] positions = AxisProjection.solve(new long[]{-20, 0, 0}, new boolean[]{false, false, false},

@@ -14,15 +14,16 @@ import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
 
 /**
- * The positions on one axis closest to the desired ones (least squares, every movable variable weighs 1, a fixed one
- * never moves) that keep every separation constraint «right ≥ left + distance». It is VPSC's block merging (Dwyer,
- * Marriott, Stuckey, «Fast Node Overlap Removal», GD 2005), our own code: variables joined by a tight constraint form a
- * block that moves as one; blocks are merged while a constraint is violated and split while a Lagrange multiplier says
- * a tight constraint is pulling instead of pushing.
+ * The positions on one axis closest to the desired ones (weighted least squares: the least Σ weight · movement², a
+ * fixed variable never moves) that keep every separation constraint «right ≥ left + distance». It is VPSC's block
+ * merging (Dwyer, Marriott, Stuckey, «Fast Node Overlap Removal», GD 2005), our own code: variables joined by a tight
+ * constraint form a block that moves as one; blocks are merged while a constraint is violated and split while a
+ * Lagrange multiplier says a tight constraint is pulling instead of pushing.
  *
- * <p>Arithmetic is exact (positions are fractions with the block size as denominator), so the result never depends on
- * floating-point noise. Each block is rounded to a whole unit as one, which keeps every satisfied constraint satisfied
- * (offsets and distances are whole, and rounding half up is monotone and commutes with whole shifts).
+ * <p>Arithmetic is exact (positions are fractions with the block's total weight as denominator), so the result never
+ * depends on floating-point noise. Each block is rounded to a whole unit as one, which keeps every satisfied
+ * constraint satisfied (offsets and distances are whole, and rounding half up is monotone and commutes with whole
+ * shifts).
  *
  * <p>Constraints that cannot be met (two fixed variables too close, or a cycle) are left unmet; the caller sees the
  * overlap that remains.
@@ -38,6 +39,7 @@ final class AxisProjection {
     private static final int MINIMUM_REFINE_ROUNDS = 100;
 
     private final long[] desired;
+    private final long[] weights;
     private final boolean[] fixed;
     private final List<Constraint> constraints;
     private final List<List<Integer>> incoming = new ArrayList<>();
@@ -48,8 +50,10 @@ final class AxisProjection {
     private final List<Block> blocks = new ArrayList<>();
     private final BooleanSupplier cancelled;
 
-    private AxisProjection(long[] desired, boolean[] fixed, List<Constraint> constraints, BooleanSupplier cancelled) {
+    private AxisProjection(long[] desired, long[] weights, boolean[] fixed, List<Constraint> constraints,
+                           BooleanSupplier cancelled) {
         this.desired = desired;
+        this.weights = weights;
         this.fixed = fixed;
         this.constraints = constraints;
         this.cancelled = cancelled;
@@ -72,12 +76,26 @@ final class AxisProjection {
     }
 
     /**
-     * Whole positions for {@code desired} under {@code constraints}; fixed variables keep their desired position.
+     * Whole positions for {@code desired} under {@code constraints}, every variable weighing 1; fixed variables keep
+     * their desired position.
      *
      * @throws CancellationException when {@code cancelled} says yes between two refinement rounds
      */
     static long[] solve(long[] desired, boolean[] fixed, List<Constraint> constraints, BooleanSupplier cancelled) {
-        return new AxisProjection(desired, fixed, constraints, cancelled).solve();
+        long[] evenWeights = new long[desired.length];
+        Arrays.fill(evenWeights, 1);
+        return solve(desired, evenWeights, fixed, constraints, cancelled);
+    }
+
+    /**
+     * Whole positions for {@code desired} under {@code constraints}, each variable weighing {@code weights} (at least
+     * 1: a heavier one moves less); fixed variables keep their desired position.
+     *
+     * @throws CancellationException when {@code cancelled} says yes between two refinement rounds
+     */
+    static long[] solve(long[] desired, long[] weights, boolean[] fixed, List<Constraint> constraints,
+                        BooleanSupplier cancelled) {
+        return new AxisProjection(desired, weights, fixed, constraints, cancelled).solve();
     }
 
     private long[] solve() {
@@ -244,7 +262,7 @@ final class AxisProjection {
     /**
      * Every tight constraint's Lagrange multiplier times the block's denominator, in one walk of the block's tree of
      * tight constraints rooted at its fixed variable (or its first member). Cutting a constraint leaves a subtree that
-     * never holds the fixed variable; the multiplier is the subtree's Σ(x − desired) when the subtree is the
+     * never holds the fixed variable; the multiplier is the subtree's Σ weight · (x − desired) when the subtree is the
      * constraint's right side, and minus it when it is the left side.
      */
     private Map<Integer, Long> multiplierNumerators(Block block) {
@@ -273,8 +291,8 @@ final class AxisProjection {
         Map<Integer, Long> subtreeSum = new HashMap<>();
         for (int index = visitOrder.size() - 1; index > 0; index--) {
             int variable = visitOrder.get(index);
-            long sum = subtreeSum.getOrDefault(variable, 0L)
-                    + block.numerator + block.denominator * (offset[variable] - desired[variable]);
+            long ownTerm = block.numerator + block.denominator * (offset[variable] - desired[variable]);
+            long sum = subtreeSum.getOrDefault(variable, 0L) + weights[variable] * ownTerm;
             int edge = edgeToParent.get(variable);
             multipliers.put(edge, constraints.get(edge).right() == variable ? sum : -sum);
             subtreeSum.merge(otherEnd(edge, variable), sum, Long::sum);
@@ -351,11 +369,13 @@ final class AxisProjection {
             return;
         }
         long sum = 0;
+        long weight = 0;
         for (int member : block.members) {
-            sum += desired[member] - offset[member];
+            sum += weights[member] * (desired[member] - offset[member]);
+            weight += weights[member];
         }
         block.numerator = sum;
-        block.denominator = block.members.size();
+        block.denominator = weight;
     }
 
     /** Numerator of left + distance − right over the two blocks' denominators: positive when violated. */

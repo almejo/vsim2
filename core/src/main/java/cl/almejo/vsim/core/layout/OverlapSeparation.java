@@ -28,7 +28,8 @@ import java.util.function.ToIntFunction;
  * than the gap). Each overlapping pair gets one separation constraint, which does ask for the larger of the two gaps,
  * on the axis that needs the smaller displacement (ties: x, which keeps the left-to-right flow), in the pair's current
  * order (by centre, then by id). Every round solves both axes from the original positions with all the constraints so
- * far ({@link AxisProjection}), so the result is the least movement that meets them and a pair, once separated, stays
+ * far ({@link AxisProjection}), so the result is the least movement that meets them (each box's movement counted by
+ * its {@linkplain LayoutBox#weight() weight}: a heavy box lets the light one move) and a pair, once separated, stays
  * separated. Rounds repeat while new overlaps appear, at most {@value #MAXIMUM_ROUNDS}.
  */
 public final class OverlapSeparation {
@@ -184,16 +185,18 @@ public final class OverlapSeparation {
             }
         }
         long[] desired = new long[involved.size()];
+        long[] weights = new long[involved.size()];
         boolean[] fixed = new boolean[involved.size()];
         for (int variable = 0; variable < involved.size(); variable++) {
             LayoutBox box = boxes.get(involved.get(variable));
             desired[variable] = originalPosition.applyAsInt(box.bounds());
+            weights[variable] = box.weight();
             fixed[variable] = !box.movable();
         }
         List<AxisProjection.Constraint> local = component.stream().map(constraint -> new AxisProjection.Constraint(
                 variableOfBox.get(constraint.left()), variableOfBox.get(constraint.right()),
                 constraint.distance())).toList();
-        long[] solved = AxisProjection.solve(desired, fixed, local, cancelled);
+        long[] solved = AxisProjection.solve(desired, weights, fixed, local, cancelled);
         for (int variable = 0; variable < involved.size(); variable++) {
             current[involved.get(variable)] = Math.toIntExact(solved[variable]);
         }

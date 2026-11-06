@@ -55,6 +55,17 @@ class OverlapSeparationTest {
     }
 
     @Test
+    void aHeavyBoxStaysWhereItIsAndTheLightOneMoves() {
+        LayoutBox heavy = new LayoutBox(id("a"), new Bounds(0, 0, 12, 8), true, BODY_GAP, 64);
+        LayoutBox light = new LayoutBox(id("b"), new Bounds(10, 2, 8, 2), true, BODY_GAP, 8);
+
+        Separation separation = OverlapSeparation.separate(List.of(heavy, light), NEVER_CANCELLED);
+
+        assertThat(separation.deltas()).containsOnlyKeys(id("b"));
+        assertThat(overlapsWithGap(heavy.bounds(), after(light, separation), BODY_GAP)).isFalse();
+    }
+
+    @Test
     void boxesThatOverlapNothingDoNotMove() {
         LayoutBox first = gate("a", 0, 0);
         LayoutBox second = gate("b", 2, 0);

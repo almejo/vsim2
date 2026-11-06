@@ -161,6 +161,8 @@ class LayoutItemsTest {
         frame(document, 0, 0, 12, 8);
         Component inside = gate(registry, document, 2, 2);
         Component outside = gate(registry, document, 20, 2);
+        gate(registry, document, 3, 3);
+        gate(registry, document, 21, 3);
 
         List<List<LayoutBox>> groups = items(document).separationGroups();
 
