@@ -31,6 +31,10 @@ public final class TidyWiresPanel extends JPanel {
     private final JCheckBox mergeSegments = new JCheckBox(Messages.text("tidy.mergeSegments"));
     private final JCheckBox flattenDetours = new JCheckBox(Messages.text("tidy.flattenDetours"));
     private final JLabel summary = new JLabel();
+    /** Width the summary wraps at, as CSS pixels (Swing draws them about a third wider: ~310 logical pixels). */
+    static final int SUMMARY_WIDTH_PIXELS = 240;
+    /** The summary as written, without the HTML that makes the label wrap. */
+    private String summaryPlainText = "";
     private Runnable changeListener = () -> { };
     private CircuitTidyPlan plan = emptyPlan();
     private boolean ready;
@@ -101,7 +105,7 @@ public final class TidyWiresPanel extends JPanel {
     }
 
     public String summaryText() {
-        return summary.getText();
+        return summaryPlainText;
     }
 
     /** True when there is something to tidy with the current choices. */
@@ -141,12 +145,22 @@ public final class TidyWiresPanel extends JPanel {
         return everything;
     }
 
+    /**
+     * Shows {@code text} wrapped to the summary's width (a long summary is never cut with «…»): HTML with a fixed
+     * body width, so the dialog's pack gives it the lines it needs.
+     */
+    void showSummary(String text) {
+        summaryPlainText = text;
+        String escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        summary.setText("<html><body style='width: " + SUMMARY_WIDTH_PIXELS + "px'>" + escaped + "</body></html>");
+    }
+
     private void refresh() {
         cancelRunning.run();
         int mine = ++generation;
         ready = false;
         plan = emptyPlan();
-        summary.setText(Messages.text("tidy.calculating"));
+        showSummary(Messages.text("tidy.calculating"));
         changeListener.run();
         Runnable cancel = planner.plan(options(), selectionOnly(), result -> {
             if (mine != generation) {
@@ -155,7 +169,7 @@ public final class TidyWiresPanel extends JPanel {
             plan = result;
             ready = true;
             cancelRunning = () -> { };
-            summary.setText(TidySummary.preview(plan));
+            showSummary(TidySummary.preview(plan));
             changeListener.run();
         });
         if (mine == generation && !ready) {

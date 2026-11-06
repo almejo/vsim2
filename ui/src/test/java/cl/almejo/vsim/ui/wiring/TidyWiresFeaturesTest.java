@@ -282,6 +282,28 @@ class TidyWiresFeaturesTest {
         assertThat(panel.options().separateOverlaps()).isFalse();
     }
 
+    @Test
+    void aLongSummaryWrapsInsteadOfBeingCut() {
+        CircuitTidyPlan many = new CircuitTidyPlan(new CircuitDocument(), 30, 32, java.util.Set.of(new ElementId("c1")),
+                TidyPlan.EMPTY);
+        TidyWiresPanel panel = new TidyWiresPanel(false, CircuitTidyOptions.DEFAULTS, (options, selection, onResult) -> {
+            onResult.accept(many);
+            return () -> { };
+        });
+        panel.showSummary("Se moverán 30 partes y 32 notas, se borrarán 34 puntas sueltas y se unirán 12 tramos; "
+                + "no se pudieron separar 15 cosas");
+        javax.swing.JLabel summary = null;
+        for (java.awt.Component child : panel.getComponents()) {
+            if (child instanceof javax.swing.JLabel label && label.getText().contains(panel.summaryText())) {
+                summary = label;
+            }
+        }
+        assertThat(summary).isNotNull();
+        int oneLine = new javax.swing.JLabel("Xg").getPreferredSize().height;
+        assertThat(summary.getPreferredSize().width).isLessThan(new javax.swing.JLabel(panel.summaryText()).getPreferredSize().width);
+        assertThat(summary.getPreferredSize().height).isGreaterThan(oneLine);
+    }
+
     private ElementId addOverlappingGates() {
         place(openDocument, StandardComponentTypes.AND, 0, 20, Map.of());
         return place(openDocument, StandardComponentTypes.AND, 2, 20, Map.of()).id();
