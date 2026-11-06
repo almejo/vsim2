@@ -773,6 +773,53 @@ class EditServiceTest {
     }
 
     @Test
+    void tidyWiresWithSeparateOverlapsMovesTheStackedGateAndKeepsTheNets() {
+        service.edit(request(place("first", "and", 10, 10), place("second", "and", 11, 11),
+                place("source", "switch", 0, 10), place("lamp", "led", 30, 10),
+                connect("new:source", "out", "new:first", "in0")));
+        List<Component> before = circuit.document().components();
+        var netsBefore = connectedPins();
+
+        service.edit(request(new TidyWires(List.of(), true)));
+
+        List<Component> gates = circuit.document().components().stream()
+                .filter(component -> component.typeId().equals("and")).toList();
+        assertThat(gates).hasSize(2);
+        assertThat(gates.get(0).position()).isNotEqualTo(gates.get(1).position());
+        assertThat(Math.abs(gates.get(0).position().x() - gates.get(1).position().x()) >= 5
+                || Math.abs(gates.get(0).position().y() - gates.get(1).position().y()) >= 5).isTrue();
+        assertThat(before).hasSize(4);
+        assertThat(connectedPins()).isEqualTo(netsBefore);
+    }
+
+    @Test
+    void tidyWiresWithoutTheFlagMovesNoPart() {
+        service.edit(request(place("first", "and", 10, 10), place("second", "and", 11, 11)));
+        List<GridPoint> before = circuit.document().components().stream().map(Component::position).toList();
+
+        service.edit(request(new TidyWires(List.of())));
+
+        assertThat(circuit.document().components().stream().map(Component::position).toList()).isEqualTo(before);
+        assertThat(new TidyWires(List.of()).separateOverlaps()).isFalse();
+    }
+
+    @Test
+    void aPartItCouldNotSeparateIsAWarning() {
+        EditReceipt placed = service.edit(request(place("first", "and", 10, 10), place("second", "and", 11, 11),
+                new MakeFrame(Optional.of("box"), "Caja", List.of("new:first", "new:second"), Optional.empty(), false)));
+
+        EditReceipt receipt = service.edit(request(new TidyWires(List.of(placed.aliases().get("second")), true)));
+
+        assertThat(receipt.warnings()).anyMatch(warning -> warning.contains("could not be separated")
+                && (warning.contains(placed.aliases().get("first")) || warning.contains(placed.aliases().get("second"))));
+    }
+
+    private Set<Set<cl.almejo.vsim.core.netlist.PinRef>> connectedPins() {
+        return cl.almejo.vsim.core.wiring.Connectivity.of(circuit.document().wires(), circuit.document(),
+                circuit.registry()).pinNets();
+    }
+
+    @Test
     void aDiagonalWireIsRefused() {
         assertRefused(request(new AddWire(List.of(new GridPoint(0, 0), new GridPoint(4, 4)))),
                 AutomationError.INVALID_PARAMETER);

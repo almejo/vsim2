@@ -58,7 +58,12 @@ import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.core.component.appearance.SymbolDraft;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.command.ReplaceContentCommand;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.layout.CircuitTidy;
+import cl.almejo.vsim.core.layout.CircuitTidyOptions;
+import cl.almejo.vsim.core.layout.CircuitTidyPlan;
+import cl.almejo.vsim.core.layout.TextBoxes;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
@@ -676,17 +681,23 @@ final class EditPlanner {
     private void tidyWires(TidyWires operation) {
         Set<ElementId> scope = new LinkedHashSet<>();
         if (operation.targets().isEmpty()) {
-            candidate.wires().forEach(wire -> scope.add(wire.id()));
+            List<? extends DocumentElement> all = operation.separateOverlaps() ? candidate.elements()
+                    : candidate.wires();
+            all.stream().filter(element -> !(element instanceof Frame)).forEach(element -> scope.add(element.id()));
         }
         for (String target : operation.targets()) {
             DocumentElement element = requireElement(target);
-            if (element instanceof Wire) {
-                scope.add(element.id());
-            } else if (element instanceof Frame frame) {
+            if (element instanceof Frame frame) {
                 FrameContents.of(candidate, registry, frame).stream()
-                        .filter(id -> candidate.wire(id).isPresent())
+                        .filter(id -> operation.separateOverlaps() || candidate.wire(id).isPresent())
                         .forEach(scope::add);
+            } else if (operation.separateOverlaps() || element instanceof Wire) {
+                scope.add(element.id());
             }
+        }
+        if (operation.separateOverlaps()) {
+            separateAndTidy(scope);
+            return;
         }
         TidyPlan plan = WireTidy.plan(candidate, registry, scope, TidyOptions.DEFAULTS);
         if (plan.isEmpty()) {
@@ -694,6 +705,21 @@ final class EditPlanner {
             return;
         }
         new TidyWiresCommand(plan).apply(candidate);
+    }
+
+    private void separateAndTidy(Set<ElementId> scope) {
+        CircuitTidyPlan plan = CircuitTidy.plan(candidate, registry, scope,
+                new CircuitTidyOptions(true, TidyOptions.DEFAULTS), TextBoxes.NONE, () -> false, round -> { })
+                .orElseThrow();
+        if (!plan.notSeparated().isEmpty()) {
+            warnings.add(at() + "could not be separated without joining another net or leaving its frame: "
+                    + plan.notSeparated().stream().map(ElementId::value).sorted().toList());
+        }
+        if (plan.isEmpty()) {
+            warnings.add(at() + "the circuit was tidy already");
+            return;
+        }
+        ReplaceContentCommand.between(candidate, plan.after(), "command.tidyCircuit").apply(candidate);
     }
 
     // --- moving and deleting ---

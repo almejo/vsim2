@@ -11,6 +11,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- La IA puede pedir a `TidyWires` «separar lo que se tapa» (`separateOverlaps`): además de ordenar cables, mueve lo menos posible las piezas que se tapan entre sí, sin cambiar lo que está conectado, y avisa de las que no pudo separar. Ver [IA y MCP](docs/funciones/ia-mcp.md).
 - Velocidad ×1000 en el selector de la barra, entre ×100 y «Máxima»: un circuito grande, como el LRV32IM importado de Logisim, corre lo bastante rápido para que su Terminal escriba de a poco. Ver [Interfaz, preferencias y sesión](docs/funciones/interfaz-preferencias-y-sesion.md).
 
 ### Arreglado

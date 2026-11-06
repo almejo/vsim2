@@ -126,4 +126,15 @@ class VsimToolsTest {
         String schema = edit.inputSchema().toString();
         assertThat(schema.split(java.util.regex.Pattern.quote("use \\n for a new line"), -1)).hasSize(3);
     }
+
+    @Test
+    void tidyWiresListsSeparateOverlapsAsAnOptionalBoolean() {
+        Tool edit = VsimTools.tools(api).stream().filter(tool -> tool.name().equals("vsim_edit")).findFirst()
+                .orElseThrow();
+        String schema = edit.inputSchema().toString();
+        int tidyStart = schema.indexOf("separateOverlaps");
+        assertThat(tidyStart).isPositive();
+        assertThat(schema.substring(tidyStart, Math.min(schema.length(), tidyStart + 200)))
+                .startsWith("separateOverlaps={type=boolean}}, required=[op]");
+    }
 }

@@ -238,10 +238,18 @@ public sealed interface EditOperation {
         }
     }
 
-    /** «Ordenar cables» on the targets' wires (every wire of the circuit when there are no targets). */
-    record TidyWires(List<String> targets) implements EditOperation {
+    /**
+     * «Ordenar circuito» on the targets (every wire of the circuit when there are no targets). With
+     * {@code separateOverlaps} it also moves the parts and texts of the targets' elements (a frame's contents, a wire,
+     * a part; everything when there are no targets) that cover each other; without it only the wires change.
+     */
+    record TidyWires(List<String> targets, boolean separateOverlaps) implements EditOperation {
         public TidyWires {
             targets = List.copyOf(targets);
+        }
+
+        public TidyWires(List<String> targets) {
+            this(targets, false);
         }
     }
 }

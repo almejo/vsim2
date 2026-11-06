@@ -302,6 +302,19 @@ class ToolCallsTest {
     }
 
     @Test
+    void tidyWiresWithSeparateOverlapsSeparatesStackedGates() {
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "PlacePart", "alias", "a", "typeId", "and", "x", 10, "y", 10),
+                Map.of("op", "PlacePart", "alias", "b", "typeId", "and", "x", 11, "y", 11))));
+
+        call("vsim_edit", edit(task, 1, List.of(Map.of("op", "TidyWires", "separateOverlaps", true))));
+
+        List<Map<String, Object>> parts = list(call("vsim_read_circuit", Map.of("document", "circuit-1")), "parts");
+        assertThat(parts).extracting(part -> part.get("position").toString()).doesNotHaveDuplicates();
+    }
+
+    @Test
     void memoryWordsAreWrittenAndReadBackAndTheReadingOfTheCircuitStaysSmall() {
         String task = beginTask();
         call("vsim_edit", edit(task, 0, List.of(Map.of("op", "PlacePart", "alias", "memory", "typeId", "ram",

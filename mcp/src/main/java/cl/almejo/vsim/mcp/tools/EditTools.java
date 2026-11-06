@@ -225,8 +225,10 @@ final class EditTools {
                         .property("firstAddress", Schema.integerFrom("", 0))
                         .property("words", Schema.array("Hex, each within the width", Schema.string(""), 1, 4096))
                         .required("component", "firstAddress", "words").build(),
-                operation("TidyWires", "«Ordenar cables» on the targets' wires (all wires when no targets)")
+                operation("TidyWires", "«Ordenar circuito» on the targets' wires (all wires when no targets); "
+                        + "separateOverlaps also moves the parts of the targets (all when none) that cover each other")
                         .property("targets", targets(""))
+                        .property("separateOverlaps", Schema.bool(""))
                         .build());
         return Schema.array(OPERATIONS_DESCRIPTION, Schema.oneOf("One operation, chosen by op", kinds), 1,
                 MAXIMUM_OPERATIONS);
@@ -286,7 +288,8 @@ final class EditTools {
                             pin.integer("x"), pin.integer("y"))).toList(), operation.bool("clear", false));
             case "SetMemoryContents" -> new EditOperation.SetMemoryContents(operation.string("component"),
                     operation.longValue("firstAddress"), operation.strings("words"));
-            case "TidyWires" -> new EditOperation.TidyWires(operation.strings("targets"));
+            case "TidyWires" -> new EditOperation.TidyWires(operation.strings("targets"),
+                    operation.bool("separateOverlaps", false));
             default -> throw operation.invalid("op", "is not an operation VSim knows: " + kind);
         };
     }

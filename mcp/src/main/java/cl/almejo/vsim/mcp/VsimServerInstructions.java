@@ -39,10 +39,10 @@ public final class VsimServerInstructions {
             - Name pins by part id and pin name, never by coordinates; parts made in the same call are new:<alias>. \
             After ROUTE_REJECTED retry Connect with via points around the other nets.
 
-            Layout (the circuits are used to teach)
-            - Left to right: inputs left, outputs right, room between parts and for labels; label every input, \
-            output and block. Orthogonal, tidy wires (TidyWires), never through a part. One «Prueba: …» note on how \
-            to try the circuit is welcome.
+            Layout (for teaching)
+            - Left to right: inputs left, outputs right, room for labels; label every input, \
+            output and block. Orthogonal tidy wires (TidyWires; separateOverlaps true also moves overlapping \
+            parts), never through a part. A «Prueba: …» note on how to try it is welcome.
             - A stage that makes a component later stages use: CreateComponent with replaceSelection false, then \
             PlaceInstance it. Never delete frames or parts the user did not ask you to remove.
             - RAM and ROM: place and configure them like any part, write words with SetMemoryContents (hex) and \
