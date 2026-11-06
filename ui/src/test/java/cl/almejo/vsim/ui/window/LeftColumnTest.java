@@ -167,4 +167,81 @@ class LeftColumnTest {
         JSplitPane split = (JSplitPane) SwingUtilities.getAncestorOfClass(JSplitPane.class, tree);
         assertThat(split.getDividerLocation()).isEqualTo(150);
     }
+
+    private JSplitPane splitOf(Component tree) {
+        return (JSplitPane) SwingUtilities.getAncestorOfClass(JSplitPane.class, tree);
+    }
+
+    @Test
+    void theDividerKeepsItsGripAndDragsWithTheMouse() {
+        JLabel tree = new JLabel("árbol");
+        view.addAbovePalette("Circuito", tree);
+        layOut(view);
+        JSplitPane split = splitOf(tree);
+        javax.swing.plaf.basic.BasicSplitPaneDivider divider =
+                ((javax.swing.plaf.basic.BasicSplitPaneUI) split.getUI()).getDivider();
+        assertThat(divider.getParent()).as("the divider is still a child of the split").isSameAs(split);
+        int before = split.getDividerLocation();
+
+        divider.dispatchEvent(new java.awt.event.MouseEvent(divider, java.awt.event.MouseEvent.MOUSE_PRESSED, 0, 0,
+                2, 2, 1, false));
+        divider.dispatchEvent(new java.awt.event.MouseEvent(divider, java.awt.event.MouseEvent.MOUSE_DRAGGED, 0,
+                java.awt.event.InputEvent.BUTTON1_DOWN_MASK, 2, 42, 0, false));
+        divider.dispatchEvent(new java.awt.event.MouseEvent(divider, java.awt.event.MouseEvent.MOUSE_RELEASED, 0, 0,
+                2, 42, 1, false));
+
+        assertThat(split.getDividerLocation()).isGreaterThan(before);
+        assertThat(preferences.circuitTreeSplit()).hasValue(split.getDividerLocation());
+    }
+
+    @Test
+    void foldingAndUnfoldingThePaletteBringsBothPanelsBack() {
+        JLabel tree = new JLabel("árbol");
+        view.addAbovePalette("Circuito", tree);
+        layOut(view);
+        int treeHeight = tree.getHeight();
+        Action palette = view.leftColumn().toggleAction(LeftColumn.Section.PALETTE);
+
+        perform(palette);
+        layOut(view);
+        assertThat(shown(tree)).isTrue();
+        assertThat(shown(view.palette())).isFalse();
+        perform(palette);
+        layOut(view);
+
+        assertThat(shown(tree)).isTrue();
+        assertThat(shown(view.palette())).isTrue();
+        assertThat(tree.getHeight()).as("the circuit keeps its previous height").isEqualTo(treeHeight);
+        assertThat(splitOf(tree).getDividerLocation()).isGreaterThan(0);
+    }
+
+    @Test
+    void foldingAndUnfoldingTheCircuitOrBothBringsBothPanelsBack() {
+        JLabel tree = new JLabel("árbol");
+        view.addAbovePalette("Circuito", tree);
+        layOut(view);
+        int treeHeight = tree.getHeight();
+        Action circuit = view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT);
+        Action palette = view.leftColumn().toggleAction(LeftColumn.Section.PALETTE);
+
+        perform(circuit);
+        perform(circuit);
+        layOut(view);
+        assertThat(shown(tree)).isTrue();
+        assertThat(shown(view.palette())).isTrue();
+        assertThat(tree.getHeight()).isEqualTo(treeHeight);
+
+        perform(circuit);
+        perform(palette);
+        layOut(view);
+        assertThat(shown(tree)).isFalse();
+        assertThat(shown(view.palette())).isFalse();
+        perform(palette);
+        perform(circuit);
+        layOut(view);
+
+        assertThat(shown(tree)).isTrue();
+        assertThat(shown(view.palette())).isTrue();
+        assertThat(tree.getHeight()).isEqualTo(treeHeight);
+    }
 }

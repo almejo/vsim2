@@ -165,7 +165,9 @@ public final class LeftColumn extends JPanel {
      */
     private void layOutPanels() {
         removeAll();
-        split.removeAll();
+        // Never split.removeAll(): it also removes the divider, which then neither drags nor lays out the panels.
+        split.setTopComponent(null);
+        split.setBottomComponent(null);
         Panel circuit = panels.get(Section.CIRCUIT);
         Panel paletteSection = panels.get(Section.PALETTE);
         if (circuit == null) {
@@ -181,6 +183,7 @@ public final class LeftColumn extends JPanel {
             if (circuitOpen && paletteOpen) {
                 split.setTopComponent(circuit);
                 split.setBottomComponent(paletteSection);
+                split.setDividerLocation(preferences.circuitTreeSplit().orElse(DEFAULT_CIRCUIT_HEIGHT));
                 add(split, BorderLayout.CENTER);
             } else if (circuitOpen) {
                 add(circuit, BorderLayout.CENTER);

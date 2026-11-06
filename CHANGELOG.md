@@ -35,6 +35,7 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 ### Arreglado
 
+- La columna izquierda: el divisor entre «Circuito» y «Paleta» ahora se arrastra (y se recuerda), y plegar y volver a abrir la Paleta (o el Circuito) ya no hace desaparecer el otro panel: vuelven los dos con su altura anterior.
 - El «Desplazador» ya no deja toda la salida en Z cuando algún bit de A está en Z: con S definida, cada bit se mueve a su lugar (también los que están en Z) y los que entran valen 0, como en Logisim. El LRV32IM importado de Logisim leía 0 del Teclado (el byte llega con el resto del bus suelto) y ahora lee la tecla. Ver [Bloques de N bits](docs/funciones/componentes.md#bloques-de-n-bits).
 - Un archivo de memoria de Logisim (`v2.0 raw`) con una repetición de 0 palabras (`0*0`, como la que escribe el BinaryConverter2 del LRV32IM en `fast-rfact.ram`) ya no se rechaza como «no es una repetición válida»: no agrega nada, como en Logisim. Ver [Memoria: archivos enlazados](docs/funciones/componentes.md#memoria-archivos-enlazados).
 
