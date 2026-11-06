@@ -23,8 +23,9 @@ import java.util.Set;
 
 /**
  * The content of the tidy dialog: scope, «Partes» (separate overlaps), «Cables» (the three wire options) and the live
- * summary, recomputed on every change. It holds no dialog, so tests drive it directly. The summary is computed in the
- * background («Calculando…» meanwhile); a change cancels the computation in flight, so the latest choice wins.
+ * summary, recomputed on every change of the choices or of the circuit ({@link TidyPlanner.Results#stale()}). It
+ * holds no dialog, so tests drive it directly. The summary is computed in the background («Calculando…» meanwhile); a
+ * change cancels the computation in flight, so the latest choice wins.
  */
 public final class TidyWiresPanel extends JPanel {
 
@@ -218,6 +219,13 @@ public final class TidyWiresPanel extends JPanel {
                 if (mine == generation) {
                     plan = emptyPlan();
                     settle(Messages.format("tidy.failed", message));
+                }
+            }
+
+            @Override
+            public void stale() {
+                if (mine == generation) {
+                    refresh();
                 }
             }
         });

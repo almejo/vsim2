@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.ReplaceContentCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
@@ -40,6 +41,12 @@ public final class TidyWiresFeatures {
     /** A tidy still running after this long shows the progress window. */
     public static final int PROGRESS_DELAY_MILLISECONDS = 2000;
 
+    /**
+     * A change of the circuit while the dialog is open recomputes its summary and ghost this long after the last change
+     * of a burst (an AI editing step by step), so a burst costs one computation.
+     */
+    static final int PREVIEW_REFRESH_DELAY_MILLISECONDS = 150;
+
     private final EditorView view;
     private final TidyChooser chooser;
     private final Action tidy;
@@ -60,6 +67,13 @@ public final class TidyWiresFeatures {
     private final TidyProgress.Factory progressFactory;
     private final TidyGhostOverlay ghost;
     private final Set<Runnable> previewCancels = new LinkedHashSet<>();
+    private final DocumentListener circuitChanged = (document, change) -> circuitChangedWhileTheDialogIsOpen();
+    /** The last preview plan the dialog showed (null: none, or the circuit changed since). */
+    private DeliveredPreview delivered;
+    /** Who hears of the dialog's latest computation (null: no dialog open). */
+    private TidyPlanner.Results latestResults;
+    private Runnable stopPreviewRefresh = () -> { };
+    private Runnable stopWatchingTheCircuit = () -> { };
     private Running running;
     private boolean disposed;
 
@@ -71,6 +85,18 @@ public final class TidyWiresFeatures {
         CircuitTidyProgress.Stage stage;
         int done;
         int total;
+    }
+
+    /**
+     * A plan the dialog's preview delivered (and its ghost showed), with what it was computed for: the circuit's
+     * revision, the scope and the options. «Ordenar» applies it as it is while all three still match.
+     */
+    private record DeliveredPreview(long revision, Set<ElementId> scope, CircuitTidyOptions options,
+                                    CircuitDocument snapshot, CircuitTidyPlan plan) {
+
+        boolean describes(long currentRevision, Set<ElementId> currentScope, CircuitTidyOptions chosen) {
+            return revision == currentRevision && scope.equals(currentScope) && options.equals(chosen);
+        }
     }
 
     public TidyWiresFeatures(EditorView view, TidyChooser chooser) {
@@ -196,13 +222,18 @@ public final class TidyWiresFeatures {
 
     /**
      * The planner of the dialog's live summary: background, cancellable, on a snapshot of the moment. Each delivered
-     * plan is also shown as a ghost over the canvas; a new computation, a failure or a cancel takes it away.
+     * plan is also shown as a ghost over the canvas and kept for «Ordenar»; a new computation, a failure, a cancel or a
+     * change of the circuit takes it away. A plan delivered after the circuit changed shows no ghost: the change's
+     * recomputation follows.
      */
     private Runnable preview(CircuitTidyOptions options, boolean selectionOnly, TidyPlanner.Results results) {
         if (disposed) {
             return () -> { };
         }
         ghost.clear();
+        delivered = null;
+        latestResults = results;
+        long revision = view.openDocument().document().revision();
         CircuitDocument snapshot = snapshot();
         Set<ElementId> scope = selectionOnly ? selectedElements() : allElements();
         TidyRunner.Job job = previewRunner.start(snapshot, registryFor(snapshot), scope, options,
@@ -213,7 +244,10 @@ public final class TidyWiresFeatures {
 
                     @Override
                     public void finished(CircuitTidyPlan plan) {
-                        ghost.show(snapshot, plan);
+                        if (view.openDocument().document().revision() == revision) {
+                            ghost.show(snapshot, plan);
+                            delivered = new DeliveredPreview(revision, scope, options, snapshot, plan);
+                        }
                         results.accept(plan);
                     }
 
@@ -240,20 +274,64 @@ public final class TidyWiresFeatures {
         run(view.services().preferences().tidyOptions(), hasSelection());
     }
 
+    /**
+     * The dialog: while it is open the circuit is watched, so the ghost never shows a plan of an older circuit. «Ordenar»
+     * applies the plan the ghost showed when the circuit, the scope and the options are still those it was computed
+     * for; otherwise it computes again.
+     */
     void tidyWithDialog() {
         if (disposed) {
             return;
         }
+        watchTheCircuit();
         Optional<TidyChoice> choice = chooser.choose(view, hasSelection(),
                 view.services().preferences().tidyOptions(), this::preview);
-        previewCancels.forEach(Runnable::run);
-        previewCancels.clear();
-        ghost.clear();
+        DeliveredPreview shown = delivered;
+        endPreview();
         if (choice.isEmpty()) {
             return;
         }
-        view.services().preferences().setTidyOptions(choice.get().options());
-        run(choice.get().options(), choice.get().selectionOnly());
+        CircuitTidyOptions options = choice.get().options();
+        view.services().preferences().setTidyOptions(options);
+        Set<ElementId> scope = choice.get().selectionOnly() ? selectedElements() : allElements();
+        if (shown != null && shown.describes(view.openDocument().document().revision(), scope, options)) {
+            stopRunning();
+            apply(shown.snapshot(), shown.plan());
+        } else {
+            run(options, choice.get().selectionOnly());
+        }
+    }
+
+    private void watchTheCircuit() {
+        CircuitDocument watched = view.openDocument().document();
+        watched.addListener(circuitChanged);
+        stopWatchingTheCircuit = () -> watched.removeListener(circuitChanged);
+    }
+
+    /** The dialog closed: no more watching, computing, refreshing or ghost. */
+    private void endPreview() {
+        stopWatchingTheCircuit.run();
+        stopWatchingTheCircuit = () -> { };
+        stopPreviewRefresh.run();
+        stopPreviewRefresh = () -> { };
+        latestResults = null;
+        delivered = null;
+        previewCancels.forEach(Runnable::run);
+        previewCancels.clear();
+        ghost.clear();
+    }
+
+    /** The ghost goes at once; the summary is computed again when the burst of changes is over. */
+    private void circuitChangedWhileTheDialogIsOpen() {
+        ghost.clear();
+        delivered = null;
+        stopPreviewRefresh.run();
+        stopPreviewRefresh = delay.after(PREVIEW_REFRESH_DELAY_MILLISECONDS, () -> {
+            stopPreviewRefresh = () -> { };
+            if (latestResults != null) {
+                latestResults.stale();
+            }
+        });
     }
 
     /** Whether a tidy is computing right now. */
@@ -300,12 +378,7 @@ public final class TidyWiresFeatures {
                     view.statusBar().showNotice(Messages.text("tidy.changedMeanwhile"));
                     return;
                 }
-                if (!plan.isEmpty()) {
-                    // the snapshot is the document as it was at the start; the revision check above says it still is
-                    view.openDocument().execute(
-                            ReplaceContentCommand.between(snapshot, plan.after(), "command.tidyCircuit"));
-                }
-                view.statusBar().showNotice(TidySummary.notice(plan));
+                apply(snapshot, plan);
             }
 
             @Override
@@ -316,6 +389,17 @@ public final class TidyWiresFeatures {
                 }
             }
         });
+    }
+
+    /**
+     * One undo step from {@code snapshot} to the plan's result, and the notice. The caller vouches that the document is
+     * still {@code snapshot} (same revision).
+     */
+    private void apply(CircuitDocument snapshot, CircuitTidyPlan plan) {
+        if (!plan.isEmpty()) {
+            view.openDocument().execute(ReplaceContentCommand.between(snapshot, plan.after(), "command.tidyCircuit"));
+        }
+        view.statusBar().showNotice(TidySummary.notice(plan));
     }
 
     private void cancelByUser() {
@@ -346,8 +430,7 @@ public final class TidyWiresFeatures {
         }
         disposed = true;
         stopRunning();
-        previewCancels.forEach(Runnable::run);
-        previewCancels.clear();
+        endPreview();
         ghost.dispose();
         runner.dispose();
         previewRunner.dispose();

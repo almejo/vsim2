@@ -14,6 +14,13 @@ public interface TidyPlanner {
 
         /** The planning threw; {@code message} says why (never shown as «ya está ordenado»). */
         void failed(String message);
+
+        /**
+         * The circuit changed after this computation started, so its plan no longer describes it: compute again. Only
+         * the latest computation hears it, once per burst of changes.
+         */
+        default void stale() {
+        }
     }
 
     /**
