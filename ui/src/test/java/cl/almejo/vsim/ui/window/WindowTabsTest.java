@@ -306,6 +306,17 @@ class WindowTabsTest {
                 .containsExactly("Sin título", "missing");
     }
 
+    @Test
+    void twoCircuitsWithTheSameNameAreToldApartOnTheirTabs() {
+        OpenDocument first = newDocument();
+        OpenDocument second = newDocument();
+        tabs.addTab(first, Optional.empty());
+        tabs.addTab(second, Optional.empty());
+
+        assertThat(tabs.model().visibleTabs()).extracting(tab -> tab.title())
+                .containsExactly("Sin título", "Sin título 2");
+    }
+
     // --- the session (spec §4.7) ---
 
     private static final ViewState MAIN_VIEW = new ViewState(1.5, 10, -4);

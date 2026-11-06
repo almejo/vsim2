@@ -774,13 +774,20 @@ public final class WindowTabs extends JPanel {
 
     /** Retitles every tab: «lrv32im», «lrv32im (2)», «Ram», «Ram (2)», with «●» for a modified main tab. */
     public void refreshTitles() {
-        for (TabStripModel.Group group : model.groups()) {
+        List<TabStripModel.Group> groups = model.groups();
+        // circuits of this window that share a name are told apart by their folder or a number
+        List<String> circuitNames = TabTitles.distinct(groups.stream()
+                .map(group -> (OpenDocument) group.document())
+                .map(document -> new TabTitles.Named(document.displayName(), document.path()))
+                .toList());
+        for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
+            TabStripModel.Group group = groups.get(groupIndex);
             OpenDocument document = (OpenDocument) group.document();
             List<TabStripModel.Tab> mains = group.mainTabs();
             for (int index = 0; index < mains.size(); index++) {
                 TabStripModel.Tab tab = mains.get(index);
                 model.update(new TabStripModel.Tab(tab.id(), document, tab.definitionId(),
-                        DocumentWindows.viewTitle(document.displayName(), host.viewNumber(document, index)),
+                        DocumentWindows.viewTitle(circuitNames.get(groupIndex), host.viewNumber(document, index)),
                         document.isModified()));
             }
             Map<String, List<TabStripModel.Tab>> byDefinition = new LinkedHashMap<>();

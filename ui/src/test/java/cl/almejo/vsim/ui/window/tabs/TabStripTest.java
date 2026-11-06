@@ -225,4 +225,39 @@ class TabStripTest {
         strip.doLayout();
         strip.paint(image.createGraphics());
     }
+
+    private BufferedImage painted() {
+        BufferedImage image = new BufferedImage(600, TabStrip.HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        try {
+            strip.paint(graphics);
+        } finally {
+            graphics.dispose();
+        }
+        return image;
+    }
+
+    private static double distance(int first, int second) {
+        java.awt.Color one = new java.awt.Color(first);
+        java.awt.Color two = new java.awt.Color(second);
+        return Math.abs(one.getRed() - two.getRed()) + Math.abs(one.getGreen() - two.getGreen())
+                + Math.abs(one.getBlue() - two.getBlue());
+    }
+
+    @Test
+    void theGroupBandIsFourPixelsThickAndEveryTabOfTheGroupIsTintedWithItsColour() {
+        BufferedImage image = painted();
+        Rectangle main = bounds("counter");
+        int group = GroupColors.colorOf(COUNTER).getRGB() & 0xFFFFFF;
+        int x = main.x + main.width / 2;
+
+        for (int row = 1; row <= 4; row++) {
+            assertThat(distance(image.getRGB(x, main.y + row) & 0xFFFFFF, group)).as("band row " + row)
+                    .isLessThan(30);
+        }
+        // below the band, the tab body leans toward the group's colour (an inactive tab too), not the plain strip
+        int body = image.getRGB(main.x + 4, main.y + main.height - 4) & 0xFFFFFF;
+        int plain = java.awt.Color.WHITE.getRGB() & 0xFFFFFF;
+        assertThat(distance(body, group)).isLessThan(distance(plain, group) - 40);
+    }
 }

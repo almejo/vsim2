@@ -91,7 +91,11 @@ public final class TabStrip extends JComponent {
     private static final int BADGE_PADDING = 6;
     private static final int MAXIMUM_TAB_WIDTH = 220;
     private static final int CORNER = 7;
-    private static final int BAND = 2;
+    /** The group colour band on top of a tab: thick enough to tell the groups apart at a glance. */
+    private static final int BAND = 4;
+    /** How much of the group's colour the body of a tab takes (the active one more), so a group reads as one. */
+    private static final double GROUP_TINT = 0.16;
+    private static final double ACTIVE_GROUP_TINT = 0.24;
     private static final int BUTTON_WIDTH = 20;
     private static final int BUTTON_COUNT = 3;
     private static final int SCROLL_STEP = 120;
@@ -844,15 +848,20 @@ public final class TabStrip extends JComponent {
         int naturalWidth = box.close().x + CLOSE_SIZE + TAB_PADDING_RIGHT - bounds.x;
         RoundRectangle2D shape = new RoundRectangle2D.Float(bounds.x, bounds.y, naturalWidth - 1,
                 bounds.height + CORNER, 2 * CORNER, 2 * CORNER);
-        graphics.setColor(active ? activeFill() : inactiveFill());
+        graphics.setColor(mix(active ? activeFill() : inactiveFill(), group, active ? ACTIVE_GROUP_TINT : GROUP_TINT));
         graphics.fill(shape);
         graphics.setColor(border());
         graphics.draw(shape);
         graphics.setColor(group);
-        graphics.setStroke(tab.isMain() ? new BasicStroke(BAND)
-                : new BasicStroke(BAND, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1, new float[]{4, 3}, 0));
-        graphics.drawLine(bounds.x + CORNER / 2, bounds.y + 1, bounds.x + naturalWidth - 1 - CORNER / 2,
-                bounds.y + 1);
+        int bandStart = bounds.x + CORNER / 2;
+        int bandEnd = bounds.x + naturalWidth - 1 - CORNER / 2;
+        if (tab.isMain()) {
+            graphics.fillRect(bandStart, bounds.y + 1, bandEnd - bandStart, BAND);
+        } else {
+            for (int dash = bandStart; dash < bandEnd; dash += 7) { // dashed: a component, not the circuit itself
+                graphics.fillRect(dash, bounds.y + 1, Math.min(4, bandEnd - dash), BAND);
+            }
+        }
         graphics.setStroke(new BasicStroke(1));
         Color text = active ? textColor() : mutedText();
         int iconX = bounds.x + TAB_PADDING_LEFT;
