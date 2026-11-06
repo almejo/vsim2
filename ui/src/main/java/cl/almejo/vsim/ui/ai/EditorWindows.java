@@ -21,7 +21,10 @@ public interface EditorWindows {
         return List.of();
     }
 
-    /** Opens {@code name} as a new, unsaved circuit in its own window (as Archivo ▸ Nuevo) and returns it. */
+    /**
+     * Opens {@code name} as a new, unsaved circuit, a new group of tabs in the active window (a new window when there
+     * is none), as Archivo ▸ Nuevo, and returns it.
+     */
     OpenDocument openNewCircuit(String name);
 
     /** The override of the window the AI works in for {@code document} (its first window); empty when it has none. */

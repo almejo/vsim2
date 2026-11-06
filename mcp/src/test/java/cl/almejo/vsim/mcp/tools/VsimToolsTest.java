@@ -39,6 +39,14 @@ class VsimToolsTest {
     }
 
     @Test
+    void aNewCircuitIsSaidToOpenAsANewTabOfTheActiveWindowLikeArchivoNuevo() {
+        Tool newCircuit = VsimTools.tools(api).stream().filter(tool -> tool.name().equals("vsim_new_circuit"))
+                .findFirst().orElseThrow();
+        assertThat(newCircuit.description()).contains("new tab in the active VSim window")
+                .contains("Archivo ▸ Nuevo").doesNotContain("its own VSim window");
+    }
+
+    @Test
     void everySchemaIsAValidDraft202012Schema() {
         for (Tool tool : VsimTools.tools(api)) {
             assertThat(VALIDATOR.validateSchema(tool.inputSchema()).valid()).as("input of %s", tool.name()).isTrue();

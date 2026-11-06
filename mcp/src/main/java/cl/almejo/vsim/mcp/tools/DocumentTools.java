@@ -45,12 +45,12 @@ final class DocumentTools {
 
     private static Tool newCircuit(AutomationApi api) {
         return new Tool(NEW_CIRCUIT, "Open a new circuit",
-                "Opens a new, empty, unsaved circuit in its own VSim window, as Archivo ▸ Nuevo, and returns its id. "
-                        + "VSim never saves it: the user does. For examples like a stage of a bigger build, one "
-                        + "circuit is usually better; open a new one only for something that stands on its own. It "
-                        + "takes the user's «Presentar» choice: read vsim_get_presentation before its task.",
+                "Opens a new, empty, unsaved circuit as a new tab in the active VSim window, as Archivo ▸ Nuevo, and "
+                        + "returns its id. VSim never saves it: the user does. For examples like a stage of a bigger "
+                        + "build, one circuit is usually better; open a new one only for something that stands on its "
+                        + "own. It takes the user's «Presentar» choice: read vsim_get_presentation before its task.",
                 Schema.object("")
-                        .property("name", Schema.nonEmptyString("What its window shows until the user saves it"))
+                        .property("name", Schema.nonEmptyString("What its tab shows until the user saves it"))
                         .required("name").build(),
                 Schema.result("The new circuit")
                         .property("document", Schema.string("Its id"))

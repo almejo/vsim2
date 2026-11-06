@@ -850,7 +850,7 @@ public final class Application {
 
     /**
      * Shows {@code document} as a new group of tabs in {@code requester}, its main tab active; with no requester
-     * (start-up, command line, recovery, the AI) in a new window placed, sized and zoomed as {@code state} says,
+     * (recovery, a file opened when no window exists) in a new window placed, sized and zoomed as {@code state} says,
      * clamped to the screens. A file being opened comes back split as it was (Dividir la vista).
      *
      * @return the editor of the document's new main tab
@@ -914,9 +914,10 @@ public final class Application {
         @Override
         public OpenDocument openNewCircuit(String name) {
             OpenDocument created = OpenDocument.createEmpty(registry);
-            // Not a user edit: the name is what the window shows until the user saves it (the AI never does).
+            // Not a user edit: the name is what the tab shows until the user saves it (the AI never does).
             created.document().setName(name);
-            showIn(Optional.empty(), created, Optional.empty());
+            // A new group in the active window, as Archivo ▸ Nuevo; a window of its own only when there is none.
+            showIn(windows.active(), created, Optional.empty());
             return created;
         }
 
