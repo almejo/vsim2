@@ -165,7 +165,7 @@ class EveryViewFeatureInEveryPaneTest {
                 Arguments.of("Karnaugh", (Function<LibraryService, EditorExtension>) libraryService ->
                         new KarnaughExtension(libraryService, () -> Path.of("."), path -> { }), false),
                 Arguments.of("Ordenar circuito", (Function<LibraryService, EditorExtension>) libraryService ->
-                        new TidyWiresExtension(), false),
+                        new TidyWiresExtension(), true),
                 Arguments.of("Exportar imagen", (Function<LibraryService, EditorExtension>) libraryService ->
                         new ExportImageExtension(), false),
                 Arguments.of("Exportar a PDF", (Function<LibraryService, EditorExtension>) libraryService ->

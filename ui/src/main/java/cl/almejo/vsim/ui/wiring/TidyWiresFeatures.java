@@ -58,6 +58,7 @@ public final class TidyWiresFeatures {
     private final TidyRunner previewRunner;
     private final Delay delay;
     private final TidyProgress.Factory progressFactory;
+    private final TidyGhostOverlay ghost;
     private final Set<Runnable> previewCancels = new LinkedHashSet<>();
     private Running running;
     private boolean disposed;
@@ -88,6 +89,7 @@ public final class TidyWiresFeatures {
         this.previewRunner = previewRunner;
         this.delay = delay;
         this.progressFactory = progressFactory;
+        this.ghost = new TidyGhostOverlay(view);
         this.tidy = Actions.of(Messages.text("action.tidyWires"), () -> tidyNow());
         this.tidyWithOptions = Actions.of(Messages.text("action.tidyWiresOptions"), () -> tidyWithDialog());
         // 16 px in the menu, 24 px in the toolbar; ActionIcons (installed after this extension) makes the button
@@ -187,11 +189,20 @@ public final class TidyWiresFeatures {
         return registry;
     }
 
-    /** The planner of the dialog's live summary: background, cancellable, on a snapshot of the moment. */
+    /** The ghost of the dialog's preview (for tests). */
+    TidyGhostOverlay ghost() {
+        return ghost;
+    }
+
+    /**
+     * The planner of the dialog's live summary: background, cancellable, on a snapshot of the moment. Each delivered
+     * plan is also shown as a ghost over the canvas; a new computation, a failure or a cancel takes it away.
+     */
     private Runnable preview(CircuitTidyOptions options, boolean selectionOnly, TidyPlanner.Results results) {
         if (disposed) {
             return () -> { };
         }
+        ghost.clear();
         CircuitDocument snapshot = snapshot();
         Set<ElementId> scope = selectionOnly ? selectedElements() : allElements();
         TidyRunner.Job job = previewRunner.start(snapshot, registryFor(snapshot), scope, options,
@@ -202,11 +213,13 @@ public final class TidyWiresFeatures {
 
                     @Override
                     public void finished(CircuitTidyPlan plan) {
+                        ghost.show(snapshot, plan);
                         results.accept(plan);
                     }
 
                     @Override
                     public void failed(Throwable throwable) {
+                        ghost.clear();
                         results.failed(String.valueOf(throwable.getMessage()));
                     }
                 });
@@ -215,6 +228,7 @@ public final class TidyWiresFeatures {
         return () -> {
             previewCancels.remove(cancel);
             cancel.run();
+            ghost.clear();
         };
     }
 
@@ -234,6 +248,7 @@ public final class TidyWiresFeatures {
                 view.services().preferences().tidyOptions(), this::preview);
         previewCancels.forEach(Runnable::run);
         previewCancels.clear();
+        ghost.clear();
         if (choice.isEmpty()) {
             return;
         }
@@ -333,6 +348,7 @@ public final class TidyWiresFeatures {
         stopRunning();
         previewCancels.forEach(Runnable::run);
         previewCancels.clear();
+        ghost.dispose();
         runner.dispose();
         previewRunner.dispose();
         tidyShortcutRemover.run();
