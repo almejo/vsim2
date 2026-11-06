@@ -27,6 +27,7 @@ import cl.almejo.vsim.core.wiring.WireTidy;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -320,19 +321,19 @@ class CircuitTidyTest {
         assertThat(plan.notSeparated()).isEmpty();
     }
 
-    /** Component labels 6 x 1 to the right of the body, free texts 6 x 1 from their position. */
+    /** Component labels 6 x 2 right of the body, free texts 6 x 2 from their position (a line is 2 units high). */
     private static final TextBoxes WIDE_TEXTS = new TextBoxes() {
         @Override
         public Optional<Bounds> componentLabel(Component component) {
             if (component.label().isEmpty()) {
                 return Optional.empty();
             }
-            return Optional.of(new Bounds(component.position().x() + 5, component.position().y() + 1, 6, 1));
+            return Optional.of(new Bounds(component.position().x() + 5, component.position().y() + 1, 6, 2));
         }
 
         @Override
         public Bounds freeText(TextLabel label) {
-            return new Bounds(label.position().x(), label.position().y(), 6, 1);
+            return new Bounds(label.position().x(), label.position().y(), 6, 2);
         }
     };
 
@@ -397,6 +398,96 @@ class CircuitTidyTest {
         assertThat(plan.partsMoved()).isZero();
         assertThat(GreedySeparator.tooClose(WIDE_TEXTS.freeText(moved), body(plan.after(), covered.id()),
                 LayoutItems.BODY_GAP)).isFalse();
+    }
+
+    private TextLabel text(CircuitDocument document, int x, int y, String words) {
+        TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(x, y), words);
+        document.add(label);
+        return label;
+    }
+
+    private CircuitTidyPlan tidyWithWideTexts(CircuitDocument document) {
+        return CircuitTidy.plan(document, registry, everything(document), CircuitTidyOptions.DEFAULTS, WIDE_TEXTS,
+                NEVER, round -> {
+                }).orElseThrow();
+    }
+
+    @Test
+    void textsOverTextsAreLeftAsTheyAre() {
+        CircuitDocument document = new CircuitDocument();
+        text(document, 0, 0, "desde el bus");
+        text(document, 3, 0, "de datos");
+
+        CircuitTidyPlan plan = tidyWithWideTexts(document);
+
+        assertThat(plan.textsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void aTextOverAPartsLabelIsLeftAsItIs() {
+        CircuitDocument document = new CircuitDocument();
+        place(registry, document, StandardComponentTypes.BUFFER, 0, 0, "Habilitar");
+        text(document, 7, 1, "nota");
+
+        CircuitTidyPlan plan = tidyWithWideTexts(document);
+
+        assertThat(plan.textsMoved()).isZero();
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void aColumnOfTextsMovesTogetherAndKeepsItsOrder() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 0, 0);
+        List<TextLabel> column = List.of(text(document, 2, 1, "000 itype"), text(document, 2, 2, "001 stype"),
+                text(document, 2, 3, "010 utype"));
+
+        CircuitTidyPlan plan = tidyWithWideTexts(document);
+
+        List<GridPoint> after = column.stream()
+                .map(label -> plan.after().label(label.id()).orElseThrow().position()).toList();
+        GridPoint shift = new GridPoint(after.get(0).x() - 2, after.get(0).y() - 1);
+        assertThat(shift).isNotEqualTo(GridPoint.ORIGIN);
+        assertThat(after).containsExactly(new GridPoint(2, 1).plus(shift), new GridPoint(2, 2).plus(shift),
+                new GridPoint(2, 3).plus(shift));
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void aPartNeverJumpsFarToFindRoom() {
+        CircuitDocument document = new CircuitDocument();
+        Component stuck = gate(registry, document, 0, 0);
+        for (int y = -9; y <= 13; y += 2) {
+            wire(document, -100, y, 100, y);
+        }
+
+        CircuitTidyPlan plan = tidyForReal(document);
+
+        assertThat(plan.after().component(stuck.id()).orElseThrow()).isEqualTo(stuck);
+        assertThat(plan.notSeparated()).containsExactly(stuck.id());
+    }
+
+    @Test
+    void everyStageIsReportedInOrder() {
+        CircuitDocument document = stackedAndGates();
+        List<CircuitTidyProgress.Stage> stages = new ArrayList<>();
+
+        CircuitTidy.plan(document, registry, everything(document), CircuitTidyOptions.DEFAULTS, TextBoxes.NONE, NEVER,
+                (stage, done, total) -> {
+                    if (stages.isEmpty() || stages.getLast() != stage) {
+                        stages.add(stage);
+                    }
+                    assertThat(done).isPositive();
+                    if (stage != CircuitTidyProgress.Stage.WIRES) {
+                        assertThat(done).isLessThanOrEqualTo(total);
+                    }
+                }).orElseThrow();
+
+        assertThat(stages).startsWith(CircuitTidyProgress.Stage.SEPARATING, CircuitTidyProgress.Stage.MOVING)
+                .endsWith(CircuitTidyProgress.Stage.WIRES);
     }
 
     @Test

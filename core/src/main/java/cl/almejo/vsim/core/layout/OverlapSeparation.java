@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
+import java.util.function.IntConsumer;
 import java.util.function.ToIntFunction;
 
 /**
@@ -25,11 +26,12 @@ import java.util.function.ToIntFunction;
  * Pure geometry: it knows nothing about components, wires or documents.
  *
  * <p>Two boxes overlap when their interiors share an area (spec §4.1: touching edges is fine, and so is being closer
- * than the gap, as drawn); a box the separation moves closer than the gap to one it was not that close to counts too,
- * so what moves keeps the gap. Each overlapping pair gets one separation constraint, which does ask for the larger of
- * the two gaps, on the axis that needs the smaller displacement (ties: x, which keeps the left-to-right flow), in the
- * pair's current order (by centre, then by id). Every round solves both axes from the original positions with all the constraints so
- * far ({@link AxisProjection}), so the result is the least movement that meets them (each box's movement counted by
+ * than the gap, as drawn); a movable box the separation brings closer than the gap to a fixed one it was not that
+ * close to counts too, so what moves keeps the gap to what stays (between two movable boxes only real overlaps count:
+ * checking their gaps too made dense inputs several times slower). Each overlapping pair gets one separation
+ * constraint, which does ask for the larger of the two gaps, on the axis that needs the smaller displacement (ties: x,
+ * which keeps the left-to-right flow), in the pair's current order (by centre, then by id). Every round solves both
+ * axes from the original positions with all the constraints so far ({@link AxisProjection}), so the result is the least movement that meets them (each box's movement counted by
  * its {@linkplain LayoutBox#weight() weight}: a heavy box lets the light one move) and a pair, once separated, stays
  * separated. Rounds repeat while new overlaps appear, at most {@value #MAXIMUM_ROUNDS}.
  */
@@ -69,9 +71,18 @@ public final class OverlapSeparation {
      * @throws IllegalArgumentException when two boxes share an id or a gap is negative
      */
     public static Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled) {
+        return separate(boxes, cancelled, round -> { });
+    }
+
+    /**
+     * Like {@link #separate(List, BooleanSupplier)}, telling {@code roundStarted} the number of each round (from 1,
+     * at most {@value #MAXIMUM_ROUNDS}) as it starts, for a progress window.
+     */
+    public static Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled, IntConsumer roundStarted) {
         Objects.requireNonNull(boxes, "boxes");
         Objects.requireNonNull(cancelled, "cancelled");
-        return new OverlapSeparation(sortedById(boxes), cancelled).run();
+        Objects.requireNonNull(roundStarted, "roundStarted");
+        return new OverlapSeparation(sortedById(boxes), cancelled).run(roundStarted);
     }
 
     private static List<LayoutBox> sortedById(List<LayoutBox> boxes) {
@@ -87,9 +98,10 @@ public final class OverlapSeparation {
         return boxes.stream().sorted(Comparator.comparing(box -> box.id().value())).toList();
     }
 
-    private Separation run() {
+    private Separation run(IntConsumer roundStarted) {
         for (int round = 0; round < MAXIMUM_ROUNDS; round++) {
             throwIfCancelled();
+            roundStarted.accept(round + 1);
             List<int[]> newPairs = overlappingPairsWithoutAConstraint();
             if (newPairs.isEmpty()) {
                 break;
@@ -239,9 +251,9 @@ public final class OverlapSeparation {
     }
 
     /**
-     * The pair needs separating at the current positions: their interiors share an area, or they came closer than
-     * their gap without having been that close at the start. Two boxes that already touched may keep touching (the
-     * circuit as drawn is fine); one pushed next to another keeps the gap.
+     * The pair needs separating at the current positions: their interiors share an area, or (one of them fixed) they
+     * came closer than their gap without having been drawn that close. Two boxes that already touched may keep
+     * touching (the circuit as drawn is fine); one pushed next to a fixed one keeps the gap.
      */
     private boolean conflict(int first, int second) {
         if (overlap(first, second)) {
@@ -257,7 +269,8 @@ public final class OverlapSeparation {
     private boolean touchedAsDrawn(int first, int second, long gap) {
         Bounds firstBounds = boxes.get(first).bounds();
         Bounds secondBounds = boxes.get(second).bounds();
-        boolean meetInside = sharedLength(firstBounds.x(), firstBounds.width(), secondBounds.x(), secondBounds.width()) > 0
+        boolean meetInside =
+                sharedLength(firstBounds.x(), firstBounds.width(), secondBounds.x(), secondBounds.width()) > 0
                 && sharedLength(firstBounds.y(), firstBounds.height(), secondBounds.y(), secondBounds.height()) > 0;
         return !meetInside && closerThan(gap, firstBounds.x(), firstBounds.y(), first, secondBounds.x(),
                 secondBounds.y(), second);

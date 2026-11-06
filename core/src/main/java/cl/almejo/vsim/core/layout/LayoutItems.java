@@ -31,14 +31,16 @@ import java.util.Set;
 
 /**
  * The things «Ordenar circuito» separates, read from a document (spec 2026-11-06 §4.1–§4.2): one {@link Item} per
- * component with its own label, free text and sticky note, components joined pin on pin (no wire between them) made
- * one rigid item. An item is movable only when all its members are in scope and it lies wholly inside one area (the
- * circuit, or the innermost frame around it); one that straddles a frame border stays.
+ * component with its own label, components joined pin on pin (no wire between them) made one rigid item, and one per
+ * block of touching free texts and sticky notes. An item is movable only when all its members are in scope and it
+ * lies wholly inside one area (the circuit, or the innermost frame around it); one that straddles a frame border
+ * stays.
  *
- * <p>Each area is separated on its own ({@link #separationGroups}): its movable items, every fixed item, a thin box
- * on each side just outside the area's frame (the walls keep its items in), every other frame as an obstacle (so
- * nothing enters it) and the wires that run through a foreign body (so the body moves off them). Frames are
- * otherwise not boxes, and guides are ignored.
+ * <p>Parts and texts are separated apart. Each area's parts ({@link #separationGroups}): its movable parts, every
+ * fixed part, a thin box on each side just outside the area's frame (the walls keep its items in), every other frame
+ * as an obstacle (so nothing enters it) and the wires that run through a foreign body (so the body moves off them).
+ * Then the blocks of texts that cover a body, against the bodies ({@link #textSeparationGroups}). Frames are
+ * otherwise not boxes, and guides are ignored. What covers what follows the user's eye ({@link #covers}).
  */
 final class LayoutItems {
 
@@ -53,6 +55,14 @@ final class LayoutItems {
      * against three ({@link #weightOf}: 8 against 64), a tunnel or a lamp against a gate.
      */
     static final long MUCH_LIGHTER = 8;
+    /**
+     * How much of a text's box, in grid units, may lie over a body without counting: text boxes are rounded outward
+     * to whole units, so a text drawn beside a part may reach into it by a fraction (the user's hand test,
+     * 2026-11-06). A text covers a body only when they share more than this on both axes.
+     */
+    static final int TEXT_ROUNDING = 1;
+    /** Texts closer than this (touching, or overlapping) form one block: the lines of a table, a split caption. */
+    private static final int TEXT_BLOCK_DISTANCE = 1;
 
     /**
      * Element ids in natural order: the letters, then the number after them as a number ({@code c2} before
@@ -66,22 +76,39 @@ final class LayoutItems {
     private static final String WALL_PREFIX = "wall-";
     private static final String FRAME_OBSTACLE_PREFIX = "frame-";
     private static final String WIRE_OBSTACLE_PREFIX = "wire-";
+    private static final String BODY_PREFIX = "body-";
 
     /**
-     * One thing that moves as a whole: a component (with its label), a pin-on-pin cluster of components, a free text
-     * or a sticky note. {@code id} is the smallest member id; {@code region} the innermost frame around it (empty: the
+     * One thing that moves as a whole: a component (with its label), a pin-on-pin cluster of components, or a block
+     * of texts (free texts and sticky notes that touch each other, such as the lines of a table, which must keep
+     * their order). {@code id} is the smallest member id; {@code region} the innermost frame around it (empty: the
      * circuit itself); {@code parts} and {@code texts} count its members for the summary; {@code partlyInScope} says
      * at least one member may change (a fixed item that is partly in scope and overlaps something is reported).
      * {@code bounds} is the box the separation moves; {@code shapes} are what the user sees of it (each body and each
-     * label), so two items whose boxes meet only where neither draws anything do not cover each other.
-     * {@code weight} is how much it resists moving ({@link #weightOf}).
+     * label, or each text), so two items whose boxes meet only where neither draws anything do not cover each other;
+     * {@code bodies} are its components' bodies (none for texts). {@code weight} is how much it resists moving
+     * ({@link #weightOf}).
      */
-    record Item(ElementId id, List<ElementId> members, Bounds bounds, List<Bounds> shapes, int gap, long weight,
-                boolean movable, boolean partlyInScope, Optional<ElementId> region, int parts, int texts) {
+    record Item(ElementId id, List<ElementId> members, Bounds bounds, List<Bounds> shapes, List<Bounds> bodies,
+                int gap, long weight, boolean movable, boolean partlyInScope, Optional<ElementId> region, int parts,
+                int texts) {
 
         Item {
             members = List.copyOf(members);
             shapes = List.copyOf(shapes);
+            bodies = List.copyOf(bodies);
+        }
+
+        /** True for a block of texts: it only gets out of the way of bodies (spec §4.1, the user, 2026-11-06). */
+        boolean isText() {
+            return parts == 0;
+        }
+
+        /** Its labels or texts: the shapes that are not bodies. */
+        List<Bounds> writing() {
+            List<Bounds> writing = new ArrayList<>(shapes);
+            bodies.forEach(writing::remove);
+            return writing;
         }
     }
 
@@ -110,16 +137,20 @@ final class LayoutItems {
         for (List<Component> cluster : clusters(document, registry)) {
             items.add(componentItem(cluster, registry, scope, texts, frames));
         }
+        Map<ElementId, Bounds> textBoxes = new LinkedHashMap<>();
         for (TextLabel label : document.labels()) {
             Bounds box = texts.freeText(label);
             // A text with no size (TextBoxes.NONE) covers nothing: as a point inside a body it would still be pushed.
             if (box.width() > 0 && box.height() > 0) {
-                items.add(textItem(label.id(), box, scope, frames));
+                textBoxes.put(label.id(), box);
             }
         }
         for (StickyNote note : document.stickyNotes()) {
-            items.add(textItem(note.id(), new Bounds(note.position().x(), note.position().y(), note.visibleWidth(),
-                    note.visibleHeight()), scope, frames));
+            textBoxes.put(note.id(), new Bounds(note.position().x(), note.position().y(), note.visibleWidth(),
+                    note.visibleHeight()));
+        }
+        for (List<ElementId> block : textBlocks(textBoxes)) {
+            items.add(textItem(block, textBoxes, scope, frames));
         }
         items.sort(Comparator.comparing(Item::id, ID_ORDER));
         return new LayoutItems(items, frames, wireObstacles(document, registry));
@@ -143,45 +174,82 @@ final class LayoutItems {
      * {@link #takesPart}.
      */
     List<List<LayoutBox>> separationGroups() {
-        List<Optional<ElementId>> regions = new ArrayList<>();
-        regions.add(Optional.empty());
-        frames.forEach(frame -> regions.add(Optional.of(frame.id())));
         List<List<LayoutBox>> groups = new ArrayList<>();
-        for (Optional<ElementId> region : regions) {
-            List<Item> movable = items.stream().filter(item -> item.movable() && item.region().equals(region))
-                    .toList();
-            if (movable.isEmpty()) {
-                continue;
-            }
+        for (Optional<ElementId> region : regions()) {
             List<LayoutBox> obstacles = new ArrayList<>(regionObstacles(region, Optional.empty()));
             obstacles.addAll(wireObstacles);
             List<LayoutBox> boxes = new ArrayList<>();
-            for (Item item : items) {
+            for (Item item : parts()) {
                 if (item.movable() && !item.region().equals(region)) {
                     continue;
                 }
                 boolean moves = item.movable() && takesPart(item, obstacles);
                 boxes.add(new LayoutBox(item.id(), item.bounds(), moves, item.gap(), item.weight()));
             }
-            if (boxes.stream().noneMatch(LayoutBox::movable)) {
-                continue;
-            }
-            boxes.addAll(obstacles);
-            groups.add(boxes);
+            addIfAnyMoves(groups, boxes, obstacles);
         }
         return groups;
     }
 
     /**
+     * Like {@link #separationGroups} for the blocks of texts, once the parts are in place: only a block that covers a
+     * body moves, and only away from bodies (texts over texts, labels or wires are left as they are: the user placed
+     * them so on purpose, spec §4.1 as refined by the user on 2026-11-06). Every body is a fixed box.
+     */
+    List<List<LayoutBox>> textSeparationGroups() {
+        List<LayoutBox> bodies = new ArrayList<>();
+        for (Item part : parts()) {
+            for (int index = 0; index < part.bodies().size(); index++) {
+                // A body keeps its gap from a text that moves off it (the pair keeps the larger gap, spec §4.3).
+                bodies.add(new LayoutBox(new ElementId(BODY_PREFIX + part.id().value() + "-" + index),
+                        part.bodies().get(index), false, BODY_GAP));
+            }
+        }
+        List<List<LayoutBox>> groups = new ArrayList<>();
+        for (Optional<ElementId> region : regions()) {
+            List<LayoutBox> boxes = new ArrayList<>();
+            for (Item item : items) {
+                if (item.isText() && item.movable() && item.region().equals(region) && !coveredBodies(item,
+                        Map.of()).isEmpty()) {
+                    boxes.add(new LayoutBox(item.id(), item.bounds(), true, item.gap(), item.weight()));
+                }
+            }
+            boxes.addAll(bodies);
+            addIfAnyMoves(groups, boxes, regionObstacles(region, Optional.empty()));
+        }
+        return groups;
+    }
+
+    private static void addIfAnyMoves(List<List<LayoutBox>> groups, List<LayoutBox> boxes, List<LayoutBox> obstacles) {
+        if (boxes.stream().anyMatch(LayoutBox::movable)) {
+            List<LayoutBox> group = new ArrayList<>(boxes);
+            group.addAll(obstacles);
+            groups.add(group);
+        }
+    }
+
+    /** The areas items are separated in: the circuit first, then frames in document order. */
+    private List<Optional<ElementId>> regions() {
+        List<Optional<ElementId>> regions = new ArrayList<>();
+        regions.add(Optional.empty());
+        frames.forEach(frame -> regions.add(Optional.of(frame.id())));
+        return regions;
+    }
+
+    private List<Item> parts() {
+        return items.stream().filter(item -> !item.isText()).toList();
+    }
+
+    /**
      * True when {@code item} has to take part in the separation: the inside of its box meets (a line through it counts,
-     * touching does not) one of {@code obstacles}, a fixed item, or a movable item not {@value #MUCH_LIGHTER} times
-     * lighter than it. A part never makes way for a much simpler one (a register for a tunnel): the simpler one
-     * moves, or, boxed in, is reported, rather than push the part and its wires away.
+     * touching does not) one of {@code obstacles}, or it covers ({@link #covers}) a fixed item or a movable item not
+     * {@value #MUCH_LIGHTER} times lighter than it. A part never makes way for a much simpler one (a register for a
+     * tunnel): the simpler one moves, or, boxed in, is reported, rather than push the part and its wires away.
      */
     private boolean takesPart(Item item, List<LayoutBox> obstacles) {
-        for (Item other : items) {
+        for (Item other : parts()) {
             boolean muchLighter = other.movable() && other.weight() * MUCH_LIGHTER <= item.weight();
-            if (other != item && !muchLighter && interiorsMeet(item.bounds(), other.bounds())) {
+            if (other != item && !muchLighter && covers(item, item.bounds(), other, other.bounds())) {
                 return true;
             }
         }
@@ -193,10 +261,15 @@ final class LayoutItems {
                 && first.y() < second.maximumY() && second.y() < first.maximumY();
     }
 
-    /** The fixed boxes that are not items and that {@code item} must keep clear of: walls, frames and wires. */
+    /**
+     * The fixed boxes that are not items and that {@code item} must keep clear of: walls, frames and, for a part, the
+     * wires that would run through its body (a text over a wire is fine).
+     */
     List<LayoutBox> obstacles(Item item) {
         List<LayoutBox> obstacles = new ArrayList<>(regionObstacles(item.region(), Optional.of(item.bounds())));
-        obstacles.addAll(wireObstacles);
+        if (!item.isText()) {
+            obstacles.addAll(wireObstacles);
+        }
         return obstacles;
     }
 
@@ -207,13 +280,13 @@ final class LayoutItems {
      * unless the two were drawn that close.
      */
     boolean isFree(Item item, Bounds candidate, Map<ElementId, Bounds> placed) {
-        for (Item other : items) {
+        for (Item other : parts()) {
             if (other.id().equals(item.id())) {
                 continue;
             }
             Bounds otherBounds = placed.getOrDefault(other.id(), other.bounds());
-            int gap = Math.max(item.gap(), other.gap());
-            if (newlyTooClose(item.bounds(), candidate, other.bounds(), otherBounds, gap)) {
+            if (covers(item, candidate, other, otherBounds)
+                    || bodiesNewlyTooClose(item, item.bounds(), candidate, other, other.bounds(), otherBounds)) {
                 return false;
             }
         }
@@ -224,6 +297,28 @@ final class LayoutItems {
             }
         }
         return keepsItsFrames(item, candidate);
+    }
+
+    /**
+     * True when a body of {@code item}, moved from {@code from} to {@code to}, comes closer than {@link #BODY_GAP} to a
+     * body of {@code other} (moved from {@code otherFrom} to {@code otherTo}) without having been drawn that close
+     * ({@link #touchedAsDrawn}): what moves keeps the gap between bodies.
+     */
+    private static boolean bodiesNewlyTooClose(Item item, Bounds from, Bounds to, Item other, Bounds otherFrom,
+                                               Bounds otherTo) {
+        List<Bounds> bodiesFrom = movedWith(item.bodies(), item, from);
+        List<Bounds> bodiesTo = movedWith(item.bodies(), item, to);
+        List<Bounds> otherBodiesFrom = movedWith(other.bodies(), other, otherFrom);
+        List<Bounds> otherBodiesTo = movedWith(other.bodies(), other, otherTo);
+        for (int index = 0; index < bodiesTo.size(); index++) {
+            for (int otherIndex = 0; otherIndex < otherBodiesTo.size(); otherIndex++) {
+                if (overlaps(bodiesTo.get(index), otherBodiesTo.get(otherIndex), BODY_GAP)
+                        && !touchedAsDrawn(bodiesFrom.get(index), otherBodiesFrom.get(otherIndex), BODY_GAP)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -251,15 +346,13 @@ final class LayoutItems {
      */
     boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());
-        for (Item other : items) {
+        for (Item other : parts()) {
             if (other.id().equals(item.id())) {
                 continue;
             }
             Bounds otherNow = now.getOrDefault(other.id(), other.bounds());
-            int gap = Math.max(item.gap(), other.gap());
-            boolean newlyMeets = interiorsMeet(candidate, otherNow) && !interiorsMeet(from, otherNow);
-            boolean newlyClose = gap > 0 && overlaps(candidate, otherNow, gap) && !overlaps(from, otherNow, gap);
-            if (newlyMeets || newlyClose) {
+            boolean newlyCovers = covers(item, candidate, other, otherNow) && !covers(item, from, other, otherNow);
+            if (newlyCovers || bodiesNewlyTooClose(item, from, candidate, other, otherNow, otherNow)) {
                 return false;
             }
         }
@@ -268,26 +361,60 @@ final class LayoutItems {
 
     /**
      * The ids of the other items that {@code item} covers, every item where {@code placed} says it is (items missing
-     * from it are where they started): a body or label of one shares an area with a body or label of the other (spec
-     * §4.1). Being closer than the gap, touching, walls and frames do not count: the user sees nothing wrong there.
+     * from it are where they started), as the user sees it (spec §4.1): a body shares an area with a body, a label or
+     * a text. Texts over texts or labels are not overlaps (placed so on purpose); being closer than the gap,
+     * touching, walls and frames do not count either.
      */
     List<ElementId> coveredItems(Item item, Map<ElementId, Bounds> placed) {
         Bounds at = placed.getOrDefault(item.id(), item.bounds());
         List<ElementId> covered = new ArrayList<>();
         for (Item other : items) {
             Bounds otherAt = placed.getOrDefault(other.id(), other.bounds());
-            if (!other.id().equals(item.id()) && overlaps(at, otherAt, 0)
-                    && shapesOverlap(item, at, other, otherAt)) {
+            if (!other.id().equals(item.id()) && covers(item, at, other, otherAt)) {
                 covered.add(other.id());
             }
         }
         return covered;
     }
 
-    private static boolean shapesOverlap(Item first, Bounds firstAt, Item second, Bounds secondAt) {
-        for (Bounds firstShape : shapesAt(first, firstAt)) {
-            for (Bounds secondShape : shapesAt(second, secondAt)) {
-                if (overlaps(firstShape, secondShape, 0)) {
+    /** The ids of the parts whose bodies {@code item} covers ({@link #covers}), each where {@code placed} says. */
+    List<ElementId> coveredBodies(Item item, Map<ElementId, Bounds> placed) {
+        Bounds at = placed.getOrDefault(item.id(), item.bounds());
+        List<ElementId> covered = new ArrayList<>();
+        for (Item other : parts()) {
+            if (!other.id().equals(item.id())
+                    && covers(item, at, other, placed.getOrDefault(other.id(), other.bounds()))) {
+                covered.add(other.id());
+            }
+        }
+        return covered;
+    }
+
+    /**
+     * True when the two items, at the places given, cover each other as the user sees it: a body shares an area with
+     * a body, or with a label or text by more than {@value #TEXT_ROUNDING} unit on both axes. Writing over writing
+     * never counts.
+     */
+    static boolean covers(Item first, Bounds firstAt, Item second, Bounds secondAt) {
+        if (!overlaps(firstAt, secondAt, 0)) {
+            return false;
+        }
+        List<Bounds> firstBodies = movedWith(first.bodies(), first, firstAt);
+        List<Bounds> secondBodies = movedWith(second.bodies(), second, secondAt);
+        return share(firstBodies, secondBodies, 0)
+                || share(firstBodies, movedWith(second.writing(), second, secondAt), TEXT_ROUNDING)
+                || share(movedWith(first.writing(), first, firstAt), secondBodies, TEXT_ROUNDING);
+    }
+
+    /** True when a box of each list share more than {@code margin} units on both axes. */
+    private static boolean share(List<Bounds> firstBoxes, List<Bounds> secondBoxes, int margin) {
+        for (Bounds firstBox : firstBoxes) {
+            for (Bounds secondBox : secondBoxes) {
+                int sharedX = Math.min(firstBox.maximumX(), secondBox.maximumX())
+                        - Math.max(firstBox.x(), secondBox.x());
+                int sharedY = Math.min(firstBox.maximumY(), secondBox.maximumY())
+                        - Math.max(firstBox.y(), secondBox.y());
+                if (sharedX > margin && sharedY > margin) {
                     return true;
                 }
             }
@@ -295,10 +422,10 @@ final class LayoutItems {
         return false;
     }
 
-    private static List<Bounds> shapesAt(Item item, Bounds at) {
+    private static List<Bounds> movedWith(List<Bounds> boxes, Item item, Bounds at) {
         int deltaX = at.x() - item.bounds().x();
         int deltaY = at.y() - item.bounds().y();
-        return item.shapes().stream().map(shape -> shape.translate(deltaX, deltaY)).toList();
+        return boxes.stream().map(box -> box.translate(deltaX, deltaY)).toList();
     }
 
     /**
@@ -394,18 +521,20 @@ final class LayoutItems {
         Bounds bounds = null;
         long weight = 0;
         List<Bounds> shapes = new ArrayList<>();
+        List<Bounds> bodies = new ArrayList<>();
         List<ElementId> members = new ArrayList<>();
         for (Component component : cluster) {
             Bounds body = registry.typeOf(component).bounds(component);
             weight += weightOf(registry.typeOf(component).pinCount());
             Optional<Bounds> label = texts.componentLabel(component);
             shapes.add(body);
+            bodies.add(body);
             label.ifPresent(shapes::add);
             Bounds withLabel = label.map(body::union).orElse(body);
             bounds = bounds == null ? withLabel : bounds.union(withLabel);
             members.add(component.id());
         }
-        return item(members, bounds, shapes, BODY_GAP, weight, scope, frames, cluster.size(), 0);
+        return item(members, bounds, shapes, bodies, BODY_GAP, weight, scope, frames, cluster.size(), 0);
     }
 
     /**
@@ -418,18 +547,43 @@ final class LayoutItems {
         return base * base * base;
     }
 
-    private static Item textItem(ElementId id, Bounds bounds, Set<ElementId> scope, List<Frame> frames) {
-        return item(List.of(id), bounds, List.of(bounds), TEXT_GAP, TEXT_WEIGHT, scope, frames, 0, 1);
+    /**
+     * The texts that touch or overlap each other (closer than one unit), each block in id order: the lines of a table
+     * or a caption split in two move together, so their order and their pairing never change.
+     */
+    private static List<List<ElementId>> textBlocks(Map<ElementId, Bounds> textBoxes) {
+        UnionFind<ElementId> joins = new UnionFind<>();
+        List<ElementId> ids = new ArrayList<>(textBoxes.keySet());
+        ids.forEach(joins::add);
+        for (int first = 0; first < ids.size(); first++) {
+            for (int second = first + 1; second < ids.size(); second++) {
+                if (overlaps(textBoxes.get(ids.get(first)), textBoxes.get(ids.get(second)), TEXT_BLOCK_DISTANCE)) {
+                    joins.union(ids.get(first), ids.get(second));
+                }
+            }
+        }
+        Map<ElementId, List<ElementId>> byRoot = new LinkedHashMap<>();
+        ids.stream().sorted(ID_ORDER)
+                .forEach(id -> byRoot.computeIfAbsent(joins.find(id), root -> new ArrayList<>()).add(id));
+        return List.copyOf(byRoot.values());
     }
 
-    private static Item item(List<ElementId> members, Bounds bounds, List<Bounds> shapes, int gap, long weight,
-                             Set<ElementId> scope, List<Frame> frames, int parts, int texts) {
+    private static Item textItem(List<ElementId> block, Map<ElementId, Bounds> textBoxes, Set<ElementId> scope,
+                                 List<Frame> frames) {
+        List<Bounds> shapes = block.stream().map(textBoxes::get).toList();
+        Bounds bounds = shapes.stream().reduce(Bounds::union).orElseThrow();
+        return item(block, bounds, shapes, List.of(), TEXT_GAP, TEXT_WEIGHT * block.size(), scope, frames, 0,
+                block.size());
+    }
+
+    private static Item item(List<ElementId> members, Bounds bounds, List<Bounds> shapes, List<Bounds> bodies, int gap,
+                             long weight, Set<ElementId> scope, List<Frame> frames, int parts, int texts) {
         boolean inScope = scope.containsAll(members);
         boolean partlyInScope = members.stream().anyMatch(scope::contains);
         boolean straddles = frames.stream().anyMatch(frame -> straddles(frame, bounds));
         Optional<ElementId> region = straddles ? Optional.empty() : innermostAround(frames, bounds);
-        return new Item(members.get(0), members, bounds, shapes, gap, weight, inScope && !straddles, partlyInScope,
-                region, parts, texts);
+        return new Item(members.get(0), members, bounds, shapes, bodies, gap, weight, inScope && !straddles,
+                partlyInScope, region, parts, texts);
     }
 
     /** True when {@code bounds} shares an area with {@code frame} without lying inside it (across its border). */

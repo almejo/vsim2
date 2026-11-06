@@ -213,7 +213,7 @@ class LayoutItemsTest {
             @Override
             public Optional<Bounds> componentLabel(Component component) {
                 return component.label().isEmpty() ? Optional.empty()
-                        : Optional.of(new Bounds(component.position().x() + 5, component.position().y() + 1, 6, 1));
+                        : Optional.of(new Bounds(component.position().x() + 5, component.position().y() + 1, 6, 2));
             }
 
             @Override

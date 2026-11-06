@@ -4,7 +4,10 @@ import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.command.TidyWiresCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -36,6 +39,10 @@ import java.util.function.Supplier;
  * A move that would change which pins are connected (a pin landing on a foreign wire or pin) is undone and other
  * places are tried: the other axis, the opposite side, then one and two units further; with none left the item stays
  * and is counted in {@link CircuitTidyPlan#notSeparated()}.
+ *
+ * <p>Parts are separated first, in up to {@value #MAXIMUM_PART_ROUNDS} rounds, each reading the boxes (and the wires
+ * through bodies) again from the copy as the moves left it; then the blocks of texts that still cover a body move off
+ * it. Texts never push parts, and texts over texts are left alone.
  */
 public final class CircuitTidy {
 
@@ -45,10 +52,16 @@ public final class CircuitTidy {
      */
     private static final int MAXIMUM_PLACING_PASSES = 3;
     /**
-     * How far, in grid units, a fallback place is looked for on one axis. Further than this is no longer «the least
-     * it can» (spec §2 decision 2: the circuit stays compact); the item is reported instead.
+     * How many times the parts are separated, each time from the boxes and wires the moves before left: a move drags
+     * wires along, which may now run through a body. Two or three rounds settle real circuits.
      */
-    private static final int FALLBACK_SEARCH_UNITS = 64;
+    private static final int MAXIMUM_PART_ROUNDS = 3;
+    /**
+     * How much further than its own size, in grid units, a fallback place is looked for on one axis: an item moves at
+     * most about its size to find room. Further is no longer «the least it can» (spec §2 decision 2: the circuit stays
+     * compact); the item is reported instead.
+     */
+    private static final int FALLBACK_SLACK_UNITS = 8;
 
     private CircuitTidy() {
     }
@@ -61,31 +74,64 @@ public final class CircuitTidy {
     public static Optional<CircuitTidyPlan> plan(CircuitDocument document, ComponentTypeRegistry registry,
                                                  Set<ElementId> scope, CircuitTidyOptions options, TextBoxes texts,
                                                  BooleanSupplier cancelled, IntConsumer progress) {
-        return plan(document, registry, scope, options, texts, cancelled, progress, OverlapSeparation::separate);
+        return plan(document, registry, scope, options, texts, cancelled, progress, Separator.REAL);
     }
 
     /**
      * Like {@link #plan(CircuitDocument, ComponentTypeRegistry, Set, CircuitTidyOptions, TextBoxes, BooleanSupplier,
-     * IntConsumer)}, reporting every stage (separation rounds, moves applied, wire rounds) to {@code progress}.
+     * IntConsumer)}, reporting every stage to {@code progress}: {@code SEPARATING} with each round of the separation
+     * (of at most {@value OverlapSeparation#MAXIMUM_ROUNDS}), {@code MOVING} with each item placed (of the items to
+     * place) and {@code WIRES} with each round of the wire rules (total unknown, 0).
      */
     public static Optional<CircuitTidyPlan> plan(CircuitDocument document, ComponentTypeRegistry registry,
                                                  Set<ElementId> scope, CircuitTidyOptions options, TextBoxes texts,
                                                  BooleanSupplier cancelled, CircuitTidyProgress progress) {
-        // only the wire rounds are reported for now; the separating and moving stages come with the core improvements
-        return plan(document, registry, scope, options, texts, cancelled,
-                round -> progress.reached(CircuitTidyProgress.Stage.WIRES, round, 0));
+        Objects.requireNonNull(progress, "progress");
+        return run(document, registry, scope, options, texts, cancelled, progress, Separator.REAL);
     }
 
     /** How boxes are moved apart: {@link OverlapSeparation#separate} outside tests. */
     @FunctionalInterface
     interface Separator {
+
+        /** The real geometry, with its rounds reported. */
+        Separator REAL = new Separator() {
+            @Override
+            public Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled) {
+                return OverlapSeparation.separate(boxes, cancelled);
+            }
+
+            @Override
+            public Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled, IntConsumer roundStarted) {
+                return OverlapSeparation.separate(boxes, cancelled, roundStarted);
+            }
+        };
+
         Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled);
+
+        /** Like {@link #separate(List, BooleanSupplier)}, telling {@code roundStarted} each round (stand-ins: none). */
+        default Separation separate(List<LayoutBox> boxes, BooleanSupplier cancelled, IntConsumer roundStarted) {
+            return separate(boxes, cancelled);
+        }
     }
 
     /** Like the public {@code plan}, with the geometry given (tests use a simple stand-in). */
     static Optional<CircuitTidyPlan> plan(CircuitDocument document, ComponentTypeRegistry registry,
                                           Set<ElementId> scope, CircuitTidyOptions options, TextBoxes texts,
                                           BooleanSupplier cancelled, IntConsumer progress, Separator separator) {
+        Objects.requireNonNull(progress, "progress");
+        CircuitTidyProgress wireRounds = (stage, done, total) -> {
+            if (stage == CircuitTidyProgress.Stage.WIRES) {
+                progress.accept(done);
+            }
+        };
+        return run(document, registry, scope, options, texts, cancelled, wireRounds, separator);
+    }
+
+    private static Optional<CircuitTidyPlan> run(CircuitDocument document, ComponentTypeRegistry registry,
+                                                 Set<ElementId> scope, CircuitTidyOptions options, TextBoxes texts,
+                                                 BooleanSupplier cancelled, CircuitTidyProgress progress,
+                                                 Separator separator) {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(registry, "registry");
         Objects.requireNonNull(scope, "scope");
@@ -95,22 +141,22 @@ public final class CircuitTidy {
             return Optional.empty();
         }
         CircuitDocument copy = document.copy();
-        Placement placement = new Placement(copy, registry, cancelled);
+        Set<ElementId> notSeparated = Set.of();
         if (options.separateOverlaps()) {
             try {
-                placement.separate(LayoutItems.of(document, registry, scope, texts), separator);
+                notSeparated = new Separating(copy, registry, scope, texts, cancelled, progress, separator).run();
             } catch (CancellationException cancellation) {
                 return Optional.empty();
             }
         }
         Optional<TidyPlan> wires = WireTidy.plan(copy, registry, wiresInScope(document, copy, scope),
-                options.wires(), cancelled, progress);
+                options.wires(), cancelled, round -> progress.reached(CircuitTidyProgress.Stage.WIRES, round, 0));
         if (wires.isEmpty()) {
             return Optional.empty();
         }
         new TidyWiresCommand(wires.get()).apply(copy);
-        return Optional.of(new CircuitTidyPlan(copy, placement.partsMoved, placement.textsMoved,
-                placement.notSeparated, wires.get()));
+        return Optional.of(new CircuitTidyPlan(copy, partsMoved(document, copy), textsMoved(document, copy),
+                notSeparated, wires.get()));
     }
 
     /** The wires of {@code copy} the wire rules may change: those in scope plus the ones the moves made or changed. */
@@ -124,212 +170,269 @@ public final class CircuitTidy {
         return wires;
     }
 
-    /** The moves of one run on the copy, with what they moved and what they could not separate. */
-    private static final class Placement {
+    /** The components whose place differs between the two documents. */
+    private static int partsMoved(CircuitDocument before, CircuitDocument after) {
+        int moved = 0;
+        for (Component component : after.components()) {
+            if (!before.component(component.id()).map(Component::position).equals(Optional.of(component.position()))) {
+                moved++;
+            }
+        }
+        return moved;
+    }
+
+    /** The free texts and sticky notes whose place differs between the two documents. */
+    private static int textsMoved(CircuitDocument before, CircuitDocument after) {
+        int moved = 0;
+        for (TextLabel label : after.labels()) {
+            if (!before.label(label.id()).map(TextLabel::position).equals(Optional.of(label.position()))) {
+                moved++;
+            }
+        }
+        for (StickyNote note : after.stickyNotes()) {
+            if (!before.stickyNote(note.id()).map(StickyNote::position).equals(Optional.of(note.position()))) {
+                moved++;
+            }
+        }
+        return moved;
+    }
+
+    /** The separation of one run on the copy: the rounds of parts, then the texts, then what is left counted. */
+    private static final class Separating {
 
         private final CircuitDocument copy;
         private final ComponentTypeRegistry registry;
+        private final Set<ElementId> scope;
+        private final TextBoxes texts;
         private final BooleanSupplier cancelled;
+        private final CircuitTidyProgress progress;
+        private final Separator separator;
         /** Which pins are connected to which before any move: every move must keep it. */
-        private Set<Set<PinRef>> originalNets;
-        /** Where each item is or will be: its planned place until it is placed or refused. */
-        private final Map<ElementId, Bounds> places = new HashMap<>();
-        /** Where each item that moved is on the copy now (the others are where they started). */
-        private final Map<ElementId, Bounds> actual = new HashMap<>();
-        /** The items whose every place was refused: counted first, when they still cover something. */
+        private final Set<Set<PinRef>> originalNets;
+        /** The items whose every place was refused in some round: counted first, when they still cover something. */
         private final Set<ElementId> refused = new LinkedHashSet<>();
-        private final Set<ElementId> notSeparated = new LinkedHashSet<>();
-        private LayoutItems items;
-        private int partsMoved;
-        private int textsMoved;
 
-        Placement(CircuitDocument copy, ComponentTypeRegistry registry, BooleanSupplier cancelled) {
+        Separating(CircuitDocument copy, ComponentTypeRegistry registry, Set<ElementId> scope, TextBoxes texts,
+                   BooleanSupplier cancelled, CircuitTidyProgress progress, Separator separator) {
             this.copy = copy;
             this.registry = registry;
+            this.scope = scope;
+            this.texts = texts;
             this.cancelled = cancelled;
+            this.progress = progress;
+            this.separator = separator;
+            this.originalNets = nets();
         }
 
-        void separate(LayoutItems layoutItems, Separator separator) {
-            items = layoutItems;
-            originalNets = nets();
-            Map<ElementId, GridPoint> deltas = plannedDeltas(separator);
-            List<LayoutItems.Item> pending = new ArrayList<>();
-            for (LayoutItems.Item item : items.items()) {
-                GridPoint delta = deltas.get(item.id());
-                places.put(item.id(), delta == null ? item.bounds() : moved(item, delta));
-                if (delta != null) {
-                    pending.add(item);
-                }
-            }
-            placeAll(pending, deltas);
-            countWhatStillOverlaps();
-        }
-
-        /** The separation's delta for each movable item it moves, every area at a time; zero deltas left out. */
-        private Map<ElementId, GridPoint> plannedDeltas(Separator separator) {
-            Map<ElementId, GridPoint> deltas = new LinkedHashMap<>();
-            for (List<LayoutBox> group : items.separationGroups()) {
-                checkCancelled();
-                if (!anyMovableOverlaps(group)) {
-                    continue;
-                }
-                Separation separation = separator.separate(group, cancelled);
-                for (LayoutBox box : group) {
-                    GridPoint delta = separation.deltas().get(box.id());
-                    if (box.movable() && delta != null && !delta.equals(GridPoint.ORIGIN)) {
-                        deltas.put(box.id(), delta);
-                    }
-                }
-            }
-            return deltas;
-        }
-
-        private static boolean anyMovableOverlaps(List<LayoutBox> group) {
-            for (LayoutBox box : group) {
-                if (!box.movable()) {
-                    continue;
-                }
-                for (LayoutBox other : group) {
-                    if (other != box && LayoutItems.overlaps(box.bounds(), other.bounds(),
-                            Math.max(box.gap(), other.gap()))) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        /** Places the items in id order; those refused everywhere are tried again after the others moved. */
-        private void placeAll(List<LayoutItems.Item> pending, Map<ElementId, GridPoint> deltas) {
-            List<LayoutItems.Item> waiting = new ArrayList<>(pending);
-            for (int pass = 0; pass < MAXIMUM_PLACING_PASSES && !waiting.isEmpty(); pass++) {
-                List<LayoutItems.Item> refused = new ArrayList<>();
-                for (LayoutItems.Item item : waiting) {
-                    if (!place(item, deltas.get(item.id()))) {
-                        refused.add(item);
-                    }
-                }
-                if (refused.size() == waiting.size()) {
+        /** Separates and returns what still covers something (items partly in scope only). */
+        Set<ElementId> run() {
+            for (int round = 0; round < MAXIMUM_PART_ROUNDS; round++) {
+                LayoutItems items = currentItems();
+                if (!new Round(items).place(items.separationGroups())) {
                     break;
                 }
-                waiting = refused;
             }
-            for (LayoutItems.Item item : waiting) {
-                places.put(item.id(), item.bounds());
-                refused.add(item.id());
-            }
+            LayoutItems items = currentItems();
+            new Round(items).place(items.textSeparationGroups());
+            return whatStillOverlaps(currentItems());
         }
 
-        /** Moves {@code item} to the first place that keeps it clear and the circuit's meaning; false when none. */
-        private boolean place(LayoutItems.Item item, GridPoint delta) {
-            for (Supplier<Optional<GridPoint>> candidate : candidates(item, delta)) {
-                checkCancelled();
-                Optional<GridPoint> shift = candidate.get();
-                if (shift.isPresent() && tryMove(item, shift.get())) {
-                    places.put(item.id(), moved(item, shift.get()));
-                    actual.put(item.id(), moved(item, shift.get()));
-                    partsMoved += item.parts();
-                    textsMoved += item.texts();
-                    return true;
-                }
-            }
-            return false;
+        private LayoutItems currentItems() {
+            checkCancelled();
+            return LayoutItems.of(copy, registry, scope, texts);
         }
 
         /**
-         * The places to try, in order (spec §4.4): the separation's, the nearest free one on the other axis, the
-         * nearest free one on the opposite side, then the first one lengthened by one and by two units. Each is
-         * computed only when the one before failed.
+         * The items in scope that still cover something at the end, as the user sees it (spec §4.1: bodies under
+         * bodies, labels or texts; closer than the gap is fine): an overlap is counted once (an item whose every
+         * partner is already counted is not), and a part still crossed by a foreign wire counts too.
          */
-        private List<Supplier<Optional<GridPoint>>> candidates(LayoutItems.Item item, GridPoint delta) {
-            boolean alongX = Math.abs(delta.x()) >= Math.abs(delta.y());
-            int direction = Integer.signum(alongX ? delta.x() : delta.y());
-            return List.of(
-                    () -> Optional.of(delta),
-                    () -> nearestFree(item, !alongX, List.of(1, -1)),
-                    () -> nearestFree(item, alongX, List.of(-direction)),
-                    () -> Optional.of(lengthened(delta, alongX, direction)),
-                    () -> Optional.of(lengthened(delta, alongX, 2 * direction)));
-        }
-
-        private static GridPoint lengthened(GridPoint delta, boolean alongX, int extra) {
-            return alongX ? delta.translate(extra, 0) : delta.translate(0, extra);
-        }
-
-        /** The smallest shift along one axis, in the directions given (in that order at each distance), that is free. */
-        private Optional<GridPoint> nearestFree(LayoutItems.Item item, boolean alongX, List<Integer> directions) {
-            for (int distance = 1; distance <= FALLBACK_SEARCH_UNITS; distance++) {
-                for (int direction : directions) {
-                    int step = direction * distance;
-                    GridPoint shift = alongX ? new GridPoint(step, 0) : new GridPoint(0, step);
-                    if (isClear(item, moved(item, shift))) {
-                        return Optional.of(shift);
-                    }
-                }
-            }
-            return Optional.empty();
-        }
-
-        /**
-         * Applies the move on the copy when the place is clear (of items, walls, frames and foreign wires) and keeps it
-         * when every pin stays in the net it was in; otherwise undoes it.
-         */
-        private boolean tryMove(LayoutItems.Item item, GridPoint shift) {
-            if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
-                return false;
-            }
-            MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry, new LinkedHashSet<>(item.members()),
-                    shift.x(), shift.y());
-            move.apply(copy);
-            // Checked after the move, on the wires as they end up: the wires on the item's pins follow it.
-            if (!LayoutItems.crossedByForeignWire(copy, registry, item.members()) && nets().equals(originalNets)) {
-                return true;
-            }
-            move.revert(copy);
-            return false;
-        }
-
-        /**
-         * True when {@code item} at {@code candidate} keeps clear of every other item's planned place, and makes no
-         * new overlap with any item where it is now: a neighbour planned to leave may still have to stay, so its spot
-         * is not taken before it left.
-         */
-        private boolean isClear(LayoutItems.Item item, Bounds candidate) {
-            return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual);
-        }
-
-        /**
-         * Adds the items in scope that still cover something at the end, as the user sees it (spec §4.1: bodies and
-         * texts sharing an area; closer than the gap is fine): an overlap is counted once (an item whose every partner
-         * is already counted is not), and a part still crossed by a foreign wire counts too.
-         */
-        private void countWhatStillOverlaps() {
+        private Set<ElementId> whatStillOverlaps(LayoutItems items) {
             List<LayoutItems.Item> refusedFirst = new ArrayList<>();
             items.items().stream().filter(item -> refused.contains(item.id())).forEach(refusedFirst::add);
             items.items().stream().filter(item -> !refused.contains(item.id())).forEach(refusedFirst::add);
+            Set<ElementId> overlapping = new LinkedHashSet<>();
             for (LayoutItems.Item item : refusedFirst) {
-                if (notSeparated.contains(item.id()) || !item.partlyInScope()) {
+                if (!item.partlyInScope()) {
                     continue;
                 }
-                List<ElementId> covered = items.coveredItems(item, places);
-                boolean newOverlap = covered.stream().anyMatch(other -> !notSeparated.contains(other));
-                if (newOverlap || LayoutItems.crossedByForeignWire(copy, registry, item.members())) {
-                    notSeparated.add(item.id());
+                boolean newOverlap = items.coveredItems(item, Map.of()).stream()
+                        .anyMatch(other -> !overlapping.contains(other));
+                if (newOverlap || !item.isText() && LayoutItems.crossedByForeignWire(copy, registry,
+                        item.members())) {
+                    overlapping.add(item.id());
                 }
             }
+            return overlapping;
         }
 
         private Set<Set<PinRef>> nets() {
             return Connectivity.of(copy.wires(), copy, registry).pinNets();
         }
 
-        private static Bounds moved(LayoutItems.Item item, GridPoint shift) {
-            return item.bounds().translate(shift.x(), shift.y());
-        }
-
         private void checkCancelled() {
             if (cancelled.getAsBoolean()) {
                 throw new CancellationException();
+            }
+        }
+
+        /** One round: the separation's deltas for some groups of boxes, applied item by item on the copy. */
+        private final class Round {
+
+            private final LayoutItems items;
+            /** Where each item is or will be: its planned place until it is placed or refused. */
+            private final Map<ElementId, Bounds> places = new HashMap<>();
+            /** Where each item that moved is on the copy now (the others are where they started). */
+            private final Map<ElementId, Bounds> actual = new HashMap<>();
+
+            Round(LayoutItems items) {
+                this.items = items;
+            }
+
+            /** Separates {@code groups} and moves what it says; true when anything moved. */
+            boolean place(List<List<LayoutBox>> groups) {
+                Map<ElementId, GridPoint> deltas = plannedDeltas(groups);
+                List<LayoutItems.Item> pending = new ArrayList<>();
+                for (LayoutItems.Item item : items.items()) {
+                    GridPoint delta = deltas.get(item.id());
+                    places.put(item.id(), delta == null ? item.bounds() : moved(item, delta));
+                    if (delta != null) {
+                        pending.add(item);
+                    }
+                }
+                return placeAll(pending, deltas);
+            }
+
+            /** The separation's delta for each movable item it moves, every area at a time; zero deltas left out. */
+            private Map<ElementId, GridPoint> plannedDeltas(List<List<LayoutBox>> groups) {
+                Map<ElementId, GridPoint> deltas = new LinkedHashMap<>();
+                for (List<LayoutBox> group : groups) {
+                    checkCancelled();
+                    Separation separation = separator.separate(group, cancelled, round -> progress.reached(
+                            CircuitTidyProgress.Stage.SEPARATING, round, OverlapSeparation.MAXIMUM_ROUNDS));
+                    for (LayoutBox box : group) {
+                        GridPoint delta = separation.deltas().get(box.id());
+                        if (box.movable() && delta != null && !delta.equals(GridPoint.ORIGIN)) {
+                            deltas.put(box.id(), delta);
+                        }
+                    }
+                }
+                return deltas;
+            }
+
+            /**
+             * Places the items in id order; those refused everywhere are tried again after the others moved. True
+             * when any moved.
+             */
+            private boolean placeAll(List<LayoutItems.Item> pending, Map<ElementId, GridPoint> deltas) {
+                List<LayoutItems.Item> waiting = new ArrayList<>(pending);
+                boolean anyMoved = false;
+                for (int pass = 0; pass < MAXIMUM_PLACING_PASSES && !waiting.isEmpty(); pass++) {
+                    List<LayoutItems.Item> refusedThisPass = new ArrayList<>();
+                    for (int index = 0; index < waiting.size(); index++) {
+                        LayoutItems.Item item = waiting.get(index);
+                        progress.reached(CircuitTidyProgress.Stage.MOVING, index + 1, waiting.size());
+                        if (placeOne(item, deltas.get(item.id()))) {
+                            anyMoved = true;
+                        } else {
+                            refusedThisPass.add(item);
+                        }
+                    }
+                    if (refusedThisPass.size() == waiting.size()) {
+                        break;
+                    }
+                    waiting = refusedThisPass;
+                }
+                for (LayoutItems.Item item : waiting) {
+                    places.put(item.id(), item.bounds());
+                    refused.add(item.id());
+                }
+                return anyMoved;
+            }
+
+            /** Moves {@code item} to the first place that keeps it clear and the circuit's meaning; false when none. */
+            private boolean placeOne(LayoutItems.Item item, GridPoint delta) {
+                for (Supplier<Optional<GridPoint>> candidate : candidates(item, delta)) {
+                    checkCancelled();
+                    Optional<GridPoint> shift = candidate.get();
+                    if (shift.isPresent() && tryMove(item, shift.get())) {
+                        places.put(item.id(), moved(item, shift.get()));
+                        actual.put(item.id(), moved(item, shift.get()));
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /**
+             * The places to try, in order (spec §4.4): the separation's, the nearest free one on the other axis, the
+             * nearest free one on the opposite side, then the first one lengthened by one and by two units. Each is
+             * computed only when the one before failed.
+             */
+            private List<Supplier<Optional<GridPoint>>> candidates(LayoutItems.Item item, GridPoint delta) {
+                boolean alongX = Math.abs(delta.x()) >= Math.abs(delta.y());
+                int direction = Integer.signum(alongX ? delta.x() : delta.y());
+                return List.of(
+                        () -> Optional.of(delta),
+                        () -> nearestFree(item, !alongX, List.of(1, -1)),
+                        () -> nearestFree(item, alongX, List.of(-direction)),
+                        () -> Optional.of(lengthened(delta, alongX, direction)),
+                        () -> Optional.of(lengthened(delta, alongX, 2 * direction)));
+            }
+
+            private static GridPoint lengthened(GridPoint delta, boolean alongX, int extra) {
+                return alongX ? delta.translate(extra, 0) : delta.translate(0, extra);
+            }
+
+            /**
+             * The smallest shift along one axis, in the directions given (in that order at each distance), that is
+             * free; at most the item's own size on that axis plus {@value #FALLBACK_SLACK_UNITS}.
+             */
+            private Optional<GridPoint> nearestFree(LayoutItems.Item item, boolean alongX, List<Integer> directions) {
+                int limit = (alongX ? item.bounds().width() : item.bounds().height()) + FALLBACK_SLACK_UNITS;
+                for (int distance = 1; distance <= limit; distance++) {
+                    for (int direction : directions) {
+                        int step = direction * distance;
+                        GridPoint shift = alongX ? new GridPoint(step, 0) : new GridPoint(0, step);
+                        if (isClear(item, moved(item, shift))) {
+                            return Optional.of(shift);
+                        }
+                    }
+                }
+                return Optional.empty();
+            }
+
+            /**
+             * Applies the move on the copy when the place is clear (of items, walls and frames) and keeps it when no
+             * foreign wire runs through a moved body and every pin stays in the net it was in; otherwise undoes it.
+             */
+            private boolean tryMove(LayoutItems.Item item, GridPoint shift) {
+                if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
+                    return false;
+                }
+                MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry,
+                        new LinkedHashSet<>(item.members()), shift.x(), shift.y());
+                move.apply(copy);
+                // Checked after the move, on the wires as they end up: the wires on the item's pins follow it.
+                boolean crossed = !item.isText() && LayoutItems.crossedByForeignWire(copy, registry, item.members());
+                if (!crossed && nets().equals(originalNets)) {
+                    return true;
+                }
+                move.revert(copy);
+                return false;
+            }
+
+            /**
+             * True when {@code item} at {@code candidate} keeps clear of every other item's planned place, and makes
+             * no new overlap with any item where it is now: a neighbour planned to leave may still have to stay, so
+             * its spot is not taken before it left.
+             */
+            private boolean isClear(LayoutItems.Item item, Bounds candidate) {
+                return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual);
+            }
+
+            private static Bounds moved(LayoutItems.Item item, GridPoint shift) {
+                return item.bounds().translate(shift.x(), shift.y());
             }
         }
     }
