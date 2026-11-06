@@ -172,20 +172,21 @@ búsqueda (sin distinguir tildes; «Aa» y «.*» como estén). Cada uno es un b
 - Con el foco en el campo, **Ctrl+Intro** va al primer botón, y **Intro** también cuando el circuito no tiene ninguna
   pieza que coincida. Sin texto o sin coincidencias, la fila no aparece.
 
-## Lupa: ver adentro sin entrar
+## Mirar adentro: ver el interior sin entrar
 
 Para mirar qué hay dentro de un componente sin abrir su pestaña:
 
-- **Activar la Lupa**: el botón «Lupa» de la barra de herramientas o Ver ▸ «Lupa» (sin atajo de teclado por defecto;
-  se puede asignar en Atajos de teclado). Con la Lupa activada, cada pieza de un componente propio lleva una lupa
-  pequeña en su esquina inferior derecha.
-- **Ver adentro**: al pasar el mouse sobre una de esas piezas aparece un panel flotante con el interior del componente,
-  dibujado como en el lienzo y ajustado a 320 × 240 píxeles como máximo, con los valores de esa pieza mientras se
-  simula (si no hay valores que mostrar, se ve sin ellos). El panel no toma el foco ni se puede usar; sigue a la
-  simulación y se va al sacar el mouse de la pieza, al tocar el lienzo (un clic o arrastrar) o con Esc (no vuelve hasta
-  que el mouse salga de esa pieza y vuelva).
+- **Activar «Mirar adentro»**: el botón del ojo de la barra de herramientas o Ver ▸ «Mirar adentro» (sin atajo de
+  teclado por defecto; se puede asignar en Atajos de teclado). Con el modo activado no se marca ninguna pieza: solo la
+  pieza de un componente propio que está bajo el mouse se destaca con un contorno del color de selección mientras se ve
+  su panel.
+- **Ver adentro**: al pasar el mouse sobre una de esas piezas el panel flotante crece desde la pieza (unos 200 ms) con
+  el interior del componente, dibujado como en el lienzo y ajustado a 320 × 240 píxeles como máximo, con los valores de
+  esa pieza mientras se simula (si no hay valores que mostrar, se ve sin ellos). El panel no toma el foco ni se puede
+  usar; sigue a la simulación y se encoge de vuelta hacia la pieza al sacar el mouse, al tocar el lienzo (un clic o
+  arrastrar) o con Esc (no vuelve hasta que el mouse salga de esa pieza y vuelva).
 - **Con Alt**: mantener Alt apretada mientras se pasa el mouse sobre una pieza de un componente propio muestra el
-  panel aunque la Lupa esté desactivada.
-- **Desde el clic derecho**: «Lupa: ver adentro», en una pieza de un componente propio, muestra su panel aunque la
-  Lupa esté desactivada, hasta que el mouse salga de la pieza.
-- La Lupa es de cada ventana y no se guarda al cerrarla. No cambia nada del circuito ni deja pasos de deshacer.
+  panel aunque el modo esté desactivado.
+- **Desde el clic derecho**: «Mirar adentro», en una pieza de un componente propio, muestra su panel aunque el modo
+  esté desactivado, hasta que el mouse salga de la pieza.
+- «Mirar adentro» es de cada ventana y no se guarda al cerrarla. No cambia nada del circuito ni deja pasos de deshacer.

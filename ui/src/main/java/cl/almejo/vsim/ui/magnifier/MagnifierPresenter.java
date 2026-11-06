@@ -11,6 +11,11 @@ interface MagnifierPresenter {
     /** Shows what is inside {@code instance} (a user-component instance placed in {@code pane}) near {@code screenPoint}. */
     void show(CircuitCanvas pane, Component instance, Point2D screenPoint);
 
-    /** Takes the picture away; harmless when none shows. */
+    /** Takes the picture away (the real panel shrinks back to the piece first); harmless when none shows. */
     void hide();
+
+    /** Takes the picture away at once, without animation; harmless when none shows. */
+    default void close() {
+        hide();
+    }
 }

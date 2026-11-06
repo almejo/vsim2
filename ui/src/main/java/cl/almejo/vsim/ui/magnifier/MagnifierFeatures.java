@@ -27,10 +27,10 @@ import java.awt.geom.Point2D;
 import java.util.Optional;
 
 /**
- * The Lupa of one editor view (spec §8.2): Ver ▸ «Lupa» (a check box, shortcut id {@code view.magnifier}, no default
- * key) and a toolbar toggle on one {@code Action}; with it on every user-component instance carries a small
- * magnifier mark and hovering one floats its inside ({@link MagnifierPopup}). Alt held while hovering and the
- * «Lupa: ver adentro» item of the instance menu show it with the toggle off. The toggle is the view's own and not
+ * «Mirar adentro» of one editor view (spec §8.2): Ver ▸ «Mirar adentro» (a check box, shortcut id
+ * {@code view.magnifier}, no default key) and a toolbar toggle (an eye) on one {@code Action}; with it on, hovering a
+ * user-component instance outlines it and floats its inside ({@link MagnifierPopup}). Alt held while hovering and the
+ * «Mirar adentro» item of the instance menu show it with the toggle off. The toggle is the view's own and not
  * saved. {@link #dispose()} takes back everything.
  */
 public final class MagnifierFeatures {
@@ -39,7 +39,7 @@ public final class MagnifierFeatures {
 
     private final EditorView view;
     private final Action toggle;
-    private final MagnifierPopup popup;
+    private final MagnifierPresenter popup;
     private final MagnifierHover hover;
     private final JMenu viewMenu;
     private final JCheckBoxMenuItem menuItem;
@@ -52,9 +52,26 @@ public final class MagnifierFeatures {
     private boolean disposed;
 
     public MagnifierFeatures(EditorView view) {
+        this(view, new MagnifierPopup(view.services().painters()));
+    }
+
+    /** With another presenter (tests use one that shows no window). */
+    MagnifierFeatures(EditorView view, MagnifierPresenter presenter) {
         this.view = view;
-        this.popup = new MagnifierPopup(view.services().painters());
-        this.hover = new MagnifierHover(this::isOn, popup);
+        this.popup = presenter;
+        this.hover = new MagnifierHover(this::isOn, new MagnifierPresenter() {
+            @Override
+            public void show(CircuitCanvas pane, Component instance, Point2D screenPoint) {
+                presenter.show(pane, instance, screenPoint);
+                EveryPane.repaint(view).run();
+            }
+
+            @Override
+            public void hide() {
+                presenter.hide();
+                EveryPane.repaint(view).run();
+            }
+        });
         this.toggle = new AbstractAction(Messages.text("action.magnifier")) {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -62,15 +79,15 @@ public final class MagnifierFeatures {
             }
         };
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.magnifier.tooltip"));
-        Icons.install(toggle, MagnifierIcons.MAGNIFIER);
+        Icons.install(toggle, MagnifierIcons.EYE);
         toggle.putValue(Action.SELECTED_KEY, false);
         this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(toggle);
         viewMenu.insert(menuItem, indexInViewMenu());
         this.toolButtonRemover = view.addToolbarToggleAfterTools(new JToggleButton(toggle));
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);
-        this.marksRemover = EveryPane.addOverlay(view, new MagnifierMarks(this::isOn,
-                () -> view.openDocument().registry(), () -> view.canvas().scheme()));
+        this.marksRemover = EveryPane.addOverlay(view, new MagnifierOutline(
+                hover::shownInstance, () -> view.openDocument().registry(), () -> view.canvas().scheme()));
         this.paneListenersRemover = view.forEachPane(this::listenTo);
         this.contributorRemover = view.addContextMenuContributor(
                 (menu, target, selection, gridPosition) -> contribute(menu, target, gridPosition));
@@ -79,6 +96,11 @@ public final class MagnifierFeatures {
     /** The toggle's action (menu item and toolbar button); its {@code SELECTED_KEY} is the state. */
     public Action toggleAction() {
         return toggle;
+    }
+
+    /** The hover rules, for tests. */
+    MagnifierHover hover() {
+        return hover;
     }
 
     public boolean isOn() {
@@ -143,7 +165,7 @@ public final class MagnifierFeatures {
         };
     }
 
-    /** «Lupa: ver adentro» on a user-component instance. */
+    /** «Mirar adentro» on a user-component instance. */
     private void contribute(JPopupMenu menu, Optional<DocumentElement> target, Point2D gridPosition) {
         CircuitCanvas pane = view.canvas();
         Optional<Component> instance = target.filter(Component.class::isInstance).map(Component.class::cast)
@@ -172,7 +194,7 @@ public final class MagnifierFeatures {
             return;
         }
         disposed = true;
-        popup.hide();
+        popup.close();
         contributorRemover.run();
         paneListenersRemover.run();
         marksRemover.run();

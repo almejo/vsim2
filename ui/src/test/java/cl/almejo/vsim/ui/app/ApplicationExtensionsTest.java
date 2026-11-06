@@ -178,7 +178,7 @@ class ApplicationExtensionsTest {
                     "Zoom a la selección", "Escribir el zoom…",
                     "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
-                    "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Lupa", "---",
+                    "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Mirar adentro", "---",
                     "Siguiente problema", "Problema anterior", "---",
                     "Formas de onda", "---",
                     "Presentar lo que hace la IA", "Ritmo de Presentar");

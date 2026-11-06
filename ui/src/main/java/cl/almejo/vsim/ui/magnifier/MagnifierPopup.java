@@ -29,7 +29,13 @@ final class MagnifierPopup implements MagnifierPresenter {
     private static final int POINTER_OFFSET = 16;
 
     private final PainterRegistry painters;
+    private static final int FRAME_MILLISECONDS = 15;
+
     private final Timer repaint = new Timer(REPAINT_MILLISECONDS, event -> repaintPicture());
+    private final Timer frames = new Timer(FRAME_MILLISECONDS, event -> animate());
+    private final PopupAnimation animation = new PopupAnimation(System::nanoTime);
+    private Point anchor;
+    private Rectangle fullBounds;
     private JWindow window;
     private OpenDocument place;
     private MagnifierPicture picture;
@@ -40,7 +46,7 @@ final class MagnifierPopup implements MagnifierPresenter {
 
     @Override
     public void show(CircuitCanvas pane, Component instance, Point2D screenPoint) {
-        hide();
+        close();
         Optional<String> definitionId = EnterableInstances.definitionOf(pane.openDocument(), instance);
         if (definitionId.isEmpty()) {
             return;
@@ -52,14 +58,47 @@ final class MagnifierPopup implements MagnifierPresenter {
         window.setFocusableWindowState(false);
         window.setContentPane(picture);
         window.pack();
-        window.setLocation(locationFor(pane, screenPoint, window.getSize()));
+        Point location = locationFor(pane, screenPoint, window.getSize());
+        fullBounds = new Rectangle(location, window.getSize());
+        anchor = new Point((int) screenPoint.getX(), (int) screenPoint.getY());
+        SwingUtilities.convertPointToScreen(anchor, pane);
+        window.setBounds(PopupAnimation.boundsAt(anchor, fullBounds, 0.0));
+        animation.grow();
         window.setVisible(true);
         repaint.start();
+        frames.start();
     }
 
+    /** Shrinks back to the piece and then goes. */
     @Override
     public void hide() {
+        if (window == null || animation.isShrinking()) {
+            return;
+        }
+        animation.shrink();
+        frames.start();
+    }
+
+    private void animate() {
+        if (window == null) {
+            frames.stop();
+            return;
+        }
+        Rectangle bounds = PopupAnimation.boundsAt(anchor, fullBounds, animation.scale());
+        window.setBounds(bounds.x, bounds.y, Math.max(1, bounds.width), Math.max(1, bounds.height));
+        if (animation.isFinished()) {
+            frames.stop();
+            if (animation.isShrinking()) {
+                close();
+            }
+        }
+    }
+
+    /** Takes the panel away at once (a new one is about to show, or the view goes). */
+    @Override
+    public void close() {
         repaint.stop();
+        frames.stop();
         if (window != null) {
             window.dispose();
             window = null;

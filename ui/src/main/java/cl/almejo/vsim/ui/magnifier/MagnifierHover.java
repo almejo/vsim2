@@ -70,6 +70,11 @@ final class MagnifierHover {
         }
     }
 
+    /** The instance whose panel shows now, if any (the canvas outlines it). */
+    Optional<ElementId> shownInstance() {
+        return shown;
+    }
+
     /** The pointer left the canvas. */
     void pointerExited() {
         lastPane = null;
@@ -100,7 +105,7 @@ final class MagnifierHover {
         altHeld = held;
     }
 
-    /** The «Lupa: ver adentro» item: shows {@code instance} though the toggle is off. */
+    /** The «Mirar adentro» item: shows {@code instance} though the toggle is off. */
     void requestedFromMenu(CircuitCanvas pane, Component instance, Point2D screenPoint) {
         requested = Optional.of(instance.id());
         dismissed = Optional.empty();

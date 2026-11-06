@@ -36,11 +36,11 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The Lupa toggle, its shortcut, the instance menu item and the marks on custom instances (spec §8.2). */
+/** The «Mirar adentro» toggle, its shortcut, the instance menu item and the outline of the hovered instance (spec §8.2). */
 class MagnifierFeaturesTest {
 
-    private static final String NAME = "Lupa";
-    private static final String MENU_ITEM = "Lupa: ver adentro";
+    private static final String NAME = "Mirar adentro";
+    private static final String MENU_ITEM = "Mirar adentro";
 
     private EditorFixture fixture;
     private EditorView view;
@@ -58,7 +58,15 @@ class MagnifierFeaturesTest {
         gate = fixture.openDocument().registry().require(StandardComponentTypes.BUFFER).newComponent(
                 new ElementId("c31"), new GridPoint(40, 10), Rotation.R0, Map.of(), "");
         fixture.openDocument().execute(new AddElementsCommand(List.of(instance, gate)));
-        features = new MagnifierFeatures(view);
+        features = new MagnifierFeatures(view, new MagnifierPresenter() {
+            @Override
+            public void show(cl.almejo.vsim.ui.canvas.CircuitCanvas pane, Component shown, java.awt.geom.Point2D point) {
+            }
+
+            @Override
+            public void hide() {
+            }
+        });
     }
 
     @AfterEach
@@ -124,22 +132,34 @@ class MagnifierFeaturesTest {
     }
 
     @Test
-    void theInstanceMenuOffersLupaVerAdentroOnlyOnAUserComponent() {
+    void theInstanceMenuOffersMirarAdentroOnlyOnAUserComponent() {
         assertThat(menuTexts(instance)).contains(MENU_ITEM);
         assertThat(menuTexts(gate)).doesNotContain(MENU_ITEM);
     }
 
     @Test
-    void withTheToggleOnAMarkIsPaintedOnEachInstanceAndNotOnBuiltInParts() {
+    void withTheToggleOnOnlyTheHoveredInstanceIsOutlined() {
         buttons().get(0).doClick();
 
+        assertThat(markedPixels(instance)).as("no hover, no mark at all").isZero();
+        features.hover().pointerMoved(view.canvas(), center(instance));
         assertThat(markedPixels(instance)).isPositive();
         assertThat(markedPixels(gate)).isZero();
+        features.hover().pointerExited();
+        assertThat(markedPixels(instance)).isZero();
     }
 
     @Test
-    void withTheToggleOffNoMarkIsPainted() {
+    void withTheToggleOffNoOutlineIsPainted() {
+        features.hover().pointerMoved(view.canvas(), center(instance));
+
         assertThat(markedPixels(instance)).isZero();
+    }
+
+    private java.awt.geom.Point2D center(Component part) {
+        Bounds bounds = ElementBounds.of(part, fixture.openDocument().registry());
+        return view.canvas().viewport().gridToScreen(bounds.x() + bounds.width() / 2.0,
+                bounds.y() + bounds.height() / 2.0);
     }
 
     @Test
