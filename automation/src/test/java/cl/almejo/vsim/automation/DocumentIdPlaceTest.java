@@ -42,4 +42,16 @@ class DocumentIdPlaceTest {
         assertThat(new PlaceRef("alu", Optional.of(" ")).context()).isEmpty();
         assertThatThrownBy(() -> new PlaceRef(" ", Optional.empty())).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void anAtSignOrPercentInTheDefinitionOrThePathCannotBreakTheEncoding() {
+        PlaceRef place = new PlaceRef("my@alu%20", Optional.of("c9@x/c2%"));
+
+        DocumentId inPlace = circuit.in(place);
+
+        assertThat(inPlace.base()).isEqualTo(circuit);
+        assertThat(inPlace.place()).contains(place);
+        assertThat(circuit.in(new PlaceRef("@", Optional.empty())).place())
+                .contains(new PlaceRef("@", Optional.empty()));
+    }
 }

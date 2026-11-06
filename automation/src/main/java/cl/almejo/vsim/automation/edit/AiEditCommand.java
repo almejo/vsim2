@@ -1,7 +1,6 @@
 package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.core.command.Command;
-import cl.almejo.vsim.core.command.ReplaceContentCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 
 import java.util.Objects;
@@ -25,14 +24,14 @@ final class AiEditCommand implements Command {
      */
     static final int CLEANUP_STAGE = -2;
 
-    private final ReplaceContentCommand content;
+    private final Command content;
     private final Optional<String> taskId;
     private final int stageIndex;
     private final String description;
     /** Whether the document has this step now: true after apply (and redo), false after undo. EDT only. */
     private boolean applied;
 
-    AiEditCommand(ReplaceContentCommand content, Optional<String> taskId, int stageIndex, String description) {
+    AiEditCommand(Command content, Optional<String> taskId, int stageIndex, String description) {
         this.content = Objects.requireNonNull(content, "content");
         this.taskId = Objects.requireNonNull(taskId, "taskId");
         this.stageIndex = stageIndex;

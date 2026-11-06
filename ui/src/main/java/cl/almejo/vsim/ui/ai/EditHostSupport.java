@@ -115,6 +115,18 @@ final class EditHostSupport {
             }
         }
 
+        /** The circuit a place inside a component belongs to: it keeps each piece's own memory contents. */
+        @Override
+        public Optional<CircuitDocument> circuit() {
+            return openDocument.parent().map(OpenDocument::document);
+        }
+
+        /** What the user does from the memory editor for a piece's contents: executed on the circuit itself. */
+        @Override
+        public void executeOnCircuit(Command command) {
+            openDocument.parent().orElse(openDocument).execute(command);
+        }
+
         @Override
         public DocumentVersion version() {
             return new DocumentVersion(openDocument.contentVersion());

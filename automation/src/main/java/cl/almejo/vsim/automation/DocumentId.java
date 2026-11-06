@@ -28,8 +28,8 @@ public record DocumentId(String value) {
         if (place.isMain()) {
             return base();
         }
-        return new DocumentId(base().value + PLACE_MARK + place.definition()
-                + place.context().map(path -> PLACE_MARK + path).orElse(""));
+        return new DocumentId(base().value + PLACE_MARK + escaped(place.definition())
+                + place.context().map(path -> PLACE_MARK + escaped(path)).orElse(""));
     }
 
     /** The circuit this id names, whatever place it is qualified with. */
@@ -46,7 +46,16 @@ public record DocumentId(String value) {
         }
         int second = value.indexOf(PLACE_MARK, first + 1);
         String definition = second < 0 ? value.substring(first + 1) : value.substring(first + 1, second);
-        return Optional.of(new PlaceRef(definition,
-                second < 0 ? Optional.empty() : Optional.of(value.substring(second + 1))));
+        return Optional.of(new PlaceRef(unescaped(definition),
+                second < 0 ? Optional.empty() : Optional.of(unescaped(value.substring(second + 1)))));
+    }
+
+    /** A definition id or a path may hold the mark: «%» and the mark are written as «%25» and «%40». */
+    private static String escaped(String text) {
+        return text.replace("%", "%25").replace(PLACE_MARK, "%40");
+    }
+
+    private static String unescaped(String text) {
+        return text.replace("%40", PLACE_MARK).replace("%25", "%");
     }
 }

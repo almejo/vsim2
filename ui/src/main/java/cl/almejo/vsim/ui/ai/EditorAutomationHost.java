@@ -322,14 +322,28 @@ public final class EditorAutomationHost implements AutomationHost {
         if (place.isEmpty()) {
             return circuit;
         }
-        try {
-            OpenDocument body = circuit.openBody(place.get().definition(), place.get().context());
-            SwingUtilities.invokeLater(body::close);
-            return body;
-        } catch (IllegalArgumentException unknownDefinition) {
+        requirePlace(circuit, place.get());
+        OpenDocument body = circuit.openBody(place.get().definition(), place.get().context());
+        SwingUtilities.invokeLater(body::close);
+        return body;
+    }
+
+    /**
+     * EDT only: refuses (INVALID_REFERENCE) a place that is not one of the circuit's: a definition it does not have,
+     * or a context that is not the path of one of that definition's instances. The editor's fallback to the first
+     * instance is for restoring a session, never for the AI: it would read or write another piece's values.
+     */
+    private static void requirePlace(OpenDocument circuit, PlaceRef place) {
+        if (circuit.document().definition(place.definition()).isEmpty()) {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit has no component "
-                    + place.get().definition() + "; vsim_list_places gives its places",
-                    Map.of("definition", place.get().definition()));
+                    + place.definition() + "; vsim_list_places gives its places",
+                    Map.of("definition", place.definition()));
+        }
+        if (place.context().isPresent() && circuit.instancePaths(place.definition()).stream()
+                .noneMatch(use -> use.path().equals(place.context().get()))) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit has no instance of "
+                    + place.definition() + " at " + place.context().get() + "; vsim_list_places gives its uses",
+                    Map.of("definition", place.definition(), "context", place.context().get()));
         }
     }
 
@@ -355,11 +369,7 @@ public final class EditorAutomationHost implements AutomationHost {
             windows.openPlace(circuit, Optional.empty(), Optional.empty());
             return;
         }
-        if (circuit.document().definition(place.definition()).isEmpty()) {
-            throw new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit has no component "
-                    + place.definition() + "; vsim_list_places gives its places",
-                    Map.of("definition", place.definition()));
-        }
+        requirePlace(circuit, place);
         windows.openPlace(circuit, Optional.of(place.definition()), place.context());
     }
 

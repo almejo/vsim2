@@ -215,24 +215,70 @@ class EditorAutomationHostPlacesTest {
     }
 
     @Test
-    void writingMemoryWordsInAPiecesPlaceIsRefusedAndWithoutContextWritesTheComponent() throws Exception {
+    void writingMemoryWordsInAPiecesPlaceWritesThatPiecesOwnContentsInOneUndoStep() throws Exception {
         DocumentId inPiece = id.in(new PlaceRef(MEMORY_BLOCK, Optional.of("c21")));
         DocumentId withoutValues = id.in(new PlaceRef(MEMORY_BLOCK, Optional.empty()));
-        long version = api.readCircuit(withoutValues, ReadFilter.SUMMARY, Optional.empty()).version().value();
-        EditOperation write = new EditOperation.SetMemoryContents("c3", 0, List.of("33"));
+        long version = api.readCircuit(inPiece, ReadFilter.SUMMARY, Optional.empty()).version().value();
+        EditOperation write = new EditOperation.SetMemoryContents("c3", 1, List.of("33"));
 
-        assertThatThrownBy(() -> api.editStep(new EditRequest(inPiece, new DocumentVersion(version), "op-1",
-                Optional.empty(), List.of(write), false), Optional.empty()))
-                .isInstanceOfSatisfying(AutomationException.class,
-                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED));
-        assertThat(api.readMemory(inPiece, "c3", false, 0, 1).words()).containsExactly("11");
+        api.editStep(new EditRequest(inPiece, new DocumentVersion(version), "op-1", Optional.empty(), List.of(write),
+                false), Optional.empty());
+
+        MemoryView own = api.readMemory(inPiece, "c3", false, 0, 2);
+        assertThat(own.words()).containsExactly("11", "33");
+        assertThat(api.readMemory(withoutValues, "c3", false, 0, 2).words()).containsExactly("11", "00");
+        assertThat(api.readMemory(id.in(new PlaceRef(MEMORY_BLOCK, Optional.of("c20"))), "c3", false, 0, 1).words())
+                .containsExactly("22");
+        onEditor(() -> {
+            assertThat(circuit.history().canUndo()).isTrue();
+            circuit.history().undo();
+            assertThat(PieceMemories.stored(circuit.document(),
+                    PieceMemories.placeOf("c21", INNER_MEMORY))).isEmpty();
+            return null;
+        });
+        assertThat(api.readMemory(inPiece, "c3", false, 0, 2).words()).containsExactly("11", "00");
+    }
+
+    @Test
+    void writingWithoutContextWritesTheComponentsWords() throws Exception {
+        DocumentId withoutValues = id.in(new PlaceRef(MEMORY_BLOCK, Optional.empty()));
+        long version = api.readCircuit(withoutValues, ReadFilter.SUMMARY, Optional.empty()).version().value();
 
         api.editStep(new EditRequest(withoutValues, new DocumentVersion(version), "op-2", Optional.empty(),
-                List.of(write), false), Optional.empty());
+                List.of(new EditOperation.SetMemoryContents("c3", 0, List.of("33"))), false), Optional.empty());
 
         assertThat(api.readMemory(withoutValues, "c3", false, 0, 1).words()).containsExactly("33");
         assertThat(api.readMemory(id.in(new PlaceRef(MEMORY_BLOCK, Optional.of("c20"))), "c3", false, 0, 1).words())
                 .containsExactly("22");
+    }
+
+    @Test
+    void aPieceMemoryWriteCannotShareACallWithOtherOperations() throws Exception {
+        DocumentId inPiece = id.in(new PlaceRef(MEMORY_BLOCK, Optional.of("c21")));
+        long version = api.readCircuit(inPiece, ReadFilter.SUMMARY, Optional.empty()).version().value();
+
+        assertThatThrownBy(() -> api.editStep(new EditRequest(inPiece, new DocumentVersion(version), "op-3",
+                Optional.empty(), List.of(new EditOperation.SetMemoryContents("c3", 0, List.of("33")),
+                new EditOperation.PlacePart(Optional.of("lamp"), "led", 10, 10, Rotation.R0, Map.of(), "")), false),
+                Optional.empty())).isInstanceOfSatisfying(AutomationException.class,
+                refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED));
+        assertThat(api.readMemory(inPiece, "c3", false, 0, 1).words()).containsExactly("11");
+    }
+
+    @Test
+    void aContextThatNamesNoInstanceIsRefusedNeverAnotherPiece() {
+        DocumentId gone = id.in(new PlaceRef(MEMORY_BLOCK, Optional.of("c99")));
+
+        assertThatThrownBy(() -> api.readMemory(gone, "c3", false, 0, 1)).isInstanceOfSatisfying(
+                AutomationException.class, refusal -> assertThat(refusal.error())
+                        .isEqualTo(AutomationError.INVALID_REFERENCE));
+        assertThatThrownBy(() -> api.readCircuit(gone, ReadFilter.SUMMARY, Optional.empty()))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> assertThat(refusal.error())
+                        .isEqualTo(AutomationError.INVALID_REFERENCE));
+        assertThatThrownBy(() -> api.openPlace(id, new PlaceRef(MEMORY_BLOCK, Optional.of("c99"))))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> assertThat(refusal.error())
+                        .isEqualTo(AutomationError.INVALID_REFERENCE));
+        assertThat(shown).isEmpty();
     }
 
     @Test

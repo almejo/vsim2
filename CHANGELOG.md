@@ -35,6 +35,8 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 ### Arreglado
 
+- La IA por dentro de un componente: un `place` con un camino que no es de ningún uso del componente (se borró la pieza, o un error de tipeo) ya no cae en otra pieza sin avisar: vuelve como error con la explicación y `vsim_list_places` para ver los usos. Y una `@` (o un `%`) en el id del componente o en el camino ya no rompe la codificación del lugar.
+- La IA escribe las palabras de la memoria de una pieza: `SetMemoryContents` en el lugar de una pieza concreta escribe el contenido propio de esa pieza (un Ctrl+Z, como «Solo esta pieza» del editor) en vez de rechazarse; esa llamada lleva solo escrituras de memoria.
 - La columna izquierda: el divisor entre «Circuito» y «Paleta» ahora se arrastra (y se recuerda), y plegar y volver a abrir la Paleta (o el Circuito) ya no hace desaparecer el otro panel: vuelven los dos con su altura anterior.
 - El «Desplazador» ya no deja toda la salida en Z cuando algún bit de A está en Z: con S definida, cada bit se mueve a su lugar (también los que están en Z) y los que entran valen 0, como en Logisim. El LRV32IM importado de Logisim leía 0 del Teclado (el byte llega con el resto del bus suelto) y ahora lee la tecla. Ver [Bloques de N bits](docs/funciones/componentes.md#bloques-de-n-bits).
 - Un archivo de memoria de Logisim (`v2.0 raw`) con una repetición de 0 palabras (`0*0`, como la que escribe el BinaryConverter2 del LRV32IM en `fast-rfact.ram`) ya no se rechaza como «no es una repetición válida»: no agrega nada, como en Logisim. Ver [Memoria: archivos enlazados](docs/funciones/componentes.md#memoria-archivos-enlazados).
