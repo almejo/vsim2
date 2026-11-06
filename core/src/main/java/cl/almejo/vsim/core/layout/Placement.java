@@ -1,0 +1,148 @@
+package cl.almejo.vsim.core.layout;
+
+import cl.almejo.vsim.core.command.MoveWithWiresCommand;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.wiring.Connectivity;
+
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Moves the items of one reading of the copy ({@link LayoutItems}) on the copy, with the rules every stage of «Ordenar
+ * circuito» obeys (spec 2026-11-06 §4.4, §5): the new place keeps clear of every other item and obstacle with the gap
+ * and keeps the item's frames ({@link LayoutItems#isFree}), makes no new overlap with an item where it is now
+ * ({@link LayoutItems#addsNoOverlap}), a text lands on no new writing, the wires follow
+ * ({@link MoveWithWiresCommand#of}), no foreign wire runs through a moved body and every pin stays in the net it was
+ * in. A move that breaks a rule after it was applied is undone.
+ *
+ * <p>Each item moves at most once per reading: a shift is always counted from where the reading found the item. Phase
+ * 1 may give an item a planned place ({@link #plan}) before it moves, so a neighbour does not take it; the stages that
+ * only move parts where they are leave the planned place equal to the current one.
+ */
+final class Placement {
+
+    private final CircuitDocument copy;
+    private final ComponentTypeRegistry registry;
+    private final LayoutItems items;
+    /** Which pins are connected to which before any move of the whole clean-up: every move must keep it. */
+    private final Set<Set<PinRef>> originalNets;
+    /** Where each item is or will be: its planned place until it is placed or refused. */
+    private final Map<ElementId, Bounds> places = new HashMap<>();
+    /** Where each item that moved is on the copy now (the others are where the reading found them). */
+    private final Map<ElementId, Bounds> actual = new HashMap<>();
+
+    Placement(CircuitDocument copy, ComponentTypeRegistry registry, LayoutItems items,
+              Set<Set<PinRef>> originalNets) {
+        this.copy = copy;
+        this.registry = registry;
+        this.items = items;
+        this.originalNets = originalNets;
+    }
+
+    /** The reading of the copy the shifts are counted from. */
+    LayoutItems items() {
+        return items;
+    }
+
+    /** Says where {@code id} is planned to go (or, when refused, to stay): others keep clear of it. */
+    void plan(ElementId id, Bounds place) {
+        places.put(id, place);
+    }
+
+    /** Where {@code item} is on the copy now. */
+    Bounds current(LayoutItems.Item item) {
+        return actual.getOrDefault(item.id(), item.bounds());
+    }
+
+    /**
+     * Applies the move on the copy when the place is clear (of items, walls and frames) and keeps it when no foreign
+     * wire runs through a moved body and every pin stays in the net it was in; otherwise undoes it. A kept move is
+     * remembered as the item's place.
+     */
+    boolean tryMove(LayoutItems.Item item, GridPoint shift) {
+        if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
+            return false;
+        }
+        MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry,
+                new LinkedHashSet<>(item.members()), shift.x(), shift.y());
+        move.apply(copy);
+        if (!item.isText() && !keepsTheMeaning(item)) {
+            move.revert(copy);
+            return false;
+        }
+        // a text has no pins and no wire follows it: the nets cannot change
+        places.put(item.id(), moved(item, shift));
+        actual.put(item.id(), moved(item, shift));
+        return true;
+    }
+
+    /** Checked after the move, on the wires as they end up: the wires on the item's pins follow it. */
+    private boolean keepsTheMeaning(LayoutItems.Item item) {
+        return !LayoutItems.crossedByForeignWire(copy, registry, item.members()) && nets().equals(originalNets);
+    }
+
+    /**
+     * True when {@code item} at {@code candidate} keeps clear of every other item's planned place, and makes no new
+     * overlap with any item where it is now: a neighbour planned to leave may still have to stay, so its spot is not
+     * taken before it left.
+     */
+    boolean isClear(LayoutItems.Item item, Bounds candidate) {
+        return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual)
+                && !(item.isText() && items.writesOverNewWriting(item, candidate, actual));
+    }
+
+    /**
+     * True when {@code item} at {@code candidate} keeps its order with the parts around it, each where it is now: a
+     * part above or below it in its column (their x ranges overlap) stays on the same side, and so does a part left
+     * or right of it in its row (their y ranges overlap). A move never jumps over a neighbour, even to a free place
+     * (spec §5.1, §5.2).
+     */
+    boolean keepsOrder(LayoutItems.Item item, Bounds candidate) {
+        Bounds from = current(item);
+        for (LayoutItems.Item other : items.items()) {
+            if (other.isText() || other.id().equals(item.id())) {
+                continue;
+            }
+            Bounds otherNow = current(other);
+            boolean sameColumn = from.x() < otherNow.maximumX() && otherNow.x() < from.maximumX();
+            boolean sameRow = from.y() < otherNow.maximumY() && otherNow.y() < from.maximumY();
+            if (sameColumn && !keepsSide(from.y(), from.maximumY(), candidate.y(), candidate.maximumY(),
+                    otherNow.y(), otherNow.maximumY())) {
+                return false;
+            }
+            if (sameRow && !keepsSide(from.x(), from.maximumX(), candidate.x(), candidate.maximumX(),
+                    otherNow.x(), otherNow.maximumX())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** On one axis: a neighbour wholly before (or after) the item stays wholly before (or after) it. */
+    private static boolean keepsSide(int from, int fromEnd, int to, int toEnd, int other, int otherEnd) {
+        boolean wasBefore = otherEnd <= from;
+        boolean wasAfter = other >= fromEnd;
+        return (!wasBefore || otherEnd <= to) && (!wasAfter || other >= toEnd);
+    }
+
+    /** Which pins of {@code document} are connected to which, by its wires. */
+    static Set<Set<PinRef>> netsOf(CircuitDocument document, ComponentTypeRegistry registry) {
+        return Connectivity.of(document.wires(), document, registry).pinNets();
+    }
+
+    private Set<Set<PinRef>> nets() {
+        return netsOf(copy, registry);
+    }
+
+    /** {@code item}'s box moved by {@code shift} from where the reading found it. */
+    static Bounds moved(LayoutItems.Item item, GridPoint shift) {
+        return item.bounds().translate(shift.x(), shift.y());
+    }
+}

@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.layout;
 
-import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.command.TidyWiresCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -9,15 +8,12 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
-import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.PinRef;
-import cl.almejo.vsim.core.wiring.Connectivity;
 import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.core.wiring.WireTidy;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,7 +31,7 @@ import java.util.function.Supplier;
  * circuit means, then runs the wire rules. Pure: it works on a copy and never changes {@code document}.
  *
  * <p>The boxes come from {@link LayoutItems}; {@link OverlapSeparation} says how far each one moves. The moves are
- * applied on the copy one item at a time, in id order, with the wires following ({@link MoveWithWiresCommand#of}).
+ * applied on the copy one item at a time, in id order, with the wires following ({@link Placement}: the rules every stage shares).
  * A move that would change which pins are connected (a pin landing on a foreign wire or pin) is undone and other
  * places are tried: the other axis, the opposite side, then one and two units further; with none left the item stays
  * and is counted in {@link CircuitTidyPlan#notSeparated()}.
@@ -208,7 +204,7 @@ public final class CircuitTidy {
             this.cancelled = cancelled;
             this.progress = progress;
             this.separator = separator;
-            this.originalNets = nets();
+            this.originalNets = Placement.netsOf(copy, registry);
         }
 
         /** Separates and returns what still covers something (items partly in scope only). */
@@ -257,10 +253,6 @@ public final class CircuitTidy {
             return overlapping;
         }
 
-        private Set<Set<PinRef>> nets() {
-            return Connectivity.of(copy.wires(), copy, registry).pinNets();
-        }
-
         private void checkCancelled() {
             if (cancelled.getAsBoolean()) {
                 throw new CancellationException();
@@ -271,13 +263,11 @@ public final class CircuitTidy {
         private final class Round {
 
             private final LayoutItems items;
-            /** Where each item is or will be: its planned place until it is placed or refused. */
-            private final Map<ElementId, Bounds> places = new HashMap<>();
-            /** Where each item that moved is on the copy now (the others are where they started). */
-            private final Map<ElementId, Bounds> actual = new HashMap<>();
+            private final Placement placement;
 
             Round(LayoutItems items) {
                 this.items = items;
+                this.placement = new Placement(copy, registry, items, originalNets);
             }
 
             /**
@@ -297,9 +287,7 @@ public final class CircuitTidy {
                     checkCancelled();
                     Optional<GridPoint> shift = nearestFree(block, true, List.of(1, -1))
                             .or(() -> nearestFree(block, false, List.of(1, -1)));
-                    if (shift.isPresent() && tryMove(block, shift.get())) {
-                        places.put(block.id(), moved(block, shift.get()));
-                        actual.put(block.id(), moved(block, shift.get()));
+                    if (shift.isPresent() && placement.tryMove(block, shift.get())) {
                         anyMoved = true;
                     } else {
                         refused.add(block.id());
@@ -314,7 +302,7 @@ public final class CircuitTidy {
                 List<LayoutItems.Item> pending = new ArrayList<>();
                 for (LayoutItems.Item item : items.items()) {
                     GridPoint delta = deltas.get(item.id());
-                    places.put(item.id(), delta == null ? item.bounds() : moved(item, delta));
+                    placement.plan(item.id(), delta == null ? item.bounds() : Placement.moved(item, delta));
                     if (delta != null) {
                         pending.add(item);
                     }
@@ -364,7 +352,7 @@ public final class CircuitTidy {
                     waiting = refusedThisPass;
                 }
                 for (LayoutItems.Item item : waiting) {
-                    places.put(item.id(), item.bounds());
+                    placement.plan(item.id(), item.bounds());
                     refused.add(item.id());
                 }
                 return anyMoved;
@@ -375,9 +363,7 @@ public final class CircuitTidy {
                 for (Supplier<Optional<GridPoint>> candidate : candidates(item, delta)) {
                     checkCancelled();
                     Optional<GridPoint> shift = candidate.get();
-                    if (shift.isPresent() && tryMove(item, shift.get())) {
-                        places.put(item.id(), moved(item, shift.get()));
-                        actual.put(item.id(), moved(item, shift.get()));
+                    if (shift.isPresent() && placement.tryMove(item, shift.get())) {
                         return true;
                     }
                 }
@@ -414,50 +400,12 @@ public final class CircuitTidy {
                     for (int direction : directions) {
                         int step = direction * distance;
                         GridPoint shift = alongX ? new GridPoint(step, 0) : new GridPoint(0, step);
-                        if (isClear(item, moved(item, shift))) {
+                        if (placement.isClear(item, Placement.moved(item, shift))) {
                             return Optional.of(shift);
                         }
                     }
                 }
                 return Optional.empty();
-            }
-
-            /**
-             * Applies the move on the copy when the place is clear (of items, walls and frames) and keeps it when no
-             * foreign wire runs through a moved body and every pin stays in the net it was in; otherwise undoes it.
-             */
-            private boolean tryMove(LayoutItems.Item item, GridPoint shift) {
-                if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
-                    return false;
-                }
-                MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry,
-                        new LinkedHashSet<>(item.members()), shift.x(), shift.y());
-                move.apply(copy);
-                if (item.isText()) {
-                    // a text has no pins and no wire follows it: the nets cannot change
-                    return true;
-                }
-                // Checked after the move, on the wires as they end up: the wires on the item's pins follow it.
-                boolean crossed = LayoutItems.crossedByForeignWire(copy, registry, item.members());
-                if (!crossed && nets().equals(originalNets)) {
-                    return true;
-                }
-                move.revert(copy);
-                return false;
-            }
-
-            /**
-             * True when {@code item} at {@code candidate} keeps clear of every other item's planned place, and makes
-             * no new overlap with any item where it is now: a neighbour planned to leave may still have to stay, so
-             * its spot is not taken before it left.
-             */
-            private boolean isClear(LayoutItems.Item item, Bounds candidate) {
-                return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual)
-                        && !(item.isText() && items.writesOverNewWriting(item, candidate, actual));
-            }
-
-            private static Bounds moved(LayoutItems.Item item, GridPoint shift) {
-                return item.bounds().translate(shift.x(), shift.y());
             }
         }
     }
