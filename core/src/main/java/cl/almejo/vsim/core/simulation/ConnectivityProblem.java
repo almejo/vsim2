@@ -9,10 +9,14 @@ import java.util.Objects;
 /**
  * A structural fault with its instance path and local position: a pin or a loose wire end inside a component's
  * body, an outer terminal whose interface element is unconnected inside, or (listed by the editor, not found by the
- * checks) a pin loosened by a shape change or a piece whose library update would break it.
+ * checks) a pin loosened by a shape change, a piece whose library update would break it or a piece's own memory
+ * contents that do not apply.
  */
 public record ConnectivityProblem(String netId, String elementId, int pinIndex, GridPoint position, Cause cause)
         implements Problem {
+
+    /** The start of the net id of an {@link Cause#OWN_CONTENTS_FOR_NOTHING} problem; the memory's path follows. */
+    public static final String OWN_CONTENTS_PREFIX = "ownContents:";
 
     /** What kind of fault this is; it decides how the editor marks and words it. */
     public enum Cause {
@@ -39,7 +43,13 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
          * or size changed, so «Actualizar» is refused and the piece keeps its old copy; the containing names are
          * found with {@code DefinitionUpdateSafety.containingNames}.
          */
-        OUTDATED_CANNOT_UPDATE
+        OUTDATED_CANNOT_UPDATE,
+        /**
+         * The piece {@code elementId} of the circuit keeps its own contents for a memory that is no longer in its
+         * component (they are ignored); {@code netId} is {@code "ownContents:"} plus the memory's path inside the
+         * piece. Listed by the editor, which offers to forget them.
+         */
+        OWN_CONTENTS_FOR_NOTHING
     }
 
     public ConnectivityProblem {

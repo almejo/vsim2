@@ -36,7 +36,65 @@ public final class PieceMemories {
         }
     }
 
+    /**
+     * Contents a circuit's piece keeps that do not do what they seem (problems are never hidden): kept for a memory
+     * that is no longer in its component ({@link Kind#FOR_NOTHING}: the entry is ignored).
+     */
+    public record StoredContentsIssue(Place place, Kind kind) {
+
+        public enum Kind {
+            /** The inner path names no memory of the component (any more): the entry is ignored. */
+            FOR_NOTHING
+        }
+
+        public StoredContentsIssue {
+            Objects.requireNonNull(place, "place");
+            Objects.requireNonNull(kind, "kind");
+        }
+    }
+
     private PieceMemories() {
+    }
+
+    /**
+     * The contents kept by the circuit's pieces that do not do what they seem, piece by piece in document order and
+     * by inner path: only the pieces that keep some are looked at.
+     */
+    public static List<StoredContentsIssue> storedContentsIssues(CircuitDocument document) {
+        List<StoredContentsIssue> issues = new ArrayList<>();
+        for (Component piece : document.components()) {
+            if (piece.memoryContents().isEmpty()) {
+                continue;
+            }
+            piece.memoryContents().keySet().stream().sorted().forEach(innerPath ->
+                    issueOf(document, piece, innerPath).ifPresent(kind ->
+                            issues.add(new StoredContentsIssue(new Place(piece.id(), innerPath), kind))));
+        }
+        return List.copyOf(issues);
+    }
+
+    /** What is wrong with the contents {@code piece} keeps under {@code innerPath}; empty when they apply. */
+    private static Optional<StoredContentsIssue.Kind> issueOf(CircuitDocument document, Component piece,
+                                                              String innerPath) {
+        Optional<Component> memory = memoryAt(document, piece, innerPath);
+        if (memory.isEmpty()) {
+            return Optional.of(StoredContentsIssue.Kind.FOR_NOTHING);
+        }
+        return Optional.empty();
+    }
+
+    /** The memory {@code innerPath} names inside {@code piece} ({@code c3/c10}); empty when it names none. */
+    private static Optional<Component> memoryAt(CircuitDocument document, Component piece, String innerPath) {
+        List<String> segments = InstancePath.segments(innerPath);
+        List<Component> level = bodyOf(piece, document);
+        for (int depth = 0; depth < segments.size() - 1; depth++) {
+            Optional<Component> inner = find(level, segments.get(depth));
+            if (inner.isEmpty()) {
+                return Optional.empty();
+            }
+            level = bodyOf(inner.get(), document);
+        }
+        return find(level, segments.getLast()).filter(part -> MemoryTypes.kindOf(part.typeId()).isPresent());
     }
 
     /**

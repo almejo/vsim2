@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.command.HistoryListener;
+import cl.almejo.vsim.core.command.SetInstanceMemoryContentsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MultiBitLayout;
@@ -11,7 +12,9 @@ import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
@@ -114,7 +117,7 @@ public final class ProblemsController {
         this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime);
         this.connectivityOverlay = new ConnectivityOverlay(openDocument, () -> view.canvas().scheme(), this::linkedFileProblems);
         this.navigator = new ProblemNavigator(view::canvas, blink, this::showElsewhere);
-        this.panel = new ProblemsPanel(this::describe, navigator::navigateTo);
+        this.panel = new ProblemsPanel(this::describe, navigator::navigateTo, this::quickActionsOf);
 
         nextProblem = Actions.of(Messages.text("action.nextProblem"), navigator::next);
         nextProblem.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.nextProblem"));
@@ -265,6 +268,7 @@ public final class ProblemsController {
         problems.addAll(pinsPlacedElsewhere());
         problems.addAll(outdatedPieces);
         problems.addAll(linkedFileProblems());
+        problems.addAll(storedContentsProblems());
         SimulationSnapshot combined = new SimulationSnapshot(snapshot.revision(), openDocument.netlistToken(),
                 snapshot.time(), snapshot.running(), snapshot.netValues(), snapshot.componentStates(), problems,
                 snapshot.failure());
@@ -311,6 +315,38 @@ public final class ProblemsController {
             }
         }
         return placed;
+    }
+
+    /**
+     * One problem per piece's own memory contents that do not apply (debt of task 9b: they were ignored and
+     * invisible): kept for a memory no longer in its component.
+     */
+    private List<ConnectivityProblem> storedContentsProblems() {
+        List<ConnectivityProblem> problems = new ArrayList<>();
+        for (PieceMemories.StoredContentsIssue issue : PieceMemories.storedContentsIssues(circuit.document())) {
+            ElementId piece = issue.place().piece();
+            GridPoint position = circuit.document().component(piece).map(Component::position)
+                    .orElse(GridPoint.ORIGIN);
+            problems.add(new ConnectivityProblem(ConnectivityProblem.OWN_CONTENTS_PREFIX
+                    + issue.place().innerPath(), piece.value(), -1, position,
+                    ConnectivityProblem.Cause.OWN_CONTENTS_FOR_NOTHING));
+        }
+        return problems;
+    }
+
+    /**
+     * What the Problemas list offers on a right click on {@code problem}: forgetting a piece's own contents that do
+     * not apply, one undo step.
+     */
+    private List<Action> quickActionsOf(Problem problem) {
+        if (!(problem instanceof ConnectivityProblem connectivity)
+                || connectivity.cause() != ConnectivityProblem.Cause.OWN_CONTENTS_FOR_NOTHING) {
+            return List.of();
+        }
+        PieceMemories.Place place = new PieceMemories.Place(new ElementId(connectivity.elementId()),
+                connectivity.netId().substring(ConnectivityProblem.OWN_CONTENTS_PREFIX.length()));
+        return List.of(Actions.of(Messages.text("problem.ownContents.forget"),
+                () -> circuit.execute(SetInstanceMemoryContentsCommand.clear(place))));
     }
 
     /** One problem per pin a shape change left loose in this session, for the pieces still on the canvas. */

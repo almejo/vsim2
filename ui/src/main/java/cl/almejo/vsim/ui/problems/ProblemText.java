@@ -118,6 +118,8 @@ public final class ProblemText {
             case OUTDATED_CANNOT_UPDATE -> Messages.format("problem.connectivity.outdatedNested",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document),
                     String.join(", ", DefinitionUpdateSafety.containingNames(document, outdatedDefinitionId(problem))));
+            case OWN_CONTENTS_FOR_NOTHING -> Messages.format("problem.ownContentsForNothing",
+                    pieceName(problem.elementId(), document), ownContentsPath(problem));
         };
     }
 
@@ -137,6 +139,11 @@ public final class ProblemText {
     /** A placed piece by its name ({@link InstanceNames#name}): «U5», «ALU», «Multiplexor 2». */
     private static String pieceName(String hierarchicalId, CircuitDocument document) {
         return InstanceNames.name(hierarchicalId, document).orElse(hierarchicalId);
+    }
+
+    /** The memory's path inside the piece a piece's own contents are kept for ({@code c3/c10}). */
+    private static String ownContentsPath(ConnectivityProblem problem) {
+        return problem.netId().substring(ConnectivityProblem.OWN_CONTENTS_PREFIX.length());
     }
 
     private static String outdatedDefinitionId(ConnectivityProblem problem) {

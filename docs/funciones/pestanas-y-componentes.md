@@ -129,7 +129,10 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   VSim vuelve a leer el archivo cuando cambia mientras hay una pestaña del componente abierta. En Propiedades, una memoria de adentro con contenido propio en la pieza que se ve dice
   «Contenido propio de Memoria 1». Si un componente tiene otro adentro, el contenido propio de la pieza de afuera
   manda sobre el de las de adentro. El «Mapa de memoria» de la pestaña sigue a la pieza que se muestra. Al
-  desarmar una pieza, sus memorias se quedan con el contenido propio que tenía.
+  desarmar una pieza, sus memorias se quedan con el contenido propio que tenía. Si una pieza guarda contenido propio
+  de una memoria que ya no está en el componente (se borró adentro), ese contenido no se usa y Problemas lo dice:
+  «Memoria chica: guarda contenido propio de una memoria que ya no está en el componente (c10)»; el clic derecho en la
+  fila ofrece «Olvidar ese contenido», un solo paso de deshacer.
 - **Terminales**: la ventana de un Terminal de adentro muestra el de la pieza cuyos valores se ven. Un Terminal con el
   mismo nombre en el circuito y adentro de un componente son dos ventanas distintas, y cada una recuerda su lugar y su
   tamaño. Si la pestaña pasa a mostrar otra pieza, la ventana de la pieza anterior se cierra. Abrirla desde otra

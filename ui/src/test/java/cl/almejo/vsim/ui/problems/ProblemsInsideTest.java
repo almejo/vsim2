@@ -143,6 +143,36 @@ class ProblemsInsideTest {
         assertThat(wentTo).containsExactly("- - c5");
     }
 
+    @Test
+    void contentsKeptForAMemoryNoLongerInTheComponentAreListedAndForgottenFromTheRow() {
+        // debt of task 9b: an orphan entry stayed in the file, ignored and invisible
+        circuit.execute(new PutDefinitionsCommand(List.of(smallMemory())));
+        circuit.execute(new AddElementsCommand(List.of(new Component(new ElementId("c5"),
+                SubcircuitTypes.typeIdOf("memoria-chica"), new GridPoint(10, 10), Rotation.R0, Map.of(), "")
+                .withMemoryContents(Map.of("c99", "@0 1")))));
+        EditorView main = view(circuit);
+        String expected = "Memoria chica: guarda contenido propio de una memoria que ya no está en el componente (c99)";
+
+        assertThat(main.problems().panel().problemTexts()).containsExactly(expected);
+        List<javax.swing.Action> actions = main.problems().panel().actionsAt(0);
+        assertThat(actions).extracting(action -> action.getValue(javax.swing.Action.NAME))
+                .containsExactly("Olvidar ese contenido");
+        actions.getFirst().actionPerformed(null);
+
+        assertThat(circuit.document().component(new ElementId("c5")).orElseThrow().memoryContents()).isEmpty();
+        assertThat(main.problems().panel().problemTexts()).isEmpty();
+        circuit.history().undo();
+        assertThat(main.problems().panel().problemTexts()).containsExactly(expected);
+    }
+
+    /** «Memoria chica»: a RAM c10 inside, no pins. */
+    private static ComponentDefinition smallMemory() {
+        Component ram = StandardComponentTypes.registry().require(StandardComponentTypes.RAM)
+                .newComponent(new ElementId("c10"), new GridPoint(0, 0), Rotation.R0, Map.of(), "");
+        return new ComponentDefinition("memoria-chica", "Memoria chica", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(ram), List.of(), List.of()));
+    }
+
     private EditorView view(OpenDocument place) {
         EditorView view = new EditorView(place, PainterRegistry.standard(), ColorScheme.LIGHT, window);
         views.add(view);
