@@ -84,7 +84,7 @@ class VsimMcpServerTest {
                     .contains("vsim_set_presentation", "vsim_begin_stage", "vsim_await_step", "ONE vsim_edit per step",
                             "pace CONTINUOUS",
                             "STALE", "STOPPED", "replaceSelection false");
-            assertThat(client.listTools().tools()).hasSize(34)
+            assertThat(client.listTools().tools()).hasSize(36)
                     .allSatisfy(tool -> assertThat(tool.outputSchema()).isNotNull());
         }
     }

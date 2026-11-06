@@ -55,6 +55,15 @@ public interface EditorWindows {
     default void travelToStageOrigin(OpenDocument document, GridPoint origin) {
     }
 
+    /**
+     * Shows a place of {@code document} in the window the AI works in (spec §12): {@code definitionId} empty is the
+     * main tab, else the component tab of that definition showing {@code contextPath}; the circuit's group is opened
+     * in a window first when none holds it. Refused by default.
+     */
+    default void openPlace(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath) {
+        throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor cannot show places");
+    }
+
     /** No windows: new circuits are refused and no document has an override. */
     EditorWindows NONE = new EditorWindows() {
         @Override

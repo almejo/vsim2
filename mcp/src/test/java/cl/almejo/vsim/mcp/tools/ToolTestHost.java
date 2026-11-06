@@ -108,7 +108,7 @@ final class ToolTestHost extends FakeAutomationHost {
     public <T> CompletableFuture<T> reading(DocumentId document, Function<ReadSource, T> work) {
         return run(() -> {
             Circuit circuit = circuit(document);
-            return work.apply(new ReadSource(circuit.id, circuit.version(), circuit.id.value(), circuit.document,
+            return work.apply(new ReadSource(document, circuit.version(), circuit.id.value(), circuit.document,
                     circuit.registry, new NetlistCompiler(circuit.registry).compile(circuit.document),
                     circuit.document.revision(), new SimulationSnapshot(0, circuit.document.revision(), 0, false, Map.of(), Map.of(),
                             List.of(), Optional.empty()),
@@ -263,7 +263,7 @@ final class ToolTestHost extends FakeAutomationHost {
     }
 
     private Circuit circuit(DocumentId document) {
-        Circuit circuit = circuits.get(document);
+        Circuit circuit = circuits.get(document.base());
         if (circuit == null) {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, "No circuit " + document.value());
         }

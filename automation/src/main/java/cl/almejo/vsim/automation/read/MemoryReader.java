@@ -37,7 +37,10 @@ public final class MemoryReader {
         }
         ComponentType type = source.registry().typeOf(component);
         Map<String, Object> resolved = type.resolveParameters(component.parameters());
-        return new Described(componentId, MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS)),
+        // inside a piece's body: the contents that piece stores for the memory, else the definition's own
+        MemoryContents initial = source.pieceMemory().apply(componentId)
+                .orElseGet(() -> MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS)));
+        return new Described(componentId, initial,
                 ((Number) resolved.get(MemoryTypes.WIDTH)).intValue(), MemoryTypes.words(resolved),
                 !((String) resolved.get(MemoryTypes.LINK)).isBlank(), source);
     }

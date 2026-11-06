@@ -24,7 +24,7 @@ import java.util.Optional;
  * copy) always finds the copy already matching the definition. The write-back prepared on the first apply is reused by
  * a redo: the history puts the document back in the state it was prepared against.
  */
-public final class EditInsideCommand implements Command, LoosensPins {
+public final class EditInsideCommand implements WrapsCommand, LoosensPins {
 
     private final String definitionId;
     private final Command bodyCommand;
@@ -95,6 +95,12 @@ public final class EditInsideCommand implements Command, LoosensPins {
 
     public String definitionId() {
         return definitionId;
+    }
+
+    /** The edit made on the body: what the caller executed inside the component. */
+    @Override
+    public Command wrapped() {
+        return bodyCommand;
     }
 
     /** The working copy this edit was made on. */

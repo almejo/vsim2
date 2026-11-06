@@ -932,6 +932,19 @@ public final class Application {
                     presentation.overlaysOf(view).ifPresent(overlays -> overlays.travelToStageOrigin(origin))));
         }
 
+        /**
+         * {@code vsim_open_place} (spec §12): the place's tab comes to the front in the window the AI works in, which is
+         * given the circuit's group first when no window holds it (as Abrir would).
+         */
+        @Override
+        public void openPlace(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath) {
+            CircuitWindow window = aiWindowOf(document).orElseGet(() -> {
+                showIn(Optional.empty(), document, Optional.empty());
+                return windows.windowsOf(document).getFirst();
+            });
+            window.showPlace(document, definitionId, contextPath);
+        }
+
         private AppPreferences preferencesOf(OpenDocument document) {
             return aiWindowOf(document).map(windowPreferences::get).orElse(preferences);
         }

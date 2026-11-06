@@ -16,6 +16,14 @@ final class Common {
         return Schema.nonEmptyString(DOCUMENT_DESCRIPTION);
     }
 
+    /** The optional place of the six tools that address the inside of a component (spec §12). */
+    static Map<String, Object> place() {
+        return Schema.object("A component's inside (vsim_list_places); none: the main circuit")
+                .property("definition", Schema.nonEmptyString(""))
+                .property("context", Schema.nonEmptyString(""))
+                .required("definition").build();
+    }
+
     static Map<String, Object> version() {
         return Schema.integerFrom("The circuit version you read (or of the last receipt); a circuit changed since "
                 + "is refused as STALE_DOCUMENT", 0);
