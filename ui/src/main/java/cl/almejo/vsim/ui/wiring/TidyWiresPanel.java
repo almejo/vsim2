@@ -6,20 +6,25 @@ import cl.almejo.vsim.core.layout.CircuitTidyPlan;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.ui.i18n.Messages;
+import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.SwingUtilities;
+import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Window;
 import java.util.Set;
 
 /**
- * The content of the tidy dialog: scope, «Partes» (separate overlaps), «Cables» (the three wire options) and the live summary, recomputed on every change. It
- * holds no dialog, so tests drive it directly. The summary is computed in the background («Calculando…» meanwhile);
- * a change cancels the computation in flight, so the latest choice wins.
+ * The content of the tidy dialog: scope, «Partes» (separate overlaps), «Cables» (the three wire options) and the live
+ * summary, recomputed on every change. It holds no dialog, so tests drive it directly. The summary is computed in the
+ * background («Calculando…» meanwhile); a change cancels the computation in flight, so the latest choice wins.
  */
 public final class TidyWiresPanel extends JPanel {
 
@@ -31,7 +36,10 @@ public final class TidyWiresPanel extends JPanel {
     private final JCheckBox mergeSegments = new JCheckBox(Messages.text("tidy.mergeSegments"));
     private final JCheckBox flattenDetours = new JCheckBox(Messages.text("tidy.flattenDetours"));
     private final JLabel summary = new JLabel();
-    /** Width the summary wraps at, as CSS pixels (Swing draws them about a third wider: ~310 logical pixels). */
+    /**
+     * Width the summary wraps at, as CSS pixels before FlatLaf's scale (Swing draws them about a third wider: ~310
+     * logical pixels).
+     */
     static final int SUMMARY_WIDTH_PIXELS = 240;
     /** The summary as written, without the HTML that makes the label wrap. */
     private String summaryPlainText = "";
@@ -64,7 +72,7 @@ public final class TidyWiresPanel extends JPanel {
         add(mergeSegments, "gapleft 12");
         add(flattenDetours, "gapleft 12");
         add(summary, "gaptop 12, growx, wmin 280");
-        for (javax.swing.AbstractButton button : new javax.swing.AbstractButton[]{selection, everything,
+        for (AbstractButton button : new AbstractButton[]{selection, everything,
                 separateOverlaps, removeStubs, mergeSegments, flattenDetours}) {
             button.addActionListener(event -> refresh());
         }
@@ -152,7 +160,8 @@ public final class TidyWiresPanel extends JPanel {
     void showSummary(String text) {
         summaryPlainText = text;
         String escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-        summary.setText("<html><body style='width: " + SUMMARY_WIDTH_PIXELS + "px'>" + escaped + "</body></html>");
+        summary.setText("<html><body style='width: " + UIScale.scale(SUMMARY_WIDTH_PIXELS) + "px'>" + escaped
+                + "</body></html>");
         growWindowToFit();
     }
 
@@ -161,12 +170,12 @@ public final class TidyWiresPanel extends JPanel {
      * downward so nothing is cut; it never shrinks, so it does not jump while the user changes options.
      */
     private void growWindowToFit() {
-        java.awt.Window window = javax.swing.SwingUtilities.getWindowAncestor(this);
+        Window window = SwingUtilities.getWindowAncestor(this);
         if (window == null || !window.isDisplayable()) {
             return;
         }
         window.validate();
-        java.awt.Dimension wanted = window.getPreferredSize();
+        Dimension wanted = window.getPreferredSize();
         if (wanted.height > window.getHeight() || wanted.width > window.getWidth()) {
             window.setSize(Math.max(wanted.width, window.getWidth()), Math.max(wanted.height, window.getHeight()));
             window.validate();

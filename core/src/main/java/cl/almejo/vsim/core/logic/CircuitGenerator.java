@@ -47,7 +47,7 @@ import java.util.Set;
  * horizontal wires from its source and to its loads; a net whose only load is level with its source is a straight
  * wire. Tracks are ordered so that a horizontal wire never touches another net's wire (a net leaving at the height
  * where another arrives gets the track to its left); when that is impossible the columns to the right move down a
- * little. Wires only cross, so nothing joins what it should not. The wires are then tidied with the «Ordenar cables»
+ * little. Wires only cross, so nothing joins what it should not. The wires are then tidied with the «Ordenar circuito»
  * rules ({@link WireTidy}).
  */
 public final class CircuitGenerator {
