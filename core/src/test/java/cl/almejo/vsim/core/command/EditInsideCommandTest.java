@@ -9,11 +9,14 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -141,6 +144,117 @@ class EditInsideCommandTest {
         assertThat(workingCopy.elements()).containsExactlyElementsOf(bodyBefore);
         assertThat(document.definition(inverter.id())).containsSame(inverter);
         assertThat(history.canUndo()).isFalse();
+    }
+
+    @Test
+    void aPinAddedToANestedDefinitionReachesTheContainingBodies() {
+        ComponentDefinition doubleInverter = placeDoubleInverter();
+        Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(workingCopy.newComponentId(),
+                new GridPoint(0, 10), Rotation.R0, Map.of(), "b");
+
+        history.execute(inside(new AddElementsCommand(List.of(pin))));
+
+        // its pieces are drawn as the inverter: they follow through the definition, the body itself stays as it is
+        ComponentDefinition container = document.definition(ExampleDefinitions.DOUBLE_INVERTER).orElseThrow();
+        assertThat(container).isSameAs(doubleInverter);
+        for (Component nested : container.body().components().subList(1, 3)) {
+            assertThat(registry.typeOf(nested).pinCount()).as(nested.id().value()).isEqualTo(3);
+        }
+        assertThat(pinCount(first.id())).isEqualTo(3);
+    }
+
+    @Test
+    void whatCannotFollowInsideIsListedWithItsContainer() {
+        ComponentDefinition busy = placeBusyDoubleInverter();
+        Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(workingCopy.newComponentId(),
+                new GridPoint(0, 10), Rotation.R0, Map.of(), "b");
+        EditInsideCommand inside = inside(new AddElementsCommand(List.of(pin)));
+
+        history.execute(inside);
+
+        assertThat(inside.nestedProblems()).containsExactly(new DefinitionUpdateProblem(
+                ExampleDefinitions.DOUBLE_INVERTER, new PinRef(new ElementId("c3"), 2),
+                DefinitionUpdateProblem.Kind.PLACED_ELSEWHERE));
+        ComponentDefinition rewritten = document.definition(ExampleDefinitions.DOUBLE_INVERTER).orElseThrow();
+        assertThat(rewritten.revision()).isEqualTo(busy.revision() + 1);
+        assertThat(rewritten.pinout()).isEqualTo(busy.pinout());
+        assertThat(rewritten.size()).isEqualTo(busy.size());
+        Component kept = rewritten.body().components().get(2);
+        assertThat(kept.appearance()).isPresent();
+        assertThat(registry.typeOf(kept).pinLocation(kept, 2)).isNotEqualTo(new GridPoint(6, 4));
+    }
+
+    @Test
+    void undoRestoresEveryContainingDefinition() {
+        ComponentDefinition doubleInverter = placeBusyDoubleInverter();
+        Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(workingCopy.newComponentId(),
+                new GridPoint(0, 10), Rotation.R0, Map.of(), "b");
+        history.execute(inside(new AddElementsCommand(List.of(pin))));
+        ComponentDefinition rewritten = document.definition(ExampleDefinitions.DOUBLE_INVERTER).orElseThrow();
+
+        assertThat(rewritten).isNotSameAs(doubleInverter);
+
+        history.undo();
+        assertThat(document.definition(ExampleDefinitions.DOUBLE_INVERTER)).containsSame(doubleInverter);
+        assertThat(document.definition(inverter.id())).containsSame(inverter);
+
+        history.redo();
+        assertThat(document.definition(ExampleDefinitions.DOUBLE_INVERTER)).containsSame(rewritten);
+    }
+
+    @Test
+    void theRewriteKeepsTheIdsAndTheMemoryContentsOfNestedPieces() {
+        // the second inverter's new pin lands on a wire, so the container's body is rewritten
+        ComponentDefinition busy = placeBusyDoubleInverter();
+        CircuitDocument holderBody = busy.bodyDocument(document);
+        Component nested = holderBody.component(new ElementId("c2")).orElseThrow();
+        holderBody.replace(nested.withMemoryContents(Map.of("c10", "v3.0 hex words\n1")));
+        document.putDefinition(withBody(busy, holderBody));
+        Component outer = new Component(new ElementId("c31"), SubcircuitTypes.typeIdOf(ExampleDefinitions
+                .DOUBLE_INVERTER), new GridPoint(10, 40), Rotation.R0, Map.of(), "")
+                .withMemoryContents(Map.of("c2/c10", "v3.0 hex words\n2"));
+        document.add(outer);
+        Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(workingCopy.newComponentId(),
+                new GridPoint(0, 10), Rotation.R0, Map.of(), "b");
+
+        history.execute(inside(new AddElementsCommand(List.of(pin))));
+
+        ComponentDefinition container = document.definition(ExampleDefinitions.DOUBLE_INVERTER).orElseThrow();
+        assertThat(container.body().components()).extracting(Component::id)
+                .containsExactlyElementsOf(holderBody.components().stream().map(Component::id).toList());
+        Component rewritten = container.body().components().get(1);
+        assertThat(rewritten.id()).isEqualTo(new ElementId("c2"));
+        assertThat(rewritten.memoryContents()).containsEntry("c10", "v3.0 hex words\n1");
+        assertThat(registry.typeOf(rewritten).pinCount()).isEqualTo(3);
+        assertThat(document.component(outer.id()).orElseThrow().memoryContents())
+                .containsEntry("c2/c10", "v3.0 hex words\n2");
+    }
+
+    /** The double inverter (two inverters inside) in the document, one piece of it placed; returns the definition. */
+    private ComponentDefinition placeDoubleInverter() {
+        ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter();
+        document.putDefinition(doubleInverter);
+        document.add(new Component(new ElementId("c30"), SubcircuitTypes.typeIdOf(doubleInverter.id()),
+                new GridPoint(10, 40), Rotation.R0, Map.of(), ""));
+        return document.definition(doubleInverter.id()).orElseThrow();
+    }
+
+    /**
+     * {@link #placeDoubleInverter()} with a wire in its body ending at (6,4), where the second inner inverter (at 6,0)
+     * puts a new input «b»: that piece cannot take it there.
+     */
+    private ComponentDefinition placeBusyDoubleInverter() {
+        placeDoubleInverter();
+        CircuitDocument holderBody = ExampleDefinitions.doubleInverter().bodyDocument(document);
+        holderBody.add(new Wire(new ElementId("w90"), new GridPoint(6, 4), new GridPoint(8, 4)));
+        document.putDefinition(withBody(ExampleDefinitions.doubleInverter(), holderBody));
+        return document.definition(ExampleDefinitions.DOUBLE_INVERTER).orElseThrow();
+    }
+
+    private static ComponentDefinition withBody(ComponentDefinition definition, CircuitDocument body) {
+        return new ComponentDefinition(definition.id(), definition.name(), definition.description(),
+                definition.size(), definition.pinout(), new CircuitFragment(body.components(), body.wires(),
+                body.labels()), definition.appearance(), definition.revision());
     }
 
     private void assertOriginal(List<DocumentElement> bodyBefore) {

@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -44,11 +45,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * A definition's body opened as a place of its document (spec §6, §10.3–10.5): the working copy shares the document's
- * history and simulation, shows the context instance's values, writes every edit back as one undo step, refuses an
- * interface change of a nested definition before applying it, and follows changes made elsewhere.
+ * history and simulation, shows the context instance's values, writes every edit back as one undo step (rewriting the
+ * bodies that contain the definition when its pins change), and follows changes made elsewhere.
  */
 class OpenDocumentBodyTest {
 
@@ -256,43 +258,103 @@ class OpenDocumentBodyTest {
     }
 
     @Test
-    void interfaceLockedRefusesBeforeApplying() {
+    void anInterfaceChangeOfANestedDefinitionAppliesAsOneUndoStep() {
         withInverterInsideDoubleInverterAndOnItsOwn();
         OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c30"));
-        assertThat(body.interfaceLocked()).isTrue();
-        List<DocumentElement> before = body.document().elements();
-        long revision = openDocument.document().revision();
-        Command placed = openDocument.history().undoCommand().orElseThrow();
+        ComponentDefinition inverter = openDocument.document().definition(ExampleDefinitions.INVERTER).orElseThrow();
+        ComponentDefinition container = openDocument.document().definition(ExampleDefinitions.DOUBLE_INVERTER)
+                .orElseThrow();
 
-        assertThatThrownBy(() -> body.execute(new RemoveElementsCommand(List.of(new ElementId("c1")))))
-                .isInstanceOfSatisfying(InsideEditRefusedException.class, exception -> {
-                    assertThat(exception.messageKey()).isEqualTo("inside.interfaceLocked");
-                    assertThat(exception.arguments()).containsExactly("Inversor", "Doble inversor");
-                });
+        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
 
-        assertThat(body.document().elements()).containsExactlyElementsOf(before);
-        assertThat(openDocument.document().revision()).isEqualTo(revision);
-        assertThat(openDocument.history().undoCommand()).containsSame(placed);
-        body.execute(new MoveElementsCommand(List.of(new ElementId("c1")), 0, 10));
-        body.execute(new AddElementsCommand(List.of(gate(body, 20, 20))));
-        assertThat(openDocument.document().definition(ExampleDefinitions.INVERTER).orElseThrow().revision())
-                .isEqualTo(3);
+        assertThat(openDocument.document().definition(ExampleDefinitions.INVERTER).orElseThrow().pinout())
+                .extracting(pin -> pin.spec().name()).containsExactly("y");
+        Component nested = openDocument.document().definition(ExampleDefinitions.DOUBLE_INVERTER).orElseThrow()
+                .body().components().get(1);
+        assertThat(openDocument.registry().typeOf(nested).pinCount()).isEqualTo(1);
+        assertThat(body.document().component(new ElementId("c1"))).isEmpty();
+
+        openDocument.history().undo();
+
+        assertThat(openDocument.document().definition(ExampleDefinitions.INVERTER)).containsSame(inverter);
+        assertThat(openDocument.document().definition(ExampleDefinitions.DOUBLE_INVERTER)).containsSame(container);
+        assertThat(body.document().component(new ElementId("c1"))).isPresent();
     }
 
     @Test
-    void aNestedOwnShapedPieceNeverReachesTheWriteBackRefusal() {
-        // the write-back would refuse this (a nested piece with its own shape cannot follow a new pin); the body
-        // place refuses it first, with its explanation, and nothing changes
+    void anEditRefusedWhileItAppliesChangesNothingAndIsThrownWithoutAListener() {
+        withTwoBlocks();
+        OpenDocument body = body(BLOCK, Optional.of(FIRST.value()));
+        List<DocumentElement> before = body.document().elements();
+        ComponentDefinition definition = block();
+        Command placed = openDocument.history().undoCommand().orElseThrow();
+        Command refusing = new Command() {
+            @Override
+            public void apply(CircuitDocument target) {
+                throw new InsideEditRefusedException("inside.cannotNestItself", List.of());
+            }
+
+            @Override
+            public void revert(CircuitDocument target) {
+            }
+
+            @Override
+            public String description() {
+                return "command.add";
+            }
+        };
+
+        assertThatThrownBy(() -> body.execute(refusing)).isInstanceOf(InsideEditRefusedException.class);
+        List<InsideEditRefusedException> told = new ArrayList<>();
+        body.addRefusalListener(told::add);
+        body.execute(refusing);
+
+        assertThat(told).extracting(InsideEditRefusedException::messageKey).containsExactly("inside.cannotNestItself");
+        assertThat(body.document().elements()).containsExactlyElementsOf(before);
+        assertThat(openDocument.document().definition(BLOCK)).contains(definition);
+        assertThat(openDocument.history().undoCommand()).containsSame(placed);
+    }
+
+    @Test
+    void aNestedOwnShapedPieceFollowsANewPin() {
         openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter(),
                 parentWithOwnShapedInverter())));
         place("c40", SubcircuitTypes.typeIdOf("parent"), 0);
+        ComponentDefinition parent = openDocument.document().definition("parent").orElseThrow();
         OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c40/c2"));
         Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(body.document().newComponentId(),
                 new GridPoint(0, 10), Rotation.R0, Map.of(), "b");
-        Command addPin = new AddElementsCommand(List.of(pin));
 
-        assertThatThrownBy(() -> body.execute(addPin)).isInstanceOf(InsideEditRefusedException.class);
-        assertThat(body.document().component(pin.id())).isEmpty();
+        body.execute(new AddElementsCommand(List.of(pin)));
+
+        assertThat(body.document().component(pin.id())).isPresent();
+        Component nested = openDocument.document().definition("parent").orElseThrow().body().components()
+                .getFirst();
+        assertThat(nested.appearance().orElseThrow().pins()).hasSize(3);
+        openDocument.history().undo();
+        assertThat(openDocument.document().definition("parent")).containsSame(parent);
+    }
+
+    @Test
+    void whatCouldNotFollowInsideAContainingBodyIsListedUnderEveryPlaceOfIt() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter(),
+                busyDoubleInverter())));
+        place("c31", SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 30);
+        place("c32", SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 60);
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c31/c2"));
+        Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(body.document().newComponentId(),
+                new GridPoint(0, 10), Rotation.R0, Map.of(), "b");
+
+        body.execute(new AddElementsCommand(List.of(pin)));
+
+        assertThat(openDocument.insideProblems()).extracting(ConnectivityProblem::elementId,
+                        ConnectivityProblem::pinIndex, ConnectivityProblem::cause)
+                .containsExactly(
+                        tuple("c31/c3", 2, ConnectivityProblem.Cause.PIN_PLACED_ELSEWHERE),
+                        tuple("c32/c3", 2, ConnectivityProblem.Cause.PIN_PLACED_ELSEWHERE));
+        assertThat(body.insideProblems()).isEqualTo(openDocument.insideProblems());
+        openDocument.history().undo();
+        assertThat(openDocument.insideProblems()).isEmpty();
     }
 
     @Test
@@ -409,6 +471,18 @@ class OpenDocumentBodyTest {
     }
 
     /** «parent» holding one inverter c2 with its own 4 x 4 shape. */
+    /**
+     * The double inverter with a wire in its body ending at (6,4), where its second inverter (at 6,0) puts a new input
+     * «b»: that piece cannot take it there.
+     */
+    private static ComponentDefinition busyDoubleInverter() {
+        ComponentDefinition plain = ExampleDefinitions.doubleInverter();
+        CircuitFragment body = plain.body();
+        return new ComponentDefinition(plain.id(), plain.name(), plain.description(), plain.size(), plain.pinout(),
+                new CircuitFragment(body.components(), List.of(new Wire(new ElementId("w90"), new GridPoint(6, 4),
+                        new GridPoint(8, 4))), body.labels()));
+    }
+
     private static ComponentDefinition parentWithOwnShapedInverter() {
         ComponentDefinition inverter = ExampleDefinitions.inverter();
         ComponentAppearance own = new ComponentAppearance(new GridSize(4, 4), Optional.empty(), List.of(

@@ -4,9 +4,11 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * An edit inside a component refused before anything changed (spec §6.2, phase 1: the interface of a definition used
- * inside another one cannot change yet). Carries the bundle key and arguments of the explanation the editor and the AI
- * show; the document, the working copy and the history are as they were.
+ * An edit inside a component refused while it applies, before anything changed (spec §6.2: never silently). Carries
+ * the bundle key and arguments of the explanation the editor (the component tab's place bar and status line) and the
+ * AI show; the document, the working copy and the history are as they were. No edit of the editor is refused today:
+ * the interface of a definition used inside another one changes too, and the bodies that contain it follow (spec
+ * §6.2 c); the path stays for a rule that needs it.
  */
 public final class InsideEditRefusedException extends RuntimeException {
 
@@ -21,7 +23,7 @@ public final class InsideEditRefusedException extends RuntimeException {
         this.arguments = List.copyOf(arguments);
     }
 
-    /** The bundle key of the explanation, e.g. {@code inside.interfaceLocked}. */
+    /** The bundle key of the explanation, e.g. {@code inside.cannotNestItself}. */
     public String messageKey() {
         return messageKey;
     }

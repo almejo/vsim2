@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.LoosensPins;
 import cl.almejo.vsim.core.command.SetSwitchValueCommand;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -21,9 +22,8 @@ import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.OpenedCircuit;
-import cl.almejo.vsim.core.library.BodyEdits;
 import cl.almejo.vsim.core.library.ComponentDefinition;
-import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
+import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.InstancePaths;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -139,6 +139,11 @@ public final class OpenDocument implements AutoCloseable {
     private final Map<String, BodyWorkingCopy> workingCopies = new HashMap<>();
     /** The pieces each applied inside edit could not give a new pin where it goes ({@link #keptOldShapes()}). */
     private final Map<Command, List<KeptOldShape>> keptByCommand = new LinkedHashMap<>();
+    /**
+     * What each applied inside edit could not carry into the bodies that contain its definition
+     * ({@link #insideProblems()}), while it is applied, as {@link #keptOldShapes()}.
+     */
+    private final Map<Command, List<DefinitionUpdateProblem>> nestedByCommand = new LinkedHashMap<>();
     /** Null for a document; for a body place, its document and working copy. */
     private final Body body;
     /** A body place's context instance path; empty is «Sin valores» (always empty for a document). */
@@ -178,8 +183,9 @@ public final class OpenDocument implements AutoCloseable {
     /** No token of a body's netlist: the snapshot of «Sin valores» never matches, so nothing shows a value. */
     private static final long NO_VALUES_TOKEN = Long.MIN_VALUE;
 
-    /** The bundle key of the phase-1 refusal (spec §6.2 c). */
-    private static final String INTERFACE_LOCKED = "inside.interfaceLocked";
+    /** The net id prefixes of {@link #insideProblems()} (not nets of the netlist: navigation goes to the piece). */
+    private static final String INSIDE_LOOSENED_PREFIX = "insideLoosened:";
+    private static final String INSIDE_PLACED_ELSEWHERE_PREFIX = "insidePlacedElsewhere:";
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
                         boolean importedFromVsim1) {
@@ -304,16 +310,6 @@ public final class OpenDocument implements AutoCloseable {
         return InstancePaths.usesOf(main().document, definitionId);
     }
 
-    /**
-     * Phase 1 of spec §6.2 c: true for a body place whose definition is used inside another placed definition. Its
-     * interface (the «Pin de entrada / salida» parts: adding, removing, renaming, widening) cannot change yet, and
-     * {@link #execute} refuses such an edit before applying it.
-     */
-    public boolean interfaceLocked() {
-        return body != null && InstancePaths.isUsedInsideAnother(body.parent.document,
-                body.workingCopy.definitionId());
-    }
-
     /** The document's pieces that could not take a new pin of an inside edit where it goes, while it is applied. */
     public List<KeptOldShape> keptOldShapes() {
         if (body != null) {
@@ -322,6 +318,52 @@ public final class OpenDocument implements AutoCloseable {
         List<KeptOldShape> kept = new ArrayList<>();
         keptByCommand.values().forEach(kept::addAll);
         return List.copyOf(kept);
+    }
+
+    /**
+     * What applied inside edits could not carry into the bodies that contain their definition (spec §6.2 c), under
+     * every place each of those bodies is used: a pin left unconnected ({@link ConnectivityProblem.Cause#LOOSENED_BY_SHAPE_CHANGE})
+     * or a new pin put elsewhere ({@link ConnectivityProblem.Cause#PIN_PLACED_ELSEWHERE}), with the piece's path
+     * ({@code c31/c3}) and the pin's position in that body. A body place has its document's. Part of
+     * {@link #connectivityProblems()}.
+     */
+    public List<ConnectivityProblem> insideProblems() {
+        if (body != null) {
+            return body.parent.insideProblems();
+        }
+        List<ConnectivityProblem> problems = new ArrayList<>();
+        for (List<DefinitionUpdateProblem> applied : nestedByCommand.values()) {
+            for (DefinitionUpdateProblem problem : applied) {
+                problems.addAll(placesOf(problem));
+            }
+        }
+        return List.copyOf(problems);
+    }
+
+    /** {@code problem} under every place its body is used; none when its piece or pin is gone. */
+    private List<ConnectivityProblem> placesOf(DefinitionUpdateProblem problem) {
+        Optional<Component> piece = document.definition(problem.definitionId()).flatMap(definition ->
+                definition.body().components().stream()
+                        .filter(component -> component.id().equals(problem.pin().componentId())).findFirst());
+        if (piece.isEmpty()) {
+            return List.of();
+        }
+        ComponentType type = registry.typeOf(piece.get());
+        int pinIndex = problem.pin().pinIndex();
+        if (pinIndex >= type.pinCount()) {
+            return List.of();
+        }
+        boolean loosened = problem.kind() == DefinitionUpdateProblem.Kind.LOOSENED;
+        ConnectivityProblem.Cause cause = loosened ? ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE
+                : ConnectivityProblem.Cause.PIN_PLACED_ELSEWHERE;
+        String prefix = loosened ? INSIDE_LOOSENED_PREFIX : INSIDE_PLACED_ELSEWHERE_PREFIX;
+        List<ConnectivityProblem> places = new ArrayList<>();
+        for (InstancePaths.InstanceUse use : InstancePaths.usesOf(document, problem.definitionId())) {
+            String elementId = InstancePath.child(use.path(), piece.get().id().value());
+            places.add(new ConnectivityProblem(prefix + elementId + ":" + pinIndex, elementId, pinIndex,
+                    type.pinLocation(piece.get(), pinIndex), cause));
+        }
+        return places;
     }
 
     /** Runs after the working copy followed a change made elsewhere (the canvas cancels its gesture there). */
@@ -396,9 +438,10 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
-     * A body place's edit: refused before anything changes when it would change a locked interface
-     * ({@link #interfaceLocked()}), else one undo step of the document that writes the body back. A refusal goes to the
-     * {@linkplain #addRefusalListener refusal listeners} when the place has any, else it is thrown.
+     * A body place's edit: one undo step of the document that writes the body back, and rewrites the bodies that
+     * contain the definition when its pins change (spec §6.2 c). An edit refused while it applies
+     * ({@link InsideEditRefusedException}, nothing changed) goes to the {@linkplain #addRefusalListener refusal
+     * listeners} when the place has any, else it is thrown.
      */
     private void executeInside(Command command) {
         executeInside(command, UnaryOperator.identity());
@@ -421,30 +464,15 @@ public final class OpenDocument implements AutoCloseable {
     /** {@link #executeInside(Command)}, the document's undo step being {@code together} applied to the inside edit. */
     private void executeInside(Command command, UnaryOperator<Command> together) {
         BodyWorkingCopy workingCopy = body.workingCopy;
-        String definitionId = workingCopy.definitionId();
-        if (interfaceLocked()) {
-            try {
-                refuseInterfaceChange(command, definitionId);
-            } catch (InsideEditRefusedException refusal) {
-                if (refusalListeners.size() == 0) {
-                    throw refusal;
-                }
-                refusalListeners.fire(listener -> listener.accept(refusal));
-                return;
+        EditInsideCommand inside = new EditInsideCommand(workingCopy.definitionId(), command, workingCopy.document(),
+                registry);
+        try {
+            workingCopy.write(() -> body.parent.execute(together.apply(inside)));
+        } catch (InsideEditRefusedException refusal) {
+            if (refusalListeners.size() == 0) {
+                throw refusal;
             }
-        }
-        EditInsideCommand inside = new EditInsideCommand(definitionId, command, workingCopy.document(), registry);
-        workingCopy.write(() -> body.parent.execute(together.apply(inside)));
-    }
-
-    /** Tries {@code command} on a copy of the working copy and refuses it when the interface would change. */
-    private void refuseInterfaceChange(Command command, String definitionId) {
-        ComponentDefinition definition = body.parent.document.definition(definitionId).orElseThrow();
-        CircuitDocument scratch = document.copy();
-        command.apply(scratch);
-        if (BodyEdits.interfaceChanged(definition, BodyEdits.rebuilt(definition, scratch))) {
-            List<String> containing = DefinitionUpdateSafety.containingNames(body.parent.document, definitionId);
-            throw new InsideEditRefusedException(INTERFACE_LOCKED, List.of(definition.name(), containing.getFirst()));
+            refusalListeners.fire(listener -> listener.accept(refusal));
         }
     }
 
@@ -656,19 +684,26 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
-     * Current wiring warnings, available immediately after a document edit without a simulation tick. A body place
+     * Current wiring warnings, available immediately after a document edit without a simulation tick, with what inside
+     * edits could not carry into the bodies that contain their definition ({@link #insideProblems()}). A body place
      * has its document's that lie inside the context instance, with the path taken off (so they glow inside);
      * none for «Sin valores».
      */
     public List<ConnectivityProblem> connectivityProblems() {
         if (body == null) {
-            return connectivityProblems;
+            List<ConnectivityProblem> inside = insideProblems();
+            if (inside.isEmpty()) {
+                return connectivityProblems;
+            }
+            List<ConnectivityProblem> all = new ArrayList<>(connectivityProblems);
+            all.addAll(inside);
+            return List.copyOf(all);
         }
         if (contextPath.isEmpty()) {
             return List.of();
         }
         String prefix = contextPath.get() + InstancePath.SEPARATOR;
-        return body.parent.connectivityProblems.stream()
+        return body.parent.connectivityProblems().stream()
                 .filter(problem -> problem.elementId().startsWith(prefix))
                 .map(problem -> new ConnectivityProblem(problem.netId().startsWith(prefix)
                         ? problem.netId().substring(prefix.length()) : problem.netId(),
@@ -707,10 +742,9 @@ public final class OpenDocument implements AutoCloseable {
      * body place the command edits the working copy and is written back to the definition as one undo step of the
      * document ({@link EditInsideCommand}).
      *
-     * @throws InsideEditRefusedException on a body place, before anything changes, when the edit would change the
-     *                                    interface of a definition used inside another one ({@link #interfaceLocked()}),
-     *                                    unless the place has a {@linkplain #addRefusalListener refusal listener}
-     *                                    (its tab), which is told instead
+     * @throws InsideEditRefusedException on a body place, with nothing changed, when the edit is refused while it
+     *                                    applies, unless the place has a {@linkplain #addRefusalListener refusal
+     *                                    listener} (its tab), which is told instead
      */
     public void execute(Command command) {
         if (body != null) {
@@ -773,11 +807,15 @@ public final class OpenDocument implements AutoCloseable {
             if (command instanceof EditInsideCommand inside && !inside.keptOldShapes().isEmpty()) {
                 keptByCommand.put(this, inside.keptOldShapes());
             }
+            if (command instanceof EditInsideCommand inside && !inside.nestedProblems().isEmpty()) {
+                nestedByCommand.put(this, inside.nestedProblems());
+            }
         }
 
         @Override
         public void revert(CircuitDocument target) {
             keptByCommand.remove(this);
+            nestedByCommand.remove(this);
             Set<PinRef> marks = loosenedByCommand.remove(this);
             try {
                 command.revert(target);

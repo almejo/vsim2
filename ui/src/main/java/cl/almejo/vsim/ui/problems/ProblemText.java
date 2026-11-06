@@ -101,11 +101,17 @@ public final class ProblemText {
             case UNCONNECTED_INTERFACE -> Messages.format("problem.connectivity.interface",
                     InstanceNames.path(problem.elementId(), document).orElse(problem.elementId()),
                     pinName(problem, document, registry));
-            case LOOSENED_BY_SHAPE_CHANGE -> Messages.format("problem.connectivity.loosened",
-                    pieceName(problem.elementId(), document),
+            // inside a component's body: what an edit inside a component it contains could not carry (spec §6.2 c)
+            case LOOSENED_BY_SHAPE_CHANGE -> InstancePath.isNested(problem.elementId())
+                    ? Messages.format("problem.pinUnconnectedInside",
+                    InstanceNames.routeText(problem.elementId(), document),
+                    PinNames.display(pinName(problem, document, registry)))
+                    : Messages.format("problem.connectivity.loosened", pieceName(problem.elementId(), document),
                     PinNames.display(pinName(problem, document, registry)));
             case PIN_PLACED_ELSEWHERE -> Messages.format("problem.keptOldShape",
-                    pieceName(problem.elementId(), document),
+                    InstancePath.isNested(problem.elementId())
+                            ? InstanceNames.routeText(problem.elementId(), document)
+                            : pieceName(problem.elementId(), document),
                     PinNames.display(pinName(problem, document, registry)));
             case OUTDATED_WOULD_BREAK -> Messages.format("problem.connectivity.outdated",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document));

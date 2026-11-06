@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.library.AppearanceReconciler;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionPin;
+import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.KeptOldShape;
@@ -34,6 +35,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * The planning of an inside edit (spec §6.2): never refused for a busy edge or a wire that cannot follow; the
@@ -127,18 +129,54 @@ class ReplaceDefinitionCommandInsideTest {
     }
 
     @Test
-    void aNestedInterfaceChangeOfAPlacedParentIsStillRefusedAsTheBackstopOfInterfaceLocked() {
-        // phase 1 (spec §6.2 c): the body place refuses such an edit before it is applied (interfaceLocked), so this
-        // backstop is never reached from the editor; Task 15 replaces both with the nested rewrite
-        document.putDefinition(ExampleDefinitions.doubleInverter());
+    void aNestedInterfaceChangeRewritesTheContainingBodiesInsteadOfRefusing() {
+        ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter();
+        document.putDefinition(doubleInverter);
         document.add(new Component(new ElementId("c91"), SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER),
                 new GridPoint(60, 60), Rotation.R0, Map.of(), ""));
 
-        assertThatThrownBy(() -> prepareInside(movedOutput(inverter)))
-                .isInstanceOf(UnsafeDefinitionUpdateException.class)
-                .satisfies(exception -> assertThat(((UnsafeDefinitionUpdateException) exception).messageKey())
-                        .isEqualTo("appearance.update.nestedGeometry"));
+        ReplaceDefinitionCommand command = prepareInside(movedOutput(inverter));
+        command.apply(document);
+
+        // the outputs of its two inverters moved 2 to the right: wires keep them where they touched before
+        ComponentDefinition rewritten = document.definition(ExampleDefinitions.DOUBLE_INVERTER).orElseThrow();
+        assertThat(rewritten.pinout()).isEqualTo(doubleInverter.pinout());
+        assertThat(rewritten.revision()).isEqualTo(doubleInverter.revision() + 1);
+        assertThat(rewritten.body().components()).isEqualTo(doubleInverter.body().components());
+        assertThat(rewritten.body().wires()).extracting(Wire::start, Wire::end).containsExactlyInAnyOrder(
+                tuple(new GridPoint(6, 2), new GridPoint(8, 2)),
+                tuple(new GridPoint(10, 2), new GridPoint(12, 2)));
+        assertThat(command.nestedProblems()).isEmpty();
+
+        command.revert(document);
+        assertThat(document.definition(ExampleDefinitions.DOUBLE_INVERTER)).containsSame(doubleInverter);
         assertThat(document.definition(inverter.id())).containsSame(inverter);
+    }
+
+    @Test
+    void aWireInsideAContainingBodyThatCannotFollowIsListedWithItsContainer() {
+        CircuitDocument holderBody = new CircuitDocument();
+        holderBody.putDefinition(inverter);
+        Component nested = new Component(new ElementId("c20"), SubcircuitTypes.typeIdOf(inverter.id()), BUSY_ORIGIN,
+                Rotation.R0, Map.of(), "");
+        holderBody.add(nested);
+        pinAt(holderBody, new GridPoint(14, 30));
+        holderBody.add(new Wire(holderBody.newWireId(), new GridPoint(14, 12), new GridPoint(14, 30)));
+        pinAt(holderBody, new GridPoint(15, 12));
+        pinAt(holderBody, new GridPoint(17, 12));
+        pinAt(holderBody, new GridPoint(16, 11));
+        pinAt(holderBody, new GridPoint(16, 13));
+        document.putDefinition(new ComponentDefinition("holder", "Soporte", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(holderBody.components(), holderBody.wires(), List.of())));
+        document.add(new Component(new ElementId("c92"), SubcircuitTypes.typeIdOf("holder"), new GridPoint(80, 80),
+                Rotation.R0, Map.of(), ""));
+
+        ReplaceDefinitionCommand command = prepareInside(movedOutput(inverter));
+        command.apply(document);
+
+        assertThat(command.nestedProblems()).containsExactly(new DefinitionUpdateProblem("holder",
+                new PinRef(nested.id(), 1), DefinitionUpdateProblem.Kind.LOOSENED));
+        assertThat(document.definition("holder").orElseThrow().body().wires()).hasSize(1);
     }
 
     private ReplaceDefinitionCommand prepareInside(ComponentDefinition updated) {
@@ -153,10 +191,14 @@ class ReplaceDefinitionCommandInsideTest {
     }
 
     private void pinAt(GridPoint target) {
-        Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(document.newComponentId(),
+        pinAt(document, target);
+    }
+
+    private void pinAt(CircuitDocument target, GridPoint point) {
+        Component pin = registry.require(InterfacePins.INPUT_PIN).newComponent(target.newComponentId(),
                 GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
         GridPoint offset = registry.typeOf(pin).pinLocation(pin, 0);
-        document.add(pin.withPosition(target.translate(-offset.x(), -offset.y())));
+        target.add(pin.withPosition(point.translate(-offset.x(), -offset.y())));
     }
 
     /** The inverter with a second input «b», placed as an inside edit places it (free edge spot). */

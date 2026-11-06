@@ -86,6 +86,29 @@ class ProblemsInsideTest {
     }
 
     @Test
+    void whatCouldNotFollowInsideAContainingBodyIsListedWithItsRoute() {
+        // the double inverter's second inverter (c3, at 6,0) cannot take a new input at (6,4): a wire ends there
+        ComponentDefinition plain = ExampleDefinitions.doubleInverter();
+        ComponentDefinition busy = new ComponentDefinition(plain.id(), plain.name(), "", plain.size(),
+                plain.pinout(), new CircuitFragment(plain.body().components(), List.of(new Wire(new ElementId("w90"),
+                new GridPoint(6, 4), new GridPoint(8, 4))), List.of()));
+        circuit.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter(), busy)));
+        place("c31", SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 30, 10);
+        EditorView main = view(circuit);
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c31/c2"));
+        EditorView inside = view(body);
+
+        body.execute(new AddElementsCommand(List.of(StandardComponentTypes.registry().require(InterfacePins.INPUT_PIN)
+                .newComponent(body.document().newComponentId(), new GridPoint(0, 10), Rotation.R0, Map.of(), "b"))));
+
+        String expected = "Doble inversor › Inversor 2: el pin b quedó en otro lugar (su lugar estaba ocupado)";
+        assertThat(main.problems().panel().problemTexts()).contains(expected);
+        assertThat(inside.problems().panel().problemTexts()).contains(expected);
+        circuit.history().undo();
+        assertThat(main.problems().panel().problemTexts()).noneMatch(text -> text.contains("quedó en otro lugar"));
+    }
+
+    @Test
     void bodyTabListsTheParentsProblems() {
         circuit.execute(new PutDefinitionsCommand(List.of(leaf())));
         place("c5", SubcircuitTypes.typeIdOf("hoja"), 0, 0);

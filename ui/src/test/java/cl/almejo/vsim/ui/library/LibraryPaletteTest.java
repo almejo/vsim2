@@ -240,10 +240,9 @@ class LibraryPaletteTest {
                 Optional.of(doubleInverter + "/c2"));
         TemplateFixture inside = new TemplateFixture(fixture, body);
         try {
-            String locked = "Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía";
-            inside.view.selection().set(List.of(new cl.almejo.vsim.core.document.ElementId("c1")));
+            String locked = cl.almejo.vsim.ui.UiTestSupport.REFUSED_INSIDE_TEXT;
 
-            cl.almejo.vsim.ui.UiTestSupport.perform(inside.view.actions().delete());
+            body.execute(cl.almejo.vsim.ui.UiTestSupport.refusedInside());
 
             assertThat(inside.view.statusBar().text()).contains(locked);
             java.awt.Container bar = (java.awt.Container) placeBarsOf(inside.view).getFirst();

@@ -69,10 +69,8 @@ de circuito no la tienen.
   (pregunta lo mismo que la paleta si el id ya existe); «Guardar» aparece cuando la copia del circuito es distinta de
   la de la librería y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe
   en la librería por sí solo.
-- **Pines bloqueados**: si el componente está dentro de otro componente que el circuito usa, la barra lo explica:
-  «Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía».
-- **Un cambio que no se hizo**: si intentas adentro un cambio que no se puede hacer (borrar un pin bloqueado, por
-  ejemplo), no cambia nada y la barra lo dice en ámbar durante unos segundos; la barra de estado también lo dice.
+- **Un cambio que no se hizo**: si un cambio adentro no se puede hacer, no cambia nada y la barra lo dice en ámbar
+  durante unos segundos; la barra de estado también lo dice.
 
 ## Árbol del circuito
 
@@ -129,10 +127,15 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   Al pasar el mouse dicen por qué: «No se puede usar dentro de sí mismo» o «Contiene al componente que estás
   editando». En la sección «Componentes de este circuito» están todos los componentes del circuito, no solo los que ya
   hay adentro.
-- **Un componente que se usa dentro de otro**: por ahora sus pines no se pueden cambiar desde adentro. «Pin de
-  entrada» y «Pin de salida» aparecen en gris en la paleta. Si se intenta borrar un pin, cambiarle el nombre o el
-  ancho, no cambia nada y la barra de lugar y la barra de estado dicen por qué: «Este componente se usa dentro de Debugger: sus pines no se
-  pueden cambiar todavía». Mover un pin adentro sí se puede, porque no cambia el componente por fuera.
+- **Un componente que se usa dentro de otro** (el «Medio sumador» dentro del «Sumador completo», la ALU dentro del
+  LRV32IM): sus pines se cambian desde adentro igual que los de cualquier componente. Agregar, borrar, renombrar o
+  cambiar el ancho de un «Pin de entrada» o «Pin de salida» cambia también las piezas que están dentro de los otros
+  componentes: el pin nuevo va a un lugar libre del borde y los cables de adentro siguen a los pines, como en el
+  circuito. Los componentes que lo contienen no cambian por fuera. Todo es un solo paso de deshacer, que devuelve
+  cada componente como estaba. Lo que no puede seguir se lista en Problemas con su camino, en cada lugar donde se usa
+  el componente que lo contiene: «Sumador completo › Medio sumador 2: el pin b quedó en otro lugar (su lugar estaba
+  ocupado)» o «Sumador completo › Medio sumador 2: pin b sin conectar». Mover un pin adentro no cambia nada por
+  fuera.
 - **Los pines del componente**: su valor viene de afuera, de la pieza cuyos valores muestra la pestaña. Un clic no los
   cambia y no se les puede escribir un valor; la barra de estado dice «Su valor viene de afuera».
 - **Interruptores y botones de adentro**: actúan solo sobre la pieza que muestra la pestaña, como una entrada de la

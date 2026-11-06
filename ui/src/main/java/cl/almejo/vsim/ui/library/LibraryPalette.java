@@ -6,8 +6,6 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.DefinitionNames;
-import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
-import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -150,9 +148,9 @@ public final class LibraryPalette {
     }
 
     /**
-     * Inside a component tab (spec §6.5, §6.2 c): the component itself and every component that contains it cannot be
-     * placed in its body, nor the interface pin parts while its pins cannot change; each says why. The circuit's own
-     * tab disables nothing.
+     * Inside a component tab (spec §6.5): the component itself and every component that contains it cannot be placed
+     * in its body; each says why. The interface pin parts are always offered (spec §6.2 c: the bodies that contain the
+     * component follow its new pins). The circuit's own tab disables nothing.
      */
     private void disableWhatCannotGoInside() {
         Map<String, String> reasons = new HashMap<>();
@@ -162,12 +160,6 @@ public final class LibraryPalette {
             for (PaletteEntry entry : view.palette().entries()) {
                 entry.userComponent().flatMap(component -> reasonInside(component.bundle(), definitionId, circuit))
                         .ifPresent(reason -> reasons.put(entry.id(), reason));
-            }
-            if (place.interfaceLocked()) {
-                String locked = Messages.format("inside.interfaceLocked", place.definitionName(),
-                        DefinitionUpdateSafety.containingNames(circuit, definitionId).getFirst());
-                reasons.put(InterfacePins.INPUT_PIN, locked);
-                reasons.put(InterfacePins.OUTPUT_PIN, locked);
             }
         });
         disabledIds.stream().filter(id -> !reasons.containsKey(id))

@@ -631,7 +631,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /**
-     * An edit refused inside this component tab (its pins cannot change yet, spec §6.2 c): nothing changed, and the
+     * An edit refused inside this component tab ({@link InsideEditRefusedException}): nothing changed, and the
      * status line says why instead of the edit failing silently (the place bar says it too, from its own listener).
      */
     private void explainRefusal(InsideEditRefusedException refusal) {

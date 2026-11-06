@@ -21,13 +21,15 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
+import static cl.almejo.vsim.ui.UiTestSupport.REFUSED_INSIDE_TEXT;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.refusedInside;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The place bar of a component tab (spec §5.1), built over a body place and laid out, never shown: route crumbs, the
- * «Valores de» list, the use chip, the library buttons and the locked-interface line.
+ * «Valores de» list, the use chip, the library buttons and the explanation of a refused edit.
  */
 class PlaceBarTest {
 
@@ -184,14 +186,15 @@ class PlaceBarTest {
     }
 
     @Test
-    void showsTheLockedExplanationWhenUsedInsideAnother() {
+    void anInterfaceEditInsideAComponentUsedInsideAnotherApplies() {
         inverterInThreePlaces();
-        PlaceBar inner = barOf(INVERTER, Optional.of("c1"));
-        assertThat(inner.lockedText()).contains(
-                "Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía");
+        PlaceBar bar = barOf(INVERTER, Optional.of("c2/c2"));
 
-        document.execute(new RemoveElementsCommand(List.of(document.document().components().getLast().id())));
-        assertThat(inner.lockedText()).isEmpty();
+        // the inverter's input pin part «a»: the double inverter's body follows (spec §6.2 c)
+        places.getFirst().execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+
+        assertThat(places.getFirst().document().component(new ElementId("c1"))).isEmpty();
+        assertThat(bar.refusalText()).isEmpty();
     }
 
     @Test
@@ -205,17 +208,13 @@ class PlaceBarTest {
     }
 
     @Test
-    void aRefusedEditInsideIsExplainedInTheBarOnce() {
+    void aRefusedEditInsideIsExplainedInTheBar() {
         inverterInThreePlaces();
         PlaceBar bar = barOf(INVERTER, Optional.of("c2/c2"));
-        String locked = "Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía";
-        assertThat(bar.lockedText()).contains(locked);
 
-        // the inverter's input pin part «a»: its interface cannot change while a double inverter uses it
-        places.getFirst().execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        places.getFirst().execute(refusedInside());
 
-        assertThat(bar.refusalText()).contains(locked);
-        assertThat(bar.lockedText()).as("the same sentence is not shown twice").isEmpty();
+        assertThat(bar.refusalText()).contains(REFUSED_INSIDE_TEXT);
         assertThat(places.getFirst().document().component(new ElementId("c1"))).isPresent();
     }
 
@@ -226,8 +225,8 @@ class PlaceBarTest {
 
         bar.dispose();
 
-        assertThatThrownBy(() -> places.getFirst().execute(new RemoveElementsCommand(
-                List.of(new ElementId("c1"))))).isInstanceOf(InsideEditRefusedException.class);
+        assertThatThrownBy(() -> places.getFirst().execute(refusedInside()))
+                .isInstanceOf(InsideEditRefusedException.class);
     }
 
     @Test

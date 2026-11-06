@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
-import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -25,19 +24,19 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.REFUSED_INSIDE_TEXT;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.refusedInside;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * An edit refused inside a component (spec §6.2 c, phase 1: its interface is locked) is never silent and never an
- * error dialog: the component tab says why in its status line, and nothing changes. Without a tab (the AI) the place
- * still throws.
+ * An edit refused inside a component is never silent and never an error dialog: the component tab says why in its
+ * status line, and nothing changes. Without a tab (the AI) the place still throws. An interface edit of a component
+ * used inside another is not refused (spec §6.2 c): the bodies that contain it follow.
  */
 class InsideRefusalTest {
 
-    private static final String LOCKED =
-            "Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía";
     /** The inverter's input pin part «a». */
     private static final ElementId INPUT_PIN = new ElementId("c1");
 
@@ -67,22 +66,30 @@ class InsideRefusalTest {
     void aRefusedEditInsideIsExplainedInTheStatusLineAndChangesNothing() {
         ComponentDefinition before = circuit.document().definition(ExampleDefinitions.INVERTER).orElseThrow();
         Optional<Command> lastStep = circuit.history().undoCommand();
+
+        body.execute(refusedInside());
+
+        assertThat(inside.statusBar().text()).contains(REFUSED_INSIDE_TEXT);
+        assertThat(circuit.document().definition(ExampleDefinitions.INVERTER)).contains(before);
+        assertThat(circuit.history().undoCommand()).isEqualTo(lastStep);
+    }
+
+    @Test
+    void deletingAnInterfacePinOfAComponentUsedInsideAnotherIsApplied() {
         inside.selection().set(List.of(INPUT_PIN));
 
         perform(inside.actions().delete());
 
-        assertThat(inside.statusBar().text()).contains(LOCKED);
-        assertThat(body.document().component(INPUT_PIN)).isPresent();
-        assertThat(circuit.document().definition(ExampleDefinitions.INVERTER)).contains(before);
-        assertThat(circuit.history().undoCommand()).isEqualTo(lastStep);
+        assertThat(body.document().component(INPUT_PIN)).isEmpty();
+        assertThat(circuit.document().definition(ExampleDefinitions.INVERTER).orElseThrow().pinout()).hasSize(1);
+        assertThat(inside.statusBar().text()).doesNotContain(REFUSED_INSIDE_TEXT);
     }
 
     @Test
     void withoutATabTheRefusalIsAnError() {
         OpenDocument bare = circuit.openBody(ExampleDefinitions.INVERTER, Optional.of("c1/c2"));
         try {
-            assertThatThrownBy(() -> bare.execute(new RemoveElementsCommand(
-                    List.of(INPUT_PIN)))).isInstanceOf(InsideEditRefusedException.class);
+            assertThatThrownBy(() -> bare.execute(refusedInside())).isInstanceOf(InsideEditRefusedException.class);
         } finally {
             bare.close();
         }
@@ -91,8 +98,7 @@ class InsideRefusalTest {
     @Test
     void disposingTheTabStopsExplaining() {
         inside.dispose();
-        assertThatThrownBy(() -> body.execute(new RemoveElementsCommand(
-                List.of(INPUT_PIN)))).isInstanceOf(InsideEditRefusedException.class);
+        assertThatThrownBy(() -> body.execute(refusedInside())).isInstanceOf(InsideEditRefusedException.class);
         inside = new EditorView(body, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
     }
 }

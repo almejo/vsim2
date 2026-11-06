@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The palette of a component tab (spec §6.5, §6.2 c): the definition itself and every definition that contains it
- * cannot be placed inside it, nor the interface pin parts while its interface is locked; each disabled entry says why.
+ * cannot be placed inside it, and each disabled entry says why; the interface pin parts are always offered.
  */
 class PaletteInsideTest {
 
@@ -69,15 +69,15 @@ class PaletteInsideTest {
     }
 
     @Test
-    void greysThePinPartsWhileLocked() {
+    void offersThePinPartsInsideAComponentUsedInsideAnother() {
+        // spec §6.2 c: the bodies that contain it follow its new pins, so its interface is never locked
         withADoubleInverterPlaced();
         fixture = new TemplateFixture(directory.resolve("library"),
                 circuit.openBody(ExampleDefinitions.INVERTER, Optional.of("c1/c2")));
         PalettePanel palette = fixture.view.palette();
 
-        String locked = "Este componente se usa dentro de Doble inversor: sus pines no se pueden cambiar todavía";
-        assertThat(palette.disabledReason(InterfacePins.INPUT_PIN)).contains(locked);
-        assertThat(palette.disabledReason(InterfacePins.OUTPUT_PIN)).contains(locked);
+        assertThat(palette.disabledReason(InterfacePins.INPUT_PIN)).isEmpty();
+        assertThat(palette.disabledReason(InterfacePins.OUTPUT_PIN)).isEmpty();
     }
 
     @Test

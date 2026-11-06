@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.BodyEdits;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.netlist.PinRef;
 
@@ -16,7 +17,8 @@ import java.util.Optional;
  * An edit made inside a component's tab (spec §6.1, §10.4): {@code bodyCommand} changes the working copy of the
  * definition's body, and the definition is written back into the document with the planning of «Actualizar
  * componente…» under the inside rules ({@link ReplaceDefinitionCommand#prepareInside}): every placed piece follows,
- * one undo step of the document. Applied to the document; the working copy is the one it was made on.
+ * and so do the pieces inside the bodies of the definitions that contain it (spec §6.2 c), one undo step of the
+ * document. Applied to the document; the working copy is the one it was made on.
  *
  * <p>The working copy changes first and goes back first, so whoever watches the document (a body tab refreshing its
  * copy) always finds the copy already matching the definition. The write-back prepared on the first apply is reused by
@@ -103,6 +105,14 @@ public final class EditInsideCommand implements Command, LoosensPins {
     /** The placed pieces that could not take a new pin where the definition puts it; empty before the first apply. */
     public List<KeptOldShape> keptOldShapes() {
         return writeBack == null ? List.of() : writeBack.keptOldShapes();
+    }
+
+    /**
+     * What the rewrite of the bodies that contain the definition could not carry (spec §6.2 c); empty before the
+     * first apply.
+     */
+    public List<DefinitionUpdateProblem> nestedProblems() {
+        return writeBack == null ? List.of() : writeBack.nestedProblems();
     }
 
     @Override

@@ -2,6 +2,8 @@ package cl.almejo.vsim.ui;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.Command;
+import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -179,6 +181,31 @@ public final class UiTestSupport {
                 new GridPoint(endX, endY));
         document.execute(new AddWireCommand(wire));
         return wire;
+    }
+
+    /** The explanation of {@link #refusedInside()}'s refusal, as the place bar and the status line say it. */
+    public static final String REFUSED_INSIDE_TEXT = "No se puede usar dentro de sí mismo";
+
+    /**
+     * An edit that is refused while it applies, with nothing changed (an {@link InsideEditRefusedException} with the
+     * key {@code inside.cannotNestItself}): what a component tab explains instead of failing.
+     */
+    public static Command refusedInside() {
+        return new Command() {
+            @Override
+            public void apply(CircuitDocument document) {
+                throw new InsideEditRefusedException("inside.cannotNestItself", List.of());
+            }
+
+            @Override
+            public void revert(CircuitDocument document) {
+            }
+
+            @Override
+            public String description() {
+                return "command.add";
+            }
+        };
     }
 
     /** Adds an unlocked frame to {@code document} straight away and returns it. */
