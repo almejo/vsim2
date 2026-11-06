@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.app;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.io.LegacyGateMigration;
+import cl.almejo.vsim.core.layout.CircuitTidyOptions;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.print.PageGeometry;
@@ -163,6 +164,7 @@ public final class AppPreferences {
     static final String EXPORT_SCALE = "export.scale";
     static final String EXPORT_PRINT_BACKGROUND = "export.printBackground";
     static final String EXPORT_INCLUDE_STICKY_NOTES = "export.includeStickyNotes";
+    static final String TIDY_SEPARATE_OVERLAPS = "tidySeparateOverlaps";
     static final String TIDY_REMOVE_STUBS = "tidyRemoveStubs";
     static final String TIDY_MERGE_SEGMENTS = "tidyMergeSegments";
     static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
@@ -610,18 +612,23 @@ public final class AppPreferences {
 
     // --- M6.2 tidy wires ---
 
-    /** The options of Editar ▸ Ordenar cables: stubs and merges on, detours off until the user turns them on. */
-    public TidyOptions tidyOptions() {
-        return new TidyOptions(flag(TIDY_REMOVE_STUBS, true),
-                flag(TIDY_MERGE_SEGMENTS, true),
-                flag(TIDY_FLATTEN_DETOURS, false));
+    /**
+     * The options of Editar ▸ Ordenar circuito: separating what overlaps, stubs and merges on, detours off until the
+     * user turns them on.
+     */
+    public CircuitTidyOptions tidyOptions() {
+        return new CircuitTidyOptions(flag(TIDY_SEPARATE_OVERLAPS, true),
+                new TidyOptions(flag(TIDY_REMOVE_STUBS, true),
+                        flag(TIDY_MERGE_SEGMENTS, true),
+                        flag(TIDY_FLATTEN_DETOURS, false)));
     }
 
-    public void setTidyOptions(TidyOptions options) {
+    public void setTidyOptions(CircuitTidyOptions options) {
         Objects.requireNonNull(options, "options");
-        putFlag(TIDY_REMOVE_STUBS, options.removeStubs());
-        putFlag(TIDY_MERGE_SEGMENTS, options.mergeSegments());
-        putFlag(TIDY_FLATTEN_DETOURS, options.flattenDetours());
+        putFlag(TIDY_SEPARATE_OVERLAPS, options.separateOverlaps());
+        putFlag(TIDY_REMOVE_STUBS, options.wires().removeStubs());
+        putFlag(TIDY_MERGE_SEGMENTS, options.wires().mergeSegments());
+        putFlag(TIDY_FLATTEN_DETOURS, options.wires().flattenDetours());
     }
 
     // --- M6.7 wires follow moves ---

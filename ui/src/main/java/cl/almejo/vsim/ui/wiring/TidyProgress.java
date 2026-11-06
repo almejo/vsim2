@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.wiring;
 
+import cl.almejo.vsim.core.layout.CircuitTidyProgress;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.JButton;
@@ -11,11 +12,22 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.BorderLayout;
 
-/** The small window of a tidy that takes long: «Ordenando cables…», a bar, the round and «Cancelar». */
+/** The small window of a tidy that takes long: «Ordenando circuito…», a bar, the stage with its count and «Cancelar». */
 public interface TidyProgress {
 
-    /** Shows the number of the round being computed. */
-    void round(int round);
+    /** Shows the stage being computed and how far it is ({@code total} 0 when unknown). */
+    void stage(CircuitTidyProgress.Stage stage, int done, int total);
+
+    /** The text of a stage: «Separando lo que se tapa… ronda 3 de 10», «Moviendo partes… 2 de 8», «Ordenando cables… pasada 2». */
+    static String describe(CircuitTidyProgress.Stage stage, int done, int total) {
+        return switch (stage) {
+            case SEPARATING -> total > 0 ? Messages.format("tidy.progress.separating", done, total)
+                    : Messages.format("tidy.progress.separating.round", done);
+            case MOVING -> total > 0 ? Messages.format("tidy.progress.moving", done, total)
+                    : Messages.text("tidy.progress.working");
+            case WIRES -> Messages.format("tidy.progress.round", done);
+        };
+    }
 
     /** Closes the window. */
     void close();
@@ -55,8 +67,8 @@ public interface TidyProgress {
                 dialog.setVisible(true);
                 return new TidyProgress() {
                     @Override
-                    public void round(int round) {
-                        label.setText(Messages.format("tidy.progress.round", round));
+                    public void stage(CircuitTidyProgress.Stage stage, int done, int total) {
+                        label.setText(describe(stage, done, total));
                     }
 
                     @Override

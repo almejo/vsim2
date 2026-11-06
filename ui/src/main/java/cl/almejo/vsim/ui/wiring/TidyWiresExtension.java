@@ -3,7 +3,7 @@ package cl.almejo.vsim.ui.wiring;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
-/** Adds Editar ▸ «Ordenar cables» and «Ordenar cables…» (spec M6.2 §2.1) to every editor view. */
+/** Adds Editar ▸ «Ordenar circuito» and «Ordenar circuito…» (spec M6.2 §2.1) to every editor view. */
 public final class TidyWiresExtension implements EditorExtension {
 
     private final TidyChooser chooser;

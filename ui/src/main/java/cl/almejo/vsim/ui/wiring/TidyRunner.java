@@ -3,9 +3,10 @@ package cl.almejo.vsim.ui.wiring;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.wiring.TidyOptions;
-import cl.almejo.vsim.core.wiring.TidyPlan;
-import cl.almejo.vsim.core.wiring.WireTidy;
+import cl.almejo.vsim.core.layout.CircuitTidy;
+import cl.almejo.vsim.core.layout.CircuitTidyOptions;
+import cl.almejo.vsim.core.layout.CircuitTidyPlan;
+import cl.almejo.vsim.core.layout.CircuitTidyProgress;
 
 import javax.swing.SwingUtilities;
 import java.util.Optional;
@@ -14,7 +15,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.BooleanSupplier;
-import java.util.function.IntConsumer;
 
 /**
  * Computes tidy plans away from the EDT. {@link #start} takes a snapshot the worker may read freely (the caller
@@ -23,19 +23,20 @@ import java.util.function.IntConsumer;
  */
 public final class TidyRunner {
 
-    /** The planning itself; {@link WireTidy#plan} in the application, a blocking fake in tests. */
+    /** The planning itself; {@link CircuitTidy#plan} in the application, a blocking fake in tests. */
     @FunctionalInterface
     public interface Planner {
-        Optional<TidyPlan> plan(CircuitDocument snapshot, ComponentTypeRegistry registry, Set<ElementId> scope,
-                                TidyOptions options, BooleanSupplier cancelled, IntConsumer progress);
+        Optional<CircuitTidyPlan> plan(CircuitDocument snapshot, ComponentTypeRegistry registry, Set<ElementId> scope,
+                                       CircuitTidyOptions options, BooleanSupplier cancelled,
+                                       CircuitTidyProgress progress);
     }
 
     /** What a job reports, always on the EDT. */
     public interface Callbacks {
-        /** The number of the round that just started. */
-        void progress(int round);
+        /** The stage that just advanced and how far it is ({@code total} 0 when unknown). */
+        void progress(CircuitTidyProgress.Stage stage, int done, int total);
 
-        void finished(TidyPlan plan);
+        void finished(CircuitTidyPlan plan);
 
         void failed(Throwable throwable);
     }
@@ -87,11 +88,20 @@ public final class TidyRunner {
             thread.setDaemon(true);
             return thread;
         });
-        return new TidyRunner(executor, SwingUtilities::invokeLater, WireTidy::plan, executor::shutdownNow);
+        return new TidyRunner(executor, SwingUtilities::invokeLater, TidyRunner::defaultPlan,
+                executor::shutdownNow);
+    }
+
+    /** The application's planner: the canvas' own text sizes ({@link CanvasTextBoxes}). */
+    private static Optional<CircuitTidyPlan> defaultPlan(CircuitDocument snapshot, ComponentTypeRegistry registry,
+                                                         Set<ElementId> scope, CircuitTidyOptions options,
+                                                         BooleanSupplier cancelled, CircuitTidyProgress progress) {
+        return CircuitTidy.plan(snapshot, registry, scope, options, new CanvasTextBoxes(registry), cancelled,
+                progress);
     }
 
     public Job start(CircuitDocument snapshot, ComponentTypeRegistry registry, Set<ElementId> scope,
-                     TidyOptions options, Callbacks callbacks) {
+                     CircuitTidyOptions options, Callbacks callbacks) {
         if (disposed) {
             throw new IllegalStateException("the tidy runner was disposed");
         }
@@ -102,13 +112,13 @@ public final class TidyRunner {
     }
 
     private void compute(Job job, CircuitDocument snapshot, ComponentTypeRegistry registry, Set<ElementId> scope,
-                         TidyOptions options) {
-        Optional<TidyPlan> plan;
+                         CircuitTidyOptions options) {
+        Optional<CircuitTidyPlan> plan;
         try {
             plan = planner.plan(snapshot, registry, scope, options, () -> job.cancelled,
-                    round -> edt.execute(() -> {
+                    (stage, done, total) -> edt.execute(() -> {
                         if (job.isRunning()) {
-                            job.callbacks.progress(round);
+                            job.callbacks.progress(stage, done, total);
                         }
                     }));
         } catch (Throwable throwable) {

@@ -7,6 +7,12 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.layout.CircuitTidy;
+import cl.almejo.vsim.core.layout.CircuitTidyOptions;
+import cl.almejo.vsim.core.layout.CircuitTidyPlan;
+import cl.almejo.vsim.core.layout.CircuitTidyProgress;
+import cl.almejo.vsim.core.layout.TextBoxes;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -58,7 +64,7 @@ class TidyWiresFeaturesTest {
     void create() {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         Component source = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
-        Component target = place(openDocument, StandardComponentTypes.LED, 30, 0, Map.of());
+        Component target = place(openDocument, StandardComponentTypes.LED, 30, -2, Map.of());
         GridPoint from = openDocument.registry().typeOf(source).pinLocation(source, 0);
         GridPoint to = openDocument.registry().typeOf(target).pinLocation(target, 0);
         int middle = from.x() + 8;
@@ -76,7 +82,8 @@ class TidyWiresFeaturesTest {
     }
 
     private static TidyRunner directRunner() {
-        return new TidyRunner(Runnable::run, Runnable::run, cl.almejo.vsim.core.wiring.WireTidy::plan);
+        return new TidyRunner(Runnable::run, Runnable::run, (snapshot, registry, scope, options, cancelled, progress) ->
+                CircuitTidy.plan(snapshot, registry, scope, options, TextBoxes.NONE, cancelled, progress));
     }
 
     private ElementId addWire(GridPoint start, GridPoint end) {
@@ -106,7 +113,7 @@ class TidyWiresFeaturesTest {
     void theTwoItemsEndTheEditMenuAfterASeparator() {
         List<String> texts = texts(view.menu(MenuId.EDIT));
         assertThat(texts.subList(texts.size() - 3, texts.size()))
-                .containsExactly("---", "Ordenar cables", "Ordenar cables…");
+                .containsExactly("---", "Ordenar circuito", "Ordenar circuito…");
     }
 
     @Test
@@ -136,12 +143,12 @@ class TidyWiresFeaturesTest {
     }
 
     @Test
-    void nothingToDoAddsNoHistoryEntryAndSaysTheWiresWereTidy() {
+    void nothingToDoAddsNoHistoryEntryAndSaysTheCircuitWasTidy() {
         perform(features.tidyAction());
         long historyAfterFirst = openDocument.changeCount();
         perform(features.tidyAction());
         assertThat(openDocument.changeCount()).isEqualTo(historyAfterFirst);
-        assertThat(view.statusBar().text()).contains("Los cables ya estaban ordenados");
+        assertThat(view.statusBar().text()).contains("El circuito ya estaba ordenado");
     }
 
     @Test
@@ -171,15 +178,15 @@ class TidyWiresFeaturesTest {
     }
 
     @Test
-    void aSelectionWithoutWiresTidiesTheWholeCircuit() {
+    void aSelectionOfAPartOnlyTidiesThatPart() {
         view.canvas().selection().set(List.of(openDocument.document().components().get(0).id()));
         perform(features.tidyAction());
-        assertThat(openDocument.document().wire(stub)).isEmpty();
+        assertThat(openDocument.document().wire(stub)).isPresent();
     }
 
     @Test
     void theDirectActionUsesTheSavedOptions() {
-        preferences.setTidyOptions(new TidyOptions(false, true, false));
+        preferences.setTidyOptions(new CircuitTidyOptions(true, new TidyOptions(false, true, false)));
         perform(features.tidyAction());
         assertThat(openDocument.document().wire(stub)).isPresent();
         assertThat(openDocument.document().wire(right)).isEmpty();
@@ -187,12 +194,12 @@ class TidyWiresFeaturesTest {
 
     @Test
     void theDialogChoiceIsSavedAndApplied() {
-        answer = Optional.of(new TidyChoice(new TidyOptions(true, false, false), false));
+        answer = Optional.of(new TidyChoice(new CircuitTidyOptions(true, new TidyOptions(true, false, false)), false));
         perform(features.tidyWithOptionsAction());
-        assertThat(preferences.tidyOptions()).isEqualTo(new TidyOptions(true, false, false));
+        assertThat(preferences.tidyOptions()).isEqualTo(new CircuitTidyOptions(true, new TidyOptions(true, false, false)));
         assertThat(openDocument.document().wire(stub)).isEmpty();
         assertThat(openDocument.document().wire(right)).isPresent();
-        assertThat(chooserCalls).containsExactly("false|" + TidyOptions.DEFAULTS);
+        assertThat(chooserCalls).containsExactly("false|" + CircuitTidyOptions.DEFAULTS);
     }
 
     @Test
@@ -201,7 +208,7 @@ class TidyWiresFeaturesTest {
         long historyBefore = openDocument.changeCount();
         perform(features.tidyWithOptionsAction());
         assertThat(openDocument.changeCount()).isEqualTo(historyBefore);
-        assertThat(preferences.tidyOptions()).isEqualTo(TidyOptions.DEFAULTS);
+        assertThat(preferences.tidyOptions()).isEqualTo(CircuitTidyOptions.DEFAULTS);
     }
 
     @Test
@@ -211,12 +218,12 @@ class TidyWiresFeaturesTest {
         TidyWiresFeatures extra = new TidyWiresFeatures(other, (parent, selection, initial, planner) -> Optional.empty(),
                 directRunner(), directRunner(), (milliseconds, task) -> () -> { }, (parent, onCancel) -> null);
         assertThat(other.shortcutActions()).containsKeys("edit.tidyWires", "edit.tidyWiresOptions");
-        assertThat(texts(view.menu(MenuId.EDIT))).contains("Ordenar cables");
+        assertThat(texts(view.menu(MenuId.EDIT))).contains("Ordenar circuito");
         extra.dispose();
         assertThat(texts(other.menu(MenuId.EDIT))).isEqualTo(before);
         assertThat(other.shortcutActions()).doesNotContainKeys("edit.tidyWires", "edit.tidyWiresOptions");
         assertThat(view.shortcutActions()).containsKeys("edit.tidyWires", "edit.tidyWiresOptions");
-        assertThat(items(view.menu(MenuId.EDIT)).stream().map(JMenuItem::getText)).contains("Ordenar cables");
+        assertThat(items(view.menu(MenuId.EDIT)).stream().map(JMenuItem::getText)).contains("Ordenar circuito");
         other.dispose();
         other.openDocument().close();
     }
@@ -224,32 +231,103 @@ class TidyWiresFeaturesTest {
     @Test
     void theDialogPanelRecomputesItsSummaryAndTheSwitchBackedPlanMatches() {
         TidyPlanner planner = (options, selectionOnly, onResult) -> {
-            onResult.accept(cl.almejo.vsim.core.wiring.WireTidy.plan(openDocument.document(),
-                    openDocument.registry(), java.util.Set.of(left, right, stub), options));
+            onResult.accept(CircuitTidy.plan(openDocument.document(), openDocument.registry(),
+                    java.util.Set.of(left, right, stub), options, TextBoxes.NONE, () -> false,
+                    CircuitTidyProgress.NONE).orElseThrow());
             return () -> { };
         };
-        TidyWiresPanel panel = new TidyWiresPanel(false, TidyOptions.DEFAULTS, planner);
+        TidyWiresPanel panel = new TidyWiresPanel(false, CircuitTidyOptions.DEFAULTS, planner);
         assertThat(panel.summaryText()).startsWith("Se borrará 1 punta suelta");
         assertThat(panel.canApply()).isTrue();
         panel.removeStubsBox().doClick();
         panel.mergeSegmentsBox().doClick();
-        assertThat(panel.summaryText()).isEqualTo("Los cables ya están ordenados");
+        assertThat(panel.summaryText()).isEqualTo("El circuito ya está ordenado");
         assertThat(panel.canApply()).isFalse();
         panel.mergeSegmentsBox().doClick();
         assertThat(panel.summaryText()).contains("unirá");
-        assertThat(panel.options()).isEqualTo(new TidyOptions(false, true, false));
+        assertThat(panel.options()).isEqualTo(new CircuitTidyOptions(true, new TidyOptions(false, true, false)));
         assertThat(panel.selectionButton().isEnabled()).isFalse();
     }
 
     @Test
     void theDialogPanelOffersTheSelectionWhenThereIsOne() {
-        TidyWiresPanel panel = new TidyWiresPanel(true, TidyOptions.DEFAULTS, (options, selection, onResult) -> {
-            onResult.accept(TidyPlan.EMPTY);
+        TidyWiresPanel panel = new TidyWiresPanel(true, CircuitTidyOptions.DEFAULTS, (options, selection, onResult) -> {
+            onResult.accept(new CircuitTidyPlan(new CircuitDocument(), 0, 0, java.util.Set.of(), TidyPlan.EMPTY));
             return () -> { };
         });
         assertThat(panel.selectionButton().isEnabled()).isTrue();
         assertThat(panel.selectionOnly()).isTrue();
         panel.everythingButton().doClick();
         assertThat(panel.selectionOnly()).isFalse();
+    }
+
+    @Test
+    void panelShowsSeparateOverlapsCheckedByDefaultUnderPartes() {
+        TidyWiresPanel panel = new TidyWiresPanel(false, CircuitTidyOptions.DEFAULTS,
+                (options, selection, onResult) -> () -> { });
+        assertThat(panel.separateOverlapsBox().isSelected()).isTrue();
+        assertThat(panel.separateOverlapsBox().getText()).isEqualTo("Separar lo que se tapa");
+        List<String> order = new ArrayList<>();
+        for (java.awt.Component child : panel.getComponents()) {
+            if (child instanceof javax.swing.JLabel label) {
+                order.add(label.getText());
+            } else if (child == panel.separateOverlapsBox()) {
+                order.add("[separar]");
+            } else if (child == panel.removeStubsBox()) {
+                order.add("[puntas]");
+            }
+        }
+        assertThat(order).containsSubsequence("Partes", "[separar]", "Cables", "[puntas]");
+        panel.separateOverlapsBox().doClick();
+        assertThat(panel.options().separateOverlaps()).isFalse();
+    }
+
+    private ElementId addOverlappingGates() {
+        place(openDocument, StandardComponentTypes.AND, 0, 20, Map.of());
+        return place(openDocument, StandardComponentTypes.AND, 2, 20, Map.of()).id();
+    }
+
+    @Test
+    void tidyNowUsesTheSavedSeparateOverlaps() {
+        ElementId second = addOverlappingGates();
+        GridPoint before = openDocument.document().component(second).orElseThrow().position();
+        preferences.setTidyOptions(new CircuitTidyOptions(false, TidyOptions.DEFAULTS));
+        perform(features.tidyAction());
+        assertThat(openDocument.document().component(second).orElseThrow().position()).isEqualTo(before);
+        preferences.setTidyOptions(new CircuitTidyOptions(true, TidyOptions.DEFAULTS));
+        perform(features.tidyAction());
+        assertThat(openDocument.document().component(second).orElseThrow().position()).isNotEqualTo(before);
+        assertThat(view.statusBar().text()).contains(" parte");
+    }
+
+    @Test
+    void oneUndoStepRestoresTheCircuit() {
+        ElementId second = addOverlappingGates();
+        List<GridPoint> before = openDocument.document().components().stream().map(Component::position).toList();
+        long historyBefore = openDocument.changeCount();
+        perform(features.tidyAction());
+        assertThat(openDocument.changeCount()).isEqualTo(historyBefore + 1);
+        assertThat(openDocument.document().components().stream().map(Component::position).toList())
+                .isNotEqualTo(before);
+        openDocument.history().undo();
+        assertThat(openDocument.document().components().stream().map(Component::position).toList())
+                .isEqualTo(before);
+        assertThat(openDocument.document().component(second)).isPresent();
+    }
+
+    @Test
+    void noticeCountsWhatCouldNotBeSeparatedAndKeepsTheSelection() {
+        features.dispose();
+        features = new TidyWiresFeatures(view, (parent, hasSelection, initial, planner) -> Optional.empty(),
+                new TidyRunner(Runnable::run, Runnable::run,
+                        (snapshot, registry, scope, options, cancelled, progress) -> Optional.of(
+                                new CircuitTidyPlan(snapshot, 0, 0, java.util.Set.of(left), TidyPlan.EMPTY))),
+                directRunner(), (milliseconds, task) -> () -> { }, (parent, onCancel) -> null);
+        view.canvas().selection().set(List.of(left, stub));
+        long historyBefore = openDocument.changeCount();
+        perform(features.tidyAction());
+        assertThat(view.statusBar().text()).contains("No se pudo separar 1 cosa");
+        assertThat(view.canvas().selection().ids()).containsExactlyInAnyOrder(left, stub);
+        assertThat(openDocument.changeCount()).isEqualTo(historyBefore);
     }
 }

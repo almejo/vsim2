@@ -164,7 +164,7 @@ class EveryViewFeatureInEveryPaneTest {
                         new TruthTableExtension(), false),
                 Arguments.of("Karnaugh", (Function<LibraryService, EditorExtension>) libraryService ->
                         new KarnaughExtension(libraryService, () -> Path.of("."), path -> { }), false),
-                Arguments.of("Ordenar cables", (Function<LibraryService, EditorExtension>) libraryService ->
+                Arguments.of("Ordenar circuito", (Function<LibraryService, EditorExtension>) libraryService ->
                         new TidyWiresExtension(), false),
                 Arguments.of("Exportar imagen", (Function<LibraryService, EditorExtension>) libraryService ->
                         new ExportImageExtension(), false),

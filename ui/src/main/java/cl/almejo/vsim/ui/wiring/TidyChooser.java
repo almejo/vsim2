@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.wiring;
 
-import cl.almejo.vsim.core.wiring.TidyOptions;
+import cl.almejo.vsim.core.layout.CircuitTidyOptions;
 
 import java.awt.Component;
 import java.util.Optional;
 
-/** Asks the user for the tidy options (the real one shows {@link TidyWiresDialog}); empty = cancelled. */
+/** Asks the user for the «Ordenar circuito» options (the real one shows {@link TidyWiresDialog}); empty = cancelled. */
 @FunctionalInterface
 public interface TidyChooser {
 
@@ -13,6 +13,6 @@ public interface TidyChooser {
      * @param hasSelection whether «Selección» is available
      * @param planner      computes in the background the plan the options and scope would apply, for the summary
      */
-    Optional<TidyChoice> choose(Component parent, boolean hasSelection, TidyOptions initial,
+    Optional<TidyChoice> choose(Component parent, boolean hasSelection, CircuitTidyOptions initial,
                                 TidyPlanner planner);
 }

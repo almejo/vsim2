@@ -31,7 +31,7 @@ import java.util.List;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The icons of «Exportar imagen…» and «Ordenar cables» and the toolbar button of the latter (M6.2). */
+/** The icons of «Exportar imagen…» and «Ordenar circuito» and the toolbar button of the latter (M6.2). */
 class TidyToolbarTest {
 
     private OpenDocument openDocument;
@@ -74,7 +74,7 @@ class TidyToolbarTest {
     @Test
     void bothActionsGetTheirIconsInTheMenuAndTheToolbarSizes() {
         Action export = item(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow(), "Imagen…").getAction();
-        Action tidy = item(view.menu(MenuId.EDIT), "Ordenar cables").getAction();
+        Action tidy = item(view.menu(MenuId.EDIT), "Ordenar circuito").getAction();
         assertThat(export.getValue(Action.SMALL_ICON)).isSameAs(Icons.get(ExportIcons.EXPORT_IMAGE, Icons.MENU_SIZE));
         assertThat(export.getValue(Action.LARGE_ICON_KEY))
                 .isSameAs(Icons.get(ExportIcons.EXPORT_IMAGE, Icons.TOOLBAR_SIZE));
@@ -93,9 +93,9 @@ class TidyToolbarTest {
         }
         assertThat(redo).isPositive();
         AbstractButton tidy = (AbstractButton) components.get(redo + 1);
-        assertThat(tidy.getAction().getValue(Action.NAME)).isEqualTo("Ordenar cables");
+        assertThat(tidy.getAction().getValue(Action.NAME)).isEqualTo("Ordenar circuito");
         // Ctrl+Alt+L as this platform names it (⌃+⌥+L on macOS).
-        assertThat(tidy.getToolTipText()).isEqualTo("Ordenar cables (" + KeyBindings.describe(KeyStroke.getKeyStroke(
+        assertThat(tidy.getToolTipText()).isEqualTo("Ordenar circuito (" + KeyBindings.describe(KeyStroke.getKeyStroke(
                 KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK)) + ")");
         assertThat(tidy.getHideActionText()).isTrue();
         assertThat(buttons()).noneMatch(button -> "Exportar imagen…".equals(button.getAction().getValue(Action.NAME)));
@@ -108,6 +108,6 @@ class TidyToolbarTest {
         int withButton = second.toolBar().getComponentCount();
         second.dispose();
         assertThat(second.toolBar().getComponentCount()).isEqualTo(withButton - 1);
-        assertThat(buttons()).anyMatch(button -> "Ordenar cables".equals(button.getAction().getValue(Action.NAME)));
+        assertThat(buttons()).anyMatch(button -> "Ordenar circuito".equals(button.getAction().getValue(Action.NAME)));
     }
 }

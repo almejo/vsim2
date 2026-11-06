@@ -5,9 +5,11 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.wiring.TidyOptions;
-import cl.almejo.vsim.core.wiring.TidyPlan;
-import cl.almejo.vsim.core.wiring.WireTidy;
+import cl.almejo.vsim.core.layout.CircuitTidy;
+import cl.almejo.vsim.core.layout.CircuitTidyOptions;
+import cl.almejo.vsim.core.layout.CircuitTidyPlan;
+import cl.almejo.vsim.core.layout.CircuitTidyProgress;
+import cl.almejo.vsim.core.layout.TextBoxes;
 import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -57,13 +59,13 @@ class TidyWiresBackgroundTest {
                 } catch (InterruptedException interruption) {
                     Thread.currentThread().interrupt();
                 }
-                progress.accept(7);
+                progress.reached(CircuitTidyProgress.Stage.WIRES, 7, 0);
                 plannerSawCancellation = cancelled.getAsBoolean();
                 if (plannerSawCancellation) {
                     return Optional.empty();
                 }
             }
-            return WireTidy.plan(snapshot, registry, scope, options, cancelled, progress);
+            return CircuitTidy.plan(snapshot, registry, scope, options, TextBoxes.NONE, cancelled, progress);
         };
     }
 
@@ -95,8 +97,8 @@ class TidyWiresBackgroundTest {
                     progressCancels.add(onCancel);
                     return new TidyProgress() {
                         @Override
-                        public void round(int round) {
-                            progressEvents.add("round " + round);
+                        public void stage(CircuitTidyProgress.Stage stage, int done, int total) {
+                            progressEvents.add(stage.name().toLowerCase() + " " + done + "/" + total);
                         }
 
                         @Override
@@ -130,6 +132,11 @@ class TidyWiresBackgroundTest {
         }
     }
 
+    private static CircuitTidyPlan emptyPlan() {
+        return new CircuitTidyPlan(new cl.almejo.vsim.core.document.CircuitDocument(), 0, 0, Set.of(),
+                cl.almejo.vsim.core.wiring.TidyPlan.EMPTY);
+    }
+
     @Test
     void aFastTidyOpensNoWindowAndAppliesTheCommand() throws InterruptedException {
         long historyBefore = openDocument.changeCount();
@@ -156,7 +163,7 @@ class TidyWiresBackgroundTest {
         assertThat(progressEvents).containsExactly("open");
         release.countDown();
         drainEdt();
-        assertThat(progressEvents).startsWith("open", "round 7", "round 1");
+        assertThat(progressEvents).startsWith("open", "wires 7/0", "wires 1/0");
         assertThat(progressClosed).isTrue();
         assertThat(openDocument.document().wire(stub)).isEmpty();
     }
@@ -170,14 +177,14 @@ class TidyWiresBackgroundTest {
         delayedTasks.get(0).run();
         progressCancels.get(0).run();
         assertThat(progressClosed).isTrue();
-        assertThat(view.statusBar().text()).contains("Ordenar cables cancelado");
+        assertThat(view.statusBar().text()).contains("Ordenar circuito cancelado");
         release.countDown();
         drainEdt();
         assertThat(plannerSawCancellation).isTrue();
         assertThat(openDocument.document().wire(stub)).isPresent();
         assertThat(openDocument.changeCount()).isEqualTo(historyBefore);
         assertThat(features.isRunning()).isFalse();
-        assertThat(view.statusBar().text()).contains("Ordenar cables cancelado");
+        assertThat(view.statusBar().text()).contains("Ordenar circuito cancelado");
     }
 
     @Test
@@ -217,7 +224,7 @@ class TidyWiresBackgroundTest {
             return Optional.empty();
         }, newRunner(), newRunner(), (milliseconds, task) -> () -> { }, (parent, onCancel) -> null);
         perform(features.tidyWithOptionsAction());
-        TidyWiresPanel panel = new TidyWiresPanel(false, TidyOptions.DEFAULTS, captured[0]);
+        TidyWiresPanel panel = new TidyWiresPanel(false, CircuitTidyOptions.DEFAULTS, captured[0]);
         assertThat(panel.summaryText()).isEqualTo("Calculando…");
         assertThat(panel.canApply()).isFalse();
         drainEdt();
@@ -228,20 +235,20 @@ class TidyWiresBackgroundTest {
     @Test
     void aCheckboxChangeCancelsThePreviousComputationAndTheLatestWins() throws InterruptedException {
         List<Runnable> cancels = new ArrayList<>();
-        List<java.util.function.Consumer<TidyPlan>> results = new ArrayList<>();
+        List<java.util.function.Consumer<CircuitTidyPlan>> results = new ArrayList<>();
         TidyPlanner manual = (options, selectionOnly, onResult) -> {
             results.add(onResult);
             Runnable cancel = () -> cancels.add(null);
             return cancel;
         };
-        TidyWiresPanel panel = new TidyWiresPanel(false, TidyOptions.DEFAULTS, manual);
+        TidyWiresPanel panel = new TidyWiresPanel(false, CircuitTidyOptions.DEFAULTS, manual);
         panel.mergeSegmentsBox().doClick();
         assertThat(results).hasSize(2);
         assertThat(cancels).hasSize(1); // the first computation was cancelled
-        results.get(0).accept(TidyPlan.EMPTY); // a late result of the first one is ignored
+        results.get(0).accept(emptyPlan()); // a late result of the first one is ignored
         assertThat(panel.isReady()).isFalse();
         assertThat(panel.summaryText()).isEqualTo("Calculando…");
-        results.get(1).accept(TidyPlan.EMPTY);
+        results.get(1).accept(emptyPlan());
         assertThat(panel.isReady()).isTrue();
         assertThat(panel.canApply()).isFalse(); // ready but nothing to do
         panel.dispose();

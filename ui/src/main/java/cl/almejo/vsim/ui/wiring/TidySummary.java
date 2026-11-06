@@ -1,6 +1,6 @@
 package cl.almejo.vsim.ui.wiring;
 
-import cl.almejo.vsim.core.wiring.TidyPlan;
+import cl.almejo.vsim.core.layout.CircuitTidyPlan;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
@@ -12,28 +12,63 @@ public final class TidySummary {
     private TidySummary() {
     }
 
-    /** «Se borrarán 3 puntas sueltas, se unirán 2 tramos y se aplanará 1 vuelta», or «ya están ordenados». */
-    public static String preview(TidyPlan plan) {
+    /** «Se moverán 3 partes y 2 notas, se borrará 1 punta suelta», or «el circuito ya está ordenado». */
+    public static String preview(CircuitTidyPlan plan) {
         return describe(plan, "tidy.preview", "tidy.preview.alreadyTidy");
     }
 
-    /** «Se borraron 3 puntas sueltas y se unieron 2 tramos», or «ya estaban ordenados». */
-    public static String notice(TidyPlan plan) {
-        return describe(plan, "tidy.notice", "tidy.notice.alreadyTidy");
+    /**
+     * «Se movieron 3 partes y 2 notas; no se pudo separar 1 cosa», or «el circuito ya estaba ordenado». Only the
+     * count of what could not be separated, no reasons.
+     */
+    public static String notice(CircuitTidyPlan plan) {
+        String done = describe(plan, "tidy.notice", "tidy.notice.alreadyTidy");
+        int notSeparated = plan.notSeparated().size();
+        if (notSeparated == 0) {
+            return done;
+        }
+        String unseparated = notSeparated == 1 ? Messages.text("tidy.notice.notSeparated.one")
+                : Messages.format("tidy.notice.notSeparated.other", notSeparated);
+        if (plan.isEmpty()) {
+            return capitalized(unseparated);
+        }
+        return done + "; " + unseparated;
     }
 
-    private static String describe(TidyPlan plan, String prefix, String alreadyTidyKey) {
+    private static String describe(CircuitTidyPlan plan, String prefix, String alreadyTidyKey) {
         List<String> parts = new ArrayList<>();
-        addPart(parts, prefix + ".stubs", plan.stubsRemoved() + plan.zeroLengthRemoved());
-        addPart(parts, prefix + ".merged", plan.segmentsMerged());
-        addPart(parts, prefix + ".detours", plan.detoursFlattened());
+        addMoved(parts, prefix + ".moved", plan.partsMoved(), plan.textsMoved());
+        addPart(parts, prefix + ".stubs", plan.wires().stubsRemoved() + plan.wires().zeroLengthRemoved());
+        addPart(parts, prefix + ".merged", plan.wires().segmentsMerged());
+        addPart(parts, prefix + ".detours", plan.wires().detoursFlattened());
         if (plan.isEmpty() || parts.isEmpty()) {
             return Messages.text(alreadyTidyKey);
         }
         String joined = parts.size() == 1 ? parts.get(0)
                 : String.join(", ", parts.subList(0, parts.size() - 1))
                         + Messages.text("tidy.join.last") + parts.get(parts.size() - 1);
-        return Character.toUpperCase(joined.charAt(0)) + joined.substring(1);
+        return capitalized(joined);
+    }
+
+    private static String capitalized(String text) {
+        return Character.toUpperCase(text.charAt(0)) + text.substring(1);
+    }
+
+    /** «se moverán 3 partes y 2 notas»: one verb for the parts and the notes together. */
+    private static void addMoved(List<String> parts, String keyPrefix, int partsMoved, int notesMoved) {
+        List<String> nouns = new ArrayList<>();
+        addNoun(nouns, "tidy.moved.part", partsMoved);
+        addNoun(nouns, "tidy.moved.note", notesMoved);
+        if (!nouns.isEmpty()) {
+            String list = String.join(Messages.text("tidy.join.last"), nouns);
+            parts.add(Messages.format(keyPrefix + (partsMoved + notesMoved == 1 ? ".one" : ".other"), list));
+        }
+    }
+
+    private static void addNoun(List<String> nouns, String keyPrefix, int count) {
+        if (count > 0) {
+            nouns.add(count == 1 ? Messages.text(keyPrefix + ".one") : Messages.format(keyPrefix + ".other", count));
+        }
     }
 
     private static void addPart(List<String> parts, String keyPrefix, int count) {

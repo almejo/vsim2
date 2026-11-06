@@ -2,7 +2,7 @@ package cl.almejo.vsim.ui.wiring;
 
 import java.util.List;
 
-/** The icon of «Ordenar cables» (M6.2), by file name under {@code icons/} (installed with {@code Icons.install}). */
+/** The icon of «Ordenar circuito» (M6.2), by file name under {@code icons/} (installed with {@code Icons.install}). */
 public final class TidyIcons {
 
     public static final String TIDY_WIRES = "tidy-wires";

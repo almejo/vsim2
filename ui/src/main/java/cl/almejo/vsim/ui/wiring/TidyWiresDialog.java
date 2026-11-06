@@ -1,6 +1,6 @@
 package cl.almejo.vsim.ui.wiring;
 
-import cl.almejo.vsim.core.wiring.TidyOptions;
+import cl.almejo.vsim.core.layout.CircuitTidyOptions;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.JButton;
@@ -12,14 +12,14 @@ import java.awt.FlowLayout;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Editar ▸ «Ordenar cables…»: the modal dialog around a {@link TidyWiresPanel}. Never shown by tests. */
+/** Editar ▸ «Ordenar circuito…»: the modal dialog around a {@link TidyWiresPanel}. Never shown by tests. */
 public final class TidyWiresDialog {
 
     private TidyWiresDialog() {
     }
 
     /** Shows the dialog; empty when the user cancels. */
-    public static Optional<TidyChoice> choose(Component parent, boolean hasSelection, TidyOptions initial,
+    public static Optional<TidyChoice> choose(Component parent, boolean hasSelection, CircuitTidyOptions initial,
                                               TidyPlanner planner) {
         TidyWiresPanel panel = new TidyWiresPanel(hasSelection, initial, planner);
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(parent), Messages.text("tidy.title"),
