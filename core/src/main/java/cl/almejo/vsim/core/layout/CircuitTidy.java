@@ -226,15 +226,16 @@ public final class CircuitTidy {
 
         /** Separates and returns what still covers something (items partly in scope only). */
         Set<ElementId> run() {
-            for (int round = 0; round < MAXIMUM_PART_ROUNDS; round++) {
-                LayoutItems items = currentItems();
-                if (!new Round(items).place(items.separationGroups())) {
-                    break;
-                }
-            }
+            // The items are read again only after something moved: reading them is a good part of the time.
             LayoutItems items = currentItems();
-            new Round(items).place(items.textSeparationGroups());
-            return whatStillOverlaps(currentItems());
+            for (int round = 0; round < MAXIMUM_PART_ROUNDS && new Round(items).place(items.separationGroups());
+                 round++) {
+                items = currentItems();
+            }
+            if (new Round(items).place(items.textSeparationGroups())) {
+                items = currentItems();
+            }
+            return whatStillOverlaps(items);
         }
 
         private LayoutItems currentItems() {
