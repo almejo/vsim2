@@ -20,7 +20,7 @@ public interface TidyProgress {
 
     /**
      * The text of a stage: «Separando lo que se tapa… ronda 2 de 3», «Moviendo partes… 2 de 8», «Moviendo textos… 1 de
-     * 4», «Ordenando cables… pasada 2».
+     * 4», «Alineando columnas…», «Enderezando cables… ronda 2 de 10», «Ordenando cables… pasada 2».
      */
     static String describe(CircuitTidyProgress.Stage stage, int done, int total) {
         return switch (stage) {
@@ -30,8 +30,9 @@ public interface TidyProgress {
                     : Messages.text("tidy.progress.working");
             case MOVING_TEXTS -> total > 0 ? Messages.format("tidy.progress.movingTexts", done, total)
                     : Messages.text("tidy.progress.working");
-            // their own texts come with phase 2's dialog task
-            case ALIGNING, STRAIGHTENING -> Messages.text("tidy.progress.working");
+            case ALIGNING -> Messages.text("tidy.progress.aligning");
+            case STRAIGHTENING -> total > 0 ? Messages.format("tidy.progress.straightening", done, total)
+                    : Messages.text("tidy.progress.working");
             case WIRES -> Messages.format("tidy.progress.round", done);
         };
     }

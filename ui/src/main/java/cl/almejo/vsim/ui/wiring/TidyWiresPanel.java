@@ -32,6 +32,8 @@ public final class TidyWiresPanel extends JPanel {
     private final JRadioButton selection = new JRadioButton(Messages.text("tidy.scope.selection"));
     private final JRadioButton everything = new JRadioButton(Messages.text("tidy.scope.all"));
     private final JCheckBox separateOverlaps = new JCheckBox(Messages.text("tidy.separateOverlaps"));
+    private final JCheckBox alignColumns = new JCheckBox(Messages.text("tidy.alignColumns"));
+    private final JCheckBox straighten = new JCheckBox(Messages.text("tidy.straighten"));
     private final JCheckBox removeStubs = new JCheckBox(Messages.text("tidy.removeStubs"));
     private final JCheckBox mergeSegments = new JCheckBox(Messages.text("tidy.mergeSegments"));
     private final JCheckBox flattenDetours = new JCheckBox(Messages.text("tidy.flattenDetours"));
@@ -59,6 +61,8 @@ public final class TidyWiresPanel extends JPanel {
         selection.setSelected(hasSelection);
         everything.setSelected(!hasSelection);
         separateOverlaps.setSelected(initial.separateOverlaps());
+        alignColumns.setSelected(initial.alignColumns());
+        straighten.setSelected(initial.straighten());
         removeStubs.setSelected(initial.wires().removeStubs());
         mergeSegments.setSelected(initial.wires().mergeSegments());
         flattenDetours.setSelected(initial.wires().flattenDetours());
@@ -67,13 +71,15 @@ public final class TidyWiresPanel extends JPanel {
         add(everything, "gapleft 12");
         add(heading("tidy.section.parts"), "gaptop 8");
         add(separateOverlaps, "gapleft 12");
+        add(alignColumns, "gapleft 12");
+        add(straighten, "gapleft 12");
         add(heading("tidy.section.wires"), "gaptop 8");
         add(removeStubs, "gapleft 12");
         add(mergeSegments, "gapleft 12");
         add(flattenDetours, "gapleft 12");
         add(summary, "gaptop 12, growx, wmin 280");
         for (AbstractButton button : new AbstractButton[]{selection, everything,
-                separateOverlaps, removeStubs, mergeSegments, flattenDetours}) {
+                separateOverlaps, alignColumns, straighten, removeStubs, mergeSegments, flattenDetours}) {
             button.addActionListener(event -> refresh());
         }
         refresh();
@@ -85,7 +91,8 @@ public final class TidyWiresPanel extends JPanel {
     }
 
     public CircuitTidyOptions options() {
-        return new CircuitTidyOptions(separateOverlaps.isSelected(),
+        return new CircuitTidyOptions(separateOverlaps.isSelected(), alignColumns.isSelected(),
+                straighten.isSelected(),
                 new TidyOptions(removeStubs.isSelected(), mergeSegments.isSelected(), flattenDetours.isSelected()));
     }
 
@@ -135,6 +142,14 @@ public final class TidyWiresPanel extends JPanel {
 
     JCheckBox separateOverlapsBox() {
         return separateOverlaps;
+    }
+
+    JCheckBox alignColumnsBox() {
+        return alignColumns;
+    }
+
+    JCheckBox straightenBox() {
+        return straighten;
     }
 
     JCheckBox removeStubsBox() {

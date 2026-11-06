@@ -40,11 +40,20 @@ public final class TidySummary {
         addPart(wireClauses, prefix + ".stubs", plan.wires().stubsRemoved() + plan.wires().zeroLengthRemoved());
         addPart(wireClauses, prefix + ".merged", plan.wires().segmentsMerged());
         addPart(wireClauses, prefix + ".detours", plan.wires().detoursFlattened());
+        List<String> layoutClauses = new ArrayList<>();
+        addPart(layoutClauses, prefix + ".aligned", plan.partsAligned());
+        addPart(layoutClauses, prefix + ".straightened", plan.pairsStraightened());
+        boolean cornersChange = plan.cornersBefore() != plan.cornersAfter();
+        boolean moreFollow = !layoutClauses.isEmpty() || !wireClauses.isEmpty() || cornersChange;
         List<String> clauses = new ArrayList<>();
-        addMoved(clauses, prefix + ".moved", plan.partsMoved(), plan.textsMoved(), !wireClauses.isEmpty());
+        addMoved(clauses, prefix + ".moved", plan.partsMoved(), plan.textsMoved(), moreFollow);
+        clauses.addAll(layoutClauses);
         clauses.addAll(wireClauses);
         if (plan.isEmpty() || clauses.isEmpty()) {
             return Messages.text(alreadyTidyKey);
+        }
+        if (cornersChange) {
+            clauses.add(Messages.format(prefix + ".corners", plan.cornersBefore(), plan.cornersAfter()));
         }
         return capitalized(listed(clauses));
     }

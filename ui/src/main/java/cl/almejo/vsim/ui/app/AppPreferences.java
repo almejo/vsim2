@@ -165,6 +165,8 @@ public final class AppPreferences {
     static final String EXPORT_PRINT_BACKGROUND = "export.printBackground";
     static final String EXPORT_INCLUDE_STICKY_NOTES = "export.includeStickyNotes";
     static final String TIDY_SEPARATE_OVERLAPS = "tidySeparateOverlaps";
+    static final String TIDY_ALIGN_COLUMNS = "tidyAlignColumns";
+    static final String TIDY_STRAIGHTEN = "tidyStraighten";
     static final String TIDY_REMOVE_STUBS = "tidyRemoveStubs";
     static final String TIDY_MERGE_SEGMENTS = "tidyMergeSegments";
     static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
@@ -613,11 +615,12 @@ public final class AppPreferences {
     // --- M6.2 tidy wires ---
 
     /**
-     * The options of Editar ▸ Ordenar circuito: separating what overlaps, stubs and merges on, detours off until the
+     * The options of Editar ▸ Ordenar circuito: separating, aligning and straightening on, stubs and merges on, detours off until the
      * user turns them on.
      */
     public CircuitTidyOptions tidyOptions() {
         return new CircuitTidyOptions(flag(TIDY_SEPARATE_OVERLAPS, true),
+                flag(TIDY_ALIGN_COLUMNS, true), flag(TIDY_STRAIGHTEN, true),
                 new TidyOptions(flag(TIDY_REMOVE_STUBS, true),
                         flag(TIDY_MERGE_SEGMENTS, true),
                         flag(TIDY_FLATTEN_DETOURS, false)));
@@ -626,6 +629,8 @@ public final class AppPreferences {
     public void setTidyOptions(CircuitTidyOptions options) {
         Objects.requireNonNull(options, "options");
         putFlag(TIDY_SEPARATE_OVERLAPS, options.separateOverlaps());
+        putFlag(TIDY_ALIGN_COLUMNS, options.alignColumns());
+        putFlag(TIDY_STRAIGHTEN, options.straighten());
         putFlag(TIDY_REMOVE_STUBS, options.wires().removeStubs());
         putFlag(TIDY_MERGE_SEGMENTS, options.wires().mergeSegments());
         putFlag(TIDY_FLATTEN_DETOURS, options.wires().flattenDetours());

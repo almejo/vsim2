@@ -202,7 +202,7 @@ class TidyWiresFeaturesTest {
         assertThat(preferences.tidyOptions()).isEqualTo(new CircuitTidyOptions(true, new TidyOptions(true, false, false)));
         assertThat(openDocument.document().wire(stub)).isEmpty();
         assertThat(openDocument.document().wire(right)).isPresent();
-        assertThat(chooserCalls).containsExactly("false|" + CircuitTidyOptions.DEFAULTS);
+        assertThat(chooserCalls).containsExactly("false|" + CircuitTidyOptions.ALL);
     }
 
     @Test
@@ -211,7 +211,7 @@ class TidyWiresFeaturesTest {
         long historyBefore = openDocument.changeCount();
         perform(features.tidyWithOptionsAction());
         assertThat(openDocument.changeCount()).isEqualTo(historyBefore);
-        assertThat(preferences.tidyOptions()).isEqualTo(CircuitTidyOptions.DEFAULTS);
+        assertThat(preferences.tidyOptions()).isEqualTo(CircuitTidyOptions.ALL);
     }
 
     @Test
@@ -407,5 +407,38 @@ class TidyWiresFeaturesTest {
         assertThat(view.statusBar().text()).contains("No se pudo separar 1 cosa");
         assertThat(view.canvas().selection().ids()).containsExactlyInAnyOrder(left, stub);
         assertThat(openDocument.changeCount()).isEqualTo(historyBefore);
+    }
+
+    @Test
+    void theNewCheckboxesAreUnderPartesAfterSeparate() {
+        TidyWiresPanel panel = new TidyWiresPanel(false, CircuitTidyOptions.ALL,
+                (options, selection, onResult) -> () -> { });
+        assertThat(panel.alignColumnsBox().getText()).isEqualTo("Alinear en columnas");
+        assertThat(panel.straightenBox().getText()).isEqualTo("Enderezar cables moviendo partes");
+        assertThat(panel.alignColumnsBox().isSelected()).isTrue();
+        assertThat(panel.straightenBox().isSelected()).isTrue();
+        List<Object> order = new ArrayList<>();
+        for (java.awt.Component child : panel.getComponents()) {
+            if (child instanceof javax.swing.JLabel label) {
+                order.add(label.getText());
+            } else {
+                order.add(child);
+            }
+        }
+        assertThat(order).containsSubsequence("Partes", panel.separateOverlapsBox(), panel.alignColumnsBox(),
+                panel.straightenBox(), "Cables", panel.removeStubsBox());
+        panel.alignColumnsBox().doClick();
+        panel.straightenBox().doClick();
+        assertThat(panel.options().alignColumns()).isFalse();
+        assertThat(panel.options().straighten()).isFalse();
+    }
+
+    @Test
+    void bothDefaultOnAndAreSaved() {
+        assertThat(preferences.tidyOptions().alignColumns()).isTrue();
+        assertThat(preferences.tidyOptions().straighten()).isTrue();
+        preferences.setTidyOptions(new CircuitTidyOptions(true, false, true, TidyOptions.DEFAULTS));
+        assertThat(preferences.tidyOptions().alignColumns()).isFalse();
+        assertThat(preferences.tidyOptions().straighten()).isTrue();
     }
 }

@@ -86,4 +86,30 @@ class TidySummaryTest {
             Messages.initialize(Messages.SPANISH);
         }
     }
+
+    private static CircuitTidyPlan planWith(int moved, int aligned, int straightened, int cornersBefore,
+                                            int cornersAfter, int stubs) {
+        Wire wire = new Wire(new ElementId("w1"), new GridPoint(0, 0), new GridPoint(2, 0));
+        TidyPlan wires = stubs == 0 ? TidyPlan.EMPTY
+                : new TidyPlan(List.of(wire), List.of(), Map.of(), 0, stubs, 0, 0);
+        return new CircuitTidyPlan(new CircuitDocument(), moved, 0, Set.of(), wires, aligned, straightened,
+                cornersBefore, cornersAfter);
+    }
+
+    @Test
+    void summaryCountsAlignedStraightenedAndCorners() {
+        CircuitTidyPlan plan = planWith(6, 4, 12, 140, 96, 0);
+        assertThat(TidySummary.preview(plan))
+                .isEqualTo("Se moverán 6 partes, se alinearán 4 partes, se enderezarán 12 cables y codos: 140 → 96");
+        assertThat(TidySummary.notice(plan))
+                .isEqualTo("Se movieron 6 partes, se alinearon 4 partes, se enderezaron 12 cables y codos: 140 → 96");
+    }
+
+    @Test
+    void singularFormsAndCornersOnlyWhenTheyDiffer() {
+        assertThat(TidySummary.preview(planWith(1, 1, 1, 5, 5, 0)))
+                .isEqualTo("Se moverá 1 parte, se alineará 1 parte y se enderezará 1 cable");
+        assertThat(TidySummary.preview(planWith(2, 0, 0, 9, 7, 3)))
+                .isEqualTo("Se moverán 2 partes, se borrarán 3 puntas sueltas y codos: 9 → 7");
+    }
 }
