@@ -82,7 +82,10 @@ public final class SeePiece {
         CircuitCanvas canvas = view.canvas();
         place.document().component(part).map(component -> place.registry().typeOf(component).bounds(component))
                 .or(() -> place.document().wire(part).map(wire -> Bounds.of(wire.start(), wire.end())))
-                .ifPresent(canvas::travelTo);
+                .ifPresent(bounds -> {
+                    canvas.travelTo(bounds);
+                    canvas.glow(bounds); // the eye finds the piece after the view moved (spec §5.1)
+                });
         view.selection().set(List.of(part));
         canvas.requestFocusInWindow();
     }

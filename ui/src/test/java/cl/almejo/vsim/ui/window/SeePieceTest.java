@@ -82,6 +82,17 @@ class SeePieceTest {
     }
 
     @Test
+    void theSeenPieceGlows() {
+        EditorView main = tabs.addTab(document, Optional.empty());
+        EditorView inside = tabs.enter(document, ExampleDefinitions.INVERTER, Optional.of("c1"), Optional.empty());
+        assertThat(main.canvas().isGlowing()).isFalse();
+
+        SeePiece.show(inside);
+
+        assertThat(main.canvas().isGlowing()).isTrue();
+    }
+
+    @Test
     void aNestedInstanceOpensTheContainersTabWithTheRouteAboveIt() {
         tabs.addTab(document, Optional.empty());
         EditorView inside = tabs.enter(document, ExampleDefinitions.INVERTER, Optional.of("c2/c3"),

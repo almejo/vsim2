@@ -64,7 +64,9 @@ de circuito no la tienen.
 - **Se usa en N lugares**: dice cuántas piezas usan el componente («Se usa en 1 lugar», «No se usa en ninguna pieza»).
   Con más de un lugar el texto va en ámbar, para recordar que lo que cambias adentro cambia todos.
 - **Ver la pieza ↗**: lleva a la pestaña que contiene la pieza de la ruta (la del circuito, o la de otro componente),
-  la selecciona y mueve la vista hasta ella. Está apagado sin valores.
+  la selecciona, mueve la vista hasta ella y la hace brillar un momento (1,5 s, con el color de selección del tema;
+  quieto, sin desvanecerse, con «Reducir movimiento») para que el ojo la encuentre. Lo mismo al llegar desde F8, la
+  lista de Problemas o el árbol del circuito. Está apagado sin valores.
 - **Guardar en mi librería / Agregar a mi librería**: «Agregar» aparece cuando la librería no tiene el componente
   (pregunta lo mismo que la paleta si el id ya existe); «Guardar» aparece cuando la copia del circuito es distinta de
   la de la librería y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe

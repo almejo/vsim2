@@ -96,6 +96,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private static final int ANTS_MILLISECONDS = 90;
     /** Automan's star at about 30 frames a second (spec §8.5); a blink only repaints when it turns. */
     private static final int TERMINAL_FRAME_MILLISECONDS = 33;
+    private static final int GLOW_FRAME_MILLISECONDS = 33;
     /** Device pixels added around a moving terminal's area so antialiased edges are repainted too. */
     private static final int TERMINAL_REPAINT_MARGIN = 2;
     private static final double WHEEL_SCROLL_PIXELS = 40;
@@ -122,6 +123,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final MarchingAnts marchingAnts = new MarchingAnts();
     private final Timer antsTimer;
     private final ProblemPulse problemPulse = new ProblemPulse();
+    private final PieceGlow pieceGlow = new PieceGlow();
+    private FrameTicker glowTicker = FrameTicker.swing(GLOW_FRAME_MILLISECONDS);
+    private LongSupplier glowClock = () -> System.nanoTime() / 1_000_000;
     private final Timer problemPulseTimer;
     /** The Terminals' animation clock: runs only while a moving terminal is in view. */
     private FrameTicker terminalTicker = FrameTicker.swing(TERMINAL_FRAME_MILLISECONDS);
@@ -607,6 +611,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public void removeNotify() {
         autoscroll.stopAutoscroll();
         frameTimer.stop();
+        glowTicker.stop();
         animationSuspended = true;
         antsTimer.stop();
         problemPulseTimer.stop();
@@ -622,6 +627,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewTravel.stop();
         autoscroll.stopAutoscroll();
         frameTimer.stop();
+        glowTicker.stop();
         animationSuspended = true;
         antsTimer.stop();
         problemPulseTimer.stop();
@@ -883,6 +889,41 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** Drives the travels with {@code ticker} and {@code clock} (milliseconds) instead of a Swing timer: for tests. */
     public void useViewTicker(FrameTicker ticker, LongSupplier clock) {
         viewTravel.useViewTicker(ticker, clock);
+    }
+
+    /**
+     * «Ver la pieza»: makes the piece at {@code bounds} glow for 1.5 s so the eye finds it after the view travelled
+     * (spec §5.1). A new glow replaces the one going.
+     */
+    public void glow(Bounds bounds) {
+        pieceGlow.start(Objects.requireNonNull(bounds, "bounds"), glowClock.getAsLong());
+        glowTicker.start(this::glowFrame);
+        repaint();
+    }
+
+    /** True while a piece glows. */
+    public boolean isGlowing() {
+        return pieceGlow.activeAt(glowClock.getAsLong());
+    }
+
+    /** The glow's strength now, 1 down to 0. */
+    double glowStrength() {
+        return pieceGlow.strengthAt(glowClock.getAsLong());
+    }
+
+    /** Drives the glow with {@code ticker} and {@code clock} (milliseconds) instead of a Swing timer: for tests. */
+    void useGlowTicker(FrameTicker ticker, LongSupplier clock) {
+        glowTicker.stop();
+        glowTicker = Objects.requireNonNull(ticker, "ticker");
+        glowClock = Objects.requireNonNull(clock, "clock");
+    }
+
+    private void glowFrame() {
+        if (!pieceGlow.activeAt(glowClock.getAsLong())) {
+            glowTicker.stop();
+            pieceGlow.stop();
+        }
+        repaint();
     }
 
     public void addOverlay(CanvasOverlay overlay) {
@@ -1530,6 +1571,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
             }
+            pieceGlow.paint(local, renderer.scheme(), glowClock.getAsLong(), reducedMotion.getAsBoolean());
             canvasDragOut.paintDragOutPreview(local);
             tool.paintOverlay(local, this);
             for (CircuitCanvas owner : sharing) {
