@@ -183,19 +183,6 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   los dos abiertos, el divisor entre ellos se arrastra y VSim lo recuerda. Lo plegado es de cada ventana, vale para
   todas sus pestañas y vuelve al abrir VSim.
 
-## Ir a… desde la barra de búsqueda
-
-La barra de búsqueda (Ctrl+F) también ofrece, en una segunda fila bajo el campo («Ir a:»), las pestañas abiertas de la
-ventana y los componentes del circuito cuyo nombre coincide con lo que escribes, con las mismas reglas que la
-búsqueda (sin distinguir tildes; «Aa» y «.*» como estén). Cada uno es un botón: «lrv32im» o «⬚ Ram» para una pestaña, y
-«⬚ Muldiv — componente, 3 usos» para un componente del circuito (también «1 uso» y «sin usos»).
-
-- Un clic en una pestaña la trae al frente; un clic en un componente lo **entra** (ver
-  [Entrar a un componente](#entrar-a-un-componente)) con los valores de su primer uso, o «Sin valores» si el circuito
-  no lo usa. La barra se cierra al elegir.
-- Con el foco en el campo, **Ctrl+Intro** va al primer botón, y **Intro** también cuando el circuito no tiene ninguna
-  pieza que coincida. Sin texto o sin coincidencias, la fila no aparece.
-
 ## Mirar adentro: ver el interior sin entrar
 
 Para mirar qué hay dentro de un componente sin abrir su pestaña:

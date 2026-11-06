@@ -292,12 +292,6 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
-    public List<WindowMenu.Entry> tabEntries() {
-        return tabs.menuEntries(true, () -> {
-        });
-    }
-
-    @Override
     public void openUntitled(CircuitDocument document) {
         application.openUntitled(document, this);
     }
