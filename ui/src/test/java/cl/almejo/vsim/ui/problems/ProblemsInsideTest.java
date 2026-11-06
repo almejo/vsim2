@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.problems;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -163,6 +164,34 @@ class ProblemsInsideTest {
         assertThat(main.problems().panel().problemTexts()).isEmpty();
         circuit.history().undo();
         assertThat(main.problems().panel().problemTexts()).containsExactly(expected);
+    }
+
+    @Test
+    void aPieceWhoseOwnContentsHideTheLinkedFileIsListedAndCanGoBackToTheComponentsFromTheRow() {
+        // the user's decision (2026-11-06): the piece keeps its contents, Problemas says so and offers the way back
+        Component linked = StandardComponentTypes.registry().require(StandardComponentTypes.RAM).newComponent(
+                new ElementId("c10"), new GridPoint(0, 0), Rotation.R0,
+                Map.of(MemoryTypes.LINK, "/home/maria/programa.hex"), "RAM");
+        circuit.execute(new PutDefinitionsCommand(List.of(new ComponentDefinition("memoria-chica", "Memoria chica",
+                "", new GridSize(4, 4), List.of(), new CircuitFragment(List.of(linked), List.of(), List.of())))));
+        circuit.execute(new AddElementsCommand(List.of(new Component(new ElementId("c5"),
+                SubcircuitTypes.typeIdOf("memoria-chica"), new GridPoint(10, 10), Rotation.R0, Map.of(), "")
+                .withMemoryContents(Map.of("c10", "@0 1")))));
+        EditorView main = view(circuit);
+
+        assertThat(main.problems().panel().problemTexts()).singleElement().asString()
+                .endsWith(": usa su propio contenido, no el archivo enlazado");
+        List<javax.swing.Action> actions = main.problems().panel().actionsAt(0);
+        assertThat(actions).extracting(action -> action.getValue(javax.swing.Action.NAME))
+                .containsExactly("Volver al del componente");
+        actions.getFirst().actionPerformed(null);
+
+        assertThat(circuit.document().component(new ElementId("c5")).orElseThrow().memoryContents()).isEmpty();
+        assertThat(main.problems().panel().problemTexts()).isEmpty();
+        main.problems().navigator().next();
+        circuit.history().undo();
+        main.problems().navigator().next();
+        assertThat(wentTo).containsExactly("memoria-chica c5 c10");
     }
 
     /** «Memoria chica»: a RAM c10 inside, no pins. */

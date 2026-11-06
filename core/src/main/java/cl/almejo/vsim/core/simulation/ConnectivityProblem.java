@@ -49,7 +49,13 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
          * component (they are ignored); {@code netId} is {@code "ownContents:"} plus the memory's path inside the
          * piece. Listed by the editor, which offers to forget them.
          */
-        OWN_CONTENTS_FOR_NOTHING
+        OWN_CONTENTS_FOR_NOTHING,
+        /**
+         * The memory {@code elementId} ({@code c5/c10}: its path through the circuit's piece that keeps the contents)
+         * is linked to a file, but that piece starts from its own contents, not from the file (the user, 2026-11-06).
+         * Listed by the editor, which offers «Volver al del componente».
+         */
+        OWN_CONTENTS_OVER_LINK
     }
 
     public ConnectivityProblem {

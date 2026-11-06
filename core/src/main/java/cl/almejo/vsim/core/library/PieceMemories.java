@@ -38,13 +38,19 @@ public final class PieceMemories {
 
     /**
      * Contents a circuit's piece keeps that do not do what they seem (problems are never hidden): kept for a memory
-     * that is no longer in its component ({@link Kind#FOR_NOTHING}: the entry is ignored).
+     * that is no longer in its component ({@link Kind#FOR_NOTHING}: the entry is ignored), or for a memory linked to a
+     * file, which this piece then does not use ({@link Kind#OVER_LINK}).
      */
     public record StoredContentsIssue(Place place, Kind kind) {
 
         public enum Kind {
             /** The inner path names no memory of the component (any more): the entry is ignored. */
-            FOR_NOTHING
+            FOR_NOTHING,
+            /**
+             * The memory is linked to a file (the component's, in every piece): this piece starts from its own
+             * contents, not from the file (the user, 2026-11-06).
+             */
+            OVER_LINK
         }
 
         public StoredContentsIssue {
@@ -80,7 +86,8 @@ public final class PieceMemories {
         if (memory.isEmpty()) {
             return Optional.of(StoredContentsIssue.Kind.FOR_NOTHING);
         }
-        return Optional.empty();
+        boolean linked = !String.valueOf(memory.get().parameters().getOrDefault(MemoryTypes.LINK, "")).isBlank();
+        return linked ? Optional.of(StoredContentsIssue.Kind.OVER_LINK) : Optional.empty();
     }
 
     /** The memory {@code innerPath} names inside {@code piece} ({@code c3/c10}); empty when it names none. */

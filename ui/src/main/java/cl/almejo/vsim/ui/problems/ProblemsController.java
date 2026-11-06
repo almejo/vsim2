@@ -319,7 +319,8 @@ public final class ProblemsController {
 
     /**
      * One problem per piece's own memory contents that do not apply (debt of task 9b: they were ignored and
-     * invisible): kept for a memory no longer in its component.
+     * invisible): kept for a memory no longer in its component, or for a linked memory, whose file the piece then
+     * does not use.
      */
     private List<ConnectivityProblem> storedContentsProblems() {
         List<ConnectivityProblem> problems = new ArrayList<>();
@@ -327,25 +328,39 @@ public final class ProblemsController {
             ElementId piece = issue.place().piece();
             GridPoint position = circuit.document().component(piece).map(Component::position)
                     .orElse(GridPoint.ORIGIN);
-            problems.add(new ConnectivityProblem(ConnectivityProblem.OWN_CONTENTS_PREFIX
-                    + issue.place().innerPath(), piece.value(), -1, position,
-                    ConnectivityProblem.Cause.OWN_CONTENTS_FOR_NOTHING));
+            problems.add(switch (issue.kind()) {
+                case FOR_NOTHING -> new ConnectivityProblem(ConnectivityProblem.OWN_CONTENTS_PREFIX
+                        + issue.place().innerPath(), piece.value(), -1, position,
+                        ConnectivityProblem.Cause.OWN_CONTENTS_FOR_NOTHING);
+                // named by the memory's path, so F8 enters the component with this piece's values and selects it
+                case OVER_LINK -> new ConnectivityProblem(ConnectivityProblem.OWN_CONTENTS_PREFIX
+                        + issue.place().innerPath(), InstancePath.child(piece.value(), issue.place().innerPath()),
+                        -1, position, ConnectivityProblem.Cause.OWN_CONTENTS_OVER_LINK);
+            });
         }
         return problems;
     }
 
     /**
      * What the Problemas list offers on a right click on {@code problem}: forgetting a piece's own contents that do
-     * not apply, one undo step.
+     * not apply, or going back to the component's (and its linked file), one undo step.
      */
     private List<Action> quickActionsOf(Problem problem) {
-        if (!(problem instanceof ConnectivityProblem connectivity)
-                || connectivity.cause() != ConnectivityProblem.Cause.OWN_CONTENTS_FOR_NOTHING) {
+        if (!(problem instanceof ConnectivityProblem connectivity)) {
             return List.of();
         }
-        PieceMemories.Place place = new PieceMemories.Place(new ElementId(connectivity.elementId()),
+        String key = switch (connectivity.cause()) {
+            case OWN_CONTENTS_FOR_NOTHING -> "problem.ownContents.forget";
+            case OWN_CONTENTS_OVER_LINK -> "memory.piece.backToComponent";
+            default -> "";
+        };
+        if (key.isEmpty()) {
+            return List.of();
+        }
+        PieceMemories.Place place = new PieceMemories.Place(
+                new ElementId(InstancePath.segments(connectivity.elementId()).getFirst()),
                 connectivity.netId().substring(ConnectivityProblem.OWN_CONTENTS_PREFIX.length()));
-        return List.of(Actions.of(Messages.text("problem.ownContents.forget"),
+        return List.of(Actions.of(Messages.text(key),
                 () -> circuit.execute(SetInstanceMemoryContentsCommand.clear(place))));
     }
 

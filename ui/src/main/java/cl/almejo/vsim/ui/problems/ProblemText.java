@@ -120,6 +120,8 @@ public final class ProblemText {
                     String.join(", ", DefinitionUpdateSafety.containingNames(document, outdatedDefinitionId(problem))));
             case OWN_CONTENTS_FOR_NOTHING -> Messages.format("problem.ownContentsForNothing",
                     pieceName(problem.elementId(), document), ownContentsPath(problem));
+            case OWN_CONTENTS_OVER_LINK -> Messages.format("problem.ownContentsOverLink",
+                    InstanceNames.routeText(problem.elementId(), document));
         };
     }
 

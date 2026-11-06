@@ -102,6 +102,19 @@ class PieceMemoriesTest {
                         PieceMemories.StoredContentsIssue.Kind.FOR_NOTHING));
     }
 
+    @Test
+    void contentsKeptForALinkedMemoryAreFoundBecauseTheyHideTheFile() {
+        // the user's decision (2026-11-06): the piece keeps its contents, but Problemas says the file is not used
+        Component linked = registry.require(StandardComponentTypes.RAM).newComponent(MEMORY, GridPoint.ORIGIN,
+                Rotation.R0, Map.of(MemoryTypes.CONTENTS, "@0 5", MemoryTypes.LINK, "/home/maria/programa.hex"), "");
+        document.putDefinition(definition("memoria-chica", "Memoria chica", linked));
+        document.add(piece("c4", "memoria-chica").withMemoryContents(Map.of("c10", "@0 9")));
+
+        assertThat(PieceMemories.storedContentsIssues(document)).containsExactly(
+                new PieceMemories.StoredContentsIssue(new PieceMemories.Place(new ElementId("c4"), "c10"),
+                        PieceMemories.StoredContentsIssue.Kind.OVER_LINK));
+    }
+
     private Component piece(String id, String definitionId) {
         return new Component(new ElementId(id), SubcircuitTypes.typeIdOf(definitionId), GridPoint.ORIGIN,
                 Rotation.R0, Map.of(), "");
