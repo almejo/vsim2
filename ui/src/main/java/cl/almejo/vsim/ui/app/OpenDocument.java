@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.command.WrapsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.SwitchValues;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -27,6 +28,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionUpdateProblem;
 import cl.almejo.vsim.core.library.InstancePaths;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
@@ -312,6 +314,26 @@ public final class OpenDocument implements AutoCloseable {
     /** Every place {@code definitionId} is used in the document, parents first (the contexts a body tab offers). */
     public List<InstancePaths.InstanceUse> instancePaths(String definitionId) {
         return InstancePaths.usesOf(main().document, definitionId);
+    }
+
+    /**
+     * In a body place showing a piece's values, the contents each memory of the body starts with for that piece when
+     * it is not the component's own (spec §6.6b: the piece's, or an outer piece's), by memory id: what its drawing and
+     * the inspector's warnings read. Empty for a document and for «Sin valores».
+     */
+    public Map<ElementId, String> pieceMemoryContents() {
+        if (body == null || contextPath.isEmpty()) {
+            return Map.of();
+        }
+        String context = contextPath.get();
+        Map<ElementId, String> contents = new HashMap<>();
+        for (Component part : document.components()) {
+            if (MemoryTypes.kindOf(part.typeId()).isPresent()) {
+                PieceMemories.effectiveText(body.parent.document(), InstancePath.child(context, part.id().value()))
+                        .ifPresent(text -> contents.put(part.id(), text));
+            }
+        }
+        return Map.copyOf(contents);
     }
 
     /** The document's pieces that could not take a new pin of an inside edit where it goes, while it is applied. */

@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
+import cl.almejo.vsim.core.command.SetInstanceMemoryContentsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
@@ -31,6 +32,8 @@ import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.KeptOldShape;
+import cl.almejo.vsim.core.library.PieceMemories;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -315,6 +318,25 @@ class OpenDocumentBodyTest {
         assertThat(body.document().elements()).containsExactlyElementsOf(before);
         assertThat(openDocument.document().definition(BLOCK)).contains(definition);
         assertThat(openDocument.history().undoCommand()).containsSame(placed);
+    }
+
+    @Test
+    void aBodyPlaceShowsTheMemoryContentsOfItsContextPiece() {
+        // debt of task 9b: the drawing of a memory inside a component read the component's contents
+        Component ram = registry.require(StandardComponentTypes.RAM).newComponent(new ElementId("c3"),
+                new GridPoint(0, 0), Rotation.R0, Map.of(), "");
+        openDocument.execute(new PutDefinitionsCommand(List.of(new ComponentDefinition("memoria", "Memoria", "",
+                new GridSize(4, 4), List.of(), new CircuitFragment(List.of(ram), List.of(), List.of())))));
+        Component first = place("c5", SubcircuitTypes.typeIdOf("memoria"), 0);
+        place("c9", SubcircuitTypes.typeIdOf("memoria"), 30);
+        openDocument.execute(SetInstanceMemoryContentsCommand.set(new PieceMemories.Place(first.id(), "c3"),
+                MemoryContents.decode("@0 7")));
+
+        assertThat(body("memoria", Optional.of("c5")).pieceMemoryContents())
+                .containsExactly(Map.entry(new ElementId("c3"), MemoryContents.decode("@0 7").encode()));
+        assertThat(body("memoria", Optional.of("c9")).pieceMemoryContents()).isEmpty();
+        assertThat(body("memoria", Optional.empty()).pieceMemoryContents()).isEmpty();
+        assertThat(openDocument.pieceMemoryContents()).isEmpty();
     }
 
     @Test

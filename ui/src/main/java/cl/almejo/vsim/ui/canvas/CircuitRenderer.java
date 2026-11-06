@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -402,8 +403,9 @@ public final class CircuitRenderer {
                 VisibleState memoryState = state.snapshot().componentState(component.id().value());
                 MemoryLights lights = memoryActivity.lights(component.id().value(), memoryState,
                         state.snapshot().time());
+                Map<String, Object> parameters = withPieceContents(component, state);
                 ComponentDrawing.paintPlaced(graphics, component, local -> memoryPainter.paintWithLabel(local, type,
-                        component.parameters(), memoryState, scheme, name, lights));
+                        parameters, memoryState, scheme, name, lights));
             } else if (painters.painterFor(type.id()) instanceof TerminalPainter terminalPainter) {
                 paintTerminal(graphics, state, scheme, component, type, terminalPainter, animation);
             } else if (painters.painterFor(type.id()) instanceof KeyboardPainter keyboardPainter) {
@@ -783,6 +785,21 @@ public final class CircuitRenderer {
     }
 
     /** The type of {@code component} as {@code state} shows it: a previewed part's own, else the cached one. */
+    /**
+     * The memory's parameters with the contents the frame shows for it: in a component tab, those of the piece of
+     * «Valores de» when it starts from other contents than the component's (its «no cabe» warning and its content
+     * window without live values follow them).
+     */
+    private static Map<String, Object> withPieceContents(Component memory, RenderState state) {
+        String contents = state.pieceContents().get(memory.id());
+        if (contents == null) {
+            return memory.parameters();
+        }
+        Map<String, Object> parameters = new HashMap<>(memory.parameters());
+        parameters.put(MemoryTypes.CONTENTS, contents);
+        return parameters;
+    }
+
     private ComponentType shownTypeOf(RenderState state, Component component) {
         return state.previewedParts().containsKey(component.id()) ? registry.typeOf(component)
                 : placedTypes.typeOf(state.document(), component, registry);

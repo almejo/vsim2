@@ -134,7 +134,9 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   su propio contenido de esa memoria sigue partiendo de él, no del archivo, y Problemas lo dice: «Memoria chica 1 ›
   RAM: usa su propio contenido, no el archivo enlazado». F8 lleva a la memoria con los valores de esa pieza (su
   editor tiene «Volver al del componente»), y el clic derecho en la fila ofrece lo mismo. En Propiedades, una memoria de adentro con contenido propio en la pieza que se ve dice
-  «Contenido propio de Memoria 1». Si un componente tiene otro adentro, el contenido propio de la pieza de afuera
+  «Contenido propio de Memoria 1»; el dibujo de la memoria en la pestaña (su ventana de contenido sin simular y el
+  aviso de que el contenido no cabe) y los avisos de Propiedades («Agrandar a…», «Ensanchar a…») siguen el contenido
+  de esa pieza. Si un componente tiene otro adentro, el contenido propio de la pieza de afuera
   manda sobre el de las de adentro. El «Mapa de memoria» de la pestaña sigue a la pieza que se muestra. Al
   desarmar una pieza, sus memorias se quedan con el contenido propio que tenía. Si una pieza guarda contenido propio
   de una memoria que ya no está en el componente (se borró adentro), ese contenido no se usa y Problemas lo dice:

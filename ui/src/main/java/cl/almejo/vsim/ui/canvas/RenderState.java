@@ -22,11 +22,13 @@ import java.util.Set;
  * paints «Escribiendo…»); only the canvas passes one, so exports and printing never show the capture look.
  * {@code previewedParts} are parts painted as a drag preview has them instead of as the document has them, by id (a
  * Teclado whose «↔» tab is dragged, at its new width); empty but for the canvas during such a drag.
+ * {@code pieceContents} are the memory contents a component tab shows for the piece of «Valores de» instead of the
+ * component's, by memory id (spec §6.6b); empty but for such a tab's canvas.
  */
 public record RenderState(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
                           Set<ElementId> selection, double selectionDashPhase, double problemPulsePhase,
                           Set<ElementId> hiddenWires, PaintPolicy policy, Optional<ElementId> capturingPart,
-                          Map<ElementId, Component> previewedParts) {
+                          Map<ElementId, Component> previewedParts, Map<ElementId, String> pieceContents) {
 
     /** The {@code problemPulsePhase} of a frame without the glow under problem wires. */
     public static final double NO_PROBLEM_GLOW = Double.NaN;
@@ -36,6 +38,16 @@ public record RenderState(CircuitDocument document, Netlist netlist, long netlis
         Objects.requireNonNull(policy, "policy");
         Objects.requireNonNull(capturingPart, "capturingPart");
         previewedParts = Map.copyOf(previewedParts);
+        pieceContents = Map.copyOf(pieceContents);
+    }
+
+    /** A frame that shows the component's own memory contents. */
+    public RenderState(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
+                       Set<ElementId> selection, double selectionDashPhase, double problemPulsePhase,
+                       Set<ElementId> hiddenWires, PaintPolicy policy, Optional<ElementId> capturingPart,
+                       Map<ElementId, Component> previewedParts) {
+        this(document, netlist, netlistToken, snapshot, selection, selectionDashPhase, problemPulsePhase, hiddenWires,
+                policy, capturingPart, previewedParts, Map.of());
     }
 
     /** A frame without previewed parts. */
