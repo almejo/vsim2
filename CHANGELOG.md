@@ -9,6 +9,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ## Sin publicar
 
+Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circuito, entrar a un componente propio para editarlo en su pestaña, con una barra de lugar, un árbol del circuito, la Lupa y Ver la pieza; lo que se cambia adentro cambia el componente en todo el circuito.
+
 ### Agregado
 
 - Pestañas: una ventana tiene varios circuitos en pestañas, agrupadas por circuito con su color. Abrir, Recientes, Ejemplos, Nuevo o soltar un archivo lo abren como pestaña en la ventana; Ctrl+Tab y Ctrl+Mayús+Tab las recorren, Ctrl+W cierra la pestaña y Ctrl+Mayús+W la ventana. Arrastrar una pestaña lleva su grupo entero a otro lugar de la fila, a otra ventana o a una ventana nueva; un doble clic en la pestaña del circuito pliega su grupo. Ventana ▸ «Nueva ventana con este circuito» (Ctrl+Mayús+N) hace lo que antes hacía «Nueva vista». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
@@ -29,7 +31,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - «Crear componente desde selección…» y «Convertir en componente…» de un marco llevan adentro del componente los marcos de la selección, en el mismo lugar (antes se perdían); las notas adhesivas se siguen quedando en el lienzo. Ver [Componentes propios](docs/funciones/componentes.md#componentes-propios).
 - El doble clic en una pieza de un componente propio entra al componente en vez de abrir sus Propiedades, que siguen en el inspector y en el clic derecho. Ver [Entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente).
 - Ventana ▸ «Nueva vista» ahora se llama «Nueva pestaña del mismo circuito» y abre una pestaña en la misma ventana; Archivo ▸ «Cerrar ventana» pasó a Ctrl+Mayús+W y Ctrl+W es ahora «Cerrar pestaña». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
-- La pestaña «Componentes» del inspector se va: su lugar lo toma el [árbol del circuito](docs/funciones/pestanas-y-componentes.md#árbol-del-circuito) de la columna izquierda, que no agrupa por tipo, no muestra los marcos ni los valores, y en vez de filtrar busca en todo el circuito. Las piezas sin etiqueta del mismo tipo en un mismo lugar se numeran («Interruptor 1», «Interruptor 2») en el árbol, la barra de lugar y Problemas, y la ruta de la barra ya no muestra los identificadores («circuito › Ram › Selector 2» en vez de «Ram (c5) › Selector (c2)»).
+- La pestaña «Componentes» del inspector y el panel «Proyecto» se van: su lugar lo toma el [árbol del circuito](docs/funciones/pestanas-y-componentes.md#árbol-del-circuito) de la columna izquierda, que no agrupa por tipo, no muestra los marcos ni los valores, y en vez de filtrar busca en todo el circuito. Las piezas sin etiqueta del mismo tipo en un mismo lugar se numeran («Interruptor 1», «Interruptor 2») en el árbol, la barra de lugar y Problemas, y la ruta de la barra ya no muestra los identificadores («circuito › Ram › Selector 2» en vez de «Ram (c5) › Selector (c2)»).
 
 ### Arreglado
 

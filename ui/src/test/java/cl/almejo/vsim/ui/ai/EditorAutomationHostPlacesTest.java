@@ -259,7 +259,7 @@ class EditorAutomationHostPlacesTest {
         Command refusing = new Command() {
             @Override
             public void apply(CircuitDocument document) {
-                throw new InsideEditRefusedException("inside.interfaceLocked", List.of("Bloque", "Otro"));
+                throw new InsideEditRefusedException("inside.cannotNestItself", List.of());
             }
 
             @Override
@@ -276,7 +276,7 @@ class EditorAutomationHostPlacesTest {
             circuit.execute(refusing);
             return Boolean.TRUE;
         }).get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(AutomationException.class)
-                .cause().hasMessageContaining(Messages.format("inside.interfaceLocked", "Bloque", "Otro"));
+                .cause().hasMessageContaining(Messages.format("inside.cannotNestItself"));
     }
 
     @Test

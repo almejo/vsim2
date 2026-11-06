@@ -72,53 +72,6 @@ de circuito no la tienen.
 - **Un cambio que no se hizo**: si un cambio adentro no se puede hacer, no cambia nada y la barra lo dice en ámbar
   durante unos segundos; la barra de estado también lo dice.
 
-## Árbol del circuito
-
-En la columna de la izquierda, arriba de la paleta, el árbol «Circuito» muestra todo el circuito: lo que hay en él y
-lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mismo en todas las pestañas del circuito.
-
-- **Las filas**: la primera es el circuito, con su nombre y cuántas piezas tiene («1 pieza», «12 piezas»). Debajo va
-  cada pieza, en el orden del circuito, con el ícono de la paleta. Una pieza de un componente propio se despliega en
-  las piezas de adentro. Los cables, los marcos y las notas no son piezas y no aparecen; las filas no muestran valores.
-- **Los nombres**: una pieza se llama por su etiqueta («IR · Registro», con el tipo detrás) o, si no tiene, por su
-  tipo («Ram», «AND de 3 entradas»). Si en un mismo lugar hay varias sin etiqueta del mismo tipo, se numeran en el
-  orden del circuito: «Multiplexor 1» … «Multiplexor 4». El identificador de la pieza («c5/c2») está en la ayuda al
-  pasar el mouse. La [barra de lugar](#la-barra-de-lugar) y Problemas las nombran igual.
-- **Clic en una fila**: lleva a la pieza. Si está en otro lugar, primero va a esa pestaña (la del circuito, o la del
-  componente que la tiene adentro, con los valores de esa pieza, abriéndola si hace falta); después la selecciona y la
-  vista viaja hasta ella, y el inspector muestra sus propiedades. Es el mismo «Ver la pieza» de la barra de lugar y de
-  F8. Un clic en la fila del circuito trae su pestaña.
-- **Doble clic o Enter** en una pieza de un componente propio entra a ella (ver
-  [Entrar a un componente](#entrar-a-un-componente)). En esas filas el clic simple espera un instante, por si viene el
-  segundo.
-- **Clic derecho**: «Entrar» (en un componente propio), «Ver la pieza», «Cambiar forma…» (en un componente propio) y
-  «Propiedades». Las dos últimas llevan primero a la pieza, esté donde esté.
-- **Buscar**: el campo de arriba busca en todo el circuito, también dentro de los componentes, con las mismas reglas y
-  opciones Aa y .\* que la barra de búsqueda. Los resultados se listan uno debajo de otro con su ruta en gris («en
-  Ram › Muldiv») y lo que coincide en negrita; debajo del campo dice cuántos hay, o «Nada se llama así en este
-  circuito.». Enter va al primero; Esc vacía el campo y vuelve el árbol como estaba. Ctrl+F con el foco en el árbol va
-  al campo.
-- **Sigue a la pestaña activa**: cada pestaña abre en el árbol su lugar (el circuito, o la pieza cuyos valores
-  muestra) y lo marca con el color del grupo. Elegir una sola pieza en el lienzo elige su fila.
-- **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic (o con Alt+1 y Alt+2, que se pueden
-  cambiar en Atajos de teclado; también en Ver ▸ «Árbol del circuito» y «Paleta»), y el otro ocupa el espacio. Con
-  los dos abiertos, el divisor entre ellos se arrastra y VSim lo recuerda. Lo plegado es de cada ventana, vale para
-  todas sus pestañas y vuelve al abrir VSim.
-- El árbol reemplaza a la pestaña «Componentes» del inspector y al panel «Proyecto».
-
-## Ir a… desde la barra de búsqueda
-
-La barra de búsqueda (Ctrl+F) también ofrece, en una segunda fila bajo el campo («Ir a:»), las pestañas abiertas de la
-ventana y los componentes del circuito cuyo nombre coincide con lo que escribes, con las mismas reglas que la
-búsqueda (sin distinguir tildes; «Aa» y «.*» como estén). Cada uno es un botón: «lrv32im» o «⬚ Ram» para una pestaña, y
-«⬚ Muldiv — componente, 3 usos» para un componente del circuito (también «1 uso» y «sin usos»).
-
-- Un clic en una pestaña la trae al frente; un clic en un componente lo **entra** (ver
-  [Entrar a un componente](#entrar-a-un-componente)) con los valores de su primer uso, o «Sin valores» si el circuito
-  no lo usa. La barra se cierra al elegir.
-- Con el foco en el campo, **Ctrl+Intro** va al primer botón, y **Intro** también cuando el circuito no tiene ninguna
-  pieza que coincida. Sin texto o sin coincidencias, la fila no aparece.
-
 ## Adentro de un componente: qué cambia
 
 En la pestaña de un componente se edita con las mismas herramientas que en el circuito. Estas son las diferencias:
@@ -152,9 +105,6 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   de un componente se nombra con su camino («U1 › U3 (NOT)»). F8, o un doble clic en la lista, lleva a donde está: si
   está adentro de un componente, entra a ese componente con los valores de la pieza del camino y selecciona la parte.
   Desde la pestaña de un componente, un problema del circuito lleva a la pestaña del circuito.
-- **Un pin nuevo que no cabe**: si al agregar un pin adentro su lugar en el borde de una pieza toca un cable o un pin,
-  esa pieza pone el pin nuevo en otro lugar libre de su borde y mantiene el resto como estaba, sin unir nada.
-  Problemas lo dice: «Inversor: el pin b quedó en otro lugar (su lugar estaba ocupado)».
 - **Memorias: cada pieza tiene su propio contenido**: una RAM o una ROM abierta desde la pestaña muestra el contenido
   de la pieza que se ve en «Valores de», y lo que se escribe ahí (también lo que se importa con «Importar…») cambia
   solo esa pieza: con dos «Memoria chica» en el circuito, escribir la palabra 1 adentro con «Valores de: Memoria 1» no
@@ -175,6 +125,52 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   mismo nombre en el circuito y adentro de un componente son dos ventanas distintas, y cada una recuerda su lugar y su
   tamaño. Si la pestaña pasa a mostrar otra pieza, la ventana de la pieza anterior se cierra. Abrirla desde otra
   pestaña de la misma pieza trae al frente la que ya estaba abierta.
+
+## Árbol del circuito
+
+En la columna de la izquierda, arriba de la paleta, el árbol «Circuito» muestra todo el circuito: lo que hay en él y
+lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mismo en todas las pestañas del circuito.
+
+- **Las filas**: la primera es el circuito, con su nombre y cuántas piezas tiene («1 pieza», «12 piezas»). Debajo va
+  cada pieza, en el orden del circuito, con el ícono de la paleta. Una pieza de un componente propio se despliega en
+  las piezas de adentro. Los cables, los marcos y las notas no son piezas y no aparecen; las filas no muestran valores.
+- **Los nombres**: una pieza se llama por su etiqueta («IR · Registro», con el tipo detrás) o, si no tiene, por su
+  tipo («Ram», «AND de 3 entradas»). Si en un mismo lugar hay varias sin etiqueta del mismo tipo, se numeran en el
+  orden del circuito: «Multiplexor 1» … «Multiplexor 4». El identificador de la pieza («c5/c2») está en la ayuda al
+  pasar el mouse. La [barra de lugar](#la-barra-de-lugar) y Problemas las nombran igual.
+- **Clic en una fila**: lleva a la pieza. Si está en otro lugar, primero va a esa pestaña (la del circuito, o la del
+  componente que la tiene adentro, con los valores de esa pieza, abriéndola si hace falta); después la selecciona y la
+  vista viaja hasta ella, y el inspector muestra sus propiedades. Es el mismo «Ver la pieza» de la barra de lugar y de
+  F8. Un clic en la fila del circuito trae su pestaña.
+- **Doble clic o Enter** en una pieza de un componente propio entra a ella (ver
+  [Entrar a un componente](#entrar-a-un-componente)). En esas filas el clic simple espera un instante, por si viene el
+  segundo.
+- **Clic derecho**: «Entrar» (en un componente propio), «Ver la pieza», «Cambiar forma…» (en un componente propio) y
+  «Propiedades». Las dos últimas llevan primero a la pieza, esté donde esté.
+- **Buscar**: el campo de arriba busca en todo el circuito, también dentro de los componentes, con las mismas reglas y
+  opciones Aa y .\* que la barra de búsqueda. Los resultados se listan uno debajo de otro con su ruta en gris («en
+  Ram › Muldiv») y lo que coincide en negrita; debajo del campo dice cuántos hay, o «Nada se llama así en este
+  circuito.». Enter va al primero; Esc vacía el campo y vuelve el árbol como estaba. Ctrl+F con el foco en el árbol va
+  al campo.
+- **Sigue a la pestaña activa**: cada pestaña abre en el árbol su lugar (el circuito, o la pieza cuyos valores
+  muestra) y lo marca con el color del grupo. Elegir una sola pieza en el lienzo elige su fila.
+- **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic (o con Alt+1 y Alt+2, que se pueden
+  cambiar en Atajos de teclado; también en Ver ▸ «Árbol del circuito» y «Paleta»), y el otro ocupa el espacio. Con
+  los dos abiertos, el divisor entre ellos se arrastra y VSim lo recuerda. Lo plegado es de cada ventana, vale para
+  todas sus pestañas y vuelve al abrir VSim.
+
+## Ir a… desde la barra de búsqueda
+
+La barra de búsqueda (Ctrl+F) también ofrece, en una segunda fila bajo el campo («Ir a:»), las pestañas abiertas de la
+ventana y los componentes del circuito cuyo nombre coincide con lo que escribes, con las mismas reglas que la
+búsqueda (sin distinguir tildes; «Aa» y «.*» como estén). Cada uno es un botón: «lrv32im» o «⬚ Ram» para una pestaña, y
+«⬚ Muldiv — componente, 3 usos» para un componente del circuito (también «1 uso» y «sin usos»).
+
+- Un clic en una pestaña la trae al frente; un clic en un componente lo **entra** (ver
+  [Entrar a un componente](#entrar-a-un-componente)) con los valores de su primer uso, o «Sin valores» si el circuito
+  no lo usa. La barra se cierra al elegir.
+- Con el foco en el campo, **Ctrl+Intro** va al primer botón, y **Intro** también cuando el circuito no tiene ninguna
+  pieza que coincida. Sin texto o sin coincidencias, la fila no aparece.
 
 ## Lupa: ver adentro sin entrar
 
