@@ -184,6 +184,23 @@ final class LayoutItems {
     }
 
     /**
+     * True when {@code item} at {@code candidate} comes closer than the gap to no other item, each where {@code now}
+     * says it is (items missing from it are where they started), that it was not already that close to from where it
+     * is now: a move never makes a new overlap with a neighbour that may still have to stay.
+     */
+    boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
+        Bounds from = now.getOrDefault(item.id(), item.bounds());
+        for (Item other : items) {
+            Bounds otherNow = now.getOrDefault(other.id(), other.bounds());
+            int gap = Math.max(item.gap(), other.gap());
+            if (!other.id().equals(item.id()) && overlaps(candidate, otherNow, gap) && !overlaps(from, otherNow, gap)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * The ids of the other items that {@code item} covers, every item where {@code placed} says it is (items missing
      * from it are where they started): a body or label of one shares an area with a body or label of the other (spec
      * §4.1). Being closer than the gap, touching, walls and frames do not count: the user sees nothing wrong there.

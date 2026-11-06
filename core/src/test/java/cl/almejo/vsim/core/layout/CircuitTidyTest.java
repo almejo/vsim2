@@ -297,6 +297,33 @@ class CircuitTidyTest {
                 .isFalse();
     }
 
+    /**
+     * A gate in a corridor of foreign wires, one every two units: wherever it goes, a wire runs through its body or
+     * lands on a pin, so it can never move.
+     */
+    private Component stuckGate(CircuitDocument document) {
+        Component stuck = gate(registry, document, 0, 0);
+        for (int y = -99; y <= 99; y += 2) {
+            wire(document, -100, y, 100, y);
+        }
+        return stuck;
+    }
+
+    @Test
+    void nothingMovesOntoANeighbourThatCouldNotLeave() {
+        CircuitDocument document = new CircuitDocument();
+        Component stuck = stuckGate(document);
+        TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(30, 30), "hola");
+        document.add(note);
+
+        CircuitTidyPlan plan = tidy(document, everything(document), CircuitTidyOptions.DEFAULTS, WIDE_TEXTS,
+                fixed(Map.of(stuck.id(), new GridPoint(0, 20), note.id(), new GridPoint(-30, -29))));
+
+        assertThat(plan.after().component(stuck.id()).orElseThrow()).isEqualTo(stuck);
+        assertThat(LayoutItems.overlaps(WIDE_TEXTS.freeText(plan.after().label(note.id()).orElseThrow()),
+                body(plan.after(), stuck.id()), 0)).isFalse();
+    }
+
     @Test
     void aFreeTextOverABodyMovesAway() {
         CircuitDocument document = new CircuitDocument();

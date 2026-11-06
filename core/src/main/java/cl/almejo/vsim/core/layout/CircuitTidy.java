@@ -134,6 +134,10 @@ public final class CircuitTidy {
         private Set<Set<PinRef>> originalNets;
         /** Where each item is or will be: its planned place until it is placed or refused. */
         private final Map<ElementId, Bounds> places = new HashMap<>();
+        /** Where each item that moved is on the copy now (the others are where they started). */
+        private final Map<ElementId, Bounds> actual = new HashMap<>();
+        /** The items whose every place was refused: counted first, when they still cover something. */
+        private final Set<ElementId> refused = new LinkedHashSet<>();
         private final Set<ElementId> notSeparated = new LinkedHashSet<>();
         private LayoutItems items;
         private int partsMoved;
@@ -212,7 +216,7 @@ public final class CircuitTidy {
             }
             for (LayoutItems.Item item : waiting) {
                 places.put(item.id(), item.bounds());
-                notSeparated.add(item.id());
+                refused.add(item.id());
             }
         }
 
@@ -223,6 +227,7 @@ public final class CircuitTidy {
                 Optional<GridPoint> shift = candidate.get();
                 if (shift.isPresent() && tryMove(item, shift.get())) {
                     places.put(item.id(), moved(item, shift.get()));
+                    actual.put(item.id(), moved(item, shift.get()));
                     partsMoved += item.parts();
                     textsMoved += item.texts();
                     return true;
@@ -257,7 +262,7 @@ public final class CircuitTidy {
                 for (int direction : directions) {
                     int step = direction * distance;
                     GridPoint shift = alongX ? new GridPoint(step, 0) : new GridPoint(0, step);
-                    if (items.isFree(item, moved(item, shift), places)) {
+                    if (isClear(item, moved(item, shift))) {
                         return Optional.of(shift);
                     }
                 }
@@ -270,7 +275,7 @@ public final class CircuitTidy {
          * when every pin stays in the net it was in; otherwise undoes it.
          */
         private boolean tryMove(LayoutItems.Item item, GridPoint shift) {
-            if (shift.equals(GridPoint.ORIGIN) || !items.isFree(item, moved(item, shift), places)) {
+            if (shift.equals(GridPoint.ORIGIN) || !isClear(item, moved(item, shift))) {
                 return false;
             }
             MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry, new LinkedHashSet<>(item.members()),
@@ -285,12 +290,24 @@ public final class CircuitTidy {
         }
 
         /**
+         * True when {@code item} at {@code candidate} keeps clear of every other item's planned place, and makes no
+         * new overlap with any item where it is now: a neighbour planned to leave may still have to stay, so its spot
+         * is not taken before it left.
+         */
+        private boolean isClear(LayoutItems.Item item, Bounds candidate) {
+            return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual);
+        }
+
+        /**
          * Adds the items in scope that still cover something at the end, as the user sees it (spec §4.1: bodies and
          * texts sharing an area; closer than the gap is fine): an overlap is counted once (an item whose every partner
          * is already counted is not), and a part still crossed by a foreign wire counts too.
          */
         private void countWhatStillOverlaps() {
-            for (LayoutItems.Item item : items.items()) {
+            List<LayoutItems.Item> refusedFirst = new ArrayList<>();
+            items.items().stream().filter(item -> refused.contains(item.id())).forEach(refusedFirst::add);
+            items.items().stream().filter(item -> !refused.contains(item.id())).forEach(refusedFirst::add);
+            for (LayoutItems.Item item : refusedFirst) {
                 if (notSeparated.contains(item.id()) || !item.partlyInScope()) {
                     continue;
                 }
