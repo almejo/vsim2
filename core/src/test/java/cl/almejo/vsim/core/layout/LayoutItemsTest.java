@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.layout;
 
+import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -181,8 +182,37 @@ class LayoutItemsTest {
         LayoutItems.Item item = items.item(crossed.id()).orElseThrow();
 
         assertThat(items.obstacles(item)).hasSize(1);
-        assertThat(LayoutItems.crossedByForeignWire(document, registry, List.of(crossed.id()), 0, 0)).isTrue();
-        assertThat(LayoutItems.crossedByForeignWire(document, registry, List.of(crossed.id()), 0, 2)).isFalse();
+        assertThat(LayoutItems.crossedByForeignWire(document, registry, List.of(crossed.id()))).isTrue();
+        MoveWithWiresCommand.of(document, registry, Set.of(crossed.id()), 0, 2).apply(document);
+        assertThat(LayoutItems.crossedByForeignWire(document, registry, List.of(crossed.id()))).isFalse();
+    }
+
+    @Test
+    void itemsCoverEachOtherOnlyWhereABodyOrLabelIs() {
+        CircuitDocument document = new CircuitDocument();
+        Component labelled = gate(registry, document, 0, 0).withLabel("Habilitar");
+        document.replace(labelled);
+        Component neighbour = gate(registry, document, 6, 2);
+        Component covering = gate(registry, document, 7, -1);
+        TextBoxes labelToTheRight = new TextBoxes() {
+            @Override
+            public Optional<Bounds> componentLabel(Component component) {
+                return component.label().isEmpty() ? Optional.empty()
+                        : Optional.of(new Bounds(component.position().x() + 5, component.position().y() + 1, 6, 1));
+            }
+
+            @Override
+            public Bounds freeText(TextLabel label) {
+                return TextBoxes.NONE.freeText(label);
+            }
+        };
+
+        LayoutItems items = LayoutItems.of(document, registry, everything(document), labelToTheRight);
+        LayoutItems.Item item = items.item(labelled.id()).orElseThrow();
+
+        assertThat(LayoutItems.overlaps(item.bounds(), items.item(neighbour.id()).orElseThrow().bounds(), 0))
+                .isTrue();
+        assertThat(items.coveredItems(item, Map.of())).containsExactly(covering.id());
     }
 
     @Test

@@ -270,14 +270,14 @@ public final class CircuitTidy {
          * when every pin stays in the net it was in; otherwise undoes it.
          */
         private boolean tryMove(LayoutItems.Item item, GridPoint shift) {
-            if (shift.equals(GridPoint.ORIGIN) || !items.isFree(item, moved(item, shift), places)
-                    || LayoutItems.crossedByForeignWire(copy, registry, item.members(), shift.x(), shift.y())) {
+            if (shift.equals(GridPoint.ORIGIN) || !items.isFree(item, moved(item, shift), places)) {
                 return false;
             }
             MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry, new LinkedHashSet<>(item.members()),
                     shift.x(), shift.y());
             move.apply(copy);
-            if (nets().equals(originalNets)) {
+            // Checked after the move, on the wires as they end up: the wires on the item's pins follow it.
+            if (!LayoutItems.crossedByForeignWire(copy, registry, item.members()) && nets().equals(originalNets)) {
                 return true;
             }
             move.revert(copy);
@@ -285,17 +285,18 @@ public final class CircuitTidy {
         }
 
         /**
-         * Adds the items in scope that still overlap something at the end: an overlap is counted once (an item whose
-         * every partner is already counted is not), and a part still crossed by a foreign wire counts too.
+         * Adds the items in scope that still cover something at the end, as the user sees it (spec §4.1: bodies and
+         * texts sharing an area; closer than the gap is fine): an overlap is counted once (an item whose every partner
+         * is already counted is not), and a part still crossed by a foreign wire counts too.
          */
         private void countWhatStillOverlaps() {
             for (LayoutItems.Item item : items.items()) {
                 if (notSeparated.contains(item.id()) || !item.partlyInScope()) {
                     continue;
                 }
-                List<ElementId> overlapped = items.overlappedItems(item, places.get(item.id()), places);
-                boolean newOverlap = overlapped.stream().anyMatch(other -> !notSeparated.contains(other));
-                if (newOverlap || LayoutItems.crossedByForeignWire(copy, registry, item.members(), 0, 0)) {
+                List<ElementId> covered = items.coveredItems(item, places);
+                boolean newOverlap = covered.stream().anyMatch(other -> !notSeparated.contains(other));
+                if (newOverlap || LayoutItems.crossedByForeignWire(copy, registry, item.members())) {
                     notSeparated.add(item.id());
                 }
             }

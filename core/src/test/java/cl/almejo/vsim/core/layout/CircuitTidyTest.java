@@ -192,8 +192,74 @@ class CircuitTidyTest {
         CircuitTidyPlan plan = tidy(document, new GreedySeparator());
 
         assertThat(plan.after().component(crossed.id()).orElseThrow().position()).isNotEqualTo(crossed.position());
-        assertThat(LayoutItems.crossedByForeignWire(plan.after(), registry, List.of(crossed.id()), 0, 0)).isFalse();
+        assertThat(LayoutItems.crossedByForeignWire(plan.after(), registry, List.of(crossed.id()))).isFalse();
         assertThat(nets(plan.after())).isEqualTo(nets(document));
+    }
+
+    /** Through the public entry point, with the real {@link OverlapSeparation}, on everything. */
+    private CircuitTidyPlan tidyForReal(CircuitDocument document) {
+        return CircuitTidy.plan(document, registry, everything(document), CircuitTidyOptions.DEFAULTS,
+                TextBoxes.NONE, NEVER, round -> {
+                }).orElseThrow();
+    }
+
+    @Test
+    void partsThatOnlyTouchAreNeitherMovedNorCounted() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 0, 0);
+        gate(registry, document, 0, 4);
+
+        CircuitTidyPlan plan = tidyForReal(document);
+
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void aWireOfThePartsOwnNetOverItsBodyIsNotAnOverlap() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 0, 0);
+        wire(document, 4, 2, 6, 2);
+        wire(document, 6, 2, 6, -2);
+        wire(document, 6, -2, 2, -2);
+        wire(document, 2, -2, 2, 6);
+
+        CircuitTidyPlan plan = tidy(document, everything(document),
+                new CircuitTidyOptions(true, new TidyOptions(false, false, false)), TextBoxes.NONE,
+                OverlapSeparation::separate);
+
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void aWireThatEntersALampToReachItsPinIsNotAnOverlap() {
+        CircuitDocument document = new CircuitDocument();
+        place(registry, document, StandardComponentTypes.SWITCH, 0, 0, "");
+        place(registry, document, StandardComponentTypes.LED, 30, 0, "");
+        wire(document, 4, 1, 31, 1);
+        wire(document, 31, 1, 31, 3);
+
+        CircuitTidyPlan plan = tidyForReal(document);
+
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    @Test
+    void aWireThatRunsThroughALampAndEndsOnItsPinIsNotAnOverlap() {
+        CircuitDocument document = new CircuitDocument();
+        place(registry, document, StandardComponentTypes.SWITCH, 0, 0, "");
+        place(registry, document, StandardComponentTypes.LED, 30, 0, "");
+        wire(document, 4, 1, 20, 1);
+        wire(document, 20, 1, 20, -5);
+        wire(document, 20, -5, 31, -5);
+        wire(document, 31, -5, 31, 3);
+
+        CircuitTidyPlan plan = tidyForReal(document);
+
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
     }
 
     /** Component labels 6 x 1 to the right of the body, free texts 6 x 1 from their position. */

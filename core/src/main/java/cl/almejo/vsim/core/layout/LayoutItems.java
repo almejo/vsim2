@@ -12,6 +12,10 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.UnionFind;
+import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -61,12 +65,15 @@ final class LayoutItems {
      * or a sticky note. {@code id} is the smallest member id; {@code region} the innermost frame around it (empty: the
      * circuit itself); {@code parts} and {@code texts} count its members for the summary; {@code partlyInScope} says
      * at least one member may change (a fixed item that is partly in scope and overlaps something is reported).
+     * {@code bounds} is the box the separation moves; {@code shapes} are what the user sees of it (each body and each
+     * label), so two items whose boxes meet only where neither draws anything do not cover each other.
      */
-    record Item(ElementId id, List<ElementId> members, Bounds bounds, int gap, boolean movable,
+    record Item(ElementId id, List<ElementId> members, Bounds bounds, List<Bounds> shapes, int gap, boolean movable,
                 boolean partlyInScope, Optional<ElementId> region, int parts, int texts) {
 
         Item {
             members = List.copyOf(members);
+            shapes = List.copyOf(shapes);
         }
     }
 
@@ -177,18 +184,38 @@ final class LayoutItems {
     }
 
     /**
-     * The ids of the other items that {@code item} at {@code at} overlaps, each where {@code placed} says it is: what
-     * still needs separating. Walls and frames do not count (a part may touch a frame's border).
+     * The ids of the other items that {@code item} covers, every item where {@code placed} says it is (items missing
+     * from it are where they started): a body or label of one shares an area with a body or label of the other (spec
+     * §4.1). Being closer than the gap, touching, walls and frames do not count: the user sees nothing wrong there.
      */
-    List<ElementId> overlappedItems(Item item, Bounds at, Map<ElementId, Bounds> placed) {
-        List<ElementId> overlapped = new ArrayList<>();
+    List<ElementId> coveredItems(Item item, Map<ElementId, Bounds> placed) {
+        Bounds at = placed.getOrDefault(item.id(), item.bounds());
+        List<ElementId> covered = new ArrayList<>();
         for (Item other : items) {
-            if (!other.id().equals(item.id()) && overlaps(at, placed.getOrDefault(other.id(), other.bounds()),
-                    Math.max(item.gap(), other.gap()))) {
-                overlapped.add(other.id());
+            Bounds otherAt = placed.getOrDefault(other.id(), other.bounds());
+            if (!other.id().equals(item.id()) && overlaps(at, otherAt, 0)
+                    && shapesOverlap(item, at, other, otherAt)) {
+                covered.add(other.id());
             }
         }
-        return overlapped;
+        return covered;
+    }
+
+    private static boolean shapesOverlap(Item first, Bounds firstAt, Item second, Bounds secondAt) {
+        for (Bounds firstShape : shapesAt(first, firstAt)) {
+            for (Bounds secondShape : shapesAt(second, secondAt)) {
+                if (overlaps(firstShape, secondShape, 0)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static List<Bounds> shapesAt(Item item, Bounds at) {
+        int deltaX = at.x() - item.bounds().x();
+        int deltaY = at.y() - item.bounds().y();
+        return item.shapes().stream().map(shape -> shape.translate(deltaX, deltaY)).toList();
     }
 
     /**
@@ -203,30 +230,49 @@ final class LayoutItems {
     }
 
     /**
-     * True when, moved by the delta, a body of {@code members} would have a wire of {@code document} run through its
-     * inside without ending on one of the members' pins (where they are now: the wires on them follow the move).
+     * True when a wire of {@code document} runs through the inside of a body of {@code members} and is not part of
+     * that member's own wiring (its net as drawn holds none of the member's pins). A part's own wire over its body is
+     * a routing matter, which moving the part does not fix; a foreign one is an overlap (spec §4.1).
      */
     static boolean crossedByForeignWire(CircuitDocument document, ComponentTypeRegistry registry,
-                                        Collection<ElementId> members, int deltaX, int deltaY) {
-        Set<GridPoint> pins = new HashSet<>();
-        List<Bounds> bodies = new ArrayList<>();
+                                        Collection<ElementId> members) {
+        Map<Wire, List<Component>> crossings = new LinkedHashMap<>();
         for (ElementId id : members) {
             Optional<Component> component = document.component(id);
             Optional<ComponentType> type = component.flatMap(registry::findTypeOf);
             if (type.isEmpty()) {
                 continue;
             }
-            pins.addAll(type.get().pinLocations(component.get()));
-            bodies.add(type.get().bounds(component.get()).translate(deltaX, deltaY));
-        }
-        for (Wire wire : document.wires()) {
-            if (pins.contains(wire.start()) || pins.contains(wire.end())) {
-                continue;
-            }
-            for (Bounds body : bodies) {
+            Bounds body = type.get().bounds(component.get());
+            for (Wire wire : document.wires()) {
                 if (runsInside(wire, body)) {
+                    crossings.computeIfAbsent(wire, key -> new ArrayList<>()).add(component.get());
+                }
+            }
+        }
+        if (crossings.isEmpty()) {
+            return false;
+        }
+        Netlist asDrawn = new NetlistCompiler(registry).compileAsDrawn(document);
+        for (Map.Entry<Wire, List<Component>> crossing : crossings.entrySet()) {
+            for (Component component : crossing.getValue()) {
+                if (!isOwnWire(asDrawn, crossing.getKey(), component, registry.typeOf(component))) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    /** True when {@code wire}'s net, as drawn, holds a pin of {@code component}. */
+    private static boolean isOwnWire(Netlist asDrawn, Wire wire, Component component, ComponentType type) {
+        Optional<Net> net = asDrawn.netForWire(wire.id());
+        if (net.isEmpty()) {
+            return false;
+        }
+        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+            if (net.get().pins().contains(new PinRef(component.id(), pinIndex))) {
+                return true;
             }
         }
         return false;
@@ -263,28 +309,32 @@ final class LayoutItems {
     private static Item componentItem(List<Component> cluster, ComponentTypeRegistry registry, Set<ElementId> scope,
                                       TextBoxes texts, List<Frame> frames) {
         Bounds bounds = null;
+        List<Bounds> shapes = new ArrayList<>();
         List<ElementId> members = new ArrayList<>();
         for (Component component : cluster) {
             Bounds body = registry.typeOf(component).bounds(component);
-            Bounds withLabel = texts.componentLabel(component).map(body::union).orElse(body);
+            Optional<Bounds> label = texts.componentLabel(component);
+            shapes.add(body);
+            label.ifPresent(shapes::add);
+            Bounds withLabel = label.map(body::union).orElse(body);
             bounds = bounds == null ? withLabel : bounds.union(withLabel);
             members.add(component.id());
         }
-        return item(members, bounds, BODY_GAP, scope, frames, cluster.size(), 0);
+        return item(members, bounds, shapes, BODY_GAP, scope, frames, cluster.size(), 0);
     }
 
     private static Item textItem(ElementId id, Bounds bounds, Set<ElementId> scope, List<Frame> frames) {
-        return item(List.of(id), bounds, TEXT_GAP, scope, frames, 0, 1);
+        return item(List.of(id), bounds, List.of(bounds), TEXT_GAP, scope, frames, 0, 1);
     }
 
-    private static Item item(List<ElementId> members, Bounds bounds, int gap, Set<ElementId> scope,
-                             List<Frame> frames, int parts, int texts) {
+    private static Item item(List<ElementId> members, Bounds bounds, List<Bounds> shapes, int gap,
+                             Set<ElementId> scope, List<Frame> frames, int parts, int texts) {
         boolean inScope = scope.containsAll(members);
         boolean partlyInScope = members.stream().anyMatch(scope::contains);
         boolean straddles = frames.stream().anyMatch(frame -> straddles(frame, bounds));
         Optional<ElementId> region = straddles ? Optional.empty() : innermostAround(frames, bounds);
-        return new Item(members.get(0), members, bounds, gap, inScope && !straddles, partlyInScope, region, parts,
-                texts);
+        return new Item(members.get(0), members, bounds, shapes, gap, inScope && !straddles, partlyInScope, region,
+                parts, texts);
     }
 
     /** True when {@code bounds} shares an area with {@code frame} without lying inside it (across its border). */
@@ -359,28 +409,33 @@ final class LayoutItems {
     }
 
     /**
-     * A line for every wire that runs through a body it does not end on, one unit shorter at each end that is a pin
-     * (so the parts at its ends, one unit away, are not pushed by it).
+     * A line for every wire that runs through a body it is foreign to ({@link #crossedByForeignWire}), one unit
+     * shorter at each end that is a pin (so the parts at its ends, one unit away, are not pushed by it).
      */
     private static List<LayoutBox> wireObstacles(CircuitDocument document, ComponentTypeRegistry registry) {
-        Map<ElementId, Set<GridPoint>> pinsByComponent = new LinkedHashMap<>();
-        Map<ElementId, Bounds> bodies = new LinkedHashMap<>();
         Set<GridPoint> allPins = new HashSet<>();
+        List<Component> known = new ArrayList<>();
         for (Component component : document.components()) {
             registry.findTypeOf(component).ifPresent(type -> {
-                Set<GridPoint> pins = new HashSet<>(type.pinLocations(component));
-                pinsByComponent.put(component.id(), pins);
-                bodies.put(component.id(), type.bounds(component));
-                allPins.addAll(pins);
+                allPins.addAll(type.pinLocations(component));
+                known.add(component);
             });
         }
+        Netlist asDrawn = null;
         List<LayoutBox> obstacles = new ArrayList<>();
         for (Wire wire : document.wires()) {
-            boolean crossesABody = bodies.entrySet().stream().anyMatch(body -> runsInside(wire, body.getValue())
-                    && !pinsByComponent.get(body.getKey()).contains(wire.start())
-                    && !pinsByComponent.get(body.getKey()).contains(wire.end()));
-            if (crossesABody) {
-                obstacles.add(fixed(WIRE_OBSTACLE_PREFIX + wire.id().value(), shortened(wire, allPins)));
+            for (Component component : known) {
+                ComponentType type = registry.typeOf(component);
+                if (!runsInside(wire, type.bounds(component))) {
+                    continue;
+                }
+                if (asDrawn == null) {
+                    asDrawn = new NetlistCompiler(registry).compileAsDrawn(document);
+                }
+                if (!isOwnWire(asDrawn, wire, component, type)) {
+                    obstacles.add(fixed(WIRE_OBSTACLE_PREFIX + wire.id().value(), shortened(wire, allPins)));
+                    break;
+                }
             }
         }
         return obstacles;
