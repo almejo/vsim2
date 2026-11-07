@@ -15,7 +15,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.AbstractButton;
+import javax.swing.JComponent;
+import javax.swing.JRootPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import java.awt.Container;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -161,6 +168,59 @@ class MemoryEditorDialogTest {
             }
         }
         return null;
+    }
+
+    @Test
+    void aceptarIsTheDefaultButtonOfTheDialog() {
+        MemoryEditorDialog dialog = dialogOn(rom(Map.of(MemoryTypes.WORDS, "16")));
+        JRootPane rootPane = new JRootPane();
+        rootPane.setContentPane((Container) dialog.content());
+
+        dialog.bindTo(rootPane);
+
+        assertThat(rootPane.getDefaultButton()).isSameAs(button(rootPane, "memory.accept"));
+        assertThat(rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .get(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))).isNotNull();
+    }
+
+    @Test
+    void enterWhileEditingACellEndsTheEditAndDoesNotReachTheDefaultButton() {
+        Component component = rom(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.CONTENTS, "@0 1"));
+        MemoryEditorDialog dialog = dialogOn(component);
+        JRootPane rootPane = new JRootPane();
+        rootPane.setContentPane((Container) dialog.content());
+        dialog.bindTo(rootPane);
+        JTable table = dialog.table();
+        int firstWordColumn = 1;
+        assertThat(table.editCellAt(0, firstWordColumn)).isTrue();
+        JTextField cellField = (JTextField) table.getEditorComponent();
+        cellField.setText("7");
+
+        boolean taken = SwingUtilities.processKeyBindings(enterOn(cellField));
+
+        assertThat(taken).isTrue(); // the field took it: Enter never gets to the root pane's default button
+        assertThat(table.isEditing()).isFalse();
+        assertThat(String.valueOf(dialog.model().getValueAt(0, firstWordColumn))).isEqualTo("07");
+        assertThat(contentsOf(component)).isEqualTo("@0 1"); // not accepted
+    }
+
+    @Test
+    void enterWithTheGridFocusedMovesTheSelectionAndDoesNotReachTheDefaultButton() {
+        MemoryEditorDialog dialog = dialogOn(rom(Map.of(MemoryTypes.WORDS, "64")));
+        JRootPane rootPane = new JRootPane();
+        rootPane.setContentPane((Container) dialog.content());
+        dialog.bindTo(rootPane);
+        JTable table = dialog.table();
+        table.changeSelection(0, 1, false, false);
+
+        boolean taken = SwingUtilities.processKeyBindings(enterOn(table));
+
+        assertThat(taken).isTrue();
+        assertThat(table.getSelectedRow()).isEqualTo(1);
+    }
+
+    private static KeyEvent enterOn(java.awt.Component target) {
+        return new KeyEvent(target, KeyEvent.KEY_PRESSED, 0L, 0, KeyEvent.VK_ENTER, '\n');
     }
 
     @Test
