@@ -3,6 +3,8 @@ package cl.almejo.vsim.ui.wiring;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
+import cl.almejo.vsim.core.command.WidthsFollowConnectionCommand;
+import cl.almejo.vsim.core.command.WrapsCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -35,7 +37,9 @@ import java.util.function.Consumer;
  * arrow keys, X/Y in Propiedades and a drag between views. Following, the attached wires stretch
  * ({@link MoveWithWiresCommand}, clean-up included, one undo step); not following, the move of before M6.7
  * ({@link MoveElementsCommand}). After a following move the status bar names the new contacts it made, or, the first
- * time in the session that wires followed, says how to move without them.
+ * time in the session that wires followed, says how to move without them. A moved part whose data pin lands on a net
+ * of another width takes that width in the same step ({@link WidthsFollowConnectionCommand}), and the status bar says
+ * so instead.
  */
 public final class SelectionMoves {
 
@@ -134,10 +138,18 @@ public final class SelectionMoves {
             return;
         }
         Set<ElementId> selectedBefore = selection == null ? Set.of() : selection.ids();
-        Command command = command(openDocument, ids, delta.x(), delta.y(), follow);
+        Command command = widthsFollow(openDocument, command(openDocument, ids, delta.x(), delta.y(), follow), ids);
         openDocument.execute(command);
         followMerges(openDocument.document(), selection, selectedBefore, command);
         report(openDocument.document(), command, mayHint);
+    }
+
+    /**
+     * {@code move} with the widths that follow it: a part it moves so a data pin touches a net of another width takes
+     * that width, in the same undo step ({@link WidthsFollowConnectionCommand}).
+     */
+    private static Command widthsFollow(OpenDocument openDocument, Command move, Collection<ElementId> ids) {
+        return WidthsFollowConnectionCommand.placing(move, new LinkedHashSet<>(ids), openDocument.registry());
     }
 
     /**
@@ -153,12 +165,14 @@ public final class SelectionMoves {
             return;
         }
         if (!followMode()) {
-            openDocument.execute(MoveElementsCommand.nudge(ids, delta.x(), delta.y()));
+            openDocument.execute(widthsFollow(openDocument, MoveElementsCommand.nudge(ids, delta.x(), delta.y()),
+                    ids));
+            openDocument.history().lastExecuted().ifPresent(command -> reportWidths(openDocument.document(), command));
             return;
         }
         Set<ElementId> selectedBefore = selection == null ? Set.of() : selection.ids();
-        openDocument.execute(MoveWithWiresCommand.nudge(openDocument.registry(), new LinkedHashSet<>(ids), delta.x(),
-                delta.y()));
+        openDocument.execute(widthsFollow(openDocument, MoveWithWiresCommand.nudge(openDocument.registry(),
+                new LinkedHashSet<>(ids), delta.x(), delta.y()), ids));
         openDocument.history().lastExecuted().ifPresent(command -> {
             followMerges(openDocument.document(), selection, selectedBefore, command);
             report(openDocument.document(), command, true);
@@ -177,7 +191,7 @@ public final class SelectionMoves {
      */
     static void followMerges(CircuitDocument document, Selection selection, Set<ElementId> selectedBefore,
                              Command command) {
-        if (selection == null || !(command instanceof MoveWithWiresCommand moved)) {
+        if (selection == null || !(WrapsCommand.unwrapped(command) instanceof MoveWithWiresCommand moved)) {
             return;
         }
         Map<ElementId, ElementId> mergedInto = moved.mergedInto();
@@ -206,7 +220,10 @@ public final class SelectionMoves {
 
     /** The new contacts, or the hint once per session when wires followed by the mode (not by the invert key). */
     private void report(CircuitDocument document, Command command, boolean followedByMode) {
-        if (!(command instanceof MoveWithWiresCommand moved)) {
+        if (reportWidths(document, command)) {
+            return;
+        }
+        if (!(WrapsCommand.unwrapped(command) instanceof MoveWithWiresCommand moved)) {
             return;
         }
         FollowPlan plan = moved.plan().orElse(FollowPlan.EMPTY);
@@ -217,6 +234,13 @@ public final class SelectionMoves {
         if (followedByMode && wiresChanged(plan) && HINTED.add(preferences)) {
             notices.accept(hint());
         }
+    }
+
+    /** Shows which part took the width of what the move connected it to; false when none did. */
+    private boolean reportWidths(CircuitDocument document, Command command) {
+        Optional<String> notice = WidthsFollowNotice.of(document, command);
+        notice.ifPresent(notices);
+        return notice.isPresent();
     }
 
     private static boolean wiresChanged(FollowPlan plan) {
@@ -239,7 +263,7 @@ public final class SelectionMoves {
     }
 
     /** The type's visible name, then the label when there is one («NOT U1»). */
-    private static String componentName(Component component, CircuitDocument document) {
+    static String componentName(Component component, CircuitDocument document) {
         String typeName = SubcircuitTypes.definitionIdOf(component.typeId()).flatMap(document::definition)
                 .map(ComponentDefinition::name)
                 .orElseGet(() -> Messages.componentName(component.typeId(), component.parameters()));

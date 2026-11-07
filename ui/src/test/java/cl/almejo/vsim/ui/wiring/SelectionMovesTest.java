@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.command.WrapsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
@@ -117,7 +118,8 @@ class SelectionMovesTest {
         moves.nudge(openDocument, Set.of(gate.id()), -1, 0);
 
         assertThat(notices).isEmpty();
-        assertThat(openDocument.history().undoCommand()).get().isInstanceOf(MoveWithWiresCommand.class);
+        assertThat(openDocument.history().undoCommand().map(WrapsCommand::unwrapped)).get()
+                .isInstanceOf(MoveWithWiresCommand.class);
     }
 
     @Test

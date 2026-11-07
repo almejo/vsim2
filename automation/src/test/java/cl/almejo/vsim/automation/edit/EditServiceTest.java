@@ -103,15 +103,16 @@ class EditServiceTest {
         assertNothingChanged();
     }
 
+    /** Neither adder gives way to the other («Anchos que siguen lo conectado»), so the AI is refused. */
     @Test
     void aWireOfTheWrongWidthIsRefusedAfterValidPlacements() {
         EditRequest request = request(
-                new PlacePart(Optional.of("bus"), "input-pin", 0, 0, Rotation.R0, Map.of("width", 8), "A"),
-                place("lamp", "led", 10, 0),
-                connect("new:bus", "pin", "new:lamp", "in"));
+                new PlacePart(Optional.of("wide"), "adder", 0, 0, Rotation.R0, Map.of("width", 8), ""),
+                new PlacePart(Optional.of("narrow"), "adder", 20, 0, Rotation.R0, Map.of("width", 4), ""),
+                connect("new:wide", "S", "new:narrow", "A"));
 
         AutomationException refusal = assertRefused(request, AutomationError.INVALID_PIN);
-        assertThat(refusal.getMessage()).contains("8").contains("1");
+        assertThat(refusal.getMessage()).contains("8").contains("4");
         assertThat(refusal.recovery()).containsEntry("operation", 2);
         assertNothingChanged();
     }
