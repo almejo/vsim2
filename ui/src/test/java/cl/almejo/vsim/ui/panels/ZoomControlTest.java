@@ -11,6 +11,7 @@ import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import java.awt.Component;
@@ -302,6 +303,24 @@ class ZoomControlTest {
         } finally {
             UIManager.setLookAndFeel(previous);
         }
+    }
+
+    @Test
+    void aThemeChangeGoesThroughTheControlAndTheFieldKeepsWorkingWithTheNewEditor() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            for (LookAndFeel lookAndFeel : List.of(new FlatLightLaf(), new FlatDarkLaf(), new FlatLightLaf())) {
+                UIManager.setLookAndFeel(lookAndFeel);
+                // the look and feel leaves the field without an editor while it swaps it: the switch goes on
+                SwingUtilities.updateComponentTreeUI(control);
+            }
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
+
+        type("250");
+
+        assertThat(pane.calls).containsExactly("travel 2.5", "focus");
     }
 
     @Test
