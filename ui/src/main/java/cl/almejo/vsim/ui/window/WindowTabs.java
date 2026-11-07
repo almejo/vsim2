@@ -302,8 +302,10 @@ public final class WindowTabs extends JPanel {
     }
 
     /**
-     * Alt+3 … Alt+6 open the right panel's sections; Swing's text fields would also insert the digit ({@code Alt+char}
-     * still types), so the character event of those keys is consumed before the focused field sees it.
+     * Alt+3 … Alt+6 open the right panel's sections. A safety net so that the focused field never gets the digit: the
+     * character event of those keys is consumed before the field sees it. Swing's own key-typed action already refuses
+     * Alt-only characters, so on Linux this is probably never needed (not checked with a real keyboard); on macOS
+     * Option+digit types another character, which this does not match.
      */
     private boolean swallowTypedSectionKey(KeyEvent event) {
         Optional<TabEntry> active = activeEntry();
