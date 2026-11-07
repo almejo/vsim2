@@ -115,7 +115,7 @@ class PropertiesPanelTest {
 
     @Test
     void nothingSelectedSaysSo() {
-        assertThat(panel.heading()).isEqualTo("Sin selección");
+        assertThat(panel.card().subtitle()).isEqualTo("Sin selección");
         assertThat(panel.textField()).isNull();
     }
 
@@ -173,7 +173,7 @@ class PropertiesPanelTest {
         Component first = gate(0);
         Component second = gate(10);
         selection.set(List.of(first.id(), second.id()));
-        assertThat(panel.heading()).isEqualTo("2 elementos");
+        assertThat(panel.card().title()).isEqualTo("2 elementos");
     }
 
     @Test
@@ -181,7 +181,7 @@ class PropertiesPanelTest {
         Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 0), new GridPoint(6, 0));
         openDocument.execute(new AddWireCommand(wire));
         selection.select(wire.id());
-        assertThat(panel.heading()).isEqualTo("Cable · largo 6");
+        assertThat(panel.card().title()).isEqualTo("Cable · largo 6");
     }
 
     @Test
@@ -190,14 +190,14 @@ class PropertiesPanelTest {
         Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 0, 0,
                 Map.of());
         selection.select(instance.id());
-        assertThat(panel.heading()).isEqualTo("Inversor");
+        assertThat(panel.card().title()).isEqualTo("Inversor");
     }
 
     @Test
     void aComponentShowsTypeLabelAndParameters() {
         Component gate = gate(0);
         selection.select(gate.id());
-        assertThat(panel.heading()).isEqualTo("NOT");
+        assertThat(panel.card().title()).isEqualTo("NOT");
         assertThat(panel.textField().getText()).isEmpty();
         assertThat(((JSpinner) panel.parameterForm().editor("delay")).getValue()).isEqualTo(1);
     }
@@ -206,15 +206,15 @@ class PropertiesPanelTest {
     void turningNegateOnRenamesAnAndToNandInOneUndoStep() {
         Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
         selection.select(andGate.id());
-        assertThat(panel.heading()).isEqualTo("AND");
+        assertThat(panel.card().title()).isEqualTo("AND");
 
         ((javax.swing.JCheckBox) panel.parameterForm().editor(StandardComponentTypes.NEGATE)).doClick();
 
         assertThat(current(andGate).parameters()).containsEntry(StandardComponentTypes.NEGATE, true);
-        assertThat(panel.heading()).isEqualTo("NAND");
+        assertThat(panel.card().title()).isEqualTo("NAND");
         openDocument.history().undo();
         assertThat(current(andGate).parameters().get(StandardComponentTypes.NEGATE)).isNotEqualTo(true);
-        assertThat(panel.heading()).isEqualTo("AND");
+        assertThat(panel.card().title()).isEqualTo("AND");
     }
 
     @Test
@@ -309,8 +309,52 @@ class PropertiesPanelTest {
 
         assertThat(allOf(box, javax.swing.AbstractButton.class)).extracting(javax.swing.AbstractButton::getText)
                 .allMatch(text -> text == null || text.isEmpty());
-        assertThat(allOf(box, javax.swing.JLabel.class)).extracting(javax.swing.JLabel::getText)
+        assertThat(allOf(box, SectionHeader.class)).extracting(SectionHeader::text)
                 .containsExactly("Descripción");
+    }
+
+    @Test
+    void nothingSelectedShowsTheCircuitCardWithItsCountsAndTheyFollowTheDocument() {
+        openDocument.document().setName("Sumador");
+        panel.refresh();
+        assertThat(panel.card().title()).isEqualTo("Sumador");
+        assertThat(panel.card().subtitle()).isEqualTo("Sin selección");
+        assertThat(panel.card().parts()).isZero();
+        assertThat(panel.sectionTitles()).containsExactly("General");
+
+        gate(0);
+        gate(10);
+
+        assertThat(panel.card().parts()).isEqualTo(2);
+        assertThat(panel.card().wires()).isZero();
+    }
+
+    @Test
+    void aSelectedComponentShowsItsLabelAsTitleAndItsTypeAsSubtitle() {
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        selection.select(andGate.id());
+        assertThat(panel.card().title()).isEqualTo("AND");
+        assertThat(panel.card().subtitle()).isEqualTo("AND");
+
+        panel.textField().setText("Q1");
+        panel.commitEdits();
+
+        assertThat(panel.card().title()).isEqualTo("Q1");
+        assertThat(panel.card().subtitle()).isEqualTo("AND");
+    }
+
+    @Test
+    void sectionsComeInOrderAndAnEmptyOneIsAbsent() {
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        selection.select(andGate.id());
+        assertThat(panel.sectionTitles()).containsExactly("General", "Configuración", "Descripción");
+
+        selection.select(place(openDocument, StandardComponentTypes.BUFFER, 10, 0, Map.of()).id());
+        assertThat(panel.sectionTitles()).first().isEqualTo("General");
+        assertThat(panel.sectionTitles()).doesNotHaveDuplicates();
+
+        selection.clear();
+        assertThat(panel.sectionTitles()).doesNotContain("Configuración", "Descripción");
     }
 
     private static <T extends java.awt.Component> List<T> allOf(java.awt.Container root, Class<T> type) {
@@ -563,7 +607,7 @@ class PropertiesPanelTest {
         TextLabel label = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3), "nota");
         openDocument.execute(new AddElementsCommand(List.of(label)));
         selection.select(label.id());
-        assertThat(panel.heading()).isEqualTo("Texto libre");
+        assertThat(panel.card().title()).isEqualTo("Texto libre");
         panel.noteArea().setText("   ");
         panel.noteArea().confirm();
         assertThat(panel.error()).isEqualTo("El texto no puede quedar vacío");
@@ -746,7 +790,7 @@ class PropertiesPanelTest {
     @Test
     void aSelectedFrameShowsItsProperties() {
         frame(false);
-        assertThat(panel.heading()).isEqualTo("Marco");
+        assertThat(panel.card().title()).isEqualTo("Marco");
         assertThat(panel.textField().getText()).isEqualTo("Sumador");
         assertThat(panel.frameColor().selectedValue()).isEqualTo(FrameTint.BLUE);
         assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
@@ -817,7 +861,7 @@ class PropertiesPanelTest {
     void aSelectedLockedFrameShowsTitleColourPositionAndSizeButNoLockCheckbox() {
         frame(true);
         place(openDocument, StandardComponentTypes.BUFFER, 6, 6, Map.of(StandardComponentTypes.NEGATE, true));
-        assertThat(panel.heading()).isEqualTo("Marco");
+        assertThat(panel.card().title()).isEqualTo("Marco");
         assertThat(panel.textField().getText()).isEqualTo("Sumador");
         assertThat(panel.frameColor().selectedValue()).isEqualTo(FrameTint.BLUE);
         assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
@@ -1075,7 +1119,7 @@ class PropertiesPanelTest {
     @Test
     void aStickyNoteShowsItsColourAndKindAndEachChangeIsOneUndoStep() {
         StickyNote note = stickyNote();
-        assertThat(panel.heading()).isEqualTo("Nota adhesiva");
+        assertThat(panel.card().title()).isEqualTo("Nota adhesiva");
         assertThat(panel.stickyColor().values())
                 .containsExactly(StickyColor.values());
         assertThat(panel.stickyColor().selectedValue()).isEqualTo(StickyColor.YELLOW);
@@ -1167,16 +1211,16 @@ class PropertiesPanelTest {
 
                 recorder.forget();
                 onEventThread(selection::clear);
-                assertThat(panel.heading()).isEqualTo("Sin selección");
-                // the heading, «Nombre del circuito» with its field, and the error line
-                assertThat(panel.getComponents()).hasSize(4);
+                assertThat(panel.card().subtitle()).isEqualTo("Sin selección");
+                // the card, the «General» header, «Nombre del circuito» with its field, and the error line
+                assertThat(panel.getComponents()).hasSize(5);
                 assertThat(recorder.invalidated).as("laid out again after %s", typeId).contains(panel);
                 assertThat(recorder.repainted).as("painted again after %s", typeId).contains(panel);
 
                 onEventThread(() -> selection.select(part.id()));
                 recorder.forget();
                 onEventThread(() -> selection.set(List.of(part.id(), other.id())));
-                assertThat(panel.heading()).isEqualTo("2 elementos");
+                assertThat(panel.card().title()).isEqualTo("2 elementos");
                 assertThat(recorder.invalidated).as("laid out again after %s", typeId).contains(panel);
                 assertThat(recorder.repainted).as("painted again after %s", typeId).contains(panel);
                 onEventThread(selection::clear);

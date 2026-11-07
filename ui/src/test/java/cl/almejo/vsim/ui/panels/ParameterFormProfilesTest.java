@@ -77,12 +77,32 @@ class ParameterFormProfilesTest {
     }
 
     @Test
+    void inTheSectionedLayoutTheUngroupedParametersComeFirstUnderConfiguracionAndTheDialogHasNoSuchHeader() {
+        ComponentType mixed = new ComponentType("mixed", ComponentCategory.INPUT_OUTPUT, new GridSize(2, 2),
+                List.of(), List.of(ParameterSpec.integer("rows", 24, 1, 100).inGroup("screen"),
+                ParameterSpec.integer("delay", 1, 0, 9)), parameters -> (context, pinIndex) -> { });
+        javax.swing.JPanel host = new javax.swing.JPanel();
+        new ParameterForm(mixed, Map.of()).addRowsTo(host);
+        List<String> headers = new java.util.ArrayList<>();
+        for (Component child : host.getComponents()) {
+            if (child instanceof SectionHeader header) {
+                headers.add(header.text());
+            }
+        }
+        assertThat(headers).containsExactly("Configuración", "Pantalla");
+
+        ParameterForm dialogForm = new ParameterForm(mixed, Map.of());
+        assertThat(List.of(dialogForm.getComponents())).filteredOn(SectionHeader.class::isInstance)
+                .extracting(child -> ((SectionHeader) child).text()).containsExactly("Pantalla");
+    }
+
+    @Test
     void eachGroupHasAHeaderAndItsRowsFollowItInTheOrderOfFirstAppearance() {
         ParameterForm form = form(Map.of());
         List<Component> children = List.of(form.getComponents());
 
-        assertThat(form.groupHeader("piece").getText()).isEqualTo("Pieza");
-        assertThat(form.groupHeader("teaching").getText()).isEqualTo("Para enseñar");
+        assertThat(form.groupHeader("piece").text()).isEqualTo("Pieza");
+        assertThat(form.groupHeader("teaching").text()).isEqualTo("Para enseñar");
         int piece = children.indexOf(form.groupHeader("piece"));
         int screen = children.indexOf(form.groupHeader("screen"));
         int rows = children.indexOf(form.label("rows"));

@@ -238,10 +238,12 @@ class ParameterFormTest {
         javax.swing.JPanel host = new javax.swing.JPanel();
         form.addRowsTo(host);
         assertThat(form.getComponentCount()).isZero();
-        assertThat(host.getComponents()).hasSize(4);
-        assertThat(((JLabel) host.getComponent(0)).getLabelFor()).isSameAs(form.editor("time-up"));
-        assertThat(host.getComponent(1)).isSameAs(form.editor("time-up"));
-        assertThat(host.getComponent(3)).isSameAs(form.editor("time-down"));
+        // «Configuración» heads the parameters of no group
+        assertThat(host.getComponents()).hasSize(5);
+        assertThat(((SectionHeader) host.getComponent(0)).text()).isEqualTo("Configuración");
+        assertThat(((JLabel) host.getComponent(1)).getLabelFor()).isSameAs(form.editor("time-up"));
+        assertThat(host.getComponent(2)).isSameAs(form.editor("time-up"));
+        assertThat(host.getComponent(4)).isSameAs(form.editor("time-down"));
         typeInto((JSpinner) form.editor("time-up"), "0");
         assertThat(form.validationError()).isPresent();
         assertThat(((JSpinner) form.editor("time-up")).getClientProperty("JComponent.outline")).isEqualTo("error");

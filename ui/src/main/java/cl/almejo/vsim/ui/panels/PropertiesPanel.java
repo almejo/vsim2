@@ -94,7 +94,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private final DocumentListener documentListener = this::documentChanged;
     /** Undo and redo of «Nombre del circuito» touch no element: the history says when to show the name again. */
     private final Runnable historyListener = this::historyChanged;
-    private final JLabel heading = new JLabel();
+    /** The card at the top: the circuit with nothing selected, otherwise the selected element. */
+    private PropertyCard card = PropertyCard.forElement("", "select");
     /** The inline error, wrapped within the panel: a long sentence never widens the sidebar over the canvas. */
     private final WrappedErrorText error = new WrappedErrorText(" ");
     private Set<ElementId> shown = Set.of();
@@ -140,7 +141,6 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         this.openDocument = openDocument;
         this.selection = selection;
         this.selectionMoves = selectionMoves;
-        heading.putClientProperty("FlatLaf.styleClass", "h4");
         selection.addListener(this::selectionChanged);
         openDocument.document().addListener(documentListener);
         openDocument.addChangeListener(historyListener);
@@ -272,8 +272,28 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         openDocument.removeChangeListener(historyListener);
     }
 
-    String heading() {
-        return heading.getText();
+    PropertyCard card() {
+        return card;
+    }
+
+    /** The names of the sections shown, in order (a section with nothing in it is not there). */
+    List<String> sectionTitles() {
+        List<String> titles = new ArrayList<>();
+        collectSectionTitles(this, titles);
+        return titles;
+    }
+
+    private static void collectSectionTitles(java.awt.Container container, List<String> titles) {
+        for (java.awt.Component child : container.getComponents()) {
+            if (!child.isVisible()) {
+                continue;
+            }
+            if (child instanceof SectionHeader header) {
+                titles.add(header.text());
+            } else if (child instanceof java.awt.Container nested) {
+                collectSectionTitles(nested, titles);
+            }
+        }
     }
 
     JTextField textField() {
@@ -320,6 +340,9 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     }
 
     private void documentChanged(CircuitDocument document, DocumentChange change) {
+        if (shown.isEmpty() && card.isCircuit()) {
+            card.setCounts(document.components().size(), document.wires().size());
+        }
         boolean touchesShown = shown.stream()
                 .anyMatch(id -> change.changed().contains(id) || change.removed().contains(id));
         if (!touchesShown) {
@@ -340,8 +363,10 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         if (shown.size() != 1) {
             return;
         }
-        openDocument.document().component(shown.iterator().next()).ifPresent(component -> heading.setText(
-                Messages.componentName(openDocument.registry().typeOf(component), component.parameters())));
+        openDocument.document().component(shown.iterator().next()).ifPresent(component -> {
+            String typeName = Messages.componentName(openDocument.registry().typeOf(component), component.parameters());
+            card.setTexts(PropertyCard.titleOf(typeName, component.label()), typeName);
+        });
     }
 
     /**
@@ -384,14 +409,16 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         pendingEdits = () -> { };
         error.setText(" ");
         shown = selection.ids();
-        add(heading, "span 2, align left");
         if (shown.isEmpty()) {
-            heading.setText(Messages.text("properties.none"));
+            showCard(PropertyCard.forCircuit(openDocument.document().name(), openDocument.document().components().size(),
+                    openDocument.document().wires().size()));
+            addSection("properties.section.general");
             showCircuitName();
         } else if (shown.size() > 1) {
-            heading.setText(Messages.format("properties.several", shown.size()));
+            showCard(PropertyCard.forElement(Messages.format("properties.several", shown.size()), "select"));
             List<TextLabel> notes = shownNotes();
             if (notes.size() == shown.size()) {
+                addSection("properties.section.general");
                 addNoteStyleRows(notes);
             }
         } else {
@@ -460,10 +487,10 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     private void showElement(DocumentElement element) {
         switch (element) {
-            case null -> heading.setText(Messages.text("properties.none"));
+            case null -> showCard(PropertyCard.forElement(Messages.text("properties.none"), "select"));
             case Component component -> showComponent(component);
             case TextLabel label -> showText(label);
-            case Wire wire -> heading.setText(Messages.format("properties.wire", length(wire)));
+            case Wire wire -> showCard(PropertyCard.forElement(Messages.format("properties.wire", length(wire)), "wire"));
             case Frame frame -> showFrame(frame);
             case StickyNote note -> showStickyNote(note);
         }
@@ -471,7 +498,9 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     private void showComponent(Component component) {
         ComponentType type = openDocument.registry().typeOf(component);
-        heading.setText(Messages.componentName(type, component.parameters()));
+        String typeName = Messages.componentName(type, component.parameters());
+        showCard(PropertyCard.forComponent(type, typeName, component.label(), scheme));
+        addSection("properties.section.general");
         JTextField field = addTextRow(Messages.text("properties.label"), "label", component.label());
         ElementId id = component.id();
         int built = generation;
@@ -544,7 +573,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     }
 
     private void showText(TextLabel label) {
-        heading.setText(Messages.text("properties.textLabel"));
+        showCard(PropertyCard.forElement(Messages.text("properties.textLabel"), "text-tool"));
+        addSection("properties.section.general");
         // a note may hold several lines (IA.3): a one-line field would flatten them
         JLabel caption = new JLabel(Messages.text("properties.text"), ParameterIcons.labelIcon("text"),
                 JLabel.LEADING);
@@ -606,7 +636,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
      * unlocked.
      */
     private void showFrame(Frame frame) {
-        heading.setText(Messages.text("properties.frame"));
+        showCard(PropertyCard.forElement(Messages.text("properties.frame"), "frame-tool"));
+        addSection("properties.section.general");
         ElementId id = frame.id();
         int built = generation;
         JTextField field = addTextRow(Messages.text("properties.frameTitle"), "name", frame.title());
@@ -645,7 +676,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
      * on the paper itself). While a locked frame holds the note both rows are disabled, as every edit of it is.
      */
     private void showStickyNote(StickyNote note) {
-        heading.setText(Messages.text("properties.stickyNote"));
+        showCard(PropertyCard.forElement(Messages.text("properties.stickyNote"), "sticky-note-tool"));
+        addSection("properties.section.general");
         ElementId id = note.id();
         int built = generation;
         boolean editable = !StickyNoteLock.isLocked(openDocument, id);
@@ -704,6 +736,16 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     private static JSpinner spinner(int value, int minimum) {
         return new JSpinner(new SpinnerNumberModel(value, minimum, Integer.MAX_VALUE / 2, 1));
+    }
+
+    private void showCard(PropertyCard shownCard) {
+        card = shownCard;
+        add(card, "span 2, growx, wmin 0, gapbottom 4");
+    }
+
+    /** A section's header across both columns (the first one sits right under the card). */
+    private void addSection(String key) {
+        add(new SectionHeader(Messages.text(key)), "span 2, growx, wmin 0, gaptop 6");
     }
 
     private void addRow(String caption, java.awt.Component editor) {

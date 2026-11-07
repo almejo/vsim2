@@ -99,7 +99,9 @@ public final class ParameterForm extends JPanel {
     private final Map<String, JComponent> cells = new LinkedHashMap<>();
     /** The «↺» of each parameter some profile sets. */
     private final Map<String, JButton> restoreButtons = new LinkedHashMap<>();
-    private final Map<String, JLabel> groupHeaders = new LinkedHashMap<>();
+    private final Map<String, SectionHeader> groupHeaders = new LinkedHashMap<>();
+    /** «Configuración», over the parameters of no group when Properties lays the form out in sections. */
+    private final SectionHeader configHeader = new SectionHeader(Messages.text("properties.section.config"));
     /** The rows in the order they are laid out. */
     private final List<Row> rows = new ArrayList<>();
     private final List<Runnable> commitListeners = new ArrayList<>();
@@ -118,6 +120,9 @@ public final class ParameterForm extends JPanel {
     }
 
     private record HeaderRow(String group) implements Row {
+    }
+
+    private record ConfigHeaderRow() implements Row {
     }
 
     private record ParameterRow(ParameterSpec parameter) implements Row {
@@ -151,7 +156,7 @@ public final class ParameterForm extends JPanel {
                     (JComboBox<?>) editors.get(StandardComponentTypes.SIGNEDNESS));
         }
         type.profileParameter().ifPresent(this::buildProfileChooser);
-        layOut(this, "width 160::");
+        layOut(this, "width 160::", false);
         if (editors.containsKey(StandardComponentTypes.SIGNEDNESS) && editors.containsKey(StandardComponentTypes.WIDTH)
                 && type.id().equals(StandardComponentTypes.SWITCH)) {
             showNumbersOnlyWithManyBits();
@@ -173,8 +178,13 @@ public final class ParameterForm extends JPanel {
                 byGroup.computeIfAbsent(parameter.group(), group -> new ArrayList<>()).add(parameter);
             }
         }
-        byGroup.forEach((group, parameters) -> {
-            group.ifPresent(key -> rows.add(new HeaderRow(key)));
+        // The parameters of no group come first (under «Configuración» in Properties), then the groups.
+        List<Map.Entry<Optional<String>, List<ParameterSpec>>> ordered = new ArrayList<>(byGroup.entrySet());
+        ordered.sort(java.util.Comparator.comparing(entry -> entry.getKey().isPresent()));
+        ordered.forEach(entry -> {
+            Optional<String> group = entry.getKey();
+            List<ParameterSpec> parameters = entry.getValue();
+            group.ifPresentOrElse(key -> rows.add(new HeaderRow(key)), () -> rows.add(new ConfigHeaderRow()));
             for (ParameterSpec parameter : parameters) {
                 rows.add(new ParameterRow(parameter));
                 if (type.profileParameter().filter(parameter.name()::equals).isPresent()) {
@@ -219,10 +229,8 @@ public final class ParameterForm extends JPanel {
         return box;
     }
 
-    private static JLabel groupHeaderFor(String group) {
-        JLabel header = new JLabel(Messages.groupName(group));
-        header.putClientProperty("FlatLaf.style", "font: bold");
-        return header;
+    private static SectionHeader groupHeaderFor(String group) {
+        return new SectionHeader(Messages.groupName(group));
     }
 
     private boolean isSetByAProfile(ParameterSpec parameter) {
@@ -276,10 +284,15 @@ public final class ParameterForm extends JPanel {
     }
 
     /** Puts every row into {@code host}, a two column grid; {@code fieldConstraints} sizes the field column. */
-    private void layOut(JPanel host, String fieldConstraints) {
+    private void layOut(JPanel host, String fieldConstraints, boolean withConfigHeader) {
         for (Row row : rows) {
             switch (row) {
                 case HeaderRow(String group) -> host.add(groupHeaders.get(group), HEADER_CONSTRAINTS);
+                case ConfigHeaderRow() -> {
+                    if (withConfigHeader) {
+                        host.add(configHeader, HEADER_CONSTRAINTS);
+                    }
+                }
                 case ParameterRow(ParameterSpec parameter) -> layOutParameter(host, parameter, fieldConstraints);
                 case SummaryRow() -> {
                     if (profileSummary != null) {
@@ -410,6 +423,7 @@ public final class ParameterForm extends JPanel {
 
     private void showRowsWhoseConditionHolds(Map<String, Object> values) {
         Map<String, Boolean> groupShown = new LinkedHashMap<>();
+        boolean configShown = false;
         for (Row row : rows) {
             if (!(row instanceof ParameterRow(ParameterSpec parameter))) {
                 continue;
@@ -420,7 +434,9 @@ public final class ParameterForm extends JPanel {
                 cells.get(parameter.name()).setVisible(shown);
             }
             parameter.group().ifPresent(group -> groupShown.merge(group, shown, Boolean::logicalOr));
+            configShown |= parameter.group().isEmpty() && shown;
         }
+        configHeader.setVisible(configShown);
         groupShown.forEach((group, shown) -> groupHeaders.get(group).setVisible(shown));
     }
 
@@ -546,7 +562,7 @@ public final class ParameterForm extends JPanel {
      * field runs past the panel's edge.
      */
     public void addRowsTo(JPanel host) {
-        layOut(host, "wmin 0");
+        layOut(host, "wmin 0", true);
     }
 
     /** The label of a parameter: its name, plus « (t)» for a time parameter. Error messages use the plain name. */
@@ -569,11 +585,11 @@ public final class ParameterForm extends JPanel {
     }
 
     /** The header of {@code group}; null when no shown parameter is in it. */
-    JLabel groupHeader(String group) {
+    SectionHeader groupHeader(String group) {
         return groupHeaders.get(group);
     }
 
-    Map<String, JLabel> groupHeaders() {
+    Map<String, SectionHeader> groupHeaders() {
         return Map.copyOf(groupHeaders);
     }
 

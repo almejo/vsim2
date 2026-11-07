@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.BorderFactory;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -30,7 +29,7 @@ public final class DescriptionBox extends JPanel {
     private static final int FALLBACK_WIDTH = 260;
     private static final int GAP = 4;
 
-    private final JLabel title = new JLabel(Messages.text("properties.description.title"));
+    private final SectionHeader title = new SectionHeader(Messages.text("properties.description.title"));
     private final JTextArea body = new JTextArea();
     private final JScrollPane scroll = new JScrollPane(body, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -78,7 +77,6 @@ public final class DescriptionBox extends JPanel {
         Font font = UIManager.getFont("Label.font");
         if (font != null) {
             body.setFont(font);
-            title.setFont(font.deriveFont(Font.BOLD));
         }
         if (UIManager.getColor("Label.foreground") != null) {
             body.setForeground(UIManager.getColor("Label.foreground"));
