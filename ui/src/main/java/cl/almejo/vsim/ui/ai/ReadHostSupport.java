@@ -10,12 +10,14 @@ import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -64,12 +66,19 @@ final class ReadHostSupport {
         this.windowsOf = Objects.requireNonNull(windowsOf, "windowsOf");
     }
 
-    /** @param library the user's component library, which the AI may also place from */
-    ReadSource source(DocumentId id, OpenDocument document, List<DefinitionBundle> library) {
-        // The circuit's own name (list_documents gives the window's, the file's).
+    /**
+     * @param library         the user's component library, which the AI may also place from
+     * @param libraryProblems the library's load problems, which the Problemas list shows under every circuit
+     */
+    ReadSource source(DocumentId id, OpenDocument document, List<DefinitionBundle> library,
+                      List<LibraryProblem> libraryProblems) {
+        SimulationSnapshot latest = document.latestSnapshot();
+        // The circuit's own name (list_documents gives the window's, the file's). The problems are made from the
+        // sources the Problemas list is made from, so the AI reads every row the user sees (fix round D).
         return new ReadSource(id, version(document), document.circuitName(), document.document(),
-                document.registry(), document.netlist(), document.netlistToken(), document.latestSnapshot(), NAMES,
-                library, LabelTextMeasure.INSTANCE, document.path(), pieceMemory(document));
+                document.registry(), document.netlist(), document.netlistToken(), latest, NAMES, library,
+                LabelTextMeasure.INSTANCE, document.path(), pieceMemory(document), document.problemSources(latest),
+                libraryProblems);
     }
 
     /**

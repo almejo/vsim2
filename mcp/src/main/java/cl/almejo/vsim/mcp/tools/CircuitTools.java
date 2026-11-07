@@ -88,10 +88,9 @@ final class CircuitTools {
 
     private static Tool readProblems(AutomationApi api) {
         return new Tool(READ_PROBLEMS, "Read the circuit's problems",
-                "The Problems panel: short circuits, width mismatches, tunnels, pieces' own memory contents not "
-                        + "used (OWN_CONTENTS_*)…, each with its parts and pins. upToDate is false until the "
-                        + "simulation catches up with the last edit: read again soon. Warnings may be on purpose while "
-                        + "building.",
+                "Every Problems panel row (shorts, tunnels, linked files, pins loose or moved and wires of removed "
+                        + "pins this session, OUTDATED_*, OWN_CONTENTS_*, LIBRARY_*…) with its parts and pins. "
+                        + "upToDate false: the simulation lags, read again soon. Warnings may be on purpose.",
                 Schema.object("").property("document", Common.document()).required("document").build(),
                 Common.versionedResult("The problems")
                         .property("simulationTime", Schema.string("When the simulation found them"))

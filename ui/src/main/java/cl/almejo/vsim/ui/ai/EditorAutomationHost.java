@@ -295,7 +295,8 @@ public final class EditorAutomationHost implements AutomationHost {
 
     @Override
     public <T> CompletableFuture<T> reading(DocumentId id, Function<ReadSource, T> work) {
-        return onEditorThread(access -> work.apply(reads.source(id, placeOf(id), windows.libraryComponents())));
+        return onEditorThread(access -> work.apply(reads.source(id, placeOf(id), windows.libraryComponents(),
+                windows.libraryProblems())));
     }
 
     // --- Exports (spec §7): ExportHostSupport takes the picture on the EDT and writes the file off it ---

@@ -15,6 +15,8 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.io.LibraryProblem;
+import cl.almejo.vsim.core.simulation.ListedProblems;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
 import java.nio.file.Path;
@@ -50,6 +52,9 @@ final class ReadFixture {
     private long version = 7;
     private Optional<Path> circuitFile = Optional.empty();
     private List<DefinitionBundle> library = List.of();
+    /** What the editor would list besides the simulation; empty: a source of no editor (its default). */
+    private Optional<ListedProblems.Sources> problemSources = Optional.empty();
+    private List<LibraryProblem> libraryProblems = List.of();
 
     Component place(String typeId, int x, int y) {
         return place(typeId, x, y, Rotation.R0, Map.of(), "");
@@ -88,11 +93,23 @@ final class ReadFixture {
         version = newVersion;
     }
 
+    /** The source as the editor gives it: these rows besides the simulation's, and the library's load problems. */
+    void useEditorProblems(ListedProblems.Sources sources, List<LibraryProblem> loadProblems) {
+        problemSources = Optional.of(sources);
+        libraryProblems = List.copyOf(loadProblems);
+    }
+
     static ElementId id(String value) {
         return new ElementId(value);
     }
 
     ReadSource source() {
+        if (problemSources.isPresent()) {
+            return new ReadSource(ID, new DocumentVersion(version), "Prueba", document, registry,
+                    new NetlistCompiler(registry).compile(document), document.revision(), snapshot, NAMES, library,
+                    TextMeasure.APPROXIMATE, circuitFile, memory -> Optional.empty(), problemSources.get(),
+                    libraryProblems);
+        }
         return new ReadSource(ID, new DocumentVersion(version), "Prueba", document, registry,
                 new NetlistCompiler(registry).compile(document), document.revision(), snapshot, NAMES, library,
                 TextMeasure.APPROXIMATE, circuitFile);

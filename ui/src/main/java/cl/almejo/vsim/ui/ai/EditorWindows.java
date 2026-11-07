@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
@@ -12,12 +13,20 @@ import java.util.Optional;
 
 /**
  * What the editor's windows give the AI's host (EDT only): new circuits, each circuit's settings override and the
- * user's component library.
+ * user's component library and its load problems.
  */
 public interface EditorWindows {
 
     /** The user's library («Mis componentes»): the AI may place its components too. None by default. */
     default List<DefinitionBundle> libraryComponents() {
+        return List.of();
+    }
+
+    /**
+     * The library's load problems (files skipped, the folder gone), which the Problemas list shows under every
+     * circuit: the AI reads them with the circuit's problems. None by default.
+     */
+    default List<LibraryProblem> libraryProblems() {
         return List.of();
     }
 

@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
+import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
@@ -950,6 +951,12 @@ public final class Application {
         @Override
         public List<DefinitionBundle> libraryComponents() {
             return library.entries();
+        }
+
+        /** What the Problemas list shows of the library: the service's load problems (TemplateFeatures lists them). */
+        @Override
+        public List<LibraryProblem> libraryProblems() {
+            return libraryService.problems();
         }
 
         /** «Presentar» as the circuit's first window's preferences hold it (IA.2). */
