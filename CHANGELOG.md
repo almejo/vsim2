@@ -7,9 +7,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md). El primer párrafo de cada versión publicada (bajo su título, antes de
 «Agregado») es su «Resumen» de 2 a 4 líneas: es el texto que `packaging/release-notes.sh` pone en la página de la release.
 
-## Sin publicar
+## Versión 0.7 — 2026-11-07
 
-Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circuito, entrar a un componente propio para editarlo en su pestaña, con una barra de lugar, un árbol del circuito, «Mirar adentro» y Ver la pieza; lo que se cambia adentro cambia el componente en todo el circuito.
+Pestañas agrupadas por circuito y editar un componente por dentro, con barra de lugar, árbol del circuito y «Mirar
+adentro»; Matriz LED, Punto de parada y formatos de valor nuevos (octal, caracteres, flotante y punto fijo); «Ordenar
+circuito» separa lo que se tapa y endereza cables; un panel derecho nuevo con insignia de problemas, y velocidad ×1000.
 
 ### Agregado
 
