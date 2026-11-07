@@ -169,6 +169,23 @@ class ToolCallsTest {
         assertThat(map(connection, "from")).containsOnlyKeys("elementId", "pinName");
     }
 
+    /** «Anchos que siguen lo conectado»: a Connect that makes a part take another width says which part, and how. */
+    @Test
+    void aConnectThatMakesAPartTakeTheBusWidthSaysWhichPartInTheReceipt() {
+        String task = beginTask();
+
+        Map<String, Object> receipt = call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "PlacePart", "alias", "bus", "typeId", "input-pin", "x", 0, "y", 0,
+                        "parameters", Map.of("width", 8), "label", "A"),
+                Map.of("op", "PlacePart", "alias", "probe", "typeId", "output-pin", "x", 12, "y", 0, "label", "Y"),
+                Map.of("op", "Connect", "from", Map.of("target", "new:bus", "pinName", "pin"),
+                        "to", Map.of("target", "new:probe", "pinName", "pin")))));
+
+        String probe = String.valueOf(map(receipt, "aliases").get("probe"));
+        assertThat(receipt.get("warnings")).isEqualTo(List.of("operation 2: " + probe
+                + " (output-pin) took the width of what it was connected to: 1 -> 8 bits"));
+    }
+
     /** Pulido T5: AddNote and SetLabel take a note's colours; the reading shows them only for a styled note. */
     @Test
     void aNoteGetsItsColoursAndTheReadingShowsOnlyThoseOfAStyledNote() {

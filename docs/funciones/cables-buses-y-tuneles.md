@@ -113,6 +113,36 @@ lleva un grupo y es un bus del ancho de ese grupo.
   grupos con el parámetro `groups` (el mismo texto, guardado igual que desde la ventana: un bit por pin queda vacío);
   un texto con problemas se rechaza.
 
+## Anchos que siguen lo conectado
+
+- Al **conectar** una pieza que tiene «Ancho (bits)» (pin de entrada o de salida, Constante, Interruptor, LED,
+  compuertas, Buffer y Buffer triestado, multiplexor, registro, contador, sumador y los demás bloques de N bits), toma
+  el ancho de lo que toca, en el mismo paso de deshacer que la conexión: una Constante de 1 bit que cableas a la
+  entrada de un sumador de 8 bits pasa a 8 bits, y un pin de salida que dejas en la punta de un bus de 16 bits pasa a
+  16. Ctrl+Z quita el cable y le devuelve su ancho de una vez. La barra de estado dice qué cambió («Constante tomó el
+  ancho de lo conectado: 8 bits»).
+- Cuenta como conectar: dibujar un cable, poner una pieza de la paleta y moverla (arrastrando, con las flechas o con
+  X/Y en Propiedades) hasta que un pin toque un cable o un pin. Cambiar un parámetro o pegar no cambia anchos.
+- Solo cuentan los pines que llevan el ancho de la pieza: el selector de un multiplexor, un «enable», un reloj o un
+  acarreo tienen su propio ancho y no deciden nada. La pieza cambia solo si **todo** lo que tocan esos pines tiene un
+  mismo ancho, distinto del suyo y que la pieza acepta.
+- Nunca se esconde un problema: si los pines de la pieza tocan anchos distintos (una AND con una entrada en un bus de
+  4 bits y la otra en uno de 8), si algo ya conectado tiene el ancho de ahora (la salida de la AND ya va a un cable
+  de 1 bit), si el ancho no cabe en la pieza (una Constante llega a 32 bits; un valor que no cabe en menos bits) o si
+  al cambiar de tamaño su pin tocaría otra cosa, no cambia nada y queda el aviso de anchos incompatibles de siempre.
+- Al dibujar un cable entre dos piezas que podrían cambiar, cede la que «manda» menos: una pieza que ya estaba
+  conectada manda sobre una suelta; después, los bloques y compuertas mandan sobre la Constante, la Constante sobre
+  los pines de entrada y los Interruptores, y estos sobre los pines de salida y los LEDs. Así, un pin de salida nuevo
+  cableado a un pin de entrada de 8 bits pasa a 8 bits, y un pin de entrada nuevo cableado a un registro ya conectado
+  toma el ancho del registro. Dos piezas que mandan lo mismo (dos sumadores sueltos de 4 y 8 bits) no cambian: queda
+  el aviso. Al poner o mover una pieza, solo cambia la que pusiste o moviste.
+- No se propaga por la red: cambia solo la pieza que conectaste, no lo que está más allá de ella. Las memorias RAM y
+  ROM, el separador y la unión de bus no cambian de ancho solos.
+- Adentro de un componente propio vale lo mismo: un pin del componente que conectas a algo de 8 bits pasa a 8 bits y
+  el pin del componente cambia en todo el circuito.
+- La IA sigue la misma regla al conectar, poner, mover o dibujar un cable; su respuesta dice qué pieza cambió de
+  ancho, y si los anchos no se pueden igualar la conexión se rechaza como antes.
+
 ## Túneles de cables
 
 - En la paleta, Cableado: **«Túnel (entrada)»** y **«Túnel (salida)»** unen cables por nombre sin dibujarlos. La señal que llega a la entrada sale por todas las salidas del mismo nombre: cada nombre tiene una sola entrada y las salidas que quieras. Sirve para un cable o para un bus (el túnel toma el ancho del cable al que lo conectas). No agrega retardo.

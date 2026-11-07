@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.WidthsFollowConnectionCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -9,11 +10,13 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 import cl.almejo.vsim.ui.tunnel.NewTunnels;
+import cl.almejo.vsim.ui.wiring.WidthsFollowNotice;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Adds one component with its starting parameters (the defaults; a tunnel proposes a name and a colour, see
@@ -55,7 +58,10 @@ public final class ComponentPlacement {
                                   GridPoint position, Rotation rotation) {
         Component component = type.newComponent(context.openDocument().document().newComponentId(), position,
                 rotation, startingParameters(context, type, presetParameters), "");
-        context.openDocument().execute(new AddElementsCommand(List.of(component)));
+        WidthsFollowConnectionCommand command = WidthsFollowConnectionCommand.placing(
+                new AddElementsCommand(List.of(component)), Set.of(component.id()), context.openDocument().registry());
+        context.openDocument().execute(command);
+        WidthsFollowNotice.of(context.openDocument().document(), command).ifPresent(context::showNotice);
         NewTunnels.placed(context.openDocument(), component);
         context.selection().select(component.id());
         context.componentPlaced(StandardComponentTypes.nameId(type.id(), component.parameters()));

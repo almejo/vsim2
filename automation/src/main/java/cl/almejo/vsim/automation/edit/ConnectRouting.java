@@ -34,12 +34,17 @@ import java.util.function.Function;
  * the first whose wires join exactly the two pins' nets and nothing else, preferring one that does not run through a
  * part's body. The check is the compiled netlist itself, not the geometry: a corner on a foreign wire or a wire over a
  * foreign pin joins that net, so the route is refused and the error names the nets it would have joined. Two nets of
- * different widths are never joined.
+ * different widths are joined only when the widths then follow (the planner checks it, {@link Outcome#widthRefusal}).
  */
 final class ConnectRouting {
 
-    /** What a connection did: the wires it added, the two nets it joined (one when they were joined already). */
-    record Outcome(List<String> wireIds, List<Net> joinedNets, boolean alreadyConnected, List<String> warnings) {
+    /**
+     * What a connection did: the wires it added, the two nets it joined (one when they were joined already) and, when
+     * the two nets carried different widths, the refusal to throw unless the widths follow the connection
+     * ({@link cl.almejo.vsim.core.command.ConnectedWidths}).
+     */
+    record Outcome(List<String> wireIds, List<Net> joinedNets, boolean alreadyConnected, List<String> warnings,
+                   Optional<AutomationException> widthRefusal) {
     }
 
     /** One way to draw the connection: its corner points, from the first pin to the second. */
@@ -71,9 +76,10 @@ final class ConnectRouting {
         Net toNet = before.netForPin(to).orElseThrow();
         if (fromNet.id().equals(toNet.id())) {
             return new Outcome(List.of(), List.of(fromNet), true,
-                    List.of(describe(from) + " and " + describe(to) + " were connected already: no wire added"));
+                    List.of(describe(from) + " and " + describe(to) + " were connected already: no wire added"),
+                    Optional.empty());
         }
-        requireSameWidth(from, fromNet, to, toNet);
+        Optional<AutomationException> widthRefusal = widthRefusal(from, fromNet, to, toNet);
         GridPoint start = pinLocation(from);
         GridPoint end = pinLocation(to);
         Trial accepted = null;
@@ -81,7 +87,7 @@ final class ConnectRouting {
         for (Route route : routes(start, end, via)) {
             Trial trial = attempt(route, before, fromNet, toNet, from);
             if (trial.joinsOnlyTheTwoNets() && trial.crossedBodies().isEmpty()) {
-                return outcome(trial, fromNet, toNet);
+                return outcome(trial, fromNet, toNet, widthRefusal);
             }
             undo(trial);
             if (trial.joinsOnlyTheTwoNets() && accepted == null) {
@@ -92,12 +98,12 @@ final class ConnectRouting {
         }
         if (accepted != null) {
             Trial redone = attempt(accepted.route(), before, fromNet, toNet, from);
-            return outcome(redone, fromNet, toNet);
+            return outcome(redone, fromNet, toNet, widthRefusal);
         }
         throw refusal(from, to, firstRefused);
     }
 
-    private Outcome outcome(Trial trial, Net fromNet, Net toNet) {
+    private Outcome outcome(Trial trial, Net fromNet, Net toNet, Optional<AutomationException> widthRefusal) {
         List<String> wireIds = candidate.wires().stream()
                 .map(Wire::id)
                 .filter(id -> !trial.wiresBefore().contains(id))
@@ -108,7 +114,7 @@ final class ConnectRouting {
             warnings.add("the wire runs through the body of " + trial.crossedBodies().stream()
                     .map(ElementId::value).toList() + "; give via points to go round it");
         }
-        return new Outcome(wireIds, List.of(fromNet, toNet), false, warnings);
+        return new Outcome(wireIds, List.of(fromNet, toNet), false, warnings, widthRefusal);
     }
 
     private Trial attempt(Route route, Netlist before, Net fromNet, Net toNet, PinRef from) {
@@ -181,14 +187,17 @@ final class ConnectRouting {
                 .toList();
     }
 
-    private void requireSameWidth(PinRef from, Net fromNet, PinRef to, Net toNet) {
+    /** The refusal of joining two nets of different widths, made now (their widths before the join); empty if equal. */
+    private Optional<AutomationException> widthRefusal(PinRef from, Net fromNet, PinRef to, Net toNet) {
         Optional<Integer> fromWidth = knownWidth(fromNet);
         Optional<Integer> toWidth = knownWidth(toNet);
-        if (fromWidth.isPresent() && toWidth.isPresent() && !fromWidth.equals(toWidth)) {
-            throw new AutomationException(AutomationError.INVALID_PIN, describe(from) + " carries " + fromWidth.get()
-                    + " bits and " + describe(to) + " carries " + toWidth.get() + " bits: they cannot be joined",
-                    Map.of("fromWidth", fromWidth.get(), "toWidth", toWidth.get()));
+        if (fromWidth.isEmpty() || toWidth.isEmpty() || fromWidth.equals(toWidth)) {
+            return Optional.empty();
         }
+        return Optional.of(new AutomationException(AutomationError.INVALID_PIN, describe(from) + " carries "
+                + fromWidth.get() + " bits and " + describe(to) + " carries " + toWidth.get() + " bits: they cannot be "
+                + "joined, and neither part takes the other's width",
+                Map.of("fromWidth", fromWidth.get(), "toWidth", toWidth.get())));
     }
 
     /** The width the net's pins give it; empty when only adaptive pins (tunnels) or no pins are on it. */

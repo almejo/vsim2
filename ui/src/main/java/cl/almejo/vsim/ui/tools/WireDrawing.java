@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
+import cl.almejo.vsim.core.command.WidthsFollowConnectionCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
@@ -10,6 +11,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.snap.PointResolution;
 import cl.almejo.vsim.ui.tools.WireRouting.Segment;
+import cl.almejo.vsim.ui.wiring.WidthsFollowNotice;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -129,9 +131,11 @@ public final class WireDrawing {
                 .map(segment -> (Command) new AddWireCommand(
                         new Wire(document.newWireId(), segment.start(), segment.end())))
                 .toList();
-        context.openDocument().execute(commands.size() == 1
+        WidthsFollowConnectionCommand command = WidthsFollowConnectionCommand.wire(commands.size() == 1
                 ? commands.get(0)
-                : new CompositeCommand("command.wire", commands));
+                : new CompositeCommand("command.wire", commands), context.openDocument().registry());
+        context.openDocument().execute(command);
+        WidthsFollowNotice.of(context.openDocument().document(), command).ifPresent(context::showNotice);
         return true;
     }
 

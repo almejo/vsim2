@@ -39,6 +39,7 @@ import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
 import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.ChangeParametersWithWiresCommand;
+import cl.almejo.vsim.core.command.ConnectedWidths;
 import cl.almejo.vsim.core.command.PinJoinCheck;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
@@ -338,7 +339,9 @@ final class EditPlanner {
     }
 
     private void place(Component component, String alias) {
+        Netlist before = netlists.of(candidate);
         new AddElementsCommand(List.of(component)).apply(candidate);
+        followWidths(before, Set.of(component.id()));
         nameElement(alias, component.id());
         warnAboutTouchingPins(component);
     }
@@ -535,7 +538,12 @@ final class EditPlanner {
         if (from.equals(to)) {
             throw new AutomationException(AutomationError.INVALID_PIN, "A pin cannot be connected to itself");
         }
+        Netlist before = netlists.of(candidate);
         ConnectRouting.Outcome outcome = routing.connect(from, to, operation.via());
+        followWidths(before, Set.of());
+        if (outcome.widthRefusal().isPresent() && netlists.of(candidate).netForPin(from).orElseThrow().widthMismatch()) {
+            throw outcome.widthRefusal().get();
+        }
         outcome.warnings().forEach(warning -> warnings.add(at() + warning));
         connections.add(new ConnectionReport(operationIndex, reference(from), reference(to), outcome.wireIds(),
                 outcome.joinedNets().stream().map(routing::references).toList(), outcome.alreadyConnected()));
@@ -554,8 +562,27 @@ final class EditPlanner {
                 throw new AutomationException(AutomationError.INVALID_PARAMETER, "Each stretch of a wire goes straight "
                         + "across or down: " + previous + " to " + next + " does not");
             }
-            new AddWireCommand(new Wire(candidate.newWireId(), previous, next)).apply(candidate);
         }
+        Netlist before = netlists.of(candidate);
+        for (int index = 1; index < points.size(); index++) {
+            new AddWireCommand(new Wire(candidate.newWireId(), points.get(index - 1), points.get(index)))
+                    .apply(candidate);
+        }
+        followWidths(before, Set.of());
+    }
+
+    /**
+     * «Anchos que siguen lo conectado», as in the editor: the parts the operation placed or moved ({@code placedIds}),
+     * or joined by wire (none named), take the width of what they now touch when the rule allows it; the receipt
+     * says which. {@code before} is the candidate's netlist before the operation.
+     */
+    private void followWidths(Netlist before, Set<ElementId> placedIds) {
+        if (!ConnectedWidths.mayFollow(candidate, registry, placedIds)) {
+            return;
+        }
+        ConnectedWidths.follow(candidate, registry, before, placedIds).changes().forEach(change ->
+                warnings.add(at() + change.componentId().value() + " (" + change.typeId() + ") took the width of "
+                        + "what it was connected to: " + change.previousWidth() + " -> " + change.newWidth() + " bits"));
     }
 
     // --- shapes ---
@@ -752,7 +779,9 @@ final class EditPlanner {
             warnings.add(at() + "a move by (0, 0) moves nothing");
             return;
         }
+        Netlist before = netlists.of(candidate);
         MoveWithWiresCommand.of(candidate, registry, ids, operation.deltaX(), operation.deltaY()).apply(candidate);
+        followWidths(before, ids);
     }
 
     private void delete(Delete operation) {
