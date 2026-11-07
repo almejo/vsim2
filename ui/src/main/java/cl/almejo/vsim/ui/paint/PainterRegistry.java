@@ -43,6 +43,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.PUSH_BUTTON, new PushButtonPainter());
         registry.register(StandardComponentTypes.CONSTANT, new ConstantPainter());
         registry.register(StandardComponentTypes.LED, new LedPainter());
+        registry.register(StandardComponentTypes.LED_MATRIX, new LedMatrixPainter());
         SevenSegmentsPainter display = new SevenSegmentsPainter();
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, display);
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, display);

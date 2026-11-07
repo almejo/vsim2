@@ -65,6 +65,8 @@ public final class StandardComponentTypes {
     /** The width a Constante's raw parameters mean when they leave it out (its check runs on raw values). */
     private static final int CONSTANT_RAW_WIDTH = 4;
     public static final String LED = "led";
+    /** «Matriz LED»: a grid of one-bit LEDs, by rows or scanned. */
+    public static final String LED_MATRIX = "led-matrix";
     public static final String SEVEN_SEGMENTS_DISPLAY = "seven-segments-display";
     public static final String SEVEN_SEGMENTS_DISPLAY_DOUBLE = "seven-segments-display-double";
     /** «Terminal»: a text screen. */
@@ -239,6 +241,7 @@ public final class StandardComponentTypes {
                                 List.of("red", "green", "yellow", "blue", "orange", "white", "purple", "cyan"))),
                 parameters -> ledShape((Integer) parameters.get(WIDTH), (String) parameters.get(MultiBitLayout.SIDE)),
                 parameters -> new LedBehavior()));
+        LedMatrixTypes.register(registry);
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY, 4));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY_DOUBLE, 8));
         TerminalTypes.register(registry);

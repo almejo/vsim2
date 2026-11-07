@@ -39,7 +39,9 @@ public final class BundledExamples {
             example("ram-fill"),
             example("hola-terminal"),
             example("punto-de-parada"),
-            example("value-formats"));
+            example("value-formats"),
+            example("led-matrix"),
+            example("marquee"));
 
     private BundledExamples() {
     }

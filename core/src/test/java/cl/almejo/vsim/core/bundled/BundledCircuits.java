@@ -43,6 +43,8 @@ public final class BundledCircuits {
         builders.put("hola-terminal", TerminalExamples::holaTerminal);
         builders.put("punto-de-parada", BreakpointExamples::puntoDeParada);
         builders.put("value-formats", ValueFormatExamples::valueFormats);
+        builders.put("led-matrix", MatrixExamples::heart);
+        builders.put("marquee", MatrixExamples::marquee);
         return builders;
     }
 

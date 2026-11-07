@@ -1,0 +1,273 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.6",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Matriz LED",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "led-matrix",
+    "x" : 60,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "Matriz",
+    "parameters" : {
+      "afterglow" : false,
+      "color" : "red",
+      "columns" : 8,
+      "input" : "rows",
+      "rows" : 8,
+      "show-unlit" : true,
+      "style" : "round"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "F0",
+    "parameters" : {
+      "value" : "0",
+      "width" : 8
+    }
+  }, {
+    "id" : "c6",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 16,
+    "rotation" : 0,
+    "label" : "F1",
+    "parameters" : {
+      "value" : "0x66",
+      "width" : 8
+    }
+  }, {
+    "id" : "c10",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 22,
+    "rotation" : 0,
+    "label" : "F2",
+    "parameters" : {
+      "value" : "0xFF",
+      "width" : 8
+    }
+  }, {
+    "id" : "c14",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 28,
+    "rotation" : 0,
+    "label" : "F3",
+    "parameters" : {
+      "value" : "0xFF",
+      "width" : 8
+    }
+  }, {
+    "id" : "c18",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 34,
+    "rotation" : 0,
+    "label" : "F4",
+    "parameters" : {
+      "value" : "0x7E",
+      "width" : 8
+    }
+  }, {
+    "id" : "c22",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 40,
+    "rotation" : 0,
+    "label" : "F5",
+    "parameters" : {
+      "value" : "0x3C",
+      "width" : 8
+    }
+  }, {
+    "id" : "c26",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 46,
+    "rotation" : 0,
+    "label" : "F6",
+    "parameters" : {
+      "value" : "0x18",
+      "width" : 8
+    }
+  }, {
+    "id" : "c30",
+    "type" : "switch",
+    "x" : 20,
+    "y" : 52,
+    "rotation" : 0,
+    "label" : "F7",
+    "parameters" : {
+      "value" : "0",
+      "width" : 8
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 36,
+    "y1" : 12,
+    "x2" : 40,
+    "y2" : 12
+  }, {
+    "id" : "w4",
+    "x1" : 40,
+    "y1" : 9,
+    "x2" : 40,
+    "y2" : 12
+  }, {
+    "id" : "w5",
+    "x1" : 40,
+    "y1" : 9,
+    "x2" : 60,
+    "y2" : 9
+  }, {
+    "id" : "w7",
+    "x1" : 36,
+    "y1" : 18,
+    "x2" : 42,
+    "y2" : 18
+  }, {
+    "id" : "w8",
+    "x1" : 42,
+    "y1" : 10,
+    "x2" : 42,
+    "y2" : 18
+  }, {
+    "id" : "w9",
+    "x1" : 42,
+    "y1" : 10,
+    "x2" : 60,
+    "y2" : 10
+  }, {
+    "id" : "w11",
+    "x1" : 36,
+    "y1" : 24,
+    "x2" : 44,
+    "y2" : 24
+  }, {
+    "id" : "w12",
+    "x1" : 44,
+    "y1" : 11,
+    "x2" : 44,
+    "y2" : 24
+  }, {
+    "id" : "w13",
+    "x1" : 44,
+    "y1" : 11,
+    "x2" : 60,
+    "y2" : 11
+  }, {
+    "id" : "w15",
+    "x1" : 36,
+    "y1" : 30,
+    "x2" : 46,
+    "y2" : 30
+  }, {
+    "id" : "w16",
+    "x1" : 46,
+    "y1" : 12,
+    "x2" : 46,
+    "y2" : 30
+  }, {
+    "id" : "w17",
+    "x1" : 46,
+    "y1" : 12,
+    "x2" : 60,
+    "y2" : 12
+  }, {
+    "id" : "w19",
+    "x1" : 36,
+    "y1" : 36,
+    "x2" : 48,
+    "y2" : 36
+  }, {
+    "id" : "w20",
+    "x1" : 48,
+    "y1" : 13,
+    "x2" : 48,
+    "y2" : 36
+  }, {
+    "id" : "w21",
+    "x1" : 48,
+    "y1" : 13,
+    "x2" : 60,
+    "y2" : 13
+  }, {
+    "id" : "w23",
+    "x1" : 36,
+    "y1" : 42,
+    "x2" : 50,
+    "y2" : 42
+  }, {
+    "id" : "w24",
+    "x1" : 50,
+    "y1" : 14,
+    "x2" : 50,
+    "y2" : 42
+  }, {
+    "id" : "w25",
+    "x1" : 50,
+    "y1" : 14,
+    "x2" : 60,
+    "y2" : 14
+  }, {
+    "id" : "w27",
+    "x1" : 36,
+    "y1" : 48,
+    "x2" : 52,
+    "y2" : 48
+  }, {
+    "id" : "w28",
+    "x1" : 52,
+    "y1" : 15,
+    "x2" : 52,
+    "y2" : 48
+  }, {
+    "id" : "w29",
+    "x1" : 52,
+    "y1" : 15,
+    "x2" : 60,
+    "y2" : 15
+  }, {
+    "id" : "w31",
+    "x1" : 36,
+    "y1" : 54,
+    "x2" : 54,
+    "y2" : 54
+  }, {
+    "id" : "w32",
+    "x1" : 54,
+    "y1" : 16,
+    "x2" : 54,
+    "y2" : 54
+  }, {
+    "id" : "w33",
+    "x1" : 54,
+    "y1" : 16,
+    "x2" : 60,
+    "y2" : 16
+  } ],
+  "labels" : [ {
+    "id" : "l34",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Matriz LED"
+  }, {
+    "id" : "l35",
+    "x" : 2,
+    "y" : 62,
+    "text" : "Prueba: cada interruptor es una fila de la matriz y cada bit, un LED (el bit más a la izquierda es el LED"
+  }, {
+    "id" : "l36",
+    "x" : 2,
+    "y" : 64,
+    "text" : "de la izquierda). Haz clic en un bit de un interruptor: el LED de esa fila se enciende o se apaga."
+  } ]
+}

@@ -43,7 +43,7 @@ class StandardComponentTypesTest {
         assertThat(registry.all()).extracting(ComponentType::id).contains(
                 "and", "or", "xor", "buffer", "flip-flop-data", "flip-flop-jk", "flip-flop-t", "flip-flop-sr",
                 "tri-state", "clock",
-                "switch", "constant", "led", "seven-segments-display", "seven-segments-display-double", "time-diagram", "bus-splitter", "bus-joiner",
+                "switch", "constant", "led", "led-matrix", "seven-segments-display", "seven-segments-display-double", "time-diagram", "bus-splitter", "bus-joiner",
                 "adder", "alu", "comparator", "mux", "decoder", "register", "counter", "tunnel-in", "tunnel-out", "ram",
                 "rom", "bit-extender", "bit-selector", "breakpoint");
     }
