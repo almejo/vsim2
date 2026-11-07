@@ -114,6 +114,14 @@ public final class WindowTabs extends JPanel {
         /** Every tab of every window, grouped by window (the Ventana list and «▾»). */
         List<WindowMenu.Entry> everyTab();
 
+        /** The «+» of the strip (or a double click on its empty part): Archivo ▸ Nuevo, a new circuit in a tab here. */
+        void newTab();
+
+        /** The current shortcut of Archivo ▸ Nuevo, for the «+» tooltip; none by default. */
+        default Optional<KeyStroke> newTabShortcut() {
+            return Optional.empty();
+        }
+
         /** Where the AI works now: the robot on the tabs (fix round D, item 5n). None by default. */
         default PlaceMarks placeMarks() {
             return PlaceMarks.NONE;
@@ -229,6 +237,8 @@ public final class WindowTabs extends JPanel {
         strip.onFoldToggle(document -> model.fold(document, !model.isFolded(document)));
         strip.onGroupDropped(this::groupDropped);
         strip.onListRequested(this::showTabList);
+        strip.onNewTabRequested(host::newTab);
+        strip.setNewTabShortcut(host::newTabShortcut);
         this.placeMarks = host.placeMarks();
         strip.setMarks(this::markOf);
         this.placeMarksListenerRemover = placeMarks.addListener(strip::marksChanged);
@@ -548,6 +558,10 @@ public final class WindowTabs extends JPanel {
     }
 
     // --- what the window reads ---
+
+    TabStrip strip() {
+        return strip;
+    }
 
     public TabStripModel model() {
         return model;

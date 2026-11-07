@@ -3,11 +3,19 @@ package cl.almejo.vsim.ui.window.tabs;
 import cl.almejo.vsim.ui.ai.AiRobotIcon;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.theme.ThemeColors;
+import com.formdev.flatlaf.util.UIScale;
 
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleAction;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleStateSet;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JWindow;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.BasicStroke;
@@ -32,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,6 +50,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -53,7 +63,7 @@ import java.util.stream.Stream;
  * this strip, in another window's strip, or outside every strip. Proportions follow the decided mockup (30 px tabs,
  * 2 px band); colours come from the FlatLaf theme and {@link GroupColors}, read at paint time. EDT only.
  */
-public final class TabStrip extends JComponent {
+public final class TabStrip extends JComponent implements Accessible {
 
     /** Where a dragged group was dropped. */
     public record GroupDrop(Object document, DropTarget target) {
@@ -103,7 +113,16 @@ public final class TabStrip extends JComponent {
     private static final double GROUP_TINT = 0.16;
     private static final double ACTIVE_GROUP_TINT = 0.24;
     private static final int BUTTON_WIDTH = 20;
-    private static final int BUTTON_COUNT = 3;
+    /** Scroll left, scroll right, «+» and the list: the buttons pinned at the right while the tabs overflow. */
+    private static final int BUTTON_COUNT = 4;
+    private static final int NEW_TAB_BUTTON_INDEX = 2;
+    private static final int LIST_BUTTON_INDEX = 3;
+    /** The «+» after the last tab (UI scale applied when used), and the side of its hover square and its arms. */
+    private static final int NEW_TAB_WIDTH = 28;
+    private static final int NEW_TAB_SIDE = 22;
+    private static final int NEW_TAB_ARM = 5;
+    private static final double NEW_TAB_HOVER_SHARE = 0.16;
+    private static final double NEW_TAB_PRESSED_SHARE = 0.3;
     private static final int SCROLL_STEP = 120;
     /** Pixels the mouse moves with the button down before a press becomes a drag (spec §4.3 «6 px»). */
     private static final int DRAG_THRESHOLD = 6;
@@ -134,7 +153,7 @@ public final class TabStrip extends JComponent {
     private record FoldMotion(boolean folding, long startMilliseconds) {
     }
 
-    private sealed interface Hit permits TabHit, CloseHit, BadgeHit, ScrollLeft, ScrollRight, ListButton, Nothing {
+    private sealed interface Hit permits TabHit, CloseHit, BadgeHit, ScrollLeft, ScrollRight, NewTabButton, ListButton, Nothing {
     }
 
     private record TabHit(TabBox box) implements Hit {
@@ -150,6 +169,9 @@ public final class TabStrip extends JComponent {
     }
 
     private record ScrollRight() implements Hit {
+    }
+
+    private record NewTabButton() implements Hit {
     }
 
     private record ListButton() implements Hit {
@@ -183,6 +205,11 @@ public final class TabStrip extends JComponent {
     };
     private Runnable listListener = () -> {
     };
+    private Runnable newTabListener = () -> {
+    };
+    private Supplier<Optional<KeyStroke>> newTabShortcut = Optional::empty;
+    private Rectangle newTabBounds = new Rectangle();
+    private boolean hoveredNewTab;
     private Hit pressed = new Nothing();
     private Point pressPoint;
     private TabTransfer drag;
@@ -193,6 +220,7 @@ public final class TabStrip extends JComponent {
     private Object dropExcluded;
     private String hoveredTabId;
     private boolean hoveredClose;
+    private final Accessible newTabAccessible = new NewTabAccessible();
 
     /** @param animate whether folding animates now (the user's «Animación» preference, read each time) */
     public TabStrip(TabStripModel model, BooleanSupplier animate) {
@@ -233,6 +261,16 @@ public final class TabStrip extends JComponent {
 
     public void onListRequested(Runnable listener) {
         listListener = Objects.requireNonNull(listener);
+    }
+
+    /** The «+» (or a double click on the empty strip) asks for a new circuit in a tab of this window. */
+    public void onNewTabRequested(Runnable listener) {
+        newTabListener = Objects.requireNonNull(listener);
+    }
+
+    /** Where the «+» tooltip reads the current shortcut of «Nuevo» (read at each tooltip, so a changed one shows). */
+    public void setNewTabShortcut(Supplier<Optional<KeyStroke>> shortcut) {
+        newTabShortcut = Objects.requireNonNull(shortcut, "shortcut");
     }
 
     /**
@@ -277,7 +315,7 @@ public final class TabStrip extends JComponent {
 
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(Math.max(contentWidth(), LEFT_PADDING), HEIGHT);
+        return new Dimension(Math.max(contentWidth() + newTabWidth(), LEFT_PADDING), HEIGHT);
     }
 
     @Override
@@ -305,7 +343,12 @@ public final class TabStrip extends JComponent {
     }
 
     Optional<Rectangle> listButtonBounds() {
-        return overflowing ? Optional.of(buttonBounds(2)) : Optional.empty();
+        return overflowing ? Optional.of(buttonBounds(LIST_BUTTON_INDEX)) : Optional.empty();
+    }
+
+    /** Where the «+» is: after the last tab, or pinned next to the list button while the tabs overflow. */
+    public Optional<Rectangle> newTabButtonBounds() {
+        return Optional.of(new Rectangle(newTabBounds));
     }
 
     /** The part of the strip the tabs scroll in (all of it unless the scroll buttons show). */
@@ -454,7 +497,7 @@ public final class TabStrip extends JComponent {
     private void computeLayout() {
         FontMetrics metrics = getFontMetrics(tabFont());
         int content = contentWidth();
-        overflowing = content > getWidth();
+        overflowing = content + newTabWidth() > getWidth();
         Rectangle area = tabArea();
         scrollOffset = Math.max(0, Math.min(scrollOffset, content - area.width));
         List<TabBox> laidOut = new ArrayList<>();
@@ -481,6 +524,8 @@ public final class TabStrip extends JComponent {
             revealActive = false;
             scrollToActive(laidOut, area, content);
         }
+        newTabBounds = overflowing ? buttonBounds(NEW_TAB_BUTTON_INDEX)
+                : new Rectangle(content, TOP_PADDING, newTabWidth(), TAB_HEIGHT);
         boxes = laidOut.stream().map(this::scrolled).toList();
         spans = groupSpans.stream()
                 .map(span -> new GroupSpan(span.document(), span.start() - scrollOffset, span.end() - scrollOffset))
@@ -580,6 +625,10 @@ public final class TabStrip extends JComponent {
         return boxes.stream().filter(box -> box.tab().id().equals(tabId)).findFirst();
     }
 
+    private static int newTabWidth() {
+        return UIScale.scale(NEW_TAB_WIDTH);
+    }
+
     private Rectangle buttonBounds(int index) {
         int x = getWidth() - BUTTON_WIDTH * (BUTTON_COUNT - index);
         return new Rectangle(x, TOP_PADDING, BUTTON_WIDTH, TAB_HEIGHT);
@@ -593,9 +642,14 @@ public final class TabStrip extends JComponent {
             if (buttonBounds(1).contains(point)) {
                 return new ScrollRight();
             }
-            if (buttonBounds(2).contains(point)) {
+            if (buttonBounds(NEW_TAB_BUTTON_INDEX).contains(point)) {
+                return new NewTabButton();
+            }
+            if (buttonBounds(LIST_BUTTON_INDEX).contains(point)) {
                 return new ListButton();
             }
+        } else if (newTabBounds.contains(point)) {
+            return new NewTabButton();
         }
         if (!tabArea().contains(point)) {
             return new Nothing();
@@ -628,8 +682,14 @@ public final class TabStrip extends JComponent {
             case CloseHit closeHit -> tooltipOf(closeHit.box().tab());
             case BadgeHit badgeHit -> tooltipOf(badgeHit.box().tab());
             case ListButton listButton -> Messages.text("tab.list");
+            case NewTabButton newTab -> newTabTooltip();
             default -> null;
         };
+    }
+
+    private String newTabTooltip() {
+        return newTabShortcut.get().map(stroke -> Messages.format("tab.new.tooltip", KeyBindings.describe(stroke)))
+                .orElse(Messages.text("tab.new"));
     }
 
     private String tooltipOf(TabStripModel.Tab tab) {
@@ -790,6 +850,10 @@ public final class TabStrip extends JComponent {
         public void mousePressed(MouseEvent event) {
             pressed = hit(event.getPoint());
             pressPoint = event.getPoint();
+            if (pressed instanceof NewTabButton) {
+                hoveredNewTab = true;
+                repaint(newTabBounds);
+            }
             if (SwingUtilities.isLeftMouseButton(event) && pressed instanceof TabHit tabHit) {
                 activateListener.accept(tabHit.box().tab().id());
             }
@@ -811,6 +875,7 @@ public final class TabStrip extends JComponent {
         public void mouseReleased(MouseEvent event) {
             Hit pressedHit = pressed;
             pressed = new Nothing();
+            repaint(newTabBounds);
             if (drag != null) {
                 Object document = drag.document();
                 DropTarget target = dropTarget(event);
@@ -833,6 +898,7 @@ public final class TabStrip extends JComponent {
                 case ScrollLeft left -> scrollBy(-SCROLL_STEP);
                 case ScrollRight right -> scrollBy(SCROLL_STEP);
                 case ListButton list -> listListener.run();
+                case NewTabButton newTab -> newTabListener.run();
                 default -> {
                 }
             }
@@ -843,6 +909,9 @@ public final class TabStrip extends JComponent {
             if (event.getButton() == MouseEvent.BUTTON1 && event.getClickCount() == 2
                     && hit(event.getPoint()) instanceof TabHit tabHit && tabHit.box().tab().isMain()) {
                 foldListener.accept(tabHit.box().tab().document());
+            } else if (event.getButton() == MouseEvent.BUTTON1 && event.getClickCount() == 2
+                    && hit(event.getPoint()) instanceof Nothing) {
+                newTabListener.run();
             }
         }
 
@@ -851,18 +920,21 @@ public final class TabStrip extends JComponent {
             Hit hit = hit(event.getPoint());
             String tabId = tabOf(hit).map(TabStripModel.Tab::id).orElse(null);
             boolean close = hit instanceof CloseHit;
-            if (!Objects.equals(tabId, hoveredTabId) || close != hoveredClose) {
+            boolean overNewTab = hit instanceof NewTabButton;
+            if (!Objects.equals(tabId, hoveredTabId) || close != hoveredClose || overNewTab != hoveredNewTab) {
                 hoveredTabId = tabId;
                 hoveredClose = close;
+                hoveredNewTab = overNewTab;
                 repaint();
             }
         }
 
         @Override
         public void mouseExited(MouseEvent event) {
-            if (hoveredTabId != null) {
+            if (hoveredTabId != null || hoveredNewTab) {
                 hoveredTabId = null;
                 hoveredClose = false;
+                hoveredNewTab = false;
                 repaint();
             }
         }
@@ -902,6 +974,8 @@ public final class TabStrip extends JComponent {
             paintDropIndicator(canvas);
             if (overflowing) {
                 paintButtons(canvas);
+            } else {
+                paintNewTab(canvas);
             }
         } finally {
             canvas.dispose();
@@ -1077,11 +1151,134 @@ public final class TabStrip extends JComponent {
         int rightCenter = right.x + right.width / 2;
         graphics.drawPolyline(new int[]{rightCenter - 2, rightCenter + 2, rightCenter - 2},
                 new int[]{middle - 4, middle, middle + 4}, 3);
-        Rectangle list = buttonBounds(2);
+        paintNewTab(graphics);
+        graphics.setColor(textColor());
+        graphics.setStroke(new BasicStroke(1.5f));
+        Rectangle list = buttonBounds(LIST_BUTTON_INDEX);
         int listCenter = list.x + list.width / 2;
         graphics.fillPolygon(new int[]{listCenter - 4, listCenter + 4, listCenter},
                 new int[]{middle - 2, middle - 2, middle + 3}, 3);
         graphics.setStroke(new BasicStroke(1));
+    }
+
+    /** The «+»: a plus in a square that lights on hover and darkens while pressed; colours read at paint time. */
+    private void paintNewTab(Graphics2D graphics) {
+        Rectangle bounds = newTabBounds;
+        int side = Math.min(bounds.width - 2, UIScale.scale(NEW_TAB_SIDE));
+        int squareX = bounds.x + (bounds.width - side) / 2;
+        int squareY = bounds.y + (bounds.height - side) / 2;
+        boolean isPressed = pressed instanceof NewTabButton && hoveredNewTab;
+        if (hoveredNewTab || isPressed) {
+            graphics.setColor(mix(stripBackground(), textColor(),
+                    isPressed ? NEW_TAB_PRESSED_SHARE : NEW_TAB_HOVER_SHARE));
+            graphics.fillRoundRect(squareX, squareY, side, side, UIScale.scale(CORNER), UIScale.scale(CORNER));
+        }
+        graphics.setColor(hoveredNewTab ? textColor() : mutedText());
+        graphics.setStroke(new BasicStroke(UIScale.scale(1.5f)));
+        int centerX = bounds.x + bounds.width / 2;
+        int centerY = bounds.y + bounds.height / 2;
+        int arm = UIScale.scale(NEW_TAB_ARM);
+        graphics.drawLine(centerX - arm, centerY, centerX + arm, centerY);
+        graphics.drawLine(centerX, centerY - arm, centerX, centerY + arm);
+        graphics.setStroke(new BasicStroke(1));
+    }
+
+    // --- accessibility: the «+» is the strip's one accessible child ---
+
+    @Override
+    public AccessibleContext getAccessibleContext() {
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJComponent() {
+                @Override
+                public int getAccessibleChildrenCount() {
+                    return 1;
+                }
+
+                @Override
+                public Accessible getAccessibleChild(int index) {
+                    return index == 0 ? newTabAccessible : null;
+                }
+            };
+        }
+        return accessibleContext;
+    }
+
+    /** The «+» as a screen reader sees it: a push button named «Nuevo circuito» that does the same as a click. */
+    private final class NewTabAccessible extends AccessibleContext implements Accessible, AccessibleAction {
+
+        @Override
+        public AccessibleContext getAccessibleContext() {
+            return this;
+        }
+
+        @Override
+        public String getAccessibleName() {
+            return Messages.text("tab.new");
+        }
+
+        @Override
+        public String getAccessibleDescription() {
+            return newTabTooltip();
+        }
+
+        @Override
+        public AccessibleRole getAccessibleRole() {
+            return AccessibleRole.PUSH_BUTTON;
+        }
+
+        @Override
+        public AccessibleStateSet getAccessibleStateSet() {
+            return new AccessibleStateSet();
+        }
+
+        @Override
+        public Accessible getAccessibleParent() {
+            return TabStrip.this;
+        }
+
+        @Override
+        public int getAccessibleIndexInParent() {
+            return 0;
+        }
+
+        @Override
+        public int getAccessibleChildrenCount() {
+            return 0;
+        }
+
+        @Override
+        public Accessible getAccessibleChild(int index) {
+            return null;
+        }
+
+        @Override
+        public Locale getLocale() {
+            return TabStrip.this.getLocale();
+        }
+
+        @Override
+        public AccessibleAction getAccessibleAction() {
+            return this;
+        }
+
+        @Override
+        public int getAccessibleActionCount() {
+            return 1;
+        }
+
+        @Override
+        public String getAccessibleActionDescription(int index) {
+            return index == 0 ? Messages.text("tab.new") : null;
+        }
+
+        @Override
+        public boolean doAccessibleAction(int index) {
+            if (index != 0) {
+                return false;
+            }
+            newTabListener.run();
+            return true;
+        }
     }
 
     // --- colours, read at paint time from the FlatLaf theme ---
