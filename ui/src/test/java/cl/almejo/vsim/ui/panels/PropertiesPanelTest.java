@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.command.RenameCircuitCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -138,6 +139,28 @@ class PropertiesPanelTest {
         assertThat(panel.circuitNameField().getText()).isEqualTo("Sumador");
         openDocument.history().redo();
         assertThat(panel.circuitNameField().getText()).isEqualTo("Sumador de 4 bits");
+    }
+
+    @Test
+    void theCircuitCardFollowsTheCircuitNameOnRenameUndoAndRedo() {
+        assertThat(panel.card().title()).isEqualTo("Circuito sin nombre");
+        JTextField name = panel.circuitNameField();
+
+        name.setText("Sumador 4 bits");
+        name.postActionEvent();
+        assertThat(panel.card().title()).isEqualTo("Sumador 4 bits");
+        openDocument.history().undo();
+        assertThat(panel.card().title()).isEqualTo("Circuito sin nombre");
+        openDocument.history().redo();
+        assertThat(panel.card().title()).isEqualTo("Sumador 4 bits");
+    }
+
+    @Test
+    void theCircuitCardFollowsANameTheAiGives() {
+        openDocument.execute(RenameCircuitCommand
+                .renaming(openDocument.document(), "Contador").orElseThrow());
+
+        assertThat(panel.card().title()).isEqualTo("Contador");
     }
 
     @Test

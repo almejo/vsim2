@@ -353,6 +353,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private void documentChanged(CircuitDocument document, DocumentChange change) {
         if (shown.isEmpty() && card.isCircuit()) {
             card.setCounts(document.components().size(), document.wires().size());
+            card.setCircuitName(document.name());
         }
         boolean touchesShown = shown.stream()
                 .anyMatch(id -> change.changed().contains(id) || change.removed().contains(id));
@@ -488,6 +489,9 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     /** Shows the circuit's name again after an undo, a redo or the AI changed it, unless the user is typing it. */
     private void historyChanged() {
+        if (!disposed && shown.isEmpty() && card.isCircuit()) {
+            card.setCircuitName(openDocument.document().name()); // the card follows even while the name is typed
+        }
         if (disposed || applying || circuitNameField == null || typingProbe.getAsBoolean()) {
             return;
         }

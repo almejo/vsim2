@@ -73,9 +73,8 @@ final class PropertyCard extends JPanel {
 
     /** The circuit itself, with nothing selected. */
     static PropertyCard forCircuit(String name, int parts, int wires) {
-        PropertyCard card = new PropertyCard(new Tile(() -> Icons.get(CIRCUIT_ICON, ICON)),
-                name.isBlank() ? Messages.text("properties.circuitUnnamed") : name, Messages.text("properties.none"),
-                true);
+        PropertyCard card = new PropertyCard(new Tile(() -> Icons.get(CIRCUIT_ICON, ICON)), circuitTitle(name),
+                Messages.text("properties.none"), true);
         card.setCounts(parts, wires);
         return card;
     }
@@ -88,6 +87,16 @@ final class PropertyCard extends JPanel {
     /** The title a component's card has: its label, or its type name when it has none. */
     static String titleOf(String typeName, String label) {
         return label == null || label.isBlank() ? typeName : label;
+    }
+
+    /** The title the circuit's card has: its name, or «Circuito sin nombre» while it has none. */
+    static String circuitTitle(String name) {
+        return name.isBlank() ? Messages.text("properties.circuitUnnamed") : name;
+    }
+
+    /** The circuit was renamed (by the user, an undo or redo, or the AI): the circuit's card shows the new name. */
+    void setCircuitName(String name) {
+        setTexts(circuitTitle(name), Messages.text("properties.none"));
     }
 
     void setTexts(String titleText, String subtitleText) {
