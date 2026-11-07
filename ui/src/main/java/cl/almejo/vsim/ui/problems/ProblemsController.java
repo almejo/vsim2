@@ -27,6 +27,7 @@ import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.BusValueText;
+import cl.almejo.vsim.ui.canvas.PartFormats;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
@@ -545,7 +546,8 @@ public final class ProblemsController {
             }
             String head = Messages.format("bus.tooltip", net.width(), BusValueText.of(value),
                     BusValueText.binary(value));
-            String others = BusValueText.otherFormats(value);
+            String others = BusValueText.otherFormats(value,
+                    PartFormats.of(net, document, openDocument.registry()).orElse(""));
             return Optional.of(others.isEmpty() ? head : head + " · " + others);
         }
         return Optional.empty();

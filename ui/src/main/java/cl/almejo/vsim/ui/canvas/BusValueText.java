@@ -64,6 +64,20 @@ public final class BusValueText {
     }
 
     /**
+     * {@link #otherFormats(Value)} plus, when the part that drives the net is in fixed point ({@code partFormat} is a
+     * {@link Probe#fixedFormat}), the value with its fraction bits: a net alone has none.
+     */
+    public static String otherFormats(Value value, String partFormat) {
+        String others = otherFormats(value);
+        if (others.isEmpty() || !ConstantValue.FIXED.equals(Probe.valueFormatOf(partFormat))) {
+            return others;
+        }
+        int fractionBits = Probe.fractionBitsOf(partFormat);
+        return others + SEPARATOR + Messages.format("bus.tooltip.fixed",
+                ConstantValue.display(value.bits(), value.width(), ConstantValue.FIXED, fractionBits), fractionBits);
+    }
+
+    /**
      * The bits of {@code value}, most significant first, each {@code 0}, {@code 1} or {@code Z}, grouped in fours from
      * the least significant end; {@link #CONFLICT} when the drivers disagree.
      */

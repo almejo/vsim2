@@ -52,4 +52,14 @@ class BusValueTextTest {
                 .startsWith("decimal 18446744073709551615 · con signo -1 · octal 0o1777777777777777777777")
                 .endsWith("flotante nan");
     }
+
+    @Test
+    void aFixedPointPartAddsItsFixedValueToTheTooltip() {
+        Value value = Value.of(16, 18688);
+        assertThat(BusValueText.otherFormats(value, Probe.fixedFormat(5)))
+                .startsWith(BusValueText.otherFormats(value)).endsWith(" · punto fijo 584.0 (5 bits de fracción)");
+        assertThat(BusValueText.otherFormats(value, "decimal")).isEqualTo(BusValueText.otherFormats(value));
+        assertThat(BusValueText.otherFormats(value, "")).isEqualTo(BusValueText.otherFormats(value));
+        assertThat(BusValueText.otherFormats(new Value(4, 0x9, 0x6, false), Probe.fixedFormat(2))).isEmpty();
+    }
 }

@@ -267,4 +267,65 @@ class ProbeActionsTest {
         actions.addComponentPins(chain().get(0));
         assertThat(probes()).extracting(Probe::format).containsOnly("hex");
     }
+
+    private ElementId constant(int y, Map<String, Object> parameters) {
+        return place(openDocument, StandardComponentTypes.CONSTANT, 0, y, parameters).id();
+    }
+
+    @Test
+    void aFixedPointConstantStartsItsChannelFixedWithItsFractionBits() {
+        ElementId constant = constant(0, Map.of("width", 16, "value", "584.0", "format", "fixed", "fraction", 5));
+        actions.addComponentPins(constant);
+        assertThat(probes()).extracting(Probe::format).containsExactly(Probe.fixedFormat(5));
+    }
+
+    @Test
+    void aWireOnAFixedPointConstantsNetStartsFixedToo() {
+        ElementId constant = constant(0, Map.of("width", 16, "value", "584.0", "format", "fixed", "fraction", 5));
+        Component placed = openDocument.document().component(constant).orElseThrow();
+        var pin = openDocument.registry().findTypeOf(placed).orElseThrow().pin(0);
+        Wire wire = addWire(placed.position().x() + pin.position().x(), placed.position().y() + pin.position().y(),
+                placed.position().x() + pin.position().x() + 4, placed.position().y() + pin.position().y());
+        actions.addWire(wire.id());
+        assertThat(probes()).extracting(Probe::format).containsExactly(Probe.fixedFormat(5));
+    }
+
+    @Test
+    void anOutputPinInHexStartsItsChannelInHexAndInDecimalInDecimal() {
+        ElementId hexPin = place(openDocument, StandardComponentTypes.OUTPUT_PIN, 0, 0,
+                Map.of("width", 8, "format", "decimal")).id();
+        actions.addComponentPins(hexPin);
+        assertThat(probes()).extracting(Probe::format).containsExactly("decimal");
+    }
+
+    @Test
+    void aSignedConstantAndAnAutoOneFollowTheirPart() {
+        actions.addComponentPins(constant(0, Map.of("width", 8, "value", "-3", "format", "signed")));
+        actions.addComponentPins(constant(20, Map.of("width", 8, "value", "3", "format", "auto")));
+        assertThat(probes()).extracting(Probe::format).containsExactly("signed", "hex");
+    }
+
+    @Test
+    void aFloatConstantAtAWidthWithoutFloatKeepsTheDefault() {
+        actions.addComponentPins(constant(0, Map.of("width", 8, "value", "3", "format", "float")));
+        actions.addComponentPins(constant(20, Map.of("width", 32, "value", "1.5", "format", "float")));
+        assertThat(probes()).extracting(Probe::format).containsExactly("hex", "float");
+    }
+
+    @Test
+    void aWireWithNoPartThatHasAFormatKeepsTheDefault() {
+        Wire wire = addWire(0, 0, 4, 0);
+        actions.addWire(wire.id());
+        assertThat(probes()).extracting(Probe::format).containsExactly("hex");
+    }
+
+    @Test
+    void aSavedChannelKeepsItsFormatWhenAnotherIsAddedOrTheFormatIsChosen() {
+        ElementId constant = constant(0, Map.of("width", 16, "value", "584.0", "format", "fixed", "fraction", 5));
+        actions.addComponentPins(constant);
+        String probeId = probes().get(0).id();
+        actions.setFormat(probeId, "binary");
+        actions.addComponentPins(constant);
+        assertThat(probes()).extracting(Probe::format).containsExactly("binary");
+    }
 }

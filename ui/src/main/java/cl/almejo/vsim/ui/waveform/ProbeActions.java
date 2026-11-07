@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.PartFormats;
 import cl.almejo.vsim.ui.canvas.TopLevelNets;
 
 import java.util.ArrayList;
@@ -227,17 +228,17 @@ public final class ProbeActions {
 
     /**
      * The format a new channel starts with: the D pin of a Terminal (unless its {@code waveform-format} is not
-     * {@code chars}) or of a Teclado (always) carries bytes, so it shows characters; everything else shows hex.
+     * {@code chars}) or of a Teclado (always) carries bytes, so it shows characters; else the part's own format; else hex.
      */
     private String formatOf(ProbeTarget target, CircuitDocument document) {
         if (!(target instanceof ProbeTarget.PinTarget pin)) {
-            return Probe.FORMAT_HEX;
+            return partFormat(target, document);
         }
         Optional<Component> component = document.component(pin.componentId());
         Optional<ComponentType> type = component.flatMap(openDocument.registry()::findTypeOf);
         if (type.isEmpty() || pin.pinIndex() >= type.get().pinCount()
                 || !DATA_PIN.equals(type.get().pin(pin.pinIndex()).name())) {
-            return Probe.FORMAT_HEX;
+            return partFormat(target, document);
         }
         boolean characters = switch (component.get().typeId()) {
             case KEYBOARD_TYPE -> true;
@@ -245,7 +246,16 @@ public final class ProbeActions {
                     CHARACTERS));
             default -> false;
         };
-        return characters ? Probe.FORMAT_ASCII : Probe.FORMAT_HEX;
+        return characters ? Probe.FORMAT_ASCII : partFormat(target, document);
+    }
+
+    /** The format of the part that drives the target's net ({@link PartFormats}), else hex. */
+    private String partFormat(ProbeTarget target, CircuitDocument document) {
+        Netlist netlist = openDocument.netlist();
+        return ProbeResolver.netOf(target, document, netlist)
+                .flatMap(netId -> netlist.nets().stream().filter(net -> net.id().value().equals(netId)).findFirst())
+                .flatMap(net -> PartFormats.of(net, document, openDocument.registry()))
+                .orElse(Probe.FORMAT_HEX);
     }
 
     private void replace(String probeId, UnaryOperator<Probe> change, String descriptionKey) {
