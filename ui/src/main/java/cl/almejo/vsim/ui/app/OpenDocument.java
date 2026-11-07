@@ -31,6 +31,7 @@ import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.memory.LinkedFileChecks;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
@@ -41,6 +42,8 @@ import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
+import cl.almejo.vsim.core.simulation.LinkedFileProblem;
+import cl.almejo.vsim.core.simulation.ListedProblems;
 import cl.almejo.vsim.core.simulation.MemoryMapFrame;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
@@ -116,6 +119,10 @@ public final class OpenDocument implements AutoCloseable {
     private String untitledName = "";
     private Netlist netlist = Netlist.EMPTY;
     private List<ConnectivityProblem> connectivityProblems = List.of();
+    /** What the library check last reported of this document's pieces ({@link #outdatedPieces()}), EDT only. */
+    private List<ConnectivityProblem> reportedOutdatedPieces = List.of();
+    /** What the linked-file watcher last reported of this document ({@link #linkedFileProblems()}), EDT only. */
+    private List<LinkedFileProblem> reportedLinkedFiles = List.of();
     /** The pins each applied command left unconnected and that are still loose ({@link #loosenedPins()}). */
     private final Map<Command, Set<PinRef>> loosenedByCommand = new LinkedHashMap<>();
     /**
@@ -729,6 +736,42 @@ public final class OpenDocument implements AutoCloseable {
      */
     public long netlistToken() {
         return body == null ? netlistToken : body.workingCopy.netlistToken();
+    }
+
+    /**
+     * What makes the rows of this circuit's Problemas list ({@link ListedProblems}): the problems of {@code listed}
+     * (the snapshot shown), the wiring warnings, this session's loosened pins and pins placed elsewhere, and what the
+     * library check and the linked-file watcher reported. The editor's list and the AI's read both start here.
+     */
+    public ListedProblems.Sources problemSources(SimulationSnapshot listed) {
+        return new ListedProblems.Sources(listed.problems(), connectivityProblems(), loosenedPins(), keptOldShapes(),
+                outdatedPieces(), linkedFileProblems());
+    }
+
+    /**
+     * Keeps what the library check found ({@code OutdatedPieceChecks}): the pieces that use an older version than the
+     * library's and would break if updated. Every view of this document reports the same, so they share it.
+     */
+    public void reportOutdatedPieces(List<ConnectivityProblem> pieces) {
+        reportedOutdatedPieces = List.copyOf(pieces);
+    }
+
+    /** The pieces the library check last reported ({@link #reportOutdatedPieces}). */
+    public List<ConnectivityProblem> outdatedPieces() {
+        return reportedOutdatedPieces;
+    }
+
+    /** Keeps the linked memory files the document's watcher found missing or unreadable. */
+    public void reportLinkedFileProblems(List<LinkedFileProblem> found) {
+        reportedLinkedFiles = List.copyOf(found);
+    }
+
+    /**
+     * The reported linked-file problems that are still true of the document ({@link LinkedFileChecks#stillTrue}): a
+     * memory that was deleted, or whose link was removed or changed, drops out at once.
+     */
+    public List<LinkedFileProblem> linkedFileProblems() {
+        return LinkedFileChecks.stillTrue(document(), path(), reportedLinkedFiles);
     }
 
     /**

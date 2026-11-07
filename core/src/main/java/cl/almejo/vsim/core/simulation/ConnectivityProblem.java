@@ -24,6 +24,18 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
      */
     public static final String REMOVED_PIN_PREFIX = "removedPin:";
 
+    /**
+     * The start of the net id of a {@link Cause#LOOSENED_BY_SHAPE_CHANGE} problem of the circuit's own pieces; the
+     * element id, a {@code :} and the pin index follow.
+     */
+    public static final String LOOSENED_PREFIX = "loosened:";
+
+    /**
+     * The start of the net id of a {@link Cause#PIN_PLACED_ELSEWHERE} problem of the circuit's own pieces; the element
+     * id, a {@code :} and the pin index follow.
+     */
+    public static final String PLACED_ELSEWHERE_PREFIX = "placedElsewhere:";
+
     /** What kind of fault this is; it decides how the editor marks and words it. */
     public enum Cause {
         /** A pin of a part inside a component's body connects to nothing (at any depth). */
