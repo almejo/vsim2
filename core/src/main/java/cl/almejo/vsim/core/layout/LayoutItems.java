@@ -355,36 +355,62 @@ final class LayoutItems {
     }
 
     /**
-     * True when the writing of {@code item} (its texts or labels) at {@code candidate} lies over the writing of an
-     * item it did not lie over from where it is now, each item where {@code now} says (items missing from it are where
-     * they started); by the rule of {@link #covers}: at least one row and more than {@value #TEXT_ROUNDING_COLUMNS}
-     * column. Writing over writing is never a reason to move, but a text moved off a body must not land where it can
-     * no longer be read (the final review, 2026-11-06).
+     * True when {@code item} at {@code candidate} lies over the writing (a free text or another part's label) of some
+     * item more than it does from where it is now, each item where {@code now} says (items missing from it are where
+     * they started). Each of its shapes (its own writing and its bodies) counts on its own, so a body sliding off a
+     * text does not pay for its label sliding onto it; the overlap is the area they share ({@link #writingOverlap}).
+     * An overlap that was already there may stay or shrink but never grow: writing over writing is never a reason to
+     * move, but a moved item must not land where its writing, or what it covers, can be read less than before (the
+     * final review, 2026-11-06; the user's hand test the same day: the LED «Rs1 = Rs2», aligned, slid its label
+     * further over «Salta», which it already touched).
      */
-    boolean writesOverNewWriting(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
-        return writesOverNewWriting(item, candidate, now, Set.of());
+    boolean growsWritingOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
+        return growsWritingOverlap(item, candidate, now, Set.of());
     }
 
     /**
-     * {@link #writesOverNewWriting(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by the same
+     * {@link #growsWritingOverlap(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by the same
      * shift).
      */
-    boolean writesOverNewWriting(Item item, Bounds candidate, Map<ElementId, Bounds> now, Set<ElementId> together) {
+    boolean growsWritingOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now, Set<ElementId> together) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());
-        List<Bounds> writingThere = movedWith(item.writing(), item, candidate);
-        List<Bounds> writingHere = movedWith(item.writing(), item, from);
+        List<Bounds> shapesThere = movedWith(item.shapes(), item, candidate);
+        List<Bounds> shapesHere = movedWith(item.shapes(), item, from);
         for (Item other : items) {
             if (other.id().equals(item.id()) || together.contains(other.id()) || other.writing().isEmpty()) {
                 continue;
             }
             List<Bounds> otherWriting = movedWith(other.writing(), other,
                     now.getOrDefault(other.id(), other.bounds()));
-            if (share(writingThere, otherWriting, TEXT_ROUNDING_COLUMNS, 0)
-                    && !share(writingHere, otherWriting, TEXT_ROUNDING_COLUMNS, 0)) {
-                return true;
+            for (int index = 0; index < shapesThere.size(); index++) {
+                if (writingOverlap(List.of(shapesThere.get(index)), otherWriting)
+                        > writingOverlap(List.of(shapesHere.get(index)), otherWriting)) {
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    /**
+     * The area the boxes of {@code firstBoxes} share with those of {@code secondBoxes}, by the rule of {@link #covers}:
+     * the first {@value #TEXT_ROUNDING_COLUMNS} shared column is rounding and does not count, so boxes that only touch
+     * by it share nothing and any positive area is a real overlap.
+     */
+    static long writingOverlap(List<Bounds> firstBoxes, List<Bounds> secondBoxes) {
+        long area = 0;
+        for (Bounds firstBox : firstBoxes) {
+            for (Bounds secondBox : secondBoxes) {
+                int sharedX = Math.min(firstBox.maximumX(), secondBox.maximumX())
+                        - Math.max(firstBox.x(), secondBox.x()) - TEXT_ROUNDING_COLUMNS;
+                int sharedY = Math.min(firstBox.maximumY(), secondBox.maximumY())
+                        - Math.max(firstBox.y(), secondBox.y());
+                if (sharedX > 0 && sharedY > 0) {
+                    area += (long) sharedX * sharedY;
+                }
+            }
+        }
+        return area;
     }
 
     /**

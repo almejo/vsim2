@@ -24,8 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A part that moves in any stage of «Ordenar circuito» never puts its label over a free text or another part's label
- * it was not over before (the user's hand test, 2026-11-06: the LED «Salta», straightened, ended with its label over
- * «Rs1 = Rs2»).
+ * it was not over before, nor more of one it was already over (the user's hand tests, 2026-11-06: the LED «Salta»,
+ * straightened, ended with its label over «Rs1 = Rs2»; then «Rs1 = Rs2», aligned, slid further over «Salta»).
  */
 class TidyLabelsTest {
 
@@ -184,6 +184,68 @@ class TidyLabelsTest {
         Bounds noteBox = texts.freeText(plan.after().label(note.id()).orElseThrow());
         assertThat(moved.position()).isNotEqualTo(labelled.position());
         assertThat(sharesWriting(label, noteBox)).isFalse();
+    }
+
+    /**
+     * The user's hand test on riscv-maniqui (2026-11-06): the LEDs «Salta» and «Rs1 = Rs2» side by side, their labels
+     * above them already sharing two columns. Aligning would move «Rs1 = Rs2» (a column with the gate above it) one
+     * unit left, its label then sharing three columns: an overlap that grows, refused.
+     */
+    private record SideBySide(CircuitDocument document, Component salta, Component equal) {
+    }
+
+    private SideBySide sideBySideLeds() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 20, 0);
+        Component equal = place(registry, document, StandardComponentTypes.LED, 21, 8, "Rs1 = Rs2");
+        labelOffsets.put(equal.id(), new Bounds(-4, -2, 9, 2));
+        Component salta = place(registry, document, StandardComponentTypes.LED, 12, 8, "Salta");
+        labelOffsets.put(salta.id(), new Bounds(0, -2, 7, 2));
+        return new SideBySide(document, salta, equal);
+    }
+
+    @Test
+    void aligningNeverMakesAnOverlapOfTwoLabelsGrow() {
+        SideBySide fixture = sideBySideLeds();
+
+        CircuitTidyPlan plan = tidy(fixture.document(), everything(fixture.document()), ALIGN_ONLY);
+
+        assertThat(positionOf(plan, fixture.equal())).isEqualTo(fixture.equal().position());
+        assertThat(positionOf(plan, fixture.salta())).isEqualTo(fixture.salta().position());
+    }
+
+    /** The same two LEDs with every option on: the circuit still tidies (a gate elsewhere aligns), the LEDs stay. */
+    @Test
+    void everyStageLeavesTheTouchingLabelsAsTheyWereAndTidiesTheRest() {
+        SideBySide fixture = sideBySideLeds();
+        gate(registry, fixture.document(), 60, 0);
+        Component elsewhere = gate(registry, fixture.document(), 61, 8);
+
+        CircuitTidyPlan plan = tidy(fixture.document(), everything(fixture.document()),
+                new CircuitTidyOptions(true, true, true, TidyOptions.DEFAULTS));
+
+        assertThat(positionOf(plan, fixture.equal())).isEqualTo(fixture.equal().position());
+        assertThat(positionOf(plan, fixture.salta())).isEqualTo(fixture.salta().position());
+        assertThat(positionOf(plan, elsewhere)).isEqualTo(new GridPoint(60, 8));
+    }
+
+    /**
+     * A move that shrinks an overlap of two labels is still allowed: aligning moves «Rs1 = Rs2» right (the column of
+     * two gates at 20), away from «Salta».
+     */
+    @Test
+    void aligningMayShrinkAnOverlapOfTwoLabels() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 20, 0);
+        gate(registry, document, 20, 30);
+        Component equal = place(registry, document, StandardComponentTypes.LED, 19, 8, "Rs1 = Rs2");
+        labelOffsets.put(equal.id(), new Bounds(-4, -2, 9, 2));
+        Component salta = place(registry, document, StandardComponentTypes.LED, 10, 8, "Salta");
+        labelOffsets.put(salta.id(), new Bounds(0, -2, 7, 2));
+
+        CircuitTidyPlan plan = tidy(document, everything(document), ALIGN_ONLY);
+
+        assertThat(positionOf(plan, equal)).isEqualTo(new GridPoint(20, 8));
     }
 
     /** By the rule of {@link LayoutItems#covers}: at least one row and more than one column. */
