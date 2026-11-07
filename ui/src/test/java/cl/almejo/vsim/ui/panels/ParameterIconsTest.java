@@ -7,6 +7,7 @@ import javax.swing.Icon;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.atDoubleUiScale;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ParameterIconsTest {
@@ -31,6 +32,17 @@ class ParameterIconsTest {
         Icon icon = ParameterIcons.labelIcon("no-such-parameter");
         assertThat(icon.getIconWidth()).isEqualTo(ParameterIcons.labelIcon("width").getIconWidth());
         assertThat(icon.getIconHeight()).isEqualTo(ParameterIcons.labelIcon("width").getIconHeight());
+    }
+
+    @Test
+    void theEmptyIconScalesLikeTheRealOnes() throws Exception {
+        atDoubleUiScale(() -> {
+            Icon real = ParameterIcons.labelIcon("width");
+            assertThat(real.getIconWidth()).as("the scale is on").isGreaterThan(ParameterIcons.SIZE);
+            Icon empty = ParameterIcons.labelIcon("no-such-parameter");
+            assertThat(empty.getIconWidth()).isEqualTo(real.getIconWidth());
+            assertThat(empty.getIconHeight()).isEqualTo(real.getIconHeight());
+        });
     }
 
     @Test

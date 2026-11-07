@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.ui.icons.Icons;
+import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.Icon;
 import java.awt.Component;
@@ -42,14 +43,15 @@ public final class ParameterIcons {
         public void paintIcon(Component owner, Graphics graphics, int x, int y) {
         }
 
+        // the real icons report their UI-scaled size: the empty one too, or the captions would not line up
         @Override
         public int getIconWidth() {
-            return SIZE;
+            return UIScale.scale(SIZE);
         }
 
         @Override
         public int getIconHeight() {
-            return SIZE;
+            return UIScale.scale(SIZE);
         }
     };
 

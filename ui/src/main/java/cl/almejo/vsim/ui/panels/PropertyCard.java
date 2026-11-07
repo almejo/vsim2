@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.Icon;
@@ -28,6 +29,7 @@ import java.util.function.Supplier;
  */
 final class PropertyCard extends JPanel {
 
+    /** Sizes in pixels before UI scaling. */
     private static final int TILE = 38;
     private static final int ICON = 24;
     private static final int ARC = 10;
@@ -73,7 +75,8 @@ final class PropertyCard extends JPanel {
 
     /** A component: its label (or its type name when it has none) as title, the type name under it. */
     static PropertyCard forComponent(ComponentType type, String typeName, String label, Supplier<ColorScheme> scheme) {
-        Tile tile = new Tile(() -> new ComponentIcon(type, PAINTERS.painterFor(type.id()), scheme.get(), ICON));
+        Tile tile = new Tile(() -> new ComponentIcon(type, PAINTERS.painterFor(type.id()), scheme.get(),
+                UIScale.scale(ICON)));
         return new PropertyCard(tile, titleOf(typeName, label), typeName, false);
     }
 
@@ -171,6 +174,16 @@ final class PropertyCard extends JPanel {
         return circuit;
     }
 
+    /** The icon tile (for tests: its size). */
+    JComponent tile() {
+        return (JComponent) getComponent(0);
+    }
+
+    /** The icon the tile paints now. */
+    Icon tileIcon() {
+        return ((Tile) tile()).icon.get();
+    }
+
     /** The square tile with the icon; the icon is asked for at every paint (the colour scheme may have changed). */
     private static final class Tile extends JComponent {
 
@@ -183,7 +196,7 @@ final class PropertyCard extends JPanel {
 
         @Override
         public Dimension getPreferredSize() {
-            return new Dimension(TILE, TILE);
+            return new Dimension(UIScale.scale(TILE), UIScale.scale(TILE));
         }
 
         @Override
@@ -193,11 +206,11 @@ final class PropertyCard extends JPanel {
                 local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 Color raised = UIManager.getColor("Button.background");
                 local.setColor(raised != null ? raised : Color.LIGHT_GRAY);
-                local.fillRoundRect(0, 0, getWidth(), getHeight(), ARC, ARC);
+                local.fillRoundRect(0, 0, getWidth(), getHeight(), UIScale.scale(ARC), UIScale.scale(ARC));
                 Color border = UIManager.getColor("Component.borderColor");
                 if (border != null) {
                     local.setColor(border);
-                    local.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, ARC, ARC);
+                    local.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, UIScale.scale(ARC), UIScale.scale(ARC));
                 }
                 Icon current = icon.get();
                 current.paintIcon(this, local, (getWidth() - current.getIconWidth()) / 2,

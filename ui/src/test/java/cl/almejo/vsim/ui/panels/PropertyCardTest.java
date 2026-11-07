@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import com.formdev.flatlaf.util.UIScale;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.LookAndFeel;
@@ -13,6 +14,7 @@ import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.util.function.Supplier;
 
+import static cl.almejo.vsim.ui.UiTestSupport.atDoubleUiScale;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PropertyCardTest {
@@ -29,6 +31,21 @@ class PropertyCardTest {
         } finally {
             graphics.dispose();
         }
+    }
+
+    @Test
+    void theTileAndItsComponentIconGrowWithTheUiScale() throws Exception {
+        var type = StandardComponentTypes.registry().require(StandardComponentTypes.AND);
+        int normalTile = PropertyCard.forCircuit("Sumador", 0, 0).tile().getPreferredSize().width;
+        int normalIcon = PropertyCard.forComponent(type, "AND", "", SCHEME).tileIcon().getIconWidth();
+        atDoubleUiScale(() -> {
+            PropertyCard circuit = PropertyCard.forCircuit("Sumador", 0, 0);
+            PropertyCard component = PropertyCard.forComponent(type, "AND", "", SCHEME);
+            assertThat(circuit.tile().getPreferredSize().width).isEqualTo(UIScale.scale(normalTile));
+            assertThat(component.tile().getPreferredSize().width).isEqualTo(UIScale.scale(normalTile));
+            assertThat(component.tileIcon().getIconWidth()).isEqualTo(UIScale.scale(normalIcon))
+                    .isEqualTo(circuit.tileIcon().getIconWidth());
+        });
     }
 
     @Test

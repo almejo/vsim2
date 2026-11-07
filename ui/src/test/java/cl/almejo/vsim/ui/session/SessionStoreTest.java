@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.prefs.Preferences;
 
+import static cl.almejo.vsim.ui.UiTestSupport.atDoubleUiScale;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
@@ -111,6 +112,17 @@ class SessionStoreTest {
         assertThat(node.get("inspectorOpen", null)).isEqualTo("false");
         assertThat(node.get("inspectorTab", null)).isEqualTo("notes");
         assertThat(node.get("inspectorWidth", null)).isEqualTo("410");
+    }
+
+    @Test
+    void thePanelWidthIsSavedBeforeUiScalingAndScaledBackOnLoad() throws Exception {
+        atDoubleUiScale(() -> {
+            store.save(List.of(new WindowSession(RIGHT, List.of(TabState.main(file("contador.vsim"), RIGHT_VIEW)), 0,
+                    List.of(), java.util.Set.of(), Optional.of(new InspectorState(true, InspectorPanel.NOTES, 600)))));
+
+            assertThat(preferences.sessionNode().node("0").get("inspectorWidth", null)).isEqualTo("300");
+            assertThat(store.load().getFirst().inspector().orElseThrow().width()).isEqualTo(600);
+        });
     }
 
     @Test

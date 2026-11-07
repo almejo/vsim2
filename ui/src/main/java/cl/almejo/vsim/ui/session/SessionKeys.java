@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.session;
 
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.window.InspectorState;
+import com.formdev.flatlaf.util.UIScale;
 
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -82,13 +83,14 @@ final class SessionKeys {
     static void writeInspector(Preferences node, InspectorState state) {
         node.putBoolean(INSPECTOR_OPEN, state.open());
         node.put(INSPECTOR_TAB, state.selectedTab());
-        node.putInt(INSPECTOR_WIDTH, state.width());
+        // before UI scaling: a font-size change or another screen scale restores the same width on screen
+        node.putInt(INSPECTOR_WIDTH, UIScale.unscale(state.width()));
     }
 
     /**
      * The right panel of {@link #writeInspector}; empty when none of its keys is there (a session written before it).
-     * A missing or broken key takes the initial panel's value, an unknown section {@code properties}, the width is
-     * clamped ({@link InspectorState#fromSession}).
+     * A missing or broken key takes the initial panel's value, an unknown section {@code properties}, the width (saved
+     * before UI scaling) is scaled and clamped ({@link InspectorState#fromSession}).
      */
     static Optional<InspectorState> readInspector(Preferences node) {
         String open = node.get(INSPECTOR_OPEN, null);
@@ -105,7 +107,7 @@ final class SessionKeys {
         };
         int readWidth = initial.width();
         try {
-            readWidth = width == null ? readWidth : Integer.parseInt(width);
+            readWidth = width == null ? readWidth : UIScale.scale(Integer.parseInt(width));
         } catch (NumberFormatException exception) {
             // the initial width stays
         }

@@ -15,13 +15,16 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.window.WindowCommands;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
@@ -55,6 +58,28 @@ public final class UiTestSupport {
     };
 
     private UiTestSupport() {
+    }
+
+    /** A test body that may throw. */
+    @FunctionalInterface
+    public interface Body {
+        void run() throws Exception;
+    }
+
+    /**
+     * Runs {@code body} under FlatLaf Light at a UI scale of 2 (what a 200 % screen or a big default font does: FlatLaf
+     * then scales every pixel size), and puts the scale and the look and feel back afterwards.
+     */
+    public static void atDoubleUiScale(Body body) throws Exception {
+        LookAndFeel original = UIManager.getLookAndFeel();
+        try {
+            System.setProperty("flatlaf.uiScale", "2");
+            UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", false));
+            body.run();
+        } finally {
+            System.clearProperty("flatlaf.uiScale");
+            UIManager.setLookAndFeel(original);
+        }
     }
 
     public static void waitUntil(BooleanSupplier condition) {
