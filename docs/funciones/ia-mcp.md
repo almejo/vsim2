@@ -89,6 +89,9 @@ Mientras VSim está abierto, Claude Code se puede conectar a él (por MCP, en tu
 - **En las listas**: Ventana ▸ la lista de pestañas y «▾ Todas las pestañas» muestran el mismo robot (verde o gris)
   junto a la pestaña, con el mismo texto al pasar el mouse.
 - Si el lugar donde trabaja la IA no tiene una pestaña abierta, no se abre ninguna solo para mostrar el robot.
+- **Lo que no es trabajar en un lugar** no mueve el robot: la foto de la ventana entera (`vsim_window_picture`), leer
+  el catálogo de componentes (`vsim_describe_components`, `vsim_describe_component`), listar los circuitos y los
+  lugares, los ajustes del editor y «Presentar» dejan los robots como estaban.
 
 ## Presentar
 

@@ -35,13 +35,13 @@ public final class Reads {
 
     public CatalogView describeComponents(DocumentId document, Optional<String> typeFilter) {
         Objects.requireNonNull(typeFilter, "typeFilter");
-        return await(host.reading(document, source -> CatalogReader.describeAll(source, typeFilter)));
+        return await(host.readingCatalogue(document, source -> CatalogReader.describeAll(source, typeFilter)));
     }
 
     public ComponentTypeView describeComponent(DocumentId document, String typeId, Map<String, Object> parameters) {
         Objects.requireNonNull(typeId, "typeId");
         Map<String, Object> copy = Map.copyOf(parameters);
-        return await(host.reading(document, source -> CatalogReader.describe(source, typeId, copy)));
+        return await(host.readingCatalogue(document, source -> CatalogReader.describe(source, typeId, copy)));
     }
 
     public CircuitView readCircuit(DocumentId document, ReadFilter filter, Optional<String> cursor) {

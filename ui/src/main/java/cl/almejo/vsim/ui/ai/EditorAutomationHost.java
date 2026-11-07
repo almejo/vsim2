@@ -299,6 +299,13 @@ public final class EditorAutomationHost implements AutomationHost {
                 windows.libraryProblems())));
     }
 
+    /** The catalogue reads no place (round E, 5q): the AI's marks stay as they are. */
+    @Override
+    public <T> CompletableFuture<T> readingCatalogue(DocumentId id, Function<ReadSource, T> work) {
+        return onEditorThread(access -> work.apply(reads.source(id, placeOf(id, false), windows.libraryComponents(),
+                windows.libraryProblems())));
+    }
+
     // --- Exports (spec §7): ExportHostSupport takes the picture on the EDT and writes the file off it ---
 
     @Override
@@ -319,11 +326,11 @@ public final class EditorAutomationHost implements AutomationHost {
                 painted.getValue()));
     }
 
+    /** A picture of the window is no work in any place (round E, 5q): the AI's marks stay as they are. */
     @Override
     public CompletableFuture<WindowPicture> pictureOfWindow(DocumentId id) {
         return onEditorThread(access -> {
             OpenDocument document = documentOf(id);
-            touched(document, PlaceRef.main());
             return Map.entry(ReadHostSupport.version(document), reads.paintWindow(document));
         }).thenApplyAsync(painted -> ReadHostSupport.windowPicture(id, painted.getKey(), painted.getValue()));
     }
@@ -335,14 +342,23 @@ public final class EditorAutomationHost implements AutomationHost {
      * what is queued, and never touches the tabs the user sees.
      */
     private OpenDocument placeOf(DocumentId id) {
+        return placeOf(id, true);
+    }
+
+    /** {@link #placeOf(DocumentId)}; {@code isWork} false for a call that reads no place (it touches no mark). */
+    private OpenDocument placeOf(DocumentId id, boolean isWork) {
         OpenDocument circuit = documentOf(id);
         Optional<PlaceRef> place = id.place().filter(found -> !found.isMain());
         if (place.isEmpty()) {
-            touched(circuit, PlaceRef.main());
+            if (isWork) {
+                touched(circuit, PlaceRef.main());
+            }
             return circuit;
         }
         requirePlace(circuit, place.get());
-        touched(circuit, place.get());
+        if (isWork) {
+            touched(circuit, place.get());
+        }
         OpenDocument body = circuit.openBody(place.get().definition(), place.get().context());
         SwingUtilities.invokeLater(body::close);
         return body;
