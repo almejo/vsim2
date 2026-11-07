@@ -30,7 +30,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - **Cambiar el tamaño**: se arrastra el divisor (una barra gris como los otros divisores de la ventana; al pasar el mouse dice «Arrastra para cambiar el tamaño; doble clic para quitar la división»). Con los dos divisores, se cruzan, y arrastrar el punto donde se cruzan mueve los dos a la vez; un doble clic ahí quita los dos.
 - **Quitar la división**: arrastrar el divisor hasta un borde (a menos de 24 px) cierra los paneles de ese lado; un doble clic en el divisor cierra los de abajo o los de la derecha. Si el panel activo se cierra, pasa a serlo su vecino. Ventana ▸ Dividir ▸ «Quitar división» quita los dos divisores y deja solo el panel activo.
 - **Panel activo**: es el último en el que se hizo clic o que tomó el foco. Con dos paneles o más tiene un borde fino del color de foco del tema. Ventana ▸ «Siguiente panel» pasa al siguiente (no trae atajo: F6 ya es «Avanzar N t»).
-- **Qué se comparte**: la selección es una sola para toda la ventana: lo elegido en un panel se ve elegido en todos, el inspector lo muestra y Supr, copiar o girar funcionan desde cualquiera. También la herramienta: elegir «Cable» en la barra hace que todos los paneles dibujen cables. Los brillos, los problemas, las marcas de la búsqueda, las sondas, las guías y lo que va a cambiar se dibujan en todos los paneles, y cada panel tiene sus propias reglas.
+- **Qué se comparte**: la selección es una sola para toda la ventana: lo elegido en un panel se ve elegido en todos, Propiedades lo muestra y Supr, copiar o girar funcionan desde cualquiera. También la herramienta: elegir «Cable» en la barra hace que todos los paneles dibujen cables. Los brillos, los problemas, las marcas de la búsqueda, las sondas, las guías y lo que va a cambiar se dibujan en todos los paneles, y cada panel tiene sus propias reglas.
 - **Arrastrar de un panel a otro**: lo que empiezas a arrastrar en un panel sigue en otro panel de la misma ventana, así se unen dos lugares lejanos sin arrastrar hasta allá: un cable (con la herramienta Cable o desde un pin o un cable), una selección por recuadro, mover piezas (con Ctrl, copiarlas), deslizar un tramo de cable con Alt, mover una etiqueta, dibujar un marco y mover un marco por su título (si está bloqueado, con su bloque) o cambiarle el tamaño por sus manijas. Mientras el puntero está sobre el otro panel, la punta sigue al puntero ahí, con el zoom de ese panel para el imán de «Ajustar», y el primer panel deja de desplazarse solo. Lo que se arrastra (la vista previa del cable, el recuadro, las piezas fantasma, los puntos de contacto y las líneas de alineación) se ve en todos los paneles que muestran ese lugar. Al soltar se hace una sola cosa, un solo paso de deshacer, como en un panel. Volver sobre el primer panel sigue igual, y Esc lo cancela en todos. Mover la vista (Mover vista, el botón del medio o Espacio) y el recuadro de la herramienta Zoom se quedan en su panel. Arrastrar a otra ventana sigue siendo copiar o mover entre ventanas, como antes.
 - **Qué actúa en el panel activo**: el control de zoom de la barra de estado (muestra el zoom del panel activo y, al pasar a otro panel, salta al zoom de ese panel sin mover ninguno), el zoom del menú Ver, la herramienta Zoom (el recuadro y el clic acercan o alejan el panel donde los haces, que pasa a ser el activo), «Ver todo el circuito», «Zoom a la selección», «Centrar circuito», los saltos de la barra de búsqueda, los saltos a cada problema (F8 y Mayús+F8), los saltos desde las formas de onda y «Nueva pestaña del mismo circuito» (que abre donde estaba el panel activo). Archivo ▸ Exportar ▸ «Imagen…» y «PDF…» salen sin bordes de panel, divisores ni pestañas.
 - **Se recuerda por archivo**: al volver a abrir un circuito guardado, la ventana vuelve dividida como estaba, con el zoom y el centro de cada panel. Se guarda en las preferencias de VSim (para los últimos 20 archivos), **nunca en el .vsim**: dividir, mover un divisor o quitar la división no marca el circuito como modificado, no cuenta como paso de deshacer y el archivo no cambia. Un circuito sin guardar abre con un solo panel, y si lo recordado ya no cabe en la ventana, también.
@@ -89,11 +89,20 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 ## Panel derecho
 
+- El panel derecho tiene cuatro secciones: Propiedades, Problemas, Notas y Mapa de memoria. Sus íconos están en una
+  tira fija al borde derecho de la ventana, que queda aunque el panel se cierre (con sus insignias: los problemas en
+  rojo o ámbar, ver [Insignia de problemas](simulacion-y-paso-a-paso.md#insignia-de-problemas), y la cuenta de notas
+  en gris). Un clic en otro ícono cambia de sección; un clic en el ícono de la sección abierta, la ✕ del encabezado o
+  un doble clic en el divisor cierran el panel, y el botón de abajo de la tira lo abre o lo cierra. Al reabrirlo
+  vuelve con la misma sección y el mismo ancho (el último al que arrastraste el divisor; si la ventana es angosta, el
+  lienzo conserva su lugar y el panel se angosta solo mientras no cabe). Es uno por ventana: todas sus pestañas lo
+  muestran igual. Abierto o cerrado, su sección y su ancho se recuerdan al continuar donde quedaste (ver
+  [Sesión y recuperación](#sesión-y-recuperación)).
 - Sus cuatro secciones tienen tecla: Alt+3 «Propiedades», Alt+4 «Problemas», Alt+5 «Notas» y Alt+6 «Mapa de memoria»
   (también Ver ▸, justo después de «Árbol del circuito» y «Paleta»; se pueden cambiar en Atajos de teclado, y el
   globo de cada ícono de la tira dice la tecla: «Propiedades · Alt+3»). Con el panel cerrado, la tecla lo abre en esa
   sección y le da el foco; si esa sección ya está abierta, cierra el panel y el foco vuelve al lienzo; si hay otra
-  abierta, cambia a esta. Escribir en un campo de texto no agrega el dígito.
+  abierta, cambia a esta.
 
 ## Atajos de teclado
 

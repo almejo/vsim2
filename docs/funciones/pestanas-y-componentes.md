@@ -8,7 +8,7 @@ Cómo se crean y se guardan los componentes propios está en
 ## Entrar a un componente
 
 - **Cómo se entra**: con doble clic en el cuerpo de una pieza de un componente propio. Un doble clic en su etiqueta
-  sigue editando la etiqueta, y las Propiedades de la pieza siguen en el inspector y en el clic derecho. También se
+  sigue editando la etiqueta, y las Propiedades de la pieza siguen en el panel derecho y en el clic derecho. También se
   entra de estas otras formas:
   - con un clic en el botón **«Entrar ↘»**, que aparece en la esquina de arriba a la derecha de la pieza al pasar el
     mouse; sobre el botón el puntero es una mano, para que se note que se puede hacer clic;
@@ -174,7 +174,7 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   pasar el mouse. La [barra de lugar](#la-barra-de-lugar) y Problemas las nombran igual.
 - **Clic en una fila**: lleva a la pieza. Si está en otro lugar, primero va a esa pestaña (la del circuito, o la del
   componente que la tiene adentro, con los valores de esa pieza, abriéndola si hace falta); después la selecciona y la
-  vista viaja hasta ella, y el inspector muestra sus propiedades. Es el mismo «Ver la pieza» de la barra de lugar y de
+  vista viaja hasta ella, y Propiedades la muestra. Es el mismo «Ver la pieza» de la barra de lugar y de
   F8. Un clic en la fila del circuito trae su pestaña.
 - **Doble clic** en una pieza de un componente propio entra a ella (ver
   [Entrar a un componente](#entrar-a-un-componente)). En esas filas el clic simple espera un instante, por si viene el
