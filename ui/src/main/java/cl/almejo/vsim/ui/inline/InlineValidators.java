@@ -34,15 +34,19 @@ public final class InlineValidators {
 
     /**
      * M7: a value typed into a bus input pin, at the width {@code currentWidth} gives on every check: {@code 0b…},
-     * {@code 0x…}, a decimal or a negative decimal (two's complement), with the messages of the Constante.
+     * {@code 0x…}, a decimal or a negative decimal (two's complement) and, in the pin's own format, {@code 0o…},
+     * {@code 'A'}, {@code 1.5}; with the messages of the Constante.
      */
-    public static Function<String, Optional<String>> busValue(IntSupplier currentWidth) {
+    public static Function<String, Optional<String>> busValue(IntSupplier currentWidth, Supplier<String> currentFormat,
+                                                              IntSupplier currentFraction) {
         return text -> {
-            if (!ConstantValue.isValidText(text)) {
+            int width = currentWidth.getAsInt();
+            String format = currentFormat.get();
+            // a float has no format at some widths, so «1.5» is not a number there
+            if (!ConstantValue.isValidText(text, ConstantValue.resolveFormat(format, width))) {
                 return Optional.of(Messages.text("constant.invalidValue"));
             }
-            int width = currentWidth.getAsInt();
-            return ConstantValue.fitsText(text, width) ? Optional.empty()
+            return ConstantValue.fitsText(text, width, format, currentFraction.getAsInt()) ? Optional.empty()
                     : Optional.of(Messages.format("constant.doesNotFit", width));
         };
     }

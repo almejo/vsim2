@@ -85,8 +85,10 @@ class PinFormatInFilesTest {
                 }""";
         CircuitDocument loaded = format.read(written);
         assertThat(loaded.components().getFirst().parameters())
-                .isEqualTo(Map.of("width", 8, "value", "0xFF", "format", "auto"));
-        assertThat(format.write(loaded)).contains("\"format\" : \"auto\"").contains("\"value\" : \"0xFF\"");
+                .isEqualTo(Map.of("width", 8, "value", "0xFF", "format", "auto", "fraction", 0));
+        // «Bits de fracción» at 0 is not written: the file keeps the bytes it had before the parameter existed
+        assertThat(format.write(loaded)).contains("\"format\" : \"auto\"").contains("\"value\" : \"0xFF\"")
+                .doesNotContain("fraction");
     }
 
     @ParameterizedTest

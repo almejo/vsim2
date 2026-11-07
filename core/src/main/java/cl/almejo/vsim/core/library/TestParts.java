@@ -96,7 +96,9 @@ public final class TestParts {
         }
         Map<String, Object> resolved = registry.typeOf(component).resolveParameters(component.parameters());
         int width = (Integer) resolved.get(StandardComponentTypes.WIDTH);
-        return ConstantValue.display(ConstantValue.bitsOf((String) resolved.get("value"), width).orElseThrow(), width,
-                (String) resolved.get(ConstantValue.FORMAT));
+        String format = (String) resolved.get(ConstantValue.FORMAT);
+        int fraction = (Integer) resolved.get(ConstantValue.FRACTION);
+        return ConstantValue.display(ConstantValue.bitsOf((String) resolved.get("value"), width, format, fraction)
+                .orElseThrow(), width, format, fraction);
     }
 }

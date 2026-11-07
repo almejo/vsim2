@@ -1178,6 +1178,9 @@ class PropertiesPanelTest {
             if (component == toggle) {
                 parameterCount--; // «Números» only shows from two bits on
             }
+            if (component == constant) {
+                parameterCount--; // «Bits de fracción» only shows with the fixed format
+            }
             List<java.awt.Rectangle[]> rows = laidOutRows();
             assertOneGrid(rows, 1 + parameterCount);
             assertThat(captionColumnLeft(rows)).as(component.typeId()).isEqualTo(captionLeft);

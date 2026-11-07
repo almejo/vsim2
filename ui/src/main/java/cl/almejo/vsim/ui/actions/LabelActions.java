@@ -240,7 +240,9 @@ public final class LabelActions {
         ElementId id = pin.id();
         ComponentType type = openDocument.registry().typeOf(current.get());
         int width = InterfacePins.widthOf(current.get());
-        String format = (String) type.resolveParameters(current.get().parameters()).get(ConstantValue.FORMAT);
+        Map<String, Object> pinParameters = type.resolveParameters(current.get().parameters());
+        String format = (String) pinParameters.get(ConstantValue.FORMAT);
+        int fraction = (Integer) pinParameters.get(ConstantValue.FRACTION);
         Value shownValue = startingValue != null ? startingValue
                 : openDocument.latestSnapshot().componentState(id.value()) instanceof VisibleState.SwitchState state
                         ? state.value() : null;
@@ -249,13 +251,26 @@ public final class LabelActions {
         Supplier<Optional<Component>> stillABusInput = () -> openDocument.document().component(id)
                 .filter(InterfacePins::isBusInput);
         editor.open(new InlineEditRequest(InterfacePinPainter.valueBox(type, current.get()).orElseThrow(),
-                InterfacePinPainter.valueFont(), ConstantValue.editableText(liveBits, width, format),
-                InlineValidators.busValue(() -> stillABusInput.get().map(InterfacePins::widthOf).orElse(width)),
+                InterfacePinPainter.valueFont(), ConstantValue.editableText(liveBits, width, format, fraction),
+                InlineValidators.busValue(() -> stillABusInput.get().map(InterfacePins::widthOf).orElse(width),
+                        () -> pinFormat(stillABusInput.get(), type, format),
+                        () -> pinFraction(stillABusInput.get(), type, fraction)),
                 text -> stillABusInput.get().ifPresent(found -> {
                     int foundWidth = InterfacePins.widthOf(found);
-                    ConstantValue.bitsOf(text, foundWidth).ifPresent(
+                    ConstantValue.bitsOf(text, foundWidth, pinFormat(Optional.of(found), type, format),
+                            pinFraction(Optional.of(found), type, fraction)).ifPresent(
                             bits -> openDocument.setInputValue(id, Value.of(foundWidth, bits)));
                 }), InlineEditRequest.Anchor.CENTER), () -> stillABusInput.get().isPresent());
+    }
+
+    private static String pinFormat(Optional<Component> pin, ComponentType type, String lastKnown) {
+        return pin.map(found -> (String) type.resolveParameters(found.parameters()).get(ConstantValue.FORMAT))
+                .orElse(lastKnown);
+    }
+
+    private static int pinFraction(Optional<Component> pin, ComponentType type, int lastKnown) {
+        return pin.map(found -> (Integer) type.resolveParameters(found.parameters()).get(ConstantValue.FRACTION))
+                .orElse(lastKnown);
     }
 
     /** What the Constante has now (the last known ones when it is gone, the editor closes by itself then). */

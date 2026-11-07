@@ -48,6 +48,16 @@ class InterfacePinPainterTest {
     }
 
     @Test
+    void theValueTextFollowsTheNewFormats() {
+        assertThat(InterfacePinPainter.shownText(Value.of(8, 0xFF), "octal")).isEqualTo("0o377");
+        assertThat(InterfacePinPainter.shownText(Value.of(8, 0x48), "ascii")).isEqualTo("'H'");
+        assertThat(InterfacePinPainter.shownText(Value.of(32, 0xC0200000L), "float")).isEqualTo("-2.5");
+        assertThat(InterfacePinPainter.shownText(Value.of(8, 0x18), "fixed", 4)).isEqualTo("1.5");
+        assertThat(InterfacePinPainter.shownText(Value.of(8, 0x18), "fixed")).isEqualTo("24");
+        assertThat(InterfacePinPainter.shownText(Value.highImpedance(8), "octal")).isEqualTo("Z");
+    }
+
+    @Test
     void theValueTextFollowsTheFormat() {
         assertThat(InterfacePinPainter.shownText(Value.of(8, 0xFF), "auto")).isEqualTo("0xFF");
         assertThat(InterfacePinPainter.shownText(Value.of(8, 0xFF), "hex")).isEqualTo("0xFF");

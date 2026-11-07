@@ -42,7 +42,7 @@ class RegisterBehaviorTest {
         ComponentType register = StandardComponentTypes.registry().require(StandardComponentTypes.REGISTER);
         assertThat(register.category()).isEqualTo(ComponentCategory.SEQUENTIAL);
         assertThat(register.parameters()).extracting(parameter -> parameter.name())
-                .containsExactly("width", "delay", "format", "trigger");
+                .containsExactly("width", "delay", "format", "fraction", "trigger");
         assertThat(register.pins()).extracting(PinSpec::name).containsExactly("D", "EN", "CLR", "CLK", "Q");
         assertThat(register.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,
                 PinDirection.INPUT, PinDirection.INPUT, PinDirection.INPUT, PinDirection.OUTPUT);

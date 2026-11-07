@@ -79,7 +79,8 @@ final class LogisimExportRules {
         rules.put(StandardComponentTypes.BUS_JOINER, draft -> splitter(draft, true));
         rules.put(StandardComponentTypes.CONSTANT, draft -> constant(draft, draft.integer(StandardComponentTypes.WIDTH),
                 ConstantValue.bitsOf(draft.text(StandardComponentTypes.VALUE),
-                        draft.integer(StandardComponentTypes.WIDTH)).orElse(0)));
+                        draft.integer(StandardComponentTypes.WIDTH), draft.text(ConstantValue.FORMAT),
+                        draft.integer(ConstantValue.FRACTION)).orElse(0)));
         rules.put(StandardComponentTypes.CLOCK, LogisimExportRules::clock);
         rules.put(WiringTypes.BIT_EXTENDER, draft -> draft.part(LogisimLibraries.WIRING, "Bit Extender")
                 .attribute("in_width", draft.integer(WiringTypes.INPUT_WIDTH))

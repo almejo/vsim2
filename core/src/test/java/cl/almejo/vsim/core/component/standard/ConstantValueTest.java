@@ -37,7 +37,7 @@ class ConstantValueTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "   ", "-", "--1", "-0x1", "0x", "0b", "0b2", "12a", "0xG", "abc", "_", "1.5", "0x-1",
+    @ValueSource(strings = {"", "   ", "-", "--1", "-0x1", "0x", "0b", "0b2", "12a", "0xG", "abc", "_", "0x-1",
             "- 1"})
     void garbageIsRejected(String text) {
         assertThat(ConstantValue.bitsOf(text, 32)).isEmpty();
@@ -107,11 +107,11 @@ class ConstantValueTest {
     }
 
     @Test
-    void theSignedFormatIsTheFifthChoiceAfterTheOldOnes() {
+    void theFormatChoicesKeepTheOldOnesInOrderAndAddTheNewOnes() {
         assertThat(ConstantValue.FORMAT_PARAMETER.name()).isEqualTo("format");
         assertThat(ConstantValue.FORMAT_PARAMETER.defaultValue()).isEqualTo("auto");
         assertThat(ConstantValue.FORMAT_PARAMETER.choices())
-                .containsExactly("auto", "binary", "hex", "decimal", "signed");
+                .containsExactly("auto", "binary", "hex", "octal", "decimal", "signed", "ascii", "float", "fixed");
     }
 
     @ParameterizedTest
@@ -223,7 +223,10 @@ class ConstantValueTest {
                     String shown = ConstantValue.display(bits, width, format);
                     assertThat(shown.length()).as("%s %s", description, format)
                             .isLessThanOrEqualTo(ConstantValue.longestDisplay(width, format));
-                    assertThat(ConstantValue.bitsOf(ConstantValue.editableText(bits, width, format), width))
+                    if (shown.equals("nan")) {
+                        continue; // a NaN has many bit patterns and shows as one
+                    }
+                    assertThat(ConstantValue.bitsOf(ConstantValue.editableText(bits, width, format), width, format, 0))
                             .as("%s %s", description, format).hasValue(bits);
                 }
                 assertThat(ConstantValue.bitsOf(signed.toString(), width)).as(description).hasValue(bits);
@@ -252,8 +255,8 @@ class ConstantValueTest {
         assertThatThrownBy(() -> ConstantValue.bitsOf("1", 0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ConstantValue.bitsOf("1", 65)).isInstanceOf(IllegalArgumentException.class);
         assertThat(ConstantValue.bitsOf("1", 64)).hasValue(1L);
-        assertThatThrownBy(() -> ConstantValue.display(1, 4, "octal")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ConstantValue.longestDisplay(4, "octal"))
+        assertThatThrownBy(() -> ConstantValue.display(1, 4, "bogus")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ConstantValue.longestDisplay(4, "bogus"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ConstantValue.normalize(null)).isInstanceOf(IllegalArgumentException.class);
         assertThat(ConstantValue.isValidText(null)).isFalse();
@@ -280,5 +283,163 @@ class ConstantValueTest {
     @Test
     void asciiHasALongestDisplay() {
         assertThat(ConstantValue.longestDisplay(8, "ascii")).isEqualTo(4);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', quoteCharacter = '"', value = {"0o17|0o17|15", "0O777|0o777|511", "0o0|0o0|0", "'A'|'A'|65", "' '|' '|32",
+            "'''|'''|39"})
+    void octalAndCharacterTextsParseAndNormalize(String text, String normalized, long value) {
+        assertThat(ConstantValue.isValidText(text)).isTrue();
+        assertThat(ConstantValue.normalize(text)).isEqualTo(normalized);
+        assertThat(ConstantValue.bitsOf(text, 16)).hasValue(value);
+    }
+
+    @Test
+    void octalAndCharactersHaveTheirLimits() {
+        assertThat(ConstantValue.bitsOf("0o400", 8)).isEmpty();
+        assertThat(ConstantValue.bitsOf("0o377", 8)).hasValue(255L);
+        assertThat(ConstantValue.bitsOf("'A'", 6)).isEmpty();
+        assertThat(ConstantValue.isValidText("'AB'")).isFalse();
+        assertThat(ConstantValue.isValidText("'é'")).isFalse();
+        assertThat(ConstantValue.display(15, 8, "octal")).isEqualTo("0o17");
+        assertThat(ConstantValue.display(0, 8, "octal")).isEqualTo("0o0");
+        assertThat(ConstantValue.longestDisplay(8, "octal")).isEqualTo(5);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', quoteCharacter = '"', value = {"octal|0o17", "ascii|'A'", "ascii|LF", "ascii|0xE9", "decimal|42",
+            "signed|-5", "hex|0x2A", "binary|0b101"})
+    void everyFormatsEditableTextReadsBackAsTheSameBits(String format, String typed) {
+        long bits = ConstantValue.bitsOf(typed, 8, format, 0).orElseThrow();
+        assertThat(ConstantValue.bitsOf(ConstantValue.editableText(bits, 8, format), 8, format, 0)).hasValue(bits);
+    }
+
+    @Test
+    void floatShowsTheIeeeValueOfItsWidth() {
+        assertThat(ConstantValue.display(0x3FC00000L, 32, "float")).isEqualTo("1.5");
+        assertThat(ConstantValue.display(0x3E00, 16, "float")).isEqualTo("1.5");
+        assertThat(ConstantValue.display(0x3FF8000000000000L, 64, "float")).isEqualTo("1.5");
+        assertThat(ConstantValue.display(0xC0200000L, 32, "float")).isEqualTo("-2.5");
+        assertThat(ConstantValue.display(0x7F800000L, 32, "float")).isEqualTo("inf");
+        assertThat(ConstantValue.display(0xFF800000L, 32, "float")).isEqualTo("-inf");
+        assertThat(ConstantValue.display(0x7FC00000L, 32, "float")).isEqualTo("nan");
+        assertThat(ConstantValue.display(0x7C00, 16, "float")).isEqualTo("inf");
+        assertThat(ConstantValue.display(0x7E00, 16, "float")).isEqualTo("nan");
+        // the shortest digits that read back as the same half, not the digits of the exact float
+        assertThat(ConstantValue.display(0x2E66, 16, "float")).isEqualTo("0.1");
+    }
+
+    @Test
+    void floatAtAnotherWidthShowsHexBecauseThereIsNoFormatToRead() {
+        assertThat(ConstantValue.resolveFormat("float", 8)).isEqualTo("hex");
+        assertThat(ConstantValue.display(0x3C, 8, "float")).isEqualTo("0x3C");
+        assertThat(ConstantValue.display(0x234, 12, "float")).isEqualTo("0x234");
+        assertThat(ConstantValue.longestDisplay(12, "float")).isEqualTo(5);
+        assertThat(ConstantValue.bitsOf("1.5", 12, "float", 0)).isEmpty();
+        assertThat(ConstantValue.bitsOf("0x3C", 8, "float", 0)).hasValue(0x3CL);
+        assertThat(ConstantValue.resolveFormat("float", 16)).isEqualTo("float");
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {"16|1.5|15872", "16|0.1|11878", "32|1.5|1069547520", "32|-2.5|3223322624",
+            "64|1.5|4609434218613702656", "32|1e3|1148846080", "32|3|1077936128", "32|inf|2139095040",
+            "32|-INF|4286578688", "16|inf|31744"})
+    void floatTextReadsIntoTheWidthsFormat(int width, String text, long expected) {
+        assertThat(ConstantValue.isValidText(text, "float")).isTrue();
+        assertThat(ConstantValue.bitsOf(text, width, "float", 0)).hasValue(expected);
+    }
+
+    @Test
+    void floatTextThatDoesNotFitIsRejected() {
+        assertThat(ConstantValue.bitsOf("1e50", 32, "float", 0)).isEmpty();
+        assertThat(ConstantValue.bitsOf("70000", 16, "float", 0)).isEmpty();
+        assertThat(ConstantValue.bitsOf("1.5abc", 32, "float", 0)).isEmpty();
+        assertThat(ConstantValue.isValidText("1.5", "hex")).isFalse();
+        assertThat(ConstantValue.bitsOf("1.5", 32, "hex", 0)).isEmpty();
+        assertThat(ConstantValue.bitsOf("nan", 32, "float", 0)).hasValue(0x7FC00000L);
+    }
+
+    @Test
+    void everyFloatThatIsNotNanReadsBackFromItsDisplay() {
+        Random random = new Random(7);
+        for (int round = 0; round < 500; round++) {
+            for (int width : new int[]{16, 32, 64}) {
+                long bits = random.nextLong() & Value.maskFor(width);
+                String shown = ConstantValue.display(bits, width, "float");
+                if (shown.equals("nan")) {
+                    continue;
+                }
+                assertThat(ConstantValue.bitsOf(shown, width, "float", 0)).as("%d bits: %s", width, shown)
+                        .hasValue(bits);
+            }
+        }
+    }
+
+    @Test
+    void fixedShowsTwosComplementWithBitsAfterThePoint() {
+        assertThat(ConstantValue.display(0b0110, 8, "fixed", 1)).isEqualTo("3.0");
+        assertThat(ConstantValue.display(0b0111, 8, "fixed", 1)).isEqualTo("3.5");
+        assertThat(ConstantValue.display(0xFF, 8, "fixed", 4)).isEqualTo("-0.0625");
+        assertThat(ConstantValue.display(0x80, 8, "fixed", 0)).isEqualTo("-128");
+        assertThat(ConstantValue.display(0x80, 8, "fixed", 7)).isEqualTo("-1.0");
+        assertThat(ConstantValue.display(0x40, 8, "fixed", 8)).isEqualTo("0.25");
+        // more fraction bits than width: clamped to the width
+        assertThat(ConstantValue.display(0x40, 8, "fixed", 20)).isEqualTo("0.25");
+    }
+
+    @Test
+    void fixedTextReadsIntoThePartsFormat() {
+        assertThat(ConstantValue.bitsOf("3.5", 8, "fixed", 1)).hasValue(7L);
+        assertThat(ConstantValue.bitsOf("-0.0625", 8, "fixed", 4)).hasValue(0xFFL);
+        assertThat(ConstantValue.bitsOf("2", 8, "fixed", 4)).hasValue(32L);
+        assertThat(ConstantValue.bitsOf("0.3", 8, "fixed", 2)).hasValue(1L);
+        assertThat(ConstantValue.bitsOf("0x7F", 8, "fixed", 4)).hasValue(0x7FL);
+        // out of the signed range of 8 bits with 4 fraction bits: -8 .. 7.9375
+        assertThat(ConstantValue.bitsOf("8", 8, "fixed", 4)).isEmpty();
+        assertThat(ConstantValue.bitsOf("-8", 8, "fixed", 4)).hasValue(0x80L);
+        assertThat(ConstantValue.bitsOf("-8.07", 8, "fixed", 4)).isEmpty();
+        assertThat(ConstantValue.isValidText("1.5", "fixed")).isTrue();
+        assertThat(ConstantValue.isValidText("1.5e3", "fixed")).isTrue();
+    }
+
+    @Test
+    void everyFixedValueReadsBackFromItsDisplay() {
+        for (int width : new int[]{1, 3, 8, 13, 32, 64}) {
+            for (int fraction : new int[]{0, 1, width / 2, width}) {
+                for (long bits : new long[]{0, 1, Value.maskFor(width), 1L << (width - 1),
+                        0x2AAAAAAAAAAAAAAAL & Value.maskFor(width)}) {
+                    String shown = ConstantValue.display(bits & Value.maskFor(width), width, "fixed", fraction);
+                    assertThat(ConstantValue.bitsOf(shown, width, "fixed", fraction))
+                            .as("width %d fraction %d shown %s", width, fraction, shown)
+                            .hasValue(bits & Value.maskFor(width));
+                    assertThat(shown.length()).isLessThanOrEqualTo(ConstantValue.longestDisplay(width, "fixed",
+                            fraction));
+                }
+            }
+        }
+    }
+
+    @Test
+    void controlNamesAreReadBackInAsciiOnly() {
+        assertThat(ConstantValue.bitsOf("LF", 8, "ascii", 0)).hasValue(10L);
+        assertThat(ConstantValue.bitsOf("DEL", 8, "ascii", 0)).hasValue(127L);
+        assertThat(ConstantValue.bitsOf("LF", 8, "hex", 0)).isEmpty();
+        assertThat(ConstantValue.isValidText("LF")).isFalse();
+    }
+
+    @Test
+    void fractionalTextIsKeptAsTypedByTheNormalizer() {
+        assertThat(ConstantValue.normalize(" 1.5 ")).isEqualTo("1.5");
+        assertThat(ConstantValue.normalize("INF")).isEqualTo("inf");
+        assertThat(ConstantValue.normalize("0O17")).isEqualTo("0o17");
+        assertThatThrownBy(() -> ConstantValue.normalize("1.5x")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void theFormatChoicesIncludeEveryNewFormat() {
+        assertThat(ConstantValue.FORMAT_PARAMETER.choices())
+                .containsExactly("auto", "binary", "hex", "octal", "decimal", "signed", "ascii", "float", "fixed");
+        assertThat(ConstantValue.FORMAT_PARAMETER.displayOnly()).isTrue();
+        assertThat(ConstantValue.READING_FORMAT_PARAMETER.displayOnly()).isFalse();
     }
 }

@@ -86,12 +86,22 @@ class DisplayOnlyParameterTest {
     @Test
     void theFormatIsDisplayOnlyOnEveryTypeThatHasIt() {
         assertThat(ConstantValue.FORMAT_PARAMETER.displayOnly()).isTrue();
-        for (String typeId : List.of(StandardComponentTypes.CONSTANT, InterfacePins.INPUT_PIN, InterfacePins.OUTPUT_PIN,
+        for (String typeId : List.of(InterfacePins.INPUT_PIN, InterfacePins.OUTPUT_PIN,
                 StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER)) {
             assertThat(registry.require(typeId).parameters())
-                    .filteredOn(parameter -> parameter.name().equals(ConstantValue.FORMAT))
-                    .singleElement().matches(ParameterSpec::displayOnly, typeId);
+                    .filteredOn(parameter -> parameter.name().equals(ConstantValue.FORMAT)
+                            || parameter.name().equals(ConstantValue.FRACTION))
+                    .hasSize(2).allMatch(ParameterSpec::displayOnly, typeId);
         }
+    }
+
+    /** The Constante reads its typed value in the format («1.5» is other bits as float than as fixed point). */
+    @Test
+    void theConstantsFormatAndFractionRebuildItBecauseTheValueIsReadInThem() {
+        assertThat(registry.require(StandardComponentTypes.CONSTANT).parameters())
+                .filteredOn(parameter -> parameter.name().equals(ConstantValue.FORMAT)
+                        || parameter.name().equals(ConstantValue.FRACTION))
+                .hasSize(2).noneMatch(ParameterSpec::displayOnly);
     }
 
     @Test
