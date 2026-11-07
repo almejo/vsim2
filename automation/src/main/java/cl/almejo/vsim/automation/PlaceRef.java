@@ -30,4 +30,18 @@ public record PlaceRef(String definition, Optional<String> context) {
     public boolean isMain() {
         return definition.equals(MAIN);
     }
+
+    /**
+     * Whether a view of the place {@code definitionId} (empty: the circuit itself) with the values of the piece at
+     * {@code contextPath} (empty: «Sin valores») shows this place: the circuit's own view for the circuit; for a
+     * component, its views on the same piece, or every view of it when this place names no piece (its body is the
+     * same in all).
+     */
+    public boolean isShownBy(Optional<String> definitionId, Optional<String> contextPath) {
+        if (isMain()) {
+            return definitionId.isEmpty();
+        }
+        return definitionId.filter(definition::equals).isPresent()
+                && (context.isEmpty() || context.equals(contextPath));
+    }
 }

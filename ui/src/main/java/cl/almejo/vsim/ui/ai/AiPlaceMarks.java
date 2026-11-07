@@ -23,9 +23,11 @@ import java.util.function.LongSupplier;
  * (a place it left turns grey); a call without a task (or on another circuit) works for {@link #BRIEF_MILLISECONDS}.
  * A mark that stopped working stays grey for {@link #FINISHED_MILLISECONDS}, or until the user brings its tab to the
  * front, and then goes. One for the whole application, fed by {@link EditorAutomationHost}'s place listener and the
- * server's task events. EDT only; the clock and the timer are injected (tests move them by hand).
+ * server's task events. As {@link TaskPlaces} it tells the «Presentar» panel which place each running task works in
+ * (round E), so the panel shows on the robot's tab. EDT only; the clock and the timer are injected (tests move them by
+ * hand).
  */
-public final class AiPlaceMarks implements PlaceMarks {
+public final class AiPlaceMarks implements PlaceMarks, TaskPlaces {
 
     /** How long a call without a task keeps its place working: about the gap between two calls of a busy AI. */
     static final long BRIEF_MILLISECONDS = 3_000;
@@ -132,6 +134,12 @@ public final class AiPlaceMarks implements PlaceMarks {
         }
     }
 
+    /** The place whose mark {@code taskId} holds: the last one it touched, while it runs. */
+    @Override
+    public Optional<PlaceRef> placeOf(String taskId) {
+        return marks.stream().filter(mark -> mark.isHeldBy(taskId)).map(mark -> mark.place).findFirst();
+    }
+
     @Override
     public Runnable addListener(Runnable listener) {
         return listeners.add(Objects.requireNonNull(listener, "listener"));
@@ -143,14 +151,7 @@ public final class AiPlaceMarks implements PlaceMarks {
      */
     private static boolean shows(Mark mark, OpenDocument document, Optional<String> definitionId,
                                  Optional<String> contextPath) {
-        if (mark.circuit != document) {
-            return false;
-        }
-        if (mark.place.isMain()) {
-            return definitionId.isEmpty();
-        }
-        return definitionId.filter(mark.place.definition()::equals).isPresent()
-                && (mark.place.context().isEmpty() || mark.place.context().equals(contextPath));
+        return mark.circuit == document && mark.place.isShownBy(definitionId, contextPath);
     }
 
     private Mark markAt(OpenDocument circuit, PlaceRef place) {
