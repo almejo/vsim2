@@ -14,7 +14,7 @@ import java.util.Set;
  * A parameter change that makes a pin appear (turning «Mostrar Q̅» on) is refused when the new pin would land on a
  * wire or on another pin: in a circuit saved before the parameter existed, the Q wire may run right over that point,
  * and the pin would join its net silently (a short between Q and Q̅). The caller refuses the edit with the pin's name
- * (the UI shows {@code properties.newPinTouches}, the AI gets an invalid-parameter error); nothing is changed.
+ * (the UI shows {@code properties.newPinTouches} with the pin's name, the AI gets an invalid-parameter error); nothing is changed.
  */
 public final class NewPinTouch {
 

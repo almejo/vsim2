@@ -69,6 +69,11 @@ public final class FlipFlopPainter implements ComponentPainter {
         PainterSupport.outline(graphics, clockMark, scheme);
     }
 
+    /** How a pin's name reads for the user: the flip-flop's {@code nQ} is Q̅, every other name as it is. */
+    public static String shownPinName(String pinName) {
+        return pinName.equals(SequentialTypes.NOT_OUTPUT_PIN) ? NOT_OUTPUT_LABEL : pinName;
+    }
+
     /** An input's letter inside the body next to its pin, Q or Q̅ next to an output. */
     private static void paintLabel(Graphics2D graphics, PinSpec pin, float size, ColorScheme scheme) {
         boolean left = pin.position().x() == 0;

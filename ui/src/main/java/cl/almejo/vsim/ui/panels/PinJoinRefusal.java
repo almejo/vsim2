@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.PinJoinCheck;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.FlipFlopPainter;
 
 import java.util.Map;
 import java.util.Optional;
@@ -30,10 +31,11 @@ public final class PinJoinRefusal {
                 .map(PinJoinRefusal::sentence);
     }
 
-    private static String sentence(PinJoinCheck.PinJoin join) {
+    /** The sentence for {@code join}, naming its pin. */
+    static String sentence(PinJoinCheck.PinJoin join) {
         return switch (join.kind()) {
-            case NEW_PIN_TOUCHES -> Messages.text("properties.newPinTouches");
-            case JOINS_ANOTHER_NET -> Messages.format("groups.pinJoinsAnotherNet", join.pinName());
+            case NEW_PIN_TOUCHES -> Messages.format("properties.newPinTouches", FlipFlopPainter.shownPinName(join.pinName()));
+            case JOINS_ANOTHER_NET -> Messages.format("groups.pinJoinsAnotherNet", FlipFlopPainter.shownPinName(join.pinName()));
         };
     }
 }
