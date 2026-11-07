@@ -9,8 +9,9 @@ import java.util.Map;
 import java.util.OptionalLong;
 
 /**
- * «Punto de parada»: asks the simulation to pause ({@link BehaviorContext#requestPause}) each time its condition goes
- * from false to true, not while it stays true. An input with a Z bit or a conflict never satisfies it, not even
+ * «Punto de parada»: asks the simulation to pause ({@link BehaviorContext#requestPause}) each time its input changes to a
+ * value that meets the condition: «igual a 9» stops each time the input arrives at 9, «distinto de 0» at every new value
+ * other than 0 (a counter stops at 1, 2, 3…; the user's hand test, 2026-11-07). The same value read again is no change. An input with a Z bit or a conflict never satisfies it, not even
  * «distinto de»: the student reads «not driven» as «nothing to compare». A rebuilt behaviour (a parameter edit) starts
  * from what its input reads at that moment, so changing «Valor» while the input holds it does not stop at once.
  */
@@ -22,7 +23,7 @@ final class BreakpointBehavior implements Behavior {
     private final boolean equalsCondition;
     private final long target;
     private final boolean active;
-    private boolean conditionHolds;
+    private OptionalLong lastRead = OptionalLong.empty();
 
     BreakpointBehavior(int width, boolean equalsCondition, long target, boolean active) {
         this.width = width;
@@ -40,16 +41,16 @@ final class BreakpointBehavior implements Behavior {
 
     @Override
     public void initialize(BehaviorContext context) {
-        conditionHolds = holds(context.input(INPUT));
+        lastRead = BlockSignals.unsigned(context.input(INPUT));
     }
 
     @Override
     public void inputChanged(BehaviorContext context, int pinIndex) {
         Value input = context.input(INPUT);
-        boolean holdsNow = holds(input);
-        boolean becameTrue = holdsNow && !conditionHolds;
-        conditionHolds = holdsNow;
-        if (becameTrue && active) {
+        OptionalLong read = BlockSignals.unsigned(input);
+        boolean changed = !read.equals(lastRead);
+        lastRead = read;
+        if (changed && holds(input) && active) {
             context.requestPause(equalsCondition ? BreakpointTypes.STOPPED_EQUALS_MESSAGE
                     : BreakpointTypes.STOPPED_DIFFERS_MESSAGE, arguments(input));
         }

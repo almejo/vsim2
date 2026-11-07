@@ -77,7 +77,7 @@ class BreakpointBehaviorTest {
     }
 
     @Test
-    void differsPausesWhenTheInputLeavesTheValueAndNotWhileItKeepsDiffering() {
+    void differsPausesOnEveryNewValueThatDiffers() {
         BlockHarness harness = breakpoint("differs", "0");
 
         harness.set(INPUT, 0).settle();
@@ -87,6 +87,10 @@ class BreakpointBehaviorTest {
         assertThat(notice.messageKey()).isEqualTo("breakpoint.stopped.differs");
         assertThat(notice.arguments()).containsExactly("0011", "0000");
         harness.set(INPUT, 4).settle();
+        assertThat(harness.takePauseRequest()).as("a counter going 3 → 4 stops again (the user's hand test)").isPresent();
+        harness.set(INPUT, 4).advance(100).settle();
+        assertThat(harness.takePauseRequest()).as("the same value again is no change").isEmpty();
+        harness.set(INPUT, 0).settle();
         assertThat(harness.takePauseRequest()).isEmpty();
     }
 
