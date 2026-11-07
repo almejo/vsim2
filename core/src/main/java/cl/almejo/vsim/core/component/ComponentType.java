@@ -259,14 +259,13 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     /**
      * The parameters with defaults filled in and every value normalized.
      *
-     * @throws IllegalArgumentException for an invalid value or when {@link #check} finds a problem, so files and every
+     * @throws IllegalArgumentException for an invalid value or ({@link ParameterProblemException}) when {@link #check} finds a problem, so files and every
      *                                  other path refuse it
      */
     public Map<String, Object> resolveParameters(Map<String, Object> raw) {
         Optional<ParameterProblem> problem = check(raw);
         if (problem.isPresent()) {
-            throw new IllegalArgumentException("parameter " + problem.get().parameterName() + ": "
-                    + problem.get().messageKey() + " " + problem.get().arguments());
+            throw new ParameterProblemException(problem.get(), raw);
         }
         Map<String, Object> resolved = new LinkedHashMap<>();
         for (ParameterSpec parameter : parameters) {

@@ -37,7 +37,7 @@ final class BusGroupsProblems {
     }
 
     /** What is wrong, in English: the same problems, in the same order, as the window lists. */
-    private static String describe(String messageKey, List<Object> arguments) {
+    static String describe(String messageKey, List<Object> arguments) {
         return switch (messageKey) {
             case BitGroups.BIT_OUT_OF_RANGE -> "bit " + arguments.get(0) + " does not exist on a bus of "
                     + arguments.get(1) + " bits (its bits are 0 to " + ((Integer) arguments.get(1) - 1) + ")";

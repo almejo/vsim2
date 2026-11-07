@@ -259,7 +259,7 @@ final class EditPlanner {
         } catch (AutomationException refusal) {
             throw located(operation, refusal.error(), refusal.getMessage(), refusal.recovery());
         } catch (IllegalArgumentException invalid) {
-            throw located(operation, AutomationError.INVALID_PARAMETER, invalid.getMessage(), Map.of());
+            throw located(operation, AutomationError.INVALID_PARAMETER, ParameterProblemWords.of(invalid), Map.of());
         }
     }
 
