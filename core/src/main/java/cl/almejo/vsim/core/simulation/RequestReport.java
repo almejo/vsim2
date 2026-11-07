@@ -11,10 +11,12 @@ import java.util.OptionalLong;
  * the {@code nextEventTime} then, the time it started from, how many events it ran, for
  * {@link SimulationThread#setInputsWithin}, what happened to each input in the order asked, and for
  * {@link SimulationThread#advanceToNextClockEdgeWithin}, the clock edge the step stopped at ({@code clockEdge}, empty
- * otherwise).
+ * otherwise), and the last pause a part asked for since the start ({@code lastPause}: a Punto de parada, a Terminal's
+ * «Detener al recibir»), so the AI learns why a simulation it runs stopped.
  */
 public record RequestReport(Status status, SimulationSnapshot snapshot, OptionalLong nextEventTime, long fromTime,
-                            long eventsProcessed, List<InputOutcome> inputs, Optional<ClockEdge> clockEdge) {
+                            long eventsProcessed, List<InputOutcome> inputs, Optional<ClockEdge> clockEdge,
+                            Optional<PauseNotice> lastPause) {
 
     public enum Status {
         /** The request ran to its end. */
@@ -35,16 +37,17 @@ public record RequestReport(Status status, SimulationSnapshot snapshot, Optional
         Objects.requireNonNull(nextEventTime, "nextEventTime");
         inputs = List.copyOf(inputs);
         Objects.requireNonNull(clockEdge, "clockEdge");
+        Objects.requireNonNull(lastPause, "lastPause");
     }
 
-    /** A report of a request that stopped at no clock edge. */
+    /** A report of a request that stopped at no clock edge, with no pause asked for by a part. */
     public RequestReport(Status status, SimulationSnapshot snapshot, OptionalLong nextEventTime, long fromTime,
                          long eventsProcessed, List<InputOutcome> inputs) {
-        this(status, snapshot, nextEventTime, fromTime, eventsProcessed, inputs, Optional.empty());
+        this(status, snapshot, nextEventTime, fromTime, eventsProcessed, inputs, Optional.empty(), Optional.empty());
     }
 
     /** This report naming {@code edge} as the clock edge the step stopped at. */
     RequestReport withClockEdge(Optional<ClockEdge> edge) {
-        return new RequestReport(status, snapshot, nextEventTime, fromTime, eventsProcessed, inputs, edge);
+        return new RequestReport(status, snapshot, nextEventTime, fromTime, eventsProcessed, inputs, edge, lastPause);
     }
 }

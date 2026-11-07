@@ -176,4 +176,51 @@ class PauseRequestTest {
 
         assertThat(thread.latestPauseNotice()).isEmpty();
     }
+
+    /** The AI's receipts say why the simulation paused (decided for the «Filas fáciles» fix round). */
+    @Test
+    void aStepReportCarriesThePauseAPartAskedForDuringIt() {
+        AtomicLong nanos = new AtomicLong();
+        SimulationThread thread = new SimulationThread(new SimulationEngine(), nanos::get);
+        thread.update(circuit(30));
+        thread.tick();
+
+        java.util.concurrent.CompletableFuture<RequestReport> report = thread.stepWithin(35, 1_000);
+        thread.tick();
+
+        PauseNotice notice = report.join().lastPause().orElseThrow();
+        assertThat(notice.componentId()).isEqualTo("t");
+        assertThat(notice.messageKey()).isEqualTo(MESSAGE);
+        assertThat(notice.time()).isEqualTo(30);
+    }
+
+    @Test
+    void aReportAfterARunThatPausedCarriesThePauseAndSaysItStopped() {
+        AtomicLong nanos = new AtomicLong();
+        SimulationThread thread = new SimulationThread(new SimulationEngine(), nanos::get);
+        thread.update(circuit(30));
+        thread.resume();
+        thread.tick();
+        nanos.addAndGet(100 * MILLISECOND);
+        thread.tick();
+
+        java.util.concurrent.CompletableFuture<RequestReport> report = thread.report();
+        thread.tick();
+
+        assertThat(report.join().snapshot().running()).isFalse();
+        assertThat(report.join().lastPause()).map(PauseNotice::time).contains(30L);
+    }
+
+    @Test
+    void aReportBeforeAnyPauseHasNone() {
+        AtomicLong nanos = new AtomicLong();
+        SimulationThread thread = new SimulationThread(new SimulationEngine(), nanos::get);
+        thread.update(circuit(1000));
+        thread.tick();
+
+        java.util.concurrent.CompletableFuture<RequestReport> report = thread.stepWithin(35, 1_000);
+        thread.tick();
+
+        assertThat(report.join().lastPause()).isEmpty();
+    }
 }

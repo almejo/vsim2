@@ -1313,7 +1313,7 @@ public final class OpenDocument implements AutoCloseable {
      * expect it ({@code {0}}): core does not know labels. The name is the label of the component placed on the circuit
      * (the user component that holds a nested part), else its type's name, else the simulated id.
      */
-    PauseNotice withPartName(PauseNotice notice) {
+    public PauseNotice withPartName(PauseNotice notice) {
         String name = document.component(new ElementId(InstancePath.topLevel(notice.componentId())))
                 .map(component -> component.label().isBlank() ? Messages.componentName(component.typeId(),
                         component.parameters()) : component.label())

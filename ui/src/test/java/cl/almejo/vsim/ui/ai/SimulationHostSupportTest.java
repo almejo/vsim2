@@ -92,6 +92,24 @@ class SimulationHostSupportTest {
         assertThat(set.netlistToken()).isEqualTo(settled.netlistToken());
     }
 
+    /** Decided for the «Filas fáciles» fix round: the AI learns which part paused the simulation and why. */
+    @Test
+    void aStepPastAPuntoDeParadaSaysWhichPartPausedAndWhyInTheReceiptAndTheSignalsRead() throws Exception {
+        example("punto-de-parada");
+        DocumentSummary circuit = summary();
+        api.pause(circuit.id());
+
+        SimulationReceipt stepped = api.step(circuit.id(), StepKind.DURATION, 6_000, 100_000);
+
+        assertThat(stepped.lastPause()).hasValueSatisfying(pause -> {
+            assertThat(pause.component()).isEqualTo("c4");
+            assertThat(Long.parseLong(pause.time())).isBetween(1L, 6_000L);
+            assertThat(pause.reason()).isEqualTo("Punto de parada «igual a 9»: entrada = 1001");
+        });
+        assertThat(api.readSignals(circuit.id(), List.of(new PinReference("c3", "in", 0))).lastPause())
+                .isEqualTo(stepped.lastPause());
+    }
+
     /** An 8-bit Switch wired to an 8-bit LED; returns the ids (switch, LED) in an open document. */
     private List<String> eightBitSwitchToLed() throws Exception {
         OpenDocument document = new OpenDocument(new cl.almejo.vsim.core.document.CircuitDocument(), registry, null,

@@ -491,7 +491,7 @@ class ToolCallsTest {
                     plain.netlistToken(), plain.ranOnThatCircuit(), plain.outcome(), plain.fromTime(), plain.time(),
                     plain.nextEventTime(), plain.eventsProcessed(), plain.eventBudget(), plain.running(),
                     plain.failure(), plain.inputs(), plain.signals(),
-                    Optional.of(ClockEdge.FALLING));
+                    Optional.of(ClockEdge.FALLING), Optional.empty());
         };
 
         Map<String, Object> answer = call("vsim_step", Map.of("document", "circuit-1", "kind", "NEXT_CLOCK_CYCLE"));
@@ -500,6 +500,30 @@ class ToolCallsTest {
         assertThat(host.simulationRequests).singleElement().isEqualTo(new SimulationRequest.Step(
                 new DocumentId("circuit-1"), StepKind.NEXT_CLOCK_CYCLE, 1,
                 SimulationOperations.DEFAULT_EVENT_BUDGET));
+    }
+
+    @Test
+    void aStepAnswerSaysWhichPartLastPausedTheSimulationAndWhy() {
+        host.simulation = request -> {
+            SimulationReceipt plain = host.receipt(request.document(), SimulationReceipt.Outcome.COMPLETED);
+            return new SimulationReceipt(plain.document(), plain.version(), plain.currentVersion(),
+                    plain.netlistToken(), plain.ranOnThatCircuit(), plain.outcome(), plain.fromTime(), plain.time(),
+                    plain.nextEventTime(), plain.eventsProcessed(), plain.eventBudget(), plain.running(),
+                    plain.failure(), plain.inputs(), plain.signals(), Optional.empty(),
+                    Optional.of(new cl.almejo.vsim.automation.simulate.PartPause("c4", "4500",
+                            "Punto de parada «igual a 9»: entrada = 1001")));
+        };
+
+        Map<String, Object> answer = call("vsim_step", Map.of("document", "circuit-1", "kind", "NEXT_EVENT"));
+
+        assertThat(answer).containsEntry("lastPause", Map.of("component", "c4", "time", "4500",
+                "reason", "Punto de parada «igual a 9»: entrada = 1001"));
+    }
+
+    @Test
+    void anAnswerWithoutAPauseHasNoLastPause() {
+        assertThat(call("vsim_step", Map.of("document", "circuit-1", "kind", "NEXT_EVENT")))
+                .doesNotContainKey("lastPause");
     }
 
     @Test

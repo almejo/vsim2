@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.simulation.InputOutcome;
+import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.truthtable.Preparation;
@@ -180,6 +181,27 @@ class SimulationOperationsTest {
         assertThat(receipt.ranOnThatCircuit()).as("the snapshot is of token 8, the request was for 9").isFalse();
         assertThat(receipt.running()).isTrue();
         assertThat(receipt.signals()).extracting(SignalValue::bits).containsExactly("Z");
+    }
+
+    @Test
+    void aReceiptSaysWhichPartPausedTheSimulationAndWhyAndSoDoTheSignalsRead() {
+        SimulationSnapshot snapshot = new SimulationSnapshot(1, 9, 30, false, Map.of(), Map.of(), List.of(),
+                Optional.empty());
+        PauseNotice notice = new PauseNotice("c4", "breakpoint.stopped.equals", List.of("9"), 30, 1);
+        RequestReport report = new RequestReport(RequestReport.Status.COMPLETED, snapshot, OptionalLong.empty(), 10,
+                3, List.of(), Optional.empty(), Optional.of(notice));
+
+        SimulationReceipt receipt = SimulationReceipt.of(DOCUMENT, VERSION, VERSION, 9, 1_000, report, List.of(),
+                List.of(), paused -> "Punto de parada «cuenta»: entrada = " + paused.arguments().getFirst());
+
+        assertThat(receipt.lastPause()).contains(new PartPause("c4", "30",
+                "Punto de parada «cuenta»: entrada = 9"));
+        assertThat(SignalsView.of(receipt).lastPause()).isEqualTo(receipt.lastPause());
+    }
+
+    @Test
+    void aReceiptWithoutAPauseSaysNone() {
+        assertThat(receipt(RequestReport.Status.COMPLETED, List.of()).lastPause()).isEmpty();
     }
 
     @Test

@@ -5,12 +5,14 @@ import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.core.simulation.ClockEdge;
 import cl.almejo.vsim.core.simulation.InputOutcome;
+import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.RequestReport;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * The receipt of one simulation request (A§7): what it ran against and what it reached, all from one immutable report
@@ -28,13 +30,16 @@ import java.util.Optional;
  *   <li>{@code inputs} — for {@code set_inputs}, each value in order; {@code signals} — for {@code read_signals}.</li>
  *   <li>{@code clockEdge} — for a clock-edge or clock-cycle step, the edge it stopped at (RISING, FALLING, or BOTH
  *   when two clocks changed opposite ways at that time); empty otherwise.</li>
+ *   <li>{@code lastPause} — the last time a part paused the simulation by itself since it started (a Punto de
+ *   parada, a Terminal's «Detener al recibir»): which part, when and why; empty when none did.</li>
  * </ul>
  */
 public record SimulationReceipt(DocumentId document, DocumentVersion version, DocumentVersion currentVersion,
                                 long netlistToken, boolean ranOnThatCircuit, Outcome outcome, String fromTime,
                                 String time, Optional<String> nextEventTime, long eventsProcessed, int eventBudget,
                                 boolean running, Optional<String> failure, List<InputResult> inputs,
-                                List<SignalValue> signals, Optional<ClockEdge> clockEdge) {
+                                List<SignalValue> signals, Optional<ClockEdge> clockEdge,
+                                Optional<PartPause> lastPause) {
 
     public enum Outcome {
         COMPLETED,
@@ -68,25 +73,40 @@ public record SimulationReceipt(DocumentId document, DocumentVersion version, Do
         inputs = List.copyOf(inputs);
         signals = List.copyOf(signals);
         Objects.requireNonNull(clockEdge, "clockEdge");
+        Objects.requireNonNull(lastPause, "lastPause");
     }
 
-    /** A receipt of a request that stopped at no clock edge. */
+    /** A receipt of a request that stopped at no clock edge, with no pause a part asked for. */
     public SimulationReceipt(DocumentId document, DocumentVersion version, DocumentVersion currentVersion,
                              long netlistToken, boolean ranOnThatCircuit, Outcome outcome, String fromTime,
                              String time, Optional<String> nextEventTime, long eventsProcessed, int eventBudget,
                              boolean running, Optional<String> failure, List<InputResult> inputs,
                              List<SignalValue> signals) {
         this(document, version, currentVersion, netlistToken, ranOnThatCircuit, outcome, fromTime, time,
-                nextEventTime, eventsProcessed, eventBudget, running, failure, inputs, signals, Optional.empty());
+                nextEventTime, eventsProcessed, eventBudget, running, failure, inputs, signals, Optional.empty(),
+                Optional.empty());
     }
 
     /**
-     * The receipt of {@code report}: {@code asked} are the values of a {@code set_inputs} in the order sent (matched
-     * one to one with the report's outcomes), {@code observed} the pins of a {@code read_signals}.
+     * {@link #of(DocumentId, DocumentVersion, DocumentVersion, long, int, RequestReport, List, List, Function)} with
+     * a part's pause said as its message key and arguments (for an editor without the user's words).
      */
     public static SimulationReceipt of(DocumentId document, DocumentVersion version, DocumentVersion currentVersion,
                                        long netlistToken, int eventBudget, RequestReport report,
                                        List<InputValue> asked, List<ObservedPin> observed) {
+        return of(document, version, currentVersion, netlistToken, eventBudget, report, asked, observed,
+                notice -> notice.messageKey() + " " + notice.arguments());
+    }
+
+    /**
+     * The receipt of {@code report}: {@code asked} are the values of a {@code set_inputs} in the order sent (matched
+     * one to one with the report's outcomes), {@code observed} the pins of a {@code read_signals}, and
+     * {@code reasonOf} says a part's pause as the user reads it in the status bar.
+     */
+    public static SimulationReceipt of(DocumentId document, DocumentVersion version, DocumentVersion currentVersion,
+                                       long netlistToken, int eventBudget, RequestReport report,
+                                       List<InputValue> asked, List<ObservedPin> observed,
+                                       Function<PauseNotice, String> reasonOf) {
         List<InputResult> inputs = new ArrayList<>();
         List<InputOutcome> outcomes = report.inputs();
         for (int index = 0; index < asked.size(); index++) {
@@ -105,7 +125,8 @@ public record SimulationReceipt(DocumentId document, DocumentVersion version, Do
                 report.nextEventTime().isPresent()
                         ? Optional.of(Long.toString(report.nextEventTime().getAsLong())) : Optional.empty(),
                 report.eventsProcessed(), eventBudget, report.snapshot().running(), report.snapshot().failure(),
-                inputs, signals, report.clockEdge());
+                inputs, signals, report.clockEdge(), report.lastPause().map(notice -> new PartPause(
+                        notice.componentId(), Long.toString(notice.time()), reasonOf.apply(notice))));
     }
 
     private static Outcome outcomeOf(RequestReport.Status status) {

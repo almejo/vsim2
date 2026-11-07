@@ -27,6 +27,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 - Una pieza puede pedir que la simulación se detenga, como un punto de parada: lo hacen el [Punto de parada](#punto-de-parada) y el Terminal con «Detener al recibir» (ver [Terminal y teclado](componentes.md#terminal-y-teclado)). La simulación queda en pausa en ese instante y la barra de estado dice quién la detuvo y por qué: «Simulación detenida en t = 2400: «consola» recibió «=120»». El nombre es la etiqueta de la pieza, o su tipo si no tiene.
 - Después se puede seguir con «Iniciar» o avanzar paso a paso; la misma condición no vuelve a detenerla hasta que vuelva a cumplirse. Un «Reiniciar» la rearma.
+- La IA ve lo mismo: cada respuesta suya al simular o leer señales dice la última pieza que detuvo la simulación, en qué tiempo y por qué (con el texto de la barra de estado).
 
 ## Punto de parada
 

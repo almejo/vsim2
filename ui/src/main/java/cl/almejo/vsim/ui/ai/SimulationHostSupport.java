@@ -23,9 +23,11 @@ import cl.almejo.vsim.core.simulation.TerminalReading;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.InputAssignment;
+import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.truthtable.TruthTableScope;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -99,12 +101,19 @@ final class SimulationHostSupport {
                 }
                 try {
                     result.complete(SimulationReceipt.of(request.document(), version, versionOf(document),
-                            netlistToken, started.eventBudget(), report, started.asked(), started.observed()));
+                            netlistToken, started.eventBudget(), report, started.asked(), started.observed(),
+                            notice -> pauseReason(document, notice)));
                 } catch (RuntimeException exception) {
                     result.completeExceptionally(exception);
                 }
             }));
         });
+    }
+
+    /** Why a part paused {@code document}'s simulation, as its status bar says it (with the part's name); EDT. */
+    private static String pauseReason(OpenDocument document, PauseNotice notice) {
+        PauseNotice named = document.withPartName(notice);
+        return Messages.format(named.messageKey(), named.arguments().toArray());
     }
 
     /** The words of memory {@code component} in the simulation now, asked of its thread; the EDT never waits. */

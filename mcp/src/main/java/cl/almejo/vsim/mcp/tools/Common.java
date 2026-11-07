@@ -64,7 +64,21 @@ final class Common {
                 .property("inputs", Schema.array("For vsim_set_inputs: each value, accepted or not, in order",
                         Schema.anyObject()))
                 .property("signals", Schema.array("Pins read", Schema.anyObject()))
+                .property("lastPause", lastPause())
                 .required("outcome", "time", "eventsProcessed", "running")
+                .build();
+    }
+
+    /** Why a part last paused the simulation by itself, in the receipts and in the signals read. */
+    static Map<String, Object> lastPause() {
+        return Schema.object("The last time a part paused the simulation by itself since it started (a Punto de "
+                        + "parada whose condition became true, a Terminal that received its «Detener al recibir» "
+                        + "text), absent when none did; compare its time with the time now")
+                .property("component", Schema.string("The part that paused it (an element id, or a path inside a "
+                        + "user component)"))
+                .property("time", Schema.string("The simulation time it paused at, as a decimal string"))
+                .property("reason", Schema.string("Why, as the status bar tells the user"))
+                .required("component", "time", "reason")
                 .build();
     }
 }

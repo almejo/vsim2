@@ -866,11 +866,16 @@ public final class SimulationThread implements AutoCloseable {
                 .withClockEdge(published.edge()));
     }
 
-    /** The receipt of the engine's state now; called on this thread right after a request. */
+    /**
+     * The receipt of the engine's state now; called on this thread right after a request. A pause a part asked for
+     * during it is taken first ({@link #pauseForPart}), so the receipt says the simulation stopped and why.
+     */
     private RequestReport reportOf(RequestReport.Status status, long fromTime, long eventsProcessed,
                                    List<InputOutcome> inputs) {
+        pauseForPart();
         SimulationSnapshot snapshot = engine.snapshot().withRunning(running).withFailure(Optional.ofNullable(failure));
-        return new RequestReport(status, snapshot, engine.nextEventTime(), fromTime, eventsProcessed, inputs);
+        return new RequestReport(status, snapshot, engine.nextEventTime(), fromTime, eventsProcessed, inputs,
+                Optional.empty(), Optional.ofNullable(latestPauseNotice));
     }
 
     /** For tests: requests queued and not yet applied. */

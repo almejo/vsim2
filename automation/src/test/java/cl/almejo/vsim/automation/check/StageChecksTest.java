@@ -321,7 +321,7 @@ class StageChecksTest {
 
         @Override
         public SignalsView signals(DocumentId document, List<PinReference> pins) {
-            return new SignalsView(document, VERSION, "10", false, staleSignals, signals);
+            return new SignalsView(document, VERSION, "10", false, staleSignals, signals, Optional.empty());
         }
     }
 }

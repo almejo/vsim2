@@ -142,6 +142,7 @@ final class SimulationTools {
                         .property("stale", Schema.bool("The circuit changed before the answer"))
                         .property("signals", Schema.array("One per pin asked: pin, width, bits, hex, "
                                 + "highImpedanceMask, conflict", Schema.anyObject()))
+                        .property("lastPause", Common.lastPause())
                         .required("time", "signals").build(),
                 Tool.Hints.READS,
                 List.of(Map.of("document", "circuit-1", "pins",
