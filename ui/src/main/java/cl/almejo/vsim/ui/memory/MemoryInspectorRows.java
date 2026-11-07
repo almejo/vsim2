@@ -77,7 +77,12 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
                 ? Messages.format("memory.inspector.linked", MemoryLinkPaths.displayPath(link, view.openDocument().path()))
                 : ownPieceName(component.id()).map(piece -> Messages.format("memory.inspector.ownPiece", piece))
                 .orElseGet(() -> Messages.text("memory.inspector.inCircuit"));
-        rows.add(Messages.text("memory.inspector.contents"), named(new JLabel(where), "memory.inspector.contents"));
+        // A long place («Enlazado: …», a wider system font) shortens with «…» instead of widening the panel; the
+        // tooltip keeps the whole text.
+        JLabel place = named(new JLabel(where), "memory.inspector.contents");
+        place.setToolTipText(where);
+        place.setMinimumSize(new java.awt.Dimension(0, place.getPreferredSize().height));
+        rows.add(Messages.text("memory.inspector.contents"), place);
         ElementId id = component.id();
         JButton edit = button("memory.inspector.edit", Messages.text("memory.menu.edit"),
                 () -> launcher.open(view, id, OptionalLong.empty()));

@@ -46,9 +46,15 @@ public final class BreakpointPainter implements ComponentPainter {
         PainterSupport.body(graphics, octagon, scheme, fill);
         PainterSupport.centeredText(graphics, equalsCondition ? "=" : "≠", LEAD_END + OCTAGON_SIDE / 2, middle,
                 SYMBOL_SIZE, scheme.text());
-        double available = shaped.size().width() * UNIT - VALUE_LEFT - RIGHT_MARGIN;
-        PainterSupport.uprightText(graphics, ellipsized(shownValue(resolved), available), VALUE_LEFT, middle,
-                VALUE_SIZE, active ? scheme.text() : scheme.wireHighImpedance(), PainterSupport.ALIGN_LEFT);
+        // Upright on a part turned a quarter, the value runs across the part, not along it: it is centred on the lead
+        // line and cut to the part's thickness (a wider system font, DejaVu Sans, would stick out otherwise).
+        boolean across = PainterSupport.quarterTurns(graphics) % 2 != 0;
+        double available = across ? shaped.size().height() * UNIT
+                : shaped.size().width() * UNIT - VALUE_LEFT - RIGHT_MARGIN;
+        double anchor = across ? VALUE_LEFT + VALUE_SIZE / 2 : VALUE_LEFT;
+        PainterSupport.uprightText(graphics, ellipsized(shownValue(resolved), available), anchor, middle,
+                VALUE_SIZE, active ? scheme.text() : scheme.wireHighImpedance(),
+                across ? PainterSupport.ALIGN_CENTER : PainterSupport.ALIGN_LEFT);
         PainterSupport.pinDots(graphics, shaped, scheme);
     }
 

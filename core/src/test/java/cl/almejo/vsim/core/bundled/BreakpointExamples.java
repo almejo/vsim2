@@ -46,10 +46,11 @@ public final class BreakpointExamples {
 
         builder.route(new GridPoint(6, 22), new GridPoint(24, 22), new GridPoint(24, 17));
         builder.link(clock, 0, counter, 4);
-        builder.route(new GridPoint(26, 12), new GridPoint(30, 12));
-        builder.route(new GridPoint(30, 12), new GridPoint(34, 12));
-        builder.route(new GridPoint(30, 12), new GridPoint(30, 6), new GridPoint(34, 6));
-        builder.route(new GridPoint(30, 12), new GridPoint(30, 18), new GridPoint(34, 18));
+        // The branches leave at x = 28, clear of the «distinto de 0 (apagado)» label also in a wider font (DejaVu Sans).
+        builder.route(new GridPoint(26, 12), new GridPoint(28, 12));
+        builder.route(new GridPoint(28, 12), new GridPoint(34, 12));
+        builder.route(new GridPoint(28, 12), new GridPoint(28, 6), new GridPoint(34, 6));
+        builder.route(new GridPoint(28, 12), new GridPoint(28, 18), new GridPoint(34, 18));
         builder.link(counter, 5, count, 0);
         builder.link(counter, 5, equalsNine, 0);
         builder.link(counter, 5, differsFromZero, 0);
