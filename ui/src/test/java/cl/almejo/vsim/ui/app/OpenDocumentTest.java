@@ -126,6 +126,19 @@ class OpenDocumentTest {
     }
 
     @Test
+    void theCompiledNetlistIsOfferedOnlyForItsOwnDocumentAsItIsNow() {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+
+        assertThat(document.compiledNetlistOf(document.document())).containsSame(document.netlist());
+        assertThat(document.compiledNetlistOf(new CircuitDocument())).isEmpty();
+
+        document.document().add(new Wire(document.document().newWireId(), new GridPoint(10, 10),
+                new GridPoint(12, 10)));
+        assertThat(document.compiledNetlistOf(document.document())).containsSame(document.netlist());
+    }
+
+    @Test
     void simulationCatchesUpWithTheDocument() {
         OpenDocument document = track(OpenDocument.createEmpty(registry));
         place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));

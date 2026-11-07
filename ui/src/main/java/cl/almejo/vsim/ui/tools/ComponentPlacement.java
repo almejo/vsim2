@@ -59,7 +59,8 @@ public final class ComponentPlacement {
         Component component = type.newComponent(context.openDocument().document().newComponentId(), position,
                 rotation, startingParameters(context, type, presetParameters), "");
         WidthsFollowConnectionCommand command = WidthsFollowConnectionCommand.placing(
-                new AddElementsCommand(List.of(component)), Set.of(component.id()), context.openDocument().registry());
+                new AddElementsCommand(List.of(component)), Set.of(component.id()), context.openDocument().registry(),
+                context.openDocument()::compiledNetlistOf);
         context.openDocument().execute(command);
         WidthsFollowNotice.of(context.openDocument().document(), command).ifPresent(context::showNotice);
         NewTunnels.placed(context.openDocument(), component);

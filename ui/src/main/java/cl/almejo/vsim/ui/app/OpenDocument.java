@@ -134,6 +134,8 @@ public final class OpenDocument implements AutoCloseable {
     /** The push buttons pressed and not yet let go (simulation ids), by any pane, window or place of this document. */
     private final Set<String> heldButtons = new LinkedHashSet<>();
     private long netlistToken = -1;
+    /** Whether {@link #netlist} is the compiled circuit, not the empty stand-in a failed compile left. */
+    private boolean netlistCompiled;
     private boolean closed;
     private boolean pauseOnShortCircuit;
     private Map<String, String> probeNets = Map.of();
@@ -728,6 +730,18 @@ public final class OpenDocument implements AutoCloseable {
 
     public Netlist netlist() {
         return body == null ? netlist : body.workingCopy.netlist();
+    }
+
+    /**
+     * The netlist this document already compiled for {@code candidate} as it is now: present only for this document's
+     * own circuit (not a body place's working copy) when no structural change happened since and the compile worked.
+     * «Anchos que siguen lo conectado» reads it as the circuit before a connection instead of compiling it again
+     * ({@link cl.almejo.vsim.core.command.WidthsFollowConnectionCommand}).
+     */
+    public Optional<Netlist> compiledNetlistOf(CircuitDocument candidate) {
+        boolean current = body == null && candidate == document && netlistCompiled
+                && netlistToken == document.structureRevision();
+        return current ? Optional.of(netlist) : Optional.empty();
     }
 
     /**
@@ -1714,8 +1728,10 @@ public final class OpenDocument implements AutoCloseable {
      */
     private void synchronize() {
         try {
+            netlistCompiled = false;
             netlist = compiler.compile(document);
             netlistToken = document.structureRevision();
+            netlistCompiled = true;
             forgetReconnectedPins();
             // One request with the circuit, so no tick runs between the new circuit and its channels (spec §3.4).
             FlatCircuit circuit = flattener.flatten(document, netlist);

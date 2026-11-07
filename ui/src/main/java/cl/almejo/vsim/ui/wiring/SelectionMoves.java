@@ -149,7 +149,8 @@ public final class SelectionMoves {
      * that width, in the same undo step ({@link WidthsFollowConnectionCommand}).
      */
     private static Command widthsFollow(OpenDocument openDocument, Command move, Collection<ElementId> ids) {
-        return WidthsFollowConnectionCommand.placing(move, new LinkedHashSet<>(ids), openDocument.registry());
+        return WidthsFollowConnectionCommand.placing(move, new LinkedHashSet<>(ids), openDocument.registry(),
+                openDocument::compiledNetlistOf);
     }
 
     /**

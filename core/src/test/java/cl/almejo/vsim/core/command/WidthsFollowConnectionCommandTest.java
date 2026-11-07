@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.command;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.BreakpointTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -10,6 +11,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
@@ -378,5 +380,189 @@ class WidthsFollowConnectionCommandTest {
     private void nudge(Set<ElementId> moved, int deltaX, int deltaY) {
         history.execute(WidthsFollowConnectionCommand.placing(
                 MoveWithWiresCommand.nudge(registry, moved, deltaX, deltaY), moved, registry));
+    }
+
+    /** C1 of the final review: an existing mismatch on each side; the new wire must not pick one of them. */
+    @Test
+    void aWireBetweenTwoPartsOnDisagreeingNetsChangesNothingWhicheverWasAddedFirst() {
+        for (boolean gateFirst : List.of(true, false)) {
+            CircuitDocument circuit = new CircuitDocument();
+            History circuitHistory = new History(circuit);
+            Component gate;
+            Component sum;
+            if (gateFirst) {
+                gate = addTo(circuit, StandardComponentTypes.AND, 30, 40, Map.of(WIDTH, 1));
+                sum = addTo(circuit, StandardComponentTypes.ADDER, 0, 0, Map.of(WIDTH, 16));
+            } else {
+                sum = addTo(circuit, StandardComponentTypes.ADDER, 0, 0, Map.of(WIDTH, 16));
+                gate = addTo(circuit, StandardComponentTypes.AND, 30, 40, Map.of(WIDTH, 1));
+            }
+            Component sixteen = addTo(circuit, StandardComponentTypes.INPUT_PIN, -20, 2, Map.of(WIDTH, 16));
+            Component eight = addTo(circuit, StandardComponentTypes.INPUT_PIN, 10, 60, Map.of(WIDTH, 8));
+            wireIn(circuit, pinIn(circuit, sixteen, "pin"), pinIn(circuit, sum, "A"));
+            wireIn(circuit, pinIn(circuit, eight, "pin"), pinIn(circuit, gate, "in0"));
+            List<Command> segments = lShaped(circuit, pinIn(circuit, sum, "S"), pinIn(circuit, gate, "in1"));
+
+            circuitHistory.execute(WidthsFollowConnectionCommand.wire(new CompositeCommand("command.wire", segments),
+                    registry));
+
+            assertThat(circuit.component(gate.id()).orElseThrow().parameters().get(WIDTH)).as("gate first " + gateFirst)
+                    .isEqualTo(1);
+            assertThat(circuit.component(sum.id()).orElseThrow().parameters().get(WIDTH)).as("gate first " + gateFirst)
+                    .isEqualTo(16);
+        }
+    }
+
+    /** C1 of the final review: the new wire matches (8 = 8); the old 4-bit mismatch on A must not spread to it. */
+    @Test
+    void aMatchingWireFromAPartWithAnOldMismatchChangesNothing() {
+        Component adder = adder(20, 0, 8);
+        Component inputPin = add(StandardComponentTypes.INPUT_PIN, 0, 2, Map.of(WIDTH, 4));
+        document.add(newWire(pin(inputPin, "pin"), pin(adder, "A")));
+        Component outputPin = add(StandardComponentTypes.OUTPUT_PIN, 40, 3, Map.of(WIDTH, 8));
+
+        draw(pin(adder, "S"), pin(outputPin, "pin"));
+
+        assertThat(widthOf(adder)).isEqualTo(8);
+        assertThat(widthOf(outputPin)).isEqualTo(8);
+        assertThat(netOf(adder, "S").widthMismatch()).isFalse();
+    }
+
+    /** C1 of the final review: a constant that could not follow must not leave the adder changed alone. */
+    @Test
+    void aMatchingWireToAConstantThatCouldNotFollowLeavesTheMismatchWhereItWas() {
+        Component adder = adder(20, 0, 8);
+        Component inputPin = add(StandardComponentTypes.INPUT_PIN, 0, 2, Map.of(WIDTH, 4));
+        document.add(newWire(pin(inputPin, "pin"), pin(adder, "A")));
+        Component constant = add(StandardComponentTypes.CONSTANT, 40, 3, Map.of(WIDTH, 8, "value", "200"));
+
+        draw(pin(adder, "S"), pin(constant, "out"));
+
+        assertThat(widthOf(adder)).isEqualTo(8);
+        assertThat(widthOf(constant)).isEqualTo(8);
+        assertThat(netOf(adder, "S").widthMismatch()).isFalse();
+        assertThat(netOf(adder, "A").widthMismatch()).isTrue();
+    }
+
+    /** I1 of the final review: the Punto de parada only reads, so it follows the pin that drives it. */
+    @Test
+    void aFreshBreakpointWiredToAFreshInputPinTakesThePinWidth() {
+        Component inputPin = add(StandardComponentTypes.INPUT_PIN, 0, 2, Map.of(WIDTH, 4));
+        Component breakpoint = add(BreakpointTypes.BREAKPOINT, 20, 0, Map.of());
+
+        history.execute(WidthsFollowConnectionCommand.wire(new CompositeCommand("command.wire",
+                lShaped(document, pin(breakpoint, "in"), pin(inputPin, "pin"))), registry));
+
+        assertThat(widthOf(inputPin)).isEqualTo(4);
+        assertThat(widthOf(breakpoint)).isEqualTo(4);
+    }
+
+    @Test
+    void aFreshConstantWiredToAnAdderWhoseOtherInputSitsOnAnotherWidthChangesNothing() {
+        Component adder = adder(20, 0, 8);
+        Component narrow = add(StandardComponentTypes.INPUT_PIN, 0, 30, Map.of(WIDTH, 4));
+        document.add(newWire(pin(narrow, "pin"), new GridPoint(pin(adder, "B").x(), pin(narrow, "pin").y())));
+        document.add(newWire(new GridPoint(pin(adder, "B").x(), pin(narrow, "pin").y()), pin(adder, "B")));
+        Component constant = constant(0, 2, 1);
+
+        draw(pin(constant, "out"), pin(adder, "A"));
+
+        assertThat(widthOf(constant)).isEqualTo(1);
+        assertThat(widthOf(adder)).isEqualTo(8);
+    }
+
+    @Test
+    void aConnectedGateWhoseInputsAllMeetOneOtherWidthTakesIt() {
+        Component and = andAt(new GridPoint(20, 0));
+        Component first = add(StandardComponentTypes.INPUT_PIN, 0, 0, Map.of(WIDTH, 8));
+        lShaped(document, pin(first, "pin"), pin(and, "in0")).forEach(command -> command.apply(document));
+        Component second = add(StandardComponentTypes.INPUT_PIN, 0, 30, Map.of(WIDTH, 8));
+
+        history.execute(WidthsFollowConnectionCommand.wire(new CompositeCommand("command.wire",
+                lShaped(document, pin(second, "pin"), pin(and, "in1"))), registry));
+
+        assertThat(widthOf(and)).isEqualTo(8);
+        assertThat(widthOf(second)).isEqualTo(8);
+    }
+
+    @Test
+    void theNetlistTheCallerAlreadyHasIsReadAsTheCircuitBeforeTheWire() {
+        Component constant = constant(0, 2, 1);
+        Component adder = adder(20, 0, 8);
+        Netlist compiledBefore = new NetlistCompiler(registry).compile(document);
+        List<CircuitDocument> asked = new java.util.ArrayList<>();
+
+        history.execute(WidthsFollowConnectionCommand.wire(new AddWireCommand(newWire(pin(constant, "out"),
+                pin(adder, "A"))), registry, candidate -> {
+                    asked.add(candidate);
+                    return java.util.Optional.of(compiledBefore);
+                }));
+
+        assertThat(asked).containsExactly(document);
+        assertThat(widthOf(constant)).isEqualTo(8);
+    }
+
+    @Test
+    void everyPartWithAWidthPlaysTheRoleItsPinsGiveIt() {
+        Map<String, ConnectedWidths.Role> roles = new java.util.TreeMap<>();
+        for (ComponentType type : registry.all()) {
+            ConnectedWidths.roleOf(type).ifPresent(role -> roles.put(type.id(), role));
+        }
+
+        assertThat(roles).containsExactlyInAnyOrderEntriesOf(Map.ofEntries(
+                Map.entry(StandardComponentTypes.CONSTANT, ConnectedWidths.Role.SOURCE),
+                Map.entry(StandardComponentTypes.INPUT_PIN, ConnectedWidths.Role.SOURCE),
+                Map.entry(StandardComponentTypes.SWITCH, ConnectedWidths.Role.SOURCE),
+                Map.entry(StandardComponentTypes.OUTPUT_PIN, ConnectedWidths.Role.SINK),
+                Map.entry(StandardComponentTypes.LED, ConnectedWidths.Role.SINK),
+                Map.entry(BreakpointTypes.BREAKPOINT, ConnectedWidths.Role.SINK),
+                Map.entry(StandardComponentTypes.AND, ConnectedWidths.Role.BLOCK),
+                Map.entry("or", ConnectedWidths.Role.BLOCK),
+                Map.entry("xor", ConnectedWidths.Role.BLOCK),
+                Map.entry("buffer", ConnectedWidths.Role.BLOCK),
+                Map.entry("tri-state", ConnectedWidths.Role.BLOCK),
+                Map.entry(StandardComponentTypes.ADDER, ConnectedWidths.Role.BLOCK),
+                Map.entry("comparator", ConnectedWidths.Role.BLOCK),
+                Map.entry("alu", ConnectedWidths.Role.BLOCK),
+                Map.entry(StandardComponentTypes.REGISTER, ConnectedWidths.Role.BLOCK),
+                Map.entry("counter", ConnectedWidths.Role.BLOCK),
+                Map.entry("subtractor", ConnectedWidths.Role.BLOCK),
+                Map.entry("negator", ConnectedWidths.Role.BLOCK),
+                Map.entry("multiplier", ConnectedWidths.Role.BLOCK),
+                Map.entry("divider", ConnectedWidths.Role.BLOCK),
+                Map.entry("shifter", ConnectedWidths.Role.BLOCK),
+                Map.entry("bit-counter", ConnectedWidths.Role.BLOCK),
+                Map.entry("mux", ConnectedWidths.Role.BLOCK),
+                Map.entry("demux", ConnectedWidths.Role.BLOCK)));
+    }
+
+    private Component addTo(CircuitDocument circuit, String typeId, int x, int y, Map<String, Object> parameters) {
+        Component component = registry.require(typeId).newComponent(circuit.newComponentId(), new GridPoint(x, y),
+                Rotation.R0, parameters, "");
+        circuit.add(component);
+        return component;
+    }
+
+    private GridPoint pinIn(CircuitDocument circuit, Component component, String name) {
+        Component now = circuit.component(component.id()).orElseThrow();
+        ComponentType type = registry.typeOf(now);
+        return type.pinLocation(now, type.pinIndexOf(name).orElseThrow());
+    }
+
+    private void wireIn(CircuitDocument circuit, GridPoint start, GridPoint end) {
+        lShaped(circuit, start, end).forEach(command -> command.apply(circuit));
+    }
+
+    /** A wire from {@code start} to {@code end} with one bend: up or down first, then across. */
+    private static List<Command> lShaped(CircuitDocument circuit, GridPoint start, GridPoint end) {
+        GridPoint corner = new GridPoint(start.x(), end.y());
+        List<Command> segments = new java.util.ArrayList<>();
+        if (!start.equals(corner)) {
+            segments.add(new AddWireCommand(new Wire(circuit.newWireId(), start, corner)));
+        }
+        if (!corner.equals(end)) {
+            segments.add(new AddWireCommand(new Wire(circuit.newWireId(), corner, end)));
+        }
+        return segments;
     }
 }

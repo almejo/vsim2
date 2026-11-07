@@ -133,7 +133,8 @@ public final class WireDrawing {
                 .toList();
         WidthsFollowConnectionCommand command = WidthsFollowConnectionCommand.wire(commands.size() == 1
                 ? commands.get(0)
-                : new CompositeCommand("command.wire", commands), context.openDocument().registry());
+                : new CompositeCommand("command.wire", commands), context.openDocument().registry(),
+                context.openDocument()::compiledNetlistOf);
         context.openDocument().execute(command);
         WidthsFollowNotice.of(context.openDocument().document(), command).ifPresent(context::showNotice);
         return true;

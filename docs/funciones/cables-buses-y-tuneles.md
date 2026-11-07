@@ -115,8 +115,8 @@ lleva un grupo y es un bus del ancho de ese grupo.
 
 ## Anchos que siguen lo conectado
 
-- Al **conectar** una pieza que tiene «Ancho (bits)» (pin de entrada o de salida, Constante, Interruptor, LED,
-  compuertas, Buffer y Buffer triestado, multiplexor, registro, contador, sumador y los demás bloques de N bits), toma
+- Al **conectar** una pieza que tiene «Ancho (bits)» (pin de entrada o de salida, Constante, Interruptor, LED, Punto
+  de parada, compuertas, Buffer y Buffer triestado, multiplexor, registro, contador, sumador y los demás bloques de N bits), toma
   el ancho de lo que toca, en el mismo paso de deshacer que la conexión: una Constante de 1 bit que cableas a la
   entrada de un sumador de 8 bits pasa a 8 bits, y un pin de salida que dejas en la punta de un bus de 16 bits pasa a
   16. Ctrl+Z quita el cable y le devuelve su ancho de una vez. La barra de estado dice qué cambió («Constante tomó el
@@ -130,12 +130,21 @@ lleva un grupo y es un bus del ancho de ese grupo.
   4 bits y la otra en uno de 8), si algo ya conectado tiene el ancho de ahora (la salida de la AND ya va a un cable
   de 1 bit), si el ancho no cabe en la pieza (una Constante llega a 32 bits; un valor que no cabe en menos bits) o si
   al cambiar de tamaño su pin tocaría otra cosa, no cambia nada y queda el aviso de anchos incompatibles de siempre.
-- Al dibujar un cable entre dos piezas que podrían cambiar, cede la que «manda» menos: una pieza que ya estaba
-  conectada manda sobre una suelta; después, los bloques y compuertas mandan sobre la Constante, la Constante sobre
-  los pines de entrada y los Interruptores, y estos sobre los pines de salida y los LEDs. Así, un pin de salida nuevo
-  cableado a un pin de entrada de 8 bits pasa a 8 bits, y un pin de entrada nuevo cableado a un registro ya conectado
-  toma el ancho del registro. Dos piezas que mandan lo mismo (dos sumadores sueltos de 4 y 8 bits) no cambian: queda
-  el aviso. Al poner o mover una pieza, solo cambia la que pusiste o moviste.
+- Al dibujar un cable entre piezas que podrían cambiar, cuenta todo lo que tocan los pines de datos de todas ellas
+  (pueden cambiar juntas), y **nunca se elige entre anchos que no coinciden**:
+  - Si todo lo que no es una pieza suelta (sin nada conectado antes del cable) tiene un solo ancho, las sueltas lo
+    toman: un pin de entrada nuevo cableado a un registro ya conectado de 8 bits pasa a 8.
+  - Si el cable une solo piezas sueltas, cede la que «manda» menos: los bloques y compuertas mandan sobre las piezas
+    que solo entregan un valor (Constante, pin de entrada, Interruptor), y estas sobre las que solo lo muestran (pin de
+    salida, LED, Punto de parada). Así, una Constante nueva de 1 bit cableada a un sumador suelto de 8 pasa a 8, y un
+    Punto de parada nuevo cableado a un pin de entrada de 4 bits pasa a 4. Dos que mandan lo mismo (dos sumadores
+    sueltos de 4 y 8 bits) no cambian: queda el aviso.
+  - Si no, una pieza ya conectada cambia solo si todo lo demás tiene un mismo ancho, distinto del suyo: una AND de
+    1 bit con una entrada en un bus de 8 pasa a 8 cuando cableas la otra entrada a otro bus de 8. Un sumador de 8 bits
+    con la entrada A en un pin de 4 (un aviso que ya estaba) no cambia cuando cableas su salida a un pin de salida de
+    8: el aviso queda donde estaba y no se mueve al cable nuevo.
+  - El resultado no depende del orden de las piezas en el archivo. Al poner o mover una pieza, solo cambia la que
+    pusiste o moviste.
 - No se propaga por la red: cambia solo la pieza que conectaste, no lo que está más allá de ella. Las memorias RAM y
   ROM, el separador y la unión de bus no cambian de ancho solos.
 - Adentro de un componente propio vale lo mismo: un pin del componente que conectas a algo de 8 bits pasa a 8 bits y

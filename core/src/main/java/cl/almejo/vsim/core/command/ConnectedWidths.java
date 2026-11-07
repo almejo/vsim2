@@ -10,14 +10,16 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,23 +30,29 @@ import java.util.Set;
 /**
  * «Anchos que siguen lo conectado»: right after a connection (a wire drawn, a part placed or moved), a part with an
  * «Ancho (bits)» shared by its data pins (input and output pins, Constante, gates, buffer, tri-state, Interruptor, LED,
- * register, counter, adder and the other N-bit blocks) takes the width of what it now touches. Pins with a width of
- * their own (a mux's select, an enable, a clock, a carry) do not count. Only on connecting, never spreading further
- * through the net (a later idea, recorded in the design notes).
+ * Punto de parada, register, counter, adder and the other N-bit blocks) takes the width of what it now touches. Pins
+ * with a width of their own (a mux's select, an enable, a clock, a carry) do not count. Only on connecting, never
+ * spreading further through the net (a later idea, recorded in the design notes).
  *
- * <p>The rule: a part changes only when every pin with a width of its own met by its data pins carries the same width
- * W, W differs from the part's and the part can take it. When they disagree (an AND whose inputs land on a 4-bit and
- * an 8-bit bus), when something already connected keeps the current width (its output on a 1-bit wire), when W is
- * beyond the part's maximum or a constant's value would not fit, or when the change would join or split anything else
- * (a wider constant's pin moves), nothing changes and the netlist's width mismatch shows as usual: never hidden.
- *
- * <p>Who may change: after a placement or a move, only the parts it placed or moved; after a wire, every part whose
- * data pin it joins to something new. When two of those meet, the one that ranks lower takes the other's width and
- * the other ignores it ({@link #priority}): a part that was already connected ranks above a loose one; then blocks
- * and gates, above constants, above input pins and switches (they drive), above output pins and LEDs (they show). So
- * a fresh constant wired to an adder takes the adder's width, a fresh output pin or LED wired to an 8-bit input pin
- * takes 8 bits, and a fresh input pin wired to a connected register takes the register's. Two parts of the same rank
- * give no width to each other: an 8-bit adder's sum wired to a fresh 4-bit register keeps the mismatch in sight.
+ * <p>The parts that may change are those with a width whose data pin the connection joined to something new (after a
+ * placement or a move, only the parts it placed or moved). Those that share a net through their data pins are decided
+ * together, as a group, on every net their data pins touch: the nets reached through the other parts of the group
+ * count too, since those parts may change with them. The rule never picks between disagreeing nets:
+ * <ol>
+ *     <li>When everything in those nets other than the loose parts of the group (connected to nothing before the
+ *     edit) carries one width W, the loose parts take W: a fresh constant wired to an 8-bit adder whose other input
+ *     is on an 8-bit bus.</li>
+ *     <li>When the group is only loose parts and nothing else, the {@link Role} breaks the tie: blocks and gates give
+ *     their width to sources (constants, input pins, switches), which give theirs to sinks (output pins, LEDs, Puntos
+ *     de parada). Two of the same role whose widths differ change nothing: an 8-bit adder's sum wired to a fresh
+ *     4-bit register keeps the mismatch in sight.</li>
+ *     <li>Otherwise a part already connected changes only when every other pin in those nets carries one width,
+ *     and only when it is the only part of the group in that case: an AND whose first input sat on an 8-bit bus
+ *     (a mismatch) takes 8 bits when its second input is wired to another 8-bit bus.</li>
+ * </ol>
+ * The result never depends on the order of the parts in the file. When a part of the group cannot take the width
+ * (beyond its maximum, a constant's value that would not fit, a pin that would move), the whole group stays as it was
+ * and the netlist's width mismatch shows as usual: never hidden.
  */
 public final class ConnectedWidths {
 
@@ -55,20 +63,20 @@ public final class ConnectedWidths {
     private static final Set<String> NEVER_FOLLOWING = Set.of(StandardComponentTypes.RAM, StandardComponentTypes.ROM,
             StandardComponentTypes.BUS_SPLITTER, StandardComponentTypes.BUS_JOINER);
 
-    /**
-     * The rank of the loose parts that are not blocks or gates (those rank {@value #BLOCK_RANK}), see
-     * {@link #priority}.
-     */
-    private static final Map<String, Integer> RANKS = Map.of(StandardComponentTypes.CONSTANT, 2,
-            StandardComponentTypes.INPUT_PIN, 1, StandardComponentTypes.SWITCH, 1,
-            StandardComponentTypes.OUTPUT_PIN, 0, StandardComponentTypes.LED, 0);
-
-    private static final int BLOCK_RANK = 3;
-
-    /** How far a part connected before the edit ranks above the loose ones (whose ranks go up to the blocks'). */
-    private static final int CONNECTED_BONUS = BLOCK_RANK + 1;
-
     private static final String WIDTH = StandardComponentTypes.WIDTH;
+
+    /**
+     * What a part with a width does with values, read from its pins, which decides who gives way when only loose
+     * parts meet (rule 2 of the class comment): the higher role keeps its width.
+     */
+    public enum Role {
+        /** Only reads: no pin drives (output pin, LED, Punto de parada). */
+        SINK,
+        /** Only drives: no pin reads (Constante, input pin, Interruptor). */
+        SOURCE,
+        /** Reads and drives (gates, registers, arithmetic blocks): the user chose its width for what it computes. */
+        BLOCK
+    }
 
     /** What {@link #follow} changed: the parts, and the steps that did it, in the order they were applied. */
     public record Followed(List<WidthChange> changes, List<Command> steps) {
@@ -88,11 +96,20 @@ public final class ConnectedWidths {
         }
     }
 
+    /** Parts that share nets through their data pins and are decided together, with every net those pins touch. */
+    private record Group(List<Component> members, Set<NetId> nets) {
+    }
+
+    /** A group's decision applied: its steps and changes, kept only if the group holds afterwards. */
+    private record Applied(Group group, List<Command> steps, List<WidthChange> changes) {
+    }
+
     private final CircuitDocument document;
     private final ComponentTypeRegistry registry;
     private final NetlistCompiler compiler;
     private final Netlist before;
     private final Set<ElementId> placedIds;
+    private final Map<ElementId, List<Integer>> widthPinsById = new HashMap<>();
 
     private ConnectedWidths(CircuitDocument document, ComponentTypeRegistry registry, Netlist before,
                             Set<ElementId> placedIds) {
@@ -120,7 +137,8 @@ public final class ConnectedWidths {
     /**
      * Makes the parts that follow take their new widths in {@code document}, which a connection has just changed;
      * {@code before} is the netlist of the document before it ({@link NetlistCompiler#compile}), {@code placedIds}
-     * the parts the connection placed or moved (empty for a wire).
+     * the parts the connection placed or moved (empty for a wire). If it fails part-way it undoes its own steps
+     * before the exception leaves.
      */
     public static Followed follow(CircuitDocument document, ComponentTypeRegistry registry, Netlist before,
                                   Set<ElementId> placedIds) {
@@ -128,65 +146,95 @@ public final class ConnectedWidths {
         return new ConnectedWidths(document, registry, before, placedIds).follow();
     }
 
+    /**
+     * The role of a part of {@code type} in rule 2 of the class comment, read from its pins; empty when the type has no
+     * width that may follow.
+     */
+    public static Optional<Role> roleOf(ComponentType type) {
+        if (!mayFollow(type)) {
+            return Optional.empty();
+        }
+        boolean reads = type.pins().stream().anyMatch(PinSpec::isInput);
+        boolean drives = type.pins().stream().anyMatch(PinSpec::isDriver);
+        if (!drives) {
+            return Optional.of(Role.SINK);
+        }
+        return Optional.of(reads ? Role.BLOCK : Role.SOURCE);
+    }
+
     private Followed follow() {
         Netlist after = compiler.compile(document);
-        List<ElementId> candidates = candidates(after);
-        Set<ElementId> pending = new HashSet<>(candidates);
+        List<Component> candidates = candidates(after);
+        if (candidates.isEmpty()) {
+            return Followed.NOTHING;
+        }
+        List<Applied> applied = new ArrayList<>();
+        try {
+            for (Group group : groups(candidates, after)) {
+                decide(group, after).ifPresent(targets -> apply(group, targets).ifPresent(applied::add));
+            }
+            keepOnlyThoseThatHold(applied, after);
+        } catch (RuntimeException exception) {
+            revertAll(applied);
+            throw exception;
+        }
         List<WidthChange> changes = new ArrayList<>();
         List<Command> steps = new ArrayList<>();
-        for (ElementId id : candidates) {
-            pending.remove(id);
-            Component component = document.component(id).orElseThrow();
-            OptionalInt target = targetWidth(component, after, candidates);
-            if (target.isEmpty()) {
-                continue;
-            }
-            Optional<Command> step = tryWidth(component, target.getAsInt(), after, pending);
-            if (step.isPresent()) {
-                steps.add(step.get());
-                changes.add(new WidthChange(id, component.typeId(), widthOf(component), target.getAsInt()));
-                after = compiler.compile(document);
-            }
+        for (Applied group : applied) {
+            changes.addAll(group.changes());
+            steps.addAll(group.steps());
         }
         return changes.isEmpty() ? Followed.NOTHING : new Followed(changes, steps);
     }
 
     /** Whether {@code component} has an «Ancho (bits)» it may change (its data pins decide, {@link #widthPins}). */
     private static boolean hasWidth(ComponentTypeRegistry registry, Component component) {
-        return !NEVER_FOLLOWING.contains(component.typeId()) && registry.findTypeOf(component)
-                .flatMap(type -> type.parameterNamed(WIDTH))
+        return registry.findTypeOf(component).filter(ConnectedWidths::mayFollow).isPresent();
+    }
+
+    private static boolean mayFollow(ComponentType type) {
+        return !NEVER_FOLLOWING.contains(type.id()) && type.parameterNamed(WIDTH)
                 .filter(parameter -> parameter.kind() == ParameterKind.INTEGER)
                 .isPresent();
     }
 
     /**
      * The parts that may change: with a width, placed or moved by the edit (any, for a wire), with a data pin joined
-     * to something new; highest {@link #priority} first.
+     * to something new. Only the nets the connection changed are looked at, so a wire far from everything costs one
+     * compile and a pass over the nets.
      */
-    private List<ElementId> candidates(Netlist after) {
-        List<ElementId> candidates = new ArrayList<>();
-        for (Component component : document.components()) {
-            if (!hasWidth(registry, component) || !placedIds.isEmpty() && !placedIds.contains(component.id())) {
+    private List<Component> candidates(Netlist after) {
+        Map<ElementId, Component> candidates = new LinkedHashMap<>();
+        Set<ElementId> looked = new HashSet<>();
+        for (Net net : after.nets()) {
+            if (!changedByTheConnection(net)) {
                 continue;
             }
-            if (widthPins(component).stream()
-                    .anyMatch(pinIndex -> newlyJoined(new PinRef(component.id(), pinIndex), after))) {
-                candidates.add(component.id());
+            for (PinRef pin : net.pins()) {
+                if (!looked.add(pin.componentId())) {
+                    continue;
+                }
+                Component component = document.component(pin.componentId()).orElseThrow();
+                if (mayChange(component) && widthPins(component).stream()
+                        .anyMatch(pinIndex -> newlyJoined(new PinRef(component.id(), pinIndex), after))) {
+                    candidates.put(component.id(), component);
+                }
             }
         }
-        candidates.sort(Comparator.comparingInt(this::priority).reversed());
-        return candidates;
+        return List.copyOf(candidates.values());
     }
 
-    /**
-     * Who gives way when two parts that may change meet: the lower takes the higher's width, the higher ignores the
-     * lower, equals ignore each other. Connected before the edit ranks above loose; then blocks and gates (3),
-     * constants (2), input pins and switches (1), output pins and LEDs (0).
-     */
-    private int priority(ElementId id) {
-        Component component = document.component(id).orElseThrow();
-        int rank = RANKS.getOrDefault(component.typeId(), BLOCK_RANK);
-        return (wasConnected(component) ? CONNECTED_BONUS : 0) + rank;
+    /** Whether {@code net}'s pins are not the pins of one net before the connection. */
+    private boolean changedByTheConnection(Net net) {
+        if (net.pins().isEmpty()) {
+            return false;
+        }
+        PinRef anyPin = net.pins().iterator().next();
+        return before.netForPin(anyPin).map(old -> !old.pins().equals(net.pins())).orElse(true);
+    }
+
+    private boolean mayChange(Component component) {
+        return (placedIds.isEmpty() || placedIds.contains(component.id())) && hasWidth(registry, component);
     }
 
     /** Whether any pin of {@code component} met a pin with a width of its own before the connection. */
@@ -214,47 +262,189 @@ public final class ConnectedWidths {
         return mates;
     }
 
-    /**
-     * The one width the pins met by {@code component}'s width pins carry, leaving out the other {@code candidates}
-     * that do not rank above it ({@link #priority}); empty when they carry none, more than one, or the width the
-     * part already has.
-     */
-    private OptionalInt targetWidth(Component component, Netlist after, List<ElementId> candidates) {
-        int rank = priority(component.id());
-        Set<Integer> widths = new HashSet<>();
+    /** The candidates joined through the nets of their data pins, each group with every net those pins touch. */
+    private List<Group> groups(List<Component> candidates, Netlist after) {
+        Map<ElementId, Set<NetId>> netsById = new LinkedHashMap<>();
+        for (Component candidate : candidates) {
+            netsById.put(candidate.id(), widthPinNets(candidate, after));
+        }
+        List<Group> groups = new ArrayList<>();
+        Set<ElementId> grouped = new HashSet<>();
+        for (Component seed : candidates) {
+            if (grouped.contains(seed.id())) {
+                continue;
+            }
+            List<Component> members = new ArrayList<>(List.of(seed));
+            Set<NetId> nets = new LinkedHashSet<>(netsById.get(seed.id()));
+            grouped.add(seed.id());
+            boolean grew = true;
+            while (grew) {
+                grew = false;
+                for (Component other : candidates) {
+                    if (!grouped.contains(other.id())
+                            && netsById.get(other.id()).stream().anyMatch(nets::contains)) {
+                        members.add(other);
+                        nets.addAll(netsById.get(other.id()));
+                        grouped.add(other.id());
+                        grew = true;
+                    }
+                }
+            }
+            groups.add(new Group(members, nets));
+        }
+        return groups;
+    }
+
+    private Set<NetId> widthPinNets(Component component, Netlist after) {
+        Set<NetId> nets = new LinkedHashSet<>();
         for (int pinIndex : widthPins(component)) {
-            for (PinRef mate : widthMates(after, new PinRef(component.id(), pinIndex))) {
-                if (!candidates.contains(mate.componentId()) || priority(mate.componentId()) > rank) {
-                    widths.add(specOf(mate).width());
+            after.netForPin(new PinRef(component.id(), pinIndex)).ifPresent(net -> nets.add(net.id()));
+        }
+        return nets;
+    }
+
+    /** The new width of each part of {@code group} that changes (rules 1 to 3 of the class comment); empty for none. */
+    private Optional<Map<ElementId, Integer>> decide(Group group, Netlist after) {
+        Set<PinRef> loosePins = new HashSet<>();
+        for (Component member : group.members()) {
+            if (!wasConnected(member)) {
+                loosePins.addAll(ownWidthPins(member));
+            }
+        }
+        Set<Integer> fixedWidths = widthsOn(group, after, loosePins);
+        if (fixedWidths.size() == 1) {
+            return everyLoosePartTakes(group, fixedWidths.iterator().next());
+        }
+        if (fixedWidths.isEmpty()) {
+            return byRole(group);
+        }
+        return theOnlyConnectedPartThatSeesOneWidth(group, after);
+    }
+
+    /** Rule 1: the loose parts of {@code group} take {@code width}. */
+    private Optional<Map<ElementId, Integer>> everyLoosePartTakes(Group group, int width) {
+        Map<ElementId, Integer> targets = new LinkedHashMap<>();
+        for (Component member : group.members()) {
+            if (widthOf(member) != width) {
+                targets.put(member.id(), width);
+            }
+        }
+        return targets.isEmpty() ? Optional.empty() : Optional.of(targets);
+    }
+
+    /** Rule 2: only loose parts and nothing else; the highest {@link Role} gives its width when it has only one. */
+    private Optional<Map<ElementId, Integer>> byRole(Group group) {
+        Role highest = Role.SINK;
+        for (Component member : group.members()) {
+            Role role = roleOf(registry.typeOf(member)).orElseThrow();
+            if (role.compareTo(highest) > 0) {
+                highest = role;
+            }
+        }
+        Set<Integer> widths = new HashSet<>();
+        for (Component member : group.members()) {
+            if (roleOf(registry.typeOf(member)).orElseThrow() == highest) {
+                widths.add(widthOf(member));
+            }
+        }
+        return widths.size() == 1 ? everyLoosePartTakes(group, widths.iterator().next()) : Optional.empty();
+    }
+
+    /** Rule 3: the one part of {@code group} for which every other pin in the group's nets carries one other width. */
+    private Optional<Map<ElementId, Integer>> theOnlyConnectedPartThatSeesOneWidth(Group group, Netlist after) {
+        Map<ElementId, Integer> targets = new LinkedHashMap<>();
+        for (Component member : group.members()) {
+            Set<Integer> seen = widthsOn(group, after, ownWidthPins(member));
+            if (seen.size() == 1 && seen.iterator().next() != widthOf(member)) {
+                targets.put(member.id(), seen.iterator().next());
+            }
+        }
+        return targets.size() == 1 ? Optional.of(targets) : Optional.empty();
+    }
+
+    /** The widths of the pins in {@code group}'s nets other than {@code leftOut}. */
+    private Set<Integer> widthsOn(Group group, Netlist after, Set<PinRef> leftOut) {
+        Set<Integer> widths = new HashSet<>();
+        for (NetId netId : group.nets()) {
+            for (PinRef pin : after.net(netId).map(Net::pins).orElse(Set.of())) {
+                PinSpec spec = specOf(pin);
+                if (!leftOut.contains(pin) && !spec.isAdaptiveWidth()) {
+                    widths.add(spec.width());
                 }
             }
         }
-        if (widths.size() != 1) {
-            return OptionalInt.empty();
+        return widths;
+    }
+
+    private Set<PinRef> ownWidthPins(Component component) {
+        Set<PinRef> pins = new HashSet<>();
+        for (int pinIndex : widthPins(component)) {
+            pins.add(new PinRef(component.id(), pinIndex));
         }
-        int width = widths.iterator().next();
-        return width == widthOf(component) ? OptionalInt.empty() : OptionalInt.of(width);
+        return pins;
+    }
+
+    /** Gives each part its target width, wires following its pins; nothing when one of them refuses its width. */
+    private Optional<Applied> apply(Group group, Map<ElementId, Integer> targets) {
+        List<Command> steps = new ArrayList<>();
+        List<WidthChange> changes = new ArrayList<>();
+        for (Map.Entry<ElementId, Integer> target : targets.entrySet()) {
+            Component component = document.component(target.getKey()).orElseThrow();
+            Map<String, Object> parameters = withWidth(component, target.getValue());
+            if (parameters.isEmpty()) {
+                revert(steps);
+                return Optional.empty();
+            }
+            Command step = ChangeParametersWithWiresCommand.of(document, registry, component.id(), parameters);
+            step.apply(document);
+            steps.add(step);
+            changes.add(new WidthChange(component.id(), component.typeId(), widthOf(component), target.getValue()));
+        }
+        return Optional.of(new Applied(group, steps, changes));
     }
 
     /**
-     * Gives {@code component} {@code width} bits, wires following its pins; kept only when the part can take it and
-     * the change joins its pins to exactly what they met, with no width left over on its width pins' nets.
+     * Undoes every applied group whose parts no longer meet exactly what they met (a wider constant's pin moved) or
+     * whose data pins still sit on a mismatch, until the rest hold; one compile when nothing has to go.
      */
-    private Optional<Command> tryWidth(Component component, int width, Netlist after, Set<ElementId> pending) {
-        Map<String, Object> parameters = withWidth(component, width);
-        if (parameters.isEmpty()) {
-            return Optional.empty();
+    private void keepOnlyThoseThatHold(List<Applied> applied, Netlist after) {
+        while (!applied.isEmpty()) {
+            Netlist changed = compiler.compile(document);
+            Optional<Applied> broken = applied.stream().filter(group -> !holds(group, after, changed)).findFirst();
+            if (broken.isEmpty()) {
+                return;
+            }
+            revert(broken.get().steps());
+            applied.remove(broken.get());
         }
-        Command step = ChangeParametersWithWiresCommand.of(document, registry, component.id(), parameters);
-        step.apply(document);
-        Netlist changed = compiler.compile(document);
-        Component resized = document.component(component.id()).orElseThrow();
-        if (registry.typeOf(resized).pinCount() == registry.typeOf(component).pinCount()
-                && sameMates(component, after, changed) && fits(resized, width, changed, pending)) {
-            return Optional.of(step);
+    }
+
+    private boolean holds(Applied applied, Netlist after, Netlist changed) {
+        for (Component member : applied.group().members()) {
+            Component resized = document.component(member.id()).orElseThrow();
+            if (registry.typeOf(resized).pinCount() != registry.typeOf(member).pinCount()
+                    || !sameMates(resized, after, changed)) {
+                return false;
+            }
+            for (int pinIndex : widthPins(member)) {
+                if (changed.netForPin(new PinRef(member.id(), pinIndex)).map(Net::widthMismatch).orElse(false)) {
+                    return false;
+                }
+            }
         }
-        step.revert(document);
-        return Optional.empty();
+        return true;
+    }
+
+    private void revertAll(List<Applied> applied) {
+        for (int index = applied.size() - 1; index >= 0; index--) {
+            revert(applied.get(index).steps());
+        }
+    }
+
+    private void revert(List<Command> steps) {
+        for (int index = steps.size() - 1; index >= 0; index--) {
+            steps.get(index).revert(document);
+        }
     }
 
     /** {@code component}'s parameters with {@code width}; empty when its type refuses that width. */
@@ -286,22 +476,15 @@ public final class ConnectedWidths {
         return mates;
     }
 
-    private boolean fits(Component resized, int width, Netlist changed, Set<ElementId> pending) {
-        for (int pinIndex : widthPins(resized)) {
-            for (PinRef mate : widthMates(changed, new PinRef(resized.id(), pinIndex))) {
-                if (!pending.contains(mate.componentId()) && specOf(mate).width() != width) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
     /**
      * The pins whose width is the part's «Ancho» (a register's D and Q, not its clock): those whose width changes
-     * when the width does, found by trying another width the part accepts.
+     * when the width does, found by trying another width the part accepts. Worked out once per part and follow.
      */
     private List<Integer> widthPins(Component component) {
+        return widthPinsById.computeIfAbsent(component.id(), id -> findWidthPins(component));
+    }
+
+    private List<Integer> findWidthPins(Component component) {
         ComponentType type = registry.typeOf(component);
         int width = widthOf(component);
         for (int other : List.of(1, 2, maximumWidth(type))) {
