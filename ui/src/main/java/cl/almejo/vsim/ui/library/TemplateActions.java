@@ -173,7 +173,7 @@ public final class TemplateActions {
         ComponentForm form = ComponentForm.create(testParts, converted -> {
             ConvertedSelection selection = converter.apply(converted);
             return new ComponentForm.PinPlan(selection.defaultPinOrder(), selection.pinNames(), selection.parts());
-        }, takenNames(), takenIds(), !DefinitionBuilder.linkedMemories(document, ids).isEmpty());
+        }, takenNames(), takenIds(), offersMemoryLinks(document, ids));
         if (!proposedName.isBlank()) {
             form.setName(proposedName);
         }
@@ -189,6 +189,11 @@ public final class TemplateActions {
                 return;
             }
         }
+    }
+
+    /** True when the dialog asks «Mantener los enlaces de las memorias»: a memory of the selection is linked. */
+    private static boolean offersMemoryLinks(CircuitDocument document, Set<ElementId> ids) {
+        return !DefinitionBuilder.linkedMemories(document, ids).isEmpty();
     }
 
     /** The warning for a component without outputs («… no tendrá salidas», or «… ni entradas ni salidas»). */
@@ -232,8 +237,8 @@ public final class TemplateActions {
         }
         PinOrder order = DefinitionBuilder.defaultPinOrder(document, ids);
         ComponentForm form = ComponentForm.update(order, DefinitionBuilder.pinNames(document, order), takenNames(),
-                document.definitions());
-        dialogs.editComponent(canvas.get(), form).ifPresent(result -> update(ids, result));
+                document.definitions(), offersMemoryLinks(document, ids));
+        dialogs.editComponent(canvas.get(), form).ifPresent(result -> update(ids, result, form.keepMemoryLinks()));
     }
 
     /**
@@ -445,7 +450,7 @@ public final class TemplateActions {
                 message = withSplitTunnels(message, Tunnels.namesSplitBy(document, converted.replacedIds()));
             }
         }
-        message = keepMemoryLinks ? message : withDroppedLinks(message, linkedMemories);
+        message = withDroppedLinks(message, linkedMemories, keepMemoryLinks);
         // only adding the definitions changes no body: from a component tab they go to the circuit directly
         OpenDocument target = instance == null ? circuit() : openDocument;
         target.execute(new CompositeCommand("command.createComponent", steps));
@@ -471,10 +476,14 @@ public final class TemplateActions {
     }
 
     /**
-     * {@code message} (null when there is none) followed by one line for each linked memory that went into a
-     * component: a definition has no folder for the link, so it keeps a copy of the words and loses the link.
+     * {@code message} (null when there is none) followed, unless the user kept the links, by one line for each linked
+     * memory that went into a component without its link: it keeps a copy of the words. Shared by «Crear componente»
+     * and «Actualizar componente…».
      */
-    private String withDroppedLinks(String message, List<Component> linkedMemories) {
+    private String withDroppedLinks(String message, List<Component> linkedMemories, boolean keepMemoryLinks) {
+        if (keepMemoryLinks) {
+            return message;
+        }
         String result = message;
         for (Component memory : linkedMemories) {
             String fileName = MemoryLinkPaths.linkedFile(memory, openDocument.path())
@@ -485,14 +494,14 @@ public final class TemplateActions {
         return result;
     }
 
-    private void update(Set<ElementId> ids, ComponentForm.Result result) {
+    private void update(Set<ElementId> ids, ComponentForm.Result result, boolean keepMemoryLinks) {
         CircuitDocument document = openDocument.document();
         if (nests(document, ids, result.definitionId())) {
             dialogs.showError(canvas.get(), Messages.text("template.update.recursive"));
             return;
         }
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
-                result.pinOrder(), result.pinNames(), openDocument.registry());
+                result.pinOrder(), result.pinNames(), keepMemoryLinks, openDocument.registry());
         Optional<ComponentDefinition> previous = circuit().document().definition(bundle.root().id());
         if (previous.isPresent()) {
             ComponentDefinition candidate = AppearanceReconciler.preserveGeneralAppearance(previous.get(),
@@ -503,7 +512,7 @@ public final class TemplateActions {
         if (!replaceDefinition(bundle)) {
             return;
         }
-        String droppedLinks = withDroppedLinks(null, linkedMemories);
+        String droppedLinks = withDroppedLinks(null, linkedMemories, keepMemoryLinks);
         if (droppedLinks != null) {
             dialogs.showMessage(canvas.get(), droppedLinks);
         }

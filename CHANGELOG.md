@@ -25,7 +25,7 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 - Velocidad ×1000 en el selector de la barra, entre ×100 y «Máxima»: un circuito grande, como el LRV32IM importado de Logisim, corre lo bastante rápido para que su Terminal escriba de a poco. Ver [Interfaz, preferencias y sesión](docs/funciones/interfaz-preferencias-y-sesion.md).
 
-- «Crear componente desde selección…» (y «Convertir en componente…») pregunta «Mantener los enlaces de las memorias» cuando una RAM o ROM de la selección está enlazada a un archivo: marcada (lo normal), el componente se queda con el enlace; desmarcada, copia las palabras y quita el enlace con el aviso de siempre.
+- «Crear componente desde selección…» (y «Convertir en componente…») pregunta «Mantener los enlaces de las memorias» cuando una RAM o ROM de la selección está enlazada a un archivo: marcada (lo normal), el componente se queda con el enlace; desmarcada, copia las palabras y quita el enlace con el aviso de siempre. «Actualizar componente…» hace la misma pregunta (antes siempre quitaba el enlace). Ver [Memoria: archivos enlazados](docs/funciones/componentes.md#memoria-archivos-enlazados).
 
 ### Cambiado
 

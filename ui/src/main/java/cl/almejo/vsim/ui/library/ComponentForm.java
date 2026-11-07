@@ -160,10 +160,21 @@ public final class ComponentForm {
     /** {@code targets}: the definitions the user may replace, the first one preselected. */
     public static ComponentForm update(PinOrder order, Map<ElementId, String> pinNames, Collection<String> takenNames,
                                        List<ComponentDefinition> targets) {
+        return update(order, pinNames, takenNames, targets, false);
+    }
+
+    /**
+     * {@link #update(PinOrder, Map, Collection, List)} that, when {@code offersMemoryLinks}, also asks whether the
+     * linked memories at the first level of the selection keep their link in the component (checked at first), like
+     * the create form.
+     */
+    public static ComponentForm update(PinOrder order, Map<ElementId, String> pinNames, Collection<String> takenNames,
+                                       List<ComponentDefinition> targets, boolean offersMemoryLinks) {
         if (targets.isEmpty()) {
             throw new IllegalArgumentException("there is no definition to update");
         }
-        return new ComponentForm(Mode.UPDATE, List.of(), fixed(order, pinNames), takenNames, Set.of(), targets, false);
+        return new ComponentForm(Mode.UPDATE, List.of(), fixed(order, pinNames), takenNames, Set.of(), targets,
+                offersMemoryLinks);
     }
 
     /** The visible reason for a name problem. */

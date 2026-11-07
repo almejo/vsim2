@@ -165,10 +165,22 @@ public final class DefinitionBuilder {
      * {@link #fromSelection(CircuitDocument, Collection, String, String, PinOrder, ComponentTypeRegistry)} where the
      * pins in {@code renamed} get the user's name instead of the default one, in the pinout and as the label of their
      * interface pin inside the body (so «Desarmar» and «Actualizar componente…» keep it); the document is not touched.
+     * Linked memories keep only their contents.
      */
     public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
                                                  String name, PinOrder pinOrder, Map<ElementId, String> renamed,
                                                  ComponentTypeRegistry registry) {
+        return fromSelection(document, ids, id, name, pinOrder, renamed, false, registry);
+    }
+
+    /**
+     * {@link #fromSelection(CircuitDocument, Collection, String, String, PinOrder, Map, ComponentTypeRegistry)} where
+     * the selection's linked memories keep their link when {@code keepMemoryLinks} (the link is then the
+     * component's), else only their contents.
+     */
+    public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
+                                                 String name, PinOrder pinOrder, Map<ElementId, String> renamed,
+                                                 boolean keepMemoryLinks, ComponentTypeRegistry registry) {
         PinOrder found = defaultPinOrder(document, ids);
         if (found.isEmpty()) {
             throw new IllegalArgumentException("the selection has no interface pins");
@@ -176,7 +188,8 @@ public final class DefinitionBuilder {
         if (!samePins(pinOrder.inputs(), found.inputs()) || !samePins(pinOrder.outputs(), found.outputs())) {
             throw new IllegalArgumentException("the pin order must list each selected interface pin once: " + pinOrder);
         }
-        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), renamed, false, registry);
+        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), renamed, keepMemoryLinks,
+                registry);
     }
 
     /**

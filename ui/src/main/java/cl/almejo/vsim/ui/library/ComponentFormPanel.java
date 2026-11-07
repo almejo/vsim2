@@ -157,11 +157,11 @@ public final class ComponentFormPanel extends JPanel {
             replace.setSelected(form.replaceSelection());
             replace.addActionListener(event -> form.setReplaceSelection(replace.isSelected()));
             add(replace, "span 2");
-            if (form.offersMemoryLinks()) {
-                keepMemoryLinks.setSelected(form.keepMemoryLinks());
-                keepMemoryLinks.addActionListener(event -> form.setKeepMemoryLinks(keepMemoryLinks.isSelected()));
-                add(keepMemoryLinks, "span 2");
-            }
+        }
+        if (form.offersMemoryLinks()) {
+            keepMemoryLinks.setSelected(form.keepMemoryLinks());
+            keepMemoryLinks.addActionListener(event -> form.setKeepMemoryLinks(keepMemoryLinks.isSelected()));
+            add(keepMemoryLinks, "span 2");
         }
     }
 

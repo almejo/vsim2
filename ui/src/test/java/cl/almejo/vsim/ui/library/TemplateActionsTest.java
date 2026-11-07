@@ -395,6 +395,60 @@ class TemplateActionsTest {
                 "El enlace a datos.hex no viaja dentro del componente; se guardó una copia");
     }
 
+    /** A «Negador» definition made from an inverter elsewhere, then an inverter with a linked RAM selected. */
+    private void negadorDefinedAndAnInverterWithLinkedRamSelected() {
+        fixture.drawInverter(60, 0);
+        fixture.dialogs.acceptForm(form -> form.setName("Negador"));
+        perform(fixture.features.actions().createComponent());
+        inverterWithLinkedRam();
+    }
+
+    @Test
+    void updatingOffersTheKeepLinksChoiceCheckedOnlyWithALinkedMemoryAtTheFirstLevel() {
+        fixture.drawInverter(60, 0);
+        fixture.dialogs.acceptForm(form -> form.setName("Negador"));
+        perform(fixture.features.actions().createComponent());
+        fixture.drawInverter(0, 40);
+        fixture.dialogs.acceptForm(form -> { });
+        perform(fixture.features.actions().updateComponent());
+        assertThat(fixture.dialogs.forms.get(1).offersMemoryLinks()).isFalse();
+
+        inverterWithLinkedRam();
+        fixture.dialogs.acceptForm(form -> { });
+        perform(fixture.features.actions().updateComponent());
+        assertThat(fixture.dialogs.forms.get(2).offersMemoryLinks()).isTrue();
+        assertThat(fixture.dialogs.forms.get(2).keepMemoryLinks()).isTrue();
+    }
+
+    @Test
+    void updatingWithTheLinksKeptPutsTheLinkInTheDefinitionWithoutANotice() {
+        negadorDefinedAndAnInverterWithLinkedRamSelected();
+        fixture.dialogs.acceptForm(form -> assertThat(form.keepMemoryLinks()).isTrue());
+
+        perform(fixture.features.actions().updateComponent());
+
+        assertThat(innerRam("negador").parameters()).containsEntry(MemoryTypes.CONTENTS, "@0 3A")
+                .containsEntry(MemoryTypes.LINK, "/home/curso/programas/datos.hex");
+        assertThat(fixture.dialogs.messages).isEmpty();
+        assertThat(fixture.library.find("negador").orElseThrow().root().body().components().stream()
+                .filter(component -> component.typeId().equals(StandardComponentTypes.RAM))
+                .map(component -> component.parameters().get(MemoryTypes.LINK))).containsExactly(
+                "/home/curso/programas/datos.hex");
+    }
+
+    @Test
+    void updatingWithTheLinksUncheckedCopiesTheWordsWithTheNotice() {
+        negadorDefinedAndAnInverterWithLinkedRamSelected();
+        fixture.dialogs.acceptForm(form -> form.setKeepMemoryLinks(false));
+
+        perform(fixture.features.actions().updateComponent());
+
+        assertThat(innerRam("negador").parameters()).containsEntry(MemoryTypes.CONTENTS, "@0 3A")
+                .containsEntry(MemoryTypes.LINK, "");
+        assertThat(fixture.dialogs.messages).containsExactly(
+                "El enlace a datos.hex no viaja dentro del componente; se guardó una copia");
+    }
+
     @Test
     void keepingTheSelectionOnlyAddsTheDefinition() {
         List<Component> parts = fixture.drawInverter(0, 0);
