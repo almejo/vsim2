@@ -18,11 +18,15 @@ import java.util.function.BooleanSupplier;
  * down, at most {@value #MAXIMUM_SHIFT} units. A label covers other writing by {@link LayoutItems#writingOverlap}'s
  * rule (the first shared column is rounding); a place where it ends clear (no shared column) is preferred.
  *
- * <p>Every place obeys {@link Placement}'s rules (free, frames kept, no new overlap, no writing covered more, the
- * meaning kept), keeps the part's order with its neighbours ({@link Placement#keepsOrder}) and keeps the rows it is
- * in: the parts side by side with it ({@link Straightening#sideBySide}) stay the same, so a row is neither broken nor
- * joined. Only parts move: a free text is never moved for this, and free text over free text stays (tables). A part
- * with no such place stays and is not counted: labels touching are common and harmless.
+ * <p>It runs after aligning and straightening, so it must never undo them. Every place obeys the rules of the
+ * tidying stages ({@link Placement#tryTidyingMove}: free, frames kept, no new overlap, no writing covered more, the
+ * meaning kept, no body over a new text, and no more wire corners than before), keeps the part's order with its
+ * neighbours ({@link Placement#keepsOrder}), keeps the rows it is in (the parts side by side with it,
+ * {@link Straightening#sideBySide}, stay the same) and keeps the columns it is in (the parts stacked above or below it
+ * with the same left edge stay the same): a row or an aligned column is neither broken nor joined. There is no
+ * fallback to the plainer moves of separating (the final review of 2026-11-07). Only parts move: a free text is never
+ * moved for this, and free text over free text stays (tables). A part with no such place stays
+ * and is not counted: labels touching are common and harmless.
  */
 final class LabelsApart {
 
@@ -81,18 +85,24 @@ final class LabelsApart {
      * («SaltaRs1 = Rs2» with the user's font).
      */
     private boolean moveApart(LayoutItems.Item part) {
-        Set<ElementId> neighbours = rowNeighbours(part, placement.current(part));
+        Bounds here = placement.current(part);
+        Neighbours neighbours = new Neighbours(rowNeighbours(part, here), columnNeighbours(part, here));
         return moveTo(part, neighbours, CLEAR) || moveTo(part, neighbours, LayoutItems.TEXT_ROUNDING_COLUMNS);
     }
 
+    /** The parts in {@code part}'s rows and in its aligned columns, where it is now: a move keeps both. */
+    private record Neighbours(Set<ElementId> row, Set<ElementId> column) {
+    }
+
     /** Tries the shifts in order; true at the first that frees the labels (by {@code ignoredColumns}) and is kept. */
-    private boolean moveTo(LayoutItems.Item part, Set<ElementId> neighbours, int ignoredColumns) {
+    private boolean moveTo(LayoutItems.Item part, Neighbours neighbours, int ignoredColumns) {
         for (GridPoint shift : shifts()) {
             Bounds place = Placement.moved(part, shift);
             if (placement.writingOverOtherWriting(part, place, ignoredColumns) == 0
                     && placement.keepsOrder(part, place)
-                    && rowNeighbours(part, place).equals(neighbours)
-                    && placement.tryMove(part, shift)) {
+                    && rowNeighbours(part, place).equals(neighbours.row())
+                    && columnNeighbours(part, place).equals(neighbours.column())
+                    && placement.tryTidyingMove(part, shift)) {
                 return true;
             }
         }
@@ -120,6 +130,26 @@ final class LabelsApart {
         for (LayoutItems.Item other : placement.items().items()) {
             if (!other.isText() && !other.id().equals(part.id())
                     && Straightening.sideBySide(body, bodyBoxAt(other, placement.current(other)))) {
+                neighbours.add(other.id());
+            }
+        }
+        return neighbours;
+    }
+
+    /**
+     * The parts aligned in a column with {@code part} when it is at {@code place}, every other where it is now: stacked
+     * above or below it (their x ranges overlap, their y ranges do not) with the same left edge, as aligning leaves
+     * them ({@link ColumnAlignment}).
+     */
+    private Set<ElementId> columnNeighbours(LayoutItems.Item part, Bounds place) {
+        Bounds body = bodyBoxAt(part, place);
+        Set<ElementId> neighbours = new LinkedHashSet<>();
+        for (LayoutItems.Item other : placement.items().items()) {
+            if (other.isText() || other.id().equals(part.id())) {
+                continue;
+            }
+            Bounds otherBody = bodyBoxAt(other, placement.current(other));
+            if (otherBody.x() == body.x() && otherBody.overlapsOnX(body) && !otherBody.overlapsOnY(body)) {
                 neighbours.add(other.id());
             }
         }

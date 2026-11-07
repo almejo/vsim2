@@ -20,16 +20,20 @@ import java.util.Set;
 
 import static cl.almejo.vsim.core.DocumentFixtures.gate;
 import static cl.almejo.vsim.core.DocumentFixtures.place;
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * «Separar lo que se tapa» also moves a part whose label covers other writing (spec 2026-11-06 §6.2): the user's LEDs
  * «Salta» and «Rs1 = Rs2» side by side on riscv-maniqui, their labels read «SaltaRs1 = Rs2». The part moves the least
- * it can, along its row first and at most {@value LabelsApart#MAXIMUM_SHIFT} units, with every rule of the other
- * stages; a free text never moves for it, a row is never broken, and when there is no place it stays uncounted.
+ * it can, along its row first and at most {@value LabelsApart#MAXIMUM_SHIFT} units, with every rule of the tidying
+ * stages (no more wire corners); a free text never moves for it, a row or an aligned column is never broken, and when
+ * there is no place it stays uncounted.
  */
 class LabelsApartTest {
 
+    private static final CircuitTidyOptions EVERY_STAGE = new CircuitTidyOptions(true, true, true,
+            TidyOptions.DEFAULTS);
     private static final CircuitTidyOptions SEPARATE_ONLY = new CircuitTidyOptions(true, false, false,
             TidyOptions.DEFAULTS);
 
@@ -220,6 +224,79 @@ class LabelsApartTest {
         CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
 
         assertThat(positionOf(plan, middle)).isEqualTo(new GridPoint(5, 8));
+    }
+
+    /**
+     * An LED at (20, 10) whose label, three units right of it, covers the free text «xyz»; a wire runs straight up
+     * from its pin in two pieces and then left to a switch (one corner). A move along x drags only the first piece,
+     * so it bends the wire.
+     */
+    private Component ledWiredFromAbove(CircuitDocument document) {
+        Component led = led(document, 20, 10, "abc", new Bounds(3, 0, 3, 2));
+        GridPoint pin = registry.typeOf(led).pinLocation(led, 0);
+        Component source = place(registry, document, StandardComponentTypes.SWITCH, pin.x() - 20, pin.y() - 32, "");
+        GridPoint sourcePin = registry.typeOf(source).pinLocation(source, 0);
+        wire(document, pin.x(), pin.y(), pin.x(), pin.y() - 30);
+        wire(document, pin.x(), pin.y() - 30, pin.x(), sourcePin.y());
+        wire(document, sourcePin.x(), sourcePin.y(), pin.x(), sourcePin.y());
+        text(document, 23, 10, "xyz");
+        return led;
+    }
+
+    /**
+     * Freeing a label is a tidying move: it never leaves the wires with more corners than before (the final
+     * review's probe: 1 corner became 2).
+     */
+    @Test
+    void freeingALabelNeverAddsWireCorners() {
+        CircuitDocument document = new CircuitDocument();
+        ledWiredFromAbove(document);
+        int cornersBefore = WireCorners.count(document);
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(WireCorners.count(plan.after())).isLessThanOrEqualTo(cornersBefore);
+    }
+
+    /**
+     * The LED of {@link #ledWiredFromAbove} in the middle of a column of three LEDs at x = 20, every stage on: freeing
+     * its label never takes it out of the column that aligning leaves (the final review's probe: 20 became 17).
+     */
+    @Test
+    void freeingALabelKeepsAnAlignedColumn() {
+        CircuitDocument document = new CircuitDocument();
+        Component top = led(document, 20, 0, "", null);
+        Component middle = ledWiredFromAbove(document);
+        Component bottom = led(document, 20, 20, "", null);
+        int cornersBefore = WireCorners.count(document);
+
+        CircuitTidyPlan plan = tidy(document, EVERY_STAGE);
+
+        assertThat(positionOf(plan, top).x()).isEqualTo(20);
+        assertThat(positionOf(plan, middle).x()).isEqualTo(20);
+        assertThat(positionOf(plan, bottom).x()).isEqualTo(20);
+        assertThat(WireCorners.count(plan.after())).isLessThanOrEqualTo(cornersBefore);
+    }
+
+    /**
+     * A column of three LEDs at x = 20 with no wire, so no move bends one: the middle LED, whose label covers a free
+     * text, still never leaves the column; it moves up or down instead, where its label ends clear of the text.
+     */
+    @Test
+    void anAlignedColumnIsNeverBrokenEvenWithoutWires() {
+        CircuitDocument document = new CircuitDocument();
+        Component top = led(document, 20, 0, "", null);
+        Component middle = led(document, 20, 10, "abc", new Bounds(3, 0, 3, 2));
+        Component bottom = led(document, 20, 20, "", null);
+        TextLabel words = text(document, 23, 10, "xyz");
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(positionOf(plan, top)).isEqualTo(top.position());
+        assertThat(positionOf(plan, bottom)).isEqualTo(bottom.position());
+        assertThat(positionOf(plan, middle).x()).isEqualTo(20);
+        assertThat(positionOf(plan, middle)).isNotEqualTo(middle.position());
+        assertThat(sharesWriting(labelIn(plan, middle), texts.freeText(words))).isFalse();
     }
 
     @Test
