@@ -189,7 +189,8 @@ public final class ParameterForm extends JPanel {
         JComponent editor = editorFor(type, parameter, initial.get(parameter.name()), scheme);
         editor.setName(parameter.name());
         editors.put(parameter.name(), editor);
-        JLabel label = new JLabel(labelText(parameter.name()));
+        JLabel label = new JLabel(labelText(parameter.name()), ParameterIcons.labelIcon(parameter.name()),
+                JLabel.LEADING);
         label.setLabelFor(editor);
         labels.put(parameter.name(), label);
         if (TIME_PARAMETERS.contains(parameter.name())) {

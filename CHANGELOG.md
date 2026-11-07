@@ -44,6 +44,7 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 - Un circuito nuevo de la IA (`vsim_new_circuit`) se abre como una pestaña nueva de la ventana activa, como Archivo ▸ Nuevo, en vez de en una ventana propia. Ver [Qué puede hacer la IA](docs/funciones/ia-mcp.md#qué-puede-hacer-la-ia).
 - Ventana ▸ «Nueva vista» ahora se llama «Nueva pestaña del mismo circuito» y abre una pestaña en la misma ventana; Archivo ▸ «Cerrar ventana» pasó a Ctrl+Mayús+W y Ctrl+W es ahora «Cerrar pestaña». Ver [Ventanas y pestañas](docs/funciones/interfaz-preferencias-y-sesion.md#ventanas-y-pestañas).
 - La pestaña «Componentes» del inspector y el panel «Proyecto» se van: su lugar lo toma el [árbol del circuito](docs/funciones/pestanas-y-componentes.md#árbol-del-circuito) de la columna izquierda, que no agrupa por tipo, no muestra los marcos ni los valores, y en vez de filtrar busca en todo el circuito. Las piezas sin etiqueta del mismo tipo en un mismo lugar se numeran («Interruptor 1», «Interruptor 2») en el árbol, la barra de lugar y Problemas, y la ruta de la barra ya no muestra los identificadores («circuito › Ram › Selector 2» en vez de «Ram (c5) › Selector (c2)»).
+- Propiedades: cada ajuste común (etiqueta, entradas, ancho, retardo, color…) lleva un ícono gris antes de su nombre. Ver [Etiquetas, textos y Propiedades](docs/funciones/edicion.md#etiquetas-textos-y-propiedades).
 
 ### Arreglado
 

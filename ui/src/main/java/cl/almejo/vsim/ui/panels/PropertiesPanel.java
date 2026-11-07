@@ -425,7 +425,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     /** With nothing selected: the circuit's own name, kept apart from its file's; each change one undo step. */
     private void showCircuitName() {
-        JTextField field = addTextRow(Messages.text("properties.circuitName"), openDocument.document().name());
+        JTextField field = addTextRow(Messages.text("properties.circuitName"), "name", openDocument.document().name());
         // A new circuit has no name yet: it takes its file's on the first save.
         field.putClientProperty("JTextField.placeholderText", Messages.text("properties.circuitName.placeholder"));
         int built = generation;
@@ -472,7 +472,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private void showComponent(Component component) {
         ComponentType type = openDocument.registry().typeOf(component);
         heading.setText(Messages.componentName(type, component.parameters()));
-        JTextField field = addTextRow(Messages.text("properties.label"), component.label());
+        JTextField field = addTextRow(Messages.text("properties.label"), "label", component.label());
         ElementId id = component.id();
         int built = generation;
         Runnable applyLabel = () -> applyIfCurrent(built,
@@ -546,7 +546,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private void showText(TextLabel label) {
         heading.setText(Messages.text("properties.textLabel"));
         // a note may hold several lines (IA.3): a one-line field would flatten them
-        JLabel caption = new JLabel(Messages.text("properties.text"));
+        JLabel caption = new JLabel(Messages.text("properties.text"), ParameterIcons.labelIcon("text"),
+                JLabel.LEADING);
         NoteTextArea area = new NoteTextArea(label.text());
         caption.setLabelFor(area);
         add(caption);
@@ -588,7 +589,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             }
             swatches.addChoiceListener(() -> applyIfCurrent(built, () -> SetNoteStyleCommand.setting(
                     openDocument.document(), ids, role, swatches.selectedValue()).ifPresent(openDocument::execute)));
-            addRow(NoteColorNames.of(role), swatches);
+            addRow(NoteColorNames.of(role), "color", swatches);
             rows.put(role, swatches);
         }
         noteStyleRows = rows;
@@ -608,14 +609,14 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         heading.setText(Messages.text("properties.frame"));
         ElementId id = frame.id();
         int built = generation;
-        JTextField field = addTextRow(Messages.text("properties.frameTitle"), frame.title());
+        JTextField field = addTextRow(Messages.text("properties.frameTitle"), "name", frame.title());
         Runnable applyTitle = () -> applyIfCurrent(built, () -> editFrame(id, now -> now.withTitle(field.getText().strip())));
         listenForCommit(field, applyTitle);
         textField = field;
         pendingEdits = applyTitle;
 
         ColorSwatches<FrameTint> color = frameTintSwatches(frame.tint());
-        addRow(Messages.text("properties.frameColor"), color);
+        addRow(Messages.text("properties.frameColor"), "color", color);
         color.addChoiceListener(() -> applyIfCurrent(built, () -> editFrame(id,
                 now -> now.withTint(color.selectedValue()))));
         frameColor = color;
@@ -656,7 +657,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         for (int index = 0; index < StickyColor.values().length; index++) {
             color.swatch(index).setEnabled(editable);
         }
-        addRow(Messages.text("properties.stickyColor"), color);
+        addRow(Messages.text("properties.stickyColor"), "color", color);
         stickyColor = color;
 
         boolean checklist = note.content() instanceof StickyChecklist;
@@ -706,7 +707,12 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     }
 
     private void addRow(String caption, java.awt.Component editor) {
-        JLabel label = new JLabel(caption);
+        addRow(caption, "", editor);
+    }
+
+    /** A row whose caption has the icon of the setting {@code parameterName} (an empty one for an unknown name). */
+    private void addRow(String caption, String parameterName, java.awt.Component editor) {
+        JLabel label = new JLabel(caption, ParameterIcons.labelIcon(parameterName), JLabel.LEADING);
         label.setLabelFor(editor);
         add(label);
         add(editor);
@@ -764,8 +770,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         return frameSpinners;
     }
 
-    private JTextField addTextRow(String caption, String value) {
-        JLabel label = new JLabel(caption);
+    private JTextField addTextRow(String caption, String parameterName, String value) {
+        JLabel label = new JLabel(caption, ParameterIcons.labelIcon(parameterName), JLabel.LEADING);
         JTextField field = FragmentRefusingTransferHandler.install(new JTextField(value, 16));
         label.setLabelFor(field);
         add(label);
