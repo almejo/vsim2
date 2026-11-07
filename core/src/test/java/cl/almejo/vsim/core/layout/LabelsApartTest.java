@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
@@ -20,11 +21,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
+import static cl.almejo.vsim.core.DocumentFixtures.frame;
 import static cl.almejo.vsim.core.DocumentFixtures.gate;
 import static cl.almejo.vsim.core.DocumentFixtures.place;
 import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * «Separar lo que se tapa» also moves a part whose label covers other writing (spec 2026-11-06 §6.2): the user's LEDs
@@ -71,7 +75,11 @@ class LabelsApartTest {
     }
 
     private CircuitTidyPlan tidy(CircuitDocument document, CircuitTidyOptions options) {
-        return CircuitTidy.plan(document, registry, everything(document), options, texts, () -> false,
+        return tidy(document, everything(document), options);
+    }
+
+    private CircuitTidyPlan tidy(CircuitDocument document, Set<ElementId> scope, CircuitTidyOptions options) {
+        return CircuitTidy.plan(document, registry, scope, options, texts, () -> false,
                 CircuitTidyProgress.NONE).orElseThrow();
     }
 
@@ -324,6 +332,59 @@ class LabelsApartTest {
         assertThat(sharesWriting(labelIn(plan, led), paper)).isFalse();
         assertThat(plan.partsMoved()).isEqualTo(1);
         assertThat(plan.textsMoved()).isZero();
+    }
+
+    /**
+     * With a selection only the selected part may move: «Salta» and «Rs1 = Rs2» with one of them selected, the other
+     * stays where it is and the selected one moves until the labels end apart, whichever of the two it is.
+     */
+    @Test
+    void onlyTheSelectedPartMovesToFreeItsLabel() {
+        for (boolean saltaSelected : new boolean[] {true, false}) {
+            SideBySide fixture = saltaAndEqual();
+            Component selected = saltaSelected ? fixture.salta() : fixture.equal();
+            Component left = saltaSelected ? fixture.equal() : fixture.salta();
+
+            CircuitTidyPlan plan = tidy(fixture.document(), Set.of(selected.id()), SEPARATE_ONLY);
+
+            assertThat(positionOf(plan, left)).isEqualTo(left.position());
+            assertThat(positionOf(plan, selected)).isNotEqualTo(selected.position());
+            assertThat(sharesWriting(labelIn(plan, fixture.salta()), labelIn(plan, fixture.equal()))).isFalse();
+        }
+    }
+
+    /**
+     * The LED of {@link #withoutTheRowTheSameLedMovesAlongXFirst} inside a frame whose left border is two units from
+     * it: four units left would take it out of the frame, so it moves down instead, staying inside.
+     */
+    @Test
+    void aPartFreesItsLabelWithoutLeavingItsFrame() {
+        CircuitDocument document = new CircuitDocument();
+        Frame border = frame(document, 6, 0, 30, 20);
+        Component middle = led(document, 8, 8, "Habilitar", new Bounds(0, -2, 6, 2));
+        TextLabel words = text(document, 10, 5, "abcdef");
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        GridPoint after = positionOf(plan, middle);
+        assertThat(after).isNotEqualTo(middle.position());
+        assertThat(after.x()).isGreaterThanOrEqualTo(border.topLeft().x());
+        assertThat(sharesWriting(labelIn(plan, middle), texts.freeText(words))).isFalse();
+        assertThat(plan.after().frame(border.id()).orElseThrow()).isEqualTo(border);
+    }
+
+    /** Cancelling stops before the first part is looked at: an exception, and the copy keeps every part in place. */
+    @Test
+    void cancellingStopsBeforeAnyPartMoves() {
+        SideBySide fixture = saltaAndEqual();
+        CircuitDocument copy = fixture.document().copy();
+        Placement placement = new Placement(copy, registry, LayoutItems.of(copy, registry, everything(copy), texts),
+                Placement.netsOf(copy, registry));
+
+        assertThatThrownBy(() -> LabelsApart.separate(placement, () -> true))
+                .isInstanceOf(CancellationException.class);
+        assertThat(copy.component(fixture.salta().id()).orElseThrow()).isEqualTo(fixture.salta());
+        assertThat(copy.component(fixture.equal().id()).orElseThrow()).isEqualTo(fixture.equal());
     }
 
     @Test

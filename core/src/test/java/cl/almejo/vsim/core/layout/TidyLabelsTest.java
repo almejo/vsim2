@@ -220,7 +220,7 @@ class TidyLabelsTest {
      * column (spec §6.2).
      */
     @Test
-    void everyStageSeparatesTheTouchingLabelsAndTidiesTheRest() {
+    void everyStageSeparatesTheOverlappingLabelsAndTidiesTheRest() {
         SideBySide fixture = sideBySideLeds();
         gate(registry, fixture.document(), 60, 0);
         Component elsewhere = gate(registry, fixture.document(), 61, 8);
