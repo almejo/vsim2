@@ -442,6 +442,19 @@ class PropertiesPanelTest {
         assertThat(panel.textField().getCaretPosition()).isZero();
     }
 
+    @Test
+    void aTemporaryFocusLossLeavesTheCaretWhereItWas() {
+        JTextField name = panel.circuitNameField();
+        name.setText("un nombre bastante largo del circuito de prueba");
+        name.setCaretPosition(10);
+        for (java.awt.event.FocusListener listener : name.getFocusListeners()) {
+            // a menu, a popup or Alt+Tab to another application: the focus comes back to the same place
+            listener.focusLost(new java.awt.event.FocusEvent(name, java.awt.event.FocusEvent.FOCUS_LOST, true));
+        }
+
+        assertThat(name.getCaretPosition()).isEqualTo(10);
+    }
+
     private static <T extends java.awt.Component> List<T> allOf(java.awt.Container root, Class<T> type) {
         List<T> found = new java.util.ArrayList<>();
         for (java.awt.Component child : root.getComponents()) {

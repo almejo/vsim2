@@ -482,9 +482,12 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         }
         error.setText(" ");
         RenameCircuitCommand.renaming(openDocument.document(), field.getText()).ifPresent(openDocument::execute);
-        // the name kept has no outer spaces
-        field.setText(openDocument.document().name());
-        field.setCaretPosition(0);
+        // the name kept has no outer spaces: put back (from its start) only when it differs from what is typed
+        String kept = openDocument.document().name();
+        if (!field.getText().equals(kept)) {
+            field.setText(kept);
+            field.setCaretPosition(0);
+        }
     }
 
     /** Shows the circuit's name again after an undo, a redo or the AI changed it, unless the user is typing it. */
@@ -846,8 +849,11 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             @Override
             public void focusLost(FocusEvent event) {
                 apply.run();
-                // a long text shows its start, not where the caret was left
-                field.setCaretPosition(0);
+                // a long text shows its start, not where the caret was left; a menu, a popup or another application
+                // only borrows the focus, and the caret stays where the user was typing
+                if (!event.isTemporary()) {
+                    field.setCaretPosition(0);
+                }
             }
         });
     }
