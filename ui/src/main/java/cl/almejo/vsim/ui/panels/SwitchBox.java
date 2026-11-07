@@ -84,7 +84,7 @@ final class SwitchBox extends JCheckBox {
             }
             int knobSize = trackHeight - 2 * knobMargin;
             int knobX = on ? trackWidth - knobMargin - knobSize : knobMargin;
-            local.setColor(ThemeColors.ui("Panel.background", Color.WHITE).brighter());
+            local.setColor(Color.WHITE); // reads on the accent and on the grey «off» track, light or dark theme
             local.fillOval(knobX, top + knobMargin, knobSize, knobSize);
             local.setFont(getFont());
             FontMetrics metrics = local.getFontMetrics();

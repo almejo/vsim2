@@ -35,8 +35,6 @@ final class PropertyCard extends JPanel {
     private static final int ARC = 10;
     private static final String CIRCUIT_ICON = "grid";
 
-    private static final PainterRegistry PAINTERS = PainterRegistry.standard();
-
     private final JLabel title = new JLabel();
     private final JLabel subtitle = new JLabel();
     private final JLabel counts = new JLabel();
@@ -73,9 +71,13 @@ final class PropertyCard extends JPanel {
         setTexts(titleText, subtitleText);
     }
 
-    /** A component: its label (or its type name when it has none) as title, the type name under it. */
-    static PropertyCard forComponent(ComponentType type, String typeName, String label, Supplier<ColorScheme> scheme) {
-        Tile tile = new Tile(() -> new ComponentIcon(type, PAINTERS.painterFor(type.id()), scheme.get(),
+    /**
+     * A component: its label (or its type name when it has none) as title, the type name under it; drawn with the
+     * editor's {@code painters}.
+     */
+    static PropertyCard forComponent(ComponentType type, PainterRegistry painters, String typeName, String label,
+                                     Supplier<ColorScheme> scheme) {
+        Tile tile = new Tile(() -> new ComponentIcon(type, painters.painterFor(type.id()), scheme.get(),
                 UIScale.scale(ICON)));
         return new PropertyCard(tile, titleOf(typeName, label), typeName, false);
     }

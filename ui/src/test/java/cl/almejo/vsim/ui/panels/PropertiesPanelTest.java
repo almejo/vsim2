@@ -29,6 +29,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
@@ -548,6 +549,29 @@ class PropertiesPanelTest {
         Color veil = ColorSchemes.DARK.frameTint(FrameTint.GREEN);
         assertThat(SwatchPixels.centre(panel.frameColor().swatch(FrameTint.GREEN.ordinal())))
                 .isEqualTo(new Color(veil.getRed(), veil.getGreen(), veil.getBlue()).getRGB());
+    }
+
+    @Test
+    void theCardDrawsAComponentWithTheEditorsOwnPainters() {
+        panel.dispose();
+        PainterRegistry painters = PainterRegistry.standard();
+        java.util.concurrent.atomic.AtomicInteger painted = new java.util.concurrent.atomic.AtomicInteger();
+        painters.register(StandardComponentTypes.AND, (graphics, type, parameters, state, colours) ->
+                painted.incrementAndGet());
+        panel = new PropertiesPanel(openDocument, selection, SelectionMoves.detached(), () -> ColorSchemes.LIGHT,
+                painters);
+        selection.select(place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of()).id());
+
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(64, 64,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        try {
+            panel.card().tileIcon().paintIcon(panel, graphics, 0, 0);
+        } finally {
+            graphics.dispose();
+        }
+
+        assertThat(painted).hasValue(1);
     }
 
     @Test

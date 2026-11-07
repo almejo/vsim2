@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import com.formdev.flatlaf.util.UIScale;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -10,6 +11,12 @@ import java.util.Objects;
  * user last dragged the divider to. Closing keeps the section and the width, so reopening looks as it did.
  */
 public record InspectorState(boolean open, String selectedTab, int width) {
+
+    /** The sections a saved state may name. */
+    private static final List<String> SECTIONS = List.of(InspectorPanel.PROPERTIES,
+            InspectorPanel.PROBLEMS, InspectorPanel.NOTES, InspectorPanel.MEMORY_MAP);
+    /** The widest a saved panel is taken to be (px, before UI scaling): a corrupt value must not fill the window. */
+    static final int MAXIMUM_SAVED_WIDTH = 1200;
 
     public InspectorState {
         Objects.requireNonNull(selectedTab, "selectedTab");
@@ -22,12 +29,6 @@ public record InspectorState(boolean open, String selectedTab, int width) {
     public static InspectorState initial() {
         return new InspectorState(true, InspectorPanel.PROPERTIES, UIScale.scale(InspectorPanel.PREFERRED_WIDTH));
     }
-
-    /** The sections a saved state may name. */
-    private static final java.util.List<String> SECTIONS = java.util.List.of(InspectorPanel.PROPERTIES,
-            InspectorPanel.PROBLEMS, InspectorPanel.NOTES, InspectorPanel.MEMORY_MAP);
-    /** The widest a saved panel is taken to be (px, before UI scaling): a corrupt value must not fill the window. */
-    static final int MAXIMUM_SAVED_WIDTH = 1200;
 
     /**
      * A state read from a saved session: an unknown section becomes {@code properties}, the width is kept between

@@ -38,7 +38,7 @@ public final class LabelFeatures {
         view.menu(MenuId.EDIT).add(actions.editLabel());
         view.addContextMenuContributor(new LabelMenuContributor(actions));
         PropertiesPanel properties = new PropertiesPanel(view.openDocument(), view.selection(),
-                view.selectionMoves(), () -> view.canvas().scheme());
+                view.selectionMoves(), () -> view.canvas().scheme(), view.services().painters());
         properties.onNotice(view.statusBar()::showNotice);
         view.inspector().addTab(InspectorPanel.PROPERTIES, Messages.text("inspector.properties"),
                 InspectorPanel.PROPERTIES_ICON, PropertiesPanel.inScrollPane(properties));

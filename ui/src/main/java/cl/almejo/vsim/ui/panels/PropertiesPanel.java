@@ -35,6 +35,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.NoteColorNames;
 import cl.almejo.vsim.ui.i18n.StickyColorNames;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.sticky.StickyNoteEdits;
 import cl.almejo.vsim.ui.sticky.StickyNoteLock;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
@@ -57,6 +58,7 @@ import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.KeyboardFocusManager;
@@ -107,6 +109,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private NoteTextArea noteArea;
     private ParameterForm parameterForm;
     private final Supplier<ColorScheme> scheme;
+    private final PainterRegistry painters;
     private DescriptionBox descriptionBox;
     private ColorSwatches<FrameTint> frameColor;
     private JSpinner[] frameSpinners;
@@ -138,8 +141,15 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     /** {@code scheme} gives the colours the canvas paints with now: the colour swatches show the same ones. */
     public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
                            Supplier<ColorScheme> scheme) {
+        this(openDocument, selection, selectionMoves, scheme, PainterRegistry.standard());
+    }
+
+    /** {@code painters} are the editor's own: the card draws a component (also a user's) as the canvas does. */
+    public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
+                           Supplier<ColorScheme> scheme, PainterRegistry painters) {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
         this.scheme = scheme;
+        this.painters = painters;
         this.openDocument = openDocument;
         this.selection = selection;
         this.selectionMoves = selectionMoves;
@@ -294,14 +304,14 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         return titles;
     }
 
-    private static void collectSectionTitles(java.awt.Container container, List<String> titles) {
+    private static void collectSectionTitles(Container container, List<String> titles) {
         for (java.awt.Component child : container.getComponents()) {
             if (!child.isVisible()) {
                 continue;
             }
             if (child instanceof SectionHeader header) {
                 titles.add(header.text());
-            } else if (child instanceof java.awt.Container nested) {
+            } else if (child instanceof Container nested) {
                 collectSectionTitles(nested, titles);
             }
         }
@@ -446,7 +456,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
      * A scroll pane inside the form (a multi-line text) whose own bar is hidden hands the mouse wheel to the pane around
      * this panel: Swing stops at the first scroll pane under the pointer even when it has nothing to scroll.
      */
-    private void handWheelUp(java.awt.Container container) {
+    private void handWheelUp(Container container) {
         for (java.awt.Component child : container.getComponents()) {
             if (child instanceof JScrollPane inner && inner.getClientProperty(WHEEL_HANDED_UP) == null) {
                 inner.putClientProperty(WHEEL_HANDED_UP, Boolean.TRUE);
@@ -457,7 +467,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
                     }
                 });
             }
-            if (child instanceof java.awt.Container nested) {
+            if (child instanceof Container nested) {
                 handWheelUp(nested);
             }
         }
@@ -520,7 +530,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private void showComponent(Component component) {
         ComponentType type = openDocument.registry().typeOf(component);
         String typeName = Messages.componentName(type, component.parameters());
-        showCard(PropertyCard.forComponent(type, typeName, component.label(), scheme));
+        showCard(PropertyCard.forComponent(type, painters, typeName, component.label(), scheme));
         addSection("properties.section.general");
         JTextField field = addTextRow(Messages.text("properties.label"), "label", component.label());
         ElementId id = component.id();

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import com.formdev.flatlaf.util.UIScale;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PropertyCardTest {
 
+    private static final PainterRegistry PAINTERS = PainterRegistry.standard();
     private static final Supplier<ColorScheme> SCHEME = () -> ColorSchemes.forTheme(false);
 
     private static void paintInto(java.awt.Component component) {
@@ -37,10 +39,10 @@ class PropertyCardTest {
     void theTileAndItsComponentIconGrowWithTheUiScale() throws Exception {
         var type = StandardComponentTypes.registry().require(StandardComponentTypes.AND);
         int normalTile = PropertyCard.forCircuit("Sumador", 0, 0).tile().getPreferredSize().width;
-        int normalIcon = PropertyCard.forComponent(type, "AND", "", SCHEME).tileIcon().getIconWidth();
+        int normalIcon = PropertyCard.forComponent(type, PAINTERS, "AND", "", SCHEME).tileIcon().getIconWidth();
         atDoubleUiScale(() -> {
             PropertyCard circuit = PropertyCard.forCircuit("Sumador", 0, 0);
-            PropertyCard component = PropertyCard.forComponent(type, "AND", "", SCHEME);
+            PropertyCard component = PropertyCard.forComponent(type, PAINTERS, "AND", "", SCHEME);
             assertThat(circuit.tile().getPreferredSize().width).isEqualTo(UIScale.scale(normalTile));
             assertThat(component.tile().getPreferredSize().width).isEqualTo(UIScale.scale(normalTile));
             assertThat(component.tileIcon().getIconWidth()).isEqualTo(UIScale.scale(normalIcon))
@@ -51,10 +53,10 @@ class PropertyCardTest {
     @Test
     void aComponentCardHasTheLabelOrTheTypeAsTitleAndTheTypeAsSubtitle() {
         var type = StandardComponentTypes.registry().require(StandardComponentTypes.AND);
-        PropertyCard labelled = PropertyCard.forComponent(type, "AND", "Q1", SCHEME);
+        PropertyCard labelled = PropertyCard.forComponent(type, PAINTERS, "AND", "Q1", SCHEME);
         assertThat(labelled.title()).isEqualTo("Q1");
         assertThat(labelled.subtitle()).isEqualTo("AND");
-        PropertyCard plain = PropertyCard.forComponent(type, "AND", "", SCHEME);
+        PropertyCard plain = PropertyCard.forComponent(type, PAINTERS, "AND", "", SCHEME);
         assertThat(plain.title()).isEqualTo("AND");
         assertThat(plain.subtitle()).isEmpty();
     }
@@ -62,7 +64,7 @@ class PropertyCardTest {
     @Test
     void aLabelEqualToTheTypeNameShowsNoSubtitle() {
         var type = StandardComponentTypes.registry().require(StandardComponentTypes.XOR);
-        PropertyCard card = PropertyCard.forComponent(type, "XOR", "XOR", SCHEME);
+        PropertyCard card = PropertyCard.forComponent(type, PAINTERS, "XOR", "XOR", SCHEME);
         assertThat(card.title()).isEqualTo("XOR");
         assertThat(card.subtitle()).isEmpty();
     }
@@ -90,7 +92,7 @@ class PropertyCardTest {
             for (boolean dark : new boolean[]{false, true}) {
                 UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", dark));
                 paintInto(PropertyCard.forComponent(
-                        StandardComponentTypes.registry().require(StandardComponentTypes.AND), "AND", "", SCHEME));
+                        StandardComponentTypes.registry().require(StandardComponentTypes.AND), PAINTERS, "AND", "", SCHEME));
                 paintInto(PropertyCard.forCircuit("x", 1, 2));
                 paintInto(PropertyCard.forElement("Marco", "frame-tool"));
                 paintInto(new SectionHeader("Configuración"));

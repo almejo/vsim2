@@ -170,6 +170,17 @@ class InspectorPanelTest {
     }
 
     @Test
+    void aStateListenerCanBeRemoved() {
+        List<InspectorState> heard = new ArrayList<>();
+        Runnable remover = inspector.onStateChange(() -> heard.add(inspector.state()));
+
+        remover.run();
+        inspector.restore(new InspectorState(false, "notes", 410));
+
+        assertThat(heard).isEmpty();
+    }
+
+    @Test
     void theStateCanBeReadRestoredAndIsHeard() {
         List<InspectorState> heard = new ArrayList<>();
         inspector.onStateChange(() -> heard.add(inspector.state()));

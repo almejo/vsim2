@@ -145,6 +145,9 @@ public final class WindowTabs extends JPanel {
         /** Stops keeping the window's tabs in step with this tab's left column. */
         private Runnable foldListenerRemover = () -> {
         };
+        /** Stops keeping the window's tabs in step with this tab's right panel. */
+        private Runnable inspectorListenerRemover = () -> {
+        };
         /** An entered tab opens on the whole body («Ver todo»), travelling there from its initial view. */
         private boolean fitsBodyWhenShown;
         /** When it was last activated (a counter): re-entering focuses the most recent tab of a definition. */
@@ -382,7 +385,7 @@ public final class WindowTabs extends JPanel {
         foldedPanels.forEach(section -> view.leftColumn().setFolded(section, true));
         entry.foldListenerRemover = view.leftColumn().addFoldListener(() -> panelsFolded(view));
         view.inspector().restore(inspectorState);
-        view.inspector().onStateChange(() -> inspectorChanged(view));
+        entry.inspectorListenerRemover = view.inspector().onStateChange(() -> inspectorChanged(view));
         entries.put(id, entry);
         cards.add(view, id);
         follow(document);
@@ -1011,6 +1014,7 @@ public final class WindowTabs extends JPanel {
             entry.initialViewWatch.run();
             entry.bodyRemovedRemover.run();
             entry.foldListenerRemover.run();
+            entry.inspectorListenerRemover.run();
             entry.view.dispose();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the tab, or the window, open

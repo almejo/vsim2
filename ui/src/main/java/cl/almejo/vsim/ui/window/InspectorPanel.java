@@ -211,9 +211,13 @@ public final class InspectorPanel extends JPanel {
         setState(Objects.requireNonNull(restored, "restored"));
     }
 
-    /** {@code listener} hears every change of {@link #state()}: opened, closed, another section, a new width. */
-    public void onStateChange(Runnable listener) {
+    /**
+     * {@code listener} hears every change of {@link #state()}: opened, closed, another section, a new width. Running
+     * what this returns stops it.
+     */
+    public Runnable onStateChange(Runnable listener) {
         stateListeners.add(Objects.requireNonNull(listener, "listener"));
+        return () -> stateListeners.remove(listener);
     }
 
     /** The strip of section icons, for the view to put on its right edge. */

@@ -45,6 +45,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -180,7 +181,7 @@ public final class ParameterForm extends JPanel {
         }
         // The parameters of no group come first (under «Configuración» in Properties), then the groups.
         List<Map.Entry<Optional<String>, List<ParameterSpec>>> ordered = new ArrayList<>(byGroup.entrySet());
-        ordered.sort(java.util.Comparator.comparing(entry -> entry.getKey().isPresent()));
+        ordered.sort(Comparator.comparing(entry -> entry.getKey().isPresent()));
         ordered.forEach(entry -> {
             Optional<String> group = entry.getKey();
             List<ParameterSpec> parameters = entry.getValue();
