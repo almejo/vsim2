@@ -455,10 +455,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     private void createInspectorToggles() {
-        addInspectorToggle(InspectorPanel.PROPERTIES, "action.properties", KeyEvent.VK_3);
-        addInspectorToggle(InspectorPanel.PROBLEMS, "action.problems", KeyEvent.VK_4);
-        addInspectorToggle(InspectorPanel.NOTES, "action.notes", KeyEvent.VK_5);
-        addInspectorToggle(InspectorPanel.MEMORY_MAP, "action.memoryMap", KeyEvent.VK_6);
+        addInspectorToggle(InspectorPanel.PROPERTIES, "inspector.properties", KeyEvent.VK_3);
+        addInspectorToggle(InspectorPanel.PROBLEMS, "problems.tab", KeyEvent.VK_4);
+        addInspectorToggle(InspectorPanel.NOTES, "stickyNotes.tab", KeyEvent.VK_5);
+        addInspectorToggle(InspectorPanel.MEMORY_MAP, "memory.map.tab", KeyEvent.VK_6);
     }
 
     private void addInspectorToggle(String id, String nameKey, int digit) {

@@ -128,7 +128,7 @@ class ShortcutCatalogTest {
     void theRightPanelSectionsOpenWithAltThreeToAltSixUnderVer() {
         int alt = InputEvent.ALT_DOWN_MASK;
         String[] ids = {"view.properties", "view.problems", "view.notes", "view.memoryMap"};
-        String[] names = {"action.properties", "action.problems", "action.notes", "action.memoryMap"};
+        String[] names = {"inspector.properties", "problems.tab", "stickyNotes.tab", "memory.map.tab"};
         int[] digits = {KeyEvent.VK_3, KeyEvent.VK_4, KeyEvent.VK_5, KeyEvent.VK_6};
         for (int index = 0; index < ids.length; index++) {
             assertThat(ShortcutCatalog.find(ids[index])).contains(new ShortcutEntry(ids[index], names[index],

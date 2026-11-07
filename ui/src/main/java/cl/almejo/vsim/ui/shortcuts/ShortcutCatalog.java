@@ -97,12 +97,12 @@ public final class ShortcutCatalog {
                 stroke(KeyEvent.VK_1, InputEvent.ALT_DOWN_MASK));
         window(entries, "view.palette", "action.palette", MenuId.VIEW, stroke(KeyEvent.VK_2, InputEvent.ALT_DOWN_MASK));
         // the right panel's sections: Alt+3 … Alt+6, the same keys as the strip's tooltips show
-        window(entries, "view.properties", "action.properties", MenuId.VIEW,
+        window(entries, "view.properties", "inspector.properties", MenuId.VIEW,
                 stroke(KeyEvent.VK_3, InputEvent.ALT_DOWN_MASK));
-        window(entries, "view.problems", "action.problems", MenuId.VIEW,
+        window(entries, "view.problems", "problems.tab", MenuId.VIEW,
                 stroke(KeyEvent.VK_4, InputEvent.ALT_DOWN_MASK));
-        window(entries, "view.notes", "action.notes", MenuId.VIEW, stroke(KeyEvent.VK_5, InputEvent.ALT_DOWN_MASK));
-        window(entries, "view.memoryMap", "action.memoryMap", MenuId.VIEW,
+        window(entries, "view.notes", "stickyNotes.tab", MenuId.VIEW, stroke(KeyEvent.VK_5, InputEvent.ALT_DOWN_MASK));
+        window(entries, "view.memoryMap", "memory.map.tab", MenuId.VIEW,
                 stroke(KeyEvent.VK_6, InputEvent.ALT_DOWN_MASK));
         window(entries, "view.selectTool", "action.toolSelect", MenuId.VIEW, null);
         window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
