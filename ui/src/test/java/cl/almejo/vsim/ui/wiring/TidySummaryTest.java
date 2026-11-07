@@ -101,9 +101,9 @@ class TidySummaryTest {
     void summaryCountsAlignedStraightenedAndCorners() {
         CircuitTidyPlan plan = planWith(6, 4, 12, 140, 96, 0);
         assertThat(TidySummary.preview(plan))
-                .isEqualTo("Se moverán 6 partes (4 para alinear), se enderezarán 12 cables y codos: 140 → 96");
+                .isEqualTo("Se moverán 6 partes (4 para alinear) y se enderezarán 12 cables; codos: 140 → 96");
         assertThat(TidySummary.notice(plan))
-                .isEqualTo("Se movieron 6 partes (4 para alinear), se enderezaron 12 cables y codos: 140 → 96");
+                .isEqualTo("Se movieron 6 partes (4 para alinear) y se enderezaron 12 cables; codos: 140 → 96");
     }
 
     @Test
@@ -113,7 +113,42 @@ class TidySummaryTest {
         assertThat(TidySummary.preview(planWith(3, 3, 0, 5, 5, 0)))
                 .isEqualTo("Se moverán 3 partes (para alinear)");
         assertThat(TidySummary.preview(planWith(2, 0, 0, 9, 7, 3)))
-                .isEqualTo("Se moverán 2 partes, se borrarán 3 puntas sueltas y codos: 9 → 7");
+                .isEqualTo("Se moverán 2 partes y se borrarán 3 puntas sueltas; codos: 9 → 7");
+    }
+
+    private static CircuitTidyPlan planWithTexts(int moved, int texts, int straightened, int detours,
+                                                 int cornersBefore, int cornersAfter) {
+        Wire wire = new Wire(new ElementId("w1"), new GridPoint(0, 0), new GridPoint(2, 0));
+        TidyPlan wires = detours == 0 ? TidyPlan.EMPTY
+                : new TidyPlan(List.of(wire), List.of(), Map.of(), 0, 0, 0, detours);
+        return new CircuitTidyPlan(new CircuitDocument(), moved, texts, Set.of(), wires, 0, straightened,
+                cornersBefore, cornersAfter);
+    }
+
+    /** The corners are not one more thing done: they go after a semicolon, never in the list with «y». */
+    @Test
+    void theCornersGoAfterASemicolon() {
+        CircuitTidyPlan plan = planWithTexts(34, 0, 8, 1, 252, 235);
+        assertThat(TidySummary.preview(plan))
+                .isEqualTo("Se moverán 34 partes, se enderezarán 8 cables y se aplanará 1 vuelta; codos: 252 → 235");
+        assertThat(TidySummary.preview(planWithTexts(3, 2, 0, 0, 9, 7)))
+                .isEqualTo("Se moverán 3 partes y 2 textos; codos: 9 → 7");
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            assertThat(TidySummary.preview(plan)).isEqualTo("34 parts will be moved, 8 wires will be straightened and"
+                    + " 1 detour will be flattened; corners: 252 → 235");
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
+    }
+
+    /** After the corners, what could not be separated follows after another semicolon. */
+    @Test
+    void theNoticeSaysTheCornersBeforeWhatCouldNotBeSeparated() {
+        CircuitTidyPlan plan = new CircuitTidyPlan(new CircuitDocument(), 2, 0, Set.of(new ElementId("p1")),
+                TidyPlan.EMPTY, 0, 1, 9, 7);
+        assertThat(TidySummary.notice(plan))
+                .isEqualTo("Se movieron 2 partes y se enderezó 1 cable; codos: 9 → 7; no se pudo separar 1 cosa");
     }
 
     @Test

@@ -12,7 +12,10 @@ public final class TidySummary {
     private TidySummary() {
     }
 
-    /** «Se moverán 3 partes, 2 textos y se borrará 1 punta suelta», or «el circuito ya está ordenado». */
+    /**
+     * «Se moverán 3 partes, 2 textos y se borrará 1 punta suelta», «…y se aplanará 1 vuelta; codos: 252 → 235», or «el
+     * circuito ya está ordenado».
+     */
     public static String preview(CircuitTidyPlan plan) {
         return describe(plan, "tidy.preview", "tidy.preview.alreadyTidy");
     }
@@ -42,8 +45,7 @@ public final class TidySummary {
         addPart(wireClauses, prefix + ".detours", plan.wires().detoursFlattened());
         List<String> layoutClauses = new ArrayList<>();
         addPart(layoutClauses, prefix + ".straightened", plan.pairsStraightened());
-        boolean cornersChange = plan.cornersBefore() != plan.cornersAfter();
-        boolean moreFollow = !layoutClauses.isEmpty() || !wireClauses.isEmpty() || cornersChange;
+        boolean moreFollow = !layoutClauses.isEmpty() || !wireClauses.isEmpty();
         List<String> clauses = new ArrayList<>();
         addMoved(clauses, prefix + ".moved", plan, moreFollow);
         clauses.addAll(layoutClauses);
@@ -51,10 +53,12 @@ public final class TidySummary {
         if (plan.isEmpty() || clauses.isEmpty()) {
             return Messages.text(alreadyTidyKey);
         }
-        if (cornersChange) {
-            clauses.add(Messages.format(prefix + ".corners", plan.cornersBefore(), plan.cornersAfter()));
+        String done = capitalized(listed(clauses));
+        if (plan.cornersBefore() == plan.cornersAfter()) {
+            return done;
         }
-        return capitalized(listed(clauses));
+        // the corners are not one more thing done: they follow the list after a semicolon
+        return done + "; " + Messages.format(prefix + ".corners", plan.cornersBefore(), plan.cornersAfter());
     }
 
     /** «a», «a y b», «a, b y c»: «y» only before the last one. */
