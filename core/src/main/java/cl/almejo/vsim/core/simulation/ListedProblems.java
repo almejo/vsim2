@@ -12,13 +12,15 @@ import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * The rows of the Problemas list of one circuit, in its order: what the simulation found, the wiring warnings, the pins
+ * The rows of the Problemas list of one circuit, in its order: what the simulation found, the wiring warnings (a wire
+ * found at a piece's edge only once: this session's row for the removed pin it went to stands for it), the pins
  * this session's shape changes left loose, the new pins an inside edit put elsewhere, the pieces an update of the
  * library would break, the linked memory files that cannot be used and the pieces' own memory contents that do not
  * apply. The editor's list and the AI's read are both made here, so they never disagree (fix round D, the user: a
@@ -74,13 +76,37 @@ public final class ListedProblems {
         Objects.requireNonNull(sources, "sources");
         List<Problem> problems = new ArrayList<>(sources.simulated().stream()
                 .filter(problem -> !(problem instanceof ConnectivityProblem)).toList());
-        problems.addAll(sources.connectivity());
+        problems.addAll(withoutRepeatedWires(sources.connectivity()));
         problems.addAll(loosenedPins(document, registry, sources.loosenedPins()));
         problems.addAll(pinsPlacedElsewhere(document, registry, sources.keptOldShapes()));
         problems.addAll(sources.outdatedPieces());
         problems.addAll(sources.linkedFiles());
         problems.addAll(storedContents(document));
         return List.copyOf(problems);
+    }
+
+    /**
+     * {@code problems} without the wire ends found at a piece's edge
+     * ({@link ConnectivityProblem.Cause#WIRE_AT_PIECE_EDGE}) that this session also lists as the wire of a removed
+     * pin, at the same place: that row says which pin it was, so the wire is listed once, with the richer text. The
+     * order is kept.
+     */
+    public static List<ConnectivityProblem> withoutRepeatedWires(List<ConnectivityProblem> problems) {
+        Set<WireEnd> named = new HashSet<>();
+        for (ConnectivityProblem problem : problems) {
+            if (problem.cause() == ConnectivityProblem.Cause.WIRE_OF_REMOVED_PIN) {
+                named.add(new WireEnd(problem.elementId(), problem.position()));
+            }
+        }
+        if (named.isEmpty()) {
+            return problems;
+        }
+        return problems.stream().filter(problem -> problem.cause() != ConnectivityProblem.Cause.WIRE_AT_PIECE_EDGE
+                || !named.contains(new WireEnd(problem.elementId(), problem.position()))).toList();
+    }
+
+    /** A wire end of piece {@code elementId} (a path inside a component) at {@code position} of its level. */
+    private record WireEnd(String elementId, GridPoint position) {
     }
 
     /** One problem per pin a shape change left loose in this session, for the pieces still on the canvas. */

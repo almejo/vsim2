@@ -788,7 +788,8 @@ public final class OpenDocument implements AutoCloseable {
             }
             List<ConnectivityProblem> all = new ArrayList<>(connectivityProblems);
             all.addAll(inside);
-            return List.copyOf(all);
+            // a wire of a removed pin is also found at the piece's edge: listed and marked once, with the pin's name
+            return List.copyOf(ListedProblems.withoutRepeatedWires(all));
         }
         if (contextPath.isEmpty()) {
             return List.of();

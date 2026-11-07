@@ -244,6 +244,24 @@ class ProblemsReaderTest {
         assertThat(problems.get(4).message()).contains("U1", "Inversor", "cannot be updated");
     }
 
+    /** M6 (fix round E): a wire end at a piece's edge where no pin is, found from the circuit, reaches the AI too. */
+    @Test
+    void aWireAtAPiecesEdgeWhereNoPinIsHasItsOwnKind() {
+        fixture.document.putDefinition(ExampleDefinitions.inverter());
+        Component piece = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 10,
+                Rotation.R0, Map.of(), "U1");
+        String pieceId = piece.id().value();
+        publish(0, new ConnectivityProblem(ConnectivityProblem.EDGE_WIRE_PREFIX + pieceId + ":10,11", pieceId, -1,
+                new GridPoint(10, 11), ConnectivityProblem.Cause.WIRE_AT_PIECE_EDGE));
+
+        assertThat(ProblemsReader.read(fixture.source()).problems()).singleElement().satisfies(problem -> {
+            assertThat(problem.kind()).isEqualTo("WIRE_AT_PIECE_EDGE");
+            assertThat(problem.warning()).isTrue();
+            assertThat(problem.elementIds()).containsExactly(pieceId);
+            assertThat(problem.message()).contains("(10, 11)", "U1", "no pin", "loose");
+        });
+    }
+
     /** A pin loosened inside a component another edit changed points at the piece on the canvas and its inner path. */
     @Test
     void aPinLoosenedInsideAComponentKeepsItsInnerPath() {

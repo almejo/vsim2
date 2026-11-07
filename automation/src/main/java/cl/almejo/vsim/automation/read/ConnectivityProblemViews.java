@@ -31,7 +31,7 @@ final class ConnectivityProblemViews {
             case UNCONNECTED_INTERFACE -> "INTERFACE_UNCONNECTED_INSIDE";
             case LOOSENED_BY_SHAPE_CHANGE -> "PIN_LOOSENED_BY_SHAPE_CHANGE";
             case PIN_PLACED_ELSEWHERE, WIRE_OF_REMOVED_PIN, OUTDATED_WOULD_BREAK, OUTDATED_CANNOT_UPDATE,
-                 OWN_CONTENTS_FOR_NOTHING, OWN_CONTENTS_OVER_LINK -> cause.name();
+                 OWN_CONTENTS_FOR_NOTHING, OWN_CONTENTS_OVER_LINK, WIRE_AT_PIECE_EDGE -> cause.name();
         };
     }
 
@@ -66,7 +66,15 @@ final class ConnectivityProblemViews {
                 yield references.view(kind, true, problem.netId(), "A wire end at (" + problem.position().x()
                         + ", " + problem.position().y() + ") went to pin \"" + removedPinName(problem) + "\" of "
                         + pieceName(source, elementId) + ", which an edit inside its component removed: the wire"
-                        + " stays, loose." + SESSION_ONLY);
+                        + " stays, loose. Named so only during this session, while that edit is applied; after"
+                        + " reopening the circuit the same wire is listed as WIRE_AT_PIECE_EDGE.");
+            }
+            case WIRE_AT_PIECE_EDGE -> {
+                references.element(elementId);
+                yield references.view(kind, true, problem.netId(), "A wire end at (" + problem.position().x()
+                        + ", " + problem.position().y() + ") reaches the edge of " + pieceName(source, elementId)
+                        + " where there is no pin, and touches nothing else: it is loose, as a pin removed by an"
+                        + " edit inside the component leaves it. Connect it to a pin or remove it");
             }
             case OUTDATED_WOULD_BREAK -> {
                 references.element(elementId);

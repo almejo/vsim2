@@ -109,9 +109,7 @@ public final class ProblemText {
                     : Messages.format("problem.connectivity.loosened", pieceName(problem.elementId(), document),
                     PinNames.display(pinName(problem, document, registry)));
             case PIN_PLACED_ELSEWHERE -> Messages.format("problem.keptOldShape",
-                    InstancePath.isNested(problem.elementId())
-                            ? InstanceNames.routeText(problem.elementId(), document)
-                            : pieceName(problem.elementId(), document),
+                    pieceOrRoute(problem.elementId(), document),
                     PinNames.display(pinName(problem, document, registry)));
             case OUTDATED_WOULD_BREAK -> Messages.format("problem.connectivity.outdated",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document));
@@ -119,10 +117,9 @@ public final class ProblemText {
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document),
                     String.join(", ", DefinitionUpdateSafety.containingNames(document, outdatedDefinitionId(problem))));
             case WIRE_OF_REMOVED_PIN -> Messages.format("problem.removedPinWire",
-                    InstancePath.isNested(problem.elementId())
-                            ? InstanceNames.routeText(problem.elementId(), document)
-                            : pieceName(problem.elementId(), document),
-                    PinNames.display(removedPinName(problem)));
+                    pieceOrRoute(problem.elementId(), document), PinNames.display(removedPinName(problem)));
+            case WIRE_AT_PIECE_EDGE -> Messages.format("problem.edgeWire",
+                    pieceOrRoute(problem.elementId(), document));
             case OWN_CONTENTS_FOR_NOTHING -> Messages.format("problem.ownContentsForNothing",
                     pieceName(problem.elementId(), document), ownContentsPath(problem));
             case OWN_CONTENTS_OVER_LINK -> Messages.format("problem.ownContentsOverLink",
@@ -141,6 +138,12 @@ public final class ProblemText {
                                   ComponentTypeRegistry registry) {
         return pinType(problem, document, registry).map(type -> type.pin(problem.pinIndex()).name())
                 .orElse(Integer.toString(problem.pinIndex()));
+    }
+
+    /** A piece of the circuit by its name; one inside a component by its route («Sumador › Medio sumador 2»). */
+    private static String pieceOrRoute(String hierarchicalId, CircuitDocument document) {
+        return InstancePath.isNested(hierarchicalId) ? InstanceNames.routeText(hierarchicalId, document)
+                : pieceName(hierarchicalId, document);
     }
 
     /** A placed piece by its name ({@link InstanceNames#name}): «U5», «ALU», «Multiplexor 2». */

@@ -15,6 +15,8 @@ import java.util.Objects;
  * keeps contents for a memory no longer in its component: ignored), PIN_LOOSENED_BY_SHAPE_CHANGE (a pin left unconnected
  * on purpose by a shape change), PIN_PLACED_ELSEWHERE (a pin an inside edit added went to another spot of the piece),
  * WIRE_OF_REMOVED_PIN (a wire whose pin an inside edit removed) — these three only during the session that made them —,
+ * WIRE_AT_PIECE_EDGE (a wire end at a user component's edge where no pin is, as a removed pin leaves it; found from the
+ * circuit, so also after reopening),
  * OUTDATED_WOULD_BREAK, OUTDATED_CANNOT_UPDATE (a piece older than the library's that an update would break or cannot
  * take), or for a component library file not loaded LIBRARY_UNREADABLE, LIBRARY_INVALID, LIBRARY_DUPLICATE_ID or
  * LIBRARY_DIRECTORY_GONE (they name no part); every row the Problemas list shows for the circuit;

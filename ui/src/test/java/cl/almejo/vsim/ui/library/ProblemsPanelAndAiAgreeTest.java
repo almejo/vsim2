@@ -82,6 +82,7 @@ class ProblemsPanelAndAiAgreeTest {
         withABrokenLibraryFile();
         withAShortCircuitAndALoneTunnel();
         withAPieceWhoseTerminalHasNothingInsideAndIsLoosened();
+        withAWireAtAPiecesEdgeWhereNoPinIs();
         withAPinPlacedElsewhereAndAWireOfARemovedPin();
         withAPieceALibraryUpdateWouldBreak();
         withLinkedFilesMissingAndUnreadable();
@@ -99,8 +100,14 @@ class ProblemsPanelAndAiAgreeTest {
         assertThat(aiKinds).as("the AI's rows are the panel's").isEqualTo(panelKinds);
         assertThat(aiKinds).contains("SHORT_CIRCUIT", "TUNNEL_ENTRANCE_WITHOUT_EXITS",
                 "INTERFACE_UNCONNECTED_INSIDE", "PIN_LOOSENED_BY_SHAPE_CHANGE", "PIN_PLACED_ELSEWHERE",
-                "WIRE_OF_REMOVED_PIN", "OUTDATED_CANNOT_UPDATE", "LINKED_FILE_MISSING", "LINKED_FILE_UNREADABLE",
-                "OWN_CONTENTS_OVER_LINK", "OWN_CONTENTS_FOR_NOTHING", "LIBRARY_INVALID");
+                "WIRE_OF_REMOVED_PIN", "WIRE_AT_PIECE_EDGE", "OUTDATED_CANNOT_UPDATE", "LINKED_FILE_MISSING",
+                "LINKED_FILE_UNREADABLE", "OWN_CONTENTS_OVER_LINK", "OWN_CONTENTS_FOR_NOTHING", "LIBRARY_INVALID");
+    }
+
+    /** A wire that reaches the edge of the «Interfaz» piece c70 (box 40,40 – 44,44) where no pin is. */
+    private void withAWireAtAPiecesEdgeWhereNoPinIs() {
+        openDocument.execute(new AddElementsCommand(List.of(
+                new Wire(new ElementId("w70"), new GridPoint(36, 43), new GridPoint(40, 43)))));
     }
 
     /** Two switches at 1 and 0 driving one wire, and a tunnel entrance nobody exits. */

@@ -15,6 +15,12 @@ import java.util.Objects;
 public record ConnectivityProblem(String netId, String elementId, int pinIndex, GridPoint position, Cause cause)
         implements Problem {
 
+    /**
+     * The start of the net id of a {@link Cause#WIRE_AT_PIECE_EDGE} problem; the element id, a {@code :} and the wire
+     * end's {@code x,y} follow.
+     */
+    public static final String EDGE_WIRE_PREFIX = "edgeWire:";
+
     /** The start of the net id of an {@link Cause#OWN_CONTENTS_FOR_NOTHING} problem; the memory's path follows. */
     public static final String OWN_CONTENTS_PREFIX = "ownContents:";
 
@@ -78,7 +84,13 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
          * is linked to a file, but that piece starts from its own contents, not from the file (the user, 2026-11-06).
          * Listed by the editor, which offers «Volver al del componente».
          */
-        OWN_CONTENTS_OVER_LINK
+        OWN_CONTENTS_OVER_LINK,
+        /**
+         * A wire end at {@code position} reaches the box of the user component's piece {@code elementId} from outside,
+         * at a point of its edge where no pin is, and touches nothing else: the shape a removed pin leaves (M6, the
+         * user 2026-11-07). Found from the circuit itself, so it is listed again after reopening; {@code pinIndex} -1.
+         */
+        WIRE_AT_PIECE_EDGE
     }
 
     public ConnectivityProblem {

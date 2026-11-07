@@ -25,7 +25,9 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -211,6 +213,36 @@ class ProblemsInsideTest {
                 .contains("Inversor: el pin a ya no existe; su cable quedó suelto");
         circuit.history().undo();
         assertThat(main.problems().panel().problemTexts()).noneMatch(text -> text.contains("ya no existe"));
+    }
+
+    @Test
+    void theWireOfARemovedPinIsListedOnceAndAgainAfterSavingAndReopening(@TempDir Path directory) throws Exception {
+        // M6 (fix round E): no change history in the file; the loose wire is found from the circuit itself
+        circuit.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        place("c20", SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 10);
+        circuit.execute(new AddElementsCommand(List.of(new Wire(new ElementId("w90"), new GridPoint(6, 12),
+                new GridPoint(10, 12)))));
+        EditorView main = view(circuit);
+        OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c20"));
+        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        assertThat(main.problems().panel().problemTexts()).filteredOn(text -> text.startsWith("Inversor"))
+                .containsExactly("Inversor: el pin a ya no existe; su cable quedó suelto");
+
+        Path file = directory.resolve("suelto.vsim");
+        circuit.save(file);
+        OpenDocument reopened = OpenDocument.open(file, StandardComponentTypes.registry());
+        EditorView again = new EditorView(reopened, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        try {
+            assertThat(again.problems().panel().problemTexts()).filteredOn(text -> text.startsWith("Inversor"))
+                    .containsExactly("Inversor: un cable llega a su borde donde no hay pin; quedó suelto");
+            assertThat(reopened.connectivityProblems()).singleElement().satisfies(problem -> {
+                assertThat(problem.elementId()).isEqualTo("c20");
+                assertThat(problem.position()).isEqualTo(new GridPoint(10, 12));
+            });
+        } finally {
+            again.dispose();
+            reopened.close();
+        }
     }
 
     /** «Memoria chica»: a RAM c10 inside, no pins. */

@@ -97,7 +97,9 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
 - **Quitar un pin**: borrar un «Pin de entrada» o «Pin de salida» adentro quita ese pin de todas las piezas. Los
   cables que llegaban a él, en el circuito o dentro de otros componentes, se quedan donde estaban, sueltos, y
   Problemas los lista con la pieza: «Inversor: el pin a ya no existe; su cable quedó suelto». La fila se va al
-  deshacer el cambio; como las demás filas de un cambio adentro, no se guarda con el circuito.
+  deshacer el cambio. El cambio no se guarda con el circuito, pero el cable suelto sí: al volver a abrirlo,
+  Problemas lo lista otra vez, sin el nombre del pin: «Inversor: un cable llega a su borde donde no hay pin; quedó
+  suelto» (ver [Conexiones pendientes](componentes.md#conexiones-pendientes)).
 - **Cambiar un componente que está adentro**: en la pestaña de un componente, «Editar descripción…», «Cambiar
   forma…» para todas las piezas y «Actualizar desde la librería» sobre una pieza de adentro cambian ese componente en
   el circuito, en un solo paso de deshacer, igual que desde la pestaña del circuito y con sus mismas reglas (una forma

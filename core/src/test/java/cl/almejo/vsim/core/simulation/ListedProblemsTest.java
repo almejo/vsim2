@@ -73,6 +73,23 @@ class ListedProblemsTest {
     }
 
     @Test
+    void aWireFoundAtAnEdgeIsListedOnceWhileThisSessionStillNamesItsRemovedPin() {
+        GridPoint end = new GridPoint(10, 11);
+        ConnectivityProblem session = new ConnectivityProblem(ConnectivityProblem.REMOVED_PIN_PREFIX + "c20:b", "c20",
+                -1, end, ConnectivityProblem.Cause.WIRE_OF_REMOVED_PIN);
+        ConnectivityProblem found = new ConnectivityProblem(ConnectivityProblem.EDGE_WIRE_PREFIX + "c20:10,11", "c20",
+                -1, end, ConnectivityProblem.Cause.WIRE_AT_PIECE_EDGE);
+        ConnectivityProblem elsewhere = new ConnectivityProblem(ConnectivityProblem.EDGE_WIRE_PREFIX + "c20:14,13",
+                "c20", -1, new GridPoint(14, 13), ConnectivityProblem.Cause.WIRE_AT_PIECE_EDGE);
+        ListedProblems.Sources sources = new ListedProblems.Sources(List.of(), List.of(found, elsewhere, session),
+                Set.of(), List.of(), List.of(), List.of());
+
+        assertThat(ListedProblems.of(document, registry, sources)).containsExactly(elsewhere, session);
+        assertThat(ListedProblems.withoutRepeatedWires(List.of(found, elsewhere, session)))
+                .containsExactly(elsewhere, session);
+    }
+
+    @Test
     void theSessionRowsOfAPieceNoLongerOnTheCanvasAreNotListed() {
         ListedProblems.Sources sources = new ListedProblems.Sources(List.of(), List.of(),
                 Set.of(new PinRef(new ElementId("c99"), 0), new PinRef(inverter.id(), 7)),
