@@ -28,6 +28,14 @@ public interface ReadHost {
     }
 
     /**
+     * {@link #reading} for the catalogue (the component types the circuit may use): it reads no place of the circuit,
+     * so a host that marks where the AI works leaves the marks as they are (round E). The same reading by default.
+     */
+    default <T> CompletableFuture<T> readingCatalogue(DocumentId document, Function<ReadSource, T> work) {
+        return reading(document, work);
+    }
+
+    /**
      * A PNG of {@code region} (grid units; empty: the whole circuit) within {@link RegionPicture#MAXIMUM_WIDTH} ×
      * {@link RegionPicture#MAXIMUM_HEIGHT}, never shown and never saved (spec §6). {@code asOnScreen}: the active pane
      * as the user sees it (theme, grid, guides, selection) instead of the export rendering.

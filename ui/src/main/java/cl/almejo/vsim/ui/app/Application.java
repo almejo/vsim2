@@ -233,7 +233,7 @@ public final class Application {
         automationHost.addPlaceListener(placeMarks::touched); // lives as long as the application
         this.presentation = new PresentationExtension(
                 PresentationEvents.of(automationApi, automationHost::addRequestListener),
-                presentationControls, automationHost::documentId);
+                presentationControls, automationHost::documentId, placeMarks);
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,

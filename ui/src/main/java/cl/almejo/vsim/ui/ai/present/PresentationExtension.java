@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.present.StoryboardState;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
+import cl.almejo.vsim.ui.ai.TaskPlaces;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -40,6 +41,8 @@ public final class PresentationExtension implements EditorExtension {
     private final Executor editorThread;
     private final LongSupplier nanoClock;
     private final Map<EditorView, PresentationFeatures> installed = new IdentityHashMap<>();
+    /** The task of each circuit, shared by the views of its places, and on which tab its panel shows (round E). */
+    private final PresentedTasks tasks;
     private final Map<EditorView, PresentationOverlays> overlays = new IdentityHashMap<>();
 
     /** @param ids the id the AI knows a circuit by ({@link EditorAutomationHost#documentId}) */
@@ -57,11 +60,25 @@ public final class PresentationExtension implements EditorExtension {
     /** @param nanoClock the clock of «Claude está pensando…» in the panel (tests give a fake one) */
     PresentationExtension(PresentationEvents events, PresentationControls controls,
                           Function<OpenDocument, DocumentId> ids, Executor editorThread, LongSupplier nanoClock) {
+        this(events, controls, ids, editorThread, nanoClock, TaskPlaces.NONE);
+    }
+
+    /** @param taskPlaces where each task works: its panel shows on that place's tab (round E, 5q) */
+    public PresentationExtension(PresentationEvents events, PresentationControls controls,
+                                 Function<OpenDocument, DocumentId> ids, TaskPlaces taskPlaces) {
+        this(events, controls, ids, SwingUtilities::invokeLater, System::nanoTime, taskPlaces);
+    }
+
+    PresentationExtension(PresentationEvents events, PresentationControls controls,
+                          Function<OpenDocument, DocumentId> ids, Executor editorThread, LongSupplier nanoClock,
+                          TaskPlaces taskPlaces) {
         this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
         this.events = Objects.requireNonNull(events, "events");
         this.controls = Objects.requireNonNull(controls, "controls");
         this.ids = Objects.requireNonNull(ids, "ids");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
+        this.tasks = new PresentedTasks(taskPlaces, ids, installed::keySet, this::refreshEveryPanel);
+        taskPlaces.addListener(tasks::placesChanged); // the extension lives as long as the application
     }
 
     /** An extension whose events never come and whose buttons do nothing (tests that install every extension). */
@@ -96,9 +113,10 @@ public final class PresentationExtension implements EditorExtension {
 
     @Override
     public Runnable install(EditorView view) {
-        PresentationFeatures features = new PresentationFeatures(view, events, controls, ids, editorThread,
+        PresentationFeatures features = new PresentationFeatures(view, events, controls, tasks, editorThread,
                 nanoClock);
         installed.put(view, features);
+        tasks.viewsChanged(); // a tab of the place the task works in takes its panel
         PresentationOverlays viewOverlays = PresentationOverlays.install(view, events::addPresentationListener,
                 this::addTaskListener, ids, editorThread, System::nanoTime, features.placement()::coveredIn);
         overlays.put(view, viewOverlays);
@@ -107,7 +125,12 @@ public final class PresentationExtension implements EditorExtension {
             overlays.remove(view, viewOverlays);
             viewOverlays.dispose();
             features.dispose();
+            tasks.viewsChanged(); // the place's last tab closed: the panel goes back to the circuit's tab
         };
+    }
+
+    private void refreshEveryPanel() {
+        List.copyOf(installed.values()).forEach(PresentationFeatures::refreshPanel);
     }
 
     /**

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.ai.present;
 
+import cl.almejo.vsim.automation.PlaceRef;
 import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
@@ -69,12 +70,25 @@ final class PresentedTask {
     /** «Claude está pensando…»: VSim heard nothing from the AI for a while and nothing waits for the user. */
     private boolean thinking;
 
+    /** The place it works in, as the robot marks it: the circuit until it touches one (round E, 5q). */
+    private PlaceRef place = PlaceRef.main();
+
     PresentedTask(TaskInfo task) {
         this.task = Objects.requireNonNull(task, "task");
     }
 
     TaskInfo task() {
         return task;
+    }
+
+    /** The task works in {@code where} now: its panel shows on that place's tab. */
+    void workingIn(PlaceRef where) {
+        place = Objects.requireNonNull(where, "where");
+    }
+
+    /** The place it works in, or worked in last once it ended. */
+    PlaceRef place() {
+        return place;
     }
 
     void planChanged(List<TaskStage> newStages, int stage, int step) {

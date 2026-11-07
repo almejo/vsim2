@@ -364,6 +364,21 @@ class EditorAutomationHostPlacesTest {
 
         api.listPlaces(id);
         host.onEditorThread(EditorAccess::openDocuments).get(5, TimeUnit.SECONDS);
+        onEditor(() -> null); // the listeners hear on the editor thread
+
+        assertThat(touched).isEmpty();
+    }
+
+    /** Round E (5q): the catalogue is the types the circuit may use, no work in any of its places. */
+    @Test
+    void readingTheCatalogueTouchesNoPlace() throws Exception {
+        List<String> touched = new ArrayList<>();
+        host.addPlaceListener((circuitId, touchedCircuit, place) -> touched.add(place.definition()));
+
+        api.describeComponents(id, Optional.empty());
+        api.describeComponents(id.in(new PlaceRef(BLOCK, Optional.of("c5"))), Optional.empty());
+        api.describeComponent(id, StandardComponentTypes.SWITCH, Map.of());
+        onEditor(() -> null); // the listeners hear on the editor thread
 
         assertThat(touched).isEmpty();
     }

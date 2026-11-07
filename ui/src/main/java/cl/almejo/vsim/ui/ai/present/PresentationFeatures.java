@@ -14,7 +14,6 @@ import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.ai.ThinkingWatch;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -28,6 +27,9 @@ import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.time.Duration;
@@ -36,22 +38,22 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /**
  * «Presentar» in one editor view (spec §4, §5): the toggle (a toolbar button at the end and a checkbox item at the
  * end of Ver, both on one action whose selected state is {@link AppPreferences#aiPresenting()}, remembered and shared
  * by every window), Ver ▸ «Ritmo de Presentar» (the pace and the pause, usable before a task) and the floating
- * {@link PresentationPanel}, shown while a task of this window's circuit runs (or
- * ended and is not closed yet) and «Presentar» is on. The events come off the editor thread and are moved to it;
- * {@link #dispose()} takes back every registration. EDT only.
+ * {@link PresentationPanel}, shown while a task of this view's circuit runs (or ended and is not closed yet),
+ * «Presentar» is on, this view is the tab in front and it shows the place the task works in (or is the circuit's own
+ * tab and no tab shows that place: {@link PresentedTasks}, round E). The task is the circuit's, shared by all its
+ * views. The events come off the editor thread and are moved to it; {@link #dispose()} takes back every registration.
+ * EDT only.
  */
 final class PresentationFeatures {
 
     private final EditorView view;
     private final AppPreferences preferences;
-    private final Function<OpenDocument, DocumentId> ids;
     private final Executor editorThread;
     private final Action toggle;
     private final JMenu viewMenu;
@@ -80,25 +82,35 @@ final class PresentationFeatures {
             refreshPanel();
         }
     };
-    /** The task shown (running, or ended and not closed yet); null when none. */
-    private PresentedTask task;
+    /** The tabs are cards: the panel shows only while this view's tab is in front. */
+    private final ComponentListener tabListener = new ComponentAdapter() {
+        @Override
+        public void componentShown(ComponentEvent event) {
+            refreshPanel();
+        }
+
+        @Override
+        public void componentHidden(ComponentEvent event) {
+            refreshPanel();
+        }
+    };
+    /** The task of each circuit, shared by its views, and where its panel shows. */
+    private final PresentedTasks tasks;
     /** «La IA pasó a Presentar» until the next step is in. */
     private boolean aiSwitched;
     private boolean disposed;
 
+    /**
+     * @param tasks     the task of each circuit, shared by its views, and where its panel shows
+     * @param nanoClock the clock of «Claude está pensando…»
+     */
     PresentationFeatures(EditorView view, PresentationEvents events, PresentationControls controls,
-                         Function<OpenDocument, DocumentId> ids, Executor editorThread) {
-        this(view, events, controls, ids, editorThread, System::nanoTime);
-    }
-
-    /** @param nanoClock the clock of «Claude está pensando…» */
-    PresentationFeatures(EditorView view, PresentationEvents events, PresentationControls controls,
-                         Function<OpenDocument, DocumentId> ids, Executor editorThread, LongSupplier nanoClock) {
+                         PresentedTasks tasks, Executor editorThread, LongSupplier nanoClock) {
         this.view = Objects.requireNonNull(view, "view");
+        this.tasks = Objects.requireNonNull(tasks, "tasks");
         this.thinking = new ThinkingWatch(nanoClock, this::quiet, this::thinkingChanged);
         this.preferences = view.services().preferences();
         this.pauseMenu = new PauseMenu(millis -> preferences.setAiPauseMillis(millis));
-        this.ids = Objects.requireNonNull(ids, "ids");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
         this.toggle = Actions.of(Messages.text("action.aiPresent"),
                 () -> preferences.setAiPresenting(!preferences.aiPresenting()));
@@ -121,20 +133,31 @@ final class PresentationFeatures {
         panel.whenSizeChanges(placement::place);
         panel.whenMovedTo(placement::moveTo);
         view.addHierarchyListener(hierarchyListener);
+        view.addComponentListener(tabListener);
         preferences.addListener(preferencesListener);
         this.removePresentationListener = events.addPresentationListener(new OnEditorThread());
         this.removeTaskListener = events.addTaskListener(new TaskEvents());
         this.removeActivityListener = events.addActivityListener(() -> later(thinking::heard));
+        if (task() != null && !task().isEnded()) {
+            thinking.start(); // a tab opened during the task (vsim_open_place): it shows the task as it is
+        }
         followPreferences();
+    }
+
+    /** The task this view's circuit shows (running, or ended and not closed yet); null when none. */
+    private PresentedTask task() {
+        return tasks.shownIn(tasks.circuitOf(view)).orElse(null);
     }
 
     /** «Claude está pensando…» may show: the task runs and no step, pause or question waits for the user. */
     private boolean quiet() {
+        PresentedTask task = task();
         return task != null && !task.isEnded() && task.pending().isEmpty() && task.pacedFor().isEmpty()
                 && task.question().isEmpty();
     }
 
     private void thinkingChanged() {
+        PresentedTask task = task();
         if (task != null) {
             task.thinking(thinking.showing());
             refreshPanel();
@@ -164,9 +187,9 @@ final class PresentationFeatures {
         return shows(info.document());
     }
 
-    /** Whether this window shows {@code document}. */
+    /** Whether this view shows a place of circuit {@code document} (the circuit, or one of its components). */
     boolean shows(DocumentId document) {
-        return document.equals(ids.apply(view.openDocument()));
+        return document.base().equals(tasks.circuitOf(view));
     }
 
     /** The AI asked for «Presentar» (spec §4): the toggle turns on and the panel says so. */
@@ -182,11 +205,13 @@ final class PresentationFeatures {
         refreshPanel();
     }
 
-    private void refreshPanel() {
+    /** Shows or hides the panel: the extension calls it when the task's place or the views change. */
+    void refreshPanel() {
         if (disposed) {
             return;
         }
-        if (task == null || !preferences.aiPresenting()) {
+        PresentedTask task = task();
+        if (task == null || !preferences.aiPresenting() || !view.isVisible() || !tasks.showsHere(view, task)) {
             placement.hide();
             return;
         }
@@ -196,8 +221,11 @@ final class PresentationFeatures {
 
     /** «×» once the task ended. */
     private void closePanel() {
-        task = null;
+        PresentedTask task = task();
         thinking.stop();
+        if (task != null) {
+            tasks.close(task); // in every view of the circuit
+        }
         refreshPanel();
     }
 
@@ -205,7 +233,7 @@ final class PresentationFeatures {
 
     private void started(TaskInfo info) {
         if (isThisCircuit(info)) {
-            task = new PresentedTask(info);
+            tasks.taskFor(info);
             thinking.start();
             refreshPanel();
         }
@@ -215,10 +243,11 @@ final class PresentationFeatures {
         if (!isThisCircuit(info)) {
             return;
         }
-        if (task == null || !task.task().taskId().equals(info.taskId())) {
-            task = new PresentedTask(info);
+        PresentedTask shown = task();
+        if (shown == null || !shown.task().taskId().equals(info.taskId())) {
             thinking.start();
         }
+        PresentedTask task = tasks.taskFor(info);
         task.planChanged(stages, currentStage, currentStep);
         thinking.heard();
         refreshPanel();
@@ -226,6 +255,7 @@ final class PresentationFeatures {
 
     /** Runs {@code change} on the shown task when the event is about it: VSim heard from the AI. */
     private void onTask(String taskId, Consumer<PresentedTask> change) {
+        PresentedTask task = task();
         if (task != null && task.task().taskId().equals(taskId)) {
             change.accept(task);
             thinking.heard();
@@ -239,6 +269,7 @@ final class PresentationFeatures {
     }
 
     private void stopThinkingIfEnded() {
+        PresentedTask task = task();
         if (task == null || task.isEnded()) {
             thinking.stop();
         }
@@ -249,6 +280,7 @@ final class PresentationFeatures {
      * «Deshacer etapa» and × (review M5), and says which.
      */
     private void stopped(TaskInfo info, TaskStopReason reason) {
+        PresentedTask task = task();
         if (task != null && task.task().taskId().equals(info.taskId())) {
             aiSwitched = false;
         }
@@ -282,6 +314,7 @@ final class PresentationFeatures {
         @Override
         public void stepApplied(StepPreview preview) {
             later(() -> {
+                PresentedTask task = task();
                 if (task != null && task.task().taskId().equals(preview.taskId())) {
                     aiSwitched = false;
                 }
@@ -323,6 +356,7 @@ final class PresentationFeatures {
         @Override
         public void questionUnattended(String taskId, String questionId, Duration silentFor) {
             later(() -> {
+                PresentedTask task = task();
                 if (task != null && task.task().taskId().equals(taskId)) {
                     task.questionUnattended(questionId, silentFor);
                     refreshPanel();
@@ -365,6 +399,7 @@ final class PresentationFeatures {
         thinking.dispose();
         preferences.removeListener(preferencesListener);
         view.removeHierarchyListener(hierarchyListener);
+        view.removeComponentListener(tabListener);
         placement.dispose();
         panel.dispose();
         removeShortcut.run();

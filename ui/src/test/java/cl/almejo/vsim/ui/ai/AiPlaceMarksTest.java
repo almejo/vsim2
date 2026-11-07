@@ -134,6 +134,23 @@ class AiPlaceMarksTest {
         assertThat(mainMark().map(TabMark::phase)).contains(TabMark.Phase.FINISHED);
     }
 
+    /** Round E (5q): the place a running task works in, where its «Presentar» panel shows. */
+    @Test
+    void aRunningTaskWorksInTheLastPlaceItTouchedUntilItEnds() {
+        TaskInfo task = task("Armar");
+        marks.taskStarted(task);
+        assertThat(marks.placeOf("task-1")).as("no place touched yet").isEmpty();
+
+        marks.touched(CIRCUIT_ID, circuit, PlaceRef.main());
+        PlaceRef memory = new PlaceRef(MEMORY, Optional.of("c20"));
+        marks.touched(CIRCUIT_ID, circuit, memory);
+        assertThat(marks.placeOf("task-1")).contains(memory);
+        assertThat(marks.placeOf("another-task")).isEmpty();
+
+        marks.taskEnded(task);
+        assertThat(marks.placeOf("task-1")).as("an ended task works nowhere").isEmpty();
+    }
+
     @Test
     void aCallOnAnotherCircuitDuringATaskIsOnlyAMoment() {
         marks.taskStarted(task("Armar"));
