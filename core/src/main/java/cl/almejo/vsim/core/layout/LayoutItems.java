@@ -111,6 +111,11 @@ final class LayoutItems {
             bodies.forEach(writing::remove);
             return writing;
         }
+
+        /** The box around its bodies, without its labels: what the user lines up by eye (a text: its own box). */
+        Bounds bodyBox() {
+            return bodies.stream().reduce(Bounds::union).orElse(bounds);
+        }
     }
 
     private final List<Item> items;
@@ -255,8 +260,16 @@ final class LayoutItems {
      * unless the two were drawn that close.
      */
     boolean isFree(Item item, Bounds candidate, Map<ElementId, Bounds> placed) {
+        return isFree(item, candidate, placed, Set.of());
+    }
+
+    /**
+     * {@link #isFree(Item, Bounds, Map)}, leaving out the items in {@code together}: they move by the same shift as
+     * {@code item}, so what lies between them does not change.
+     */
+    boolean isFree(Item item, Bounds candidate, Map<ElementId, Bounds> placed, Set<ElementId> together) {
         for (Item other : parts()) {
-            if (other.id().equals(item.id())) {
+            if (other.id().equals(item.id()) || together.contains(other.id())) {
                 continue;
             }
             Bounds otherBounds = placed.getOrDefault(other.id(), other.bounds());
@@ -322,9 +335,14 @@ final class LayoutItems {
      * overlap with a neighbour that may still have to stay.
      */
     boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
+        return addsNoOverlap(item, candidate, now, Set.of());
+    }
+
+    /** {@link #addsNoOverlap(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by the same shift). */
+    boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now, Set<ElementId> together) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());
         for (Item other : parts()) {
-            if (other.id().equals(item.id())) {
+            if (other.id().equals(item.id()) || together.contains(other.id())) {
                 continue;
             }
             Bounds otherNow = now.getOrDefault(other.id(), other.bounds());
@@ -344,11 +362,19 @@ final class LayoutItems {
      * no longer be read (the final review, 2026-11-06).
      */
     boolean writesOverNewWriting(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
+        return writesOverNewWriting(item, candidate, now, Set.of());
+    }
+
+    /**
+     * {@link #writesOverNewWriting(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by the same
+     * shift).
+     */
+    boolean writesOverNewWriting(Item item, Bounds candidate, Map<ElementId, Bounds> now, Set<ElementId> together) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());
         List<Bounds> writingThere = movedWith(item.writing(), item, candidate);
         List<Bounds> writingHere = movedWith(item.writing(), item, from);
         for (Item other : items) {
-            if (other.id().equals(item.id()) || other.writing().isEmpty()) {
+            if (other.id().equals(item.id()) || together.contains(other.id()) || other.writing().isEmpty()) {
                 continue;
             }
             List<Bounds> otherWriting = movedWith(other.writing(), other,

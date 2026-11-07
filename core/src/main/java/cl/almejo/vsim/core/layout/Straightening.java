@@ -9,11 +9,13 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.UnionFind;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,10 @@ import java.util.function.Supplier;
  * column ({@link Placement#keepsOrder}), no more wire corners than before ({@link Placement#tryTidyingMove})
  * and the circuit's bounds grown by at most {@value #BOUNDS_SLACK} units above and below. Every taken move strictly
  * raises the score, so the rounds settle; at most {@value #MAXIMUM_ROUNDS}.
+ *
+ * <p>A row the user lined up ({@link #rows}: parts side by side with the same top edge or the same centre) is never
+ * broken: it is visited as one, its candidate shifts come from all its members' pairs, and it moves whole by one
+ * shift only when every member's place passes the rules; otherwise nobody in it moves (the user, 2026-11-06).
  */
 final class Straightening {
 
@@ -46,6 +52,11 @@ final class Straightening {
      * pulled one way cannot drift the whole circuit.
      */
     static final int BOUNDS_SLACK = 2;
+    /**
+     * How far apart, in grid units, two parts side by side may be and still be one row: a row of flag LEDs stays a
+     * row (the user's hand test, 2026-11-06).
+     */
+    static final int ROW_GAP = 6;
 
     /** What the stage did: the pairs that ended straight that were not, and how many moves it made. */
     record Result(int pairsStraightened, int moves) {
@@ -67,6 +78,8 @@ final class Straightening {
     private final Map<ElementId, List<Pair>> pairsByComponent = new HashMap<>();
     /** Where each pin of a pair is now. */
     private final Map<PinRef, GridPoint> pins = new HashMap<>();
+    /** The ids of the items of each row, by the id of each of its items; fixed when the stage starts. */
+    private final Map<ElementId, List<ElementId>> rowOf = new HashMap<>();
     private int topLimit;
     private int bottomLimit;
     private int moves;
@@ -106,6 +119,9 @@ final class Straightening {
             pairsByComponent.computeIfAbsent(pair.receiver().componentId(), id -> new ArrayList<>()).add(pair);
         });
         setBoundsLimits(items);
+        for (List<ElementId> row : rows(items)) {
+            row.forEach(id -> rowOf.put(id, row));
+        }
         Set<Pair> crookedAtStart = new LinkedHashSet<>();
         pairs.stream().filter(pair -> deltaY(pair) != 0).forEach(crookedAtStart::add);
         for (int round = 1; round <= MAXIMUM_ROUNDS; round++) {
@@ -120,19 +136,18 @@ final class Straightening {
         return new Result((int) crookedAtStart.stream().filter(pair -> deltaY(pair) == 0).count(), moves);
     }
 
-    /** One visit of every movable part; true when any moved. */
+    /** One visit of every movable part or row; true when any moved. */
     private boolean runRound(LayoutItems items) {
         Placement placement = new Placement(copy, registry, items, originalNets);
         boolean anyMoved = false;
-        for (LayoutItems.Item item : visitingOrder(items)) {
+        for (List<LayoutItems.Item> unit : visitingOrder(items)) {
             if (cancelled.getAsBoolean()) {
                 throw new CancellationException();
             }
-            for (Candidate candidate : candidates(item)) {
-                Bounds place = Placement.moved(item, candidate.shift());
-                if (withinLimits(place) && placement.keepsOrder(item, place)
-                        && placement.tryTidyingMove(item, candidate.shift())) {
-                    shiftPins(item, candidate.shift());
+            for (Candidate candidate : candidates(unit)) {
+                if (fitsAround(placement, unit, candidate.shift())
+                        && placement.tryTidyingMove(unit, candidate.shift())) {
+                    unit.forEach(item -> shiftPins(item, candidate.shift()));
                     moves++;
                     anyMoved = true;
                     break;
@@ -142,15 +157,78 @@ final class Straightening {
         return anyMoved;
     }
 
-    /** The movable parts with a pair, left to right, then top to bottom, then by id. */
-    private List<LayoutItems.Item> visitingOrder(LayoutItems items) {
-        return items.items().stream()
-                .filter(item -> item.movable() && !item.isText()
-                        && item.members().stream().anyMatch(pairsByComponent::containsKey))
-                .sorted(Comparator.comparingInt((LayoutItems.Item item) -> item.bounds().x())
-                        .thenComparingInt(item -> item.bounds().y())
-                        .thenComparing(LayoutItems.Item::id, LayoutItems.ID_ORDER))
-                .toList();
+    /** True when every item of {@code unit}, moved by {@code shift}, stays within the limits and keeps its order. */
+    private boolean fitsAround(Placement placement, List<LayoutItems.Item> unit, GridPoint shift) {
+        for (LayoutItems.Item item : unit) {
+            Bounds place = Placement.moved(item, shift);
+            if (!withinLimits(place) || !placement.keepsOrder(item, place)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * What moves, each a single part or a whole row, left to right (by its first item), then top to bottom, then by
+     * id: only those with a pair, all of whose items are movable.
+     */
+    private List<List<LayoutItems.Item>> visitingOrder(LayoutItems items) {
+        Comparator<LayoutItems.Item> order = Comparator.comparingInt((LayoutItems.Item item) -> item.bounds().x())
+                .thenComparingInt(item -> item.bounds().y())
+                .thenComparing(LayoutItems.Item::id, LayoutItems.ID_ORDER);
+        Set<ElementId> visited = new LinkedHashSet<>();
+        List<List<LayoutItems.Item>> units = new ArrayList<>();
+        for (LayoutItems.Item item : items.items().stream().filter(item -> !item.isText()).sorted(order).toList()) {
+            if (visited.contains(item.id())) {
+                continue;
+            }
+            List<ElementId> ids = rowOf.getOrDefault(item.id(), List.of(item.id()));
+            visited.addAll(ids);
+            List<LayoutItems.Item> unit = ids.stream().map(items::item).flatMap(Optional::stream).toList();
+            boolean whole = unit.size() == ids.size();
+            boolean hasAPair = unit.stream().flatMap(member -> member.members().stream())
+                    .anyMatch(pairsByComponent::containsKey);
+            if (whole && hasAPair && unit.stream().allMatch(LayoutItems.Item::movable)) {
+                units.add(unit);
+            }
+        }
+        return units;
+    }
+
+    /**
+     * The rows of {@code items}: groups of two or more parts chained by side-by-side pairs (the same top edge or the
+     * same centre, their bodies' x ranges apart by at most {@value #ROW_GAP} units and not overlapping), each in id
+     * order. Texts are in none.
+     */
+    static List<List<ElementId>> rows(LayoutItems items) {
+        List<LayoutItems.Item> parts = items.items().stream().filter(item -> !item.isText()).toList();
+        UnionFind<ElementId> joins = new UnionFind<>();
+        parts.forEach(part -> joins.add(part.id()));
+        for (int first = 0; first < parts.size(); first++) {
+            for (int second = first + 1; second < parts.size(); second++) {
+                if (sideBySide(parts.get(first).bodyBox(), parts.get(second).bodyBox())) {
+                    joins.union(parts.get(first).id(), parts.get(second).id());
+                }
+            }
+        }
+        Map<ElementId, List<ElementId>> byRoot = new LinkedHashMap<>();
+        parts.forEach(part -> byRoot.computeIfAbsent(joins.find(part.id()), root -> new ArrayList<>()).add(part.id()));
+        List<List<ElementId>> rows = new ArrayList<>();
+        for (List<ElementId> group : byRoot.values()) {
+            if (group.size() > 1) {
+                group.sort(LayoutItems.ID_ORDER);
+                rows.add(List.copyOf(group));
+            }
+        }
+        return rows;
+    }
+
+    /** True when the two bodies sit side by side in a row: same top or same centre, close but apart on x. */
+    private static boolean sideBySide(Bounds first, Bounds second) {
+        boolean sameTop = first.y() == second.y();
+        boolean sameCentre = 2 * first.y() + first.height() == 2 * second.y() + second.height();
+        int gap = Math.max(first.x(), second.x()) - Math.min(first.maximumX(), second.maximumX());
+        return (sameTop || sameCentre) && gap >= 0 && gap <= ROW_GAP;
     }
 
     /** A vertical shift and how it changes the score: more pairs straight, then less Σ|dy|. */
@@ -162,9 +240,10 @@ final class Straightening {
         }
     }
 
-    /** The shifts of {@code item} that zero one of its pairs and raise the score, best first. */
-    private List<Candidate> candidates(LayoutItems.Item item) {
-        Set<ElementId> members = new LinkedHashSet<>(item.members());
+    /** The shifts of {@code unit} (moved as one) that zero one of its pairs and raise the score, best first. */
+    private List<Candidate> candidates(List<LayoutItems.Item> unit) {
+        Set<ElementId> members = new LinkedHashSet<>();
+        unit.forEach(item -> members.addAll(item.members()));
         List<Pair> own = ownPairs(members);
         Set<Integer> shifts = new LinkedHashSet<>();
         for (Pair pair : own) {

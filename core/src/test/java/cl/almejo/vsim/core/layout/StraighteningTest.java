@@ -173,13 +173,14 @@ class StraighteningTest {
         return snapshot;
     }
 
+    /** A chain of gates farther apart than {@value Straightening#ROW_GAP} units (closer, they would be a row). */
     @Test
     void aLongChainDoesNotDriftTheCircuit() {
         CircuitDocument document = new CircuitDocument();
         Component first = andGate(document, 0, 0);
         for (int index = 1; index < 6; index++) {
-            andGate(document, index * 10, 0);
-            jog(document, index * 10 - 6, 2, index * 10 - 3, index * 10, 4);
+            andGate(document, index * 12, 0);
+            jog(document, index * 12 - 8, 2, index * 12 - 4, index * 12, 4);
         }
         Bounds before = bodies(document);
 
@@ -248,6 +249,89 @@ class StraighteningTest {
         assertThat(positionOf(plan, driver)).isEqualTo(driver.position());
         assertThat(positionOf(plan, receiver)).isEqualTo(receiver.position());
         assertThat(plan.pairsStraightened()).isZero();
+    }
+
+    private Component led(CircuitDocument document, int x, int y) {
+        return place(registry, document, StandardComponentTypes.LED, x, y, "");
+    }
+
+    private static int topOf(CircuitTidyPlan plan, Component component) {
+        return positionOf(plan, component).y();
+    }
+
+    /**
+     * Four flag LEDs side by side in a row (each 2 wide, 2 apart, input at the bottom), each fed by its own gate
+     * further down at a different height: straightening one LED to its wire's height would break the row.
+     */
+    @Test
+    void aRowOfLedsFedFromDifferentHeightsStaysARow() {
+        CircuitDocument document = new CircuitDocument();
+        List<Component> row = new ArrayList<>();
+        Set<ElementId> drivers = new LinkedHashSet<>();
+        for (int index = 0; index < 4; index++) {
+            row.add(led(document, 20 + index * 4, 0));
+            Component driver = gate(registry, document, 0, 4 + index * 6);
+            drivers.add(driver.id());
+            int pinX = 21 + index * 4;
+            int driverY = 6 + index * 6;
+            wire(document, 4, driverY, pinX, driverY);
+            wire(document, pinX, driverY, pinX, 3);
+        }
+        Set<ElementId> scope = everything(document);
+        scope.removeAll(drivers);
+
+        CircuitTidyPlan plan = straighten(document, scope);
+
+        int top = topOf(plan, row.get(0));
+        for (Component member : row) {
+            assertThat(topOf(plan, member)).isEqualTo(top);
+            assertThat(positionOf(plan, member).x()).isEqualTo(member.position().x());
+        }
+        assertThat(nets(plan.after())).isEqualTo(nets(document));
+    }
+
+    /**
+     * Rows: a gate and an input pin with the same centre two units apart are one, chained to a gate with the same
+     * centre four units further; a gate with the same top farther than {@value Straightening#ROW_GAP} units away and
+     * one stacked below are in none.
+     */
+    @Test
+    void rowsChainPartsWithTheSameTopOrCentreThatAreCloseOnX() {
+        CircuitDocument document = new CircuitDocument();
+        Component left = gate(registry, document, 0, 0);
+        Component centred = place(registry, document, StandardComponentTypes.INPUT_PIN, 6, 1, "");
+        Component right = gate(registry, document, 12, 0);
+        gate(registry, document, 12 + 4 + Straightening.ROW_GAP + 1, 0);
+        gate(registry, document, 0, 8);
+
+        List<List<ElementId>> rows = Straightening.rows(
+                LayoutItems.of(document, registry, everything(document), TextBoxes.NONE));
+
+        assertThat(rows).containsExactly(List.of(left.id(), centred.id(), right.id()));
+    }
+
+    /** The same row fed by one gate whose wire reaches every LED at the same height: the whole row moves as one. */
+    @Test
+    void aRowWhoseWiresAllSitAtTheSameOffsetMovesAsOne() {
+        CircuitDocument document = new CircuitDocument();
+        List<Component> row = new ArrayList<>();
+        Component driver = gate(registry, document, 0, 10);
+        int trunkX = 4;
+        for (int index = 0; index < 4; index++) {
+            row.add(led(document, 20 + index * 4, 0));
+            int pinX = 21 + index * 4;
+            wire(document, trunkX, 12, pinX, 12);
+            wire(document, pinX, 12, pinX, 3);
+            trunkX = pinX;
+        }
+
+        CircuitTidyPlan plan = straighten(document, allBut(document, driver));
+
+        for (Component member : row) {
+            assertThat(positionOf(plan, member)).isEqualTo(new GridPoint(member.position().x(), 9));
+        }
+        assertThat(plan.pairsStraightened()).isEqualTo(4);
+        assertThat(nets(plan.after())).isEqualTo(nets(document));
     }
 
     /**

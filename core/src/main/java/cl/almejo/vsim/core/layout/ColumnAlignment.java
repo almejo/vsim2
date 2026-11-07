@@ -57,7 +57,7 @@ final class ColumnAlignment {
         int target = targetEdge(column);
         int moved = 0;
         for (LayoutItems.Item member : column) {
-            int edge = bodiesOf(member).x();
+            int edge = member.bodyBox().x();
             if (!member.movable() || edge == target) {
                 continue;
             }
@@ -73,7 +73,7 @@ final class ColumnAlignment {
     /** The left edge most members have; ties: the smallest. */
     private static int targetEdge(List<LayoutItems.Item> column) {
         Map<Integer, Integer> counts = new TreeMap<>();
-        column.forEach(member -> counts.merge(bodiesOf(member).x(), 1, Integer::sum));
+        column.forEach(member -> counts.merge(member.bodyBox().x(), 1, Integer::sum));
         int target = 0;
         int best = 0;
         for (Map.Entry<Integer, Integer> edge : counts.entrySet()) {
@@ -95,7 +95,7 @@ final class ColumnAlignment {
         parts.forEach(part -> joins.add(part.id()));
         for (int first = 0; first < parts.size(); first++) {
             for (int second = first + 1; second < parts.size(); second++) {
-                if (stacked(bodiesOf(parts.get(first)), bodiesOf(parts.get(second)))) {
+                if (stacked(parts.get(first).bodyBox(), parts.get(second).bodyBox())) {
                     joins.union(parts.get(first).id(), parts.get(second).id());
                 }
             }
@@ -121,19 +121,14 @@ final class ColumnAlignment {
     /** True when two members of {@code group} sit side by side: their y ranges overlap. */
     private static boolean holdsARow(List<LayoutItems.Item> group) {
         for (int first = 0; first < group.size(); first++) {
-            Bounds one = bodiesOf(group.get(first));
+            Bounds one = group.get(first).bodyBox();
             for (int second = first + 1; second < group.size(); second++) {
-                Bounds other = bodiesOf(group.get(second));
+                Bounds other = group.get(second).bodyBox();
                 if (one.overlapsOnY(other)) {
                     return true;
                 }
             }
         }
         return false;
-    }
-
-    /** The box around the item's bodies, without its labels: what the user lines up by eye. */
-    private static Bounds bodiesOf(LayoutItems.Item item) {
-        return item.bodies().stream().reduce(Bounds::union).orElse(item.bounds());
     }
 }

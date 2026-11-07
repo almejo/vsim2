@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.wiring.Connectivity;
 
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
@@ -81,12 +82,28 @@ final class Placement {
      * follow it more than it straightens, or hides a text, is no gain.
      */
     boolean tryTidyingMove(LayoutItems.Item item, GridPoint shift) {
-        Bounds candidate = moved(item, shift);
-        if (shift.equals(GridPoint.ORIGIN) || !isClear(item, candidate) || !coversNoNewText(item, candidate)) {
+        return tryTidyingMove(List.of(item), shift);
+    }
+
+    /**
+     * {@link #tryTidyingMove(LayoutItems.Item, GridPoint)} for items that move together by one shift (a row kept
+     * whole): every one must find its place clear of the items that stay, and all move in one go or none does. What
+     * lies between them does not change, so they are not checked against each other.
+     */
+    boolean tryTidyingMove(List<LayoutItems.Item> group, GridPoint shift) {
+        if (shift.equals(GridPoint.ORIGIN) || group.isEmpty()) {
             return false;
         }
+        Set<ElementId> together = new LinkedHashSet<>();
+        group.forEach(item -> together.add(item.id()));
+        for (LayoutItems.Item item : group) {
+            Bounds candidate = moved(item, shift);
+            if (!isClear(item, candidate, together) || !coversNoNewText(item, candidate)) {
+                return false;
+            }
+        }
         int cornersBefore = WireCorners.count(copy);
-        return moveIfStillWanted(item, shift, () -> WireCorners.count(copy) <= cornersBefore);
+        return moveIfStillWanted(group, shift, () -> WireCorners.count(copy) <= cornersBefore);
     }
 
     /** True when {@code item} at {@code candidate} covers no block of texts it does not cover where it is now. */
@@ -110,22 +127,31 @@ final class Placement {
      * {@code stillWanted} (asked on the moved copy) agrees.
      */
     private boolean moveIfStillWanted(LayoutItems.Item item, GridPoint shift, BooleanSupplier stillWanted) {
-        MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry,
-                new LinkedHashSet<>(item.members()), shift.x(), shift.y());
+        return moveIfStillWanted(List.of(item), shift, stillWanted);
+    }
+
+    /** Moves the items of {@code group} together, as one move: kept or undone for all of them. */
+    private boolean moveIfStillWanted(List<LayoutItems.Item> group, GridPoint shift, BooleanSupplier stillWanted) {
+        Set<ElementId> members = new LinkedHashSet<>();
+        group.forEach(item -> members.addAll(item.members()));
+        MoveWithWiresCommand move = MoveWithWiresCommand.of(copy, registry, members, shift.x(), shift.y());
         move.apply(copy);
-        // a text has no pins and no wire follows it: the nets cannot change
-        if (!item.isText() && !keepsTheMeaning(item) || !stillWanted.getAsBoolean()) {
+        // texts have no pins and no wire follows them: the nets cannot change
+        boolean onlyTexts = group.stream().allMatch(LayoutItems.Item::isText);
+        if (!onlyTexts && !keepsTheMeaning(members) || !stillWanted.getAsBoolean()) {
             move.revert(copy);
             return false;
         }
-        places.put(item.id(), moved(item, shift));
-        actual.put(item.id(), moved(item, shift));
+        for (LayoutItems.Item item : group) {
+            places.put(item.id(), moved(item, shift));
+            actual.put(item.id(), moved(item, shift));
+        }
         return true;
     }
 
-    /** Checked after the move, on the wires as they end up: the wires on the item's pins follow it. */
-    private boolean keepsTheMeaning(LayoutItems.Item item) {
-        return !LayoutItems.crossedByForeignWire(copy, registry, item.members()) && nets().equals(originalNets);
+    /** Checked after the move, on the wires as they end up: the wires on the moved pins follow them. */
+    private boolean keepsTheMeaning(Set<ElementId> members) {
+        return !LayoutItems.crossedByForeignWire(copy, registry, members) && nets().equals(originalNets);
     }
 
     /**
@@ -134,8 +160,13 @@ final class Placement {
      * taken before it left.
      */
     boolean isClear(LayoutItems.Item item, Bounds candidate) {
-        return items.isFree(item, candidate, places) && items.addsNoOverlap(item, candidate, actual)
-                && !(item.isText() && items.writesOverNewWriting(item, candidate, actual));
+        return isClear(item, candidate, Set.of());
+    }
+
+    /** {@link #isClear(LayoutItems.Item, Bounds)}, leaving out the items in {@code together} (moved by the same shift). */
+    private boolean isClear(LayoutItems.Item item, Bounds candidate, Set<ElementId> together) {
+        return items.isFree(item, candidate, places, together) && items.addsNoOverlap(item, candidate, actual, together)
+                && !(item.isText() && items.writesOverNewWriting(item, candidate, actual, together));
     }
 
     /**
