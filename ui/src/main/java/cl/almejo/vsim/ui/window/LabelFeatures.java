@@ -42,6 +42,7 @@ public final class LabelFeatures {
         properties.onNotice(view.statusBar()::showNotice);
         view.inspector().addTab(InspectorPanel.PROPERTIES, Messages.text("inspector.properties"),
                 InspectorPanel.PROPERTIES_ICON, PropertiesPanel.inScrollPane(properties));
+        view.inspector().showShortcut(InspectorPanel.PROPERTIES, view.inspectorToggleAction(InspectorPanel.PROPERTIES));
         // the colour swatches paint with the canvas's scheme: a new scheme in Preferencias repaints them
         return new LabelFeatures(actions, properties, view.services().appearance(), paneBindings);
     }

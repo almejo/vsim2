@@ -16,6 +16,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
@@ -122,6 +123,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final PalettePanel palette;
     /** The left column: the palette alone, or {@link #addAbovePalette} over it as an accordion. */
     private final LeftColumn leftColumn;
+    private final Map<String, Action> inspectorToggles = new LinkedHashMap<>();
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
@@ -192,6 +194,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             canvas().requestFocusInWindow();
         });
         this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
+        createInspectorToggles();
         this.menuBar = actions.createMenuBar();
         indexMenus();
         addLeftColumnItems();
@@ -444,7 +447,37 @@ public final class EditorView extends JPanel implements CanvasHost {
         JMenu view = menu(MenuId.VIEW);
         view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.CIRCUIT)), 0);
         view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.PALETTE)), 1);
-        view.insertSeparator(2);
+        int index = 2;
+        for (Action toggle : inspectorToggles.values()) {
+            view.insert(new JMenuItem(toggle), index++);
+        }
+        view.insertSeparator(index);
+    }
+
+    private void createInspectorToggles() {
+        addInspectorToggle(InspectorPanel.PROPERTIES, "action.properties", KeyEvent.VK_3);
+        addInspectorToggle(InspectorPanel.PROBLEMS, "action.problems", KeyEvent.VK_4);
+        addInspectorToggle(InspectorPanel.NOTES, "action.notes", KeyEvent.VK_5);
+        addInspectorToggle(InspectorPanel.MEMORY_MAP, "action.memoryMap", KeyEvent.VK_6);
+    }
+
+    private void addInspectorToggle(String id, String nameKey, int digit) {
+        inspectorToggles.put(id, Actions.of(Messages.text(nameKey),
+                KeyStroke.getKeyStroke(digit, InputEvent.ALT_DOWN_MASK),
+                () -> inspector.toggleTab(id)));
+    }
+
+    /** The four toggles of the right panel's sections (their keys are the ones whose typed character is swallowed). */
+    public List<Action> inspectorToggleActions() {
+        return List.copyOf(inspectorToggles.values());
+    }
+
+    /**
+     * What Alt+3 … Alt+6 and Ver ▸ Propiedades … Mapa de memoria do for the right panel's section {@code id}: open the
+     * panel on it, switch to it, or close the panel when that section is the open one.
+     */
+    public Action inspectorToggleAction(String id) {
+        return Objects.requireNonNull(inspectorToggles.get(id), id);
     }
 
     /** The left column: the palette, and the circuit tree above it as an accordion (spec §5.3). */

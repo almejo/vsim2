@@ -51,8 +51,8 @@ class TextToolExtensionTest {
             }
         }
         assertThat(names).containsExactly("Selección", "Cable", "Nota adhesiva", "Texto", "Mover vista", "Zoom");
-        assertThat(texts(view.menu(MenuId.VIEW)).subList(0, 9))
-                .containsExactly("Árbol del circuito", "Paleta", "---", "Selección",
+        assertThat(texts(view.menu(MenuId.VIEW)).subList(0, 13))
+                .containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "---", "Selección",
                         "Cable", "Nota adhesiva", "Texto", "Mover vista", "Zoom");
         assertThat(view.shortcutActions()).containsKey("view.textTool");
     }

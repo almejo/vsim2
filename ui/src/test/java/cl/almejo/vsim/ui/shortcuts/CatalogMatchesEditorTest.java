@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.LeftColumn;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,6 +67,10 @@ class CatalogMatchesEditorTest {
         actions.put("edit.selectAll", view.selectionActions().selectAll());
         actions.put("view.circuitTree", view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT));
         actions.put("view.palette", view.leftColumn().toggleAction(LeftColumn.Section.PALETTE));
+        actions.put("view.properties", view.inspectorToggleAction(InspectorPanel.PROPERTIES));
+        actions.put("view.problems", view.inspectorToggleAction(InspectorPanel.PROBLEMS));
+        actions.put("view.notes", view.inspectorToggleAction(InspectorPanel.NOTES));
+        actions.put("view.memoryMap", view.inspectorToggleAction(InspectorPanel.MEMORY_MAP));
         actions.put("view.zoomIn", view.actions().zoomIn());
         actions.put("view.zoomOut", view.actions().zoomOut());
         actions.put("view.zoomReset", view.actions().zoomReset());

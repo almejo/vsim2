@@ -25,6 +25,7 @@ public final class StickyNotesController {
                 () -> view.services().appearance().scheme(), this::countChanged);
         view.inspector().addTab(InspectorPanel.NOTES, Messages.text("stickyNotes.tab"), InspectorPanel.NOTES_ICON,
                 panel);
+        view.inspector().showShortcut(InspectorPanel.NOTES, view.inspectorToggleAction(InspectorPanel.NOTES));
         registered = true;
         showCount();
         schemeListener = panel::schemeChanged;

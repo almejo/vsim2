@@ -86,6 +86,29 @@ class WindowTabsKeysTest {
         return pressed(source, KeyEvent.VK_TAB, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK);
     }
 
+    private static KeyEvent typed(Component source, char character, int modifiers) {
+        return new KeyEvent(source, KeyEvent.KEY_TYPED, 0, modifiers, KeyEvent.VK_UNDEFINED, character);
+    }
+
+    @Test
+    void anAltDigitOfTheRightPanelIsNotTypedIntoTheFocusedField() {
+        EditorView view = newTab();
+        KeyEvent altThree = typed(view.inspector(), '3', InputEvent.ALT_DOWN_MASK);
+
+        assertThat(tabs.tabKeys().dispatchKeyEvent(altThree)).isTrue();
+
+        assertThat(altThree.isConsumed()).isTrue();
+    }
+
+    @Test
+    void aPlainDigitAndAltPlusAnotherCharacterAreStillTyped() {
+        EditorView view = newTab();
+
+        assertThat(tabs.tabKeys().dispatchKeyEvent(typed(view.inspector(), '3', 0))).isFalse();
+        assertThat(tabs.tabKeys().dispatchKeyEvent(typed(view.inspector(), 'x', InputEvent.ALT_DOWN_MASK))).isFalse();
+        assertThat(tabs.tabKeys().dispatchKeyEvent(typed(view.inspector(), '9', InputEvent.ALT_DOWN_MASK))).isFalse();
+    }
+
     @Test
     void aSplitPaneOfTheViewWouldTakeCtrlTabForItself() {
         EditorView view = newTab();

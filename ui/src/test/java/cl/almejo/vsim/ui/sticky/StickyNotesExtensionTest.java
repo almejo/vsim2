@@ -100,8 +100,8 @@ class StickyNotesExtensionTest {
     void theToolComesRightAfterMarcoInTheToolbarAndTheViewMenu() {
         assertThat(toolbarTools()).containsSubsequence("Cable", "Marco", "Nota adhesiva", "Mover vista");
         assertThat(toolbarTools().indexOf("Nota adhesiva")).isEqualTo(toolbarTools().indexOf("Marco") + 1);
-        assertThat(viewMenuTexts().subList(0, 8))
-                .containsExactly("Árbol del circuito", "Paleta", "Selección",
+        assertThat(viewMenuTexts().subList(0, 12))
+                .containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "Selección",
                         "Cable", "Marco", "Nota adhesiva", "Mover vista", "Zoom");
         assertThat(view.shortcutActions()).containsKey("view.stickyNoteTool");
     }

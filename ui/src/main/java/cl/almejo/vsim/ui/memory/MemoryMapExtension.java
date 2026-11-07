@@ -28,6 +28,7 @@ public final class MemoryMapExtension implements EditorExtension {
                 () -> view.services().appearance().scheme());
         view.inspector().addTab(InspectorPanel.MEMORY_MAP, Messages.text("memory.map.tab"), InspectorPanel.MEMORY_MAP_ICON,
                 panel);
+        view.inspector().showShortcut(InspectorPanel.MEMORY_MAP, view.inspectorToggleAction(InspectorPanel.MEMORY_MAP));
         Runnable selectionListener = () -> panel.follow(view.selection().ids());
         view.selection().addListener(selectionListener);
         Runnable documentListener = panel::documentChanged;

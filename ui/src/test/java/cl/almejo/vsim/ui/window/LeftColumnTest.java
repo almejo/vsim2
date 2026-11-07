@@ -126,7 +126,7 @@ class LeftColumnTest {
 
     @Test
     void theViewMenuHasBothPanelsWhichFoldOnlyWithAPanelAboveThePalette() {
-        assertThat(texts(view.menu(MenuId.VIEW))).startsWith("Árbol del circuito", "Paleta", "---");
+        assertThat(texts(view.menu(MenuId.VIEW))).startsWith("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "---");
         Action circuit = view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT);
         Action palette = view.leftColumn().toggleAction(LeftColumn.Section.PALETTE);
         assertThat(circuit.isEnabled()).isFalse();

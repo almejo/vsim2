@@ -148,6 +148,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Lienzo vacío](docs/funciones/interfaz-preferencias-y-sesion.md#lienzo-vacío): un texto suave en el centro del lienzo (de cada panel, si dividiste la vista) dice cómo empezar mientras el circuito no tiene nada; desaparece al poner cualquier cosa y no sale al exportar ni imprimir.
 - [Reglas y guías](docs/funciones/interfaz-preferencias-y-sesion.md#reglas-y-guías): guías que se sacan de las reglas del borde del lienzo, se guardan con el circuito y no salen al exportar.
 - [Íconos, barra de herramientas y cursores](docs/funciones/interfaz-preferencias-y-sesion.md#íconos-barra-de-herramientas-y-cursores) que dicen qué hará cada cosa.
+- [Panel derecho](docs/funciones/interfaz-preferencias-y-sesion.md#panel-derecho): Propiedades, Problemas, Notas y Mapa de memoria se abren desde la tira de íconos del borde o con Alt+3, Alt+4, Alt+5 y Alt+6 (también Ver ▸).
 - [Atajos de teclado](docs/funciones/interfaz-preferencias-y-sesion.md#atajos-de-teclado) que se pueden cambiar.
 - [Preferencias](docs/funciones/interfaz-preferencias-y-sesion.md#preferencias): tema, esquemas de colores (entre ellos «Placa», que dibuja el circuito como una placa de circuito impreso verde con pines dorados, y «Logisim» y «Chipmunk», con los colores de esos simuladores) y esquemas propios, idioma, letra y librería.
 - [Acerca de VSim 2…](docs/funciones/interfaz-preferencias-y-sesion.md#acerca-de-vsim-2): versión, licencia, créditos y enlaces, con un botón para copiar la información de tu instalación.

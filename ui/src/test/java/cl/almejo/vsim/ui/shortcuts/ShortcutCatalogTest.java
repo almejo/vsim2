@@ -21,6 +21,7 @@ class ShortcutCatalogTest {
             "file.preferences", "file.exit", "edit.undo", "edit.redo", "edit.delete",
             "edit.rotateClockwise", "edit.rotateCounterClockwise", "edit.configure", "edit.cut", "edit.copy",
             "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.circuitTree", "view.palette",
+            "view.properties", "view.problems", "view.notes", "view.memoryMap",
             "view.selectTool", "view.wireTool",
             "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
             "view.zoomField", "view.centerView", "view.nextProblem",
@@ -41,10 +42,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFiftyFiveHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFiftyNineHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(55);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(59);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -121,6 +122,18 @@ class ShortcutCatalogTest {
         assertThat(ShortcutCatalog.find("view.palette")).contains(new ShortcutEntry("view.palette",
                 "action.palette", MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_2,
                 alt))));
+    }
+
+    @Test
+    void theRightPanelSectionsOpenWithAltThreeToAltSixUnderVer() {
+        int alt = InputEvent.ALT_DOWN_MASK;
+        String[] ids = {"view.properties", "view.problems", "view.notes", "view.memoryMap"};
+        String[] names = {"action.properties", "action.problems", "action.notes", "action.memoryMap"};
+        int[] digits = {KeyEvent.VK_3, KeyEvent.VK_4, KeyEvent.VK_5, KeyEvent.VK_6};
+        for (int index = 0; index < ids.length; index++) {
+            assertThat(ShortcutCatalog.find(ids[index])).contains(new ShortcutEntry(ids[index], names[index],
+                    MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(digits[index], alt))));
+        }
     }
 
     @Test

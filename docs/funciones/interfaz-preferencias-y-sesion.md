@@ -87,6 +87,14 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - El cursor dice qué hará un clic: flecha sobre el lienzo vacío o algo sin seleccionar, cruz sobre un pin o un cable (empieza un cable), con la herramienta Cable y al colocar un componente, mover sobre lo seleccionado y al arrastrarlo, mano sobre el cuerpo de un interruptor o de un pin de entrada, mover mientras se desplaza la vista (Espacio, botón del medio o «Mover vista»), una lupa con «+» o «−» con la herramienta Zoom.
 - Con la herramienta «Mover vista» activa, Esc vuelve a la flecha de Selección (como con Cable).
 
+## Panel derecho
+
+- Sus cuatro secciones tienen tecla: Alt+3 «Propiedades», Alt+4 «Problemas», Alt+5 «Notas» y Alt+6 «Mapa de memoria»
+  (también Ver ▸, justo después de «Árbol del circuito» y «Paleta»; se pueden cambiar en Atajos de teclado, y el
+  globo de cada ícono de la tira dice la tecla: «Propiedades · Alt+3»). Con el panel cerrado, la tecla lo abre en esa
+  sección y le da el foco; si esa sección ya está abierta, cierra el panel y el foco vuelve al lienzo; si hay otra
+  abierta, cambia a esta. Escribir en un campo de texto no agrega el dígito.
+
 ## Atajos de teclado
 
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.

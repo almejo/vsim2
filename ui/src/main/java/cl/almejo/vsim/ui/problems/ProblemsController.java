@@ -137,6 +137,7 @@ public final class ProblemsController {
         });
         view.inspector().addTab(InspectorPanel.PROBLEMS, Messages.text("problems.tab"), InspectorPanel.PROBLEMS_ICON,
                 panel);
+        view.inspector().showShortcut(InspectorPanel.PROBLEMS, view.inspectorToggleAction(InspectorPanel.PROBLEMS));
 
         viewMenu = view.menu(MenuId.VIEW);
         viewMenu.addSeparator();

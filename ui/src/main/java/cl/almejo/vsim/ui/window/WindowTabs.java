@@ -275,6 +275,9 @@ public final class WindowTabs extends JPanel {
     }
 
     private boolean takeTabKey(KeyEvent event) {
+        if (event.getID() == KeyEvent.KEY_TYPED) {
+            return swallowTypedSectionKey(event);
+        }
         Optional<TabEntry> active = activeEntry();
         if (event.getID() != KeyEvent.KEY_PRESSED || event.isConsumed() || active.isEmpty()
                 || !(event.getSource() instanceof java.awt.Component source)
@@ -293,6 +296,30 @@ public final class WindowTabs extends JPanel {
         }
         event.consume();
         return true;
+    }
+
+    /**
+     * Alt+3 … Alt+6 open the right panel's sections; Swing's text fields would also insert the digit ({@code Alt+char}
+     * still types), so the character event of those keys is consumed before the focused field sees it.
+     */
+    private boolean swallowTypedSectionKey(KeyEvent event) {
+        Optional<TabEntry> active = activeEntry();
+        int modifiers = event.getModifiersEx();
+        if (event.isConsumed() || active.isEmpty() || (modifiers & InputEvent.ALT_DOWN_MASK) == 0
+                || (modifiers & InputEvent.CTRL_DOWN_MASK) != 0
+                || !(event.getSource() instanceof java.awt.Component source)
+                || !SwingUtilities.isDescendingFrom(source, this)) {
+            return false;
+        }
+        int typedKey = Character.toUpperCase(event.getKeyChar());
+        boolean isSectionKey = active.get().view.inspectorToggleActions().stream()
+                .map(action -> (KeyStroke) action.getValue(Action.ACCELERATOR_KEY))
+                .anyMatch(stroke -> stroke != null && stroke.getKeyCode() == typedKey
+                        && (stroke.getModifiers() & InputEvent.ALT_DOWN_MASK) != 0);
+        if (isSectionKey) {
+            event.consume();
+        }
+        return isSectionKey;
     }
 
     @Override

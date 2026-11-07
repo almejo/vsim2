@@ -398,7 +398,7 @@ class FramesFeaturesTest {
                 viewTexts.add(item.getText());
             }
         }
-        assertThat(viewTexts.subList(0, 7)).containsExactly("Árbol del circuito", "Paleta", "Selección",
+        assertThat(viewTexts.subList(0, 11)).containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "Selección",
                 "Cable", "Marco", "Mover vista", "Zoom");
     }
 
