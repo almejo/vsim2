@@ -34,10 +34,10 @@ public final class ContextMenuFactory {
 
     /**
      * Spec §6.6 for a component: Configurar…, Etiqueta…, Rotar ↻ / ↺, Cortar, Copiar, Duplicar, Borrar; on a piece of a
-     * user component «Entrar» comes first, on its own (spec §4.4).
+     * user component «Entrar» and «Mirar adentro» come first, on their own: both look inside it (spec §4.4).
      */
     private static final List<List<ContextMenuEntry>> COMPONENT_LAYOUT = List.of(
-            List.of(ContextMenuEntry.ENTER),
+            List.of(ContextMenuEntry.ENTER, ContextMenuEntry.LOOK_INSIDE),
             List.of(ContextMenuEntry.VALUE, ContextMenuEntry.CONFIGURE, ContextMenuEntry.LABEL,
                     ContextMenuEntry.RESET_LABEL_POSITION),
             List.of(ContextMenuEntry.ROTATE_CLOCKWISE, ContextMenuEntry.ROTATE_COUNTER_CLOCKWISE),

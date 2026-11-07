@@ -25,6 +25,7 @@ import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The «Mirar adentro» toggle, its shortcut, the instance menu item and the outline of the hovered instance (spec §8.2). */
@@ -136,6 +138,15 @@ class MagnifierFeaturesTest {
     void theInstanceMenuOffersMirarAdentroOnlyOnAUserComponent() {
         assertThat(menuTexts(instance)).contains(MENU_ITEM);
         assertThat(menuTexts(gate)).doesNotContain(MENU_ITEM);
+    }
+
+    @Test
+    void mirarAdentroOpensTheInstanceMenuWithTheEyeIconBeforeASeparator() {
+        JPopupMenu menu = view.contextMenu(Optional.of(instance), new Point2D.Double(0, 0));
+
+        assertThat(texts(menu)).startsWith(MENU_ITEM, "---");
+        JMenuItem item = (JMenuItem) menu.getComponent(0);
+        assertThat(item.getIcon()).as("the eye of the toolbar button").isNotNull();
     }
 
     @Test

@@ -37,6 +37,7 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
@@ -108,6 +109,8 @@ public final class MemoryEditorDialog {
     private final Optional<PieceMemories.Place> piece;
     private final JButton useForEveryPieceButton = new JButton(Messages.text("memory.piece.useForAll"));
     private final JButton backToComponentButton = new JButton(Messages.text("memory.piece.backToComponent"));
+    /** The dialog's default button, which FlatLaf paints as the primary one. */
+    private final JButton acceptButton = new JButton(Messages.text("memory.editor.accept"));
     private final JPanel content = new JPanel(new BorderLayout());
     private final JTable table;
     private final JPanel linkBar = new JPanel(new BorderLayout(8, 0));
@@ -433,13 +436,12 @@ public final class MemoryEditorDialog {
         // they end the edit like Aceptar and Cancelar, so they share their row, on its left
         piece.ifPresent(place -> south.add(pieceButtons(), BorderLayout.WEST));
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton accept = new JButton(Messages.text("memory.editor.accept"));
-        accept.setName("memory.accept");
-        accept.addActionListener(event -> accept());
+        acceptButton.setName("memory.accept");
+        acceptButton.addActionListener(event -> accept());
         JButton cancel = new JButton(Messages.text("memory.editor.cancel"));
         cancel.setName("memory.cancel");
         cancel.addActionListener(event -> cancel());
-        buttons.add(accept);
+        buttons.add(acceptButton);
         buttons.add(cancel);
         south.add(buttons, BorderLayout.EAST);
         return south;
@@ -1098,6 +1100,17 @@ public final class MemoryEditorDialog {
         return Messages.format("memory.editor.title", shown, summary());
     }
 
+    /**
+     * Wires the editor into the root pane of its dialog: Aceptar is the default button and Escape cancels. Enter in
+     * the grid or in a cell being edited stays theirs (the table moves down, the cell field ends the edit): their
+     * bindings come before the root pane's, so Enter accepts only from the other controls.
+     */
+    void bindTo(JRootPane rootPane) {
+        rootPane.setDefaultButton(acceptButton);
+        rootPane.registerKeyboardAction(event -> cancel(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+    }
+
     /** Shows the editor in a modal dialog over {@code parent}'s window, at {@code address} when given. */
     public void show(java.awt.Component parent, OptionalLong address) {
         JDialog dialog = new JDialog(parent == null ? null : SwingUtilities.getWindowAncestor(parent),
@@ -1110,8 +1123,7 @@ public final class MemoryEditorDialog {
             }
         });
         dialog.setContentPane(content);
-        dialog.getRootPane().registerKeyboardAction(event -> cancel(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        bindTo(dialog.getRootPane());
         closer = () -> {
             liveTimer.stop();
             dialog.dispose();

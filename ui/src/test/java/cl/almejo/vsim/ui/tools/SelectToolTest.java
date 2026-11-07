@@ -23,6 +23,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
@@ -992,6 +993,26 @@ class SelectToolTest {
         assertThat(context.entered).isEqualTo(instance);
         assertThat(context.openDocument().document().component(instance.id()).orElseThrow().position())
                 .isEqualTo(instance.position());
+    }
+
+    @Test
+    void thePointerOverTheEnterChipShowsAHandAndLeavingItGivesTheCursorBack() {
+        inverterInstance(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(2, 1));
+        CanvasCursor onTheInstance = Objects.requireNonNullElse(context.lastCursor(), CanvasCursor.DEFAULT);
+        assertThat(onTheInstance).isNotEqualTo(CanvasCursor.HAND);
+        Rectangle2D chip = tool.enterChipBounds(context).orElseThrow();
+        double gridX = chip.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        double gridY = chip.getCenterY() / GridPoint.PIXELS_PER_UNIT;
+
+        tool.mouseMoved(context, TestToolContext.at(gridX, gridY));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.HAND);
+
+        tool.mouseMoved(context, TestToolContext.at(2, 1));
+        assertThat(context.lastCursor()).isEqualTo(onTheInstance);
+        tool.mouseMoved(context, TestToolContext.at(gridX, gridY));
+        tool.mouseMoved(context, TestToolContext.at(40, 40));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.DEFAULT);
     }
 
     @Test
