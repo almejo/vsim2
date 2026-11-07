@@ -2,11 +2,13 @@ package cl.almejo.vsim.ui.window.tabs;
 
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Rectangle;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -14,6 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import javax.swing.KeyStroke;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -192,6 +196,104 @@ class TabStripTest {
         Rectangle lrv = bounds("lrv");
         MouseEvent overLrv = new MouseEvent(strip, MouseEvent.MOUSE_MOVED, 0, 0, lrv.x + 10, lrv.y + 10, 0, false);
         assertThat(strip.getToolTipText(overLrv)).isEqualTo("lrv32im · doble clic: plegar sus componentes");
+    }
+
+    // --- the «+» button ---
+
+    private void clickAt(int x, int y, int clickCount) {
+        mouse(MouseEvent.MOUSE_PRESSED, x, y, clickCount, MouseEvent.BUTTON1, InputEvent.BUTTON1_DOWN_MASK);
+        mouse(MouseEvent.MOUSE_RELEASED, x, y, clickCount, MouseEvent.BUTTON1, 0);
+        mouse(MouseEvent.MOUSE_CLICKED, x, y, clickCount, MouseEvent.BUTTON1, 0);
+    }
+
+    private void overflow() {
+        for (int index = 0; index < 12; index++) {
+            model.add(new TabStripModel.Tab("extra" + index, "documento" + index, Optional.empty(),
+                    "un circuito con nombre largo " + index, false));
+        }
+        strip.doLayout();
+    }
+
+    @Test
+    void thePlusButtonSitsRightAfterTheLastTab() {
+        Rectangle button = strip.newTabButtonBounds().orElseThrow();
+        Rectangle last = bounds("counter");
+        assertThat(button.x).isGreaterThanOrEqualTo(last.x + last.width);
+        assertThat(button.x - (last.x + last.width)).isLessThan(20);
+        assertThat(strip.isOverflowing()).isFalse();
+    }
+
+    @Test
+    void whenTheTabsOverflowThePlusIsPinnedNextToTheListButton() {
+        overflow();
+        assertThat(strip.isOverflowing()).isTrue();
+        Rectangle button = strip.newTabButtonBounds().orElseThrow();
+        Rectangle list = strip.listButtonBounds().orElseThrow();
+        assertThat(button.x + button.width).isEqualTo(list.x);
+        assertThat(strip.tabArea().contains(button)).isFalse();
+    }
+
+    @Test
+    void aClickOnThePlusAsksForANewTab() {
+        List<Integer> requested = new ArrayList<>();
+        strip.onNewTabRequested(() -> requested.add(1));
+        clickAt(strip.newTabButtonBounds().orElseThrow().x + 4, 20, 1);
+        assertThat(requested).hasSize(1);
+        overflow();
+        Rectangle pinned = strip.newTabButtonBounds().orElseThrow();
+        clickAt(pinned.x + 4, 20, 1);
+        assertThat(requested).hasSize(2);
+    }
+
+    @Test
+    void aClickOnATabDoesNotAskForANewTab() {
+        List<Integer> requested = new ArrayList<>();
+        strip.onNewTabRequested(() -> requested.add(1));
+        click(bounds("ram"), 1, MouseEvent.BUTTON1);
+        click(bounds("ram"), 2, MouseEvent.BUTTON1);
+        assertThat(requested).isEmpty();
+    }
+
+    @Test
+    void aDoubleClickOnTheEmptyPartAsksForANewTabOnce() {
+        List<Integer> requested = new ArrayList<>();
+        strip.onNewTabRequested(() -> requested.add(1));
+        clickAt(500, 20, 1);
+        assertThat(requested).isEmpty();
+        clickAt(500, 20, 2);
+        assertThat(requested).hasSize(1);
+    }
+
+    @Test
+    void thePlusTooltipFollowsTheCurrentShortcut() {
+        Rectangle button = strip.newTabButtonBounds().orElseThrow();
+        MouseEvent over = new MouseEvent(strip, MouseEvent.MOUSE_MOVED, 0, 0, button.x + 4, 20, 0, false);
+        KeyStroke ctrlN = KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke ctrlT = KeyStroke.getKeyStroke(KeyEvent.VK_T, InputEvent.CTRL_DOWN_MASK);
+        strip.setNewTabShortcut(() -> Optional.of(ctrlN));
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyBindings.describe(ctrlN) + ")");
+        strip.setNewTabShortcut(() -> Optional.of(ctrlT));
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyBindings.describe(ctrlT) + ")");
+        strip.setNewTabShortcut(Optional::empty);
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito");
+    }
+
+    @Test
+    void thePlusHasAnAccessibleNameAndAction() {
+        List<Integer> requested = new ArrayList<>();
+        strip.onNewTabRequested(() -> requested.add(1));
+        javax.accessibility.Accessible child = strip.getAccessibleContext().getAccessibleChild(0);
+        assertThat(child.getAccessibleContext().getAccessibleName()).isEqualTo("Nuevo circuito");
+        child.getAccessibleContext().getAccessibleAction().doAccessibleAction(0);
+        assertThat(requested).hasSize(1);
+    }
+
+    @Test
+    void thePlusPaintsWithoutError() {
+        BufferedImage image = new BufferedImage(600, TabStrip.HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        strip.paint(image.getGraphics());
+        overflow();
+        strip.paint(image.getGraphics());
     }
 
     @Test

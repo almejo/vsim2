@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.session.RecentFiles;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.JFrame;
 import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
+import javax.swing.KeyStroke;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
@@ -49,6 +51,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final WindowTabs tabs;
     private final Runnable windowsListener = this::windowsChanged;
     private final RecentFiles recentFiles;
+    private final KeyBindings keyBindings;
     /** The bounds while not maximized: what Recientes and the session store for a maximized window. */
     private Rectangle normalBounds;
     private boolean closed;
@@ -56,6 +59,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     public CircuitWindow(Application application, EditorServices services) {
         this.application = application;
         this.recentFiles = new RecentFiles(services.preferences());
+        this.keyBindings = new KeyBindings(services.preferences());
         this.tabs = new WindowTabs(new Host(), place -> newView(place, services),
                 new SplitLayoutStore(services.preferences()), () -> services.preferences().animateViewMoves());
         setContentPane(tabs);
@@ -523,6 +527,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         @Override
         public void droppedOutside(OpenDocument document, Point screenPoint) {
             application.moveGroupToNewWindow(CircuitWindow.this, document, screenPoint);
+        }
+
+        @Override
+        public void newTab() {
+            newDocument();
+        }
+
+        @Override
+        public Optional<KeyStroke> newTabShortcut() {
+            return keyBindings.strokeFor("file.new");
         }
 
         @Override

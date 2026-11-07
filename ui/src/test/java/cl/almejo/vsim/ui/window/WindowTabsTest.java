@@ -16,12 +16,16 @@ import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import cl.almejo.vsim.ui.window.tabs.TabMark;
+import cl.almejo.vsim.ui.window.tabs.TabStrip;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,6 +94,37 @@ class WindowTabsTest {
         assertThat(tabs.activeView()).isSameAs(secondView);
         assertThat(tabs.documents()).containsExactly(first, second);
         assertThat(host.changed).contains(first, second);
+    }
+
+    @Test
+    void thePlusAndADoubleClickOnTheEmptyStripOpenANewCircuitTab() {
+        host.onNewTab = () -> tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(newDocument(), Optional.empty());
+        TabStrip strip = tabs.strip();
+        strip.setSize(800, TabStrip.HEIGHT);
+        strip.doLayout();
+        int tabsBefore = tabs.model().tabs().size();
+        int documentsBefore = tabs.documents().size();
+
+        Rectangle button = strip.newTabButtonBounds().orElseThrow();
+        clickOn(strip, button.x + 4, 20, 1);
+        assertThat(tabs.model().tabs()).hasSize(tabsBefore + 1);
+        assertThat(tabs.documents()).hasSize(documentsBefore + 1);
+
+        strip.doLayout();
+        clickOn(strip, 790, 20, 2);
+        assertThat(tabs.model().tabs()).hasSize(tabsBefore + 2);
+        assertThat(tabs.documents()).hasSize(documentsBefore + 2);
+        assertThat(host.newTabs).isEqualTo(2);
+    }
+
+    private static void clickOn(TabStrip strip, int x, int y, int clickCount) {
+        strip.dispatchEvent(new MouseEvent(strip, MouseEvent.MOUSE_PRESSED, 0, InputEvent.BUTTON1_DOWN_MASK, x, y,
+                x, y, clickCount, false, MouseEvent.BUTTON1));
+        strip.dispatchEvent(new MouseEvent(strip, MouseEvent.MOUSE_RELEASED, 0, 0, x, y, x, y, clickCount, false,
+                MouseEvent.BUTTON1));
+        strip.dispatchEvent(new MouseEvent(strip, MouseEvent.MOUSE_CLICKED, 0, 0, x, y, x, y, clickCount, false,
+                MouseEvent.BUTTON1));
     }
 
     @Test
