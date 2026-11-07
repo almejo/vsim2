@@ -20,9 +20,9 @@ import java.util.function.BooleanSupplier;
  * Moves the items of one reading of the copy ({@link LayoutItems}) on the copy, with the rules every stage of «Ordenar
  * circuito» obeys (spec 2026-11-06 §4.4, §5): the new place keeps clear of every other item and obstacle with the gap
  * and keeps the item's frames ({@link LayoutItems#isFree}), makes no new overlap with an item where it is now
- * ({@link LayoutItems#addsNoOverlap}), a text lands on no new writing, the wires follow
- * ({@link MoveWithWiresCommand#of}), no foreign wire runs through a moved body and every pin stays in the net it was
- * in. A move that breaks a rule after it was applied is undone.
+ * ({@link LayoutItems#addsNoOverlap}), its writing (a text, or a part's labels) lands on no new writing, the wires
+ * follow ({@link MoveWithWiresCommand#of}), no foreign wire runs through a moved body and every pin stays in the net
+ * it was in. A move that breaks a rule after it was applied is undone.
  *
  * <p>Each item moves at most once per reading: a shift is always counted from where the reading found the item. Phase
  * 1 may give an item a planned place ({@link #plan}) before it moves, so a neighbour does not take it; the stages that
@@ -157,16 +157,17 @@ final class Placement {
     /**
      * True when {@code item} at {@code candidate} keeps clear of every other item's planned place, and makes no new
      * overlap with any item where it is now: a neighbour planned to leave may still have to stay, so its spot is not
-     * taken before it left.
+     * taken before it left. Its writing (a text, or a part's labels) lands on no writing it was not on: a part moved
+     * in any stage never hides a free text or another label under its own (the user's hand test, 2026-11-06).
      */
     boolean isClear(LayoutItems.Item item, Bounds candidate) {
         return isClear(item, candidate, Set.of());
     }
 
-    /** {@link #isClear(LayoutItems.Item, Bounds)}, leaving out the items in {@code together} (moved by the same shift). */
+    /** {@link #isClear(LayoutItems.Item, Bounds)}, leaving out the items in {@code together} (moved by one shift). */
     private boolean isClear(LayoutItems.Item item, Bounds candidate, Set<ElementId> together) {
         return items.isFree(item, candidate, places, together) && items.addsNoOverlap(item, candidate, actual, together)
-                && !(item.isText() && items.writesOverNewWriting(item, candidate, actual, together));
+                && !items.writesOverNewWriting(item, candidate, actual, together);
     }
 
     /**

@@ -338,7 +338,7 @@ final class LayoutItems {
         return addsNoOverlap(item, candidate, now, Set.of());
     }
 
-    /** {@link #addsNoOverlap(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by the same shift). */
+    /** {@link #addsNoOverlap(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by one shift). */
     boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now, Set<ElementId> together) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());
         for (Item other : parts()) {
