@@ -173,6 +173,15 @@ final class Placement {
     }
 
     /**
+     * How much of the other writing {@code item}'s labels cover at {@code candidate}, every other item where it is now
+     * ({@link LayoutItems#writingOverOtherWriting}), the first {@code ignoredColumns} shared columns of each pair not
+     * counted.
+     */
+    long writingOverOtherWriting(LayoutItems.Item item, Bounds candidate, int ignoredColumns) {
+        return items.writingOverOtherWriting(item, candidate, actual, ignoredColumns);
+    }
+
+    /**
      * True when {@code item} at {@code candidate} keeps its order with the parts around it, each where it is now: a
      * part above or below it in its column (their x ranges overlap) stays on the same side, and so does a part left
      * or right of it in its row (their y ranges overlap). A move never jumps over a neighbour, even to a free place

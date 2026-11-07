@@ -224,7 +224,7 @@ final class Straightening {
     }
 
     /** True when the two bodies sit side by side in a row: same top or same centre, close but apart on x. */
-    private static boolean sideBySide(Bounds first, Bounds second) {
+    static boolean sideBySide(Bounds first, Bounds second) {
         boolean sameTop = first.y() == second.y();
         boolean sameCentre = 2 * first.y() + first.height() == 2 * second.y() + second.height();
         int gap = Math.max(first.x(), second.x()) - Math.min(first.maximumX(), second.maximumX());

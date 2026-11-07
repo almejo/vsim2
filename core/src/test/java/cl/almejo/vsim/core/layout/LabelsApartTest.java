@@ -1,0 +1,235 @@
+package cl.almejo.vsim.core.layout;
+
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.wiring.TidyOptions;
+import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import static cl.almejo.vsim.core.DocumentFixtures.gate;
+import static cl.almejo.vsim.core.DocumentFixtures.place;
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * «Separar lo que se tapa» also moves a part whose label covers other writing (spec 2026-11-06 §6.2): the user's LEDs
+ * «Salta» and «Rs1 = Rs2» side by side on riscv-maniqui, their labels read «SaltaRs1 = Rs2». The part moves the least
+ * it can, along its row first and at most {@value LabelsApart#MAXIMUM_SHIFT} units, with every rule of the other
+ * stages; a free text never moves for it, a row is never broken, and when there is no place it stays uncounted.
+ */
+class LabelsApartTest {
+
+    private static final CircuitTidyOptions SEPARATE_ONLY = new CircuitTidyOptions(true, false, false,
+            TidyOptions.DEFAULTS);
+
+    private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
+
+    /** Each labelled component's label box, relative to its position. */
+    private final Map<ElementId, Bounds> labelOffsets = new HashMap<>();
+
+    /** Free texts one unit per letter of their longest line, two units per line. */
+    private final TextBoxes texts = new TextBoxes() {
+        @Override
+        public Optional<Bounds> componentLabel(Component component) {
+            return Optional.ofNullable(labelOffsets.get(component.id()))
+                    .map(offset -> offset.translate(component.position().x(), component.position().y()));
+        }
+
+        @Override
+        public Bounds freeText(TextLabel label) {
+            String[] lines = label.text().split("\n");
+            int width = 0;
+            for (String line : lines) {
+                width = Math.max(width, line.length());
+            }
+            return new Bounds(label.position().x(), label.position().y(), width, 2 * lines.length);
+        }
+    };
+
+    private static Set<ElementId> everything(CircuitDocument document) {
+        Set<ElementId> ids = new LinkedHashSet<>();
+        document.elements().forEach(element -> ids.add(element.id()));
+        return ids;
+    }
+
+    private CircuitTidyPlan tidy(CircuitDocument document, CircuitTidyOptions options) {
+        return CircuitTidy.plan(document, registry, everything(document), options, texts, () -> false,
+                CircuitTidyProgress.NONE).orElseThrow();
+    }
+
+    private static GridPoint positionOf(CircuitTidyPlan plan, Component component) {
+        return plan.after().component(component.id()).orElseThrow().position();
+    }
+
+    private Bounds labelIn(CircuitTidyPlan plan, Component component) {
+        return texts.componentLabel(plan.after().component(component.id()).orElseThrow()).orElseThrow();
+    }
+
+    private TextLabel text(CircuitDocument document, int x, int y, String words) {
+        TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(x, y), words);
+        document.add(label);
+        return label;
+    }
+
+    /** An LED at (x, y) with its label above it, {@code labelOffset} wide units from its left edge. */
+    private Component led(CircuitDocument document, int x, int y, String label, Bounds labelOffset) {
+        Component led = place(registry, document, StandardComponentTypes.LED, x, y, label);
+        labelOffsets.put(led.id(), labelOffset);
+        return led;
+    }
+
+    /**
+     * True when the two boxes share a column and a row: the first shared column, which
+     * {@link LayoutItems#writingOverlap(List, List)} takes for rounding, counts here, since a label moved apart should
+     * end clear of the other writing, not still touching it (with the user's font, «Salta» and «Rs1 = Rs2» sharing one
+     * column still read as one word).
+     */
+    private static boolean sharesWriting(Bounds first, Bounds second) {
+        return LayoutItems.writingOverlap(List.of(first), List.of(second), 0) > 0;
+    }
+
+    /**
+     * The user's case as the probe measures it with the user's font: «Salta» (x 12 to 19) and «Rs1 = Rs2» (x 17 to
+     * 26) above two LEDs four units apart, a row, the labels sharing two columns.
+     */
+    private record SideBySide(CircuitDocument document, Component salta, Component equal) {
+    }
+
+    private SideBySide saltaAndEqual() {
+        CircuitDocument document = new CircuitDocument();
+        Component salta = led(document, 12, 8, "Salta", new Bounds(0, -2, 7, 2));
+        Component equal = led(document, 18, 8, "Rs1 = Rs2", new Bounds(-1, -2, 9, 2));
+        return new SideBySide(document, salta, equal);
+    }
+
+    @Test
+    void theSaltaAndRsLabelsEndApart() {
+        SideBySide fixture = saltaAndEqual();
+
+        CircuitTidyPlan plan = tidy(fixture.document(), SEPARATE_ONLY);
+
+        GridPoint saltaShift = shift(fixture.salta(), plan);
+        GridPoint equalShift = shift(fixture.equal(), plan);
+        assertThat(sharesWriting(labelIn(plan, fixture.salta()), labelIn(plan, fixture.equal()))).isFalse();
+        assertThat(saltaShift.equals(GridPoint.ORIGIN) || equalShift.equals(GridPoint.ORIGIN)).isTrue();
+        GridPoint moved = saltaShift.equals(GridPoint.ORIGIN) ? equalShift : saltaShift;
+        assertThat(moved.y()).isZero();
+        assertThat(Math.abs(moved.x())).isBetween(1, LabelsApart.MAXIMUM_SHIFT);
+        assertThat(plan.partsMoved()).isEqualTo(1);
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    private static GridPoint shift(Component component, CircuitTidyPlan plan) {
+        GridPoint after = positionOf(plan, component);
+        return new GridPoint(after.x() - component.position().x(), after.y() - component.position().y());
+    }
+
+    @Test
+    void aLabelOverAFreeTextMovesThePartNotTheText() {
+        CircuitDocument document = new CircuitDocument();
+        Component led = led(document, 8, 8, "Habilitar", new Bounds(0, -2, 6, 2));
+        TextLabel note = text(document, 10, 5, "abcdef");
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(plan.after().label(note.id()).orElseThrow()).isEqualTo(note);
+        assertThat(positionOf(plan, led)).isNotEqualTo(led.position());
+        assertThat(sharesWriting(labelIn(plan, led), texts.freeText(note))).isFalse();
+        assertThat(plan.textsMoved()).isZero();
+    }
+
+    /**
+     * The LED's label is under a block of five 50-letter lines above it, and a gate one unit below it: no shift of at
+     * most four units frees the label, so the LED stays, and it is not counted.
+     */
+    @Test
+    void whenNoPlaceItStaysAndIsNotCounted() {
+        CircuitDocument document = new CircuitDocument();
+        Component led = led(document, 0, 8, "Habilitar", new Bounds(0, -2, 6, 2));
+        gate(registry, document, 0, 12);
+        String line = "x".repeat(50);
+        text(document, -25, -2, String.join("\n", line, line, line, line, line));
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(positionOf(plan, led)).isEqualTo(led.position());
+        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.textsMoved()).isZero();
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    /**
+     * Three LEDs in a row six units apart (the widest gap that is still a row); the middle one's label is under a
+     * free text. Moving it along the row takes it more than six units from a neighbour, moving it down takes it off
+     * the row's top edge: either breaks the row, so it stays.
+     */
+    @Test
+    void aRowIsNeverBroken() {
+        CircuitDocument document = new CircuitDocument();
+        Component left = place(registry, document, StandardComponentTypes.LED, 0, 8, "");
+        Component middle = led(document, 8, 8, "Habilitar", new Bounds(0, -2, 6, 2));
+        Component right = place(registry, document, StandardComponentTypes.LED, 16, 8, "");
+        text(document, 10, 5, "abcdef");
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(positionOf(plan, left)).isEqualTo(left.position());
+        assertThat(positionOf(plan, middle)).isEqualTo(middle.position());
+        assertThat(positionOf(plan, right)).isEqualTo(right.position());
+        assertThat(plan.notSeparated()).isEmpty();
+    }
+
+    /**
+     * The middle LED of {@link #aRowIsNeverBroken} alone: one unit down would already free its label, but along x
+     * comes first, so it moves four units left, where its label ends clear of the text.
+     */
+    @Test
+    void withoutTheRowTheSameLedMovesAlongXFirst() {
+        CircuitDocument document = new CircuitDocument();
+        Component middle = led(document, 8, 8, "Habilitar", new Bounds(0, -2, 6, 2));
+        text(document, 10, 5, "abcdef");
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(positionOf(plan, middle)).isEqualTo(new GridPoint(4, 8));
+    }
+
+    /**
+     * The same LED with another LED in its row at x = 2: four units left its body would touch it, and up or down
+     * leaves the row, so no place ends clear; three units left, where the label shares only the column taken for
+     * rounding with the text, will do.
+     */
+    @Test
+    void withNoClearPlaceOneThatOnlyTouchesWillDo() {
+        CircuitDocument document = new CircuitDocument();
+        place(registry, document, StandardComponentTypes.LED, 2, 8, "");
+        Component middle = led(document, 8, 8, "Habilitar", new Bounds(0, -2, 6, 2));
+        text(document, 10, 5, "abcdef");
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(positionOf(plan, middle)).isEqualTo(new GridPoint(5, 8));
+    }
+
+    @Test
+    void offWhenSeparateIsOff() {
+        SideBySide fixture = saltaAndEqual();
+
+        CircuitTidyPlan plan = tidy(fixture.document(), new CircuitTidyOptions(false, true, true,
+                TidyOptions.DEFAULTS));
+
+        assertThat(positionOf(plan, fixture.salta())).isEqualTo(fixture.salta().position());
+        assertThat(positionOf(plan, fixture.equal())).isEqualTo(fixture.equal().position());
+    }
+}

@@ -393,16 +393,44 @@ final class LayoutItems {
     }
 
     /**
+     * The area {@code item}'s own writing (its labels), at {@code candidate}, shares with the writing of every other
+     * item (free texts and other parts' labels), each where {@code now} says ({@link #writingOverlap}); 0 when its
+     * labels cover no other writing there («Salta» over «Rs1 = Rs2», spec §6.2). The first {@code ignoredColumns}
+     * shared columns of each pair do not count ({@link #writingOverlap(List, List, int)}).
+     */
+    long writingOverOtherWriting(Item item, Bounds candidate, Map<ElementId, Bounds> now, int ignoredColumns) {
+        List<Bounds> ownWriting = movedWith(item.writing(), item, candidate);
+        if (ownWriting.isEmpty()) {
+            return 0;
+        }
+        Bounds ownBox = ownWriting.stream().reduce(Bounds::union).orElseThrow();
+        long area = 0;
+        for (Item other : items) {
+            Bounds otherAt = now.getOrDefault(other.id(), other.bounds());
+            if (other.id().equals(item.id()) || other.writing().isEmpty() || !overlaps(ownBox, otherAt, 0)) {
+                continue;
+            }
+            area += writingOverlap(ownWriting, movedWith(other.writing(), other, otherAt), ignoredColumns);
+        }
+        return area;
+    }
+
+    /**
      * The area the boxes of {@code firstBoxes} share with those of {@code secondBoxes}, by the rule of {@link #covers}:
      * the first {@value #TEXT_ROUNDING_COLUMNS} shared column is rounding and does not count, so boxes that only touch
      * by it share nothing and any positive area is a real overlap.
      */
     static long writingOverlap(List<Bounds> firstBoxes, List<Bounds> secondBoxes) {
+        return writingOverlap(firstBoxes, secondBoxes, TEXT_ROUNDING_COLUMNS);
+    }
+
+    /** {@link #writingOverlap(List, List)}, with the first {@code ignoredColumns} shared columns not counted. */
+    static long writingOverlap(List<Bounds> firstBoxes, List<Bounds> secondBoxes, int ignoredColumns) {
         long area = 0;
         for (Bounds firstBox : firstBoxes) {
             for (Bounds secondBox : secondBoxes) {
                 int sharedX = Math.min(firstBox.maximumX(), secondBox.maximumX())
-                        - Math.max(firstBox.x(), secondBox.x()) - TEXT_ROUNDING_COLUMNS;
+                        - Math.max(firstBox.x(), secondBox.x()) - ignoredColumns;
                 int sharedY = Math.min(firstBox.maximumY(), secondBox.maximumY())
                         - Math.max(firstBox.y(), secondBox.y());
                 if (sharedX > 0 && sharedY > 0) {

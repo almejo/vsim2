@@ -214,9 +214,13 @@ class TidyLabelsTest {
         assertThat(positionOf(plan, fixture.salta())).isEqualTo(fixture.salta().position());
     }
 
-    /** The same two LEDs with every option on: the circuit still tidies (a gate elsewhere aligns), the LEDs stay. */
+    /**
+     * The same two LEDs with every option on: the circuit still tidies (a gate elsewhere aligns), aligning leaves the
+     * LEDs where they are, and separating then moves «Rs1 = Rs2» two units right so the labels no longer share a
+     * column (spec §6.2).
+     */
     @Test
-    void everyStageLeavesTheTouchingLabelsAsTheyWereAndTidiesTheRest() {
+    void everyStageSeparatesTheTouchingLabelsAndTidiesTheRest() {
         SideBySide fixture = sideBySideLeds();
         gate(registry, fixture.document(), 60, 0);
         Component elsewhere = gate(registry, fixture.document(), 61, 8);
@@ -224,7 +228,7 @@ class TidyLabelsTest {
         CircuitTidyPlan plan = tidy(fixture.document(), everything(fixture.document()),
                 new CircuitTidyOptions(true, true, true, TidyOptions.DEFAULTS));
 
-        assertThat(positionOf(plan, fixture.equal())).isEqualTo(fixture.equal().position());
+        assertThat(positionOf(plan, fixture.equal())).isEqualTo(new GridPoint(23, 8));
         assertThat(positionOf(plan, fixture.salta())).isEqualTo(fixture.salta().position());
         assertThat(positionOf(plan, elsewhere)).isEqualTo(new GridPoint(60, 8));
     }

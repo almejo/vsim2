@@ -424,8 +424,9 @@ class CircuitTidyTest {
         assertThat(plan.notSeparated()).isEmpty();
     }
 
+    /** The text stays; the part moves its label off it (spec §6.2, {@link LabelsApartTest}). */
     @Test
-    void aTextOverAPartsLabelIsLeftAsItIs() {
+    void aTextOverAPartsLabelStaysAndThePartMovesOffIt() {
         CircuitDocument document = new CircuitDocument();
         place(registry, document, StandardComponentTypes.BUFFER, 0, 0, "Habilitar");
         text(document, 7, 1, "nota");
@@ -433,7 +434,7 @@ class CircuitTidyTest {
         CircuitTidyPlan plan = tidyWithWideTexts(document);
 
         assertThat(plan.textsMoved()).isZero();
-        assertThat(plan.partsMoved()).isZero();
+        assertThat(plan.partsMoved()).isEqualTo(1);
         assertThat(plan.notSeparated()).isEmpty();
     }
 

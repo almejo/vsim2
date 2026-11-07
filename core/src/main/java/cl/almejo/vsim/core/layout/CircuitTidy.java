@@ -41,7 +41,8 @@ import java.util.function.Supplier;
  * through bodies) again from the copy as the moves left it. With separating on, once every stage that moves parts
  * (separating, aligning, straightening) is done, the blocks of texts that still cover a body move off it; aligning and
  * straightening never cover a text themselves ({@link Placement#tryTidyingMove}), so with separating off no text
- * moves. Texts never push parts, and texts over texts are left alone.
+ * moves. Texts never push parts, and texts over texts are left alone. Last, a part whose label covers another
+ * label or a free text moves a little so it no longer does ({@link LabelsApart}, spec §6.2), or stays uncounted.
  */
 public final class CircuitTidy {
 
@@ -239,6 +240,7 @@ public final class CircuitTidy {
             }
             if (options.separateOverlaps()) {
                 placeTexts();
+                separateLabels();
                 notSeparated = whatStillOverlaps(items());
             }
         }
@@ -293,6 +295,16 @@ public final class CircuitTidy {
 
         private void placeTexts() {
             if (new Round(items()).placeTexts()) {
+                reading = null;
+            }
+        }
+
+        /**
+         * Moves the parts whose labels cover other writing a little, so they no longer do ({@link LabelsApart}); last
+         * of the stages that move, so no later move slides a label back. Those that find no place are not counted.
+         */
+        private void separateLabels() {
+            if (LabelsApart.separate(new Placement(copy, registry, items(), originalNets), cancelled) > 0) {
                 reading = null;
             }
         }
