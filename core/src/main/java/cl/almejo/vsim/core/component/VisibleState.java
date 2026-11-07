@@ -32,6 +32,17 @@ public sealed interface VisibleState {
     record SwitchState(Value value) implements VisibleState {
     }
 
+    /**
+     * What a Matriz LED shows: one {@code rows} entry per row, top to bottom, each as wide as the matrix has columns
+     * (bit 0 is the rightmost LED). A bit that is 1 is lit, 0 is off and Z or X is unknown.
+     */
+    record LedMatrixState(List<Value> rows) implements VisibleState {
+
+        public LedMatrixState {
+            rows = List.copyOf(rows);
+        }
+    }
+
     /** The value a constant drives, for its painter. */
     record ConstantState(Value value) implements VisibleState {
     }
