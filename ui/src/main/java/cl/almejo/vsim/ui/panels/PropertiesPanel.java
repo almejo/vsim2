@@ -926,6 +926,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         }
         Optional<String> refusal = PinJoinRefusal.of(openDocument, id, values);
         if (refusal.isPresent()) {
+            // the control goes back to the part's value; the sentence stays until the selection or the part changes
+            form.showValues(current);
             error.setText(refusal.get());
             return Optional.empty();
         }

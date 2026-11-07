@@ -487,6 +487,22 @@ public final class ParameterForm extends JPanel {
         fireCommit(RESTORE_PARAMETER);
     }
 
+    /**
+     * Puts every editor back to {@code values} (the part's own resolved parameters) without committing anything: a
+     * change the document refused leaves no control showing the refused value.
+     */
+    public void showValues(Map<String, Object> values) {
+        Set<String> names = new java.util.LinkedHashSet<>();
+        for (ParameterSpec parameter : type.parameters()) {
+            if (values.get(parameter.name()) != null) {
+                names.add(parameter.name());
+            }
+        }
+        setEditors(values, names);
+        editors.values().forEach(editor -> editor.putClientProperty(OUTLINE_PROPERTY, null));
+        refreshPresentation();
+    }
+
     private void setEditors(Map<String, Object> values, Set<String> names) {
         updatingEditors = true;
         try {
