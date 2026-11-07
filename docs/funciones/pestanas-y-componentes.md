@@ -12,7 +12,8 @@ Cómo se crean y se guardan los componentes propios está en
   entra de estas otras formas:
   - con un clic en el botón **«Entrar ↘»**, que aparece en la esquina de arriba a la derecha de la pieza al pasar el
     mouse; sobre el botón el puntero es una mano, para que se note que se puede hacer clic;
-  - con **«Entrar»**, la primera opción del clic derecho de la pieza, sola arriba de «Configurar…»;
+  - con **«Entrar»**, la primera opción del clic derecho de la pieza, junto a «Mirar adentro» y separada de
+    «Configurar…» y lo demás;
   - con **Enter**, si la única pieza seleccionada es de un componente propio.
 - **Qué piezas se pueden entrar**: las de los componentes que están en el circuito, incluidas las copias que vinieron
   de la librería o de un circuito de Logisim. Las piezas de la paleta (compuertas, memorias, Terminal…) no se pueden
@@ -217,6 +218,7 @@ Para mirar qué hay dentro de un componente sin abrir su pestaña:
 - **Con Alt**: mantener Alt apretada mientras se pasa el mouse sobre una pieza de un componente propio muestra el
   panel aunque el modo esté desactivado.
 - **Desde el clic derecho**: «Mirar adentro», en una pieza de un componente propio, muestra su panel aunque el modo
-  esté desactivado. El panel espera a que el mouse vuelva del menú a la pieza y se va cuando sale de ella (o con un
+  esté desactivado. Está arriba del menú, con el ojo del botón de la barra, junto a «Entrar» (las dos miran adentro
+  de la pieza). El panel espera a que el mouse vuelva del menú a la pieza y se va cuando sale de ella (o con un
   clic o Esc).
 - «Mirar adentro» es de cada ventana y no se guarda al cerrarla. No cambia nada del circuito ni deja pasos de deshacer.

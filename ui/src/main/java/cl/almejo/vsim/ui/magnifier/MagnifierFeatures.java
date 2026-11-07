@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.magnifier;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.ContextMenuEntry;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -171,7 +172,7 @@ public final class MagnifierFeatures {
         };
     }
 
-    /** «Mirar adentro» on a user-component instance. */
+    /** «Mirar adentro» on a user-component instance, with the eye of the toolbar button, next to «Entrar». */
     private void contribute(JPopupMenu menu, Optional<DocumentElement> target, Point2D gridPosition) {
         CircuitCanvas pane = view.canvas();
         Optional<Component> instance = target.filter(Component.class::isInstance).map(Component.class::cast)
@@ -180,8 +181,10 @@ public final class MagnifierFeatures {
             return;
         }
         Point2D screenPoint = pane.viewport().gridToScreen(gridPosition.getX(), gridPosition.getY());
-        menu.add(new JMenuItem(Actions.of(Messages.text("magnifier.menu"),
-                () -> hover.requestedFromMenu(pane, instance.get(), screenPoint))));
+        Action lookInside = Actions.of(Messages.text("magnifier.menu"),
+                () -> hover.requestedFromMenu(pane, instance.get(), screenPoint));
+        Icons.install(lookInside, MagnifierIcons.EYE);
+        menu.add(ContextMenuEntry.LOOK_INSIDE.tag(new JMenuItem(lookInside)));
     }
 
     /** After «Valores de los buses» when the menu has it; else at the end of the menu. */
