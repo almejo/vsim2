@@ -98,7 +98,7 @@ class LedMatrixTest {
     @Test
     void byRowsHasOneInputPerRowOnTheLeftAsWideAsTheColumns() {
         ComponentType matrix = matrixType.specializedFor(Map.of("rows", 4, "columns", 6));
-        assertThat(matrix.size()).isEqualTo(new GridSize(8, 6));
+        assertThat(matrix.size()).isEqualTo(new GridSize(8, 5));
         assertThat(matrix.pinCount()).isEqualTo(4);
         for (int row = 0; row < 4; row++) {
             assertThat(matrix.pin(row).name()).isEqualTo("F" + row);

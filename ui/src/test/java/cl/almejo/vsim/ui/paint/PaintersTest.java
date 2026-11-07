@@ -63,6 +63,9 @@ class PaintersTest {
         }
         return switch (typeId) {
             case StandardComponentTypes.LED -> new VisibleState.LedState(Value.ONE);
+            case StandardComponentTypes.LED_MATRIX -> new VisibleState.LedMatrixState(List.of(Value.of(8, 0x66),
+                    Value.of(8, 0xFF), Value.of(8, 0xFF), Value.of(8, 0x7E), Value.of(8, 0x3C), Value.of(8, 0x18),
+                    Value.of(8, 0), Value.highImpedance(8)));
             case StandardComponentTypes.SWITCH, StandardComponentTypes.PUSH_BUTTON ->
                     new VisibleState.SwitchState(Value.ONE);
             case StandardComponentTypes.CLOCK -> new VisibleState.ClockState(Value.ONE);

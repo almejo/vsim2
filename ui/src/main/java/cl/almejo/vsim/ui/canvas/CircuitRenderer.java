@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.LedMatrixTypes;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -28,6 +29,8 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
 import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.KeyboardPainter;
+import cl.almejo.vsim.ui.paint.LedMatrixGlow;
+import cl.almejo.vsim.ui.paint.LedMatrixPainter;
 import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -123,6 +126,8 @@ public final class CircuitRenderer {
     private MemoryActivity memoryActivity = new MemoryActivity();
     /** What this view animates on each Terminal: blink, Automan's star, last character's glow, persistence. */
     private TerminalActivity terminalActivity = new TerminalActivity();
+    /** How lit each Matriz LED with «Brillo que se apaga» looks in this view (it fades from frame to frame). */
+    private LedMatrixGlow ledMatrixGlow = new LedMatrixGlow();
     private BooleanSupplier motionGate = () -> true;
     /** The moving terminals of the paints so far, by component; a terminal painted still leaves. */
     private final Map<ElementId, TerminalMotion> terminalMotions = new LinkedHashMap<>();
@@ -144,6 +149,11 @@ public final class CircuitRenderer {
     /** For tests: the memory lights follow {@code nanoClock} instead of the system's clock. */
     void useMemoryClock(LongSupplier nanoClock) {
         memoryActivity = new MemoryActivity(nanoClock);
+    }
+
+    /** For tests: the Matriz LED's afterglow follows {@code nanoClock} instead of the system's clock. */
+    void useAfterglowClock(LongSupplier nanoClock) {
+        ledMatrixGlow = new LedMatrixGlow(nanoClock);
     }
 
     /** For tests: the terminals' animation follows {@code nanoClock} instead of the system's clock. */
@@ -416,6 +426,9 @@ public final class CircuitRenderer {
                         type, component.parameters(), keyboardState, scheme, label, capturing));
             } else if (painters.painterFor(type.id()) instanceof UartPainter uartPainter) {
                 paintUart(graphics, state, scheme, component, type, uartPainter, animation);
+            } else if (painters.painterFor(type.id()) instanceof LedMatrixPainter matrixPainter
+                    && afterglowShown(component, state)) {
+                paintMatrixWithAfterglow(graphics, state, scheme, component, type, matrixPainter);
             } else {
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);
@@ -430,6 +443,22 @@ public final class CircuitRenderer {
                         state.selectionDashPhase());
             }
         }
+    }
+
+    /** Whether {@code component} is a Matriz LED that fades on this paint (an export or a printed page never does). */
+    private boolean afterglowShown(Component component, RenderState state) {
+        return state.policy().animateParts()
+                && Boolean.TRUE.equals(component.parameters().get(LedMatrixTypes.AFTERGLOW))
+                && state.snapshot().componentState(component.id().value()) instanceof VisibleState.LedMatrixState;
+    }
+
+    private void paintMatrixWithAfterglow(Graphics2D graphics, RenderState state, ColorScheme scheme,
+                                          Component component, ComponentType type, LedMatrixPainter painter) {
+        VisibleState.LedMatrixState matrixState = (VisibleState.LedMatrixState) state.snapshot()
+                .componentState(component.id().value());
+        double[][] levels = ledMatrixGlow.levels(component.id().value(), matrixState, state.snapshot().time());
+        ComponentDrawing.paintPlaced(graphics, component, local -> painter.paintWithLevels(local, type,
+                component.parameters(), matrixState, scheme, levels));
     }
 
     private TerminalAnimation terminalAnimation(PaintPolicy policy) {

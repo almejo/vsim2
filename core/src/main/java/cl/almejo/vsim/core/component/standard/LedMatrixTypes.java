@@ -50,8 +50,13 @@ public final class LedMatrixTypes {
 
     /** The grid units between the left edge (the pins) and the body. */
     public static final int LEAD_UNITS = 1;
-    /** The grid units a matrix has beyond its LEDs, per axis: the lead (or half a unit of frame) and the frame. */
-    public static final int EXTRA_UNITS = 2;
+    /**
+     * The grid units wider than its LEDs a matrix is: the lead of the pins, plus half a unit of frame on each side of
+     * the LEDs.
+     */
+    public static final int EXTRA_WIDTH_UNITS = 2;
+    /** The grid units taller than its LEDs a matrix is: half a unit of frame above and below them. */
+    public static final int EXTRA_HEIGHT_UNITS = 1;
 
     private static final int SCAN_PIN_SPACING = 2;
     private static final int SCAN_PIN_COUNT = 3;
@@ -91,11 +96,11 @@ public final class LedMatrixTypes {
     private static ComponentShape shape(Map<String, Object> parameters) {
         int rows = (Integer) parameters.get(ROWS);
         int columns = (Integer) parameters.get(COLUMNS);
-        int width = columns + EXTRA_UNITS;
+        int width = columns + EXTRA_WIDTH_UNITS;
         if (!isScan(parameters)) {
-            return new ComponentShape(new GridSize(width, rows + EXTRA_UNITS), byRowsPins(rows, columns));
+            return new ComponentShape(new GridSize(width, rows + EXTRA_HEIGHT_UNITS), byRowsPins(rows, columns));
         }
-        GridSize size = new GridSize(width, Math.max(rows + EXTRA_UNITS, MINIMUM_SCAN_HEIGHT));
+        GridSize size = new GridSize(width, Math.max(rows + EXTRA_HEIGHT_UNITS, MINIMUM_SCAN_HEIGHT));
         return new ComponentShape(size, List.of(
                 PinSpec.input("Fila", 0, 1, rowBits(rows)),
                 PinSpec.input("Datos", 0, 1 + SCAN_PIN_SPACING, columns),
