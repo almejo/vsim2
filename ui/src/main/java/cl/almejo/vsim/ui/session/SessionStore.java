@@ -19,8 +19,8 @@ import java.util.stream.Collectors;
  * The circuit windows open when the application last ended (spec §4.1 «Continuar donde quedaste», §4.7), under
  * {@link AppPreferences#sessionNode()}: {@code session/<n>} is a window, with its bounds ({@code x y width height
  * maximized}), {@code active} (the index of its active tab), {@code folded<k>} (the files whose groups were folded)
- * and {@code foldedPanels} (the left column's folded panels, {@code circuit,palette}; absent: both open) as plain
- * keys, and a child {@code tab<k>} per tab with {@code path}, {@code definition} and {@code name} (a
+ * {@code foldedPanels} (the left column's folded panels, {@code circuit,palette}; absent: both open) and
+ * {@code inspectorOpen inspectorTab inspectorWidth} (the right panel; absent: the initial one) as plain keys, and a child {@code tab<k>} per tab with {@code path}, {@code definition} and {@code name} (a
  * component tab's), {@code context} (the instance it showed) and {@code zoom centerX centerY}. A session written
  * before tabs ({@code session/<n>} holding a file's {@code path}, {@code session/<n>/<m>} the state of each of its
  * windows) still loads, as one window with one main tab per state. Broken entries are skipped; storage failures are
@@ -75,6 +75,7 @@ public final class SessionStore {
         if (!window.foldedPanels().isEmpty()) {
             node.put(SessionKeys.FOLDED_PANELS, String.join(PANEL_SEPARATOR, new TreeSet<>(window.foldedPanels())));
         }
+        window.inspector().ifPresent(inspector -> SessionKeys.writeInspector(node, inspector));
     }
 
     public List<WindowSession> load() {
@@ -122,7 +123,8 @@ public final class SessionStore {
         Set<String> foldedPanels = Arrays.stream(node.get(SessionKeys.FOLDED_PANELS, "").split(PANEL_SEPARATOR))
                 .filter(name -> !name.isBlank()).collect(Collectors.toSet());
         return SessionKeys.readBounds(node, activeTab.view())
-                .map(bounds -> new WindowSession(bounds, tabs, active, folded, foldedPanels));
+                .map(bounds -> new WindowSession(bounds, tabs, active, folded, foldedPanels,
+                        SessionKeys.readInspector(node)));
     }
 
     /** A file of a session written before tabs: one window with one main tab for each of its window states. */

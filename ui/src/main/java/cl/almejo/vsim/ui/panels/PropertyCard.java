@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.Icon;
@@ -37,6 +38,9 @@ final class PropertyCard extends JPanel {
     private final JLabel title = new JLabel();
     private final JLabel subtitle = new JLabel();
     private final JLabel counts = new JLabel();
+    private final JLabel problemsStat = new JLabel();
+    private int problemErrors;
+    private int problemWarnings;
     private int parts;
     private int wires;
     private final boolean circuit;
@@ -54,8 +58,10 @@ final class PropertyCard extends JPanel {
         add(tile, "spany 3, aligny center");
         add(title, "wmin 0, wrap");
         add(subtitle, "wmin 0, wrap");
-        add(counts, "wmin 0, hidemode 3");
+        add(counts, "split 2, wmin 0, hidemode 3");
+        add(problemsStat, "gapleft 6, wmin 0, hidemode 3");
         counts.setVisible(circuit);
+        problemsStat.setVisible(false);
         setTexts(titleText, subtitleText);
     }
 
@@ -97,6 +103,43 @@ final class PropertyCard extends JPanel {
         this.wires = wires;
         counts.setText(Messages.format("properties.card.parts", parts) + " · "
                 + Messages.format("properties.card.wires", wires));
+    }
+
+    /**
+     * The circuit's problems as the badge on the strip counts them: the stat shows only when there are some, coloured
+     * like the badge (red with errors, otherwise amber). The colour is read at every paint.
+     */
+    void setProblems(int errors, int warnings) {
+        problemErrors = errors;
+        problemWarnings = warnings;
+        int shown = errors > 0 ? errors : warnings;
+        problemsStat.setText(shown == 0 ? "" : "· " + Messages.format("properties.card.problems", shown));
+        problemsStat.setVisible(shown > 0);
+    }
+
+    int problemErrors() {
+        return problemErrors;
+    }
+
+    int problemWarnings() {
+        return problemWarnings;
+    }
+
+    /** The stat's text without its separator; empty when it is hidden. */
+    String problemsText() {
+        String text = problemsStat.getText();
+        return text.startsWith("· ") ? text.substring(2) : text;
+    }
+
+    /** The colour the stat paints with now: the badge's. */
+    Color problemsColor() {
+        return InspectorPanel.badgeColor(problemErrors > 0 ? InspectorPanel.Badge.ERROR : InspectorPanel.Badge.WARNING);
+    }
+
+    @Override
+    public void paint(Graphics graphics) {
+        problemsStat.setForeground(problemsColor()); // a theme or scheme switch shows at once
+        super.paint(graphics);
     }
 
     String title() {

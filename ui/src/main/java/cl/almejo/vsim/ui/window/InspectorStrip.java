@@ -179,7 +179,7 @@ final class InspectorStrip extends JPanel {
                 ? Color.WHITE : Color.BLACK;
     }
 
-    private static Color badgeBackground(InspectorPanel.Badge kind) {
+    static Color badgeBackground(InspectorPanel.Badge kind) {
         return switch (kind) {
             case ERROR -> ProblemBadge.background();
             case WARNING -> {

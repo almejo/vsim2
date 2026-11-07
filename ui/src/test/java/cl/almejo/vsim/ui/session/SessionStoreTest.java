@@ -2,6 +2,8 @@ package cl.almejo.vsim.ui.session;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.window.InspectorPanel;
+import cl.almejo.vsim.ui.window.InspectorState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -90,6 +92,45 @@ class SessionStoreTest {
         preferences.sessionNode().node("0").remove("foldedPanels"); // written before the circuit tree
 
         assertThat(store.load().getFirst().foldedPanels()).isEmpty();
+    }
+
+    @Test
+    void theRightPanelIsSavedPerWindowAndAnOldSessionHasNone() throws Exception {
+        WindowSession first = new WindowSession(RIGHT, List.of(TabState.main(file("contador.vsim"), RIGHT_VIEW)), 0,
+                List.of(), java.util.Set.of(), Optional.of(new InspectorState(false, InspectorPanel.NOTES, 410)));
+        WindowSession second = new WindowSession(LEFT, List.of(TabState.main(file("sumador.vsim"), LEFT_VIEW)), 0,
+                List.of(), java.util.Set.of(), Optional.of(new InspectorState(true, InspectorPanel.PROBLEMS, 300)));
+
+        store.save(List.of(first, second, single("viejo.vsim", RIGHT)));
+
+        List<WindowSession> loaded = store.load();
+        assertThat(loaded.get(0).inspector()).contains(new InspectorState(false, InspectorPanel.NOTES, 410));
+        assertThat(loaded.get(1).inspector()).contains(new InspectorState(true, InspectorPanel.PROBLEMS, 300));
+        assertThat(loaded.get(2).inspector()).as("written without a panel").isEmpty();
+        Preferences node = preferences.sessionNode().node("0");
+        assertThat(node.get("inspectorOpen", null)).isEqualTo("false");
+        assertThat(node.get("inspectorTab", null)).isEqualTo("notes");
+        assertThat(node.get("inspectorWidth", null)).isEqualTo("410");
+    }
+
+    @Test
+    void anUnknownPanelSectionOpensOnPropertiesAndTheWidthIsClamped() throws Exception {
+        store.save(List.of(single("contador.vsim", RIGHT)));
+        Preferences node = preferences.sessionNode().node("0");
+        node.put("inspectorOpen", "true");
+        node.put("inspectorTab", "nonsense");
+        node.put("inspectorWidth", "3");
+        assertThat(store.load().getFirst().inspector().orElseThrow().selectedTab()).isEqualTo(InspectorPanel.PROPERTIES);
+        assertThat(store.load().getFirst().inspector().orElseThrow().width()).isGreaterThan(100);
+
+        node.put("inspectorWidth", "999999");
+        assertThat(store.load().getFirst().inspector().orElseThrow().width()).isLessThan(5000);
+
+        node.put("inspectorWidth", "wide");
+        node.put("inspectorOpen", "maybe");
+        InspectorState broken = store.load().getFirst().inspector().orElseThrow();
+        assertThat(broken.width()).isEqualTo(InspectorState.initial().width());
+        assertThat(broken.open()).isEqualTo(InspectorState.initial().open());
     }
 
     @Test

@@ -23,6 +23,23 @@ public record InspectorState(boolean open, String selectedTab, int width) {
         return new InspectorState(true, InspectorPanel.PROPERTIES, UIScale.scale(InspectorPanel.PREFERRED_WIDTH));
     }
 
+    /** The sections a saved state may name. */
+    private static final java.util.List<String> SECTIONS = java.util.List.of(InspectorPanel.PROPERTIES,
+            InspectorPanel.PROBLEMS, InspectorPanel.NOTES, InspectorPanel.MEMORY_MAP);
+    /** The widest a saved panel is taken to be (px, before UI scaling): a corrupt value must not fill the window. */
+    static final int MAXIMUM_SAVED_WIDTH = 1200;
+
+    /**
+     * A state read from a saved session: an unknown section becomes {@code properties}, the width is kept between
+     * the panel's minimum and {@link #MAXIMUM_SAVED_WIDTH} (both UI-scaled).
+     */
+    public static InspectorState fromSession(boolean open, String selectedTab, int width) {
+        String section = SECTIONS.contains(selectedTab) ? selectedTab : InspectorPanel.PROPERTIES;
+        int clamped = Math.max(UIScale.scale(InspectorPanel.MINIMUM_WIDTH),
+                Math.min(UIScale.scale(MAXIMUM_SAVED_WIDTH), width));
+        return new InspectorState(open, section, clamped);
+    }
+
     InspectorState withOpen(boolean newOpen) {
         return new InspectorState(newOpen, selectedTab, width);
     }

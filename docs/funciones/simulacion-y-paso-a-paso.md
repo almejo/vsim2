@@ -6,6 +6,10 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 - Los cortocircuitos se ven en rojo pulsante, con un halo en cada pin que maneja la red; al pasar el mouse sobre el cable se listan los drivers. Click en "⚠ N cortocircuitos" o F8 / Mayús+F8 salta al siguiente/anterior; la pestaña Problemas los lista (doble click navega). Simulación → "Pausar al detectar cortocircuito" detiene la simulación cuando aparece uno nuevo. Un cortocircuito dentro de un componente propio resalta su instancia y F8 lleva a ella; si une redes del circuito a través de una instancia, solo se resalta (y muestra los drivers al pasar el mouse) la red principal.
 
+## Insignia de problemas
+
+- El ícono «Problemas» de la tira del panel derecho lleva una insignia con la cantidad de problemas, también con el panel cerrado: roja y con el número de errores (cortocircuitos, anchos incompatibles y errores de túneles) si hay alguno; si solo hay avisos (displays, túneles, piezas desactualizadas, memorias enlazadas y archivos de la librería que no cargaron), ámbar y con el número de avisos. Sin problemas no hay insignia. La tarjeta del circuito en «Propiedades» (sin nada seleccionado) suma «· n problemas», del mismo color y con el mismo número.
+
 ## Paso a paso
 
 - Simulación ▸ «Paso a paso» (también un botón en la barra de herramientas) pausa la simulación y muestra en la barra el botón de «Avanzar» (un ícono; al pasar el ratón dice su nombre) y el estado: «t = 1 234 · próximo evento: t = 1 235». «Iniciar» o volver a elegir «Paso a paso» sale del modo. El modo es del circuito: todas sus vistas lo comparten.

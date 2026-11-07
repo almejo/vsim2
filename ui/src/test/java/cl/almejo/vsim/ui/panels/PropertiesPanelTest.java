@@ -1325,4 +1325,22 @@ class PropertiesPanelTest {
 
         assertThat(notices).isEmpty();
     }
+
+    @Test
+    void theCircuitCardShowsTheProblemsTheControllerReportsAndASelectionKeepsThemForTheNextCircuitCard() {
+        assertThat(panel.card().isCircuit()).isTrue();
+        panel.setProblems(2, 1);
+        assertThat(panel.card().problemErrors()).isEqualTo(2);
+        assertThat(panel.card().problemsText()).isEqualTo("2 problemas");
+
+        panel.setProblems(0, 3);
+        assertThat(panel.card().problemsText()).isEqualTo("3 problemas");
+
+        Component gate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        selection.select(gate.id());
+        assertThat(panel.card().isCircuit()).isFalse();
+        panel.setProblems(1, 0);
+        selection.clear();
+        assertThat(panel.card().problemsText()).as("the new circuit card has them at once").isEqualTo("1 problema");
+    }
 }

@@ -20,6 +20,7 @@ import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.ListedProblems;
 import cl.almejo.vsim.core.simulation.Problem;
+import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
@@ -96,6 +97,7 @@ public final class ProblemsController {
     private final HistoryListener historyListener = history -> refreshStructure();
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
+    private int libraryProblemCount;
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
 
@@ -267,6 +269,7 @@ public final class ProblemsController {
                 snapshot.failure());
         navigator.showSnapshot(combined);
         panel.showSnapshot(combined);
+        showBadge(countsOf(problems, libraryProblemCount));
         boolean anyProblem = !problems.isEmpty();
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
@@ -351,7 +354,46 @@ public final class ProblemsController {
     public void showLibraryProblems(List<String> descriptions, int fileCount) {
         if (!disposed) {
             panel.showLibraryProblems(descriptions, fileCount);
+            libraryProblemCount = descriptions.size();
+            showBadge(problemCounts());
         }
+    }
+
+    /** What the Problemas list holds, split the way the strip's badge and the circuit card count it. */
+    public record Counts(int errors, int warnings) {
+    }
+
+    /** The listed problems (and the library's) as errors and warnings: what the badge and the circuit card show. */
+    public Counts problemCounts() {
+        return countsOf(navigator.problems(), libraryProblemCount);
+    }
+
+    /**
+     * Errors are the short circuits, the width mismatches and the tunnel errors (what the status bar alarms about);
+     * everything else the list holds is a warning: display and tunnel warnings, outdated pieces, linked-file problems
+     * and the library files that did not load.
+     */
+    private static Counts countsOf(List<Problem> problems, int libraryProblems) {
+        int errors = 0;
+        int warnings = libraryProblems;
+        for (Problem problem : problems) {
+            boolean isError = problem instanceof ShortCircuit || problem instanceof WidthMismatch
+                    || problem instanceof TunnelProblem tunnel && !tunnel.isWarning();
+            if (isError) {
+                errors++;
+            } else {
+                warnings++;
+            }
+        }
+        return new Counts(errors, warnings);
+    }
+
+    /** Red with errors (their count), else amber with the warnings', none when there is nothing: also panel closed. */
+    private void showBadge(Counts counts) {
+        boolean errors = counts.errors() > 0;
+        view.inspector().setBadge(InspectorPanel.PROBLEMS, errors ? counts.errors() : counts.warnings(),
+                errors ? InspectorPanel.Badge.ERROR : InspectorPanel.Badge.WARNING);
+        view.labelFeatures().properties().setProblems(counts.errors(), counts.warnings());
     }
 
     /** The heading of the library section of the Problems tab. */

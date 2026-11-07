@@ -750,7 +750,8 @@ public final class WindowTabs extends JPanel {
         List<Path> folded = documents().stream().filter(model::isFolded)
                 .flatMap(document -> document.path().stream()).toList();
         Set<String> panels = foldedPanels.stream().map(WindowTabs::sessionName).collect(Collectors.toSet());
-        return Optional.of(new WindowSession(bounds, tabs, activeTab, folded, panels));
+        return Optional.of(new WindowSession(bounds, tabs, activeTab, folded, panels,
+                Optional.of(inspectorState)));
     }
 
     /** A tab never shown yet still looks where it was going to open. */
@@ -774,6 +775,7 @@ public final class WindowTabs extends JPanel {
      * @return the component tabs left out because their definition is gone
      */
     public List<TabState> restore(WindowSession session, Function<Path, Optional<OpenDocument>> documents) {
+        useInspectorState(session.inspector().orElseGet(InspectorState::initial));
         foldPanels(session.foldedPanels().stream()
                 .flatMap(name -> Arrays.stream(LeftColumn.Section.values())
                         .filter(section -> sessionName(section).equals(name)))

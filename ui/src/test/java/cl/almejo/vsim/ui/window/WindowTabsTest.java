@@ -391,7 +391,8 @@ class WindowTabsTest {
                 TabState.main(counterFile, MAIN_VIEW),
                 TabState.component(counterFile, ExampleDefinitions.INVERTER, "Inversor", Optional.of(second),
                         INSIDE_VIEW),
-                TabState.main(adder.path().orElseThrow(), OTHER_VIEW)), 2, List.of(counterFile)));
+                TabState.main(adder.path().orElseThrow(), OTHER_VIEW)), 2, List.of(counterFile), java.util.Set.of(),
+                Optional.of(InspectorState.initial())));
     }
 
     @Test
@@ -424,7 +425,10 @@ class WindowTabsTest {
         assertThat(place.contextPath()).contains(second);
         assertThat(tabs.isFolded(adder)).isTrue();
         assertThat(tabs.isFolded(counter)).isFalse();
-        assertThat(tabs.session(BOUNDS)).contains(session);
+        assertThat(tabs.session(BOUNDS).orElseThrow().tabs()).isEqualTo(session.tabs());
+        assertThat(tabs.session(BOUNDS).orElseThrow().foldedDocuments()).isEqualTo(session.foldedDocuments());
+        assertThat(tabs.session(BOUNDS).orElseThrow().activeTab()).isEqualTo(session.activeTab());
+        assertThat(tabs.session(BOUNDS).orElseThrow().inspector()).contains(InspectorState.initial());
     }
 
     @Test
@@ -514,6 +518,26 @@ class WindowTabsTest {
         assertThat(tabs.addTab(document, Optional.empty()).inspector().state()).as("a new tab of the window")
                 .isEqualTo(expected);
         assertThat(elsewhere.inspector().state()).isEqualTo(InspectorState.initial());
+    }
+
+    @Test
+    void theRightPanelIsSavedInTheSessionAndRestoredPerWindowAndAnOldSessionOpensAsInitial() throws Exception {
+        OpenDocument counter = saved("contador.vsim");
+        Path counterFile = counter.path().orElseThrow();
+        EditorView view = tabs.addTab(counter, Optional.of(MAIN_VIEW));
+        view.inspector().restore(new InspectorState(false, InspectorPanel.NOTES, 333));
+
+        assertThat(tabs.session(BOUNDS).orElseThrow().inspector())
+                .contains(new InspectorState(false, InspectorPanel.NOTES, 333));
+
+        WindowSession saved = tabs.session(BOUNDS).orElseThrow();
+        other.restore(saved, byFile(counter));
+        assertThat(other.views()).allSatisfy(restored ->
+                assertThat(restored.inspector().state()).isEqualTo(new InspectorState(false, InspectorPanel.NOTES, 333)));
+
+        tabs.restore(new WindowSession(BOUNDS, List.of(TabState.main(counterFile, MAIN_VIEW)), 0, List.of()),
+                byFile(counter));
+        assertThat(tabs.activeView().inspector().state()).isEqualTo(InspectorState.initial());
     }
 
     @Test

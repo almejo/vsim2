@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.session;
 
 import cl.almejo.vsim.ui.app.FileNames;
+import cl.almejo.vsim.ui.window.InspectorState;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -15,23 +16,31 @@ import java.util.function.Predicate;
  * One circuit window of the last session (spec §4.7, §10.6): where it was ({@code bounds}, whose view is the active
  * tab's), its tabs in the strip's order, which one was active (out of range: the first) and the documents whose
  * groups were folded, and the panels of its left column folded to their header ({@code foldedPanels}: names such as
- * {@code circuit} or {@code palette}, spec §5.3; none means both open). Files are compared in any spelling
+ * {@code circuit} or {@code palette}, spec §5.3; none means both open) and its right panel ({@code inspector}: open,
+ * section and width; empty in a session written before it, which opens as {@link InspectorState#initial()}). Files are compared in any spelling
  * ({@link FileNames#normalized}).
  */
 public record WindowSession(WindowState bounds, List<TabState> tabs, int activeTab, List<Path> foldedDocuments,
-                            Set<String> foldedPanels) {
+                            Set<String> foldedPanels, Optional<InspectorState> inspector) {
 
     public WindowSession {
         Objects.requireNonNull(bounds, "bounds");
         tabs = List.copyOf(tabs);
         foldedDocuments = List.copyOf(foldedDocuments);
         foldedPanels = Set.copyOf(foldedPanels);
+        Objects.requireNonNull(inspector, "inspector");
         if (tabs.isEmpty()) {
             throw new IllegalArgumentException("a window of the session has at least one tab");
         }
         if (activeTab < 0 || activeTab >= tabs.size()) {
             activeTab = 0;
         }
+    }
+
+    /** A window whose right panel is the initial one (a session written before it, too). */
+    public WindowSession(WindowState bounds, List<TabState> tabs, int activeTab, List<Path> foldedDocuments,
+                         Set<String> foldedPanels) {
+        this(bounds, tabs, activeTab, foldedDocuments, foldedPanels, Optional.empty());
     }
 
     /** A window whose left column has both panels open (a session written before the circuit tree, too). */
@@ -68,6 +77,6 @@ public record WindowSession(WindowState bounds, List<TabState> tabs, int activeT
             return Optional.empty();
         }
         return Optional.of(new WindowSession(bounds, keptTabs, keptActive,
-                foldedDocuments.stream().filter(kept).toList(), foldedPanels));
+                foldedDocuments.stream().filter(kept).toList(), foldedPanels, inspector));
     }
 }

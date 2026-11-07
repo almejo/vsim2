@@ -86,4 +86,30 @@ class PropertyCardTest {
     void aSectionHeaderKeepsItsTextAsGiven() {
         assertThat(new SectionHeader("Configuración").text()).isEqualTo("Configuración");
     }
+
+    @Test
+    void aCircuitCardShowsAThirdStatWithItsProblemsOnlyWhenThereAreAny() {
+        PropertyCard card = PropertyCard.forCircuit("Sumador", 3, 7);
+        assertThat(card.problemsText()).isEmpty();
+        card.setProblems(2, 5);
+        assertThat(card.problemErrors()).isEqualTo(2);
+        assertThat(card.problemWarnings()).isEqualTo(5);
+        assertThat(card.problemsText()).isEqualTo("2 problemas");
+        card.setProblems(0, 1);
+        assertThat(card.problemsText()).isEqualTo("1 problema");
+        card.setProblems(0, 0);
+        assertThat(card.problemsText()).isEmpty();
+    }
+
+    @Test
+    void theProblemsStatIsColouredLikeTheBadgeAtPaintTime() {
+        PropertyCard card = PropertyCard.forCircuit("Sumador", 3, 7);
+        card.setProblems(1, 3);
+        java.awt.Color forErrors = card.problemsColor();
+        card.setProblems(0, 3);
+        java.awt.Color forWarnings = card.problemsColor();
+        assertThat(forErrors).isNotEqualTo(forWarnings);
+        assertThat(forErrors).isEqualTo(cl.almejo.vsim.ui.window.InspectorPanel.badgeColor(
+                cl.almejo.vsim.ui.window.InspectorPanel.Badge.ERROR));
+    }
 }

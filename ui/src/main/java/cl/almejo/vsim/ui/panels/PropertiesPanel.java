@@ -96,6 +96,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private final Runnable historyListener = this::historyChanged;
     /** The card at the top: the circuit with nothing selected, otherwise the selected element. */
     private PropertyCard card = PropertyCard.forElement("", "select");
+    private int problemErrors;
+    private int problemWarnings;
     /** The inline error, wrapped within the panel: a long sentence never widens the sidebar over the canvas. */
     private final WrappedErrorText error = new WrappedErrorText(" ");
     private Set<ElementId> shown = Set.of();
@@ -272,6 +274,15 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         openDocument.removeChangeListener(historyListener);
     }
 
+    /** The circuit's problems, as the strip's badge counts them: the circuit card (nothing selected) shows them. */
+    public void setProblems(int errors, int warnings) {
+        problemErrors = errors;
+        problemWarnings = warnings;
+        if (card.isCircuit()) {
+            card.setProblems(errors, warnings);
+        }
+    }
+
     PropertyCard card() {
         return card;
     }
@@ -412,6 +423,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         if (shown.isEmpty()) {
             showCard(PropertyCard.forCircuit(openDocument.document().name(), openDocument.document().components().size(),
                     openDocument.document().wires().size()));
+            card.setProblems(problemErrors, problemWarnings);
             addSection("properties.section.general");
             showCircuitName();
         } else if (shown.size() > 1) {

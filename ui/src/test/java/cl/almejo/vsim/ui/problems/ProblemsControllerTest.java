@@ -456,4 +456,67 @@ class ProblemsControllerTest {
         return new SimulationSnapshot(sequence, openDocument.netlistToken(), 10, true, Map.of(), Map.of(),
                 List.of(shortCircuit), Optional.empty());
     }
+
+    // --- the badge on the right panel's strip (it stays while the panel is closed) ---
+
+    private SimulationSnapshot snapshotOf(cl.almejo.vsim.core.simulation.Problem... problems) {
+        return new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(), Map.of(),
+                List.of(problems), Optional.empty());
+    }
+
+    private InspectorPanel.ShownBadge problemsBadge() {
+        return view.inspector().badge(InspectorPanel.PROBLEMS).orElse(null);
+    }
+
+    @Test
+    void errorsShowARedBadgeOnTheStripWhileThePanelIsClosed() {
+        view.inspector().close();
+        String netId = openDocument.netlist().netForWire(joint.id()).orElseThrow().id().value();
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE),
+                new DriverRef(low.id().value(), 0, Value.ZERO)), 5);
+        WidthMismatch mismatch = new WidthMismatch(netId, List.of(new FlatPinRef(high.id().value(), 0),
+                new FlatPinRef(low.id().value(), 0)));
+
+        view.problems().showSnapshot(snapshotOf(shortCircuit, mismatch));
+
+        assertThat(view.inspector().state().open()).isFalse();
+        assertThat(problemsBadge()).isEqualTo(new InspectorPanel.ShownBadge(2, InspectorPanel.Badge.ERROR));
+        assertThat(view.problems().problemCounts()).isEqualTo(new ProblemsController.Counts(2, 0));
+        assertThat(view.problems().panel().problemList().getModel().getSize()).isEqualTo(2);
+    }
+
+    @Test
+    void onlyWarningsShowAnAmberBadgeWithTheirCountAndFixingThemHidesIt() {
+        Component display = place(openDocument, StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 0, Map.of());
+        DisplayBusOverride warning = new DisplayBusOverride(netOfPin(display, 4), display.id().value());
+
+        view.problems().showSnapshot(snapshotOf(warning));
+        assertThat(problemsBadge()).isEqualTo(new InspectorPanel.ShownBadge(1, InspectorPanel.Badge.WARNING));
+
+        view.problems().showSnapshot(currentSnapshot(Map.of(), Map.of()));
+        assertThat(problemsBadge()).as("fixed: no badge").isNull();
+    }
+
+    @Test
+    void errorsCountInsteadOfWarningsWhenBothExist() {
+        Component display = place(openDocument, StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 0, Map.of());
+        DisplayBusOverride warning = new DisplayBusOverride(netOfPin(display, 4), display.id().value());
+        String netId = openDocument.netlist().netForWire(joint.id()).orElseThrow().id().value();
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE),
+                new DriverRef(low.id().value(), 0, Value.ZERO)), 5);
+
+        view.problems().showSnapshot(snapshotOf(shortCircuit, warning));
+
+        assertThat(problemsBadge()).isEqualTo(new InspectorPanel.ShownBadge(1, InspectorPanel.Badge.ERROR));
+        assertThat(view.problems().problemCounts()).isEqualTo(new ProblemsController.Counts(1, 1));
+    }
+
+    @Test
+    void libraryProblemsCountAsWarningsAndGoWhenTheyDo() {
+        view.problems().showLibraryProblems(List.of("a.vsimc: roto", "b.vsimc: roto"), 2);
+        assertThat(problemsBadge()).isEqualTo(new InspectorPanel.ShownBadge(2, InspectorPanel.Badge.WARNING));
+
+        view.problems().showLibraryProblems(List.of(), 0);
+        assertThat(problemsBadge()).isNull();
+    }
 }

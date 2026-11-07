@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.session;
 
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.window.InspectorState;
 
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -41,6 +42,11 @@ final class SessionKeys {
     /** A session window's left-column panels folded to their header, comma-separated: {@code circuit,palette}. */
     static final String FOLDED_PANELS = "foldedPanels";
 
+    /** A session window's right panel: whether it is open, its section's id and its width in pixels. */
+    static final String INSPECTOR_OPEN = "inspectorOpen";
+    static final String INSPECTOR_TAB = "inspectorTab";
+    static final String INSPECTOR_WIDTH = "inspectorWidth";
+
     private SessionKeys() {
     }
 
@@ -71,6 +77,39 @@ final class SessionKeys {
         } catch (IllegalArgumentException exception) { // NumberFormatException included
             return Optional.empty();
         }
+    }
+
+    static void writeInspector(Preferences node, InspectorState state) {
+        node.putBoolean(INSPECTOR_OPEN, state.open());
+        node.put(INSPECTOR_TAB, state.selectedTab());
+        node.putInt(INSPECTOR_WIDTH, state.width());
+    }
+
+    /**
+     * The right panel of {@link #writeInspector}; empty when none of its keys is there (a session written before it).
+     * A missing or broken key takes the initial panel's value, an unknown section {@code properties}, the width is
+     * clamped ({@link InspectorState#fromSession}).
+     */
+    static Optional<InspectorState> readInspector(Preferences node) {
+        String open = node.get(INSPECTOR_OPEN, null);
+        String tab = node.get(INSPECTOR_TAB, null);
+        String width = node.get(INSPECTOR_WIDTH, null);
+        if (open == null && tab == null && width == null) {
+            return Optional.empty();
+        }
+        InspectorState initial = InspectorState.initial();
+        boolean readOpen = open == null ? initial.open() : switch (open) {
+            case "true" -> true;
+            case "false" -> false;
+            default -> initial.open();
+        };
+        int readWidth = initial.width();
+        try {
+            readWidth = width == null ? readWidth : Integer.parseInt(width);
+        } catch (NumberFormatException exception) {
+            // the initial width stays
+        }
+        return Optional.of(InspectorState.fromSession(readOpen, tab == null ? initial.selectedTab() : tab, readWidth));
     }
 
     static void writeTab(Preferences node, TabState tab) {
