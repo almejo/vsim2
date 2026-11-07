@@ -11,7 +11,7 @@ Cómo se crean y se guardan los componentes propios está en
   sigue editando la etiqueta, y las Propiedades de la pieza siguen en el inspector y en el clic derecho. También se
   entra de estas otras formas:
   - con un clic en el botón **«Entrar ↘»**, que aparece en la esquina de arriba a la derecha de la pieza al pasar el
-    mouse;
+    mouse; sobre el botón el puntero es una mano, para que se note que se puede hacer clic;
   - con **«Entrar»**, la primera opción del clic derecho de la pieza, sola arriba de «Configurar…»;
   - con **Enter**, si la única pieza seleccionada es de un componente propio.
 - **Qué piezas se pueden entrar**: las de los componentes que están en el circuito, incluidas las copias que vinieron

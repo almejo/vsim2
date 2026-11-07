@@ -67,6 +67,11 @@ final class EnterChip {
         return true;
     }
 
+    /** True when the chip is shown and {@code gridPosition} is on it: a press there enters, so the pointer is a hand. */
+    boolean isUnder(ToolContext context, Point2D gridPosition) {
+        return current(context).filter(shown -> contains(context, shown, gridPosition)).isPresent();
+    }
+
     /** The chip now, in document pixels; empty when none is shown. */
     Optional<Rectangle2D> bounds(ToolContext context) {
         return current(context).map(instance -> chipOf(context, instance));

@@ -691,6 +691,11 @@ public final class SelectTool implements Tool {
         if (enterChip.hover(context, event)) {
             context.repaint();
         }
+        if (enterChip.isUnder(context, event.gridPosition())) {
+            clearHoverPin(context); // a press here enters the instance, never starts a wire
+            showCursor(context, CanvasCursor.HAND);
+            return;
+        }
         Optional<CanvasCursor> delegateCursor = Optional.empty();
         for (SelectToolDelegate delegate : delegates) {
             Optional<CanvasCursor> answer = delegate.moved(context, event);
@@ -699,12 +704,7 @@ public final class SelectTool implements Tool {
             }
         }
         if (delegateCursor.isPresent()) {
-            // a press here goes to the delegate, never to a pin
-            if (hoverPin != null) {
-                hoverPin = null;
-                hoverWidth = 1;
-                context.repaint();
-            }
+            clearHoverPin(context); // a press here goes to the delegate, never to a pin
             showCursor(context, delegateCursor.get());
             return;
         }
@@ -716,6 +716,14 @@ public final class SelectTool implements Tool {
             context.repaint();
         }
         showCursor(context, cursorAt(context, event.gridPosition(), pin, event));
+    }
+
+    private void clearHoverPin(ToolContext context) {
+        if (hoverPin != null) {
+            hoverPin = null;
+            hoverWidth = 1;
+            context.repaint();
+        }
     }
 
     /** The cursor of a segment drag of {@code wire}: it slides across its own direction. */
