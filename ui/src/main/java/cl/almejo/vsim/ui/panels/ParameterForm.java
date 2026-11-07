@@ -800,7 +800,7 @@ public final class ParameterForm extends JPanel {
                 FragmentRefusingTransferHandler.install(spinnerField(spinner));
                 yield spinner;
             }
-            case BOOLEAN -> new JCheckBox("", (Boolean) value);
+            case BOOLEAN -> new SwitchBox((Boolean) value);
             case TEXT -> textEditor(type, parameter, value.toString());
             case CHOICE -> {
                 JComboBox<String> box = new JComboBox<>(parameter.choices().toArray(String[]::new));

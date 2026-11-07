@@ -55,6 +55,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 - Propiedades abre con una tarjeta: el ícono de lo seleccionado (una pieza se dibuja con los colores del lienzo y cambia con el tema), su nombre (la etiqueta, o el tipo si no tiene) y debajo el tipo. Sin nada seleccionado es la tarjeta del circuito: su nombre, «Sin selección» y cuántas piezas y cables tiene (los textos, marcos y notas no cuentan); los conteos siguen al circuito mientras se edita.
 - Debajo, el panel se ordena en secciones con un título en mayúsculas pequeñas y una línea: «General» (etiqueta, texto, título, color), «Configuración» (los ajustes sin grupo), los grupos de la pieza («Pantalla», «Aspecto»…) y «Descripción». Una sección vacía no se muestra.
+- Los ajustes de sí o no (negar, mostrar Q̅…) son interruptores: una pista con una perilla, en el color de acento si está en «Sí» y gris si está en «No», con el texto al lado. Se cambian con un clic o con Espacio, y cada cambio es un paso de deshacer, como antes con la casilla.
 - Los ajustes comunes de Propiedades llevan un ícono gris pequeño antes del nombre (etiqueta, texto, nombre, entradas, salidas, ancho, retardo, tiempos en alto y en bajo, negar, color, valor, formato, dirección, palabras y contenido); los demás dejan el mismo espacio vacío para que los nombres sigan alineados. El ícono se oculta junto con su fila y se recolorea en los temas oscuros.
 
 ## Elegir un color
