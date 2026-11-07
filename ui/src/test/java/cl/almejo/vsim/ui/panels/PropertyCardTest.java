@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.LookAndFeel;
@@ -102,14 +103,11 @@ class PropertyCardTest {
     }
 
     @Test
-    void theProblemsStatIsColouredLikeTheBadgeAtPaintTime() {
+    void theProblemsStatUsesTheReadableErrorOrWarningTextColour() {
         PropertyCard card = PropertyCard.forCircuit("Sumador", 3, 7);
         card.setProblems(1, 3);
-        java.awt.Color forErrors = card.problemsColor();
+        assertThat(card.problemsColor()).isEqualTo(ReadableColors.errorText());
         card.setProblems(0, 3);
-        java.awt.Color forWarnings = card.problemsColor();
-        assertThat(forErrors).isNotEqualTo(forWarnings);
-        assertThat(forErrors).isEqualTo(cl.almejo.vsim.ui.window.InspectorPanel.badgeColor(
-                cl.almejo.vsim.ui.window.InspectorPanel.Badge.ERROR));
+        assertThat(card.problemsColor()).isEqualTo(ReadableColors.warningText());
     }
 }

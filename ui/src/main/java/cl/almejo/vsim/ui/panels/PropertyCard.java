@@ -6,7 +6,7 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.InspectorPanel;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.Icon;
@@ -38,7 +38,13 @@ final class PropertyCard extends JPanel {
     private final JLabel title = new JLabel();
     private final JLabel subtitle = new JLabel();
     private final JLabel counts = new JLabel();
-    private final JLabel problemsStat = new JLabel();
+    /** Reads its colour whenever it paints: a theme switch shows at once. */
+    private final JLabel problemsStat = new JLabel() {
+        @Override
+        public Color getForeground() {
+            return problemsColor();
+        }
+    };
     private int problemErrors;
     private int problemWarnings;
     private int parts;
@@ -115,8 +121,8 @@ final class PropertyCard extends JPanel {
     }
 
     /**
-     * The circuit's problems as the badge on the strip counts them: the stat shows only when there are some, coloured
-     * like the badge (red with errors, otherwise amber). The colour is read at every paint.
+     * The circuit's problems as the badge on the strip counts them: the stat shows only when there are some, in a
+     * readable red with errors, otherwise a readable amber. The colour is read at every paint.
      */
     void setProblems(int errors, int warnings) {
         problemErrors = errors;
@@ -140,15 +146,9 @@ final class PropertyCard extends JPanel {
         return text.startsWith("· ") ? text.substring(2) : text;
     }
 
-    /** The colour the stat paints with now: the badge's. */
+    /** The colour the stat paints with now: the theme's readable error or warning text colour. */
     Color problemsColor() {
-        return InspectorPanel.badgeColor(problemErrors > 0 ? InspectorPanel.Badge.ERROR : InspectorPanel.Badge.WARNING);
-    }
-
-    @Override
-    public void paint(Graphics graphics) {
-        problemsStat.setForeground(problemsColor()); // a theme or scheme switch shows at once
-        super.paint(graphics);
+        return problemErrors > 0 ? ReadableColors.errorText() : ReadableColors.warningText();
     }
 
     String title() {

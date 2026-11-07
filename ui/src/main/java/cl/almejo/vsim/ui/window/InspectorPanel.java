@@ -141,11 +141,6 @@ public final class InspectorPanel extends JPanel {
         strip.setBadge(id, Optional.ofNullable(badges.get(id)));
     }
 
-    /** The colour a badge of {@code kind} has, read when asked (a theme switch changes it): also for the card's stat. */
-    public static java.awt.Color badgeColor(Badge kind) {
-        return InspectorStrip.badgeBackground(kind);
-    }
-
     /** The badge on the icon of section {@code id}; empty when it shows none. */
     public Optional<ShownBadge> badge(String id) {
         section(id);
