@@ -805,8 +805,9 @@ class EditServiceTest {
 
     @Test
     void tidyWiresWithStraightenStraightensTheJog() {
-        service.edit(request(place("source", "switch", 0, 0), place("lamp", "led", 20, 5),
-                connect("new:source", "out", "new:lamp", "in")));
+        // a buffer, not a LED: a LED's input is on its bottom edge, and a wire into it is never straight
+        service.edit(request(place("source", "switch", 0, 0), place("reader", "buffer", 20, 5),
+                connect("new:source", "out", "new:reader", "in")));
         List<GridPoint> before = circuit.document().components().stream().map(Component::position).toList();
         var netsBefore = connectedPins();
 

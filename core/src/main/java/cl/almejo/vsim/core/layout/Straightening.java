@@ -30,15 +30,16 @@ import java.util.function.Supplier;
  * its receivers run straight.
  *
  * <p>Every net with exactly one output pin (the driver) gives a pair for each input pin of another item on it. Only
- * the pairs that are horizontal when the stage starts (|dx| ≥ |dy|) count, and the set never changes while it runs:
- * a part pushed far enough to make a pair vertical gains nothing by it. Each round visits the movable parts left to
- * right (then top, then id); a part's candidate shifts are the distinct dy that zero one of its pairs, and only those
- * that leave more of its pairs straight (dy = 0) than before count: a move that only shortens the wires, with none
- * more straight, is no gain (the user's hand test, 2026-11-07). They are tried most pairs straightened first (ties:
- * less Σ|dy|, then the smaller shift, then up), and the first that passes every rule is taken: {@link Placement}'s,
- * the order in its column ({@link Placement#keepsOrder}), no more wire corners than before
- * ({@link Placement#tryTidyingMove}) and the circuit's bounds grown by at most {@value #BOUNDS_SLACK} units above and
- * below. Every taken move strictly raises the number of straight pairs, so the rounds settle; at most
+ * the pairs that are horizontal when the stage starts (|dx| ≥ |dy|) and whose two pins sit on the left or right side
+ * of their parts ({@link #isOnTopOrBottom}: a wire into a LED's bottom input is never straight) count, and the set
+ * never changes while it runs: a part pushed far enough to make a pair vertical gains nothing by it. Each round
+ * visits the movable parts left to right (then top, then id); a part's candidate shifts are the distinct dy that zero
+ * one of its pairs, and only those that leave more of its pairs straight (dy = 0) than before count: a move that only
+ * shortens the wires, with none more straight, is no gain (the user's hand test, 2026-11-07). They are tried most
+ * pairs straightened first (ties: less Σ|dy|, then the smaller shift, then up), and the first that passes every rule
+ * is taken: {@link Placement}'s, the order in its column ({@link Placement#keepsOrder}), no more wire corners than
+ * before ({@link Placement#tryTidyingMove}) and the circuit's bounds grown by at most {@value #BOUNDS_SLACK} units
+ * above and below. Every taken move strictly raises the number of straight pairs, so the rounds settle; at most
  * {@value #MAXIMUM_ROUNDS}.
  *
  * <p>A row the user lined up ({@link #rows}: parts side by side with the same top edge or the same centre) is never
@@ -80,6 +81,8 @@ final class Straightening {
     private final Map<ElementId, List<Pair>> pairsByComponent = new HashMap<>();
     /** Where each pin of a pair is now. */
     private final Map<PinRef, GridPoint> pins = new HashMap<>();
+    /** The pins on the top or bottom edge of their part's body: a wire reaches them from above or below. */
+    private final Set<PinRef> topOrBottomPins = new LinkedHashSet<>();
     /** The ids of the items of each row, by the id of each of its items; fixed when the stage starts. */
     private final Map<ElementId, List<ElementId>> rowOf = new HashMap<>();
     private int topLimit;
@@ -328,13 +331,21 @@ final class Straightening {
                 continue;
             }
             List<GridPoint> locations = type.get().pinLocations(component);
+            Bounds body = type.get().bounds(component);
             for (int pinIndex = 0; pinIndex < locations.size(); pinIndex++) {
-                pins.put(new PinRef(component.id(), pinIndex), locations.get(pinIndex));
+                PinRef pin = new PinRef(component.id(), pinIndex);
+                pins.put(pin, locations.get(pinIndex));
+                if (isOnTopOrBottom(locations.get(pinIndex), body)) {
+                    topOrBottomPins.add(pin);
+                }
             }
         }
     }
 
-    /** The driver–receiver pairs of the original nets that are horizontal now, in a stable order. */
+    /**
+     * The driver–receiver pairs of the original nets that are horizontal now, both pins on a side of their part (left
+     * or right, not top or bottom), in a stable order.
+     */
     private List<Pair> horizontalPairs(LayoutItems items) {
         Map<ElementId, ElementId> itemOf = new HashMap<>();
         items.items().forEach(item -> item.members().forEach(member -> itemOf.put(member, item.id())));
@@ -360,7 +371,21 @@ final class Straightening {
         return List.copyOf(found);
     }
 
+    /**
+     * True when {@code location} lies on the top or bottom edge of {@code body} (or beyond it), strictly between its
+     * left and right edges: like a LED's input, such a pin is reached from above or below, so moving its part to its
+     * driver's height never makes the wire straight, only longer (riscv-maniqui.vsim's flag LEDs, 2026-11-07). A pin
+     * on a corner counts as on a side.
+     */
+    static boolean isOnTopOrBottom(GridPoint location, Bounds body) {
+        boolean between = location.x() > body.x() && location.x() < body.maximumX();
+        return between && (location.y() <= body.y() || location.y() >= body.maximumY());
+    }
+
     private boolean isHorizontal(PinRef driver, PinRef receiver) {
+        if (topOrBottomPins.contains(driver) || topOrBottomPins.contains(receiver)) {
+            return false;
+        }
         GridPoint from = pins.get(driver);
         GridPoint to = pins.get(receiver);
         int deltaX = Math.abs(to.x() - from.x());

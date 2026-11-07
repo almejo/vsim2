@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.Connectivity;
 import cl.almejo.vsim.core.wiring.TidyOptions;
@@ -291,32 +292,63 @@ class StraighteningTest {
     }
 
     /**
-     * The flag LEDs N, C, V, Z of the user's hand test (2026-11-07): Z's driver is already at its pin's height (its
-     * wire takes a detour above, so moving the row adds no corner to it), N, C and V are fed from further down. Every shift that
-     * straightens one of N, C, V breaks Z, so none makes one more wire straight: only the total distance would shrink,
-     * and that alone is no reason to move.
+     * An AND gate whose first input is already at its driver's height (its wire takes a detour above, so moving the
+     * gate adds no corner to it), whose second input jogs 2 units and whose output jogs 4 units to a fixed reader.
+     * Moving it down 2 straightens the second input but breaks the first, and down 4 straightens the output but
+     * breaks the first: no shift makes one more wire straight. Down 2 would shrink the total distance, and that alone
+     * is no reason to move (the user's hand test, 2026-11-07).
      */
     @Test
-    void aRowWhereNoShiftStraightensOneMorePairStaysPut() {
+    void aMoveThatOnlyShortensTheWiresIsNotMade() {
+        CircuitDocument document = new CircuitDocument();
+        Component firstDriver = gate(registry, document, 0, -2);
+        Component secondDriver = gate(registry, document, 0, 4);
+        Component pulled = andGate(document, 20, 0);
+        Component reader = gate(registry, document, 40, 4);
+        wire(document, 4, 0, 6, 0);
+        wire(document, 6, 0, 6, -6);
+        wire(document, 6, -6, 16, -6);
+        wire(document, 16, -6, 16, 0);
+        wire(document, 16, 0, 20, 0);
+        jog(document, 4, 6, 10, 20, 4);
+        jog(document, 24, 2, 30, 40, 6);
+
+        CircuitTidyPlan plan = straighten(document, allBut(document, firstDriver, secondDriver, reader));
+
+        assertThat(positionOf(plan, pulled)).isEqualTo(pulled.position());
+        assertThat(plan.pairsStraightened()).isZero();
+        assertThat(nets(plan.after())).isEqualTo(nets(document));
+    }
+
+    /**
+     * The flag LEDs Z, N, C, V of riscv-maniqui.vsim (c59–c62 and wires w237–w252, as in the file; the ALU's outputs
+     * at x = 266 stand in as input pins): each wire leaves the ALU, drops below the row and climbs into the LED's
+     * input on its bottom edge. Moving the row up 9 puts V's pin at its driver's height, but its wire still comes from
+     * below, only longer: a pin on the top or bottom edge of a part is never the end of a straight horizontal wire.
+     */
+    @Test
+    void theFlagLedsOfTheRiscvDummyStayPut() {
         CircuitDocument document = new CircuitDocument();
         List<Component> row = new ArrayList<>();
         Set<ElementId> drivers = new LinkedHashSet<>();
-        for (int index = 0; index < 4; index++) {
-            row.add(led(document, 20 + index * 4, 0));
+        for (int x : List.of(280, 284, 288, 292)) {
+            row.add(led(document, x, 20));
         }
-        for (int index = 0; index < 3; index++) {
-            drivers.add(gate(registry, document, 0, 10 + index * 6).id());
-            int pinX = 21 + index * 4;
-            int driverY = 12 + index * 6;
-            wire(document, 4, driverY, pinX, driverY);
-            wire(document, pinX, driverY, pinX, 3);
+        Component sample = registry.require(StandardComponentTypes.INPUT_PIN).newComponent(new ElementId("sample"),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        GridPoint output = registry.require(StandardComponentTypes.INPUT_PIN).pinLocation(sample, 0);
+        for (int driverY : List.of(2, 6, 10, 14)) {
+            drivers.add(place(registry, document, StandardComponentTypes.INPUT_PIN, 266 - output.x(),
+                    driverY - output.y(), "").id());
         }
-        drivers.add(gate(registry, document, 0, 1).id());
-        wire(document, 4, 3, 6, 3);
-        wire(document, 6, 3, 6, -3);
-        wire(document, 6, -3, 31, -3);
-        wire(document, 31, -3, 31, 3);
-        wire(document, 31, 3, 33, 3);
+        int[][] wires = {
+                {266, 2, 268, 2}, {268, 2, 268, 24}, {268, 24, 281, 24}, {281, 23, 281, 24},
+                {266, 6, 283, 6}, {283, 6, 283, 24}, {283, 24, 285, 24}, {285, 23, 285, 24},
+                {266, 10, 287, 10}, {287, 10, 287, 24}, {287, 24, 289, 24}, {289, 23, 289, 24},
+                {266, 14, 270, 14}, {270, 14, 270, 26}, {270, 26, 293, 26}, {293, 23, 293, 26}};
+        for (int[] segment : wires) {
+            wire(document, segment[0], segment[1], segment[2], segment[3]);
+        }
         Set<ElementId> scope = everything(document);
         scope.removeAll(drivers);
 
@@ -330,30 +362,24 @@ class StraighteningTest {
     }
 
     /**
-     * The same row with none of its wires straight: a shift that straightens one of them makes one more wire
-     * straight, so the whole row moves by it.
+     * Two gates side by side in a row (the first feeds the second), its input fed from a gate 10 units lower and its
+     * output read by a fixed gate 6 units lower, both through jogs: either shift straightens one of the two wires, so
+     * the whole row moves by one of them.
      */
     @Test
     void aRowMovesWhenAShiftStraightensOneMorePair() {
         CircuitDocument document = new CircuitDocument();
-        List<Component> row = new ArrayList<>();
-        Set<ElementId> drivers = new LinkedHashSet<>();
-        for (int index = 0; index < 4; index++) {
-            row.add(led(document, 20 + index * 4, 0));
-            Component driver = gate(registry, document, 0, 4 + index * 6);
-            drivers.add(driver.id());
-            int pinX = 21 + index * 4;
-            int driverY = 6 + index * 6;
-            wire(document, 4, driverY, pinX, driverY);
-            wire(document, pinX, driverY, pinX, 3);
-        }
-        Set<ElementId> scope = everything(document);
-        scope.removeAll(drivers);
+        Component driver = gate(registry, document, 0, 10);
+        List<Component> row = List.of(gate(registry, document, 20, 0), gate(registry, document, 28, 0));
+        Component reader = gate(registry, document, 40, 6);
+        jog(document, 4, 12, 12, 20, 2);
+        wire(document, 24, 2, 28, 2);
+        jog(document, 32, 2, 36, 40, 8);
 
-        CircuitTidyPlan plan = straighten(document, scope);
+        CircuitTidyPlan plan = straighten(document, allBut(document, driver, reader));
 
         int shift = topOf(plan, row.get(0)) - row.get(0).position().y();
-        assertThat(shift).isNotZero();
+        assertThat(shift).isIn(6, 10);
         for (Component member : row) {
             assertThat(positionOf(plan, member)).isEqualTo(member.position().plus(new GridPoint(0, shift)));
         }
@@ -381,27 +407,26 @@ class StraighteningTest {
         assertThat(rows).containsExactly(List.of(left.id(), centred.id(), right.id()));
     }
 
-    /** The same row fed by one gate whose wire reaches every LED at the same height: the whole row moves as one. */
+    /**
+     * Two gates side by side in a row whose input and output wires both jog 10 units down (from a fixed driver, to a
+     * fixed reader): the whole row moves down 10 as one and both wires end straight.
+     */
     @Test
     void aRowWhoseWiresAllSitAtTheSameOffsetMovesAsOne() {
         CircuitDocument document = new CircuitDocument();
-        List<Component> row = new ArrayList<>();
         Component driver = gate(registry, document, 0, 10);
-        int trunkX = 4;
-        for (int index = 0; index < 4; index++) {
-            row.add(led(document, 20 + index * 4, 0));
-            int pinX = 21 + index * 4;
-            wire(document, trunkX, 12, pinX, 12);
-            wire(document, pinX, 12, pinX, 3);
-            trunkX = pinX;
-        }
+        List<Component> row = List.of(gate(registry, document, 20, 0), gate(registry, document, 28, 0));
+        Component reader = gate(registry, document, 50, 10);
+        jog(document, 4, 12, 12, 20, 2);
+        wire(document, 24, 2, 28, 2);
+        jog(document, 32, 2, 36, 50, 12);
 
-        CircuitTidyPlan plan = straighten(document, allBut(document, driver));
+        CircuitTidyPlan plan = straighten(document, allBut(document, driver, reader));
 
         for (Component member : row) {
-            assertThat(positionOf(plan, member)).isEqualTo(new GridPoint(member.position().x(), 9));
+            assertThat(positionOf(plan, member)).isEqualTo(new GridPoint(member.position().x(), 10));
         }
-        assertThat(plan.pairsStraightened()).isEqualTo(4);
+        assertThat(plan.pairsStraightened()).isEqualTo(2);
         assertThat(nets(plan.after())).isEqualTo(nets(document));
     }
 

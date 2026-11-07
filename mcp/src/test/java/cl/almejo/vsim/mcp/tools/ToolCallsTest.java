@@ -319,9 +319,9 @@ class ToolCallsTest {
         String task = beginTask();
         call("vsim_edit", edit(task, 0, List.of(
                 Map.of("op", "PlacePart", "alias", "s", "typeId", "switch", "x", 0, "y", 0),
-                Map.of("op", "PlacePart", "alias", "l", "typeId", "led", "x", 20, "y", 5),
+                Map.of("op", "PlacePart", "alias", "b", "typeId", "buffer", "x", 20, "y", 5),
                 Map.of("op", "Connect", "from", Map.of("target", "new:s", "pinName", "out"),
-                        "to", Map.of("target", "new:l", "index", 0)))));
+                        "to", Map.of("target", "new:b", "index", 0)))));
 
         Map<String, Object> receipt = call("vsim_edit", edit(task, 1, List.of(
                 Map.of("op", "TidyWires", "straighten", true, "alignColumns", true))));
