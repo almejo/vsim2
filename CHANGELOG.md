@@ -50,6 +50,7 @@ Pestañas y editar por dentro: varios circuitos en pestañas agrupadas por circu
 
 ### Arreglado
 
+- Cambiar de tema (claro ⇄ oscuro) ya no deja la ventana a medias, con la barra de herramientas, los paneles y las pestañas en el tema anterior: el campo de porcentaje del zoom de la barra de estado cortaba el cambio.
 - El editor de contenido de una RAM o una ROM tiene un botón principal: Aceptar se ve destacado, como en los otros diálogos de VSim (antes todos sus botones eran grises). Enter en la grilla sigue bajando de fila y, escribiendo en una celda, la da por lista; no cierra el editor. Ver [Memoria: editor de contenido](docs/funciones/componentes.md#memoria-editor-de-contenido).
 - El botón «Entrar ↘» que aparece al pasar el mouse por una pieza de un componente propio pone el puntero en una mano mientras el mouse está sobre él, para que se note que es un botón; al salir vuelve el puntero de siempre. Ver [Entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente).
 - «Entrar» es la primera opción del clic derecho de una pieza de un componente propio, separada del resto; antes quedaba más abajo, después de «Borrar». «Mirar adentro» va justo debajo, con el ojo del botón de la barra (antes era la última opción, sin ícono). Ver [Entrar a un componente](docs/funciones/pestanas-y-componentes.md#entrar-a-un-componente).

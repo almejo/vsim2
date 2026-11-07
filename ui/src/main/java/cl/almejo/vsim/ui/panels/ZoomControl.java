@@ -10,6 +10,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.ComboBoxEditor;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -279,7 +280,9 @@ public final class ZoomControl extends JPanel {
             editor.removeFocusListener(editorFocus);
             editor.getDocument().removeDocumentListener(typing);
         }
-        editor = field.getEditor().getEditorComponent() instanceof JTextField textField ? textField : null;
+        // null while the look and feel swaps the editor on a theme change: the new one comes in a second event
+        ComboBoxEditor comboEditor = field.getEditor();
+        editor = comboEditor != null && comboEditor.getEditorComponent() instanceof JTextField textField ? textField : null;
         if (editor == null) {
             return;
         }
