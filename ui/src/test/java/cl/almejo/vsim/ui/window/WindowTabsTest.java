@@ -500,6 +500,23 @@ class WindowTabsTest {
     }
 
     @Test
+    void theRightPanelIsSharedByTheTabsOfAWindowAndTwoWindowsAreIndependent() {
+        OpenDocument document = newDocument();
+        EditorView first = tabs.addTab(document, Optional.empty());
+        EditorView second = tabs.addTab(document, Optional.empty());
+        EditorView elsewhere = other.addTab(document, Optional.empty());
+
+        first.inspector().restore(new InspectorState(true, InspectorPanel.PROBLEMS, 350));
+        first.inspector().close();
+
+        InspectorState expected = new InspectorState(false, InspectorPanel.PROBLEMS, 350);
+        assertThat(second.inspector().state()).isEqualTo(expected);
+        assertThat(tabs.addTab(document, Optional.empty()).inspector().state()).as("a new tab of the window")
+                .isEqualTo(expected);
+        assertThat(elsewhere.inspector().state()).isEqualTo(InspectorState.initial());
+    }
+
+    @Test
     void restoringAWindowFoldsItsPanelsAndAnOldSessionKeepsBothOpen() throws Exception {
         OpenDocument counter = saved("contador.vsim");
         Path counterFile = counter.path().orElseThrow();

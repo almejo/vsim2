@@ -22,6 +22,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.search.FindFeatures;
 import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.SeePiece;
 import cl.almejo.vsim.ui.window.WindowCommands;
 import cl.almejo.vsim.ui.window.tabs.GroupColors;
@@ -486,7 +487,7 @@ public final class CircuitTree extends JPanel {
                     piece -> piece.view().changeShapeOf(piece.part())))));
         }
         menu.add(new JMenuItem(Actions.of(Messages.text("tree.properties"), () -> inItsPlace(path,
-                piece -> piece.view().inspector().showTab(Messages.text("inspector.properties"))))));
+                piece -> piece.view().inspector().showTab(InspectorPanel.PROPERTIES)))));
         return Optional.of(menu);
     }
 

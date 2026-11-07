@@ -194,6 +194,9 @@ public final class WindowTabs extends JPanel {
     /** The left-column panels folded in this window: every tab shows the same (spec §5.3), and the session keeps it. */
     private Set<LeftColumn.Section> foldedPanels = Set.of();
     private boolean foldingPanels;
+    /** The right panel of this window: every tab shows it the same (open, section, width). */
+    private InspectorState inspectorState = InspectorState.initial();
+    private boolean spreadingInspector;
     private final KeyEventDispatcher tabKeys = this::takeTabKey;
     /** Where the AI works: the robot on the tabs, the Ventana list and «▾». */
     private final PlaceMarks placeMarks;
@@ -264,7 +267,7 @@ public final class WindowTabs extends JPanel {
     /**
      * Takes «Pestaña siguiente» / «Pestaña anterior» (Ctrl+Tab, Ctrl+Mayús+Tab, or what the user bound them to) and
      * Ctrl+AvPág / Ctrl+RePág before any component of this window sees them: split panes bind Ctrl+Tab to leave
-     * themselves and tabbed panes (the inspector) Ctrl+Tab and Ctrl+AvPág to cycle their own tabs, and both win over a
+     * themselves and tabbed panes Ctrl+Tab and Ctrl+AvPág to cycle their own tabs, and both win over a
      * menu accelerator or a binding of this panel. Installed while the window shows. Package-private for tests.
      */
     KeyEventDispatcher tabKeys() {
@@ -351,6 +354,8 @@ public final class WindowTabs extends JPanel {
         });
         foldedPanels.forEach(section -> view.leftColumn().setFolded(section, true));
         entry.foldListenerRemover = view.leftColumn().addFoldListener(() -> panelsFolded(view));
+        view.inspector().restore(inspectorState);
+        view.inspector().onStateChange(() -> inspectorChanged(view));
         entries.put(id, entry);
         cards.add(view, id);
         follow(document);
@@ -818,6 +823,24 @@ public final class WindowTabs extends JPanel {
     private void panelsFolded(EditorView view) {
         if (!foldingPanels) {
             foldPanels(view.leftColumn().folded());
+        }
+    }
+
+    /** A tab's right panel opened, closed, switched section or was given another width: the window's other tabs follow. */
+    private void inspectorChanged(EditorView view) {
+        if (!spreadingInspector) {
+            useInspectorState(view.inspector().state());
+        }
+    }
+
+    /** {@code state} becomes this window's right panel, in every tab. */
+    private void useInspectorState(InspectorState state) {
+        inspectorState = state;
+        spreadingInspector = true; // the tabs' own state listeners must not answer the changes made here
+        try {
+            entries.values().forEach(entry -> entry.view.inspector().restore(state));
+        } finally {
+            spreadingInspector = false;
         }
     }
 

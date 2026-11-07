@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
-import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Container;
@@ -40,26 +39,10 @@ class LabelFeaturesTest {
         openDocument.close();
     }
 
-    private static JTabbedPane tabsIn(Container container) {
-        for (java.awt.Component child : container.getComponents()) {
-            if (child instanceof JTabbedPane tabs) {
-                return tabs;
-            }
-            if (child instanceof Container nested) {
-                JTabbedPane found = tabsIn(nested);
-                if (found != null) {
-                    return found;
-                }
-            }
-        }
-        return null;
-    }
-
     @Test
     void propertiesTabIsInTheInspector() {
-        JTabbedPane tabs = tabsIn(view.inspector());
-        assertThat(tabs).isNotNull();
-        assertThat(tabs.indexOfTab("Propiedades")).isNotNegative();
+        assertThat(view.inspector().title(InspectorPanel.PROPERTIES)).contains("Propiedades");
+        assertThat(view.inspector().selectedTab()).contains(InspectorPanel.PROPERTIES);
         assertThat(SwingUtilities.isDescendingFrom(view.labelFeatures().properties(), view.inspector())).isTrue();
     }
 

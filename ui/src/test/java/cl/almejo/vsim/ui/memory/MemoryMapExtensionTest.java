@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Container;
@@ -57,8 +58,9 @@ class MemoryMapExtensionTest {
             EditorView view = new EditorView(openDocument, plain.withExtensions(List.of(new MemoryMapExtension(mapView -> new MemoryMapActions() { }))),
                     NO_WINDOW);
             try {
-                view.inspector().showTab("Mapa de memoria");
-                assertThat(view.inspector().selectedTab()).contains("Mapa de memoria");
+                view.inspector().showTab(InspectorPanel.MEMORY_MAP);
+                assertThat(view.inspector().selectedTab()).contains(InspectorPanel.MEMORY_MAP);
+                assertThat(view.inspector().title(InspectorPanel.MEMORY_MAP)).contains("Mapa de memoria");
                 MemoryMapPanel panel = findPanel(view).orElseThrow();
                 assertThat(openDocument.changeListenerCount()).isEqualTo(documentListenersPlain + 1);
                 assertThat(view.canvas().snapshotListenerCount()).isEqualTo(snapshotListenersPlain + 1);

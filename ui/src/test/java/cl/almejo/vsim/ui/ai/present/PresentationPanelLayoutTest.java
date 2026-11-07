@@ -206,8 +206,8 @@ class PresentationPanelLayoutTest {
         assertThat(panel().grip().getText()).isNotBlank();
         Point before = panel().getLocation();
 
-        drag(panel().grip(), -300, 200);
-        assertThat(panel().getLocation()).isEqualTo(new Point(before.x - 300, before.y + 200));
+        drag(panel().grip(), -200, 200); // within the pane, which the right panel's strip makes 40 px narrower
+        assertThat(panel().getLocation()).isEqualTo(new Point(before.x - 200, before.y + 200));
 
         drag(panel().header(), -5000, 5000); // far out: kept inside the pane
         Rectangle pane = paneInLayered();

@@ -19,6 +19,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,15 +79,16 @@ class StickyNotesPanelTest {
     }
 
     @Test
-    void threeNotesAreThreeRowsInReadingOrderAndTheTitleCountsThem() {
+    void threeNotesAreThreeRowsInReadingOrderAndTheBadgeCountsThem() {
         StickyChecklist list = new StickyText("a\nb\nc\nd").toChecklist().toggled(0).toggled(1);
         add(20, 10, new StickyText("lower\nsecond line"), false);
         add(30, 0, list, false);
         add(5, 0, new StickyChecklist(List.of()).edited(List.of("x")).toggled(0), true);
 
         assertThat(texts(panel)).containsExactly("✓ todo listo (plegada)", "c · 2/4", "lower");
-        view.inspector().showTab("Notas (3)");
-        assertThat(view.inspector().selectedTab()).contains("Notas (3)");
+        assertThat(view.inspector().badge(InspectorPanel.NOTES))
+                .contains(new InspectorPanel.ShownBadge(3, InspectorPanel.Badge.QUIET));
+        assertThat(view.inspector().title(InspectorPanel.NOTES)).contains("Notas");
     }
 
     @Test
@@ -97,25 +99,26 @@ class StickyNotesPanelTest {
                 ColorScheme.LIGHT).withExtensions(List.of(new StickyNotesTabExtension())), NO_WINDOW);
         try {
             assertThat(texts(find(second).orElseThrow())).containsExactly("already here");
-            second.inspector().showTab("Notas (1)");
-            assertThat(second.inspector().selectedTab()).contains("Notas (1)");
+            assertThat(second.inspector().badge(InspectorPanel.NOTES))
+                    .contains(new InspectorPanel.ShownBadge(1, InspectorPanel.Badge.QUIET));
         } finally {
             second.dispose();
         }
     }
 
     @Test
-    void emptyDocumentShowsTheHintAndTheTitleSaysZero() {
+    void emptyDocumentShowsTheHintAndNoBadge() {
         assertThat(panel.showsHint()).isTrue();
         assertThat(panel.hint().getText()).contains("No hay notas adhesivas");
-        view.inspector().showTab("Notas (0)");
+        assertThat(view.inspector().badge(InspectorPanel.NOTES)).as("zero shows no badge").isEmpty();
     }
 
     @Test
-    void addingEditingAndRemovingUpdateRowsAndTitle() {
+    void addingEditingAndRemovingUpdateRowsAndBadge() {
         StickyNote note = add(0, 0, new StickyText("hello"), false);
         assertThat(texts(panel)).containsExactly("hello");
-        view.inspector().showTab("Notas (1)");
+        assertThat(view.inspector().badge(InspectorPanel.NOTES))
+                .contains(new InspectorPanel.ShownBadge(1, InspectorPanel.Badge.QUIET));
 
         StickyNote edited = note.withContent(new StickyText("bye"));
         openDocument.execute(new ChangeStickyNoteCommand(note, edited));
@@ -124,7 +127,7 @@ class StickyNotesPanelTest {
         openDocument.execute(new RemoveElementsCommand(List.of(edited.id())));
         assertThat(panel.rows()).isEmpty();
         assertThat(panel.showsHint()).isTrue();
-        view.inspector().showTab("Notas (0)");
+        assertThat(view.inspector().badge(InspectorPanel.NOTES)).isEmpty();
     }
 
     @Test

@@ -35,6 +35,7 @@ import cl.almejo.vsim.ui.canvas.TopLevelNets;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.SeePiece;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
@@ -132,7 +133,8 @@ public final class ProblemsController {
                 navigator.next();
             }
         });
-        view.inspector().addTab(Messages.text("problems.tab"), panel);
+        view.inspector().addTab(InspectorPanel.PROBLEMS, Messages.text("problems.tab"), InspectorPanel.PROBLEMS_ICON,
+                panel);
 
         viewMenu = view.menu(MenuId.VIEW);
         viewMenu.addSeparator();

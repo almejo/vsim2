@@ -125,7 +125,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
-    private final InspectorPanel inspector = new InspectorPanel();
+    private final InspectorPanel inspector = new InspectorPanel(viewFocus, () -> viewFocus.request(canvas()));
     private final CanvasArea canvasArea;
     private final BottomDock bottomDock;
     private final ProblemsController problems;
@@ -211,7 +211,11 @@ public final class EditorView extends JPanel implements CanvasHost {
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
         split.setResizeWeight(0);
-        add(split, BorderLayout.CENTER);
+        // the strip of the right panel's sections stays on the edge when the panel closes, so it is outside the split
+        JPanel splitAndStrip = new JPanel(new BorderLayout());
+        splitAndStrip.add(split, BorderLayout.CENTER);
+        splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
+        add(splitAndStrip, BorderLayout.CENTER);
         add(statusBar, BorderLayout.SOUTH);
 
         canvasPanes.addPanesListener(this::panesChanged);

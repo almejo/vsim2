@@ -181,7 +181,7 @@ class EditorViewTest {
     void theInspectorDividerIsDrawnOnceTheEditorHasTabs() {
         InspectorPanel inspector = view.inspector();
         JSplitPane inspectorSplit = (JSplitPane) inspector.getParent();
-        assertThat(inspector.tabCount()).isEqualTo(2); // the Properties (labels) and Problems tabs
+        assertThat(inspector.tabCount()).isEqualTo(2); // the Properties (labels) and Problems sections
         assertThat(inspectorSplit.getDividerSize()).isPositive();
     }
 
@@ -200,36 +200,37 @@ class EditorViewTest {
     }
 
     @Test
-    void showingATabReopensACollapsedInspectorAtItsPreferredWidth() {
+    void showingASectionReopensAClosedInspectorAtItsWidth() {
         InspectorPanel inspector = view.inspector();
-        JSplitPane inspectorSplit = (JSplitPane) inspector.getParent();
         view.setSize(1280, 760);
         layoutTree(view);
-        inspectorSplit.setDividerLocation(inspectorSplit.getWidth());
+        inspector.close();
         layoutTree(view);
-        assertThat(inspector.getWidth()).isZero();
+        assertThat(inspector.isVisible()).isFalse();
 
-        inspector.showTab(inspector.selectedTab().orElseThrow());
+        inspector.showTab(InspectorPanel.PROBLEMS);
         layoutTree(view);
 
         assertThat(inspector.getWidth()).isEqualTo(InspectorPanel.PREFERRED_WIDTH);
+        assertThat(inspector.selectedTab()).contains(InspectorPanel.PROBLEMS);
     }
 
     @Test
-    void inspectorSitsNextToTheCanvasAndShowsItsTabs() {
+    void inspectorSitsNextToTheCanvasAndShowsItsSections() {
         InspectorPanel inspector = view.inspector();
         assertThat(inspector.isVisible()).isTrue();
-        assertThat(inspector.tabCount()).isEqualTo(2); // the Properties and Problems tabs
+        assertThat(inspector.tabCount()).isEqualTo(2); // the Properties and Problems sections
         assertThat(((JSplitPane) inspector.getParent()).getLeftComponent()).isSameAs(view.bottomDock());
         assertThat(view.bottomDock().getTopComponent()).isSameAs(view.canvasPanes().getParent());
-        inspector.addTab("Uno", new JLabel("1"));
-        inspector.addTab("Dos", new JLabel("2"));
+        inspector.addTab("uno", "Uno", InspectorPanel.NOTES_ICON, new JLabel("1"));
+        inspector.addTab("dos", "Dos", InspectorPanel.NOTES_ICON, new JLabel("2"));
         assertThat(inspector.isVisible()).isTrue();
         assertThat(inspector.tabCount()).isEqualTo(4);
-        inspector.showTab("Dos");
-        assertThat(inspector.selectedTab()).contains("Dos");
-        assertThatThrownBy(() -> inspector.showTab("Tres")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> inspector.addTab("Uno", new JLabel())).isInstanceOf(IllegalArgumentException.class);
+        inspector.showTab("dos");
+        assertThat(inspector.selectedTab()).contains("dos");
+        assertThatThrownBy(() -> inspector.showTab("tres")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> inspector.addTab("uno", "Uno", InspectorPanel.NOTES_ICON, new JLabel()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

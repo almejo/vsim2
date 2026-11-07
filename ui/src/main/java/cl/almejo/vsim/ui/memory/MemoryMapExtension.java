@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.memory;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import java.util.Objects;
@@ -25,7 +26,8 @@ public final class MemoryMapExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         MemoryMapPanel panel = new MemoryMapPanel(view.openDocument(), actions.apply(view),
                 () -> view.services().appearance().scheme());
-        view.inspector().addTab(Messages.text("memory.map.tab"), panel);
+        view.inspector().addTab(InspectorPanel.MEMORY_MAP, Messages.text("memory.map.tab"), InspectorPanel.MEMORY_MAP_ICON,
+                panel);
         Runnable selectionListener = () -> panel.follow(view.selection().ids());
         view.selection().addListener(selectionListener);
         Runnable documentListener = panel::documentChanged;

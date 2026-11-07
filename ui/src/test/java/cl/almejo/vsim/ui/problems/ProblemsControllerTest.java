@@ -21,6 +21,7 @@ import cl.almejo.vsim.ui.canvas.PassThroughCircuit;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +32,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.ToolTipManager;
 import javax.swing.event.MenuEvent;
@@ -108,24 +108,9 @@ class ProblemsControllerTest {
         return texts;
     }
 
-    private static List<String> tabTitles(java.awt.Component root) {
-        List<String> titles = new ArrayList<>();
-        if (root instanceof JTabbedPane tabs) {
-            for (int index = 0; index < tabs.getTabCount(); index++) {
-                titles.add(tabs.getTitleAt(index));
-            }
-        }
-        if (root instanceof Container container) {
-            for (java.awt.Component child : container.getComponents()) {
-                titles.addAll(tabTitles(child));
-            }
-        }
-        return titles;
-    }
-
     @Test
     void installsTheProblemsTabTheViewItemsAndThePauseOption() {
-        assertThat(tabTitles(view)).contains("Problemas");
+        assertThat(view.inspector().title(InspectorPanel.PROBLEMS)).contains("Problemas");
         assertThat(itemTexts(view.menu(MenuId.VIEW))).contains("Siguiente problema", "Problema anterior");
         JCheckBoxMenuItem pause = pauseItem();
         assertThat(pause.getText()).isEqualTo("Pausar al detectar cortocircuito");

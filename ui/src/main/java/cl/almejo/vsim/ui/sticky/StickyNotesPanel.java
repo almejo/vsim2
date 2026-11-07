@@ -31,7 +31,7 @@ import java.awt.event.MouseEvent;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /**
@@ -49,7 +49,7 @@ public final class StickyNotesPanel extends JPanel {
     /** The window's active pane, resolved when a row is chosen. */
     private final Supplier<CircuitCanvas> canvas;
     private final Supplier<ColorScheme> scheme;
-    private final Consumer<String> titleChanged;
+    private final IntConsumer countChanged;
     private final DefaultListModel<StickyNoteRow> model = new DefaultListModel<>();
     private final JList<StickyNoteRow> list = new JList<>(model);
     private final CardLayout cards = new CardLayout();
@@ -58,14 +58,14 @@ public final class StickyNotesPanel extends JPanel {
             + Messages.text("stickyNotes.empty") + "</body></html>", SwingConstants.CENTER);
     private final Runnable documentListener = this::rebuild;
 
-    /** {@code titleChanged} hears the tab title («Notas (n)») every time the rows are rebuilt. */
+    /** {@code countChanged} hears how many notes there are (the badge of «Notas») every time the rows are rebuilt. */
     public StickyNotesPanel(OpenDocument openDocument, Supplier<CircuitCanvas> canvas, Supplier<ColorScheme> scheme,
-                            Consumer<String> titleChanged) {
+                            IntConsumer countChanged) {
         super(new BorderLayout());
         this.openDocument = openDocument;
         this.canvas = canvas;
         this.scheme = scheme;
-        this.titleChanged = titleChanged;
+        this.countChanged = countChanged;
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setCellRenderer(new Renderer());
         list.addMouseListener(new MouseAdapter() {
@@ -100,10 +100,6 @@ public final class StickyNotesPanel extends JPanel {
         openDocument.removeChangeListener(documentListener);
     }
 
-    public static String titleFor(int count) {
-        return Messages.format("stickyNotes.tab", count);
-    }
-
     /** Repaints the swatches: the colour scheme changed. */
     public void schemeChanged() {
         list.repaint();
@@ -133,7 +129,7 @@ public final class StickyNotesPanel extends JPanel {
                     .ifPresent(row -> list.setSelectedValue(row, true));
         }
         cards.show(body, rows.isEmpty() ? HINT_CARD : LIST_CARD);
-        titleChanged.accept(titleFor(rows.size()));
+        countChanged.accept(rows.size());
     }
 
     /** Selects the note of {@code row}, travels the active pane to it and unfolds it when folded. */

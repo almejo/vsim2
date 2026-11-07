@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import javax.swing.Action;
 import javax.swing.JLabel;
 import javax.swing.JSplitPane;
-import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
@@ -98,12 +97,12 @@ class WindowTabsKeysTest {
     }
 
     @Test
-    void ctrlTabFromTheInspectorsTabsChangesTheWindowsTab() {
+    void ctrlTabFromTheInspectorChangesTheWindowsTab() {
         EditorView first = newTab();
         EditorView second = newTab();
-        JTabbedPane inspectorTabs = first(second.inspector(), JTabbedPane.class);
+        java.awt.Component inspector = second.inspector();
 
-        assertThat(tabs.tabKeys().dispatchKeyEvent(ctrlTab(inspectorTabs))).isTrue();
+        assertThat(tabs.tabKeys().dispatchKeyEvent(ctrlTab(inspector))).isTrue();
 
         assertThat(tabs.activeView()).isSameAs(first);
     }
@@ -120,12 +119,12 @@ class WindowTabsKeysTest {
     }
 
     @Test
-    void ctrlPageDownAndPageUpChangeTabFromTheInspectorsTabsToo() {
+    void ctrlPageDownAndPageUpChangeTabFromTheInspectorToo() {
         EditorView first = newTab();
         EditorView second = newTab();
-        JTabbedPane inspectorTabs = first(second.inspector(), JTabbedPane.class);
+        java.awt.Component inspector = second.inspector();
 
-        assertThat(tabs.tabKeys().dispatchKeyEvent(pressed(inspectorTabs, KeyEvent.VK_PAGE_DOWN,
+        assertThat(tabs.tabKeys().dispatchKeyEvent(pressed(inspector, KeyEvent.VK_PAGE_DOWN,
                 InputEvent.CTRL_DOWN_MASK))).isTrue();
         assertThat(tabs.activeView()).isSameAs(first);
         assertThat(tabs.tabKeys().dispatchKeyEvent(pressed(first.canvas(), KeyEvent.VK_PAGE_UP,
