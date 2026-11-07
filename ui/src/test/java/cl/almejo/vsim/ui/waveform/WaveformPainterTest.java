@@ -212,6 +212,25 @@ class WaveformPainterTest {
         assertThat(sameImage(hex, characters)).isFalse();
     }
 
+    @Test
+    void everyFormatDrawsItsOwnTextInTheBusSegmentAndTheRowValue() {
+        Value byteValue = Value.of(8, 0xE8);
+        assertThat(WaveformPainter.busText(byteValue, "binary")).isEqualTo("11101000");
+        assertThat(WaveformPainter.busText(byteValue, "octal")).isEqualTo("0o350");
+        assertThat(WaveformPainter.busText(byteValue, "decimal")).isEqualTo("232");
+        assertThat(WaveformPainter.busText(byteValue, "signed")).isEqualTo("-24");
+        assertThat(WaveformPainter.busText(byteValue, "fixed:4")).isEqualTo("-1.5");
+        assertThat(WaveformPainter.busText(Value.of(32, 0x3FC00000L), "float")).isEqualTo("1.5");
+        assertThat(ChannelRows.valueText(java.util.Optional.of(byteValue), "signed")).isEqualTo("-24");
+        Trace bus = trace(0, byteValue);
+        BufferedImage hex = drawFormatted(bus, 8, axis(20), "hex");
+        for (String format : List.of("binary", "octal", "decimal", "signed", "fixed:4")) {
+            assertThat(sameImage(hex, drawFormatted(bus, 8, axis(20), format))).as(format).isFalse();
+        }
+        assertThat(sameImage(hex, drawFormatted(trace(0, Value.of(32, 0x3FC00000L)), 8, axis(20), "float")))
+                .isFalse();
+    }
+
     private BufferedImage drawFormatted(Trace trace, long now, TimeAxis axis, String format) {
         BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.ROW_HEIGHT, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();

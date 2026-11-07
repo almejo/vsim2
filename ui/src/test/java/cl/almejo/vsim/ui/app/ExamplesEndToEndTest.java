@@ -141,7 +141,7 @@ class ExamplesEndToEndTest {
         try {
             assertThat(texts(examplesMenu(view))).hasSize(18)
                     .contains("Sumador de 4 bits", "ALU de 4 bits", "Mini ALU", "Acumulador", "Programa en ROM",
-                            "RAM que se llena", "Hola, terminal", "Punto de parada");
+                            "RAM que se llena", "Hola, terminal", "Punto de parada", "Formatos de valor");
         } finally {
             view.dispose();
         }

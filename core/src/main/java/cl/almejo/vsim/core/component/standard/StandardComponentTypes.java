@@ -222,13 +222,15 @@ public final class StandardComponentTypes {
         registry.register(ComponentType.parameterized(CONSTANT, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 8, 1, ConstantValue.MAXIMUM_WIDTH),
                         ParameterSpec.text("value", "0", ConstantValue::normalize),
-                        ConstantValue.FORMAT_PARAMETER),
-                parameters -> constantShape((Integer) parameters.get(WIDTH), (String) parameters.get("format")),
+                        ConstantValue.READING_FORMAT_PARAMETER, ConstantValue.READING_FRACTION_PARAMETER),
+                parameters -> constantShape((Integer) parameters.get(WIDTH), (String) parameters.get("format"),
+                        (Integer) parameters.get(ConstantValue.FRACTION)),
                 StandardComponentTypes::checkConstant,
                 parameters -> {
                     int width = (Integer) parameters.get(WIDTH);
-                    return new ConstantBehavior(Value.of(width,
-                            ConstantValue.bitsOf((String) parameters.get("value"), width).orElseThrow()));
+                    return new ConstantBehavior(Value.of(width, ConstantValue.bitsOf((String) parameters.get("value"),
+                            width, (String) parameters.get(ConstantValue.FORMAT),
+                            (Integer) parameters.get(ConstantValue.FRACTION)).orElseThrow()));
                 }));
         registry.register(ComponentType.parameterized(LED, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 1, MultiBitLayout.MINIMUM_WIDTH, MultiBitLayout.MAXIMUM_WIDTH),
@@ -255,13 +257,14 @@ public final class StandardComponentTypes {
                         (Integer) parameters.get("history"))));
         registry.register(ComponentType.parameterized(INPUT_PIN, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.choice("value", "0", List.of("1", "0", "Z")), InterfacePins.WIDTH_PARAMETER,
-                        ConstantValue.FORMAT_PARAMETER),
+                        ConstantValue.FORMAT_PARAMETER, ConstantValue.FRACTION_PARAMETER),
                 parameters -> new ComponentShape(new GridSize(2, 2),
                         List.of(PinSpec.output("pin", 2, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value"),
                         (Integer) parameters.get(InterfacePins.WIDTH)))));
         registry.register(ComponentType.parameterized(OUTPUT_PIN, ComponentCategory.INPUT_OUTPUT,
-                List.of(InterfacePins.WIDTH_PARAMETER, ConstantValue.FORMAT_PARAMETER),
+                List.of(InterfacePins.WIDTH_PARAMETER, ConstantValue.FORMAT_PARAMETER,
+                        ConstantValue.FRACTION_PARAMETER),
                 parameters -> new ComponentShape(new GridSize(2, 2),
                         List.of(PinSpec.input("pin", 0, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> newValueProbe()));
@@ -307,12 +310,13 @@ public final class StandardComponentTypes {
                 parameters -> aluShape((Integer) parameters.get(WIDTH)),
                 parameters -> new AluBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
         registry.register(ComponentType.parameterized(REGISTER, ComponentCategory.SEQUENTIAL,
-                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER, TRIGGER_PARAMETER),
+                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER, ConstantValue.FRACTION_PARAMETER,
+                        TRIGGER_PARAMETER),
                 parameters -> registerShape((Integer) parameters.get(WIDTH)),
                 parameters -> new RegisterBehavior((Integer) parameters.get(WIDTH),
                         (Integer) parameters.get("delay"), String.valueOf(parameters.get(TRIGGER)))));
         registry.register(ComponentType.parameterized(COUNTER, ComponentCategory.SEQUENTIAL,
-                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
+                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER, ConstantValue.FRACTION_PARAMETER),
                 parameters -> counterShape((Integer) parameters.get(WIDTH)),
                 parameters -> new CounterBehavior((Integer) parameters.get(WIDTH),
                         (Integer) parameters.get("delay"))));
@@ -438,9 +442,9 @@ public final class StandardComponentTypes {
         return Optional.empty();
     }
 
-    private static ComponentShape constantShape(int width, String format) {
+    private static ComponentShape constantShape(int width, String format, int fractionBits) {
         // About one grid unit per character (a bold 9 px digit is under 8 px wide), plus room for margins and the lead.
-        int boxWidth = Math.max(4, ConstantValue.longestDisplay(width, format) + 2);
+        int boxWidth = Math.max(4, ConstantValue.longestDisplay(width, format, fractionBits) + 2);
         return new ComponentShape(new GridSize(boxWidth, 2), List.of(PinSpec.output("out", boxWidth, 1, width)));
     }
 
@@ -468,10 +472,21 @@ public final class StandardComponentTypes {
         }
         Object rawValue = raw == null ? null : raw.get("value");
         String text = rawValue == null ? "0" : rawValue.toString();
-        if (!ConstantValue.isValidText(text)) {
+        Object rawFormat = raw == null ? null : raw.get(ConstantValue.FORMAT);
+        String format = rawFormat == null ? ConstantValue.AUTO : rawFormat.toString();
+        int fraction = 0;
+        try {
+            Object rawFraction = raw == null ? null : raw.get(ConstantValue.FRACTION);
+            fraction = rawFraction == null ? 0 : rawFraction instanceof Number number ? number.intValue()
+                    : Integer.parseInt(rawFraction.toString().trim());
+        } catch (NumberFormatException exception) {
+            // a bad fraction is left to the fraction parameter itself
+        }
+        // a float has no format at this width, so «1.5» is not a number the part can read there
+        if (!ConstantValue.isValidText(text, ConstantValue.resolveFormat(format, width))) {
             return Optional.of(new ParameterProblem("value", "constant.invalidValue", List.of()));
         }
-        if (!ConstantValue.fitsText(text, width)) {
+        if (!ConstantValue.fitsText(text, width, format, fraction)) {
             return Optional.of(new ParameterProblem("value", "constant.doesNotFit", List.of(width)));
         }
         return Optional.empty();

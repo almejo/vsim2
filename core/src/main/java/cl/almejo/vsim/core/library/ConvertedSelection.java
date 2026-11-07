@@ -294,7 +294,8 @@ public final class ConvertedSelection {
                     Map<String, Object> parameters = typeOf(part).resolveParameters(part.parameters());
                     addInput(part, slots.get(0), Map.of(
                             InterfacePins.WIDTH, parameters.get(StandardComponentTypes.WIDTH),
-                            ConstantValue.FORMAT, parameters.get(ConstantValue.FORMAT)));
+                            ConstantValue.FORMAT, parameters.get(ConstantValue.FORMAT),
+                            ConstantValue.FRACTION, parameters.get(ConstantValue.FRACTION)));
                 }
                 case CLOCK -> addInput(part, slots.get(0), Map.of());
                 case LED -> addOutput(part, 0, slots.get(0), label);

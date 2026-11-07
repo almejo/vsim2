@@ -39,6 +39,19 @@ class StoredValuePainterTest {
         assertThat(text(Value.highImpedance(4), ConstantValue.BINARY)).contains("ZZZZ");
     }
 
+    @Test
+    void theStoredValueIsWrittenInTheNewFormats() {
+        assertThat(text(Value.of(8, 0xFF), ConstantValue.OCTAL)).contains("0o377");
+        assertThat(text(Value.of(8, 0x41), ConstantValue.ASCII)).contains("'A'");
+        assertThat(text(Value.of(32, 0x3FC00000L), ConstantValue.FLOAT)).contains("1.5");
+        assertThat(text(Value.of(16, 0x3E00), ConstantValue.FLOAT)).contains("1.5");
+        assertThat(text(Value.of(12, 0x234), ConstantValue.FLOAT)).contains("0x234");
+        assertThat(PainterRegistry.storedValueText(new VisibleState.StoredValueState(Value.of(8, 0xE8)),
+                Map.of(ConstantValue.FORMAT, ConstantValue.FIXED, ConstantValue.FRACTION, 4))).contains("-1.5");
+        // an unknown bit has no number to show in these formats
+        assertThat(text(Value.highImpedance(32), ConstantValue.FLOAT)).contains("Z");
+    }
+
     /** M1 (M7 fix round): like the ALU's A+B, the palette icon shows the power-on state, 0 in the block's format. */
     @Test
     void withoutAStateTheBlockShowsZeroInItsFormat() {

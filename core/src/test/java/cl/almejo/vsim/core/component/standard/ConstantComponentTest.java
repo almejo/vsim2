@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterProblem;
+import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
@@ -49,7 +50,7 @@ class ConstantComponentTest {
     @Test
     void theDefaultsAreEightBitsZeroInAutoFormat() {
         assertThat(constant.resolveParameters(Map.of()))
-                .isEqualTo(Map.of("width", 8, "value", "0", "format", "auto"));
+                .isEqualTo(Map.of("width", 8, "value", "0", "format", "auto", "fraction", 0));
         assertThat(constant.category()).isEqualTo(ComponentCategory.INPUT_OUTPUT);
     }
 
@@ -157,7 +158,7 @@ class ConstantComponentTest {
                 "parameters":{"width":8,"value":"0x00ff"}}]}
                 """);
         assertThat(loaded.components().getFirst().parameters())
-                .isEqualTo(Map.of("width", 8, "value", "0xFF", "format", "auto"));
+                .isEqualTo(Map.of("width", 8, "value", "0xFF", "format", "auto", "fraction", 0));
     }
 
     private Component place(CircuitDocument document, String id, ComponentType type, int x, int y,
@@ -229,10 +230,59 @@ class ConstantComponentTest {
 
     @Test
     void theSignedFormatIsOfferedAndSizesTheBoxForTheMostNegativeValue() {
-        assertThat(constant.parameters()).contains(ConstantValue.FORMAT_PARAMETER);
+        assertThat(constant.parameters()).contains(ConstantValue.READING_FORMAT_PARAMETER);
         ComponentType signed = constant.specializedFor(parameters(32, "0", "signed"));
         ComponentType unsigned = constant.specializedFor(parameters(32, "0", "decimal"));
         assertThat(signed.size().width()).isEqualTo(unsigned.size().width() + 1);
+    }
+
+    @Test
+    void aFloatConstantDrivesTheBitsOfItsNumberAndFixedUsesTheFractionBits() {
+        CircuitDocument document = new CircuitDocument();
+        Component single = place(document, "c1", constant, 0, 0, parameters(32, "1.5", "float"));
+        Component fixed = place(document, "c2", constant, 0, 4,
+                Map.of("width", 8, "value", "-1.5", "format", "fixed", "fraction", 4));
+        assertThat(single.parameters().get("value")).isEqualTo("1.5");
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        SimulationEngine engine = simulate(document, netlist);
+        engine.runUntil(5);
+        assertThat(engine.snapshot().netValue(netlist.netForPin(new PinRef(single.id(), 0)).orElseThrow().id()
+                .value())).isEqualTo(Value.of(32, 0x3FC00000L));
+        assertThat(engine.snapshot().netValue(netlist.netForPin(new PinRef(fixed.id(), 0)).orElseThrow().id()
+                .value())).isEqualTo(Value.of(8, 0xE8));
+    }
+
+    @Test
+    void aFractionalValueIsAProblemWhereTheFormatCannotReadIt() {
+        assertThat(constant.check(parameters(32, "1.5", "float"))).isEmpty();
+        assertThat(constant.check(parameters(32, "1.5", "hex"))).contains(
+                new ParameterProblem("value", "constant.invalidValue", List.of()));
+        // no float at 8 bits: the part says so instead of storing a value it cannot show
+        assertThat(constant.check(parameters(8, "1.5", "float"))).contains(
+                new ParameterProblem("value", "constant.invalidValue", List.of()));
+        assertThat(constant.check(parameters(32, "1e50", "float"))).contains(
+                new ParameterProblem("value", "constant.doesNotFit", List.of(32)));
+        assertThat(constant.check(Map.of("width", 8, "value", "8", "format", "fixed", "fraction", 4))).contains(
+                new ParameterProblem("value", "constant.doesNotFit", List.of(8)));
+        assertThat(constant.check(parameters(8, "'A'", "ascii"))).isEmpty();
+        assertThat(constant.check(parameters(8, "LF", "ascii"))).isEmpty();
+        assertThat(constant.check(parameters(8, "0o377", "octal"))).isEmpty();
+        assertThat(constant.check(parameters(8, "0o400", "octal"))).isPresent();
+    }
+
+    @Test
+    void theFormatAndTheFractionRebuildTheConstantAndTheFractionShowsOnlyWithFixed() {
+        assertThat(constant.parameterNamed("format").orElseThrow().displayOnly()).isFalse();
+        ParameterSpec fraction = constant.parameterNamed("fraction").orElseThrow();
+        assertThat(constant.isShown(fraction, Map.of("format", "fixed"))).isTrue();
+        assertThat(constant.isShown(fraction, Map.of("format", "hex"))).isFalse();
+    }
+
+    @Test
+    void aConstantBoxIsWideEnoughForAFixedValue() {
+        ComponentType wide = constant.specializedFor(Map.of("width", 16, "format", "fixed", "fraction", 8));
+        assertThat(wide.size().width()).isGreaterThanOrEqualTo(
+                ConstantValue.longestDisplay(16, "fixed", 8) + 2);
     }
 
     @Test

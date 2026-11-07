@@ -70,6 +70,7 @@ public final class InterfacePinPainter implements ComponentPainter {
     private static void paintValueBox(Graphics2D graphics, ComponentType type, Map<String, Object> parameters,
                                       Value value, ColorScheme scheme) {
         String format = formatOf(type, parameters);
+        int fraction = fractionOf(type, parameters);
         Point2D anchor = anchor(type);
         Point2D screenDirection = graphics.getTransform().deltaTransform(localDirection(type), null);
         Graphics2D upright = (Graphics2D) graphics.create();
@@ -77,10 +78,10 @@ public final class InterfacePinPainter implements ComponentPainter {
             // turn back around the anchor: from here on local x and y run like the screen's
             upright.rotate(-PainterSupport.quarterTurns(graphics) * Math.PI / 2, anchor.getX(), anchor.getY());
             Rectangle2D box = boxBeside(anchor.getX(), anchor.getY(), screenDirection,
-                    boxWidth(type.pin(0).width(), format));
+                    boxWidth(type.pin(0).width(), format, fraction));
             PainterSupport.body(upright, new RoundRectangle2D.Double(box.getX(), box.getY(), box.getWidth(),
                     box.getHeight(), 5, 5), scheme, scheme.componentFill());
-            String text = shownText(value, format);
+            String text = shownText(value, format, fraction);
             if (!text.isEmpty()) {
                 PainterSupport.centeredText(upright, box, text, box.getCenterX(), box.getCenterY(),
                         ConstantPainter.TEXT_SIZE, scheme.text());
@@ -109,7 +110,8 @@ public final class InterfacePinPainter implements ComponentPainter {
         Point2D anchor = placement.transform(anchor(shaped), null);
         Point2D direction = placement.deltaTransform(localDirection(shaped), null);
         return Optional.of(boxBeside(anchor.getX(), anchor.getY(), direction,
-                boxWidth(shaped.pin(0).width(), formatOf(shaped, component.parameters()))));
+                boxWidth(shaped.pin(0).width(), formatOf(shaped, component.parameters()),
+                        fractionOf(shaped, component.parameters()))));
     }
 
     /** The font the value is written with at 100 %. */
@@ -123,6 +125,11 @@ public final class InterfacePinPainter implements ComponentPainter {
      * bits are in high impedance and {@code ?} otherwise. A conflict is {@code ?}; no value is an empty text.
      */
     static String shownText(Value value, String format) {
+        return shownText(value, format, 0);
+    }
+
+    /** As {@link #shownText(Value, String)}, with the fixed format's bits after the point. */
+    static String shownText(Value value, String format, int fractionBits) {
         if (value == null) {
             return "";
         }
@@ -131,7 +138,7 @@ public final class InterfacePinPainter implements ComponentPainter {
         }
         int width = value.width();
         if (value.isFullyDefined()) {
-            return ConstantValue.display(value.bits(), width, format);
+            return ConstantValue.display(value.bits(), width, format, fractionBits);
         }
         return switch (ConstantValue.resolveFormat(format, width)) {
             case ConstantValue.BINARY -> {
@@ -145,6 +152,12 @@ public final class InterfacePinPainter implements ComponentPainter {
             case ConstantValue.HEX -> "0x" + value.hex();
             default -> value.isFullyHighImpedance() ? "Z" : "?";
         };
+    }
+
+    /** The «Bits de fracción» of the part's parameters (0 when it has none). */
+    static int fractionOf(ComponentType type, Map<String, Object> parameters) {
+        Object fraction = type.resolveParameters(parameters).get(ConstantValue.FRACTION);
+        return fraction instanceof Integer bits ? bits : 0;
     }
 
     private static String formatOf(ComponentType type, Map<String, Object> parameters) {
@@ -167,8 +180,8 @@ public final class InterfacePinPainter implements ComponentPainter {
         return new Point2D.Double(isInput(type) ? -1 : 1, 0);
     }
 
-    private static double boxWidth(int width, String format) {
-        return ConstantPainter.widestTextWidth(width, format) + 2 * ConstantPainter.TEXT_PADDING;
+    private static double boxWidth(int width, String format, int fractionBits) {
+        return ConstantPainter.widestTextWidth(width, format, fractionBits) + 2 * ConstantPainter.TEXT_PADDING;
     }
 
     /**

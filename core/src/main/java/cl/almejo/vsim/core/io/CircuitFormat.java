@@ -194,6 +194,10 @@ public final class CircuitFormat {
                 && ConstantValue.AUTO.equals(written.get(ConstantValue.FORMAT))) {
             written.remove(ConstantValue.FORMAT);
         }
+        // «Bits de fracción» only matters with the fixed format: a file with 0 keeps the bytes of one written before it
+        if (Integer.valueOf(0).equals(written.get(ConstantValue.FRACTION))) {
+            written.remove(ConstantValue.FRACTION);
+        }
         if ("".equals(written.get(StandardComponentTypes.GROUPS))) {
             written.remove(StandardComponentTypes.GROUPS);
         }

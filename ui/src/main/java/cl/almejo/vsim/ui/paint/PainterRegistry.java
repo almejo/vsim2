@@ -142,7 +142,9 @@ public final class PainterRegistry {
             return Optional.empty();
         }
         Object format = parameters.get(ConstantValue.FORMAT);
-        return Optional.of(InterfacePinPainter.shownText(value, format == null ? ConstantValue.AUTO : (String) format));
+        Object fraction = parameters.get(ConstantValue.FRACTION);
+        return Optional.of(InterfacePinPainter.shownText(value, format == null ? ConstantValue.AUTO : (String) format,
+                fraction instanceof Integer bits ? bits : 0));
     }
 
     /**

@@ -350,7 +350,8 @@ class ProblemsControllerTest {
 
         view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true,
                 Map.of(netId, Value.of(4, 0x9)), Map.of(), List.of(), Optional.empty()));
-        assertThat(view.canvas().getToolTipText(hoverAt(120, 0))).isEqualTo("Bus de 4 bits = 0x9 (1001)");
+        assertThat(view.canvas().getToolTipText(hoverAt(120, 0))).isEqualTo(
+                "Bus de 4 bits = 0x9 (1001) · decimal 9 · con signo -7 · octal 0o11");
         view.problems().showSnapshot(new SimulationSnapshot(2, openDocument.netlistToken(), 10, true,
                 Map.of(netId, new Value(4, 0x9, 0x6, false)), Map.of(), List.of(), Optional.empty()));
         assertThat(view.canvas().getToolTipText(hoverAt(120, 0))).isEqualTo("Bus de 4 bits = 0x? (1ZZ1)");

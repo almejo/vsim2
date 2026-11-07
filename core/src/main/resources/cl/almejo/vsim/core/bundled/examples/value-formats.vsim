@@ -1,0 +1,277 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.6",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Formatos de valor",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "counter",
+    "x" : 20,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "Contador",
+    "parameters" : {
+      "delay" : 1,
+      "format" : "auto",
+      "width" : 8
+    }
+  }, {
+    "id" : "c2",
+    "type" : "clock",
+    "x" : 22,
+    "y" : 24,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 500,
+      "time-up" : 500
+    }
+  }, {
+    "id" : "c8",
+    "type" : "output-pin",
+    "x" : 44,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Binario",
+    "parameters" : {
+      "format" : "binary",
+      "width" : 8
+    }
+  }, {
+    "id" : "c10",
+    "type" : "output-pin",
+    "x" : 44,
+    "y" : 17,
+    "rotation" : 0,
+    "label" : "Hexadecimal",
+    "parameters" : {
+      "format" : "hex",
+      "width" : 8
+    }
+  }, {
+    "id" : "c12",
+    "type" : "output-pin",
+    "x" : 44,
+    "y" : 23,
+    "rotation" : 0,
+    "label" : "Octal",
+    "parameters" : {
+      "format" : "octal",
+      "width" : 8
+    }
+  }, {
+    "id" : "c14",
+    "type" : "output-pin",
+    "x" : 44,
+    "y" : 29,
+    "rotation" : 0,
+    "label" : "Decimal",
+    "parameters" : {
+      "format" : "decimal",
+      "width" : 8
+    }
+  }, {
+    "id" : "c16",
+    "type" : "output-pin",
+    "x" : 44,
+    "y" : 35,
+    "rotation" : 0,
+    "label" : "Con signo",
+    "parameters" : {
+      "format" : "signed",
+      "width" : 8
+    }
+  }, {
+    "id" : "c18",
+    "type" : "output-pin",
+    "x" : 44,
+    "y" : 41,
+    "rotation" : 0,
+    "label" : "Carácter",
+    "parameters" : {
+      "format" : "ascii",
+      "width" : 8
+    }
+  }, {
+    "id" : "c20",
+    "type" : "output-pin",
+    "x" : 44,
+    "y" : 47,
+    "rotation" : 0,
+    "label" : "Punto fijo",
+    "parameters" : {
+      "format" : "fixed",
+      "fraction" : 4,
+      "width" : 8
+    }
+  }, {
+    "id" : "c21",
+    "type" : "constant",
+    "x" : 20,
+    "y" : 58,
+    "rotation" : 0,
+    "label" : "Constante",
+    "parameters" : {
+      "format" : "float",
+      "value" : "1.5",
+      "width" : 16
+    }
+  }, {
+    "id" : "c25",
+    "type" : "output-pin",
+    "x" : 46,
+    "y" : 58,
+    "rotation" : 0,
+    "label" : "Hex 16",
+    "parameters" : {
+      "format" : "hex",
+      "width" : 16
+    }
+  }, {
+    "id" : "c27",
+    "type" : "output-pin",
+    "x" : 46,
+    "y" : 64,
+    "rotation" : 0,
+    "label" : "Decimal 16",
+    "parameters" : {
+      "format" : "decimal",
+      "width" : 16
+    }
+  }, {
+    "id" : "c29",
+    "type" : "output-pin",
+    "x" : 46,
+    "y" : 70,
+    "rotation" : 0,
+    "label" : "Flotante 16",
+    "parameters" : {
+      "format" : "float",
+      "width" : 16
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 24,
+    "y1" : 26,
+    "x2" : 30,
+    "y2" : 26
+  }, {
+    "id" : "w4",
+    "x1" : 30,
+    "y1" : 17,
+    "x2" : 30,
+    "y2" : 26
+  }, {
+    "id" : "w5",
+    "x1" : 32,
+    "y1" : 12,
+    "x2" : 38,
+    "y2" : 12
+  }, {
+    "id" : "w6",
+    "x1" : 38,
+    "y1" : 12,
+    "x2" : 38,
+    "y2" : 48
+  }, {
+    "id" : "w7",
+    "x1" : 38,
+    "y1" : 12,
+    "x2" : 44,
+    "y2" : 12
+  }, {
+    "id" : "w9",
+    "x1" : 38,
+    "y1" : 18,
+    "x2" : 44,
+    "y2" : 18
+  }, {
+    "id" : "w11",
+    "x1" : 38,
+    "y1" : 24,
+    "x2" : 44,
+    "y2" : 24
+  }, {
+    "id" : "w13",
+    "x1" : 38,
+    "y1" : 30,
+    "x2" : 44,
+    "y2" : 30
+  }, {
+    "id" : "w15",
+    "x1" : 38,
+    "y1" : 36,
+    "x2" : 44,
+    "y2" : 36
+  }, {
+    "id" : "w17",
+    "x1" : 38,
+    "y1" : 42,
+    "x2" : 44,
+    "y2" : 42
+  }, {
+    "id" : "w19",
+    "x1" : 38,
+    "y1" : 48,
+    "x2" : 44,
+    "y2" : 48
+  }, {
+    "id" : "w22",
+    "x1" : 35,
+    "y1" : 59,
+    "x2" : 40,
+    "y2" : 59
+  }, {
+    "id" : "w23",
+    "x1" : 40,
+    "y1" : 59,
+    "x2" : 40,
+    "y2" : 71
+  }, {
+    "id" : "w24",
+    "x1" : 40,
+    "y1" : 59,
+    "x2" : 46,
+    "y2" : 59
+  }, {
+    "id" : "w26",
+    "x1" : 40,
+    "y1" : 65,
+    "x2" : 46,
+    "y2" : 65
+  }, {
+    "id" : "w28",
+    "x1" : 40,
+    "y1" : 71,
+    "x2" : 46,
+    "y2" : 71
+  } ],
+  "labels" : [ {
+    "id" : "l30",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Formatos de valor"
+  }, {
+    "id" : "l31",
+    "x" : 52,
+    "y" : 11,
+    "text" : "los mismos 8 bits del contador, escritos de siete maneras"
+  }, {
+    "id" : "l32",
+    "x" : 52,
+    "y" : 59,
+    "text" : "los 16 bits de la constante 1.5 (media precisión IEEE 754)"
+  }, {
+    "id" : "l33",
+    "x" : 2,
+    "y" : 78,
+    "text" : "Prueba: espera unos segundos: el contador sube y cada pin lo escribe a su manera (con signo pasa a negativo desde 128)"
+  }, {
+    "id" : "l34",
+    "x" : 2,
+    "y" : 80,
+    "text" : "Doble clic en la Constante y escribe 0.1 o -2.5: el pin «Flotante 16» lo muestra; cambia «Mostrar como» de un pin en Propiedades"
+  } ]
+}

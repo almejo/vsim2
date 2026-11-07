@@ -540,9 +540,13 @@ public final class ProblemsController {
         }
         Value value = snapshot.netValues().get(net.id().value());
         if (net.width() > 1 && value != null) {
-            return Optional.of(value.conflict()
-                    ? Messages.format("bus.tooltipConflict", net.width(), BusValueText.of(value))
-                    : Messages.format("bus.tooltip", net.width(), BusValueText.of(value), BusValueText.binary(value)));
+            if (value.conflict()) {
+                return Optional.of(Messages.format("bus.tooltipConflict", net.width(), BusValueText.of(value)));
+            }
+            String head = Messages.format("bus.tooltip", net.width(), BusValueText.of(value),
+                    BusValueText.binary(value));
+            String others = BusValueText.otherFormats(value);
+            return Optional.of(others.isEmpty() ? head : head + " · " + others);
         }
         return Optional.empty();
     }

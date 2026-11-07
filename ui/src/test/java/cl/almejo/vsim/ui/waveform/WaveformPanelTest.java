@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
@@ -353,6 +354,37 @@ class WaveformPanelTest {
     }
 
     @Test
+    void aBusChannelOffersEveryFormatAndOnePickIsOneUndoStep() {
+        Component bus = place(openDocument, StandardComponentTypes.SWITCH, 0, 20,
+                Map.of(StandardComponentTypes.WIDTH, 32));
+        Component byteSwitch = place(openDocument, StandardComponentTypes.SWITCH, 0, 40,
+                Map.of(StandardComponentTypes.WIDTH, 12));
+        List<String> ids = actions.addSelection(List.of(bus.id(), byteSwitch.id())).addedIds();
+        panel.probesChanged();
+
+        JMenu formats = (JMenu) java.util.Arrays.stream(panel.rowMenu(ids.get(0)).getComponents())
+                .filter(child -> child instanceof JMenu).findFirst().orElseThrow();
+        assertThat(formats.getText()).isEqualTo("Mostrar como");
+        assertThat(java.util.Arrays.stream(formats.getMenuComponents()).map(child -> ((JMenuItem) child).getText()))
+                .containsExactly("Hexadecimal", "Caracteres", "Binario", "Octal", "Decimal", "Decimal con signo",
+                        "Flotante (IEEE 754)", "Punto fijo");
+        JMenu fixed = (JMenu) formats.getMenuComponent(7);
+        assertThat(fixed.getMenuComponents()).isNotEmpty();
+        ((JMenuItem) formats.getMenuComponent(6)).doClick(0);
+        assertThat(openDocument.document().probes().get(0).format()).isEqualTo("float");
+        ((JMenuItem) fixed.getMenuComponent(1)).doClick(0);
+        assertThat(openDocument.document().probes().get(0).format()).startsWith("fixed:");
+        openDocument.history().undo();
+        assertThat(openDocument.document().probes().get(0).format()).isEqualTo("float");
+
+        // 12 bits have no IEEE 754 float: the item is there but disabled
+        JMenu twelveBits = (JMenu) java.util.Arrays.stream(panel.rowMenu(ids.get(1)).getComponents())
+                .filter(child -> child instanceof JMenu).findFirst().orElseThrow();
+        assertThat(twelveBits.getMenuComponent(6).isEnabled()).isFalse();
+        assertThat(formats.getMenuComponent(6).isEnabled()).isTrue();
+    }
+
+    @Test
     void aRowBlinksForAFewTogglesThenStops() throws Exception {
         List<String> ids = chain();
         onEventThread(() -> {
@@ -545,7 +577,8 @@ class WaveformPanelTest {
         assertThat(texts(panel.rowMenu(probeId))).contains("Mostrar como");
 
         javax.swing.JMenu submenu = (javax.swing.JMenu) item(panel.rowMenu(probeId), "Mostrar como");
-        assertThat(texts(submenu.getPopupMenu())).containsExactly("Hexadecimal", "Caracteres");
+        assertThat(texts(submenu.getPopupMenu())).containsExactly("Hexadecimal", "Caracteres", "Binario", "Octal",
+                "Decimal", "Decimal con signo", "Flotante (IEEE 754)", "Punto fijo");
         item(submenu.getPopupMenu(), "Caracteres").doClick(0);
         assertThat(openDocument.document().probes().get(0).format()).isEqualTo("ascii");
         assertThat(panel.rows().get(0).format()).isEqualTo("ascii");

@@ -82,8 +82,10 @@ public final class ConstantPainter implements ComponentPainter {
     /** The text written in the box for the (resolved) parameters. */
     static String shownText(Map<String, Object> resolved) {
         int width = (Integer) resolved.get("width");
-        return ConstantValue.display(ConstantValue.bitsOf((String) resolved.get("value"), width).orElseThrow(),
-                width, (String) resolved.get("format"));
+        String format = (String) resolved.get(ConstantValue.FORMAT);
+        int fraction = (Integer) resolved.get(ConstantValue.FRACTION);
+        return ConstantValue.display(ConstantValue.bitsOf((String) resolved.get("value"), width, format, fraction)
+                .orElseThrow(), width, format, fraction);
     }
 
     /** The width in pixels of {@code text} drawn at {@code size}. */
@@ -98,6 +100,11 @@ public final class ConstantPainter implements ComponentPainter {
 
     /** The width in pixels of the widest text the box can ever show at this width and format. */
     static double widestTextWidth(int width, String format) {
+        return widestTextWidth(width, format, 0);
+    }
+
+    /** As {@link #widestTextWidth(int, String)}, with the fixed format's bits after the point. */
+    static double widestTextWidth(int width, String format, int fractionBits) {
         Graphics2D graphics = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
         try {
             graphics.setFont(PainterSupport.BASE_FONT.deriveFont(TEXT_SIZE));
@@ -107,7 +114,7 @@ public final class ConstantPainter implements ComponentPainter {
                 widestCharacter = Math.max(widestCharacter, metrics.charWidth(character));
             }
             String resolvedFormat = ConstantValue.resolveFormat(format, width);
-            int characters = ConstantValue.longestDisplay(width, resolvedFormat);
+            int characters = ConstantValue.longestDisplay(width, resolvedFormat, fractionBits);
             return resolvedFormat.equals(ConstantValue.HEX)
                     ? metrics.charWidth('0') + metrics.charWidth('x') + (characters - 2) * widestCharacter
                     : characters * widestCharacter;

@@ -51,6 +51,8 @@ public final class WaveformPanel extends JPanel {
     static final double WHEEL_SCROLL_PIXELS = 60;
     static final double WHEEL_ZOOM_FACTOR = 1.25;
     private static final int SCALE_LABEL_MARGIN = 6;
+    /** The bits after the point «Punto fijo» offers in a bus row's menu (those under the channel's width). */
+    private static final int[] FIXED_FRACTION_CHOICES = {2, 4, 8, 12, 16};
 
     private final OpenDocument openDocument;
     private final ProbeActions actions;
@@ -384,12 +386,7 @@ public final class WaveformPanel extends JPanel {
         JPopupMenu menu = new JPopupMenu();
         menu.add(new JMenuItem(Actions.of(Messages.text("waveform.rename"), () -> rename(probeId))));
         if (actions.isBus(probeId)) {
-            JMenu formatMenu = new JMenu(Messages.text("waveform.showAs"));
-            formatMenu.add(new JMenuItem(Actions.of(Messages.text("waveform.format.hex"),
-                    () -> actions.setFormat(probeId, Probe.FORMAT_HEX))));
-            formatMenu.add(new JMenuItem(Actions.of(Messages.text("waveform.format.ascii"),
-                    () -> actions.setFormat(probeId, Probe.FORMAT_ASCII))));
-            menu.add(formatMenu);
+            menu.add(formatMenu(probeId));
         }
         menu.addSeparator();
         menu.add(new JMenuItem(Actions.of(Messages.text("waveform.moveUp"), () -> actions.moveUp(probeId))));
@@ -400,6 +397,42 @@ public final class WaveformPanel extends JPanel {
         menu.addSeparator();
         menu.add(new JMenuItem(Actions.of(Messages.text("waveform.showInCircuit"), () -> showInCircuit(probeId))));
         return menu;
+    }
+
+    /** «Mostrar como» of a bus row: every format, the float only at a width that has one, fixed point by bits. */
+    private JMenu formatMenu(String probeId) {
+        JMenu formatMenu = new JMenu(Messages.text("waveform.showAs"));
+        int width = actions.busWidth(probeId);
+        for (String format : List.of(Probe.FORMAT_HEX, Probe.FORMAT_ASCII, Probe.FORMAT_BINARY, Probe.FORMAT_OCTAL,
+                Probe.FORMAT_DECIMAL, Probe.FORMAT_SIGNED, Probe.FORMAT_FLOAT)) {
+            JMenuItem item = new JMenuItem(Actions.of(Messages.text(formatKey(format)),
+                    () -> actions.setFormat(probeId, format)));
+            // a width with no IEEE 754 format would only show hex: the choice is not offered as available
+            item.setEnabled(!Probe.FORMAT_FLOAT.equals(format) || width == 16 || width == 32 || width == 64);
+            formatMenu.add(item);
+        }
+        JMenu fixed = new JMenu(Messages.text("waveform.format.fixed"));
+        for (int fractionBits : FIXED_FRACTION_CHOICES) {
+            if (fractionBits < width) {
+                String format = Probe.fixedFormat(fractionBits);
+                fixed.add(new JMenuItem(Actions.of(Messages.format("waveform.format.fixedBits", fractionBits),
+                        () -> actions.setFormat(probeId, format))));
+            }
+        }
+        formatMenu.add(fixed);
+        return formatMenu;
+    }
+
+    private static String formatKey(String format) {
+        return switch (format) {
+            case Probe.FORMAT_ASCII -> "waveform.format.ascii";
+            case Probe.FORMAT_BINARY -> "waveform.format.binary";
+            case Probe.FORMAT_OCTAL -> "waveform.format.octal";
+            case Probe.FORMAT_DECIMAL -> "waveform.format.decimal";
+            case Probe.FORMAT_SIGNED -> "waveform.format.signed";
+            case Probe.FORMAT_FLOAT -> "waveform.format.float";
+            default -> "waveform.format.hex";
+        };
     }
 
     JToggleButton followButton() {

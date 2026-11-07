@@ -42,6 +42,7 @@ public final class BundledCircuits {
         builders.put("ram-fill", MemoryExamples::ramFill);
         builders.put("hola-terminal", TerminalExamples::holaTerminal);
         builders.put("punto-de-parada", BreakpointExamples::puntoDeParada);
+        builders.put("value-formats", ValueFormatExamples::valueFormats);
         return builders;
     }
 

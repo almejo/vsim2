@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 class ConstantPainterTest {
 
-    private static final List<String> FORMATS = List.of("auto", "binary", "hex", "decimal", "signed");
+    private static final List<String> FORMATS = List.of("auto", "binary", "hex", "octal", "decimal", "signed", "ascii", "float", "fixed");
     private static final List<Integer> WIDTHS = List.of(1, 4, 8, 16, 32);
 
     private final ComponentType constant = StandardComponentTypes.registry().require(StandardComponentTypes.CONSTANT);
@@ -44,7 +44,7 @@ class ConstantPainterTest {
         for (ColorScheme scheme : List.of(ColorScheme.LIGHT, ColorSchemes.DARK)) {
             for (int width : WIDTHS) {
                 for (String format : FORMATS) {
-                    assertThatCode(() -> render(width, "1", format, scheme)).doesNotThrowAnyException();
+                    assertThatCode(() -> render(width, "0", format, scheme)).doesNotThrowAnyException();
                 }
             }
         }
@@ -65,10 +65,25 @@ class ConstantPainterTest {
     }
 
     @Test
+    void theBoxShowsTheNewFormats() {
+        assertThat(ConstantPainter.shownText(constant.resolveParameters(
+                Map.of("width", 8, "value", "0xFF", "format", "octal")))).isEqualTo("0o377");
+        assertThat(ConstantPainter.shownText(constant.resolveParameters(
+                Map.of("width", 8, "value", "'A'", "format", "ascii")))).isEqualTo("'A'");
+        assertThat(ConstantPainter.shownText(constant.resolveParameters(
+                Map.of("width", 32, "value", "1.5", "format", "float")))).isEqualTo("1.5");
+        assertThat(ConstantPainter.shownText(constant.resolveParameters(
+                Map.of("width", 8, "value", "-0.5", "format", "fixed", "fraction", 4)))).isEqualTo("-0.5");
+        // a width with no float: the same bits in hex
+        assertThat(ConstantPainter.shownText(constant.resolveParameters(
+                Map.of("width", 8, "value", "0x3C", "format", "float")))).isEqualTo("0x3C");
+    }
+
+    @Test
     void theTextFitsTheBoxAtEveryWidthAndFormat() {
         for (int width = 1; width <= ConstantValue.MAXIMUM_WIDTH; width++) {
             for (String format : FORMATS) {
-                assertThat(ConstantPainter.widestTextWidth(width, format) + 2 * ConstantPainter.TEXT_PADDING)
+                assertThat(ConstantPainter.widestTextWidth(width, format, 3) + 2 * ConstantPainter.TEXT_PADDING)
                         .as("width %d, %s", width, format).isLessThanOrEqualTo(boxWidthOf(width, format));
             }
         }
@@ -78,7 +93,7 @@ class ConstantPainterTest {
     void theBoxIsNotWastefullyWide() {
         for (int width = 1; width <= ConstantValue.MAXIMUM_WIDTH; width++) {
             for (String format : FORMATS) {
-                double needed = ConstantPainter.widestTextWidth(width, format) + 2 * ConstantPainter.TEXT_PADDING;
+                double needed = ConstantPainter.widestTextWidth(width, format, 3) + 2 * ConstantPainter.TEXT_PADDING;
                 assertThat(boxWidthOf(width, format)).as("width %d, %s", width, format)
                         .isLessThanOrEqualTo(Math.max(4 * 8 - ConstantPainter.LEAD, needed * 1.1 + 16));
             }
@@ -86,7 +101,7 @@ class ConstantPainterTest {
     }
 
     private double boxWidthOf(int width, String format) {
-        return constant.specializedFor(Map.of("width", width, "format", format)).size().width() * 8.0
+        return constant.specializedFor(Map.of("width", width, "format", format, "fraction", 3)).size().width() * 8.0
                 - ConstantPainter.LEAD;
     }
 }

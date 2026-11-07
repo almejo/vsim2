@@ -227,6 +227,7 @@ public final class MemoryGridModel extends AbstractTableModel {
         return switch (radix) {
             case HEX -> (width + 3) / 4;
             case BINARY -> width;
+            case OCTAL -> (width + 2) / 3;
             case DECIMAL -> Long.toUnsignedString(width >= Long.SIZE ? -1L : (1L << width) - 1).length();
         };
     }
@@ -287,6 +288,7 @@ public final class MemoryGridModel extends AbstractTableModel {
         return switch (radix) {
             case HEX -> pad(Long.toHexString(value).toUpperCase(Locale.ROOT), (width + 3) / 4);
             case BINARY -> pad(Long.toBinaryString(value), width);
+            case OCTAL -> pad(Long.toOctalString(value), (width + 2) / 3);
             case DECIMAL -> Long.toUnsignedString(value);
         };
     }

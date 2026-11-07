@@ -93,9 +93,22 @@ public final class ProbeActions {
         replace(probeId, probe -> probe.withName(stripped), "command.renameProbe");
     }
 
-    /** «Mostrar como» on a bus channel: {@link Probe#FORMAT_HEX} or {@link Probe#FORMAT_ASCII}, one undo step. */
+    /** «Mostrar como» on a bus channel: any of the {@link Probe} formats, one undo step. */
     public void setFormat(String probeId, String format) {
         replace(probeId, probe -> probe.withFormat(format), "command.setProbeFormat");
+    }
+
+    /** The width of the net the channel watches (1 when it watches nothing). */
+    int busWidth(String probeId) {
+        CircuitDocument document = openDocument.document();
+        Netlist netlist = openDocument.netlist();
+        return document.probes().stream()
+                .filter(probe -> probe.id().equals(probeId))
+                .findFirst()
+                .flatMap(probe -> ProbeResolver.netOf(probe.target(), document, netlist))
+                .flatMap(netId -> netlist.nets().stream().filter(net -> net.id().value().equals(netId)).findFirst())
+                .map(net -> net.width())
+                .orElse(1);
     }
 
     /** Whether the channel watches a net wider than one bit (only those have a format to choose). */
