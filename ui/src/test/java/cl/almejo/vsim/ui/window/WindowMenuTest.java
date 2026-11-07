@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.window.tabs.TabMark;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +14,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -79,6 +82,22 @@ class WindowMenuTest {
         JMenuItem header = (JMenuItem) menu.getMenuComponent(2);
         assertThat(header).isNotInstanceOf(JCheckBoxMenuItem.class);
         assertThat(header.isEnabled()).isFalse();
+    }
+
+    @Test
+    void aTabWhereTheAiWorksShowsTheRobotAndSaysSoAndTheOthersShowNothing() {
+        Messages.initialize(Messages.SPANISH);
+        TabMark working = new TabMark(TabMark.Phase.WORKING, Optional.of("Armar"));
+        entries.add(new WindowMenu.Entry("sumador", true, () -> { }, false, Optional.of(working)));
+        entries.add(entry("contador", false));
+        windowMenu();
+
+        JMenuItem marked = (JMenuItem) menu.getMenuComponent(2);
+        JMenuItem plain = (JMenuItem) menu.getMenuComponent(3);
+        assertThat(marked.getIcon()).isNotNull();
+        assertThat(marked.getToolTipText()).isEqualTo("La IA está trabajando aquí: «Armar»");
+        assertThat(plain.getIcon()).isNull();
+        assertThat(plain.getToolTipText()).isNull();
     }
 
     private void openMenu() {

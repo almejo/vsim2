@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.window.tabs;
 
+import cl.almejo.vsim.ui.ai.AiRobotIcon;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 
+import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JWindow;
 import javax.swing.SwingUtilities;
@@ -36,12 +38,15 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.stream.Stream;
 
 /**
  * The strip of tabs of one window (spec §4.2–4.3), drawn by hand on a {@link TabStripModel}: groups in order, each
  * with its colour band on top; a main tab shows a document icon, its title, «●» when modified and ×; a component tab a
- * chip icon, a dashed band and ×; a folded main tab its «⬚ N» badge. When the tabs do not fit, ‹ › scroll them and
+ * chip icon, a dashed band and ×; a folded main tab its «⬚ N» badge; the AI's robot ({@link TabMark}) takes the icon's
+ * place on the tab where the AI works. When the tabs do not fit, ‹ › scroll them and
  * «▾» asks for the list of every tab. A press activates a tab, the middle button or × closes it, a double click on a
  * main tab folds its group, a click on the badge unfolds it. Dragging any tab drags its whole group: the drop lands in
  * this strip, in another window's strip, or outside every strip. Proportions follow the decided mockup (30 px tabs,
@@ -107,6 +112,9 @@ public final class TabStrip extends JComponent {
     private static final long FOLD_MILLISECONDS = 150;
     private static final int FRAME_MILLISECONDS = 15;
     private static final float GHOST_OPACITY = 0.7f;
+    /** The working robot's bob (decided mockup 2026-11-06): one gentle rise and fall every 1.4 s, 1.5 px high. */
+    private static final long BOB_PERIOD_MILLISECONDS = 1_400;
+    private static final double BOB_HEIGHT = 1.5;
     private static final String ELLIPSIS = "…";
 
     /** The strips on screen, so a drag from one window finds the strip under the mouse in another. */
@@ -153,6 +161,9 @@ public final class TabStrip extends JComponent {
     private final BooleanSupplier animate;
     private final FrameTicker ticker;
     private final LongSupplier clock;
+    private Function<TabStripModel.Tab, Optional<TabMark>> marks = tab -> Optional.empty();
+    private final Icon workingRobot = new AiRobotIcon(TabMark.Phase.WORKING, ICON_SIZE);
+    private final Icon finishedRobot = new AiRobotIcon(TabMark.Phase.FINISHED, ICON_SIZE);
     private final Map<Object, Boolean> foldedSeen = new HashMap<>();
     private final Map<Object, FoldMotion> motions = new HashMap<>();
     private List<TabBox> boxes = List.of();
@@ -223,6 +234,21 @@ public final class TabStrip extends JComponent {
         listListener = Objects.requireNonNull(listener);
     }
 
+    /**
+     * Where the strip reads the AI's mark of each tab (fix round D, item 5n); none until set. Call {@link #marksChanged}
+     * whenever what it answers changes.
+     */
+    public void setMarks(Function<TabStripModel.Tab, Optional<TabMark>> marks) {
+        this.marks = Objects.requireNonNull(marks, "marks");
+        marksChanged();
+    }
+
+    /** The AI's marks changed: the robots are repainted, and bob while one works (and «Animación» is on). */
+    public void marksChanged() {
+        animateMarks();
+        repaint();
+    }
+
     /** The showing strip under {@code screenPoint} (with a few pixels of tolerance above and below), if any. */
     public static Optional<TabStrip> at(Point screenPoint) {
         for (TabStrip strip : List.copyOf(SHOWING)) {
@@ -237,6 +263,7 @@ public final class TabStrip extends JComponent {
     public void addNotify() {
         super.addNotify();
         SHOWING.add(this);
+        animateMarks();
     }
 
     @Override
@@ -294,6 +321,17 @@ public final class TabStrip extends JComponent {
         return Optional.ofNullable(drag);
     }
 
+    /** The AI's mark {@code tabId} shows now; empty for a hidden tab. */
+    Optional<TabMark> shownMarkOf(String tabId) {
+        return model.visibleTabs().stream().filter(tab -> tab.id().equals(tabId)).findFirst()
+                .flatMap(this::shownMark);
+    }
+
+    /** How many pixels above its place the robot of {@code tabId} is drawn now (0 when it does not bob). */
+    double markLift(String tabId) {
+        return shownMarkOf(tabId).map(this::lift).orElse(0.0);
+    }
+
     // --- layout ---
 
     private void modelChanged() {
@@ -318,16 +356,61 @@ public final class TabStrip extends JComponent {
         computeLayout();
         revalidate();
         repaint();
+        animateMarks();
     }
 
+    /** One frame of the fold motions and of the working robots' bob; the ticker stops when neither moves. */
     private void animationFrame() {
         long now = clock.getAsLong();
+        boolean folding = !motions.isEmpty();
         motions.values().removeIf(motion -> now - motion.startMilliseconds() >= FOLD_MILLISECONDS);
-        if (motions.isEmpty()) {
+        if (motions.isEmpty() && !bobs()) {
             ticker.stop();
         }
-        computeLayout();
-        repaint();
+        if (folding) {
+            computeLayout();
+            repaint();
+            return;
+        }
+        boxes.stream().filter(box -> shownMark(box.tab()).filter(TabMark::isWorking).isPresent())
+                .forEach(box -> repaint(box.bounds()));
+    }
+
+    // --- the AI's mark ---
+
+    /** Starts the frames while a working robot shows and «Animación» is on; the frames stop themselves after. */
+    private void animateMarks() {
+        if (bobs()) {
+            ticker.start(this::animationFrame);
+        }
+    }
+
+    private boolean bobs() {
+        return animate.getAsBoolean()
+                && model.visibleTabs().stream().anyMatch(tab -> shownMark(tab).filter(TabMark::isWorking).isPresent());
+    }
+
+    /**
+     * The mark {@code tab} shows: its own; a folded group's circuit tab also shows the strongest mark of the component
+     * tabs it hides (the mark moves up to it).
+     */
+    private Optional<TabMark> shownMark(TabStripModel.Tab tab) {
+        Optional<TabMark> own = marks.apply(tab);
+        Optional<TabStripModel.Group> group = model.group(tab.document());
+        if (group.isEmpty() || !group.get().folded() || !group.get().mainTabs().get(0).id().equals(tab.id())) {
+            return own;
+        }
+        return TabMark.strongest(Stream.concat(Stream.of(own),
+                group.get().componentTabs().stream().map(marks)));
+    }
+
+    /** Pixels above its place: a working robot rises and falls smoothly while «Animación» is on. */
+    private double lift(TabMark mark) {
+        if (!mark.isWorking() || !animate.getAsBoolean()) {
+            return 0;
+        }
+        double phase = (clock.getAsLong() % BOB_PERIOD_MILLISECONDS) / (double) BOB_PERIOD_MILLISECONDS;
+        return BOB_HEIGHT * (1 - Math.cos(2 * Math.PI * phase)) / 2;
     }
 
     /** How much of a component tab's width shows: 1 normally, less while its group folds or unfolds. */
@@ -549,6 +632,10 @@ public final class TabStrip extends JComponent {
     }
 
     private String tooltipOf(TabStripModel.Tab tab) {
+        Optional<TabMark> mark = shownMark(tab);
+        if (mark.isPresent()) {
+            return mark.get().tooltip();
+        }
         if (tab.isMain()) {
             return Messages.format("tab.main.tooltip", tab.title());
         }
@@ -866,7 +953,10 @@ public final class TabStrip extends JComponent {
         Color text = active ? textColor() : mutedText();
         int iconX = bounds.x + TAB_PADDING_LEFT;
         int middle = bounds.y + bounds.height / 2;
-        if (tab.isMain()) {
+        Optional<TabMark> mark = shownMark(tab);
+        if (mark.isPresent()) {
+            paintRobot(graphics, mark.get(), iconX, middle);
+        } else if (tab.isMain()) {
             paintDocumentIcon(graphics, iconX, middle, text);
         } else {
             paintChipIcon(graphics, iconX, middle, group);
@@ -883,6 +973,17 @@ public final class TabStrip extends JComponent {
         }
         box.badge().ifPresent(badge -> paintBadge(graphics, badge, group, model.group(tab.document())));
         paintClose(graphics, box.close(), tab.id().equals(hoveredTabId) && hoveredClose, text);
+    }
+
+    /** The AI's robot in the place of the tab's icon (the tab keeps its width), lifted while it bobs. */
+    private void paintRobot(Graphics2D graphics, TabMark mark, int x, int middle) {
+        Graphics2D lifted = (Graphics2D) graphics.create();
+        try {
+            lifted.translate(0, -lift(mark));
+            (mark.isWorking() ? workingRobot : finishedRobot).paintIcon(this, lifted, x, middle - ICON_SIZE / 2);
+        } finally {
+            lifted.dispose();
+        }
     }
 
     private static void paintDocumentIcon(Graphics2D graphics, int x, int middle, Color color) {

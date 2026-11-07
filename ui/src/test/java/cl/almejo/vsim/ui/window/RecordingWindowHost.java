@@ -17,6 +17,7 @@ final class RecordingWindowHost implements WindowTabs.Host {
     final List<OpenDocument> closingGroups = new ArrayList<>();
     final List<OpenDocument> changed = new ArrayList<>();
     final List<OpenDocument> droppedOutside = new ArrayList<>();
+    PlaceMarks placeMarks = PlaceMarks.NONE;
     int emptied;
     int activeChanges;
 
@@ -79,5 +80,10 @@ final class RecordingWindowHost implements WindowTabs.Host {
     @Override
     public List<WindowMenu.Entry> everyTab() {
         return List.of();
+    }
+
+    @Override
+    public PlaceMarks placeMarks() {
+        return placeMarks;
     }
 }

@@ -10,7 +10,9 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -259,5 +261,110 @@ class TabStripTest {
         int body = image.getRGB(main.x + 4, main.y + main.height - 4) & 0xFFFFFF;
         int plain = java.awt.Color.WHITE.getRGB() & 0xFFFFFF;
         assertThat(distance(body, group)).isLessThan(distance(plain, group) - 40);
+    }
+
+    // --- the AI's mark (fix round D, item 5n) ---
+
+    private static final TabMark WORKING = new TabMark(TabMark.Phase.WORKING, Optional.of("Probar los enlaces"));
+    private static final TabMark FINISHED = new TabMark(TabMark.Phase.FINISHED, Optional.of("Probar los enlaces"));
+
+    /** The marks the strip reads, by tab id, changed by the tests. */
+    private final Map<String, TabMark> marks = new HashMap<>();
+
+    private void markTabs(TabStrip marked) {
+        marked.setMarks(tab -> Optional.ofNullable(marks.get(tab.id())));
+    }
+
+    @Test
+    void theMarkShowsOnTheTabOfThePlaceOnlyNotOnTheWholeGroup() {
+        markTabs(strip);
+        marks.put("ram", WORKING);
+        strip.marksChanged();
+
+        assertThat(strip.shownMarkOf("ram")).contains(WORKING);
+        assertThat(strip.shownMarkOf("lrv")).isEmpty();
+        assertThat(strip.shownMarkOf("counter")).isEmpty();
+    }
+
+    @Test
+    void inAFoldedGroupTheMarkMovesUpToTheCircuitTab() {
+        markTabs(strip);
+        marks.put("ram", WORKING);
+        marks.put("lrv", FINISHED);
+        model.fold(PROCESSOR, true);
+        strip.doLayout();
+
+        assertThat(strip.shownMarkOf("lrv")).as("the working mark beats the circuit's own grey one")
+                .contains(WORKING);
+        model.fold(PROCESSOR, false);
+        strip.doLayout();
+        assertThat(strip.shownMarkOf("lrv")).contains(FINISHED);
+    }
+
+    @Test
+    void aWorkingRobotBobsGentlyWhileTheAnimationIsOnAndStopsWhenTheWorkEnds() {
+        ManualFrameTicker ticker = new ManualFrameTicker();
+        TabStrip animated = new TabStrip(model, () -> true, ticker, ticker::now);
+        animated.setSize(600, TabStrip.HEIGHT);
+        markTabs(animated);
+        marks.put("ram", WORKING);
+        animated.marksChanged();
+        assertThat(ticker.isRunning()).isTrue();
+
+        double highest = 0;
+        double lowest = Double.MAX_VALUE;
+        for (int frame = 0; frame < 100; frame++) {
+            ticker.advance(16);
+            highest = Math.max(highest, animated.markLift("ram"));
+            lowest = Math.min(lowest, animated.markLift("ram"));
+        }
+        assertThat(highest).as("it rises about 1.5 px").isBetween(1.4, 1.5);
+        assertThat(lowest).isBetween(0.0, 0.1);
+        assertThat(animated.markLift("lrv")).isZero();
+
+        marks.put("ram", FINISHED);
+        animated.marksChanged();
+        ticker.advance(16);
+        assertThat(ticker.isRunning()).as("a grey robot does not move").isFalse();
+        assertThat(animated.markLift("ram")).isZero();
+    }
+
+    @Test
+    void withTheAnimationOffTheRobotStaysStill() {
+        ManualFrameTicker ticker = new ManualFrameTicker();
+        TabStrip still = new TabStrip(model, () -> false, ticker, ticker::now);
+        still.setSize(600, TabStrip.HEIGHT);
+        markTabs(still);
+        marks.put("ram", WORKING);
+        still.marksChanged();
+
+        assertThat(ticker.isRunning()).isFalse();
+        ticker.advance(700);
+        assertThat(still.markLift("ram")).isZero();
+    }
+
+    @Test
+    void theTooltipOfAMarkedTabSaysTheAiIsWorkingThereWithItsTask() {
+        markTabs(strip);
+        marks.put("ram", WORKING);
+        strip.marksChanged();
+        Rectangle ram = bounds("ram");
+        MouseEvent overRam = new MouseEvent(strip, MouseEvent.MOUSE_MOVED, 0, 0, ram.x + 10, ram.y + 10, 0, false);
+
+        assertThat(strip.getToolTipText(overRam)).isEqualTo("La IA está trabajando aquí: «Probar los enlaces»");
+    }
+
+    @Test
+    void theRobotTakesThePlaceOfTheTabIconWithoutMovingTheTabs() {
+        Rectangle before = bounds("counter");
+        markTabs(strip);
+        marks.put("ram", WORKING);
+        marks.put("counter", FINISHED);
+        strip.marksChanged();
+        strip.doLayout();
+
+        assertThat(bounds("counter")).isEqualTo(before);
+        BufferedImage image = new BufferedImage(600, TabStrip.HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        strip.paint(image.createGraphics());
     }
 }

@@ -341,6 +341,34 @@ class EditorAutomationHostPlacesTest {
     }
 
     @Test
+    void everyReadEditRunOrOpeningTellsWhichPlaceTheAiTouched() throws Exception {
+        List<String> touched = new ArrayList<>();
+        host.addPlaceListener((circuitId, touchedCircuit, place) -> touched.add(circuitId.value() + " "
+                + (touchedCircuit == circuit) + " " + place.definition() + "@" + place.context().orElse("-")));
+        DocumentId inPlace = id.in(new PlaceRef(BLOCK, Optional.of("c5")));
+
+        api.readCircuit(id, ReadFilter.SUMMARY, Optional.empty());
+        long version = api.readCircuit(inPlace, ReadFilter.SUMMARY, Optional.empty()).version().value();
+        api.setInputs(inPlace, new DocumentVersion(version), "op-1", List.of(new InputValue("c2", "1")));
+        api.openPlace(id, new PlaceRef(MEMORY_BLOCK, Optional.of("c21")));
+        onEditor(() -> null); // the listeners hear on the editor thread
+
+        assertThat(touched).containsExactly(id.value() + " true main@-", id.value() + " true bloque@c5",
+                id.value() + " true bloque@c5", id.value() + " true memoria-chica@c21");
+    }
+
+    @Test
+    void listingDocumentsAndPlacesTouchesNoPlace() throws Exception {
+        List<String> touched = new ArrayList<>();
+        host.addPlaceListener((circuitId, touchedCircuit, place) -> touched.add(place.definition()));
+
+        api.listPlaces(id);
+        host.onEditorThread(EditorAccess::openDocuments).get(5, TimeUnit.SECONDS);
+
+        assertThat(touched).isEmpty();
+    }
+
+    @Test
     void transientBodiesDoNotLeakListenersOnTheDocument() throws Exception {
         int baseline = onEditor(circuit::changeListenerCount);
 

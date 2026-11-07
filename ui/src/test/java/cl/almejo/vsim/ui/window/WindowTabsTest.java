@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.session.TabState;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
+import cl.almejo.vsim.ui.window.tabs.TabMark;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import java.awt.Point;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -509,5 +511,79 @@ class WindowTabsTest {
 
         assertThat(tabs.activeView().leftColumn().folded()).containsExactly(LeftColumn.Section.CIRCUIT);
         assertThat(other.activeView().leftColumn().folded()).isEmpty();
+    }
+
+    // --- the AI's mark (fix round D, item 5n) ---
+
+    /** Marks by place («main», or a definition and its piece), with the visits and listeners recorded. */
+    private static final class FakePlaceMarks implements PlaceMarks {
+        final Map<String, TabMark> marks = new HashMap<>();
+        final List<String> visits = new ArrayList<>();
+        final List<Runnable> listeners = new ArrayList<>();
+
+        static String key(Optional<String> definitionId, Optional<String> contextPath) {
+            return definitionId.orElse("main") + "@" + contextPath.orElse("-");
+        }
+
+        @Override
+        public Optional<TabMark> markOf(OpenDocument document, Optional<String> definitionId,
+                                        Optional<String> contextPath) {
+            return Optional.ofNullable(marks.get(key(definitionId, contextPath)));
+        }
+
+        @Override
+        public void visited(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath) {
+            visits.add(key(definitionId, contextPath));
+        }
+
+        @Override
+        public Runnable addListener(Runnable listener) {
+            listeners.add(listener);
+            return () -> listeners.remove(listener);
+        }
+    }
+
+    private static final TabMark AI_WORKING = new TabMark(TabMark.Phase.WORKING, Optional.of("Armar"));
+
+    @Test
+    void theAiMarkOfAPlaceReachesItsTabInTheTabListAndGoesWithTheWindow() throws Exception {
+        FakePlaceMarks marks = new FakePlaceMarks();
+        RecordingWindowHost marked = new RecordingWindowHost();
+        marked.placeMarks = marks;
+        WindowTabs window = newTabs(marked);
+        OpenDocument counter = savedWithInverters("contador.vsim");
+        String second = instance(counter, 1);
+        window.addTab(counter, Optional.empty());
+        window.addComponentTab(counter, ExampleDefinitions.INVERTER,
+                counter.openBody(ExampleDefinitions.INVERTER, Optional.of(second)), Optional.empty());
+        marks.marks.put(FakePlaceMarks.key(Optional.of(ExampleDefinitions.INVERTER), Optional.of(second)),
+                AI_WORKING);
+
+        assertThat(window.menuEntries(true, () -> { })).extracting(WindowMenu.Entry::mark)
+                .containsExactly(Optional.empty(), Optional.of(AI_WORKING));
+        assertThat(marks.listeners).as("the strip hears the marks").hasSize(1);
+
+        window.disposeAll();
+        assertThat(marks.listeners).isEmpty();
+    }
+
+    @Test
+    void bringingATabToTheFrontTellsTheMarksThatPlaceWasVisited() throws Exception {
+        FakePlaceMarks marks = new FakePlaceMarks();
+        RecordingWindowHost marked = new RecordingWindowHost();
+        marked.placeMarks = marks;
+        WindowTabs window = newTabs(marked);
+        try {
+            OpenDocument counter = savedWithInverters("contador.vsim");
+            String first = instance(counter, 0);
+            EditorView main = window.addTab(counter, Optional.empty());
+            window.addComponentTab(counter, ExampleDefinitions.INVERTER,
+                    counter.openBody(ExampleDefinitions.INVERTER, Optional.of(first)), Optional.empty());
+            window.activate(main);
+
+            assertThat(marks.visits).containsExactly("main@-", ExampleDefinitions.INVERTER + "@" + first, "main@-");
+        } finally {
+            window.disposeAll();
+        }
     }
 }

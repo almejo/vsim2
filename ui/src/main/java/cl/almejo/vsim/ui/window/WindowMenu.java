@@ -1,5 +1,9 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.ui.ai.AiRobotIcon;
+import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.window.tabs.TabMark;
+
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -7,6 +11,8 @@ import javax.swing.JPopupMenu;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -15,17 +21,24 @@ import java.util.function.Supplier;
  */
 public final class WindowMenu {
 
-    /** One open tab as the menu lists it, or ({@code header}) the name of a window above its tabs. */
-    public record Entry(String title, boolean current, Runnable focus, boolean header) {
+    /**
+     * One open tab as the menu lists it, or ({@code header}) the name of a window above its tabs; {@code mark} is the
+     * AI's mark on the tab, the robot the strip shows.
+     */
+    public record Entry(String title, boolean current, Runnable focus, boolean header, Optional<TabMark> mark) {
+
+        public Entry {
+            Objects.requireNonNull(mark, "mark");
+        }
 
         public Entry(String title, boolean current, Runnable focus) {
-            this(title, current, focus, false);
+            this(title, current, focus, false, Optional.empty());
         }
 
         /** «Ventana 2» above that window's tabs: shown, never chosen. */
         public static Entry header(String title) {
             return new Entry(title, false, () -> {
-            }, true);
+            }, true, Optional.empty());
         }
     }
 
@@ -58,7 +71,10 @@ public final class WindowMenu {
         }
     }
 
-    /** The menu item of {@code entry}: a disabled label for a header, a check item for a tab. */
+    /**
+     * The menu item of {@code entry}: a disabled label for a header, a check item for a tab; a tab where the AI works
+     * shows the robot (still: menus do not animate) and says so when the mouse is over it.
+     */
     public static JMenuItem itemFor(Entry entry) {
         if (entry.header()) {
             JMenuItem header = new JMenuItem(entry.title());
@@ -67,6 +83,10 @@ public final class WindowMenu {
         }
         JCheckBoxMenuItem item = new JCheckBoxMenuItem(entry.title(), entry.current());
         item.addActionListener(event -> entry.focus().run());
+        entry.mark().ifPresent(mark -> {
+            item.setIcon(new AiRobotIcon(mark.phase(), Icons.MENU_SIZE));
+            item.setToolTipText(mark.tooltip());
+        });
         return item;
     }
 }
