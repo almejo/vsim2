@@ -255,12 +255,12 @@
     "text" : "Formatos de valor"
   }, {
     "id" : "l31",
-    "x" : 52,
+    "x" : 64,
     "y" : 11,
     "text" : "los mismos 8 bits del contador, escritos de siete maneras"
   }, {
     "id" : "l32",
-    "x" : 52,
+    "x" : 64,
     "y" : 59,
     "text" : "los 16 bits de la constante 1.5 (media precisión IEEE 754)"
   }, {

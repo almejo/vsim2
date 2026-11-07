@@ -59,8 +59,8 @@ public final class ValueFormatExamples {
         column(builder, half, 0, new GridPoint(35, 59), 40, 46, HALF_PINS, 16);
 
         builder.text(2, 0, "Formatos de valor");
-        builder.text(52, 11, "los mismos 8 bits del contador, escritos de siete maneras");
-        builder.text(52, 59, "los 16 bits de la constante 1.5 (media precisión IEEE 754)");
+        builder.text(64, 11, "los mismos 8 bits del contador, escritos de siete maneras");
+        builder.text(64, 59, "los 16 bits de la constante 1.5 (media precisión IEEE 754)");
         builder.text(2, 78, "Prueba: espera unos segundos: el contador sube y cada pin lo escribe a su manera (con signo pasa a negativo desde 128)");
         builder.text(2, 80, "Doble clic en la Constante y escribe 0.1 o -2.5: el pin «Flotante 16» lo muestra; cambia «Mostrar como» de un pin en Propiedades");
         return builder;
