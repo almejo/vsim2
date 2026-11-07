@@ -20,6 +20,19 @@ public record LibraryProblem(Path file, Kind kind, Optional<CircuitFormatExcepti
         detail = detail == null ? "" : detail;
     }
 
+    /**
+     * The id of the component the file is named after ({@code inverter} for {@code inverter.vsimcomponent.json});
+     * empty for a file of another name or a folder. A broken file named after a component the library has (saved
+     * meanwhile to another file: a broken file is never overwritten) can be deleted.
+     */
+    public Optional<String> componentIdNamed() {
+        String fileName = String.valueOf(file.getFileName());
+        int idLength = fileName.length() - DefinitionFormat.FILE_SUFFIX.length();
+        boolean componentFile = idLength > 0 && fileName.regionMatches(true, idLength, DefinitionFormat.FILE_SUFFIX, 0,
+                DefinitionFormat.FILE_SUFFIX.length());
+        return componentFile ? Optional.of(fileName.substring(0, idLength)) : Optional.empty();
+    }
+
     /** The detail is the exception's message, or its class name when it has none. */
     static LibraryProblem unreadable(Path file, IOException exception) {
         return new LibraryProblem(file, Kind.UNREADABLE, Optional.empty(), messageOf(exception));

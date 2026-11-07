@@ -73,6 +73,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -95,6 +96,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private static final int ANTS_MILLISECONDS = 90;
     /** Automan's star at about 30 frames a second (spec §8.5); a blink only repaints when it turns. */
     private static final int TERMINAL_FRAME_MILLISECONDS = 33;
+    private static final int GLOW_FRAME_MILLISECONDS = 33;
     /** Device pixels added around a moving terminal's area so antialiased edges are repainted too. */
     private static final int TERMINAL_REPAINT_MARGIN = 2;
     private static final double WHEEL_SCROLL_PIXELS = 40;
@@ -121,6 +123,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final MarchingAnts marchingAnts = new MarchingAnts();
     private final Timer antsTimer;
     private final ProblemPulse problemPulse = new ProblemPulse();
+    private final PieceGlow pieceGlow = new PieceGlow();
+    private FrameTicker glowTicker = FrameTicker.swing(GLOW_FRAME_MILLISECONDS);
+    private LongSupplier glowClock = () -> System.nanoTime() / 1_000_000;
     private final Timer problemPulseTimer;
     /** The Terminals' animation clock: runs only while a moving terminal is in view. */
     private FrameTicker terminalTicker = FrameTicker.swing(TERMINAL_FRAME_MILLISECONDS);
@@ -139,6 +144,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
     private final EdgeController edgeController = new EdgeController(this::getSize);
     private final DocumentListener documentListener;
+    private final Runnable refreshListener = this::bodyRefreshed;
     private final SelectionMoves selectionMoves;
     private FileDropTarget fileDropTarget = (files, gridPosition) -> {
     };
@@ -210,6 +216,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         setOpaque(true);
         setPreferredSize(new Dimension(900, 650));
         openDocument.document().addListener(documentListener);
+        openDocument.addRefreshListener(refreshListener);
         selection.addListener(selectionListener);
         MouseHandler mouseHandler = new MouseHandler();
         addMouseListener(mouseHandler);
@@ -233,6 +240,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         canvasDragOut.listenForDragExit();
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
+                showingChanged(isShowing());
                 updateAnimation();
             }
         });
@@ -564,10 +572,36 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         requestFocusInWindow();
     }
 
+    /**
+     * The canvas was shown or hidden (a tab's card that is not the shown one is hidden yet stays added): hidden, it
+     * stops its frame timer, which would remap the snapshot and call its listeners sixty times a second for nothing;
+     * shown, it starts again and catches up with the latest snapshot at once.
+     */
+    void showingChanged(boolean showing) {
+        if (disposed || !isDisplayable()) {
+            return;
+        }
+        if (showing && !frameTimer.isRunning()) {
+            frameTimer.start();
+            refreshSnapshot();
+        } else if (!showing) {
+            frameTimer.stop();
+        }
+    }
+
+    /** Whether the frame timer runs (a hidden tab's does not). */
+    boolean framesRunning() {
+        return frameTimer.isRunning();
+    }
+
     @Override
     public void addNotify() {
         super.addNotify();
-        frameTimer.start();
+        Window window = SwingUtilities.getWindowAncestor(this);
+        // added hidden to a window already on screen (a tab's card): the showing event starts it when it is shown
+        if (isShowing() || window == null || !window.isShowing()) {
+            frameTimer.start();
+        }
         animationSuspended = false;
         watchWindow(SwingUtilities.getWindowAncestor(this));
         updateAnimation();
@@ -577,6 +611,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public void removeNotify() {
         autoscroll.stopAutoscroll();
         frameTimer.stop();
+        glowTicker.stop();
         animationSuspended = true;
         antsTimer.stop();
         problemPulseTimer.stop();
@@ -592,13 +627,38 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewTravel.stop();
         autoscroll.stopAutoscroll();
         frameTimer.stop();
+        glowTicker.stop();
         animationSuspended = true;
         antsTimer.stop();
         problemPulseTimer.stop();
         terminalTicker.stop();
         watchWindow(null);
         openDocument.document().removeListener(documentListener);
+        openDocument.removeRefreshListener(refreshListener);
         selection.removeListener(selectionListener);
+    }
+
+    /**
+     * A component tab's body followed a change made elsewhere (an undo from the circuit's tab, «Actualizar desde la
+     * librería», the AI; spec §10.4): the gesture in progress is cancelled as Escape would, since what it holds may be
+     * gone, and the selection keeps the ids that still exist.
+     */
+    private void bodyRefreshed() {
+        if (disposed) {
+            return;
+        }
+        cancelEdgeGesture();
+        if (tool.holdsGesture()) {
+            boolean shared = sharesGesture();
+            tool.keyPressed(toolContext(), KeyEvent.VK_ESCAPE, false);
+            endGesture();
+            repaintOtherPanesIfTheGestureEnded(shared);
+            updateAnimation();
+        }
+        Set<ElementId> present = new HashSet<>();
+        openDocument.document().elements().forEach(element -> present.add(element.id()));
+        selection.retainAll(present);
+        repaint();
     }
 
     public Tool tool() {
@@ -829,6 +889,41 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** Drives the travels with {@code ticker} and {@code clock} (milliseconds) instead of a Swing timer: for tests. */
     public void useViewTicker(FrameTicker ticker, LongSupplier clock) {
         viewTravel.useViewTicker(ticker, clock);
+    }
+
+    /**
+     * «Ver la pieza»: makes the piece at {@code bounds} glow for 1.5 s so the eye finds it after the view travelled
+     * (spec §5.1). A new glow replaces the one going.
+     */
+    public void glow(Bounds bounds) {
+        pieceGlow.start(Objects.requireNonNull(bounds, "bounds"), glowClock.getAsLong());
+        glowTicker.start(this::glowFrame);
+        repaint();
+    }
+
+    /** True while a piece glows. */
+    public boolean isGlowing() {
+        return pieceGlow.activeAt(glowClock.getAsLong());
+    }
+
+    /** The glow's strength now, 1 down to 0. */
+    double glowStrength() {
+        return pieceGlow.strengthAt(glowClock.getAsLong());
+    }
+
+    /** Drives the glow with {@code ticker} and {@code clock} (milliseconds) instead of a Swing timer: for tests. */
+    void useGlowTicker(FrameTicker ticker, LongSupplier clock) {
+        glowTicker.stop();
+        glowTicker = Objects.requireNonNull(ticker, "ticker");
+        glowClock = Objects.requireNonNull(clock, "clock");
+    }
+
+    private void glowFrame() {
+        if (!pieceGlow.activeAt(glowClock.getAsLong())) {
+            glowTicker.stop();
+            pieceGlow.stop();
+        }
+        repaint();
     }
 
     public void addOverlay(CanvasOverlay overlay) {
@@ -1440,6 +1535,16 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     @Override
+    public void enterComponent(Component component) {
+        host.enterComponent(component);
+    }
+
+    @Override
+    public void showNotice(String text) {
+        host.showNotice(text);
+    }
+
+    @Override
     public void captureKeyboard(Component component) {
         host.captureKeyboard(component);
     }
@@ -1461,11 +1566,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
                     problemPulse.phase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues),
-                    host.capturedPart(), previewedParts(sharing));
+                    host.capturedPart(), previewedParts(sharing), openDocument.pieceMemoryContents());
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
             }
+            pieceGlow.paint(local, renderer.scheme(), glowClock.getAsLong(), reducedMotion.getAsBoolean());
             canvasDragOut.paintDragOutPreview(local);
             tool.paintOverlay(local, this);
             for (CircuitCanvas owner : sharing) {

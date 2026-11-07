@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.prefs.Preferences;
 
@@ -38,6 +39,19 @@ class SplitLayoutStoreTest {
         assertThat(store.layoutFor(file)).contains(FOUR_PANES);
         assertThat(store.layoutFor(folder.resolve("otro.vsim"))).contains(SIDE_BY_SIDE);
         assertThat(store.layoutFor(folder.resolve("nunca.vsim"))).isEmpty();
+    }
+
+    @Test
+    void aComponentOfAFileHasItsOwnEntry() {
+        Path file = folder.resolve("contador.vsim");
+        store.remember(file, FOUR_PANES);
+        store.remember(file, Optional.of("ram"), SIDE_BY_SIDE);
+
+        assertThat(store.layoutFor(file)).contains(FOUR_PANES);
+        assertThat(store.layoutFor(file, Optional.of("ram"))).contains(SIDE_BY_SIDE);
+        assertThat(store.layoutFor(file, Optional.of("alu"))).isEmpty();
+        store.forget(file);
+        assertThat(store.layoutFor(file, Optional.of("ram"))).contains(SIDE_BY_SIDE);
     }
 
     @Test

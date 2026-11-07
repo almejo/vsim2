@@ -6,7 +6,10 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.InsideEditRefusedException;
+import cl.almejo.vsim.ui.window.PlaceBar;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.DefinitionBundle;
@@ -92,6 +95,36 @@ final class EditHostSupport {
         @Override
         public History history() {
             return openDocument.history();
+        }
+
+        /**
+         * Inside a component the edit goes through the place, which wraps it as the user's edits there are (one undo
+         * step of the circuit that writes the body back); a refusal comes back to the AI with its explanation.
+         */
+        @Override
+        public void execute(Command command) {
+            if (!openDocument.isBody()) {
+                history().execute(command);
+                return;
+            }
+            try {
+                openDocument.execute(command);
+            } catch (InsideEditRefusedException refusal) {
+                throw new AutomationException(AutomationError.NOT_ALLOWED, PlaceBar.explanation(refusal),
+                        Map.of("reason", refusal.messageKey()));
+            }
+        }
+
+        /** The circuit a place inside a component belongs to: it keeps each piece's own memory contents. */
+        @Override
+        public Optional<CircuitDocument> circuit() {
+            return openDocument.parent().map(OpenDocument::document);
+        }
+
+        /** What the user does from the memory editor for a piece's contents: executed on the circuit itself. */
+        @Override
+        public void executeOnCircuit(Command command) {
+            openDocument.parent().orElse(openDocument).execute(command);
         }
 
         @Override

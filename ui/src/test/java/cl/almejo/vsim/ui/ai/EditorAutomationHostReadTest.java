@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
+import cl.almejo.vsim.automation.PlaceRef;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.automation.read.CircuitView;
 import cl.almejo.vsim.automation.read.ComponentTypeView;
@@ -242,6 +243,35 @@ class EditorAutomationHostReadTest {
     void theWindowPictureHasTheWholeWindowScaledToFit() throws Exception {
         OpenDocument document = document("Contador");
         onEditor(() -> place(document, StandardComponentTypes.FLIP_FLOP_DATA, 10, 10, Map.of()));
+        showInAWindow(document);
+
+        WindowPicture picture = api.pictureOfWindow(idOf(document));
+
+        assertThat(picture.width()).isEqualTo(WindowPicture.MAXIMUM_WIDTH);
+        assertThat(picture.height()).isEqualTo(WindowPicture.MAXIMUM_HEIGHT);
+        assertThat(picture.windowTitle()).isEqualTo("Contador - VSim");
+        assertThat(picture.dialogs()).isEmpty();
+        BufferedImage image = decode(picture.png());
+        assertThat(image.getWidth()).isEqualTo(picture.width());
+        assertThat(colours(image)).isGreaterThan(10);
+    }
+
+    /** Round E (5q): a picture of the window is no work in any place; the AI's marks stay as they are. */
+    @Test
+    void aWindowPictureTouchesNoPlace() throws Exception {
+        OpenDocument document = document("Contador");
+        showInAWindow(document);
+        List<PlaceRef> touched = new ArrayList<>();
+        host.addPlaceListener((circuitId, circuit, place) -> touched.add(place));
+
+        api.pictureOfWindow(idOf(document));
+        onEditor(() -> null); // the listeners hear on the editor thread
+
+        assertThat(touched).isEmpty();
+    }
+
+    /** Puts {@code document}'s view in a window-sized root pane the pictures of the window see. */
+    private void showInAWindow(OpenDocument document) throws Exception {
         EditorView view = view(document);
         AtomicReference<JRootPane> root = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -253,17 +283,7 @@ class EditorAutomationHostReadTest {
             root.set(pane);
         });
         windows.clear();
-        windows.add(new ShownWindow(view, root.get(), "Contador - VSim", List.of()));
-
-        WindowPicture picture = api.pictureOfWindow(idOf(document));
-
-        assertThat(picture.width()).isEqualTo(WindowPicture.MAXIMUM_WIDTH);
-        assertThat(picture.height()).isEqualTo(WindowPicture.MAXIMUM_HEIGHT);
-        assertThat(picture.windowTitle()).isEqualTo("Contador - VSim");
-        assertThat(picture.dialogs()).isEmpty();
-        BufferedImage image = decode(picture.png());
-        assertThat(image.getWidth()).isEqualTo(picture.width());
-        assertThat(colours(image)).isGreaterThan(10);
+        windows.add(new ShownWindow(view, root.get(), document.circuitName() + " - VSim", List.of()));
     }
 
     private OpenDocument document(String name) {

@@ -13,6 +13,8 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.actions.KeyboardFocus;
+import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Descriptions;
@@ -134,10 +136,17 @@ public final class PalettePanel extends JPanel {
     private Runnable focusAfterMouseChoice = () -> {
     };
     private boolean updating;
+    /** True while a key moves through the rows: the selection follows without choosing (Enter chooses). */
+    private boolean movingWithKeys;
+    private KeyboardFocus keyboardFocus = KeyboardFocus.SWING;
+    private Runnable escapeAction = () -> {
+    };
     private Optional<Consumer<String>> favoriteToggle = Optional.empty();
     private List<String> favoriteIds = List.of();
     private List<String> recentIds = List.of();
     private final Listeners<Runnable> entriesListeners = new Listeners<>();
+    /** The entries that cannot be chosen here, by palette id, with the tooltip that says why. */
+    private final Map<String, String> disabledReasons = new HashMap<>();
 
     /** The ids (type or preset) shown as favourites now; read live by the tree, the renderer and the popup. */
     List<String> favoriteIds() {
@@ -351,8 +360,45 @@ public final class PalettePanel extends JPanel {
         return entries.size();
     }
 
+    /**
+     * Disables the entry {@code paletteId} (a type, preset or user component id) with {@code reason} as its tooltip, or
+     * enables it again when empty: a disabled entry cannot be chosen, placed or dragged. Inside a component tab the
+     * component itself, its ancestors and, while its interface is locked, the pin parts are disabled (spec §6.5).
+     */
+    public void setDisabledReason(String paletteId, Optional<String> reason) {
+        Objects.requireNonNull(paletteId, "paletteId");
+        Optional<String> before = disabledReason(paletteId);
+        reason.ifPresentOrElse(text -> disabledReasons.put(paletteId, text), () -> disabledReasons.remove(paletteId));
+        if (before.equals(reason)) {
+            return;
+        }
+        if (reason.isPresent() && selectedId().filter(paletteId::equals).isPresent()) {
+            clearSelection(); // what was being placed cannot be placed here any more
+        }
+        tree.repaint();
+    }
+
+    /** Why the entry {@code paletteId} is disabled; empty while it can be chosen. */
+    public Optional<String> disabledReason(String paletteId) {
+        return Optional.ofNullable(disabledReasons.get(paletteId));
+    }
+
+    /** Whether the tree row of {@code item} is a disabled entry ({@link #setDisabledReason}). */
+    boolean isDisabled(Object item) {
+        return isEntryItem(item) && disabledReasons.containsKey(idOf(item));
+    }
+
+    private Optional<String> selectedId() {
+        TreePath path = tree.getSelectionPath();
+        Object item = path == null ? null : ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
+        return isEntryItem(item) ? Optional.of(idOf(item)) : Optional.empty();
+    }
+
     /** Starts the same placement as choosing the entry in the palette, including library-version warnings. */
     public void chooseEntry(PaletteEntry entry) {
+        if (disabledReasons.containsKey(entry.id())) {
+            return;
+        }
         if (entry.userComponent().isPresent()) {
             userChooser.accept(entry.userComponent().get());
         } else {
@@ -395,14 +441,14 @@ public final class PalettePanel extends JPanel {
         tree.setRowHeight(ICON_SIZE + 4);
         tree.setCellRenderer(new PaletteRowRenderer(this));
         ToolTipManager.sharedInstance().registerComponent(tree);
-        tree.setSelectionModel(new HintSkippingSelectionModel(tree));
+        tree.setSelectionModel(new HintSkippingSelectionModel(tree, this::isDisabled));
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         tree.addTreeSelectionListener(event -> {
-            if (!updating) {
-                selectedEntry().ifPresent(onChoose);
-                selectedUserComponent().ifPresent(component -> userChooser.accept(component));
+            if (!updating && !movingWithKeys) {
+                chooseSelected();
             }
         });
+        bindKeys();
         add(search);
         if (!GraphicsEnvironment.isHeadless()) {
             tree.setDragEnabled(true); // Swing refuses to enable dragging without a display
@@ -428,6 +474,59 @@ public final class PalettePanel extends JPanel {
         rebuild();
     }
 
+    /** Starts placing the highlighted entry: a click on it, or Enter. */
+    private void chooseSelected() {
+        selectedEntry().ifPresent(onChoose);
+        selectedUserComponent().ifPresent(component -> userChooser.accept(component));
+    }
+
+    /**
+     * The keyboard of the tree (Alt+2 focuses it): Enter chooses like a click, Up on the first row goes to the search
+     * box and Down there comes back to the first entry, Esc runs the {@linkplain #setEscapeAction view's escape}.
+     */
+    private void bindKeys() {
+        putClientProperty(KeyboardFocus.TARGET_PROPERTY, tree);
+        Keys.bindWhenFocused(tree, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "palette.choose",
+                this::chooseSelected);
+        Keys.bindWhenFocused(tree, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "palette.up", this::pressUp);
+        Keys.bindWhenFocused(tree, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "palette.escape",
+                () -> escapeAction.run());
+        Keys.bindWhenFocused(search, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "palette.toTheRows",
+                this::downFromTheSearch);
+    }
+
+    /** Up: the row above (past the hints, as the tree's own key), or the search box from the first row. */
+    private void pressUp() {
+        if (tree.getLeadSelectionRow() <= 0) {
+            keyboardFocus.request(search);
+            search.selectAll();
+            return;
+        }
+        String selectPrevious = "selectPrevious";
+        Optional.ofNullable(tree.getActionMap().get(selectPrevious)).ifPresent(action ->
+                action.actionPerformed(new ActionEvent(tree, ActionEvent.ACTION_PERFORMED, selectPrevious)));
+    }
+
+    /** Down in the search box: the first entry of the tree is highlighted (not chosen) and the tree gets the focus. */
+    private void downFromTheSearch() {
+        int firstEntry = 0;
+        for (int row = 0; row < tree.getRowCount(); row++) {
+            Object item = ((DefaultMutableTreeNode) tree.getPathForRow(row).getLastPathComponent()).getUserObject();
+            if (isEntryItem(item) && !isDisabled(item)) {
+                firstEntry = row;
+                break;
+            }
+        }
+        boolean before = setMovingWithKeys(true);
+        try {
+            tree.setSelectionRow(firstEntry);
+        } finally {
+            setMovingWithKeys(before);
+        }
+        tree.scrollRowToVisible(firstEntry);
+        keyboardFocus.request(tree);
+    }
+
     /** Stops following the shared appearance: the window showing this palette closed. */
     public void dispose() {
         appearance.removeListener(appearanceListener);
@@ -443,6 +542,23 @@ public final class PalettePanel extends JPanel {
     Icon icon(PaletteEntry entry) {
         return icons.computeIfAbsent(entry.id(), id -> new ComponentIcon(entry.type(),
                 painters.painterFor(entry.type().id()), appearance.scheme(), ICON_SIZE, entry.parameters()));
+    }
+
+    /** Where the focus is and how to ask for it (the view's: Up from the first row, Down from the search box). */
+    public void useKeyboardFocus(KeyboardFocus focus) {
+        keyboardFocus = Objects.requireNonNull(focus, "focus");
+    }
+
+    /** What Esc in the tree does: the view cancels a placement and gives the canvas the focus. */
+    public void setEscapeAction(Runnable escape) {
+        escapeAction = Objects.requireNonNull(escape, "escape");
+    }
+
+    /** Sets whether a key is moving through the rows now; returns what it was. */
+    boolean setMovingWithKeys(boolean moving) {
+        boolean before = movingWithKeys;
+        movingWithKeys = moving;
+        return before;
     }
 
     /** Package-private for tests. */

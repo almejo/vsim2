@@ -2,6 +2,9 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -49,9 +52,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -68,7 +73,20 @@ class EditorViewTest {
         @Override public void closeWindow() { windowCalls.add("close"); }
         @Override public void exit() { windowCalls.add("exit"); }
         @Override public void newView() { windowCalls.add("newView"); }
+        @Override public void newWindowWithCircuit() { windowCalls.add("newWindowWithCircuit"); }
+        @Override public void moveGroupToNewWindow() { windowCalls.add("moveGroup"); }
+        @Override public void toggleFold() { windowCalls.add("foldGroup"); }
+        @Override public void nextTab() { windowCalls.add("nextTab"); }
+        @Override public void previousTab() { windowCalls.add("previousTab"); }
+        @Override public void closeTab() { windowCalls.add("closeTab"); }
+        @Override public void closeComponents() { windowCalls.add("closeComponents"); }
+        @Override public void enter(OpenDocument document, String definitionId, Optional<String> contextPath,
+                                    Optional<cl.almejo.vsim.ui.canvas.ViewState> from) {
+            enteredDocuments.add(document);
+            windowCalls.add("enter " + definitionId + " " + contextPath.orElse("-"));
+        }
     };
+    private final List<OpenDocument> enteredDocuments = new ArrayList<>();
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -127,16 +145,36 @@ class EditorViewTest {
         for (MenuId id : MenuId.values()) {
             assertThat(view.menu(id)).isSameAs(view.menuBar().getMenu(id.ordinal()));
         }
-        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(1);
+        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(10);
         assertThat(view.menu(MenuId.WINDOW).getItem(0).getAction()).isSameAs(view.actions().newView());
     }
 
     @Test
+    void theWindowMenuHasTheTabItemsInTheSpecsOrder() {
+        assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
+                "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
+                "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---");
+    }
+
+    @Test
     void theWindowMenuOffersNewViewAndHandsItToTheWindow() {
-        assertThat(view.menu(MenuId.WINDOW).getItem(0).getText()).isEqualTo("Nueva vista");
+        assertThat(view.menu(MenuId.WINDOW).getItem(0).getText()).isEqualTo("Nueva pestaña del mismo circuito");
         assertThat(view.actions().newView().getValue(Action.ACCELERATOR_KEY)).isNull();
         perform(view.actions().newView());
         assertThat(windowCalls).containsExactly("newView");
+    }
+
+    @Test
+    void theTabActionsAreHandedToTheWindow() {
+        perform(view.actions().newWindowWithCircuit());
+        perform(view.actions().moveGroup());
+        perform(view.actions().foldGroup());
+        perform(view.actions().nextTab());
+        perform(view.actions().previousTab());
+        perform(view.actions().closeTab());
+        perform(view.actions().closeComponents());
+        assertThat(windowCalls).containsExactly("newWindowWithCircuit", "moveGroup", "foldGroup", "nextTab",
+                "previousTab", "closeTab", "closeComponents");
     }
 
     @Test
@@ -779,5 +817,51 @@ class EditorViewTest {
         assertThatThrownBy(() -> view.shortcutActions().clear()).isInstanceOf(UnsupportedOperationException.class);
         removeFirst.run();
         assertThat(view.shortcutActions()).containsOnlyKeys("test.second");
+    }
+
+    // --- entering a user component (spec §4.4) ---
+
+    @Test
+    void enterWithOneCustomInstanceSelected() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 0, 0,
+                Map.of());
+        view.selection().select(instance.id());
+
+        assertThat(view.canvas().pressKeyOnTool(KeyEvent.VK_ENTER, false)).isTrue();
+
+        assertThat(windowCalls).containsExactly("enter inverter " + instance.id().value());
+        assertThat(enteredDocuments).containsExactly(openDocument);
+    }
+
+    @Test
+    void enteringFromInsideAComponentEntersTheNestedOneWithItsPathInTheCircuit() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter(),
+                ExampleDefinitions.doubleInverter())));
+        Component outer = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 0, 0,
+                Map.of());
+        OpenDocument body = openDocument.openBody(ExampleDefinitions.DOUBLE_INVERTER, Optional.of(outer.id().value()));
+        EditorView inside = new EditorView(body, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        try {
+            Component nested = body.document().component(new cl.almejo.vsim.core.document.ElementId("c3"))
+                    .orElseThrow();
+            inside.enterComponent(nested);
+            body.setContextPath(Optional.empty());
+            inside.enterComponent(nested);
+        } finally {
+            inside.dispose();
+            body.close();
+        }
+        assertThat(windowCalls).containsExactly("enter inverter " + outer.id().value() + "/c3", "enter inverter -");
+        assertThat(enteredDocuments).containsExactly(openDocument, openDocument);
+    }
+
+    @Test
+    void aBuiltInPartIsNeverEntered() {
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of());
+        view.enterComponent(gate);
+        view.selection().select(gate.id());
+        view.canvas().pressKeyOnTool(KeyEvent.VK_ENTER, false);
+        assertThat(windowCalls).isEmpty();
     }
 }

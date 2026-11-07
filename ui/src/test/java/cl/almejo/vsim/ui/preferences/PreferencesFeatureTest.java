@@ -63,7 +63,7 @@ class PreferencesFeatureTest {
         }).install(view);
 
         List<String> after = entries(file);
-        int close = after.indexOf(Messages.text("action.close"));
+        int close = after.indexOf(Messages.text("action.closeTab"));
         assertThat(after.subList(close - 3, close)).containsExactly("—", "Preferencias…", "—");
         assertThat(after).hasSize(before.size() + 2);
 

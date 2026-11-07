@@ -16,8 +16,8 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PalettePanelAccess;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
-import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
-import cl.almejo.vsim.ui.tree.ComponentTreePanel;
+import cl.almejo.vsim.ui.tree.CircuitTreeExtension;
+import cl.almejo.vsim.ui.tree.CircuitTree;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
@@ -78,7 +78,7 @@ class DragBetweenViewsTest {
 
     private EditorView viewOf(OpenDocument document) {
         EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
-                .withExtensions(List.of(new ComponentTreeExtension()));
+                .withExtensions(List.of(new CircuitTreeExtension()));
         EditorView view = new EditorView(document, services, NO_WINDOW);
         view.canvas().setSize(400, 300);
         views.add(view);
@@ -201,9 +201,9 @@ class DragBetweenViewsTest {
         assertThat(second.document().definitions()).isEmpty();
     }
 
-    /** The tree of the "Componentes" tab: the first JTree inside the inspector's ComponentTreePanel. */
+    /** The circuit tree of the left column: the first JTree inside the view's CircuitTree. */
     private static JTree treeOf(java.awt.Component root) {
-        ComponentTreePanel panel = first(root, ComponentTreePanel.class);
+        CircuitTree panel = first(root, CircuitTree.class);
         return panel == null ? null : first(panel, JTree.class);
     }
 
@@ -222,10 +222,10 @@ class DragBetweenViewsTest {
         return null;
     }
 
-    /** The number of component rows under the document row of the view's "Componentes" tab. */
+    /** The number of piece rows under the document row of the view's circuit tree. */
     private static int componentRows(EditorView view) {
-        JTree tree = treeOf(view.inspector());
-        assertThat(tree).as("the tree tab is installed").isNotNull();
+        JTree tree = treeOf(view);
+        assertThat(tree).as("the circuit tree is installed").isNotNull();
         TreeModel model = tree.getModel();
         return model.getChildCount(model.getRoot());
     }

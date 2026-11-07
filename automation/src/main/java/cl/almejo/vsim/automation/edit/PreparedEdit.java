@@ -1,6 +1,7 @@
 package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.automation.DocumentVersion;
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.ReplaceContentCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
@@ -30,10 +31,12 @@ public final class PreparedEdit {
     private final EditReceipt.ElementChanges changes;
     private final List<DocumentElement> ghostElements;
     private final Optional<Bounds> changedBounds;
+    private final Optional<Command> pieceWrite;
 
     PreparedEdit(EditRequest request, Optional<AiTask> task, DocumentVersion version, EditPlanner.PlannedEdit planned,
                  ReplaceContentCommand content, EditReceipt.ElementChanges changes, CircuitDocument live,
-                 ComponentTypeRegistry liveRegistry) {
+                 ComponentTypeRegistry liveRegistry, Optional<Command> pieceWrite) {
+        this.pieceWrite = Objects.requireNonNull(pieceWrite, "pieceWrite");
         this.request = Objects.requireNonNull(request, "request");
         this.task = Objects.requireNonNull(task, "task");
         this.version = Objects.requireNonNull(version, "version");
@@ -86,7 +89,15 @@ public final class PreparedEdit {
 
     /** True when writing it would change nothing. */
     public boolean changesNothing() {
-        return content.changesNothing();
+        return content.changesNothing() && pieceWrite.isEmpty();
+    }
+
+    /**
+     * What writes the words of a piece's own memories: a command for the circuit itself, not for the place's body
+     * (spec §6.6b). Empty for every other edit.
+     */
+    Optional<Command> pieceWrite() {
+        return pieceWrite;
     }
 
     Optional<AiTask> task() {

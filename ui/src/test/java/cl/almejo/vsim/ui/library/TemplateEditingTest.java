@@ -137,6 +137,27 @@ class TemplateEditingTest {
     }
 
     @Test
+    void theMenuOfACustomInstanceStartsWithEntrarBeforeDesarmar() {
+        Wired wired = wiredInverter("1");
+        fixture.select(wired.instance());
+        assertThat(texts(contribute(wired.instance()))).startsWith("Entrar", "Desarmar");
+        fixture.select(wired.led());
+        assertThat(texts(contribute(wired.led()))).doesNotContain("Entrar");
+    }
+
+    /** Spec §4.4: «Entrar» is the first item of the piece's whole menu, in a group of its own. */
+    @Test
+    void theWholeMenuOfACustomInstanceStartsWithEntrarAndASeparator() {
+        Wired wired = wiredInverter("1");
+        fixture.select(wired.instance());
+
+        List<String> texts = texts(fixture.view.contextMenu(Optional.of(wired.instance()), new Point2D.Double()));
+
+        assertThat(texts).startsWith("Entrar", "---", "Configurar…");
+        assertThat(texts).containsOnlyOnce("Entrar");
+    }
+
+    @Test
     void disassemblingKeepsTheOutsideConnections() {
         Wired wired = wiredInverter("1");
         waitUntil(() -> fixture.stateOf(wired.led()).equals(LED_ZERO));
@@ -238,7 +259,7 @@ class TemplateEditingTest {
         Optional<String> lastStep = fixture.openDocument.history().undoDescription();
 
         JPopupMenu menu = contribute(instance);
-        assertThat(texts(menu)).containsExactly("Desarmar", "Actualizar desde la librería");
+        assertThat(texts(menu)).containsExactly("Entrar", "Desarmar", "Actualizar desde la librería");
         click(menu, "Actualizar desde la librería");
 
         assertThat(fixture.dialogs.errors).containsExactly(Messages.text("template.updateFromLibrary.recursive"));
@@ -272,7 +293,7 @@ class TemplateEditingTest {
         fixture.select(instance);
 
         JPopupMenu menu = contribute(instance);
-        assertThat(texts(menu)).containsExactly("Desarmar");
+        assertThat(texts(menu)).containsExactly("Entrar", "Desarmar");
         click(menu, "Desarmar");
 
         assertThat(document.components()).extracting(Component::typeId, Component::position).containsExactly(
@@ -536,7 +557,7 @@ class TemplateEditingTest {
         assertThat(image.getRGB(108, 84) >>> 24).isNotZero(); // top-right corner of the 4 × 4 box at (10, 10)
 
         JPopupMenu menu = contribute(instance);
-        assertThat(texts(menu)).containsExactly("Desarmar", "Actualizar desde la librería");
+        assertThat(texts(menu)).containsExactly("Entrar", "Desarmar", "Actualizar desde la librería");
         click(menu, "Actualizar desde la librería");
 
         assertThat(document.definition(ExampleDefinitions.INVERTER)).contains(renamed.root());

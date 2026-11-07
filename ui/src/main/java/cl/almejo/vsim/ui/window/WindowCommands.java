@@ -2,6 +2,9 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.ViewState;
 
 import java.util.Optional;
 
@@ -15,11 +18,15 @@ public interface WindowCommands {
 
     void saveAs();
 
+    /** Archivo ▸ «Cerrar ventana» (Ctrl+Mayús+W): every tab of the window, asking once per document it last holds. */
     void closeWindow();
 
     void exit();
 
-    /** Ventana ▸ Nueva vista: another view of this document. Nothing happens outside a real window. */
+    /**
+     * Ventana ▸ «Nueva pestaña del mismo circuito»: another tab on the active tab's place, in its group. Nothing
+     * happens outside a real window.
+     */
     default void newView() {
     }
 
@@ -47,5 +54,82 @@ public interface WindowCommands {
      * Nothing happens outside a real window.
      */
     default void openNewCircuit(String name, Command creation, String notice) {
+    }
+
+    /** Ventana ▸ «Nueva ventana con este circuito»: a new window with a new main tab of this document. */
+    default void newWindowWithCircuit() {
+    }
+
+    /** Ventana ▸ «Mover el grupo a una ventana nueva»: the active tab's group goes to a window of its own. */
+    default void moveGroupToNewWindow() {
+    }
+
+    /** Ventana ▸ «Plegar / desplegar el grupo» of the active tab. */
+    default void toggleFold() {
+    }
+
+    /** Ventana ▸ «Pestaña siguiente» (Ctrl+Tab), wrapping. */
+    default void nextTab() {
+    }
+
+    /** Ventana ▸ «Pestaña anterior» (Ctrl+Mayús+Tab), wrapping. */
+    default void previousTab() {
+    }
+
+    /** Archivo / Ventana ▸ «Cerrar pestaña» (Ctrl+W): closes the active tab, asking to save only as spec §4.5 says. */
+    default void closeTab() {
+    }
+
+    /**
+     * Enters definition {@code definitionId} of {@code document} (spec §4.4): a component tab in the document's group,
+     * showing the instance at {@code contextPath} (empty: «Sin valores»); the group's tab of that definition most
+     * recently active is focused and re-contexted instead when there is one. Nothing happens outside a real window.
+     */
+    default void enter(OpenDocument document, String definitionId, Optional<String> contextPath) {
+        enter(document, definitionId, contextPath, Optional.empty());
+    }
+
+    /**
+     * As {@link #enter(OpenDocument, String, Optional)}; a new tab's view starts at {@code from} (where the instance
+     * was drawn) and travels to the whole body, when entering animates.
+     */
+    default void enter(OpenDocument document, String definitionId, Optional<String> contextPath,
+                       Optional<ViewState> from) {
+    }
+
+    /**
+     * Brings the place to the front: {@code definitionId} empty is the document's main tab, else its component tab
+     * showing {@code contextPath} (as {@link #enter}); the view that shows it. Empty outside a real window. The place
+     * bar's document crumb; to show a part there, use {@link #goToPart}.
+     */
+    default Optional<EditorView> showPlace(OpenDocument document, Optional<String> definitionId,
+                                           Optional<String> contextPath) {
+        return Optional.empty();
+    }
+
+    /**
+     * Brings to the front the place where a step of the history was made, before undoing or redoing it there (round C):
+     * the document's main tab when {@code definitionId} is empty, else the component tab of {@code definitionId} most
+     * recently active (keeping its «Valores de»), or a new one showing {@code contextPath} when none is open. The view
+     * that shows it; empty outside a real window.
+     */
+    default Optional<EditorView> showPlaceOfStep(OpenDocument document, Optional<String> definitionId,
+                                                 Optional<String> contextPath) {
+        return Optional.empty();
+    }
+
+    /**
+     * Shows part {@code part} of {@code document} where it is (F8 and the Problemas list, spec §6.7; «Ver la pieza» of
+     * the place bar and the circuit tree, spec §5, through {@link SeePiece}): the place {@link #showPlace} brings to
+     * the front, with the part selected and brought into view. False when there are no tabs to show it in (an editor
+     * outside a real window): nothing happens, and the caller shows what it can where it is.
+     */
+    default boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
+                             ElementId part) {
+        return false;
+    }
+
+    /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
+    default void closeComponents() {
     }
 }

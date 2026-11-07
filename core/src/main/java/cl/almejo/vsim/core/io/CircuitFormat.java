@@ -33,6 +33,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -56,23 +57,29 @@ import java.util.function.UnaryOperator;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 
-/** Reads formats 2 to 5 and writes format 5 (JSON; first keys in {@link FileHeader}). */
+/** Reads formats 2 to 6 and writes format 6 (JSON; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
     /**
      * 4: parameterized gates ({@link LegacyGateMigration}); 5: the thin register ({@link RegisterShapeMigration}) and
-     * the D flip-flop's Q̅, off on old parts ({@link FlipFlopNotOutputMigration}).
+     * the D flip-flop's Q̅, off on old parts ({@link FlipFlopNotOutputMigration}); 6: a piece's own memory contents
+     * ({@code memoryContents}, optional: older files read unchanged, and an older VSim refuses a newer file instead of
+     * dropping them).
      */
-    public static final int FORMAT_VERSION = 5;
+    public static final int FORMAT_VERSION = 6;
     static final String KIND_CIRCUIT = "circuit";
     private static final String STICKY_KIND_TEXT = "text";
     private static final String STICKY_KIND_LIST = "list";
 
-    /** A component; {@code labelOffset} is written only when the user moved the label (M6.8). */
+    /**
+     * A component; {@code labelOffset} is written only when the user moved the label (M6.8), {@code memoryContents}
+     * only for a piece that keeps its own memory contents (spec §6.6b), sorted by path.
+     */
     record ComponentEntry(String id, String type, int x, int y, int rotation, String label,
                           Map<String, Object> parameters,
                           @JsonInclude(JsonInclude.Include.NON_NULL) LabelOffsetEntry labelOffset,
-                          @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.AppearanceEntry appearance) {
+                          @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.AppearanceEntry appearance,
+                          @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> memoryContents) {
     }
 
     record LabelOffsetEntry(int x, int y) {
@@ -170,7 +177,8 @@ public final class CircuitFormat {
                 component.position().y(), component.rotation().quarterTurns(), component.label(),
                 writtenParameters(component),
                 component.labelOffset().map(offset -> new LabelOffsetEntry(offset.x(), offset.y())).orElse(null),
-                component.appearance().map(AppearanceEntries::entry).orElse(null));
+                component.appearance().map(AppearanceEntries::entry).orElse(null),
+                new TreeMap<>(component.memoryContents()));
     }
 
     /**
@@ -285,9 +293,9 @@ public final class CircuitFormat {
     }
 
     /**
-     * Like {@link #write(CircuitDocument)}, with each of the circuit's own components written as {@code written}
-     * gives it (the document is not touched): the editor writes a memory's linked file relative to where the circuit
-     * is saved.
+     * Like {@link #write(CircuitDocument)}, with each of the circuit's own components, and each component inside its
+     * definitions, written as {@code written} gives it (the document is not touched): the editor writes a memory's
+     * linked file relative to where the circuit is saved.
      */
     public String write(CircuitDocument document, UnaryOperator<Component> written) {
         List<ComponentDefinition> used;
@@ -301,7 +309,8 @@ public final class CircuitFormat {
                 document.components().stream().map(written).map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
-                used.stream().map(DefinitionEntries::entry).toList(),
+                used.stream().map(definition -> definition.withBodyComponents(written)).map(DefinitionEntries::entry)
+                        .toList(),
                 document.probes().stream().map(CircuitFormat::probeEntry).toList(),
                 document.frames().stream().map(CircuitFormat::frameEntry).toList(),
                 document.guides().stream().map(GuideEntries::entry).toList(),
@@ -338,8 +347,9 @@ public final class CircuitFormat {
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, String.valueOf(entry.type())));
             requireRotation(entry);
             try {
-                add(document, () -> MultiBitOrientation.normalized(
-                        validateAppearance(component(entry, type.resolveParameters(entry.parameters())), type), type));
+                add(document, () -> MultiBitOrientation.normalized(validateMemoryContents(
+                        validateAppearance(component(entry, type.resolveParameters(entry.parameters())), type), type),
+                        type));
             } catch (CircuitFormatException exception) {
                 throw exception.atElement("components", entry.id(), entry.type());
             }
@@ -453,7 +463,8 @@ public final class CircuitFormat {
         return new Component(new ElementId(entry.id()), entry.type(), new GridPoint(entry.x(), entry.y()),
                 Rotation.fromQuarterTurns(entry.rotation()), parameters, entry.label(),
                 Optional.ofNullable(entry.labelOffset()).map(offset -> new LabelOffset(offset.x(), offset.y())),
-                Optional.ofNullable(entry.appearance()).map(AppearanceEntries::appearance));
+                Optional.ofNullable(entry.appearance()).map(AppearanceEntries::appearance),
+                Optional.ofNullable(entry.memoryContents()).orElse(Map.of()));
     }
 
     /** Invalid persisted pin maps must fail rather than silently change an instance's electrical connections. */
@@ -470,6 +481,32 @@ public final class CircuitFormat {
             throw new IllegalArgumentException("appearance of " + component.id() + ": " + exception.getMessage(),
                     exception);
         }
+    }
+
+    /**
+     * {@code component} with its own memory contents in their canonical text; only a user-component piece keeps any,
+     * and text that is not memory contents fails the load (IllegalArgumentException, as an invalid element).
+     */
+    static Component validateMemoryContents(Component component, ComponentType type) {
+        if (component.memoryContents().isEmpty()) {
+            return component;
+        }
+        if (SubcircuitTypes.definitionOf(type).isEmpty()) {
+            throw new IllegalArgumentException("memoryContents is only allowed on user components: " + component.id());
+        }
+        Map<String, String> canonical = new TreeMap<>();
+        component.memoryContents().forEach((path, text) -> {
+            if (path == null || path.isBlank() || text == null) {
+                throw new IllegalArgumentException("memoryContents of " + component.id() + ": empty entry");
+            }
+            try {
+                canonical.put(path, MemoryContents.decode(text).encode());
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException("memoryContents of " + component.id() + " at " + path + ": "
+                        + exception.getMessage(), exception);
+            }
+        });
+        return component.withMemoryContents(canonical);
     }
 
     static Wire wire(WireEntry entry) {

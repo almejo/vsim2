@@ -36,9 +36,11 @@ import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
+import cl.almejo.vsim.ui.actions.ContextMenuEntry;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
@@ -171,7 +173,7 @@ public final class TemplateActions {
         ComponentForm form = ComponentForm.create(testParts, converted -> {
             ConvertedSelection selection = converter.apply(converted);
             return new ComponentForm.PinPlan(selection.defaultPinOrder(), selection.pinNames(), selection.parts());
-        }, takenNames(), takenIds());
+        }, takenNames(), takenIds(), offersMemoryLinks(document, ids));
         if (!proposedName.isBlank()) {
             form.setName(proposedName);
         }
@@ -183,10 +185,15 @@ public final class TemplateActions {
             Optional<String> missing = missingPins(result.get().pinOrder());
             if (missing.isEmpty() || dialogs.confirmMissingPins(canvas.get(), missing.get())) {
                 create(converter.apply(result.get().convertedParts()), result.get(), frameToRemove,
-                        DefinitionBuilder.linkedMemories(document, ids));
+                        DefinitionBuilder.linkedMemories(document, ids), form.keepMemoryLinks());
                 return;
             }
         }
+    }
+
+    /** True when the dialog asks «Mantener los enlaces de las memorias»: a memory of the selection is linked. */
+    private static boolean offersMemoryLinks(CircuitDocument document, Set<ElementId> ids) {
+        return !DefinitionBuilder.linkedMemories(document, ids).isEmpty();
     }
 
     /** The warning for a component without outputs («… no tendrá salidas», or «… ni entradas ni salidas»). */
@@ -230,8 +237,8 @@ public final class TemplateActions {
         }
         PinOrder order = DefinitionBuilder.defaultPinOrder(document, ids);
         ComponentForm form = ComponentForm.update(order, DefinitionBuilder.pinNames(document, order), takenNames(),
-                document.definitions());
-        dialogs.editComponent(canvas.get(), form).ifPresent(result -> update(ids, result));
+                document.definitions(), offersMemoryLinks(document, ids));
+        dialogs.editComponent(canvas.get(), form).ifPresent(result -> update(ids, result, form.keepMemoryLinks()));
     }
 
     /**
@@ -289,7 +296,7 @@ public final class TemplateActions {
             return;
         }
         DefinitionBundle bundle = found.get();
-        CircuitDocument document = openDocument.document();
+        CircuitDocument document = circuit().document();
         if (wouldNestItself(document, bundle)) {
             dialogs.showError(canvas.get(), Messages.text("template.updateFromLibrary.recursive"));
             return;
@@ -308,8 +315,8 @@ public final class TemplateActions {
 
     /**
      * Context menu: "Crear componente desde selección…" (and "Actualizar componente…" when enabled) on a
-     * multi-selection or a selection with interface pins or test parts (a single clock, switch, LED…); "Desarmar" and, when outdated, "Actualizar desde la
-     * librería" on a single instance.
+     * multi-selection or a selection with interface pins or test parts (a single clock, switch, LED…); «Entrar»,
+     * "Desarmar" and, when outdated, "Actualizar desde la librería" on a single instance.
      */
     public ContextMenuContributor contributor() {
         return (menu, target, selection, gridPosition) -> {
@@ -325,12 +332,20 @@ public final class TemplateActions {
                 }
             }
             if (!multiple && target.get() instanceof Component instance && definitionIdOf(instance).isPresent()) {
+                if (EnterableInstances.definitionOf(openDocument, instance).isPresent()) {
+                    menu.add(ContextMenuEntry.ENTER.tag(new JMenuItem(enterAction(instance))));
+                }
                 menu.add(new JMenuItem(disassembleAction(instance)));
                 if (isOutdated(instance)) {
                     menu.add(new JMenuItem(updateFromLibraryAction(instance)));
                 }
             }
         };
+    }
+
+    /** «Entrar» for {@code instance}: its component opens in a tab of the circuit's group (spec §4.4). */
+    Action enterAction(Component instance) {
+        return Actions.of(Messages.text("action.enter"), () -> canvas.get().enterComponent(instance));
     }
 
     /** "Desarmar" for {@code instance}, with its icon. */
@@ -371,7 +386,7 @@ public final class TemplateActions {
      * keeping the same text changes nothing.
      */
     public void editDescription(Component instance) {
-        CircuitDocument document = openDocument.document();
+        CircuitDocument document = circuit().document();
         Optional<ComponentDefinition> found = definitionIdOf(instance).flatMap(document::definition);
         if (found.isEmpty()) {
             return;
@@ -381,7 +396,7 @@ public final class TemplateActions {
         if (answer.isEmpty() || answer.get().strip().equals(definition.description())) {
             return;
         }
-        openDocument.execute(new EditDescriptionCommand(definition.id(), answer.get().strip(),
+        circuit().execute(new EditDescriptionCommand(definition.id(), answer.get().strip(),
                 service.library()::find, this::saveToLibrary));
     }
 
@@ -401,11 +416,12 @@ public final class TemplateActions {
      * ({@link ConvertedSelection#keptParts()}); everything else goes.
      */
     private void create(ConvertedSelection converted, ComponentForm.Result result,
-                        Optional<ElementId> frameToRemove, List<Component> linkedMemories) {
+                        Optional<ElementId> frameToRemove, List<Component> linkedMemories,
+                        boolean keepMemoryLinks) {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
         DefinitionBundle built = converted.definition(result.definitionId(), result.name(), result.pinOrder(),
-                result.pinNames(), registry);
+                result.pinNames(), keepMemoryLinks, registry);
         DefinitionBundle bundle = new DefinitionBundle(described(built.root(), result.description()),
                 built.dependencies());
         List<Command> steps = new ArrayList<>();
@@ -434,8 +450,10 @@ public final class TemplateActions {
                 message = withSplitTunnels(message, Tunnels.namesSplitBy(document, converted.replacedIds()));
             }
         }
-        message = withDroppedLinks(message, linkedMemories);
-        openDocument.execute(new CompositeCommand("command.createComponent", steps));
+        message = withDroppedLinks(message, linkedMemories, keepMemoryLinks);
+        // only adding the definitions changes no body: from a component tab they go to the circuit directly
+        OpenDocument target = instance == null ? circuit() : openDocument;
+        target.execute(new CompositeCommand("command.createComponent", steps));
         if (instance != null) {
             canvas.get().selection().select(instance.id());
         }
@@ -458,10 +476,14 @@ public final class TemplateActions {
     }
 
     /**
-     * {@code message} (null when there is none) followed by one line for each linked memory that went into a
-     * component: a definition has no folder for the link, so it keeps a copy of the words and loses the link.
+     * {@code message} (null when there is none) followed, unless the user kept the links, by one line for each linked
+     * memory that went into a component without its link: it keeps a copy of the words. Shared by «Crear componente»
+     * and «Actualizar componente…».
      */
-    private String withDroppedLinks(String message, List<Component> linkedMemories) {
+    private String withDroppedLinks(String message, List<Component> linkedMemories, boolean keepMemoryLinks) {
+        if (keepMemoryLinks) {
+            return message;
+        }
         String result = message;
         for (Component memory : linkedMemories) {
             String fileName = MemoryLinkPaths.linkedFile(memory, openDocument.path())
@@ -472,15 +494,15 @@ public final class TemplateActions {
         return result;
     }
 
-    private void update(Set<ElementId> ids, ComponentForm.Result result) {
+    private void update(Set<ElementId> ids, ComponentForm.Result result, boolean keepMemoryLinks) {
         CircuitDocument document = openDocument.document();
         if (nests(document, ids, result.definitionId())) {
             dialogs.showError(canvas.get(), Messages.text("template.update.recursive"));
             return;
         }
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
-                result.pinOrder(), result.pinNames(), openDocument.registry());
-        Optional<ComponentDefinition> previous = document.definition(bundle.root().id());
+                result.pinOrder(), result.pinNames(), keepMemoryLinks, openDocument.registry());
+        Optional<ComponentDefinition> previous = circuit().document().definition(bundle.root().id());
         if (previous.isPresent()) {
             ComponentDefinition candidate = AppearanceReconciler.preserveGeneralAppearance(previous.get(),
                     bundle.root().withDescription(result.description()));
@@ -490,7 +512,7 @@ public final class TemplateActions {
         if (!replaceDefinition(bundle)) {
             return;
         }
-        String droppedLinks = withDroppedLinks(null, linkedMemories);
+        String droppedLinks = withDroppedLinks(null, linkedMemories, keepMemoryLinks);
         if (droppedLinks != null) {
             dialogs.showMessage(canvas.get(), droppedLinks);
         }
@@ -508,7 +530,7 @@ public final class TemplateActions {
     private boolean replaceDefinition(DefinitionBundle bundle) {
         ReplaceDefinitionCommand command;
         try {
-            command = ReplaceDefinitionCommand.prepare(openDocument.document(), openDocument.registry(), bundle);
+            command = ReplaceDefinitionCommand.prepare(circuit().document(), circuit().registry(), bundle);
         } catch (UnsafeDefinitionUpdateException exception) {
             dialogs.showMessage(canvas.get(), Messages.format(exception.messageKey(),
                     String.join(", ", exception.containingNames())));
@@ -516,10 +538,10 @@ public final class TemplateActions {
         }
         ShapeChangePlan plan = command.plan();
         boolean needsAnswer = !plan.disconnected().isEmpty() || !plan.keptOldShape().isEmpty();
-        if (needsAnswer && !connectionsConfirmation.test(plan) || command.isStale(openDocument.document())) {
+        if (needsAnswer && !connectionsConfirmation.test(plan) || command.isStale(circuit().document())) {
             return false;
         }
-        openDocument.execute(command);
+        circuit().execute(command);
         List<String> lines = new ArrayList<>(command.notes().stream()
                 .map(note -> Messages.format(note.messageKey(), note.arguments().toArray())).toList());
         if (!plan.disconnected().isEmpty()) {
@@ -550,6 +572,14 @@ public final class TemplateActions {
         List<Component> selected = ids.stream().map(document::component).flatMap(Optional::stream).toList();
         return document.definitionsUsedBy(selected).stream()
                 .anyMatch(definition -> definition.id().equals(definitionId));
+    }
+
+    /**
+     * The circuit whose definitions change: the document itself, also from a component tab, whose working copy only
+     * edits the body and follows the document (a definition changed there would never reach the circuit).
+     */
+    private OpenDocument circuit() {
+        return openDocument.parent().orElse(openDocument);
     }
 
     private Optional<String> definitionIdOf(Component instance) {

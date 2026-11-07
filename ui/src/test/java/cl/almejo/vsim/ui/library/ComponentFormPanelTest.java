@@ -184,6 +184,39 @@ class ComponentFormPanelTest {
     }
 
     @Test
+    void theKeepLinksCheckBoxShowsOnlyWhenTheFormOffersIt() {
+        ComponentFormPanel without = new ComponentFormPanel(ComponentForm.create(order, names, List.of(),
+                Set.of()));
+        assertThat(without.keepMemoryLinksCheckBox().getParent()).isNull();
+
+        ComponentForm offering = ComponentForm.create(List.of(), converted -> new ComponentForm.PinPlan(order, names),
+                List.of(), Set.of(), true);
+        ComponentFormPanel with = new ComponentFormPanel(offering);
+        assertThat(with.keepMemoryLinksCheckBox().getParent()).isNotNull();
+        assertThat(with.keepMemoryLinksCheckBox().isSelected()).isTrue();
+        assertThat(with.keepMemoryLinksCheckBox().getText()).isEqualTo("Mantener los enlaces de las memorias");
+
+        with.keepMemoryLinksCheckBox().doClick();
+        assertThat(offering.keepMemoryLinks()).isFalse();
+    }
+
+    @Test
+    void theUpdateFormShowsTheKeepLinksCheckBoxWhenItOffersIt() {
+        ComponentFormPanel without = new ComponentFormPanel(ComponentForm.update(order, names, List.of(),
+                List.of(ExampleDefinitions.inverter())));
+        assertThat(without.keepMemoryLinksCheckBox().getParent()).isNull();
+
+        ComponentForm offering = ComponentForm.update(order, names, List.of(),
+                List.of(ExampleDefinitions.inverter()), true);
+        ComponentFormPanel with = new ComponentFormPanel(offering);
+        assertThat(with.keepMemoryLinksCheckBox().getParent()).isNotNull();
+        assertThat(with.keepMemoryLinksCheckBox().isSelected()).isTrue();
+
+        with.keepMemoryLinksCheckBox().doClick();
+        assertThat(offering.keepMemoryLinks()).isFalse();
+    }
+
+    @Test
     void theTestPartsListShowsOnlyWhenTheSelectionHasTestParts() {
         ComponentFormPanel withoutParts = new ComponentFormPanel(ComponentForm.create(order, names, List.of(),
                 Set.of()));

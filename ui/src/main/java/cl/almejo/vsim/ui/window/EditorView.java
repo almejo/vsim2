@@ -1,10 +1,13 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.InsideEditRefusedException;
+import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
@@ -12,14 +15,19 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.actions.EditorActions;
+import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
+import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
+import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.ZoomTargets;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
@@ -36,6 +44,7 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.terminal.CapturedKeys;
 import cl.almejo.vsim.ui.terminal.KeyboardCapture;
 import cl.almejo.vsim.ui.terminal.KeyboardInspectorRows;
+import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
@@ -43,6 +52,7 @@ import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -95,8 +105,23 @@ public final class EditorView extends JPanel implements CanvasHost {
     private Supplier<? extends Tool> toolChoice;
     private boolean spreadingDefaultTool;
     private final EditorActions actions;
+    private KeyboardFocus keyboardFocus = KeyboardFocus.SWING;
+    /** What the panels hold: always the current {@link #keyboardFocus}. */
+    private final KeyboardFocus viewFocus = new KeyboardFocus() {
+        @Override
+        public Optional<java.awt.Component> owner() {
+            return keyboardFocus.owner();
+        }
+
+        @Override
+        public void request(java.awt.Component target) {
+            keyboardFocus.request(target);
+        }
+    };
     private final SelectionActions selectionActions;
     private final PalettePanel palette;
+    /** The left column: the palette alone, or {@link #addAbovePalette} over it as an accordion. */
+    private final LeftColumn leftColumn;
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
@@ -107,6 +132,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JMenuBar menuBar;
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> tabShownListeners = new Listeners<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
     private final EditorToolBar editorToolBar;
     private final JToolBar toolBar;
@@ -116,6 +142,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final KeyboardCapture keyboardCapture;
     private final CapturedKeys capturedKeys;
     private TemplateActions templateActions;
+    private Optional<Consumer<ElementId>> instanceShapeEditor = Optional.empty();
     private final EditorServices services;
     private final Runnable appearanceListener;
     private final Runnable textFontListener;
@@ -126,6 +153,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     private Consumer<Component> terminalEditor;
     private final WindowCommands windowCommands;
     private Consumer<TruthTableSpec> tableWizard;
+    /** Keeps the «Sin valores» hint of a component tab in step with its context. */
+    private final Runnable placeHintListener = this::showPlaceHint;
+    /** Takes back the explanation of refused edits a component tab shows (none on the circuit's tab). */
+    private Runnable removeRefusalListener = () -> { };
     private Consumer<List<Path>> circuitOpener = files -> {
     };
 
@@ -153,14 +184,17 @@ public final class EditorView extends JPanel implements CanvasHost {
                 useDefaultToolOnEveryPane();
             }
         }, window, AboutPresenter.swing());
+        actions.runStepsWith(new UndoInItsPlace(this));
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {
             setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
             canvas().requestFocusInWindow();
         });
+        this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
         this.menuBar = actions.createMenuBar();
         indexMenus();
+        addLeftColumnItems();
         this.capturedKeys = new CapturedKeys(keyboardCapture, openDocument, new WindowShortcuts(),
                 statusBar::showNotice);
         capturedKeys.useClipboard(FragmentClipboard.system()::readPlainText);
@@ -173,11 +207,10 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.canvasArea = new CanvasArea(canvasPanes);
         this.bottomDock = new BottomDock(canvasArea);
         JSplitPane inspectorSplit = new InspectorSplit(bottomDock, inspector);
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, inspectorSplit);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
         split.setResizeWeight(0);
-        add(toolBar, BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
         add(statusBar, BorderLayout.SOUTH);
 
@@ -196,12 +229,19 @@ public final class EditorView extends JPanel implements CanvasHost {
         bindZoomKeys();
         bindEscapeToTheTool();
         palette.setFocusAfterMouseChoice(() -> canvas().requestFocusInWindow());
+        palette.useKeyboardFocus(viewFocus);
+        palette.setEscapeAction(this::escapeToCanvas);
         toolChanged(canvas.tool());
         palette.setFileDropHandler(this::dropFiles);
         installSelectionActions();
         labelFeatures = LabelFeatures.install(this);
         labelFeatures.properties().addComponentRows(new KeyboardInspectorRows(openDocument));
         problems = new ProblemsController(this);
+        if (openDocument.isBody()) {
+            openDocument.addChangeListener(placeHintListener);
+            removeRefusalListener = openDocument.addRefusalListener(this::explainRefusal);
+            showPlaceHint();
+        }
         appearanceListener = this::repaintPanes;
         services.appearance().addListener(appearanceListener);
         textFontListener = this::repaintPanes;
@@ -317,6 +357,25 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** Which part has this window's keyboard (decision 5): painters and the Terminal window read it. */
     public KeyboardCapture keyboardCapture() { return keyboardCapture; }
 
+    /** Where the focus is and how the view's panels ask for it: Swing's, or the one {@link #useKeyboardFocus} gave. */
+    public KeyboardFocus keyboardFocus() { return viewFocus; }
+
+    /**
+     * Runs {@code listener} each time this view's tab comes to the front of its window (the circuit tree follows the
+     * tab); returns its removal.
+     */
+    public Runnable addTabShownListener(Runnable listener) {
+        return tabShownListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** The window brought this view's tab to the front. */
+    public void tabShown() {
+        tabShownListeners.fire(Runnable::run);
+    }
+
+    /** Replaces Swing's focus for the view's panels (tests: nothing gets the focus headless). */
+    public void useKeyboardFocus(KeyboardFocus focus) { keyboardFocus = Objects.requireNonNull(focus, "focus"); }
+
     /** The keys of this window while a part has its keyboard (the clipboard a paste reads is injectable). */
     public CapturedKeys capturedKeys() { return capturedKeys; }
 
@@ -328,6 +387,21 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** Set by the templates extension (and cleared with {@code null} when it is disposed). */
     public void setTemplateActions(TemplateActions actions) {
         this.templateActions = actions;
+    }
+
+    /**
+     * Set by the appearance extension: opens «Cambiar forma…» of a piece of this view, as its context menu does, for the
+     * panels that offer it too (the circuit tree). The runnable takes it back.
+     */
+    public Runnable setInstanceShapeEditor(Consumer<ElementId> editor) {
+        instanceShapeEditor = Optional.of(editor);
+        return () -> instanceShapeEditor = Optional.empty();
+    }
+
+    /** Opens «Cambiar forma…» of piece {@code instanceId}; false when no extension can (nothing happens then). */
+    public boolean changeShapeOf(ElementId instanceId) {
+        instanceShapeEditor.ifPresent(editor -> editor.accept(instanceId));
+        return instanceShapeEditor.isPresent();
     }
 
     /** The file and window operations of the window this view is in (a do-nothing stand-in in tests). */
@@ -346,6 +420,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
     public ProblemsController problems() { return problems; }
     public JMenuBar menuBar() { return menuBar; }
+    /**
+     * The toolbar this view builds; the window hangs the active tab's toolbar above its tab strip (spec §10.1), so the
+     * view does not hold it itself.
+     */
     public JToolBar toolBar() { return toolBar; }
 
     /** The menu {@code id} of this window's menu bar. */
@@ -355,6 +433,28 @@ public final class EditorView extends JPanel implements CanvasHost {
             throw new IllegalStateException("the menu bar has no " + id + " menu");
         }
         return menu;
+    }
+
+    /** Ver ▸ «Árbol del circuito» (Alt+1) and «Paleta» (Alt+2) first, checked while their panel is open. */
+    private void addLeftColumnItems() {
+        JMenu view = menu(MenuId.VIEW);
+        view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.CIRCUIT)), 0);
+        view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.PALETTE)), 1);
+        view.insertSeparator(2);
+    }
+
+    /** The left column: the palette, and the circuit tree above it as an accordion (spec §5.3). */
+    public LeftColumn leftColumn() {
+        return leftColumn;
+    }
+
+    /**
+     * Shows {@code component} above the palette in the left column under the header {@code title} (the circuit tree,
+     * spec §5.3); the two fold as an accordion and share a remembered divider ({@link LeftColumn}). The returned
+     * runnable takes it away again, leaving the palette alone; calling it twice does nothing.
+     */
+    public Runnable addAbovePalette(String title, JComponent component) {
+        return leftColumn.addAbovePalette(title, component);
     }
 
     /**
@@ -494,6 +594,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         extensionDisposers.clear();
         steps.add(() -> services.appearance().removeListener(appearanceListener));
         steps.add(() -> TextFonts.removeListener(textFontListener));
+        steps.add(() -> openDocument.removeChangeListener(placeHintListener));
+        steps.add(removeRefusalListener);
         steps.add(statusBar::dispose);
         steps.add(palette::dispose);
         steps.add(problems::dispose);
@@ -526,9 +628,52 @@ public final class EditorView extends JPanel implements CanvasHost {
         contextMenu(target, gridPosition).show(source, (int) screenPosition.getX(), (int) screenPosition.getY());
     }
 
+    /**
+     * Enters the user component {@code instance} is an instance of (spec §4.4): the window opens or focuses its tab in
+     * the circuit's group, with the values of this instance (its path under this place's context). With «Animación»
+     * on, the new tab starts where the instance is drawn here and grows to the whole body. Built-in parts never enter.
+     */
+    @Override
+    public void enterComponent(Component instance) {
+        EnterableInstances.definitionOf(openDocument, instance).ifPresent(definitionId -> {
+            OpenDocument circuit = openDocument.parent().orElse(openDocument);
+            Optional<ViewState> from = services.preferences().animateViewMoves()
+                    ? enteringStart(circuit, definitionId, instance) : Optional.empty();
+            windowCommands.enter(circuit, definitionId, EnterableInstances.contextOf(openDocument, instance), from);
+        });
+    }
+
+    /** Where the entered body's view starts: on screen where, and as big as, {@code instance} is drawn now. */
+    private Optional<ViewState> enteringStart(OpenDocument circuit, String definitionId, Component instance) {
+        Optional<Bounds> body = circuit.document().definition(definitionId)
+                .flatMap(definition -> CircuitBounds.of(definition.bodyDocument(circuit.document()),
+                        openDocument.registry()));
+        Bounds box = ElementBounds.of(instance, openDocument.registry());
+        return body.map(bodyBounds -> EnteringView.start(canvas().viewState(), box, bodyBounds));
+    }
+
     @Override
     public void configure(Component component) {
         actions.configure(component);
+    }
+
+    @Override
+    public void showNotice(String text) {
+        statusBar.showNotice(text);
+    }
+
+    /** A component tab without an instance to show («Sin valores», spec §6.3) says where to choose one. */
+    private void showPlaceHint() {
+        boolean noValues = openDocument.isBody() && openDocument.contextPath().isEmpty();
+        statusBar.showPlaceHint(noValues ? Messages.text("inside.noValuesHint") : "");
+    }
+
+    /**
+     * An edit refused inside this component tab ({@link InsideEditRefusedException}): nothing changed, and the
+     * status line says why instead of the edit failing silently (the place bar says it too, from its own listener).
+     */
+    private void explainRefusal(InsideEditRefusedException refusal) {
+        statusBar.showNotice(PlaceBar.explanation(refusal));
     }
 
     @Override
@@ -739,6 +884,18 @@ public final class EditorView extends JPanel implements CanvasHost {
                 }
             }
         });
+    }
+
+    /**
+     * Esc in a tree of the left column: what Esc does to the canvas's tool wherever the focus is (a placement is
+     * cancelled), and the canvas gets the focus.
+     */
+    public void escapeToCanvas() {
+        CircuitCanvas canvas = canvas();
+        if (canvas.tool() != canvas.defaultTool()) {
+            canvas.pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
+        }
+        viewFocus.request(canvas);
     }
 
     /**

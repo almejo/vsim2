@@ -82,13 +82,10 @@ public final class AppearanceReconciler {
         GridSize size = canonical.size();
         for (DefinitionPin pin : newPins) {
             GridPoint point = pin.spec().position();
-            if (!isFreeEdgeSpot(pin, point, size, occupied)) {
-                Optional<GridPoint> free = freeEdge(pin, size, occupied);
-                while (free.isEmpty()) {
-                    size = new GridSize(size.width(), Math.addExact(size.height(), DefinitionBuilder.PIN_SPACING));
-                    free = freeEdge(pin, size, occupied);
-                }
-                point = free.orElseThrow();
+            if (!isFreeEdgeSpot(pin.spec().isInput(), point, size, occupied)) {
+                EdgeSpot spot = freeEdgeGrowing(pin.spec().isInput(), size, occupied);
+                size = spot.size();
+                point = spot.point();
             }
             result.add(new PinPlacement(pin.source(), point));
             occupied.add(point);
@@ -135,9 +132,28 @@ public final class AppearanceReconciler {
         return matches.size() == 1 ? Optional.of(matches.getFirst()) : Optional.empty();
     }
 
+    /** Where a new pin goes and the box it needs (the given one, or grown downwards). */
+    record EdgeSpot(GridPoint point, GridSize size) {
+    }
+
+    /**
+     * The first free spot for a new pin on its side (inputs on the left edge, outputs on the right), the box growing
+     * by {@link DefinitionBuilder#PIN_SPACING} rows while none is free: the rule «Actualizar componente…» and an
+     * edit inside a component (spec §6.1) share.
+     */
+    static EdgeSpot freeEdgeGrowing(boolean input, GridSize size, Set<GridPoint> occupied) {
+        GridSize grown = size;
+        Optional<GridPoint> free = freeEdge(input, grown, occupied);
+        while (free.isEmpty()) {
+            grown = new GridSize(grown.width(), Math.addExact(grown.height(), DefinitionBuilder.PIN_SPACING));
+            free = freeEdge(input, grown, occupied);
+        }
+        return new EdgeSpot(free.orElseThrow(), grown);
+    }
+
     /** A new pin goes strictly inside its own side (never on a corner), at least one spacing from the other pins. */
-    private static boolean isFreeEdgeSpot(DefinitionPin pin, GridPoint point, GridSize size, Set<GridPoint> occupied) {
-        int edgeX = pin.spec().isInput() ? 0 : size.width();
+    static boolean isFreeEdgeSpot(boolean input, GridPoint point, GridSize size, Set<GridPoint> occupied) {
+        int edgeX = input ? 0 : size.width();
         if (point.x() != edgeX || point.y() <= 0 || point.y() >= size.height()) {
             return false;
         }
@@ -149,14 +165,24 @@ public final class AppearanceReconciler {
         return true;
     }
 
-    private static Optional<GridPoint> freeEdge(DefinitionPin pin, GridSize size, Set<GridPoint> occupied) {
-        int edgeX = pin.spec().isInput() ? 0 : size.width();
+    /**
+     * The spots a new pin may take on its side of a {@code size} box (inputs on the left edge, outputs on the right),
+     * top to bottom: strictly inside the side, at least {@link DefinitionBuilder#PIN_SPACING} from the {@code occupied}
+     * ones; empty when there is none.
+     */
+    public static List<GridPoint> freeEdgeSpots(boolean input, GridSize size, Set<GridPoint> occupied) {
+        int edgeX = input ? 0 : size.width();
+        List<GridPoint> spots = new ArrayList<>();
         for (int y = 1; y < size.height(); y++) {
             GridPoint candidate = new GridPoint(edgeX, y);
-            if (isFreeEdgeSpot(pin, candidate, size, occupied)) {
-                return Optional.of(candidate);
+            if (isFreeEdgeSpot(input, candidate, size, occupied)) {
+                spots.add(candidate);
             }
         }
-        return Optional.empty();
+        return spots;
+    }
+
+    private static Optional<GridPoint> freeEdge(boolean input, GridSize size, Set<GridPoint> occupied) {
+        return freeEdgeSpots(input, size, occupied).stream().findFirst();
     }
 }

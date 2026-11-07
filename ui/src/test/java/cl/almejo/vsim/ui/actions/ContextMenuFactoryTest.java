@@ -84,6 +84,23 @@ class ContextMenuFactoryTest {
         assertThat(texts(contextMenu(Optional.empty(), CLICK))).containsExactly("Centrar circuito");
     }
 
+    /** Both look inside a user-component piece, so they open its menu together, whatever contributor added them. */
+    @Test
+    void entrarAndMirarAdentroOpenTheComponentMenuTogetherBeforeASeparator() {
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of());
+        view.canvas().selection().select(gate.id());
+        contributors.add((menu, target, selection, gridPosition) ->
+                menu.add(ContextMenuEntry.LOOK_INSIDE.tag(new JMenuItem("Mirar adentro"))));
+        contributors.add((menu, target, selection, gridPosition) -> {
+            menu.add(ContextMenuEntry.ENTER.tag(new JMenuItem("Entrar")));
+            menu.add(new JMenuItem("Desarmar"));
+        });
+
+        assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
+                .startsWith("Entrar", "Mirar adentro", "---", "Configurar…")
+                .endsWith("Borrar", "---", "Desarmar");
+    }
+
     @Test
     void contributorsAddTheirGroupsInOrderSeparatedFromTheRest() {
         List<Selection> seen = new ArrayList<>();

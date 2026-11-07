@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.automation.PlaceRef;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 
@@ -97,8 +98,20 @@ final class Arguments {
         throw invalid(name, "must be true or false");
     }
 
+    /** The circuit {@code document} names, qualified with the {@code place} the call gives (spec §12). */
     DocumentId document() {
-        return new DocumentId(string("document"));
+        DocumentId circuit = new DocumentId(string("document"));
+        return optionalPlace().map(circuit::in).orElse(circuit);
+    }
+
+    /** {@code {definition, context?}} as a place; empty when the call gives none (the main circuit). */
+    Optional<PlaceRef> optionalPlace() {
+        return optionalObject("place").map(place -> new PlaceRef(place.string("definition"),
+                place.optionalString("context")));
+    }
+
+    PlaceRef place() {
+        return optionalPlace().orElseThrow(() -> invalid("place", "is required"));
     }
 
     DocumentVersion version(String name) {

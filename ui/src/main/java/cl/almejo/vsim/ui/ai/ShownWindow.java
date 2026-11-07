@@ -32,9 +32,9 @@ public record ShownWindow(EditorView view, JComponent root, String title, List<W
                 .toList();
     }
 
-    /** {@code window} with the dialogs it shows now. */
+    /** {@code window} with the dialogs it shows now; its view is the active tab's, which the window shows. */
     public static ShownWindow of(CircuitWindow window) {
-        return new ShownWindow(window.view(), window.getRootPane(), window.getTitle(),
+        return new ShownWindow(window.activeView(), window.getRootPane(), window.getTitle(),
                 Arrays.stream(window.getOwnedWindows()).filter(Window::isShowing).toList());
     }
 }

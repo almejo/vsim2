@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.WireLines;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -36,18 +37,29 @@ import java.util.Set;
  * ConnectivityProblem.Cause#UNCONNECTED_INTERFACE}); tunnels and shorts are checked elsewhere, at every level too.
  * {@link #everyLooseEnd} still finds every loose pin and wire end inside the bodies: an update of a definition is
  * judged by the inner connections it would loosen ({@link OutdatedPieceChecks}).
+ * <p>
+ * One loose wire end is a problem at every level, the circuit included ({@link
+ * ConnectivityProblem.Cause#WIRE_AT_PIECE_EDGE}, M6, the user 2026-11-07): a wire that reaches a user component's
+ * box from outside, at a point of its edge where no pin is, and touches nothing else there. It is the shape a pin
+ * removed by an edit inside the component leaves, found from the circuit itself so it is listed again after
+ * reopening. Only user components count (their pins can be removed; a standard part's box need not hold its pins),
+ * and the corners do not (a pin is never put on one).
  */
 public final class ConnectivityChecks {
 
     // Match the flattener's safety bound; valid definitions form an acyclic graph.
     private static final int MAXIMUM_DEPTH = 32;
+    private static final GridPoint LEFT = new GridPoint(-1, 0);
+    private static final GridPoint RIGHT = new GridPoint(1, 0);
+    private static final GridPoint UP = new GridPoint(0, -1);
+    private static final GridPoint DOWN = new GridPoint(0, 1);
 
     private ConnectivityChecks() {
     }
 
     /**
      * The problems the editor shows: one per outer terminal whose interface element is unconnected inside, at any
-     * depth; a fresh immutable list. Definitions are compiled once and reported separately per instance.
+     * depth, and one per wire end left at a user component's edge where no pin is; a fresh immutable list. Definitions are compiled once and reported separately per instance.
      */
     public static List<ConnectivityProblem> problems(CircuitDocument document, ComponentTypeRegistry registry) {
         return check(document, registry, false);
@@ -74,11 +86,17 @@ public final class ConnectivityChecks {
     private record Level(CircuitDocument document, Netlist netlist, Netlist asDrawn) {
     }
 
+    /** A wire end at the edge of piece {@code piece} where no pin is. */
+    private record EdgeWire(String piece, GridPoint end) {
+    }
+
     /** A single traversal's compiled definitions and collected instance-specific diagnostics. */
     private static final class Check {
         private final ComponentTypeRegistry registry;
         private final NetlistCompiler compiler;
         private final Map<ComponentDefinition, Level> bodies = new IdentityHashMap<>();
+        /** The wire ends at a user component's edge of each level, found once per body however often it is used. */
+        private final Map<Level, List<EdgeWire>> edgeWires = new IdentityHashMap<>();
         private final List<ConnectivityProblem> problems = new ArrayList<>();
         /** Whether loose pins and wire ends inside the bodies are collected too ({@link #everyLooseEnd}). */
         private final boolean innerEnds;
@@ -114,6 +132,65 @@ public final class ConnectivityChecks {
             if (innerEnds && !prefix.isEmpty()) {
                 checkWireEnds(level, prefix, pinPositions);
             }
+            if (!innerEnds) {
+                for (EdgeWire edge : edgeWires.computeIfAbsent(level, this::findEdgeWires)) {
+                    String elementId = prefix + edge.piece();
+                    problems.add(new ConnectivityProblem(ConnectivityProblem.EDGE_WIRE_PREFIX + elementId + ":"
+                            + edge.end().x() + "," + edge.end().y(), elementId, -1, edge.end(),
+                            ConnectivityProblem.Cause.WIRE_AT_PIECE_EDGE));
+                }
+            }
+        }
+
+        /**
+         * The wire ends of {@code level} that reach a user component's box from outside, straight into a point of its
+         * edge that is no corner and holds no pin, touching no other wire there: the piece's id and the end.
+         */
+        private List<EdgeWire> findEdgeWires(Level level) {
+            List<Component> pieces = level.document().components().stream()
+                    .filter(component -> SubcircuitTypes.definitionOf(registry.typeOf(component)).isPresent())
+                    .toList();
+            if (pieces.isEmpty() || level.document().wires().isEmpty()) {
+                return List.of();
+            }
+            Set<GridPoint> pinPositions = new HashSet<>();
+            for (Component component : level.document().components()) {
+                ComponentType type = registry.typeOf(component);
+                for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                    pinPositions.add(type.pinLocation(component, pinIndex));
+                }
+            }
+            Map<GridPoint, Set<GridPoint>> directions = wireDirections(level.document().wires());
+            List<EdgeWire> found = new ArrayList<>();
+            Set<GridPoint> checked = new HashSet<>();
+            for (Wire wire : level.document().wires()) {
+                for (GridPoint end : List.of(wire.start(), wire.end())) {
+                    Set<GridPoint> ways = directions.get(end);
+                    if (!checked.add(end) || pinPositions.contains(end) || ways.size() != 1) {
+                        continue;
+                    }
+                    GridPoint outward = ways.iterator().next();
+                    for (Component piece : pieces) {
+                        if (entersEdge(registry.typeOf(piece).bounds(piece), end, outward)) {
+                            found.add(new EdgeWire(piece.id().value(), end));
+                        }
+                    }
+                }
+            }
+            return List.copyOf(found);
+        }
+
+        /**
+         * True when {@code end}, with its wire going away in direction {@code outward}, is a point of an edge of
+         * {@code box} (corners excluded) and the wire leaves that edge straight outwards.
+         */
+        private static boolean entersEdge(Bounds box, GridPoint end, GridPoint outward) {
+            boolean betweenTopAndBottom = end.y() > box.y() && end.y() < box.maximumY();
+            boolean betweenLeftAndRight = end.x() > box.x() && end.x() < box.maximumX();
+            return betweenTopAndBottom && end.x() == box.x() && outward.equals(LEFT)
+                    || betweenTopAndBottom && end.x() == box.maximumX() && outward.equals(RIGHT)
+                    || betweenLeftAndRight && end.y() == box.y() && outward.equals(UP)
+                    || betweenLeftAndRight && end.y() == box.maximumY() && outward.equals(DOWN);
         }
 
         private Level compileBody(ComponentDefinition definition) {

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.problems;
 
+import cl.almejo.vsim.core.command.HistoryListener;
+import cl.almejo.vsim.core.command.SetInstanceMemoryContentsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MultiBitLayout;
@@ -10,11 +12,13 @@ import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
-import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
+import cl.almejo.vsim.core.simulation.ListedProblems;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
@@ -32,6 +36,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.SeePiece;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
@@ -48,8 +53,6 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -62,11 +65,15 @@ import java.util.function.Consumer;
  */
 public final class ProblemsController {
 
-    private static final String LOOSENED_NET_PREFIX = "loosened:";
     private static final KeyStroke NEXT_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0);
     private static final KeyStroke PREVIOUS_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F8, InputEvent.SHIFT_DOWN_MASK);
 
     private final OpenDocument openDocument;
+    /**
+     * The circuit whose problems are listed: the view's own document, or the circuit of a component tab (every tab of
+     * a circuit lists the same problems, spec §6.7).
+     */
+    private final OpenDocument circuit;
     private final EditorView view;
     private final StatusBar statusBar;
     private final JMenu viewMenu;
@@ -85,15 +92,15 @@ public final class ProblemsController {
     private final MenuListener pauseListener;
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
     private final DocumentListener structureListener = (document, change) -> refreshStructure();
+    private final HistoryListener historyListener = history -> refreshStructure();
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
-    private List<ConnectivityProblem> outdatedPieces = List.of();
-    private List<LinkedFileProblem> reportedLinkedFiles = List.of();
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
+        this.circuit = openDocument.parent().orElse(openDocument);
         this.view = view;
         this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
@@ -101,8 +108,8 @@ public final class ProblemsController {
         this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
         this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime);
         this.connectivityOverlay = new ConnectivityOverlay(openDocument, () -> view.canvas().scheme(), this::linkedFileProblems);
-        this.navigator = new ProblemNavigator(view::canvas, blink);
-        this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
+        this.navigator = new ProblemNavigator(view::canvas, blink, this::showElsewhere);
+        this.panel = new ProblemsPanel(this::describe, navigator::navigateTo, this::quickActionsOf);
 
         nextProblem = Actions.of(Messages.text("action.nextProblem"), navigator::next);
         nextProblem.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.nextProblem"));
@@ -152,7 +159,44 @@ public final class ProblemsController {
         };
         simulationMenu.addMenuListener(pauseListener);
         openDocument.document().addListener(structureListener);
+        if (circuit != openDocument) {
+            circuit.document().addListener(structureListener);
+        }
+        // pieces that took a new pin elsewhere are known once the inside edit is applied, after its document change
+        circuit.history().addListener(historyListener);
         showSnapshot(SimulationSnapshot.EMPTY);
+    }
+
+    /**
+     * A problem in words: the view's own memory and library warnings with its own document, the circuit's problems
+     * with the circuit (a component tab names them by their route from the circuit).
+     */
+    private String describe(Problem problem) {
+        OpenDocument named = isOwn(problem) ? openDocument : circuit;
+        return ProblemText.describe(problem, named.document(), named.registry());
+    }
+
+    /** The problems this view finds itself (linked memory files, outdated pieces), about its own document. */
+    private boolean isOwn(Problem problem) {
+        return openDocument.outdatedPieces().contains(problem) || openDocument.linkedFileProblems().contains(problem);
+    }
+
+    /**
+     * Shows {@code problem} in the tab where its part is, when that is not this canvas (spec §6.7): from the circuit's
+     * tab a problem inside a component enters that component with the instance of its route and selects the part;
+     * from a component tab every problem of the circuit goes to its place. False when this canvas shows it (also
+     * outside a real window, where there are no other tabs: the circuit's canvas then selects the piece on it).
+     */
+    private boolean showElsewhere(Problem problem) {
+        if (isOwn(problem)) {
+            return false;
+        }
+        Optional<String> focus = ProblemPlaces.focusOf(problem);
+        boolean inside = focus.filter(InstancePath::isNested).isPresent();
+        if (!openDocument.isBody() && !inside) {
+            return false;
+        }
+        return focus.map(id -> SeePiece.show(view.windowCommands(), circuit, id)).orElse(false);
     }
 
     /**
@@ -208,13 +252,14 @@ public final class ProblemsController {
         EveryPane.repaint(view).run();
     }
 
+    /**
+     * Lists the circuit's rows ({@link ListedProblems}, which the AI reads too), with this view's own library and
+     * linked-file reports: a component tab lists its own document's.
+     */
     private void refreshProblems() {
-        List<Problem> problems = new ArrayList<>(snapshot.problems().stream()
-                .filter(problem -> !(problem instanceof ConnectivityProblem)).toList());
-        problems.addAll(openDocument.connectivityProblems());
-        problems.addAll(loosenedPinProblems());
-        problems.addAll(outdatedPieces);
-        problems.addAll(linkedFileProblems());
+        ListedProblems.Sources sources = circuit.problemSources(listedSnapshot())
+                .withReports(openDocument.outdatedPieces(), openDocument.linkedFileProblems());
+        List<Problem> problems = ListedProblems.of(circuit.document(), circuit.registry(), sources);
         SimulationSnapshot combined = new SimulationSnapshot(snapshot.revision(), openDocument.netlistToken(),
                 snapshot.time(), snapshot.running(), snapshot.netValues(), snapshot.componentStates(), problems,
                 snapshot.failure());
@@ -225,61 +270,69 @@ public final class ProblemsController {
         previousProblem.setEnabled(anyProblem);
     }
 
-    /** One problem per pin a shape change left loose in this session, for the pieces still on the canvas. */
-    private List<ConnectivityProblem> loosenedPinProblems() {
-        List<ConnectivityProblem> loosened = new ArrayList<>();
-        for (PinRef pin : openDocument.loosenedPins()) {
-            Optional<Component> component = openDocument.document().component(pin.componentId());
-            if (component.isEmpty()) {
-                continue;
-            }
-            ComponentType type = openDocument.registry().typeOf(component.get());
-            if (pin.pinIndex() < type.pinCount()) {
-                loosened.add(new ConnectivityProblem(LOOSENED_NET_PREFIX + pin.componentId().value() + ":"
-                        + pin.pinIndex(), pin.componentId().value(), pin.pinIndex(),
-                        type.pinLocation(component.get(), pin.pinIndex()),
-                        ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE));
-            }
+    /**
+     * The snapshot whose problems are listed: the one shown, or in a component tab the circuit's latest (the canvas
+     * shows the context instance's part of it), while it belongs to the circuit's current netlist.
+     */
+    private SimulationSnapshot listedSnapshot() {
+        if (circuit == openDocument) {
+            return snapshot;
         }
-        loosened.sort(Comparator.comparing(ConnectivityProblem::netId));
-        return loosened;
+        SimulationSnapshot latest = circuit.latestSnapshot();
+        return latest.token() == circuit.netlistToken() ? latest : SimulationSnapshot.EMPTY;
+    }
+
+    /**
+     * What the Problemas list offers on a right click on {@code problem}: forgetting a piece's own contents that do
+     * not apply, or going back to the component's (and its linked file), one undo step.
+     */
+    private List<Action> quickActionsOf(Problem problem) {
+        if (!(problem instanceof ConnectivityProblem connectivity)) {
+            return List.of();
+        }
+        String key = switch (connectivity.cause()) {
+            case OWN_CONTENTS_FOR_NOTHING -> "problem.ownContents.forget";
+            case OWN_CONTENTS_OVER_LINK -> "memory.piece.backToComponent";
+            default -> "";
+        };
+        if (key.isEmpty()) {
+            return List.of();
+        }
+        PieceMemories.Place place = new PieceMemories.Place(
+                new ElementId(InstancePath.segments(connectivity.elementId()).getFirst()),
+                connectivity.netId().substring(ConnectivityProblem.OWN_CONTENTS_PREFIX.length()));
+        return List.of(Actions.of(Messages.text(key),
+                () -> circuit.execute(SetInstanceMemoryContentsCommand.clear(place))));
     }
 
     /**
      * Lists the pieces that use an older version than the library's and would break if updated (what
-     * {@code OutdatedPieceChecks} found); replaces the previous list.
+     * {@code OutdatedPieceChecks} found); replaces the previous list. Kept by the document, which every view of it
+     * and the AI read; each view still lists it at once.
      */
     public void showOutdatedPieces(List<ConnectivityProblem> pieces) {
-        if (disposed || pieces.equals(outdatedPieces)) {
+        if (disposed) {
             return;
         }
-        outdatedPieces = List.copyOf(pieces);
+        openDocument.reportOutdatedPieces(pieces);
         refreshStructure();
     }
 
     /**
      * Lists the linked memory files that are missing or unreadable (what the document's {@code LinkedMemoryWatcher}
-     * found); replaces the previous list.
+     * found); replaces the previous list. Kept by the document, as {@link #showOutdatedPieces}.
      */
     public void showLinkedFileProblems(List<LinkedFileProblem> found) {
-        if (disposed || found.equals(reportedLinkedFiles)) {
+        if (disposed) {
             return;
         }
-        reportedLinkedFiles = List.copyOf(found);
+        openDocument.reportLinkedFileProblems(found);
         refreshStructure();
     }
 
-    /**
-     * The reported linked-file problems that are still true of the document: a memory that was deleted, or whose link
-     * was removed or changed, drops out at once, without waiting for the next look at the files.
-     */
+    /** The reported linked-file problems that are still true of the view's document. */
     List<LinkedFileProblem> linkedFileProblems() {
-        return reportedLinkedFiles.stream().filter(problem -> openDocument.document()
-                .component(new ElementId(problem.elementId()))
-                .flatMap(memory -> MemoryLinkPaths.linkedFile(memory, openDocument.path()).map(file ->
-                        MemoryLinkPaths.displayPath(MemoryLinkPaths.linkOf(memory), openDocument.path())))
-                .filter(problem.link()::equals).isPresent())
-                .sorted(Comparator.comparing(LinkedFileProblem::elementId)).toList();
+        return openDocument.linkedFileProblems();
     }
 
     /** The tunnel problems that are errors (the warnings show only in the Problems tab, like display warnings). */
@@ -346,6 +399,8 @@ public final class ProblemsController {
         }
         disposed = true;
         openDocument.document().removeListener(structureListener);
+        circuit.document().removeListener(structureListener);
+        circuit.history().removeListener(historyListener);
         blink.dispose();
         pulse.dispose();
         removeFromPanes.run();

@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.app.PlaceKey;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,7 +23,7 @@ public final class TerminalWindows {
 
     /** One open window: what it shows, where, who opened it and its frames. */
     private record Open(TerminalWindowContent content, TerminalWindowHandle handle, Object openerKey,
-                        TerminalFeeds.Subscription subscription) {
+                        TerminalFeeds.Subscription subscription, String storedPlace) {
     }
 
     private final OpenDocument document;
@@ -56,17 +57,39 @@ public final class TerminalWindows {
         if (!terminal) {
             return;
         }
+        String storedPlace = storageKey(document); // the place as it is now: the tab may later show another instance
         TerminalWindowContent content = new TerminalWindowContent(document, componentId, services, owner);
         TerminalFeeds.Subscription subscription = feeds.subscribe(componentId, content.historyLines(),
                 content::update);
         TerminalWindowHandle handle = services.factory().show(owner.window(), content.title(), content,
-                preferences.bounds(documentKey(), componentId), () -> closedByUser(componentId));
-        windows.put(componentId, new Open(content, handle, owner.key(), subscription));
+                preferences.bounds(storedPlace, componentId), () -> closedByUser(componentId));
+        windows.put(componentId, new Open(content, handle, owner.key(), subscription, storedPlace));
     }
 
     /** Whether the window of {@code componentId} is open. */
     public boolean isOpen(String componentId) {
         return windows.containsKey(componentId);
+    }
+
+    /**
+     * Whether the window of the part {@code key} names is open here: its id is open in this place, and this place
+     * shows that circuit, component and instance (another tab of the same instance has its own windows).
+     */
+    public boolean isOpen(PlaceKey key) {
+        return isOpen(key.component().value()) && PlaceKey.of(document, key.component()).equals(key);
+    }
+
+    /** Brings the window of {@code componentId} to the front, when it is open. */
+    public void toFront(String componentId) {
+        Open open = windows.get(componentId);
+        if (open != null) {
+            open.handle().toFront();
+        }
+    }
+
+    /** Closes every window (a component tab switched to another instance: they showed the one it left). */
+    public void closeAll() {
+        List.copyOf(windows.keySet()).forEach(this::close);
     }
 
     /** What the window of {@code componentId} shows, while it is open. */
@@ -93,7 +116,7 @@ public final class TerminalWindows {
     /** The document closes: every window closes and the document is no longer watched. */
     public void dispose() {
         document.document().removeListener(documentListener);
-        List.copyOf(windows.keySet()).forEach(this::close);
+        closeAll();
     }
 
     private void closedByUser(String componentId) {
@@ -112,7 +135,7 @@ public final class TerminalWindows {
     }
 
     private void forget(String componentId, Open open) {
-        preferences.saveBounds(documentKey(), componentId, open.handle().bounds());
+        preferences.saveBounds(open.storedPlace(), componentId, open.handle().bounds());
         open.subscription().cancel();
         open.content().dispose();
     }
@@ -130,9 +153,11 @@ public final class TerminalWindows {
         }
     }
 
-    /** The document as the preferences know it: its file, or its untitled name for this session. */
-    private String documentKey() {
-        return document.path().map(path -> path.toAbsolutePath().normalize().toString())
-                .orElseGet(() -> "untitled:" + document.displayName());
+    /**
+     * The place as the preferences know it: the circuit's file (or untitled name), and inside a component tab the
+     * component and the instance too, so the same id on the circuit and inside a component has bounds of its own.
+     */
+    static String storageKey(OpenDocument place) {
+        return PlaceKey.storedPlaceOf(place);
     }
 }

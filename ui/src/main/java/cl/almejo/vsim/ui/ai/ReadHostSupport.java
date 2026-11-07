@@ -10,9 +10,14 @@ import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -61,17 +66,39 @@ final class ReadHostSupport {
         this.windowsOf = Objects.requireNonNull(windowsOf, "windowsOf");
     }
 
-    /** @param library the user's component library, which the AI may also place from */
-    ReadSource source(DocumentId id, OpenDocument document, List<DefinitionBundle> library) {
-        // The circuit's own name (list_documents gives the window's, the file's).
+    /**
+     * @param library         the user's component library, which the AI may also place from
+     * @param libraryProblems the library's load problems, which the Problemas list shows under every circuit
+     */
+    ReadSource source(DocumentId id, OpenDocument document, List<DefinitionBundle> library,
+                      List<LibraryProblem> libraryProblems) {
+        SimulationSnapshot latest = document.latestSnapshot();
+        // The circuit's own name (list_documents gives the window's, the file's). The problems are made from the
+        // sources the Problemas list is made from, so the AI reads every row the user sees (fix round D).
         return new ReadSource(id, version(document), document.circuitName(), document.document(),
-                document.registry(), document.netlist(), document.netlistToken(), document.latestSnapshot(), NAMES,
-                library, LabelTextMeasure.INSTANCE, document.path());
+                document.registry(), document.netlist(), document.netlistToken(), latest, NAMES, library,
+                LabelTextMeasure.INSTANCE, document.path(), pieceMemory(document), document.problemSources(latest),
+                libraryProblems);
+    }
+
+    /**
+     * What the piece a body place shows stores for one of its memories (its own contents, else the outermost piece's
+     * that has some; {@link PieceMemories#effective}); nothing for the circuit itself or without a context piece.
+     */
+    private static Function<String, Optional<MemoryContents>> pieceMemory(OpenDocument document) {
+        return memoryId -> document.parent().flatMap(parent -> document.contextPath().flatMap(path ->
+                PieceMemories.effective(parent.document(), InstancePath.child(path, memoryId))));
     }
 
     /** The region picture painted, still to encode; the export one in the scheme of the circuit's first window. */
     AiPictures.Painted paintRegion(OpenDocument document, Optional<Bounds> region, boolean asOnScreen) {
-        Optional<ShownWindow> window = windowsOf.apply(document).stream().findFirst();
+        // a place inside a component has no window of its own: the circuit's one gives the scheme
+        Optional<ShownWindow> window = windowsOf.apply(document.parent().orElse(document)).stream().findFirst();
+        if (asOnScreen && document.isBody()) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE,
+                    "A place inside a component is pictured as the export paints it, not as on screen; ask for the "
+                            + "export picture instead", Map.of());
+        }
         if (asOnScreen) {
             ShownWindow shown = window.orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE,
                     "The circuit has no window on screen; ask for the export picture instead", Map.of()));

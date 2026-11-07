@@ -26,7 +26,7 @@ public final class DefinitionUpdateSafety {
     }
 
     /** The definitions the placed pieces instantiate, and those they use, at any depth. */
-    private static Set<String> reachableDefinitionIds(CircuitDocument document) {
+    public static Set<String> reachableDefinitionIds(CircuitDocument document) {
         Set<String> reachable = new HashSet<>();
         Deque<String> pending = new ArrayDeque<>(SubcircuitTypes.definitionIds(document.components()));
         while (!pending.isEmpty()) {
@@ -50,7 +50,11 @@ public final class DefinitionUpdateSafety {
         });
     }
 
-    private static boolean sameInterface(ComponentDefinition before, ComponentDefinition after) {
+    /**
+     * Whether {@code after} has the outside of {@code before}: the same size and, pin by pin in order, the same
+     * position, direction and width (names and drawings may differ).
+     */
+    public static boolean sameInterface(ComponentDefinition before, ComponentDefinition after) {
         if (!before.size().equals(after.size()) || before.pinout().size() != after.pinout().size()) {
             return false;
         }

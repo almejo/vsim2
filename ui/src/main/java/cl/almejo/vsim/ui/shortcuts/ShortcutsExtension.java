@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.LeftColumn;
 
 import javax.swing.Action;
 import javax.swing.InputMap;
@@ -67,7 +68,6 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("file.open", actions.open());
         map.put("file.save", actions.save());
         map.put("file.saveAs", actions.saveAs());
-        map.put("file.close", actions.closeWindow());
         map.put("file.exit", actions.exit());
         map.put("edit.undo", actions.undo());
         map.put("edit.redo", actions.redo());
@@ -82,6 +82,8 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("edit.selectAll", selection.selectAll());
         map.put("edit.label", view.labelFeatures().actions().editLabel());
         map.putAll(actions.moveActions());
+        map.put("view.circuitTree", view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT));
+        map.put("view.palette", view.leftColumn().toggleAction(LeftColumn.Section.PALETTE));
         map.put("view.selectTool", actions.selectTool());
         map.put("view.wireTool", actions.wireTool());
         map.put("view.panTool", actions.panTool());
@@ -101,6 +103,14 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("simulation.restart", actions.restart());
         map.put("simulation.step", actions.step());
         map.put("window.newView", actions.newView());
+        map.put("window.newWindow", actions.newWindowWithCircuit());
+        map.put("window.moveGroup", actions.moveGroup());
+        map.put("window.foldGroup", actions.foldGroup());
+        map.put("window.nextTab", actions.nextTab());
+        map.put("window.previousTab", actions.previousTab());
+        map.put("window.closeTab", actions.closeTab());
+        map.put("window.closeComponents", actions.closeComponents());
+        map.put("window.closeWindow", actions.closeWindow());
         return map;
     }
 

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.actions;
 
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
@@ -43,6 +44,7 @@ import java.awt.event.KeyEvent;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -71,9 +73,11 @@ public final class EditorActions {
     private final Action open;
     private final Action save;
     private final Action saveAs;
+    private final Action closeTab;
     private final Action closeWindow;
     private final Action exit;
     private final Action undo;
+    private StepRunner steps;
     private final Action redo;
     private final Action delete;
     private final List<Consumer<Set<ElementId>>> deleteListeners = new CopyOnWriteArrayList<>();
@@ -100,6 +104,12 @@ public final class EditorActions {
     private final Action startOrPause;
     private final Action step;
     private final Action newView;
+    private final Action newWindowWithCircuit;
+    private final Action moveGroup;
+    private final Action foldGroup;
+    private final Action nextTab;
+    private final Action previousTab;
+    private final Action closeComponents;
     private final Action about;
     private final Action reportProblem;
 
@@ -119,6 +129,17 @@ public final class EditorActions {
                          ToolChoice toolChoice, WindowCommands window, AboutPresenter aboutPresenter,
                          LinkOpener links, Supplier<AboutInformation> information) {
         this.openDocument = openDocument;
+        this.steps = new StepRunner() {
+            @Override
+            public void undo() {
+                openDocument.history().undo();
+            }
+
+            @Override
+            public void redo() {
+                openDocument.history().redo();
+            }
+        };
         this.activePane = activePane;
         this.selection = selection;
         newDocument = Actions.of(Messages.text("action.new"), shortcut(KeyEvent.VK_N, 0), window::newDocument);
@@ -126,12 +147,13 @@ public final class EditorActions {
         save = Actions.of(Messages.text("action.save"), shortcut(KeyEvent.VK_S, 0), window::save);
         saveAs = Actions.of(Messages.text("action.saveAs"), shortcut(KeyEvent.VK_S, InputEvent.SHIFT_DOWN_MASK),
                 window::saveAs);
-        closeWindow = Actions.of(Messages.text("action.close"), shortcut(KeyEvent.VK_W, 0), window::closeWindow);
+        closeTab = Actions.of(Messages.text("action.closeTab"), shortcut(KeyEvent.VK_W, 0), window::closeTab);
+        closeWindow = Actions.of(Messages.text("action.closeWindow"),
+                shortcut(KeyEvent.VK_W, InputEvent.SHIFT_DOWN_MASK), window::closeWindow);
         exit = Actions.of(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
-        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0),
-                () -> openDocument.history().undo());
+        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), () -> steps.undo());
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
-                () -> openDocument.history().redo());
+                () -> steps.redo());
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
         delete.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.delete"));
         rotateClockwise = Actions.of(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
@@ -177,6 +199,17 @@ public final class EditorActions {
                 () -> openDocument.step(stepUnits));
         setStepUnits(stepUnits);
         newView = Actions.of(Messages.text("action.newWindow"), null, window::newView);
+        newWindowWithCircuit = Actions.of(Messages.text("action.newWindowWithCircuit"),
+                shortcut(KeyEvent.VK_N, InputEvent.SHIFT_DOWN_MASK), window::newWindowWithCircuit);
+        moveGroup = Actions.of(Messages.text("action.moveGroup"), null, window::moveGroupToNewWindow);
+        foldGroup = Actions.of(Messages.text("action.foldGroup"), null, window::toggleFold);
+        // Ctrl on every platform: ⌘+Tab is the system's application switcher on macOS
+        nextTab = Actions.of(Messages.text("action.nextTab"),
+                KeyStroke.getKeyStroke(KeyEvent.VK_TAB, InputEvent.CTRL_DOWN_MASK), window::nextTab);
+        previousTab = Actions.of(Messages.text("action.previousTab"),
+                KeyStroke.getKeyStroke(KeyEvent.VK_TAB, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
+                window::previousTab);
+        closeComponents = Actions.of(Messages.text("action.closeComponents"), null, window::closeComponents);
         about = Actions.of(Messages.text("action.about"), null, () -> aboutPresenter.show(activePane.get()));
         reportProblem = Actions.of(Messages.text("action.reportProblem"), null,
                 () -> links.open(ProblemReportLink.url(information.get(), Messages.locale())));
@@ -193,6 +226,35 @@ public final class EditorActions {
     public Action saveAs() { return saveAs; }
     public Action closeWindow() { return closeWindow; }
     public Action exit() { return exit; }
+    /** «Nueva ventana con este circuito» (Ctrl+Mayús+N). */
+    public Action newWindowWithCircuit() { return newWindowWithCircuit; }
+    /** «Mover el grupo a una ventana nueva». */
+    public Action moveGroup() { return moveGroup; }
+    /** «Plegar / desplegar el grupo». */
+    public Action foldGroup() { return foldGroup; }
+    /** «Pestaña siguiente» (Ctrl+Tab). */
+    public Action nextTab() { return nextTab; }
+    /** «Pestaña anterior» (Ctrl+Mayús+Tab). */
+    public Action previousTab() { return previousTab; }
+    /** «Cerrar pestaña» (Ctrl+W), in Archivo and in Ventana. */
+    public Action closeTab() { return closeTab; }
+    /** «Cerrar los componentes de este circuito». */
+    public Action closeComponents() { return closeComponents; }
+    /**
+     * What Deshacer / Rehacer run: by default the history's step, here; the view gives one that shows the place of a
+     * step made in another tab first ({@code UndoInItsPlace}).
+     */
+    public interface StepRunner {
+        void undo();
+
+        void redo();
+    }
+
+    /** Deshacer and Rehacer run their step through {@code runner} from now on. */
+    public void runStepsWith(StepRunner runner) {
+        steps = Objects.requireNonNull(runner, "runner");
+    }
+
     public Action undo() { return undo; }
     public Action redo() { return redo; }
     public Action delete() { return delete; }
@@ -280,6 +342,7 @@ public final class EditorActions {
         file.add(save);
         file.add(saveAs);
         file.addSeparator();
+        file.add(closeTab);
         file.add(closeWindow);
         file.add(exit);
         JMenu edit = tagged(new JMenu(Messages.text("menu.edit")), MenuId.EDIT);
@@ -311,6 +374,16 @@ public final class EditorActions {
         JMenu tools = tagged(new JMenu(Messages.text("menu.tools")), MenuId.TOOLS); // filled by extensions
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
         windowMenu.add(newView);
+        windowMenu.add(newWindowWithCircuit);
+        windowMenu.add(moveGroup);
+        windowMenu.add(foldGroup);
+        windowMenu.addSeparator();
+        windowMenu.add(nextTab);
+        windowMenu.add(previousTab);
+        windowMenu.add(closeTab);
+        windowMenu.add(closeComponents);
+        windowMenu.addSeparator();
+        // «Dividir ▸» and «Siguiente panel» follow (SplitViewsFeatures)
         JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
         help.add(about);
         help.add(reportProblem);
@@ -360,16 +433,27 @@ public final class EditorActions {
         return Messages.format(closed ? "speed.closed" : "speed.label", speed);
     }
 
+    /**
+     * «Deshacer agregar», or «Deshacer agregar (en Ram)» for a step made inside a component (spec §10.4), whichever tab
+     * shows the item: the text says where the step goes back before the view goes there.
+     */
+    private static String stepName(Command command, String namedKey, String insideKey) {
+        String name = Messages.commandName(command.description());
+        return OpenDocument.insideEditOf(command)
+                .map(inside -> Messages.format(insideKey, name, inside.placeName()))
+                .orElseGet(() -> Messages.format(namedKey, name));
+    }
+
     public void refresh() {
         History history = openDocument.history();
         save.setEnabled(openDocument.canSave());
         undo.setEnabled(history.canUndo());
-        undo.putValue(Action.NAME, history.undoDescription()
-                .map(key -> Messages.format("action.undoNamed", Messages.commandName(key)))
+        undo.putValue(Action.NAME, history.undoCommand()
+                .map(command -> stepName(command, "action.undoNamed", "action.undoInside"))
                 .orElse(Messages.text("action.undo")));
         redo.setEnabled(history.canRedo());
-        redo.putValue(Action.NAME, history.redoDescription()
-                .map(key -> Messages.format("action.redoNamed", Messages.commandName(key)))
+        redo.putValue(Action.NAME, history.redoCommand()
+                .map(command -> stepName(command, "action.redoNamed", "action.redoInside"))
                 .orElse(Messages.text("action.redo")));
         Set<ElementId> selected = selection.ids();
         delete.setEnabled(!selected.isEmpty());

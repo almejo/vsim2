@@ -26,6 +26,18 @@ class SearchQueryTest {
     }
 
     @Test
+    void theFirstPlainMatchIsPlacedInTheOriginalTextEvenWhenItIsOnlyFoundIgnoringAccents() {
+        assertThat(plain("accion").firstPlainMatch("Mi Acción rápida")).contains(new CompiledQuery.Range(3, 9));
+        assertThat(plain("ACC").firstPlainMatch("Acción")).contains(new CompiledQuery.Range(0, 3));
+        assertThat(plain("rapida").firstPlainMatch("Acción rápida")).contains(new CompiledQuery.Range(7, 13));
+        assertThat(plain("e").firstPlainMatch("e\u0301x")).contains(new CompiledQuery.Range(0, 2));
+        assertThat(new SearchQuery("Acc", true, false).compile().firstPlainMatch("Acción"))
+                .contains(new CompiledQuery.Range(0, 3));
+        assertThat(plain("zzz").firstPlainMatch("Acción")).isEmpty();
+        assertThat(new SearchQuery("a.", false, true).compile().firstPlainMatch("Acción")).isEmpty();
+    }
+
+    @Test
     void matchCaseKeepsCaseAndAccents() {
         assertThat(new SearchQuery("Acc", true, false).compile().matches("Acción")).isTrue();
         assertThat(new SearchQuery("acc", true, false).compile().matches("Acción")).isFalse();

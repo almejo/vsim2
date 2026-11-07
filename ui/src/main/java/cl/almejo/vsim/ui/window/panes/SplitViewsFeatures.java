@@ -72,29 +72,22 @@ public final class SplitViewsFeatures {
         };
     }
 
-    /** «Dividir ▸» and «Siguiente panel» right after «Nueva vista» (the list of open windows stays at the end). */
+    /**
+     * «Dividir ▸» and «Siguiente panel» at the end of the menu, after the last separator (spec §4.8; the list of open
+     * tabs is added after them).
+     */
     private void insertMenuItems() {
         JMenu split = new JMenu(Messages.text("menu.window.split"));
         split.add(new JMenuItem(splitHorizontal));
         split.add(new JMenuItem(splitVertical));
         split.addSeparator();
         split.add(new JMenuItem(removeSplit));
-        int index = indexAfterNewView();
+        int index = windowMenu.getMenuComponentCount();
         windowMenu.insert(split, index);
         menuComponents.add(split);
         JMenuItem next = new JMenuItem(nextPane);
-        windowMenu.insert(next, index + 1);
+        windowMenu.insert(next, Math.min(index + 1, windowMenu.getMenuComponentCount()));
         menuComponents.add(next);
-    }
-
-    private int indexAfterNewView() {
-        Action newView = view.actions().newView();
-        for (int index = 0; index < windowMenu.getMenuComponentCount(); index++) {
-            if (windowMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == newView) {
-                return index + 1;
-            }
-        }
-        return windowMenu.getMenuComponentCount();
     }
 
     /** «Quitar división» and «Siguiente panel» only mean something while the window is split. */

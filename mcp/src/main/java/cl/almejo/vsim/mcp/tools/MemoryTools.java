@@ -26,6 +26,7 @@ final class MemoryTools {
                         + "SetMemoryContents; linking, importing and dumping files are for the user.",
                 Schema.object("")
                         .property("document", Common.document())
+                        .property("place", Common.place())
                         .property("component", Schema.nonEmptyString("The RAM or ROM"))
                         .property("source", Schema.enumeration("Default initial", List.of("initial", "current")))
                         .property("firstAddress", Schema.integerFrom("Default 0", 0))

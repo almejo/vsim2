@@ -48,6 +48,9 @@ public final class HelpResource {
                 - Comprobar cada etapa con VSim (`vsim_check_stage`: tabla de verdad, problemas, orden del dibujo). \
                 Solo cuenta lo que VSim midió: la IA no da por buena una etapa si VSim no la aprobó.
                 - Sacar tablas de verdad, poner entradas y leer señales.
+                - Trabajar por dentro de un componente (`vsim_list_places`): leerlo, editarlo (un Ctrl+Z, \
+                como si lo hicieras tú dentro) y ver los valores o la memoria de una pieza concreta. Solo \
+                `vsim_open_place` cambia la pestaña que ves; la IA nunca escribe tu biblioteca.
                 - Convertir partes en un componente y usar los de «Mis componentes».
                 - Exportar a PDF, PNG o SVG en la carpeta de exportación de VSim, cuando se lo pides.
                 - Usar guías, imán y cuadrícula mientras trabaja (solo en esa ventana y durante la tarea), y \

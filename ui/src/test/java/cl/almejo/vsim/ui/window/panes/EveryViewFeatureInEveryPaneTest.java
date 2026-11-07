@@ -31,7 +31,7 @@ import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.sheets.SheetsExtension;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
-import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
+import cl.almejo.vsim.ui.tree.CircuitTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -156,8 +156,8 @@ class EveryViewFeatureInEveryPaneTest {
                         new WaveformsExtension(), true),
                 Arguments.of("Modo paso a paso", (Function<LibraryService, EditorExtension>) libraryService ->
                         new StepModeExtension(), true),
-                Arguments.of("Componentes (árbol)", (Function<LibraryService, EditorExtension>) libraryService ->
-                        new ComponentTreeExtension(), true),
+                Arguments.of("Árbol del circuito", (Function<LibraryService, EditorExtension>) libraryService ->
+                        new CircuitTreeExtension(), false),
                 Arguments.of("Plantillas y biblioteca", (Function<LibraryService, EditorExtension>) libraryService ->
                         new TemplatesExtension(libraryService, SwingLibraryDialogs.INSTANCE), true),
                 Arguments.of("Tabla de verdad", (Function<LibraryService, EditorExtension>) libraryService ->

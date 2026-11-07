@@ -84,7 +84,7 @@ class VsimMcpServerTest {
                     .contains("vsim_set_presentation", "vsim_begin_stage", "vsim_await_step", "ONE vsim_edit per step",
                             "pace CONTINUOUS",
                             "STALE", "STOPPED", "replaceSelection false");
-            assertThat(client.listTools().tools()).hasSize(34)
+            assertThat(client.listTools().tools()).hasSize(36)
                     .allSatisfy(tool -> assertThat(tool.outputSchema()).isNotNull());
         }
     }
@@ -178,6 +178,65 @@ class VsimMcpServerTest {
         }
         for (CompletableFuture<HttpResponse<String>> response : waiting) {
             assertThat(response.get(10, TimeUnit.SECONDS).statusCode()).isEqualTo(200);
+        }
+    }
+
+    /**
+     * Fix round D: a class missing at run time (VSim's jars rebuilt under it) failed vsim_set_inputs with a
+     * NoClassDefFoundError; the SDK's Reactor drops such an error, so the call was never answered and held its slot
+     * until all four were taken. Now it is answered as an error, and the slots stay free.
+     */
+    @Test
+    void aToolThatFailsWithAFatalErrorIsAnsweredAndHoldsNoSlot() throws Exception {
+        RunningServer server = start(new FailingHost(() -> new NoClassDefFoundError("cl/almejo/vsim/Missing")));
+
+        try (McpSyncClient client = client(server.port(), SECRET)) {
+            client.initialize();
+            for (int call = 0; call <= McpServerSettings.MAXIMUM_CONCURRENT_REQUESTS; call++) {
+                McpSchema.CallToolResult result = client.callTool(McpSchema.CallToolRequest
+                        .builder("vsim_list_documents").arguments(Map.of()).build());
+
+                assertThat(result.isError()).isTrue();
+                assertThat(result.structuredContent().toString()).contains("error=OUTCOME_UNKNOWN",
+                        "NoClassDefFoundError", "restart VSim");
+            }
+        }
+    }
+
+    @Test
+    void aToolThatOverflowsItsStackIsAnswered() throws Exception {
+        RunningServer server = start(new FailingHost(StackOverflowError::new));
+
+        try (McpSyncClient client = client(server.port(), SECRET)) {
+            client.initialize();
+            McpSchema.CallToolResult result = client.callTool(McpSchema.CallToolRequest
+                    .builder("vsim_list_documents").arguments(Map.of()).build());
+
+            assertThat(result.isError()).isTrue();
+            assertThat(result.structuredContent().toString()).contains("error=OUTCOME_UNKNOWN",
+                    "StackOverflowError");
+        }
+    }
+
+    /** The safety net: a call that never finishes is answered when the time limit passes, and frees its slot. */
+    @Test
+    void aCallThatNeverFinishesIsAnsweredAtTheTimeLimitAndFreesItsSlot() throws Exception {
+        CountDownLatch never = new CountDownLatch(1);
+        RunningServer server = VsimMcpServer.start(new AutomationApi(new StuckHost(never)),
+                new McpServerSettings(0, SECRET), Duration.ofMillis(300));
+        servers.add(server);
+        try (McpSyncClient client = client(server.port(), SECRET)) {
+            client.initialize();
+            for (int call = 0; call <= McpServerSettings.MAXIMUM_CONCURRENT_REQUESTS; call++) {
+                McpSchema.CallToolResult result = client.callTool(McpSchema.CallToolRequest
+                        .builder("vsim_list_documents").arguments(Map.of()).build());
+
+                assertThat(result.isError()).isTrue();
+                assertThat(result.structuredContent().toString()).contains("error=OUTCOME_UNKNOWN",
+                        "vsim_list_documents", "did not finish");
+            }
+        } finally {
+            never.countDown();
         }
     }
 
@@ -396,6 +455,41 @@ class VsimMcpServerTest {
         @Override
         protected List<DocumentSummary> openDocuments() {
             return documents;
+        }
+    }
+
+    /** An editor whose every job fails with the error {@code failure} makes (never an exception). */
+    private static final class FailingHost implements AutomationHost {
+
+        private final java.util.function.Supplier<Error> failure;
+
+        FailingHost(java.util.function.Supplier<Error> failure) {
+            this.failure = failure;
+        }
+
+        @Override
+        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
+            return CompletableFuture.failedFuture(failure.get());
+        }
+    }
+
+    /** An editor that never comes back from a job until {@code released} opens: the handler thread is stuck. */
+    private static final class StuckHost implements AutomationHost {
+
+        private final CountDownLatch released;
+
+        StuckHost(CountDownLatch released) {
+            this.released = released;
+        }
+
+        @Override
+        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
+            try {
+                released.await();
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
+            return CompletableFuture.failedFuture(new IllegalStateException("released"));
         }
     }
 

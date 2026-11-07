@@ -88,6 +88,7 @@ final class SimulationTools {
                 Schema.object("")
                         .property("document", Common.document())
                         .property("version", Common.version())
+                        .property("place", Common.place())
                         .property("operationId", Schema.nonEmptyString("Your own key: a retry with the same key and "
                                 + "values gets the same receipt without setting anything again"))
                         .property("values", Schema.array("The values, in order", value, 1,
@@ -131,6 +132,7 @@ final class SimulationTools {
                         + "are decimal strings.",
                 Schema.object("")
                         .property("document", Common.document())
+                        .property("place", Common.place())
                         .property("pins", Schema.array("The pins to read", Common.pinReference("A pin"), 1,
                                 SimulationOperations.MAXIMUM_PINS))
                         .required("document", "pins").build(),

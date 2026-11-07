@@ -4,18 +4,22 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.InstanceNames;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -51,7 +55,10 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
         Map<String, Object> resolved = type.resolveParameters(component.parameters());
         long words = MemoryTypes.words(resolved);
         int width = (Integer) resolved.get(MemoryTypes.WIDTH);
-        MemoryContents contents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS));
+        // inside a component, the piece of «Valores de» may start from its own contents (spec §6.6b)
+        String text = view.openDocument().pieceMemoryContents().getOrDefault(component.id(),
+                (String) resolved.get(MemoryTypes.CONTENTS));
+        MemoryContents contents = MemoryContents.decode(text);
         addContentRows(component, rows);
         watcher.problem(component.id()).ifPresent(problem ->
                 rows.addWide(named(new WrappedErrorText(problem), "memory.inspector.problem")));
@@ -68,7 +75,8 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
         boolean linked = !link.isBlank();
         String where = linked
                 ? Messages.format("memory.inspector.linked", MemoryLinkPaths.displayPath(link, view.openDocument().path()))
-                : Messages.text("memory.inspector.inCircuit");
+                : ownPieceName(component.id()).map(piece -> Messages.format("memory.inspector.ownPiece", piece))
+                .orElseGet(() -> Messages.text("memory.inspector.inCircuit"));
         rows.add(Messages.text("memory.inspector.contents"), named(new JLabel(where), "memory.inspector.contents"));
         ElementId id = component.id();
         JButton edit = button("memory.inspector.edit", Messages.text("memory.menu.edit"),
@@ -77,6 +85,19 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
                 () -> links.openExternal(view, id));
         external.setEnabled(linked);
         rows.add("", line(edit, external));
+    }
+
+    /**
+     * In a component tab, the piece of «Valores de» when it keeps its own contents of memory {@code id} (spec §6.6b),
+     * which are what it starts with instead of the component's.
+     */
+    private Optional<String> ownPieceName(ElementId id) {
+        OpenDocument place = view.openDocument();
+        Optional<String> context = place.isBody() ? place.contextPath() : Optional.empty();
+        return context.filter(path -> place.parent()
+                        .flatMap(circuit -> PieceMemories.stored(circuit.document(), PieceMemories.placeOf(path, id)))
+                        .isPresent())
+                .map(path -> InstanceNames.routeText(path, place.parent().orElseThrow().document()));
     }
 
     private void addHiddenWordsRows(Component component, MemoryContents contents, long words,

@@ -4,10 +4,15 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.DefinitionNames;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
+import cl.almejo.vsim.ui.window.PlaceBar;
+import cl.almejo.vsim.ui.window.SeePiece;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,9 +23,12 @@ import javax.swing.JPopupMenu;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Keeps one view's palette in step with the library (every window) and with its document's own definitions, starts
@@ -40,6 +48,10 @@ public final class LibraryPalette {
     private final LibraryImport importer;
     private final Action importComponent;
     private final Runnable refresher = this::refresh;
+    private PlaceBar placeBar;
+    private Runnable removePlaceBar = () -> { };
+    /** The palette entries this view disabled last (inside a component tab). */
+    private Set<String> disabledIds = Set.of();
 
     public LibraryPalette(EditorView view, LibraryService service, LibraryDialogs dialogs, LibraryImport importer,
                           Action importComponent) {
@@ -57,11 +69,53 @@ public final class LibraryPalette {
         service.library().addListener(refresher);
         view.openDocument().addChangeListener(refresher);
         refresh();
+        installPlaceBar();
+    }
+
+    /** A component tab shows the place bar over its canvas (spec §5.1); it needs the library, so it lives here. */
+    private void installPlaceBar() {
+        OpenDocument place = view.openDocument();
+        if (!place.isBody()) {
+            return;
+        }
+        OpenDocument parent = place.parent().orElseThrow();
+        placeBar = new PlaceBar(place, service.library(), new PlaceBar.Callbacks() {
+            @Override
+            public void showMain() {
+                view.windowCommands().showPlace(parent, Optional.empty(), Optional.empty());
+            }
+
+            @Override
+            public void enter(String definitionId, Optional<String> contextPath) {
+                view.windowCommands().enter(parent, definitionId, contextPath);
+            }
+
+            @Override
+            public void seePiece() {
+                SeePiece.show(view);
+            }
+
+            @Override
+            public void saveToLibrary(DefinitionBundle bundle) {
+                save(bundle);
+            }
+
+            @Override
+            public void addToLibrary(DefinitionBundle bundle) {
+                LibraryPalette.this.addToLibrary(bundle);
+            }
+        });
+        removePlaceBar = view.addAboveCanvas(placeBar);
     }
 
     public void dispose() {
         service.library().removeListener(refresher);
         view.openDocument().removeChangeListener(refresher);
+        if (placeBar != null) {
+            removePlaceBar.run();
+            placeBar.dispose();
+            placeBar = null;
+        }
     }
 
     /**
@@ -71,7 +125,8 @@ public final class LibraryPalette {
      */
     public void refresh() {
         Set<String> libraryIds = service.library().ids();
-        CircuitDocument document = view.openDocument().document();
+        // inside a component tab the circuit's components are offered, not only those its body already uses
+        CircuitDocument document = circuitOf(view.openDocument()).document();
         List<DefinitionBundle> own = new ArrayList<>();
         for (ComponentDefinition definition : document.usedDefinitions().stream().sorted(BY_NAME).toList()) {
             if (libraryIds.contains(definition.id())) {
@@ -85,6 +140,58 @@ public final class LibraryPalette {
             }
         }
         view.palette().setUserComponents(service.library().entries(), own);
+        disableWhatCannotGoInside();
+    }
+
+    private static OpenDocument circuitOf(OpenDocument place) {
+        return place.parent().orElse(place);
+    }
+
+    /**
+     * Inside a component tab (spec §6.5): the component itself and every component that contains it cannot be placed
+     * in its body; each says why. The interface pin parts are always offered (spec §6.2 c: the bodies that contain the
+     * component follow its new pins). The circuit's own tab disables nothing.
+     */
+    private void disableWhatCannotGoInside() {
+        Map<String, String> reasons = new HashMap<>();
+        OpenDocument place = view.openDocument();
+        place.definitionId().ifPresent(definitionId -> {
+            CircuitDocument circuit = circuitOf(place).document();
+            for (PaletteEntry entry : view.palette().entries()) {
+                entry.userComponent().flatMap(component -> reasonInside(component.bundle(), definitionId, circuit))
+                        .ifPresent(reason -> reasons.put(entry.id(), reason));
+            }
+        });
+        disabledIds.stream().filter(id -> !reasons.containsKey(id))
+                .forEach(id -> view.palette().setDisabledReason(id, Optional.empty()));
+        reasons.forEach((id, reason) -> view.palette().setDisabledReason(id, Optional.of(reason)));
+        disabledIds = Set.copyOf(reasons.keySet());
+    }
+
+    /**
+     * Why {@code bundle} cannot be placed inside {@code definitionId}: it is that component, or it contains it (in its
+     * own bundle or in the circuit's version of its definitions), which would make a component contain itself.
+     */
+    private static Optional<String> reasonInside(DefinitionBundle bundle, String definitionId,
+                                                 CircuitDocument circuit) {
+        String rootId = bundle.root().id();
+        if (rootId.equals(definitionId)) {
+            return Optional.of(Messages.text("inside.cannotNestItself"));
+        }
+        boolean contains = bundle.all().stream().anyMatch(definition -> definition.id().equals(definitionId))
+                || circuitClosureOf(rootId, circuit).contains(definitionId);
+        return contains ? Optional.of(Messages.text("inside.containsThisComponent")) : Optional.empty();
+    }
+
+    /** The ids the circuit's version of {@code rootId} uses, at any depth (none when the circuit lacks it). */
+    private static Set<String> circuitClosureOf(String rootId, CircuitDocument circuit) {
+        try {
+            return DefinitionGraph.knownClosure(List.of(rootId), circuit::definition).stream()
+                    .map(ComponentDefinition::id).collect(Collectors.toSet());
+        } catch (IllegalArgumentException recursive) {
+            LOGGER.warn("The circuit's definition {} is recursive", rootId, recursive);
+            return Set.of(rootId);
+        }
     }
 
     /** The palette's right-click menu for {@code entry} (none: only "Importar componente…"). */

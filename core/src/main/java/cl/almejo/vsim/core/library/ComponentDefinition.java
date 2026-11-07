@@ -14,7 +14,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 /**
@@ -131,8 +133,38 @@ public record ComponentDefinition(String id, String name, String description, Gr
         return new ComponentDefinition(id, name, next, size, pinout, body, appearance, Math.incrementExact(revision));
     }
 
+    /** The same revision of this definition with {@code newBody} (its outside is unchanged). */
+    public ComponentDefinition withBody(CircuitFragment newBody) {
+        return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision);
+    }
+
+    /** The index of the pin named {@code pinName} in the pinout (names are unique); empty when there is none. */
+    public OptionalInt pinIndexOf(String pinName) {
+        for (int index = 0; index < pinout.size(); index++) {
+            if (pinout.get(index).spec().name().equals(pinName)) {
+                return OptionalInt.of(index);
+            }
+        }
+        return OptionalInt.empty();
+    }
+
     public ComponentDefinition withAppearance(Optional<SymbolDrawing> newAppearance) {
         return withGeometry(size, pinout, newAppearance);
+    }
+
+    /**
+     * This definition with each component of its body as {@code mapping} gives it, same revision: how a file writes
+     * or reads it (a memory's link relative to the circuit's folder in the file, absolute while open), not an edit.
+     * {@code this} when no component changes.
+     */
+    public ComponentDefinition withBodyComponents(UnaryOperator<Component> mapping) {
+        List<Component> mapped = body.components().stream().map(mapping).toList();
+        if (mapped.equals(body.components())) {
+            return this;
+        }
+        CircuitFragment newBody = new CircuitFragment(mapped, body.wires(), body.labels(), body.definitions(),
+                body.frames(), body.stickyNotes());
+        return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision);
     }
 
     /** One accepted definition appearance edit advances the revision once, regardless of its pin count. */

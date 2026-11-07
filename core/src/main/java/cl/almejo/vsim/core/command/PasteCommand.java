@@ -76,7 +76,7 @@ public final class PasteCommand implements Command {
         for (Component component : components) {
             Component placed = new Component(document.newComponentId(), component.typeId(),
                     component.position().plus(at), component.rotation(), component.parameters(), component.label(),
-                    component.labelOffset(), component.appearance());
+                    component.labelOffset(), component.appearance(), component.memoryContents());
             elements.add(placed);
             ids.add(placed.id());
         }

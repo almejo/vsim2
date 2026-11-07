@@ -7,6 +7,11 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.PlaceRef;
+import cl.almejo.vsim.automation.PlaceSummary;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import java.util.ArrayList;
 import cl.almejo.vsim.automation.read.ReadSource;
 import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
@@ -60,6 +65,8 @@ public final class EditorAutomationHost implements AutomationHost {
     private final Optional<PreferenceProposals> proposals;
     /** Told of every request (any thread): the panel's «Claude Code conectado». */
     private final Listeners<Runnable> requestListeners = new Listeners<>();
+    /** Told on the EDT of the place each read, edit, run or opening touches: the AI's mark on the tabs. */
+    private final Listeners<PlaceListener> placeListeners = new Listeners<>();
     /** EDT only. Weak, so a closed circuit's entry goes with it; the counter never gives an id twice. */
     private final Map<OpenDocument, DocumentId> ids = new WeakHashMap<>();
     private long lastId;
@@ -131,9 +138,9 @@ public final class EditorAutomationHost implements AutomationHost {
         this.proposals = proposals;
         this.reads = new ReadHostSupport(windowsOf);
         // An id VSim never gave is an INVALID_REFERENCE, a closed circuit's DOCUMENT_CLOSED (documentOf).
-        this.simulation = new SimulationHostSupport(id -> Optional.of(documentOf(id)), SwingUtilities::invokeLater,
+        this.simulation = new SimulationHostSupport(id -> Optional.of(placeOf(id)), SwingUtilities::invokeLater,
                 queue);
-        this.edits = new EditHostSupport(id -> Optional.of(documentOf(id)), this.windows::libraryComponents, queue);
+        this.edits = new EditHostSupport(id -> Optional.of(placeOf(id)), this.windows::libraryComponents, queue);
         this.exports = new ExportHostSupport(windowsOf, () -> Path.of(System.getProperty("user.home")),
                 ForkJoinPool.commonPool(), SwingUtilities::invokeLater, Clock.systemDefaultZone(),
                 FolderOpener.desktop(), sheetAnchors);
@@ -166,6 +173,17 @@ public final class EditorAutomationHost implements AutomationHost {
         return simulation.typeText(document, component, characters);
     }
 
+    /** Hears which place of which circuit an AI call reads, edits, runs or opens; on the EDT. */
+    @FunctionalInterface
+    public interface PlaceListener {
+        void touched(DocumentId circuitId, OpenDocument circuit, PlaceRef place);
+    }
+
+    /** {@code listener} hears every place an AI call touches until the returned runnable takes it back. */
+    public Runnable addPlaceListener(PlaceListener listener) {
+        return placeListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
     /** {@code listener} runs (on the caller's thread) at every request until the returned runnable takes it back. */
     public Runnable addRequestListener(Runnable listener) {
         return requestListeners.add(Objects.requireNonNull(listener, "listener"));
@@ -182,7 +200,9 @@ public final class EditorAutomationHost implements AutomationHost {
         if (windows == EditorWindows.NONE) {
             throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor cannot open new circuits");
         }
-        return idOf(windows.openNewCircuit(name));
+        OpenDocument created = windows.openNewCircuit(name);
+        touched(created, PlaceRef.main());
+        return idOf(created);
     }
 
     @Override
@@ -275,7 +295,15 @@ public final class EditorAutomationHost implements AutomationHost {
 
     @Override
     public <T> CompletableFuture<T> reading(DocumentId id, Function<ReadSource, T> work) {
-        return onEditorThread(access -> work.apply(reads.source(id, documentOf(id), windows.libraryComponents())));
+        return onEditorThread(access -> work.apply(reads.source(id, placeOf(id), windows.libraryComponents(),
+                windows.libraryProblems())));
+    }
+
+    /** The catalogue reads no place (round E, 5q): the AI's marks stay as they are. */
+    @Override
+    public <T> CompletableFuture<T> readingCatalogue(DocumentId id, Function<ReadSource, T> work) {
+        return onEditorThread(access -> work.apply(reads.source(id, placeOf(id, false), windows.libraryComponents(),
+                windows.libraryProblems())));
     }
 
     // --- Exports (spec §7): ExportHostSupport takes the picture on the EDT and writes the file off it ---
@@ -284,6 +312,7 @@ public final class EditorAutomationHost implements AutomationHost {
     public CompletableFuture<ExportReceipt> export(ExportRequest request) {
         return onEditorThread(access -> {
             OpenDocument document = documentOf(request.document());
+            touched(document, PlaceRef.main());
             return exports.prepare(request.document(), ReadHostSupport.version(document), document, request);
         }).thenApplyAsync(exports::write, exports.writer());
     }
@@ -291,12 +320,13 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public CompletableFuture<RegionPicture> pictureOf(DocumentId id, Optional<Bounds> region, boolean asOnScreen) {
         return onEditorThread(access -> {
-            OpenDocument document = documentOf(id);
+            OpenDocument document = placeOf(id);
             return Map.entry(ReadHostSupport.version(document), reads.paintRegion(document, region, asOnScreen));
         }).thenApplyAsync(painted -> ReadHostSupport.regionPicture(id, painted.getKey(), asOnScreen,
                 painted.getValue()));
     }
 
+    /** A picture of the window is no work in any place (round E, 5q): the AI's marks stay as they are. */
     @Override
     public CompletableFuture<WindowPicture> pictureOfWindow(DocumentId id) {
         return onEditorThread(access -> {
@@ -305,8 +335,93 @@ public final class EditorAutomationHost implements AutomationHost {
         }).thenApplyAsync(painted -> ReadHostSupport.windowPicture(id, painted.getKey(), painted.getValue()));
     }
 
-    /** EDT only: the open circuit {@code id} names, or the refusal that says whether it was closed or never given. */
-    private OpenDocument documentOf(DocumentId id) {
+    /**
+     * EDT only: what {@code id} addresses for a read, an edit or the simulation: the circuit itself, or, for an id
+     * qualified with a place (spec §12), a body place of it with the context's values. A body is a transient view of
+     * the circuit's working copy of the definition (shared with the user's tabs): it is closed once the editor has run
+     * what is queued, and never touches the tabs the user sees.
+     */
+    private OpenDocument placeOf(DocumentId id) {
+        return placeOf(id, true);
+    }
+
+    /** {@link #placeOf(DocumentId)}; {@code isWork} false for a call that reads no place (it touches no mark). */
+    private OpenDocument placeOf(DocumentId id, boolean isWork) {
+        OpenDocument circuit = documentOf(id);
+        Optional<PlaceRef> place = id.place().filter(found -> !found.isMain());
+        if (place.isEmpty()) {
+            if (isWork) {
+                touched(circuit, PlaceRef.main());
+            }
+            return circuit;
+        }
+        requirePlace(circuit, place.get());
+        if (isWork) {
+            touched(circuit, place.get());
+        }
+        OpenDocument body = circuit.openBody(place.get().definition(), place.get().context());
+        SwingUtilities.invokeLater(body::close);
+        return body;
+    }
+
+    /**
+     * EDT only: refuses (INVALID_REFERENCE) a place that is not one of the circuit's: a definition it does not have,
+     * or a context that is not the path of one of that definition's instances. The editor's fallback to the first
+     * instance is for restoring a session, never for the AI: it would read or write another piece's values.
+     */
+    private static void requirePlace(OpenDocument circuit, PlaceRef place) {
+        if (circuit.document().definition(place.definition()).isEmpty()) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit has no component "
+                    + place.definition() + "; vsim_list_places gives its places",
+                    Map.of("definition", place.definition()));
+        }
+        if (place.context().isPresent() && circuit.instancePaths(place.definition()).stream()
+                .noneMatch(use -> use.path().equals(place.context().get()))) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit has no instance of "
+                    + place.definition() + " at " + place.context().get() + "; vsim_list_places gives its uses",
+                    Map.of("definition", place.definition(), "context", place.context().get()));
+        }
+    }
+
+    /** EDT only: the places of {@code id}'s circuit, the circuit first (spec §12). */
+    private List<PlaceSummary> placesOf(DocumentId id) {
+        OpenDocument circuit = documentOf(id);
+        List<PlaceSummary> places = new ArrayList<>();
+        places.add(new PlaceSummary(PlaceRef.MAIN, circuit.circuitName(), List.of()));
+        for (ComponentDefinition definition : circuit.document().definitions()) {
+            List<PlaceSummary.PlaceUse> uses = circuit.instancePaths(definition.id()).stream()
+                    .map(use -> new PlaceSummary.PlaceUse(use.path(),
+                            use.chain().stream().map(ElementId::value).toList()))
+                    .toList();
+            places.add(new PlaceSummary(definition.id(), definition.name(), uses));
+        }
+        return places;
+    }
+
+    /** EDT only: shows the place in the window the AI works in. */
+    private void showPlace(DocumentId id, PlaceRef place) {
+        OpenDocument circuit = documentOf(id);
+        if (place.isMain()) {
+            windows.openPlace(circuit, Optional.empty(), Optional.empty());
+        } else {
+            requirePlace(circuit, place);
+            windows.openPlace(circuit, Optional.of(place.definition()), place.context());
+        }
+        touched(circuit, place);
+    }
+
+    /** EDT only: tells the place listeners that an AI call reads, edits, runs or opens {@code place} of the circuit. */
+    private void touched(OpenDocument circuit, PlaceRef place) {
+        DocumentId circuitId = idOf(circuit);
+        placeListeners.fire(listener -> listener.touched(circuitId, circuit, place));
+    }
+
+    /**
+     * EDT only: the open circuit {@code id} names (whatever place it is qualified with), or the refusal that says
+     * whether it was closed or never given.
+     */
+    private OpenDocument documentOf(DocumentId qualified) {
+        DocumentId id = qualified.base();
         for (OpenDocument document : openDocuments.get()) {
             if (idOf(document).equals(id)) {
                 return document;
@@ -347,6 +462,16 @@ public final class EditorAutomationHost implements AutomationHost {
         @Override
         public List<DocumentSummary> openDocuments() {
             return openDocuments.get().stream().map(EditorAutomationHost.this::summaryOf).toList();
+        }
+
+        @Override
+        public List<PlaceSummary> openPlaces(DocumentId document) {
+            return placesOf(document);
+        }
+
+        @Override
+        public void openPlace(DocumentId document, PlaceRef place) {
+            showPlace(document, place);
         }
     }
 }

@@ -121,7 +121,7 @@ class ApplicationExtensionsTest {
             assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Ejemplos",
                     "Guardar", "Guardar como…", "Imprimir…", "---", "Importar", "Exportar", "---",
                     "Preferencias…", "---",
-                    "Cerrar ventana", "Salir");
+                    "Cerrar pestaña", "Cerrar ventana", "Salir");
             assertThat(texts(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow())).containsExactly("Imagen…",
                     "PDF…", "Circuito de Logisim (.circ) (beta)…");
             JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();
@@ -171,19 +171,20 @@ class ApplicationExtensionsTest {
     void theViewMenuHasTheGridSubmenuTheSnapItemsAndTheGuideItemsAfterTheZoomGroup() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco", "Nota adhesiva",
+            assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Árbol del circuito", "Paleta", "---",
+                    "Selección", "Cable", "Marco", "Nota adhesiva",
                     "Texto",
                     "Mover vista", "Zoom", "---", "Acercar", "Alejar", "Zoom 100 %", "Ver todo el circuito",
                     "Zoom a la selección", "Escribir el zoom…",
                     "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
-                    "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "---",
+                    "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Mirar adentro", "---",
                     "Siguiente problema", "Problema anterior", "---",
                     "Formas de onda", "---",
                     "Presentar lo que hace la IA", "Ritmo de Presentar");
             assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
                     "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
-                    "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues");
+                    "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues", "view.magnifier");
             assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
                     KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
             assertThat(view.canvas().edgeHandles()).hasSize(6); // the rulers, corner and grab; the two split grips
@@ -285,7 +286,10 @@ class ApplicationExtensionsTest {
     void theShortcutsExtensionBindsTheWindowMenuAcceleratorsAndCanvasKeys() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva vista", "Dividir", "Siguiente panel");
+            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
+                    "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
+                    "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---",
+                    "Dividir", "Siguiente panel");
             assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_S, ShortcutCatalog.menuMask()));
             assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)

@@ -398,7 +398,8 @@ class FramesFeaturesTest {
                 viewTexts.add(item.getText());
             }
         }
-        assertThat(viewTexts.subList(0, 5)).containsExactly("Selección", "Cable", "Marco", "Mover vista", "Zoom");
+        assertThat(viewTexts.subList(0, 7)).containsExactly("Árbol del circuito", "Paleta", "Selección",
+                "Cable", "Marco", "Mover vista", "Zoom");
     }
 
     @Test

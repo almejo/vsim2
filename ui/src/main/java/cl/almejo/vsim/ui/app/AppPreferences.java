@@ -180,6 +180,7 @@ public final class AppPreferences {
     static final String SHOW_SHEETS = "sheets.show";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
+    private static final String CIRCUIT_TREE_SPLIT = "ui.circuitTree.split";
     static final String TERMINAL_WINDOWS = "terminal-windows";
     static final String GRID_LINE_SPACING = "grid.lineSpacing";
     static final String INVERT_MODIFIER = "invertModifier";
@@ -684,6 +685,22 @@ public final class AppPreferences {
             return;
         }
         putFlag(ANIMATE_VIEW_MOVES, animate);
+    }
+
+    /** The height of the circuit tree above the palette, in pixels; empty until the user drags the divider. */
+    public java.util.OptionalInt circuitTreeSplit() {
+        try {
+            int stored = Integer.parseInt(read(CIRCUIT_TREE_SPLIT, ""));
+            return stored > 0 ? java.util.OptionalInt.of(stored) : java.util.OptionalInt.empty();
+        } catch (NumberFormatException exception) {
+            return java.util.OptionalInt.empty();
+        }
+    }
+
+    public void setCircuitTreeSplit(int height) {
+        if (height > 0 && circuitTreeSplit().orElse(-1) != height) {
+            put(CIRCUIT_TREE_SPLIT, Integer.toString(height));
+        }
     }
 
     // --- Buscar en el circuito: match options ---

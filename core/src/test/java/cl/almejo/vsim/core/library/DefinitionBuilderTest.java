@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
@@ -19,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.core.DocumentFixtures.frame;
 import static cl.almejo.vsim.core.DocumentFixtures.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -124,6 +126,24 @@ class DefinitionBuilderTest {
 
         assertThat(with).isEqualTo(without);
         assertThat(DefinitionBuilder.origin(document, withNote, registry)).isEqualTo(new GridPoint(10, 10));
+    }
+
+    @Test
+    void fromSelectionKeepsFramesInsideTheSelection() {
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component gate = place(registry, document, StandardComponentTypes.BUFFER, 12, 10, "");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        Frame frame = frame(document, 8, 8, 12, 8);
+        StickyNote note = new StickyNote(document.newStickyNoteId(), new GridPoint(30, 0), 8, 6, StickyColor.BLUE,
+                new StickyText("recordar"), false);
+        document.add(note);
+        List<ElementId> selection = List.of(input.id(), gate.id(), output.id(), frame.id(), note.id());
+
+        DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "negador", "Negador",
+                DefinitionBuilder.defaultPinOrder(document, selection), registry);
+
+        assertThat(bundle.root().body().frames()).containsExactly(frame.withRectangle(GridPoint.ORIGIN, 12, 8));
+        assertThat(bundle.root().body().stickyNotes()).isEmpty();
     }
 
     @Test

@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
@@ -12,7 +13,7 @@ import java.util.Optional;
 
 /**
  * What the editor's windows give the AI's host (EDT only): new circuits, each circuit's settings override and the
- * user's component library.
+ * user's component library and its load problems.
  */
 public interface EditorWindows {
 
@@ -21,7 +22,18 @@ public interface EditorWindows {
         return List.of();
     }
 
-    /** Opens {@code name} as a new, unsaved circuit in its own window (as Archivo ▸ Nuevo) and returns it. */
+    /**
+     * The library's load problems (files skipped, the folder gone), which the Problemas list shows under every
+     * circuit: the AI reads them with the circuit's problems. None by default.
+     */
+    default List<LibraryProblem> libraryProblems() {
+        return List.of();
+    }
+
+    /**
+     * Opens {@code name} as a new, unsaved circuit, a new group of tabs in the active window (a new window when there
+     * is none), as Archivo ▸ Nuevo, and returns it.
+     */
     OpenDocument openNewCircuit(String name);
 
     /** The override of the window the AI works in for {@code document} (its first window); empty when it has none. */
@@ -53,6 +65,15 @@ public interface EditorWindows {
      * (IA.2 storyboard, spec §6); reduced motion respected. Nothing by default.
      */
     default void travelToStageOrigin(OpenDocument document, GridPoint origin) {
+    }
+
+    /**
+     * Shows a place of {@code document} in the window the AI works in (spec §12): {@code definitionId} empty is the
+     * main tab, else the component tab of that definition showing {@code contextPath}; the circuit's group is opened
+     * in a window first when none holds it. Refused by default.
+     */
+    default void openPlace(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath) {
+        throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor cannot show places");
     }
 
     /** No windows: new circuits are refused and no document has an override. */

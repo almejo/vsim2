@@ -7,7 +7,9 @@ import org.junit.jupiter.api.Test;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,12 +18,15 @@ class ShortcutCatalogTest {
 
     /** Track C's entries in menu order; later tracks may add entries (A adds waveforms.toggle under Ver). */
     static final List<String> TRACK_C_IDS = List.of("file.new", "file.open", "file.save", "file.saveAs",
-            "file.preferences", "file.close", "file.exit", "edit.undo", "edit.redo", "edit.delete",
+            "file.preferences", "file.exit", "edit.undo", "edit.redo", "edit.delete",
             "edit.rotateClockwise", "edit.rotateCounterClockwise", "edit.configure", "edit.cut", "edit.copy",
-            "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.selectTool", "view.wireTool",
+            "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.circuitTree", "view.palette",
+            "view.selectTool", "view.wireTool",
             "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
             "view.zoomField", "view.centerView", "view.nextProblem",
-            "view.previousProblem", "simulation.start", "simulation.pause", "simulation.step", "window.newView");
+            "view.previousProblem", "simulation.start", "simulation.pause", "simulation.step", "window.newView",
+            "window.newWindow", "window.moveGroup", "window.foldGroup", "window.nextTab", "window.previousTab",
+            "window.closeTab", "window.closeComponents", "window.closeWindow");
 
     private static List<String> ids() {
         return ShortcutCatalog.entries().stream().map(ShortcutEntry::id).toList();
@@ -36,10 +41,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFortyNineHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFiftyFiveHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(49);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(55);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -105,6 +110,40 @@ class ShortcutCatalogTest {
             assertThat(entry.defaultStroke()).isEmpty();
         });
         assertThat(ShortcutCatalog.find("help.about")).isEmpty();
+    }
+
+    @Test
+    void theLeftColumnPanelsFoldWithAltOneAndAltTwoUnderVer() {
+        int alt = InputEvent.ALT_DOWN_MASK;
+        assertThat(ShortcutCatalog.find("view.circuitTree")).contains(new ShortcutEntry("view.circuitTree",
+                "action.circuitTree", MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_1,
+                alt))));
+        assertThat(ShortcutCatalog.find("view.palette")).contains(new ShortcutEntry("view.palette",
+                "action.palette", MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_2,
+                alt))));
+    }
+
+    @Test
+    void theTabEntriesHaveTheSpecsDefaultsUnderVentana() {
+        int control = InputEvent.CTRL_DOWN_MASK;
+        int shift = InputEvent.SHIFT_DOWN_MASK;
+        assertThat(ShortcutCatalog.find("file.close")).as("Ctrl+W moved to «Cerrar pestaña»").isEmpty();
+        Map<String, Optional<KeyStroke>> expected = new LinkedHashMap<>();
+        expected.put("window.newWindow", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_N, control | shift)));
+        expected.put("window.moveGroup", Optional.empty());
+        expected.put("window.foldGroup", Optional.empty());
+        expected.put("window.nextTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, control)));
+        expected.put("window.previousTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, control | shift)));
+        expected.put("window.closeTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_W, control)));
+        expected.put("window.closeComponents", Optional.empty());
+        expected.put("window.closeWindow", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_W, control | shift)));
+        expected.forEach((id, stroke) -> {
+            ShortcutEntry entry = ShortcutCatalog.find(id).orElseThrow();
+            assertThat(entry.group()).as(id).isEqualTo(MenuId.WINDOW);
+            assertThat(entry.scope()).as(id).isEqualTo(Scope.WINDOW);
+            assertThat(entry.defaultStroke()).as(id).isEqualTo(stroke);
+        });
+        assertThat(ids()).containsSubsequence("window.removeSplit", "window.nextPane");
     }
 
     @Test

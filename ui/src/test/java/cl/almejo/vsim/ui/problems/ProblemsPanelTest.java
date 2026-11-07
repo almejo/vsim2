@@ -69,7 +69,7 @@ class ProblemsPanelTest {
     void listsEachProblemWithItsDescription() {
         panel.showSnapshot(snapshot(10, new WidthMismatch("n:zz", List.of()), shortCircuit));
         assertThat(panel.problemList().getModel().getSize()).isEqualTo(2);
-        assertThat(rowText(0)).isEqualTo("⚠ Cortocircuito desde t = 5: Interruptor → 1 · Interruptor → 0");
+        assertThat(rowText(0)).isEqualTo("⚠ Cortocircuito desde t = 5: Interruptor 1 → 1 · Interruptor 2 → 0");
         assertThat(rowText(1)).isEqualTo("⚠ Anchos incompatibles: ");
         assertThat(panel.summaryText()).isEqualTo("2 problemas");
     }

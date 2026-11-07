@@ -65,12 +65,18 @@ class RememberedSplitTest {
 
     /** One editor window on {@code document}, with its canvas area sized {@code width} × {@code height}. */
     private Editor open(OpenDocument document, int width, int height) {
+        return open(document, Optional.empty(), width, height);
+    }
+
+    /** One editor tab on {@code document}'s main circuit (empty) or on the body of {@code definitionId}. */
+    private Editor open(OpenDocument document, Optional<String> definitionId, int width, int height) {
         EditorView view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.setSize(1200, 800);
         view.doLayout();
         view.canvasPanes().setSize(width, height);
         view.canvasPanes().doLayout();
-        RememberedSplit remembered = new RememberedSplit(store, view.canvasPanes(), document::path, delay);
+        RememberedSplit remembered = new RememberedSplit(store, view.canvasPanes(), document::path,
+                definitionId, delay);
         Editor editor = new Editor(view, remembered);
         toClose.add(editor);
         return editor;
@@ -358,5 +364,37 @@ class RememberedSplitTest {
 
         assertThat(store.layoutFor(file)).as("not applied is not deleted").isPresent();
         toClose.remove(small);
+    }
+
+    @Test
+    void aComponentTabRemembersItsOwnSplit() throws Exception {
+        OpenDocument document = savedDocument("contador.vsim");
+        Path file = document.path().orElseThrow();
+        Editor main = open(document, 800, 600);
+        main.opened();
+        main.panes().split(Orientation.VERTICAL, 0.5);
+        delay.elapse();
+        Editor inside = open(document, Optional.of("ram"), 800, 600);
+        inside.opened();
+        assertThat(inside.panes().panes()).as("the main tab's split is not the component's").hasSize(1);
+        inside.panes().split(Orientation.HORIZONTAL, 0.3);
+        delay.elapse();
+        main.close();
+        inside.close();
+        toClose.remove(main);
+        toClose.remove(inside);
+
+        assertThat(store.layoutFor(file).orElseThrow().verticalDivider()).isEqualTo(OptionalDouble.of(0.5));
+        assertThat(store.layoutFor(file).orElseThrow().horizontalDivider()).isEmpty();
+        Editor again = open(reopen(file), Optional.of("ram"), 800, 600);
+        again.opened();
+        assertThat(again.panes().paneLayout().horizontalDivider()).isEqualTo(OptionalDouble.of(0.3));
+        assertThat(again.panes().paneLayout().verticalDivider()).isEmpty();
+
+        Path target = folder.resolve("copia.vsim");
+        again.remembered().saved(Optional.of(file), target);
+        assertThat(store.layoutFor(file, Optional.of("ram"))).isEmpty();
+        assertThat(store.layoutFor(target, Optional.of("ram"))).isPresent();
+        assertThat(store.layoutFor(file)).as("the main tab's split stays with its file").isPresent();
     }
 }

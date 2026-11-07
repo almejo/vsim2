@@ -24,7 +24,7 @@ class VsimToolsTest {
     @Test
     void everyToolOfTheSpecIsOfferedInOrder() {
         assertThat(VsimTools.tools(api)).extracting(Tool::name).containsExactly(
-                "vsim_list_documents", "vsim_new_circuit",
+                "vsim_list_documents", "vsim_new_circuit", "vsim_list_places", "vsim_open_place",
                 "vsim_describe_components", "vsim_describe_component",
                 "vsim_read_circuit", "vsim_read_problems", "vsim_picture", "vsim_window_picture", "vsim_read_memory",
                 "vsim_read_terminal", "vsim_type_text",
@@ -36,6 +36,14 @@ class VsimToolsTest {
                 "vsim_check_stage",
                 "vsim_export",
                 "vsim_set_editor_setting", "vsim_propose_preference", "vsim_await_proposal");
+    }
+
+    @Test
+    void aNewCircuitIsSaidToOpenAsANewTabOfTheActiveWindowLikeArchivoNuevo() {
+        Tool newCircuit = VsimTools.tools(api).stream().filter(tool -> tool.name().equals("vsim_new_circuit"))
+                .findFirst().orElseThrow();
+        assertThat(newCircuit.description()).contains("new tab in the active VSim window")
+                .contains("Archivo ▸ Nuevo").doesNotContain("its own VSim window");
     }
 
     @Test

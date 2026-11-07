@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.command;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -45,9 +46,10 @@ public final class History {
      * {@code command} continues it ({@link Command#mergedWith}), reverts the top and applies the merged command
      * instead (in one document batch), so the merged command always starts from the state before the run.
      *
-     * <p>The merge is failure-atomic: when reverting the top or applying the merged command throws, the elements are
-     * put back exactly as they were (with the top applied, so the stacks still match the document) and
-     * {@code command} is executed on its own as a new step instead.
+     * <p>The merge is failure-atomic: when reverting the top or applying the merged command throws, the elements and
+     * the definitions are put back exactly as they were (with the top applied, so the stacks still match the
+     * document; an inside edit's working copy follows) and {@code command} is executed on its own as a new step
+     * instead.
      */
     public void execute(Command command) {
         Command top = undoStack.peek();
@@ -91,6 +93,7 @@ public final class History {
             elementsBefore.put(element.id(), element);
             ordersBefore.put(element.id(), document.orderOf(element.id()));
         }
+        List<ComponentDefinition> definitionsBefore = document.definitions();
         try {
             document.batch(() -> {
                 try {
@@ -100,6 +103,8 @@ public final class History {
                     }
                 } catch (RuntimeException exception) {
                     putBack(elementsBefore, ordersBefore);
+                    putBackDefinitions(definitionsBefore);
+                    followedByItsWorkingCopy(top);
                     throw exception;
                 }
             });
@@ -116,6 +121,39 @@ public final class History {
         }
         notifyListeners();
         return true;
+    }
+
+    /**
+     * Makes the document's definitions exactly {@code definitions} again: an inside edit (typing an interface pin's
+     * label) writes definitions, not elements (final review M1).
+     */
+    private void putBackDefinitions(List<ComponentDefinition> definitions) {
+        Map<String, ComponentDefinition> wanted = new LinkedHashMap<>();
+        definitions.forEach(definition -> wanted.put(definition.id(), definition));
+        for (ComponentDefinition current : document.definitions()) {
+            if (!wanted.containsKey(current.id())) {
+                document.removeDefinition(current.id());
+            }
+        }
+        wanted.values().forEach(definition -> {
+            if (document.definition(definition.id()).filter(current -> current == definition).isEmpty()) {
+                document.putDefinition(definition);
+            }
+        });
+    }
+
+    /**
+     * After a failed merge of an inside edit, its working copy (which the revert of the top changed) is brought to the
+     * definition that was put back, so the tab shows what the history holds.
+     */
+    private void followedByItsWorkingCopy(Command top) {
+        Command current = top;
+        while (!(current instanceof EditInsideCommand) && current instanceof WrapsCommand wrapper) {
+            current = wrapper.wrapped();
+        }
+        if (current instanceof EditInsideCommand inside) {
+            inside.bringCopyToTheDefinition(document);
+        }
     }
 
     /** Makes the document's elements and draw orders exactly {@code elements} at {@code orders} again. */
@@ -173,6 +211,11 @@ public final class History {
      */
     public Optional<Command> undoCommand() {
         return Optional.ofNullable(undoStack.peek());
+    }
+
+    /** The command a redo would apply again now; empty when there is nothing to redo. */
+    public Optional<Command> redoCommand() {
+        return Optional.ofNullable(redoStack.peek());
     }
 
     /**

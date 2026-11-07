@@ -117,6 +117,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 /**
@@ -152,6 +153,7 @@ final class EditPlanner {
     }
 
     private final CircuitDocument original;
+    private final Function<String, Optional<MemoryContents>> ownContents;
     private final ComponentTypeRegistry liveRegistry;
     private final List<DefinitionBundle> library;
     private final TextMeasure measure;
@@ -169,7 +171,9 @@ final class EditPlanner {
     private int operationIndex;
 
     private EditPlanner(CircuitDocument original, ComponentTypeRegistry liveRegistry,
-                        List<DefinitionBundle> library, TextMeasure measure) {
+                        List<DefinitionBundle> library, TextMeasure measure,
+                        Function<String, Optional<MemoryContents>> ownContents) {
+        this.ownContents = ownContents;
         this.original = original;
         this.liveRegistry = liveRegistry;
         this.library = List.copyOf(library);
@@ -197,6 +201,16 @@ final class EditPlanner {
 
     static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry, List<DefinitionBundle> library,
                             TextMeasure measure, List<EditOperation> operations) {
+        return plan(document, registry, library, measure, operations, memoryId -> Optional.empty());
+    }
+
+    /**
+     * As above; {@code ownContents} gives the words a memory starts from when they are not the part's: a piece's own
+     * contents (spec §6.6b), so {@code SetMemoryContents} adds to those.
+     */
+    static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry, List<DefinitionBundle> library,
+                            TextMeasure measure, List<EditOperation> operations,
+                            Function<String, Optional<MemoryContents>> ownContents) {
         if (operations.isEmpty()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit needs at least one operation");
         }
@@ -204,7 +218,7 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit carries at most "
                     + MAXIMUM_OPERATIONS + " operations; split it", Map.of("maximum", MAXIMUM_OPERATIONS));
         }
-        EditPlanner planner = new EditPlanner(document, registry, library, measure);
+        EditPlanner planner = new EditPlanner(document, registry, library, measure, ownContents);
         for (EditOperation operation : operations) {
             planner.carryOut(operation);
             planner.operationIndex++;
@@ -451,7 +465,9 @@ final class EditPlanner {
             values.put(address, wordOf(text, width, address));
             address++;
         }
-        MemoryContents contents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS)).withAll(values);
+        MemoryContents base = ownContents.apply(operation.component())
+                .orElseGet(() -> MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS)));
+        MemoryContents contents = base.withAll(values);
         Map<String, Object> merged = new HashMap<>(component.parameters());
         merged.put(MemoryTypes.CONTENTS, contents.encode());
         new ChangeParametersCommand(component.id(), type, merged).apply(candidate);

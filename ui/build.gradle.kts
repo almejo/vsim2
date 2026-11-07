@@ -145,4 +145,6 @@ apply(from = rootProject.file("packaging/packaging.gradle.kts"))
 tasks.test {
     // PackagingFilesTest reads the desktop entry, the file association and the icons from here
     systemProperty("vsim.packagingDirectory", rootProject.file("packaging").absolutePath)
+    // InsideEditTimingTest (manual): ./gradlew :ui:test --tests '*InsideEditTimingTest' -Dvsim.lrv32im.sample=<file>
+    providers.systemProperty("vsim.lrv32im.sample").orNull?.let { systemProperty("vsim.lrv32im.sample", it) }
 }

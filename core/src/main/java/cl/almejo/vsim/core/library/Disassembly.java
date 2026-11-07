@@ -119,8 +119,9 @@ public final class Disassembly {
         // Tunnels join by name after the paste, so a body name the circuit already uses would join outside nets;
         // renaming keeps every pin where it was, so the checks above still hold.
         Tunnels.RenamedFragment renamed = Tunnels.renamedApartFrom(document, definition.body(), registry);
-        return new Plan(renamed.fragment(), offset, bridging.wires(), bridging.unconnectedPins(), blocked,
-                renamed.renames());
+        // the piece's own memory contents go to its parts, so «Desarmar» keeps what the piece held (spec §6.6b)
+        return new Plan(PieceMemories.withContentsOf(instance, renamed.fragment()), offset, bridging.wires(),
+                bridging.unconnectedPins(), blocked, renamed.renames());
     }
 
     /** True when a contact between the body and the outside joins nets that should stay apart. */

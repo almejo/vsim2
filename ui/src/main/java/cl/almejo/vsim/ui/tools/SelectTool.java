@@ -30,6 +30,7 @@ import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.MultiBitCells;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
@@ -177,6 +178,8 @@ public final class SelectTool implements Tool {
     /** Where the dragged label would land; {@code null} until the drag passes the threshold. */
     private LabelOffset labelOffset;
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
+    /** The «Entrar ↘» chip of the user-component instance under the idle pointer (spec §4.4). */
+    private final EnterChip enterChip = new EnterChip();
 
     /** For tests: the delegates installed now, in the order they are asked. */
     public List<SelectToolDelegate> delegates() {
@@ -201,12 +204,20 @@ public final class SelectTool implements Tool {
         releaseHeldButton(context);
         hoverPin = null;
         hoverWidth = 1;
+        enterChip.clear();
         reset();
         context.repaint();
     }
 
     @Override
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
+        if (activeDelegate == null && enterChip.pressed(context, event)) {
+            reset();
+            return;
+        }
+        if (enterChip.clear()) {
+            context.repaint(); // no chip while a gesture is under way; the next move shows it again
+        }
         if (delegatePress(context, event)) {
             return;
         }
@@ -391,7 +402,11 @@ public final class SelectTool implements Tool {
             Optional<Component> pinOfBox = busInputValueBoxAt(context, event.gridPosition());
             if (pinOfBox.isPresent()) {
                 context.selection().select(pinOfBox.get().id());
-                context.editValue(pinOfBox.get());
+                if (takesValueFromOutside(context, pinOfBox.get())) {
+                    context.showNotice(Messages.text("inside.pinValueFromOutside"));
+                } else {
+                    context.editValue(pinOfBox.get());
+                }
                 return true;
             }
         }
@@ -410,6 +425,9 @@ public final class SelectTool implements Tool {
                     // the first click toggled the pin: put its value back, then edit that value
                     context.openDocument().setInputValue(component.id(), toggledByFirstClick.valueBefore());
                     context.editValue(component, toggledByFirstClick.valueBefore());
+                } else if (EnterableInstances.definitionOf(context.openDocument(), component).isPresent()) {
+                    // a user component opens inside; its Propiedades stay in the inspector and the menu (spec §4.4)
+                    context.enterComponent(component);
                 } else if (MemoryTypes.kindOf(component.typeId()).isPresent()) {
                     context.editMemory(component);
                 } else if ((component.typeId().equals(StandardComponentTypes.TERMINAL)
@@ -418,7 +436,8 @@ public final class SelectTool implements Tool {
                         context.openDocument().registry().typeOf(component), component, event.gridPosition())) {
                     context.editTerminal(component);
                 } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
-                        || InterfacePins.isBusInput(component) || Tunnels.isTunnel(component.typeId())) {
+                        || InterfacePins.isBusInput(component) && !takesValueFromOutside(context, component)
+                        || Tunnels.isTunnel(component.typeId())) {
                     context.editValue(component);
                 } else {
                     context.configure(component);
@@ -657,6 +676,9 @@ public final class SelectTool implements Tool {
     @Override
     public void mouseExited(ToolContext context) {
         lastHover = null;
+        if (enterChip.clear()) {
+            context.repaint();
+        }
         delegates.forEach(delegate -> delegate.exited(context));
         if (hoverPin != null) {
             hoverPin = null;
@@ -666,6 +688,14 @@ public final class SelectTool implements Tool {
 
     private void updateHover(ToolContext context, CanvasMouseEvent event) {
         lastHover = event;
+        if (enterChip.hover(context, event)) {
+            context.repaint();
+        }
+        if (enterChip.isUnder(context, event.gridPosition())) {
+            clearHoverPin(context); // a press here enters the instance, never starts a wire
+            showCursor(context, CanvasCursor.HAND);
+            return;
+        }
         Optional<CanvasCursor> delegateCursor = Optional.empty();
         for (SelectToolDelegate delegate : delegates) {
             Optional<CanvasCursor> answer = delegate.moved(context, event);
@@ -674,12 +704,7 @@ public final class SelectTool implements Tool {
             }
         }
         if (delegateCursor.isPresent()) {
-            // a press here goes to the delegate, never to a pin
-            if (hoverPin != null) {
-                hoverPin = null;
-                hoverWidth = 1;
-                context.repaint();
-            }
+            clearHoverPin(context); // a press here goes to the delegate, never to a pin
             showCursor(context, delegateCursor.get());
             return;
         }
@@ -691,6 +716,14 @@ public final class SelectTool implements Tool {
             context.repaint();
         }
         showCursor(context, cursorAt(context, event.gridPosition(), pin, event));
+    }
+
+    private void clearHoverPin(ToolContext context) {
+        if (hoverPin != null) {
+            hoverPin = null;
+            hoverWidth = 1;
+            context.repaint();
+        }
     }
 
     /** The cursor of a segment drag of {@code wire}: it slides across its own direction. */
@@ -867,6 +900,11 @@ public final class SelectTool implements Tool {
                 copying());
     }
 
+    /** For tests: the «Entrar ↘» chip shown now, in document pixels. */
+    Optional<Rectangle2D> enterChipBounds(ToolContext context) {
+        return enterChip.bounds(context);
+    }
+
     /** For tests: the alignment lines the current move draws. */
     List<SnapMatch> alignmentMatches() {
         return snappedMove.matches();
@@ -874,6 +912,9 @@ public final class SelectTool implements Tool {
 
     @Override
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
+        if (keyCode == KeyEvent.VK_ENTER) {
+            return enterSelectedInstance(context);
+        }
         if (keyCode != KeyEvent.VK_ESCAPE) {
             return false;
         }
@@ -895,10 +936,25 @@ public final class SelectTool implements Tool {
         return true;
     }
 
+    /** Enter with exactly one user-component instance selected enters it (spec §4.4); false when not taken. */
+    private boolean enterSelectedInstance(ToolContext context) {
+        Set<ElementId> selected = context.selection().ids();
+        if (!isIdle() || selected.size() != 1) {
+            return false;
+        }
+        Optional<Component> instance = context.openDocument().document().component(selected.iterator().next())
+                .filter(component -> EnterableInstances.definitionOf(context.openDocument(), component).isPresent());
+        instance.ifPresent(context::enterComponent);
+        return instance.isPresent();
+    }
+
     @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
         for (SelectToolDelegate delegate : delegates) {
             delegate.paintOverlay(graphics, context);
+        }
+        if (isIdle()) {
+            enterChip.paint(graphics, context);
         }
         Rectangle2D band = rubberBand();
         if (band != null) {
@@ -1090,6 +1146,11 @@ public final class SelectTool implements Tool {
                 && labelComponent == null;
     }
 
+    @Override
+    public boolean holdsGesture() {
+        return !isIdle() || heldButton != null;
+    }
+
     /** Forgets the press in progress without changing the document: the drag goes on outside the canvas. */
     public void cancelMove(ToolContext context) {
         reset();
@@ -1149,6 +1210,12 @@ public final class SelectTool implements Tool {
     }
 
     private void toggleIfInteractive(ToolContext context, CanvasMouseEvent event) {
+        if (pressedElement instanceof Component component && takesValueFromOutside(context, component)) {
+            if (isInteractive(context, component)) {
+                context.showNotice(Messages.text("inside.pinValueFromOutside"));
+            }
+            return;
+        }
         if (pressedElement instanceof Component component && isInteractive(context, component)) {
             ComponentType type = context.openDocument().registry().typeOf(component);
             if (MultiBitLayout.isMultiBit(type)) {
@@ -1266,7 +1333,7 @@ public final class SelectTool implements Tool {
         if (isPushButton(component)) {
             return onPushButtonCap(component, event.gridPosition());
         }
-        if (!isInteractive(context, component)) {
+        if (!isInteractive(context, component) || takesValueFromOutside(context, component)) {
             return false;
         }
         ComponentType type = context.openDocument().registry().typeOf(component);
@@ -1283,6 +1350,14 @@ public final class SelectTool implements Tool {
 
     /** A type and the resolved parameters of a part of it: what decides whether the part takes typing. */
     private record TypingKey(String typeId, Map<String, Object> parameters) {
+    }
+
+    /**
+     * Inside a component its interface pins take their value from outside (spec §6.3): they are not toggled nor typed
+     * into; their value is the context instance's, read from the remapped snapshot.
+     */
+    private static boolean takesValueFromOutside(ToolContext context, Component component) {
+        return context.openDocument().isBody() && InterfacePins.isInterface(component.typeId());
     }
 
     private boolean isInteractive(ToolContext context, Component component) {

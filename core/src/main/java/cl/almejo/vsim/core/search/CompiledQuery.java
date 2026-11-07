@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.search;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -79,6 +80,49 @@ public final class CompiledQuery {
             case REGEX -> findWithinBudget(searched);
             case NOTHING, INVALID -> false;
         };
+    }
+
+    /** A stretch {@code [start, end)} of a text, in its own characters. */
+    public record Range(int start, int end) {
+    }
+
+    /**
+     * Where the first plain match is in {@code text}, in the text's own characters (what a row shows in bold): found
+     * as {@link #matches} finds it, so one that exists only ignoring accents or case is placed too. Empty for a
+     * regular expression, an empty or invalid query, or when {@code text} has no match.
+     */
+    public Optional<Range> firstPlainMatch(String text) {
+        if (text == null || text.isEmpty() || matchesNothing() || (kind != Kind.PLAIN && kind != Kind.PLAIN_FOLDED)) {
+            return Optional.empty();
+        }
+        if (kind == Kind.PLAIN) {
+            int start = text.indexOf(needle);
+            return start < 0 ? Optional.empty() : Optional.of(new Range(start, start + needle.length()));
+        }
+        StringBuilder folded = new StringBuilder();
+        List<Integer> startOf = new ArrayList<>(); // for each folded char: where its original character starts
+        List<Integer> endOf = new ArrayList<>();   // and where it ends
+        int index = 0;
+        while (index < text.length()) {
+            int codePoint = text.codePointAt(index);
+            int next = index + Character.charCount(codePoint);
+            String piece = fold(new String(Character.toChars(codePoint)));
+            for (int offset = 0; offset < piece.length(); offset++) {
+                folded.append(piece.charAt(offset));
+                startOf.add(index);
+                endOf.add(next);
+            }
+            index = next;
+        }
+        int found = folded.indexOf(needle);
+        if (found < 0 || needle.isEmpty()) {
+            return Optional.empty();
+        }
+        int end = endOf.get(found + needle.length() - 1);
+        while (end < text.length() && COMBINING_MARKS.matcher(text.substring(end, end + 1)).matches()) {
+            end++; // a mark that follows the last letter belongs to it
+        }
+        return Optional.of(new Range(startOf.get(found), end));
     }
 
     /** True when no text can match: empty text, an invalid regular expression, or one that gave up. */

@@ -357,6 +357,7 @@ final class EditTools {
                         + "validated. " + presetsHint(),
                 Schema.object("")
                         .property("document", Common.document())
+                        .property("place", Common.place())
                         .property("version", Common.version())
                         .property("operationId", Schema.nonEmptyString("Your own key for this call"))
                         .property("taskId", Schema.nonEmptyString("From vsim_begin_task"))

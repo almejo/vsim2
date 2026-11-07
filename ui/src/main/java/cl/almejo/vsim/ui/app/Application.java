@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.automation.AutomationApi;
+import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -9,10 +10,12 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
+import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.ai.AiExtension;
+import cl.almejo.vsim.ui.ai.AiPlaceMarks;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.SessionPort;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
@@ -45,6 +48,7 @@ import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
 import cl.almejo.vsim.ui.resize.PartResizeExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.busvalues.BusValuesExtension;
+import cl.almejo.vsim.ui.magnifier.MagnifierExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
 import cl.almejo.vsim.ui.snap.SnapExtension;
 import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
@@ -77,23 +81,26 @@ import cl.almejo.vsim.ui.session.RecoveryChoices;
 import cl.almejo.vsim.ui.session.RecoveryCopy;
 import cl.almejo.vsim.ui.session.RecoveryPrompt;
 import cl.almejo.vsim.ui.session.RecoveryStore;
-import cl.almejo.vsim.ui.session.SessionDocument;
 import cl.almejo.vsim.ui.session.SessionStore;
 import cl.almejo.vsim.ui.session.StartupSequence;
+import cl.almejo.vsim.ui.session.TabState;
+import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
 import cl.almejo.vsim.ui.theme.TextFontManager;
 import cl.almejo.vsim.ui.theme.ThemeManager;
-import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
+import cl.almejo.vsim.ui.tree.CircuitTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
 import cl.almejo.vsim.ui.tunnel.TunnelsExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.CloseSequence;
 import cl.almejo.vsim.ui.window.EditorExtension;
+import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
+import cl.almejo.vsim.ui.window.PlaceMarks;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import cl.almejo.vsim.ui.window.panes.SplitViewsExtension;
 import org.slf4j.Logger;
@@ -105,6 +112,7 @@ import java.awt.Component;
 import java.awt.Frame;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -112,16 +120,23 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.concurrent.Executor;
 
-/** Open windows and documents of the running application (EDT only). A document closes with its last window. */
+/**
+ * Open windows and documents of the running application (EDT only). A window holds groups of tabs, one per document
+ * (spec §4); a document closes when no window holds a tab of it any more.
+ */
 public final class Application {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
@@ -162,6 +177,8 @@ public final class Application {
     private final ApplicationWindows applicationWindows = new ApplicationWindows();
     /** Where each document's print sheets are anchored while some view shows them; one for the whole application. */
     private final SheetAnchors sheetAnchors = new SheetAnchors();
+    /** Where the AI works now: the robot on the tabs of every window (fix round D, item 5n). */
+    private final AiPlaceMarks placeMarks = new AiPlaceMarks();
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
@@ -197,10 +214,26 @@ public final class Application {
                     automationApi.stopPresenting(); // and ends every wait for «Siguiente» (IA.2)
                 }
             }
+
+            @Override
+            public void taskStarted(TaskInfo task) {
+                placeMarks.taskStarted(task);
+            }
+
+            @Override
+            public void taskEnded(TaskInfo task, Set<String> changedElementIds) {
+                placeMarks.taskEnded(task);
+            }
+
+            @Override
+            public void taskStopped(TaskInfo task) {
+                placeMarks.taskEnded(task);
+            }
         });
+        automationHost.addPlaceListener(placeMarks::touched); // lives as long as the application
         this.presentation = new PresentationExtension(
                 PresentationEvents.of(automationApi, automationHost::addRequestListener),
-                presentationControls, automationHost::documentId);
+                presentationControls, automationHost::documentId, placeMarks);
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
@@ -241,9 +274,9 @@ public final class Application {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
+        editorExtensions.add(new CircuitTreeExtension()); // the circuit tree above the palette
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new AppearanceExtension(libraryService, libraryDialogs));
-        editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new WaveformsExtension());
         editorExtensions.add(new StepModeExtension());
         editorExtensions.add(new TruthTableExtension());
@@ -271,6 +304,7 @@ public final class Application {
         editorExtensions.add(new GuidesExtension());
         editorExtensions.add(new SheetsExtension(sheetAnchors)); // its Ver item right after «Borrar guías»
         editorExtensions.add(new BusValuesExtension());
+        editorExtensions.add(new MagnifierExtension()); // its Ver item right after «Valores de los buses»
         editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());
@@ -376,18 +410,36 @@ public final class Application {
             List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
             StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
                     circuits, Files::isRegularFile);
+            // Every file opens once; then the session's windows come back with their tabs (spec §4.7).
+            Map<Path, OpenDocument> opened = new LinkedHashMap<>();
+            List<OpenDocument> untitled = new ArrayList<>();
             StartupSteps.openEach(plan.openings(), opening -> {
                 switch (opening) {
-                    case StartupSequence.Recovered copy -> openRecovered(copy).ifPresent(reopened::add);
-                    case StartupSequence.FromSession session -> openFromSession(session);
+                    case StartupSequence.Recovered copy -> openRecovered(copy, reopened).ifPresent(document ->
+                            copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
+                                    original -> opened.put(original, document), () -> untitled.add(document)));
+                    case StartupSequence.FromSession session -> read(session.path(), null).ifPresent(document -> {
+                        rememberDirectory(session.path());
+                        opened.put(FileNames.normalized(session.path()), document);
+                    });
                 }
             });
-            if (!plan.missing().isEmpty()) {
-                JOptionPane.showMessageDialog(null, Messages.format("session.missing",
-                                String.join(", ", plan.missing().stream().map(Path::toString).toList())),
+            List<String> notOpened = new ArrayList<>(plan.missing().stream().map(Path::toString).toList());
+            StartupSteps.openEach(plan.windows(), window -> restoreWindow(window, opened).forEach(tab ->
+                    notOpened.add(Messages.format("session.missingComponent", tab.definitionName().orElseThrow(),
+                            tab.path().toString()))));
+            // A recovered copy not in the session, or a file whose window could not come back: a window of its own.
+            List<OpenDocument> unplaced = new ArrayList<>(untitled);
+            opened.values().stream().filter(document -> windows.windowsOf(document).isEmpty())
+                    .forEach(unplaced::add);
+            StartupSteps.openEach(unplaced, document -> showViews(document,
+                    document.path().flatMap(recentFiles::stateFor).stream().toList()));
+            if (!notOpened.isEmpty()) {
+                JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
                         Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
             }
-            // Through the already-open check (no file opens twice); one file each so a failure skips only that one.
+            // Through the already-open check (a session file is only focused, never opened twice), as new groups of
+            // the active window (the last restored one); one file each so a failure skips only that one.
             StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
         }), () -> !windows.isEmpty(), this::newDocument, () -> {
             if (!components.isEmpty()) {
@@ -430,15 +482,37 @@ public final class Application {
         }
     }
 
+    /** A new window with a new empty document (the start, when nothing else opened). */
     public CircuitWindow newDocument() {
-        return show(OpenDocument.createEmpty(registry));
+        return showInNewWindow(OpenDocument.createEmpty(registry), window -> {
+        });
     }
 
-    /** Ventana ▸ Nueva vista: another view of the same document, 30 px down-right of its source, same zoom and center. */
+    /** Archivo ▸ Nuevo from {@code requester}: a new empty document as a new group of tabs there. */
+    public void newDocument(CircuitWindow requester) {
+        showIn(Optional.of(requester), OpenDocument.createEmpty(registry), Optional.empty());
+    }
+
+    /**
+     * Ventana ▸ «Nueva ventana con este circuito»: a new window with a new main tab of the active tab's document, 30 px
+     * down-right of its source, same zoom and center.
+     */
     public CircuitWindow newWindow(CircuitWindow source) {
         NewViewPlacement placement = NewViewPlacement.after(source.getLocation(), source.viewState());
         // setLocation also cancels the platform placement of the constructor
-        return show(source.openDocument(), window -> placement.applyTo(window::setInitialViewState, window::setLocation));
+        return showInNewWindow(source.activeDocument(), window -> placement.applyTo(
+                state -> window.tabs().setInitialViewState(window.activeView(), state), window::setLocation));
+    }
+
+    /**
+     * Ventana ▸ «Mover el grupo a una ventana nueva», or a group dropped outside every strip (spec §4.3, §4.6): a new
+     * window at {@code location}, the size of {@code source}, holding the group.
+     */
+    public void moveGroupToNewWindow(CircuitWindow source, OpenDocument document, Point location) {
+        CircuitWindow created = createWindow();
+        source.tabs().moveGroupTo(document, created.tabs(), 0);
+        created.setBounds(location.x, location.y, source.getWidth(), source.getHeight());
+        created.setVisible(true);
     }
 
     public void open(CircuitWindow requester) {
@@ -447,73 +521,102 @@ public final class Application {
     }
 
     /**
-     * Opens each file in a new window, or focuses the window already showing it. When something new was opened
-     * from a pristine window, that placeholder document and its windows go away.
+     * Opens each file as a new group in {@code requester}, or, when nothing asked (start-up, command line, the
+     * system's open-file events), in the active window (a new window only when there is none), or focuses the main
+     * tab of the file when it is open already (spec §10.2). The pristine placeholder documents of a window that got
+     * something new go away.
      */
     public void openPaths(List<Path> paths, CircuitWindow requester) {
-        boolean openedAny = false;
+        Set<CircuitWindow> received = new LinkedHashSet<>();
         for (Path path : paths) {
-            Optional<CircuitWindow> showing = windows.firstShowing(path);
-            if (showing.isPresent()) {
-                focus(showing.get());
-                continue;
-            }
-            Optional<OpenDocument> document = read(path, requester);
-            if (document.isPresent()) {
-                rememberDirectory(path);
-                recentFiles.touch(path); // never throws: a Recientes failure never blocks opening (P3)
-                show(document.get(), recentFiles.stateFor(path)); // Assumption 19: whenever the file is opened
-                openedAny = true;
+            switch (windows.targetFor(path, Optional.ofNullable(requester))) {
+                case OpeningTarget.FocusTab<CircuitWindow> focusTab -> {
+                    focus(focusTab.window());
+                    focusTab.window().activateMainTab(focusTab.document());
+                }
+                case OpeningTarget.NewGroup<CircuitWindow> newGroup -> {
+                    if (openFile(path, newGroup.window())) {
+                        received.add(newGroup.window());
+                    }
+                }
+                case OpeningTarget.NewWindow<CircuitWindow> newWindow -> openFile(path, null);
             }
         }
-        if (openedAny) {
-            windows.replacedBy(requester).forEach(CircuitWindow::closeQuietly);
+        received.forEach(window -> {
+            closeReplaced(window);
+            if (window != requester) {
+                focus(window); // a file sent from outside brings its window to the front
+            }
+        });
+    }
+
+    /** Reads {@code path} and shows it in {@code requester}, or in a new window when it is null; false if unread. */
+    private boolean openFile(Path path, CircuitWindow requester) {
+        Optional<OpenDocument> document = read(path, requester);
+        if (document.isEmpty()) {
+            return false;
+        }
+        rememberDirectory(path);
+        recentFiles.touch(path); // never throws: a Recientes failure never blocks opening (P3)
+        // Assumption 19: whenever the file is opened
+        showIn(Optional.ofNullable(requester), document.get(), recentFiles.stateFor(path));
+        return true;
+    }
+
+    /** The pristine documents of {@code requester} go once something was opened from it (Abrir, Ejemplos). */
+    private void closeReplaced(CircuitWindow requester) {
+        for (OpenDocument replaced : windows.replacedBy(requester)) {
+            windows.windowsOf(replaced).forEach(window -> window.closeGroup(replaced));
         }
     }
 
     /**
-     * A new window with an untitled document named {@code name} whose first undo step is {@code creation} (a circuit
-     * built from a truth table). The requester stays: the wizard that asked is a dialog over it, so the new window is
-     * brought to the front once the dialog's event is over.
+     * «Circuito desde tabla de verdad» ▸ Crear: an untitled document named {@code name} whose first undo step is
+     * {@code creation}, as a new group of {@code requester}. The wizard that asked is a dialog over the window, so the
+     * window is brought to the front once the dialog's event is over.
+     *
+     * @return the editor of the new tab
      */
-    public CircuitWindow openNewCircuit(String name, Command creation) {
+    public EditorView openNewCircuit(String name, Command creation, CircuitWindow requester) {
         OpenDocument created = OpenDocument.createEmpty(registry);
         // Not a user edit: the name is what the window shows until the document is saved.
         created.document().setName(name);
         created.execute(creation);
-        CircuitWindow window = show(created);
-        SwingUtilities.invokeLater(() -> focus(window));
-        return window;
+        EditorView view = showIn(Optional.of(requester), created, Optional.empty());
+        SwingUtilities.invokeLater(() -> focus(requester));
+        return view;
     }
 
     /**
-     * Archivo ▸ Ejemplos (M6.1-A): {@code document} in a new window as an untitled, unmodified document, so Guardar
-     * asks for a file name and nothing is added to Recientes. Like Abrir, a pristine requester window goes away.
+     * Archivo ▸ Ejemplos (M6.1-A): {@code document} as a new group of {@code requester}, an untitled, unmodified
+     * document, so Guardar asks for a file name and nothing is added to Recientes. Like Abrir, the pristine documents
+     * of the requester go away.
      *
-     * @return the new window
+     * @return the editor of the new tab
      */
-    public CircuitWindow openUntitled(CircuitDocument document, CircuitWindow requester) {
+    public EditorView openUntitled(CircuitDocument document, CircuitWindow requester) {
         return openUntitled(document, "", requester);
     }
 
     /**
-     * Like {@link #openUntitled(CircuitDocument, CircuitWindow)}, the window showing {@code windowName} until the
+     * Like {@link #openUntitled(CircuitDocument, CircuitWindow)}, the tab showing {@code windowName} until the
      * document is saved instead of the circuit's own name (an import shows its file's name); blank shows the circuit's.
      */
-    public CircuitWindow openUntitled(CircuitDocument document, String windowName, CircuitWindow requester) {
+    public EditorView openUntitled(CircuitDocument document, String windowName, CircuitWindow requester) {
         OpenDocument opened = new OpenDocument(document, registry, null, false);
         opened.showUntitledAs(windowName);
-        CircuitWindow window = show(opened);
-        windows.replacedBy(requester).forEach(CircuitWindow::closeQuietly);
-        return window;
+        EditorView view = showIn(Optional.ofNullable(requester), opened, Optional.empty());
+        closeReplaced(requester);
+        return view;
     }
 
     /** Asks once per modified document; true when all windows were closed. The session is remembered first. */
     public boolean exit() {
-        // a half-typed inline edit counts as a change, in whichever window of the document it is open
-        boolean confirmed = CloseSequence.confirm(windows.all().stream().map(CircuitWindow::inlineEditor).toList(),
+        // a half-typed inline edit counts as a change, in whichever tab of the document it is open
+        boolean confirmed = CloseSequence.confirm(windows.all().stream()
+                        .flatMap(window -> window.inlineEditors().stream()).toList(),
                 () -> windows.documents().stream()
-                        .allMatch(document -> windows.windowsOf(document).get(0).confirmSave()));
+                        .allMatch(document -> windows.windowsOf(document).get(0).confirmSave(document)));
         if (!confirmed) {
             return false;
         }
@@ -522,12 +625,50 @@ public final class Application {
         return true;
     }
 
-    public boolean isLastWindow(CircuitWindow window) {
-        return windows.isLastWindow(window);
+    /** Whether no window but {@code window} holds a tab of {@code document} (closing it asks to save). */
+    public boolean isLastHolder(OpenDocument document, CircuitWindow window) {
+        return windows.isLastHolder(document, window);
     }
 
+    /** The Ventana list and «▾»: every tab of every window, grouped by window; {@code current}'s active tab checked. */
     public List<WindowMenu.Entry> windowEntries(CircuitWindow current) {
-        return windows.menuEntries(current, this::focus);
+        return windows.menuEntries(window -> window.tabEntries(window == current, () -> focus(window)));
+    }
+
+    /** Where the AI works now, for the tabs of every window. */
+    public PlaceMarks placeMarks() {
+        return placeMarks;
+    }
+
+    /** {@code window} was activated: files sent from outside and the AI's new circuits go there now. */
+    public void windowActivated(CircuitWindow window) {
+        windows.activated(window);
+    }
+
+    /** {@code window} added or removed a tab of {@code document}: it holds the document, and titles renumber. */
+    public void tabsChanged(OpenDocument document, CircuitWindow window) {
+        windows.add(document, window);
+    }
+
+    /** {@code document}'s group in {@code window} is about to close: Recientes keeps where it was. */
+    public void groupClosing(OpenDocument document, CircuitWindow window) {
+        rememberWindowState(window, document);
+    }
+
+    /**
+     * {@code document}'s group in {@code window} closed or moved away. The document stops (simulation thread included)
+     * and loses its recovery copy when no window holds it any more.
+     */
+    public void groupClosed(OpenDocument document, CircuitWindow window) {
+        if (windows.remove(document, window)) {
+            closeDocument(document);
+        }
+        presentationWatcher.refresh(); // a closed circuit's step waiting for «Siguiente» is dropped
+    }
+
+    private void closeDocument(OpenDocument document) {
+        autosave.untrack(document);
+        document.close();
     }
 
     /** Runs {@code listener} after every window opens or closes (view numbers may have changed). */
@@ -539,9 +680,12 @@ public final class Application {
         windows.removeChangeListener(listener);
     }
 
-    /** The number of {@code window} among the views of its document; 0 when it is the only one. */
-    public int viewNumber(CircuitWindow window) {
-        return windows.viewNumber(window);
+    /**
+     * The number of main tab {@code mainTabIndex} of {@code document} in {@code window} among all its main tabs, across
+     * windows in opening order; 0 when it is the only one.
+     */
+    public int viewNumber(OpenDocument document, CircuitWindow window, int mainTabIndex) {
+        return windows.viewNumber(document, window, mainTabIndex, CircuitWindow::mainTabCount);
     }
 
     public Path initialDirectory() {
@@ -565,18 +709,15 @@ public final class Application {
     }
 
     /**
-     * Called by a window after disposing itself (its bounds and canvas size are still readable). The document stops
-     * (simulation thread included) and loses its recovery copy with its last window; the last window of the
-     * application also ends the session (Assumption 22) and, on a clean exit, this run's recovery folder goes.
+     * Called by a window after disposing itself (its bounds are still readable). The documents it was the last holder
+     * of stop (simulation thread included) and lose their recovery copy; the last window of the application also ends
+     * the session (Assumption 22) and, on a clean exit, this run's recovery folder goes.
      */
     public void windowClosed(CircuitWindow window) {
         sessionEnding.windowClosing(windows.all().equals(List.of(window)));
-        rememberWindowState(window);
+        windows.documentsOf(window).forEach(document -> rememberWindowState(window, document));
         windowPreferences.remove(window);
-        windows.remove(window).ifPresent(document -> {
-            autosave.untrack(document);
-            document.close();
-        });
+        windows.removeWindow(window).forEach(this::closeDocument);
         presentationWatcher.refresh(); // a closed circuit's step waiting for «Siguiente» is dropped
         sessionEnding.windowClosed(windows.isEmpty());
         if (windows.isEmpty()) {
@@ -653,40 +794,60 @@ public final class Application {
         }
     }
 
-    /** Opens a recovered copy as its modified original, with the session's views or else Recientes' state. */
-    private Optional<RecoveryCopy> openRecovered(StartupSequence.Recovered recovered) {
+    /**
+     * Opens a recovered copy as its modified original (not shown yet: it takes its file's tabs in the session, else a
+     * window of its own) and adds the copy to {@code reopened}.
+     */
+    private Optional<OpenDocument> openRecovered(StartupSequence.Recovered recovered, List<RecoveryCopy> reopened) {
         RecoveryCopy copy = recovered.copy();
         try {
             OpenDocument document = OpenDocument.openRecovered(copy.content(), copy.originalPath().orElse(null),
                     copy.displayName(), registry);
-            List<WindowState> states = recovered.windows().isEmpty()
-                    ? copy.originalPath().flatMap(recentFiles::stateFor).stream().toList()
-                    : recovered.windows();
-            showViews(document, states);
             autosave.afterCopied(document, () -> discardQuietly(copy));
-            return Optional.of(copy);
+            reopened.add(copy);
+            return Optional.of(document);
         } catch (CircuitFormatException exception) {
             openingFiles.report(copy.originalPath().orElse(copy.content()), exception, null);
             return Optional.empty(); // the copy stays for the next start
         }
     }
 
-    /** A file of the last session; a session document without windows opens with Recientes' or default placement. */
-    private void openFromSession(StartupSequence.FromSession session) {
-        read(session.path(), null).ifPresent(document -> {
-            rememberDirectory(session.path());
-            showViews(document, session.windows().isEmpty()
-                    ? recentFiles.stateFor(session.path()).stream().toList() : session.windows());
-        });
+    /**
+     * A window of the last session, with its tabs on the documents {@code opened} holds (by normalized file), placed
+     * as it was (clamped to the screens). Nothing when none of its files opened.
+     *
+     * @return its component tabs left out because their definition is gone, to be told once
+     */
+    private List<TabState> restoreWindow(WindowSession session, Map<Path, OpenDocument> opened) {
+        Function<Path, Optional<OpenDocument>> documentOf =
+                path -> Optional.ofNullable(opened.get(FileNames.normalized(path)));
+        List<OpenDocument> documents = session.documents().stream().flatMap(path -> documentOf.apply(path).stream())
+                .toList();
+        if (documents.isEmpty()) {
+            return List.of();
+        }
+        CircuitWindow window = createWindow();
+        try {
+            return window.tabs().restore(session, documentOf);
+        } finally {
+            if (window.tabs().isEmpty()) {
+                windowPreferences.remove(window);
+                window.discardUnshown(); // its documents get a window of their own
+            } else {
+                documents.forEach(autosave::track); // M6-B: every open document is copied while modified
+                window.restoreWindowState(session.bounds().clampedTo(screens()));
+                window.setVisible(true);
+            }
+        }
     }
 
     /** One window per state, each placed and zoomed as it was; one plain window when there is no state. */
     private void showViews(OpenDocument document, List<WindowState> states) {
         if (states.isEmpty()) {
-            show(document, Optional.empty());
+            showIn(Optional.empty(), document, Optional.empty());
             return;
         }
-        states.forEach(state -> show(document, Optional.of(state)));
+        states.forEach(state -> showIn(Optional.empty(), document, Optional.of(state)));
     }
 
     private void shutdownAutosave() {
@@ -696,50 +857,65 @@ public final class Application {
     /** Capturing a window's state can fail (a window with no size); that must not stop the exit. */
     private void saveSession() {
         try {
-            sessionStore.save(SessionDocument.capture(windows, CircuitWindow::windowState));
+            sessionStore.save(windows.all().stream().flatMap(window -> window.windowState().stream()).toList());
         } catch (RuntimeException exception) {
             LOGGER.warn("Could not remember the session", exception);
         }
     }
 
     /**
-     * Recientes keeps where a file's window was when it closed, without moving the file in the list. Guarded for the
-     * window's state, which can fail (a window with no size), so the window still closes.
+     * Recientes keeps where a file's window was when its group or window closed, without moving the file in the list.
+     * Guarded for the window's state, which can fail (a window with no size), so the window still closes.
      */
-    private void rememberWindowState(CircuitWindow window) {
+    private void rememberWindowState(CircuitWindow window, OpenDocument document) {
         try {
-            window.openDocument().path().ifPresent(path -> recentFiles.updateState(path, window.windowState()));
+            document.path().ifPresent(path -> recentFiles.updateState(path, window.windowState(document)));
         } catch (RuntimeException exception) {
-            LOGGER.warn("Could not remember where {} was", window.openDocument().displayName(), exception);
+            LOGGER.warn("Could not remember where {} was", document.displayName(), exception);
         }
     }
 
-    private CircuitWindow show(OpenDocument document) {
-        return show(document, window -> {
+    /**
+     * Shows {@code document} as a new group of tabs in {@code requester}, its main tab active; with no requester
+     * (recovery, a file opened when no window exists) in a new window placed, sized and zoomed as {@code state} says,
+     * clamped to the screens. A file being opened comes back split as it was (Dividir la vista).
+     *
+     * @return the editor of the document's new main tab
+     */
+    private EditorView showIn(Optional<CircuitWindow> requester, OpenDocument document,
+                              Optional<WindowState> state) {
+        if (requester.isPresent()) {
+            EditorView view = requester.get().addTab(document, state.map(WindowState::view));
+            requester.get().restoreRememberedSplit(view);
+            autosave.track(document); // M6-B: every open document is copied while modified
+            return view;
+        }
+        CircuitWindow window = showInNewWindow(document, created -> {
+            state.ifPresent(saved -> created.restoreWindowState(saved.clampedTo(screens())));
+            created.restoreRememberedSplit(created.activeView());
         });
+        return window.activeView();
     }
 
     /**
-     * Creates a window for {@code document}, registers it, lets {@code beforeShowing} place it (location, size, the
-     * view state it opens with) and only then shows it. M6 contract C6: B adds its saved-state overload on top.
+     * A new window with a main tab of {@code document}; {@code beforeShowing} places it (location, size, the view
+     * state it opens with) and only then it is shown: a window is never shown empty.
      */
-    private CircuitWindow show(OpenDocument document, Consumer<CircuitWindow> beforeShowing) {
-        AppPreferences layered = preferences.layered();
-        CircuitWindow window = new CircuitWindow(this, document, services.withPreferences(layered));
-        windowPreferences.put(window, layered);
-        windows.add(document, window);
+    private CircuitWindow showInNewWindow(OpenDocument document, Consumer<CircuitWindow> beforeShowing) {
+        CircuitWindow window = createWindow();
+        window.addTab(document, Optional.empty());
         autosave.track(document); // M6-B: every open document is copied while modified
         beforeShowing.accept(window);
         window.setVisible(true);
         return window;
     }
 
-    /** A new window on {@code document}, placed, sized and zoomed as {@code state} says, clamped to the screens. */
-    private CircuitWindow show(OpenDocument document, Optional<WindowState> state) {
-        return show(document, window -> {
-            state.ifPresent(saved -> window.restoreWindowState(saved.clampedTo(screens())));
-            window.restoreRememberedSplit(); // a file being opened comes back split as it was (Dividir la vista)
-        });
+    /** A window with no tab yet, reading the preferences through its own layer (the AI's temporary settings). */
+    private CircuitWindow createWindow() {
+        AppPreferences layered = preferences.layered();
+        CircuitWindow window = new CircuitWindow(this, services.withPreferences(layered));
+        windowPreferences.put(window, layered);
+        return window;
     }
 
     /** The bounds of every screen, the primary first (clampedTo falls back to the first); none when headless. */
@@ -765,15 +941,22 @@ public final class Application {
         @Override
         public OpenDocument openNewCircuit(String name) {
             OpenDocument created = OpenDocument.createEmpty(registry);
-            // Not a user edit: the name is what the window shows until the user saves it (the AI never does).
+            // Not a user edit: the name is what the tab shows until the user saves it (the AI never does).
             created.document().setName(name);
-            show(created);
+            // A new group in the active window, as Archivo ▸ Nuevo; a window of its own only when there is none.
+            showIn(windows.active(), created, Optional.empty());
             return created;
         }
 
         @Override
         public List<DefinitionBundle> libraryComponents() {
             return library.entries();
+        }
+
+        /** What the Problemas list shows of the library: the service's load problems (TemplateFeatures lists them). */
+        @Override
+        public List<LibraryProblem> libraryProblems() {
+            return libraryService.problems();
         }
 
         /** «Presentar» as the circuit's first window's preferences hold it (IA.2). */
@@ -792,25 +975,40 @@ public final class Application {
             preferencesOf(document).setAiPresenting(presenting);
         }
 
-        /** Every window of the circuit goes to where the AI's next stage is built (IA.2 storyboard). */
+        /** Every tab of the circuit goes to where the AI's next stage is built (IA.2 storyboard). */
         @Override
         public void travelToStageOrigin(OpenDocument document, GridPoint origin) {
-            windows.windowsOf(document).forEach(window -> presentation.overlaysOf(window.view())
-                    .ifPresent(overlays -> overlays.travelToStageOrigin(origin)));
+            windows.windowsOf(document).forEach(window -> window.viewsOf(document).forEach(view ->
+                    presentation.overlaysOf(view).ifPresent(overlays -> overlays.travelToStageOrigin(origin))));
+        }
+
+        /**
+         * {@code vsim_open_place} (spec §12): the place's tab comes to the front in the window the AI works in, which is
+         * given the circuit's group first when no window holds it (as Abrir would).
+         */
+        @Override
+        public void openPlace(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath) {
+            CircuitWindow window = aiWindowOf(document).orElseGet(() -> {
+                showIn(Optional.empty(), document, Optional.empty());
+                return windows.windowsOf(document).getFirst();
+            });
+            window.showPlace(document, definitionId, contextPath);
         }
 
         private AppPreferences preferencesOf(OpenDocument document) {
-            return windows.windowsOf(document).stream().findFirst()
-                    .map(windowPreferences::get)
-                    .orElse(preferences);
+            return aiWindowOf(document).map(windowPreferences::get).orElse(preferences);
         }
 
-        /** The first window of the circuit is the one the AI works in. */
+        /** The window the AI works in for the circuit (spec §4.6): the one whose active tab shows it, else the first. */
+        private Optional<CircuitWindow> aiWindowOf(OpenDocument document) {
+            List<CircuitWindow> holders = windows.windowsOf(document);
+            return holders.stream().filter(window -> window.activeDocument() == document).findFirst()
+                    .or(() -> holders.stream().findFirst());
+        }
+
         @Override
         public Optional<SettingsOverride> settingsOverride(OpenDocument document) {
-            return windows.windowsOf(document).stream().findFirst()
-                    .map(windowPreferences::get)
-                    .flatMap(SettingsOverride::of);
+            return aiWindowOf(document).map(windowPreferences::get).flatMap(SettingsOverride::of);
         }
 
         /** Every window of the circuit shows the AI's «Presentar» pace (review M4). */

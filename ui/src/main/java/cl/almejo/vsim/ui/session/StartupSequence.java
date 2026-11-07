@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,9 +17,12 @@ import java.util.function.Predicate;
 
 /**
  * What to open at start (spec §4.1 "Order at start"), decided without Swing: the recovered copies first, then the
- * last session when the option is on and no circuit was given on the command line, then the command-line files. A
- * recovered copy replaces opening its original from the session or the command line and takes that file's views from
- * the session; of several copies of one file only the newest opens. Files are compared in any spelling ({@link FileNames#normalized}).
+ * last session when the option is on, then the command-line files, which join the restored windows as new groups (a
+ * file given on the command line never loses the session; one the session opens already is only focused). The
+ * session's windows come back with their tabs (spec §4.7); each file opens once, whatever the number of its tabs. A
+ * recovered copy replaces opening its original from the session or the command line and takes that file's tabs in the
+ * session's windows; of several copies of one file only the newest opens. Files are compared in any spelling
+ * ({@link FileNames#normalized}).
  */
 public final class StartupSequence {
 
@@ -27,26 +30,25 @@ public final class StartupSequence {
     public sealed interface Opening permits Recovered, FromSession {
     }
 
-    /** A recovered copy, with the views its file had in the last session (empty: one window, Recientes' state). */
-    public record Recovered(RecoveryCopy copy, List<WindowState> windows) implements Opening {
-        public Recovered {
-            windows = List.copyOf(windows);
-        }
+    /** A recovered copy; it takes its file's tabs in the session's windows. */
+    public record Recovered(RecoveryCopy copy) implements Opening {
     }
 
-    /** A file of the last session with the state of each of its views (empty: one window, Recientes' state). */
-    public record FromSession(Path path, List<WindowState> windows) implements Opening {
-        public FromSession {
-            windows = List.copyOf(windows);
-        }
+    /** A file of the last session. */
+    public record FromSession(Path path) implements Opening {
     }
 
     /**
-     * @param openings         recovered copies and session files, in that order
-     * @param missing          session files that no longer exist, to be listed once
-     * @param commandLineFiles the command-line circuits still to open the usual way
+     * @param openings         recovered copies and session files (each once, in the order of its first tab), in
+     *                         that order
+     * @param windows          the session's windows to restore, without the tabs of files that no longer exist (a
+     *                         window left without tabs is not restored)
+     * @param missing         session files that no longer exist, to be listed once
+     * @param commandLineFiles the command-line circuits still to open the usual way, after the session (one the
+     *                         session opens already is only focused then)
      */
-    public record Plan(List<Opening> openings, List<Path> missing, List<Path> commandLineFiles) {
+    public record Plan(List<Opening> openings, List<WindowSession> windows, List<Path> missing,
+                       List<Path> commandLineFiles) {
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StartupSequence.class);
@@ -54,36 +56,38 @@ public final class StartupSequence {
     private StartupSequence() {
     }
 
-    public static Plan plan(List<RecoveryCopy> recovered, boolean restoreSession, List<SessionDocument> session,
+    public static Plan plan(List<RecoveryCopy> recovered, boolean restoreSession, List<WindowSession> session,
                             List<Path> commandLineFiles, Predicate<Path> exists) {
-        Map<Path, List<WindowState>> sessionWindows = new LinkedHashMap<>();
-        if (restoreSession && commandLineFiles.isEmpty()) {
-            for (SessionDocument document : session) {
-                sessionWindows.putIfAbsent(FileNames.normalized(document.path()), document.windows());
-            }
-        }
+        List<WindowSession> sessionWindows = restoreSession ? session : List.of();
         Set<Path> recoveredFiles = new HashSet<>();
         List<Opening> openings = new ArrayList<>();
         for (RecoveryCopy copy : newestOfEachOriginal(recovered)) {
-            Optional<Path> original = copy.originalPath().map(FileNames::normalized);
-            original.ifPresent(recoveredFiles::add);
-            openings.add(new Recovered(copy, original.map(sessionWindows::get).orElse(List.of())));
+            copy.originalPath().map(FileNames::normalized).ifPresent(recoveredFiles::add);
+            openings.add(new Recovered(copy));
         }
+        Set<Path> sessionFiles = new LinkedHashSet<>();
+        sessionWindows.forEach(window -> window.documents()
+                .forEach(path -> sessionFiles.add(FileNames.normalized(path))));
+        Set<Path> opening = new HashSet<>(recoveredFiles);
         List<Path> missing = new ArrayList<>();
-        sessionWindows.forEach((path, windows) -> {
+        for (Path path : sessionFiles) {
             if (recoveredFiles.contains(path)) {
-                return;
+                continue;
             }
             if (exists.test(path)) {
-                openings.add(new FromSession(path, windows));
+                openings.add(new FromSession(path));
+                opening.add(path);
             } else {
                 missing.add(path);
             }
-        });
+        }
+        List<WindowSession> windows = sessionWindows.stream()
+                .flatMap(window -> window.keeping(path -> opening.contains(FileNames.normalized(path))).stream())
+                .toList();
         List<Path> files = commandLineFiles.stream()
                 .filter(file -> !recoveredFiles.contains(FileNames.normalized(file)))
                 .toList();
-        return new Plan(List.copyOf(openings), List.copyOf(missing), files);
+        return new Plan(List.copyOf(openings), windows, List.copyOf(missing), files);
     }
 
     /**

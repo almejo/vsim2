@@ -35,8 +35,8 @@ public final class DefinitionBuilder {
     public static final int PIN_SPACING = 2;
     public static final int FIRST_PIN_Y = 2;
 
-    private static final String INPUT_PREFIX = "in";
-    private static final String OUTPUT_PREFIX = "out";
+    static final String INPUT_PREFIX = "in";
+    static final String OUTPUT_PREFIX = "out";
     private static final String CONVERTED_OUTPUT_PREFIX = "Y";
 
     private static final Comparator<Component> TOP_TO_BOTTOM = Comparator
@@ -147,7 +147,7 @@ public final class DefinitionBuilder {
     }
 
     /** {@code component} without its memory link (its contents stay); any other component as it is. */
-    private static Component withoutMemoryLink(Component component) {
+    static Component withoutMemoryLink(Component component) {
         if (!isLinkedMemory(component)) {
             return component;
         }
@@ -165,10 +165,22 @@ public final class DefinitionBuilder {
      * {@link #fromSelection(CircuitDocument, Collection, String, String, PinOrder, ComponentTypeRegistry)} where the
      * pins in {@code renamed} get the user's name instead of the default one, in the pinout and as the label of their
      * interface pin inside the body (so «Desarmar» and «Actualizar componente…» keep it); the document is not touched.
+     * Linked memories keep only their contents.
      */
     public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
                                                  String name, PinOrder pinOrder, Map<ElementId, String> renamed,
                                                  ComponentTypeRegistry registry) {
+        return fromSelection(document, ids, id, name, pinOrder, renamed, false, registry);
+    }
+
+    /**
+     * {@link #fromSelection(CircuitDocument, Collection, String, String, PinOrder, Map, ComponentTypeRegistry)} where
+     * the selection's linked memories keep their link when {@code keepMemoryLinks} (the link is then the
+     * component's), else only their contents.
+     */
+    public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
+                                                 String name, PinOrder pinOrder, Map<ElementId, String> renamed,
+                                                 boolean keepMemoryLinks, ComponentTypeRegistry registry) {
         PinOrder found = defaultPinOrder(document, ids);
         if (found.isEmpty()) {
             throw new IllegalArgumentException("the selection has no interface pins");
@@ -176,17 +188,20 @@ public final class DefinitionBuilder {
         if (!samePins(pinOrder.inputs(), found.inputs()) || !samePins(pinOrder.outputs(), found.outputs())) {
             throw new IllegalArgumentException("the pin order must list each selected interface pin once: " + pinOrder);
         }
-        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), renamed, registry);
+        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), renamed, keepMemoryLinks,
+                registry);
     }
 
     /**
      * The definition of the selected elements with {@code pinOrder} (already checked) and its pins' default
      * {@code defaultNames}, except those in {@code renamed}, which also relabel their interface pin in the body; an
-     * empty order gives a definition without pins. A blank new name is refused.
+     * empty order gives a definition without pins. A blank new name is refused. The selection's linked memories keep
+     * their link when {@code keepMemoryLinks} (the link is then the component's), else only their contents.
      */
     static DefinitionBundle assemble(CircuitDocument document, Collection<ElementId> ids, String id, String name,
                                      PinOrder pinOrder, Map<ElementId, String> defaultNames,
-                                     Map<ElementId, String> renamed, ComponentTypeRegistry registry) {
+                                     Map<ElementId, String> renamed, boolean keepMemoryLinks,
+                                     ComponentTypeRegistry registry) {
         Map<ElementId, String> names = new HashMap<>(defaultNames);
         Map<ElementId, String> relabels = new HashMap<>();
         renamed.forEach((pin, newName) -> {
@@ -214,9 +229,11 @@ public final class DefinitionBuilder {
         List<Component> components = selected.components().stream()
                 .map(component -> relabels.containsKey(component.id())
                         ? component.withLabel(relabels.get(component.id())) : component)
-                .map(DefinitionBuilder::withoutMemoryLink)
+                .map(component -> keepMemoryLinks ? component : withoutMemoryLink(component))
                 .toList();
-        CircuitFragment body = new CircuitFragment(components, selected.wires(), selected.labels());
+        // Frames inside the selection go into the body (spec §6.8); sticky notes stay on the canvas (2026-10-27).
+        CircuitFragment body = new CircuitFragment(components, selected.wires(), selected.labels(), List.of(),
+                selected.frames());
         ComponentDefinition definition = new ComponentDefinition(id, name, "",
                 boxSize(pinOrder.inputs().size(), pinOrder.outputs().size()), pinout, body);
         return new DefinitionBundle(definition, selected.definitions());
@@ -288,7 +305,7 @@ public final class DefinitionBuilder {
     }
 
     /** The first {@code base + number} (from {@code firstNumber} up) neither reserved nor taken; marks it taken. */
-    private static String firstFree(String base, int firstNumber, Set<String> reserved, Set<String> taken) {
+    static String firstFree(String base, int firstNumber, Set<String> reserved, Set<String> taken) {
         for (int number = firstNumber; ; number++) {
             String candidate = base + number;
             if (!reserved.contains(candidate) && !taken.contains(candidate)) {

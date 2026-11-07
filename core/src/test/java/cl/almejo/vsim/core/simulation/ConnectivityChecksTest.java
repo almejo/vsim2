@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class ConnectivityChecksTest {
 
@@ -330,6 +332,109 @@ class ConnectivityChecksTest {
         assertThat(looseEnds()).noneMatch(problem -> problem.elementId().equals("outer/child/" + gate.id().value()));
         update.revert(document);
         assertThat(looseEnds()).anyMatch(problem -> problem.elementId().equals("outer/child/c2"));
+    }
+
+    // M6 (fix round E): a wire left loose by a removed pin is found from the circuit itself, so it is listed again
+    // after reopening: a wire end that reaches a user component's box edge from outside where no pin is.
+
+    /** A placed inverter «outer» (box 10,10 – 14,14; pins a at 10,12 and y at 14,12), rotated by {@code rotation}. */
+    private Component placedInverter(Rotation rotation) {
+        document.putDefinition(ExampleDefinitions.inverter());
+        Component outer = registry.require(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER)).newComponent(
+                new ElementId("outer"), new GridPoint(10, 10), rotation, Map.of(), "");
+        document.add(outer);
+        return outer;
+    }
+
+    private void wire(String id, int fromX, int fromY, int toX, int toY) {
+        document.add(new Wire(new ElementId(id), new GridPoint(fromX, fromY), new GridPoint(toX, toY)));
+    }
+
+    private List<ConnectivityProblem> edgeWires() {
+        return problems().stream()
+                .filter(problem -> problem.cause() == ConnectivityProblem.Cause.WIRE_AT_PIECE_EDGE).toList();
+    }
+
+    @Test
+    void aWireEndingOnAPiecesEdgeWhereNoPinIsIsAProblemAtTheWireEnd() {
+        placedInverter(Rotation.R0);
+        wire("w1", 6, 11, 10, 11);
+
+        assertThat(problems()).singleElement().satisfies(problem -> {
+            assertThat(problem.cause()).isEqualTo(ConnectivityProblem.Cause.WIRE_AT_PIECE_EDGE);
+            assertThat(problem.elementId()).isEqualTo("outer");
+            assertThat(problem.pinIndex()).isEqualTo(-1);
+            assertThat(problem.position()).isEqualTo(new GridPoint(10, 11));
+            assertThat(problem.netId()).startsWith(ConnectivityProblem.EDGE_WIRE_PREFIX);
+        });
+    }
+
+    @Test
+    void wiresAtPinsNearAPieceAlongItsEdgeOrAtItsCornersAreNoProblem() {
+        placedInverter(Rotation.R0);
+        wire("at-pin-a", 6, 12, 10, 12);
+        wire("at-pin-y", 14, 12, 18, 12);
+        wire("passing-above", 6, 8, 18, 8);
+        wire("one-short", 6, 13, 9, 13);
+        wire("along-the-top-edge", 11, 10, 13, 10);
+        wire("along-the-left-edge-from-the-corner", 10, 10, 10, 11);
+        wire("at-the-corner", 14, 14, 18, 14);
+        wire("passing-through", 12, 6, 12, 18);
+
+        assertThat(edgeWires()).isEmpty();
+    }
+
+    @Test
+    void aWireEndingOnAnotherWiresJunctionAtTheEdgeIsNoProblem() {
+        placedInverter(Rotation.R0);
+        wire("from-the-left", 6, 13, 10, 13);
+        wire("down-to-the-same-point", 10, 16, 10, 13);
+        wire("into-a-wire", 18, 11, 14, 11);
+        wire("through-that-end", 14, 6, 14, 13);
+
+        assertThat(edgeWires()).isEmpty();
+    }
+
+    @Test
+    void aRotatedPieceIsJudgedByItsRotatedBoxAndPins() {
+        Component outer = placedInverter(Rotation.R90);
+        GridPoint edge = outer.position().plus(Rotation.R90.apply(new GridPoint(0, 1)));
+        GridPoint outside = outer.position().plus(Rotation.R90.apply(new GridPoint(-3, 1)));
+        GridPoint pin = outer.position().plus(Rotation.R90.apply(new GridPoint(0, 2)));
+        GridPoint outsidePin = outer.position().plus(Rotation.R90.apply(new GridPoint(-3, 2)));
+        wire("loose", outside.x(), outside.y(), edge.x(), edge.y());
+        wire("connected", outsidePin.x(), outsidePin.y(), pin.x(), pin.y());
+
+        assertThat(edgeWires()).singleElement().satisfies(problem -> {
+            assertThat(problem.elementId()).isEqualTo("outer");
+            assertThat(problem.position()).isEqualTo(edge);
+        });
+    }
+
+    @Test
+    void aStandardPartsEdgeIsNoProblem() {
+        Component gate = component(StandardComponentTypes.AND, "gate", 10, 10);
+        document.add(gate);
+        Bounds bounds = registry.typeOf(gate).bounds(gate);
+        wire("to-the-top", bounds.x() + 1, bounds.y() - 4, bounds.x() + 1, bounds.y());
+
+        assertThat(edgeWires()).isEmpty();
+    }
+
+    @Test
+    void aLooseWireAtAnEdgeInsideAComponentIsListedForEveryPlaceItIsUsed() {
+        document.putDefinition(ExampleDefinitions.inverter());
+        Component inner = registry.require(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER)).newComponent(
+                new ElementId("c5"), new GridPoint(10, 10), Rotation.R0, Map.of(), "");
+        Wire loose = new Wire(new ElementId("w1"), new GridPoint(6, 11), new GridPoint(10, 11));
+        document.putDefinition(new ComponentDefinition("holder", "Holder", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(inner), List.of(loose), List.of())));
+        document.add(component(SubcircuitTypes.typeIdOf("holder"), "h1", 40, 0));
+        document.add(component(SubcircuitTypes.typeIdOf("holder"), "h2", 40, 20));
+
+        assertThat(edgeWires()).extracting(ConnectivityProblem::elementId, ConnectivityProblem::position)
+                .containsExactlyInAnyOrder(tuple("h1/c5", new GridPoint(10, 11)),
+                        tuple("h2/c5", new GridPoint(10, 11)));
     }
 
     /** A component whose only input reaches nothing inside: its outer terminal is a problem. */

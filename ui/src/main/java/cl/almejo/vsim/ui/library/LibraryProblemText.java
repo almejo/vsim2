@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.library;
 
-import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -36,16 +35,8 @@ public final class LibraryProblemText {
         if (problem.kind() != LibraryProblem.Kind.UNREADABLE && problem.kind() != LibraryProblem.Kind.INVALID) {
             return text;
         }
-        return idNamedBy(file).flatMap(libraryEntry)
+        return problem.componentIdNamed().flatMap(libraryEntry)
                 .map(bundle -> Messages.format("library.problem.deletable", text, bundle.root().name()))
                 .orElse(text);
-    }
-
-    /** The id a file name stands for: {@code inverter} for {@code inverter.vsimcomponent.json}. */
-    private static Optional<String> idNamedBy(String fileName) {
-        int idLength = fileName.length() - DefinitionFormat.FILE_SUFFIX.length();
-        boolean componentFile = idLength > 0 && fileName.regionMatches(true, idLength, DefinitionFormat.FILE_SUFFIX, 0,
-                DefinitionFormat.FILE_SUFFIX.length());
-        return componentFile ? Optional.of(fileName.substring(0, idLength)) : Optional.empty();
     }
 }

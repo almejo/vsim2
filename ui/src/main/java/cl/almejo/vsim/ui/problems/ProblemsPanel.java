@@ -6,11 +6,13 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.Action;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
@@ -20,10 +22,11 @@ import java.awt.event.MouseEvent;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
- * "Problemas" tab: short circuits and width mismatches of the displayed snapshot (double click navigates), then the
- * component library files that could not be loaded.
+ * "Problemas" tab: short circuits and width mismatches of the displayed snapshot (double click navigates, a right
+ * click offers the row's quick actions), then the component library files that could not be loaded.
  */
 public final class ProblemsPanel extends JPanel {
 
@@ -34,24 +37,54 @@ public final class ProblemsPanel extends JPanel {
     private final JLabel libraryHeader = new JLabel();
     private final DefaultListModel<String> libraryModel = new DefaultListModel<>();
     private final JScrollPane libraryScroll = new JScrollPane(new JList<>(libraryModel));
+    private final Function<Problem, String> describer;
+    private final Function<Problem, List<Action>> quickActions;
     private List<Problem> shown;
     private int refreshCount;
 
     public ProblemsPanel(OpenDocument openDocument, Consumer<Problem> navigate) {
+        this(problem -> ProblemText.describe(problem, openDocument.document(), openDocument.registry()), navigate);
+    }
+
+    /**
+     * A list whose rows {@code describer} words at paint time (so a renamed label shows without waiting for the
+     * problems to change); a double click on a row hands its problem to {@code navigate}.
+     */
+    public ProblemsPanel(Function<Problem, String> describer, Consumer<Problem> navigate) {
+        this(describer, navigate, problem -> List.of());
+    }
+
+    /**
+     * Like {@link #ProblemsPanel(Function, Consumer)}; a right click on a row offers {@code quickActions} of its
+     * problem (a way to fix it from the list, e.g. «Olvidar ese contenido»), when it has any.
+     */
+    public ProblemsPanel(Function<Problem, String> describer, Consumer<Problem> navigate,
+                         Function<Problem, List<Action>> quickActions) {
         super(new MigLayout("insets 4, fill, wrap 1", "[grow, fill]", "[][grow, fill][][]"));
         this.navigate = navigate;
+        this.describer = describer;
+        this.quickActions = quickActions;
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public java.awt.Component getListCellRendererComponent(JList<?> source, Object value, int index,
                                                                    boolean selected, boolean focused) {
                 super.getListCellRendererComponent(source, value, index, selected, focused);
-                // Described at paint time, so a renamed label shows without waiting for the problems to change.
-                setText(ProblemText.describe((Problem) value, openDocument.document(), openDocument.registry()));
+                setText(describer.apply((Problem) value));
                 return this;
             }
         });
         list.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                showQuickActions(event);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent event) {
+                showQuickActions(event);
+            }
+
             @Override
             public void mouseClicked(MouseEvent event) {
                 if (event.getClickCount() != 2 || !SwingUtilities.isLeftMouseButton(event)) {
@@ -109,10 +142,37 @@ public final class ProblemsPanel extends JPanel {
         return libraryScroll;
     }
 
+    /** The quick actions of row {@code index} (its right-click menu); none outside the list. */
+    List<Action> actionsAt(int index) {
+        return index >= 0 && index < model.size() ? quickActions.apply(model.get(index)) : List.of();
+    }
+
+    /** The right-click menu of the row under {@code event}, which it selects, when its problem has quick actions. */
+    private void showQuickActions(MouseEvent event) {
+        if (!event.isPopupTrigger()) {
+            return;
+        }
+        int index = list.locationToIndex(event.getPoint());
+        Rectangle cell = index < 0 ? null : list.getCellBounds(index, index);
+        List<Action> actions = cell != null && cell.contains(event.getPoint()) ? actionsAt(index) : List.of();
+        if (actions.isEmpty()) {
+            return;
+        }
+        list.setSelectedIndex(index);
+        JPopupMenu menu = new JPopupMenu();
+        actions.forEach(menu::add);
+        menu.show(list, event.getX(), event.getY());
+    }
+
     void activate(int index) {
         if (index >= 0 && index < model.size()) {
             navigate.accept(model.get(index));
         }
+    }
+
+    /** The rows as the list words them, in order. */
+    List<String> problemTexts() {
+        return Collections.list(model.elements()).stream().map(describer).toList();
     }
 
     JList<Problem> problemList() {

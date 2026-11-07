@@ -9,10 +9,38 @@ import java.util.Objects;
 /**
  * A structural fault with its instance path and local position: a pin or a loose wire end inside a component's
  * body, an outer terminal whose interface element is unconnected inside, or (listed by the editor, not found by the
- * checks) a pin loosened by a shape change or a piece whose library update would break it.
+ * checks) a pin loosened by a shape change, a piece whose library update would break it or a piece's own memory
+ * contents that do not apply.
  */
 public record ConnectivityProblem(String netId, String elementId, int pinIndex, GridPoint position, Cause cause)
         implements Problem {
+
+    /**
+     * The start of the net id of a {@link Cause#WIRE_AT_PIECE_EDGE} problem; the element id, a {@code :} and the wire
+     * end's {@code x,y} follow.
+     */
+    public static final String EDGE_WIRE_PREFIX = "edgeWire:";
+
+    /** The start of the net id of an {@link Cause#OWN_CONTENTS_FOR_NOTHING} problem; the memory's path follows. */
+    public static final String OWN_CONTENTS_PREFIX = "ownContents:";
+
+    /**
+     * The start of the net id of a {@link Cause#WIRE_OF_REMOVED_PIN} problem; the element id, a {@code :} and the
+     * removed pin's name follow (element ids never hold a {@code :}).
+     */
+    public static final String REMOVED_PIN_PREFIX = "removedPin:";
+
+    /**
+     * The start of the net id of a {@link Cause#LOOSENED_BY_SHAPE_CHANGE} problem of the circuit's own pieces; the
+     * element id, a {@code :} and the pin index follow.
+     */
+    public static final String LOOSENED_PREFIX = "loosened:";
+
+    /**
+     * The start of the net id of a {@link Cause#PIN_PLACED_ELSEWHERE} problem of the circuit's own pieces; the element
+     * id, a {@code :} and the pin index follow.
+     */
+    public static final String PLACED_ELSEWHERE_PREFIX = "placedElsewhere:";
 
     /** What kind of fault this is; it decides how the editor marks and words it. */
     public enum Cause {
@@ -25,6 +53,11 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
         /** A pin of a placed piece left loose by «Aplicar y conectar a mano» (session only). */
         LOOSENED_BY_SHAPE_CHANGE,
         /**
+         * Pin {@code pinIndex} of piece {@code elementId}, added by an edit inside its component, went to another spot
+         * of its edge because its own spot touched a wire or a pin there (spec §6.2 a; while that edit is applied).
+         */
+        PIN_PLACED_ELSEWHERE,
+        /**
          * The piece {@code elementId} uses an older version of a definition than the library's and updating it would
          * break inner connections; {@code netId} is {@code "version:"} plus that definition's id.
          */
@@ -34,7 +67,30 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
          * or size changed, so «Actualizar» is refused and the piece keeps its old copy; the containing names are
          * found with {@code DefinitionUpdateSafety.containingNames}.
          */
-        OUTDATED_CANNOT_UPDATE
+        OUTDATED_CANNOT_UPDATE,
+        /**
+         * The piece {@code elementId} of the circuit keeps its own contents for a memory that is no longer in its
+         * component (they are ignored); {@code netId} is {@code "ownContents:"} plus the memory's path inside the
+         * piece. Listed by the editor, which offers to forget them.
+         */
+        OWN_CONTENTS_FOR_NOTHING,
+        /**
+         * A wire end at {@code position} went to a pin of the piece {@code elementId} that an edit inside its
+         * component removed (spec §6.1): the wire stays, loose ({@code pinIndex} -1; while that edit is applied).
+         */
+        WIRE_OF_REMOVED_PIN,
+        /**
+         * The memory {@code elementId} ({@code c5/c10}: its path through the circuit's piece that keeps the contents)
+         * is linked to a file, but that piece starts from its own contents, not from the file (the user, 2026-11-06).
+         * Listed by the editor, which offers «Volver al del componente».
+         */
+        OWN_CONTENTS_OVER_LINK,
+        /**
+         * A wire end at {@code position} reaches the box of the user component's piece {@code elementId} from outside,
+         * at a point of its edge where no pin is, and touches nothing else: the shape a removed pin leaves (M6, the
+         * user 2026-11-07). Found from the circuit itself, so it is listed again after reopening; {@code pinIndex} -1.
+         */
+        WIRE_AT_PIECE_EDGE
     }
 
     public ConnectivityProblem {

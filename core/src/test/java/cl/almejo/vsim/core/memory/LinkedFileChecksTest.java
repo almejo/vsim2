@@ -78,4 +78,25 @@ class LinkedFileChecksTest {
         document.replace(ram.withParameters(parameters));
         assertThat(LinkedFileChecks.missing(document, circuit)).isEmpty();
     }
+
+    /**
+     * What the editor's watcher reported stays only while it is still true of the document: a memory deleted, or whose
+     * link was removed or changed, drops out at once; the rest come in element id order.
+     */
+    @Test
+    void reportedProblemsStayOnlyWhileTheMemoryStillLinksThatFile() {
+        Optional<Path> circuit = Optional.of(folder.resolve("cpu.vsim"));
+        Component ram = memory(StandardComponentTypes.RAM, "ram.hex");
+        Component rom = memory(StandardComponentTypes.ROM, "rom.hex");
+        Component relinked = memory(StandardComponentTypes.ROM, "nuevo.hex");
+        LinkedFileProblem romProblem = new LinkedFileProblem(rom.id().value(), "rom.hex",
+                LinkedFileProblem.Kind.MISSING, "");
+        LinkedFileProblem ramProblem = new LinkedFileProblem(ram.id().value(), "ram.hex",
+                LinkedFileProblem.Kind.UNREADABLE, "line 1");
+        List<LinkedFileProblem> reported = List.of(romProblem, ramProblem,
+                new LinkedFileProblem(relinked.id().value(), "viejo.hex", LinkedFileProblem.Kind.MISSING, ""),
+                new LinkedFileProblem("c99", "borrada.hex", LinkedFileProblem.Kind.MISSING, ""));
+
+        assertThat(LinkedFileChecks.stillTrue(document, circuit, reported)).containsExactly(ramProblem, romProblem);
+    }
 }

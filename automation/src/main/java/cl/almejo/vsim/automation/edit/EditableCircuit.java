@@ -2,12 +2,14 @@ package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.check.TextMeasure;
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * One open circuit while the AI's edit runs on the editor thread ({@link cl.almejo.vsim.automation.EditHost#onCircuit}).
@@ -23,6 +25,31 @@ public interface EditableCircuit {
 
     /** The circuit's undo history: the AI's edits are executed here, one step each. */
     History history();
+
+    /**
+     * Executes {@code command} as one undo step of the circuit's history. A place inside a component (spec §12) writes
+     * the edit back to its definition as the user's edits there do, so the AI's edits go through this, never straight
+     * to {@link #history()}.
+     */
+    default void execute(Command command) {
+        history().execute(command);
+    }
+
+    /**
+     * The circuit itself when this is a place inside a component (the document that keeps each piece's own memory
+     * contents, spec §6.6b); empty otherwise, and for editors that have no pieces.
+     */
+    default Optional<CircuitDocument> circuit() {
+        return Optional.empty();
+    }
+
+    /**
+     * Executes {@code command} on the circuit itself, as one undo step of its history (what the memory editor does for
+     * a piece's own contents); the same as {@link #execute} outside a place inside a component.
+     */
+    default void executeOnCircuit(Command command) {
+        execute(command);
+    }
 
     /** The version an edit must have been prepared against (spec §8): it moves with every change of the history. */
     DocumentVersion version();

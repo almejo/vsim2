@@ -217,6 +217,75 @@ class LibraryPaletteTest {
         assertThat(second.view.palette().visibleTypeIds()).doesNotContain("subcircuit:inverter");
     }
 
+    @Test
+    void aComponentTabShowsThePlaceBarOverItsCanvasAndTheMainTabDoesNot() throws Exception {
+        putAndPlace(ExampleDefinitions.inverter());
+        assertThat(placeBarsOf(fixture.view)).isEmpty();
+
+        int before = fixture.library.listenerCount();
+        OpenDocument body = fixture.openDocument.openBody(ExampleDefinitions.INVERTER, Optional.empty());
+        TemplateFixture inside = new TemplateFixture(fixture, body);
+
+        assertThat(placeBarsOf(inside.view)).hasSize(1);
+        inside.close();
+        assertThat(placeBarsOf(inside.view)).isEmpty();
+        assertThat(fixture.library.listenerCount()).isEqualTo(before);
+    }
+
+    @Test
+    void aRefusedEditInAComponentTabIsExplainedInThePlaceBarAndTheStatusLine() throws Exception {
+        putAndPlace(ExampleDefinitions.doubleInverter(), ExampleDefinitions.inverter());
+        String doubleInverter = fixture.openDocument.document().components().getFirst().id().value();
+        OpenDocument body = fixture.openDocument.openBody(ExampleDefinitions.INVERTER,
+                Optional.of(doubleInverter + "/c2"));
+        TemplateFixture inside = new TemplateFixture(fixture, body);
+        try {
+            String locked = cl.almejo.vsim.ui.UiTestSupport.REFUSED_INSIDE_TEXT;
+
+            body.execute(cl.almejo.vsim.ui.UiTestSupport.refusedInside());
+
+            assertThat(inside.view.statusBar().text()).contains(locked);
+            java.awt.Container bar = (java.awt.Container) placeBarsOf(inside.view).getFirst();
+            assertThat(visibleLabelTexts(bar)).containsOnlyOnce(locked);
+            assertThat(visibleLabelTexts(bar, cl.almejo.vsim.ui.window.PlaceBar.REFUSAL_NAME)).containsExactly(locked);
+            assertThat(body.document().component(new cl.almejo.vsim.core.document.ElementId("c1"))).isPresent();
+        } finally {
+            inside.close();
+        }
+    }
+
+    private static List<String> visibleLabelTexts(java.awt.Container container) {
+        return visibleLabelTexts(container, null);
+    }
+
+    /** The texts of the visible labels under {@code container}; only those named {@code name} unless it is null. */
+    private static List<String> visibleLabelTexts(java.awt.Container container, String name) {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof javax.swing.JLabel label && label.isVisible() && !label.getText().isEmpty()
+                    && (name == null || name.equals(label.getName()))) {
+                texts.add(label.getText());
+            }
+            if (child instanceof java.awt.Container nested) {
+                texts.addAll(visibleLabelTexts(nested, name));
+            }
+        }
+        return texts;
+    }
+
+    private static List<java.awt.Component> placeBarsOf(java.awt.Container container) {
+        List<java.awt.Component> found = new ArrayList<>();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof cl.almejo.vsim.ui.window.PlaceBar) {
+                found.add(child);
+            }
+            if (child instanceof java.awt.Container nested) {
+                found.addAll(placeBarsOf(nested));
+            }
+        }
+        return found;
+    }
+
     /** Puts {@code root} (with {@code dependencies}) and places one instance of it: one undo step. */
     private void putAndPlace(ComponentDefinition root, ComponentDefinition... dependencies) {
         List<ComponentDefinition> definitions = new ArrayList<>(List.of(dependencies));
