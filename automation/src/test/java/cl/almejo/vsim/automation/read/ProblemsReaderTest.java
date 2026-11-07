@@ -8,6 +8,9 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
@@ -161,6 +164,38 @@ class ProblemsReaderTest {
         assertThat(problem.warning()).isTrue();
         assertThat(problem.elementIds()).containsExactly(instance.id().value());
         assertThat(problem.message()).contains(instance.id().value()).contains("inside");
+    }
+
+    /**
+     * Fix round D (5o): a piece's own memory contents that do not do what they seem — kept over a linked file, or for
+     * a memory no longer in its component — are in the Problemas list, so the AI reads them too (never hidden).
+     */
+    @Test
+    void aPieceOwnMemoryContentsThatDoNotApplyAreWarningsNamingThePieceAndTheMemory() {
+        Component linkedMemory = fixture.registry.require(StandardComponentTypes.RAM).newComponent(
+                new ElementId("c10"), GridPoint.ORIGIN, Rotation.R0, Map.of(MemoryTypes.LINK, "programa.hex"),
+                "Programa");
+        fixture.document.putDefinition(new ComponentDefinition("memoria-chica", "Memoria chica", "",
+                new GridSize(4, 4), List.of(), new CircuitFragment(List.of(linkedMemory), List.of(), List.of())));
+        Component piece = fixture.place(SubcircuitTypes.typeIdOf("memoria-chica"), 10, 10, Rotation.R0, Map.of(),
+                "Memoria 1");
+        fixture.document.replace(piece.withMemoryContents(Map.of("c10", "@0 9", "c99", "@0 8")));
+        publish(0);
+
+        List<ProblemView> problems = ProblemsReader.read(fixture.source()).problems().stream()
+                .filter(problem -> problem.kind().startsWith("OWN_CONTENTS")).toList();
+
+        String pieceId = piece.id().value();
+        assertThat(problems).extracting(ProblemView::kind)
+                .containsExactly("OWN_CONTENTS_OVER_LINK", "OWN_CONTENTS_FOR_NOTHING");
+        assertThat(problems).extracting(ProblemView::warning).containsExactly(true, true);
+        assertThat(problems).allSatisfy(problem -> assertThat(problem.elementIds()).containsExactly(pieceId));
+        assertThat(problems.get(0).insidePaths()).containsExactly(pieceId + "/c10");
+        assertThat(problems.get(0).netId()).isEqualTo("ownContents:" + pieceId + "/c10");
+        assertThat(problems.get(0).message()).contains("Memoria 1", "Programa", pieceId + "/c10", "linked file");
+        assertThat(problems.get(1).insidePaths()).isEmpty();
+        assertThat(problems.get(1).netId()).isEqualTo("ownContents:" + pieceId + "/c99");
+        assertThat(problems.get(1).message()).contains("Memoria 1", "c99", "no longer");
     }
 
     private void publish(long time, Problem... problems) {

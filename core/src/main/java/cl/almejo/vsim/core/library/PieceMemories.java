@@ -90,6 +90,14 @@ public final class PieceMemories {
         return linked ? Optional.of(StoredContentsIssue.Kind.OVER_LINK) : Optional.empty();
     }
 
+    /**
+     * The memory whose contents {@code place} keeps (inside the circuit's piece, at the inner path); empty when the
+     * piece or the memory is not there.
+     */
+    public static Optional<Component> memory(CircuitDocument document, Place place) {
+        return document.component(place.piece()).flatMap(piece -> memoryAt(document, piece, place.innerPath()));
+    }
+
     /** The memory {@code innerPath} names inside {@code piece} ({@code c3/c10}); empty when it names none. */
     private static Optional<Component> memoryAt(CircuitDocument document, Component piece, String innerPath) {
         List<String> segments = InstancePath.segments(innerPath);

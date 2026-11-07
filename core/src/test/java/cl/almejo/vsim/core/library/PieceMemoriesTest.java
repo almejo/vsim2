@@ -115,6 +115,14 @@ class PieceMemoriesTest {
                         PieceMemories.StoredContentsIssue.Kind.OVER_LINK));
     }
 
+    @Test
+    void thePlaceOfStoredContentsLeadsToItsMemoryWhenItIsThere() {
+        assertThat(PieceMemories.memory(document, new PieceMemories.Place(new ElementId("c1"), "c3/c10")))
+                .map(Component::id).contains(MEMORY);
+        assertThat(PieceMemories.memory(document, new PieceMemories.Place(new ElementId("c1"), "c3/c99"))).isEmpty();
+        assertThat(PieceMemories.memory(document, new PieceMemories.Place(new ElementId("c8"), "c3/c10"))).isEmpty();
+    }
+
     private Component piece(String id, String definitionId) {
         return new Component(new ElementId(id), SubcircuitTypes.typeIdOf(definitionId), GridPoint.ORIGIN,
                 Rotation.R0, Map.of(), "");

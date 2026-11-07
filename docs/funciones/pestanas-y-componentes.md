@@ -149,7 +149,9 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   desarmar una pieza, sus memorias se quedan con el contenido propio que tenía. Si una pieza guarda contenido propio
   de una memoria que ya no está en el componente (se borró adentro), ese contenido no se usa y Problemas lo dice:
   «Memoria chica: guarda contenido propio de una memoria que ya no está en el componente (c10)»; el clic derecho en la
-  fila ofrece «Olvidar ese contenido», un solo paso de deshacer.
+  fila ofrece «Olvidar ese contenido», un solo paso de deshacer. La IA lee estos dos problemas junto con los demás de
+  Problemas ([IA (MCP)](ia-mcp.md#qué-puede-hacer-la-ia)). Cuando un archivo enlazado a una memoria cambia afuera,
+  cada circuito abierto que lo enlaza queda modificado: guarda una copia del contenido y la pone al día.
 - **Terminales**: la ventana de un Terminal de adentro muestra el de la pieza cuyos valores se ven. Un Terminal con el
   mismo nombre en el circuito y adentro de un componente son dos ventanas distintas, y cada una recuerda su lugar y su
   tamaño. Si la pestaña pasa a mostrar otra pieza, la ventana de la pieza anterior se cierra. Abrirla desde otra

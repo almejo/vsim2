@@ -10,7 +10,9 @@ import java.util.Objects;
  * TUNNEL_DUPLICATE_ENTRANCE, TUNNEL_EXIT_WITHOUT_ENTRANCE, TUNNEL_ENTRANCE_WITHOUT_EXITS, TUNNEL_EXIT_DRIVEN,
  * TUNNEL_LONE_TUNNEL (a tunnel without direction alone with its name),
  * INTERFACE_UNCONNECTED_INSIDE (an outer terminal whose «Pin de entrada»/«Pin de salida» inside the component
- * connects to nothing);
+ * connects to nothing), LINKED_FILE_MISSING, LINKED_FILE_UNREADABLE, OWN_CONTENTS_OVER_LINK (a piece keeps its own
+ * contents of a memory linked to a file, and starts from them, not from the file) or OWN_CONTENTS_FOR_NOTHING (a piece
+ * keeps contents for a memory no longer in its component: ignored);
  * {@code warning} for the softer ones that may be on purpose while building. {@code elementIds} are the parts of the
  * circuit it is about (for a problem inside a user component, the instance that holds it); {@code pins} the pins of
  * those parts it names; {@code insidePaths} the ids inside user components ({@code c5/c2}) when it lives there.
