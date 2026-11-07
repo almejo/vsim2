@@ -20,6 +20,8 @@ public final class AiIcons {
     public static final String UNDO = "ai-undo";
     /** Encender / Apagar. */
     public static final String POWER = "ai-power";
+    /** The AI's mark on the tab where it works ({@link AiRobotIcon}). */
+    public static final String ROBOT = "ai-robot";
     public static final String RESTART = "restart";
     public static final String SHOW = "center";
     public static final String FOLDER = "open";
@@ -31,7 +33,7 @@ public final class AiIcons {
 
     /** Every icon of the AI's panels and status line, once. */
     public static List<String> names() {
-        return List.of(STOP, UNDO, POWER, RESTART, SHOW, FOLDER, CLOSE, CLIPBOARD);
+        return List.of(STOP, UNDO, POWER, ROBOT, RESTART, SHOW, FOLDER, CLOSE, CLIPBOARD);
     }
 
     /** The menu-sized icon {@code name}. */

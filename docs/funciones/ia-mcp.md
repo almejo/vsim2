@@ -67,6 +67,27 @@ Mientras VSim está abierto, Claude Code se puede conectar a él (por MCP, en tu
 - **Si la IA se queda callada**: mientras una tarea corre y nada espera por ti, si VSim no oye nada de la IA en 20 s la barra (o la ventanita de «Presentar») dice en gris «Claude está pensando o te preguntó algo en Claude Code», hasta su próximo pedido. Es solo un aviso: no detiene nada.
 - **Si Claude Code deja de responder**: si un paso de la IA espera «Siguiente» y la IA no hace ningún pedido en 2 minutos (por ejemplo, cerraste Claude Code), VSim detiene la tarea como «Detener», el paso en transparente se va y la barra dice «La IA dejó de responder: se detuvo la tarea «<tarea>»» (la ventanita, «La IA dejó de responder: se detuvo la tarea»). Una IA que sigue esperando tu «Siguiente» (pregunta cada 30 s) nunca se detiene, por mucho que tardes; tampoco mientras espera la respuesta a una pregunta suya. Si te hizo una pregunta y lleva 2 minutos sin preguntar por tu respuesta (quizá la espera en el chat, o Claude Code se cerró), la tarea sigue (solo tú la detienes), pero la tarjeta de la pregunta dice «Respóndele en Claude Code; la IA no ha preguntado por tu respuesta en N min» (los minutos van subiendo) y la barra deja de decir «IA trabajando» y dice «La IA espera tu respuesta en Claude Code: <tarea>». Si la IA vuelve a preguntar, el aviso se va.
 
+## La IA en la pestaña
+
+- **Un robot en la pestaña donde trabaja**: la pestaña del lugar donde la IA lee, cambia o corre lleva un robot chico
+  verde (el mismo verde del punto de «IA: conectada» en la barra de estado) en vez de su ícono: la pestaña del
+  circuito, o la de un componente si la IA trabaja por dentro (`place`). Es la pestaña de ese lugar, no todo el grupo:
+  si la IA cambia «Memoria chica» mientras miras el circuito, el robot está en la pestaña de «Memoria chica». En una
+  pestaña de componente cuenta también la pieza: si la IA pidió los valores de una pieza, el robot va en las pestañas
+  que muestran esa pieza en «Valores de»; si no pidió ninguna, en todas las pestañas del componente.
+- **Se mece mientras trabaja**: durante una tarea de la IA, el robot sube y baja suavemente en la pestaña del último
+  lugar que tocó la tarea (el lugar que dejó se pone gris). Un pedido sin tarea (leer, mirar, simular) lo muestra por
+  unos 3 segundos. Con «Animación» apagada el robot no se mueve.
+- **Al pasar el mouse**: «La IA está trabajando aquí: «<tarea>»» (o «La IA está trabajando aquí», sin tarea); cuando
+  terminó, «La IA trabajó aquí: …».
+- **Cuando termina**: el robot se pone gris unos 5 segundos (o hasta que pasas a esa pestaña) y se va.
+- **Grupo plegado**: si la pestaña marcada está escondida en un grupo plegado, el robot sube a la pestaña del
+  circuito del grupo.
+- **Pestañas que abre la IA**: la pestaña que abre `vsim_open_place` o `vsim_new_circuit` nace con el robot.
+- **En las listas**: Ventana ▸ la lista de pestañas y «▾ Todas las pestañas» muestran el mismo robot (verde o gris)
+  junto a la pestaña, con el mismo texto al pasar el mouse.
+- Si el lugar donde trabaja la IA no tiene una pestaña abierta, no se abre ninguna solo para mostrar el robot.
+
 ## Presentar
 
 Para ver cómo arma la IA un circuito (en una clase, para un video): la IA trabaja paso a paso y a la vista, cada etapa en su propio marco.

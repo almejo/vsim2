@@ -529,5 +529,10 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         public List<WindowMenu.Entry> everyTab() {
             return application.windowEntries(CircuitWindow.this);
         }
+
+        @Override
+        public PlaceMarks placeMarks() {
+            return application.placeMarks();
+        }
     }
 }

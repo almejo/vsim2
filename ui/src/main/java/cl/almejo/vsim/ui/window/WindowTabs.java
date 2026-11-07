@@ -16,6 +16,7 @@ import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.window.panes.RememberedSplit;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
+import cl.almejo.vsim.ui.window.tabs.TabMark;
 import cl.almejo.vsim.ui.window.tabs.TabStrip;
 import cl.almejo.vsim.ui.window.tabs.TabStripModel;
 import org.slf4j.Logger;
@@ -112,6 +113,11 @@ public final class WindowTabs extends JPanel {
 
         /** Every tab of every window, grouped by window (the Ventana list and «▾»). */
         List<WindowMenu.Entry> everyTab();
+
+        /** Where the AI works now: the robot on the tabs (fix round D, item 5n). None by default. */
+        default PlaceMarks placeMarks() {
+            return PlaceMarks.NONE;
+        }
     }
 
     /** A tab as it travels to another window: what it shows and where its view was. */
@@ -189,6 +195,9 @@ public final class WindowTabs extends JPanel {
     private Set<LeftColumn.Section> foldedPanels = Set.of();
     private boolean foldingPanels;
     private final KeyEventDispatcher tabKeys = this::takeTabKey;
+    /** Where the AI works: the robot on the tabs, the Ventana list and «▾». */
+    private final PlaceMarks placeMarks;
+    private final Runnable placeMarksListenerRemover;
 
     /**
      * @param viewFactory makes the editor of a tab on a place (the window gives its services and itself as the
@@ -214,6 +223,9 @@ public final class WindowTabs extends JPanel {
         strip.onFoldToggle(document -> model.fold(document, !model.isFolded(document)));
         strip.onGroupDropped(this::groupDropped);
         strip.onListRequested(this::showTabList);
+        this.placeMarks = host.placeMarks();
+        strip.setMarks(this::markOf);
+        this.placeMarksListenerRemover = placeMarks.addListener(strip::marksChanged);
         bindTabKeys();
     }
 
@@ -569,8 +581,14 @@ public final class WindowTabs extends JPanel {
                 .map(tab -> new WindowMenu.Entry(tab.title(), currentWindow && tab.id().equals(activeId), () -> {
                     focusWindow.run();
                     model.activate(tab.id());
-                }))
+                }, false, markOf(tab)))
                 .toList();
+    }
+
+    /** The AI's mark on {@code tab}'s place: its circuit, or its component with the piece its «Valores de» shows. */
+    private Optional<TabMark> markOf(TabStripModel.Tab tab) {
+        return Optional.ofNullable(entries.get(tab.id()))
+                .flatMap(entry -> placeMarks.markOf(entry.document, entry.definitionId, entry.place.contextPath()));
     }
 
     private Optional<TabEntry> activeEntry() {
@@ -627,6 +645,7 @@ public final class WindowTabs extends JPanel {
         }
         TabEntry entry = shown.get();
         entry.lastActivation = ++activations;
+        placeMarks.visited(entry.document, entry.definitionId, entry.place.contextPath());
         cardLayout.show(cards, entry.id);
         entry.view.tabShown();
         toolBarSlot.add(entry.view.toolBar(), BorderLayout.CENTER);
@@ -960,6 +979,7 @@ public final class WindowTabs extends JPanel {
             return;
         }
         disposed = true;
+        placeMarksListenerRemover.run();
         entries.values().forEach(WindowTabs::release);
         List.copyOf(followedDocuments.keySet()).forEach(this::stopFollowing);
         toolBarSlot.removeAll();

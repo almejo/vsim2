@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.automation.AutomationApi;
+import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -13,6 +14,7 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.ai.AiExtension;
+import cl.almejo.vsim.ui.ai.AiPlaceMarks;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.SessionPort;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
@@ -97,6 +99,7 @@ import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
+import cl.almejo.vsim.ui.window.PlaceMarks;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import cl.almejo.vsim.ui.window.panes.SplitViewsExtension;
 import org.slf4j.Logger;
@@ -173,6 +176,8 @@ public final class Application {
     private final ApplicationWindows applicationWindows = new ApplicationWindows();
     /** Where each document's print sheets are anchored while some view shows them; one for the whole application. */
     private final SheetAnchors sheetAnchors = new SheetAnchors();
+    /** Where the AI works now: the robot on the tabs of every window (fix round D, item 5n). */
+    private final AiPlaceMarks placeMarks = new AiPlaceMarks();
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
@@ -208,7 +213,23 @@ public final class Application {
                     automationApi.stopPresenting(); // and ends every wait for «Siguiente» (IA.2)
                 }
             }
+
+            @Override
+            public void taskStarted(TaskInfo task) {
+                placeMarks.taskStarted(task);
+            }
+
+            @Override
+            public void taskEnded(TaskInfo task, Set<String> changedElementIds) {
+                placeMarks.taskEnded(task);
+            }
+
+            @Override
+            public void taskStopped(TaskInfo task) {
+                placeMarks.taskEnded(task);
+            }
         });
+        automationHost.addPlaceListener(placeMarks::touched); // lives as long as the application
         this.presentation = new PresentationExtension(
                 PresentationEvents.of(automationApi, automationHost::addRequestListener),
                 presentationControls, automationHost::documentId);
@@ -611,6 +632,11 @@ public final class Application {
     /** The Ventana list and «▾»: every tab of every window, grouped by window; {@code current}'s active tab checked. */
     public List<WindowMenu.Entry> windowEntries(CircuitWindow current) {
         return windows.menuEntries(window -> window.tabEntries(window == current, () -> focus(window)));
+    }
+
+    /** Where the AI works now, for the tabs of every window. */
+    public PlaceMarks placeMarks() {
+        return placeMarks;
     }
 
     /** {@code window} was activated: files sent from outside and the AI's new circuits go there now. */
