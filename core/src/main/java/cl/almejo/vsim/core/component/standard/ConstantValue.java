@@ -9,6 +9,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.regex.Pattern;
 
@@ -84,6 +85,19 @@ public final class ConstantValue {
     /** Whether {@code text} is a number in one of the notations (whatever its size). */
     public static boolean isValidText(String text) {
         return text != null && parseUnbounded(text) != null;
+    }
+
+    /**
+     * Whether {@code text} is written in one of the notations every value had before the value formats: {@code 0b...},
+     * {@code 0x...} or a decimal (negative too), with spaces around and {@code _} separators.
+     */
+    public static boolean isBasicNotation(String text) {
+        if (text == null) {
+            return false;
+        }
+        String cleaned = clean(text);
+        return BINARY_TEXT.matcher(cleaned).matches() || HEX_TEXT.matcher(cleaned).matches()
+                || DECIMAL_TEXT.matcher(cleaned).matches();
     }
 
     /**
@@ -184,7 +198,7 @@ public final class ConstantValue {
             case 16 -> {
                 short half = Float.floatToFloat16(single);
                 yield Float.isInfinite(Float.float16ToFloat(half)) ? OptionalLong.empty()
-                        : OptionalLong.of(Short.toUnsignedLong(half));
+                        : OptionalLong.of(Short.toUnsignedLong(nearestHalf(cleaned, half)));
             }
             case 32 -> Float.isInfinite(single) ? OptionalLong.empty()
                     : OptionalLong.of(Integer.toUnsignedLong(Float.floatToIntBits(single)));
@@ -192,16 +206,83 @@ public final class ConstantValue {
         };
     }
 
+    /**
+     * The half nearest to the decimal {@code cleaned}, ties to even, given {@code approximate}, the half of the float
+     * nearest to it: rounding twice (decimal to float, float to half) can land one half off when the float falls on
+     * the point half-way between two halves (review M4), so the halves beside it are compared with the exact number.
+     */
+    private static short nearestHalf(String cleaned, short approximate) {
+        Optional<BigDecimal> exact = decimalOf(cleaned);
+        if (exact.isEmpty() || exact.get().signum() == 0 || !withinTheHalves(exact.get())) {
+            return approximate;
+        }
+        short best = approximate;
+        BigDecimal bestDistance = distance(exact.get(), approximate);
+        for (int step : new int[] {-1, 1}) {
+            short neighbour = (short) (approximate + step);
+            float value = Float.float16ToFloat(neighbour);
+            if (Float.isNaN(value) || Float.isInfinite(value) || (neighbour < 0) != (approximate < 0)) {
+                continue;
+            }
+            int comparison = distance(exact.get(), neighbour).compareTo(bestDistance);
+            if (comparison < 0 || comparison == 0 && (neighbour & 1) == 0) {
+                best = neighbour;
+                bestDistance = distance(exact.get(), neighbour);
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Whether {@code number} is between 10^-9 and 10^6 in size, where the halves are (the smallest is about 6e-8, the
+     * largest 65504): outside, the half is 0 or infinite anyway, and an exact difference with a huge exponent would be
+     * slow to work out.
+     */
+    private static boolean withinTheHalves(BigDecimal number) {
+        long digits = (long) number.precision() - number.scale();
+        return digits >= HALF_SMALLEST_DIGITS && digits <= HALF_LARGEST_DIGITS;
+    }
+
+    private static final int HALF_SMALLEST_DIGITS = -9;
+    private static final int HALF_LARGEST_DIGITS = 6;
+
+    private static BigDecimal distance(BigDecimal exact, short half) {
+        return exact.subtract(new BigDecimal(Float.float16ToFloat(half))).abs();
+    }
+
     private static OptionalLong fixedBits(String cleaned, int width, int fractionBits) {
-        if (!FRACTIONAL_TEXT.matcher(cleaned).matches()) {
+        Optional<BigDecimal> number = decimalOf(cleaned);
+        if (number.isEmpty()) {
             return OptionalLong.empty();
         }
-        BigInteger scaled = new BigDecimal(cleaned).multiply(new BigDecimal(
-                BigInteger.ONE.shiftLeft(clampFraction(fractionBits, width)))).setScale(0, RoundingMode.HALF_EVEN)
-                .toBigIntegerExact();
+        int fraction = clampFraction(fractionBits, width);
+        // number < 10^digits: refused before scaling, so a huge exponent never builds a huge number (review I3)
+        long digits = (long) number.get().precision() - number.get().scale();
+        if (number.get().signum() != 0 && digits > width + 1) {
+            return OptionalLong.empty();
+        }
+        if (number.get().signum() == 0 || digits <= -(fraction + 1)) {
+            // below 10^-(fraction + 1), times 2^fraction it is below 0.1 and rounds to 0
+            return OptionalLong.of(0);
+        }
+        BigInteger scaled = number.get().multiply(new BigDecimal(BigInteger.ONE.shiftLeft(fraction)))
+                .setScale(0, RoundingMode.HALF_EVEN).toBigIntegerExact();
         // two's complement: -2^(width-1) .. 2^(width-1) - 1 (the bit length of a negative number leaves the sign out)
         return scaled.bitLength() <= width - 1 ? OptionalLong.of(scaled.longValue() & Value.maskFor(width))
                 : OptionalLong.empty();
+    }
+
+    /** The number a decimal text such as {@code 1.5e3} writes; empty when it is not one or its exponent is too big. */
+    private static Optional<BigDecimal> decimalOf(String cleaned) {
+        if (!FRACTIONAL_TEXT.matcher(cleaned).matches()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new BigDecimal(cleaned));
+        } catch (NumberFormatException exception) {
+            // an exponent beyond an int (1e99999999999): no width holds it, and no fraction tells it from 0
+            return Optional.empty();
+        }
     }
 
     private static int clampFraction(int fractionBits, int width) {

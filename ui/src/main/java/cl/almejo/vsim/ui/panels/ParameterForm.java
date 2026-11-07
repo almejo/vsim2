@@ -693,6 +693,26 @@ public final class ParameterForm extends JPanel {
         }
     }
 
+    /**
+     * Rewrites each text editor whose text is not {@code values}' own: the edit itself rewrote it (a Constante's
+     * value written again in its new «Mostrar como»).
+     */
+    public void showTexts(Map<String, Object> values) {
+        for (ParameterSpec parameter : type.parameters()) {
+            JComponent editor = editors.get(parameter.name());
+            Object value = values.get(parameter.name());
+            if (parameter.kind() != ParameterKind.TEXT || editor == null || value == null
+                    || String.valueOf(valueOf(editor)).equals(value.toString())) {
+                continue;
+            }
+            if (editor instanceof JTextComponent field) {
+                field.setText(value.toString());
+            } else if (editor instanceof JComboBox<?> box) {
+                box.getEditor().setItem(value.toString());
+            }
+        }
+    }
+
     private static String invalidMessage(ParameterSpec parameter) {
         String name = Messages.parameterName(parameter.name());
         return parameter.kind() == ParameterKind.INTEGER

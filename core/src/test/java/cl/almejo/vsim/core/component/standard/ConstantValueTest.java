@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -9,6 +10,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.math.BigInteger;
 import java.util.Locale;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -441,5 +443,45 @@ class ConstantValueTest {
                 .containsExactly("auto", "binary", "hex", "octal", "decimal", "signed", "ascii", "float", "fixed");
         assertThat(ConstantValue.FORMAT_PARAMETER.displayOnly()).isTrue();
         assertThat(ConstantValue.READING_FORMAT_PARAMETER.displayOnly()).isFalse();
+    }
+
+    /** Review I3: a huge exponent is refused at once, never scaled digit by digit (it took 106 s, on the EDT). */
+    @ParameterizedTest
+    @ValueSource(strings = {"1e99999999", "-1e99999999", "1e2147483647", "1e99999999999", "1e-99999999999"})
+    @Timeout(value = 2, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    void aFixedPointNumberWithAHugeExponentIsRefusedAtOnce(String text) {
+        assertThat(ConstantValue.bitsOf(text, 8, ConstantValue.FIXED, 0)).isEmpty();
+        assertThat(ConstantValue.fitsText(text, 64, ConstantValue.FIXED, 63)).isFalse();
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {"1e-99999999|0", "-1e-99999999|0", "0.3e-1|0", "1.5e0|3", "0.25e1|5",
+            "-1.5|253"})
+    @Timeout(value = 2, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    void aFixedPointNumberWithAnExponentStillReadsItsBits(String text, long bits) {
+        assertThat(ConstantValue.bitsOf(text, 8, ConstantValue.FIXED, 1)).hasValue(bits);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1e99999999", "1e-99999999", "1e99999999999", "1e-99999999999"})
+    @Timeout(value = 2, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    void aFloatWithAHugeExponentIsReadAtOnce(String text) {
+        assertThat(ConstantValue.isValidText(text, ConstantValue.FLOAT)).isTrue();
+        ConstantValue.bitsOf(text, 16, ConstantValue.FLOAT, 0);
+        ConstantValue.bitsOf(text, 64, ConstantValue.FLOAT, 0);
+    }
+
+    /**
+     * Review M4: 1 + 2^-11 + 2^-30 is just above the half-way point between the halves 1 and 1 + 2^-10; through a
+     * float it lands on the half-way point and rounds to even (1), read directly it rounds up.
+     */
+    @Test
+    void aHalfIsRoundedOnceFromTheDecimalTyped() {
+        assertThat(ConstantValue.bitsOf("1.000488282181322574615478515625", 16, ConstantValue.FLOAT, 0))
+                .hasValue(0x3C01);
+        assertThat(ConstantValue.bitsOf("1.00048828125", 16, ConstantValue.FLOAT, 0)).hasValue(0x3C00);
+        assertThat(ConstantValue.bitsOf("65504", 16, ConstantValue.FLOAT, 0)).hasValue(0x7BFF);
+        assertThat(ConstantValue.bitsOf("65520", 16, ConstantValue.FLOAT, 0)).isEmpty();
+        assertThat(ConstantValue.bitsOf("-0.0", 16, ConstantValue.FLOAT, 0)).hasValue(0x8000);
     }
 }

@@ -97,6 +97,23 @@ class ConstantComponentTest {
         assertThat(component.parameters().get("value")).isEqualTo("0xFF");
     }
 
+    /**
+     * Review I3: a file with a huge exponent in Punto fijo is refused at once, as any value that does not fit its
+     * width is, instead of hanging while it scales the number.
+     */
+    @Test
+    @org.junit.jupiter.api.Timeout(value = 5, unit = java.util.concurrent.TimeUnit.SECONDS,
+            threadMode = org.junit.jupiter.api.Timeout.ThreadMode.SEPARATE_THREAD)
+    void aFileWithAHugeFixedPointExponentIsRefusedAtOnceAsAValueThatDoesNotFit() {
+        Map<String, Object> huge = Map.of("width", 8, "value", "1e99999999", "format", "fixed", "fraction", 2);
+
+        assertThatThrownBy(() -> new CircuitFormat(StandardComponentTypes.registry()).read("""
+                {"formatVersion":2,"kind":"circuit","components":[{"id":"c1","type":"constant","x":0,"y":0,
+                  "parameters":{"width":8,"value":"1e99999999","format":"fixed","fraction":2}}]}
+                """)).isInstanceOf(CircuitFormatException.class).hasMessageContaining("constant.doesNotFit");
+        assertThat(constant.check(huge)).contains(new ParameterProblem("value", "constant.doesNotFit", List.of(8)));
+    }
+
     @Test
     void theCheckRefusesWhatDoesNotFitOrIsNotANumber() {
         assertThat(constant.check(parameters(4, "0x1F", "auto"))).contains(

@@ -1061,6 +1061,23 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void choosingAnotherFormatForAConstantKeepsItsBitsAndRewritesItsValueInOneStep() {
+        Component constant = constant(16, "10");
+        selection.select(constant.id());
+
+        ((javax.swing.JComboBox<?>) panel.parameterForm().editor("format")).setSelectedItem("float");
+
+        assertThat(current(constant).parameters()).containsEntry("format", "float")
+                .containsEntry("value", cl.almejo.vsim.core.component.standard.ConstantValue.display(10, 16, "float"));
+        assertThat(((JTextField) panel.parameterForm().editor("value")).getText())
+                .isEqualTo(current(constant).parameters().get("value"));
+
+        openDocument.history().undo();
+
+        assertThat(current(constant).parameters()).containsEntry("value", "10").containsEntry("format", "auto");
+    }
+
+    @Test
     void aValueThatDoesNotFitShowsTheMessageMarksTheFieldAndChangesNothing() {
         Component constant = constant(4, "0b1");
         selection.select(constant.id());

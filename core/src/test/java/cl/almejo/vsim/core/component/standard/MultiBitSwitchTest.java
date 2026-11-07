@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MultiBitSwitchTest {
 
@@ -163,5 +164,26 @@ class MultiBitSwitchTest {
         assertThat(switchType.resolveParameters(Map.of("value", "0x0")).get("value")).isEqualTo("0");
         assertThat(switchType.resolveParameters(Map.of("width", 8, "value", "0x0A")).get("value")).isEqualTo("0xA");
         assertThat(switchType.resolveParameters(Map.of("value", " z ")).get("value")).isEqualTo("Z");
+    }
+
+    /**
+     * Review M6: the Interruptor has no «Mostrar como», so it keeps the notations it always had (binary, hex, decimal,
+     * a negative decimal and Z); the ones the value formats added for the Constante are refused when typed.
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"0o17", "'A'", "1.5", "LF", "inf", "1e3"})
+    void theNotationsOfTheValueFormatsAreNotASwitchValue(String text) {
+        assertThatThrownBy(() -> switchType.resolveParameters(Map.of("width", 8, "value", text)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void theNotationsASwitchAlwaysHadStillWork() {
+        assertThat(switchType.resolveParameters(Map.of("width", 8, "value", "0x0f"))).containsEntry("value", "0xF");
+        assertThat(switchType.resolveParameters(Map.of("width", 8, "value", "0b101"))).containsEntry("value", "0b101");
+        assertThat(switchType.resolveParameters(Map.of("width", 8, "value", "-3", "signedness", "signed")))
+                .containsEntry("value", "-3");
+        assertThat(switchType.resolveParameters(Map.of("width", 8, "value", "12"))).containsEntry("value", "12");
+        assertThat(switchType.resolveParameters(Map.of("value", "z"))).containsEntry("value", "Z");
     }
 }

@@ -36,10 +36,15 @@ final class SwitchBehavior implements Behavior {
     /**
      * The stored text of a Switch's value: {@code Z}, or the canonical number ({@link ConstantValue#normalize}); a
      * number equal to 0 or 1 in any base is the plain digit, which is how a one-bit Switch and its painter read it.
+     * Only the notations a Switch always had ({@link ConstantValue#isBasicNotation}): it has no «Mostrar como», so
+     * {@code 0o17} or {@code 'A'} would only be rewritten in decimal at the first click.
      */
     static String normalizeValue(String text) {
         if (isHighImpedanceText(text)) {
             return "Z";
+        }
+        if (!ConstantValue.isBasicNotation(text)) {
+            throw new IllegalArgumentException("not a switch value (use 0b..., 0x..., a decimal or Z): " + text);
         }
         String canonical = ConstantValue.normalize(text);
         return switch (canonical) {

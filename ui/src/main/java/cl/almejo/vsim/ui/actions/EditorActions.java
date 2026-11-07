@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.RotateElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.ConstantFormatChange;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -317,7 +318,8 @@ public final class EditorActions {
 
     /**
      * Opens the Configure dialog for {@code component}; an accepted change becomes one undo step, with the tunnel
-     * rename rules when a tunnel's name changes (the same change as the inspector's).
+     * rename rules when a tunnel's name changes and a Constante's bits kept when only its format changes (the same
+     * change as the inspector's).
      */
     public void configure(Component component) {
         ComponentType type = openDocument.registry().typeOf(component);
@@ -326,7 +328,9 @@ public final class EditorActions {
         }
         ConfigureDialog.show(activePane.get(), type, component, activePane.get()::scheme,
                         values -> PinJoinRefusal.of(openDocument, component.id(), values))
-                .ifPresent(values -> TunnelNames.applyParameters(openDocument, component.id(), type, values));
+                .ifPresent(values -> TunnelNames.applyParameters(openDocument, component.id(), type,
+                        ConstantFormatChange.keepingTheBits(type.id(), type.resolveParameters(component.parameters()),
+                                type.resolveParameters(values))));
     }
 
     /** Stops following the shared document: the window showing these actions closed, the document may live on. */

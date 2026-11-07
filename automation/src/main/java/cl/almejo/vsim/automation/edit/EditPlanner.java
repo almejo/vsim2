@@ -27,6 +27,7 @@ import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.automation.edit.EditReceipt.ConnectionReport;
 import cl.almejo.vsim.automation.edit.EditReceipt.CreatedComponent;
 import cl.almejo.vsim.core.component.ComponentPreset;
+import cl.almejo.vsim.core.component.standard.ConstantFormatChange;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.io.LegacyGateMigration;
@@ -369,11 +370,34 @@ final class EditPlanner {
         requireKnownParameters(type, operation.parameters());
         requireNotMemoryFiles(type, operation.parameters());
         requireNotTerminalOutputFile(type, operation.parameters());
-        Map<String, Object> merged = busGroupsFor(type, component, operation.parameters());
+        Map<String, Object> merged = keepingConstantBits(type, component,
+                busGroupsFor(type, component, operation.parameters()));
         BusGroupsProblems.require(type, merged, component.id().value());
         requireNoWrongJoin(component, merged);
         // the wires on pins the change moves follow them, as in the inspector (a wider Teclado carries AV and D)
         ChangeParametersWithWiresCommand.of(candidate, registry, component.id(), merged).apply(candidate);
+    }
+
+    /**
+     * {@code merged} with a Constante's value written again in its new «Mostrar como» when the edit changes only the
+     * format, as the inspector does ({@link ConstantFormatChange}): the bits it drives stay.
+     */
+    private static Map<String, Object> keepingConstantBits(ComponentType type, Component component,
+                                                           Map<String, Object> merged) {
+        Map<String, Object> resolved;
+        try {
+            resolved = type.resolveParameters(merged);
+        } catch (IllegalArgumentException invalid) {
+            return merged; // refused below with the usual message
+        }
+        Map<String, Object> kept = ConstantFormatChange.keepingTheBits(type.id(),
+                type.resolveParameters(component.parameters()), resolved);
+        if (kept == resolved) {
+            return merged;
+        }
+        Map<String, Object> rewritten = new HashMap<>(merged);
+        rewritten.put(StandardComponentTypes.VALUE, kept.get(StandardComponentTypes.VALUE));
+        return rewritten;
     }
 
     /**

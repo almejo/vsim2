@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.command.RenameCircuitCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetNoteStyleCommand;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.ConstantFormatChange;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentChange;
@@ -916,8 +917,10 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         }
         error.setText(" ");
         form.showNormalizedText();
-        Map<String, Object> values = type.resolveParameters(form.rawValues());
         Map<String, Object> current = type.resolveParameters(component.get().parameters());
+        // a Constante's new «Mostrar como» keeps its bits: its value is written again in the new format
+        Map<String, Object> values = ConstantFormatChange.keepingTheBits(type.id(), current,
+                type.resolveParameters(form.rawValues()));
         if (values.equals(current)) {
             return Optional.empty();
         }
@@ -926,6 +929,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             error.setText(refusal.get());
             return Optional.empty();
         }
+        form.showTexts(values);
         directionNotice = directionNotice(component.get(), values);
         if (!form.commitDescription().equals(ParameterForm.CONFIGURE)) {
             // a profile chosen or a «↺»: its own name in «Deshacer …» (a profiled part is never a tunnel)

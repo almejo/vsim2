@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.edit.EditOperation.AddWire;
 import cl.almejo.vsim.automation.edit.EditOperation.PlacePart;
 import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
+import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.KeyboardTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -44,6 +45,19 @@ class SetParametersWiresTest {
         List<GridPoint> wireEnds = circuit.document().wires().stream()
                 .flatMap(wire -> Stream.of(wire.start(), wire.end())).toList();
         assertThat(wireEnds).contains(new GridPoint(34, 12)).doesNotContain(new GridPoint(26, 12));
+    }
+
+    @Test
+    void anAiChangingOnlyAConstantsFormatKeepsTheBitsItDrives() {
+        EditReceipt placed = service.edit(request(new PlacePart(Optional.of("constante"),
+                StandardComponentTypes.CONSTANT, 10, 10, Rotation.R0, Map.of(StandardComponentTypes.WIDTH, 16,
+                StandardComponentTypes.VALUE, "10"), "")));
+
+        service.edit(request(new SetParameters(placed.aliases().get("constante"),
+                Map.of(ConstantValue.FORMAT, ConstantValue.FIXED, ConstantValue.FRACTION, 4))));
+
+        assertThat(circuit.document().components().getFirst().parameters())
+                .containsEntry(StandardComponentTypes.VALUE, "0.625");
     }
 
     private EditRequest request(EditOperation... operations) {
