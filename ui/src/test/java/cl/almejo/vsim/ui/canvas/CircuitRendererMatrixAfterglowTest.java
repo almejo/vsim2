@@ -73,8 +73,11 @@ class CircuitRendererMatrixAfterglowTest {
         Color lit = ledPixel(document, placed[0], true, 100);
         now += LedMatrixGlow.FADE_NANOS / 2;
         Color fading = ledPixel(document, placed[0], false, 200);
-        now += LedMatrixGlow.FADE_NANOS;
-        Color off = ledPixel(document, placed[0], false, 300);
+        Color off = fading;
+        for (int frame = 0; frame < 12; frame++) {
+            now += LedMatrixGlow.FADE_NANOS / 10;
+            off = ledPixel(document, placed[0], false, 200);
+        }
 
         assertThat(lit).isEqualTo(LedPainter.colorFor("red"));
         assertThat(off).isEqualTo(LedPainter.unlitColorFor("red"));

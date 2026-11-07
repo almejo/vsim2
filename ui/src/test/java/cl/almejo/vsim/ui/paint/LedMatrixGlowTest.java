@@ -23,51 +23,80 @@ class LedMatrixGlowTest {
 
     @Test
     void aLitLedIsFullyLitAndAnOffOneOffTheFirstTimeItIsSeen() {
-        double[][] levels = glow.levels("m", rows(0b10, 0b01), 0);
+        double[][] levels = glow.levels("m", rows(0b10, 0b01));
         assertThat(levels[0]).containsExactly(1, 0);
         assertThat(levels[1]).containsExactly(0, 1);
     }
 
     @Test
-    void anLedThatTurnsOffFadesWithWallTimeWhileTheSimulationAdvances() {
-        glow.levels("m", rows(0b10), 0);
-        nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 2);
-        assertThat(glow.levels("m", rows(0b00), 10)[0][0]).isCloseTo(0.5, within(0.001));
-        nanos.addAndGet(LedMatrixGlow.FADE_NANOS);
-        assertThat(glow.levels("m", rows(0b00), 20)[0][0]).isZero();
+    void anLedThatTurnsOffFadesWithWallTimeFrameByFrameUntilItIsOff() {
+        glow.levels("m", rows(0b10));
+        nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 4);
+        assertThat(glow.levels("m", rows(0b00))[0][0]).isCloseTo(0.75, within(0.001));
+        double level = 1;
+        for (int frame = 1; frame <= 10; frame++) {
+            nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 10);
+            level = glow.levels("m", rows(0b00))[0][0];
+        }
+        assertThat(level).isZero();
+    }
+
+    /** Decided in the «Filas fáciles» fix round: a matrix that stops changing still fades to fully off. */
+    @Test
+    void aFadingLedGoesOnFadingWhileTheSimulationIsPausedUntilItIsOff() {
+        glow.levels("m", rows(0b10));
+        nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 4);
+        double first = glow.levels("m", rows(0b00))[0][0];
+        nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 10);
+        double second = glow.levels("m", rows(0b00))[0][0];
+        for (int frame = 0; frame < 10; frame++) {
+            nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 10);
+            glow.levels("m", rows(0b00));
+        }
+
+        assertThat(second).isLessThan(first);
+        assertThat(glow.levels("m", rows(0b00))[0][0]).isZero();
+    }
+
+    /** Review M3: a step after a long still spell does not swallow the fade of the LEDs it turned off. */
+    @Test
+    void anLedAStepTurnsOffAfterALongStillSpellStartsNearlyLitAndFadesFromThere() {
+        glow.levels("m", rows(0b10));
+        nanos.addAndGet(10 * LedMatrixGlow.FADE_NANOS);
+
+        double afterTheStep = glow.levels("m", rows(0b00))[0][0];
+
+        assertThat(afterTheStep).isGreaterThan(0.5).isLessThan(1);
+    }
+
+    @Test
+    void fadingSaysWhetherAnyLedIsBetweenLitAndOff() {
+        assertThat(LedMatrixGlow.fading(new double[][] {{1, 0}, {0, 1}})).isFalse();
+        assertThat(LedMatrixGlow.fading(new double[][] {{1, 0}, {0.4, 1}})).isTrue();
     }
 
     @Test
     void anLedThatTurnsOnAgainIsFullyLitAtOnce() {
-        glow.levels("m", rows(0b10), 0);
+        glow.levels("m", rows(0b10));
         nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 2);
-        glow.levels("m", rows(0b00), 10);
-        assertThat(glow.levels("m", rows(0b10), 11)[0][0]).isEqualTo(1);
-    }
-
-    @Test
-    void whilePausedNothingFadesNoMatterHowMuchWallTimePasses() {
-        glow.levels("m", rows(0b10), 0);
-        nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 4);
-        double paused = glow.levels("m", rows(0b00), 10)[0][0];
-        nanos.addAndGet(10 * LedMatrixGlow.FADE_NANOS);
-        assertThat(glow.levels("m", rows(0b00), 10)[0][0]).isEqualTo(paused);
+        glow.levels("m", rows(0b00));
+        assertThat(glow.levels("m", rows(0b10))[0][0]).isEqualTo(1);
     }
 
     @Test
     void anUnknownBitHasNoLevelAndEachMatrixHasItsOwnMemory() {
         VisibleState.LedMatrixState unknown = new VisibleState.LedMatrixState(List.of(Value.highImpedance(2)));
-        assertThat(glow.levels("m", unknown, 0)[0]).containsExactly(0, 0);
-        glow.levels("other", rows(0b11), 0);
+        assertThat(glow.levels("m", unknown)[0]).containsExactly(0, 0);
+        glow.levels("other", rows(0b11));
         nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 2);
-        assertThat(glow.levels("m", rows(0b00), 5)[0]).containsExactly(0, 0);
+        assertThat(glow.levels("m", rows(0b00))[0]).containsExactly(0, 0);
     }
 
     @Test
     void aMatrixThatChangedSizeStartsOver() {
-        glow.levels("m", rows(0b11), 0);
+        glow.levels("m", rows(0b11));
         nanos.addAndGet(LedMatrixGlow.FADE_NANOS / 2);
-        double[][] levels = glow.levels("m", rows(0b00, 0b00), 5);
+        double[][] levels = glow.levels("m", rows(0b00, 0b00));
         assertThat(levels).hasNumberOfRows(2);
         assertThat(levels[0]).containsExactly(0, 0);
     }

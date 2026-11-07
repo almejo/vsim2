@@ -129,7 +129,10 @@ public final class CircuitRenderer {
     /** How lit each Matriz LED with «Brillo que se apaga» looks in this view (it fades from frame to frame). */
     private LedMatrixGlow ledMatrixGlow = new LedMatrixGlow();
     private BooleanSupplier motionGate = () -> true;
-    /** The moving terminals of the paints so far, by component; a terminal painted still leaves. */
+    /**
+     * The moving parts of the paints so far, by component (a Terminal's blink, a Matriz LED fading); a part painted
+     * still leaves.
+     */
     private final Map<ElementId, TerminalMotion> terminalMotions = new LinkedHashMap<>();
     /** The picture of each Terminal's screen this view keeps, so a moving frame blits it instead of every glyph. */
     private final Map<ElementId, TerminalScreenRaster> terminalScreens = new HashMap<>();
@@ -175,8 +178,9 @@ public final class CircuitRenderer {
     }
 
     /**
-     * The terminals whose last paint will look different later without a new snapshot (a blink, Automan's star, a
-     * glow or a fading picture), each with the area that moves; what the canvas's animation clock repaints.
+     * The terminals and LED matrices whose last paint will look different later without a new snapshot (a blink,
+     * Automan's star, a glow, a fading picture, a LED fading out), each with the area that moves; what the canvas's
+     * animation clock repaints.
      */
     List<TerminalMotion> terminalMotions() {
         return List.copyOf(terminalMotions.values());
@@ -430,6 +434,7 @@ public final class CircuitRenderer {
                     && afterglowShown(component, state)) {
                 paintMatrixWithAfterglow(graphics, state, scheme, component, type, matrixPainter);
             } else {
+                terminalMotions.remove(component.id()); // a matrix whose afterglow was just turned off moves no more
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);
             }
@@ -445,20 +450,32 @@ public final class CircuitRenderer {
         }
     }
 
-    /** Whether {@code component} is a Matriz LED that fades on this paint (an export or a printed page never does). */
+    /**
+     * Whether {@code component} is a Matriz LED that fades on this paint: never in an export or a printed page, and
+     * not with reduced motion or an inactive window (the motion gate), where a LED goes off at once.
+     */
     private boolean afterglowShown(Component component, RenderState state) {
-        return state.policy().animateParts()
+        return state.policy().animateParts() && motionGate.getAsBoolean()
                 && Boolean.TRUE.equals(component.parameters().get(LedMatrixTypes.AFTERGLOW))
                 && state.snapshot().componentState(component.id().value()) instanceof VisibleState.LedMatrixState;
     }
 
+    /**
+     * A Matriz LED with its afterglow; while a LED of it fades, it is one of the moving parts the canvas's animation
+     * clock repaints, due at once, so it fades to fully off even when the simulation stops changing it.
+     */
     private void paintMatrixWithAfterglow(Graphics2D graphics, RenderState state, ColorScheme scheme,
                                           Component component, ComponentType type, LedMatrixPainter painter) {
         VisibleState.LedMatrixState matrixState = (VisibleState.LedMatrixState) state.snapshot()
                 .componentState(component.id().value());
-        double[][] levels = ledMatrixGlow.levels(component.id().value(), matrixState, state.snapshot().time());
+        double[][] levels = ledMatrixGlow.levels(component.id().value(), matrixState);
         ComponentDrawing.paintPlaced(graphics, component, local -> painter.paintWithLevels(local, type,
                 component.parameters(), matrixState, scheme, levels));
+        if (LedMatrixGlow.fading(levels)) {
+            terminalMotions.put(component.id(), new TerminalMotion(outline(type, component), terminalActivity.now()));
+        } else {
+            terminalMotions.remove(component.id());
+        }
     }
 
     private TerminalAnimation terminalAnimation(PaintPolicy policy) {

@@ -163,6 +163,34 @@ class LedMatrixTest {
         assertThat(shown().get(1)).isEqualTo(Value.of(4, 0b0001));
     }
 
+    /**
+     * Review M9: when the data path is faster than the row path, the next row's data reaches «Datos» a moment before
+     * «Fila» moves on. A real panel shows that only as a faint ghost, because the row is lit with it for a moment; the
+     * row keeps the data it held longest while the scan was on it.
+     */
+    @Test
+    void aRowKeepsTheDataItHeldLongestWhileTheScanWasOnItNotTheNextRowsDataArrivingFirst() {
+        engine.update(circuit(scan(4, 4), "0", "0b1010", "1"));
+        engine.advance(8);
+        engine.setInput("s1", Value.of(4, 0b0101));
+        engine.advance(2);
+        engine.setInput("s0", Value.of(2, 1));
+        engine.advance(8);
+
+        assertThat(shown().get(0)).isEqualTo(Value.of(4, 0b1010));
+        assertThat(shown().get(1)).isEqualTo(Value.of(4, 0b0101));
+    }
+
+    @Test
+    void aRowTheScanStaysOnShowsNewDataAtOnce() {
+        engine.update(circuit(scan(4, 4), "0", "0b1010", "1"));
+        engine.advance(50);
+        engine.setInput("s1", Value.of(4, 0b0101));
+        engine.advance(1);
+
+        assertThat(shown().get(0)).isEqualTo(Value.of(4, 0b0101));
+    }
+
     @Test
     void scanDoesNotLatchWhileTheEnableIsZeroOrUnwired() {
         Map<String, Object> parameters = scan(4, 4);

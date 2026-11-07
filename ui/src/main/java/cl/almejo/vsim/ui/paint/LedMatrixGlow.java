@@ -14,21 +14,28 @@ import java.util.function.LongSupplier;
  * {@link #FADE_NANOS} of wall time once it is off. Purely visual: the simulation never knows. A view keeps one (the
  * canvas, on the EDT) and asks for the levels of each matrix on every frame it paints.
  *
- * <p>It fades only while the simulation time moves: paused, or stepping, the picture holds, so a paused matrix never
- * dims by itself. A view sees a matrix for the first time as it is (nothing fading). The fade advances on the frames
- * the canvas paints, so a matrix that stops changing keeps the level of its last frame until the next repaint.
+ * <p>It fades with wall time, running, paused or stepping, always down to fully off: while any LED fades
+ * ({@link #fading}) the canvas's animation clock repaints the matrix, and stops once none does (decided in the «Filas
+ * fáciles» fix round). A view sees a matrix for the first time as it is (nothing fading). One frame fades at most
+ * {@link #MAXIMUM_FRAME_FADE_NANOS}: a step after a long still spell (no frames meanwhile) shows the LEDs it turned off
+ * nearly lit, fading from there, instead of off at once.
  */
 public final class LedMatrixGlow {
 
     /** How long an LED takes to go from fully lit to off: 300 ms. */
     public static final long FADE_NANOS = 300_000_000L;
+    /**
+     * The most wall time one frame fades by: three of the canvas's animation frames (33 ms each), so a frame
+     * arriving after a long still spell fades like a late frame, not like the whole spell.
+     */
+    static final long MAXIMUM_FRAME_FADE_NANOS = 100_000_000L;
     /** Above this many matrices remembered the memory is cleared (the ids of deleted ones). */
     private static final int MAXIMUM_REMEMBERED = 256;
 
     private final LongSupplier nanoClock;
     private final Map<String, Remembered> remembered = new HashMap<>();
 
-    private record Remembered(double[][] levels, long nanos, long simulationTime) {
+    private record Remembered(double[][] levels, long nanos) {
     }
 
     /** A glow on the system's clock. */
@@ -42,16 +49,16 @@ public final class LedMatrixGlow {
     }
 
     /**
-     * The levels (row, column; column 0 on the left) of matrix {@code componentId} in this frame, for a {@code state}
-     * from a snapshot at {@code simulationTime}. Each call is one frame of this view.
+     * The levels (row, column; column 0 on the left) of matrix {@code componentId} in this frame, for its
+     * {@code state} now. Each call is one frame of this view.
      */
-    public double[][] levels(String componentId, VisibleState.LedMatrixState state, long simulationTime) {
+    public double[][] levels(String componentId, VisibleState.LedMatrixState state) {
         long now = nanoClock.getAsLong();
         List<Value> rows = state.rows();
         Remembered before = remembered.get(componentId);
         double fade = 0;
-        if (before != null && simulationTime != before.simulationTime) {
-            fade = (double) (now - before.nanos) / FADE_NANOS;
+        if (before != null) {
+            fade = (double) Math.min(Math.max(0, now - before.nanos), MAXIMUM_FRAME_FADE_NANOS) / FADE_NANOS;
         }
         double[][] previous = before != null && sameSize(before.levels, rows) ? before.levels : null;
         double[][] levels = new double[rows.size()][];
@@ -61,8 +68,20 @@ public final class LedMatrixGlow {
         if (remembered.size() >= MAXIMUM_REMEMBERED && before == null) {
             remembered.clear();
         }
-        remembered.put(componentId, new Remembered(levels, now, simulationTime));
+        remembered.put(componentId, new Remembered(levels, now));
         return levels;
+    }
+
+    /** Whether any LED of {@code levels} is between lit and off: the matrix will look different on the next frame. */
+    public static boolean fading(double[][] levels) {
+        for (double[] row : levels) {
+            for (double level : row) {
+                if (level > 0 && level < 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean sameSize(double[][] levels, List<Value> rows) {
