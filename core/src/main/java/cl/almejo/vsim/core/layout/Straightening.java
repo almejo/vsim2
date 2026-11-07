@@ -31,13 +31,15 @@ import java.util.function.Supplier;
  *
  * <p>Every net with exactly one output pin (the driver) gives a pair for each input pin of another item on it. Only
  * the pairs that are horizontal when the stage starts (|dx| ≥ |dy|) count, and the set never changes while it runs:
- * a part pushed far enough to make a pair vertical gains nothing by it. The score is (pairs with dy = 0, then −Σ|dy|),
- * compared lexicographically. Each round visits the movable parts left to right (then top, then id); a part's
- * candidate shifts are the distinct dy that zero one of its pairs, tried best score first (ties: the smaller shift,
- * then up), and the first that raises the score and passes every rule is taken: {@link Placement}'s, the order in its
- * column ({@link Placement#keepsOrder}), no more wire corners than before ({@link Placement#tryTidyingMove})
- * and the circuit's bounds grown by at most {@value #BOUNDS_SLACK} units above and below. Every taken move strictly
- * raises the score, so the rounds settle; at most {@value #MAXIMUM_ROUNDS}.
+ * a part pushed far enough to make a pair vertical gains nothing by it. Each round visits the movable parts left to
+ * right (then top, then id); a part's candidate shifts are the distinct dy that zero one of its pairs, and only those
+ * that leave more of its pairs straight (dy = 0) than before count: a move that only shortens the wires, with none
+ * more straight, is no gain (the user's hand test, 2026-11-07). They are tried most pairs straightened first (ties:
+ * less Σ|dy|, then the smaller shift, then up), and the first that passes every rule is taken: {@link Placement}'s,
+ * the order in its column ({@link Placement#keepsOrder}), no more wire corners than before
+ * ({@link Placement#tryTidyingMove}) and the circuit's bounds grown by at most {@value #BOUNDS_SLACK} units above and
+ * below. Every taken move strictly raises the number of straight pairs, so the rounds settle; at most
+ * {@value #MAXIMUM_ROUNDS}.
  *
  * <p>A row the user lined up ({@link #rows}: parts side by side with the same top edge or the same centre) is never
  * broken: it is visited as one, its candidate shifts come from all its members' pairs, and it moves whole by one
@@ -231,16 +233,21 @@ final class Straightening {
         return (sameTop || sameCentre) && gap >= 0 && gap <= ROW_GAP;
     }
 
-    /** A vertical shift and how it changes the score: more pairs straight, then less Σ|dy|. */
+    /**
+     * A vertical shift and what it changes: how many more pairs end straight, and how much less Σ|dy| (only a
+     * tie-breaker between shifts that straighten as many).
+     */
     private record Candidate(GridPoint shift, int straightGained, long distanceGained) {
 
-        /** True when it raises the score. */
-        boolean raises() {
-            return straightGained > 0 || straightGained == 0 && distanceGained > 0;
+        /** True when it leaves more pairs straight than before: shorter wires alone are no reason to move. */
+        boolean straightensMore() {
+            return straightGained > 0;
         }
     }
 
-    /** The shifts of {@code unit} (moved as one) that zero one of its pairs and raise the score, best first. */
+    /**
+     * The shifts of {@code unit} (moved as one) that zero one of its pairs and leave more pairs straight, best first.
+     */
     private List<Candidate> candidates(List<LayoutItems.Item> unit) {
         Set<ElementId> members = new LinkedHashSet<>();
         unit.forEach(item -> members.addAll(item.members()));
@@ -255,7 +262,7 @@ final class Straightening {
         List<Candidate> candidates = new ArrayList<>();
         for (int shift : shifts) {
             Candidate candidate = scored(members, own, shift);
-            if (candidate.raises()) {
+            if (candidate.straightensMore()) {
                 candidates.add(candidate);
             }
         }

@@ -291,6 +291,77 @@ class StraighteningTest {
     }
 
     /**
+     * The flag LEDs N, C, V, Z of the user's hand test (2026-11-07): Z's driver is already at its pin's height (its
+     * wire takes a detour above, so moving the row adds no corner to it), N, C and V are fed from further down. Every shift that
+     * straightens one of N, C, V breaks Z, so none makes one more wire straight: only the total distance would shrink,
+     * and that alone is no reason to move.
+     */
+    @Test
+    void aRowWhereNoShiftStraightensOneMorePairStaysPut() {
+        CircuitDocument document = new CircuitDocument();
+        List<Component> row = new ArrayList<>();
+        Set<ElementId> drivers = new LinkedHashSet<>();
+        for (int index = 0; index < 4; index++) {
+            row.add(led(document, 20 + index * 4, 0));
+        }
+        for (int index = 0; index < 3; index++) {
+            drivers.add(gate(registry, document, 0, 10 + index * 6).id());
+            int pinX = 21 + index * 4;
+            int driverY = 12 + index * 6;
+            wire(document, 4, driverY, pinX, driverY);
+            wire(document, pinX, driverY, pinX, 3);
+        }
+        drivers.add(gate(registry, document, 0, 1).id());
+        wire(document, 4, 3, 6, 3);
+        wire(document, 6, 3, 6, -3);
+        wire(document, 6, -3, 31, -3);
+        wire(document, 31, -3, 31, 3);
+        wire(document, 31, 3, 33, 3);
+        Set<ElementId> scope = everything(document);
+        scope.removeAll(drivers);
+
+        CircuitTidyPlan plan = straighten(document, scope);
+
+        for (Component member : row) {
+            assertThat(positionOf(plan, member)).isEqualTo(member.position());
+        }
+        assertThat(plan.pairsStraightened()).isZero();
+        assertThat(nets(plan.after())).isEqualTo(nets(document));
+    }
+
+    /**
+     * The same row with none of its wires straight: a shift that straightens one of them makes one more wire
+     * straight, so the whole row moves by it.
+     */
+    @Test
+    void aRowMovesWhenAShiftStraightensOneMorePair() {
+        CircuitDocument document = new CircuitDocument();
+        List<Component> row = new ArrayList<>();
+        Set<ElementId> drivers = new LinkedHashSet<>();
+        for (int index = 0; index < 4; index++) {
+            row.add(led(document, 20 + index * 4, 0));
+            Component driver = gate(registry, document, 0, 4 + index * 6);
+            drivers.add(driver.id());
+            int pinX = 21 + index * 4;
+            int driverY = 6 + index * 6;
+            wire(document, 4, driverY, pinX, driverY);
+            wire(document, pinX, driverY, pinX, 3);
+        }
+        Set<ElementId> scope = everything(document);
+        scope.removeAll(drivers);
+
+        CircuitTidyPlan plan = straighten(document, scope);
+
+        int shift = topOf(plan, row.get(0)) - row.get(0).position().y();
+        assertThat(shift).isNotZero();
+        for (Component member : row) {
+            assertThat(positionOf(plan, member)).isEqualTo(member.position().plus(new GridPoint(0, shift)));
+        }
+        assertThat(plan.pairsStraightened()).isEqualTo(1);
+        assertThat(nets(plan.after())).isEqualTo(nets(document));
+    }
+
+    /**
      * Rows: a gate and an input pin with the same centre two units apart are one, chained to a gate with the same
      * centre four units further; a gate with the same top farther than {@value Straightening#ROW_GAP} units away and
      * one stacked below are in none.
