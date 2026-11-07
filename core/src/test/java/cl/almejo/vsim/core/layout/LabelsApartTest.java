@@ -5,6 +5,9 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -297,6 +300,30 @@ class LabelsApartTest {
         assertThat(positionOf(plan, middle).x()).isEqualTo(20);
         assertThat(positionOf(plan, middle)).isNotEqualTo(middle.position());
         assertThat(sharesWriting(labelIn(plan, middle), texts.freeText(words))).isFalse();
+    }
+
+    /**
+     * A sticky note is painted on top of everything, so a label under its paper is hidden: the LED «reloj» whose label
+     * crosses the note's bottom edge moves clear of the whole paper. The note is 20 wide, so no shift along x frees
+     * the label; the LED moves down, and the note stays where it is.
+     */
+    @Test
+    void aLabelUnderAStickyNoteMovesThePartClearOfThePaper() {
+        CircuitDocument document = new CircuitDocument();
+        Component led = led(document, 20, 10, "reloj", new Bounds(-1, -2, 6, 2));
+        StickyNote note = new StickyNote(document.newStickyNoteId(), new GridPoint(10, 4), 20, 6, StickyColor.YELLOW,
+                new StickyText("una nota"), false);
+        document.add(note);
+        Bounds paper = new Bounds(10, 4, note.visibleWidth(), note.visibleHeight());
+
+        CircuitTidyPlan plan = tidy(document, SEPARATE_ONLY);
+
+        assertThat(plan.after().stickyNote(note.id()).orElseThrow()).isEqualTo(note);
+        assertThat(positionOf(plan, led).x()).isEqualTo(led.position().x());
+        assertThat(positionOf(plan, led).y()).isGreaterThan(led.position().y());
+        assertThat(sharesWriting(labelIn(plan, led), paper)).isFalse();
+        assertThat(plan.partsMoved()).isEqualTo(1);
+        assertThat(plan.textsMoved()).isZero();
     }
 
     @Test

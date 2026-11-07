@@ -13,7 +13,8 @@ import java.util.function.BooleanSupplier;
 
 /**
  * «Separar lo que se tapa» for labels (spec 2026-11-06 §6.2): a part whose label covers other writing (another part's
- * label or a free text; the user's LEDs «Salta» and «Rs1 = Rs2» on riscv-maniqui read «SaltaRs1 = Rs2») moves the
+ * label, a free text or a sticky note, whose whole paper counts: it is painted on top of everything, so a label under
+ * it is hidden; the user's LEDs «Salta» and «Rs1 = Rs2» on riscv-maniqui read «SaltaRs1 = Rs2») moves the
  * least it can so its labels cover none: along its row (x) first, right before left at each distance, then up or
  * down, at most {@value #MAXIMUM_SHIFT} units. A label covers other writing by {@link LayoutItems#writingOverlap}'s
  * rule (the first shared column is rounding); a place where it ends clear (no shared column) is preferred.
@@ -24,8 +25,8 @@ import java.util.function.BooleanSupplier;
  * neighbours ({@link Placement#keepsOrder}), keeps the rows it is in (the parts side by side with it,
  * {@link Straightening#sideBySide}, stay the same) and keeps the columns it is in (the parts stacked above or below it
  * with the same left edge stay the same): a row or an aligned column is neither broken nor joined. There is no
- * fallback to the plainer moves of separating (the final review of 2026-11-07). Only parts move: a free text is never
- * moved for this, and free text over free text stays (tables). A part with no such place stays
+ * fallback to the plainer moves of separating (the final review of 2026-11-07). Only parts move: a free text or a
+ * sticky note is never moved for this, and free text over free text stays (tables). A part with no such place stays
  * and is not counted: labels touching are common and harmless.
  */
 final class LabelsApart {
