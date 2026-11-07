@@ -59,6 +59,12 @@ public final class VsimMcpServer {
      * whether another VSim holds it. VSim never picks another port by itself (spec §9.1).
      */
     public static RunningServer start(AutomationApi api, McpServerSettings settings) throws PortInUseException {
+        return start(api, settings, VsimTools.CALL_TIME_LIMIT);
+    }
+
+    /** Like {@link #start(AutomationApi, McpServerSettings)}, every tool call answered within {@code callTimeLimit}. */
+    static RunningServer start(AutomationApi api, McpServerSettings settings, Duration callTimeLimit)
+            throws PortInUseException {
         McpJsonMapper jsonMapper = new JacksonMcpJsonMapper(new ObjectMapper());
         HttpServletStreamableServerTransportProvider transport = HttpServletStreamableServerTransportProvider.builder()
                 .jsonMapper(jsonMapper)
@@ -77,7 +83,7 @@ public final class VsimMcpServer {
                 .instructions(VsimServerInstructions.TEXT)
                 // Each tool checks its own input, so a bad one is answered with {error, message, recovery}.
                 .validateToolInputs(false)
-                .tools(VsimTools.specifications(api, jsonMapper))
+                .tools(VsimTools.specifications(api, jsonMapper, callTimeLimit))
                 // IA.3: the commands that teach the AI (read-only texts; the tools and their rules stay the same).
                 .prompts(VsimPrompts.specifications())
                 .resources(HelpResource.specification())
