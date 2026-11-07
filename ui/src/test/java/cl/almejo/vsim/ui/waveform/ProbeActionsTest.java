@@ -215,6 +215,20 @@ class ProbeActionsTest {
     }
 
     @Test
+    void aChannelTakesEveryFormatAsOneUndoStepEach() {
+        ElementId pinId = place(openDocument, StandardComponentTypes.SWITCH, 0, 0,
+                Map.of(StandardComponentTypes.WIDTH, 8)).id();
+        actions.addComponentPins(pinId);
+        String probeId = probes().get(0).id();
+        for (String format : List.of("binary", "octal", "decimal", "signed", "float", "fixed:4", "ascii")) {
+            actions.setFormat(probeId, format);
+            assertThat(probes().get(0).format()).isEqualTo(format);
+            openDocument.history().undo();
+            assertThat(probes().get(0).format()).isEqualTo("hex");
+        }
+    }
+
+    @Test
     void renamingKeepsTheFormat() {
         ElementId pinId = place(openDocument, StandardComponentTypes.SWITCH, 0, 0,
                 Map.of(StandardComponentTypes.WIDTH, 8)).id();

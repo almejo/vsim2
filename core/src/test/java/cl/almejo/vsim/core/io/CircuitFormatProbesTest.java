@@ -49,6 +49,35 @@ class CircuitFormatProbesTest {
     }
 
     @Test
+    void everyBusFormatOfAProbeRoundTripsAndAnUnknownOneReadsAsHex() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0, Map.of(),
+                ""));
+        List<String> formats = List.of("hex", "ascii", "binary", "octal", "decimal", "signed", "float", "fixed:4");
+        List<Probe> probes = new java.util.ArrayList<>();
+        for (int index = 0; index < formats.size(); index++) {
+            probes.add(new Probe("p" + (index + 1), new ProbeTarget.PinTarget(new ElementId("c1"), 0), "")
+                    .withFormat(formats.get(index)));
+        }
+        document.setProbes(probes);
+        assertThat(probes).extracting(Probe::format).containsExactlyElementsOf(formats);
+        assertThat(format.read(format.write(document)).probes()).containsExactlyElementsOf(probes);
+        for (String unknown : List.of("fixed", "fixed:", "fixed:x", "fixed:99", "fixed:-1", "hexa")) {
+            assertThat(new Probe("p1", new ProbeTarget.PinTarget(new ElementId("c1"), 0), "").withFormat(unknown)
+                    .format()).as(unknown).isEqualTo("hex");
+        }
+    }
+
+    @Test
+    void aProbeFormatKnowsTheValueFormatAndTheFractionBitsItMeans() {
+        assertThat(Probe.valueFormatOf("fixed:6")).isEqualTo("fixed");
+        assertThat(Probe.fractionBitsOf("fixed:6")).isEqualTo(6);
+        assertThat(Probe.valueFormatOf("octal")).isEqualTo("octal");
+        assertThat(Probe.fractionBitsOf("octal")).isZero();
+        assertThat(Probe.fixedFormat(8)).isEqualTo("fixed:8");
+    }
+
+    @Test
     void aProbeFormatIsSavedOnlyWhenNotHexAndAFileWithoutItReadsAsHex() throws CircuitFormatException {
         CircuitDocument document = new CircuitDocument();
         document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0, Map.of(),

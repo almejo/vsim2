@@ -68,6 +68,15 @@ class MemoryGridModelTest {
         MemoryGridModel grid = new MemoryGridModel(MemoryContents.empty(), 8, 256, MemoryRadix.DECIMAL);
         assertThat(grid.setCell(2, "200")).isEmpty();
         assertThat(grid.getValueAt(0, 3)).isEqualTo("200");
+        grid.setRadix(MemoryRadix.OCTAL);
+        assertThat(grid.format(0xFF)).isEqualTo("377");
+        assertThat(grid.format(0)).isEqualTo("000");
+        assertThat(grid.maxDigits()).isEqualTo(3);
+        assertThat(grid.digitsOnly("3a78", 0)).as("only octal digits").isEqualTo("37");
+        assertThat(grid.parseSearch("377")).hasValue(0xFF);
+        assertThat(grid.parseSearch("400")).as("does not fit 8 bits").isEmpty();
+        assertThat(grid.setCell(1, "377")).isEmpty();
+        assertThat(grid.setCell(1, "9")).contains(MemoryGridModel.NOT_A_NUMBER);
         grid.setRadix(MemoryRadix.BINARY);
         assertThat(grid.getValueAt(0, 3)).isEqualTo("11001000");
         grid.setRadix(MemoryRadix.HEX);

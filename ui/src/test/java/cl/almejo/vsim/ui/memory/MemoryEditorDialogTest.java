@@ -616,7 +616,7 @@ class MemoryEditorDialogTest {
         for (int width : new int[]{8, 16, 64}) {
             MemoryEditorDialog dialog = dialogOn(ram(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.WIDTH, width)));
             javax.swing.JComboBox<?> radix = (javax.swing.JComboBox<?>) findByName(dialog.content(), "memory.radix");
-            for (MemoryRadix chosen : new MemoryRadix[]{MemoryRadix.BINARY, MemoryRadix.DECIMAL, MemoryRadix.HEX}) {
+            for (MemoryRadix chosen : new MemoryRadix[]{MemoryRadix.BINARY, MemoryRadix.OCTAL, MemoryRadix.DECIMAL, MemoryRadix.HEX}) {
                 radix.setSelectedItem(chosen);
                 javax.swing.JTable table = dialog.table();
                 java.awt.FontMetrics metrics = table.getFontMetrics(
