@@ -1,0 +1,138 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.6",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Punto de parada",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "clock",
+    "x" : 4,
+    "y" : 20,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 250,
+      "time-up" : 250
+    }
+  }, {
+    "id" : "c2",
+    "type" : "counter",
+    "x" : 14,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "Contador",
+    "parameters" : {
+      "delay" : 1,
+      "format" : "auto",
+      "width" : 4
+    }
+  }, {
+    "id" : "c3",
+    "type" : "led",
+    "x" : 34,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "Cuenta",
+    "parameters" : {
+      "color" : "red",
+      "width" : 4
+    }
+  }, {
+    "id" : "c4",
+    "type" : "breakpoint",
+    "x" : 34,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "igual a 9",
+    "parameters" : {
+      "active" : true,
+      "condition" : "equals",
+      "value" : "9",
+      "width" : 4
+    }
+  }, {
+    "id" : "c5",
+    "type" : "breakpoint",
+    "x" : 34,
+    "y" : 17,
+    "rotation" : 0,
+    "label" : "distinto de 0 (apagado)",
+    "parameters" : {
+      "active" : false,
+      "condition" : "differs",
+      "value" : "0",
+      "width" : 4
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w6",
+    "x1" : 6,
+    "y1" : 22,
+    "x2" : 24,
+    "y2" : 22
+  }, {
+    "id" : "w7",
+    "x1" : 24,
+    "y1" : 17,
+    "x2" : 24,
+    "y2" : 22
+  }, {
+    "id" : "w8",
+    "x1" : 26,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w9",
+    "x1" : 30,
+    "y1" : 12,
+    "x2" : 34,
+    "y2" : 12
+  }, {
+    "id" : "w10",
+    "x1" : 30,
+    "y1" : 6,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w11",
+    "x1" : 30,
+    "y1" : 6,
+    "x2" : 34,
+    "y2" : 6
+  }, {
+    "id" : "w12",
+    "x1" : 30,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 18
+  }, {
+    "id" : "w13",
+    "x1" : 30,
+    "y1" : 18,
+    "x2" : 34,
+    "y2" : 18
+  } ],
+  "labels" : [ {
+    "id" : "l14",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Punto de parada"
+  }, {
+    "id" : "l15",
+    "x" : 2,
+    "y" : 28,
+    "text" : "Prueba: pon a correr la simulación: se detiene sola cuando la cuenta llega a 9 y la barra de estado dice por qué."
+  }, {
+    "id" : "l16",
+    "x" : 2,
+    "y" : 30,
+    "text" : "Vuelve a correr: se detiene la próxima vez que la cuenta vuelve a ser 9 (no mientras siga siendo 9)."
+  }, {
+    "id" : "l17",
+    "x" : 2,
+    "y" : 32,
+    "text" : "Enciende «Activo» en el punto «distinto de 0»: se detiene apenas la cuenta sale de 0."
+  } ]
+}

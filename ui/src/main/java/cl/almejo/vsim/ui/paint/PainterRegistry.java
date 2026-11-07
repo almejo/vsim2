@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.ArithmeticTypes;
+import cl.almejo.vsim.core.component.standard.BreakpointTypes;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -49,6 +50,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.KEYBOARD, new KeyboardPainter());
         registry.register(StandardComponentTypes.UART_16550, new UartPainter());
         registry.register(StandardComponentTypes.TIME_DIAGRAM, new TimeDiagramPainter());
+        registry.register(BreakpointTypes.BREAKPOINT, new BreakpointPainter());
         BusSplitterPainter bus = new BusSplitterPainter();
         registry.register(StandardComponentTypes.BUS_SPLITTER, bus);
         registry.register(StandardComponentTypes.BUS_JOINER, bus);

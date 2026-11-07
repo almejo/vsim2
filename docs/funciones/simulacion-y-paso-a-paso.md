@@ -25,8 +25,16 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Piezas que detienen la simulación
 
-- Una pieza puede pedir que la simulación se detenga, como un punto de parada: hoy lo hace el Terminal con «Detener al recibir» (ver [Terminal y teclado](componentes.md#terminal-y-teclado)). La simulación queda en pausa en ese instante y la barra de estado dice quién la detuvo y por qué: «Simulación detenida en t = 2400: «consola» recibió «=120»». El nombre es la etiqueta de la pieza, o su tipo si no tiene.
+- Una pieza puede pedir que la simulación se detenga, como un punto de parada: lo hacen el [Punto de parada](#punto-de-parada) y el Terminal con «Detener al recibir» (ver [Terminal y teclado](componentes.md#terminal-y-teclado)). La simulación queda en pausa en ese instante y la barra de estado dice quién la detuvo y por qué: «Simulación detenida en t = 2400: «consola» recibió «=120»». El nombre es la etiqueta de la pieza, o su tipo si no tiene.
 - Después se puede seguir con «Iniciar» o avanzar paso a paso; la misma condición no vuelve a detenerla hasta que vuelva a cumplirse. Un «Reiniciar» la rearma.
+
+## Punto de parada
+
+- «Punto de parada» (Depuración, junto al diagrama de tiempo) tiene una entrada y detiene la simulación cuando esa entrada cumple una condición. La barra de estado dice cuál fue y con qué valor: «Simulación detenida en t = 4500: Punto de parada «igual a 9»: entrada = 1001» (con «Distinto de»: «…: entrada = 0011, distinto de 0000»). El nombre es la etiqueta de la pieza, o «Punto de parada» si no tiene.
+- Parámetros: «Ancho (bits)» (1 a 64, 8 por omisión), «Condición» («Igual a» o «Distinto de»), «Valor» (0 por omisión, se escribe como en una constante: `0b1010`, `0xFF`, un decimal o un negativo) y «Activo» (encendido por omisión). Un valor que no cabe en el ancho o no es un número se marca en rojo y no se aplica.
+- Se detiene una sola vez cada vez que la condición pasa de falsa a verdadera, no mientras sigue verdadera: con «Igual a 9», una cuenta que llega a 9 detiene la simulación y, si sigues, no vuelve a detenerla hasta que salga de 9 y vuelva a llegar. Una entrada con algún bit en Z o en conflicto no cumple ninguna de las dos condiciones. Con «Distinto de», la simulación se detiene apenas arranca si la entrada ya es distinta del valor.
+- Apagado con «Activo», no hace nada pero se queda en el circuito; cambiar un parámetro con la simulación en marcha no la detiene por una condición que ya se cumplía. El punto de parada solo mira, no maneja nada, y se guarda en el archivo como cualquier pieza.
+- El ejemplo «Punto de parada» (Archivo ▸ Ejemplos) lo muestra: un contador de 4 bits con un punto «igual a 9» encendido y otro «distinto de 0» apagado.
 
 ## Mapa de memoria
 

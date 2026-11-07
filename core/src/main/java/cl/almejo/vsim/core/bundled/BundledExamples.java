@@ -37,7 +37,8 @@ public final class BundledExamples {
             example("accumulator"),
             example("rom-program"),
             example("ram-fill"),
-            example("hola-terminal"));
+            example("hola-terminal"),
+            example("punto-de-parada"));
 
     private BundledExamples() {
     }

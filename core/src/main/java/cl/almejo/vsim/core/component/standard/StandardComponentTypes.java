@@ -62,6 +62,8 @@ public final class StandardComponentTypes {
     /** «Pulsador»: a one-bit input that gives 1 only while the mouse button is held on it. */
     public static final String PUSH_BUTTON = "push-button";
     public static final String CONSTANT = "constant";
+    /** The width a Constante's raw parameters mean when they leave it out (its check runs on raw values). */
+    private static final int CONSTANT_RAW_WIDTH = 4;
     public static final String LED = "led";
     public static final String SEVEN_SEGMENTS_DISPLAY = "seven-segments-display";
     public static final String SEVEN_SEGMENTS_DISPLAY_DOUBLE = "seven-segments-display-double";
@@ -238,6 +240,7 @@ public final class StandardComponentTypes {
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY, 4));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY_DOUBLE, 8));
         TerminalTypes.register(registry);
+        BreakpointTypes.register(registry);
         KeyboardTypes.register(registry);
         UartTypes.register(registry);
         List<PinSpec> diagramPins = new ArrayList<>();
@@ -443,15 +446,24 @@ public final class StandardComponentTypes {
 
     /** The value must be a number and fit the width. A width out of range is left to the width parameter itself. */
     private static Optional<ParameterProblem> checkConstant(Map<String, Object> raw) {
+        return checkValueFitsWidth(raw, CONSTANT_RAW_WIDTH, ConstantValue.MAXIMUM_WIDTH);
+    }
+
+    /**
+     * The «Valor» text of {@code raw} is a number that fits its «Ancho»; {@code absentWidth} stands in for a missing
+     * width and {@code maximumWidth} is where the width parameter itself starts refusing (not this check's business).
+     * Shared by the Constante and the «Punto de parada».
+     */
+    static Optional<ParameterProblem> checkValueFitsWidth(Map<String, Object> raw, int absentWidth, int maximumWidth) {
         Object rawWidth = raw == null ? null : raw.get(WIDTH);
         int width;
         try {
-            width = rawWidth == null ? 4 : rawWidth instanceof Number number ? number.intValue()
+            width = rawWidth == null ? absentWidth : rawWidth instanceof Number number ? number.intValue()
                     : Integer.parseInt(rawWidth.toString().trim());
         } catch (NumberFormatException exception) {
             return Optional.empty();
         }
-        if (width < 1 || width > ConstantValue.MAXIMUM_WIDTH) {
+        if (width < 1 || width > maximumWidth) {
             return Optional.empty();
         }
         Object rawValue = raw == null ? null : raw.get("value");
