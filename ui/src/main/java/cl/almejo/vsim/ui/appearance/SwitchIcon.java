@@ -1,6 +1,6 @@
 package cl.almejo.vsim.ui.appearance;
 
-import cl.almejo.vsim.ui.theme.SegmentedSwitch;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import javax.swing.AbstractButton;
 import javax.swing.Icon;
@@ -44,7 +44,7 @@ final class SwitchIcon implements Icon {
             if (!component.isEnabled()) {
                 track.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, DISABLED_ALPHA));
             }
-            track.setColor(on ? SegmentedSwitch.accent() : offTrack());
+            track.setColor(on ? ThemeColors.accent() : offTrack());
             track.fill(new RoundRectangle2D.Double(0, 0, WIDTH, HEIGHT, HEIGHT, HEIGHT));
             int knob = HEIGHT - 2 * KNOB_MARGIN;
             int knobX = on ? WIDTH - KNOB_MARGIN - knob : KNOB_MARGIN;

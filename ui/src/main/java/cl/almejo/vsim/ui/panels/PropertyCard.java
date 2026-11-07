@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
 
@@ -14,7 +15,6 @@ import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -204,14 +204,10 @@ final class PropertyCard extends JPanel {
             Graphics2D local = (Graphics2D) graphics.create();
             try {
                 local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                Color raised = UIManager.getColor("Button.background");
-                local.setColor(raised != null ? raised : Color.LIGHT_GRAY);
+                local.setColor(ThemeColors.ui("Button.background", Color.LIGHT_GRAY));
                 local.fillRoundRect(0, 0, getWidth(), getHeight(), UIScale.scale(ARC), UIScale.scale(ARC));
-                Color border = UIManager.getColor("Component.borderColor");
-                if (border != null) {
-                    local.setColor(border);
-                    local.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, UIScale.scale(ARC), UIScale.scale(ARC));
-                }
+                local.setColor(ThemeColors.ui("Component.borderColor", Color.GRAY));
+                local.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, UIScale.scale(ARC), UIScale.scale(ARC));
                 Icon current = icon.get();
                 current.paintIcon(this, local, (getWidth() - current.getIconWidth()) / 2,
                         (getHeight() - current.getIconHeight()) / 2);

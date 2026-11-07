@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import com.formdev.flatlaf.util.UIScale;
 
@@ -392,9 +393,7 @@ public final class InspectorPanel extends JPanel {
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
-            Color rule = UIManager.getColor("Component.borderColor");
-            graphics.setColor(rule != null ? rule : getForeground());
-            graphics.fillRect(0, getHeight() - 1, getWidth(), 1);
+            ThemeColors.paintRule(graphics, this, 0, getHeight() - 1, getWidth(), 1);
         }
     }
 }

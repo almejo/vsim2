@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.JCheckBox;
-import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
@@ -71,32 +71,28 @@ final class SwitchBox extends JCheckBox {
             int knobMargin = UIScale.scale(KNOB_MARGIN);
             int top = (getHeight() - trackHeight) / 2;
             boolean on = isSelected();
-            Color track = on ? color("Component.accentColor", new Color(0x2F6FDE))
-                    : color("Component.borderColor", Color.GRAY);
+            Color track = on ? ThemeColors.accent()
+                    : ThemeColors.ui("Component.borderColor", Color.GRAY);
             if (!isEnabled()) {
-                track = color("Component.disabledBorderColor", track);
+                track = ThemeColors.ui("Component.disabledBorderColor", track);
             }
             local.setColor(track);
             local.fillRoundRect(0, top, trackWidth, trackHeight, trackHeight, trackHeight);
             if (hasFocus()) {
-                local.setColor(color("Component.focusColor", track));
+                local.setColor(ThemeColors.ui("Component.focusColor", track));
                 local.drawRoundRect(-1, top - 1, trackWidth + 1, trackHeight + 1, trackHeight + 2, trackHeight + 2);
             }
             int knobSize = trackHeight - 2 * knobMargin;
             int knobX = on ? trackWidth - knobMargin - knobSize : knobMargin;
-            local.setColor(color("Panel.background", Color.WHITE).brighter());
+            local.setColor(ThemeColors.ui("Panel.background", Color.WHITE).brighter());
             local.fillOval(knobX, top + knobMargin, knobSize, knobSize);
             local.setFont(getFont());
             FontMetrics metrics = local.getFontMetrics();
-            local.setColor(isEnabled() ? getForeground() : color("Label.disabledForeground", Color.GRAY));
+            local.setColor(isEnabled() ? getForeground() : ThemeColors.ui("Label.disabledForeground", Color.GRAY));
             local.drawString(getText(), trackWidth + UIScale.scale(GAP), (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent());
         } finally {
             local.dispose();
         }
     }
 
-    private static Color color(String key, Color fallback) {
-        Color found = UIManager.getColor(key);
-        return found != null ? found : fallback;
-    }
 }

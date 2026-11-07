@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.print;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
@@ -14,7 +15,6 @@ import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
 import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
-import javax.swing.UIManager;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -216,10 +216,6 @@ final class PagePreview extends JPanel {
         return sheet;
     }
 
-    private static Color uiColor(String key, Color fallback) {
-        Color color = UIManager.getColor(key);
-        return color != null ? color : fallback;
-    }
 
     /** The circuit miniature with the sheet grid; one sheet highlighted. */
     final class SheetMap extends JComponent {
@@ -362,7 +358,7 @@ final class PagePreview extends JPanel {
             Graphics2D canvas = (Graphics2D) graphics.create();
             try {
                 canvas.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                canvas.setColor(uiColor("Panel.background", getBackground()));
+                canvas.setColor(ThemeColors.ui("Panel.background", getBackground()));
                 canvas.fillRect(0, 0, getWidth(), getHeight());
                 if (painter.isEmpty() || layout.isEmpty()) {
                     return;
@@ -374,7 +370,7 @@ final class PagePreview extends JPanel {
                     paintSheets(canvas, shownLayout);
                 }
                 if (isFocusOwner()) {
-                    canvas.setColor(uiColor("Component.focusColor", Color.BLUE));
+                    canvas.setColor(ThemeColors.ui("Component.focusColor", Color.BLUE));
                     canvas.drawRect(1, 1, getWidth() - 3, getHeight() - 3);
                 }
             } finally {
@@ -419,8 +415,8 @@ final class PagePreview extends JPanel {
         }
 
         private void paintSheets(Graphics2D canvas, PageLayout shownLayout) {
-            Color outline = uiColor("Component.borderColor", Color.GRAY);
-            Color accent = uiColor("Component.accentColor", uiColor("List.selectionBackground", Color.BLUE));
+            Color outline = ThemeColors.ui("Component.borderColor", Color.GRAY);
+            Color accent = ThemeColors.ui("Component.accentColor", ThemeColors.ui("List.selectionBackground", Color.BLUE));
             canvas.setStroke(new BasicStroke(1f));
             List<PagePainter.Page> pages = painter.orElseThrow().pages();
             for (int position = 0; position < pages.size(); position++) {
@@ -481,7 +477,7 @@ final class PagePreview extends JPanel {
         protected void paintComponent(Graphics graphics) {
             Graphics2D canvas = (Graphics2D) graphics.create();
             try {
-                canvas.setColor(uiColor("Panel.background", getBackground()));
+                canvas.setColor(ThemeColors.ui("Panel.background", getBackground()));
                 canvas.fillRect(0, 0, getWidth(), getHeight());
                 Optional<PdfPages.PageSize> size = pageSize();
                 if (size.isEmpty()) {
@@ -492,7 +488,7 @@ final class PagePreview extends JPanel {
                 double height = size.get().heightPoints() * factor;
                 double left = Math.max(SHEET_PADDING, (getWidth() - width) / 2);
                 double top = Math.max(SHEET_PADDING, (getHeight() - height) / 2);
-                canvas.setColor(uiColor("Component.borderColor", Color.GRAY));
+                canvas.setColor(ThemeColors.ui("Component.borderColor", Color.GRAY));
                 canvas.draw(new Rectangle2D.Double(left - 1, top - 1, width + 1, height + 1));
                 canvas.translate(left, top);
                 canvas.scale(factor, factor);

@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.SegmentedSwitch;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -285,7 +286,7 @@ class PresentationPanelTest {
                 UIManager.setLookAndFeel(theme);
                 saved.setAiPace(PresentationPace.CONTINUOUS);
                 assertThat(panel.continuousButton().getForeground()).isEqualTo(SegmentedSwitch.onAccent());
-                assertThat(ReadableColors.contrast(SegmentedSwitch.onAccent(), SegmentedSwitch.accent()))
+                assertThat(ReadableColors.contrast(SegmentedSwitch.onAccent(), ThemeColors.accent()))
                         .as(theme.getName()).isGreaterThanOrEqualTo(3.0);
                 assertThat(panel.stepByStepButton().getForeground())
                         .isEqualTo(UIManager.getColor("Label.foreground"));

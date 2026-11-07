@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.ButtonGroup;
@@ -21,7 +22,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
-import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -594,10 +594,6 @@ public final class MemoryMapPanel extends JPanel {
         return access == MemoryAccess.WRITE ? scheme.memoryWrite() : scheme.memoryRead();
     }
 
-    private static Color uiColor(String key, Color fallback) {
-        Color color = UIManager.getColor(key);
-        return color == null ? fallback : color;
-    }
 
     private static Color blend(Color from, Color to, double amount) {
         double kept = 1 - amount;
@@ -704,8 +700,8 @@ public final class MemoryMapPanel extends JPanel {
             if (request == null) {
                 return;
             }
-            Color background = getBackground() != null ? getBackground() : uiColor("Panel.background", Color.WHITE);
-            Color foreground = getForeground() != null ? getForeground() : uiColor("Label.foreground", Color.BLACK);
+            Color background = getBackground() != null ? getBackground() : ThemeColors.ui("Panel.background", Color.WHITE);
+            Color foreground = getForeground() != null ? getForeground() : ThemeColors.ui("Label.foreground", Color.BLACK);
             Color empty = blend(background, foreground, 0.10);
             Color[] readShades = shades(empty, accessColor(scheme.get(), MemoryAccess.READ));
             Color[] writeShades = shades(empty, accessColor(scheme.get(), MemoryAccess.WRITE));

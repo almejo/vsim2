@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
+import cl.almejo.vsim.ui.theme.ThemeColors;
+
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.JComponent;
@@ -81,17 +83,13 @@ final class SectionHeader extends JComponent {
             Font font = headerFont();
             local.setFont(font);
             FontMetrics metrics = local.getFontMetrics();
-            Color muted = UIManager.getColor("Label.disabledForeground");
-            Color rule = UIManager.getColor("Component.borderColor");
-            if (rule == null) {
-                rule = UIManager.getColor("Separator.foreground");
-            }
-            local.setColor(muted != null ? muted : Color.GRAY);
+            local.setColor(ThemeColors.ui("Label.disabledForeground", Color.GRAY));
             int baseline = (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent();
             local.drawString(shownText(), 0, baseline);
             int ruleStart = metrics.stringWidth(shownText()) + UIScale.scale(GAP);
             if (ruleStart < getWidth()) {
-                local.setColor(rule != null ? rule : Color.LIGHT_GRAY);
+                local.setColor(ThemeColors.ui("Component.borderColor",
+                        ThemeColors.ui("Separator.foreground", Color.LIGHT_GRAY)));
                 int ruleY = getHeight() / 2;
                 local.drawLine(ruleStart, ruleY, getWidth() - 1, ruleY);
             }

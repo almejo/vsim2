@@ -1,9 +1,9 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import javax.swing.JLabel;
-import javax.swing.UIManager;
 import java.awt.Color;
 import java.util.function.Supplier;
 
@@ -17,31 +17,31 @@ final class WizardColors {
     }
 
     static Color foreground() {
-        return color("Label.foreground", Color.BLACK);
+        return ThemeColors.ui("Label.foreground", Color.BLACK);
     }
 
     static Color background() {
-        return color("Panel.background", Color.WHITE);
+        return ThemeColors.ui("Panel.background", Color.WHITE);
     }
 
     static Color cellBackground() {
-        return color("Table.background", background());
+        return ThemeColors.ui("Table.background", background());
     }
 
     static Color muted() {
-        return color("Label.disabledForeground", Color.GRAY);
+        return ThemeColors.ui("Label.disabledForeground", Color.GRAY);
     }
 
     static Color gridLine() {
-        return color("Component.borderColor", Color.GRAY);
+        return ThemeColors.ui("Component.borderColor", Color.GRAY);
     }
 
     static Color highlight() {
-        return color("Component.focusColor", new Color(0x1E88E5));
+        return ThemeColors.ui("Component.focusColor", new Color(0x1E88E5));
     }
 
     static Color error() {
-        return color("Component.error.focusedBorderColor", new Color(0xE53935));
+        return ThemeColors.ui("Component.error.focusedBorderColor", new Color(0xE53935));
     }
 
     /** A label whose colour is asked each time it paints, so a theme change recolours it. */
@@ -212,8 +212,4 @@ final class WizardColors {
         return (int) Math.round(top * share + bottom * (1 - share));
     }
 
-    private static Color color(String key, Color fallback) {
-        Color color = UIManager.getColor(key);
-        return color != null ? color : fallback;
-    }
 }

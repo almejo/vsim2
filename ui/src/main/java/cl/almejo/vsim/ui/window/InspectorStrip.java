@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.ProblemBadge;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import com.formdev.flatlaf.util.UIScale;
 
@@ -55,7 +56,6 @@ final class InspectorStrip extends JPanel {
     private static final int LARGEST_SHOWN_COUNT = 99;
     /** The soft accent behind the open section's icon and a hovered one: the accent at about a fifth. */
     private static final int SOFT_ACCENT_ALPHA = 56;
-    private static final Color FALLBACK_ACCENT = new Color(0x2F6FDE);
     private static final Color FALLBACK_WARNING = new Color(0xEDA200);
 
     private final Consumer<String> sectionClicked;
@@ -158,18 +158,11 @@ final class InspectorStrip extends JPanel {
     @Override
     protected void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
-        Color rule = UIManager.getColor("Component.borderColor");
-        graphics.setColor(rule != null ? rule : getForeground());
-        graphics.fillRect(0, 0, 1, getHeight());
-    }
-
-    private static Color accent() {
-        Color accent = UIManager.getColor("Component.accentColor");
-        return accent != null ? accent : FALLBACK_ACCENT;
+        ThemeColors.paintRule(graphics, this, 0, 0, 1, getHeight());
     }
 
     private static Color softAccent() {
-        Color accent = accent();
+        Color accent = ThemeColors.accent();
         return new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), SOFT_ACCENT_ALPHA);
     }
 
@@ -183,8 +176,7 @@ final class InspectorStrip extends JPanel {
         return switch (kind) {
             case ERROR -> ProblemBadge.background();
             case WARNING -> {
-                Color yellow = UIManager.getColor("Actions.Yellow");
-                yield yellow != null ? yellow : FALLBACK_WARNING;
+                yield ThemeColors.ui("Actions.Yellow", FALLBACK_WARNING);
             }
             case QUIET -> ReadableColors.mutedText();
         };
@@ -305,7 +297,7 @@ final class InspectorStrip extends JPanel {
             if (active) {
                 int inset = UIScale.scale(BAR_INSET);
                 int barWidth = UIScale.scale(BAR_WIDTH);
-                graphics.setColor(accent());
+                graphics.setColor(ThemeColors.accent());
                 graphics.fillRoundRect(getWidth() - barWidth, squareTop() + inset, barWidth,
                         UIScale.scale(BUTTON_SIZE) - 2 * inset, barWidth, barWidth);
             }

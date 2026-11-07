@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.edges.EdgeGesture;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 
@@ -102,17 +103,17 @@ final class SplitGripHandle implements EdgeHandle {
         if (tab.isEmpty()) {
             return;
         }
-        Color background = PaneDivider.color("SplitPane.background", PaneDivider.color("Panel.background",
+        Color background = ThemeColors.ui("SplitPane.background", ThemeColors.ui("Panel.background",
                 Color.LIGHT_GRAY));
-        Color foreground = PaneDivider.color("Label.foreground", Color.BLACK);
+        Color foreground = ThemeColors.ui("Label.foreground", Color.BLACK);
         Color fill = hovered ? mix(background, foreground, HOVER_SHADE) : background;
         screenGraphics.setColor(hovered ? fill : withAlpha(fill, RESTING_ALPHA));
         screenGraphics.fill(tab);
-        Color border = PaneDivider.color("Component.borderColor", Color.GRAY);
+        Color border = ThemeColors.ui("Component.borderColor", Color.GRAY);
         screenGraphics.setColor(hovered ? border : withAlpha(border, RESTING_ALPHA));
         screenGraphics.drawRect(tab.x, tab.y, tab.width - 1, tab.height - 1);
         screenGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        Color grip = PaneDivider.color("SplitPaneDivider.gripColor", Color.GRAY);
+        Color grip = ThemeColors.ui("SplitPaneDivider.gripColor", Color.GRAY);
         screenGraphics.setColor(hovered ? grip : withAlpha(grip, RESTING_ALPHA));
         boolean wide = tab.width > tab.height;
         int length = DOTS * DOT_SIZE + (DOTS - 1) * DOT_GAP;

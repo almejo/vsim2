@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.window.tabs;
 import cl.almejo.vsim.ui.ai.AiRobotIcon;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import javax.swing.Icon;
 import javax.swing.JComponent;
@@ -1085,13 +1086,9 @@ public final class TabStrip extends JComponent {
 
     // --- colours, read at paint time from the FlatLaf theme ---
 
-    private static Color uiColor(String key, Color fallback) {
-        Color color = UIManager.getColor(key);
-        return color != null ? color : fallback;
-    }
 
     private static Color activeFill() {
-        return uiColor("Panel.background", Color.WHITE);
+        return ThemeColors.ui("Panel.background", Color.WHITE);
     }
 
     private static Color stripBackground() {
@@ -1104,19 +1101,19 @@ public final class TabStrip extends JComponent {
     }
 
     private static Color border() {
-        return uiColor("Component.borderColor", uiColor("Separator.foreground", Color.GRAY));
+        return ThemeColors.ui("Component.borderColor", ThemeColors.ui("Separator.foreground", Color.GRAY));
     }
 
     private static Color textColor() {
-        return uiColor("Label.foreground", Color.BLACK);
+        return ThemeColors.ui("Label.foreground", Color.BLACK);
     }
 
     private static Color mutedText() {
-        return uiColor("Label.disabledForeground", mix(textColor(), activeFill(), 0.4));
+        return ThemeColors.ui("Label.disabledForeground", mix(textColor(), activeFill(), 0.4));
     }
 
     private static Color accent() {
-        return uiColor("Component.focusColor", textColor());
+        return ThemeColors.ui("Component.focusColor", textColor());
     }
 
     private static Color mix(Color from, Color towards, double share) {

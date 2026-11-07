@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.guides;
 
-import javax.swing.UIManager;
+import cl.almejo.vsim.ui.theme.ThemeColors;
+
 import java.awt.Color;
 
 /**
@@ -13,17 +14,13 @@ record RulerColors(Color background, Color tick, Color border) {
     private static final double HOVER_SHADE = 0.06;
 
     static RulerColors current(boolean hovered) {
-        Color background = color("Panel.background", new Color(0xF2F2F2));
-        Color foreground = color("Label.foreground", Color.BLACK);
-        Color tick = color("Label.disabledForeground", Color.GRAY);
-        Color border = color("Component.borderColor", color("Separator.foreground", Color.LIGHT_GRAY));
+        Color background = ThemeColors.ui("Panel.background", new Color(0xF2F2F2));
+        Color foreground = ThemeColors.ui("Label.foreground", Color.BLACK);
+        Color tick = ThemeColors.ui("Label.disabledForeground", Color.GRAY);
+        Color border = ThemeColors.ui("Component.borderColor", ThemeColors.ui("Separator.foreground", Color.LIGHT_GRAY));
         return new RulerColors(hovered ? mix(background, foreground, HOVER_SHADE) : background, tick, border);
     }
 
-    private static Color color(String key, Color fallback) {
-        Color color = UIManager.getColor(key);
-        return color != null ? color : fallback;
-    }
 
     private static Color mix(Color from, Color toward, double amount) {
         return new Color(

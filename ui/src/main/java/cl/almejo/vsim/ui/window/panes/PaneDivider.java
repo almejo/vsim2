@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window.panes;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 
 import javax.swing.JComponent;
@@ -80,10 +81,10 @@ public final class PaneDivider extends JComponent {
      * split pulled from a grip, so the preview looks exactly like the divider it becomes.
      */
     static void paintBar(Graphics2D graphics, Orientation orientation, Rectangle bar, Color fallbackBackground) {
-        graphics.setColor(color("SplitPane.background", fallbackBackground));
+        graphics.setColor(ThemeColors.ui("SplitPane.background", fallbackBackground));
         graphics.fill(bar);
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        graphics.setColor(color("SplitPaneDivider.gripColor", Color.GRAY));
+        graphics.setColor(ThemeColors.ui("SplitPaneDivider.gripColor", Color.GRAY));
         int length = GRIP_DOTS * GRIP_DOT_SIZE + (GRIP_DOTS - 1) * GRIP_GAP;
         boolean across = orientation == Orientation.HORIZONTAL;
         int start = (across ? bar.x : bar.y) + ((across ? bar.width : bar.height) - length) / 2;
@@ -98,8 +99,4 @@ public final class PaneDivider extends JComponent {
         }
     }
 
-    static Color color(String key, Color fallback) {
-        Color color = UIManager.getColor(key);
-        return color != null ? color : fallback;
-    }
 }

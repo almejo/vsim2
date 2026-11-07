@@ -45,21 +45,9 @@ public final class SegmentedSwitch extends JPanel {
         }
     }
 
-    /** The accent the chosen segment is filled with. */
-    public static Color accent() {
-        Color accent = UIManager.getColor("Component.accentColor");
-        if (accent == null) {
-            accent = UIManager.getColor("Component.focusColor");
-        }
-        if (accent == null) {
-            accent = UIManager.getColor("List.selectionBackground");
-        }
-        return accent != null ? accent : new Color(0x2675BF);
-    }
-
     /** White or black, whichever reads better on the accent. */
     public static Color onAccent() {
-        Color accent = accent();
+        Color accent = ThemeColors.accent();
         return ReadableColors.contrast(Color.WHITE, accent) >= ReadableColors.contrast(Color.BLACK, accent)
                 ? Color.WHITE : Color.BLACK;
     }
@@ -111,7 +99,7 @@ public final class SegmentedSwitch extends JPanel {
                 Graphics2D fill = (Graphics2D) graphics.create();
                 try {
                     fill.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    Color accent = accent();
+                    Color accent = ThemeColors.accent();
                     fill.setColor(isSelected() ? accent
                             : new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 40));
                     fill.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), ARC, ARC));
