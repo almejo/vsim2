@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
+import com.formdev.flatlaf.util.UIScale;
+
 import javax.swing.JComponent;
 import javax.swing.UIManager;
 import java.awt.Color;
@@ -62,8 +64,8 @@ final class SectionHeader extends JComponent {
     @Override
     public Dimension getPreferredSize() {
         FontMetrics metrics = getFontMetrics(headerFont());
-        return new Dimension(metrics.stringWidth(shownText()) + GAP,
-                metrics.getHeight() + 2 * VERTICAL_PADDING);
+        return new Dimension(metrics.stringWidth(shownText()) + UIScale.scale(GAP),
+                metrics.getHeight() + UIScale.scale(2 * VERTICAL_PADDING));
     }
 
     @Override
@@ -87,7 +89,7 @@ final class SectionHeader extends JComponent {
             local.setColor(muted != null ? muted : Color.GRAY);
             int baseline = (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent();
             local.drawString(shownText(), 0, baseline);
-            int ruleStart = metrics.stringWidth(shownText()) + GAP;
+            int ruleStart = metrics.stringWidth(shownText()) + UIScale.scale(GAP);
             if (ruleStart < getWidth()) {
                 local.setColor(rule != null ? rule : Color.LIGHT_GRAY);
                 int ruleY = getHeight() / 2;

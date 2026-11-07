@@ -38,6 +38,15 @@ class PropertyCardTest {
         assertThat(labelled.subtitle()).isEqualTo("AND");
         PropertyCard plain = PropertyCard.forComponent(type, "AND", "", SCHEME);
         assertThat(plain.title()).isEqualTo("AND");
+        assertThat(plain.subtitle()).isEmpty();
+    }
+
+    @Test
+    void aLabelEqualToTheTypeNameShowsNoSubtitle() {
+        var type = StandardComponentTypes.registry().require(StandardComponentTypes.XOR);
+        PropertyCard card = PropertyCard.forComponent(type, "XOR", "XOR", SCHEME);
+        assertThat(card.title()).isEqualTo("XOR");
+        assertThat(card.subtitle()).isEmpty();
     }
 
     @Test

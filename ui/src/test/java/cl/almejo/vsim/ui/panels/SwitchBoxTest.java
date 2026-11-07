@@ -72,6 +72,32 @@ class SwitchBoxTest {
         }
     }
 
+    @Test
+    void theSwitchAndTheSectionHeaderGrowWithTheUiScale() throws Exception {
+        LookAndFeel original = UIManager.getLookAndFeel();
+        try {
+            UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", false));
+            int normalBox = new SwitchBox(true).getPreferredSize().height;
+            int normalHeader = new SectionHeader("General").getPreferredSize().height;
+            // a big default font makes FlatLaf scale every pixel size (what a 200 % screen does)
+            System.setProperty("flatlaf.uiScale", "2");
+            UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", false));
+            SwitchBox box = new SwitchBox(true);
+            SectionHeader header = new SectionHeader("General");
+            assertThat(com.formdev.flatlaf.util.UIScale.scale(20)).as("the scale is on").isGreaterThan(20);
+            assertThat(box.getPreferredSize().height).isGreaterThanOrEqualTo(com.formdev.flatlaf.util.UIScale.scale(20));
+            assertThat(box.getPreferredSize().height).isGreaterThan(normalBox);
+            java.awt.FontMetrics metrics = box.getFontMetrics(UIManager.getFont("CheckBox.font"));
+            int widest = Math.max(metrics.stringWidth("Sí"), metrics.stringWidth("No"));
+            assertThat(box.getPreferredSize().width)
+                    .isGreaterThanOrEqualTo(com.formdev.flatlaf.util.UIScale.scale(30 + 8) + widest);
+            assertThat(header.getPreferredSize().height).isGreaterThan(normalHeader);
+        } finally {
+            System.clearProperty("flatlaf.uiScale");
+            UIManager.setLookAndFeel(original);
+        }
+    }
+
     private static BufferedImage paint(SwitchBox box) {
         box.setSize(box.getPreferredSize());
         BufferedImage image = new BufferedImage(box.getWidth(), box.getHeight(), BufferedImage.TYPE_INT_ARGB);

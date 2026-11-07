@@ -26,6 +26,9 @@ final class NoteTextArea extends JTextArea {
     NoteTextArea(String text) {
         super(text);
         FragmentRefusingTransferHandler.install(this);
+        // wrap inside the panel instead of growing to the longest line
+        setLineWrap(true);
+        setWrapStyleWord(true);
         getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
         getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK),
                 DefaultEditorKit.insertBreakAction);

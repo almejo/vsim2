@@ -334,7 +334,7 @@ class PropertiesPanelTest {
         Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
         selection.select(andGate.id());
         assertThat(panel.card().title()).isEqualTo("AND");
-        assertThat(panel.card().subtitle()).isEqualTo("AND");
+        assertThat(panel.card().subtitle()).isEmpty();
 
         panel.textField().setText("Q1");
         panel.commitEdits();
@@ -355,6 +355,68 @@ class PropertiesPanelTest {
 
         selection.clear();
         assertThat(panel.sectionTitles()).doesNotContain("Configuración", "Descripción");
+    }
+
+    private SectionHeader headerNamed(String text) {
+        return allOf(panel, SectionHeader.class).stream().filter(header -> header.text().equals(text)).findFirst()
+                .orElseThrow();
+    }
+
+    @Test
+    void everySectionHeaderSpansTheWholePanelWidthFromTheLeftEdge() {
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        selection.select(andGate.id());
+        panel.setSize(300, 700);
+        layOut(panel);
+        SectionHeader general = headerNamed("General");
+        SectionHeader config = headerNamed("Configuración");
+        assertThat(config.getX()).isEqualTo(general.getX());
+        assertThat(config.getWidth()).isEqualTo(general.getWidth());
+    }
+
+    @Test
+    void theCaptionsFormOneColumnAtTheLeft() {
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        selection.select(andGate.id());
+        panel.setSize(300, 700);
+        layOut(panel);
+        List<javax.swing.JLabel> captions = allOf(panel, javax.swing.JLabel.class).stream()
+                .filter(label -> label.getLabelFor() != null).toList();
+        assertThat(captions).hasSizeGreaterThan(2);
+        assertThat(captions.stream().map(javax.swing.JLabel::getX).distinct().toList()).hasSize(1);
+    }
+
+    @Test
+    void theTextFieldOfAFreeTextFitsThePanelWidth() {
+        TextLabel label = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3),
+                "a very long line of a note that never wraps by itself and keeps going and going and going");
+        openDocument.execute(new AddElementsCommand(List.of(label)));
+        selection.select(label.id());
+        panel.setSize(260, 700);
+        layOut(panel);
+        assertThat(panel.noteArea().getX() + panel.noteArea().getWidth()).isLessThanOrEqualTo(260);
+    }
+
+    @Test
+    void theFieldsShowTheStartOfTheirTextWhenFilled() {
+        openDocument.document().setName("sumador-y-semisumador de cuatro bits y mas");
+        panel.refresh();
+        assertThat(panel.circuitNameField().getCaretPosition()).isZero();
+        // typed, then the focus leaves: the start shows again; a trimmed name put back too
+        panel.circuitNameField().setText("  sumador-y-semisumador de cuatro bits y mas ");
+        panel.circuitNameField().postActionEvent();
+        assertThat(panel.circuitNameField().getText()).startsWith("sumador");
+        assertThat(panel.circuitNameField().getCaretPosition()).isZero();
+        panel.circuitNameField().setText("otro nombre bastante largo del circuito de prueba");
+        panel.circuitNameField().setCaretPosition(panel.circuitNameField().getText().length());
+        for (java.awt.event.FocusListener listener : panel.circuitNameField().getFocusListeners()) {
+            listener.focusLost(new java.awt.event.FocusEvent(panel.circuitNameField(), java.awt.event.FocusEvent.FOCUS_LOST));
+        }
+        assertThat(panel.circuitNameField().getCaretPosition()).isZero();
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        openDocument.execute(new SetLabelCommand(andGate.id(), "una etiqueta muy larga para un campo corto"));
+        selection.select(andGate.id());
+        assertThat(panel.textField().getCaretPosition()).isZero();
     }
 
     private static <T extends java.awt.Component> List<T> allOf(java.awt.Container root, Class<T> type) {
@@ -1034,8 +1096,8 @@ class PropertiesPanelTest {
 
     private static void assertOneGrid(List<java.awt.Rectangle[]> rows, int expectedRows) {
         assertThat(rows).hasSize(expectedRows);
-        assertThat(rows.stream().map(row -> row[0].x + row[0].width).distinct().toList())
-                .as("caption right edges").hasSize(1);
+        assertThat(rows.stream().map(row -> row[0].x).distinct().toList())
+                .as("caption left edges").hasSize(1);
         assertThat(rows.stream().map(row -> row[1].x).distinct().toList()).as("field left edges").hasSize(1);
     }
 

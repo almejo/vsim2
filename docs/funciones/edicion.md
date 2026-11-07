@@ -57,6 +57,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - Debajo, el panel se ordena en secciones con un título en mayúsculas pequeñas y una línea: «General» (etiqueta, texto, título, color), «Configuración» (los ajustes sin grupo), los grupos de la pieza («Pantalla», «Aspecto»…) y «Descripción». Una sección vacía no se muestra.
 - Los ajustes de sí o no (negar, mostrar Q̅…) son interruptores: una pista con una perilla, en el color de acento si está en «Sí» y gris si está en «No», con el texto al lado. Se cambian con un clic o con Espacio, y cada cambio es un paso de deshacer, como antes con la casilla.
 - Los ajustes comunes de Propiedades llevan un ícono gris pequeño antes del nombre (etiqueta, texto, nombre, entradas, salidas, ancho, retardo, tiempos en alto y en bajo, negar, color, valor, formato, dirección, palabras y contenido); los demás dejan el mismo espacio vacío para que los nombres sigan alineados. El ícono se oculta junto con su fila y se recolorea en los temas oscuros.
+- En Propiedades los nombres de los ajustes van alineados a la izquierda (los íconos forman una columna), las secciones («General», «Configuración», los grupos) ocupan todo el ancho con su línea, la tarjeta no repite el tipo cuando la etiqueta es igual a él, el campo «Texto» de un texto libre se ajusta al ancho del panel (parte las líneas largas) y los campos de texto largos muestran su comienzo. Los interruptores y los encabezados de sección crecen con la escala de la interfaz.
 
 ## Elegir un color
 

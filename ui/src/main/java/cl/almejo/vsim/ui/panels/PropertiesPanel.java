@@ -136,7 +136,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     /** {@code scheme} gives the colours the canvas paints with now: the colour swatches show the same ones. */
     public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
                            Supplier<ColorScheme> scheme) {
-        super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill, 60::]"));
+        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
         this.scheme = scheme;
         this.openDocument = openDocument;
         this.selection = selection;
@@ -471,6 +471,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         RenameCircuitCommand.renaming(openDocument.document(), field.getText()).ifPresent(openDocument::execute);
         // the name kept has no outer spaces
         field.setText(openDocument.document().name());
+        field.setCaretPosition(0);
     }
 
     /** Shows the circuit's name again after an undo, a redo or the AI changed it, unless the user is typing it. */
@@ -481,6 +482,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         String name = openDocument.document().name();
         if (!circuitNameField.getText().equals(name)) {
             circuitNameField.setText(name);
+            circuitNameField.setCaretPosition(0);
             error.setText(" ");
         }
     }
@@ -581,7 +583,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         NoteTextArea area = new NoteTextArea(label.text());
         caption.setLabelFor(area);
         add(caption);
-        add(area);
+        add(area, "growx, wmin 0");
         ElementId id = label.id();
         int built = generation;
         Runnable apply = () -> applyIfCurrent(built, () -> labelCommand(id, area).ifPresent(openDocument::execute));
@@ -817,7 +819,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         JTextField field = FragmentRefusingTransferHandler.install(new JTextField(value, 16));
         label.setLabelFor(field);
         add(label);
-        add(field);
+        add(field, "growx, wmin 0");
+        field.setCaretPosition(0);
         return field;
     }
 
@@ -827,6 +830,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             @Override
             public void focusLost(FocusEvent event) {
                 apply.run();
+                // a long text shows its start, not where the caret was left
+                field.setCaretPosition(0);
             }
         });
     }

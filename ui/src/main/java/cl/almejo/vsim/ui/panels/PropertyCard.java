@@ -86,8 +86,10 @@ final class PropertyCard extends JPanel {
 
     void setTexts(String titleText, String subtitleText) {
         title.setText(titleText);
-        subtitle.setText(subtitleText);
-        subtitle.setVisible(!subtitleText.isEmpty());
+        // a label equal to the type name would say the same twice
+        String shownSubtitle = subtitleText.equals(titleText) ? "" : subtitleText;
+        subtitle.setText(shownSubtitle);
+        subtitle.setVisible(!shownSubtitle.isEmpty());
     }
 
     void setCounts(int parts, int wires) {

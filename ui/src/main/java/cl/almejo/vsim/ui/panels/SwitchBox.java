@@ -2,6 +2,8 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 
+import com.formdev.flatlaf.util.UIScale;
+
 import javax.swing.JCheckBox;
 import javax.swing.UIManager;
 import java.awt.Color;
@@ -41,12 +43,21 @@ final class SwitchBox extends JCheckBox {
         showState();
     }
 
+    private static int trackWidth() {
+        return UIScale.scale(TRACK_WIDTH);
+    }
+
+    private static int trackHeight() {
+        return UIScale.scale(TRACK_HEIGHT);
+    }
+
     @Override
     public Dimension getPreferredSize() {
         FontMetrics metrics = getFontMetrics(getFont());
         int widest = Math.max(metrics.stringWidth(Messages.text("properties.switch.on")),
                 metrics.stringWidth(Messages.text("properties.switch.off")));
-        return new Dimension(TRACK_WIDTH + GAP + widest + 2, Math.max(TRACK_HEIGHT + 4, metrics.getHeight() + 2));
+        return new Dimension(trackWidth() + UIScale.scale(GAP) + widest + 2,
+                Math.max(trackHeight() + UIScale.scale(4), metrics.getHeight() + 2));
     }
 
     @Override
@@ -55,7 +66,10 @@ final class SwitchBox extends JCheckBox {
         try {
             local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             local.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            int top = (getHeight() - TRACK_HEIGHT) / 2;
+            int trackWidth = trackWidth();
+            int trackHeight = trackHeight();
+            int knobMargin = UIScale.scale(KNOB_MARGIN);
+            int top = (getHeight() - trackHeight) / 2;
             boolean on = isSelected();
             Color track = on ? color("Component.accentColor", new Color(0x2F6FDE))
                     : color("Component.borderColor", Color.GRAY);
@@ -63,19 +77,19 @@ final class SwitchBox extends JCheckBox {
                 track = color("Component.disabledBorderColor", track);
             }
             local.setColor(track);
-            local.fillRoundRect(0, top, TRACK_WIDTH, TRACK_HEIGHT, TRACK_HEIGHT, TRACK_HEIGHT);
+            local.fillRoundRect(0, top, trackWidth, trackHeight, trackHeight, trackHeight);
             if (hasFocus()) {
                 local.setColor(color("Component.focusColor", track));
-                local.drawRoundRect(-1, top - 1, TRACK_WIDTH + 1, TRACK_HEIGHT + 1, TRACK_HEIGHT + 2, TRACK_HEIGHT + 2);
+                local.drawRoundRect(-1, top - 1, trackWidth + 1, trackHeight + 1, trackHeight + 2, trackHeight + 2);
             }
-            int knobSize = TRACK_HEIGHT - 2 * KNOB_MARGIN;
-            int knobX = on ? TRACK_WIDTH - KNOB_MARGIN - knobSize : KNOB_MARGIN;
+            int knobSize = trackHeight - 2 * knobMargin;
+            int knobX = on ? trackWidth - knobMargin - knobSize : knobMargin;
             local.setColor(color("Panel.background", Color.WHITE).brighter());
-            local.fillOval(knobX, top + KNOB_MARGIN, knobSize, knobSize);
+            local.fillOval(knobX, top + knobMargin, knobSize, knobSize);
             local.setFont(getFont());
             FontMetrics metrics = local.getFontMetrics();
             local.setColor(isEnabled() ? getForeground() : color("Label.disabledForeground", Color.GRAY));
-            local.drawString(getText(), TRACK_WIDTH + GAP, (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent());
+            local.drawString(getText(), trackWidth + UIScale.scale(GAP), (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent());
         } finally {
             local.dispose();
         }

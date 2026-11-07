@@ -89,7 +89,7 @@ public final class ParameterForm extends JPanel {
     /** A row that may hide takes no room while hidden. */
     private static final String HIDE_MODE = "hidemode 3";
     /** A group's header spans both columns, a little apart from the rows above. */
-    private static final String HEADER_CONSTRAINTS = "span 2, gaptop 6, hidemode 3";
+    private static final String HEADER_CONSTRAINTS = "span 2, growx, wmin 0, gaptop 6, hidemode 3";
 
     private final ComponentType type;
     private final Map<String, Object> initial;
@@ -141,7 +141,7 @@ public final class ParameterForm extends JPanel {
 
     /** {@code scheme} gives the colours the canvas paints with now (the swatches read it at every paint). */
     public ParameterForm(ComponentType type, Map<String, Object> currentParameters, Supplier<ColorScheme> scheme) {
-        super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill]"));
+        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill]"));
         this.type = type;
         this.initial = type.resolveParameters(currentParameters);
         planRows();
