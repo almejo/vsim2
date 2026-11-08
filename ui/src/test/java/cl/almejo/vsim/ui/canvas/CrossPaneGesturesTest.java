@@ -42,6 +42,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.CanvasClicks.click;
+import static cl.almejo.vsim.ui.CanvasClicks.doubleClick;
+import static cl.almejo.vsim.ui.CanvasClicks.move;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.differingPixels;
@@ -142,6 +145,41 @@ class CrossPaneGesturesTest {
                 .isZero();
         releaseOverRight(100, 96, 0);
         assertThat(openDocument.document().wires()).isEmpty();
+    }
+
+    @Test
+    void aContinuousWireStartedInOnePaneGoesOnInTheOtherBetweenClicksAndEndsThereAsOneStep() {
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.CONTINUOUS));
+        BufferedImage rightBefore = paint(right);
+        click(left, 40, 40);
+        move(right, 100, 96); // no button held: Swing gives the move to the pane under the pointer
+
+        assertThat(differingPixels(rightBefore, paint(right), 0, 0, right.getWidth(), right.getHeight()))
+                .isGreaterThan(0);
+        assertThat(right.tool().holdsGesture()).isFalse(); // the path stays the left pane's
+
+        GridPoint end = right.viewport().snap(100, 96);
+        doubleClick(right, 100, 96);
+
+        assertThat(left.tool().holdsGesture()).isFalse();
+        assertThat(right.tool().holdsGesture()).isFalse();
+        assertThat(openDocument.document().wires()).extracting(Wire::start, Wire::end).containsExactlyInAnyOrder(
+                org.assertj.core.groups.Tuple.tuple(new GridPoint(5, 5), new GridPoint(end.x(), 5)),
+                org.assertj.core.groups.Tuple.tuple(new GridPoint(end.x(), 5), end));
+        openDocument.history().undo();
+        assertThat(openDocument.document().wires()).isEmpty();
+    }
+
+    @Test
+    void escapeInTheOtherPaneCancelsTheContinuousWireOfTheFirst() {
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.CONTINUOUS));
+        click(left, 40, 40);
+        move(right, 100, 96);
+
+        assertThat(right.pressKeyOnTool(KeyEvent.VK_ESCAPE, false)).isTrue();
+
+        assertThat(left.tool().holdsGesture()).isFalse();
+        assertThat(right.tool()).isInstanceOf(WireTool.class); // Esc ended the path, it did not leave the tool
     }
 
     @Test

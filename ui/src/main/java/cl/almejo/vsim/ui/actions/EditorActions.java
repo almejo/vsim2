@@ -153,7 +153,7 @@ public final class EditorActions {
         closeWindow = Actions.of(Messages.text("action.closeWindow"),
                 shortcut(KeyEvent.VK_W, InputEvent.SHIFT_DOWN_MASK), window::closeWindow);
         exit = Actions.of(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
-        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), () -> steps.undo());
+        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), this::undoStep);
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
                 () -> steps.redo());
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
@@ -449,11 +449,31 @@ public final class EditorActions {
                 .orElseGet(() -> Messages.format(namedKey, name));
     }
 
+    /**
+     * Deshacer (Ctrl+Z, the button, the menu): while a tool of the window draws between clicks it drops that tool's last
+     * step (a continuous wire's last corner) and never undoes an earlier change; otherwise the history's step.
+     */
+    private void undoStep() {
+        CircuitCanvas pane = activePane.get();
+        if (pane != null && pane.dropLastToolStep()) {
+            return;
+        }
+        steps.undo();
+    }
+
+    /** True while a tool of the active pane's window draws between clicks (a continuous wire's path). */
+    private boolean drawsBetweenClicks() {
+        CircuitCanvas pane = activePane.get();
+        return pane != null && pane.drawsBetweenClicks();
+    }
+
     public void refresh() {
         History history = openDocument.history();
         save.setEnabled(openDocument.canSave());
-        undo.setEnabled(history.canUndo());
-        undo.putValue(Action.NAME, history.undoCommand()
+        boolean dropsACorner = drawsBetweenClicks();
+        undo.setEnabled(dropsACorner || history.canUndo());
+        // while a wire is drawn Deshacer drops its last corner, not the history's step its name would announce
+        undo.putValue(Action.NAME, dropsACorner ? Messages.text("action.undo") : history.undoCommand()
                 .map(command -> stepName(command, "action.undoNamed", "action.undoInside"))
                 .orElse(Messages.text("action.undo")));
         redo.setEnabled(history.canRedo());

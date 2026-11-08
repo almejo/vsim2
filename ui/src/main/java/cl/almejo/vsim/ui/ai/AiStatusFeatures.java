@@ -137,6 +137,8 @@ final class AiStatusFeatures {
             @Override
             public void taskStarted(TaskInfo task) {
                 if (isThisCircuit(task)) {
+                    // a wire being drawn would land on what the AI changes: it goes, as a tool change would
+                    view.interruptGestures().ifPresent(view.statusBar()::showNotice);
                     show(task, Phase.RUNNING);
                 }
             }
