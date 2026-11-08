@@ -330,10 +330,10 @@ class EditorViewTest {
     void toolButtonsAndPaletteFollowTheCanvasTool() {
         perform(view.actions().wireTool());
         assertThat(view.canvas().tool()).isInstanceOf(WireTool.class);
-        assertThat(toggle(view.actions().wireTool()).isSelected()).isTrue();
+        assertThat(wireButton().isSelected()).isTrue();
         view.palette().choose(StandardComponentTypes.LED);
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
-        assertThat(toggle(view.actions().wireTool()).isSelected()).isFalse();
+        assertThat(wireButton().isSelected()).isFalse();
         assertThat(toggle(view.actions().selectTool()).isSelected()).isFalse();
         perform(view.actions().panTool());
         assertThat(view.canvas().tool()).isInstanceOf(PanTool.class);
@@ -560,6 +560,16 @@ class EditorViewTest {
             }
         }
         throw new AssertionError("no status label starting with " + prefix);
+    }
+
+    /** The main part of the Cable split button, the toolbar's pressed-tool button of the Wire tool. */
+    private AbstractButton wireButton() {
+        for (java.awt.Component child : view.toolBar().getComponents()) {
+            if (child instanceof cl.almejo.vsim.ui.toolbar.SplitButton split) {
+                return split.mainButton();
+            }
+        }
+        throw new AssertionError("no Cable split button in the toolbar");
     }
 
     private AbstractButton toggle(javax.swing.Action action) {
@@ -831,12 +841,13 @@ class EditorViewTest {
         };
         Runnable removeFirst = view.registerShortcutAction("test.first", first);
         view.registerShortcutAction("test.second", second);
-        assertThat(view.shortcutActions()).containsExactly(entry("test.first", first), entry("test.second", second));
+        assertThat(view.shortcutActions()).containsOnlyKeys("edit.wireContinuous", "test.first", "test.second");
+        assertThat(view.shortcutActions()).contains(entry("test.first", first), entry("test.second", second));
         assertThatThrownBy(() -> view.registerShortcutAction("test.first", second))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> view.shortcutActions().clear()).isInstanceOf(UnsupportedOperationException.class);
         removeFirst.run();
-        assertThat(view.shortcutActions()).containsOnlyKeys("test.second");
+        assertThat(view.shortcutActions()).containsOnlyKeys("edit.wireContinuous", "test.second");
     }
 
     // --- entering a user component (spec §4.4) ---

@@ -48,6 +48,9 @@ class TextToolExtensionTest {
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof JToggleButton button) {
                 names.add(button.getAction().getValue(javax.swing.Action.NAME).toString());
+            } else if (child instanceof cl.almejo.vsim.ui.toolbar.SplitButton split
+                    && split.mainButton() instanceof JToggleButton) {
+                names.add("Cable"); // the Cable's split button holds the pressed-tool part
             }
         }
         assertThat(names).containsExactly("Selección", "Cable", "Nota adhesiva", "Texto", "Mover vista", "Zoom");

@@ -73,6 +73,7 @@ public final class ShortcutCatalog {
         canvas(entries, "edit.rotateClockwise", "action.rotateClockwise", stroke(KeyEvent.VK_R, 0));
         canvas(entries, "edit.rotateCounterClockwise", "action.rotateCounterClockwise", stroke(KeyEvent.VK_R, shift));
         window(entries, "edit.configure", "action.configure", MenuId.EDIT, null);
+        window(entries, "edit.wireContinuous", "action.wireContinuous", MenuId.EDIT, null);
         window(entries, "edit.cut", "action.cut", MenuId.EDIT, stroke(KeyEvent.VK_X, menu));
         window(entries, "edit.copy", "action.copy", MenuId.EDIT, stroke(KeyEvent.VK_C, menu));
         window(entries, "edit.copyCapture", "action.copyCapture", MenuId.EDIT, stroke(KeyEvent.VK_C, menu | shift));

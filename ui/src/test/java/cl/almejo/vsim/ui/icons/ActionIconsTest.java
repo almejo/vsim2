@@ -69,6 +69,7 @@ class ActionIconsTest {
         used.addAll(StepIcons.names());
         used.addAll(ExportIcons.names());
         used.addAll(cl.almejo.vsim.ui.capture.CaptureIcons.names());
+        used.addAll(cl.almejo.vsim.ui.window.WireModeIcons.names());
         used.addAll(TidyIcons.names());
         used.addAll(cl.almejo.vsim.ui.frames.FrameIcons.names());
         used.addAll(cl.almejo.vsim.ui.sticky.StickyNoteIcons.names());

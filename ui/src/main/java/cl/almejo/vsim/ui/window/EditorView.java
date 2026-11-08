@@ -147,6 +147,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
     private final Listeners<Runnable> tabShownListeners = new Listeners<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
+    private final WireModeControl wireModeControl;
+    private Runnable removeWireModeShortcut = () -> { };
     private final EditorToolBar editorToolBar;
     private final JToolBar toolBar;
     private final LabelFeatures labelFeatures;
@@ -206,8 +208,10 @@ public final class EditorView extends JPanel implements CanvasHost {
         });
         this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
         createInspectorToggles();
+        this.wireModeControl = new WireModeControl(services.preferences(), () -> performIfEnabled(actions.wireTool()));
         this.menuBar = actions.createMenuBar();
         indexMenus();
+        addWireModeItem();
         addLeftColumnItems();
         this.capturedKeys = new CapturedKeys(keyboardCapture, openDocument, new WindowShortcuts(),
                 statusBar::showNotice);
@@ -215,7 +219,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.zoomControl = new ZoomControl(new ActivePaneZoom(), new ZoomControl.Actions(actions.zoomOut(),
                 actions.zoomIn(), actions.zoomReset(), actions.zoomToFit(), actions.zoomToSelection()));
         addAfter(menu(MenuId.VIEW), actions.zoomToSelection(), zoomControl.typeZoomAction());
-        editorToolBar = new EditorToolBar(actions);
+        editorToolBar = new EditorToolBar(actions, wireModeControl.button());
         toolBar = editorToolBar.toolBar();
 
         this.canvasArea = new CanvasArea(canvasPanes);
@@ -649,6 +653,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         steps.add(labelFeatures::dispose);
         steps.add(inlineEditor::dispose);
         steps.add(actions::dispose);
+        steps.add(wireModeControl::dispose);
+        steps.add(removeWireModeShortcut);
         steps.add(keyboardCapture::dispose);
         steps.add(this::undoPaneInstallations);
         steps.add(canvasPanes::dispose);
@@ -1130,6 +1136,13 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /** Runs {@code action} as its toolbar button would: only while it is enabled (the status-bar run state). */
+    /** Editar ▸ «Cable continuo» (a check item, no key), offered to the shortcut editor like any other action. */
+    private void addWireModeItem() {
+        Action continuous = wireModeControl.continuousAction();
+        menu(MenuId.EDIT).add(new JCheckBoxMenuItem(continuous));
+        removeWireModeShortcut = registerShortcutAction("edit.wireContinuous", continuous);
+    }
+
     private void performIfEnabled(Action action) {
         if (action.isEnabled()) {
             action.actionPerformed(new ActionEvent(statusBar, ActionEvent.ACTION_PERFORMED, ""));

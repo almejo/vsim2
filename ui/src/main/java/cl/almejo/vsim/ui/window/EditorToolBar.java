@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.toolbar.SplitButton;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
@@ -32,6 +33,8 @@ final class EditorToolBar {
     private final ButtonGroup toolButtons = new ButtonGroup();
     private final JToggleButton selectButton;
     private final JToggleButton wireButton;
+    /** The Cable: its main part is {@link #wireButton} (in the tool group), its ▾ comes with it in the toolbar. */
+    private final SplitButton wireSplit;
     private final JToggleButton panButton;
     private final JToggleButton zoomButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
@@ -43,10 +46,11 @@ final class EditorToolBar {
     private record SlotEntry(JComponent component, int order) {
     }
 
-    EditorToolBar(EditorActions actions) {
+    EditorToolBar(EditorActions actions, SplitButton wireSplit) {
         this.actions = actions;
+        this.wireSplit = wireSplit;
         selectButton = new JToggleButton(actions.selectTool());
-        wireButton = new JToggleButton(actions.wireTool());
+        wireButton = (JToggleButton) wireSplit.mainButton();
         panButton = new JToggleButton(actions.panTool());
         zoomButton = new JToggleButton(actions.zoomTool());
         for (ToolbarSlot slot : ToolbarSlot.values()) {
@@ -64,7 +68,7 @@ final class EditorToolBar {
         JToggleButton button = new JToggleButton(action);
         toolButtons.add(button);
         extraToolButtons.put(toolType, button);
-        toolBar.add(button, indexOfToolButton(wireButton) + 1);
+        toolBar.add(button, indexOfToolButton(wireSplit) + 1);
         toolBar.revalidate();
         return () -> {
             extraToolButtons.remove(toolType, button);
@@ -140,7 +144,7 @@ final class EditorToolBar {
         }
     }
 
-    private int indexOfToolButton(JToggleButton button) {
+    private int indexOfToolButton(Component button) {
         for (int index = 0; index < toolBar.getComponentCount(); index++) {
             if (toolBar.getComponent(index) == button) {
                 return index;
@@ -160,7 +164,7 @@ final class EditorToolBar {
         toolBar.addSeparator();
         for (JToggleButton button : new JToggleButton[]{selectButton, wireButton, panButton, zoomButton}) {
             toolButtons.add(button);
-            toolBar.add(button);
+            toolBar.add(button == wireButton ? wireSplit : button);
         }
         toolBar.addSeparator();
         toolBar.add(actions.start());

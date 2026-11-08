@@ -171,7 +171,8 @@ class ShortcutsExtensionTest {
     void disposingRemovesThePreferencesListener() {
         int withOneView = preferences.listenerCount();
         EditorView second = newView();
-        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 1);
+        // a view listens for its shortcuts and for the Cable's mode
+        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 2);
         views.remove(second);
         second.dispose();
         assertThat(preferences.listenerCount()).isEqualTo(withOneView);

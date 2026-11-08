@@ -81,6 +81,9 @@ class StickyNotesExtensionTest {
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof JToggleButton button && button.getAction() != null) {
                 names.add(button.getAction().getValue(Action.NAME).toString());
+            } else if (child instanceof cl.almejo.vsim.ui.toolbar.SplitButton split
+                    && split.mainButton() instanceof JToggleButton) {
+                names.add("Cable"); // the Cable's split button holds the pressed-tool part
             }
         }
         return names;
