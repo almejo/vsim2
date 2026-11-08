@@ -15,6 +15,13 @@ public interface ScreenMode {
     /** The window goes back to where and how it was before {@link #enter()}. */
     void leave();
 
+    /**
+     * The window is closing (in the mode or not): it leaves the full screen if it is in it, without giving back its
+     * bounds or maximizing it again, and stops every timer and listener this object put on it. What it noted on
+     * entering still answers for the session. Nothing works after it.
+     */
+    void close();
+
     /** The real full screen of {@code frame} on the monitor it is on. */
     static FrameScreenMode of(JFrame frame) {
         return new FrameScreenMode(frame);

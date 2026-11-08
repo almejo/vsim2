@@ -156,6 +156,14 @@ public final class FullScreenFeatures {
 
     /** Puts every bar back where it was and the window back where and how it was. */
     public void leave() {
+        leave(false);
+    }
+
+    /**
+     * Puts every bar back where it was; the window goes back where and how it was, or, when it is {@code closing},
+     * only out of the full screen (it is going away: nothing to restore, no timer on it afterwards).
+     */
+    private void leave(boolean closing) {
         if (!active) {
             return;
         }
@@ -176,7 +184,9 @@ public final class FullScreenFeatures {
         rootPane.setJMenuBar(menuBar);
         List.copyOf(laidOutViews.values()).forEach(Runnable::run);
         laidOutViews.clear();
-        screenMode.leave();
+        if (!closing) {
+            screenMode.leave();
+        }
         settle();
         activeListeners.fire(Runnable::run);
     }
@@ -203,12 +213,16 @@ public final class FullScreenFeatures {
         rootPane.repaint();
     }
 
-    /** The window is closing: it leaves the full screen first and stops following its tabs. */
+    /**
+     * The window is closing: its bars go back, it leaves the full screen without restoring its bounds (the screen
+     * mode's timers and listeners go with it) and stops following its tabs.
+     */
     public void dispose() {
         if (disposed) {
             return;
         }
-        leave();
+        leave(true);
+        screenMode.close();
         disposed = true;
         stopFollowingTheTabs.run();
         anchor.release();

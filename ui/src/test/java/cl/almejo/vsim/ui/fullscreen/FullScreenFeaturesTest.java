@@ -256,7 +256,19 @@ class FullScreenFeaturesTest {
     void closingTheWindowInTheModeLeavesTheFullScreen() {
         fixture.features.enter();
         fixture.features.dispose();
-        assertThat(fixture.screen.left).isEqualTo(1);
         assertThat(fixture.features.isActive()).isFalse();
+        assertThat(fixture.screen.closed).as("out of the full screen, with no restore for a window going away")
+                .isEqualTo(1);
+        assertThat(fixture.screen.left).as("no bounds or maximize to restore on a closing frame").isZero();
+    }
+
+    /** The final review's M1: the screen mode's timers and frame listeners go with the window, in the mode or not. */
+    @Test
+    void closingTheWindowOutsideTheModeAlsoClosesTheScreenMode() {
+        fixture.features.enter();
+        fixture.features.leave();
+        fixture.features.dispose();
+        assertThat(fixture.screen.left).isEqualTo(1);
+        assertThat(fixture.screen.closed).isEqualTo(1);
     }
 }

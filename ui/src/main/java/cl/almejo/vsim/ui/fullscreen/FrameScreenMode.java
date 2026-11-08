@@ -10,6 +10,7 @@ import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.WindowStateListener;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -33,25 +34,29 @@ public final class FrameScreenMode implements ScreenMode {
             System::currentTimeMillis);
     private final Remaximize remaximize = new Remaximize(FrameTicker.swing(RESYNC_FRAME_MILLISECONDS),
             System::currentTimeMillis);
+    private final ComponentAdapter frameListener = new ComponentAdapter() {
+        @Override
+        public void componentMoved(ComponentEvent event) {
+            windowManagerAnswered();
+        }
+
+        @Override
+        public void componentResized(ComponentEvent event) {
+            windowManagerAnswered();
+        }
+    };
+    private final WindowStateListener stateListener = event -> windowManagerAnswered();
     private GraphicsDevice device;
     private Rectangle boundsBefore;
     private int stateBefore;
+    /** Closed while in full screen or coming back from it: what was noted on entering still answers. */
+    private boolean closedInTransition;
 
     FrameScreenMode(JFrame frame) {
         this.frame = Objects.requireNonNull(frame, "frame");
         // the window manager's answers: the resync looks at the insets at once instead of at its next tick
-        frame.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentMoved(ComponentEvent event) {
-                windowManagerAnswered();
-            }
-
-            @Override
-            public void componentResized(ComponentEvent event) {
-                windowManagerAnswered();
-            }
-        });
-        frame.addWindowStateListener(event -> windowManagerAnswered());
+        frame.addComponentListener(frameListener);
+        frame.addWindowStateListener(stateListener);
     }
 
     @Override
@@ -59,8 +64,11 @@ public final class FrameScreenMode implements ScreenMode {
         if (device != null) {
             return;
         }
-        boundsBefore = frame.getBounds();
-        stateBefore = frame.getExtendedState();
+        if (!remaximize.isPending()) {
+            // entering again before the window was maximized again: it is still the window of the first entry
+            boundsBefore = frame.getBounds();
+            stateBefore = frame.getExtendedState();
+        }
         GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
         device = configuration.getDevice();
         resync.cancel();
@@ -94,6 +102,22 @@ public final class FrameScreenMode implements ScreenMode {
         }
     }
 
+    @Override
+    public void close() {
+        closedInTransition = isTransitioning();
+        if (device != null) {
+            GraphicsDevice leaving = device;
+            device = null;
+            if (leaving.getFullScreenWindow() == frame) {
+                leaving.setFullScreenWindow(null);
+            }
+        }
+        resync.cancel();
+        remaximize.cancel();
+        frame.removeComponentListener(frameListener);
+        frame.removeWindowStateListener(stateListener);
+    }
+
     private void windowManagerAnswered() {
         resync.check();
         remaximize.check();
@@ -104,7 +128,7 @@ public final class FrameScreenMode implements ScreenMode {
      * then are not the ones the session should keep.
      */
     public boolean isTransitioning() {
-        return device != null || remaximize.isPending();
+        return device != null || remaximize.isPending() || closedInTransition;
     }
 
     /** The frame as {@link Remaximize} sees it. */

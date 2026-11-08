@@ -51,6 +51,7 @@ final class FullScreenFixture implements AutoCloseable {
     static final class RecordingScreenMode implements ScreenMode {
         int entered;
         int left;
+        int closed;
 
         @Override
         public void enter() {
@@ -60,6 +61,11 @@ final class FullScreenFixture implements AutoCloseable {
         @Override
         public void leave() {
             left++;
+        }
+
+        @Override
+        public void close() {
+            closed++;
         }
     }
 
