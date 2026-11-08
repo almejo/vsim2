@@ -183,6 +183,17 @@ public final class EdgeBars {
         frame();
     }
 
+    /** Slides {@code edge}'s bars away now (the waveform panel's own «Ocultar» while it is up from the edge). */
+    public void hide(Edge edge) {
+        Objects.requireNonNull(edge, "edge");
+        EdgeState state = states.get(edge);
+        state.armedSince = -1;
+        if (state.open) {
+            close(edge);
+        }
+        frame();
+    }
+
     /** Whether {@code edge}'s bars are open or opening (sliding in). */
     public boolean isShown(Edge edge) {
         return states.get(edge).open;

@@ -59,7 +59,7 @@ public final class WaveformFeatures {
         Runnable repaintPanes = EveryPane.repaint(view);
         this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
         this.panel = new WaveformPanel(openDocument, actions, () -> view.canvas().scheme(), prompt, this::showInCircuit,
-                dock::hideDock);
+                this::hidePanel);
         dock.setContent(panel);
         this.toggle = new AbstractAction(Messages.text("menu.view.waveforms")) {
             @Override
@@ -85,6 +85,7 @@ public final class WaveformFeatures {
         this.removeFromPanes = view.forEachPane(this::installOn);
         this.probeListener = () -> {
             panel.probesChanged();
+            probesChangedInFullScreen();
             repaintPanes.run(); // probe edits do not notify document listeners: the markers must repaint
         };
         openDocument.document().addProbeListener(probeListener);
@@ -106,6 +107,21 @@ public final class WaveformFeatures {
             pane.removeOverlay(markers);
             pane.removeOverlay(blink);
         };
+    }
+
+    /** The panel's «Ocultar»: closes the dock, or in presentation mode takes the panel out of sight. */
+    private void hidePanel() {
+        if (disposed) {
+            return;
+        }
+        inFullScreen.hide();
+    }
+
+    /** The document's probes changed; presentation mode's bottom edge follows them (shares the probe listener). */
+    private void probesChangedInFullScreen() {
+        if (!disposed && inFullScreen != null) {
+            inFullScreen.probesChanged();
+        }
     }
 
     public WaveformPanel panel() {

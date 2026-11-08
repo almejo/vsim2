@@ -1,5 +1,8 @@
 package cl.almejo.vsim.ui.fullscreen;
 
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.waveform.WaveformPanel;
@@ -11,9 +14,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.List;
@@ -27,7 +33,9 @@ import static org.assertj.core.api.Assertions.within;
 /**
  * The waveform panel in presentation mode: unpinned it hides behind the bottom edge at once and comes up over the
  * circuit after the dwell; its pin (shown only in the mode, remembered) docks it with the canvas shorter; leaving
- * puts the dock back as tall as it was before entering. With no panel open the bottom edge does nothing.
+ * puts the dock back as tall as it was before entering, open or closed as it was. The bottom edge brings the panel
+ * up whenever the circuit has a probe, even with the panel closed (the user, 2026-11-08); with no probes and no panel
+ * open it does nothing.
  */
 class FullScreenWaveformsTest {
 
@@ -111,6 +119,33 @@ class FullScreenWaveformsTest {
 
     private void pointerToTheMiddle() {
         fixture.features.edgeBars().pointerAt(new Point(WIDTH / 2, HEIGHT / 2));
+    }
+
+    /** A probe on a pin of a part the empty circuit does not have: enough for the panel to have a channel. */
+    private void addAProbe() {
+        view.openDocument().document().setProbes(
+                List.of(new Probe("p1", new ProbeTarget.PinTarget(new ElementId("u1"), 0), "a")));
+    }
+
+    /** The panel's own «Ocultar» button. */
+    private AbstractButton hideButton() {
+        return findButton(panel(), "Ocultar").orElseThrow();
+    }
+
+    private static Optional<AbstractButton> findButton(Container container, String name) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof AbstractButton button && button.getAction() != null
+                    && name.equals(button.getAction().getValue(Action.NAME))) {
+                return Optional.of(button);
+            }
+            if (child instanceof Container inner) {
+                Optional<AbstractButton> found = findButton(inner, name);
+                if (found.isPresent()) {
+                    return found;
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private JMenuItem waveformsItem() {
@@ -232,7 +267,7 @@ class FullScreenWaveformsTest {
     }
 
     @Test
-    void closingThePanelWhileShownFromTheEdgeLeavesTheBottomEdgeInert() {
+    void closingThePanelOfACircuitWithoutProbesLeavesTheBottomEdgeInert() {
         openThePanel();
         enter();
         restAtTheBottomEdge();
@@ -244,12 +279,12 @@ class FullScreenWaveformsTest {
         assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.BOTTOM)).isFalse();
         assertThat(isOnScreen(panel())).isFalse();
         leave();
-        assertThat(dock().isDockShowing()).isFalse();
-        assertThat(SwingUtilities.isDescendingFrom(panel(), dock())).as("back in the dock, closed").isTrue();
+        assertThat(dock().isDockShowing()).as("open, as it was before entering").isTrue();
+        assertThat(SwingUtilities.isDescendingFrom(panel(), dock())).as("back in the dock").isTrue();
     }
 
     @Test
-    void withNoPanelOpenTheBottomEdgeDoesNothing() {
+    void withNoProbesAndNoPanelOpenTheBottomEdgeDoesNothing() {
         enter();
         restAtTheBottomEdge();
         assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.BOTTOM)).isFalse();
@@ -277,5 +312,92 @@ class FullScreenWaveformsTest {
         fixture.layOut();
         panel().pinButton().doClick(0);
         assertThat(((WaveformPanel) first.bottomDock().content().orElseThrow()).pinButton().isSelected()).isTrue();
+    }
+
+    @Test
+    void withProbesTheBottomEdgeBringsThePanelEvenIfItWasClosed() {
+        addAProbe();
+        dock().hideDock();
+        fixture.layOut();
+        enter();
+        assertThat(isOnScreen(panel())).isFalse();
+        restAtTheBottomEdge();
+        assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.BOTTOM)).isTrue();
+        assertThat(isOnScreen(panel())).isTrue();
+        assertAtTheBottom(panel());
+    }
+
+    @Test
+    void theHideButtonSlidesThePanelAwayAndTheEdgeKeepsWorking() {
+        addAProbe();
+        openThePanel();
+        enter();
+        restAtTheBottomEdge();
+        pointerToTheMiddle();
+        hideButton().doClick(0);
+        fixture.barTicker.advance(EdgeBars.SLIDE.toMillis() + 50);
+        fixture.layOut();
+        assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.BOTTOM)).isFalse();
+        assertThat(isOnScreen(panel())).isFalse();
+        assertThat(view.openDocument().document().probes()).as("the probes stay").hasSize(1);
+        restAtTheBottomEdge();
+        assertThat(isOnScreen(panel())).as("the edge still brings it").isTrue();
+    }
+
+    @Test
+    void leavingPutsThePanelBackClosedWhenItWasClosedBeforeEntering() {
+        addAProbe();
+        enter();
+        restAtTheBottomEdge();
+        leave();
+        assertThat(dock().isDockShowing()).isFalse();
+        assertThat(SwingUtilities.isDescendingFrom(panel(), dock())).isTrue();
+        assertThat(isOnScreen(panel())).isFalse();
+    }
+
+    @Test
+    void pinnedTheClosedPanelOfACircuitWithProbesIsDockedInTheModeAndClosedAfterIt() {
+        fixture.preferences.setFullScreenWaveformsPinned(true);
+        addAProbe();
+        enter();
+        assertThat(isOnScreen(panel())).isTrue();
+        assertAtTheBottom(panel());
+        assertThat(canvasAreaHeight()).isLessThan(wholeHeight());
+        leave();
+        assertThat(dock().isDockShowing()).isFalse();
+    }
+
+    @Test
+    void theFirstProbeAddedInTheModeWakesTheBottomEdge() {
+        enter();
+        addAProbe();
+        restAtTheBottomEdge();
+        assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.BOTTOM)).isTrue();
+        assertThat(isOnScreen(panel())).isTrue();
+    }
+
+    @Test
+    void hidingAPinnedPanelPutsItBehindTheEdgeForNowAndKeepsThePinRemembered() {
+        fixture.preferences.setFullScreenWaveformsPinned(true);
+        addAProbe();
+        openThePanel();
+        enter();
+        pointerToTheMiddle();
+        hideButton().doClick(0);
+        fixture.barTicker.advance(HIDE_TIME);
+        fixture.layOut();
+        assertThat(isOnScreen(panel())).isFalse();
+        assertThat(canvasAreaHeight()).isEqualTo(wholeHeight());
+        assertThat(panel().pinButton().isSelected()).as("it is not pinned now").isFalse();
+        assertThat(fixture.preferences.fullScreenWaveformsPinned()).as("remembered for next time").isTrue();
+        restAtTheBottomEdge();
+        assertThat(isOnScreen(panel())).isTrue();
+        panel().pinButton().doClick(0);
+        fixture.layOut();
+        pointerToTheMiddle();
+        fixture.barTicker.advance(HIDE_TIME);
+        fixture.layOut();
+        assertThat(isOnScreen(panel())).as("pinned again: docked").isTrue();
+        assertThat(canvasAreaHeight()).isLessThan(wholeHeight());
     }
 }

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.fullscreen.EdgeBars;
 import cl.almejo.vsim.ui.fullscreen.FullScreenFeatures;
@@ -14,12 +15,19 @@ import java.awt.Dimension;
 import java.util.Optional;
 
 /**
- * The waveform panel of one view in presentation mode (the approved mockup v2): unpinned, the open panel leaves the
- * bottom dock at once and waits behind the bottom screen edge, coming up over the circuit, full width, after the
- * dwell; pinned (its pin, shown only in the mode and remembered in {@link AppPreferences}), it stays docked and the
- * canvas is shorter. Removing the pin leaves the panel where it is until the pointer leaves it. Leaving the mode puts
- * the panel back in the dock as tall as it was before entering, even if the divider was dragged in the mode. With the
- * panel closed nothing is behind the bottom edge, so it does nothing. EDT only.
+ * The waveform panel of one view in presentation mode (the approved mockup v2 and the user's rules of 2026-11-08):
+ * <ul>
+ *   <li>Unpinned, the panel waits behind the bottom screen edge, at once on entering (nothing to drag), and comes up
+ *       over the circuit, full width, after the dwell; its «Ocultar» slides it away and the edge keeps working.</li>
+ *   <li>The edge brings it whenever the circuit has a probe, even with the panel closed; with no probes only an open
+ *       panel is there, and closing it leaves the edge inert.</li>
+ *   <li>Pinned (its pin, shown only in the mode and remembered in {@link AppPreferences}), it is docked and the canvas
+ *       is shorter, also when it was closed. Its «Ocultar» puts it behind the edge for the rest of this time in the
+ *       mode, the pin still remembered. Removing the pin leaves it where it is until the pointer leaves it.</li>
+ *   <li>Leaving puts it back in the dock, open or closed and as tall as before entering, even if the divider was
+ *       dragged in the mode.</li>
+ * </ul>
+ * EDT only.
  */
 final class WaveformsInFullScreen {
 
@@ -27,6 +35,7 @@ final class WaveformsInFullScreen {
     private final WaveformPanel panel;
     private final AppPreferences preferences;
     private final BottomDock dock;
+    private final CircuitDocument document;
     /** The panel's holder behind the bottom edge: opaque, with the line on its top, as tall as the dock was. */
     private final JPanel edgeBar;
     private final Runnable dockListener = this::dockChanged;
@@ -34,17 +43,23 @@ final class WaveformsInFullScreen {
     private final Runnable stopFollowingTheLayout;
     /** The window's bars while this view is laid out for the mode; empty otherwise. */
     private Optional<EdgeBars> edgeBars = Optional.empty();
-    /** The dock's height when this view was laid out for the mode, put back on leaving. */
+    /** The dock's height and state when this view was laid out for the mode, put back on leaving. */
     private int heightBeforeTheMode = BottomDock.DEFAULT_HEIGHT;
+    private boolean openBeforeTheMode;
     private int heightOnTheEdge = BottomDock.DEFAULT_HEIGHT;
+    /** A pinned panel hidden with its «Ocultar»: behind the edge until the mode ends or the pin is pressed. */
+    private boolean unpinnedForNow;
     /** What takes the panel off the bottom edge; null while it is in the dock. */
     private Runnable unregister;
+    /** Guards {@link #update()} against the dock events it causes itself. */
+    private boolean updating;
 
     WaveformsInFullScreen(EditorView view, WaveformPanel panel, AppPreferences preferences) {
         this.view = view;
         this.panel = panel;
         this.preferences = preferences;
         this.dock = view.bottomDock();
+        this.document = view.openDocument().document();
         this.edgeBar = new JPanel(new BorderLayout()) {
             @Override
             public Dimension getPreferredSize() {
@@ -70,6 +85,26 @@ final class WaveformsInFullScreen {
         }
     }
 
+    /**
+     * The panel's «Ocultar»: outside the mode it closes the dock. In the mode, with probes, the panel only goes out of
+     * sight behind the edge (a pinned one for now); without probes it closes, and the edge with it.
+     */
+    void hide() {
+        if (edgeBars.isEmpty() || !hasProbes()) {
+            dock.hideDock();
+        } else if (unregister == null) {
+            unpinnedForNow = true;
+            update();
+        } else {
+            edgeBars.get().hide(EdgeBars.Edge.BOTTOM);
+        }
+    }
+
+    /** The probes changed: the first one wakes the bottom edge, removing the last puts it to sleep. */
+    void probesChanged() {
+        update();
+    }
+
     void dispose() {
         stopFollowingTheLayout.run();
         preferences.removeListener(preferenceListener);
@@ -84,25 +119,48 @@ final class WaveformsInFullScreen {
         boolean inTheMode = view.fullScreenStage().isPresent();
         if (inTheMode && edgeBars.isEmpty()) {
             heightBeforeTheMode = dock.dockHeight();
+            openBeforeTheMode = dock.isDockShowing();
             edgeBars = view.windowCommands().fullScreen().map(FullScreenFeatures::edgeBars);
+            update();
         } else if (!inTheMode && edgeBars.isPresent()) {
             edgeBars = Optional.empty();
+            unpinnedForNow = false;
             dock.setDockHeight(heightBeforeTheMode);
+            update();
+            restoreTheDockState();
+        } else {
+            update();
         }
-        update();
     }
 
-    /** The panel was opened or closed: opened in the mode, it comes up from the edge for a moment. */
+    private void restoreTheDockState() {
+        if (openBeforeTheMode) {
+            dock.showDock();
+        } else {
+            dock.hideDock();
+        }
+    }
+
+    /** The panel was opened or closed (Ver ▸ Formas de onda): behind the edge it comes up or slides away. */
     private void dockChanged() {
+        if (updating) {
+            return;
+        }
         update();
+        if (unregister == null) {
+            return;
+        }
         if (dock.isDockShowing()) {
             reveal();
+        } else {
+            edgeBars.ifPresent(bars -> bars.hide(EdgeBars.Edge.BOTTOM));
         }
     }
 
     /** The pin was pressed: remembered for every view; unpinned, the panel stays until the pointer leaves it. */
     private void pinPressed() {
-        boolean pinned = !preferences.fullScreenWaveformsPinned();
+        boolean pinned = !isPinned();
+        unpinnedForNow = false;
         preferences.setFullScreenWaveformsPinned(pinned);
         update();
         if (!pinned && unregister != null) {
@@ -110,16 +168,35 @@ final class WaveformsInFullScreen {
         }
     }
 
-    /** Puts the pin and the panel where the mode, the dock and the pin say. */
+    private boolean isPinned() {
+        return preferences.fullScreenWaveformsPinned() && !unpinnedForNow;
+    }
+
+    private boolean hasProbes() {
+        return !document.probes().isEmpty();
+    }
+
+    /** Puts the pin and the panel where the mode, the probes, the dock and the pin say. */
     private void update() {
-        boolean pinned = preferences.fullScreenWaveformsPinned();
-        panel.showPinned(pinned);
-        panel.pinButton().setVisible(edgeBars.isPresent());
-        boolean onTheEdge = edgeBars.isPresent() && dock.isDockShowing() && !pinned;
-        if (onTheEdge && unregister == null) {
-            moveToTheEdge();
-        } else if (!onTheEdge && unregister != null) {
-            moveToTheDock();
+        if (updating) {
+            return;
+        }
+        updating = true;
+        try {
+            panel.showPinned(isPinned());
+            panel.pinButton().setVisible(edgeBars.isPresent());
+            boolean available = edgeBars.isPresent() && (hasProbes() || dock.isDockShowing());
+            if (available && isPinned()) {
+                dock.showDock();
+            }
+            boolean onTheEdge = available && !isPinned();
+            if (onTheEdge && unregister == null) {
+                moveToTheEdge();
+            } else if (!onTheEdge && unregister != null) {
+                moveToTheDock();
+            }
+        } finally {
+            updating = false;
         }
     }
 
