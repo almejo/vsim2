@@ -14,6 +14,14 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Archivo ▸ Exportar ▸ «Imagen de la ventana…»: guarda en un PNG la ventana de VSim tal como la ves (menús, paneles, el circuito con sus valores y los diálogos abiertos donde están), pintada por VSim a la escala de tu pantalla, nítida en pantallas HiDPI y sin otros programas ni la barra de título del sistema. Ver [Exportar imagen de la ventana](docs/funciones/importar-y-exportar.md#exportar-imagen-de-la-ventana).
 - Botón de captura en la barra de herramientas, con una ▾ para elegir qué copia al portapapeles como imagen PNG («Ventana de VSim» o «Circuito visible», se recuerda), y Editar ▸ «Copiar captura» (Ctrl+Mayús+C) que copia con ese modo, también con un diálogo de VSim abierto (como Preferencias). Un destello blanco de unos 350 ms y un aviso abajo del circuito confirman lo copiado. Ver [Copiar captura](docs/funciones/importar-y-exportar.md#copiar-captura).
 - La IA puede guardar esa misma imagen de la ventana con `vsim_export` y el alcance «ventana» (solo PNG; un PDF o SVG de la ventana lo rechaza con una frase), en la carpeta de exportación y con un nombre nuevo, como sus otras exportaciones. Ver [IA (MCP)](docs/funciones/ia-mcp.md#qué-puede-hacer-la-ia).
+- «Modo presentación (pantalla completa)» en Ver (F11) y en un botón al final de la barra de herramientas: la ventana
+  ocupa toda la pantalla de su monitor y las barras se esconden detrás de los bordes para que se vea solo el circuito,
+  por ejemplo al proyectarlo en clases. Al dejar el puntero 1 segundo en un borde, su barra entra deslizándose sobre
+  el circuito sin moverlo (arriba el menú, las pestañas y la barra de herramientas; a la izquierda el árbol y la
+  paleta; a la derecha el panel derecho con su tira) y se esconde 0,4 segundos después de salir de ella, nunca con
+  uno de sus menús abierto o escribiendo en ella; la barra de estado no se muestra. Un aviso de 2 segundos dice cómo
+  salir: F11, Esc (cuando nada más lo usa), el ítem de Ver o el botón. Al salir, todo vuelve como estaba. Ver
+  [Modo presentación](docs/funciones/interfaz-preferencias-y-sesion.md#modo-presentación).
 
 ## Versión 0.7 — 2026-11-07
 

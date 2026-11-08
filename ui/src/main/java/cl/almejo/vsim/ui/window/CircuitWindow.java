@@ -9,6 +9,9 @@ import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
+import cl.almejo.vsim.ui.fullscreen.FrameScreenMode;
+import cl.almejo.vsim.ui.fullscreen.FullScreenFeatures;
+import cl.almejo.vsim.ui.fullscreen.ScreenMode;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
@@ -52,6 +55,9 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final Runnable windowsListener = this::windowsChanged;
     private final RecentFiles recentFiles;
     private final KeyBindings keyBindings;
+    /** The real full screen of this window and «Modo presentación» on it (F11). */
+    private final FrameScreenMode screenMode;
+    private final FullScreenFeatures fullScreen;
     /** The bounds while not maximized: what Recientes and the session store for a maximized window. */
     private Rectangle normalBounds;
     private boolean closed;
@@ -63,6 +69,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         this.tabs = new WindowTabs(new Host(), place -> newView(place, services),
                 new SplitLayoutStore(services.preferences()), () -> services.preferences().animateViewMoves());
         setContentPane(tabs);
+        this.screenMode = ScreenMode.of(this);
+        this.fullScreen = new FullScreenFeatures(getRootPane(), tabs, screenMode, services.preferences());
         setIconImages(AppIcons.images());
         // Component files are imported into the library instead of being opened as circuits (M4-A ruling); drops on
         // the window, the canvas and the palette are handled after the drop finishes (EditorView.dropFiles).
@@ -192,7 +200,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         return WindowState.of(normalBounds(), isMaximized(), view);
     }
 
+    /** The bounds to come back to: in presentation mode (full screen), those from before entering it. */
     private Rectangle normalBounds() {
+        if (screenMode.isFullScreen() && !screenMode.wasMaximized()) {
+            return screenMode.boundsBefore().orElseGet(this::getBounds);
+        }
         return isMaximized() && normalBounds != null ? normalBounds : getBounds();
     }
 
@@ -209,12 +221,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
     }
 
+    /** Maximized now; in presentation mode, whether it was on entering (what the session and Recientes keep). */
     private boolean isMaximized() {
+        if (screenMode.isFullScreen()) {
+            return screenMode.wasMaximized();
+        }
         return (getExtendedState() & MAXIMIZED_BOTH) == MAXIMIZED_BOTH;
     }
 
     private void rememberNormalBounds() {
-        if ((getExtendedState() & MAXIMIZED_BOTH) == 0) {
+        if (!screenMode.isFullScreen() && (getExtendedState() & MAXIMIZED_BOTH) == 0) {
             normalBounds = getBounds();
         }
     }
@@ -346,6 +362,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         application.exit();
     }
 
+    @Override
+    public Optional<FullScreenFeatures> fullScreen() {
+        return Optional.of(fullScreen);
+    }
+
     /**
      * Asks to save each modified document this window is the last holder of (spec §4.5); false means the user
      * cancelled. Open inline edits are finished first (confirmed when valid, cancelled otherwise), so the questions
@@ -392,6 +413,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
         closed = true;
         application.removeWindowsListener(windowsListener);
+        fullScreen.dispose();
         tabs.disposeAll();
         dispose();
     }
@@ -404,6 +426,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         closed = true;
         try {
             application.removeWindowsListener(windowsListener);
+            fullScreen.dispose(); // out of the full screen first, its bars back in their places
             tabs.disposeAll();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the window open or stop the application from exiting
@@ -474,9 +497,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
         @Override
         public void showMenuBar(JMenuBar menuBar) {
-            setJMenuBar(menuBar);
-            getRootPane().revalidate();
-            getRootPane().repaint();
+            fullScreen.showMenuBar(menuBar); // on the frame, or in the top bar in presentation mode
         }
 
         @Override

@@ -81,6 +81,7 @@ class ActionIconsTest {
         used.addAll(cl.almejo.vsim.ui.snap.SnapIcons.names());
         used.addAll(cl.almejo.vsim.ui.print.PrintIcons.names());
         used.addAll(cl.almejo.vsim.ui.ai.present.PresentationIcons.names());
+        used.addAll(cl.almejo.vsim.ui.fullscreen.FullScreenIcons.names());
         used.addAll(cl.almejo.vsim.ui.ai.AiIcons.names());
         used.addAll(cl.almejo.vsim.ui.inline.InlineIcons.names());
         used.addAll(cl.almejo.vsim.ui.search.FindIcons.names());

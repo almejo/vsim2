@@ -193,6 +193,8 @@ public final class WindowTabs extends JPanel {
     private final TabStripModel model = new TabStripModel();
     private final TabStrip strip;
     private final JPanel toolBarSlot = new JPanel(new BorderLayout());
+    /** The toolbar slot over the tab strip, above the cards (presentation mode lends it to the top edge). */
+    private final JPanel topBars = new JPanel(new BorderLayout());
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cards = new JPanel(cardLayout);
     private final Map<String, TabEntry> entries = new LinkedHashMap<>();
@@ -226,10 +228,9 @@ public final class WindowTabs extends JPanel {
         this.viewFactory = Objects.requireNonNull(viewFactory, "viewFactory");
         this.splitStore = Objects.requireNonNull(splitStore, "splitStore");
         this.strip = new TabStrip(model, animate);
-        JPanel north = new JPanel(new BorderLayout());
-        north.add(toolBarSlot, BorderLayout.NORTH);
-        north.add(strip, BorderLayout.SOUTH);
-        add(north, BorderLayout.NORTH);
+        topBars.add(toolBarSlot, BorderLayout.NORTH);
+        topBars.add(strip, BorderLayout.SOUTH);
+        add(topBars, BorderLayout.NORTH);
         add(cards, BorderLayout.CENTER);
         model.addListener(this::modelChanged);
         strip.onActivate(model::activate);
@@ -618,6 +619,24 @@ public final class WindowTabs extends JPanel {
     /** The slot above the strip where the active tab's toolbar hangs. */
     public JComponent toolBarSlot() {
         return toolBarSlot;
+    }
+
+    /**
+     * Takes the toolbar slot and the tab strip out of the window, for presentation mode to show them from the top
+     * edge (they keep working there: a tab switch still hangs its toolbar in the slot). {@link #returnTopBars()} puts
+     * them back above the cards.
+     */
+    public JComponent lendTopBars() {
+        remove(topBars);
+        revalidate();
+        return topBars;
+    }
+
+    /** Puts the toolbar slot and the tab strip back above the cards, wherever they were lent. */
+    public void returnTopBars() {
+        add(topBars, BorderLayout.NORTH);
+        revalidate();
+        repaint();
     }
 
     /** Every tab's inline editor: an open inline edit is finished before a close asks to save. */
