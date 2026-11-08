@@ -1,10 +1,10 @@
 package cl.almejo.vsim.ui.fullscreen;
 
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.ViewState;
 
 import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
-import java.awt.Point;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -19,20 +19,23 @@ import java.util.Objects;
 import java.util.function.LongSupplier;
 
 /**
- * Keeps the circuit where it is on the screen while presentation mode rearranges the window around the canvas: the
- * bars go or come back and the frame grows to the whole monitor or returns. Each pane is panned by exactly what its
- * top-left corner moved on screen, as the find bar does when it opens above the canvas. The frame's own change of
- * size arrives later from the window manager, so the anchor keeps following the panes' moves for a short while after
- * it was set. EDT only.
+ * Keeps the circuit in view while presentation mode rearranges the window around the canvas: the bars go or come
+ * back, the frame grows to the whole monitor and returns, and the window manager resizes it again a moment later (the
+ * user, 2026-11-08: after leaving, the view ended panned away). Each pane keeps its zoom and the grid point at its
+ * centre ({@link ViewState}), given back after every resize or move of the pane until the window settled
+ * ({@link #SETTLE_MILLISECONDS}) or the user presses on the pane. Every split pane keeps its own. EDT only.
  */
 final class CircuitAnchor {
 
-    /** How long after entering or leaving the panes' moves are still the mode's (the window manager is not instant). */
-    static final long SETTLE_MILLISECONDS = 1_500;
+    /**
+     * How long after entering or leaving the panes' resizes are still the mode's: longer than the frame's re-sync with
+     * the window manager ({@link FrameResync#TIMEOUT_MILLISECONDS}), which may resize the window once more.
+     */
+    static final long SETTLE_MILLISECONDS = 3_000;
 
     private final JRootPane rootPane;
     private final LongSupplier clock;
-    private final Map<CircuitCanvas, Point> lastPositions = new IdentityHashMap<>();
+    private final Map<CircuitCanvas, ViewState> savedViews = new IdentityHashMap<>();
     private final List<Runnable> removals = new ArrayList<>();
     private long followUntil;
 
@@ -41,7 +44,7 @@ final class CircuitAnchor {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    /** Remembers where {@code panes} are on screen now; the next {@link #follow()} keeps their circuits there. */
+    /** Remembers what {@code panes} show now; until the window settles they come back to it after every resize. */
     void hold(List<CircuitCanvas> panes) {
         release();
         followUntil = clock.getAsLong() + SETTLE_MILLISECONDS;
@@ -49,76 +52,64 @@ final class CircuitAnchor {
             if (pane.getWidth() <= 0 || pane.getHeight() <= 0 || !SwingUtilities.isDescendingFrom(pane, rootPane)) {
                 continue; // never laid out (a tab not shown yet): there is nothing on screen to keep
             }
-            lastPositions.put(pane, screenPosition(pane));
-            ComponentListener moves = new ComponentAdapter() {
-                @Override
-                public void componentMoved(ComponentEvent event) {
-                    paneMoved();
-                }
-
-                @Override
-                public void componentResized(ComponentEvent event) {
-                    paneMoved();
-                }
-            };
-            HierarchyBoundsListener ancestorMoves = new HierarchyBoundsAdapter() {
-                @Override
-                public void ancestorMoved(HierarchyEvent event) {
-                    paneMoved();
-                }
-
-                @Override
-                public void ancestorResized(HierarchyEvent event) {
-                    paneMoved();
-                }
-            };
-            pane.addComponentListener(moves);
-            pane.addHierarchyBoundsListener(ancestorMoves);
-            removals.add(() -> {
-                pane.removeComponentListener(moves);
-                pane.removeHierarchyBoundsListener(ancestorMoves);
-            });
+            savedViews.put(pane, pane.viewState());
+            listenTo(pane);
         }
     }
 
-    /** Pans every held pane by what it moved on screen since the last time, so its circuit stays put. */
+    private void listenTo(CircuitCanvas pane) {
+        ComponentListener resizes = new ComponentAdapter() {
+            @Override
+            public void componentMoved(ComponentEvent event) {
+                paneChanged(pane);
+            }
+
+            @Override
+            public void componentResized(ComponentEvent event) {
+                paneChanged(pane);
+            }
+        };
+        HierarchyBoundsListener ancestorResizes = new HierarchyBoundsAdapter() {
+            @Override
+            public void ancestorResized(HierarchyEvent event) {
+                paneChanged(pane);
+            }
+        };
+        pane.addComponentListener(resizes);
+        pane.addHierarchyBoundsListener(ancestorResizes);
+        Runnable stopPressObserver = pane.addPressObserver(() -> forget(pane)); // the user works on it now
+        removals.add(() -> {
+            pane.removeComponentListener(resizes);
+            pane.removeHierarchyBoundsListener(ancestorResizes);
+            stopPressObserver.run();
+        });
+    }
+
+    /** Gives every held pane its saved view (after the window was laid out anew). */
     void follow() {
-        for (Map.Entry<CircuitCanvas, Point> entry : lastPositions.entrySet()) {
-            CircuitCanvas pane = entry.getKey();
-            if (pane.getWidth() <= 0 || !SwingUtilities.isDescendingFrom(pane, rootPane)) {
-                continue;
-            }
-            Point now = screenPosition(pane);
-            Point last = entry.getValue();
-            if (!now.equals(last)) {
-                pane.compensateCanvasMove(last.x - now.x, last.y - now.y);
-                entry.setValue(now);
-            }
+        List.copyOf(savedViews.keySet()).forEach(this::paneChanged);
+    }
+
+    /** {@code pane} was resized or moved: it shows its saved view again, unless the window already settled. */
+    void paneChanged(CircuitCanvas pane) {
+        if (clock.getAsLong() > followUntil) {
+            release();
+            return;
         }
+        ViewState saved = savedViews.get(pane);
+        if (saved != null && pane.getWidth() > 0 && pane.getHeight() > 0) {
+            pane.applyViewState(saved);
+        }
+    }
+
+    private void forget(CircuitCanvas pane) {
+        savedViews.remove(pane);
     }
 
     /** Stops following the panes. */
     void release() {
         removals.forEach(Runnable::run);
         removals.clear();
-        lastPositions.clear();
-    }
-
-    private void paneMoved() {
-        if (clock.getAsLong() > followUntil) {
-            release();
-            return;
-        }
-        follow();
-    }
-
-    /** The pane's top-left corner on screen: the window's place plus the pane's place in it. */
-    private Point screenPosition(CircuitCanvas pane) {
-        Point inRoot = SwingUtilities.convertPoint(pane, 0, 0, rootPane);
-        if (rootPane.isShowing()) {
-            Point origin = rootPane.getLocationOnScreen();
-            inRoot.translate(origin.x, origin.y);
-        }
-        return inRoot;
+        savedViews.clear();
     }
 }

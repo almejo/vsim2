@@ -202,7 +202,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     /** The bounds to come back to: in presentation mode (full screen), those from before entering it. */
     private Rectangle normalBounds() {
-        if (screenMode.isFullScreen() && !screenMode.wasMaximized()) {
+        if (screenMode.isTransitioning() && !screenMode.wasMaximized()) {
             return screenMode.boundsBefore().orElseGet(this::getBounds);
         }
         return isMaximized() && normalBounds != null ? normalBounds : getBounds();
@@ -221,16 +221,19 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
     }
 
-    /** Maximized now; in presentation mode, whether it was on entering (what the session and Recientes keep). */
+    /**
+     * Maximized now; in presentation mode (and while coming back from it), whether it was on entering: what the session
+     * and Recientes keep.
+     */
     private boolean isMaximized() {
-        if (screenMode.isFullScreen()) {
+        if (screenMode.isTransitioning()) {
             return screenMode.wasMaximized();
         }
         return (getExtendedState() & MAXIMIZED_BOTH) == MAXIMIZED_BOTH;
     }
 
     private void rememberNormalBounds() {
-        if (!screenMode.isFullScreen() && (getExtendedState() & MAXIMIZED_BOTH) == 0) {
+        if (!screenMode.isTransitioning() && (getExtendedState() & MAXIMIZED_BOTH) == 0) {
             normalBounds = getBounds();
         }
     }

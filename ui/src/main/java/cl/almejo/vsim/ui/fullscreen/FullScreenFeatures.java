@@ -66,6 +66,13 @@ public final class FullScreenFeatures {
     private JMenuBar menuBar;
     private boolean active;
     private boolean disposed;
+    /**
+     * TEMPORARY, for diagnosis (2026-11-08, menus closing by themselves): whether this entry moved the menu bar to
+     * the top bar ({@code -Dvsim.fullscreen.keepMenuBar=true} keeps it on the frame) and used the system's full
+     * screen ({@code -Dvsim.fullscreen.native=false} skips it). Both read on entering; to be removed.
+     */
+    private boolean menuBarInTopBar = true;
+    private boolean nativeFullScreen = true;
     private Runnable hideNotice = () -> {
     };
     private Runnable unregisterTopBar = () -> {
@@ -129,12 +136,18 @@ public final class FullScreenFeatures {
             return;
         }
         active = true;
+        menuBarInTopBar = !Boolean.getBoolean("vsim.fullscreen.keepMenuBar");
+        nativeFullScreen = !"false".equals(System.getProperty("vsim.fullscreen.native"));
         EditorView view = tabs.activeView();
         anchor.hold(view.panes());
-        screenMode.enter();
-        rootPane.setJMenuBar(null);
-        if (menuBar != null) {
-            topBar.add(menuBar, BorderLayout.NORTH);
+        if (nativeFullScreen) {
+            screenMode.enter();
+        }
+        if (menuBarInTopBar) {
+            rootPane.setJMenuBar(null);
+            if (menuBar != null) {
+                topBar.add(menuBar, BorderLayout.NORTH);
+            }
         }
         topBar.add(tabs.lendTopBars(), BorderLayout.CENTER);
         rootPane.getLayeredPane().add(topBar, TOP_BAR_LAYER);
@@ -169,10 +182,14 @@ public final class FullScreenFeatures {
         rootPane.getLayeredPane().remove(topBar);
         topBar.removeAll();
         tabs.returnTopBars();
-        rootPane.setJMenuBar(menuBar);
+        if (menuBarInTopBar) {
+            rootPane.setJMenuBar(menuBar);
+        }
         List.copyOf(laidOutViews.values()).forEach(Runnable::run);
         laidOutViews.clear();
-        screenMode.leave();
+        if (nativeFullScreen) {
+            screenMode.leave();
+        }
         settle();
         activeListeners.fire(Runnable::run);
     }
@@ -182,11 +199,12 @@ public final class FullScreenFeatures {
      * instead of setting it on the frame themselves).
      */
     public void showMenuBar(JMenuBar shown) {
-        if (active && menuBar != null) {
+        boolean inTopBar = active && menuBarInTopBar;
+        if (inTopBar && menuBar != null) {
             topBar.remove(menuBar);
         }
         menuBar = shown;
-        if (active) {
+        if (inTopBar) {
             if (shown != null) {
                 topBar.add(shown, BorderLayout.NORTH);
             }
