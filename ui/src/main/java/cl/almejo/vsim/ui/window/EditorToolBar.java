@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.tools.ZoomTool;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
@@ -65,6 +66,17 @@ final class EditorToolBar {
         return () -> {
             toolBar.remove(button);
             toolBar.revalidate();
+        };
+    }
+
+    /** See {@link EditorView#addToolbarComponent}. */
+    Runnable addComponent(JComponent component) {
+        toolBar.add(component);
+        toolBar.revalidate();
+        return () -> {
+            toolBar.remove(component);
+            toolBar.revalidate();
+            toolBar.repaint();
         };
     }
 

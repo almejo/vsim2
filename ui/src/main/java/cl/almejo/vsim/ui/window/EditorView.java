@@ -951,6 +951,14 @@ public final class EditorView extends JPanel implements CanvasHost {
         return editorToolBar.addToolbarToggleAfterTools(button);
     }
 
+    /**
+     * Adds {@code component} at the end of the toolbar, after the speed selector (the screenshot split button, the
+     * presentation-mode toggle). Returns what takes it back.
+     */
+    public Runnable addToolbarComponent(JComponent component) {
+        return editorToolBar.addComponent(component);
+    }
+
     /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */
     public Optional<JToggleButton> toolButton(Class<? extends Tool> toolType) {
         return editorToolBar.toolButton(toolType);

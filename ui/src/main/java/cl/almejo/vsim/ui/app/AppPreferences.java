@@ -152,6 +152,7 @@ public final class AppPreferences {
     static final String THEME = "theme";
     static final String COLOR_SCHEME = "colorScheme";
     static final String LANGUAGE = "language";
+    private static final String SPLIT_BUTTON_PREFIX = "splitButton.";
     static final String LIBRARY_DIRECTORY = "libraryDirectory";
     static final String RECENT = "recent";
     static final String RESTORE_SESSION = "restoreSession";
@@ -312,6 +313,16 @@ public final class AppPreferences {
     public void setLanguage(Optional<String> languageTag) {
         Objects.requireNonNull(languageTag, "languageTag");
         put(LANGUAGE, languageTag.orElse(""));
+    }
+
+    /** The mode id a split button ({@code preferenceId}) was last left on; empty when never chosen. */
+    public Optional<String> splitButtonMode(String preferenceId) {
+        return optional(SPLIT_BUTTON_PREFIX + preferenceId);
+    }
+
+    public void setSplitButtonMode(String preferenceId, String modeId) {
+        Objects.requireNonNull(modeId, "modeId");
+        put(SPLIT_BUTTON_PREFIX + preferenceId, modeId);
     }
 
     /** The stored directory, or the platform default when none is stored or the stored one is not a valid path here. */
