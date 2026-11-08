@@ -299,6 +299,22 @@ class FullScreenFeaturesTest {
         return (window.getRGB(windowX, windowY) & 0xFFFFFF) == (circuit.getRGB(circuitX, circuitY) & 0xFFFFFF);
     }
 
+    /**
+     * The final review's M14: the top bar's holder is outside the window's component tree while the mode is off, so a
+     * theme change then never reached it; entering brings it up to the current look.
+     */
+    @Test
+    void theTopBarTakesTheCurrentLookOnEntering() {
+        java.awt.Color changed = new javax.swing.plaf.ColorUIResource(0x12, 0x34, 0x56);
+        try {
+            javax.swing.UIManager.put("Panel.background", changed); // a theme change while the mode is off
+            fixture.features.enter();
+            assertThat(view.menuBar().getParent().getBackground()).isEqualTo(changed);
+        } finally {
+            javax.swing.UIManager.put("Panel.background", null); // removes the override: the theme's own value again
+        }
+    }
+
     @Test
     void closingTheWindowInTheModeLeavesTheFullScreen() {
         fixture.features.enter();

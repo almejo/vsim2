@@ -217,6 +217,7 @@ final class WaveformsInFullScreen {
             return;
         }
         heightOnTheEdge = dock.dockHeight();
+        edgeBar.updateUI(); // outside the tree while docked: a theme change since then never reached it
         edgeBar.add(panel, BorderLayout.CENTER);
         stage.get().add(edgeBar, JLayeredPane.PALETTE_LAYER);
         unregister = edgeBars.get().register(EdgeBars.Edge.BOTTOM, edgeBar, () -> false);

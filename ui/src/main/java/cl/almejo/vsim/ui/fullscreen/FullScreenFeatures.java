@@ -138,6 +138,8 @@ public final class FullScreenFeatures {
         anchor.hold(view.panes());
         screenMode.enter();
         rootPane.setJMenuBar(null);
+        // outside the window's tree while the mode was off: a theme change since then never reached it
+        topBar.updateUI();
         if (menuBar != null) {
             topBar.add(menuBar, BorderLayout.NORTH);
         }
