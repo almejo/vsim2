@@ -47,6 +47,7 @@ public final class WaveformFeatures {
     private final Runnable probeListener;
     private final ProbeMarkerOverlay markers;
     private final Runnable removeFromPanes;
+    private final WaveformsInFullScreen inFullScreen;
     private boolean disposed;
 
     public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<Component, String> messages) {
@@ -58,7 +59,7 @@ public final class WaveformFeatures {
         Runnable repaintPanes = EveryPane.repaint(view);
         this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
         this.panel = new WaveformPanel(openDocument, actions, () -> view.canvas().scheme(), prompt, this::showInCircuit,
-                dock::hideDock);
+                this::hidePanel);
         dock.setContent(panel);
         this.toggle = new AbstractAction(Messages.text("menu.view.waveforms")) {
             @Override
@@ -84,12 +85,14 @@ public final class WaveformFeatures {
         this.removeFromPanes = view.forEachPane(this::installOn);
         this.probeListener = () -> {
             panel.probesChanged();
+            probesChangedInFullScreen();
             repaintPanes.run(); // probe edits do not notify document listeners: the markers must repaint
         };
         openDocument.document().addProbeListener(probeListener);
         if (!openDocument.document().probes().isEmpty()) {
             dock.showDock();
         }
+        this.inFullScreen = new WaveformsInFullScreen(view, panel, view.services().preferences());
     }
 
     /** The blink, the markers, their tooltip and their click in {@code pane}. Returns what undoes it. */
@@ -104,6 +107,21 @@ public final class WaveformFeatures {
             pane.removeOverlay(markers);
             pane.removeOverlay(blink);
         };
+    }
+
+    /** The panel's «Ocultar»: closes the dock, or in presentation mode takes the panel out of sight. */
+    private void hidePanel() {
+        if (disposed) {
+            return;
+        }
+        inFullScreen.hide();
+    }
+
+    /** The document's probes changed; presentation mode's bottom edge follows them (shares the probe listener). */
+    private void probesChangedInFullScreen() {
+        if (!disposed && inFullScreen != null) {
+            inFullScreen.probesChanged();
+        }
     }
 
     public WaveformPanel panel() {
@@ -138,6 +156,7 @@ public final class WaveformFeatures {
         }
         String probeId = marker.get().probeIds().getFirst();
         view.bottomDock().showDock();
+        inFullScreen.reveal();
         panel.selectRow(probeId);
         panel.blinkRow(probeId);
         return true;
@@ -156,6 +175,7 @@ public final class WaveformFeatures {
             return;
         }
         view.bottomDock().showDock();
+        inFullScreen.reveal();
         if (result.capReached()) {
             messages.accept(view, Messages.format("waveform.capReached", ProbeActions.MAXIMUM_CHANNELS));
         }
@@ -200,6 +220,7 @@ public final class WaveformFeatures {
             return;
         }
         disposed = true;
+        inFullScreen.dispose();
         removeFromPanes.run();
         shortcutRemover.run();
         view.openDocument().document().removeProbeListener(probeListener);

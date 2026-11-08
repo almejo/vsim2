@@ -26,30 +26,44 @@ final class PaneGuides {
 
     private final GuidesFeatures features;
     private final CircuitCanvas canvas;
-    private final List<EdgeHandle> handles;
+    private final List<EdgeHandle> rulers;
+    private final GuideGrab grab;
     private final GuideOverlay overlay;
-    private final List<Runnable> chromeRemovers = new ArrayList<>();
+    private final List<Runnable> lineRemovers = new ArrayList<>();
+    private final List<Runnable> rulerRemovers = new ArrayList<>();
     private GuideDrag currentDrag;
 
     PaneGuides(GuidesFeatures features, CircuitCanvas canvas) {
         this.features = features;
         this.canvas = canvas;
-        this.handles = List.of(new RulerCorner(this), new RulerHandle(this, RulerHandle.Side.TOP),
-                new RulerHandle(this, RulerHandle.Side.LEFT), new GuideGrab(this));
+        this.rulers = List.of(new RulerCorner(this), new RulerHandle(this, RulerHandle.Side.TOP),
+                new RulerHandle(this, RulerHandle.Side.LEFT));
+        this.grab = new GuideGrab(this);
         this.overlay = new GuideOverlay(this);
     }
 
-    /** Puts the rulers and the lines on the pane ({@code shown}) or takes them away, cancelling a drag under way. */
-    void show(boolean shown) {
-        if (shown && chromeRemovers.isEmpty()) {
-            for (EdgeHandle handle : handles) {
-                chromeRemovers.add(canvas.addEdgeHandle(handle));
-            }
+    /**
+     * Puts the lines, their grab and the rulers on the pane, or takes them away, cancelling a drag under way:
+     * {@code linesShown} follows «Mostrar guías»; {@code rulersShown} also needs the view out of presentation mode,
+     * which hides the rulers (an editing grip, the user 2026-11-08) but keeps the placed guides.
+     */
+    void show(boolean linesShown, boolean rulersShown) {
+        if (!rulersShown && !rulerRemovers.isEmpty()) {
+            rulerRemovers.forEach(Runnable::run);
+            rulerRemovers.clear();
+        }
+        if (linesShown && lineRemovers.isEmpty()) {
+            lineRemovers.add(canvas.addEdgeHandle(grab));
             canvas.addOverlay(overlay);
-            chromeRemovers.add(() -> canvas.removeOverlay(overlay));
-        } else if (!shown && !chromeRemovers.isEmpty()) {
-            chromeRemovers.forEach(Runnable::run);
-            chromeRemovers.clear();
+            lineRemovers.add(() -> canvas.removeOverlay(overlay));
+        } else if (!linesShown && !lineRemovers.isEmpty()) {
+            lineRemovers.forEach(Runnable::run);
+            lineRemovers.clear();
+        }
+        if (rulersShown && rulerRemovers.isEmpty()) {
+            for (EdgeHandle ruler : rulers) {
+                rulerRemovers.add(canvas.addEdgeHandle(ruler));
+            }
         }
     }
 
@@ -63,7 +77,7 @@ final class PaneGuides {
 
     /** The pane goes away, or the guides do: everything it added is taken back. */
     void dispose() {
-        show(false);
+        show(false, false);
         currentDrag = null;
     }
 

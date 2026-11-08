@@ -12,7 +12,9 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.Component;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Dividir la vista for one editor view (split views spec §2, canvas-edges §1–§3): the two split grips on every pane
@@ -40,6 +42,10 @@ public final class SplitViewsFeatures {
     private final JMenu windowMenu;
     private final List<Component> menuComponents = new ArrayList<>();
     private final List<Runnable> removers = new ArrayList<>();
+    /** The panes this feature is installed on, in the order they came. */
+    private final List<CircuitCanvas> installedPanes = new ArrayList<>();
+    /** What takes the grips off each pane that has them (none in presentation mode, the user 2026-11-08). */
+    private final Map<CircuitCanvas, Runnable> gripRemovers = new IdentityHashMap<>();
     private boolean disposed;
 
     public SplitViewsFeatures(EditorView view) {
@@ -59,11 +65,45 @@ public final class SplitViewsFeatures {
         removers.add(view.registerShortcutAction(NEXT_PANE_SHORTCUT, nextPane));
         removers.add(panes.addLayoutListener(this::refresh));
         removers.add(view.forEachPane(this::installOn));
+        removers.add(view.addFullScreenLayoutListener(this::fullScreenLayoutChanged));
         refresh();
+        fullScreenLayoutChanged();
     }
 
-    /** On one pane: its two grips. */
+    /** On one pane: its two grips, unless the view is in presentation mode. */
     private Runnable installOn(CircuitCanvas pane) {
+        installedPanes.add(pane);
+        showGrips(pane, !isInPresentationMode());
+        return () -> {
+            installedPanes.remove(pane);
+            showGrips(pane, false);
+        };
+    }
+
+    private boolean isInPresentationMode() {
+        return view.fullScreenStage().isPresent();
+    }
+
+    /**
+     * Presentation mode shows the circuit, not the editing marks: the split grips and the active pane's border go
+     * while it is on (the dividers between the panes stay) and come back when it ends.
+     */
+    private void fullScreenLayoutChanged() {
+        boolean editing = !isInPresentationMode();
+        List.copyOf(installedPanes).forEach(pane -> showGrips(pane, editing));
+        panes.setActivePaneMarked(editing);
+    }
+
+    /** Puts {@code pane}'s grips on it or takes them off; nothing when they already are as asked. */
+    private void showGrips(CircuitCanvas pane, boolean shown) {
+        if (shown && !gripRemovers.containsKey(pane)) {
+            gripRemovers.put(pane, addGrips(pane));
+        } else if (!shown && gripRemovers.containsKey(pane)) {
+            gripRemovers.remove(pane).run();
+        }
+    }
+
+    private Runnable addGrips(CircuitCanvas pane) {
         Runnable horizontal = pane.addEdgeHandle(new SplitGripHandle(panes, pane, Orientation.HORIZONTAL));
         Runnable vertical = pane.addEdgeHandle(new SplitGripHandle(panes, pane, Orientation.VERTICAL));
         return () -> {
@@ -115,6 +155,7 @@ public final class SplitViewsFeatures {
         panes.hideSplitPreview();
         removers.forEach(Runnable::run);
         removers.clear();
+        panes.setActivePaneMarked(true);
         menuComponents.forEach(windowMenu::remove);
         menuComponents.clear();
     }

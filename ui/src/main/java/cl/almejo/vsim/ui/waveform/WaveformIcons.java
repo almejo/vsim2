@@ -15,12 +15,14 @@ public final class WaveformIcons {
     public static final String SHOW_DELAYS = "waveform-delays";
     public static final String CLEAR = "waveform-clear";
     public static final String HIDE = "waveform-hide";
+    /** The pin of presentation mode, after the others (it shows only in the mode). */
+    public static final String PIN = "waveform-pin";
 
     private WaveformIcons() {
     }
 
-    /** Every toolbar icon, in toolbar order. */
+    /** Every toolbar icon, in toolbar order (the pin last). */
     public static List<String> names() {
-        return List.of(FOLLOW, ZOOM_IN, ZOOM_OUT, FIT_ALL, SHOW_DELAYS, CLEAR, HIDE);
+        return List.of(FOLLOW, ZOOM_IN, ZOOM_OUT, FIT_ALL, SHOW_DELAYS, CLEAR, HIDE, PIN);
     }
 }

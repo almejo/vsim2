@@ -19,7 +19,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   por ejemplo al proyectarlo en clases. Al dejar el puntero 1 segundo en un borde, su barra entra deslizándose sobre
   el circuito sin moverlo (arriba el menú, las pestañas y la barra de herramientas; a la izquierda el árbol y la
   paleta; a la derecha el panel derecho con su tira) y se esconde 0,4 segundos después de salir de ella, nunca con
-  uno de sus menús abierto o escribiendo en ella; la barra de estado no se muestra. Un aviso de 2 segundos dice cómo
+  uno de sus menús abierto o escribiendo en ella; la barra de estado no se muestra. Si el circuito tiene sondas, las
+  formas de onda se esconden detrás del borde de abajo y suben desde ahí (aunque su panel estuviera cerrado); un pin
+  «Fijar», que aparece solo en este modo y se recuerda, las deja fijas abajo con el circuito más corto. Las reglas de las guías, los «⋮» para dividir la vista y el borde
+  del panel activo no se muestran (las guías puestas y las divisiones se quedan). Un aviso de 2 segundos dice cómo
   salir: F11, Esc (cuando nada más lo usa), el ítem de Ver o el botón. Al salir, todo vuelve como estaba. Ver
   [Modo presentación](docs/funciones/interfaz-preferencias-y-sesion.md#modo-presentación).
 - Ver ▸ «Mostrar los atajos que se usan» (apagado de entrada, se recuerda; sirve dentro y fuera del modo presentación): cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra abajo del circuito una etiqueta como «Ctrl+Z · Deshacer» (solo el nombre si no tiene atajo) durante 1,5 segundos, hasta tres apiladas; grande, con cada tecla en su casilla, para verse en un proyector o un video. Nunca muestra lo que escribes en un campo de texto ni lo que va a un Terminal o un Teclado. Ver [Mostrar los atajos que se usan](docs/funciones/interfaz-preferencias-y-sesion.md#mostrar-los-atajos-que-se-usan).

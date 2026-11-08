@@ -61,6 +61,8 @@ public final class CanvasPanes extends JComponent {
     private OptionalDouble horizontalFraction = OptionalDouble.empty();
     private OptionalDouble verticalFraction = OptionalDouble.empty();
     private CircuitCanvas active;
+    /** Whether the active pane of a split view wears its border (off in presentation mode). */
+    private boolean activePaneMarked = true;
     private SplitPreview splitPreview;
     private boolean disposed;
 
@@ -438,8 +440,18 @@ public final class CanvasPanes extends JComponent {
         repaint();
     }
 
+    /**
+     * Whether the active pane of a split view is marked with its border; presentation mode turns it off (an editing
+     * mark, the user 2026-11-08) and back on.
+     */
+    public void setActivePaneMarked(boolean marked) {
+        activePaneMarked = marked;
+        updateBorders();
+        repaint();
+    }
+
     private void updateBorders() {
-        boolean split = panesByPosition.size() > 1;
+        boolean split = activePaneMarked && panesByPosition.size() > 1;
         for (CircuitCanvas pane : panesByPosition.values()) {
             Border wanted = split && pane == active ? ACTIVE_BORDER : null;
             if (pane.getBorder() != wanted) {

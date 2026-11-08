@@ -96,4 +96,49 @@ class BottomDockTest {
         dock.showDock();
         assertThat(calls).isEmpty();
     }
+
+    @Test
+    void lendingTheContentKeepsTheDockOpenAndGivesTheTopAllTheHeight() {
+        dock.setContent(content);
+        dock.setSize(800, 600);
+        dock.showDock();
+        layout(dock);
+        assertThat(dock.lendContent()).containsSame(content);
+        layout(dock);
+        assertThat(dock.isDockShowing()).isTrue();
+        assertThat(dock.isContentLent()).isTrue();
+        assertThat(dock.content()).as("still the dock's content").containsSame(content);
+        assertThat(dock.getDividerSize()).isZero();
+        assertThat(top.getHeight()).isEqualTo(fullHeight());
+        assertThat(dock.lendContent()).as("already lent").isEmpty();
+    }
+
+    @Test
+    void returningTheContentOpensItAsTallAsBefore() {
+        dock.setContent(content);
+        dock.setSize(800, 600);
+        dock.showDock();
+        layout(dock);
+        dock.lendContent();
+        JPanel elsewhere = new JPanel();
+        elsewhere.add(content);
+        layout(dock);
+        dock.returnContent();
+        layout(dock);
+        assertThat(content.getParent()).isNotSameAs(elsewhere);
+        assertThat(content.getHeight()).isEqualTo(BottomDock.DEFAULT_HEIGHT);
+        assertThat(dock.isContentLent()).isFalse();
+    }
+
+    @Test
+    void theDockHeightSetIsTheOneTheDockedPanelTakes() {
+        dock.setContent(content);
+        dock.setSize(800, 600);
+        dock.showDock();
+        layout(dock);
+        dock.setDockHeight(150);
+        layout(dock);
+        assertThat(content.getHeight()).isEqualTo(150);
+        assertThat(dock.dockHeight()).isEqualTo(150);
+    }
 }

@@ -162,6 +162,7 @@ public final class AppPreferences {
     static final String COLOR_SCHEME = "colorScheme";
     static final String LANGUAGE = "language";
     private static final String SPLIT_BUTTON_PREFIX = "splitButton.";
+    static final String FULL_SCREEN_WAVEFORMS_PINNED = "fullScreen.waveformsPinned";
     static final String LIBRARY_DIRECTORY = "libraryDirectory";
     static final String RECENT = "recent";
     static final String RESTORE_SESSION = "restoreSession";
@@ -333,6 +334,21 @@ public final class AppPreferences {
     public void setSplitButtonMode(String preferenceId, String modeId) {
         Objects.requireNonNull(modeId, "modeId");
         put(SPLIT_BUTTON_PREFIX + preferenceId, modeId);
+    }
+
+    /**
+     * Whether the waveform panel stays docked in presentation mode (its pin) instead of hiding behind the bottom
+     * edge; off until the user pins it, then remembered for the next time.
+     */
+    public boolean fullScreenWaveformsPinned() {
+        return "true".equals(read(FULL_SCREEN_WAVEFORMS_PINNED, ""));
+    }
+
+    public void setFullScreenWaveformsPinned(boolean pinned) {
+        if (fullScreenWaveformsPinned() == pinned) {
+            return;
+        }
+        putFlag(FULL_SCREEN_WAVEFORMS_PINNED, pinned);
     }
 
     /** The stored directory, or the platform default when none is stored or the stored one is not a valid path here. */

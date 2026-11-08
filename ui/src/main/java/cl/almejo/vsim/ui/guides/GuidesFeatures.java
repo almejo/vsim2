@@ -103,6 +103,7 @@ public final class GuidesFeatures {
         preferences.addListener(preferencesListener);
         document().addGuideListener(guideListener);
         removers.add(view.forEachPane(this::installOn));
+        removers.add(view.addFullScreenLayoutListener(this::refresh));
         refresh();
         guidesChanged();
     }
@@ -111,7 +112,7 @@ public final class GuidesFeatures {
     private Runnable installOn(CircuitCanvas pane) {
         PaneGuides guides = new PaneGuides(this, pane);
         panes.put(pane, guides);
-        guides.show(preferences.showGuides());
+        guides.show(preferences.showGuides(), rulersShown());
         return () -> {
             panes.remove(pane);
             guides.dispose();
@@ -272,11 +273,20 @@ public final class GuidesFeatures {
 
     // --- showing -------------------------------------------------------------------------------------------------
 
-    /** Follows «Mostrar guías» (also when another view changes it): the rulers and the lines come and go with it. */
+    /**
+     * Follows «Mostrar guías» (also when another view changes it): the rulers and the lines come and go with it; in
+     * presentation mode only the lines show.
+     */
     private void refresh() {
         boolean shown = preferences.showGuides();
         showGuides.putValue(Action.SELECTED_KEY, shown);
-        List.copyOf(panes.values()).forEach(guides -> guides.show(shown));
+        boolean rulersShown = rulersShown();
+        List.copyOf(panes.values()).forEach(guides -> guides.show(shown, rulersShown));
+    }
+
+    /** The rulers show with «Mostrar guías», except while the view is laid out for presentation mode. */
+    private boolean rulersShown() {
+        return preferences.showGuides() && view.fullScreenStage().isEmpty();
     }
 
     // --- geometry and painting -----------------------------------------------------------------------------------

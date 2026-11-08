@@ -121,15 +121,25 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   deslizándose por encima del circuito, sin moverlo, y se esconde 0,4 segundos después de que el puntero sale de ella,
   nunca mientras uno de sus menús está abierto o el foco está en ella (escribiendo en un campo, por ejemplo). Si una
   tecla le da el foco (Alt+2 para la paleta, Alt+3 para Propiedades) o abre uno de sus menús (Alt y la letra del
-  menú), aparece de inmediato. La barra de estado no se muestra en este modo, y el borde de abajo no hace nada.
+  menú), aparece de inmediato. La barra de estado no se muestra en este modo.
+- Si el circuito tiene alguna sonda, el borde de abajo guarda las formas de onda, aunque su panel estuviera cerrado:
+  al entrar se esconden de inmediato y suben desde abajo por encima del circuito, a todo el ancho, como las otras
+  barras. Su botón «Ocultar» solo las baja (las sondas siguen y el borde sigue funcionando). En el modo, su barra de
+  herramientas muestra un pin «Fijar»: apretado («Fijas»), el panel queda abajo fijo y el circuito se acorta para
+  dejarle espacio; soltándolo, el panel vuelve a esconderse cuando el puntero sale de él. VSim recuerda el pin para la
+  próxima vez. Abrir el panel en el modo (Ver ▸ Formas de onda, «Ver en formas de onda» o un clic en la marca de una
+  sonda) lo muestra un momento desde abajo. Sin sondas ni el panel abierto, el borde de abajo no hace nada.
+- Tampoco se ven las marcas para editar: las reglas de las guías (y su esquina), los «⋮» para dividir la vista y el
+  borde que marca el panel activo en una vista dividida. Las guías ya puestas siguen a la vista (según Ver ▸ Guías) y
+  las divisiones que ya tiene la vista se quedan.
 - Para salir: F11, Esc, Ver ▸ «Modo presentación (pantalla completa)» (marcado con ✓ mientras está activo) o el botón
   de la barra de herramientas, que queda apretado y cuyo globo dice «Salir del modo presentación (F11 o Esc)». Esc
   sale solo cuando nada más lo usa: antes cierra un menú abierto, termina la herramienta en uso (colocar una pieza, un
   cable a medias) o cierra la barra de búsqueda, y no borra la selección. Con un Terminal o un Teclado capturando el
   teclado, Esc sale del modo y termina la captura, como siempre; F11 va a la pieza si tiene «Flechas como
   secuencias» (que envía las teclas F), y si no, sale del modo.
-- Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada), las barras y los anchos de la
-  paleta y del panel derecho. Es por ventana (cada una en su monitor) y no se recuerda al reiniciar VSim. La ventanita
+- Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada), las barras, los anchos de la
+  paleta y del panel derecho y las formas de onda abiertas o cerradas, con la altura que tenían antes de entrar. Es por ventana (cada una en su monitor) y no se recuerda al reiniciar VSim. La ventanita
   de «Presentar» de la IA (ver [Presentar](ia-mcp.md#presentar)) sigue a la vista. El atajo F11 se cambia en
   [Atajos de teclado](#atajos-de-teclado).
 
