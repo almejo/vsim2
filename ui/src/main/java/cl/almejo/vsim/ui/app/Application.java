@@ -33,6 +33,7 @@ import cl.almejo.vsim.ui.appearance.AppearanceExtension;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.logisim.LogisimExportExtension;
 import cl.almejo.vsim.ui.logisim.LogisimImportExtension;
+import cl.almejo.vsim.ui.capture.WindowExportExtension;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
@@ -283,6 +284,7 @@ public final class Application {
         editorExtensions.add(new ExportImageExtension());
         editorExtensions.add(new ExportPdfExtension(sheetAnchors));
         editorExtensions.add(new LogisimExportExtension()); // after «PDF…» in Archivo ▸ Exportar
+        editorExtensions.add(new WindowExportExtension()); // after the other exports: lands right after «Imagen…»
         editorExtensions.add(print); // its item goes right after «Guardar como…»
         editorExtensions.add(new TidyWiresExtension());
         // the «Texto» tool before sticky notes: its button lands after «Nota adhesiva»

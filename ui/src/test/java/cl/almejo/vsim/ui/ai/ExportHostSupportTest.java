@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
+import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
 import java.awt.geom.Rectangle2D;
 import java.nio.file.Files;
@@ -378,6 +380,43 @@ class ExportHostSupportTest {
 
         assertThat(with.width()).isGreaterThan(without.width());
         assertThat(with.height()).isGreaterThan(without.height());
+    }
+
+    @Test
+    void aWindowExportIsAPngOfTheWindowAsTheUserSeesItInTheRememberedFolder() throws Exception {
+        preferences.setExportDirectory(remembered);
+        showTheViewInAWindow(640, 480);
+
+        ExportReceipt receipt = export(request(ExportRequest.Format.PNG, new ExportRequest.Scope.Window()));
+
+        assertThat(receipt.fileName()).isEqualTo("Sumador.png");
+        assertThat(Path.of(receipt.path()).getParent()).isEqualTo(remembered.toAbsolutePath());
+        // no screen in the tests: the screen's scale is 1, whatever the request's PNG scale
+        assertThat(receipt.width()).isEqualTo(640);
+        assertThat(receipt.height()).isEqualTo(480);
+        assertThat(ImageIO.read(Path.of(receipt.path()).toFile()).getWidth()).isEqualTo(640);
+    }
+
+    @Test
+    void aWindowExportOfACircuitWithNoWindowIsRefused() {
+        windows.clear();
+
+        assertRefused(request(ExportRequest.Format.PNG, new ExportRequest.Scope.Window()));
+    }
+
+    /** Puts the view in a window-sized root pane, the circuit's only window. */
+    private void showTheViewInAWindow(int width, int height) throws Exception {
+        EditorView view = views.getFirst();
+        JRootPane root = onEditor(() -> {
+            JRootPane pane = new JRootPane();
+            pane.setJMenuBar(view.menuBar());
+            pane.setContentPane(view);
+            pane.setSize(width, height);
+            UiTestSupport.layOut(pane);
+            return pane;
+        });
+        windows.clear();
+        windows.add(new ShownWindow(view, root, "Sumador.vsim - VSim", List.of()));
     }
 
     private ExportRequest request(ExportRequest.Format format, ExportRequest.Scope scope) {

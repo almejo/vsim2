@@ -9,7 +9,8 @@ import java.util.Set;
 
 /**
  * An export the AI asks for (spec §7, Exports row): the same exports and options as Archivo ▸ Exportar ▸ «Imagen…» and
- * «PDF…», of the whole circuit, one frame or some elements, written only into the export folder VSim
+ * «PDF…», of the whole circuit, one frame or some elements, or «Imagen de la ventana…» (the window, PNG only),
+ * written only into the export folder VSim
  * remembers (none yet: the user's {@code VSim} folder) under a new name, never over an existing file. {@code fileName}
  * is the name without folder or extension (the circuit's name when empty); VSim adds {@code -2}, {@code -3}… when it is
  * taken. {@code includeStickyNotes}: the user's sticky notes go in the file (left out by default, as in the menus).
@@ -60,6 +61,13 @@ public record ExportRequest(DocumentId document, Format format, Scope scope, Opt
                 }
             }
         }
+
+        /**
+         * The circuit's window as the user sees it (Archivo ▸ Exportar ▸ «Imagen de la ventana…»): a PNG only, at
+         * the screen's scale; the image options do not apply.
+         */
+        record Window() implements Scope {
+        }
     }
 
     /** «Exportar imagen…»: the PNG scale (1, 2 or 4; SVG is always 1) and «Fondo blanco para imprimir». */
@@ -109,5 +117,9 @@ public record ExportRequest(DocumentId document, Format format, Scope scope, Opt
         Objects.requireNonNull(fileName, "fileName");
         Objects.requireNonNull(image, "image");
         Objects.requireNonNull(pdf, "pdf");
+        if (scope instanceof Scope.Window && format != Format.PNG) {
+            throw new IllegalArgumentException(
+                    "The window is exported only as a PNG (format PNG); PDF and SVG take the circuit");
+        }
     }
 }

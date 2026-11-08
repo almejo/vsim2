@@ -123,6 +123,7 @@ class ApplicationExtensionsTest {
                     "Preferencias…", "---",
                     "Cerrar pestaña", "Cerrar ventana", "Salir");
             assertThat(texts(ExportMenu.find(view.menu(MenuId.FILE)).orElseThrow())).containsExactly("Imagen…",
+                    "Imagen de la ventana…",
                     "PDF…", "Circuito de Logisim (.circ) (beta)…");
             JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();
             assertThat(texts(importMenu)).containsExactly("Componente…", "Tabla de verdad desde Excel/CSV…",
