@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.problems.NetBlink;
 import cl.almejo.vsim.ui.problems.ProblemNavigator;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
@@ -71,6 +72,7 @@ public final class WaveformFeatures {
                 }
             }
         };
+        Icons.install(toggle, WaveformIcons.PANEL); // the menu item's icon and the toolbar toggle's
         this.dockListener = () -> toggle.putValue(Action.SELECTED_KEY, dock.isDockShowing());
         dock.addDockListener(dockListener);
         dockListener.run();

@@ -127,8 +127,9 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   barras. Su botón «Ocultar» solo las baja (las sondas siguen y el borde sigue funcionando). En el modo, su barra de
   herramientas muestra un pin («Fijar las formas de onda»; inclinado y gris, o derecho y rojo cuando está apretado):
   apretado, el panel queda abajo fijo y el circuito se acorta para dejarle espacio; soltándolo, el panel vuelve a esconderse cuando el puntero sale de él. VSim recuerda el pin para la
-  próxima vez. Abrir el panel en el modo (Ver ▸ Formas de onda, «Ver en formas de onda» o un clic en la marca de una
-  sonda) lo muestra un momento desde abajo. Sin sondas ni el panel abierto, el borde de abajo no hace nada.
+  próxima vez. Abrir el panel en el modo (Ver ▸ Formas de onda, su botón de la barra de herramientas, «Ver en formas
+  de onda» o un clic en la marca de una sonda) lo muestra un momento desde abajo, o fijo si el pin está apretado;
+  cerrarlo con el ítem o el botón lo esconde detrás del borde aunque esté fijado (el pin se sigue recordando). Sin sondas ni el panel abierto, el borde de abajo no hace nada.
 - Tampoco se ven las marcas para editar: las reglas de las guías (y su esquina), los «⋮» para dividir la vista y el
   borde que marca el panel activo en una vista dividida. Las guías ya puestas siguen a la vista (según Ver ▸ Guías) y
   las divisiones que ya tiene la vista se quedan.

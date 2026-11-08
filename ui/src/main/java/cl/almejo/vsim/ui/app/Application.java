@@ -98,6 +98,7 @@ import cl.almejo.vsim.ui.tree.CircuitTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
 import cl.almejo.vsim.ui.tunnel.TunnelsExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
+import cl.almejo.vsim.ui.waveform.WaveformsToolbarExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.CloseSequence;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -320,6 +321,7 @@ public final class Application {
         editorExtensions.add(new QuickInsertExtension()); // its Insert key before the shortcuts extension
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
+        editorExtensions.add(new WaveformsToolbarExtension()); // the «Formas de onda» toggle, right after «Presentar»
         editorExtensions.add(new MemoryEditorExtension(memoryLauncher, memoryLinks));
         editorExtensions.add(new TerminalExtension()); // Terminal windows, menus and sounds, after the memories
         // «Modo presentación»: last in Ver and at the end of the toolbar, before the icons and shortcuts

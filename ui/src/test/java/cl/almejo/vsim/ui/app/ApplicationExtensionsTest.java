@@ -263,6 +263,45 @@ class ApplicationExtensionsTest {
         }
     }
 
+    /**
+     * The toolbar toggle «Formas de onda» (agreed 2026-11-08): on the same action as Ver ▸ Formas de onda, right after
+     * «Presentar lo que hace la IA» at the end of the toolbar, with an icon, its name as tooltip and no shortcut;
+     * pressed while the dock shows.
+     */
+    @Test
+    void theWaveformsToggleSitsRightAfterPresentarAndFollowsTheDock() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            Action toggle = view.shortcutActions().get("waveforms.toggle");
+            List<java.awt.Component> bar = Arrays.asList(view.toolBar().getComponents());
+            AbstractButton waveforms = buttonOn(view, toggle);
+            AbstractButton present = buttonOn(view, view.shortcutActions().get("view.aiPresent"));
+            assertThat(waveforms).isInstanceOf(javax.swing.JToggleButton.class);
+            assertThat(bar.indexOf(waveforms)).as("right after Presentar").isEqualTo(bar.indexOf(present) + 1);
+            assertThat(waveforms.getIcon()).isNotNull();
+            assertThat(waveforms.getHideActionText()).isTrue();
+            assertThat(waveforms.getToolTipText()).isEqualTo("Formas de onda");
+            assertThat(toggle.getValue(Action.ACCELERATOR_KEY)).as("no shortcut").isNull();
+            assertThat(waveforms.isSelected()).isFalse();
+            waveforms.doClick(0);
+            assertThat(view.bottomDock().isDockShowing()).isTrue();
+            assertThat(waveforms.isSelected()).isTrue();
+            view.bottomDock().hideDock();
+            assertThat(waveforms.isSelected()).as("follows the dock").isFalse();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    private static AbstractButton buttonOn(EditorView view, Action action) {
+        assertThat(action).isNotNull();
+        return Arrays.stream(view.toolBar().getComponents())
+                .filter(AbstractButton.class::isInstance)
+                .map(AbstractButton.class::cast)
+                .filter(candidate -> candidate.getAction() == action)
+                .findFirst().orElseThrow();
+    }
+
     @Test
     void theFixedStepTakesF6AndItsSizeFromThePreferences() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);

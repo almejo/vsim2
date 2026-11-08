@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.waveform.WaveformPanel;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
+import cl.almejo.vsim.ui.waveform.WaveformsToolbarExtension;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -49,7 +50,8 @@ class FullScreenWaveformsTest {
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
-        fixture = new FullScreenFixture(List.of(new WaveformsExtension(NO_ANSWER, (parent, message) -> { })));
+        fixture = new FullScreenFixture(List.of(new WaveformsExtension(NO_ANSWER, (parent, message) -> { }),
+                new WaveformsToolbarExtension()));
         view = fixture.addTab();
     }
 
@@ -453,5 +455,37 @@ class FullScreenWaveformsTest {
         assertThat(isOnScreen(panel())).isFalse();
         restAtTheBottomEdge();
         assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.BOTTOM)).as("no probes: inert").isFalse();
+    }
+
+    /** The toolbar toggle «Formas de onda» (on the top bar in the mode). */
+    private AbstractButton waveformsToggle() {
+        Action toggle = view.shortcutActions().get("waveforms.toggle");
+        for (Component child : view.toolBar().getComponents()) {
+            if (child instanceof AbstractButton button && button.getAction() == toggle) {
+                return button;
+            }
+        }
+        throw new AssertionError("no «Formas de onda» toggle in the toolbar");
+    }
+
+    @Test
+    void theToolbarToggleHidesAPinnedPanelWithProbesInTheModeAndDocksItAgain() {
+        fixture.preferences.setFullScreenWaveformsPinned(true);
+        addAProbe();
+        openThePanel();
+        enter();
+        assertThat(waveformsToggle().isSelected()).as("pressed while the dock shows").isTrue();
+        pointerToTheMiddle();
+        waveformsToggle().doClick(0);
+        fixture.barTicker.advance(HIDE_TIME);
+        fixture.layOut();
+        assertThat(dock().isDockShowing()).isFalse();
+        assertThat(waveformsToggle().isSelected()).isFalse();
+        assertThat(isOnScreen(panel())).isFalse();
+        waveformsToggle().doClick(0);
+        fixture.layOut();
+        assertThat(waveformsToggle().isSelected()).isTrue();
+        assertThat(isOnScreen(panel())).as("pinned: docked again").isTrue();
+        assertThat(canvasAreaHeight()).isLessThan(wholeHeight());
     }
 }

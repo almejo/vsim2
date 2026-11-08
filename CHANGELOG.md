@@ -25,6 +25,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   del panel activo no se muestran (las guías puestas y las divisiones se quedan). Un aviso de 2 segundos dice cómo
   salir: F11, Esc (cuando nada más lo usa), el ítem de Ver o el botón. Al salir, todo vuelve como estaba. Ver
   [Modo presentación](docs/funciones/interfaz-preferencias-y-sesion.md#modo-presentación).
+- Botón «Formas de onda» al final de la barra de herramientas, junto a «Presentar lo que hace la IA»: abre y cierra el
+  panel de formas de onda como Ver ▸ Formas de onda y queda apretado mientras se ve; en el modo presentación también
+  esconde el panel aunque esté fijado con el pin, y apretarlo de nuevo lo vuelve a fijar abajo. Ver
+  [Formas de onda](docs/funciones/formas-de-onda.md#formas-de-onda).
 - Ver ▸ «Mostrar los atajos que se usan» (apagado de entrada, se recuerda; sirve dentro y fuera del modo presentación): cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra abajo del circuito una etiqueta como «Ctrl+Z · Deshacer» (solo el nombre si no tiene atajo) durante 1,5 segundos, hasta tres apiladas; grande, con cada tecla en su casilla, para verse en un proyector o un video. Nunca muestra lo que escribes en un campo de texto ni lo que va a un Terminal o un Teclado. Ver [Mostrar los atajos que se usan](docs/funciones/interfaz-preferencias-y-sesion.md#mostrar-los-atajos-que-se-usan).
 
 ## Versión 0.7 — 2026-11-07

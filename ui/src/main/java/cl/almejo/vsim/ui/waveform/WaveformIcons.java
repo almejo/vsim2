@@ -19,12 +19,16 @@ public final class WaveformIcons {
     public static final String PIN = "waveform-pin";
     /** The pressed pin: upright and filled, painted in the theme's red by {@link PinnedIcon}. */
     public static final String PINNED = "waveform-pinned";
+    /** Ver ▸ Formas de onda and its toolbar toggle: a panel with a pulse train in its lower half. */
+    public static final String PANEL = "waveforms";
 
     private WaveformIcons() {
     }
 
-    /** Every toolbar icon, in toolbar order (the pin last, unpinned then pinned). */
+    /**
+     * Every icon: the panel's toolbar in its order (the pin last, unpinned then pinned), then the panel's own toggle.
+     */
     public static List<String> names() {
-        return List.of(FOLLOW, ZOOM_IN, ZOOM_OUT, FIT_ALL, SHOW_DELAYS, CLEAR, HIDE, PIN, PINNED);
+        return List.of(FOLLOW, ZOOM_IN, ZOOM_OUT, FIT_ALL, SHOW_DELAYS, CLEAR, HIDE, PIN, PINNED, PANEL);
     }
 }

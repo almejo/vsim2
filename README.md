@@ -113,7 +113,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Formas de onda
 
-- [Formas de onda](docs/funciones/formas-de-onda.md#formas-de-onda): un analizador lógico con canales por red, cursor, zoom y seguimiento.
+- [Formas de onda](docs/funciones/formas-de-onda.md#formas-de-onda): un analizador lógico con canales por red, cursor, zoom y seguimiento; se abre y se cierra con Ver ▸ Formas de onda o con su botón al final de la barra de herramientas.
 
 ### Tabla de verdad, Karnaugh y expresiones
 
