@@ -11,6 +11,7 @@ import java.awt.event.ComponentListener;
 import java.awt.event.HierarchyBoundsAdapter;
 import java.awt.event.HierarchyBoundsListener;
 import java.awt.event.HierarchyEvent;
+import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -23,7 +24,10 @@ import java.util.function.LongSupplier;
  * back, the frame grows to the whole monitor and returns, and the window manager resizes it again a moment later (the
  * user, 2026-11-08: after leaving, the view ended panned away). Each pane keeps its zoom and the grid point at its
  * centre ({@link ViewState}), given back after every resize or move of the pane until the window settled
- * ({@link #SETTLE_MILLISECONDS}) or the user presses on the pane. Every split pane keeps its own. EDT only.
+ * ({@link #SETTLE_MILLISECONDS}) or the user acts on the pane: a press, or any zoom or pan (the wheel, Ctrl+=, the
+ * status bar's slider), seen as the view no longer being where this class left it. Every split pane keeps its own.
+ * EDT only in the editor; synchronized because tests drive it off the EDT while the panes' resize events reach it on
+ * the EDT, and checking where a view was left must not interleave with putting it back.
  */
 final class CircuitAnchor {
 
@@ -36,6 +40,8 @@ final class CircuitAnchor {
     private final JRootPane rootPane;
     private final LongSupplier clock;
     private final Map<CircuitCanvas, ViewState> savedViews = new IdentityHashMap<>();
+    /** Where each held pane's view was left (by the user before holding, or by this class since). */
+    private final Map<CircuitCanvas, Placement> leftAt = new IdentityHashMap<>();
     private final List<Runnable> removals = new ArrayList<>();
     private long followUntil;
 
@@ -45,7 +51,7 @@ final class CircuitAnchor {
     }
 
     /** Remembers what {@code panes} show now; until the window settles they come back to it after every resize. */
-    void hold(List<CircuitCanvas> panes) {
+    synchronized void hold(List<CircuitCanvas> panes) {
         release();
         followUntil = clock.getAsLong() + SETTLE_MILLISECONDS;
         for (CircuitCanvas pane : panes) {
@@ -53,6 +59,7 @@ final class CircuitAnchor {
                 continue; // never laid out (a tab not shown yet): there is nothing on screen to keep
             }
             savedViews.put(pane, pane.viewState());
+            leftAt.put(pane, Placement.of(pane));
             listenTo(pane);
         }
     }
@@ -86,30 +93,50 @@ final class CircuitAnchor {
     }
 
     /** Gives every held pane its saved view (after the window was laid out anew). */
-    void follow() {
+    synchronized void follow() {
         List.copyOf(savedViews.keySet()).forEach(this::paneChanged);
     }
 
     /** {@code pane} was resized or moved: it shows its saved view again, unless the window already settled. */
-    void paneChanged(CircuitCanvas pane) {
+    synchronized void paneChanged(CircuitCanvas pane) {
         if (clock.getAsLong() > followUntil) {
             release();
             return;
         }
         ViewState saved = savedViews.get(pane);
-        if (saved != null && pane.getWidth() > 0 && pane.getHeight() > 0) {
-            pane.applyViewState(saved);
+        if (saved == null || pane.getWidth() <= 0 || pane.getHeight() <= 0) {
+            return;
+        }
+        if (!Placement.of(pane).equals(leftAt.get(pane))) {
+            forget(pane); // the user zoomed or panned it since: it is theirs now
+            return;
+        }
+        pane.applyViewState(saved);
+        leftAt.put(pane, Placement.of(pane));
+    }
+
+    private synchronized void forget(CircuitCanvas pane) {
+        savedViews.remove(pane);
+        leftAt.remove(pane);
+    }
+
+    /**
+     * The zoom and the grid point at a pane's top-left corner: a resize keeps them (the view grows or shrinks from
+     * that corner), a zoom or a pan changes them.
+     */
+    private record Placement(double zoom, double originX, double originY) {
+
+        static Placement of(CircuitCanvas pane) {
+            Point2D origin = pane.viewport().screenToGrid(0, 0);
+            return new Placement(pane.viewport().zoom(), origin.getX(), origin.getY());
         }
     }
 
-    private void forget(CircuitCanvas pane) {
-        savedViews.remove(pane);
-    }
-
     /** Stops following the panes. */
-    void release() {
+    synchronized void release() {
         removals.forEach(Runnable::run);
         removals.clear();
         savedViews.clear();
+        leftAt.clear();
     }
 }

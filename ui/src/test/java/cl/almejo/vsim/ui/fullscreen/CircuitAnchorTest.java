@@ -85,6 +85,61 @@ class CircuitAnchorTest {
         assertShows(both.get(1), second);
     }
 
+    /** The final review's M4: a zoom by the user before the window settled is never undone by a later resize. */
+    /**
+     * Runs {@code body} on the EDT, as the editor does: the pane's resize events then reach the anchor only after it,
+     * never between a user's zoom and the next resize.
+     */
+    private static void onTheEdt(Runnable body) throws Exception {
+        try {
+            javax.swing.SwingUtilities.invokeAndWait(body);
+        } catch (java.lang.reflect.InvocationTargetException failure) {
+            if (failure.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw failure;
+        }
+    }
+
+    @Test
+    void aZoomByTheUserBeforeTheWindowSettledIsKept() throws Exception {
+        onTheEdt(this::zoomBeforeTheWindowSettled);
+    }
+
+    private void zoomBeforeTheWindowSettled() {
+        CircuitCanvas pane = sized(fixture.view().canvas(), 800, 600);
+        pane.applyViewState(new ViewState(1, 0, 0));
+        anchor.hold(List.of(pane));
+        sized(pane, 1280, 820);
+        anchor.paneChanged(pane);
+        clock.advance(500);
+        pane.zoomIn(); // Ctrl+=, the wheel with Ctrl
+        double zoomed = pane.viewState().zoom();
+        sized(pane, 1270, 800); // the window manager's late resize
+        anchor.paneChanged(pane);
+        assertThat(pane.viewState().zoom()).isCloseTo(zoomed, within(1e-9));
+    }
+
+    @Test
+    void aPanByTheUserBeforeTheWindowSettledIsKept() throws Exception {
+        onTheEdt(this::panBeforeTheWindowSettled);
+    }
+
+    private void panBeforeTheWindowSettled() {
+        CircuitCanvas pane = sized(fixture.view().canvas(), 800, 600);
+        pane.applyViewState(new ViewState(1, 0, 0));
+        anchor.hold(List.of(pane));
+        sized(pane, 1280, 820);
+        anchor.paneChanged(pane);
+        pane.viewport().panBy(0, -120); // the wheel: no view event at all
+        java.awt.geom.Point2D topLeft = pane.viewport().screenToGrid(0, 0);
+        sized(pane, 1270, 800);
+        anchor.paneChanged(pane);
+        java.awt.geom.Point2D after = pane.viewport().screenToGrid(0, 0);
+        assertThat(after.getX()).isCloseTo(topLeft.getX(), within(1e-6));
+        assertThat(after.getY()).isCloseTo(topLeft.getY(), within(1e-6));
+    }
+
     @Test
     void afterTheWindowSettledAResizeIsTheUsersAgain() {
         CircuitCanvas pane = sized(fixture.view().canvas(), 800, 600);
