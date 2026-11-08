@@ -137,8 +137,9 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   las divisiones que ya tiene la vista se quedan.
 - Para salir: F11, Esc, Ver ▸ «Modo presentación (pantalla completa)» (marcado con ✓ mientras está activo) o el botón
   de la barra de herramientas, que queda apretado y cuyo globo dice «Salir del modo presentación (F11 o Esc)». Esc
-  sale solo cuando nada más lo usa: antes cierra un menú abierto, termina la herramienta en uso (colocar una pieza, un
-  cable a medias) o cierra la barra de búsqueda, y no borra la selección. Con un Terminal o un Teclado capturando el
+  sale solo cuando nada más lo usa: antes cierra un menú abierto o la lista de la velocidad, termina la herramienta en
+  uso (colocar una pieza, un cable a medias), cierra la barra de búsqueda o la vista de «Mirar adentro», y no borra la
+  selección. Con un Terminal o un Teclado capturando el
   teclado, Esc sale del modo y termina la captura, como siempre; F11 va a la pieza si tiene «Flechas como
   secuencias» (que envía las teclas F), y si no, sale del modo.
 - Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada), las barras, los anchos de la

@@ -161,6 +161,31 @@ class MagnifierFeaturesTest {
         assertThat(markedPixels(instance)).isZero();
     }
 
+    /** Presentation mode's Esc asks the pane first: while the magnifier shows, Esc is the magnifier's. */
+    @Test
+    void thePaneClaimsEscapeOnlyWhileTheMagnifierShows() {
+        buttons().get(0).doClick();
+        assertThat(view.canvas().isEscapeClaimed()).isFalse();
+        features.hover().pointerMoved(view.canvas(), center(instance));
+        assertThat(view.canvas().isEscapeClaimed()).isTrue();
+        features.hover().escapePressed();
+        assertThat(view.canvas().isEscapeClaimed()).isFalse();
+        features.hover().pointerExited(OUTSIDE);
+        features.hover().pointerMoved(view.canvas(), center(instance));
+        assertThat(view.canvas().isEscapeClaimed()).isTrue();
+        features.dispose();
+        assertThat(view.canvas().isEscapeClaimed()).as("taken back on dispose").isFalse();
+        features = new MagnifierFeatures(view, new MagnifierPresenter() {
+            @Override
+            public void show(cl.almejo.vsim.ui.canvas.CircuitCanvas pane, Component shown, Point2D point) {
+            }
+
+            @Override
+            public void hide() {
+            }
+        });
+    }
+
     @Test
     void withTheToggleOffNoOutlineIsPainted() {
         features.hover().pointerMoved(view.canvas(), center(instance));

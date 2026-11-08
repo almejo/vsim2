@@ -142,6 +142,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
+    private final List<BooleanSupplier> escapeClaims = new CopyOnWriteArrayList<>();
     private final EdgeController edgeController = new EdgeController(this::getSize);
     private final DocumentListener documentListener;
     private final Runnable refreshListener = this::bodyRefreshed;
@@ -1000,6 +1001,21 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public Runnable addPressInterceptor(Predicate<CanvasMouseEvent> interceptor) {
         pressInterceptors.add(interceptor);
         return () -> pressInterceptors.remove(interceptor);
+    }
+
+    /**
+     * Adds a claim on Esc: while {@code claim} holds, something shown over this pane closes on Esc itself (the
+     * «Mirar adentro» magnifier), so presentation mode leaves it the key. The returned runnable removes it.
+     */
+    public Runnable addEscapeClaim(BooleanSupplier claim) {
+        Objects.requireNonNull(claim, "claim");
+        escapeClaims.add(claim);
+        return () -> escapeClaims.remove(claim);
+    }
+
+    /** Whether something shown over this pane wants the next Esc ({@link #addEscapeClaim}). */
+    public boolean isEscapeClaimed() {
+        return escapeClaims.stream().anyMatch(BooleanSupplier::getAsBoolean);
     }
 
     /**

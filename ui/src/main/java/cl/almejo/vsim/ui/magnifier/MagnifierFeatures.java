@@ -165,7 +165,10 @@ public final class MagnifierFeatures {
         pane.addMouseListener(mouse);
         pane.addMouseMotionListener(mouse);
         pane.addKeyListener(keys);
+        // presentation mode's Esc leaves the key to the shown magnifier
+        Runnable escapeClaimRemover = pane.addEscapeClaim(() -> hover.shownInstance().isPresent());
         return () -> {
+            escapeClaimRemover.run();
             pane.removeMouseListener(mouse);
             pane.removeMouseMotionListener(mouse);
             pane.removeKeyListener(keys);

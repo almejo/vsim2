@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JComboBox;
 import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
@@ -166,6 +167,57 @@ class EscapeToLeaveTest {
         dispatch(f11);
         assertThat(f11.isConsumed()).as("the part took it: no menu accelerator sees it").isTrue();
         assertThat(fixture.features.isActive()).isTrue();
+    }
+
+    /** The final review's M2: something shown over a pane that closes on Esc (the «Mirar adentro» magnifier). */
+    @Test
+    void escapeGoesFirstToWhatAPaneShowsThatWantsIt() {
+        boolean[] magnifierShown = {true};
+        Runnable removeClaim = view.canvas().addEscapeClaim(() -> magnifierShown[0]);
+        try {
+            view.canvas().addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent event) {
+                    if (event.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                        magnifierShown[0] = false; // the magnifier goes, without consuming the key
+                    }
+                }
+            });
+            dispatch(pressOn(view.canvas(), KeyEvent.VK_ESCAPE, 0));
+            assertThat(magnifierShown[0]).as("the magnifier got the key").isFalse();
+            assertThat(fixture.features.isActive()).as("and the mode stays").isTrue();
+            dispatch(pressOn(view.canvas(), KeyEvent.VK_ESCAPE, 0));
+            assertThat(fixture.features.isActive()).isFalse();
+        } finally {
+            removeClaim.run();
+        }
+    }
+
+    /** The final review's M3: the speed list opened with the mouse while the canvas keeps the focus. */
+    @Test
+    void escapeWithAComboListOpenClosesTheListFirst() {
+        boolean[] listShown = {true};
+        JComboBox<String> combo = new JComboBox<>() {
+            @Override
+            public boolean isPopupVisible() {
+                return listShown[0];
+            }
+
+            @Override
+            public void setPopupVisible(boolean visible) {
+                listShown[0] = visible;
+            }
+        };
+        view.toolBar().add(combo);
+        try {
+            dispatch(pressOn(view.canvas(), KeyEvent.VK_ESCAPE, 0));
+            assertThat(listShown[0]).as("the list closed").isFalse();
+            assertThat(fixture.features.isActive()).isTrue();
+            dispatch(pressOn(view.canvas(), KeyEvent.VK_ESCAPE, 0));
+            assertThat(fixture.features.isActive()).isFalse();
+        } finally {
+            view.toolBar().remove(combo);
+        }
     }
 
     private static Optional<FindBar> findBar(Container container) {
