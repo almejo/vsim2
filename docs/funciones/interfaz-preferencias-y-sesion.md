@@ -119,9 +119,11 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   aparece solo si el puntero se queda 1 segundo en su borde (mientras tanto crece una línea de color en el borde), así
   no se abre al pasar de largo, por ejemplo hacia un segundo monitor, ni al arrastrar algo hasta el borde. Entra
   deslizándose por encima del circuito, sin moverlo, y se esconde 0,4 segundos después de que el puntero sale de ella,
-  nunca mientras uno de sus menús está abierto o el foco está en ella (escribiendo en un campo, por ejemplo). Si una
-  tecla le da el foco (Alt+2 para la paleta, Alt+3 para Propiedades) o abre uno de sus menús (Alt y la letra del
-  menú), aparece de inmediato. La barra de estado no se muestra en este modo.
+  nunca mientras uno de sus menús está abierto o estás escribiendo en uno de sus campos de texto (la búsqueda de la
+  paleta o del árbol, un campo de Propiedades); el foco en un árbol, una lista o un encabezado no la mantiene abierta.
+  Al entrar, el teclado pasa al circuito. Si después una tecla le da el foco (Alt+2 para la paleta, Alt+3 para
+  Propiedades) o abre uno de sus menús (Alt y la letra del menú), aparece de inmediato. La barra de estado no se
+  muestra en este modo.
 - Si el circuito tiene alguna sonda, el borde de abajo guarda las formas de onda, aunque su panel estuviera cerrado:
   al entrar se esconden de inmediato y suben desde abajo por encima del circuito, a todo el ancho, como las otras
   barras. Su botón «Ocultar» solo las baja (las sondas siguen y el borde sigue funcionando). En el modo, su barra de

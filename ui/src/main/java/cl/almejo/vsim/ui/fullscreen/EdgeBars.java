@@ -12,6 +12,7 @@ import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.text.JTextComponent;
 import javax.swing.border.Border;
 import javax.swing.event.ChangeListener;
 import java.awt.AWTEvent;
@@ -47,8 +48,10 @@ import java.util.function.Supplier;
  * right, the waveform panel at the bottom when open. A bar opens only after the pointer stays {@link #DWELL} at its
  * edge (crossing an edge on the way to a second monitor opens nothing), sliding in over {@link #SLIDE} <em>over</em>
  * the circuit, which never moves; it hides {@link #HIDE_DELAY} after the pointer leaves it, never while one of its
- * menus or popups is open or the focus is inside it (a field being typed in). The focus going into a hidden bar
- * (Alt+2 for the palette, Tab) or one of its menus opening (Alt+A) opens it at once.
+ * menus or popups is open or one of its text fields has the focus (a field being typed in; a tree, a list or a header
+ * with the focus does not count). The focus moving into a hidden bar from outside it after {@link #startFollowing()}
+ * (Alt+2 for the palette) or one of its menus opening (Alt+A) opens it at once; a focus that was already in the bar
+ * when the mode started (left on the «Circuito» header, the user saw on 2026-11-08) opens nothing.
  * <p>
  * A hidden bar stays visible, just placed beyond its edge: its menu accelerators and key bindings keep working, and a
  * picture of the window shows none of it. Each bar lives in a container without a layout (a layered pane) covering
@@ -88,6 +91,8 @@ public final class EdgeBars {
     private final ArmingLine armingLine = new ArmingLine();
     private Supplier<Component> focusOwner = () -> KeyboardFocusManager.getCurrentKeyboardFocusManager()
             .getFocusOwner();
+    /** The last component that had the focus (null before any): a move into a bar opens it, staying inside does not. */
+    private Component lastFocusOwner;
     /** Where the pointer is, in the area's coordinates; empty while it is outside the window. */
     private Optional<Point> pointer = Optional.empty();
     private Runnable stopFollowing = () -> {
@@ -210,6 +215,7 @@ public final class EdgeBars {
      */
     void startFollowing() {
         stopFollowing.run();
+        lastFocusOwner = focusOwner.get(); // a focus already in a bar is not a move into it
         AWTEventListener pointerListener = event -> {
             if (event instanceof MouseEvent mouse) {
                 pointerEvent(mouse);
@@ -303,11 +309,19 @@ public final class EdgeBars {
         frame();
     }
 
-    /** The focus moved: into a hidden bar it opens it at once (Alt+2, Tab). */
+    /**
+     * The focus moved: from outside a hidden bar into it, it opens the bar at once (Alt+2). Moves inside a bar, and the
+     * focus coming back to where it was after it went away for a moment (a bar being moved), open nothing.
+     */
     void focusChanged() {
         Component owner = focusOwner.get();
         if (owner != null) {
-            barHolding(owner).ifPresent(registration -> open(registration.edge()));
+            Component previous = lastFocusOwner;
+            lastFocusOwner = owner;
+            barHolding(owner)
+                    .filter(registration -> previous == null
+                            || !SwingUtilities.isDescendingFrom(previous, registration.bar()))
+                    .ifPresent(registration -> open(registration.edge()));
         }
         frame();
     }
@@ -443,9 +457,10 @@ public final class EdgeBars {
         return false;
     }
 
+    /** A text field of the bar has the focus (the palette's or the tree's search, a Propiedades field). */
     private boolean hasFocus(JComponent bar) {
         Component owner = focusOwner.get();
-        return owner != null && SwingUtilities.isDescendingFrom(owner, bar);
+        return owner instanceof JTextComponent && SwingUtilities.isDescendingFrom(owner, bar);
     }
 
     /** A menu of the bar's menu bar, or a popup whose invoker is in the bar (the split button's ▾), is open. */

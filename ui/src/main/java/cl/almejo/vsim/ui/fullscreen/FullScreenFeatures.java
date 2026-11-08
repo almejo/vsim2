@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
 /**
@@ -70,6 +71,7 @@ public final class FullScreenFeatures {
     };
     private Runnable unregisterTopBar = () -> {
     };
+    private Consumer<Component> focusMover = Component::requestFocusInWindow;
 
     /** Presentation mode of the window whose root pane is {@code rootPane}, with real timers. */
     public FullScreenFeatures(JRootPane rootPane, WindowTabs tabs, ScreenMode screenMode, AppPreferences preferences) {
@@ -145,6 +147,8 @@ public final class FullScreenFeatures {
         focusManager.addKeyEventDispatcher(escape);
         focusManager.addKeyEventPostProcessor(escape);
         settle();
+        // the keys go to the circuit, not to what had them in a bar that just went behind its edge
+        focusMover.accept(view.canvas());
         hideNotice = CanvasNotice.show(view.bottomDock(), noticeText(preferences), CanvasNotice.Position.TOP,
                 NOTICE_DURATION, noticeTicker, clock, Animations.enabled(preferences));
         activeListeners.fire(Runnable::run);
@@ -209,6 +213,11 @@ public final class FullScreenFeatures {
         stopFollowingTheTabs.run();
         anchor.release();
         edgeBars.dispose();
+    }
+
+    /** How the focus is moved to the canvas on entering (tests record it; nothing has the focus headless). */
+    void useFocusMover(Consumer<Component> mover) {
+        this.focusMover = Objects.requireNonNull(mover, "mover");
     }
 
     /** What decides on Esc while the mode is on (tests hand it keys as the focus manager would). */

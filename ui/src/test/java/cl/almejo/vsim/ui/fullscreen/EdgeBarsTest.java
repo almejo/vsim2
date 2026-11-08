@@ -11,6 +11,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.JTextField;
+import javax.swing.JTree;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import java.awt.BorderLayout;
@@ -205,6 +206,55 @@ class EdgeBarsTest {
         focusOwner.set(null);
         ticker.advance(EdgeBars.HIDE_DELAY.toMillis() + EdgeBars.SLIDE.toMillis() + 50);
         assertThat(bars.isShown(EdgeBars.Edge.TOP)).isFalse();
+    }
+
+    /** Only a text field keeps a bar open (the user saw the left column stay open with the «Circuito» header focused). */
+    @Test
+    void aTreeOrAHeaderWithTheFocusDoesNotKeepTheBarOpen() {
+        JTree tree = new JTree();
+        left.add(tree, BorderLayout.CENTER);
+        bars.register(EdgeBars.Edge.LEFT, left, () -> false);
+        bars.pointerAt(new Point(0, HEIGHT / 2));
+        ticker.advance(EdgeBars.DWELL.toMillis() + EdgeBars.SLIDE.toMillis() + 32);
+        assertThat(bars.isShown(EdgeBars.Edge.LEFT)).isTrue();
+        focusOwner.set(tree);
+        inTheMiddle();
+        ticker.advance(EdgeBars.HIDE_DELAY.toMillis() + EdgeBars.SLIDE.toMillis() + 50);
+        assertThat(bars.isShown(EdgeBars.Edge.LEFT)).isFalse();
+    }
+
+    /** The focus already in a bar when the mode starts (left on the «Circuito» header) does not open it. */
+    @Test
+    void theFocusAlreadyInABarWhenFollowingStartsDoesNotOpenIt() {
+        JTree tree = new JTree();
+        JTextField field = new JTextField();
+        left.add(tree, BorderLayout.CENTER);
+        left.add(field, BorderLayout.NORTH);
+        bars.register(EdgeBars.Edge.LEFT, left, () -> false);
+        focusOwner.set(tree);
+        bars.startFollowing();
+        try {
+            bars.focusChanged();
+            focusOwner.set(null); // the focus goes away for a moment while the column moves
+            bars.focusChanged();
+            focusOwner.set(tree);
+            bars.focusChanged();
+            ticker.advance(2_000);
+            assertThat(bars.isShown(EdgeBars.Edge.LEFT)).as("never moved into it").isFalse();
+            focusOwner.set(field); // Tab inside the hidden column: still not a move into it
+            bars.focusChanged();
+            ticker.advance(2_000);
+            assertThat(bars.isShown(EdgeBars.Edge.LEFT)).isFalse();
+            JTextField outside = new JTextField();
+            focusOwner.set(outside); // the canvas, say
+            bars.focusChanged();
+            focusOwner.set(field); // Alt+2: now it moves into the bar
+            bars.focusChanged();
+            ticker.advance(EdgeBars.SLIDE.toMillis() + 32);
+            assertThat(bars.isShown(EdgeBars.Edge.LEFT)).isTrue();
+        } finally {
+            bars.stopFollowing();
+        }
     }
 
     @Test

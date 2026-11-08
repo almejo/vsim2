@@ -223,6 +223,36 @@ class FullScreenFeaturesTest {
     }
 
     @Test
+    void enteringMovesTheFocusToTheActiveCanvas() {
+        List<Component> focused = new java.util.ArrayList<>();
+        fixture.features.useFocusMover(focused::add);
+        fixture.features.enter();
+        assertThat(focused).containsExactly(view.canvas());
+    }
+
+    /**
+     * The user saw the left column stay open on entering, with the focus left on the «Circuito» header: a focus that
+     * was already in a bar does not open it, and it does not keep it open either.
+     */
+    @Test
+    void aFocusLeftInTheLeftColumnWhenEnteringNeitherOpensItNorKeepsItOpen() {
+        Component header = view.leftColumn().getComponent(0);
+        fixture.features.useFocusMover(component -> { }); // the request is lost: the focus stays on the header
+        fixture.features.edgeBars().useFocusOwner(() -> header);
+        fixture.features.enter();
+        fixture.layOut();
+        fixture.features.edgeBars().focusChanged(); // the focus manager tells the column moved
+        fixture.advance(3_000);
+        assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.LEFT)).isFalse();
+        fixture.features.edgeBars().pointerAt(new Point(0, HEIGHT / 2));
+        fixture.advance(EdgeBars.DWELL.toMillis() + EdgeBars.SLIDE.toMillis() + 50);
+        assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.LEFT)).isTrue();
+        fixture.features.edgeBars().pointerAt(new Point(WIDTH / 2, HEIGHT / 2));
+        fixture.advance(EdgeBars.HIDE_DELAY.toMillis() + EdgeBars.SLIDE.toMillis() + 50);
+        assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.LEFT)).as("a header does not keep it").isFalse();
+    }
+
+    @Test
     void closingTheWindowInTheModeLeavesTheFullScreen() {
         fixture.features.enter();
         fixture.features.dispose();
