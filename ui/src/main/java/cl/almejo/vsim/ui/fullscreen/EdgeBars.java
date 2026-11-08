@@ -66,6 +66,8 @@ public final class EdgeBars {
     public static final Duration HIDE_DELAY = Duration.ofMillis(400);
     /** How long a bar takes to slide all the way in or out (the mockup's 220 ms). */
     public static final Duration SLIDE = Duration.ofMillis(220);
+    /** How long a {@linkplain #reveal revealed} bar stays before the hide delay starts (as long as a row's blink). */
+    public static final Duration REVEAL_HOLD = Duration.ofMillis(1500);
     /**
      * How close to an edge (before UI scaling) the pointer counts as at it. In full screen the pointer stops at the
      * screen's edge, so a thin zone is enough and work near the edge of the circuit does not arm a bar.
@@ -150,6 +152,35 @@ public final class EdgeBars {
                 parent.removeComponentListener(parentListener);
             }
         };
+    }
+
+    /**
+     * Opens {@code edge}'s bars now, without the dwell, sliding in, and keeps them {@link #REVEAL_HOLD} before the
+     * usual hiding: something the user did elsewhere put a bar there (Ver ▸ Formas de onda, a click on a probe
+     * marker), and they see where it went.
+     */
+    public void reveal(Edge edge) {
+        Objects.requireNonNull(edge, "edge");
+        open(edge);
+        EdgeState state = states.get(edge);
+        if (state.awaySince >= 0) {
+            state.awaySince = clock.getAsLong() + REVEAL_HOLD.toMillis();
+        }
+        frame();
+    }
+
+    /**
+     * Shows {@code edge}'s bars fully at once, with no slide: a bar that was on screen another way (the waveform panel
+     * docked until its pin was removed) stays where it is, and hides as usual once the pointer leaves it.
+     */
+    public void showAtOnce(Edge edge) {
+        Objects.requireNonNull(edge, "edge");
+        open(edge);
+        EdgeState state = states.get(edge);
+        state.shownFraction = 1;
+        state.slideStart = -1;
+        registrations.stream().filter(registration -> registration.edge() == edge).forEach(this::place);
+        frame();
     }
 
     /** Whether {@code edge}'s bars are open or opening (sliding in). */

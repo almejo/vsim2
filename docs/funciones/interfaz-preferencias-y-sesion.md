@@ -121,15 +121,21 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   deslizándose por encima del circuito, sin moverlo, y se esconde 0,4 segundos después de que el puntero sale de ella,
   nunca mientras uno de sus menús está abierto o el foco está en ella (escribiendo en un campo, por ejemplo). Si una
   tecla le da el foco (Alt+2 para la paleta, Alt+3 para Propiedades) o abre uno de sus menús (Alt y la letra del
-  menú), aparece de inmediato. La barra de estado no se muestra en este modo, y el borde de abajo no hace nada.
+  menú), aparece de inmediato. La barra de estado no se muestra en este modo.
+- Las formas de onda, si su panel está abierto, se esconden al entrar detrás del borde de abajo y suben desde ahí
+  por encima del circuito, a todo el ancho, como las otras barras. En el modo, su barra de herramientas muestra un pin
+  «Fijar»: apretado («Fijas»), el panel queda abajo fijo y el circuito se acorta para dejarle espacio; soltándolo, el
+  panel vuelve a esconderse cuando el puntero sale de él. VSim recuerda el pin para la próxima vez. Abrir el panel en
+  el modo (Ver ▸ Formas de onda, «Ver en formas de onda» o un clic en la marca de una sonda) lo muestra un momento
+  desde abajo. Sin el panel abierto, el borde de abajo no hace nada.
 - Para salir: F11, Esc, Ver ▸ «Modo presentación (pantalla completa)» (marcado con ✓ mientras está activo) o el botón
   de la barra de herramientas, que queda apretado y cuyo globo dice «Salir del modo presentación (F11 o Esc)». Esc
   sale solo cuando nada más lo usa: antes cierra un menú abierto, termina la herramienta en uso (colocar una pieza, un
   cable a medias) o cierra la barra de búsqueda, y no borra la selección. Con un Terminal o un Teclado capturando el
   teclado, Esc sale del modo y termina la captura, como siempre; F11 va a la pieza si tiene «Flechas como
   secuencias» (que envía las teclas F), y si no, sale del modo.
-- Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada), las barras y los anchos de la
-  paleta y del panel derecho. Es por ventana (cada una en su monitor) y no se recuerda al reiniciar VSim. La ventanita
+- Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada), las barras, los anchos de la
+  paleta y del panel derecho y la altura que tenían las formas de onda antes de entrar. Es por ventana (cada una en su monitor) y no se recuerda al reiniciar VSim. La ventanita
   de «Presentar» de la IA (ver [Presentar](ia-mcp.md#presentar)) sigue a la vista. El atajo F11 se cambia en
   [Atajos de teclado](#atajos-de-teclado).
 

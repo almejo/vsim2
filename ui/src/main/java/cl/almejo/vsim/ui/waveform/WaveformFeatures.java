@@ -47,6 +47,7 @@ public final class WaveformFeatures {
     private final Runnable probeListener;
     private final ProbeMarkerOverlay markers;
     private final Runnable removeFromPanes;
+    private final WaveformsInFullScreen inFullScreen;
     private boolean disposed;
 
     public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<Component, String> messages) {
@@ -90,6 +91,7 @@ public final class WaveformFeatures {
         if (!openDocument.document().probes().isEmpty()) {
             dock.showDock();
         }
+        this.inFullScreen = new WaveformsInFullScreen(view, panel, view.services().preferences());
     }
 
     /** The blink, the markers, their tooltip and their click in {@code pane}. Returns what undoes it. */
@@ -138,6 +140,7 @@ public final class WaveformFeatures {
         }
         String probeId = marker.get().probeIds().getFirst();
         view.bottomDock().showDock();
+        inFullScreen.reveal();
         panel.selectRow(probeId);
         panel.blinkRow(probeId);
         return true;
@@ -156,6 +159,7 @@ public final class WaveformFeatures {
             return;
         }
         view.bottomDock().showDock();
+        inFullScreen.reveal();
         if (result.capReached()) {
             messages.accept(view, Messages.format("waveform.capReached", ProbeActions.MAXIMUM_CHANNELS));
         }
@@ -200,6 +204,7 @@ public final class WaveformFeatures {
             return;
         }
         disposed = true;
+        inFullScreen.dispose();
         removeFromPanes.run();
         shortcutRemover.run();
         view.openDocument().document().removeProbeListener(probeListener);
