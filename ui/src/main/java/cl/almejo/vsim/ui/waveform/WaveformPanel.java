@@ -104,6 +104,7 @@ public final class WaveformPanel extends JPanel {
         addTool(toolAction("waveform.hide", WaveformIcons.HIDE, hide));
         toolBar.add(Box.createHorizontalGlue());
         pinButton.setIcon(Icons.get(WaveformIcons.PIN, Icons.MENU_SIZE));
+        pinButton.setSelectedIcon(new PinnedIcon(Icons.MENU_SIZE));
         pinButton.setVisible(false);
         showPinned(false);
         toolBar.add(pinButton);
@@ -184,10 +185,12 @@ public final class WaveformPanel extends JPanel {
         return pinButton;
     }
 
-    /** The pin reads «Fijas» pressed while the panel is pinned, «Fijar» otherwise, with the tooltip that goes with it. */
+    /**
+     * The pin pressed, an upright red pushpin, while the panel is pinned; a tilted outline one otherwise. Icon only,
+     * like its neighbours; the tooltip says what a press does.
+     */
     void showPinned(boolean pinned) {
         pinButton.setSelected(pinned);
-        pinButton.setText(Messages.text(pinned ? "waveform.pinned" : "waveform.pin"));
         pinButton.setToolTipText(Messages.text(pinned ? "waveform.pinnedTip" : "waveform.pinTip"));
     }
 

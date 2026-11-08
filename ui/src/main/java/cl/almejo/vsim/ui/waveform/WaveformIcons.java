@@ -15,14 +15,16 @@ public final class WaveformIcons {
     public static final String SHOW_DELAYS = "waveform-delays";
     public static final String CLEAR = "waveform-clear";
     public static final String HIDE = "waveform-hide";
-    /** The pin of presentation mode, after the others (it shows only in the mode). */
+    /** The pin of presentation mode, after the others (it shows only in the mode): tilted outline, unpinned. */
     public static final String PIN = "waveform-pin";
+    /** The pressed pin: upright and filled, painted in the theme's red by {@link PinnedIcon}. */
+    public static final String PINNED = "waveform-pinned";
 
     private WaveformIcons() {
     }
 
-    /** Every toolbar icon, in toolbar order (the pin last). */
+    /** Every toolbar icon, in toolbar order (the pin last, unpinned then pinned). */
     public static List<String> names() {
-        return List.of(FOLLOW, ZOOM_IN, ZOOM_OUT, FIT_ALL, SHOW_DELAYS, CLEAR, HIDE, PIN);
+        return List.of(FOLLOW, ZOOM_IN, ZOOM_OUT, FIT_ALL, SHOW_DELAYS, CLEAR, HIDE, PIN, PINNED);
     }
 }

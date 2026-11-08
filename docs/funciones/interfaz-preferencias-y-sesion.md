@@ -125,8 +125,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Si el circuito tiene alguna sonda, el borde de abajo guarda las formas de onda, aunque su panel estuviera cerrado:
   al entrar se esconden de inmediato y suben desde abajo por encima del circuito, a todo el ancho, como las otras
   barras. Su botón «Ocultar» solo las baja (las sondas siguen y el borde sigue funcionando). En el modo, su barra de
-  herramientas muestra un pin «Fijar»: apretado («Fijas»), el panel queda abajo fijo y el circuito se acorta para
-  dejarle espacio; soltándolo, el panel vuelve a esconderse cuando el puntero sale de él. VSim recuerda el pin para la
+  herramientas muestra un pin («Fijar las formas de onda»; inclinado y gris, o derecho y rojo cuando está apretado):
+  apretado, el panel queda abajo fijo y el circuito se acorta para dejarle espacio; soltándolo, el panel vuelve a esconderse cuando el puntero sale de él. VSim recuerda el pin para la
   próxima vez. Abrir el panel en el modo (Ver ▸ Formas de onda, «Ver en formas de onda» o un clic en la marca de una
   sonda) lo muestra un momento desde abajo. Sin sondas ni el panel abierto, el borde de abajo no hace nada.
 - Tampoco se ven las marcas para editar: las reglas de las guías (y su esquina), los «⋮» para dividir la vista y el
