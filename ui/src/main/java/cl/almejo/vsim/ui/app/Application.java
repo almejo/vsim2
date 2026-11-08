@@ -89,6 +89,7 @@ import cl.almejo.vsim.ui.session.StartupSequence;
 import cl.almejo.vsim.ui.session.TabState;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
+import cl.almejo.vsim.ui.shortcuts.ShortcutEchoExtension;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
 import cl.almejo.vsim.ui.theme.TextFontManager;
@@ -328,6 +329,7 @@ public final class Application {
         editorExtensions.add(new RecentFilesFeature());
         editorExtensions.add(new ExamplesFeature());
         editorExtensions.add(new LogisimImportExtension(startDirectory, chosen)); // the last item of Importar
+        editorExtensions.add(new ShortcutEchoExtension()); // after every menu item and button, before the strokes
         editorExtensions.add(new ShortcutsExtension());
         return List.copyOf(editorExtensions);
     }

@@ -106,6 +106,15 @@ public final class AppPreferences {
         putFlag(SHOW_BUS_VALUES, show);
     }
 
+    /** «Mostrar los atajos que se usan»: a chip with the shortcut of each action run; off by default. */
+    public boolean showUsedShortcuts() {
+        return flag(SHOW_USED_SHORTCUTS, false);
+    }
+
+    public void setShowUsedShortcuts(boolean show) {
+        putFlag(SHOW_USED_SHORTCUTS, show);
+    }
+
     /** «Cuadrícula ▸»: dots unless the user chose otherwise (or the stored value is unreadable). */
     public GridStyle gridStyle() {
         return enumValue(GRID_STYLE, GridStyle.class, GridStyle.DOTS);
@@ -179,6 +188,7 @@ public final class AppPreferences {
     static final String SHOW_GUIDES = "guides.show";
     static final String SHOW_BUS_VALUES = "view.busValues";
     static final String SHOW_SHEETS = "sheets.show";
+    static final String SHOW_USED_SHORTCUTS = "shortcutEcho.show";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
     private static final String CIRCUIT_TREE_SPLIT = "ui.circuitTree.split";

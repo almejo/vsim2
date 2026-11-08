@@ -147,8 +147,8 @@ class WaveformsEndToEndTest {
                 "menu.view.waveforms", MenuId.VIEW, Scope.WINDOW, Optional.empty()));
         List<ShortcutEntry> viewEntries = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.VIEW).toList();
-        // then «Presentar» and «Modo presentación»
-        assertThat(viewEntries.get(viewEntries.size() - 3).id()).isEqualTo("waveforms.toggle");
+        // then «Presentar», «Modo presentación» and «Mostrar los atajos que se usan»
+        assertThat(viewEntries.get(viewEntries.size() - 4).id()).isEqualTo("waveforms.toggle");
 
         KeyStroke stroke = KeyStroke.getKeyStroke(KeyEvent.VK_F9, 0);
         new KeyBindings(preferences).assign("waveforms.toggle", stroke);

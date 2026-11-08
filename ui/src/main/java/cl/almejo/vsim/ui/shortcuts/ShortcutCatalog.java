@@ -141,6 +141,7 @@ public final class ShortcutCatalog {
         // «Modo presentación (pantalla completa)», last in Ver; F11 is the usual full-screen key
         window(entries, "view.presentationMode", "action.presentationMode", MenuId.VIEW,
                 stroke(KeyEvent.VK_F11, 0));
+        window(entries, "view.showUsedShortcuts", "action.showUsedShortcuts", MenuId.VIEW, null);
         window(entries, "simulation.start", "action.start", MenuId.SIMULATION, null);
         window(entries, "simulation.pause", "action.pause", MenuId.SIMULATION, null);
         window(entries, "simulation.startOrPause", "action.startOrPause", MenuId.SIMULATION,

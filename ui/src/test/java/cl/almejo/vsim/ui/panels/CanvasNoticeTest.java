@@ -126,4 +126,15 @@ class CanvasNoticeTest {
         assertThat(noticesShown()).isEqualTo(1);
         assertThat(notice().text()).isEqualTo("Two");
     }
+
+    @Test
+    void aReplacedNoticeStopsItsOwnTicker() {
+        ManualFrameTicker other = new ManualFrameTicker();
+        CanvasNotice.show(canvasArea, "One", CanvasNotice.Position.TOP, Duration.ofSeconds(2), ticker,
+                ticker::now, false);
+        CanvasNotice.show(canvasArea, "Two", CanvasNotice.Position.TOP, Duration.ofSeconds(2), other,
+                other::now, false);
+        assertThat(ticker.isRunning()).as("the replaced notice's ticker").isFalse();
+        assertThat(other.isRunning()).isTrue();
+    }
 }

@@ -161,8 +161,9 @@ class ApplicationExtensionsTest {
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda", "---",
                     "Presentar lo que hace la IA", "Ritmo de Presentar", "---",
-                    "Modo presentación (pantalla completa)");
-            assertThat(view.shortcutActions()).containsKeys("view.aiPresent", "view.presentationMode");
+                    "Modo presentación (pantalla completa)", "Mostrar los atajos que se usan");
+            assertThat(view.shortcutActions()).containsKeys("view.aiPresent", "view.presentationMode",
+                    "view.showUsedShortcuts");
             assertThat(view.bottomDock().content()).isPresent();
         } finally {
             view.dispose();
@@ -184,7 +185,7 @@ class ApplicationExtensionsTest {
                     "Siguiente problema", "Problema anterior", "---",
                     "Formas de onda", "---",
                     "Presentar lo que hace la IA", "Ritmo de Presentar", "---",
-                    "Modo presentación (pantalla completa)");
+                    "Modo presentación (pantalla completa)", "Mostrar los atajos que se usan");
             assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
                     "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
                     "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues", "view.magnifier");

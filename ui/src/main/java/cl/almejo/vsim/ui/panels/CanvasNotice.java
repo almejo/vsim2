@@ -19,6 +19,7 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 
 /**
@@ -36,6 +37,8 @@ public final class CanvasNotice extends JComponent {
     private static final int PADDING_X = 16;
     private static final int PADDING_Y = 8;
     private static final int CORNER = 14;
+    private static final int GAP = 6;
+    private static final AtomicInteger STACKED_COUNTER = new AtomicInteger();
     private static final long FADE_MILLISECONDS = 180;
     private static final int BACKGROUND_ALPHA = 224;
     private static final String SHOWN_PROPERTY = "vsim.canvasNotice";
@@ -44,6 +47,12 @@ public final class CanvasNotice extends JComponent {
     private final JComponent over;
     private final Position position;
     private float opacity;
+    private int level;
+    private String slot = SHOWN_PROPERTY;
+    private Runnable gone;
+    private JLayeredPane layers;
+    private Runnable hider = () -> {
+    };
 
     private CanvasNotice(JComponent over, String text, Position position) {
         this.over = over;
@@ -78,26 +87,49 @@ public final class CanvasNotice extends JComponent {
      */
     public static Runnable show(JComponent over, String text, Position position, Duration duration,
                                 FrameTicker ticker, LongSupplier nowMillis, boolean fade) {
+        CanvasNotice notice = create(over, text, position, duration, ticker, nowMillis, fade, SHOWN_PROPERTY, null);
+        return notice == null ? () -> {
+        } : notice::takeAway;
+    }
+
+    /**
+     * Like {@link #show(JComponent, String, Position, Duration, FrameTicker, LongSupplier, boolean)}, but one of
+     * several notices over the same area ({@link CanvasNoticeStack}): it replaces nothing, sits {@code level}
+     * notices away from the edge (see {@link #setLevel}) and tells {@code gone} when it is taken away.
+     *
+     * @return the notice, or null when {@code over} is not in a window
+     */
+    static CanvasNotice showStacked(JComponent over, String text, Position position, Duration duration,
+                                    FrameTicker ticker, LongSupplier nowMillis, boolean fade, Runnable gone) {
+        return create(over, text, position, duration, ticker, nowMillis, fade,
+                SHOWN_PROPERTY + "#" + STACKED_COUNTER.incrementAndGet(), gone);
+    }
+
+    private static CanvasNotice create(JComponent over, String text, Position position, Duration duration,
+                                       FrameTicker ticker, LongSupplier nowMillis, boolean fade, String slot,
+                                       Runnable gone) {
         Objects.requireNonNull(over, "over");
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(position, "position");
         JRootPane rootPane = SwingUtilities.getRootPane(over);
         if (rootPane == null) {
-            return () -> {
-            };
+            return null;
         }
         JLayeredPane layers = rootPane.getLayeredPane();
-        replaceShownOver(over);
+        replaceShownOver(over, slot);
         CanvasNotice notice = new CanvasNotice(over, text, position);
         notice.opacity = fade ? 0f : 1f;
-        over.putClientProperty(SHOWN_PROPERTY, notice);
+        notice.slot = slot;
+        notice.gone = gone;
+        notice.layers = layers;
+        over.putClientProperty(slot, notice);
         layers.add(notice, JLayeredPane.POPUP_LAYER);
         long start = nowMillis.getAsLong();
-        Runnable hide = () -> notice.remove(layers, over, ticker);
+        notice.hider = () -> notice.remove(layers, over, ticker);
         Runnable frame = () -> {
             long elapsed = nowMillis.getAsLong() - start;
             if (elapsed >= duration.toMillis()) {
-                hide.run();
+                notice.takeAway();
                 return;
             }
             notice.opacity = fade ? fadeAt(elapsed, duration.toMillis()) : 1f;
@@ -105,7 +137,20 @@ public final class CanvasNotice extends JComponent {
         };
         notice.reposition(layers);
         ticker.start(frame);
-        return hide;
+        return notice;
+    }
+
+    /** Takes the notice away now (and stops its ticker); harmless when it is already gone. */
+    void takeAway() {
+        hider.run();
+    }
+
+    /** How many notices of the stack sit between this one and the edge (0: next to it). */
+    void setLevel(int level) {
+        this.level = level;
+        if (layers != null) {
+            reposition(layers);
+        }
     }
 
     /** The text shown. */
@@ -113,11 +158,12 @@ public final class CanvasNotice extends JComponent {
         return text;
     }
 
-    private static void replaceShownOver(JComponent over) {
-        if (over.getClientProperty(SHOWN_PROPERTY) instanceof CanvasNotice previous && previous.getParent() != null) {
-            previous.getParent().remove(previous);
+    /** A notice still in the slot goes, with its ticker (it would keep running for nothing otherwise). */
+    private static void replaceShownOver(JComponent over, String slot) {
+        if (over.getClientProperty(slot) instanceof CanvasNotice previous) {
+            previous.takeAway();
         }
-        over.putClientProperty(SHOWN_PROPERTY, null);
+        over.putClientProperty(slot, null);
     }
 
     private static float fadeAt(long elapsed, long total) {
@@ -127,8 +173,8 @@ public final class CanvasNotice extends JComponent {
     }
 
     private void remove(JLayeredPane layers, JComponent area, FrameTicker ticker) {
-        if (area.getClientProperty(SHOWN_PROPERTY) == this) {
-            area.putClientProperty(SHOWN_PROPERTY, null);
+        if (area.getClientProperty(slot) == this) {
+            area.putClientProperty(slot, null);
             ticker.stop();
         }
         if (getParent() != null) {
@@ -136,12 +182,19 @@ public final class CanvasNotice extends JComponent {
             layers.remove(this);
             layers.repaint(bounds);
         }
+        Runnable told = gone;
+        gone = null;
+        if (told != null) {
+            told.run();
+        }
     }
 
     private void reposition(JLayeredPane layers) {
         Rectangle area = new Rectangle(SwingUtilities.convertPoint(over, 0, 0, layers), over.getSize());
         int horizontal = area.x + (area.width - getWidth()) / 2;
-        int vertical = position == Position.TOP ? area.y + MARGIN : area.y + area.height - getHeight() - MARGIN;
+        int offset = level * (getHeight() + GAP);
+        int vertical = position == Position.TOP ? area.y + MARGIN + offset
+                : area.y + area.height - getHeight() - MARGIN - offset;
         setLocation(horizontal, vertical);
         repaint();
     }

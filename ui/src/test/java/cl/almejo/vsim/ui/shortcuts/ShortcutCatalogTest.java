@@ -67,7 +67,8 @@ class ShortcutCatalogTest {
     void presentarHasNoDefaultStrokeAndThePresentationModeIsTheLastOfVerWithF11() {
         List<String> view = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.VIEW).map(ShortcutEntry::id).toList();
-        assertThat(view).endsWith("waveforms.toggle", "view.aiPresent", "view.presentationMode");
+        assertThat(view).endsWith("waveforms.toggle", "view.aiPresent", "view.presentationMode",
+                "view.showUsedShortcuts");
         assertThat(ShortcutCatalog.find("view.aiPresent")).contains(new ShortcutEntry("view.aiPresent",
                 "action.aiPresent", MenuId.VIEW, Scope.WINDOW, Optional.empty()));
         assertThat(ShortcutCatalog.find("view.presentationMode")).contains(new ShortcutEntry("view.presentationMode",

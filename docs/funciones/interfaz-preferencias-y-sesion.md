@@ -133,6 +133,19 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   de «Presentar» de la IA (ver [Presentar](ia-mcp.md#presentar)) sigue a la vista. El atajo F11 se cambia en
   [Atajos de teclado](#atajos-de-teclado).
 
+## Mostrar los atajos que se usan
+
+- Ver ▸ «Mostrar los atajos que se usan» (apagado de entrada; se recuerda al reiniciar y vale para todas las
+  ventanas). Funciona igual dentro y fuera del [modo presentación](#modo-presentación): sirve para que en una clase o
+  un video se vea qué atajo tiene lo que se va haciendo.
+- Cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra, abajo en
+  el centro del circuito, una etiqueta como «Ctrl+Z · Deshacer». Si la acción no tiene atajo, solo su nombre. Dura
+  1,5 segundos (aparece y se va suavemente), con hasta tres apiladas, la más nueva abajo.
+- El atajo que se muestra es el que tienes ahora (los cambios de [Atajos de teclado](#atajos-de-teclado) se ven al
+  instante), con los nombres de teclas de tu sistema (en macOS, ⌃ ⌥ ⇧ ⌘ y la tecla: «⌘Z»).
+- No muestra nada de lo que escribes en un campo de texto, ni de lo que va a un Terminal o un Teclado que tiene el
+  teclado, ni los clics del ratón sobre el circuito. Con una tecla mantenida apretada no repite la misma etiqueta.
+
 ## Atajos de teclado
 
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.
