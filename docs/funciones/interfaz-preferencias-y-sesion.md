@@ -110,8 +110,9 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Ver ▸ «Modo presentación (pantalla completa)» (F11) o el botón de cuatro esquinas al final de la barra de
   herramientas ponen la ventana en toda la pantalla del monitor donde está, sin la barra de título del sistema, y
   esconden las barras detrás de los bordes de la pantalla para que se vea solo el circuito, por ejemplo al proyectarlo
-  en una clase. El circuito se dibuja igual que en la ventana (con sus valores, brillos y selección) y queda en el
-  mismo lugar de la pantalla al entrar y al salir.
+  en una clase. El circuito se dibuja igual que en la ventana (con sus valores, brillos y selección) y, al entrar y
+  al salir, cada panel de la vista queda centrado en el mismo punto del circuito y con el mismo zoom (si haces zoom o
+  mueves la vista justo después, VSim respeta lo que hiciste).
 - Al entrar, un aviso arriba dice durante 2 segundos «Modo presentación · Esc o F11 para salir · lleva el puntero a
   un borde para ver sus barras».
 - Cada borde guarda sus barras: arriba, el menú, las pestañas y la barra de herramientas; a la izquierda, el árbol del
@@ -142,7 +143,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   selección. Con un Terminal o un Teclado capturando el
   teclado, Esc sale del modo y termina la captura, como siempre; F11 va a la pieza si tiene «Flechas como
   secuencias» (que envía las teclas F), y si no, sale del modo.
-- Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada), las barras, los anchos de la
+- Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada; en GNOME con XWayland a veces
+  no vuelve a quedar maximizada, y hay que maximizarla a mano), las barras, los anchos de la
   paleta y del panel derecho y las formas de onda abiertas o cerradas, con la altura que tenían antes de entrar. Es por ventana (cada una en su monitor) y no se recuerda al reiniciar VSim. La ventanita
   de «Presentar» de la IA (ver [Presentar](ia-mcp.md#presentar)) sigue a la vista. El atajo F11 se cambia en
   [Atajos de teclado](#atajos-de-teclado).
@@ -159,6 +161,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   instante), con los nombres de teclas de tu sistema (en macOS, ⌃ ⌥ ⇧ ⌘ y la tecla: «⌘Z»).
 - No muestra nada de lo que escribes en un campo de texto, ni de lo que va a un Terminal o un Teclado que tiene el
   teclado, ni los clics del ratón sobre el circuito. Con una tecla mantenida apretada no repite la misma etiqueta.
+  Tampoco la muestran, por ahora, los ítems de las listas que cambian solas: Archivo ▸ Recientes, Archivo ▸ Ejemplos y
+  la lista de ventanas abiertas de Ventana.
 
 ## Atajos de teclado
 
