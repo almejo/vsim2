@@ -9,6 +9,7 @@ import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** What the canvas does with the mouse: select, place a component, draw a wire, pan. */
@@ -34,6 +35,26 @@ public interface Tool {
      */
     default boolean holdsGesture() {
         return false;
+    }
+
+    /**
+     * True while the tool holds a gesture made between clicks, with no button down, that follows the pointer (a
+     * continuous wire's path): a view move under the pointer (wheel, zoom, middle button) redoes its preview where the
+     * pointer now is, hovering near the edge scrolls the view, Deshacer drops its last step ({@link #dropLastStep}) and
+     * the other panes of the window show it and pass it the pointer. False by default.
+     */
+    default boolean drawsBetweenClicks() {
+        return false;
+    }
+
+    /**
+     * Something around the tool took the user elsewhere (the tool or the tab changed, the AI started a task on the
+     * document): a tool holding work that must not survive it (a continuous wire's path) cancels it as Escape would and
+     * returns the notice that says so («Cable cancelado»), for the caller to show where the user looks. Empty when
+     * nothing was cancelled; the default cancels nothing.
+     */
+    default Optional<String> interrupt(ToolContext context) {
+        return Optional.empty();
     }
 
     /** True while the tool paints a marching-ants outline of its own (the canvas keeps its animation clock running). */

@@ -159,6 +159,17 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean gestureUnderWay;
     /** The other pane the pointer is over during that gesture, and what the tool sees there; null over this one. */
     private CrossPaneContext pointerPaneContext;
+    /**
+     * The other pane whose tool drew between clicks when the primary or secondary button went down here: that press,
+     * its drags and its release go to that tool (a continuous wire's corner placed in this pane); null otherwise.
+     */
+    private CircuitCanvas pressForwardedTo;
+    /** The last pointer event over this canvas (a move, a drag, the wheel); null while the pointer is elsewhere. */
+    private MouseEvent pointerEvent;
+    /** Told when whether this canvas's tool draws between clicks changes (Deshacer drops a corner while it does). */
+    private final List<Runnable> drawingListeners = new CopyOnWriteArrayList<>();
+    /** What {@link #drawingListeners} were last told about this canvas's tool. */
+    private boolean drawingTold;
     private Tool tool = defaultTool;
     private GridStyle gridStyle = GridStyle.DOTS;
     private boolean paintBusValues = true;
@@ -221,6 +232,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         openDocument.document().addListener(documentListener);
         openDocument.addRefreshListener(refreshListener);
         selection.addListener(selectionListener);
+        viewport.addChangeListener(this::viewMovedUnderThePointer);
         MouseHandler mouseHandler = new MouseHandler();
         addMouseListener(mouseHandler);
         addMouseMotionListener(mouseHandler);
@@ -233,6 +245,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 keyHandler.forgetModifiers();
                 spaceDown = false;
                 panAnchor = null;
+                pressForwardedTo = null; // the release of a press given to another pane's path may never come
                 showCursor();
                 autoscroll.stopAutoscroll(); // a modal dialog or another window took the release
                 tool.focusLost(CircuitCanvas.this);
@@ -474,9 +487,113 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return List.copyOf(moving);
     }
 
-    /** True while this canvas's tool holds a gesture that the other panes of the window show. */
+    /**
+     * True while this canvas's tool holds a gesture that the other panes of the window show: one whose button is down,
+     * or one drawn between clicks (a continuous wire's path).
+     */
     private boolean sharesGesture() {
-        return gestureUnderWay && tool.crossesPanes();
+        return (gestureUnderWay || tool.drawsBetweenClicks()) && tool.crossesPanes();
+    }
+
+    /**
+     * The pane of this window whose tool draws between clicks (see {@link Tool#drawsBetweenClicks}): this one, or
+     * another pane, which then gets the pointer, the clicks and the keys given to this one.
+     */
+    private Optional<CircuitCanvas> drawingPane() {
+        if (tool.drawsBetweenClicks()) {
+            return Optional.of(this);
+        }
+        return otherPanes.get().stream().filter(pane -> pane != this && pane.tool.drawsBetweenClicks()).findFirst();
+    }
+
+    /** {@link #drawingPane()} when it is another pane of the window. */
+    private Optional<CircuitCanvas> otherDrawingPane() {
+        return drawingPane().filter(pane -> pane != this);
+    }
+
+    /** The pane whose tool takes the keys given to this canvas: the one drawing between clicks, or this one. */
+    private CircuitCanvas keyPane() {
+        return otherDrawingPane().orElse(this);
+    }
+
+    /** True while a tool of this window draws between clicks (in this pane or another): Deshacer drops its last step. */
+    public boolean drawsBetweenClicks() {
+        return drawingPane().isPresent();
+    }
+
+    /**
+     * Runs {@code listener} whenever this canvas's tool starts or stops drawing between clicks (a continuous wire's
+     * path begins or ends). Returns its removal.
+     */
+    public Runnable addDrawingListener(Runnable listener) {
+        drawingListeners.add(listener);
+        return () -> drawingListeners.remove(listener);
+    }
+
+    /**
+     * Deshacer while a tool of this window draws between clicks: that tool drops its last step (a continuous wire's last
+     * corner, or the path when only its start is left) instead of the history undoing an earlier change; true when it
+     * did, false when nothing is drawn (the history undoes as usual).
+     */
+    public boolean dropLastToolStep() {
+        Optional<CircuitCanvas> drawer = drawingPane();
+        if (drawer.isEmpty()) {
+            return false;
+        }
+        CircuitCanvas pane = drawer.get();
+        boolean dropped = pane.tool.dropLastStep(pane.toolContext());
+        pane.repaint();
+        pane.repaintOtherPanes();
+        pane.updateAnimation();
+        return dropped;
+    }
+
+    /**
+     * The user was taken elsewhere (the tab changed, the AI started a task on the document): this canvas's tool cancels
+     * what must not survive it, as Escape would, and the notice that says so («Cable cancelado») is returned for the
+     * caller to show where the user looks. Empty when nothing was cancelled.
+     */
+    public Optional<String> interruptGesture() {
+        boolean shared = sharesGesture();
+        Optional<String> notice = tool.interrupt(toolContext());
+        repaintOtherPanesIfTheGestureEnded(shared);
+        updateAnimation();
+        return notice;
+    }
+
+    /**
+     * The view moved under a pointer that stayed still (wheel, zoom, the middle button, an autoscroll step): a tool
+     * drawing between clicks redoes its preview at the grid point now under the pointer, so the path is kept and
+     * follows it.
+     */
+    private void viewMovedUnderThePointer() {
+        if (pointerHoversWhileDrawing()) {
+            pointerMovedTo(pointerEvent);
+        }
+    }
+
+    /** The pointer is at {@code event} with no button held: the tool drawing between clicks, or this one, sees it. */
+    private void pointerMovedTo(MouseEvent event) {
+        CanvasMouseEvent converted = convert(event);
+        Optional<CircuitCanvas> drawer = otherDrawingPane();
+        if (drawer.isPresent()) {
+            drawer.get().tool.mouseMoved(new CrossPaneContext(drawer.get(), this), converted);
+            drawer.get().repaint();
+            drawer.get().repaintOtherPanes();
+            return;
+        }
+        tool.mouseMoved(this, converted);
+        if (sharesGesture()) {
+            repaintOtherPanes();
+        }
+    }
+
+    /**
+     * True while the pointer hovers over this canvas, no button down, with a tool of this window drawing between
+     * clicks: the view moving under the pointer redoes the preview, and the edge scrolls the view.
+     */
+    boolean pointerHoversWhileDrawing() {
+        return pointerEvent != null && !gestureUnderWay && pressForwardedTo == null && drawingPane().isPresent();
     }
 
     private List<CircuitCanvas> panesSharingAGesture() {
@@ -651,6 +768,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             return;
         }
         cancelEdgeGesture();
+        interruptGesture().ifPresent(this::showNotice);
         if (tool.holdsGesture()) {
             boolean shared = sharesGesture();
             tool.keyPressed(toolContext(), KeyEvent.VK_ESCAPE, false);
@@ -1314,6 +1432,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         } else if (!needed && antsTimer.isRunning()) {
             antsTimer.stop();
         }
+        tellDrawingListeners();
+    }
+
+    private void tellDrawingListeners() {
+        boolean drawing = tool.drawsBetweenClicks();
+        if (drawing != drawingTold) {
+            drawingTold = drawing;
+            drawingListeners.forEach(Runnable::run);
+        }
     }
 
     @Override
@@ -1451,6 +1578,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (keyCode == KeyEvent.VK_ESCAPE && cancelEdgeGesture()) {
             return true;
         }
+        return keyPane().giveKeyToTool(keyCode, shiftDown);
+    }
+
+    /** {@code keyCode} goes to this canvas's tool; the other panes stop showing a gesture the key ended. */
+    private boolean giveKeyToTool(int keyCode, boolean shiftDown) {
         boolean shared = sharesGesture();
         boolean used = tool.keyPressed(toolContext(), keyCode, shiftDown);
         repaintOtherPanesIfTheGestureEnded(shared);
@@ -1694,7 +1826,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final class MouseHandler extends MouseAdapter {
 
         private void track(MouseEvent event) {
-            mousePoint = contains(event.getPoint()) ? viewport.snap(event.getX(), event.getY()) : null;
+            boolean inside = contains(event.getPoint());
+            mousePoint = inside ? viewport.snap(event.getX(), event.getY()) : null;
+            pointerEvent = inside ? event : null;
         }
 
         /** Buttons past the third (sideways scrolling, back/forward) never reach the tool as a click. */
@@ -1729,9 +1863,23 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             endGesture();
+            autoscroll.stopHoverAutoscroll(); // a hover scroll ends with the press
+            pressForwardedTo = null; // an earlier press whose release never came
+            Optional<CircuitCanvas> drawer = otherDrawingPane();
+            if (drawer.isPresent()) {
+                pressForwardedTo = drawer.get();
+                pressForwardedTo.tool.mousePressed(forwardedContext(), converted);
+                pressForwardedTo.updateAnimation();
+                return;
+            }
             tool.mousePressed(CircuitCanvas.this, converted);
             gestureUnderWay = true;
             updateAnimation();
+        }
+
+        /** What the tool of the pane a press was forwarded to sees: its own pane, with this one's view and snapping. */
+        private CrossPaneContext forwardedContext() {
+            return new CrossPaneContext(pressForwardedTo, CircuitCanvas.this);
         }
 
         @Override
@@ -1748,6 +1896,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             if (pressIntercepted) {
+                return;
+            }
+            if (pressForwardedTo != null) {
+                pressForwardedTo.tool.mouseDragged(forwardedContext(), convert(event));
+                pressForwardedTo.repaint();
+                pressForwardedTo.repaintOtherPanes();
                 return;
             }
             Optional<CircuitCanvas> otherPane = otherPaneUnder(event.getPoint());
@@ -1807,6 +1961,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 pressIntercepted = false;
                 return;
             }
+            if (pressForwardedTo != null) {
+                releaseForwarded(converted);
+                return;
+            }
             Optional<CircuitCanvas> otherPane = otherPaneUnder(event.getPoint());
             if (otherPane.isPresent()) {
                 CrossPaneContext context = new CrossPaneContext(CircuitCanvas.this, otherPane.get());
@@ -1820,6 +1978,16 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 tool.mouseReleased(CircuitCanvas.this, converted);
             }
             updateAnimation();
+        }
+
+        /** The release of a press given to another pane's tool goes there too; then this pane's clicks are its own. */
+        private void releaseForwarded(CanvasMouseEvent converted) {
+            CircuitCanvas drawer = pressForwardedTo;
+            drawer.tool.mouseReleased(forwardedContext(), converted);
+            pressForwardedTo = null;
+            drawer.repaint();
+            drawer.repaintOtherPanes();
+            drawer.updateAnimation();
         }
 
         @Override
@@ -1838,14 +2006,17 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 }
             } else {
                 toolSeesPointerGone = false;
-                tool.mouseMoved(CircuitCanvas.this, converted);
+                pointerMovedTo(event);
             }
+            autoscroll.followHover(event);
             showCursor();
         }
 
         @Override
         public void mouseExited(MouseEvent event) {
             mousePoint = null;
+            pointerEvent = null;
+            autoscroll.stopHoverAutoscroll();
             toolSeesPointerGone = false;
             if (edgeController.clearHover()) {
                 showCursor();
@@ -1868,6 +2039,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
         @Override
         public void mouseWheelMoved(MouseWheelEvent event) {
+            track(event); // where the pointer is when the view moves under it
             double rotation = event.getPreciseWheelRotation();
             if (event.isControlDown()) {
                 viewport.zoomAt(event.getX(), event.getY(), viewport.zoom() * Math.pow(Viewport.ZOOM_STEP, -rotation));
@@ -1912,12 +2084,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             modifierChanged(event, true);
-            boolean shared = sharesGesture();
-            if (tool.keyPressed(toolContext(), event.getKeyCode(), event.isShiftDown())) {
+            if (keyPane().giveKeyToTool(event.getKeyCode(), event.isShiftDown())) {
                 event.consume();
             }
-            repaintOtherPanesIfTheGestureEnded(shared);
-            updateAnimation();
         }
 
         @Override
@@ -1945,14 +2114,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
          * the elbow of the wire it draws; a held Espacio stays «hold to pan».
          */
         private void spaceTapped(KeyEvent event) {
-            if (!tool.flipElbow(toolContext())) {
+            CircuitCanvas pane = keyPane();
+            if (!pane.tool.flipElbow(pane.toolContext())) {
                 return;
             }
             event.consume();
-            if (sharesGesture()) {
-                repaintOtherPanes();
+            if (pane.sharesGesture()) {
+                pane.repaintOtherPanes();
             }
-            updateAnimation();
+            pane.updateAnimation();
         }
 
         /**

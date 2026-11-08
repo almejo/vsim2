@@ -247,6 +247,7 @@ public final class EditorView extends JPanel implements CanvasHost {
                 () -> performIfEnabled(actions.start()));
         inlineEditor = new InlineTextEditor(this::canvas);
         forEachPane(this::configurePane);
+        forEachPane(pane -> pane.addDrawingListener(actions::refresh)); // Deshacer drops a corner while a wire is drawn
         bindZoomKeys();
         bindEscapeToTheTool();
         palette.setFocusAfterMouseChoice(() -> canvas().requestFocusInWindow());
@@ -349,6 +350,22 @@ public final class EditorView extends JPanel implements CanvasHost {
         for (CircuitCanvas pane : panes()) {
             pane.setTool(newTool.get());
         }
+    }
+
+    /**
+     * The user was taken away from this view (its tab was hidden, the AI started a task on its circuit): every pane's
+     * tool cancels what must not survive it (a continuous wire's path). Returns the notice that says so («Cable
+     * cancelado»), for the caller to show where the user looks now; empty when nothing was cancelled.
+     */
+    public Optional<String> interruptGestures() {
+        Optional<String> notice = Optional.empty();
+        for (CircuitCanvas pane : panes()) {
+            Optional<String> paneNotice = pane.interruptGesture();
+            if (notice.isEmpty()) {
+                notice = paneNotice;
+            }
+        }
+        return notice;
     }
 
     /** Puts every pane back on its default tool (Elegir) and ends the window's tool choice. */

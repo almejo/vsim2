@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.snap.PointResolution;
 
 import java.awt.Cursor;
@@ -12,6 +13,7 @@ import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -41,6 +43,8 @@ public final class WireTool implements Tool {
     private GridPoint pressPoint;
     /** The held press is the one that started the path, so its release only fixes a corner if it dragged. */
     private boolean pressStartedThePath;
+    /** See {@link #hoverJunction()}; null when none. */
+    private GridPoint hoverJunction;
 
     /** A Wire tool drawing as {@code mode} says when each gesture starts (the Cable button's choice). */
     public WireTool(Supplier<WireMode> mode) {
@@ -56,6 +60,7 @@ public final class WireTool implements Tool {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
+        hoverJunction = null; // the path's own preview shows where it joins from now on
         if (path != null) {
             holdPress(event, false);
             return;
@@ -122,6 +127,8 @@ public final class WireTool implements Tool {
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
         if (path != null) {
             path.previewTo(context, event.snapped());
+            context.repaint();
+        } else if (updateHoverJunction(context, event)) {
             context.repaint();
         }
     }
@@ -252,7 +259,73 @@ public final class WireTool implements Tool {
             drawing.paintPreview(graphics, context);
         } else if (path != null) {
             path.paintPreview(graphics, context);
+        } else if (hoverJunction != null) {
+            ContinuousWirePath.paintJunction(graphics, context, hoverJunction);
         }
+    }
+
+    /**
+     * Where a click would start on (or join) a wire, shown as the preview's junction dot while the pointer is over one
+     * in {@link WireMode#CONTINUOUS} with no path in progress; empty elsewhere, over a pin (it shows itself) and in
+     * {@link WireMode#PIECES}.
+     */
+    Optional<GridPoint> hoverJunction() {
+        return Optional.ofNullable(hoverJunction);
+    }
+
+    /** Works out {@link #hoverJunction()} for the pointer at {@code event}; true when it changed. */
+    private boolean updateHoverJunction(ToolContext context, CanvasMouseEvent event) {
+        GridPoint before = hoverJunction;
+        hoverJunction = path == null && drawing == null && mode.get() == WireMode.CONTINUOUS
+                ? wireJoinedAt(context, resolveStart(context, event).point()) : null;
+        return !Objects.equals(before, hoverJunction);
+    }
+
+    /** {@code point} when a wire passes through it (end or interior) and no pin is there; null otherwise. */
+    private static GridPoint wireJoinedAt(ToolContext context, GridPoint point) {
+        OpenDocument openDocument = context.openDocument();
+        boolean onAWire = openDocument.document().wires().stream().anyMatch(wire -> wire.contains(point));
+        if (!onAWire) {
+            return null;
+        }
+        boolean onAPin = new ConnectionPoints(openDocument.registry()).pinLocations(openDocument.document())
+                .contains(point);
+        return onAPin ? null : point;
+    }
+
+    private void clearHoverJunction(ToolContext context) {
+        if (hoverJunction != null) {
+            hoverJunction = null;
+            context.repaint();
+        }
+    }
+
+    /** A continuous wire's path is in progress (no button needs to be held). */
+    @Override
+    public boolean drawsBetweenClicks() {
+        return path != null;
+    }
+
+    /** A tool or tab change, or the AI starting a task, cancels the path as Esc does; a drag in pieces is left alone. */
+    @Override
+    public Optional<String> interrupt(ToolContext context) {
+        if (path == null) {
+            return Optional.empty();
+        }
+        cancelPath(context);
+        return Optional.of(Messages.text("wire.cancelled"));
+    }
+
+    /** Another tool was chosen: a path in progress goes, with «Cable cancelado». */
+    @Override
+    public void deactivated(ToolContext context) {
+        interrupt(context).ifPresent(context::showNotice);
+        clearHoverJunction(context);
+    }
+
+    @Override
+    public void mouseExited(ToolContext context) {
+        clearHoverJunction(context);
     }
 
     @Override

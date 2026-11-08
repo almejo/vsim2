@@ -700,8 +700,13 @@ public final class WindowTabs extends JPanel {
     private void modelChanged() {
         String activeId = model.active().map(TabStripModel.Tab::id).orElse(null);
         if (!Objects.equals(activeId, shownId)) {
+            Optional<TabEntry> hidden = Optional.ofNullable(shownId).map(entries::get);
             shownId = activeId;
-            show(Optional.ofNullable(activeId).map(entries::get));
+            Optional<TabEntry> shown = Optional.ofNullable(activeId).map(entries::get);
+            // the tab being hidden loses what it was drawing; the notice goes to the tab the user looks at now
+            Optional<String> notice = hidden.flatMap(entry -> entry.view.interruptGestures());
+            show(shown);
+            notice.ifPresent(text -> shown.ifPresent(entry -> entry.view.showNotice(text)));
         }
         host.activeTabChanged();
     }

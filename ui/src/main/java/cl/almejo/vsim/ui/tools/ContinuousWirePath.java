@@ -238,12 +238,17 @@ final class ContinuousWirePath {
     /** The path and the segment being drawn as ghosts, and a dot at every point where it will join the circuit. */
     void paintPreview(Graphics2D graphics, ToolContext context) {
         WireDrawing.paintSegments(graphics, context, previewSegments(), startWidth);
+        for (GridPoint junction : junctionPoints(context)) {
+            paintJunction(graphics, context, junction);
+        }
+    }
+
+    /** One dot of the preview where a wire will join the circuit at {@code junction} (the scheme's preview colour). */
+    static void paintJunction(Graphics2D graphics, ToolContext context, GridPoint junction) {
         graphics.setColor(context.scheme().preview());
         double unit = GridPoint.PIXELS_PER_UNIT;
-        for (GridPoint junction : junctionPoints(context)) {
-            graphics.fill(new Ellipse2D.Double(junction.x() * unit - JUNCTION_PREVIEW_RADIUS,
-                    junction.y() * unit - JUNCTION_PREVIEW_RADIUS, 2 * JUNCTION_PREVIEW_RADIUS,
-                    2 * JUNCTION_PREVIEW_RADIUS));
-        }
+        graphics.fill(new Ellipse2D.Double(junction.x() * unit - JUNCTION_PREVIEW_RADIUS,
+                junction.y() * unit - JUNCTION_PREVIEW_RADIUS, 2 * JUNCTION_PREVIEW_RADIUS,
+                2 * JUNCTION_PREVIEW_RADIUS));
     }
 }

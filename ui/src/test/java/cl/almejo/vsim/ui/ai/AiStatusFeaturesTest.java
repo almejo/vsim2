@@ -11,7 +11,9 @@ import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.CanvasClicks;
 import cl.almejo.vsim.ui.EditorFixture;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
@@ -61,6 +63,36 @@ class AiStatusFeaturesTest {
     void close() {
         features.dispose();
         fixture.close();
+    }
+
+    /** Cable continuo: the AI starting a task on this circuit cancels the wire being drawn, with «Cable cancelado». */
+    @Test
+    void aTaskStartingOnThisCircuitCancelsAContinuousWireWithTheNotice() {
+        startAContinuousWire();
+
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Flip-flop D"));
+
+        assertThat(view.canvas().tool().holdsGesture()).isFalse();
+        assertThat(document.document().wires()).isEmpty();
+        assertThat(view.statusBar().text()).contains("Cable cancelado");
+    }
+
+    @Test
+    void aTaskStartingOnAnotherCircuitKeepsTheWire() {
+        startAContinuousWire();
+
+        tasks.start(FakeAiTasks.task("task-9", new DocumentId("circuit-other"), "Otro circuito"));
+
+        assertThat(view.canvas().tool().holdsGesture()).isTrue();
+        assertThat(view.statusBar().text()).doesNotContain("Cable cancelado");
+    }
+
+    private void startAContinuousWire() {
+        view.canvas().setSize(400, 300);
+        UiTestSupport.perform(view.actions().wireTool());
+        CanvasClicks.click(view.canvas(), 40, 40);
+        CanvasClicks.click(view.canvas(), 120, 40);
+        assertThat(view.canvas().tool().holdsGesture()).isTrue();
     }
 
     /** IA.3 Task 7: in working mode the AI's lines go only to the strip's tooltip, the last few, as plain text. */
