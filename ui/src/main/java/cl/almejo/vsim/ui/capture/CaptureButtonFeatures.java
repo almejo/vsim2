@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.Action;
 import javax.swing.KeyStroke;
 import javax.swing.JComponent;
+import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.KeyEventDispatcher;
@@ -59,6 +60,9 @@ final class CaptureButtonFeatures {
     private final SplitButton button;
     private final Runnable toolbarRemover;
     private final Runnable menuRemover;
+    private final AppPreferences preferences;
+    /** The mode chosen in another tab's or window's ▾ shows in this one too. */
+    private final Runnable modeFollower = this::followTheChosenMode;
     private Runnable flashRemover = () -> {
     };
     private Runnable noticeRemover = () -> {
@@ -76,6 +80,7 @@ final class CaptureButtonFeatures {
         this.dispatchers = dispatchers;
         this.inOwnedWindow = inOwnedWindow != null ? inOwnedWindow : this::inWindowOwnedByTheViewsWindow;
         AppPreferences preferences = view.services().preferences();
+        this.preferences = preferences;
         List<SplitButtonMode> modes = List.of(
                 new SplitButtonMode(WINDOW_MODE, Icons.get(CaptureIcons.WINDOW, Icons.TOOLBAR_SIZE),
                         Messages.text("capture.mode.window"), Messages.text("capture.mode.window.description")),
@@ -98,6 +103,14 @@ final class CaptureButtonFeatures {
         }
         this.toolbarRemover = added;
         dispatchers.add(dialogKeys);
+        preferences.addListener(modeFollower);
+    }
+
+    private void followTheChosenMode() {
+        preferences.splitButtonMode(PREFERENCE_ID)
+                .filter(chosen -> WINDOW_MODE.equals(chosen) || VISIBLE_CIRCUIT_MODE.equals(chosen))
+                .filter(chosen -> !chosen.equals(button.mode().id()))
+                .ifPresent(button::setMode);
     }
 
     private static CaptureKind kindOf(String modeId) {
@@ -112,8 +125,15 @@ final class CaptureButtonFeatures {
         // what a previous copy left over must not be in this picture
         flashRemover.run();
         noticeRemover.run();
+        BufferedImage image;
         try {
-            BufferedImage image = WindowCapture.paint(view, kind, WindowCapture.screenScale(view));
+            image = WindowCapture.paint(view, kind, WindowCapture.screenScale(view));
+        } catch (RuntimeException failure) {
+            LOGGER.warn("The capture could not be painted", failure);
+            showNotice(Messages.text("capture.copy.notPainted"));
+            return;
+        }
+        try {
             clipboard.copy(image);
         } catch (RuntimeException failure) {
             LOGGER.warn("The capture could not be copied to the clipboard", failure);
@@ -145,19 +165,32 @@ final class CaptureButtonFeatures {
     /**
      * The shortcut from a dialog: menu accelerators only work in the editor's own window, so a key the user bound to
      * «Copiar captura» (its current accelerator, which follows the shortcut editor) pressed in a dialog owned by this
-     * view's window copies the window, dialogs included. Not while a part of the circuit has the keys (the Terminal).
+     * view's window copies the window, dialogs included. Each tab has its dispatcher: only the tab that shows in its
+     * window copies. Not while a part of the circuit has the keys (the Terminal).
      */
     private boolean takeKey(KeyEvent event) {
         if (disposed || event.getID() != KeyEvent.KEY_PRESSED || event.isConsumed()
                 || !(event.getSource() instanceof Component source)
                 || !(copyAction.getValue(Action.ACCELERATOR_KEY) instanceof KeyStroke stroke)
                 || !stroke.equals(KeyStroke.getKeyStrokeForEvent(event))
-                || view.keyboardCapture().captured().isPresent() || !inOwnedWindow.test(source)) {
+                || view.keyboardCapture().captured().isPresent() || !isTheShownTab()
+                || !inOwnedWindow.test(source)) {
             return false;
         }
         event.consume();
         copy(kindOf(button.mode().id()));
         return true;
+    }
+
+    /** Visible all the way up to its root pane: the tab that shows in its window (the others' cards are hidden). */
+    private boolean isTheShownTab() {
+        JRootPane root = SwingUtilities.getRootPane(view);
+        for (Component current = view; current != null && current != root; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+        }
+        return root != null;
     }
 
     private boolean inWindowOwnedByTheViewsWindow(Component source) {
@@ -179,6 +212,7 @@ final class CaptureButtonFeatures {
             return;
         }
         disposed = true;
+        preferences.removeListener(modeFollower);
         dispatchers.remove(dialogKeys);
         flashRemover.run();
         noticeRemover.run();

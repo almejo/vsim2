@@ -347,6 +347,54 @@ class CaptureButtonFeaturesTest {
         assertThat(copied).hasSize(1);
     }
 
+    /**
+     * The final review's I2: with two tabs, the shortcut from a dialog copies the tab that shows, with the mode chosen
+     * in any tab's ▾, not the tab whose dispatcher was registered first.
+     */
+    @Test
+    void theShortcutFromADialogCopiesTheShownTabWithTheModeChosenInAnotherTab() {
+        EditorView shown = new EditorView(openDocument, view.services(), UiTestSupport.NO_WINDOW);
+        try {
+            java.awt.CardLayout cards = new java.awt.CardLayout();
+            JPanel tabs = new JPanel(cards);
+            tabs.add(view, "first");
+            tabs.add(shown, "shown");
+            root.setContentPane(tabs);
+            cards.show(tabs, "shown");
+            layOut(root);
+            view.canvasPanes().setSize(100, 80); // the hidden tab's last layout, unlike the shown one's
+            List<SplitButton> shownButtons = new ArrayList<>();
+            collect(shown.toolBar(), SplitButton.class, shownButtons);
+            shownButtons.get(0).setMode("visibleCircuit");
+            assertThat(button().mode().id()).as("the first tab's ▾ follows").isEqualTo("visibleCircuit");
+            inOwnedWindow = source -> true;
+            KeyEvent key = captureKey(new JPanel());
+            shown.shortcutActions().get("edit.copyCapture")
+                    .putValue(Action.ACCELERATOR_KEY, menuAction().getValue(Action.ACCELERATOR_KEY));
+
+            assertThat(dispatch(key)).isTrue();
+
+            assertThat(copied).singleElement().satisfies(image -> {
+                assertThat(image.getWidth()).isEqualTo(shown.canvasPanes().getWidth());
+                assertThat(image.getHeight()).isEqualTo(shown.canvasPanes().getHeight());
+            });
+        } finally {
+            shown.dispose();
+        }
+    }
+
+    /** The final review's M7: a picture that cannot be painted does not blame the clipboard. */
+    @Test
+    void aPictureThatCannotBePaintedIsNotBlamedOnTheClipboard() {
+        button().setMode("visibleCircuit");
+        view.canvasPanes().setSize(0, 0);
+
+        perform(menuAction());
+
+        assertThat(copied).isEmpty();
+        assertThat(notices()).singleElement().extracting(CanvasNotice::text).isEqualTo("No se pudo copiar la captura.");
+    }
+
     @Test
     void theShortcutDoesNotFireWhileAKeyCapturingPartHasTheKeys() {
         inOwnedWindow = source -> true;
