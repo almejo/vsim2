@@ -113,6 +113,10 @@ class FullScreenLeavesNothingTest {
         assertThat(menuBar.getComponentCount()).isEqualTo(view.menuBar().getComponentCount());
     }
 
+    /**
+     * A regression guard for the Swing side only: the menus that closed by themselves after the mode (GNOME,
+     * XWayland) were a native offset of the frame, which no headless test can see; this passed before that fix too.
+     */
     @Test
     void aMenuOpenedAfterLeavingStaysOpen() {
         assertThat(openedMenuStaysOpen(view.menuBar())).as("before the mode").isTrue();
@@ -122,6 +126,7 @@ class FullScreenLeavesNothingTest {
         assertThat(openedMenuStaysOpen(view.menuBar())).as("after a second round trip").isTrue();
     }
 
+    /** A regression guard for the Swing side only, like {@link #aMenuOpenedAfterLeavingStaysOpen()}. */
     @Test
     void aMenuOpenedFromTheTopBarInsideTheModeStaysOpenAndKeepsTheBar() {
         fixture.features.enter();

@@ -252,6 +252,53 @@ class FullScreenFeaturesTest {
         assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.LEFT)).as("a header does not keep it").isFalse();
     }
 
+    /**
+     * The picture of «Ventana» in the mode, painted as the capture paints it: along the top and left edges it is the
+     * circuit, pixel for pixel, with none of the bars hidden behind those edges (task 4 could only check bounds).
+     */
+    @Test
+    void aPaintedPictureOfTheWindowInTheModeShowsTheCircuitAtItsEdges() {
+        assertThat(edgesShowTheCircuit()).as("outside the mode the menu bar and the left column are there").isFalse();
+        fixture.features.enter();
+        fixture.layOut();
+        fixture.advance(FullScreenFeatures.NOTICE_DURATION.toMillis() + 1_000); // the notice on entering is gone
+        fixture.layOut();
+        assertThat(edgesShowTheCircuit()).isTrue();
+    }
+
+    /**
+     * Whether the window's picture shows, along its top and left edges (past the dock's thin border), what the canvas
+     * panes paint at those places of the screen.
+     */
+    private boolean edgesShowTheCircuit() {
+        java.awt.image.BufferedImage window = cl.almejo.vsim.ui.capture.WindowCapture.paint(view,
+                cl.almejo.vsim.ui.capture.CaptureKind.WINDOW, 1);
+        java.awt.image.BufferedImage circuit = cl.almejo.vsim.ui.capture.WindowCapture.paint(view,
+                cl.almejo.vsim.ui.capture.CaptureKind.VISIBLE_CIRCUIT, 1);
+        Point offset = SwingUtilities.convertPoint(view.canvasPanes(), 0, 0, fixture.rootPane);
+        int border = 3;
+        int band = 40;
+        for (int windowY = border; windowY < window.getHeight() - border; windowY++) {
+            for (int windowX = border; windowX < window.getWidth() - border; windowX++) {
+                boolean atAnEdge = windowY < band || windowX < band;
+                if (atAnEdge && !samePixel(window, circuit, offset, windowX, windowY)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static boolean samePixel(java.awt.image.BufferedImage window, java.awt.image.BufferedImage circuit,
+                                     Point offset, int windowX, int windowY) {
+        int circuitX = windowX - offset.x;
+        int circuitY = windowY - offset.y;
+        if (circuitX < 0 || circuitY < 0 || circuitX >= circuit.getWidth() || circuitY >= circuit.getHeight()) {
+            return false; // something else is painted there
+        }
+        return (window.getRGB(windowX, windowY) & 0xFFFFFF) == (circuit.getRGB(circuitX, circuitY) & 0xFFFFFF);
+    }
+
     @Test
     void closingTheWindowInTheModeLeavesTheFullScreen() {
         fixture.features.enter();
