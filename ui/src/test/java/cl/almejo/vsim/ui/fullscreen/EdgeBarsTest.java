@@ -208,6 +208,27 @@ class EdgeBarsTest {
         assertThat(bars.isShown(EdgeBars.Edge.TOP)).isFalse();
     }
 
+    /**
+     * The final review's M6: the pointer's moves over a menu's own (heavyweight) popup window are not seen, so after
+     * picking an item the last known place was still on the bar; closing the menu reads where the pointer really is.
+     */
+    @Test
+    void closingAMenuReadsWhereThePointerIsAndTheBarHides() {
+        JMenuBar menuBar = new JMenuBar();
+        JMenu menu = new JMenu("Archivo");
+        menuBar.add(menu);
+        top.add(menuBar, BorderLayout.NORTH);
+        openTheTopBar();
+        MenuSelectionManager.defaultManager().setSelectedPath(new MenuElement[]{menuBar, menu});
+        bars.menusChanged();
+        ticker.advance(2_000);
+        bars.usePointerLocation(() -> java.util.Optional.of(new Point(WIDTH / 2, HEIGHT / 2))); // on the canvas now
+        MenuSelectionManager.defaultManager().clearSelectedPath(); // an item was picked
+        bars.menusChanged();
+        ticker.advance(EdgeBars.HIDE_DELAY.toMillis() + EdgeBars.SLIDE.toMillis() + 50);
+        assertThat(bars.isShown(EdgeBars.Edge.TOP)).isFalse();
+    }
+
     /** Only a text field keeps a bar open (the user saw the left column stay open with the «Circuito» header focused). */
     @Test
     void aTreeOrAHeaderWithTheFocusDoesNotKeepTheBarOpen() {

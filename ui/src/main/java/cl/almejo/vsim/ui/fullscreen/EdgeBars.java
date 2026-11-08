@@ -20,9 +20,12 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics;
+import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
+import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.PointerInfo;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
@@ -93,6 +96,8 @@ public final class EdgeBars {
             .getFocusOwner();
     /** The last component that had the focus (null before any): a move into a bar opens it, staying inside does not. */
     private Component lastFocusOwner;
+    /** Where the pointer really is, read when a menu closes (its popup window's moves are not followed). */
+    private Supplier<Optional<Point>> pointerLocation = this::pointerOnTheScreen;
     /** Where the pointer is, in the area's coordinates; empty while it is outside the window. */
     private Optional<Point> pointer = Optional.empty();
     private Runnable stopFollowing = () -> {
@@ -326,13 +331,40 @@ public final class EdgeBars {
         frame();
     }
 
-    /** A menu opened or closed: one of a hidden bar's menus (Alt+A, F10) opens the bar at once. */
-    private void menusChanged() {
+    /**
+     * A menu opened or closed: one of a hidden bar's menus (Alt+A, F10) opens the bar at once. When the last menu
+     * closes, the pointer is read again: its moves over the menu's own popup window were not followed, so the last
+     * known place may still be on the bar after an item was picked over the circuit.
+     */
+    void menusChanged() {
         MenuElement[] path = MenuSelectionManager.defaultManager().getSelectedPath();
         if (path.length > 0 && path[0] instanceof Component root) {
             barHolding(root).ifPresent(registration -> open(registration.edge()));
+        } else if (path.length == 0) {
+            Optional<Point> location = pointerLocation.get();
+            if (location.isPresent() && new Rectangle(area.getSize()).contains(location.get())) {
+                pointerAt(location.get());
+                return;
+            } else if (location.isPresent()) {
+                pointerLeft(); // on another monitor or window
+                return;
+            }
         }
         frame();
+    }
+
+    /** The pointer on the screen, in the area's coordinates; empty when unknown (headless, or not shown). */
+    private Optional<Point> pointerOnTheScreen() {
+        if (GraphicsEnvironment.isHeadless() || !area.isShowing()) {
+            return Optional.empty();
+        }
+        PointerInfo info = MouseInfo.getPointerInfo();
+        if (info == null) {
+            return Optional.empty();
+        }
+        Point location = new Point(info.getLocation());
+        SwingUtilities.convertPointFromScreen(location, area);
+        return Optional.of(location);
     }
 
     /** Hides every bar at once (leaving the mode). */
@@ -347,6 +379,11 @@ public final class EdgeBars {
         armingLine.setVisible(false);
         relayout();
         ticker.stop();
+    }
+
+    /** Where the pointer is now, in the area's coordinates (tests give it; the real one reads the screen). */
+    void usePointerLocation(Supplier<Optional<Point>> location) {
+        this.pointerLocation = Objects.requireNonNull(location, "location");
     }
 
     /** Where the focus is (the focus manager's owner; a fake in tests, where nothing has the focus). */
