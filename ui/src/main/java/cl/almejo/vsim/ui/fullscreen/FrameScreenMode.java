@@ -30,6 +30,8 @@ public final class FrameScreenMode implements ScreenMode {
     private final JFrame frame;
     private final FrameResync resync = new FrameResync(FrameTicker.swing(RESYNC_FRAME_MILLISECONDS),
             System::currentTimeMillis);
+    private final Remaximize remaximize = new Remaximize(FrameTicker.swing(RESYNC_FRAME_MILLISECONDS),
+            System::currentTimeMillis);
     private GraphicsDevice device;
     private Rectangle boundsBefore;
     private int stateBefore;
@@ -40,15 +42,15 @@ public final class FrameScreenMode implements ScreenMode {
         frame.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentMoved(ComponentEvent event) {
-                resync.check();
+                windowManagerAnswered();
             }
 
             @Override
             public void componentResized(ComponentEvent event) {
-                resync.check();
+                windowManagerAnswered();
             }
         });
-        frame.addWindowStateListener(event -> resync.check());
+        frame.addWindowStateListener(event -> windowManagerAnswered());
     }
 
     @Override
@@ -61,6 +63,7 @@ public final class FrameScreenMode implements ScreenMode {
         GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
         device = configuration.getDevice();
         resync.cancel();
+        remaximize.cancel();
         device.setFullScreenWindow(frame);
         // the screen bounds were set while the title bar was still there: set them again once it is gone
         resync.start(frame::getInsets, frame::getBounds, device.getDefaultConfiguration().getBounds(),
@@ -80,13 +83,9 @@ public final class FrameScreenMode implements ScreenMode {
         }
         int state = stateBefore & ~Frame.ICONIFIED;
         if ((stateBefore & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
-            // the system keeps the bounds to un-maximize to; setting the maximized bounds would replace them.
-            // Once the title bar is back, a round trip through the normal state places the window again.
-            frame.setExtendedState(state);
-            resync.start(frame::getInsets, frame::getBounds, new Rectangle(), ignored -> { // never nudged: one round trip
-                frame.setExtendedState(state & ~Frame.MAXIMIZED_BOTH);
-                frame.setExtendedState(state);
-            });
+            // the system keeps the bounds to un-maximize to (never set the maximized bounds); a maximize asked while
+            // the title bar comes back is lost under mutter, so it waits for the decorations and asks again if needed
+            remaximize.start(frame::getExtendedState, this::maximize, frame::getInsets, state);
         } else {
             frame.setBounds(boundsBefore);
             // set while the title bar was coming back: set them again once it is there
@@ -94,18 +93,34 @@ public final class FrameScreenMode implements ScreenMode {
         }
     }
 
-    /** Whether the frame is in full screen now. */
-    public boolean isFullScreen() {
-        return device != null;
+    /** Asks for {@code state}; AWT believing the frame maximized already goes through the normal state first. */
+    private void maximize(int state) {
+        if ((frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
+            frame.setExtendedState(state & ~Frame.MAXIMIZED_BOTH);
+        }
+        frame.setExtendedState(state);
     }
 
-    /** In full screen: whether the frame was maximized when it entered. False outside full screen. */
+    private void windowManagerAnswered() {
+        resync.check();
+        remaximize.check();
+    }
+
+    /**
+     * Whether the frame is in full screen or still coming back from it (being maximized again): its bounds and state
+     * then are not the ones the session should keep.
+     */
+    public boolean isTransitioning() {
+        return device != null || remaximize.isPending();
+    }
+
+    /** While {@link #isTransitioning()}: whether the frame was maximized when it entered. False otherwise. */
     public boolean wasMaximized() {
-        return device != null && (stateBefore & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+        return isTransitioning() && (stateBefore & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
     }
 
-    /** In full screen: the frame's bounds when it entered; empty outside full screen. */
+    /** While {@link #isTransitioning()}: the frame's bounds when it entered; empty otherwise. */
     public Optional<Rectangle> boundsBefore() {
-        return device == null ? Optional.empty() : Optional.of(new Rectangle(boundsBefore));
+        return isTransitioning() ? Optional.of(new Rectangle(boundsBefore)) : Optional.empty();
     }
 }
