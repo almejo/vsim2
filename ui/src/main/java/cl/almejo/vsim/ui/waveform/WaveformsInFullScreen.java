@@ -141,10 +141,21 @@ final class WaveformsInFullScreen {
         }
     }
 
-    /** The panel was opened or closed (Ver ▸ Formas de onda): behind the edge it comes up or slides away. */
+    /**
+     * The panel was opened or closed (Ver ▸ Formas de onda, its toolbar toggle): behind the edge it comes up or slides
+     * away. In the mode a pinned panel that is closed goes behind the edge for now, as with its «Ocultar» (with no
+     * probes the edge then does nothing), and opening it again docks it again.
+     */
     private void dockChanged() {
         if (updating) {
             return;
+        }
+        if (edgeBars.isPresent()) {
+            if (!dock.isDockShowing() && isPinned()) {
+                unpinnedForNow = true;
+            } else if (dock.isDockShowing() && unpinnedForNow) {
+                unpinnedForNow = false;
+            }
         }
         update();
         if (unregister == null) {

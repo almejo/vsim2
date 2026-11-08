@@ -400,4 +400,58 @@ class FullScreenWaveformsTest {
         assertThat(isOnScreen(panel())).as("pinned again: docked").isTrue();
         assertThat(canvasAreaHeight()).isLessThan(wholeHeight());
     }
+
+    /** The final review's probe (I1): the item used to show a pinned panel again at once while there were probes. */
+    @Test
+    void uncheckingVerFormasDeOndaHidesAPinnedPanelWithProbesAndKeepsItHidden() {
+        fixture.preferences.setFullScreenWaveformsPinned(true);
+        addAProbe();
+        openThePanel();
+        enter();
+        assertThat(isOnScreen(panel())).as("pinned: docked").isTrue();
+        pointerToTheMiddle();
+        waveformsItem().doClick(0);
+        fixture.barTicker.advance(HIDE_TIME);
+        fixture.layOut();
+        assertThat(dock().isDockShowing()).as("Ver ▸ Formas de onda unchecked closes it").isFalse();
+        assertThat(waveformsItem().isSelected()).isFalse();
+        assertThat(isOnScreen(panel())).as("hidden").isFalse();
+        assertThat(canvasAreaHeight()).as("the canvas takes the whole height").isEqualTo(wholeHeight());
+        assertThat(fixture.preferences.fullScreenWaveformsPinned()).as("the pin stays remembered").isTrue();
+        fixture.barTicker.advance(2_000);
+        fixture.layOut();
+        assertThat(isOnScreen(panel())).as("stays hidden").isFalse();
+    }
+
+    @Test
+    void checkingVerFormasDeOndaAgainDocksThePinnedPanelAgain() {
+        fixture.preferences.setFullScreenWaveformsPinned(true);
+        addAProbe();
+        openThePanel();
+        enter();
+        waveformsItem().doClick(0);
+        fixture.layOut();
+        waveformsItem().doClick(0);
+        fixture.layOut();
+        pointerToTheMiddle();
+        fixture.barTicker.advance(HIDE_TIME);
+        fixture.layOut();
+        assertThat(dock().isDockShowing()).isTrue();
+        assertThat(waveformsItem().isSelected()).isTrue();
+        assertThat(isOnScreen(panel())).as("pinned again: docked").isTrue();
+        assertThat(canvasAreaHeight()).isLessThan(wholeHeight());
+    }
+
+    @Test
+    void uncheckingVerFormasDeOndaHidesAPinnedPanelWithoutProbes() {
+        fixture.preferences.setFullScreenWaveformsPinned(true);
+        openThePanel();
+        enter();
+        waveformsItem().doClick(0);
+        fixture.layOut();
+        assertThat(dock().isDockShowing()).isFalse();
+        assertThat(isOnScreen(panel())).isFalse();
+        restAtTheBottomEdge();
+        assertThat(fixture.features.edgeBars().isShown(EdgeBars.Edge.BOTTOM)).as("no probes: inert").isFalse();
+    }
 }
