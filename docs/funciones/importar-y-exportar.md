@@ -47,7 +47,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Copiar captura
 
-- Un botón al final de la barra de herramientas, con una ▾, copia al portapapeles una imagen PNG para pegarla en un documento, un chat o una presentación. La ▾ elige qué copia el botón y VSim lo recuerda: «Ventana de VSim» (la ventana entera, con sus diálogos abiertos, como «Imagen de la ventana…») o «Circuito visible» (solo el circuito tal como se ve, con todos sus paneles divididos y sin nada alrededor). Cada modo tiene su ícono.
+- Un botón en la barra de herramientas, justo después de «Guardar», con una ▾, copia al portapapeles una imagen PNG para pegarla en un documento, un chat o una presentación. La ▾ elige qué copia el botón y VSim lo recuerda: «Ventana de VSim» (la ventana entera, con sus diálogos abiertos, como «Imagen de la ventana…») o «Circuito visible» (solo el circuito tal como se ve, con todos sus paneles divididos y sin nada alrededor). Cada modo tiene su ícono.
 - Editar ▸ «Copiar captura» (Ctrl+Mayús+C; la tecla se puede cambiar en Archivo ▸ Preferencias… ▸ Atajos de teclado) copia con el modo que dejaste elegido en la ▾. La tecla también funciona con un diálogo de VSim abierto (por ejemplo Preferencias): copia la ventana a la que pertenece, con el diálogo dentro.
 - La pinta VSim, nunca es una captura del escritorio, y sale a la escala de tu pantalla, con los valores, brillos y selección como se ven. No toca el disco.
 - Al copiar, un destello blanco de unos 350 ms cubre lo copiado y abajo del circuito un aviso de 1,8 s dice «Ventana copiada al portapapeles» o «Circuito visible copiado al portapapeles». Si el portapapeles no está disponible, el aviso lo dice en una frase.

@@ -118,7 +118,7 @@ class PresentationExtensionTest {
 
         assertThat(texts(viewMenu)).endsWith("---", "Presentar lo que hace la IA", "Ritmo de Presentar");
         assertThat(viewMenu.getItem(viewMenu.getItemCount() - 2)).isInstanceOf(JCheckBoxMenuItem.class);
-        assertThat(view.toolBar().getComponentCount()).isEqualTo(toolbarBefore + 2);
+        assertThat(view.toolBar().getComponentCount()).isEqualTo(toolbarBefore + 1);
         assertThat(view.shortcutActions()).containsKey(PresentationExtension.SHORTCUT_ID);
         // the panel and the callouts/ghosts each hear the task
         assertThat(events.presentationListeners).hasSize(2);

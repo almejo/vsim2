@@ -12,9 +12,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Agregado
 
 - Archivo ▸ Exportar ▸ «Imagen de la ventana…»: guarda en un PNG la ventana de VSim tal como la ves (menús, paneles, el circuito con sus valores y los diálogos abiertos donde están), pintada por VSim a la escala de tu pantalla, nítida en pantallas HiDPI y sin otros programas ni la barra de título del sistema. Ver [Exportar imagen de la ventana](docs/funciones/importar-y-exportar.md#exportar-imagen-de-la-ventana).
-- Botón de captura en la barra de herramientas, con una ▾ para elegir qué copia al portapapeles como imagen PNG («Ventana de VSim» o «Circuito visible», se recuerda), y Editar ▸ «Copiar captura» (Ctrl+Mayús+C) que copia con ese modo, también con un diálogo de VSim abierto (como Preferencias). Un destello blanco de unos 350 ms y un aviso abajo del circuito confirman lo copiado. Ver [Copiar captura](docs/funciones/importar-y-exportar.md#copiar-captura).
+- Botón de captura en la barra de herramientas (junto a las acciones de archivo, después de «Guardar»), con una ▾ para elegir qué copia al portapapeles como imagen PNG («Ventana de VSim» o «Circuito visible», se recuerda), y Editar ▸ «Copiar captura» (Ctrl+Mayús+C) que copia con ese modo, también con un diálogo de VSim abierto (como Preferencias). Un destello blanco de unos 350 ms y un aviso abajo del circuito confirman lo copiado. Ver [Copiar captura](docs/funciones/importar-y-exportar.md#copiar-captura).
 - La IA puede guardar esa misma imagen de la ventana con `vsim_export` y el alcance «ventana» (solo PNG; un PDF o SVG de la ventana lo rechaza con una frase), en la carpeta de exportación y con un nombre nuevo, como sus otras exportaciones. Ver [IA (MCP)](docs/funciones/ia-mcp.md#qué-puede-hacer-la-ia).
-- «Modo presentación (pantalla completa)» en Ver (F11) y en un botón al final de la barra de herramientas: la ventana
+- «Modo presentación (pantalla completa)» en Ver (F11) y en un botón en el extremo derecho de la barra de herramientas: la ventana
   ocupa toda la pantalla de su monitor y las barras se esconden detrás de los bordes para que se vea solo el circuito,
   por ejemplo al proyectarlo en clases. Al dejar el puntero 1 segundo en un borde, su barra entra deslizándose sobre
   el circuito sin moverlo (arriba el menú, las pestañas y la barra de herramientas; a la izquierda el árbol y la
@@ -25,7 +25,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   del panel activo no se muestran (las guías puestas y las divisiones se quedan). Un aviso de 2 segundos dice cómo
   salir: F11, Esc (cuando nada más lo usa), el ítem de Ver o el botón. Al salir, todo vuelve como estaba. Ver
   [Modo presentación](docs/funciones/interfaz-preferencias-y-sesion.md#modo-presentación).
-- Botón «Formas de onda» al final de la barra de herramientas, junto a «Presentar lo que hace la IA»: abre y cierra el
+- Botón «Formas de onda» en la barra de herramientas, justo después del selector de velocidad: abre y cierra el
   panel de formas de onda como Ver ▸ Formas de onda y queda apretado mientras se ve; en el modo presentación también
   esconde el panel aunque esté fijado con el pin, y apretarlo de nuevo lo vuelve a fijar abajo. Ver
   [Formas de onda](docs/funciones/formas-de-onda.md#formas-de-onda).

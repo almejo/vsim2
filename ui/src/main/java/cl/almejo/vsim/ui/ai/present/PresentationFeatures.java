@@ -18,6 +18,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.ToolbarSlot;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
@@ -26,7 +27,6 @@ import javax.swing.JMenu;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
-import javax.swing.JToolBar;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -66,7 +66,7 @@ final class PresentationFeatures {
     private final JRadioButtonMenuItem stepByStepItem = new JRadioButtonMenuItem(
             Messages.text("ai.present.stepByStep"));
     private final PauseMenu pauseMenu;
-    private final JToolBar.Separator toolbarSeparator = new JToolBar.Separator();
+    private final Runnable removeToolbarButton;
     private final JToggleButton toolbarButton;
     private final Runnable removeShortcut;
     private final PresentationPanel panel;
@@ -123,9 +123,7 @@ final class PresentationFeatures {
         buildPaceMenu();
         viewMenu.add(paceMenu);
         this.toolbarButton = new JToggleButton(toggle);
-        view.toolBar().add(toolbarSeparator);
-        view.toolBar().add(toolbarButton);
-        view.toolBar().revalidate();
+        this.removeToolbarButton = view.addToolbarComponent(toolbarButton, ToolbarSlot.RIGHT, 1);
         this.removeShortcut = view.registerShortcutAction(PresentationExtension.SHORTCUT_ID, toggle);
 
         this.panel = new PresentationPanel(preferences, controls, this::closePanel);
@@ -406,9 +404,7 @@ final class PresentationFeatures {
         viewMenu.remove(paceMenu);
         viewMenu.remove(menuItem);
         viewMenu.remove(menuSeparator);
-        view.toolBar().remove(toolbarButton);
-        view.toolBar().remove(toolbarSeparator);
-        view.toolBar().revalidate();
+        removeToolbarButton.run();
     }
 
     Action toggle() {

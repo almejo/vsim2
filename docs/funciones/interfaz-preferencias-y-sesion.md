@@ -107,8 +107,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 ## Modo presentación
 
-- Ver ▸ «Modo presentación (pantalla completa)» (F11) o el botón de cuatro esquinas al final de la barra de
-  herramientas ponen la ventana en toda la pantalla del monitor donde está, sin la barra de título del sistema, y
+- Ver ▸ «Modo presentación (pantalla completa)» (F11) o el botón de cuatro esquinas en el extremo derecho de la barra de
+  herramientas (a la derecha de «Presentar lo que hace la IA») ponen la ventana en toda la pantalla del monitor donde está, sin la barra de título del sistema, y
   esconden las barras detrás de los bordes de la pantalla para que se vea solo el circuito, por ejemplo al proyectarlo
   en una clase. El circuito se dibuja igual que en la ventana (con sus valores, brillos y selección) y, al entrar y
   al salir, cada panel de la vista queda centrado en el mismo punto del circuito y con el mismo zoom (si haces zoom o

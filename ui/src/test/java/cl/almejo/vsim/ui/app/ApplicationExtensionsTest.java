@@ -264,20 +264,49 @@ class ApplicationExtensionsTest {
     }
 
     /**
-     * The toolbar toggle «Formas de onda» (agreed 2026-11-08): on the same action as Ver ▸ Formas de onda, right after
-     * «Presentar lo que hace la IA» at the end of the toolbar, with an icon, its name as tooltip and no shortcut;
-     * pressed while the dock shows.
+     * The toolbar buttons of the newer features sit grouped by meaning (the user, 2026-11-08): the capture button right
+     * after Guardar, «Formas de onda» right after the speed selector, and «Presentar lo que hace la IA» then «Modo
+     * presentación» at the right edge, after a horizontal glue.
      */
     @Test
-    void theWaveformsToggleSitsRightAfterPresentarAndFollowsTheDock() {
+    void theNewToolbarButtonsAreGroupedByMeaning() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            List<java.awt.Component> bar = Arrays.asList(view.toolBar().getComponents());
+            AbstractButton save = buttonOn(view, view.actions().save());
+            AbstractButton undo = buttonOn(view, view.actions().undo());
+            java.awt.Component capture = bar.stream()
+                    .filter(cl.almejo.vsim.ui.toolbar.SplitButton.class::isInstance).findFirst().orElseThrow();
+            java.awt.Component speed = bar.stream().filter(javax.swing.JComboBox.class::isInstance)
+                    .findFirst().orElseThrow();
+            AbstractButton waveforms = buttonOn(view, view.shortcutActions().get("waveforms.toggle"));
+            AbstractButton present = buttonOn(view, view.shortcutActions().get("view.aiPresent"));
+            AbstractButton presentation = Arrays.stream(view.toolBar().getComponents())
+                    .filter(javax.swing.JToggleButton.class::isInstance).map(AbstractButton.class::cast)
+                    .filter(button -> button.getAction() == null && button.getToolTipText() != null
+                            && button.getToolTipText().contains("F11"))
+                    .findFirst().orElseThrow();
+            assertThat(bar.indexOf(capture)).as("capture after Guardar").isEqualTo(bar.indexOf(save) + 1);
+            assertThat(bar.indexOf(undo)).as("capture before the separator before Deshacer")
+                    .isEqualTo(bar.indexOf(capture) + 2);
+            assertThat(bar.indexOf(waveforms)).as("waveforms after the speed").isEqualTo(bar.indexOf(speed) + 1);
+            assertThat(bar.get(bar.indexOf(waveforms) + 1)).as("then the glue")
+                    .isInstanceOf(javax.swing.Box.Filler.class);
+            assertThat(bar.indexOf(present)).as("Presentar after the glue").isEqualTo(bar.indexOf(waveforms) + 2);
+            assertThat(bar.indexOf(presentation)).as("Modo presentación last, after Presentar")
+                    .isEqualTo(bar.indexOf(present) + 1).isEqualTo(bar.size() - 1);
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theWaveformsToggleFollowsTheDock() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             Action toggle = view.shortcutActions().get("waveforms.toggle");
-            List<java.awt.Component> bar = Arrays.asList(view.toolBar().getComponents());
             AbstractButton waveforms = buttonOn(view, toggle);
-            AbstractButton present = buttonOn(view, view.shortcutActions().get("view.aiPresent"));
             assertThat(waveforms).isInstanceOf(javax.swing.JToggleButton.class);
-            assertThat(bar.indexOf(waveforms)).as("right after Presentar").isEqualTo(bar.indexOf(present) + 1);
             assertThat(waveforms.getIcon()).isNotNull();
             assertThat(waveforms.getHideActionText()).isTrue();
             assertThat(waveforms.getToolTipText()).isEqualTo("Formas de onda");

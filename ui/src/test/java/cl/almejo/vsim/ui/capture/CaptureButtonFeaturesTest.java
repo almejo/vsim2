@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.awt.KeyEventDispatcher;
-import javax.swing.JComboBox;
 
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
@@ -275,7 +274,7 @@ class CaptureButtonFeaturesTest {
     }
 
     @Test
-    void theToolbarNeverStretchesTheButtonAndPutsItAfterTheSpeedSelector() {
+    void theToolbarNeverStretchesTheButtonAndPutsItAfterGuardar() {
         JToolBar toolBar = view.toolBar();
         toolBar.setSize(1600, toolBar.getPreferredSize().height);
         layOut(toolBar);
@@ -285,7 +284,10 @@ class CaptureButtonFeaturesTest {
         assertThat(button.getWidth()).isEqualTo(button.getPreferredSize().width);
         Component[] components = toolBar.getComponents();
         int index = java.util.Arrays.asList(components).indexOf(button);
-        assertThat(components[index - 1]).isInstanceOf(JComboBox.class);
+        assertThat(components[index - 1]).isInstanceOf(javax.swing.AbstractButton.class)
+                .extracting(previous -> ((javax.swing.AbstractButton) previous).getAction())
+                .isSameAs(view.actions().save());
+        assertThat(components[index + 1]).isInstanceOf(JToolBar.Separator.class);
     }
 
     private KeyEvent captureKey(Component source) {

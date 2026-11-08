@@ -9,13 +9,18 @@ import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.tools.ZoomTool;
 
 import javax.swing.Action;
+import javax.swing.Box;
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
+import java.awt.Component;
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -30,6 +35,13 @@ final class EditorToolBar {
     private final JToggleButton panButton;
     private final JToggleButton zoomButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
+    private final Map<ToolbarSlot, List<SlotEntry>> slots = new EnumMap<>(ToolbarSlot.class);
+    private final Component glue = Box.createHorizontalGlue();
+    private Component saveButton;
+    private Component speedSelector;
+
+    private record SlotEntry(JComponent component, int order) {
+    }
 
     EditorToolBar(EditorActions actions) {
         this.actions = actions;
@@ -37,6 +49,9 @@ final class EditorToolBar {
         wireButton = new JToggleButton(actions.wireTool());
         panButton = new JToggleButton(actions.panTool());
         zoomButton = new JToggleButton(actions.zoomTool());
+        for (ToolbarSlot slot : ToolbarSlot.values()) {
+            slots.put(slot, new ArrayList<>());
+        }
         build();
     }
 
@@ -70,14 +85,36 @@ final class EditorToolBar {
     }
 
     /** See {@link EditorView#addToolbarComponent}. */
-    Runnable addComponent(JComponent component) {
-        toolBar.add(component);
+    Runnable addComponent(JComponent component, ToolbarSlot slot, int order) {
+        List<SlotEntry> entries = slots.get(slot);
+        int position = 0;
+        while (position < entries.size() && entries.get(position).order <= order) {
+            position++;
+        }
+        entries.add(position, new SlotEntry(component, order));
+        toolBar.add(component, indexAfter(slot) + position);
         toolBar.revalidate();
         return () -> {
+            entries.removeIf(entry -> entry.component == component);
             toolBar.remove(component);
             toolBar.revalidate();
             toolBar.repaint();
         };
+    }
+
+    /** The toolbar index right after the component the slot follows (the slot's own components come next). */
+    private int indexAfter(ToolbarSlot slot) {
+        Component anchor = switch (slot) {
+            case AFTER_FILE -> saveButton;
+            case AFTER_SIMULATION -> speedSelector;
+            case RIGHT -> glue;
+        };
+        for (int index = 0; index < toolBar.getComponentCount(); index++) {
+            if (toolBar.getComponent(index) == anchor) {
+                return index + 1;
+            }
+        }
+        return toolBar.getComponentCount();
     }
 
     /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */
@@ -116,7 +153,7 @@ final class EditorToolBar {
         toolBar.setFloatable(false);
         toolBar.add(actions.newDocument());
         toolBar.add(actions.open());
-        toolBar.add(actions.save());
+        saveButton = toolBar.add(actions.save());
         toolBar.addSeparator();
         toolBar.add(actions.undo());
         toolBar.add(actions.redo());
@@ -136,5 +173,7 @@ final class EditorToolBar {
         speedIcon.setLabelFor(speed);
         toolBar.add(speedIcon);
         toolBar.add(speed);
+        speedSelector = speed;
+        toolBar.add(glue);
     }
 }

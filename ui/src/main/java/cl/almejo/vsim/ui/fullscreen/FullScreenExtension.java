@@ -8,13 +8,13 @@ import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.ToolbarSlot;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
-import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import java.util.Optional;
 
@@ -49,8 +49,7 @@ public final class FullScreenExtension implements EditorExtension {
         toolbarButton.setFocusable(false);
         toolbarButton.setEnabled(features.isPresent());
         toolbarButton.addActionListener(event -> features.ifPresent(FullScreenFeatures::toggle));
-        Runnable removeSeparator = view.addToolbarComponent(new JToolBar.Separator());
-        Runnable removeButton = view.addToolbarComponent(toolbarButton);
+        Runnable removeButton = view.addToolbarComponent(toolbarButton, ToolbarSlot.RIGHT, 2);
         Runnable removeShortcut = view.registerShortcutAction(SHORTCUT_ID, toggle);
 
         Runnable follow = () -> {
@@ -68,7 +67,6 @@ public final class FullScreenExtension implements EditorExtension {
             stopFollowingTheMode.run();
             removeShortcut.run();
             removeButton.run();
-            removeSeparator.run();
             viewMenu.remove(menuItem);
             viewMenu.remove(menuSeparator);
         };

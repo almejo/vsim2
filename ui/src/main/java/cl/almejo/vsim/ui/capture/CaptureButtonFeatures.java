@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.toolbar.SplitButtonMode;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
+import cl.almejo.vsim.ui.window.ToolbarSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +98,7 @@ final class CaptureButtonFeatures {
         this.menuRemover = Menus.install(view, MenuId.EDIT, index < 0 ? -1 : index + 1, action, SHORTCUT_ID);
         Runnable added;
         try {
-            added = view.addToolbarComponent(button);
+            added = view.addToolbarComponent(button, ToolbarSlot.AFTER_FILE);
         } catch (RuntimeException failure) {
             menuRemover.run();
             throw failure;

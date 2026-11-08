@@ -962,11 +962,18 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /**
-     * Adds {@code component} at the end of the toolbar, after the speed selector (the screenshot split button, the
-     * presentation-mode toggle). Returns what takes it back.
+     * Adds {@code component} to a toolbar slot (the capture split button after the file actions, the waveforms
+     * toggle after the speed selector, the presentation toggles at the right edge), after those of the slot with the
+     * same or a lower {@code order}, so the order inside a slot does not depend on install order. Returns what takes
+     * it back.
      */
-    public Runnable addToolbarComponent(JComponent component) {
-        return editorToolBar.addComponent(component);
+    public Runnable addToolbarComponent(JComponent component, ToolbarSlot slot, int order) {
+        return editorToolBar.addComponent(component, slot, order);
+    }
+
+    /** Like {@link #addToolbarComponent(JComponent, ToolbarSlot, int)} with order 0. */
+    public Runnable addToolbarComponent(JComponent component, ToolbarSlot slot) {
+        return editorToolBar.addComponent(component, slot, 0);
     }
 
     /**
