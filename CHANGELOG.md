@@ -15,6 +15,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Botón de captura en la barra de herramientas, con una ▾ para elegir qué copia al portapapeles como imagen PNG («Ventana de VSim» o «Circuito visible», se recuerda), y Editar ▸ «Copiar captura» (Ctrl+Mayús+C) que copia con ese modo. Un destello blanco de unos 350 ms y un aviso abajo del circuito confirman lo copiado. Ver [Copiar captura](docs/funciones/importar-y-exportar.md#copiar-captura).
 - La IA puede guardar esa misma imagen de la ventana con `vsim_export` y el alcance «ventana» (solo PNG; un PDF o SVG de la ventana lo rechaza con una frase), en la carpeta de exportación y con un nombre nuevo, como sus otras exportaciones. Ver [IA (MCP)](docs/funciones/ia-mcp.md#qué-puede-hacer-la-ia).
 
+### Arreglado
+
+- El botón de captura ya no se estira por toda la barra de herramientas, y Ctrl+Mayús+C (o la tecla que le hayas puesto) también copia la captura con un diálogo de VSim abierto, como Preferencias.
+
 ## Versión 0.7 — 2026-11-07
 
 Pestañas agrupadas por circuito y editar un componente por dentro, con barra de lugar, árbol del circuito y «Mirar

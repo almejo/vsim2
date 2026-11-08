@@ -193,6 +193,12 @@ public final class SplitButton extends JComponent {
         popupMenu().show(this, 0, getHeight());
     }
 
+    /** Never wider or taller than it wants: a toolbar's box layout would stretch a component with no maximum. */
+    @Override
+    public Dimension getMaximumSize() {
+        return getPreferredSize();
+    }
+
     private void build() {
         setLayout(new BorderLayout());
         mainButton.addActionListener(event -> pressed.accept(mode));

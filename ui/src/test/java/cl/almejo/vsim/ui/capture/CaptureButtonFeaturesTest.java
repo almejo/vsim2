@@ -22,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
+import javax.swing.JPanel;
+import javax.swing.JToolBar;
 import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 import java.awt.Component;
@@ -33,6 +35,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
+import java.awt.KeyEventDispatcher;
+import javax.swing.JComboBox;
 
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
@@ -48,6 +52,8 @@ class CaptureButtonFeaturesTest {
     private final List<BufferedImage> copied = new ArrayList<>();
     private final List<ManualFrameTicker> tickers = new ArrayList<>();
     private final AtomicLong clock = new AtomicLong(1_000);
+    private final List<KeyEventDispatcher> dispatchers = new ArrayList<>();
+    private Predicate<Component> inOwnedWindow = source -> false;
     private boolean animations = true;
     private boolean clipboardFails;
     private boolean viewDisposed;
@@ -70,7 +76,17 @@ class CaptureButtonFeaturesTest {
             ManualFrameTicker ticker = new ManualFrameTicker();
             tickers.add(ticker);
             return ticker;
-        }, clock::get, animationsOn);
+        }, clock::get, animationsOn, new CaptureButtonExtension.Dispatchers() {
+            @Override
+            public void add(KeyEventDispatcher dispatcher) {
+                dispatchers.add(dispatcher);
+            }
+
+            @Override
+            public void remove(KeyEventDispatcher dispatcher) {
+                dispatchers.remove(dispatcher);
+            }
+        }, source -> inOwnedWindow.test(source));
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 preferences, new ComponentLibrary(), List.of(extension));
         view = new EditorView(openDocument, services, UiTestSupport.NO_WINDOW);
@@ -262,6 +278,81 @@ class CaptureButtonFeaturesTest {
         collect(view.toolBar(), SplitButton.class, found);
         assertThat(found).isEmpty();
         assertThat(view.shortcutActions()).doesNotContainKey("edit.copyCapture");
+        assertThat(dispatchers).isEmpty();
         assertThat(UiTestSupport.texts(view.menu(MenuId.EDIT))).doesNotContain("Copiar captura");
+    }
+
+    @Test
+    void theToolbarNeverStretchesTheButtonAndPutsItAfterTheSpeedSelector() {
+        JToolBar toolBar = view.toolBar();
+        toolBar.setSize(1600, toolBar.getPreferredSize().height);
+        layOut(toolBar);
+
+        SplitButton button = button();
+        assertThat(button.getMaximumSize()).isEqualTo(button.getPreferredSize());
+        assertThat(button.getWidth()).isEqualTo(button.getPreferredSize().width);
+        Component[] components = toolBar.getComponents();
+        int index = java.util.Arrays.asList(components).indexOf(button);
+        assertThat(components[index - 1]).isInstanceOf(JComboBox.class);
+    }
+
+    private KeyEvent captureKey(Component source) {
+        // the shortcuts extension (not installed in this view) is what sets the accelerator: here the default
+        KeyStroke stroke = ShortcutCatalog.find("edit.copyCapture").orElseThrow().defaultStroke().orElseThrow();
+        menuAction().putValue(Action.ACCELERATOR_KEY, stroke);
+        return new KeyEvent(source, KeyEvent.KEY_PRESSED, 0, stroke.getModifiers(), stroke.getKeyCode(),
+                KeyEvent.CHAR_UNDEFINED);
+    }
+
+    private boolean dispatch(KeyEvent event) {
+        return dispatchers.stream().anyMatch(dispatcher -> dispatcher.dispatchKeyEvent(event));
+    }
+
+    @Test
+    void theShortcutAlsoWorksFromADialogOfTheWindowAndCapturesTheWindow() {
+        JPanel inADialog = new JPanel();
+        // headless: no dialog can exist, so the seam says which sources are in a window the view's window owns
+        inOwnedWindow = source -> source == inADialog;
+
+        boolean taken = dispatch(captureKey(inADialog));
+
+        assertThat(taken).isTrue();
+        assertThat(copied).hasSize(1);
+        assertThat(copied.get(0).getWidth()).isEqualTo(WINDOW_WIDTH);
+    }
+
+    @Test
+    void theShortcutFromAnUnrelatedWindowOrAnotherKeyDoesNothing() {
+        inOwnedWindow = source -> false;
+
+        assertThat(dispatch(captureKey(new JPanel()))).isFalse();
+        inOwnedWindow = source -> true;
+        KeyEvent other = new KeyEvent(new JPanel(), KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_A, 'a');
+        assertThat(dispatch(other)).isFalse();
+        assertThat(copied).isEmpty();
+    }
+
+    @Test
+    void theShortcutFollowsTheUsersBindingAndIgnoresTheDefaultOnceChanged() {
+        KeyStroke custom = KeyStroke.getKeyStroke(KeyEvent.VK_K, InputEvent.ALT_DOWN_MASK);
+        menuAction().putValue(Action.ACCELERATOR_KEY, custom);
+        inOwnedWindow = source -> true;
+        JPanel source = new JPanel();
+
+        assertThat(dispatch(new KeyEvent(source, KeyEvent.KEY_PRESSED, 0, InputEvent.ALT_DOWN_MASK, KeyEvent.VK_K,
+                KeyEvent.CHAR_UNDEFINED))).isTrue();
+        assertThat(dispatch(new KeyEvent(source, KeyEvent.KEY_PRESSED, 0,
+                ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK, KeyEvent.VK_C,
+                KeyEvent.CHAR_UNDEFINED))).isFalse();
+        assertThat(copied).hasSize(1);
+    }
+
+    @Test
+    void theShortcutDoesNotFireWhileAKeyCapturingPartHasTheKeys() {
+        inOwnedWindow = source -> true;
+        view.keyboardCapture().capture("some-part");
+
+        assertThat(dispatch(captureKey(new JPanel()))).isFalse();
+        assertThat(copied).isEmpty();
     }
 }

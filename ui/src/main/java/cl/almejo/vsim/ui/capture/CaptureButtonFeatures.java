@@ -15,8 +15,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.Action;
+import javax.swing.KeyStroke;
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
+import java.awt.Component;
+import java.awt.KeyEventDispatcher;
+import java.awt.Window;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.util.List;
@@ -47,6 +52,10 @@ final class CaptureButtonFeatures {
     private final Supplier<FrameTicker> tickers;
     private final LongSupplier clock;
     private final Predicate<AppPreferences> animations;
+    private final CaptureButtonExtension.Dispatchers dispatchers;
+    private final Predicate<Component> inOwnedWindow;
+    private final KeyEventDispatcher dialogKeys = this::takeKey;
+    private final Action copyAction;
     private final SplitButton button;
     private final Runnable toolbarRemover;
     private final Runnable menuRemover;
@@ -57,12 +66,15 @@ final class CaptureButtonFeatures {
     private boolean disposed;
 
     CaptureButtonFeatures(EditorView view, ImageClipboard clipboard, Supplier<FrameTicker> tickers, LongSupplier clock,
-                          Predicate<AppPreferences> animations) {
+                          Predicate<AppPreferences> animations, CaptureButtonExtension.Dispatchers dispatchers,
+                          Predicate<Component> inOwnedWindow) {
         this.view = view;
         this.clipboard = clipboard;
         this.tickers = tickers;
         this.clock = clock;
         this.animations = animations;
+        this.dispatchers = dispatchers;
+        this.inOwnedWindow = inOwnedWindow != null ? inOwnedWindow : this::inWindowOwnedByTheViewsWindow;
         AppPreferences preferences = view.services().preferences();
         List<SplitButtonMode> modes = List.of(
                 new SplitButtonMode(WINDOW_MODE, Icons.get(CaptureIcons.WINDOW, Icons.TOOLBAR_SIZE),
@@ -73,6 +85,7 @@ final class CaptureButtonFeatures {
         this.button = SplitButton.forAction(PREFERENCE_ID, Messages.text("capture.menuTitle"), modes, preferences,
                 mode -> copy(kindOf(mode.id())));
         Action action = Actions.of(Messages.text("action.copyCapture"), () -> copy(kindOf(button.mode().id())));
+        this.copyAction = action;
         action.putValue(Action.SMALL_ICON, Icons.get(CaptureIcons.WINDOW, Icons.MENU_SIZE));
         int index = Menus.indexOf(view.menu(MenuId.EDIT), view.selectionActions().copy());
         this.menuRemover = Menus.install(view, MenuId.EDIT, index < 0 ? -1 : index + 1, action, SHORTCUT_ID);
@@ -84,6 +97,7 @@ final class CaptureButtonFeatures {
             throw failure;
         }
         this.toolbarRemover = added;
+        dispatchers.add(dialogKeys);
     }
 
     private static CaptureKind kindOf(String modeId) {
@@ -128,11 +142,44 @@ final class CaptureButtonFeatures {
         return root == null ? view : root;
     }
 
+    /**
+     * The shortcut from a dialog: menu accelerators only work in the editor's own window, so a key the user bound to
+     * «Copiar captura» (its current accelerator, which follows the shortcut editor) pressed in a dialog owned by this
+     * view's window copies the window, dialogs included. Not while a part of the circuit has the keys (the Terminal).
+     */
+    private boolean takeKey(KeyEvent event) {
+        if (disposed || event.getID() != KeyEvent.KEY_PRESSED || event.isConsumed()
+                || !(event.getSource() instanceof Component source)
+                || !(copyAction.getValue(Action.ACCELERATOR_KEY) instanceof KeyStroke stroke)
+                || !stroke.equals(KeyStroke.getKeyStrokeForEvent(event))
+                || view.keyboardCapture().captured().isPresent() || !inOwnedWindow.test(source)) {
+            return false;
+        }
+        event.consume();
+        copy(kindOf(button.mode().id()));
+        return true;
+    }
+
+    private boolean inWindowOwnedByTheViewsWindow(Component source) {
+        Window own = SwingUtilities.getWindowAncestor(view);
+        Window window = source instanceof Window itself ? itself : SwingUtilities.getWindowAncestor(source);
+        if (own == null || window == null || window == own) {
+            return false;
+        }
+        for (Window owner = window.getOwner(); owner != null; owner = owner.getOwner()) {
+            if (owner == own) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void dispose() {
         if (disposed) {
             return;
         }
         disposed = true;
+        dispatchers.remove(dialogKeys);
         flashRemover.run();
         noticeRemover.run();
         toolbarRemover.run();
