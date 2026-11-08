@@ -75,6 +75,7 @@ public final class ShortcutCatalog {
         window(entries, "edit.configure", "action.configure", MenuId.EDIT, null);
         window(entries, "edit.cut", "action.cut", MenuId.EDIT, stroke(KeyEvent.VK_X, menu));
         window(entries, "edit.copy", "action.copy", MenuId.EDIT, stroke(KeyEvent.VK_C, menu));
+        window(entries, "edit.copyCapture", "action.copyCapture", MenuId.EDIT, stroke(KeyEvent.VK_C, menu | shift));
         window(entries, "edit.paste", "action.paste", MenuId.EDIT, stroke(KeyEvent.VK_V, menu));
         window(entries, "edit.duplicate", "action.duplicate", MenuId.EDIT, stroke(KeyEvent.VK_D, menu));
         window(entries, "edit.selectAll", "action.selectAll", MenuId.EDIT, stroke(KeyEvent.VK_A, menu));

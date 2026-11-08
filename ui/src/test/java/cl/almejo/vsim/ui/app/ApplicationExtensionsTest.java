@@ -130,7 +130,7 @@ class ApplicationExtensionsTest {
                     "Memoria desde archivo…", "Circuito de Logisim (.circ) (beta)…");
             assertThat(view.shortcutActions().get("file.importTruthTable"))
                     .isSameAs(importMenu.getItem(1).getAction());
-            assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",
+            assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar", "Copiar captura",
                     "Pegar", "Crear componente desde selección…", "Actualizar componente…");
         } finally {
             view.dispose();

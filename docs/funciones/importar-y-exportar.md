@@ -45,6 +45,13 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - El diálogo parte en la última carpeta de exportación (la misma de «Imagen…»; si no hay, la del circuito, y si no, tu carpeta personal) con el nombre del circuito y `.png`, y recuerda la carpeta. Si el archivo ya existe pregunta antes de reemplazarlo; si no se puede escribir, un aviso dice «No se pudo exportar nombre.png: revisa que la carpeta exista y que puedas escribir en ella.».
 - La IA también puede guardarla, con `vsim_export` y el alcance «ventana» (ver [IA (MCP)](ia-mcp.md#qué-puede-hacer-la-ia)).
 
+## Copiar captura
+
+- Un botón al final de la barra de herramientas, con una ▾, copia al portapapeles una imagen PNG para pegarla en un documento, un chat o una presentación. La ▾ elige qué copia el botón y VSim lo recuerda: «Ventana de VSim» (la ventana entera, con sus diálogos abiertos, como «Imagen de la ventana…») o «Circuito visible» (solo el circuito tal como se ve, con todos sus paneles divididos y sin nada alrededor). Cada modo tiene su ícono.
+- Editar ▸ «Copiar captura» (Ctrl+Mayús+C; la tecla se puede cambiar en Archivo ▸ Preferencias… ▸ Atajos de teclado) copia con el modo que dejaste elegido en la ▾.
+- La pinta VSim, nunca es una captura del escritorio, y sale a la escala de tu pantalla, con los valores, brillos y selección como se ven. No toca el disco.
+- Al copiar, un destello blanco de unos 350 ms cubre lo copiado y abajo del circuito un aviso de 1,8 s dice «Ventana copiada al portapapeles» o «Circuito visible copiado al portapapeles». Si el portapapeles no está disponible, el aviso lo dice en una frase.
+
 ## Exportar a PDF
 
 - Archivo ▸ Exportar ▸ «PDF…» (justo después de «Imagen…»; sin tecla por defecto, se le puede asignar una en Archivo ▸ Preferencias… ▸ Atajos de teclado) abre el diálogo «Exportar a PDF». Está deshabilitado con un circuito vacío. El PDF es vectorial: se ve nítido con cualquier zoom del visor (el texto va como formas, así que no se puede seleccionar ni buscar).

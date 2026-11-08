@@ -108,7 +108,8 @@ public final class CanvasNotice extends JComponent {
         return hide;
     }
 
-    String text() {
+    /** The text shown. */
+    public String text() {
         return text;
     }
 

@@ -12,6 +12,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Agregado
 
 - Archivo ▸ Exportar ▸ «Imagen de la ventana…»: guarda en un PNG la ventana de VSim tal como la ves (menús, paneles, el circuito con sus valores y los diálogos abiertos donde están), pintada por VSim a la escala de tu pantalla, nítida en pantallas HiDPI y sin otros programas ni la barra de título del sistema. Ver [Exportar imagen de la ventana](docs/funciones/importar-y-exportar.md#exportar-imagen-de-la-ventana).
+- Botón de captura en la barra de herramientas, con una ▾ para elegir qué copia al portapapeles como imagen PNG («Ventana de VSim» o «Circuito visible», se recuerda), y Editar ▸ «Copiar captura» (Ctrl+Mayús+C) que copia con ese modo. Un destello blanco de unos 350 ms y un aviso abajo del circuito confirman lo copiado. Ver [Copiar captura](docs/funciones/importar-y-exportar.md#copiar-captura).
 - La IA puede guardar esa misma imagen de la ventana con `vsim_export` y el alcance «ventana» (solo PNG; un PDF o SVG de la ventana lo rechaza con una frase), en la carpeta de exportación y con un nombre nuevo, como sus otras exportaciones. Ver [IA (MCP)](docs/funciones/ia-mcp.md#qué-puede-hacer-la-ia).
 
 ## Versión 0.7 — 2026-11-07
