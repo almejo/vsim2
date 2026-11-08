@@ -22,7 +22,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   uno de sus menús abierto o escribiendo en ella; la barra de estado no se muestra. Un aviso de 2 segundos dice cómo
   salir: F11, Esc (cuando nada más lo usa), el ítem de Ver o el botón. Al salir, todo vuelve como estaba. Ver
   [Modo presentación](docs/funciones/interfaz-preferencias-y-sesion.md#modo-presentación).
-- Ver ▸ «Mostrar los atajos que se usan» (apagado de entrada, se recuerda; sirve dentro y fuera del modo presentación): cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra abajo del circuito una etiqueta como «Ctrl+Z · Deshacer» (solo el nombre si no tiene atajo) durante 1,5 segundos, hasta tres apiladas. Nunca muestra lo que escribes en un campo de texto ni lo que va a un Terminal o un Teclado. Ver [Mostrar los atajos que se usan](docs/funciones/interfaz-preferencias-y-sesion.md#mostrar-los-atajos-que-se-usan).
+- Ver ▸ «Mostrar los atajos que se usan» (apagado de entrada, se recuerda; sirve dentro y fuera del modo presentación): cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra abajo del circuito una etiqueta como «Ctrl+Z · Deshacer» (solo el nombre si no tiene atajo) durante 1,5 segundos, hasta tres apiladas; grande, con cada tecla en su casilla, para verse en un proyector o un video. Nunca muestra lo que escribes en un campo de texto ni lo que va a un Terminal o un Teclado. Ver [Mostrar los atajos que se usan](docs/funciones/interfaz-preferencias-y-sesion.md#mostrar-los-atajos-que-se-usan).
 
 ## Versión 0.7 — 2026-11-07
 

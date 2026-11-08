@@ -41,8 +41,21 @@ public final class CanvasNoticeStack {
         this.fade = fade;
     }
 
-    /** Shows {@code text} as the newest notice. */
+    /** Shows {@code text} as the newest notice, in the normal notice size. */
     public void push(String text) {
+        push(text, null);
+    }
+
+    /**
+     * Shows a big chip as the newest notice: the shortcut's keys as keycaps (with a «+» between them when
+     * {@code plusBetween}), then « · » and the action's name; no keys, the name alone. For projectors and videos.
+     */
+    public void push(List<String> keys, boolean plusBetween, String name) {
+        String text = keys.isEmpty() ? name : String.join(plusBetween ? "+" : "", keys) + " · " + name;
+        push(text, new CanvasNotice.Chip(List.copyOf(keys), plusBetween, name));
+    }
+
+    private void push(String text, CanvasNotice.Chip chip) {
         while (shown.size() >= maximum) {
             shown.get(0).takeAway();
         }
@@ -51,7 +64,7 @@ public final class CanvasNoticeStack {
                 fade.getAsBoolean(), () -> {
                     shown.remove(holder[0]);
                     stackUp();
-                });
+                }, chip);
         if (notice == null) {
             return;
         }

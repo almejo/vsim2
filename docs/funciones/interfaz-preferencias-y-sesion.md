@@ -140,7 +140,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   un video se vea qué atajo tiene lo que se va haciendo.
 - Cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra, abajo en
   el centro del circuito, una etiqueta como «Ctrl+Z · Deshacer». Si la acción no tiene atajo, solo su nombre. Dura
-  1,5 segundos (aparece y se va suavemente), con hasta tres apiladas, la más nueva abajo.
+  1,5 segundos (aparece y se va suavemente), con hasta tres apiladas, la más nueva abajo. Es grande a propósito (casi el doble que el texto de la interfaz, para un proyector o un video), con cada tecla en su casilla y el nombre de la acción al lado.
 - El atajo que se muestra es el que tienes ahora (los cambios de [Atajos de teclado](#atajos-de-teclado) se ven al
   instante), con los nombres de teclas de tu sistema (en macOS, ⌃ ⌥ ⇧ ⌘ y la tecla: «⌘Z»).
 - No muestra nada de lo que escribes en un campo de texto, ni de lo que va a un Terminal o un Teclado que tiene el
