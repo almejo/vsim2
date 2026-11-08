@@ -155,12 +155,13 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theViewMenuEndsWithTheWaveformsToggleAndPresentar() {
+    void theViewMenuEndsWithTheWaveformsTogglePresentarAndThePresentationMode() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda", "---",
-                    "Presentar lo que hace la IA", "Ritmo de Presentar");
-            assertThat(view.shortcutActions()).containsKey("view.aiPresent");
+                    "Presentar lo que hace la IA", "Ritmo de Presentar", "---",
+                    "Modo presentación (pantalla completa)");
+            assertThat(view.shortcutActions()).containsKeys("view.aiPresent", "view.presentationMode");
             assertThat(view.bottomDock().content()).isPresent();
         } finally {
             view.dispose();
@@ -181,7 +182,8 @@ class ApplicationExtensionsTest {
                     "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Mirar adentro", "---",
                     "Siguiente problema", "Problema anterior", "---",
                     "Formas de onda", "---",
-                    "Presentar lo que hace la IA", "Ritmo de Presentar");
+                    "Presentar lo que hace la IA", "Ritmo de Presentar", "---",
+                    "Modo presentación (pantalla completa)");
             assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
                     "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
                     "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues", "view.magnifier");

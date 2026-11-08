@@ -42,6 +42,7 @@ import cl.almejo.vsim.ui.sheets.SheetAnchors;
 import cl.almejo.vsim.ui.sheets.SheetsExtension;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
+import cl.almejo.vsim.ui.fullscreen.FullScreenExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesTabExtension;
 import cl.almejo.vsim.ui.labels.TextToolExtension;
 import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
@@ -316,6 +317,8 @@ public final class Application {
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new MemoryEditorExtension(memoryLauncher, memoryLinks));
         editorExtensions.add(new TerminalExtension()); // Terminal windows, menus and sounds, after the memories
+        // «Modo presentación»: last in Ver and at the end of the toolbar, before the icons and shortcuts
+        editorExtensions.add(new FullScreenExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature(ai.server()));
         editorExtensions.add(new RecentFilesFeature());

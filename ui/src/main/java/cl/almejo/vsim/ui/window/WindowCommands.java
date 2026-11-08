@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.fullscreen.FullScreenFeatures;
 
 import java.util.Optional;
 
@@ -131,5 +132,13 @@ public interface WindowCommands {
 
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
     default void closeComponents() {
+    }
+
+    /**
+     * Ver ▸ «Modo presentación (pantalla completa)» of this window: one per window, shared by its tabs. Empty outside
+     * a real window (the item shows, disabled).
+     */
+    default Optional<FullScreenFeatures> fullScreen() {
+        return Optional.empty();
     }
 }

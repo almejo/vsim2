@@ -42,10 +42,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFiftyNineHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndSixtyHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(59);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(60);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -63,12 +63,15 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void presentarIsTheLastOfVerAndHasNoDefaultStroke() {
+    void presentarHasNoDefaultStrokeAndThePresentationModeIsTheLastOfVerWithF11() {
         List<String> view = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.VIEW).map(ShortcutEntry::id).toList();
-        assertThat(view).endsWith("waveforms.toggle", "view.aiPresent");
+        assertThat(view).endsWith("waveforms.toggle", "view.aiPresent", "view.presentationMode");
         assertThat(ShortcutCatalog.find("view.aiPresent")).contains(new ShortcutEntry("view.aiPresent",
                 "action.aiPresent", MenuId.VIEW, Scope.WINDOW, Optional.empty()));
+        assertThat(ShortcutCatalog.find("view.presentationMode")).contains(new ShortcutEntry("view.presentationMode",
+                "action.presentationMode", MenuId.VIEW, Scope.WINDOW,
+                Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_F11, 0))));
     }
 
     @Test

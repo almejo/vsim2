@@ -7,6 +7,19 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md). El primer párrafo de cada versión publicada (bajo su título, antes de
 «Agregado») es su «Resumen» de 2 a 4 líneas: es el texto que `packaging/release-notes.sh` pone en la página de la release.
 
+## Sin publicar
+
+### Agregado
+
+- «Modo presentación (pantalla completa)» en Ver (F11) y en un botón al final de la barra de herramientas: la ventana
+  ocupa toda la pantalla de su monitor y las barras se esconden detrás de los bordes para que se vea solo el circuito,
+  por ejemplo al proyectarlo en clases. Al dejar el puntero 1 segundo en un borde, su barra entra deslizándose sobre
+  el circuito sin moverlo (arriba el menú, las pestañas y la barra de herramientas; a la izquierda el árbol y la
+  paleta; a la derecha el panel derecho con su tira) y se esconde 0,4 segundos después de salir de ella, nunca con
+  uno de sus menús abierto o escribiendo en ella; la barra de estado no se muestra. Un aviso de 2 segundos dice cómo
+  salir: F11, Esc (cuando nada más lo usa), el ítem de Ver o el botón. Al salir, todo vuelve como estaba. Ver
+  [Modo presentación](docs/funciones/interfaz-preferencias-y-sesion.md#modo-presentación).
+
 ## Versión 0.7 — 2026-11-07
 
 Pestañas agrupadas por circuito y editar un componente por dentro, con barra de lugar, árbol del circuito y «Mirar

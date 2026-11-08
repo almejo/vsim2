@@ -31,6 +31,7 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.ZoomTargets;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
+import cl.almejo.vsim.ui.fullscreen.EdgeBars;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -55,6 +56,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
+import javax.swing.JLayeredPane;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -68,6 +70,7 @@ import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -86,6 +89,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -130,6 +134,13 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final InspectorPanel inspector = new InspectorPanel(viewFocus, () -> viewFocus.request(canvas()));
     private final CanvasArea canvasArea;
     private final BottomDock bottomDock;
+    /** Canvas | right panel; the left column | this; both with the strip: rearranged by presentation mode. */
+    private final JSplitPane inspectorSplit;
+    private final JSplitPane split;
+    private final JPanel splitAndStrip = new JPanel(new BorderLayout());
+    /** The layer over the canvas area while the view is laid out for presentation mode; null otherwise. */
+    private FullScreenStage fullScreenStage;
+    private final Listeners<Runnable> fullScreenLayoutListeners = new Listeners<>();
     private final ProblemsController problems;
     private final JMenuBar menuBar;
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
@@ -209,13 +220,12 @@ public final class EditorView extends JPanel implements CanvasHost {
 
         this.canvasArea = new CanvasArea(canvasPanes);
         this.bottomDock = new BottomDock(canvasArea);
-        JSplitPane inspectorSplit = new InspectorSplit(bottomDock, inspector);
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, inspectorSplit);
+        this.inspectorSplit = new InspectorSplit(bottomDock, inspector);
+        this.split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
         split.setResizeWeight(0);
         // the strip of the right panel's sections stays on the edge when the panel closes, so it is outside the split
-        JPanel splitAndStrip = new JPanel(new BorderLayout());
         splitAndStrip.add(split, BorderLayout.CENTER);
         splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
         add(splitAndStrip, BorderLayout.CENTER);
@@ -957,6 +967,104 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public Runnable addToolbarComponent(JComponent component) {
         return editorToolBar.addComponent(component);
+    }
+
+    /**
+     * Lays this view out for presentation mode (its window enters it, or this tab shows while it is on): the canvas
+     * area alone fills the view, the left column and the right panel with its strip go behind the left and right
+     * screen edges ({@code edgeBars}), the status bar hides (it never shows in the mode). The left column keeps its
+     * width and the right panel its own. Returns what puts every piece back where it was, dividers included.
+     */
+    public Runnable layOutForFullScreen(EdgeBars edgeBars) {
+        Objects.requireNonNull(edgeBars, "edgeBars");
+        if (fullScreenStage != null) {
+            throw new IllegalStateException("the view is already laid out for presentation mode");
+        }
+        int paletteWidth = split.getDividerLocation();
+        int inspectorDivider = inspectorSplit.getDividerLocation();
+        JPanel leftBar = edgeBar(EdgeBars.Edge.LEFT, () -> paletteWidth);
+        leftBar.add(leftColumn, BorderLayout.CENTER);
+        JPanel rightBar = edgeBar(EdgeBars.Edge.RIGHT, () -> inspector.strip().getPreferredSize().width
+                + (inspector.isOpen() ? inspector.width() : 0));
+        rightBar.add(inspector, BorderLayout.CENTER);
+        rightBar.add(inspector.strip(), BorderLayout.EAST);
+        remove(splitAndStrip);
+        statusBar.setVisible(false);
+        FullScreenStage stage = new FullScreenStage(bottomDock, edgeBars::relayout);
+        stage.add(leftBar, JLayeredPane.PALETTE_LAYER);
+        stage.add(rightBar, JLayeredPane.PALETTE_LAYER);
+        add(stage, BorderLayout.CENTER);
+        fullScreenStage = stage;
+        Runnable unregisterLeft = edgeBars.register(EdgeBars.Edge.LEFT, leftBar, () -> false);
+        Runnable unregisterRight = edgeBars.register(EdgeBars.Edge.RIGHT, rightBar, () -> false);
+        Runnable stopFollowingTheInspector = inspector.onStateChange(edgeBars::relayout);
+        revalidate();
+        repaint();
+        fullScreenLayoutListeners.fire(Runnable::run);
+        return () -> {
+            stopFollowingTheInspector.run();
+            unregisterRight.run();
+            unregisterLeft.run();
+            remove(stage);
+            stage.removeAll();
+            fullScreenStage = null;
+            split.setLeftComponent(leftColumn);
+            inspectorSplit.setLeftComponent(bottomDock);
+            inspectorSplit.setRightComponent(inspector);
+            splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
+            add(splitAndStrip, BorderLayout.CENTER);
+            statusBar.setVisible(true);
+            split.setDividerLocation(paletteWidth);
+            inspectorSplit.setDividerLocation(inspectorDivider);
+            revalidate();
+            repaint();
+            fullScreenLayoutListeners.fire(Runnable::run);
+        };
+    }
+
+    /** A bar for presentation mode: opaque, as wide as {@code width} says, with a line on its inner side. */
+    private static JPanel edgeBar(EdgeBars.Edge edge, IntSupplier width) {
+        JPanel bar = new JPanel(new BorderLayout()) {
+            @Override
+            public Dimension getPreferredSize() {
+                return new Dimension(width.getAsInt(), super.getPreferredSize().height);
+            }
+        };
+        bar.setOpaque(true);
+        bar.setBorder(EdgeBars.innerLine(edge));
+        return bar;
+    }
+
+    /**
+     * The layer over the canvas area while this view is laid out for presentation mode, where the bars behind the
+     * edges live (task 5 puts the waveform panel there); empty otherwise.
+     */
+    public Optional<JLayeredPane> fullScreenStage() {
+        return Optional.ofNullable(fullScreenStage);
+    }
+
+    /** {@code listener} hears this view being laid out for presentation mode and back. Returns what stops it. */
+    public Runnable addFullScreenLayoutListener(Runnable listener) {
+        return fullScreenLayoutListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** The canvas area filling the view in presentation mode, the bars over it placed by {@link EdgeBars}. */
+    private static final class FullScreenStage extends JLayeredPane {
+
+        private final java.awt.Component content;
+        private final Runnable placeBars;
+
+        FullScreenStage(java.awt.Component content, Runnable placeBars) {
+            this.content = content;
+            this.placeBars = placeBars;
+            add(content, JLayeredPane.DEFAULT_LAYER);
+        }
+
+        @Override
+        public void doLayout() {
+            content.setBounds(0, 0, getWidth(), getHeight());
+            placeBars.run();
+        }
     }
 
     /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */

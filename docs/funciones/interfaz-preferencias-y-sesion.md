@@ -105,6 +105,34 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   sección y le da el foco; si esa sección ya está abierta, cierra el panel y el foco vuelve al lienzo; si hay otra
   abierta, cambia a esta.
 
+## Modo presentación
+
+- Ver ▸ «Modo presentación (pantalla completa)» (F11) o el botón de cuatro esquinas al final de la barra de
+  herramientas ponen la ventana en toda la pantalla del monitor donde está, sin la barra de título del sistema, y
+  esconden las barras detrás de los bordes de la pantalla para que se vea solo el circuito, por ejemplo al proyectarlo
+  en una clase. El circuito se dibuja igual que en la ventana (con sus valores, brillos y selección) y queda en el
+  mismo lugar de la pantalla al entrar y al salir.
+- Al entrar, un aviso arriba dice durante 2 segundos «Modo presentación · Esc o F11 para salir · lleva el puntero a
+  un borde para ver sus barras».
+- Cada borde guarda sus barras: arriba, el menú, las pestañas y la barra de herramientas; a la izquierda, el árbol del
+  circuito y la paleta (con el ancho que tenían); a la derecha, el panel derecho con su tira de íconos. Una barra
+  aparece solo si el puntero se queda 1 segundo en su borde (mientras tanto crece una línea de color en el borde), así
+  no se abre al pasar de largo, por ejemplo hacia un segundo monitor, ni al arrastrar algo hasta el borde. Entra
+  deslizándose por encima del circuito, sin moverlo, y se esconde 0,4 segundos después de que el puntero sale de ella,
+  nunca mientras uno de sus menús está abierto o el foco está en ella (escribiendo en un campo, por ejemplo). Si una
+  tecla le da el foco (Alt+2 para la paleta, Alt+3 para Propiedades) o abre uno de sus menús (Alt y la letra del
+  menú), aparece de inmediato. La barra de estado no se muestra en este modo, y el borde de abajo no hace nada.
+- Para salir: F11, Esc, Ver ▸ «Modo presentación (pantalla completa)» (marcado con ✓ mientras está activo) o el botón
+  de la barra de herramientas, que queda apretado y cuyo globo dice «Salir del modo presentación (F11 o Esc)». Esc
+  sale solo cuando nada más lo usa: antes cierra un menú abierto, termina la herramienta en uso (colocar una pieza, un
+  cable a medias) o cierra la barra de búsqueda, y no borra la selección. Con un Terminal o un Teclado capturando el
+  teclado, Esc sale del modo y termina la captura, como siempre; F11 va a la pieza si tiene «Flechas como
+  secuencias» (que envía las teclas F), y si no, sale del modo.
+- Al salir, todo vuelve como estaba: la ventana a su lugar y su tamaño (o maximizada), las barras y los anchos de la
+  paleta y del panel derecho. Es por ventana (cada una en su monitor) y no se recuerda al reiniciar VSim. La ventanita
+  de «Presentar» de la IA (ver [Presentar](ia-mcp.md#presentar)) sigue a la vista. El atajo F11 se cambia en
+  [Atajos de teclado](#atajos-de-teclado).
+
 ## Atajos de teclado
 
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.
