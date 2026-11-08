@@ -75,6 +75,18 @@ public final class ConnectionPoints {
         return false;
     }
 
+    /** Where every pin of every component of {@code document} lies (a point twice when two pins share it). */
+    public List<GridPoint> pinLocations(CircuitDocument document) {
+        List<GridPoint> locations = new ArrayList<>();
+        for (Component component : document.components()) {
+            ComponentType type = registry.typeOf(component);
+            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                locations.add(type.pinLocation(component, pinIndex));
+            }
+        }
+        return List.copyOf(locations);
+    }
+
     /**
      * The widest pin of any component located at {@code point}; 1 when there is none. A pin without a width of its
      * own (a tunnel's) counts with the width of its net in {@code netlist}, so a wire drawn from a tunnel on a bus

@@ -9,6 +9,16 @@ import java.util.List;
 public final class WireRouting {
 
     public record Segment(GridPoint start, GridPoint end) {
+
+        /** True when the segment (horizontal or vertical) passes through {@code point}, its ends included. */
+        public boolean contains(GridPoint point) {
+            return point.x() >= Math.min(start.x(), end.x()) && point.x() <= Math.max(start.x(), end.x())
+                    && point.y() >= Math.min(start.y(), end.y()) && point.y() <= Math.max(start.y(), end.y());
+        }
+
+        boolean isHorizontal() {
+            return start.y() == end.y();
+        }
     }
 
     private WireRouting() {

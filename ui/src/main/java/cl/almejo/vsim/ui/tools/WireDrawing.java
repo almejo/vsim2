@@ -33,7 +33,8 @@ import java.util.List;
  */
 public final class WireDrawing {
 
-    private static final double MOVEMENT_THRESHOLD = 0.5;
+    /** Grid units the pointer goes from the press before it counts as a drag (shared by {@link WireTool}). */
+    static final double MOVEMENT_THRESHOLD = 0.5;
     private static final BasicStroke BUS_PREVIEW = new BasicStroke(4.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final float PREVIEW_ALPHA = 0.5f;
 
@@ -45,6 +46,8 @@ public final class WireDrawing {
     private GridPoint rawCurrent;
     private List<Guide> currentGuides = List.of();
     private Boolean horizontalFirst;
+    /** Espacio was tapped an odd number of times: the elbow goes on the other side of the one the drag chose. */
+    private boolean elbowFlipped;
 
     public WireDrawing(GridPoint start, Point2D pressPosition) {
         this(start, pressPosition, 1);
@@ -111,7 +114,12 @@ public final class WireDrawing {
     }
 
     public List<Segment> route() {
-        return WireRouting.route(start, current, horizontalFirst == null || horizontalFirst);
+        return WireRouting.route(start, current, (horizontalFirst == null || horizontalFirst) != elbowFlipped);
+    }
+
+    /** Puts the elbow on the other side (a tap of Espacio while dragging with the Wire tool). */
+    public void flipElbow() {
+        elbowFlipped = !elbowFlipped;
     }
 
     /**
@@ -122,7 +130,14 @@ public final class WireDrawing {
         if (!end.equals(rawCurrent)) {
             resolveEnd(context, end);
         }
-        List<Segment> segments = route();
+        return addSegments(context, route());
+    }
+
+    /**
+     * Adds {@code segments} to the document as one undo step whose wires' widths follow what they connect, and tells
+     * the widths that followed; false (nothing added) when there are none. Shared with {@link ContinuousWirePath}.
+     */
+    static boolean addSegments(ToolContext context, List<Segment> segments) {
         if (segments.isEmpty()) {
             return false;
         }
@@ -141,7 +156,14 @@ public final class WireDrawing {
     }
 
     public void paintPreview(Graphics2D graphics, ToolContext context) {
-        List<Segment> segments = route();
+        paintSegments(graphics, context, route(), startWidth);
+    }
+
+    /**
+     * Paints {@code segments} as the preview of wires about to be drawn: ghosts, or a translucent thick line when the
+     * wire starts from a bus ({@code startWidth} above 1). Shared with {@link ContinuousWirePath}.
+     */
+    static void paintSegments(Graphics2D graphics, ToolContext context, List<Segment> segments, int startWidth) {
         if (startWidth > 1) {
             paintBusPreview(graphics, context, segments);
             return;

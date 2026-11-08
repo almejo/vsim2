@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.tools.TestToolContext;
+import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
@@ -352,7 +353,7 @@ class KeyboardCaptureTest {
     void changingTheToolEndsTheCapture() {
         clickTheTypist();
 
-        view.canvas().setTool(new WireTool());
+        view.canvas().setTool(new WireTool(() -> WireMode.PIECES));
 
         assertThat(capture().captured()).isEmpty();
     }

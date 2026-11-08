@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
+import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
@@ -114,13 +115,13 @@ class EditorViewPanesTest {
     @Test
     void theActivePaneGoingBackToItsDefaultToolTakesEveryPaneBack() {
         view.canvasPanes().split(Orientation.HORIZONTAL, 0.5);
-        view.setToolOnEveryPane(WireTool::new);
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
         view.canvas().useDefaultTool();
         assertThat(view.panes()).allSatisfy(pane -> assertThat(pane.tool()).isSameAs(pane.defaultTool()));
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);
         assertThat(view.panes()).allSatisfy(pane -> assertThat(pane.tool()).isSameAs(pane.defaultTool()));
 
-        view.setToolOnEveryPane(WireTool::new);
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
         view.useDefaultToolOnEveryPane();
         assertThat(view.panes()).allSatisfy(pane -> assertThat(pane.tool()).isSameAs(pane.defaultTool()));
     }

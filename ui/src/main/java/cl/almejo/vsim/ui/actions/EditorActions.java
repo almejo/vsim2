@@ -27,6 +27,7 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
+import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
@@ -170,7 +171,7 @@ public final class EditorActions {
         configure = Actions.of(Messages.text("action.configure"), null,
                 () -> singleConfigurable().ifPresent(this::configure));
         selectTool = Actions.of(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
-        wireTool = Actions.of(Messages.text("action.toolWire"), null, () -> toolChoice.choose(WireTool::new));
+        wireTool = Actions.of(Messages.text("action.toolWire"), null, () -> toolChoice.choose(() -> new WireTool(this::wireMode)));
         panTool = Actions.of(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
         zoomTool = Actions.of(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
         zoomTool.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.toolZoom"));
@@ -504,6 +505,15 @@ public final class EditorActions {
             return;
         }
         pane.selectionMoves().nudge(openDocument, selection, selection.effectiveIds(), deltaX, deltaY);
+    }
+
+    /**
+     * How the Wire tool draws, as the Cable split button last left it ({@link WireMode#CONTINUOUS} when never chosen);
+     * read through the active pane, which holds the window's preferences, when a wire gesture starts.
+     */
+    private WireMode wireMode() {
+        return activePane.get().selectionMoves().preferences().splitButtonMode(WireMode.PREFERENCE_ID)
+                .map(WireMode::of).orElse(WireMode.CONTINUOUS);
     }
 
     private void zoomToCircuit() {

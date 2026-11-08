@@ -77,6 +77,23 @@ public interface Tool {
     }
 
     /**
+     * Espacio was tapped (pressed and released with no pan in between) over the canvas: a tool drawing an «L» puts its
+     * elbow on the other side; true when it did. The default does nothing.
+     */
+    default boolean flipElbow(ToolContext context) {
+        return false;
+    }
+
+    /**
+     * Deshacer was asked while the tool holds a gesture made of steps (the corners of a continuous wire): the tool
+     * drops its last step instead of the history undoing an earlier change; true when it did. The default does
+     * nothing, so the history undoes as usual.
+     */
+    default boolean dropLastStep(ToolContext context) {
+        return false;
+    }
+
+    /**
      * Shift, Ctrl or Alt was pressed or released (the arguments are the keys held after the change). A tool whose
      * preview depends on the keys redoes it as if the pointer had moved; true when it did. The default does nothing.
      */

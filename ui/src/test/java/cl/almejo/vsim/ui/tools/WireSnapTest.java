@@ -67,7 +67,7 @@ class WireSnapTest {
     @Test
     void aFreeStartAndAFreeEndGoToTheGuidesWithinReach() {
         guides(new Guide(Orientation.VERTICAL, 11), ROW_21);
-        WireTool tool = new WireTool();
+        WireTool tool = new WireTool(() -> WireMode.PIECES);
         tool.mousePressed(context, TestToolContext.at(10, 10));
         tool.mouseDragged(context, TestToolContext.at(20, 20));
         assertThat(tool.snappedGuides()).containsExactlyInAnyOrder(new Guide(Orientation.VERTICAL, 11), ROW_21);
@@ -84,7 +84,7 @@ class WireSnapTest {
         context.viewport.zoomAt(0, 0, zoom);
         guides(new Guide(Orientation.VERTICAL, pin.x() + 1), new Guide(Orientation.HORIZONTAL, pin.y() - 1),
                 new Guide(Orientation.VERTICAL, 46), new Guide(Orientation.HORIZONTAL, 1));
-        WireTool tool = new WireTool();
+        WireTool tool = new WireTool(() -> WireMode.PIECES);
         tool.mousePressed(context, TestToolContext.at(pin.x(), pin.y()));
         tool.mouseDragged(context, TestToolContext.at(45, 0));
         tool.mouseReleased(context, TestToolContext.at(45, 0));
@@ -94,7 +94,7 @@ class WireSnapTest {
 
     @Test
     void aReleaseRightAfterARefreshCommitsTheRefreshedEnd() {
-        WireTool tool = new WireTool();
+        WireTool tool = new WireTool(() -> WireMode.PIECES);
         tool.mousePressed(context, TestToolContext.at(10, 10));
         tool.mouseDragged(context, TestToolContext.at(20, 20));
         guides(ROW_21);
@@ -109,7 +109,7 @@ class WireSnapTest {
     void withAjustarOffTheWireGoesWhereThePointerSays() {
         context.preferences.setSnapToAlignments(false);
         guides(new Guide(Orientation.VERTICAL, 11), ROW_21);
-        WireTool tool = new WireTool();
+        WireTool tool = new WireTool(() -> WireMode.PIECES);
         context.drag(tool, 10, 10, 20, 20);
         assertThat(drawnEnds()).contains(new GridPoint(10, 10), new GridPoint(20, 20));
         assertThat(drawnEnds()).doesNotContain(new GridPoint(11, 10), new GridPoint(20, 21));

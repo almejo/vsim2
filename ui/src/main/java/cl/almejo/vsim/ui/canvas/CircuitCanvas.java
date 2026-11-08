@@ -184,6 +184,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     };
     private Window watchedWindow;
     private boolean spaceDown;
+    /** The view was panned while Espacio was held: its release is no tap (decided point 2 of 2026-11-08). */
+    private boolean pannedWithSpace;
     private Point panAnchor;
     private GridPoint mousePoint;
     /** The pointer is over an edge handle and the tool was already told it left. */
@@ -1711,6 +1713,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             endDragOut(); // a drag out that never reported its end must not turn a later drop into a move
             requestFocusInWindow();
             if (SwingUtilities.isMiddleMouseButton(event) || (spaceDown && SwingUtilities.isLeftMouseButton(event))) {
+                pannedWithSpace = spaceDown;
                 panAnchor = event.getPoint();
                 showCursor();
                 return;
@@ -1896,6 +1899,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {
+                if (!spaceDown) {
+                    pannedWithSpace = false; // a new press, not the key repeat of a held Space
+                }
                 spaceDown = true;
                 showCursor();
                 event.consume();
@@ -1924,10 +1930,29 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         @Override
         public void keyReleased(KeyEvent event) {
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {
+                boolean tapped = spaceDown && !pannedWithSpace;
                 spaceDown = false;
                 showCursor();
+                if (tapped) {
+                    spaceTapped(event);
+                }
             }
             modifierChanged(event, false);
+        }
+
+        /**
+         * Espacio was pressed and released with no pan in between (decided point 2 of 2026-11-08): the tool may flip
+         * the elbow of the wire it draws; a held Espacio stays «hold to pan».
+         */
+        private void spaceTapped(KeyEvent event) {
+            if (!tool.flipElbow(toolContext())) {
+                return;
+            }
+            event.consume();
+            if (sharesGesture()) {
+                repaintOtherPanes();
+            }
+            updateAnimation();
         }
 
         /**

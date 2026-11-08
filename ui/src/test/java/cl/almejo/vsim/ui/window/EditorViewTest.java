@@ -21,6 +21,9 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
+import cl.almejo.vsim.ui.tools.TestToolContext;
+import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.tools.WireTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -305,6 +308,22 @@ class EditorViewTest {
                 .get(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0))).isNull();
         assertThat(view.actions().undo().getValue(Action.ACCELERATOR_KEY))
                 .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK));
+    }
+
+    @Test
+    void theWireToolDrawsContinuouslyUntilTheCableIsLeftOnPieces() {
+        perform(view.actions().wireTool());
+        Tool wire = view.canvas().tool();
+        wire.mousePressed(view.canvas(), TestToolContext.at(2, 2));
+        wire.mouseReleased(view.canvas(), TestToolContext.at(2, 2));
+        assertThat(wire.holdsGesture()).isTrue(); // a click started a path
+        wire.keyPressed(view.canvas(), KeyEvent.VK_ESCAPE, false);
+
+        view.canvas().selectionMoves().preferences().setSplitButtonMode(
+                WireMode.PREFERENCE_ID, WireMode.PIECES.id());
+        wire.mousePressed(view.canvas(), TestToolContext.at(2, 2));
+        wire.mouseReleased(view.canvas(), TestToolContext.at(2, 2));
+        assertThat(wire.holdsGesture()).isFalse(); // a click without a drag draws nothing
     }
 
     @Test

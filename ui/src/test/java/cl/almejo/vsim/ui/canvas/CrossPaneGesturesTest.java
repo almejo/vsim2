@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.snap.PointResolution;
 import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.ToolContext;
+import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -88,7 +89,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void aWireDrawnWithTheWireToolEndsWhereThePointerIsInTheOtherPaneAsOneStep() {
-        view.setToolOnEveryPane(WireTool::new);
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
         press(left, 40, 40, 0);
         dragOverRight(100, 96, 0);
         releaseOverRight(100, 96, 0);
@@ -115,7 +116,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void movingBackOverTheFirstPaneHandsTheEndBack() {
-        view.setToolOnEveryPane(WireTool::new);
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
         press(left, 40, 40, 0);
         dragOverRight(100, 96, 0);
         drag(left, 40, 120, 0);
@@ -128,7 +129,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void thePreviewShowsInBothPanesAndEscapeTakesItAwayFromBoth() {
-        view.setToolOnEveryPane(WireTool::new);
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
         BufferedImage rightBefore = paint(right);
         press(left, 40, 40, 0);
         dragOverRight(100, 96, 0);
@@ -145,7 +146,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void theEndSnapsWithThePaneUnderThePointer() {
-        view.setToolOnEveryPane(WireTool::new);
+        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
         List<ToolContext> asked = new ArrayList<>();
         right.useSnapper(recordingSnapper(asked));
         press(left, 40, 40, 0);

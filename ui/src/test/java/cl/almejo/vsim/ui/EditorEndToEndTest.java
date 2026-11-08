@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.TestToolContext;
+import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.tools.WireTool;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,7 +39,7 @@ class EditorEndToEndTest {
                     .mousePressed(context, TestToolContext.at(10, 0));
             Component led = document.document().components().get(1);
 
-            WireTool wire = new WireTool();
+            WireTool wire = new WireTool(() -> WireMode.PIECES);
             wire.mousePressed(context, TestToolContext.at(4, 1));
             wire.mouseDragged(context, TestToolContext.at(11, 1));
             wire.mouseDragged(context, TestToolContext.at(11, 3));

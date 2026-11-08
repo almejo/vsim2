@@ -14,7 +14,7 @@ import static org.assertj.core.groups.Tuple.tuple;
 class WireToolTest {
 
     private final TestToolContext context = TestToolContext.withNewDocument();
-    private final WireTool tool = new WireTool();
+    private final WireTool tool = new WireTool(() -> WireMode.PIECES);
 
     @AfterEach
     void close() {
