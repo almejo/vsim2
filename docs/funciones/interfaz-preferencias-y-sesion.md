@@ -128,6 +128,9 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   panel vuelve a esconderse cuando el puntero sale de él. VSim recuerda el pin para la próxima vez. Abrir el panel en
   el modo (Ver ▸ Formas de onda, «Ver en formas de onda» o un clic en la marca de una sonda) lo muestra un momento
   desde abajo. Sin el panel abierto, el borde de abajo no hace nada.
+- Tampoco se ven las marcas para editar: las reglas de las guías (y su esquina), los «⋮» para dividir la vista y el
+  borde que marca el panel activo en una vista dividida. Las guías ya puestas siguen a la vista (según Ver ▸ Guías) y
+  las divisiones que ya tiene la vista se quedan.
 - Para salir: F11, Esc, Ver ▸ «Modo presentación (pantalla completa)» (marcado con ✓ mientras está activo) o el botón
   de la barra de herramientas, que queda apretado y cuyo globo dice «Salir del modo presentación (F11 o Esc)». Esc
   sale solo cuando nada más lo usa: antes cierra un menú abierto, termina la herramienta en uso (colocar una pieza, un
