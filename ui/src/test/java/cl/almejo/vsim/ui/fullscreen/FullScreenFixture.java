@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.app.RecordingKeyDispatchers;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -41,6 +42,7 @@ final class FullScreenFixture implements AutoCloseable {
     final ManualFrameTicker barTicker = new ManualFrameTicker();
     final ManualFrameTicker noticeTicker = new ManualFrameTicker();
     final RecordingScreenMode screen = new RecordingScreenMode();
+    final RecordingKeyDispatchers keyHooks = new RecordingKeyDispatchers();
     final JRootPane rootPane = new JRootPane();
     final WindowTabs tabs;
     final FullScreenFeatures features;
@@ -95,7 +97,7 @@ final class FullScreenFixture implements AutoCloseable {
                 new SplitLayoutStore(preferences), () -> false);
         rootPane.setContentPane(tabs);
         features = new FullScreenFeatures(rootPane, tabs, screen, preferences, barTicker, noticeTicker,
-                barTicker::now);
+                barTicker::now, keyHooks);
         holder[0] = features;
         rootPane.setSize(WIDTH, HEIGHT);
     }

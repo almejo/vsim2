@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.capture;
 
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.KeyDispatchers;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -53,7 +54,7 @@ final class CaptureButtonFeatures {
     private final Supplier<FrameTicker> tickers;
     private final LongSupplier clock;
     private final Predicate<AppPreferences> animations;
-    private final CaptureButtonExtension.Dispatchers dispatchers;
+    private final KeyDispatchers dispatchers;
     private final Predicate<Component> inOwnedWindow;
     private final KeyEventDispatcher dialogKeys = this::takeKey;
     private final Action copyAction;
@@ -70,7 +71,7 @@ final class CaptureButtonFeatures {
     private boolean disposed;
 
     CaptureButtonFeatures(EditorView view, ImageClipboard clipboard, Supplier<FrameTicker> tickers, LongSupplier clock,
-                          Predicate<AppPreferences> animations, CaptureButtonExtension.Dispatchers dispatchers,
+                          Predicate<AppPreferences> animations, KeyDispatchers dispatchers,
                           Predicate<Component> inOwnedWindow) {
         this.view = view;
         this.clipboard = clipboard;
@@ -78,7 +79,7 @@ final class CaptureButtonFeatures {
         this.clock = clock;
         this.animations = animations;
         this.dispatchers = dispatchers;
-        this.inOwnedWindow = inOwnedWindow != null ? inOwnedWindow : this::inWindowOwnedByTheViewsWindow;
+        this.inOwnedWindow = inOwnedWindow;
         AppPreferences preferences = view.services().preferences();
         this.preferences = preferences;
         List<SplitButtonMode> modes = List.of(
@@ -193,7 +194,8 @@ final class CaptureButtonFeatures {
         return root != null;
     }
 
-    private boolean inWindowOwnedByTheViewsWindow(Component source) {
+    /** Whether {@code source} is in a window (a dialog) owned, even through other dialogs, by {@code view}'s window. */
+    static boolean inWindowOwnedByTheViewsWindow(EditorView view, Component source) {
         Window own = SwingUtilities.getWindowAncestor(view);
         Window window = source instanceof Window itself ? itself : SwingUtilities.getWindowAncestor(source);
         if (own == null || window == null || window == own) {

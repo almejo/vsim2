@@ -2,15 +2,14 @@ package cl.almejo.vsim.ui.shortcuts;
 
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.KeyDispatchers;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
-import cl.almejo.vsim.ui.capture.CaptureButtonExtension;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
 import java.awt.AWTEvent;
 import java.awt.Component;
 import java.awt.EventQueue;
-import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.util.Locale;
 import java.util.Objects;
@@ -40,7 +39,7 @@ public final class ShortcutEchoExtension implements EditorExtension {
      * @param macNotation  shortcuts as ⌘⇧Z instead of Ctrl+Mayús+Z
      */
     public record Seams(Supplier<FrameTicker> tickers, LongSupplier clock, Predicate<AppPreferences> animations,
-                        CaptureButtonExtension.Dispatchers dispatchers, Supplier<Component> focusOwner,
+                        KeyDispatchers dispatchers, Supplier<Component> focusOwner,
                         Supplier<AWTEvent> currentEvent, boolean macNotation) {
 
         public Seams {
@@ -56,17 +55,7 @@ public final class ShortcutEchoExtension implements EditorExtension {
     /** The real thing: Swing timers, the system clock, the real focus owner and event, this platform's notation. */
     public ShortcutEchoExtension() {
         this(new Seams(() -> FrameTicker.swing(FRAME_MILLISECONDS), System::currentTimeMillis, Animations::enabled,
-                new CaptureButtonExtension.Dispatchers() {
-                    @Override
-                    public void add(KeyEventDispatcher dispatcher) {
-                        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(dispatcher);
-                    }
-
-                    @Override
-                    public void remove(KeyEventDispatcher dispatcher) {
-                        KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(dispatcher);
-                    }
-                }, () -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(),
+                KeyDispatchers.focusManager(), () -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(),
                 EventQueue::getCurrentEvent,
                 System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")));
     }

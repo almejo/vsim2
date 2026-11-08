@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.app.RecordingKeyDispatchers;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.CanvasNotice;
@@ -76,17 +77,8 @@ class CaptureButtonFeaturesTest {
             ManualFrameTicker ticker = new ManualFrameTicker();
             tickers.add(ticker);
             return ticker;
-        }, clock::get, animationsOn, new CaptureButtonExtension.Dispatchers() {
-            @Override
-            public void add(KeyEventDispatcher dispatcher) {
-                dispatchers.add(dispatcher);
-            }
-
-            @Override
-            public void remove(KeyEventDispatcher dispatcher) {
-                dispatchers.remove(dispatcher);
-            }
-        }, source -> inOwnedWindow.test(source));
+        }, clock::get, animationsOn, new RecordingKeyDispatchers(dispatchers),
+                (owner, source) -> inOwnedWindow.test(source));
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 preferences, new ComponentLibrary(), List.of(extension));
         view = new EditorView(openDocument, services, UiTestSupport.NO_WINDOW);

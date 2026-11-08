@@ -46,15 +46,28 @@ class FullScreenLeavesNothingTest {
     }
 
     /** Everything global a component can hook into, counted. */
-    private record Hooks(int pointerListeners, int focusListeners, int menuListeners, List<Component> layers) {
+    private record Hooks(int pointerListeners, int focusListeners, int menuListeners, int keyDispatchers,
+                         int keyPostProcessors, List<Component> layers) {
 
         static Hooks now(FullScreenFixture fixture) {
             return new Hooks(Toolkit.getDefaultToolkit().getAWTEventListeners().length,
                     KeyboardFocusManager.getCurrentKeyboardFocusManager()
                             .getPropertyChangeListeners("focusOwner").length,
                     MenuSelectionManager.defaultManager().getChangeListeners().length,
+                    fixture.keyHooks.dispatchers().size(), fixture.keyHooks.postProcessors().size(),
                     Arrays.asList(fixture.rootPane.getLayeredPane().getComponents()));
         }
+    }
+
+    /** The count sees the mode's Esc hooks (the final review: it missed them): one of each while the mode is on. */
+    @Test
+    void theModeHooksEscBeforeAndAfterTheComponentsOnlyWhileItIsOn() {
+        fixture.features.enter();
+        assertThat(fixture.keyHooks.dispatchers()).containsExactly(fixture.features.escape());
+        assertThat(fixture.keyHooks.postProcessors()).containsExactly(fixture.features.escape());
+        fixture.features.leave();
+        assertThat(fixture.keyHooks.dispatchers()).isEmpty();
+        assertThat(fixture.keyHooks.postProcessors()).isEmpty();
     }
 
     private void roundTrip() {

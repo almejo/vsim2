@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.fullscreen;
 
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.KeyDispatchers;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -18,7 +19,6 @@ import javax.swing.KeyStroke;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.KeyboardFocusManager;
 import java.time.Duration;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -57,6 +57,7 @@ public final class FullScreenFeatures {
     private final LongSupplier clock;
     private final EdgeBars edgeBars;
     private final EscapeToLeave escape;
+    private final KeyDispatchers keyHooks;
     private final CircuitAnchor anchor;
     private final JPanel topBar = new JPanel(new BorderLayout());
     private final Listeners<Runnable> activeListeners = new Listeners<>();
@@ -76,16 +77,18 @@ public final class FullScreenFeatures {
     /** Presentation mode of the window whose root pane is {@code rootPane}, with real timers. */
     public FullScreenFeatures(JRootPane rootPane, WindowTabs tabs, ScreenMode screenMode, AppPreferences preferences) {
         this(rootPane, tabs, screenMode, preferences, FrameTicker.swing(FRAME_MILLISECONDS),
-                FrameTicker.swing(FRAME_MILLISECONDS), System::currentTimeMillis);
+                FrameTicker.swing(FRAME_MILLISECONDS), System::currentTimeMillis, KeyDispatchers.focusManager());
     }
 
     /**
      * @param barTicker    the frames of the bars' dwell, hide and slide
      * @param noticeTicker the frames of the notice on entering
      * @param clock        the milliseconds both read
+     * @param keyHooks     where Esc's dispatcher and post-processor go while the mode is on
      */
     FullScreenFeatures(JRootPane rootPane, WindowTabs tabs, ScreenMode screenMode, AppPreferences preferences,
-                       FrameTicker barTicker, FrameTicker noticeTicker, LongSupplier clock) {
+                       FrameTicker barTicker, FrameTicker noticeTicker, LongSupplier clock, KeyDispatchers keyHooks) {
+        this.keyHooks = Objects.requireNonNull(keyHooks, "keyHooks");
         this.rootPane = Objects.requireNonNull(rootPane, "rootPane");
         this.tabs = Objects.requireNonNull(tabs, "tabs");
         this.screenMode = Objects.requireNonNull(screenMode, "screenMode");
@@ -143,9 +146,8 @@ public final class FullScreenFeatures {
         unregisterTopBar = edgeBars.register(EdgeBars.Edge.TOP, topBar, () -> false);
         layOut(view);
         edgeBars.startFollowing();
-        KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-        focusManager.addKeyEventDispatcher(escape);
-        focusManager.addKeyEventPostProcessor(escape);
+        keyHooks.add(escape);
+        keyHooks.addPostProcessor(escape);
         settle();
         // the keys go to the circuit, not to what had them in a bar that just went behind its edge
         focusMover.accept(view.canvas());
@@ -169,9 +171,8 @@ public final class FullScreenFeatures {
         }
         active = false;
         hideNotice.run();
-        KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-        focusManager.removeKeyEventDispatcher(escape);
-        focusManager.removeKeyEventPostProcessor(escape);
+        keyHooks.remove(escape);
+        keyHooks.removePostProcessor(escape);
         edgeBars.stopFollowing();
         edgeBars.hideAll();
         if (!tabs.isEmpty()) {
