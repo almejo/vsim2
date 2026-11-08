@@ -6,7 +6,9 @@ import javax.swing.JFrame;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
+import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.util.Objects;
@@ -85,20 +87,12 @@ public final class FrameScreenMode implements ScreenMode {
         if ((stateBefore & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
             // the system keeps the bounds to un-maximize to (never set the maximized bounds); a maximize asked while
             // the title bar comes back is lost under mutter, so it waits for the decorations and asks again if needed
-            remaximize.start(frame::getExtendedState, this::maximize, frame::getInsets, state);
+            remaximize.start(new FrameWindow(), state);
         } else {
             frame.setBounds(boundsBefore);
             // set while the title bar was coming back: set them again once it is there
             resync.start(frame::getInsets, frame::getBounds, boundsBefore, frame::setBounds);
         }
-    }
-
-    /** Asks for {@code state}; AWT believing the frame maximized already goes through the normal state first. */
-    private void maximize(int state) {
-        if ((frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
-            frame.setExtendedState(state & ~Frame.MAXIMIZED_BOTH);
-        }
-        frame.setExtendedState(state);
     }
 
     private void windowManagerAnswered() {
@@ -111,7 +105,58 @@ public final class FrameScreenMode implements ScreenMode {
      * then are not the ones the session should keep.
      */
     public boolean isTransitioning() {
-        return device != null || remaximize.isPending();
+        return device != null || remaximize.isPending() || looksMaximizedByBounds();
+    }
+
+    /**
+     * The window manager never maximized the frame again, so it took the maximum window bounds: until the user moves
+     * or resizes it, the session keeps it as maximized with its earlier normal bounds.
+     */
+    private boolean looksMaximizedByBounds() {
+        return remaximize.maximizedByBounds() && frame.getBounds().equals(maximumBounds());
+    }
+
+    /** The bounds of a maximized window on the frame's screen: the screen without its panels and docks. */
+    private Rectangle maximumBounds() {
+        GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
+        Rectangle screen = configuration.getBounds();
+        Insets panels = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+        return new Rectangle(screen.x + panels.left, screen.y + panels.top,
+                screen.width - panels.left - panels.right, screen.height - panels.top - panels.bottom);
+    }
+
+    /** The frame as {@link Remaximize} sees it. */
+    private final class FrameWindow implements Remaximize.Window {
+
+        @Override
+        public int state() {
+            return frame.getExtendedState();
+        }
+
+        @Override
+        public void setState(int state) {
+            frame.setExtendedState(state);
+        }
+
+        @Override
+        public Insets insets() {
+            return frame.getInsets();
+        }
+
+        @Override
+        public Rectangle bounds() {
+            return frame.getBounds();
+        }
+
+        @Override
+        public Rectangle maximumBounds() {
+            return FrameScreenMode.this.maximumBounds();
+        }
+
+        @Override
+        public void setBounds(Rectangle bounds) {
+            frame.setBounds(bounds);
+        }
     }
 
     /** While {@link #isTransitioning()}: whether the frame was maximized when it entered. False otherwise. */
