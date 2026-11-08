@@ -1,6 +1,6 @@
 package cl.almejo.vsim.ui.fullscreen;
 
-import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.CanvasNotice;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -15,7 +15,6 @@ import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -52,12 +51,6 @@ class FullScreenFeaturesTest {
 
     private boolean isOffScreen(Component component) {
         return !inRoot(component).intersects(new Rectangle(0, 0, WIDTH, HEIGHT));
-    }
-
-    private Point2D gridUnder(Point rootPoint) {
-        CircuitCanvas canvas = view.canvas();
-        Point onCanvas = SwingUtilities.convertPoint(fixture.rootPane, rootPoint, canvas);
-        return canvas.viewport().screenToGrid(onCanvas.x, onCanvas.y);
     }
 
     private List<CanvasNotice> notices() {
@@ -107,19 +100,21 @@ class FullScreenFeaturesTest {
     }
 
     @Test
-    void theCircuitStaysWhereItIsOnScreenWhenEnteringAndLeaving() {
-        Point onScreen = new Point(700, 450);
-        Point2D before = gridUnder(onScreen);
+    void theCircuitKeepsItsCentreAndZoomWhenEnteringAndLeaving() {
+        view.canvas().applyViewState(new ViewState(1.5, 40, 25));
+        ViewState before = view.canvas().viewState();
         fixture.features.enter();
         fixture.layOut();
-        Point2D inTheMode = gridUnder(onScreen);
-        assertThat(inTheMode.getX()).isCloseTo(before.getX(), within(1e-6));
-        assertThat(inTheMode.getY()).isCloseTo(before.getY(), within(1e-6));
+        assertSameView(view.canvas().viewState(), before);
         fixture.features.leave();
         fixture.layOut();
-        Point2D after = gridUnder(onScreen);
-        assertThat(after.getX()).isCloseTo(before.getX(), within(1e-6));
-        assertThat(after.getY()).isCloseTo(before.getY(), within(1e-6));
+        assertSameView(view.canvas().viewState(), before);
+    }
+
+    private static void assertSameView(ViewState shown, ViewState expected) {
+        assertThat(shown.zoom()).isCloseTo(expected.zoom(), within(1e-9));
+        assertThat(shown.centerX()).isCloseTo(expected.centerX(), within(1e-6));
+        assertThat(shown.centerY()).isCloseTo(expected.centerY(), within(1e-6));
     }
 
     @Test

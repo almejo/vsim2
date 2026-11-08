@@ -8,7 +8,6 @@ import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.Insets;
 import java.awt.Rectangle;
-import java.awt.Toolkit;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.util.Objects;
@@ -86,7 +85,7 @@ public final class FrameScreenMode implements ScreenMode {
         int state = stateBefore & ~Frame.ICONIFIED;
         if ((stateBefore & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
             // the system keeps the bounds to un-maximize to (never set the maximized bounds); a maximize asked while
-            // the title bar comes back is lost under mutter, so it waits for the decorations and asks again if needed
+            // the title bar comes back is lost under mutter, so it waits for the decorations, then asks once
             remaximize.start(new FrameWindow(), state);
         } else {
             frame.setBounds(boundsBefore);
@@ -105,24 +104,7 @@ public final class FrameScreenMode implements ScreenMode {
      * then are not the ones the session should keep.
      */
     public boolean isTransitioning() {
-        return device != null || remaximize.isPending() || looksMaximizedByBounds();
-    }
-
-    /**
-     * The window manager never maximized the frame again, so it took the maximum window bounds: until the user moves
-     * or resizes it, the session keeps it as maximized with its earlier normal bounds.
-     */
-    private boolean looksMaximizedByBounds() {
-        return remaximize.maximizedByBounds() && frame.getBounds().equals(maximumBounds());
-    }
-
-    /** The bounds of a maximized window on the frame's screen: the screen without its panels and docks. */
-    private Rectangle maximumBounds() {
-        GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
-        Rectangle screen = configuration.getBounds();
-        Insets panels = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
-        return new Rectangle(screen.x + panels.left, screen.y + panels.top,
-                screen.width - panels.left - panels.right, screen.height - panels.top - panels.bottom);
+        return device != null || remaximize.isPending();
     }
 
     /** The frame as {@link Remaximize} sees it. */
@@ -141,21 +123,6 @@ public final class FrameScreenMode implements ScreenMode {
         @Override
         public Insets insets() {
             return frame.getInsets();
-        }
-
-        @Override
-        public Rectangle bounds() {
-            return frame.getBounds();
-        }
-
-        @Override
-        public Rectangle maximumBounds() {
-            return FrameScreenMode.this.maximumBounds();
-        }
-
-        @Override
-        public void setBounds(Rectangle bounds) {
-            frame.setBounds(bounds);
         }
     }
 
