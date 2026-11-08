@@ -38,6 +38,13 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - «Incluir notas adhesivas» (desactivado por defecto, se recuerda): sin marcarlo, las [notas adhesivas](edicion.md#notas-adhesivas) no salen en la imagen ni agrandan su borde; marcado, salen como en el lienzo (las plegadas, como el papelito).
 - Si no se puede escribir el archivo, un aviso dice «No se pudo exportar nombre.png: motivo».
 
+## Exportar imagen de la ventana
+
+- Archivo ▸ Exportar ▸ «Imagen de la ventana…» (justo después de «Imagen…»; se le puede asignar una tecla en Archivo ▸ Preferencias… ▸ Atajos de teclado) guarda en un PNG la ventana de VSim tal como la ves: menús, barra de herramientas, paleta, paneles, el circuito con sus valores, brillos y selección, panel derecho, barra de estado y los diálogos de VSim que tengas abiertos, cada uno donde está. Sirve también con un circuito vacío.
+- La pinta VSim desde sus propias ventanas: nunca es una captura del escritorio, así que no sale ningún otro programa ni la barra de título del sistema. Sale a la escala de tu pantalla (en una pantalla al 200 % tiene el doble de píxeles), igual de nítida que en pantalla.
+- El diálogo parte en la última carpeta de exportación (la misma de «Imagen…»; si no hay, la del circuito, y si no, tu carpeta personal) con el nombre del circuito y `.png`, y recuerda la carpeta. Si el archivo ya existe pregunta antes de reemplazarlo; si no se puede escribir, un aviso dice «No se pudo exportar nombre.png: revisa que la carpeta exista y que puedas escribir en ella.».
+- La IA también puede guardarla, con `vsim_export` y el alcance «ventana» (ver [IA (MCP)](ia-mcp.md#qué-puede-hacer-la-ia)).
+
 ## Exportar a PDF
 
 - Archivo ▸ Exportar ▸ «PDF…» (justo después de «Imagen…»; sin tecla por defecto, se le puede asignar una en Archivo ▸ Preferencias… ▸ Atajos de teclado) abre el diálogo «Exportar a PDF». Está deshabilitado con un circuito vacío. El PDF es vectorial: se ve nítido con cualquier zoom del visor (el texto va como formas, así que no se puede seleccionar ni buscar).

@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.capture.WindowCapture;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -35,6 +36,7 @@ import cl.almejo.vsim.ui.print.PrintScopes;
 import cl.almejo.vsim.ui.print.ScaleMode;
 import cl.almejo.vsim.ui.print.SheetPlan;
 
+import javax.swing.JComponent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -57,14 +59,14 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * The AI's exports (spec §7, Exports row): Archivo ▸ Exportar ▸ «Imagen…» and «PDF…» without their dialogs,
- * through the same code ({@link CircuitImage}, {@link ImageExport}, {@link PrintInput}, {@link PagePainter},
- * {@link PdfExport}) and with the same options. The file goes only into the folder VSim remembers for that export
- * (an image: the image export's folder; a PDF: the PDF's; each falls back on the other, and with neither on the
- * user's {@code ~/VSim}), under a new name: never over an existing file ({@code -2}, {@code -3}… instead). The
- * picture is taken on the EDT, as the menus do; the file is written on {@code writer}. The circuit's windows then
- * say «La IA guardó …» in their status line, with «Abrir carpeta» where the desktop can show a folder. Nothing here
- * asks the user anything or shows a dialog.
+ * The AI's exports (spec §7, Exports row): Archivo ▸ Exportar ▸ «Imagen…», «Imagen de la ventana…» and «PDF…»
+ * without their dialogs, through the same code ({@link CircuitImage}, {@link WindowCapture}, {@link ImageExport},
+ * {@link PrintInput}, {@link PagePainter}, {@link PdfExport}) and with the same options. The file goes only into
+ * the folder VSim remembers for that export (an image: the image export's folder; a PDF: the PDF's; each falls back
+ * on the other, and with neither on the user's {@code ~/VSim}), under a new name: never over an existing file
+ * ({@code -2}, {@code -3}… instead). The picture is taken on the EDT, as the menus do; the file is written on
+ * {@code writer}. The circuit's windows then say «La IA guardó …» in their status line, with «Abrir carpeta» where
+ * the desktop can show a folder. Nothing here asks the user anything or shows a dialog.
  */
 final class ExportHostSupport {
 
@@ -127,6 +129,9 @@ final class ExportHostSupport {
         boolean showBusValues = preferences == null || preferences.showBusValues();
         Path folder = folderFor(request.format(), Optional.ofNullable(preferences));
         String baseName = baseName(request.fileName().orElse(document.displayName()));
+        if (request.scope() instanceof ExportRequest.Scope.Window) {
+            return prepareWindow(id, version, document, window, folder, baseName);
+        }
         return switch (request.format()) {
             case PNG, SVG -> prepareImage(id, version, document, request, folder, baseName, windowScheme,
                     showBusValues);
@@ -185,6 +190,8 @@ final class ExportHostSupport {
                     document.netlistToken(), document.latestSnapshot(), document.registry(),
                     PainterRegistry.standard(), scheme, frameBounds(document, frame.frameId()),
                     request.includeStickyNotes());
+            case ExportRequest.Scope.Window window -> throw new IllegalStateException("the window is no circuit "
+                    + "image: prepareWindow paints it");
         };
         CircuitImage image = drawn.withBusValues(showBusValues);
         if (request.format() == ExportRequest.Format.SVG) {
@@ -201,6 +208,24 @@ final class ExportHostSupport {
                     + " pixels); use a smaller scale", Map.of("scales", ExportRequest.ImageOptions.SCALES));
         }
         return new Prepared(id, version, document, request.format(), folder, baseName,
+                target -> ImageExport.writePngInto(target, pixels), pixels.getWidth(), pixels.getHeight(), 1);
+    }
+
+    /**
+     * Archivo ▸ Exportar ▸ «Imagen de la ventana…»: the circuit's window (the active one first) as the user sees it,
+     * dialogs included, at the screen's scale ({@link WindowCapture}); the request's image options do not apply.
+     */
+    private static Prepared prepareWindow(DocumentId id, DocumentVersion version, OpenDocument document,
+                                          Optional<ShownWindow> window, Path folder, String baseName) {
+        ShownWindow shown = window.orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE,
+                "The circuit has no window on screen to export", Map.of()));
+        JComponent root = shown.root();
+        if (root.getWidth() < 1 || root.getHeight() < 1) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit's window has no size yet",
+                    Map.of());
+        }
+        BufferedImage pixels = WindowCapture.paintWindow(root, shown.dialogs(), WindowCapture.screenScale(root));
+        return new Prepared(id, version, document, ExportRequest.Format.PNG, folder, baseName,
                 target -> ImageExport.writePngInto(target, pixels), pixels.getWidth(), pixels.getHeight(), 1);
     }
 
@@ -248,6 +273,8 @@ final class ExportHostSupport {
                 frameBounds(document, frame.frameId());
                 yield new PrintScope.Frame(new ElementId(frame.frameId()));
             }
+            case ExportRequest.Scope.Window window -> throw new IllegalStateException("a window is never a PDF: the "
+                    + "request refuses it");
         };
         ScaleMode scaleMode = chosen.scalePercent() == 0 ? new ScaleMode.FitToOnePage()
                 : new ScaleMode.Percentage(chosen.scalePercent());

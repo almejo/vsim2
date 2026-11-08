@@ -9,24 +9,20 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.capture.WindowLayers;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 
 import javax.swing.JComponent;
-import javax.swing.RootPaneContainer;
-import java.awt.Dialog;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.Window;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -115,7 +111,7 @@ final class AiPictures {
     /**
      * The whole of {@code window}: its root pane (menus, toolbar, palette, panes, inspector, status bar) and, on top,
      * the dialogs it has open where they are, scaled down to fit {@link WindowPicture#MAXIMUM_WIDTH} ×
-     * {@link WindowPicture#MAXIMUM_HEIGHT}.
+     * {@link WindowPicture#MAXIMUM_HEIGHT} and never enlarged (painted by {@link WindowLayers}, as the screenshot is).
      */
     static Painted window(ShownWindow window) {
         JComponent root = window.root();
@@ -123,50 +119,13 @@ final class AiPictures {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit's window has no size yet",
                     Map.of());
         }
-        Rectangle extent = new Rectangle(0, 0, root.getWidth(), root.getHeight());
-        List<DialogPlace> dialogs = new ArrayList<>();
-        for (Window dialog : window.dialogs()) {
-            if (dialog instanceof RootPaneContainer container && dialog.isShowing() && root.isShowing()) {
-                JComponent dialogRoot = container.getRootPane();
-                Point dialogCorner = dialogRoot.getLocationOnScreen();
-                Point rootCorner = root.getLocationOnScreen();
-                Rectangle place = new Rectangle(dialogCorner.x - rootCorner.x, dialogCorner.y - rootCorner.y,
-                        dialogRoot.getWidth(), dialogRoot.getHeight());
-                dialogs.add(new DialogPlace(dialogRoot, place, dialog instanceof Dialog titled ? titled.getTitle()
-                        : ""));
-                extent = extent.union(place);
-            }
-        }
+        WindowLayers layers = WindowLayers.of(root, window.dialogs());
+        Rectangle extent = layers.extent();
         double scale = Math.min(1.0, Math.min(WindowPicture.MAXIMUM_WIDTH / (double) extent.width,
                 WindowPicture.MAXIMUM_HEIGHT / (double) extent.height));
-        BufferedImage result = new BufferedImage(fit(extent.width * scale, WindowPicture.MAXIMUM_WIDTH),
-                fit(extent.height * scale, WindowPicture.MAXIMUM_HEIGHT), BufferedImage.TYPE_INT_RGB);
-        Graphics2D graphics = result.createGraphics();
-        try {
-            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            graphics.scale(scale, scale);
-            graphics.translate(-extent.x, -extent.y);
-            paintAt(graphics, root, new Rectangle(0, 0, root.getWidth(), root.getHeight()));
-            for (DialogPlace dialog : dialogs) {
-                paintAt(graphics, dialog.root(), dialog.place());
-            }
-        } finally {
-            graphics.dispose();
-        }
+        BufferedImage result = layers.paint(scale, WindowPicture.MAXIMUM_WIDTH, WindowPicture.MAXIMUM_HEIGHT);
         return new Painted(result, new Bounds(0, 0, 0, 0), window.title(),
-                dialogs.stream().map(DialogPlace::title).toList());
-    }
-
-    private record DialogPlace(JComponent root, Rectangle place, String title) {
-    }
-
-    private static void paintAt(Graphics2D graphics, JComponent component, Rectangle place) {
-        Graphics2D child = (Graphics2D) graphics.create(place.x, place.y, place.width, place.height);
-        try {
-            component.printAll(child);
-        } finally {
-            child.dispose();
-        }
+                layers.dialogs().stream().map(WindowLayers.PlacedDialog::title).toList());
     }
 
     /** The PNG bytes of {@code image}, encoded in memory (never through a disk file); called off the EDT. */

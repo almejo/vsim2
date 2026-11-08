@@ -30,7 +30,9 @@ final class ExportTools {
                 Schema.object("Some elements, as if the user selected them")
                         .property("kind", Schema.constant("elements"))
                         .property("elementIds", Schema.array("Their ids", Schema.nonEmptyString(""), 1, 10_000))
-                        .required("kind", "elementIds").build()));
+                        .required("kind", "elementIds").build(),
+                Schema.object("The window as the user sees it: PNG only, at the screen's scale")
+                        .property("kind", Schema.constant("window")).required("kind").build()));
     }
 
     private static ExportRequest.Scope scopeOf(Arguments arguments) {
@@ -38,14 +40,16 @@ final class ExportTools {
             case "whole" -> new ExportRequest.Scope.WholeCircuit();
             case "frame" -> new ExportRequest.Scope.Frame(scope.string("frameId"));
             case "elements" -> new ExportRequest.Scope.Elements(scope.stringSet("elementIds"));
-            default -> throw scope.invalid("kind", "is whole, frame or elements");
+            case "window" -> new ExportRequest.Scope.Window();
+            default -> throw scope.invalid("kind", "is whole, frame, elements or window");
         }).orElseGet(ExportRequest.Scope.WholeCircuit::new);
     }
 
     private static Tool export(AutomationApi api) {
         return new Tool(EXPORT, "Export the circuit to a file",
                 "Exports as Archivo ▸ Exportar ▸ «PDF…» or «Imagen…» (PNG or SVG) do, with their options, "
-                        + "of the whole circuit, one frame or some elements. The file goes only into the export "
+                        + "of the whole circuit, one frame or some elements, or «Imagen de la ventana…» (scope "
+                        + "window). The file goes only into the export "
                         + "folder VSim remembers (the last one the user exported to; none yet: the VSim folder in "
                         + "the user's home), under a new name: the name given (or the circuit's), with -2, -3… "
                         + "when it is taken. VSim never overwrites a file and the AI never chooses the folder. The "

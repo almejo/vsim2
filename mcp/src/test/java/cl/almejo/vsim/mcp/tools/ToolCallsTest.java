@@ -621,6 +621,18 @@ class ToolCallsTest {
     }
 
     @Test
+    void theWindowIsExportedAsAPngAndNeverAsAPdf() {
+        call("vsim_export", Map.of("document", "circuit-1", "format", "PNG", "scope", Map.of("kind", "window")));
+
+        assertThat(host.exports.getFirst().scope()).isEqualTo(new ExportRequest.Scope.Window());
+        assertThat(refusal("vsim_export", Map.of("document", "circuit-1", "format", "PDF",
+                "scope", Map.of("kind", "window"))))
+                .containsEntry("error", "INVALID_PARAMETER")
+                .hasEntrySatisfying("message", message -> assertThat(message.toString()).contains("only as a PNG"));
+        assertThat(host.exports).hasSize(1);
+    }
+
+    @Test
     void settingsGoToTheWindowAndPreferencesOnlyThroughAProposal() {
         assertThat(refusal("vsim_set_editor_setting", Map.of("document", "circuit-1", "setting", "GRID_STYLE",
                 "value", "LINES"))).containsEntry("error", "NOT_ALLOWED");

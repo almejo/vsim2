@@ -63,6 +63,7 @@ public final class ShortcutCatalog {
         // no default: Ctrl/⌘+P is «Imprimir…»
         window(entries, "file.exportPdf", "action.exportPdf", MenuId.FILE, null);
         window(entries, "file.exportLogisim", "action.exportLogisim", MenuId.FILE, null);
+        window(entries, "file.exportWindowImage", "action.exportWindowImage", MenuId.FILE, null);
         window(entries, "file.importTruthTable", "action.importTruthTable", MenuId.FILE, null);
         window(entries, "file.preferences", "action.preferences", MenuId.FILE, null);
         window(entries, "file.exit", "action.exit", MenuId.FILE, stroke(KeyEvent.VK_Q, menu));
