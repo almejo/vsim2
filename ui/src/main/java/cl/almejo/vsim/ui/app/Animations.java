@@ -1,19 +1,26 @@
 package cl.almejo.vsim.ui.app;
 
 /**
- * The one place that answers «may the UI animate?» for the small UI animations (bars sliding in, notices fading, the
- * capture flash). Animations off means the thing appears or disappears at once.
+ * The one place that answers «may VSim animate?»: Preferencias ▸ «Animaciones» (a VSim-only setting, «Sí» by default;
+ * nothing reads the desktop's own switch). Everything that moves or fades asks here, at the start of its effect and at
+ * every frame, so the setting applies live; with «No» the thing appears or disappears at once, and what carries
+ * information stays on screen, still.
  */
 public final class Animations {
 
     private Animations() {
     }
 
-    /**
-     * Always {@code true} for now. The pending global «Animaciones» setting will rewire this body (reading
-     * {@code preferences}); callers already go through here so none has to change.
-     */
+    /** Whether VSim animates now: Preferencias ▸ «Animaciones». */
     public static boolean enabled(AppPreferences preferences) {
-        return true;
+        return preferences.animations();
+    }
+
+    /**
+     * Whether the view travels (an eased pan, a «fly to») instead of jumping: only with «Animaciones» and «Animar los
+     * movimientos de la vista» both on.
+     */
+    public static boolean viewMoves(AppPreferences preferences) {
+        return enabled(preferences) && preferences.animateViewMoves();
     }
 }

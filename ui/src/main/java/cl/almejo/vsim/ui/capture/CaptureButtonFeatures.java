@@ -150,9 +150,8 @@ final class CaptureButtonFeatures {
     }
 
     private void showNotice(String text) {
-        boolean fade = animations.test(view.services().preferences());
         noticeRemover = CanvasNotice.show(view.canvasPanes(), text, CanvasNotice.Position.BOTTOM, NOTICE_DURATION,
-                tickers.get(), clock, fade);
+                tickers.get(), clock, () -> animations.test(view.services().preferences()));
     }
 
     /** What was copied, to flash over it: the whole window, or the panes. */

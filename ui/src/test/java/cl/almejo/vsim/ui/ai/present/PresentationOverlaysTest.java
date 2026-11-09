@@ -76,6 +76,7 @@ class PresentationOverlaysTest {
 
     @BeforeEach
     void create() {
+        preferences.setAnimations(false); // still by default: the tests about motion turn it on
         preferences.setAnimateViewMoves(false);
         fixture = EditorFixture.create(preferences);
         document = fixture.openDocument();
@@ -338,7 +339,8 @@ class PresentationOverlaysTest {
     }
 
     @Test
-    void withMotionTheTravelIsSmoothAndWithReducedMotionItJumps() {
+    void withMotionTheTravelIsSmoothAndWithoutAnimatedViewMovesItJumps() {
+        preferences.setAnimations(true);
         preferences.setAnimateViewMoves(true);
         StepPreview far = proposeGateAt(200, 100);
 
@@ -351,6 +353,31 @@ class PresentationOverlaysTest {
 
         assertThat(view.canvas().isTravelling()).isFalse();
         assertThat(view.canvas().shows(back.changedBounds().orElseThrow())).isTrue();
+    }
+
+    @Test
+    void withAnimationsOffTheTravelJumpsEvenWithAnimatedViewMovesOn() {
+        preferences.setAnimateViewMoves(true);
+        preferences.setAnimations(false);
+
+        StepPreview far = proposeGateAt(200, 100);
+
+        assertThat(view.canvas().isTravelling()).isFalse();
+        assertThat(view.canvas().shows(far.changedBounds().orElseThrow())).isTrue();
+    }
+
+    @Test
+    void turningAnimationsOffDuringATravelEndsItAtItsTargetOnTheNextFrame() {
+        preferences.setAnimations(true);
+        preferences.setAnimateViewMoves(true);
+        StepPreview far = proposeGateAt(200, 100);
+        assertThat(view.canvas().isTravelling()).isTrue();
+
+        preferences.setAnimations(false);
+        ticker.advance(16);
+
+        assertThat(view.canvas().isTravelling()).isFalse();
+        assertThat(view.canvas().shows(far.changedBounds().orElseThrow())).isTrue();
     }
 
     @Test
@@ -415,8 +442,8 @@ class PresentationOverlaysTest {
     }
 
     @Test
-    void withMotionTheCalloutFadesInAndOutAndWithReducedMotionItDoesNot() {
-        preferences.setAnimateViewMoves(true);
+    void withAnimationsTheCalloutFadesInAndOutAndWithoutThemItDoesNot() {
+        preferences.setAnimations(true);
         proposeGateAt(0, 0);
 
         assertThat(overlays.callout().alpha()).isZero();
@@ -435,12 +462,45 @@ class PresentationOverlaysTest {
         assertThat(overlays.callout().content()).isEmpty();
         assertThat(overlays.callout().isTimerRunning()).isFalse();
 
-        preferences.setAnimateViewMoves(false);
+        preferences.setAnimations(false);
         proposeGateAt(0, 0);
         assertThat(overlays.callout().alpha()).isEqualTo(1.0);
         assertThat(overlays.callout().isTimerRunning()).isFalse();
         presentation().stepDiscarded("task-1", StepStatus.STOPPED);
         assertThat(overlays.callout().content()).isEmpty();
+    }
+
+    @Test
+    void theCalloutFadesEvenWithAnimatedViewMovesOff() {
+        preferences.setAnimations(true);
+        preferences.setAnimateViewMoves(false);
+
+        proposeGateAt(0, 0);
+
+        assertThat(overlays.callout().alpha()).isZero();
+        assertThat(overlays.callout().isTimerRunning()).isTrue();
+    }
+
+    @Test
+    void turningAnimationsOffDuringAFadeEndsItInItsFinalStateAtTheNextTick() {
+        preferences.setAnimations(true);
+        proposeGateAt(0, 0);
+        assertThat(overlays.callout().alpha()).isZero();
+
+        preferences.setAnimations(false);
+        overlays.callout().tick();
+
+        assertThat(overlays.callout().alpha()).isEqualTo(1.0);
+        assertThat(overlays.callout().isTimerRunning()).isFalse();
+
+        preferences.setAnimations(true);
+        presentation().stepDiscarded("task-1", StepStatus.STOPPED);
+        assertThat(overlays.callout().content()).isPresent(); // fading out
+        preferences.setAnimations(false);
+        overlays.callout().tick();
+
+        assertThat(overlays.callout().content()).isEmpty();
+        assertThat(overlays.callout().isTimerRunning()).isFalse();
     }
 
     @Test
@@ -525,6 +585,7 @@ class PresentationOverlaysTest {
 
     @Test
     void withMotionANewStepDuringAGlideRetargetsItSmoothly() {
+        preferences.setAnimations(true);
         preferences.setAnimateViewMoves(true);
         proposeGateAt(200, 100);
         assertThat(view.canvas().isTravelling()).isTrue();

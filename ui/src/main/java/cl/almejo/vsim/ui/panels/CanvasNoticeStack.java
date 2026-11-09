@@ -28,7 +28,7 @@ public final class CanvasNoticeStack {
 
     /**
      * @param tickers a fresh ticker for each notice
-     * @param fade    asked at each push: whether the notice fades (animations on)
+     * @param fade    asked at every frame of each notice: whether it fades (animations on)
      */
     public CanvasNoticeStack(JComponent over, CanvasNotice.Position position, Duration duration, int maximum,
                              Supplier<FrameTicker> tickers, LongSupplier clock, BooleanSupplier fade) {
@@ -61,7 +61,7 @@ public final class CanvasNoticeStack {
         }
         CanvasNotice[] holder = new CanvasNotice[1];
         CanvasNotice notice = CanvasNotice.showStacked(over, text, position, duration, tickers.get(), clock,
-                fade.getAsBoolean(), () -> {
+                fade, () -> {
                     shown.remove(holder[0]);
                     stackUp();
                 }, chip);

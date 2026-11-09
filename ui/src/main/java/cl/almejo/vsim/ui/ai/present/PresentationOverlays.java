@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.ai.AiChangeGlowOverlay;
 import cl.almejo.vsim.ui.ai.AiServerService;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -80,9 +81,9 @@ public final class PresentationOverlays {
         this.editorThread = editorThread;
         Runnable repaint = EveryPane.repaint(view);
         this.callout = new StepCallout(() -> view.canvas().scheme(), view::canvas, covered,
-                () -> view.services().preferences().animateViewMoves(), repaint, nanoClock);
+                () -> Animations.enabled(view.services().preferences()), repaint, nanoClock);
         this.caption = new NarrationCaption(view::canvas, covered,
-                () -> view.services().preferences().animateViewMoves(),
+                () -> Animations.enabled(view.services().preferences()),
                 () -> view.services().preferences().aiPresenting(), repaint, nanoClock);
         this.ghosts = new StepGhostOverlay(() -> view.canvas().scheme(), view.openDocument().registry(), repaint);
         this.glow = new AiChangeGlowOverlay(() -> view.canvas().scheme(), view.openDocument().registry(), repaint,
@@ -153,7 +154,7 @@ public final class PresentationOverlays {
     /**
      * The view goes to where a stage starts ({@code origin}, grid units: the stage builds to its right and below),
      * centred in the part of the pane the panel leaves free, and follows the action again if the user had taken the
-     * view; smooth, or a jump with reduced motion. EDT only.
+     * view; smooth, or a jump without animated view moves ({@code Animations.viewMoves}). EDT only.
      */
     public void travelToStageOrigin(GridPoint origin) {
         if (!disposed) {

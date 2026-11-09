@@ -222,7 +222,7 @@ public final class TabStrip extends JComponent implements Accessible {
     private boolean hoveredClose;
     private final Accessible newTabAccessible = new NewTabAccessible();
 
-    /** @param animate whether folding animates now (the user's «Animación» preference, read each time) */
+    /** @param animate whether folding animates now (Preferencias ▸ «Animaciones», read each time) */
     public TabStrip(TabStripModel model, BooleanSupplier animate) {
         this(model, animate, FrameTicker.swing(FRAME_MILLISECONDS), () -> System.nanoTime() / 1_000_000);
     }
@@ -282,7 +282,7 @@ public final class TabStrip extends JComponent implements Accessible {
         marksChanged();
     }
 
-    /** The AI's marks changed: the robots are repainted, and bob while one works (and «Animación» is on). */
+    /** The AI's marks changed: the robots are repainted, and bob while one works (and «Animaciones» is on). */
     public void marksChanged() {
         animateMarks();
         repaint();
@@ -407,7 +407,11 @@ public final class TabStrip extends JComponent implements Accessible {
     private void animationFrame() {
         long now = clock.getAsLong();
         boolean folding = !motions.isEmpty();
-        motions.values().removeIf(motion -> now - motion.startMilliseconds() >= FOLD_MILLISECONDS);
+        if (animate.getAsBoolean()) {
+            motions.values().removeIf(motion -> now - motion.startMilliseconds() >= FOLD_MILLISECONDS);
+        } else {
+            motions.clear(); // animations turned off meanwhile: the fold ends at once
+        }
         if (motions.isEmpty() && !bobs()) {
             ticker.stop();
         }
@@ -422,7 +426,7 @@ public final class TabStrip extends JComponent implements Accessible {
 
     // --- the AI's mark ---
 
-    /** Starts the frames while a working robot shows and «Animación» is on; the frames stop themselves after. */
+    /** Starts the frames while a working robot shows and «Animaciones» is on; the frames stop themselves after. */
     private void animateMarks() {
         if (bobs()) {
             ticker.start(this::animationFrame);
@@ -448,7 +452,7 @@ public final class TabStrip extends JComponent implements Accessible {
                 group.get().componentTabs().stream().map(marks)));
     }
 
-    /** Pixels above its place: a working robot rises and falls smoothly while «Animación» is on. */
+    /** Pixels above its place: a working robot rises and falls smoothly while «Animaciones» is on. */
     private double lift(TabMark mark) {
         if (!mark.isWorking() || !animate.getAsBoolean()) {
             return 0;

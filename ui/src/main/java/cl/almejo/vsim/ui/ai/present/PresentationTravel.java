@@ -17,7 +17,7 @@ import java.util.function.Function;
  * acción al vuelo»): at each stage start and each step (proposed or applied) the active pane glides so that the change
  * sits in the middle of the pane's free part (the pane less the floating panel's rectangle, wherever the user put
  * it), at the user's zoom unless the change does not fit there (then out just enough). No move when the change already
- * sits in a small zone around that middle; a new step during a glide retargets it; reduced motion jumps
+ * sits in a small zone around that middle; a new step during a glide retargets it; without animated view moves it jumps
  * ({@link CircuitCanvas#travelTo}). When the user pans or zooms by hand during a task, the view stops following until
  * the next stage starts (or the next task). A change shown by another pane of a split view, and not by the active
  * one, is left to that pane. EDT only.

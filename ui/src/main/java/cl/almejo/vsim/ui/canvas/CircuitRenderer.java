@@ -165,8 +165,8 @@ public final class CircuitRenderer {
     }
 
     /**
-     * Whether the parts may move on this view now (the canvas: its window is active and the desktop does not ask for
-     * reduced motion); when not, a Terminal shows its cursor on and Automan's star still, but keeps its screen effect.
+     * Whether the parts may move on this view now (the canvas: its window is active and Preferencias ▸ «Animaciones»
+     * is «Sí»); when not, a Terminal shows its cursor on and Automan's star still, but keeps its screen effect.
      */
     void useMotionGate(BooleanSupplier gate) {
         motionGate = Objects.requireNonNull(gate, "gate");
@@ -452,7 +452,7 @@ public final class CircuitRenderer {
 
     /**
      * Whether {@code component} is a Matriz LED that fades on this paint: never in an export or a printed page, and
-     * not with reduced motion or an inactive window (the motion gate), where a LED goes off at once.
+     * not with «Animaciones: No» or an inactive window (the motion gate), where a LED goes off at once.
      */
     private boolean afterglowShown(Component component, RenderState state) {
         return state.policy().animateParts() && motionGate.getAsBoolean()

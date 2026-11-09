@@ -92,7 +92,7 @@ class NarrationCaptionTest {
     }
 
     @Test
-    void itFadesInAndOutUnlessReducedMotion() {
+    void itFadesInAndOutUnlessAnimationsAreOff() {
         caption.show("Hola");
         assertThat(caption.alpha()).isZero();
         assertThat(caption.isTimerRunning()).isTrue();
@@ -113,6 +113,26 @@ class NarrationCaptionTest {
         assertThat(caption.isTimerRunning()).isFalse();
         caption.clear();
         assertThat(caption.text()).isEmpty();
+    }
+
+    @Test
+    void animationsTurnedOffDuringAFadeEndItInItsFinalStateAtTheNextTick() {
+        caption.show("Hola");
+        assertThat(caption.alpha()).isZero();
+
+        animate.set(false);
+        caption.tick();
+
+        assertThat(caption.alpha()).isEqualTo(1.0);
+        assertThat(caption.isTimerRunning()).isFalse();
+
+        animate.set(true);
+        caption.clear();
+        animate.set(false);
+        caption.tick();
+
+        assertThat(caption.text()).isEmpty();
+        assertThat(caption.isTimerRunning()).isFalse();
     }
 
     @Test

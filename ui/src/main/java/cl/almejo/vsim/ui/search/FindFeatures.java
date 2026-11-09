@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.search.SearchProblem;
 import cl.almejo.vsim.core.search.SearchQuery;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.Keys;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
@@ -354,7 +355,10 @@ public final class FindFeatures {
                 preferences.setAnimateViewMoves(bar.animateToggle().isSelected()));
     }
 
-    /** The toggles follow the preferences (changed here, in another view or in Preferencias); new options search again. */
+    /**
+     * The toggles follow the preferences (changed here, in another view or in Preferencias); new options search again.
+     * «Viaje suave» is disabled, saying why, while Preferencias ▸ «Animaciones» is «No».
+     */
     private void preferencesChanged() {
         syncToggles();
         if (preferences.findMatchCase() != matchCase || preferences.findRegex() != regex) {
@@ -368,6 +372,9 @@ public final class FindFeatures {
         bar.matchCaseToggle().setSelected(preferences.findMatchCase());
         bar.regexToggle().setSelected(preferences.findRegex());
         bar.animateToggle().setSelected(preferences.animateViewMoves());
+        boolean animations = Animations.enabled(preferences);
+        bar.animateToggle().setEnabled(animations);
+        bar.animateToggle().setToolTipText(Messages.text(animations ? "find.animate" : "find.animate.disabled"));
     }
 
     /** «Buscar…», «Buscar siguiente» and «Buscar anterior» after «Seleccionar todo», after a separator. */

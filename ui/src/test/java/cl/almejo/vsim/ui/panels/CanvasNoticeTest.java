@@ -12,6 +12,7 @@ import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,6 +63,20 @@ class CanvasNoticeTest {
         ticker.advance(200);
         assertThat(noticesShown()).isZero();
         assertThat(ticker.isRunning()).as("the ticker stops with the notice").isFalse();
+    }
+
+    @Test
+    void turningAnimationsOffWhileItFadesInShowsItWholeAtTheNextFrame() {
+        AtomicBoolean animations = new AtomicBoolean(true);
+        CanvasNotice.show(canvasArea, "Hello", CanvasNotice.Position.TOP, Duration.ofSeconds(2), ticker,
+                ticker::now, animations::get);
+        ticker.advance(16);
+        assertThat(notice().opacity()).isLessThan(1f);
+
+        animations.set(false);
+        ticker.advance(16);
+
+        assertThat(notice().opacity()).isEqualTo(1f);
     }
 
     @Test

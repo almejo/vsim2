@@ -50,7 +50,7 @@ final class PieceGlow {
         return 1.0 - (double) Math.max(0, nowMillis - startMillis) / DURATION_MILLIS;
     }
 
-    /** Paints the halo in document coordinates; nothing when it is over. {@code steady}: no fade (reduced motion). */
+    /** Paints the halo in document coordinates; nothing when it is over. {@code steady}: no fade (no animations). */
     void paint(Graphics2D graphics, ColorScheme scheme, long nowMillis, boolean steady) {
         if (!activeAt(nowMillis)) {
             return;

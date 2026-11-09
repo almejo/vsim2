@@ -154,7 +154,7 @@ public final class FullScreenFeatures {
         // the keys go to the circuit, not to what had them in a bar that just went behind its edge
         focusMover.accept(view.canvas());
         hideNotice = CanvasNotice.show(view.bottomDock(), noticeText(preferences), CanvasNotice.Position.TOP,
-                NOTICE_DURATION, noticeTicker, clock, Animations.enabled(preferences));
+                NOTICE_DURATION, noticeTicker, clock, () -> Animations.enabled(preferences));
         activeListeners.fire(Runnable::run);
     }
 

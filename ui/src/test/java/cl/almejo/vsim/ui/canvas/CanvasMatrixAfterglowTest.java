@@ -88,8 +88,8 @@ class CanvasMatrixAfterglowTest {
     }
 
     @Test
-    void withReducedMotionNothingFadesAndNoClockRuns() {
-        canvas.setReducedMotion(() -> true);
+    void withAnimationsOffNothingFadesAndNoClockRuns() {
+        canvas.setAnimations(() -> false);
         show(true, 0);
         ticker.advance(48);
         show(false, 10);

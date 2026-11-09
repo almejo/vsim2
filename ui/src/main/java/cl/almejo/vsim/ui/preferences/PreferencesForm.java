@@ -10,12 +10,14 @@ import cl.almejo.vsim.ui.paint.TextFont;
 import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -75,6 +77,8 @@ public final class PreferencesForm extends JPanel {
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
+    private final JRadioButton animationsYesButton = new JRadioButton(Messages.text("preferences.animations.yes"));
+    private final JRadioButton animationsNoButton = new JRadioButton(Messages.text("preferences.animations.no"));
     private final JCheckBox animateViewMovesBox = new JCheckBox(Messages.text("preferences.animateViewMoves"));
     private final Runnable preferenceListener = this::followPreferences;
     private final JComboBox<Choice<String>> fontFamilyChoice = new JComboBox<>();
@@ -151,9 +155,7 @@ public final class PreferencesForm extends JPanel {
         refreshLibrary();
         restoreSessionBox.setSelected(preferences.restoreSession());
         restoreSessionBox.addActionListener(event -> preferences.setRestoreSession(restoreSessionBox.isSelected()));
-        animateViewMovesBox.setSelected(preferences.animateViewMoves());
-        animateViewMovesBox.addActionListener(
-                event -> preferences.setAnimateViewMoves(animateViewMovesBox.isSelected()));
+        wireAnimations();
         // the find bar's ↷ changes it too, also while this dialog is open
         preferences.addListener(preferenceListener);
 
@@ -172,10 +174,37 @@ public final class PreferencesForm extends JPanel {
         add(restoreLibraryButton, "growx 0");
         addExternalEditorRow();
         add(restoreSessionBox, "skip 1, gaptop 12");
+        JLabel animationsLabel = new JLabel(Messages.text("preferences.animations"));
+        animationsLabel.setLabelFor(animationsYesButton);
+        add(animationsLabel);
+        add(animationsYesButton, "split 2, growx 0");
+        add(animationsNoButton, "growx 0");
         add(animateViewMovesBox, "skip 1");
         add(new JLabel(Messages.text("preferences.invertModifier")), "gaptop 12");
         add(invertModifierChoice, "gaptop 12");
         addTextFontRows();
+    }
+
+    /**
+     * «Animaciones: Sí / No» and, below it, «Animar los movimientos de la vista», which only counts (and is only
+     * enabled) with animations on; turning them off keeps its choice for when they come back.
+     */
+    private void wireAnimations() {
+        ButtonGroup animations = new ButtonGroup();
+        animations.add(animationsYesButton);
+        animations.add(animationsNoButton);
+        animationsYesButton.addActionListener(event -> preferences.setAnimations(true));
+        animationsNoButton.addActionListener(event -> preferences.setAnimations(false));
+        animateViewMovesBox.addActionListener(
+                event -> preferences.setAnimateViewMoves(animateViewMovesBox.isSelected()));
+        showAnimations();
+    }
+
+    private void showAnimations() {
+        boolean animations = preferences.animations();
+        (animations ? animationsYesButton : animationsNoButton).setSelected(true);
+        animateViewMovesBox.setSelected(preferences.animateViewMoves());
+        animateViewMovesBox.setEnabled(animations);
     }
 
     /**
@@ -371,7 +400,15 @@ public final class PreferencesForm extends JPanel {
 
     /** Shows the options that can change elsewhere while the dialog is open (setSelected fires no action). */
     private void followPreferences() {
-        animateViewMovesBox.setSelected(preferences.animateViewMoves());
+        showAnimations();
+    }
+
+    JRadioButton animationsYesButton() {
+        return animationsYesButton;
+    }
+
+    JRadioButton animationsNoButton() {
+        return animationsNoButton;
     }
 
     JCheckBox animateViewMovesBox() {

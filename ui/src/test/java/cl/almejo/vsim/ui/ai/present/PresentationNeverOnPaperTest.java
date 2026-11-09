@@ -74,6 +74,7 @@ class PresentationNeverOnPaperTest {
     @BeforeEach
     void create() {
         preferences.setAnimateViewMoves(false);
+        preferences.setAnimations(false);
         fixture = EditorFixture.create(preferences);
         openDocument = fixture.openDocument();
         view = fixture.view();

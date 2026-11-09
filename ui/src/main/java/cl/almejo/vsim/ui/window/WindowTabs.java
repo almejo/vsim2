@@ -219,7 +219,7 @@ public final class WindowTabs extends JPanel {
      * @param viewFactory makes the editor of a tab on a place (the window gives its services and itself as the
      *                    view's {@link WindowCommands})
      * @param splitStore  where tabs remember their split per place (file, and definition for a component tab)
-     * @param animate     whether folding animates now (the «Animación» preference)
+     * @param animate     whether folding animates now (Preferencias ▸ «Animaciones»)
      */
     public WindowTabs(Host host, Function<OpenDocument, EditorView> viewFactory, SplitLayoutStore splitStore,
                       BooleanSupplier animate) {
@@ -767,7 +767,7 @@ public final class WindowTabs extends JPanel {
             }
         });
         if (entry.fitsBodyWhenShown) {
-            // «Ver todo» on the body; from where the instance was, it travels when «Animación» is on
+            // «Ver todo» on the body; from where the instance was, it travels with animated view moves
             entry.initialViewState = Optional.empty();
             CircuitBounds.of(entry.place.document(), entry.place.registry()).ifPresent(canvas::zoomToFit);
         }

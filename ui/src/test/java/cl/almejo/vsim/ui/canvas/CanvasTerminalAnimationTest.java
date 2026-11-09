@@ -19,6 +19,7 @@ import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.paint;
@@ -26,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The canvas runs the Terminal's animation clock only while a moving terminal is in view: it stops off screen, with
- * the terminal scrolled away or deleted, and with reduced motion (a still screen needs no clock).
+ * the terminal scrolled away or deleted, and with animations off (a still screen needs no clock).
  */
 class CanvasTerminalAnimationTest {
 
@@ -101,10 +102,24 @@ class CanvasTerminalAnimationTest {
     }
 
     @Test
-    void withReducedMotionTheCursorStaysOnAndNoClockRuns() {
-        canvas.setReducedMotion(() -> true);
+    void withAnimationsOffTheCursorStaysOnAndNoClockRuns() {
+        canvas.setAnimations(() -> false);
         paint(canvas);
         ticker.advance(40);
+        assertThat(canvas.isAnimatingTerminals()).isFalse();
+    }
+
+    @Test
+    void turningAnimationsOffWhileTheCursorBlinksStopsTheClockAtOnce() {
+        AtomicBoolean animations = new AtomicBoolean(true);
+        canvas.setAnimations(animations::get);
+        paint(canvas);
+        assertThat(canvas.isAnimatingTerminals()).isTrue();
+
+        animations.set(false);
+        paint(canvas);
+        ticker.advance(40);
+
         assertThat(canvas.isAnimatingTerminals()).isFalse();
     }
 }

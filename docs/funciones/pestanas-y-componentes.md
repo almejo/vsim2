@@ -20,7 +20,7 @@ Cómo se crean y se guardan los componentes propios está en
   entrar, y su doble clic hace lo de siempre.
 - **La pestaña del componente**: se abre al final del grupo de su circuito, con un ícono de chip, el nombre del
   componente, el borde de arriba punteado y el color del grupo. Al pasar el mouse dice «Ram — componente de lrv32im».
-  Se abre mostrando el componente entero, como «Ver todo el circuito». Con «Animación» encendida, la vista parte del
+  Se abre mostrando el componente entero, como «Ver todo el circuito». Con las animaciones y «Animar los movimientos de la vista» encendidas, la vista parte del
   lugar y del tamaño que tenía la pieza en el circuito y crece hasta mostrar todo el componente.
 - **Volver a entrar**: si el grupo ya tiene una pestaña de ese componente, entrar de nuevo la trae al frente en vez de
   abrir otra. Esa pestaña pasa a mostrar los valores de la pieza por la que entraste. Si el grupo está plegado, entrar

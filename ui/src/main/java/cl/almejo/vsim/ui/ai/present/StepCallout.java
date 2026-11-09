@@ -39,7 +39,7 @@ import java.util.function.Supplier;
  * bold and its reason in grey, in a small box beside the change with a thin leader line and a dot pointing at it.
  * Worked out from each pane's view at paint time, so it follows pan and zoom, and painted only in the panes that show
  * the change (a step with nowhere to point shows in the active pane's corner). It fades in and out unless the user
- * asked for reduced motion. Colours from the scheme and the theme, read at paint time; editor chrome, never on paper.
+ * turned animations off. Colours from the scheme and the theme, read at paint time; editor chrome, never on paper.
  * EDT only.
  */
 final class StepCallout {
@@ -94,7 +94,7 @@ final class StepCallout {
 
     /**
      * @param activePane where a callout with nowhere to point shows
-     * @param animate    false when the user asked for reduced motion (read at each change)
+     * @param animate    false with «Animaciones: No» (read at each change and each fade step)
      * @param repaint    repaints every pane
      */
     StepCallout(Supplier<ColorScheme> scheme, Supplier<CircuitCanvas> activePane, BooleanSupplier animate,
@@ -132,7 +132,7 @@ final class StepCallout {
         repaint.run();
     }
 
-    /** Takes the callout away (fading out unless reduced motion). */
+    /** Takes the callout away (fading out unless animations are off). */
     void clear() {
         if (content == null || leavingSince >= 0) {
             return;
@@ -161,15 +161,29 @@ final class StepCallout {
         }
     }
 
-    /** One fade step: repaints, and drops the callout once it has faded out; stops the timer when nothing fades. */
+    /**
+     * One fade step: repaints, and drops the callout once it has faded out; stops the timer when nothing fades. With
+     * animations turned off meanwhile, the fade ends at once in its final state (shown whole, or gone).
+     */
     void tick() {
         long now = nanoClock.getAsLong();
-        if (leavingSince >= 0 && now - leavingSince >= FADE_NANOS) {
+        if (!animate.getAsBoolean()) {
+            endFade();
+        } else if (leavingSince >= 0 && now - leavingSince >= FADE_NANOS) {
             drop();
         } else if (leavingSince < 0 && alpha() >= 1.0) {
             timer.stop();
         }
         repaint.run();
+    }
+
+    private void endFade() {
+        if (leavingSince >= 0) {
+            drop();
+        } else {
+            shownAt = Long.MIN_VALUE;
+            timer.stop();
+        }
     }
 
     /** The callout's opacity now, 0 to 1. */

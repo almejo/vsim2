@@ -27,7 +27,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.function.BooleanSupplier;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -201,6 +200,7 @@ public final class AppPreferences {
     static final String TEXT_FONT_FAMILY = "textFontFamily";
     static final String TEXT_FONT_SIZE = "textFontSize";
     static final String COLOR_SCHEMES = "colorSchemes";
+    static final String ANIMATIONS = "animations";
     static final String ANIMATE_VIEW_MOVES = "animateViewMoves";
     static final String FIND_MATCH_CASE = "find.matchCase";
     static final String FIND_REGEX = "find.regex";
@@ -243,7 +243,6 @@ public final class AppPreferences {
     private static final String NODE = "cl/almejo/vsim2";
 
     private final Preferences node;
-    private final BooleanSupplier systemReducesMotion;
     private final Listeners<Runnable> listeners;
     /** Null but for the preferences of one window ({@link #layered()}). */
     private final PreferenceLayer layer;
@@ -251,13 +250,7 @@ public final class AppPreferences {
     private final Set<PreferenceLayer> windowLayers;
 
     public AppPreferences(Preferences node) {
-        this(node, () -> false);
-    }
-
-    /** @param systemReducesMotion whether the desktop asks for less motion: the default of the animated view moves */
-    AppPreferences(Preferences node, BooleanSupplier systemReducesMotion) {
         this.node = node;
-        this.systemReducesMotion = systemReducesMotion;
         this.listeners = new Listeners<>();
         this.layer = null;
         this.windowLayers = Collections.newSetFromMap(new WeakHashMap<>());
@@ -266,7 +259,6 @@ public final class AppPreferences {
     /** The same saved preferences and listeners as {@code saved}, read through a new layer of one window. */
     private AppPreferences(AppPreferences saved) {
         this.node = saved.node;
-        this.systemReducesMotion = saved.systemReducesMotion;
         this.listeners = saved.listeners;
         this.layer = new PreferenceLayer(() -> notifyListeners("layer"));
         this.windowLayers = saved.windowLayers;
@@ -289,7 +281,7 @@ public final class AppPreferences {
     }
 
     public static AppPreferences system() {
-        return new AppPreferences(Preferences.userRoot().node(NODE), ReducedMotion::requested);
+        return new AppPreferences(Preferences.userRoot().node(NODE));
     }
 
     public static AppPreferences inMemory() {
@@ -710,26 +702,31 @@ public final class AppPreferences {
         put(INVERT_MODIFIER, modifier.name());
     }
 
+    // --- Animaciones ---
+
+    /**
+     * Preferencias ▸ «Animaciones»: whether VSim animates at all (on by default). A VSim-only setting: nothing reads
+     * the desktop's own switch. Ask {@link Animations#enabled} rather than this, the one point every animation obeys.
+     */
+    public boolean animations() {
+        return flag(ANIMATIONS, true);
+    }
+
+    public void setAnimations(boolean animations) {
+        if (animations() != animations) {
+            putFlag(ANIMATIONS, animations);
+        }
+    }
+
     // --- Buscar en el circuito: animated view moves ---
 
     /**
-     * Whether the desktop asks applications for less motion right now (GNOME's «Animaciones» off): the Terminals then
-     * keep their cursor still, Automan's star still and show no glow or fading.
-     */
-    public boolean systemReducesMotion() {
-        return systemReducesMotion.getAsBoolean();
-    }
-
-    /**
      * «Animar los movimientos de la vista»: the view travels (an eased pan or a «fly to») instead of jumping when the
-     * app takes it somewhere. On by default, unless the desktop asks for reduced motion; a stored choice wins.
+     * app takes it somewhere; on by default. The choice is kept with «Animaciones: No», which still wins: ask
+     * {@link Animations#viewMoves}.
      */
     public boolean animateViewMoves() {
-        String stored = read(ANIMATE_VIEW_MOVES, "");
-        if (stored.isEmpty()) {
-            return !systemReducesMotion.getAsBoolean();
-        }
-        return !"false".equals(stored);
+        return flag(ANIMATE_VIEW_MOVES, true);
     }
 
     public void setAnimateViewMoves(boolean animate) {

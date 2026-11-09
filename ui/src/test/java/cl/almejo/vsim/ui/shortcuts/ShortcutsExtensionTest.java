@@ -171,7 +171,7 @@ class ShortcutsExtensionTest {
     void disposingRemovesThePreferencesListener() {
         int withOneView = preferences.listenerCount();
         EditorView second = newView();
-        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 1);
+        assertThat(preferences.listenerCount()).isGreaterThan(withOneView); // the shortcuts and the pane follow it
         views.remove(second);
         second.dispose();
         assertThat(preferences.listenerCount()).isEqualTo(withOneView);

@@ -409,6 +409,22 @@ class FindFeaturesTest {
     }
 
     @Test
+    void withAnimationsOffTheSmoothTravelToggleIsDisabledAndItsTooltipSaysWhy() {
+        String tooltip = features.bar().animateToggle().getToolTipText();
+
+        preferences.setAnimations(false);
+
+        assertThat(features.bar().animateToggle().isEnabled()).isFalse();
+        assertThat(features.bar().animateToggle().getToolTipText())
+                .isEqualTo("Viaje suave: desactivado porque Preferencias ▸ Animaciones está en «No»");
+
+        preferences.setAnimations(true);
+
+        assertThat(features.bar().animateToggle().isEnabled()).isTrue();
+        assertThat(features.bar().animateToggle().getToolTipText()).isEqualTo(tooltip);
+    }
+
+    @Test
     void escapeOrTheCloseButtonClosesTheBarClearsTheHighlightsAndFocusesTheCanvas() {
         labeled(StandardComponentTypes.BUFFER, 0, 0, "U1");
         perform(features.findAction());

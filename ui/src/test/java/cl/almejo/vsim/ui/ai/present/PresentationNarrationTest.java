@@ -50,6 +50,7 @@ class PresentationNarrationTest {
     @BeforeEach
     void create() {
         saved.setAnimateViewMoves(false);
+        saved.setAnimations(false); // the subtitle comes and goes without fading
         fixture = EditorFixture.create(saved.layered());
         document = fixture.openDocument();
         view = fixture.view();

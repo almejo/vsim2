@@ -21,6 +21,8 @@ import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
+import cl.almejo.vsim.ui.app.Animations;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
@@ -87,6 +89,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
@@ -702,14 +705,15 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /**
      * Enters the user component {@code instance} is an instance of (spec §4.4): the window opens or focuses its tab in
-     * the circuit's group, with the values of this instance (its path under this place's context). With «Animación»
-     * on, the new tab starts where the instance is drawn here and grows to the whole body. Built-in parts never enter.
+     * the circuit's group, with the values of this instance (its path under this place's context). With animated view
+     * moves, the new tab starts where the instance is drawn here and grows to the whole body.
+     * Built-in parts never enter.
      */
     @Override
     public void enterComponent(Component instance) {
         EnterableInstances.definitionOf(openDocument, instance).ifPresent(definitionId -> {
             OpenDocument circuit = openDocument.parent().orElse(openDocument);
-            Optional<ViewState> from = services.preferences().animateViewMoves()
+            Optional<ViewState> from = Animations.viewMoves(services.preferences())
                     ? enteringStart(circuit, definitionId, instance) : Optional.empty();
             windowCommands.enter(circuit, definitionId, EnterableInstances.contextOf(openDocument, instance), from);
         });
@@ -1168,10 +1172,11 @@ public final class EditorView extends JPanel implements CanvasHost {
         return new CircuitCanvas(openDocument, renderer, this, selection);
     }
 
-    /** What this view sets on every pane: view moves, reduced motion, file drops, its key bindings, the status bar, the tool. */
+    /** What this view sets on every pane: view moves, animations, file drops, key bindings, status bar, the tool. */
     private Runnable configurePane(CircuitCanvas pane) {
-        pane.setAnimateViewMoves(services.preferences()::animateViewMoves);
-        pane.setReducedMotion(services.preferences()::systemReducesMotion);
+        pane.setAnimateViewMoves(() -> Animations.viewMoves(services.preferences()));
+        pane.setAnimations(() -> Animations.enabled(services.preferences()));
+        Runnable stopFollowingAnimations = repaintWhenAnimationsChange(pane);
         pane.setFileDropTarget(this::dropFilesAt);
         pane.setFocusTraversalKeysEnabled(keyboardCapture.captured().isEmpty());
         Map<KeyStroke, String> bound = new LinkedHashMap<>();
@@ -1206,11 +1211,29 @@ public final class EditorView extends JPanel implements CanvasHost {
         pane.addSnapshotListener(snapshotListener);
         return () -> {
             inlineEditor.cancelIfOpenIn(pane); // the edit's field lives on the pane that goes away
+            stopFollowingAnimations.run();
             removeToolListener.run();
             removeViewListener.run();
             pane.removeSnapshotListener(snapshotListener);
             bound.forEach(pane::unbindKey);
         };
+    }
+
+    /**
+     * Repaints {@code pane} when Preferencias ▸ «Animaciones» changes, so what moves on it (a Terminal's cursor, a
+     * Matriz LED's afterglow) stops or starts at once instead of at its next repaint.
+     */
+    private Runnable repaintWhenAnimationsChange(CircuitCanvas pane) {
+        AppPreferences preferences = services.preferences();
+        AtomicBoolean animated = new AtomicBoolean(Animations.enabled(preferences));
+        Runnable listener = () -> {
+            boolean now = Animations.enabled(preferences);
+            if (animated.getAndSet(now) != now) {
+                pane.repaint();
+            }
+        };
+        preferences.addListener(listener);
+        return () -> preferences.removeListener(listener);
     }
 
     private static void bindKey(CircuitCanvas pane, Map<KeyStroke, String> bound, KeyStroke stroke, String name,

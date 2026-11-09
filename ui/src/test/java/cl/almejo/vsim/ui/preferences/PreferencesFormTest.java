@@ -189,6 +189,41 @@ class PreferencesFormTest {
     }
 
     @Test
+    void animationsAreYesByDefaultAndNoTurnsThemOffAndDisablesTheViewMovesBox() {
+        PreferencesForm form = form();
+        assertThat(form.animationsYesButton().getText()).isEqualTo("Sí");
+        assertThat(form.animationsNoButton().getText()).isEqualTo("No");
+        assertThat(form.animationsYesButton().isSelected()).isTrue();
+        assertThat(form.animateViewMovesBox().isEnabled()).isTrue();
+
+        form.animationsNoButton().doClick(0);
+
+        assertThat(preferences.animations()).isFalse();
+        assertThat(form.animateViewMovesBox().isEnabled()).isFalse();
+        assertThat(form.animateViewMovesBox().isSelected()).as("the choice is kept for later").isTrue();
+        assertThat(form().animationsNoButton().isSelected()).isTrue();
+        assertThat(form().animateViewMovesBox().isEnabled()).isFalse();
+
+        form.animationsYesButton().doClick(0);
+
+        assertThat(preferences.animations()).isTrue();
+        assertThat(form.animateViewMovesBox().isEnabled()).isTrue();
+    }
+
+    @Test
+    void theAnimationsChoiceFollowsChangesMadeElsewhere() {
+        PreferencesForm form = form();
+
+        preferences.setAnimations(false);
+
+        assertThat(form.animationsNoButton().isSelected()).isTrue();
+        assertThat(form.animateViewMovesBox().isEnabled()).isFalse();
+        preferences.setAnimations(true);
+        assertThat(form.animationsYesButton().isSelected()).isTrue();
+        assertThat(form.animateViewMovesBox().isEnabled()).isTrue();
+    }
+
+    @Test
     void theAnimateViewMovesBoxFollowsChangesMadeElsewhereUntilDisposed() {
         int listeners = preferences.listenerCount();
         PreferencesForm form = form();

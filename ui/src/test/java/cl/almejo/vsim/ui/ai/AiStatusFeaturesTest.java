@@ -345,7 +345,7 @@ class AiStatusFeaturesTest {
     }
 
     @Test
-    void withReducedMotionTheViewJumpsToWhatTheTaskChanged() {
+    void withoutAnimatedViewMovesTheViewJumpsToWhatTheTaskChanged() {
         windowPreferences.setAnimateViewMoves(false);
         Component far = place(document, StandardComponentTypes.BUFFER, 300, 200, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().setSize(400, 300);

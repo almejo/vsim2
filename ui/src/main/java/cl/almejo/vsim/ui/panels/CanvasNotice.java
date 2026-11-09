@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 
 /**
@@ -128,11 +129,14 @@ public final class CanvasNotice extends JComponent {
         return width + getFontMetrics(getFont()).stringWidth(chip.name());
     }
 
-    /** Like the full overload, with the system clock and fading as {@link Animations} says for {@code preferences}. */
+    /**
+     * Like the full overload, with the system clock and fading as {@link Animations} says for {@code preferences} at
+     * every frame (animations turned off meanwhile show it whole at once).
+     */
     public static Runnable show(JComponent over, String text, Position position, Duration duration,
                                 FrameTicker ticker, AppPreferences preferences) {
         return show(over, text, position, duration, ticker, System::currentTimeMillis,
-                Animations.enabled(preferences));
+                () -> Animations.enabled(preferences));
     }
 
     /** Like the full overload, with the system clock and fading on. */
@@ -151,6 +155,15 @@ public final class CanvasNotice extends JComponent {
      */
     public static Runnable show(JComponent over, String text, Position position, Duration duration,
                                 FrameTicker ticker, LongSupplier nowMillis, boolean fade) {
+        return show(over, text, position, duration, ticker, nowMillis, () -> fade);
+    }
+
+    /**
+     * Like {@link #show(JComponent, String, Position, Duration, FrameTicker, LongSupplier, boolean)}, asking
+     * {@code fade} at every frame: false (animations turned off) shows it whole from that frame on.
+     */
+    public static Runnable show(JComponent over, String text, Position position, Duration duration,
+                                FrameTicker ticker, LongSupplier nowMillis, BooleanSupplier fade) {
         CanvasNotice notice = create(over, text, position, duration, ticker, nowMillis, fade, SHOWN_PROPERTY, null, null);
         return notice == null ? () -> {
         } : notice::takeAway;
@@ -164,14 +177,14 @@ public final class CanvasNotice extends JComponent {
      * @return the notice, or null when {@code over} is not in a window
      */
     static CanvasNotice showStacked(JComponent over, String text, Position position, Duration duration,
-                                    FrameTicker ticker, LongSupplier nowMillis, boolean fade, Runnable gone,
+                                    FrameTicker ticker, LongSupplier nowMillis, BooleanSupplier fade, Runnable gone,
                                     Chip chip) {
         return create(over, text, position, duration, ticker, nowMillis, fade,
                 SHOWN_PROPERTY + "#" + STACKED_COUNTER.incrementAndGet(), gone, chip);
     }
 
     private static CanvasNotice create(JComponent over, String text, Position position, Duration duration,
-                                       FrameTicker ticker, LongSupplier nowMillis, boolean fade, String slot,
+                                       FrameTicker ticker, LongSupplier nowMillis, BooleanSupplier fade, String slot,
                                        Runnable gone, Chip chip) {
         Objects.requireNonNull(over, "over");
         Objects.requireNonNull(text, "text");
@@ -183,7 +196,7 @@ public final class CanvasNotice extends JComponent {
         JLayeredPane layers = rootPane.getLayeredPane();
         replaceShownOver(over, slot);
         CanvasNotice notice = new CanvasNotice(over, text, position, chip);
-        notice.opacity = fade ? 0f : 1f;
+        notice.opacity = fade.getAsBoolean() ? 0f : 1f;
         notice.slot = slot;
         notice.gone = gone;
         notice.layers = layers;
@@ -197,12 +210,17 @@ public final class CanvasNotice extends JComponent {
                 notice.takeAway();
                 return;
             }
-            notice.opacity = fade ? fadeAt(elapsed, duration.toMillis()) : 1f;
+            notice.opacity = fade.getAsBoolean() ? fadeAt(elapsed, duration.toMillis()) : 1f;
             notice.reposition(layers);
         };
         notice.reposition(layers);
         ticker.start(frame);
         return notice;
+    }
+
+    /** How opaque the notice is drawn now, 0 to 1 (it fades in and out). */
+    float opacity() {
+        return opacity;
     }
 
     /** Takes the notice away now (and stops its ticker); harmless when it is already gone. */

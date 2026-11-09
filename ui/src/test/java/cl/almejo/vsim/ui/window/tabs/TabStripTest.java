@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.KeyStroke;
 
@@ -310,6 +311,26 @@ class TabStripTest {
                 assertThat(ram.width).isPositive().isLessThan(full));
         ticker.finish();
         animated.doLayout();
+        assertThat(animated.boundsOf("ram")).isEmpty();
+        assertThat(ticker.isRunning()).isFalse();
+    }
+
+    @Test
+    void turningAnimationsOffWhileFoldingHidesTheComponentTabsAtTheNextFrame() {
+        ManualFrameTicker ticker = new ManualFrameTicker();
+        AtomicBoolean animations = new AtomicBoolean(true);
+        TabStrip animated = new TabStrip(model, animations::get, ticker, ticker::now);
+        animated.setSize(600, TabStrip.HEIGHT);
+        animated.doLayout();
+        model.fold(PROCESSOR, true);
+        ticker.advance(16);
+        animated.doLayout();
+        assertThat(animated.boundsOf("ram")).isPresent();
+
+        animations.set(false);
+        ticker.advance(16);
+        animated.doLayout();
+
         assertThat(animated.boundsOf("ram")).isEmpty();
         assertThat(ticker.isRunning()).isFalse();
     }

@@ -1,8 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.ui.app.Animations;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -85,10 +83,5 @@ class ToolbarComponentTest {
             }
         }
         assertThat(speed.getX() + speed.getWidth()).isLessThan(right.getX() - 300);
-    }
-
-    @Test
-    void animationsAreAlwaysOnUntilTheGlobalSettingExists() {
-        assertThat(Animations.enabled(AppPreferences.inMemory())).isTrue();
     }
 }

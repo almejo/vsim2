@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.Application;
 import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.FileDialogs;
@@ -67,7 +68,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         this.recentFiles = new RecentFiles(services.preferences());
         this.keyBindings = new KeyBindings(services.preferences());
         this.tabs = new WindowTabs(new Host(), place -> newView(place, services),
-                new SplitLayoutStore(services.preferences()), () -> services.preferences().animateViewMoves());
+                new SplitLayoutStore(services.preferences()), () -> Animations.enabled(services.preferences()));
         setContentPane(tabs);
         this.screenMode = ScreenMode.of(this);
         this.fullScreen = new FullScreenFeatures(getRootPane(), tabs, screenMode, services.preferences());

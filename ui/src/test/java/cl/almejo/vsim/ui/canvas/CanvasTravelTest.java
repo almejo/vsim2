@@ -250,7 +250,7 @@ class CanvasTravelTest {
     }
 
     @Test
-    void zoomToWithReducedMotionJumps() {
+    void zoomToWithoutAnimationJumps() {
         showOnScreen();
         animate.set(false);
 
@@ -376,7 +376,7 @@ class CanvasTravelTest {
     }
 
     @Test
-    void resetZoomWithReducedMotionJumps() {
+    void resetZoomWithoutAnimationJumps() {
         showOnScreen();
         animate.set(false);
         canvas.applyViewState(new ViewState(2.5, 10, 10));
@@ -468,7 +468,7 @@ class CanvasTravelTest {
     }
 
     @Test
-    void zoomToFitWithReducedMotionJumpsAndMayZoomInToTheLimit() {
+    void zoomToFitWithoutAnimationJumpsAndMayZoomInToTheLimit() {
         showOnScreen();
         animate.set(false);
 

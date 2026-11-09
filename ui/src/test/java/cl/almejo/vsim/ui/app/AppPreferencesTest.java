@@ -14,7 +14,6 @@ import java.awt.Dimension;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.AbstractPreferences;
 
@@ -118,30 +117,27 @@ class AppPreferencesTest {
     }
 
     @Test
-    void whenTheSystemAsksForReducedMotionViewMovesStartOffUntilTheUserChooses() {
-        AppPreferences reduced = new AppPreferences(new MemoryPreferences(), () -> true);
-        assertThat(reduced.animateViewMoves()).isFalse();
-        reduced.setAnimateViewMoves(true);
-        assertThat(reduced.animateViewMoves()).isTrue();
+    void animationsAreOnByDefaultStoredAndOnlyRealChangesNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.animations()).isTrue();
+        preferences.setAnimations(true);
+        assertThat(changes).hasValue(0);
+
+        preferences.setAnimations(false);
+
+        assertThat(preferences.animations()).isFalse();
+        assertThat(node.get("animations", null)).isEqualTo("false");
+        assertThat(changes).hasValue(1);
+        assertThat(new AppPreferences(node).animations()).isFalse();
     }
 
     @Test
-    void theDesktopsReducedMotionIsReadAsItIsNowWhateverTheViewMovesChoice() {
-        AtomicBoolean desktopReduces = new AtomicBoolean(true);
-        AppPreferences preferences = new AppPreferences(new MemoryPreferences(), desktopReduces::get);
-        preferences.setAnimateViewMoves(true);
-        assertThat(preferences.systemReducesMotion()).isTrue();
-        desktopReduces.set(false);
-        assertThat(preferences.systemReducesMotion()).isFalse();
-    }
-
-    @Test
-    void reducedMotionReadsTheDesktopAnimationsSetting() {
-        assertThat(ReducedMotion.requested(name -> 0)).isTrue();
-        assertThat(ReducedMotion.requested(name -> 1)).isFalse();
-        assertThat(ReducedMotion.requested(name -> Boolean.FALSE)).isTrue();
-        assertThat(ReducedMotion.requested(name -> null)).isFalse();
-        assertThat(ReducedMotion.requested(name -> "whatever")).isFalse();
+    void turningAnimationsOffKeepsTheViewMovesChoiceForWhenTheyComeBack() {
+        preferences.setAnimations(false);
+        assertThat(preferences.animateViewMoves()).isTrue();
+        preferences.setAnimateViewMoves(false);
+        preferences.setAnimations(true);
+        assertThat(preferences.animateViewMoves()).isFalse();
     }
 
     @Test

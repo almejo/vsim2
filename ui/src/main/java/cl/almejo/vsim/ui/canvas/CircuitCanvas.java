@@ -129,8 +129,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final Timer problemPulseTimer;
     /** The Terminals' animation clock: runs only while a moving terminal is in view. */
     private FrameTicker terminalTicker = FrameTicker.swing(TERMINAL_FRAME_MILLISECONDS);
-    /** Whether the desktop asks for less motion: the Terminals stay still (cursor on, a still star, no fading). */
-    private BooleanSupplier reducedMotion = () -> false;
+    /** Preferencias ▸ «Animaciones»: off, the Terminals stay still (cursor on, a still star, no fading). */
+    private BooleanSupplier animations = () -> true;
     private final CanvasAutoscroll autoscroll = new CanvasAutoscroll(this);
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
@@ -263,7 +263,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
         problemPulseTimer = new Timer(ProblemPulse.TICK_MILLISECONDS, event -> problemPulseTick());
-        renderer.useMotionGate(() -> !reducedMotion.getAsBoolean() && windowActive());
+        renderer.useMotionGate(() -> animations.getAsBoolean() && windowActive());
         viewTravel.listenForUserMoves();
     }
 
@@ -1285,11 +1285,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     /**
-     * Where to ask whether the desktop wants less motion (read at every paint); with it the Terminals show the cursor
-     * on, Automan's star still and no glow or fading, and their clock does not run.
+     * Where to ask whether VSim animates ({@code Animations.enabled}, read at every paint); without animations the
+     * Terminals show the cursor on, Automan's star still, a Matriz LED goes off at once and a piece's glow does not
+     * fade, and their clock does not run.
      */
-    public void setReducedMotion(BooleanSupplier reduced) {
-        reducedMotion = Objects.requireNonNull(reduced, "reduced");
+    public void setAnimations(BooleanSupplier animations) {
+        this.animations = Objects.requireNonNull(animations, "animations");
         repaint();
     }
 
@@ -1724,7 +1725,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
             }
-            pieceGlow.paint(local, renderer.scheme(), glowClock.getAsLong(), reducedMotion.getAsBoolean());
+            pieceGlow.paint(local, renderer.scheme(), glowClock.getAsLong(), !animations.getAsBoolean());
             canvasDragOut.paintDragOutPreview(local);
             tool.paintOverlay(local, this);
             for (CircuitCanvas owner : sharing) {

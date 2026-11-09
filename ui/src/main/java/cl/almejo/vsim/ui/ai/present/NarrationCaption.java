@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  * What the AI says in «Presentar» (IA.3, {@code vsim_say}) as a subtitle: a rounded, translucent band at the bottom
  * centre of the active pane, at most {@link #MAXIMUM_LINES} lines (a longer line ends in «…»), never under the
  * floating panel (it moves beside it, above it, or to the top, else it is not shown). It stays until the next line or
- * until it is cleared, and fades in and out unless the user asked for reduced motion. Colours from the theme, read at
+ * until it is cleared, and fades in and out unless the user turned animations off. Colours from the theme, read at
  * paint time; editor chrome, never on paper. EDT only.
  */
 final class NarrationCaption {
@@ -73,7 +73,7 @@ final class NarrationCaption {
     /**
      * @param activePane the pane the subtitle shows in
      * @param covered    the part of a pane the floating panel covers, in its pixels (empty while hidden)
-     * @param animate    false when the user asked for reduced motion (read at each change)
+     * @param animate    false with «Animaciones: No» (read at each change and each fade step)
      * @param repaint    repaints every pane
      */
     NarrationCaption(Supplier<CircuitCanvas> activePane, Function<CircuitCanvas, Optional<Rectangle>> covered,
@@ -108,7 +108,7 @@ final class NarrationCaption {
         repaint.run();
     }
 
-    /** Takes the line away (fading out unless reduced motion). */
+    /** Takes the line away (fading out unless animations are off). */
     void clear() {
         if (text == null || leavingSince >= 0) {
             return;
@@ -134,15 +134,29 @@ final class NarrationCaption {
         }
     }
 
-    /** One fade step: repaints, drops a line that faded out, stops the timer when nothing fades. */
+    /**
+     * One fade step: repaints, drops a line that faded out, stops the timer when nothing fades. With animations turned
+     * off meanwhile, the fade ends at once in its final state (shown whole, or gone).
+     */
     void tick() {
         long now = nanoClock.getAsLong();
-        if (leavingSince >= 0 && now - leavingSince >= FADE_NANOS) {
+        if (!animate.getAsBoolean()) {
+            endFade();
+        } else if (leavingSince >= 0 && now - leavingSince >= FADE_NANOS) {
             drop();
         } else if (leavingSince < 0 && alpha() >= 1.0) {
             timer.stop();
         }
         repaint.run();
+    }
+
+    private void endFade() {
+        if (leavingSince >= 0) {
+            drop();
+        } else {
+            shownAt = Long.MIN_VALUE;
+            timer.stop();
+        }
     }
 
     /** The subtitle's opacity now, 0 to 1. */

@@ -124,6 +124,7 @@ class PresentationScenariosTest {
     @BeforeEach
     void connect() throws Exception {
         preferences.setAnimateViewMoves(false); // travels jump, so the test sees where the view went
+        preferences.setAnimations(false); // the subtitle and the callout come and go without fading
         CircuitDocument empty = new CircuitDocument();
         empty.setName("Sumador");
         circuit = new OpenDocument(empty, StandardComponentTypes.registry(), null, false);

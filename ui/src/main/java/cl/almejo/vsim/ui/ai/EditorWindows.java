@@ -62,7 +62,7 @@ public interface EditorWindows {
 
     /**
      * The windows of {@code document} travel smoothly to {@code origin}, where the AI builds the stage that begins
-     * (IA.2 storyboard, spec §6); reduced motion respected. Nothing by default.
+     * (IA.2 storyboard, spec §6), or jump there without animated view moves. Nothing by default.
      */
     default void travelToStageOrigin(OpenDocument document, GridPoint origin) {
     }
