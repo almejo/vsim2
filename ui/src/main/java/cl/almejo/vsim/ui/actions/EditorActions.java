@@ -476,15 +476,18 @@ public final class EditorActions {
         undo.putValue(Action.NAME, dropsACorner ? Messages.text("action.undo") : history.undoCommand()
                 .map(command -> stepName(command, "action.undoNamed", "action.undoInside"))
                 .orElse(Messages.text("action.undo")));
-        redo.setEnabled(history.canRedo());
+        // an older step must not come back under the path being drawn, as Deshacer never undoes one then
+        redo.setEnabled(!dropsACorner && history.canRedo());
         redo.putValue(Action.NAME, history.redoCommand()
                 .map(command -> stepName(command, "action.redoNamed", "action.redoInside"))
                 .orElse(Messages.text("action.redo")));
         Set<ElementId> selected = selection.ids();
-        delete.setEnabled(!selected.isEmpty());
-        rotateClockwise.setEnabled(!selected.isEmpty());
-        rotateCounterClockwise.setEnabled(!selected.isEmpty());
-        moveActions.values().forEach(move -> move.setEnabled(!selected.isEmpty()));
+        // while a path is drawn the keys that act on the selection do nothing
+        boolean actsOnSelection = !selected.isEmpty() && !dropsACorner;
+        delete.setEnabled(actsOnSelection);
+        rotateClockwise.setEnabled(actsOnSelection);
+        rotateCounterClockwise.setEnabled(actsOnSelection);
+        moveActions.values().forEach(move -> move.setEnabled(actsOnSelection));
         zoomToSelection.setEnabled(!selected.isEmpty());
         configure.setEnabled(singleConfigurable().isPresent());
     }

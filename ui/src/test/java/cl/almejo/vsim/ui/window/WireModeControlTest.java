@@ -163,4 +163,21 @@ class WireModeControlTest {
         assertThat(cableIndex).isPositive();
         assertThat(cable(first).getParent()).isSameAs(first.toolBar());
     }
+
+    @Test
+    void choosingAModeOrPressingTheButtonWhileAPathIsInProgressKeepsThePath() {
+        perform(first.actions().wireTool());
+        first.canvas().setSize(400, 300);
+        cl.almejo.vsim.ui.CanvasClicks.click(first.canvas(), 40, 40);
+        WireTool before = (WireTool) first.canvas().tool();
+        assertThat(before.holdsGesture()).isTrue();
+
+        cable(first).mainButton().doClick();
+        cable(first).setMode(WireMode.PIECES.id());
+        cable(first).setMode(WireMode.CONTINUOUS.id());
+        continuousItem(first).doClick();
+
+        assertThat(first.canvas().tool()).isSameAs(before);
+        assertThat(before.holdsGesture()).isTrue();
+    }
 }

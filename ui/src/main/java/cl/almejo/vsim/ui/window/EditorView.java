@@ -106,6 +106,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Selection selection = new Selection();
     private final CanvasPanes canvasPanes;
     private final List<PaneInstallation> paneInstallations = new ArrayList<>();
+    /** The panes as of the last {@link #panesChanged}, to know which one closed. */
+    private List<CircuitCanvas> knownPanes = List.of();
     /** What the window's tool choice makes for each pane; null while the panes use their default tool. */
     private Supplier<? extends Tool> toolChoice;
     private boolean spreadingDefaultTool;
@@ -208,7 +210,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         });
         this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
         createInspectorToggles();
-        this.wireModeControl = new WireModeControl(services.preferences(), () -> performIfEnabled(actions.wireTool()));
+        this.wireModeControl = new WireModeControl(services.preferences(), this::chooseWireTool);
         this.menuBar = actions.createMenuBar();
         indexMenus();
         addWireModeItem();
@@ -236,6 +238,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         add(statusBar, BorderLayout.SOUTH);
 
         canvasPanes.addPanesListener(this::panesChanged);
+        knownPanes = List.copyOf(canvasPanes.panes());
         canvasPanes.addActiveListener(this::activePaneChanged);
         selection.addListener(() -> statusBar.showSelection(selection.ids().size()));
         selection.addListener(this::releaseKeyboardIfDeselected);
@@ -1160,9 +1163,20 @@ public final class EditorView extends JPanel implements CanvasHost {
         removeWireModeShortcut = registerShortcutAction("edit.wireContinuous", continuous);
     }
 
+    /** Runs {@code action} as its toolbar button would: only while it is enabled (the status-bar run state). */
     private void performIfEnabled(Action action) {
         if (action.isEnabled()) {
             action.actionPerformed(new ActionEvent(statusBar, ActionEvent.ACTION_PERFORMED, ""));
+        }
+    }
+
+    /**
+     * The Cable button or a mode in its ▾ was pressed: chooses the Wire tool, except while a path is in progress (the
+     * mode then applies to the next path, and a new tool would cancel this one).
+     */
+    private void chooseWireTool() {
+        if (panes().stream().noneMatch(CircuitCanvas::drawsBetweenClicks)) {
+            performIfEnabled(actions.wireTool());
         }
     }
 
@@ -1258,6 +1272,13 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /** Panes came or went: the {@link #forEachPane} installations follow (the undoing in reverse order first). */
     private void panesChanged(List<CircuitCanvas> panes) {
+        for (CircuitCanvas known : knownPanes) {
+            if (!panes.contains(known)) { // a closed pane that held a wire path takes it away: say so
+                known.interruptGesture().ifPresent(statusBar::showNotice);
+            }
+        }
+        knownPanes = List.copyOf(panes);
+        actions.refresh();
         for (int index = paneInstallations.size() - 1; index >= 0; index--) {
             paneInstallations.get(index).undoExcept(panes);
         }

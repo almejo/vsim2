@@ -309,4 +309,37 @@ class ContinuousWireToolTest {
 
         assertThat(context.ghosts).hasSize(2).allSatisfy(ghost -> assertThat(ghost).isInstanceOf(Wire.class));
     }
+
+    @Test
+    void aDoubleClickWhosePointerWobbledAcrossAGridLineEndsAtTheLastCornerWithoutAStub() {
+        click(0, 0);
+        click(4, 2);
+        click(4, 2.45, 1);
+        click(4.55, 2.45, 2); // the second press snaps to (5, 2), a grid point away
+
+        assertThat(tool.holdsGesture()).isFalse();
+        assertThat(wires()).extracting(Wire::start, Wire::end).containsExactlyInAnyOrder(
+                tuple(new GridPoint(0, 0), new GridPoint(4, 0)),
+                tuple(new GridPoint(4, 0), new GridPoint(4, 2)));
+    }
+
+    @Test
+    void aDoubleClickAtTheStartWhosePointerWobbledAddsNoStrayWire() {
+        click(0, 0, 1);
+        click(0.55, 0.45, 2);
+
+        assertThat(tool.holdsGesture()).isFalse();
+        assertThat(wires()).isEmpty();
+        assertThat(context.openDocument().history().canUndo()).isFalse();
+    }
+
+    @Test
+    void aDoubleClickEndsAtTheFirstClicksPointEvenWhenTheSecondWobbledAlongTheLastLeg() {
+        click(0, 0);
+        click(4, 0, 1);
+        click(4.55, 0, 2);
+
+        assertThat(wires()).extracting(Wire::start, Wire::end).containsExactly(
+                tuple(new GridPoint(0, 0), new GridPoint(4, 0)));
+    }
 }

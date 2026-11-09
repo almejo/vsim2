@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -159,5 +160,50 @@ class ContinuousWireInterruptionsTest {
         assertThat(wires()).isEmpty();
         perform(view.actions().redo());
         assertThat(wires()).hasSize(wiresDrawn);
+    }
+
+    @Test
+    void redoIsDisabledWhileDrawingAndComesBackWhenThePathEnds() {
+        addWire(fixture.openDocument(), 0, 30, 10, 30);
+        fixture.openDocument().history().undo();
+        view.actions().refresh();
+        assertThat(view.actions().redo().isEnabled()).isTrue();
+
+        drawAPathWithOneCorner();
+        assertThat(view.actions().redo().isEnabled()).isFalse();
+
+        canvas.pressKeyOnTool(java.awt.event.KeyEvent.VK_ESCAPE, false);
+        assertThat(view.actions().redo().isEnabled()).isTrue();
+    }
+
+    @Test
+    void deleteAndRotateDoNothingWhileAPathIsInProgress() {
+        cl.almejo.vsim.core.document.Component gate = cl.almejo.vsim.ui.UiTestSupport.place(fixture.openDocument(),
+                StandardComponentTypes.BUFFER, 30, 30, java.util.Map.of(StandardComponentTypes.NEGATE, true));
+        view.selection().select(gate.id());
+        view.actions().refresh();
+        assertThat(view.actions().delete().isEnabled()).isTrue();
+
+        drawAPathWithOneCorner();
+
+        assertThat(view.actions().delete().isEnabled()).isFalse();
+        assertThat(view.actions().rotateClockwise().isEnabled()).isFalse();
+        assertThat(view.actions().rotateCounterClockwise().isEnabled()).isFalse();
+        assertThat(fixture.openDocument().document().components()).contains(gate);
+    }
+
+    @Test
+    void closingThePaneThatHoldsThePathCancelsItWithTheNotice() {
+        view.canvasPanes().split(CanvasPanes.Orientation.VERTICAL, 0.5);
+        CircuitCanvas second = view.panes().get(1);
+        second.setSize(200, 300);
+        second.applyViewState(new ViewState(1, 12.5, 18.75));
+        click(second, 40, 40);
+        assertThat(second.tool().holdsGesture()).isTrue();
+
+        view.canvasPanes().removeDivider(CanvasPanes.Orientation.VERTICAL, CanvasPanes.Side.AFTER);
+
+        assertThat(view.statusBar().text()).contains("Cable cancelado");
+        assertThat(view.actions().undo().isEnabled()).isFalse();
     }
 }

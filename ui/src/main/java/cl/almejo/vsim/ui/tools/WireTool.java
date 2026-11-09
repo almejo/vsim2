@@ -21,7 +21,7 @@ import java.util.function.Supplier;
  *
  * <ul>
  *   <li>{@link WireMode#CONTINUOUS}: a click starts a path, each click fixes a corner, a click on a pin or a wire ends
- *   it there; a double click or a right click ends it where the pointer is. A press and release that moved less than
+ *   it there; a double click ends it at the corner its first click fixed, a right click where the pointer is. A press and release that moved less than
  *   {@link WireDrawing#MOVEMENT_THRESHOLD} is a click at the press; a longer drag fixes a corner at the release. Espacio
  *   flips the elbow being drawn, Retroceso drops the last corner, Esc cancels. The tool stays after a path ends.</li>
  *   <li>{@link WireMode#PIECES}: every drag draws one «L», as VSim always did (Espacio flips its elbow).</li>
@@ -149,7 +149,13 @@ public final class WireTool implements Tool {
         boolean startedHere = pressStartedThePath;
         pressPosition = null;
         if (event.clickCount() >= 2) {
-            endAt(context, clicked);
+            // the first click of the double click fixed the last corner: the second one only ends there, so a pointer
+            // that wobbled across a grid line adds no stub; a real drag still ends where it was released
+            if (dragged) {
+                endAt(context, clicked);
+            } else {
+                commitPath(context);
+            }
         } else if (startedHere && !dragged) {
             path.previewTo(context, clicked);
         } else if (path.addCorner(context, clicked)) {
