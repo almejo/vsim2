@@ -10,6 +10,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The soft welcome text of a canvas with nothing in it. It is screen chrome, not part of the document: the canvas
@@ -28,20 +29,28 @@ final class EmptyCanvasHint {
         return document.isEmpty();
     }
 
-    /** The two lines of the hint, in the current language. */
-    static List<String> lines() {
+    /**
+     * The three lines of the hint, in the current language. The last one names the command palette with
+     * {@code findActionKey}, the key «Buscar una acción…» has now («Ctrl+K»), or its menu when it has none.
+     */
+    static List<String> lines(Optional<String> findActionKey) {
+        String palette = findActionKey.map(key -> Messages.format("canvas.emptyHint.palette", key))
+                .orElseGet(() -> Messages.format("canvas.emptyHint.paletteFromMenu", Messages.text("menu.help"),
+                        Messages.text("action.findAction")));
         return List.of(Messages.text("canvas.emptyHint.drag"),
                 Messages.format("canvas.emptyHint.examples", Messages.text("menu.file"),
-                        Messages.text("menu.file.examples")));
+                        Messages.text("menu.file.examples")),
+                palette);
     }
 
-    /** Paints the hint centred in a viewport of {@code width} x {@code height} screen pixels, if it fits whole. */
-    static void paint(Graphics2D graphics, int width, int height) {
+    /**
+     * Paints {@code lines} centred in a viewport of {@code width} x {@code height} screen pixels, if they fit whole.
+     */
+    static void paint(Graphics2D graphics, int width, int height, List<String> lines) {
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setFont(graphics.getFont().deriveFont(Font.PLAIN, FONT_PIXELS));
         graphics.setColor(color());
         FontMetrics metrics = graphics.getFontMetrics();
-        List<String> lines = lines();
         int lineHeight = (int) Math.round(metrics.getHeight() * LINE_SPACING);
         if (!fits(metrics, lines, width, lineHeight * lines.size(), height)) {
             return; // a pane too small for the whole text shows none rather than a clipped one

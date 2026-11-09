@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -283,5 +284,25 @@ class CommandPaletteTest {
 
         assertThat(help.getMenuComponentCount()).isEqualTo(items - 2);
         assertThat(view.shortcutActions()).doesNotContainKeys("help.findAction", "edit.quickInsert");
+    }
+
+    @Test
+    void theEmptyCanvasNamesTheCurrentKeyOfFindAnActionOnEveryPane() {
+        assertThat(view.canvas().emptyHintLines().get(2)).contains("Ctrl+K: todas las acciones");
+        new KeyBindings(view.services().preferences()).assign("help.findAction",
+                KeyStroke.getKeyStroke(KeyEvent.VK_J, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK));
+        view.canvasPanes().split(Orientation.VERTICAL, 0.5);
+
+        assertThat(view.panes()).allSatisfy(pane ->
+                assertThat(pane.emptyHintLines().get(2)).contains("Ctrl+Alt+J: todas las acciones"));
+        new KeyBindings(view.services().preferences()).clear("help.findAction");
+        assertThat(view.canvas().emptyHintLines().get(2)).endsWith("· Ayuda ▸ Buscar una acción…");
+    }
+
+    @Test
+    void disposingLeavesTheEmptyCanvasWithoutTheKey() {
+        features.dispose();
+
+        assertThat(view.canvas().emptyHintLines().get(2)).doesNotContain("Ctrl+K");
     }
 }

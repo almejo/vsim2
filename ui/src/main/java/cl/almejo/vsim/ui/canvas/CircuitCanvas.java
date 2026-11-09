@@ -131,6 +131,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private FrameTicker terminalTicker = FrameTicker.swing(TERMINAL_FRAME_MILLISECONDS);
     /** Preferencias ▸ «Animaciones»: off, the Terminals stay still (cursor on, a still star, no fading). */
     private BooleanSupplier animations = () -> true;
+    private Supplier<Optional<String>> findActionKey = Optional::empty;
     private final CanvasAutoscroll autoscroll = new CanvasAutoscroll(this);
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
@@ -1772,10 +1773,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         updateTerminalAnimation();
     }
 
+    /**
+     * Where the empty-canvas hint asks for the key of «Buscar una acción…» («Ctrl+K», already described), read at
+     * every paint so a rebinding shows at once; empty (its menu is named instead) until the command palette sets it.
+     */
+    public void setFindActionKey(Supplier<Optional<String>> key) {
+        findActionKey = Objects.requireNonNull(key, "key");
+        repaint();
+    }
+
+    /** The lines the empty-canvas hint shows now (whether or not the circuit is empty). */
+    public List<String> emptyHintLines() {
+        return EmptyCanvasHint.lines(findActionKey.get());
+    }
+
     /** The welcome text of a canvas with nothing in it, centred in this pane; screen only, never in an export. */
     private void paintEmptyHint(Graphics2D screen) {
         if (EmptyCanvasHint.isShownFor(openDocument.document())) {
-            EmptyCanvasHint.paint(screen, getWidth(), getHeight());
+            EmptyCanvasHint.paint(screen, getWidth(), getHeight(), emptyHintLines());
         }
     }
 

@@ -74,7 +74,9 @@ final class QuickInsertFeatures {
     private final Action findAction;
     private final Runnable removeShortcut;
     private final Runnable removeHelpItem;
-    private final Runnable removeDelegates;
+    private final Runnable removePanes;
+    /** A rebound «Buscar una acción…» shows at once in the empty-canvas hint of every pane. */
+    private final Runnable repaintPanes;
     private QuickInsertPanel panel;
     private final Runnable refreshPopup = () -> {
         if (panel != null) {
@@ -108,27 +110,40 @@ final class QuickInsertFeatures {
                 Actions.of(Messages.text("action.quickInsert"), () -> openFromShortcut(PaletteTab.COMPONENTS)));
         findAction = Actions.of(Messages.text("action.findAction"), this::findAction);
         removeHelpItem = installHelpItem();
-        removeDelegates = view.forEachPane(canvas -> {
-            if (!(canvas.defaultTool() instanceof SelectTool selectTool)) {
-                return () -> {
+        repaintPanes = () -> view.panes().forEach(CircuitCanvas::repaint);
+        removePanes = view.forEachPane(this::installOn);
+        view.services().preferences().addListener(repaintPanes);
+    }
+
+    /**
+     * Gives {@code canvas} the double click on empty space and the key of «Buscar una acción…» for its empty-canvas
+     * hint. Returns what takes both back.
+     */
+    private Runnable installOn(CircuitCanvas canvas) {
+        canvas.setFindActionKey(() -> new KeyBindings(view.services().preferences()).strokeFor(FIND_ACTION_ID)
+                .map(KeyBindings::describe));
+        Runnable removeDelegate = canvas.defaultTool() instanceof SelectTool selectTool
+                ? selectTool.addDelegate((context, event) -> doubleClicked(canvas, context, event))
+                : () -> {
                 };
+        return () -> {
+            if (popupCanvas == canvas) {
+                close();
             }
-            Runnable remove = selectTool.addDelegate((context, event) -> {
-                if (event.button() != CanvasMouseEvent.PRIMARY || event.clickCount() != 2 || event.shiftDown()
-                        || event.controlDown() || event.altDown() || !isEmpty(context, event.gridPosition())) {
-                    return SelectToolDelegate.Press.IGNORED;
-                }
-                open(canvas, new Point((int) event.screenPosition().getX(), (int) event.screenPosition().getY()),
-                        Optional.of(event), PaletteTab.COMPONENTS);
-                return SelectToolDelegate.Press.HANDLED;
-            });
-            return () -> {
-                if (popupCanvas == canvas) {
-                    close();
-                }
-                remove.run();
-            };
-        });
+            removeDelegate.run();
+            canvas.setFindActionKey(Optional::empty);
+        };
+    }
+
+    private SelectToolDelegate.Press doubleClicked(CircuitCanvas canvas, ToolContext context,
+                                                   CanvasMouseEvent event) {
+        if (event.button() != CanvasMouseEvent.PRIMARY || event.clickCount() != 2 || event.shiftDown()
+                || event.controlDown() || event.altDown() || !isEmpty(context, event.gridPosition())) {
+            return SelectToolDelegate.Press.IGNORED;
+        }
+        open(canvas, new Point((int) event.screenPosition().getX(), (int) event.screenPosition().getY()),
+                Optional.of(event), PaletteTab.COMPONENTS);
+        return SelectToolDelegate.Press.HANDLED;
     }
 
     /** «Buscar una acción…» first in Ayuda, apart from the rest by a separator. */
@@ -342,7 +357,8 @@ final class QuickInsertFeatures {
         if (!disposed) {
             disposed = true;
             close();
-            removeDelegates.run();
+            view.services().preferences().removeListener(repaintPanes);
+            removePanes.run();
             removeHelpItem.run();
             removeShortcut.run();
         }

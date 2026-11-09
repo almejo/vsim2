@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -97,7 +99,7 @@ class EmptyCanvasHintTest {
     void aPaneTooSmallForTheWholeTextShowsNone() {
         BufferedImage image = new BufferedImage(40, 40, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
-        EmptyCanvasHint.paint(graphics, 40, 40);
+        EmptyCanvasHint.paint(graphics, 40, 40, EmptyCanvasHint.lines(Optional.of("Ctrl+K")));
         graphics.dispose();
         for (int row = 0; row < 40; row++) {
             for (int column = 0; column < 40; column++) {
@@ -108,9 +110,31 @@ class EmptyCanvasHintTest {
 
     @Test
     void theTextNamesTheRealMenus() {
-        assertThat(EmptyCanvasHint.lines()).hasSize(2);
-        assertThat(EmptyCanvasHint.lines().get(1))
-                .contains(Messages.text("menu.file"), Messages.text("menu.file.examples"));
+        List<String> lines = EmptyCanvasHint.lines(Optional.of("Ctrl+K"));
+        assertThat(lines).hasSize(3);
+        assertThat(lines.get(1)).contains(Messages.text("menu.file"), Messages.text("menu.file.examples"));
+    }
+
+    @Test
+    void theThirdLineTellsTheDoubleClickAndTheKeyOfEveryAction() {
+        assertThat(EmptyCanvasHint.lines(Optional.of("Ctrl+Alt+J")).get(2))
+                .isEqualTo("Doble clic: insertar un componente · Ctrl+Alt+J: todas las acciones");
+    }
+
+    @Test
+    void withoutAKeyTheThirdLineNamesTheHelpMenuItem() {
+        assertThat(EmptyCanvasHint.lines(Optional.empty()).get(2))
+                .isEqualTo("Doble clic: insertar un componente · Ayuda ▸ Buscar una acción…");
+    }
+
+    @Test
+    void theCanvasAsksForTheKeyEveryTimeItPaintsTheHint() {
+        List<String> keys = new ArrayList<>(List.of("Ctrl+K", "F9"));
+        canvas.setFindActionKey(() -> Optional.of(keys.removeFirst()));
+
+        paintCanvas();
+        assertThat(keys).containsExactly("F9");
+        assertThat(canvas.emptyHintLines().get(2)).contains("F9");
     }
 
     @Test

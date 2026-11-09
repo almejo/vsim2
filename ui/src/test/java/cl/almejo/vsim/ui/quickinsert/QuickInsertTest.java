@@ -294,7 +294,7 @@ class QuickInsertTest {
     }
 
     @Test
-    void noMatchAndCancelDoNothingAndDisposeRemovesTheDelegateAndLeavesThePreferencesAlone() {
+    void noMatchAndCancelDoNothingAndDisposeRemovesTheDelegateAndItsPreferencesListener() {
         int listeners = view.services().preferences().listenerCount();
         view.canvas().tool().mousePressed(view.canvas(), at(10, 10, 2));
         shown.setQuery("no-component-has-this-name");
@@ -305,6 +305,6 @@ class QuickInsertTest {
         features.dispose();
         assertThat(view.shortcutActions()).doesNotContainKey("edit.quickInsert");
         assertThat(((SelectTool) view.canvas().defaultTool()).delegates()).isEmpty();
-        assertThat(view.services().preferences().listenerCount()).isEqualTo(listeners);
+        assertThat(view.services().preferences().listenerCount()).isEqualTo(listeners - 1);
     }
 }
