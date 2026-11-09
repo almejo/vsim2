@@ -28,6 +28,7 @@ import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.canvas.PartFormats;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
@@ -96,6 +97,8 @@ public final class ProblemsController {
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
     private final DocumentListener structureListener = (document, change) -> refreshStructure();
     private final HistoryListener historyListener = history -> refreshStructure();
+    /** «Animaciones» changed: the pulse starts or stops at once, with the shorts already on screen. */
+    private final Runnable animationsListener = this::refreshPulse;
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private int libraryProblemCount;
@@ -109,8 +112,10 @@ public final class ProblemsController {
         this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
         Runnable repaintPanes = EveryPane.repaint(view);
-        this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
-        this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime);
+        this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes,
+                () -> Animations.enabled(view.services().preferences()));
+        this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime,
+                () -> Animations.enabled(view.services().preferences()));
         this.connectivityOverlay = new ConnectivityOverlay(openDocument, () -> view.canvas().scheme(), this::linkedFileProblems);
         this.navigator = new ProblemNavigator(view::canvas, blink, this::showElsewhere);
         this.panel = new ProblemsPanel(this::describe, navigator::navigateTo, this::quickActionsOf);
@@ -164,6 +169,7 @@ public final class ProblemsController {
             }
         };
         simulationMenu.addMenuListener(pauseListener);
+        view.services().preferences().addListener(animationsListener);
         openDocument.document().addListener(structureListener);
         if (circuit != openDocument) {
             circuit.document().addListener(structureListener);
@@ -431,6 +437,10 @@ public final class ProblemsController {
         return blink;
     }
 
+    private void refreshPulse() {
+        pulse.refresh();
+    }
+
     ShortCircuitPulse pulse() {
         return pulse;
     }
@@ -448,6 +458,7 @@ public final class ProblemsController {
         circuit.document().removeListener(structureListener);
         circuit.history().removeListener(historyListener);
         blink.dispose();
+        view.services().preferences().removeListener(animationsListener);
         pulse.dispose();
         removeFromPanes.run();
         viewMenu.remove(nextItem);

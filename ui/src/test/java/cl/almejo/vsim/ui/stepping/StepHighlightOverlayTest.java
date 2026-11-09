@@ -68,7 +68,7 @@ class StepHighlightOverlayTest {
         document.add(vertical);
         onEventThread(() -> {
             StepHighlightOverlay overlay = new StepHighlightOverlay(() -> ColorScheme.LIGHT, repaints::incrementAndGet,
-                    clock::get);
+                    clock::get, () -> true);
             assertThat(onVertical(overlay).getAlpha()).isZero();
             assertThat(overlay.isTimerRunning()).isFalse();
 
@@ -98,7 +98,7 @@ class StepHighlightOverlayTest {
         document.add(horizontal);
         onEventThread(() -> {
             StepHighlightOverlay overlay = new StepHighlightOverlay(() -> ColorScheme.LIGHT, repaints::incrementAndGet,
-                    clock::get);
+                    clock::get, () -> true);
             overlay.show(glow(vertical));
             clock.set(600 * MILLISECOND);
 
@@ -118,7 +118,7 @@ class StepHighlightOverlayTest {
         document.add(vertical);
         onEventThread(() -> {
             StepHighlightOverlay overlay = new StepHighlightOverlay(() -> ColorScheme.LIGHT, repaints::incrementAndGet,
-                    clock::get);
+                    clock::get, () -> true);
             overlay.show(glow(vertical));
 
             assertThat(pixel(overlay, 32, 32, TOKEN + 1).getAlpha()).isZero();
@@ -133,11 +133,11 @@ class StepHighlightOverlayTest {
         AtomicReference<ColorScheme> scheme = new AtomicReference<>(ColorScheme.LIGHT);
         onEventThread(() -> {
             StepHighlightOverlay overlay = new StepHighlightOverlay(scheme::get, repaints::incrementAndGet,
-                    clock::get);
+                    clock::get, () -> true);
             StepHighlightOverlay lightReference = new StepHighlightOverlay(() -> ColorScheme.LIGHT,
-                    repaints::incrementAndGet, clock::get);
+                    repaints::incrementAndGet, clock::get, () -> true);
             StepHighlightOverlay magentaReference = new StepHighlightOverlay(() -> magenta,
-                    repaints::incrementAndGet, clock::get);
+                    repaints::incrementAndGet, clock::get, () -> true);
             for (StepHighlightOverlay shown : List.of(overlay, lightReference, magentaReference)) {
                 shown.show(glow(vertical));
             }
@@ -157,7 +157,7 @@ class StepHighlightOverlayTest {
         document.add(vertical);
         onEventThread(() -> {
             StepHighlightOverlay overlay = new StepHighlightOverlay(() -> ColorScheme.LIGHT, repaints::incrementAndGet,
-                    clock::get);
+                    clock::get, () -> true);
             overlay.show(glow(vertical));
             overlay.dispose();
             assertThat(overlay.isTimerRunning()).isFalse();
@@ -167,6 +167,52 @@ class StepHighlightOverlayTest {
             assertThat(overlay.isTimerRunning()).isFalse();
             assertThat(overlay.current()).isEmpty();
             assertThat(onVertical(overlay).getAlpha()).isZero();
+        });
+    }
+
+    @Test
+    void withAnimationsOffTheBandStaysFullAndStillUntilTheNextStepOrAnEdit() throws Exception {
+        document.add(vertical);
+        document.add(horizontal);
+        AtomicReference<Boolean> animations = new AtomicReference<>(false);
+        onEventThread(() -> {
+            StepHighlightOverlay overlay = new StepHighlightOverlay(() -> ColorScheme.LIGHT, repaints::incrementAndGet,
+                    clock::get, animations::get);
+            overlay.show(glow(vertical));
+            assertThat(overlay.isTimerRunning()).isFalse();
+            assertThat(onVertical(overlay).getAlpha()).isEqualTo(StepHighlightOverlay.FULL_ALPHA);
+
+            clock.set(60_000 * MILLISECOND);
+            assertThat(onVertical(overlay).getAlpha()).isEqualTo(StepHighlightOverlay.FULL_ALPHA);
+
+            overlay.show(glow(horizontal));
+            assertThat(onVertical(overlay).getAlpha()).isZero();
+            assertThat(pixel(overlay, 40, 72, TOKEN).getAlpha()).isEqualTo(StepHighlightOverlay.FULL_ALPHA);
+            assertThat(pixel(overlay, 40, 72, TOKEN + 1).getAlpha()).isZero(); // an edit recompiled the netlist
+            overlay.clear();
+            assertThat(pixel(overlay, 40, 72, TOKEN).getAlpha()).isZero();
+            overlay.dispose();
+        });
+    }
+
+    @Test
+    void turningAnimationsOffWhileItFadesFreezesTheBandFullAndStopsTheTimer() throws Exception {
+        document.add(vertical);
+        AtomicReference<Boolean> animations = new AtomicReference<>(true);
+        onEventThread(() -> {
+            StepHighlightOverlay overlay = new StepHighlightOverlay(() -> ColorScheme.LIGHT, repaints::incrementAndGet,
+                    clock::get, animations::get);
+            overlay.show(glow(vertical));
+            clock.set(475 * MILLISECOND);
+            assertThat(onVertical(overlay).getAlpha()).isEqualTo(70);
+
+            animations.set(false);
+            overlay.tick();
+
+            assertThat(overlay.isTimerRunning()).isFalse();
+            assertThat(overlay.current()).isPresent();
+            assertThat(onVertical(overlay).getAlpha()).isEqualTo(StepHighlightOverlay.FULL_ALPHA);
+            overlay.dispose();
         });
     }
 }

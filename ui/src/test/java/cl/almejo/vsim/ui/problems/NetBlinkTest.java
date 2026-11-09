@@ -39,7 +39,7 @@ class NetBlinkTest {
     void blinksTheWiresForSixStepsAndThenStops() throws Exception {
         document.add(wire);
         SwingUtilities.invokeAndWait(() -> {
-            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
+            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet, () -> true);
             assertThat(blink.isBlinking()).isFalse();
             assertThat(pixelOnTheWire(blink)).isZero();
 
@@ -67,7 +67,7 @@ class NetBlinkTest {
     void startingAgainRestartsTheBlink() throws Exception {
         document.add(wire);
         SwingUtilities.invokeAndWait(() -> {
-            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
+            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet, () -> true);
             blink.start(Set.of(wire.id()));
             blink.steps().tick();
             blink.steps().tick();
@@ -84,7 +84,7 @@ class NetBlinkTest {
     void stoppingEndsTheBlinkAndClearsTheWires() throws Exception {
         document.add(wire);
         SwingUtilities.invokeAndWait(() -> {
-            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
+            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet, () -> true);
             blink.start(Set.of(wire.id()));
             int repaintsBefore = repaints.get();
 
@@ -104,9 +104,9 @@ class NetBlinkTest {
         ColorScheme magenta = AppearanceTestSupport.withSelection(ColorScheme.LIGHT, Color.MAGENTA);
         AtomicReference<ColorScheme> scheme = new AtomicReference<>(ColorScheme.LIGHT);
         SwingUtilities.invokeAndWait(() -> {
-            NetBlink blink = new NetBlink(scheme::get, repaints::incrementAndGet);
-            NetBlink lightReference = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
-            NetBlink magentaReference = new NetBlink(() -> magenta, repaints::incrementAndGet);
+            NetBlink blink = new NetBlink(scheme::get, repaints::incrementAndGet, () -> true);
+            NetBlink lightReference = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet, () -> true);
+            NetBlink magentaReference = new NetBlink(() -> magenta, repaints::incrementAndGet, () -> true);
             for (NetBlink started : List.of(blink, lightReference, magentaReference)) {
                 started.start(Set.of(wire.id()));
             }

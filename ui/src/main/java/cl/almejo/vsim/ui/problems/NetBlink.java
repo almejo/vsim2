@@ -13,6 +13,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /** Makes the wires of a net blink for about 1.5 s after a jump to a problem (spec §6.12). Repaint only. */
@@ -27,9 +28,9 @@ public final class NetBlink implements CanvasOverlay {
     private Set<ElementId> wires = Set.of();
 
     /** {@code scheme} is read on every paint, so the blink follows a scheme change while it runs. */
-    public NetBlink(Supplier<ColorScheme> scheme, Runnable repaint) {
+    public NetBlink(Supplier<ColorScheme> scheme, Runnable repaint, BooleanSupplier animations) {
         this.scheme = scheme;
-        this.blink = new Blink(repaint);
+        this.blink = new Blink(repaint, animations);
     }
 
     public void start(Set<ElementId> netWires) {

@@ -12,11 +12,12 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.time.Duration;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 
 /**
  * The short white flash over what a capture copied: a translucent white veil in the window's layered pane, over the
- * copied area, that fades out and takes itself away. Never part of a capture (the copy is painted before it is
+ * copied area, that fades out (with animations off it stays whole and goes at once) and takes itself away. Never part of a capture (the copy is painted before it is
  * shown). Mouse events go through it.
  */
 final class CaptureFlash extends JComponent {
@@ -36,7 +37,8 @@ final class CaptureFlash extends JComponent {
      * @return what takes the flash away before its time; harmless when it is already gone; a no-op when
      * {@code area} is in no window
      */
-    static Runnable show(JComponent area, FrameTicker ticker, LongSupplier nowMillis) {
+    static Runnable show(JComponent area, FrameTicker ticker, LongSupplier nowMillis,
+                         BooleanSupplier animations) {
         JRootPane rootPane = SwingUtilities.getRootPane(area);
         if (rootPane == null) {
             return () -> {
@@ -62,11 +64,17 @@ final class CaptureFlash extends JComponent {
                 hide.run();
                 return;
             }
-            flash.opacity = PEAK_OPACITY * (1f - (float) elapsed / DURATION.toMillis());
+            // with «Animaciones: No» it stays at its peak, whole, until its time is up: no fade
+            flash.opacity = animations.getAsBoolean()
+                    ? PEAK_OPACITY * (1f - (float) elapsed / DURATION.toMillis()) : PEAK_OPACITY;
             flash.setBounds(new Rectangle(SwingUtilities.convertPoint(area, 0, 0, layers), area.getSize()));
             flash.repaint();
         });
         return hide;
+    }
+
+    float opacity() {
+        return opacity;
     }
 
     @Override

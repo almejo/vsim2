@@ -20,18 +20,23 @@ import java.awt.geom.Line2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
  * The brief glow over what an AI task changed when it ends (spec §4: «changed parts glow briefly»): the step mode's
- * glow ({@link StepHighlight}: fully lit, then fading out within 800 ms) in the scheme's selection colour, a band over
+ * glow ({@link StepHighlight}: fully lit, then fading out within 800 ms; with animations off steady for 1.5 s and then
+ * out at once) in the scheme's selection colour, a band over
  * each changed wire and a rounded outline around each changed part. Elements no longer in the document are skipped.
  * Its timer runs only while the glow is on. Also lights each step «Presentar» applies (IA.2). EDT only.
  */
 public final class AiChangeGlowOverlay implements CanvasOverlay {
 
     static final int TIMER_MILLISECONDS = 33;
+    /** With animations off the glow is steady for this long and then goes out at once. */
+    static final long STEADY_NANOS = TimeUnit.MILLISECONDS.toNanos(1500);
     /** Opacity of a fully lit glow (0–255), as the step mode's. */
     static final int FULL_ALPHA = 140;
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
@@ -46,17 +51,19 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
     private final ComponentTypeRegistry registry;
     private final Runnable repaint;
     private final LongSupplier nanoClock;
+    private final BooleanSupplier animations;
     private final Timer timer;
     private StepHighlight glow;
     private boolean disposed;
 
     /** {@code scheme} is read on every paint; {@code repaint} runs on every change and fade step. */
     public AiChangeGlowOverlay(Supplier<ColorScheme> scheme, ComponentTypeRegistry registry, Runnable repaint,
-                        LongSupplier nanoClock) {
+                        LongSupplier nanoClock, BooleanSupplier animations) {
         this.scheme = scheme;
         this.registry = registry;
         this.repaint = repaint;
         this.nanoClock = nanoClock;
+        this.animations = animations;
         this.timer = new Timer(TIMER_MILLISECONDS, event -> tick());
     }
 
@@ -82,11 +89,17 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
 
     /** One fade step: repaints, and once the glow is over drops it and stops the timer. */
     void tick() {
-        if (glow == null || glow.isOver(nanoClock.getAsLong())) {
+        if (glow == null || isOver(glow)) {
             glow = null;
             timer.stop();
         }
         repaint.run();
+    }
+
+    /** Whether the glow is done: after its fade, or with animations off after its steady 1.5 s. */
+    private boolean isOver(StepHighlight shown) {
+        long now = nanoClock.getAsLong();
+        return animations.getAsBoolean() ? shown.isOver(now) : now - shown.startNanos() >= STEADY_NANOS;
     }
 
     public void dispose() {
@@ -101,7 +114,8 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
         if (shown == null) {
             return;
         }
-        int alpha = (int) Math.round(FULL_ALPHA * shown.alpha(nanoClock.getAsLong()));
+        double lit = animations.getAsBoolean() ? shown.alpha(nanoClock.getAsLong()) : isOver(shown) ? 0 : 1;
+        int alpha = (int) Math.round(FULL_ALPHA * lit);
         if (alpha <= 0) {
             return;
         }

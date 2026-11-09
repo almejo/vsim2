@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.waveform;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.ui.actions.TextPrompt;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -58,9 +59,11 @@ public final class WaveformFeatures {
         BottomDock dock = view.bottomDock();
         this.actions = new ProbeActions(openDocument);
         Runnable repaintPanes = EveryPane.repaint(view);
-        this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
+        this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes,
+                () -> Animations.enabled(view.services().preferences()));
         this.panel = new WaveformPanel(openDocument, actions, () -> view.canvas().scheme(), prompt, this::showInCircuit,
                 this::hidePanel);
+        panel.setAnimations(() -> Animations.enabled(view.services().preferences()));
         dock.setContent(panel);
         this.toggle = new AbstractAction(Messages.text("menu.view.waveforms")) {
             @Override

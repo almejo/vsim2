@@ -87,7 +87,7 @@ public final class PresentationOverlays {
                 () -> view.services().preferences().aiPresenting(), repaint, nanoClock);
         this.ghosts = new StepGhostOverlay(() -> view.canvas().scheme(), view.openDocument().registry(), repaint);
         this.glow = new AiChangeGlowOverlay(() -> view.canvas().scheme(), view.openDocument().registry(), repaint,
-                nanoClock);
+                nanoClock, () -> Animations.enabled(view.services().preferences()));
         this.travel = new PresentationTravel(view, covered);
         this.removeGlow = EveryPane.addOverlay(view, glow);
         this.removePaneOverlays = view.forEachPane(pane -> {

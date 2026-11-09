@@ -191,8 +191,11 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   - las barras del [modo presentación](#modo-presentación) aparecen sin deslizarse;
   - el cursor de los Terminales queda encendido fijo, y el cursor y la estrella de Automan quietos;
   - el brillo que se apaga de una Matriz LED se apaga de una vez, y el brillo de una pieza no se desvanece;
-  - los avisos sobre el circuito, las etiquetas de [los atajos que se usan](#mostrar-los-atajos-que-se-usan), el globo y el subtítulo de [Presentar](ia-mcp.md#presentar) aparecen y se van sin fundido, y la captura se confirma solo con su aviso, sin destello;
-  - plegar un grupo de pestañas es instantáneo y el robot de la IA en la pestaña no se mece.
+  - los avisos sobre el circuito, las etiquetas de [los atajos que se usan](#mostrar-los-atajos-que-se-usan), el globo y el subtítulo de [Presentar](ia-mcp.md#presentar) aparecen y se van sin fundido;
+  - plegar un grupo de pestañas es instantáneo y el robot de la IA en la pestaña no se mece;
+  - lo que informa queda quieto, nunca escondido: un cortocircuito queda en rojo fijo (sin pulso), y lo mismo el resplandor rojo bajo un cable con problema; ir a un problema deja el resaltado fijo 1,5 s en vez de parpadear (también la fila de una sonda en las formas de onda); lo que cambió en un paso a paso queda con un contorno fijo hasta el próximo paso o la próxima edición; lo que cambió la IA queda fijo 1,5 s y se apaga de una vez; la captura muestra su destello entero 0,35 s y se va sin desvanecerse;
+  - la lupa «Mirar adentro» aparece y se va de una vez, sin crecer ni achicarse (lo que muestra por dentro sigue en vivo);
+  - el contorno de la selección y el rectángulo de selección del editor de formas quedan punteados y quietos: las hormigas no marchan.
 - Nunca cambia la simulación: los LED, el reloj, las formas de onda que avanzan, lo que escribe un Terminal y lo que muestra la lupa siguen igual. «No» quita adornos y movimiento, nunca valores.
 
 ## Acerca de VSim 2

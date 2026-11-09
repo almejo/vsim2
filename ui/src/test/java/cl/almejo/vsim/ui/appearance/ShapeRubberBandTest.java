@@ -63,6 +63,17 @@ class ShapeRubberBandTest {
     }
 
     @Test
+    void withAnimationsOffTheBandIsShownButTheAntsDoNotMarch() {
+        ShapeCanvas canvas = canvas();
+        canvas.setAnimations(() -> false);
+
+        startBand(canvas);
+
+        assertThat(canvas.bandShown()).isTrue();
+        assertThat(ticker.isRunning()).isFalse();
+    }
+
+    @Test
     void cancellingTheBandStopsTheAnts() {
         ShapeCanvas canvas = canvas();
         startBand(canvas);

@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.ui.actions.Keys;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -167,6 +168,7 @@ public final class ShapeEditorPanel extends JPanel {
         canvas.setSnap(preferences.shapeEditorSnap());
         canvas.setGridShown(preferences.shapeEditorGrid());
         followGridPreferences();
+        canvas.setAnimations(() -> Animations.enabled(preferences));
         // The in-place text field counts as a change while it is open, so «Aceptar» must follow it.
         canvas.addContainerListener(new ContainerAdapter() {
             @Override

@@ -1229,7 +1229,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         Runnable listener = () -> {
             boolean now = Animations.enabled(preferences);
             if (animated.getAndSet(now) != now) {
-                pane.repaint();
+                pane.animationsChanged();
             }
         };
         preferences.addListener(listener);

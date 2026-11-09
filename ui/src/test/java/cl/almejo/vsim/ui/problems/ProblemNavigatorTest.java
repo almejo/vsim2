@@ -56,7 +56,7 @@ class ProblemNavigatorTest {
                 public void configure(Component component) {
                 }
             });
-    private final NetBlink blink = new NetBlink(canvas::scheme, canvas::repaint);
+    private final NetBlink blink = new NetBlink(canvas::scheme, canvas::repaint, () -> true);
     private final ProblemNavigator navigator = new ProblemNavigator(() -> canvas, blink);
     private Wire left;
     private Wire right;

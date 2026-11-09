@@ -12,13 +12,15 @@ import java.awt.BasicStroke;
 import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
  * Paints the glow of the last «Avanzar» (M6.1-B): a translucent 7 px band in the scheme's selection color over each
- * changed wire, its opacity following {@link StepHighlight#alpha}. Its timer runs only while a glow is on and never
- * starts again after {@link #dispose()}. EDT only.
+ * changed wire, its opacity following {@link StepHighlight#alpha}. With animations off it does not fade: the band
+ * stays full and still until the next step, an edit (the netlist changes) or «Reiniciar». Its timer runs only while a
+ * glow is fading and never starts again after {@link #dispose()}. EDT only.
  */
 public final class StepHighlightOverlay implements CanvasOverlay {
 
@@ -31,15 +33,18 @@ public final class StepHighlightOverlay implements CanvasOverlay {
     private final Supplier<ColorScheme> scheme;
     private final Runnable repaint;
     private final LongSupplier nanoClock;
+    private final BooleanSupplier animations;
     private final Timer timer;
     private StepHighlight highlight;
     private boolean disposed;
 
     /** {@code scheme} is read on every paint; {@code repaint} runs on every change and fade step. */
-    public StepHighlightOverlay(Supplier<ColorScheme> scheme, Runnable repaint, LongSupplier nanoClock) {
+    public StepHighlightOverlay(Supplier<ColorScheme> scheme, Runnable repaint, LongSupplier nanoClock,
+                                BooleanSupplier animations) {
         this.scheme = scheme;
         this.repaint = repaint;
         this.nanoClock = nanoClock;
+        this.animations = animations;
         this.timer = new Timer(TIMER_MILLISECONDS, event -> tick());
     }
 
@@ -49,7 +54,7 @@ public final class StepHighlightOverlay implements CanvasOverlay {
             return;
         }
         highlight = next;
-        if (!timer.isRunning()) {
+        if (animations.getAsBoolean() && !timer.isRunning()) {
             timer.start();
         }
         repaint.run();
@@ -72,7 +77,11 @@ public final class StepHighlightOverlay implements CanvasOverlay {
 
     /** One fade step: repaints, and once the glow is over drops it and stops the timer. */
     void tick() {
-        if (highlight == null || highlight.isOver(nanoClock.getAsLong())) {
+        if (highlight == null) {
+            timer.stop();
+        } else if (!animations.getAsBoolean()) {
+            timer.stop(); // «Animaciones: No» meanwhile: the outline stays, full and still, until the next step or edit
+        } else if (highlight.isOver(nanoClock.getAsLong())) {
             highlight = null;
             timer.stop();
         }
@@ -91,7 +100,8 @@ public final class StepHighlightOverlay implements CanvasOverlay {
         if (shown == null || shown.wires().isEmpty() || !shown.matches(state.netlistToken())) {
             return;
         }
-        int alpha = (int) Math.round(FULL_ALPHA * shown.alpha(nanoClock.getAsLong()));
+        double lit = animations.getAsBoolean() ? shown.alpha(nanoClock.getAsLong()) : 1;
+        int alpha = (int) Math.round(FULL_ALPHA * lit);
         if (alpha <= 0) {
             return;
         }

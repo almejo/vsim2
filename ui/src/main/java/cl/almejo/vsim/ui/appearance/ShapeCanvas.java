@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -110,6 +111,7 @@ final class ShapeCanvas extends JPanel {
     final Viewport viewport = new Viewport();
     final MarchingAnts marchingAnts = new MarchingAnts();
     private FrameTicker antsTicker = FrameTicker.swing(ANTS_MILLISECONDS);
+    private BooleanSupplier animations = () -> true;
     Optional<ElementId> pin = Optional.empty();
     int pathIndex = -1;
     int nodeIndex = -1;
@@ -1014,15 +1016,22 @@ final class ShapeCanvas extends JPanel {
         repaint();
     }
 
+    /** Whether the band's ants march (Animations.enabled): with the setting off the band is still. */
+    public void setAnimations(BooleanSupplier animations) {
+        this.animations = Objects.requireNonNull(animations, "animations");
+        updateAnts();
+    }
+
     boolean bandShown() {
         return pressed != null && rubberBand && bandEnd != null;
     }
 
     /** The ants march only while a band is on screen, like the main editor's: the ticker stops by itself after. */
     private void updateAnts() {
-        if (bandShown() && !antsTicker.isRunning()) {
+        boolean marching = bandShown() && animations.getAsBoolean();
+        if (marching && !antsTicker.isRunning()) {
             antsTicker.start(this::antsTick);
-        } else if (!bandShown() && antsTicker.isRunning()) {
+        } else if (!marching && antsTicker.isRunning()) {
             antsTicker.stop();
         }
     }

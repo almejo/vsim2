@@ -1,10 +1,12 @@
 package cl.almejo.vsim.ui.problems;
 
 import javax.swing.Timer;
+import java.util.function.BooleanSupplier;
 
 /**
  * A short on/off blink: lit at {@link #start()}, then {@link #TOGGLES} timer steps of {@link #INTERVAL_MILLISECONDS}
- * (about 1.5 s), unlit at the end. Calls {@code changed} (a repaint) whenever it switches. EDT only.
+ * (about 1.5 s), unlit at the end. With animations off it does not blink: it stays lit, still, for the same time
+ * (the setting is asked at every step). Calls {@code changed} (a repaint) whenever it switches. EDT only.
  */
 public final class Blink {
 
@@ -12,12 +14,14 @@ public final class Blink {
     public static final int TOGGLES = 6;
 
     private final Runnable changed;
+    private final BooleanSupplier animations;
     private final Timer timer;
     private int remainingToggles;
     private boolean lit;
 
-    public Blink(Runnable changed) {
+    public Blink(Runnable changed, BooleanSupplier animations) {
         this.changed = changed;
+        this.animations = animations;
         this.timer = new Timer(INTERVAL_MILLISECONDS, event -> tick());
     }
 
@@ -52,6 +56,13 @@ public final class Blink {
         if (remainingToggles == 0) {
             lit = false;
             timer.stop();
+        } else if (!animations.getAsBoolean()) {
+            // with «Animaciones: No» it stays lit, still, for the same 1.5 s: nothing changes, nothing to repaint
+            boolean wasLit = lit;
+            lit = true;
+            if (wasLit) {
+                return;
+            }
         } else {
             lit = !lit;
         }

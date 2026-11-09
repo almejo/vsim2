@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,7 +81,7 @@ class ShortCircuitPulseTest {
 
     private ShortCircuitPulse pulse() {
         HighlightCache highlights = new HighlightCache(registry);
-        return new ShortCircuitPulse(() -> highlights, () -> { }, nanos::get);
+        return new ShortCircuitPulse(() -> highlights, () -> { }, nanos::get, () -> true);
     }
 
     @Test
@@ -105,6 +107,46 @@ class ShortCircuitPulseTest {
             pulse.showSnapshot(withShort());
             pulse.dispose();
             assertThat(pulse.isPulsing()).isFalse();
+        });
+    }
+
+    @Test
+    void withAnimationsOffThereIsNoVeilNoTimerAndTheRedIsLeftSteady() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            HighlightCache highlights = new HighlightCache(registry);
+            ShortCircuitPulse pulse = new ShortCircuitPulse(() -> highlights, () -> { }, nanos::get, () -> false);
+            nanos.set(ShortCircuitPulse.PERIOD_NANOS / 2);
+            pulse.showSnapshot(withShort());
+            assertThat(pulse.isPulsing()).isFalse();
+            assertThat(pixelOnTheWire(pulse, withShort())).isZero();
+            pulse.dispose();
+        });
+    }
+
+    @Test
+    void theSettingAppliesLiveInBothDirections() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            AtomicBoolean animations = new AtomicBoolean(true);
+            AtomicInteger repaints = new AtomicInteger();
+            HighlightCache highlights = new HighlightCache(registry);
+            ShortCircuitPulse pulse = new ShortCircuitPulse(() -> highlights, repaints::incrementAndGet, nanos::get,
+                    animations::get);
+            nanos.set(ShortCircuitPulse.PERIOD_NANOS / 2);
+            pulse.showSnapshot(withShort());
+            assertThat(pulse.isPulsing()).isTrue();
+            assertThat(pixelOnTheWire(pulse, withShort())).isNotZero();
+
+            animations.set(false);
+            pulse.refresh();
+            assertThat(pulse.isPulsing()).isFalse();
+            assertThat(pixelOnTheWire(pulse, withShort())).isZero();
+            assertThat(repaints.get()).isPositive();
+
+            animations.set(true);
+            pulse.refresh();
+            assertThat(pulse.isPulsing()).isTrue();
+            assertThat(pixelOnTheWire(pulse, withShort())).isNotZero();
+            pulse.dispose();
         });
     }
 }

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.magnifier;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.actions.ContextMenuEntry;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -53,7 +54,8 @@ public final class MagnifierFeatures {
     private boolean disposed;
 
     public MagnifierFeatures(EditorView view) {
-        this(view, new MagnifierPopup(view.services().painters()));
+        this(view, new MagnifierPopup(view.services().painters(),
+                () -> Animations.enabled(view.services().preferences())));
     }
 
     /** With another presenter (tests use one that shows no window). */

@@ -1268,6 +1268,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return problemPulseTimer.isRunning();
     }
 
+    /** The phase the glow under problem wires is painted at: the pulse's, or steady at its brightest with no animations. */
+    double problemGlowPhase() {
+        return animations.getAsBoolean() ? problemPulse.phase() : ProblemPulse.HIGH_PHASE;
+    }
+
     double problemPulsePhase() {
         return problemPulse.phase();
     }
@@ -1291,6 +1296,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      */
     public void setAnimations(BooleanSupplier animations) {
         this.animations = Objects.requireNonNull(animations, "animations");
+        repaint();
+    }
+
+    /**
+     * Preferencias ▸ «Animaciones» changed: starts or stops the clocks that depend on it (the selection's marching
+     * ants, the Terminals' cursor) and repaints.
+     */
+    public void animationsChanged() {
+        updateAnimation();
         repaint();
     }
 
@@ -1364,7 +1378,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     private void updateProblemPulse() {
-        boolean needed = !animationSuspended && onScreen.getAsBoolean() && problemWireShown();
+        boolean needed = !animationSuspended && onScreen.getAsBoolean() && animations.getAsBoolean()
+                && problemWireShown();
         if (needed && !problemPulseTimer.isRunning()) {
             problemPulseTimer.start();
         } else if (!needed && problemPulseTimer.isRunning()) {
@@ -1426,7 +1441,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private void updateAnimation() {
         updateProblemPulse();
         updateTerminalAnimation();
-        boolean needed = !animationSuspended && onScreen.getAsBoolean()
+        // with the animations off the selection's outline stays, dashed and still: the ants do not march
+        boolean needed = !animationSuspended && onScreen.getAsBoolean() && animations.getAsBoolean()
                 && (!selection.isEmpty() || tool.animatesOutline());
         if (needed && !antsTimer.isRunning()) {
             antsTimer.start();
@@ -1719,7 +1735,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             List<CircuitCanvas> sharing = panesSharingAGesture();
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
-                    problemPulse.phase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues),
+                    problemGlowPhase(), hiddenWires(sharing), PaintPolicy.CANVAS.withBusValues(paintBusValues),
                     host.capturedPart(), previewedParts(sharing), openDocument.pieceMemoryContents());
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {

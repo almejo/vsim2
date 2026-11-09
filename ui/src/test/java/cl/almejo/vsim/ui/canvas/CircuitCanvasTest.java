@@ -354,6 +354,25 @@ class CircuitCanvasTest {
         assertThat(canvas.mouseGridPoint()).isEmpty();
     }
 
+    @Test
+    void withAnimationsOffTheSelectionsAntsDoNotMarchAndComeBackWithThem() {
+        java.util.concurrent.atomic.AtomicBoolean animations = new java.util.concurrent.atomic.AtomicBoolean(false);
+        canvas.setAnimations(animations::get);
+        canvas.overrideOnScreen(() -> true);
+        Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
+
+        canvas.selection().select(gate.id());
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+
+        animations.set(true);
+        canvas.animationsChanged();
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+
+        animations.set(false);
+        canvas.animationTick();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
     /** Review M9: a hidden or minimized window does not tick; showing it again restarts the clock. */
     @Test
     void theAntsClockRunsOnlyWhileTheCanvasIsOnScreen() {
@@ -489,6 +508,28 @@ class CircuitCanvasTest {
             canvas.problemPulseTick();
             assertThat(canvas.problemPulsePhase()).isBetween(0.0, 1.0).isLessThan(1.0);
         }
+    }
+
+    @Test
+    void withAnimationsOffTheRedGlowUnderProblemWiresIsSteadyAtItsBrightestAndNoClockRuns() {
+        java.util.concurrent.atomic.AtomicBoolean animations = new java.util.concurrent.atomic.AtomicBoolean(false);
+        canvas.setAnimations(animations::get);
+
+        makeAWidthMismatch();
+
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+        assertThat(canvas.problemGlowPhase()).isEqualTo(ProblemPulse.HIGH_PHASE);
+        canvas.problemPulseTick();
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+
+        animations.set(true);
+        canvas.animationsChanged();
+        assertThat(canvas.isAnimatingProblems()).isTrue();
+        assertThat(canvas.problemGlowPhase()).isEqualTo(canvas.problemPulsePhase());
+
+        animations.set(false);
+        canvas.problemPulseTick();
+        assertThat(canvas.isAnimatingProblems()).isFalse();
     }
 
     @Test

@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.StepResult;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -115,7 +116,8 @@ public final class StepModeFeatures {
                 view.registerShortcutAction("simulation.advanceToClockEdge", clockEdgeAction),
                 view.registerShortcutAction("simulation.advanceClockCycle", clockCycleAction));
         Runnable repaintPanes = EveryPane.repaint(view);
-        this.overlay = new StepHighlightOverlay(() -> view.canvas().scheme(), repaintPanes, nanoClock);
+        this.overlay = new StepHighlightOverlay(() -> view.canvas().scheme(), repaintPanes, nanoClock,
+                () -> Animations.enabled(view.services().preferences()));
         this.pendingOverlay = new PendingOutlineOverlay(() -> view.canvas().scheme(), openDocument.registry(),
                 repaintPanes);
         this.removeOverlays = List.of(EveryPane.addOverlay(view, overlay), EveryPane.addOverlay(view, pendingOverlay));

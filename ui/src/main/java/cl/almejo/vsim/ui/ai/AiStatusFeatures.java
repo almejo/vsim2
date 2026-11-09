@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
@@ -100,7 +101,8 @@ final class AiStatusFeatures {
         this.proposals = Objects.requireNonNull(proposals, "proposals");
         this.override = SettingsOverride.of(view.services().preferences());
         this.glow = new AiChangeGlowOverlay(() -> view.canvas().scheme(), view.openDocument().registry(),
-                EveryPane.repaint(view), nanoClock);
+                EveryPane.repaint(view), nanoClock,
+                () -> Animations.enabled(view.services().preferences()));
 
         closeButton.setToolTipText(Messages.text("ai.status.close"));
         stopButton.addActionListener(event -> {

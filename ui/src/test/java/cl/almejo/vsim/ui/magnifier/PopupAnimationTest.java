@@ -14,7 +14,7 @@ class PopupAnimationTest {
     private static final long MILLISECOND = 1_000_000L;
 
     private long now;
-    private final PopupAnimation animation = new PopupAnimation(() -> now);
+    private final PopupAnimation animation = new PopupAnimation(() -> now, () -> true);
 
     @Test
     void growingStartsAsAPointAndEndsAtFullSizeAfterAboutTwoHundredMilliseconds() {
@@ -75,5 +75,33 @@ class PopupAnimationTest {
         assertThat(half.height).isEqualTo(20);
         assertThat(half.getCenterX()).isCloseTo(70, within(1.0));
         assertThat(half.getCenterY()).isCloseTo(110, within(1.0));
+    }
+
+    @Test
+    void withAnimationsOffItIsFullAtOnceAndGoesAtOnce() {
+        PopupAnimation still = new PopupAnimation(() -> now, () -> false);
+
+        still.grow();
+        assertThat(still.scale()).isEqualTo(1.0);
+        assertThat(still.isFinished()).isTrue();
+
+        still.shrink();
+        assertThat(still.isShrinking()).isTrue();
+        assertThat(still.scale()).isZero();
+        assertThat(still.isFinished()).isTrue();
+    }
+
+    @Test
+    void turningAnimationsOffWhileGrowingFinishesItAtTheNextAsk() {
+        java.util.concurrent.atomic.AtomicBoolean animations = new java.util.concurrent.atomic.AtomicBoolean(true);
+        PopupAnimation live = new PopupAnimation(() -> now, animations::get);
+        live.grow();
+        now += 50 * 1_000_000L;
+        assertThat(live.isFinished()).isFalse();
+
+        animations.set(false);
+
+        assertThat(live.isFinished()).isTrue();
+        assertThat(live.scale()).isEqualTo(1.0);
     }
 }

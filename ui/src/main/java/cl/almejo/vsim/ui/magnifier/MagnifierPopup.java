@@ -16,6 +16,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 /**
  * The floating panel of the magnifier (spec §8.2): a window that takes no focus, with a {@link MagnifierPicture} of
@@ -31,7 +32,7 @@ final class MagnifierPopup implements MagnifierPresenter {
     private final PainterRegistry painters;
     private final Timer repaint = new Timer(REPAINT_MILLISECONDS, event -> repaintPicture());
     private final Timer frames = new Timer(FRAME_MILLISECONDS, event -> animate());
-    private final PopupAnimation animation = new PopupAnimation(System::nanoTime);
+    private final PopupAnimation animation;
     private Point anchor;
     private Rectangle fullBounds;
     private JWindow window;
@@ -40,8 +41,9 @@ final class MagnifierPopup implements MagnifierPresenter {
     private CircuitCanvas shownFor;
     private Runnable pointerLeftPanel = () -> { };
 
-    MagnifierPopup(PainterRegistry painters) {
+    MagnifierPopup(PainterRegistry painters, BooleanSupplier animations) {
         this.painters = painters;
+        this.animation = new PopupAnimation(System::nanoTime, animations);
     }
 
     @Override
@@ -71,11 +73,13 @@ final class MagnifierPopup implements MagnifierPresenter {
                 Optional.ofNullable(pane.getGraphicsConfiguration()).map(GraphicsConfiguration::getBounds));
         fullBounds = placement.full();
         anchor = placement.anchor();
-        window.setBounds(PopupAnimation.boundsAt(anchor, fullBounds, 0.0));
         animation.grow();
+        window.setBounds(PopupAnimation.boundsAt(anchor, fullBounds, animation.isFinished() ? 1.0 : 0.0));
         window.setVisible(true);
         repaint.start();
-        frames.start();
+        if (!animation.isFinished()) { // with «Animaciones: No» it appears whole at once
+            frames.start();
+        }
     }
 
     @Override
@@ -107,6 +111,10 @@ final class MagnifierPopup implements MagnifierPresenter {
             return;
         }
         animation.shrink();
+        if (animation.isFinished()) { // with «Animaciones: No» it goes at once
+            close();
+            return;
+        }
         frames.start();
     }
 

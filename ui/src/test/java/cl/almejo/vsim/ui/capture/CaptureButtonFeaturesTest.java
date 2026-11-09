@@ -229,14 +229,29 @@ class CaptureButtonFeaturesTest {
     }
 
     @Test
-    void withAnimationsOffThereIsNoFlashButStillTheCopyAndTheNotice() {
+    void withAnimationsOffTheFlashShowsWholeWithoutFadingAndGoesAtTheSameTime() {
         animations = false;
 
         button().mainButton().doClick();
 
-        assertThat(flashes()).isEmpty();
         assertThat(copied).hasSize(1);
         assertThat(notices()).hasSize(1);
+        assertThat(flashes()).hasSize(1);
+        float peak = flashes().get(0).opacity();
+        advance(200);
+        assertThat(flashes()).singleElement().satisfies(flash -> assertThat(flash.opacity()).isEqualTo(peak));
+        advance(200);
+        assertThat(flashes()).isEmpty();
+    }
+
+    @Test
+    void withAnimationsOnTheFlashFadesOut() {
+        button().mainButton().doClick();
+        float peak = flashes().get(0).opacity();
+
+        advance(200);
+
+        assertThat(flashes()).singleElement().satisfies(flash -> assertThat(flash.opacity()).isLessThan(peak));
     }
 
     @Test

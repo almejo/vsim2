@@ -296,6 +296,19 @@ class ProblemsControllerTest {
     }
 
     @Test
+    void changingAnimationsStopsAndRestartsThePulseWithTheShortsAlreadyShown() {
+        ProblemsController problems = view.problems();
+        problems.showSnapshot(shortSnapshot(openDocument.netlistToken()));
+        assertThat(problems.pulse().isPulsing()).isTrue();
+
+        view.services().preferences().setAnimations(false);
+        assertThat(problems.pulse().isPulsing()).isFalse();
+
+        view.services().preferences().setAnimations(true);
+        assertThat(problems.pulse().isPulsing()).isTrue();
+    }
+
+    @Test
     void aStaleSnapshotChangesNeitherThePanelNorTheNavigator() {
         ProblemsController problems = view.problems();
         problems.showSnapshot(shortSnapshot(openDocument.netlistToken() - 1));

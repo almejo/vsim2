@@ -36,7 +36,7 @@ import java.util.function.Supplier;
  * The screenshot of one editor view: a split button at the end of the toolbar whose main part copies a PNG picture of
  * the VSim window or of the visible circuit (the mode chosen in its ▾ and remembered) to the clipboard, and Editar ▸
  * «Copiar captura» ({@code edit.copyCapture}, right after «Copiar») that copies with that same mode. Each copy
- * flashes white over what was copied (not with animations off) and tells what happened in a notice at the bottom of
+ * flashes white over what was copied (with animations off it stays whole and goes, without fading) and tells what happened in a notice at the bottom of
  * the circuit area. The picture is painted on the EDT by {@link WindowCapture} and handed to the clipboard without
  * touching the disk. {@link #dispose()} takes it all back.
  */
@@ -142,9 +142,8 @@ final class CaptureButtonFeatures {
             showNotice(Messages.text("capture.copy.failed"));
             return;
         }
-        if (animations.test(view.services().preferences())) {
-            flashRemover = CaptureFlash.show(areaOf(kind), tickers.get(), clock);
-        }
+        flashRemover = CaptureFlash.show(areaOf(kind), tickers.get(), clock,
+                () -> animations.test(view.services().preferences()));
         showNotice(Messages.text(kind == CaptureKind.WINDOW ? "capture.copied.window"
                 : "capture.copied.visibleCircuit"));
     }

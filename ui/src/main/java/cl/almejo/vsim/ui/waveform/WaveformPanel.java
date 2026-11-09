@@ -69,6 +69,7 @@ public final class WaveformPanel extends JPanel {
     private final TimeRuler ruler;
     private final Timer timer;
     private final Blink rowBlink;
+    private BooleanSupplier animations = () -> true;
     private BooleanSupplier showing = this::isShowing;
     private WaveformSnapshot displayed = WaveformSnapshot.EMPTY;
     private String selectedProbe;
@@ -78,6 +79,11 @@ public final class WaveformPanel extends JPanel {
     private RowsKey rowsKey;
     private List<ChannelRows.ChannelRow> cachedRows = List.of();
     private boolean disposed;
+
+    /** Whether the row blink (going to a probe) may blink; with «No» the row stays lit, still, for the same time. */
+    public void setAnimations(BooleanSupplier animations) {
+        this.animations = animations;
+    }
 
     public WaveformPanel(OpenDocument openDocument, ProbeActions actions, Supplier<ColorScheme> scheme,
                          TextPrompt prompt, Consumer<String> showInCircuit, Runnable hide) {
@@ -119,7 +125,7 @@ public final class WaveformPanel extends JPanel {
         add(toolBar, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
         timer = new Timer(TIMER_MILLISECONDS, event -> timerTick());
-        rowBlink = new Blink(names::repaint);
+        rowBlink = new Blink(names::repaint, () -> animations.getAsBoolean());
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 updateTimer();

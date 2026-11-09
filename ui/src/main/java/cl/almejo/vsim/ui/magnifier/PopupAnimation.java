@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.magnifier;
 
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 
 /**
@@ -15,13 +16,15 @@ final class PopupAnimation {
     private static final long NANOS_PER_MILLISECOND = 1_000_000L;
 
     private final LongSupplier nanoClock;
+    private final BooleanSupplier animations;
     private long startedAt;
     private double fromScale;
     private double toScale;
     private boolean started;
 
-    PopupAnimation(LongSupplier nanoClock) {
+    PopupAnimation(LongSupplier nanoClock, BooleanSupplier animations) {
         this.nanoClock = nanoClock;
+        this.animations = animations;
     }
 
     /** Starts growing from a point. */
@@ -59,6 +62,9 @@ final class PopupAnimation {
     }
 
     private double progress() {
+        if (!animations.getAsBoolean()) {
+            return 1.0; // «Animaciones: No»: it is at its end the moment it starts (and a running one ends at once)
+        }
         long elapsed = nanoClock.getAsLong() - startedAt;
         return Math.max(0.0, Math.min(1.0, elapsed / (double) (DURATION_MILLISECONDS * NANOS_PER_MILLISECOND)));
     }

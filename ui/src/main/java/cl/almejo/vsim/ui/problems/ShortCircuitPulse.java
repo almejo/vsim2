@@ -13,12 +13,14 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
  * Slowly pulses the conflict color of shorted wires (spec §6.12) with a white veil of varying alpha.
- * Repaints every 100 ms, and only while the displayed snapshot has short circuits.
+ * Repaints every 100 ms, and only while the displayed snapshot has short circuits. With animations off there is no
+ * veil and no timer: the wires keep the plain conflict colour, steady.
  */
 public final class ShortCircuitPulse implements CanvasOverlay {
 
@@ -31,25 +33,50 @@ public final class ShortCircuitPulse implements CanvasOverlay {
 
     private final Supplier<HighlightCache> highlights;
     private final LongSupplier nanoClock;
+    private final BooleanSupplier animations;
+    private final Runnable repaint;
     private final Timer timer;
+    private boolean shorts;
 
     /**
      * {@code highlights} is asked on every paint: the active pane's cache when one pulse is painted in every pane of a
      * window (they all show the same document and snapshot).
      */
-    public ShortCircuitPulse(Supplier<HighlightCache> highlights, Runnable repaint, LongSupplier nanoClock) {
+    public ShortCircuitPulse(Supplier<HighlightCache> highlights, Runnable repaint, LongSupplier nanoClock,
+                            BooleanSupplier animations) {
         this.highlights = highlights;
         this.nanoClock = nanoClock;
-        this.timer = new Timer(REPAINT_MILLISECONDS, event -> repaint.run());
+        this.animations = animations;
+        this.repaint = repaint;
+        this.timer = new Timer(REPAINT_MILLISECONDS, event -> tick());
     }
 
     public void showSnapshot(SimulationSnapshot snapshot) {
-        boolean shorts = !snapshot.shortCircuits().isEmpty();
-        if (shorts && !timer.isRunning()) {
+        shorts = !snapshot.shortCircuits().isEmpty();
+        boolean pulsing = shorts && animations.getAsBoolean();
+        if (pulsing && !timer.isRunning()) {
             timer.start();
-        } else if (!shorts && timer.isRunning()) {
+        } else if (!pulsing && timer.isRunning()) {
             timer.stop();
         }
+    }
+
+    private void tick() {
+        if (!animations.getAsBoolean()) {
+            timer.stop();
+        }
+        repaint.run();
+    }
+
+    /** Re-reads the setting and the last snapshot: «Animaciones» changed while shorts were (or were not) showing. */
+    public void refresh() {
+        boolean pulsing = shorts && animations.getAsBoolean();
+        if (pulsing && !timer.isRunning()) {
+            timer.start();
+        } else if (!pulsing && timer.isRunning()) {
+            timer.stop();
+        }
+        repaint.run();
     }
 
     public boolean isPulsing() {
@@ -72,7 +99,8 @@ public final class ShortCircuitPulse implements CanvasOverlay {
 
     @Override
     public void paint(Graphics2D graphics, RenderState state) {
-        int alpha = alphaAt(nanoClock.getAsLong());
+        // with «Animaciones: No» the shorted wires keep the plain conflict colour: no veil
+        int alpha = animations.getAsBoolean() ? alphaAt(nanoClock.getAsLong()) : 0;
         if (alpha == 0) {
             return;
         }
