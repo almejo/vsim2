@@ -94,7 +94,7 @@ class EscapeToLeaveTest {
 
     @Test
     void escapeGoesToAToolAtWorkFirst() {
-        view.actions().wireTool().actionPerformed(new ActionEvent(view, ActionEvent.ACTION_PERFORMED, ""));
+        view.actions().panTool().actionPerformed(new ActionEvent(view, ActionEvent.ACTION_PERFORMED, ""));
         dispatch(pressOn(view.canvas(), KeyEvent.VK_ESCAPE, 0));
         assertThat(fixture.features.isActive()).as("Esc ended the tool, not the mode").isTrue();
         assertThat(view.canvas().tool()).isSameAs(view.canvas().defaultTool());

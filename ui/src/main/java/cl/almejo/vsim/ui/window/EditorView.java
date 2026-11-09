@@ -149,8 +149,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
     private final Listeners<Runnable> tabShownListeners = new Listeners<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
-    private final WireModeControl wireModeControl;
-    private Runnable removeWireModeShortcut = () -> { };
+
     private final EditorToolBar editorToolBar;
     private final JToolBar toolBar;
     private final LabelFeatures labelFeatures;
@@ -210,10 +209,10 @@ public final class EditorView extends JPanel implements CanvasHost {
         });
         this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
         createInspectorToggles();
-        this.wireModeControl = new WireModeControl(services.preferences(), this::chooseWireTool);
+
         this.menuBar = actions.createMenuBar();
         indexMenus();
-        addWireModeItem();
+
         addLeftColumnItems();
         this.capturedKeys = new CapturedKeys(keyboardCapture, openDocument, new WindowShortcuts(),
                 statusBar::showNotice);
@@ -221,7 +220,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.zoomControl = new ZoomControl(new ActivePaneZoom(), new ZoomControl.Actions(actions.zoomOut(),
                 actions.zoomIn(), actions.zoomReset(), actions.zoomToFit(), actions.zoomToSelection()));
         addAfter(menu(MenuId.VIEW), actions.zoomToSelection(), zoomControl.typeZoomAction());
-        editorToolBar = new EditorToolBar(actions, wireModeControl.button());
+        editorToolBar = new EditorToolBar(actions);
         toolBar = editorToolBar.toolBar();
 
         this.canvasArea = new CanvasArea(canvasPanes);
@@ -673,8 +672,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         steps.add(labelFeatures::dispose);
         steps.add(inlineEditor::dispose);
         steps.add(actions::dispose);
-        steps.add(wireModeControl::dispose);
-        steps.add(removeWireModeShortcut);
+
         steps.add(keyboardCapture::dispose);
         steps.add(this::undoPaneInstallations);
         steps.add(canvasPanes::dispose);
@@ -972,7 +970,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /**
-     * Adds a toggle button for an extension's tool right after the Cable button; it shows as pressed while a tool of
+     * Adds a toggle button for an extension's tool right after the Selección button; it shows as pressed while a tool of
      * {@code toolType} is active. Returns what takes the button back.
      */
     public Runnable addToolButton(Action action, Class<? extends Tool> toolType) {
@@ -1155,13 +1153,6 @@ public final class EditorView extends JPanel implements CanvasHost {
         }
     }
 
-    /** Runs {@code action} as its toolbar button would: only while it is enabled (the status-bar run state). */
-    /** Editar ▸ «Cable continuo» (a check item, no key), offered to the shortcut editor like any other action. */
-    private void addWireModeItem() {
-        Action continuous = wireModeControl.continuousAction();
-        menu(MenuId.EDIT).add(new JCheckBoxMenuItem(continuous));
-        removeWireModeShortcut = registerShortcutAction("edit.wireContinuous", continuous);
-    }
 
     /** Runs {@code action} as its toolbar button would: only while it is enabled (the status-bar run state). */
     private void performIfEnabled(Action action) {
@@ -1170,15 +1161,6 @@ public final class EditorView extends JPanel implements CanvasHost {
         }
     }
 
-    /**
-     * The Cable button or a mode in its ▾ was pressed: chooses the Wire tool, except while a path is in progress (the
-     * mode then applies to the next path, and a new tool would cancel this one).
-     */
-    private void chooseWireTool() {
-        if (panes().stream().noneMatch(CircuitCanvas::drawsBetweenClicks)) {
-            performIfEnabled(actions.wireTool());
-        }
-    }
 
     /** A new pane's canvas: same document, a renderer of its own, the window's selection. */
     private CircuitCanvas newPane() {

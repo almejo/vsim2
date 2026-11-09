@@ -24,7 +24,7 @@ import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.WireMode;
-import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.tools.ZoomTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.pinAt;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
@@ -311,29 +312,29 @@ class EditorViewTest {
     }
 
     @Test
-    void theWireToolDrawsContinuouslyUntilTheCableIsLeftOnPieces() {
-        perform(view.actions().wireTool());
-        Tool wire = view.canvas().tool();
-        wire.mousePressed(view.canvas(), TestToolContext.at(2, 2));
-        wire.mouseReleased(view.canvas(), TestToolContext.at(2, 2));
-        assertThat(wire.holdsGesture()).isTrue(); // a click started a path
-        wire.keyPressed(view.canvas(), KeyEvent.VK_ESCAPE, false);
+    void selectionDrawsWiresInTheModeOfTheEditMenuReadWhenAWireStarts() {
+        pinAt(view.openDocument(), 2, 2);
+        Tool selection = view.canvas().tool();
+        selection.mousePressed(view.canvas(), TestToolContext.at(2, 2));
+        selection.mouseReleased(view.canvas(), TestToolContext.at(2, 2));
+        assertThat(selection.drawsBetweenClicks()).isTrue(); // a click on a pin started a path
+        selection.keyPressed(view.canvas(), KeyEvent.VK_ESCAPE, false);
 
-        view.canvas().selectionMoves().preferences().setSplitButtonMode(
-                WireMode.PREFERENCE_ID, WireMode.PIECES.id());
-        wire.mousePressed(view.canvas(), TestToolContext.at(2, 2));
-        wire.mouseReleased(view.canvas(), TestToolContext.at(2, 2));
-        assertThat(wire.holdsGesture()).isFalse(); // a click without a drag draws nothing
+        view.canvas().selectionMoves().preferences().setWireMode(WireMode.PIECES);
+        selection.mousePressed(view.canvas(), TestToolContext.at(2, 2));
+        selection.mouseReleased(view.canvas(), TestToolContext.at(2, 2));
+        assertThat(selection.drawsBetweenClicks()).isFalse(); // a click without a drag selects the part
+        assertThat(view.selection().ids()).hasSize(1);
     }
 
     @Test
     void toolButtonsAndPaletteFollowTheCanvasTool() {
-        perform(view.actions().wireTool());
-        assertThat(view.canvas().tool()).isInstanceOf(WireTool.class);
-        assertThat(wireButton().isSelected()).isTrue();
+        perform(view.actions().zoomTool());
+        assertThat(view.canvas().tool()).isInstanceOf(ZoomTool.class);
+        assertThat(toggle(view.actions().zoomTool()).isSelected()).isTrue();
         view.palette().choose(StandardComponentTypes.LED);
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
-        assertThat(wireButton().isSelected()).isFalse();
+        assertThat(toggle(view.actions().zoomTool()).isSelected()).isFalse();
         assertThat(toggle(view.actions().selectTool()).isSelected()).isFalse();
         perform(view.actions().panTool());
         assertThat(view.canvas().tool()).isInstanceOf(PanTool.class);
@@ -562,15 +563,6 @@ class EditorViewTest {
         throw new AssertionError("no status label starting with " + prefix);
     }
 
-    /** The main part of the Cable split button, the toolbar's pressed-tool button of the Wire tool. */
-    private AbstractButton wireButton() {
-        for (java.awt.Component child : view.toolBar().getComponents()) {
-            if (child instanceof cl.almejo.vsim.ui.toolbar.SplitButton split) {
-                return split.mainButton();
-            }
-        }
-        throw new AssertionError("no Cable split button in the toolbar");
-    }
 
     private AbstractButton toggle(javax.swing.Action action) {
         for (java.awt.Component child : view.toolBar().getComponents()) {
@@ -841,13 +833,12 @@ class EditorViewTest {
         };
         Runnable removeFirst = view.registerShortcutAction("test.first", first);
         view.registerShortcutAction("test.second", second);
-        assertThat(view.shortcutActions()).containsOnlyKeys("edit.wireContinuous", "test.first", "test.second");
-        assertThat(view.shortcutActions()).contains(entry("test.first", first), entry("test.second", second));
+        assertThat(view.shortcutActions()).containsExactly(entry("test.first", first), entry("test.second", second));
         assertThatThrownBy(() -> view.registerShortcutAction("test.first", second))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> view.shortcutActions().clear()).isInstanceOf(UnsupportedOperationException.class);
         removeFirst.run();
-        assertThat(view.shortcutActions()).containsOnlyKeys("edit.wireContinuous", "test.second");
+        assertThat(view.shortcutActions()).containsOnlyKeys("test.second");
     }
 
     // --- entering a user component (spec §4.4) ---

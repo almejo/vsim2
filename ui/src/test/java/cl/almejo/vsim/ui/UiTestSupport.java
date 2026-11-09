@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
@@ -206,6 +207,21 @@ public final class UiTestSupport {
                 new GridPoint(endX, endY));
         document.execute(new AddWireCommand(wire));
         return wire;
+    }
+
+    /**
+     * Places an inverting buffer whose output pin lies at ({@code x}, {@code y}), its body to the left, and forgets
+     * the placement in the undo history: a pin to start a wire from in Selección (no Cable tool since 2026-11-09).
+     */
+    public static Component pinAt(OpenDocument document, int x, int y) {
+        ComponentType type = document.registry().require(StandardComponentTypes.BUFFER);
+        Map<String, Object> inverting = Map.of(StandardComponentTypes.NEGATE, true);
+        Component probe = type.newComponent(document.document().newComponentId(), new GridPoint(0, 0), Rotation.R0,
+                inverting, "");
+        GridPoint output = type.pinLocation(probe, 1);
+        Component placed = place(document, type.id(), x - output.x(), y - output.y(), inverting);
+        document.history().clear();
+        return placed;
     }
 
     /** The explanation of {@link #refusedInside()}'s refusal, as the place bar and the status line say it. */

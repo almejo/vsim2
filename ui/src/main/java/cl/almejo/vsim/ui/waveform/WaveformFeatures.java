@@ -146,10 +146,11 @@ public final class WaveformFeatures {
 
     /**
      * A primary press on a marker in {@code pane} with its select tool: opens the panel if hidden, selects the first
-     * channel of the marker and blinks its row. True consumes the press (the select tool never sees it).
+     * channel of the marker and blinks its row. True consumes the press (the select tool never sees it). While a wire
+     * is drawn the press is the wire's.
      */
     boolean markerPressed(CircuitCanvas pane, CanvasMouseEvent event) {
-        if (disposed || !(pane.tool() instanceof SelectTool)) {
+        if (disposed || !(pane.tool() instanceof SelectTool) || pane.drawsBetweenClicks()) {
             return false;
         }
         Optional<ProbeMarker> marker = markers.markerAt(event.gridPosition());

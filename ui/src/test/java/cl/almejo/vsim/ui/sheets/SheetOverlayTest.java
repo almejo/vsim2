@@ -615,7 +615,7 @@ class SheetOverlayTest {
         dragTheDisplayAcrossTheBorder(InputEvent.BUTTON1_DOWN_MASK);
 
         pane.useDefaultTool();
-        pane.setTool(new cl.almejo.vsim.ui.tools.WireTool(() -> cl.almejo.vsim.ui.tools.WireMode.PIECES));
+        pane.setTool(new cl.almejo.vsim.ui.tools.PanTool());
 
         assertThat(pane.movingElements()).isEmpty();
         assertThat(overlay().drawing().movingCuts()).isEmpty();

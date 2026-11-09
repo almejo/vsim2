@@ -64,18 +64,39 @@ class WireSnapTest {
                 .collect(Collectors.toSet());
     }
 
+    /** Selección drawing one «L» per drag (Editar ▸ Dibujar cables ▸ Por trozos). */
+    private SelectTool inPieces() {
+        context.preferences.setWireMode(WireMode.PIECES);
+        return new SelectTool();
+    }
+
     @Test
-    void aFreeStartAndAFreeEndGoToTheGuidesWithinReach() {
-        guides(new Guide(Orientation.VERTICAL, 11), ROW_21);
-        WireTool tool = new WireTool(() -> WireMode.PIECES);
-        tool.mousePressed(context, TestToolContext.at(10, 10));
+    void aFreeEndGoesToTheGuideWithinReach() {
+        guides(new Guide(Orientation.VERTICAL, 21), ROW_21);
+        SelectTool tool = inPieces();
+        tool.mousePressed(context, TestToolContext.at(pin.x(), pin.y()));
         tool.mouseDragged(context, TestToolContext.at(20, 20));
-        assertThat(tool.snappedGuides()).containsExactlyInAnyOrder(new Guide(Orientation.VERTICAL, 11), ROW_21);
+        assertThat(tool.snappedGuides()).containsExactlyInAnyOrder(new Guide(Orientation.VERTICAL, 21), ROW_21);
         tool.paintOverlay(TestToolContext.scratchGraphics(), context);
         tool.mouseReleased(context, TestToolContext.at(20, 20));
 
-        assertThat(drawnEnds()).contains(new GridPoint(11, 10), new GridPoint(20, 21));
+        assertThat(drawnEnds()).contains(pin, new GridPoint(21, 21));
         assertThat(tool.snappedGuides()).isEmpty();
+    }
+
+    @Test
+    void aCornerOfAContinuousPathGoesToTheGuideWithinReach() {
+        guides(ROW_21);
+        SelectTool tool = new SelectTool();
+        tool.mousePressed(context, TestToolContext.at(pin.x(), pin.y()));
+        tool.mouseDragged(context, TestToolContext.at(20, 20));
+        assertThat(tool.snappedGuides()).containsExactly(ROW_21);
+        tool.mouseReleased(context, TestToolContext.at(20, 20));
+        tool.mousePressed(context, TestToolContext.event(20, 21, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(20, 21, CanvasMouseEvent.PRIMARY, 2, false));
+
+        assertThat(tool.drawsBetweenClicks()).isFalse();
+        assertThat(drawnEnds()).contains(pin, new GridPoint(20, 21));
     }
 
     @ParameterizedTest
@@ -84,7 +105,7 @@ class WireSnapTest {
         context.viewport.zoomAt(0, 0, zoom);
         guides(new Guide(Orientation.VERTICAL, pin.x() + 1), new Guide(Orientation.HORIZONTAL, pin.y() - 1),
                 new Guide(Orientation.VERTICAL, 46), new Guide(Orientation.HORIZONTAL, 1));
-        WireTool tool = new WireTool(() -> WireMode.PIECES);
+        SelectTool tool = inPieces();
         tool.mousePressed(context, TestToolContext.at(pin.x(), pin.y()));
         tool.mouseDragged(context, TestToolContext.at(45, 0));
         tool.mouseReleased(context, TestToolContext.at(45, 0));
@@ -94,30 +115,30 @@ class WireSnapTest {
 
     @Test
     void aReleaseRightAfterARefreshCommitsTheRefreshedEnd() {
-        WireTool tool = new WireTool(() -> WireMode.PIECES);
-        tool.mousePressed(context, TestToolContext.at(10, 10));
+        SelectTool tool = inPieces();
+        tool.mousePressed(context, TestToolContext.at(pin.x(), pin.y()));
         tool.mouseDragged(context, TestToolContext.at(20, 20));
         guides(ROW_21);
         assertThat(tool.refreshSnap(context)).isTrue();
         assertThat(tool.refreshSnap(context)).isFalse(); // nothing changed the second time
         tool.mouseReleased(context, TestToolContext.at(20, 20));
 
-        assertThat(drawnEnds()).contains(new GridPoint(10, 10), new GridPoint(20, 21));
+        assertThat(drawnEnds()).contains(pin, new GridPoint(20, 21));
     }
 
     @Test
     void withAjustarOffTheWireGoesWhereThePointerSays() {
         context.preferences.setSnapToAlignments(false);
         guides(new Guide(Orientation.VERTICAL, 11), ROW_21);
-        WireTool tool = new WireTool(() -> WireMode.PIECES);
-        context.drag(tool, 10, 10, 20, 20);
-        assertThat(drawnEnds()).contains(new GridPoint(10, 10), new GridPoint(20, 20));
-        assertThat(drawnEnds()).doesNotContain(new GridPoint(11, 10), new GridPoint(20, 21));
+        SelectTool tool = inPieces();
+        context.drag(tool, pin.x(), pin.y(), 20, 20);
+        assertThat(drawnEnds()).contains(pin, new GridPoint(20, 20));
+        assertThat(drawnEnds()).doesNotContain(new GridPoint(20, 21));
     }
 
     @Test
     void aWireDrawnFromAPinWithTheSelectToolEndsOnTheGuideAndRefreshes() {
-        SelectTool tool = new SelectTool();
+        SelectTool tool = inPieces();
         tool.mousePressed(context, TestToolContext.at(pin.x(), pin.y()));
         tool.mouseDragged(context, TestToolContext.at(20, 20));
         assertThat(tool.snappedGuides()).isEmpty();

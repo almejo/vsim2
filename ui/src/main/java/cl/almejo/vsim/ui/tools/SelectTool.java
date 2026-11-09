@@ -27,6 +27,7 @@ import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.wiring.NewContact;
 import cl.almejo.vsim.core.wiring.WireStretch;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.MultiBitCells;
@@ -64,14 +65,21 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Everyday tool: select (Shift/Ctrl+click toggles, drag in empty space for a rubber band), move the selection by dragging any selected element, draw
- * wires by dragging from a pin or an unselected wire, toggle switches, context menu, double click to configure.
+ * wires from a pin or an unselected wire, toggle switches, context menu, double click to configure.
+ *
+ * <p>Wires (the 2026-11-09 change: there is no Cable tool), as Editar ▸ «Dibujar cables» says
+ * ({@link AppPreferences#wireMode()}, read when a wire starts): in {@link WireMode#CONTINUOUS} a click on any pin
+ * starts a path, and a drag from a pin or an unselected wire adds its first segment and keeps drawing; then each click
+ * fixes a corner and a click or a release on a pin or a wire ends ({@link ContinuousWireGesture}). While the path lasts
+ * every press, release, move and key goes to it, never to the selection, the parts or the delegates. In
+ * {@link WireMode#PIECES} a drag from a pin or an unselected wire draws one «L», and a click on a pin selects its part.
  *
  * <p>What a plain primary press grabs, in priority order: a pin (within the pin radius), then an unselected wire,
  * then the body of an element or an already selected element. Exception: a pin of a selected component grabs the
- * whole selection (instead of starting a wire) while the selection has more than one element. A press on an
- * element of a multi-selection that is released without moving (a plain click) narrows the selection to that
- * element; a press-and-drag moves the whole group. Ctrl held when a move is released copies the selection there
- * instead (one undo step).
+ * whole selection (instead of starting a wire; in the continuous mode a click there still starts one) while the
+ * selection has more than one element. A press on an element of a multi-selection that is released without
+ * moving (a plain click) narrows the selection to that element; a press-and-drag moves the whole group. Ctrl held
+ * when a move is released copies the selection there instead (one undo step).
  *
  * <p>M6.7: a move drags the wires attached to the selection when the follow mode, inverted while the configured key
  * is held, says so; the keys are read during the drag (the preview) and at the release (the move). A key held at the
@@ -130,7 +138,18 @@ public final class SelectTool implements Tool {
     /** The push button the primary press holds down, until its release (or Esc, a focus loss, deactivation). */
     private ElementId heldButton;
     private GridPoint pressPoint;
+    /** The «L» a drag from a pin or an unselected wire draws in {@link WireMode#PIECES}. */
     private WireDrawing wire;
+    /** The continuous wire under way ({@link WireMode#CONTINUOUS}), drawn between clicks. */
+    private final ContinuousWireGesture continuousWire = new ContinuousWireGesture();
+    /** A press on an unselected wire in the continuous mode: a drag from it starts a path there, a click selects it. */
+    private CanvasMouseEvent wirePress;
+    /** The point on that wire where the path would start. */
+    private GridPoint wirePressStart;
+    /** A press on a pin of a selected part that grabs the selection: a click (no drag) starts a path there instead. */
+    private GridPoint pathOnClickAt;
+    /** The last release ended a path: the second press of that double click starts and selects nothing. */
+    private boolean pathEndedByTheLastClick;
     private GridPoint hoverPin;
     private int hoverWidth = 1;
     private Point2D bandStart;
@@ -200,6 +219,7 @@ public final class SelectTool implements Tool {
 
     @Override
     public void deactivated(ToolContext context) {
+        interrupt(context).ifPresent(context::showNotice);
         cancelDelegate(context);
         releaseHeldButton(context);
         hoverPin = null;
@@ -211,6 +231,13 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
+        if (continuousWire.inProgress()) {
+            continuousWire.pressed(context, event);
+            return;
+        }
+        if (secondPressAfterAnEndedPath(event)) {
+            return;
+        }
         if (activeDelegate == null && enterChip.pressed(context, event)) {
             reset();
             return;
@@ -223,6 +250,20 @@ public final class SelectTool implements Tool {
         }
         press(context, event);
         pressCursor().ifPresent(next -> showCursor(context, next));
+    }
+
+    /**
+     * The second press of a double click whose first click ended a path on a pin or a wire: it neither starts a new path
+     * nor configures, enters or selects what is there.
+     */
+    private boolean secondPressAfterAnEndedPath(CanvasMouseEvent event) {
+        boolean endedByTheLastClick = pathEndedByTheLastClick;
+        pathEndedByTheLastClick = false;
+        if (endedByTheLastClick && event.button() == CanvasMouseEvent.PRIMARY && event.clickCount() >= 2) {
+            ownPressSeen = false; // a third click is not this tool's repeated click either
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -308,7 +349,7 @@ public final class SelectTool implements Tool {
         pressedElement = hit.orElse(null);
         if (hit.isPresent() && hit.get() instanceof Wire pressedWire
                 && !context.selection().contains(pressedWire.id())) {
-            pressWire(event, pressedWire);
+            pressWire(context, event, pressedWire);
             return;
         }
         if (hit.isEmpty()) {
@@ -476,22 +517,42 @@ public final class SelectTool implements Tool {
         }
     }
 
-    /** A plain press on a pin: grabs the selection (see {@link #grabsSelection}) or starts a wire from it. */
+    /**
+     * A plain press on a pin: grabs the selection (see {@link #grabsSelection}; in the continuous mode a click there
+     * starts a path instead) or starts a wire from it.
+     */
     private void pressPin(ToolContext context, CanvasMouseEvent event, ConnectionPoints.PinHit pin) {
         pressedElement = pin.component();
+        boolean continuous = wireMode(context) == WireMode.CONTINUOUS;
         if (grabsSelection(context, pin.component())) {
             pressPoint = event.snapped();
             narrowOnRelease = true;
+            pathOnClickAt = continuous ? pin.point() : null;
+        } else if (continuous) {
+            continuousWire.start(context, pin.point(), event);
         } else {
             wire = new WireDrawing(pin.point(), event.gridPosition(),
                     widthAt(context, pin.point()));
         }
     }
 
-    /** A plain press on an unselected wire starts a new wire at the pressed point on it. */
-    private void pressWire(CanvasMouseEvent event, Wire pressedWire) {
-        wire = new WireDrawing(ConnectionPoints.pointOnWire(pressedWire, event.gridPosition()),
-                event.gridPosition());
+    /**
+     * A plain press on an unselected wire: a drag from it draws a wire from the pressed point on it (in the continuous
+     * mode once it moved, so a click only selects the wire).
+     */
+    private void pressWire(ToolContext context, CanvasMouseEvent event, Wire pressedWire) {
+        GridPoint start = ConnectionPoints.pointOnWire(pressedWire, event.gridPosition());
+        if (wireMode(context) == WireMode.CONTINUOUS) {
+            wirePress = event;
+            wirePressStart = start;
+        } else {
+            wire = new WireDrawing(start, event.gridPosition());
+        }
+    }
+
+    /** How a wire from a pin or a wire is drawn now (Editar ▸ «Dibujar cables»), read when it starts. */
+    private static WireMode wireMode(ToolContext context) {
+        return context.selectionMoves().preferences().wireMode();
     }
 
     /** A plain press on an element: selects it, or keeps a selection that holds it (to move it or narrow it). */
@@ -507,6 +568,14 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
+        if (continuousWire.inProgress()) {
+            continuousWire.pointerAt(context, event);
+            return;
+        }
+        if (wirePress != null) {
+            dragFromWire(context, event);
+            return;
+        }
         if (activeDelegate != null) {
             activeDelegate.dragged(context, event);
             return;
@@ -541,9 +610,32 @@ public final class SelectTool implements Tool {
         context.repaint();
     }
 
+    /** A drag from an unselected wire in the continuous mode: once it moved, a path starts where it was pressed. */
+    private void dragFromWire(ToolContext context, CanvasMouseEvent event) {
+        double movedX = Math.abs(event.gridPosition().getX() - wirePress.gridPosition().getX());
+        double movedY = Math.abs(event.gridPosition().getY() - wirePress.gridPosition().getY());
+        if (Math.max(movedX, movedY) < WireDrawing.MOVEMENT_THRESHOLD) {
+            return;
+        }
+        continuousWire.start(context, wirePressStart, wirePress);
+        wirePress = null;
+        wirePressStart = null;
+        continuousWire.pointerAt(context, event);
+        showCursor(context, CanvasCursor.CROSSHAIR);
+    }
+
     @Override
     public void mouseReleased(ToolContext context, CanvasMouseEvent event) {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
+            return;
+        }
+        if (continuousWire.inProgress()) {
+            pathEndedByTheLastClick = continuousWire.released(context, event);
+            reset();
+            if (!continuousWire.inProgress()) {
+                updateHover(context, event);
+            }
+            context.repaint();
             return;
         }
         if (activeDelegate != null) {
@@ -565,11 +657,17 @@ public final class SelectTool implements Tool {
             releaseLabel(context);
         } else if (wire != null) {
             releaseWire(context, event);
+        } else if (wirePress != null) {
+            click(context, event); // a click on an unselected wire selects it
         } else if (pressPoint != null) {
             releaseMove(context, event);
         }
         reset();
-        updateHover(context, event);
+        if (continuousWire.inProgress()) {
+            showCursor(context, CanvasCursor.CROSSHAIR);
+        } else {
+            updateHover(context, event);
+        }
         context.repaint();
     }
 
@@ -591,6 +689,8 @@ public final class SelectTool implements Tool {
             commitMove(context, event);
         } else if (pointerMoved) {
             // the magnet (or a locked frame's wall) pulled the drag back to where it started: nothing to do
+        } else if (pathOnClickAt != null) {
+            continuousWire.startAfterClick(context, pathOnClickAt);
         } else if (selectionClick) {
             if (removeOnRelease) {
                 context.selection().remove(pressedElement.id());
@@ -670,6 +770,12 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
+        if (continuousWire.inProgress()) {
+            lastHover = event;
+            continuousWire.pointerAt(context, event);
+            showCursor(context, CanvasCursor.CROSSHAIR);
+            return;
+        }
         updateHover(context, event);
     }
 
@@ -807,7 +913,7 @@ public final class SelectTool implements Tool {
      * subtracts) or a move (move).
      */
     private Optional<CanvasCursor> pressCursor() {
-        if (wire != null) {
+        if (wire != null || continuousWire.inProgress()) {
             return Optional.of(CanvasCursor.CROSSHAIR);
         }
         if (bandStart != null) {
@@ -857,6 +963,9 @@ public final class SelectTool implements Tool {
      */
     @Override
     public boolean refreshSnap(ToolContext context) {
+        if (continuousWire.inProgress()) {
+            return continuousWire.refreshSnap(context);
+        }
         if (activeDelegate != null) {
             return activeDelegate.refreshSnap(context);
         }
@@ -876,6 +985,9 @@ public final class SelectTool implements Tool {
 
     @Override
     public List<Guide> snappedGuides() {
+        if (continuousWire.inProgress()) {
+            return continuousWire.snappedGuides();
+        }
         if (activeDelegate != null) {
             return activeDelegate.snappedGuides();
         }
@@ -912,6 +1024,9 @@ public final class SelectTool implements Tool {
 
     @Override
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
+        if (continuousWire.inProgress()) {
+            return pathKeyPressed(context, keyCode);
+        }
         if (keyCode == KeyEvent.VK_ENTER) {
             return enterSelectedInstance(context);
         }
@@ -936,6 +1051,58 @@ public final class SelectTool implements Tool {
         return true;
     }
 
+    /** While a path is drawn: Esc cancels it, Retroceso drops its last corner; other keys are not the tool's. */
+    private boolean pathKeyPressed(ToolContext context, int keyCode) {
+        return switch (keyCode) {
+            case KeyEvent.VK_ESCAPE -> {
+                continuousWire.cancel(context);
+                yield true;
+            }
+            case KeyEvent.VK_BACK_SPACE -> dropLastStep(context);
+            default -> false;
+        };
+    }
+
+    /** Drops the path's last corner (Retroceso, and Deshacer while drawing); with none left, cancels the path. */
+    @Override
+    public boolean dropLastStep(ToolContext context) {
+        if (!continuousWire.inProgress()) {
+            return false;
+        }
+        continuousWire.dropLastStep(context);
+        return true;
+    }
+
+    /** A tap of Espacio flips the elbow of the segment being drawn (a path, or the «L» of a drag in pieces). */
+    @Override
+    public boolean flipElbow(ToolContext context) {
+        if (continuousWire.inProgress()) {
+            continuousWire.flipElbow(context);
+            return true;
+        }
+        if (wire != null) {
+            wire.flipElbow();
+            context.repaint();
+            return true;
+        }
+        return false;
+    }
+
+    /** A continuous wire's path is in progress (no button needs to be held). */
+    @Override
+    public boolean drawsBetweenClicks() {
+        return continuousWire.inProgress();
+    }
+
+    /**
+     * Another tool or a palette part was chosen, the tab changed, the AI started a task or the pane closed: a path in
+     * progress goes, with «Cable cancelado».
+     */
+    @Override
+    public Optional<String> interrupt(ToolContext context) {
+        return continuousWire.interrupt(context);
+    }
+
     /** Enter with exactly one user-component instance selected enters it (spec §4.4); false when not taken. */
     private boolean enterSelectedInstance(ToolContext context) {
         Set<ElementId> selected = context.selection().ids();
@@ -952,6 +1119,10 @@ public final class SelectTool implements Tool {
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
         for (SelectToolDelegate delegate : delegates) {
             delegate.paintOverlay(graphics, context);
+        }
+        if (continuousWire.inProgress()) {
+            continuousWire.paint(graphics, context);
+            return;
         }
         if (isIdle()) {
             enterChip.paint(graphics, context);
@@ -1140,10 +1311,13 @@ public final class SelectTool implements Tool {
         return !isIdle();
     }
 
-    /** True when no gesture is under way: no press, wire, rubber band or delegate (a frame resize, a label drag). */
+    /**
+     * True when no gesture is under way: no press, wire (a drag in pieces or a continuous path), rubber band or delegate
+     * (a frame resize, a label drag).
+     */
     public boolean isIdle() {
         return pressPoint == null && wire == null && bandStart == null && activeDelegate == null
-                && labelComponent == null;
+                && labelComponent == null && wirePress == null && !continuousWire.inProgress();
     }
 
     @Override
@@ -1436,6 +1610,9 @@ public final class SelectTool implements Tool {
         selectionClick = false;
         removeOnRelease = false;
         wire = null;
+        wirePress = null;
+        wirePressStart = null;
+        pathOnClickAt = null;
         bandStart = null;
         bandEnd = null;
         bandMode = BandMode.REPLACE;

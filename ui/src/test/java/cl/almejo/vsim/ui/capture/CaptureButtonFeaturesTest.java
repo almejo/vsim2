@@ -104,9 +104,7 @@ class CaptureButtonFeaturesTest {
     }
 
     private static <T> void collect(Component component, Class<T> type, List<T> found) {
-        // the Cable's split button (its main part is a toggle for the tool group) is not the screenshot's
-        boolean cable = component instanceof SplitButton split && split.mainButton() instanceof javax.swing.JToggleButton;
-        if (type.isInstance(component) && !cable) {
+        if (type.isInstance(component)) {
             found.add(type.cast(component));
         }
         if (component instanceof Container container) {

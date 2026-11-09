@@ -313,6 +313,7 @@ class SelectToolTest {
 
     @Test
     void dragFromAPinDrawsAWireAsOneUndoStep() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         place(context.openDocument(), StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         context.drag(tool, 4.2, 2.1, 9, 2);
         assertThat(context.openDocument().document().wires()).singleElement()
@@ -326,6 +327,7 @@ class SelectToolTest {
 
     @Test
     void tinyDragFromAPinIsAClick() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         Component gate = not(0, 0);
         context.drag(tool, 4.1, 2, 4.3, 2.2);
         assertThat(context.openDocument().document().wires()).isEmpty();
@@ -344,6 +346,7 @@ class SelectToolTest {
 
     @Test
     void dragFromAnUnselectedWireStartsANewWireThere() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         Wire existing = new Wire(context.openDocument().document().newWireId(), new GridPoint(0, 0),
                 new GridPoint(10, 0));
         context.openDocument().execute(new AddWireCommand(existing));
@@ -388,6 +391,7 @@ class SelectToolTest {
 
     @Test
     void wirePreviewIsPaintedWhileDragging() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         not(0, 0);
         tool.mousePressed(context, TestToolContext.at(4, 2));
         tool.mouseDragged(context, TestToolContext.at(8, 5));
@@ -397,6 +401,7 @@ class SelectToolTest {
 
     @Test
     void pinJitterBetweenPressAndReleaseDrawsNoWire() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         Component gate = not(4, 0);
         tool.mousePressed(context, TestToolContext.at(4.45, 2));
         tool.mouseDragged(context, TestToolContext.at(4.55, 2));
@@ -408,6 +413,7 @@ class SelectToolTest {
 
     @Test
     void clickingAWiredPinSelectsTheComponentNotTheWire() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         Component gate = not(0, 0);
         context.openDocument().execute(new AddWireCommand(new Wire(context.openDocument().document().newWireId(),
                 new GridPoint(4, 2), new GridPoint(9, 2))));
@@ -417,6 +423,7 @@ class SelectToolTest {
 
     @Test
     void clickingAWiredSwitchNextToItsOutputPinTogglesIt() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         Component lever = place(context.openDocument(), StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
         GridPoint output = context.openDocument().registry().require(lever.typeId()).pinLocation(lever, 0);
         context.openDocument().execute(new AddWireCommand(new Wire(context.openDocument().document().newWireId(),
@@ -530,6 +537,7 @@ class SelectToolTest {
         tool.mouseReleased(context, TestToolContext.at(2, 2));
         assertThat(context.selection.ids()).containsExactly(first.id());
         context.selection.set(List.of(first.id(), second.id()));
+        context.preferences.setWireMode(WireMode.PIECES); // in the continuous mode a click on a pin starts a wire
         context.click(tool, 14.1, 2);
         assertThat(context.selection.ids()).containsExactly(second.id());
         assertThat(context.openDocument().document().wires()).isEmpty();
@@ -569,6 +577,7 @@ class SelectToolTest {
 
     @Test
     void pinOfAComponentOutsideTheSelectionStillStartsAWire() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         Component first = not(0, 0);
         Component second = not(10, 0);
         not(20, 0);
@@ -584,6 +593,7 @@ class SelectToolTest {
 
     @Test
     void pinOfTheOnlySelectedComponentStillStartsAWire() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         Component gate = not(0, 0);
         context.click(tool, 2, 2);
         context.drag(tool, 4.1, 2, 9, 2);

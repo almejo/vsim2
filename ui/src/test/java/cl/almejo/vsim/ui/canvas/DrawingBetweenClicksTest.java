@@ -4,14 +4,14 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.ui.CanvasClicks;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
-import cl.almejo.vsim.ui.tools.WireMode;
-import cl.almejo.vsim.ui.tools.WireTool;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -200,18 +200,20 @@ class DrawingBetweenClicksTest {
 
     @Test
     void theCanvasDropsTheLastStepAndInterruptsAContinuousWire() {
-        WireTool wire = new WireTool(() -> WireMode.CONTINUOUS);
-        canvas.setTool(wire);
+        cl.almejo.vsim.core.geometry.GridPoint start = canvas.viewport().snap(80, 80);
+        UiTestSupport.pinAt(openDocument, start.x(), start.y()); // Selección starts a wire at a pin
+        canvas.useDefaultTool();
+        Tool selection = canvas.tool();
         assertThat(canvas.dropLastToolStep()).isFalse(); // nothing drawn: the history undoes as usual
         assertThat(canvas.interruptGesture()).isEmpty();
 
         click(80, 80);
         click(160, 80);
         assertThat(canvas.dropLastToolStep()).isTrue();
-        assertThat(wire.holdsGesture()).isTrue();
+        assertThat(selection.drawsBetweenClicks()).isTrue();
 
         assertThat(canvas.interruptGesture()).isPresent();
-        assertThat(wire.holdsGesture()).isFalse();
+        assertThat(selection.drawsBetweenClicks()).isFalse();
         assertThat(openDocument.document().wires()).isEmpty();
     }
 

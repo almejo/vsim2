@@ -48,15 +48,12 @@ class TextToolExtensionTest {
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof JToggleButton button) {
                 names.add(button.getAction().getValue(javax.swing.Action.NAME).toString());
-            } else if (child instanceof cl.almejo.vsim.ui.toolbar.SplitButton split
-                    && split.mainButton() instanceof JToggleButton) {
-                names.add("Cable"); // the Cable's split button holds the pressed-tool part
             }
         }
-        assertThat(names).containsExactly("Selección", "Cable", "Nota adhesiva", "Texto", "Mover vista", "Zoom");
-        assertThat(texts(view.menu(MenuId.VIEW)).subList(0, 13))
+        assertThat(names).containsExactly("Selección", "Nota adhesiva", "Texto", "Mover vista", "Zoom");
+        assertThat(texts(view.menu(MenuId.VIEW)).subList(0, 12))
                 .containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "---", "Selección",
-                        "Cable", "Nota adhesiva", "Texto", "Mover vista", "Zoom");
+                        "Nota adhesiva", "Texto", "Mover vista", "Zoom");
         assertThat(view.shortcutActions()).containsKey("view.textTool");
     }
 

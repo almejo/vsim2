@@ -28,17 +28,17 @@ public final class TextToolExtension implements EditorExtension {
         removers.add(view.addToolButton(tool, TextTool.class));
         JMenu viewMenu = view.menu(MenuId.VIEW);
         JMenuItem toolItem = new JMenuItem(tool);
-        viewMenu.insert(toolItem, indexAfterWireTool(view, viewMenu));
+        viewMenu.insert(toolItem, indexAfterSelectTool(view, viewMenu));
         removers.add(() -> viewMenu.remove(toolItem));
         removers.add(view.registerShortcutAction("view.textTool", tool));
         return () -> removers.reversed().forEach(Runnable::run);
     }
 
-    private static int indexAfterWireTool(EditorView view, JMenu viewMenu) {
-        Action wireTool = view.actions().wireTool();
+    private static int indexAfterSelectTool(EditorView view, JMenu viewMenu) {
+        Action selectTool = view.actions().selectTool();
         for (int index = 0; index < viewMenu.getItemCount(); index++) {
             JMenuItem item = viewMenu.getItem(index);
-            if (item != null && item.getAction() == wireTool) {
+            if (item != null && item.getAction() == selectTool) {
                 return index + 1;
             }
         }

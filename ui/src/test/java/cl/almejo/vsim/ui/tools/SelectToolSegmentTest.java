@@ -186,6 +186,7 @@ class SelectToolSegmentTest {
 
     @Test
     void altOnAnUnselectedWireStillStartsANewWire() {
+        context.preferences.setWireMode(WireMode.PIECES); // one drag, one «L»; a click on a pin selects its part
         context.dragHolding(tool, 45, 10, 45, 16, false, true);
         assertThat(wires()).hasSize(4).contains(left, segment, right);
     }

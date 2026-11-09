@@ -7,7 +7,7 @@ import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,11 +23,12 @@ import static cl.almejo.vsim.ui.CanvasClicks.doubleClick;
 import static cl.almejo.vsim.ui.CanvasClicks.move;
 import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.pinAt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
 /**
- * A continuous wire in a real editor view: changing the tool cancels it with «Cable cancelado», the window losing the
+ * A continuous wire drawn from Selección in a real editor view (it starts at a pin at grid (5, 5)): changing the tool cancels it with «Cable cancelado», the window losing the
  * focus keeps it, and Deshacer (Ctrl+Z, the button, the menu: one action) drops its last corner while it lasts, never
  * an earlier step.
  */
@@ -45,7 +46,8 @@ class ContinuousWireInterruptionsTest {
         canvas = view.canvas();
         canvas.setSize(400, 300);
         canvas.applyViewState(new ViewState(1, canvas.getWidth() / 16.0, canvas.getHeight() / 16.0)); // grid 0, 0 at the corner
-        perform(view.actions().wireTool());
+        pinAt(fixture.openDocument(), 5, 5);
+        view.actions().refresh();
     }
 
     @AfterEach
@@ -69,10 +71,10 @@ class ContinuousWireInterruptionsTest {
     }
 
     @Test
-    void choosingSelectionWhileDrawingCancelsThePathWithTheNotice() {
+    void choosingAnotherToolWhileDrawingCancelsThePathWithTheNotice() {
         drawAPathWithOneCorner();
 
-        perform(view.actions().selectTool());
+        perform(view.actions().panTool());
 
         assertThat(view.statusBar().text()).contains("Cable cancelado");
         assertThat(wires()).isEmpty();
@@ -89,8 +91,18 @@ class ContinuousWireInterruptionsTest {
     }
 
     @Test
-    void changingTheToolWithNothingDrawnSaysNothing() {
+    void choosingSelectionAgainWhileDrawingKeepsThePath() {
+        drawAPathWithOneCorner();
+
         perform(view.actions().selectTool());
+
+        assertThat(view.statusBar().text()).doesNotContain("Cable cancelado");
+        assertThat(canvas.drawsBetweenClicks()).isTrue();
+    }
+
+    @Test
+    void changingTheToolWithNothingDrawnSaysNothing() {
+        perform(view.actions().panTool());
 
         assertThat(view.statusBar().text()).doesNotContain("Cable cancelado");
     }
@@ -131,7 +143,7 @@ class ContinuousWireInterruptionsTest {
         perform(undo());
 
         assertThat(canvas.tool().holdsGesture()).isFalse();
-        assertThat(canvas.tool()).isInstanceOf(WireTool.class);
+        assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
         assertThat(undo().isEnabled()).isFalse();
     }
 

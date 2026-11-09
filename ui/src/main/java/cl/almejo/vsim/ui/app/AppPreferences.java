@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.print.Paper;
 import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScope;
 import cl.almejo.vsim.ui.print.ScaleMode;
+import cl.almejo.vsim.ui.tools.WireMode;
 import java.awt.Rectangle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,6 +183,7 @@ public final class AppPreferences {
     static final String TIDY_MERGE_SEGMENTS = "tidyMergeSegments";
     static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
     static final String WIRES_FOLLOW = "wiresFollow";
+    static final String WIRE_MODE = "wireMode";
     static final String SNAP_TO_ALIGNMENTS = "snap.enabled";
     static final String SNAP_TO_PARTS = "snap.parts";
     static final String SNAP_TO_GUIDES = "snap.guides";
@@ -683,6 +685,19 @@ public final class AppPreferences {
 
     public void setWiresFollow(boolean follow) {
         putFlag(WIRES_FOLLOW, follow);
+    }
+
+    /**
+     * How Selección draws a wire from a pin or a wire (Editar ▸ «Dibujar cables»): {@link WireMode#CONTINUOUS} unless
+     * the user chose «Por trozos»; one for the whole app.
+     */
+    public WireMode wireMode() {
+        return WireMode.of(read(WIRE_MODE, WireMode.CONTINUOUS.id()));
+    }
+
+    public void setWireMode(WireMode mode) {
+        Objects.requireNonNull(mode, "mode");
+        put(WIRE_MODE, mode.id());
     }
 
     /** The key that inverts the follow mode while dragging; Shift when unset or unreadable. */

@@ -8,15 +8,19 @@ import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.snap.PointResolution;
 import cl.almejo.vsim.ui.tools.WireRouting.Segment;
 
+import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
+import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * A wire drawn with the Wire tool in its continuous mode: a start, the corners fixed by clicks (each step from one to
+ * A wire drawn from Selección in the continuous mode: a start, the corners fixed by clicks (each step from one to
  * the next is an «L») and the segment being drawn from the last corner to the pointer. The whole path is added as one
  * undo step, with consecutive collinear segments merged.
  *
@@ -33,6 +37,16 @@ final class ContinuousWirePath {
      * larger than a drawn junction (3.5) so it stands out over the wire it lands on.
      */
     private static final double JUNCTION_PREVIEW_RADIUS = 4.5;
+    /** The segment that follows the pointer is dashed (as in the approved mockup), a wire's or a bus's width. */
+    private static final float[] DASH = {6f, 5f};
+    private static final BasicStroke DASHED_WIRE = new BasicStroke(2.5f, BasicStroke.CAP_BUTT,
+            BasicStroke.JOIN_ROUND, 10f, DASH, 0f);
+    private static final BasicStroke DASHED_BUS = new BasicStroke(4.5f, BasicStroke.CAP_BUTT,
+            BasicStroke.JOIN_ROUND, 10f, DASH, 0f);
+    private static final float DRAWN_SEGMENT_ALPHA = 0.7f;
+    /** The open end's ring: a little larger than a pin's hover ring (4.5), so it reads as «the wire goes on here». */
+    private static final double OPEN_END_RADIUS = 5.5;
+    private static final BasicStroke OPEN_END_RING = new BasicStroke(1.5f);
 
     /** One fixed step of the path: the «L» to {@code end}, its elbow on the side {@code horizontalFirst} says. */
     private record Step(GridPoint end, boolean horizontalFirst) {
@@ -235,16 +249,47 @@ final class ContinuousWirePath {
         return List.copyOf(guides);
     }
 
-    /** The path and the segment being drawn as ghosts, and a dot at every point where it will join the circuit. */
+    /**
+     * The fixed path as ghosts, the segment being drawn dashed, a dot at every point where the path will join the
+     * circuit and a ring at its open end: right after a drag that fixed a corner the segment being drawn has no length
+     * yet, and the ring shows at once, where the button was released, that the path goes on from there.
+     */
     void paintPreview(Graphics2D graphics, ToolContext context) {
-        WireDrawing.paintSegments(graphics, context, previewSegments(), startWidth);
+        WireDrawing.paintSegments(graphics, context, segments(), startWidth);
+        paintSegmentBeingDrawn(graphics, context);
         for (GridPoint junction : junctionPoints(context)) {
             paintJunction(graphics, context, junction);
         }
+        paintOpenEnd(graphics, context);
+    }
+
+    private void paintSegmentBeingDrawn(Graphics2D graphics, ToolContext context) {
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        Composite previous = graphics.getComposite();
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, DRAWN_SEGMENT_ALPHA));
+        try {
+            graphics.setStroke(startWidth > 1 ? DASHED_BUS : DASHED_WIRE);
+            graphics.setColor(context.scheme().preview());
+            for (Segment segment : WireRouting.route(lastCorner(), current, horizontalFirstTo(current))) {
+                graphics.draw(new Line2D.Double(segment.start().x() * unit, segment.start().y() * unit,
+                        segment.end().x() * unit, segment.end().y() * unit));
+            }
+        } finally {
+            graphics.setComposite(previous);
+        }
+    }
+
+    /** A ring, in the scheme's preview colour, where the segment being drawn ends: the path is still open there. */
+    private void paintOpenEnd(Graphics2D graphics, ToolContext context) {
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        graphics.setColor(context.scheme().preview());
+        graphics.setStroke(OPEN_END_RING);
+        graphics.draw(new Ellipse2D.Double(current.x() * unit - OPEN_END_RADIUS, current.y() * unit - OPEN_END_RADIUS,
+                2 * OPEN_END_RADIUS, 2 * OPEN_END_RADIUS));
     }
 
     /** One dot of the preview where a wire will join the circuit at {@code junction} (the scheme's preview colour). */
-    static void paintJunction(Graphics2D graphics, ToolContext context, GridPoint junction) {
+    private static void paintJunction(Graphics2D graphics, ToolContext context, GridPoint junction) {
         graphics.setColor(context.scheme().preview());
         double unit = GridPoint.PIXELS_PER_UNIT;
         graphics.fill(new Ellipse2D.Double(junction.x() * unit - JUNCTION_PREVIEW_RADIUS,

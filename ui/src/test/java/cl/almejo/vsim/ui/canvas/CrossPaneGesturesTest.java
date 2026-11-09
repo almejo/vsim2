@@ -21,7 +21,7 @@ import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.tools.WireMode;
-import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
@@ -46,6 +46,7 @@ import static cl.almejo.vsim.ui.CanvasClicks.click;
 import static cl.almejo.vsim.ui.CanvasClicks.doubleClick;
 import static cl.almejo.vsim.ui.CanvasClicks.move;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.pinAt;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.differingPixels;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.paint;
@@ -90,9 +91,15 @@ class CrossPaneGesturesTest {
 
     // --- the hand-off -------------------------------------------------------------------------------------------
 
+    /** Selección draws wires as {@code mode} says, from a pin at grid (5, 5): pixel (40, 40) of the left pane. */
+    private void wiresFromAPinAtFiveFive(WireMode mode) {
+        view.services().preferences().setWireMode(mode);
+        pinAt(openDocument, 5, 5);
+    }
+
     @Test
-    void aWireDrawnWithTheWireToolEndsWhereThePointerIsInTheOtherPaneAsOneStep() {
-        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
+    void aWireDrawnInPiecesEndsWhereThePointerIsInTheOtherPaneAsOneStep() {
+        wiresFromAPinAtFiveFive(WireMode.PIECES);
         press(left, 40, 40, 0);
         dragOverRight(100, 96, 0);
         releaseOverRight(100, 96, 0);
@@ -107,6 +114,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void aWireFromAWireWithSelectCrossesToo() {
+        view.services().preferences().setWireMode(WireMode.PIECES);
         Wire existing = new Wire(openDocument.document().newWireId(), new GridPoint(5, 2), new GridPoint(5, 10));
         openDocument.execute(new AddWireCommand(existing));
         press(left, 40, 48, 0);
@@ -119,7 +127,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void movingBackOverTheFirstPaneHandsTheEndBack() {
-        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
+        wiresFromAPinAtFiveFive(WireMode.PIECES);
         press(left, 40, 40, 0);
         dragOverRight(100, 96, 0);
         drag(left, 40, 120, 0);
@@ -132,7 +140,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void thePreviewShowsInBothPanesAndEscapeTakesItAwayFromBoth() {
-        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
+        wiresFromAPinAtFiveFive(WireMode.PIECES);
         BufferedImage rightBefore = paint(right);
         press(left, 40, 40, 0);
         dragOverRight(100, 96, 0);
@@ -149,7 +157,7 @@ class CrossPaneGesturesTest {
 
     @Test
     void aContinuousWireStartedInOnePaneGoesOnInTheOtherBetweenClicksAndEndsThereAsOneStep() {
-        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.CONTINUOUS));
+        wiresFromAPinAtFiveFive(WireMode.CONTINUOUS);
         BufferedImage rightBefore = paint(right);
         click(left, 40, 40);
         move(right, 100, 96); // no button held: Swing gives the move to the pane under the pointer
@@ -172,19 +180,19 @@ class CrossPaneGesturesTest {
 
     @Test
     void escapeInTheOtherPaneCancelsTheContinuousWireOfTheFirst() {
-        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.CONTINUOUS));
+        wiresFromAPinAtFiveFive(WireMode.CONTINUOUS);
         click(left, 40, 40);
         move(right, 100, 96);
 
         assertThat(right.pressKeyOnTool(KeyEvent.VK_ESCAPE, false)).isTrue();
 
         assertThat(left.tool().holdsGesture()).isFalse();
-        assertThat(right.tool()).isInstanceOf(WireTool.class); // Esc ended the path, it did not leave the tool
+        assertThat(right.tool()).isInstanceOf(SelectTool.class); // Esc ended the path, it did not leave the tool
     }
 
     @Test
     void theEndSnapsWithThePaneUnderThePointer() {
-        view.setToolOnEveryPane(() -> new WireTool(() -> WireMode.PIECES));
+        wiresFromAPinAtFiveFive(WireMode.PIECES);
         List<ToolContext> asked = new ArrayList<>();
         right.useSnapper(recordingSnapper(asked));
         press(left, 40, 40, 0);

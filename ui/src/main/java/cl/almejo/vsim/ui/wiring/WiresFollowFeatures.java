@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.preferences.PreferencesForm;
+import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -18,8 +19,9 @@ import java.awt.event.ActionEvent;
 /**
  * The follow-mode toggle of one editor view (M6.7): a toolbar toggle button right after the tool group and a checkbox
  * item in Editar, both on one {@code Action} whose selected state mirrors {@link AppPreferences#wiresFollow()} (so
- * every window shows the same state). {@link #dispose()} takes back the button, the item, the shortcut registration
- * and the preferences listener.
+ * every window shows the same state). Right after the item comes Editar ▸ «Dibujar cables» ({@link WireModeMenu}), how
+ * Selección draws wires. {@link #dispose()} takes back the button, the items, the shortcut registrations and the
+ * preferences listeners.
  */
 public final class WiresFollowFeatures {
 
@@ -27,8 +29,10 @@ public final class WiresFollowFeatures {
     private final Action toggle;
     private final JMenu editMenu;
     private final JCheckBoxMenuItem menuItem;
+    private final WireModeMenu wireModeMenu;
     private final Runnable toolButtonRemover;
     private final Runnable shortcutRemover;
+    private final Runnable wireModeShortcutsRemover;
     private final Runnable preferencesListener;
     private final Runnable tooltipRefresh;
     private boolean disposed;
@@ -54,6 +58,16 @@ public final class WiresFollowFeatures {
         this.menuItem = new JCheckBoxMenuItem(toggle);
         editMenu.add(menuItem);
         this.shortcutRemover = view.registerShortcutAction("edit.wiresFollow", toggle);
+        this.wireModeMenu = new WireModeMenu(preferences);
+        editMenu.add(wireModeMenu.menu());
+        Runnable continuousRemover = view.registerShortcutAction("edit.wireModeContinuous",
+                wireModeMenu.action(WireMode.CONTINUOUS));
+        Runnable piecesRemover = view.registerShortcutAction("edit.wireModePieces",
+                wireModeMenu.action(WireMode.PIECES));
+        this.wireModeShortcutsRemover = () -> {
+            piecesRemover.run();
+            continuousRemover.run();
+        };
     }
 
     /** The toggle's action (toolbar button and Editar item); its {@code SELECTED_KEY} is the preference. */
@@ -79,6 +93,9 @@ public final class WiresFollowFeatures {
             return;
         }
         disposed = true;
+        wireModeShortcutsRemover.run();
+        editMenu.remove(wireModeMenu.menu());
+        wireModeMenu.dispose();
         shortcutRemover.run();
         editMenu.remove(menuItem);
         toolButtonRemover.run();

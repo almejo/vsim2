@@ -389,20 +389,17 @@ class FramesFeaturesTest {
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof javax.swing.JToggleButton button) {
                 names.add(button.getAction().getValue(javax.swing.Action.NAME).toString());
-            } else if (child instanceof cl.almejo.vsim.ui.toolbar.SplitButton split
-                    && split.mainButton() instanceof javax.swing.JToggleButton) {
-                names.add("Cable"); // the Cable's split button holds the pressed-tool part
             }
         }
-        assertThat(names).containsExactly("Selección", "Cable", "Marco", "Mover vista", "Zoom");
+        assertThat(names).containsExactly("Selección", "Marco", "Mover vista", "Zoom");
         List<String> viewTexts = new ArrayList<>();
         for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
             if (child instanceof JMenuItem item) {
                 viewTexts.add(item.getText());
             }
         }
-        assertThat(viewTexts.subList(0, 11)).containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "Selección",
-                "Cable", "Marco", "Mover vista", "Zoom");
+        assertThat(viewTexts.subList(0, 10)).containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "Selección",
+                "Marco", "Mover vista", "Zoom");
     }
 
     @Test

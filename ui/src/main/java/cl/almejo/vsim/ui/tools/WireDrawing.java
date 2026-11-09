@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class WireDrawing {
 
-    /** Grid units the pointer goes from the press before it counts as a drag (shared by {@link WireTool}). */
+    /** Grid units the pointer goes from the press before it counts as a drag (shared by {@link ContinuousWireGesture}). */
     static final double MOVEMENT_THRESHOLD = 0.5;
     private static final BasicStroke BUS_PREVIEW = new BasicStroke(4.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final float PREVIEW_ALPHA = 0.5f;
@@ -117,7 +117,7 @@ public final class WireDrawing {
         return WireRouting.route(start, current, (horizontalFirst == null || horizontalFirst) != elbowFlipped);
     }
 
-    /** Puts the elbow on the other side (a tap of Espacio while dragging with the Wire tool). */
+    /** Puts the elbow on the other side (a tap of Espacio while dragging a wire in pieces). */
     public void flipElbow() {
         elbowFlipped = !elbowFlipped;
     }

@@ -83,7 +83,7 @@ public final class FramesFeatures {
         this.toolButtonRemover = view.addToolButton(frameTool, FrameTool.class);
         this.viewMenu = view.menu(MenuId.VIEW);
         this.toolMenuItem = new JMenuItem(frameTool);
-        viewMenu.insert(toolMenuItem, indexAfterWireTool());
+        viewMenu.insert(toolMenuItem, indexAfterSelectTool());
         this.toolShortcutRemover = view.registerShortcutAction("view.frameTool", frameTool);
         this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
                 view.openDocument().document(), view.openDocument().registry(), ids)
@@ -113,11 +113,11 @@ public final class FramesFeatures {
         return editMenu.getItemCount();
     }
 
-    private int indexAfterWireTool() {
-        Action wireTool = view.actions().wireTool();
+    private int indexAfterSelectTool() {
+        Action selectTool = view.actions().selectTool();
         for (int index = 0; index < viewMenu.getItemCount(); index++) {
             JMenuItem item = viewMenu.getItem(index);
-            if (item != null && item.getAction() == wireTool) {
+            if (item != null && item.getAction() == selectTool) {
                 return index + 1;
             }
         }

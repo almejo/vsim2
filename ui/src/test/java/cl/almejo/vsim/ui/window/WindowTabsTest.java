@@ -14,7 +14,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.session.TabState;
-import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
@@ -136,7 +136,8 @@ class WindowTabsTest {
         EditorView second = tabs.addTab(newDocument(), Optional.empty());
         tabs.activate(first);
         first.canvas().setSize(400, 300);
-        UiTestSupport.perform(first.actions().wireTool());
+        cl.almejo.vsim.core.geometry.GridPoint start = first.canvas().viewport().snap(40, 40);
+        UiTestSupport.pinAt(first.openDocument(), start.x(), start.y()); // Selección starts a wire at a pin
         CanvasClicks.click(first.canvas(), 40, 40);
         CanvasClicks.click(first.canvas(), 120, 40);
         assertThat(first.canvas().tool().holdsGesture()).isTrue();
@@ -147,7 +148,7 @@ class WindowTabsTest {
         assertThat(first.openDocument().document().wires()).isEmpty();
         assertThat(second.statusBar().text()).contains("Cable cancelado");
         tabs.activate(first);
-        assertThat(first.canvas().tool()).isInstanceOf(WireTool.class); // the tool stays, only the path went
+        assertThat(first.canvas().tool()).isInstanceOf(SelectTool.class); // the tool stays, only the path went
     }
 
     @Test

@@ -29,7 +29,7 @@ public final class PanTool implements Tool {
         last = null;
     }
 
-    /** Escape goes back to the default (select) tool, like the wire tool. */
+    /** Escape goes back to the default (select) tool, like the zoom tool. */
     @Override
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
         if (keyCode != KeyEvent.VK_ESCAPE) {

@@ -22,7 +22,7 @@ class ShortcutCatalogTest {
             "edit.rotateClockwise", "edit.rotateCounterClockwise", "edit.configure", "edit.cut", "edit.copy",
             "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.circuitTree", "view.palette",
             "view.properties", "view.problems", "view.notes", "view.memoryMap",
-            "view.selectTool", "view.wireTool",
+            "view.selectTool",
             "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
             "view.zoomField", "view.centerView", "view.nextProblem",
             "view.previousProblem", "simulation.start", "simulation.pause", "simulation.step", "window.newView",

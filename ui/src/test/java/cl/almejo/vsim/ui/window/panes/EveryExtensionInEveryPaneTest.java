@@ -24,7 +24,7 @@ import cl.almejo.vsim.ui.snap.DefaultSnapper;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
-import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
@@ -221,8 +221,8 @@ class EveryExtensionInEveryPaneTest {
     @Test
     void theToolActionsReachEveryPaneEachWithItsOwnTool() {
         splitIntoFour();
-        perform(view.actions().wireTool());
-        assertThat(view.panes()).allSatisfy(pane -> assertThat(pane.tool()).isInstanceOf(WireTool.class));
+        perform(view.actions().zoomTool());
+        assertThat(view.panes()).allSatisfy(pane -> assertThat(pane.tool()).isInstanceOf(ZoomTool.class));
         assertThat(view.panes().stream().map(CircuitCanvas::tool).distinct()).hasSize(4);
 
         perform(view.actions().panTool());

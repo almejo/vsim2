@@ -17,8 +17,7 @@ import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
-import cl.almejo.vsim.ui.tools.WireMode;
-import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
@@ -282,7 +281,7 @@ class ArrowKeyMoveTest {
     @Test
     void nothingMovesWhileAnotherToolIsActive() {
         canvas.selection().select(gate.id());
-        canvas.setTool(new WireTool(() -> WireMode.PIECES));
+        canvas.setTool(new PanTool());
         press(KeyEvent.VK_RIGHT, 0);
         assertThat(positionOf(gate)).isEqualTo(new GridPoint(5, 5));
     }

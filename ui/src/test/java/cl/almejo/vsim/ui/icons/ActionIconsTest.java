@@ -69,7 +69,8 @@ class ActionIconsTest {
         used.addAll(StepIcons.names());
         used.addAll(ExportIcons.names());
         used.addAll(cl.almejo.vsim.ui.capture.CaptureIcons.names());
-        used.addAll(cl.almejo.vsim.ui.window.WireModeIcons.names());
+        used.addAll(cl.almejo.vsim.ui.wiring.WireModeIcons.names());
+        used.add("wire"); // the Propiedades card of a wire (PropertiesPanel); the Cable tool that also used it is gone
         used.addAll(TidyIcons.names());
         used.addAll(cl.almejo.vsim.ui.frames.FrameIcons.names());
         used.addAll(cl.almejo.vsim.ui.sticky.StickyNoteIcons.names());

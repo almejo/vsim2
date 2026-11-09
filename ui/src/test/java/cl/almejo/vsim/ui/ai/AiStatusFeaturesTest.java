@@ -89,7 +89,8 @@ class AiStatusFeaturesTest {
 
     private void startAContinuousWire() {
         view.canvas().setSize(400, 300);
-        UiTestSupport.perform(view.actions().wireTool());
+        cl.almejo.vsim.core.geometry.GridPoint start = view.canvas().viewport().snap(40, 40);
+        UiTestSupport.pinAt(view.openDocument(), start.x(), start.y()); // Selección starts a wire at a pin
         CanvasClicks.click(view.canvas(), 40, 40);
         CanvasClicks.click(view.canvas(), 120, 40);
         assertThat(view.canvas().tool().holdsGesture()).isTrue();

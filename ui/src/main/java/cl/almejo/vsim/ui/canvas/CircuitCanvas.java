@@ -1553,6 +1553,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     @Override
     public void setTool(Tool next) {
+        if (next == tool && tool.drawsBetweenClicks()) {
+            return; // choosing again the tool that is drawing (Selección, while a wire is drawn) keeps its path
+        }
         cancelEdgeGesture();
         endGesture();
         tool.deactivated(this);

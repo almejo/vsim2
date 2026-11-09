@@ -55,7 +55,7 @@ final class GuideGrab implements EdgeHandle {
         // moving a guide needs no key: Shift and Ctrl presses stay the select tool's bands and toggles
         return event.button() == CanvasMouseEvent.PRIMARY
                 && !event.shiftDown() && !event.controlDown()
-                && canvas.tool() instanceof SelectTool
+                && canvas.tool() instanceof SelectTool select && !select.drawsBetweenClicks() // a click is the wire's
                 && features.guideNear(event.screenPosition()).isPresent()
                 && !selectToolTakes(canvas, event);
     }

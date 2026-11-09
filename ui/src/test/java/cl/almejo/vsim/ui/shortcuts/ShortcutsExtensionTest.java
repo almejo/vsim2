@@ -136,9 +136,9 @@ class ShortcutsExtensionTest {
         assertThat(canvasKeys(view).get(plain(KeyEvent.VK_R))).isNull();
         bindings.assign("edit.rotateClockwise", control(KeyEvent.VK_T));
         assertThat(canvasKeys(view).get(plain(KeyEvent.VK_T))).isNull();
-        bindings.assign("view.wireTool", control(KeyEvent.VK_T)); // a window action takes Ctrl+T from the canvas
+        bindings.assign("view.selectTool", control(KeyEvent.VK_T)); // a window action takes Ctrl+T from the canvas
         assertThat(canvasKeys(view).get(control(KeyEvent.VK_T))).isNull();
-        assertThat(view.actions().wireTool().getValue(Action.ACCELERATOR_KEY)).isEqualTo(control(KeyEvent.VK_T));
+        assertThat(view.actions().selectTool().getValue(Action.ACCELERATOR_KEY)).isEqualTo(control(KeyEvent.VK_T));
         bindings.reset("edit.rotateClockwise");
         assertThat(canvasKeys(view).get(plain(KeyEvent.VK_R))).isEqualTo("shortcut.edit.rotateClockwise");
     }
@@ -171,8 +171,7 @@ class ShortcutsExtensionTest {
     void disposingRemovesThePreferencesListener() {
         int withOneView = preferences.listenerCount();
         EditorView second = newView();
-        // a view listens for its shortcuts and for the Cable's mode
-        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 2);
+        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 1);
         views.remove(second);
         second.dispose();
         assertThat(preferences.listenerCount()).isEqualTo(withOneView);

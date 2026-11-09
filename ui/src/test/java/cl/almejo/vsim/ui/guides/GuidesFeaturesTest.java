@@ -263,7 +263,7 @@ class GuidesFeaturesTest {
         pull(screenX, screenY, screenX - 40, screenY);
 
         assertThat(guides()).containsExactly(onThePin);
-        assertThat(openDocument.document().wires()).hasSize(1);
+        assertThat(view.canvas().drawsBetweenClicks()).isTrue(); // the wire's first segment, drawing goes on
     }
 
     @Test

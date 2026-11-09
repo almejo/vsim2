@@ -81,9 +81,6 @@ class StickyNotesExtensionTest {
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof JToggleButton button && button.getAction() != null) {
                 names.add(button.getAction().getValue(Action.NAME).toString());
-            } else if (child instanceof cl.almejo.vsim.ui.toolbar.SplitButton split
-                    && split.mainButton() instanceof JToggleButton) {
-                names.add("Cable"); // the Cable's split button holds the pressed-tool part
             }
         }
         return names;
@@ -101,11 +98,11 @@ class StickyNotesExtensionTest {
 
     @Test
     void theToolComesRightAfterMarcoInTheToolbarAndTheViewMenu() {
-        assertThat(toolbarTools()).containsSubsequence("Cable", "Marco", "Nota adhesiva", "Mover vista");
+        assertThat(toolbarTools()).containsSubsequence("Selección", "Marco", "Nota adhesiva", "Mover vista");
         assertThat(toolbarTools().indexOf("Nota adhesiva")).isEqualTo(toolbarTools().indexOf("Marco") + 1);
-        assertThat(viewMenuTexts().subList(0, 12))
+        assertThat(viewMenuTexts().subList(0, 11))
                 .containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "Selección",
-                        "Cable", "Marco", "Nota adhesiva", "Mover vista", "Zoom");
+                        "Marco", "Nota adhesiva", "Mover vista", "Zoom");
         assertThat(view.shortcutActions()).containsKey("view.stickyNoteTool");
     }
 

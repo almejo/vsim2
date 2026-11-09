@@ -73,7 +73,6 @@ public final class ShortcutCatalog {
         canvas(entries, "edit.rotateClockwise", "action.rotateClockwise", stroke(KeyEvent.VK_R, 0));
         canvas(entries, "edit.rotateCounterClockwise", "action.rotateCounterClockwise", stroke(KeyEvent.VK_R, shift));
         window(entries, "edit.configure", "action.configure", MenuId.EDIT, null);
-        window(entries, "edit.wireContinuous", "action.wireContinuous", MenuId.EDIT, null);
         window(entries, "edit.cut", "action.cut", MenuId.EDIT, stroke(KeyEvent.VK_X, menu));
         window(entries, "edit.copy", "action.copy", MenuId.EDIT, stroke(KeyEvent.VK_C, menu));
         window(entries, "edit.copyCapture", "action.copyCapture", MenuId.EDIT, stroke(KeyEvent.VK_C, menu | shift));
@@ -89,6 +88,9 @@ public final class ShortcutCatalog {
         window(entries, "edit.tidyWiresOptions", "action.tidyWiresOptions", MenuId.EDIT,
                 stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK | shift));
         window(entries, "edit.wiresFollow", "action.wiresFollow", MenuId.EDIT, stroke(KeyEvent.VK_E, menu));
+        // the two items of Editar ▸ «Dibujar cables», right after «Los cables siguen al mover»: no key
+        window(entries, "edit.wireModeContinuous", "action.wireModeContinuous", MenuId.EDIT, null);
+        window(entries, "edit.wireModePieces", "action.wireModePieces", MenuId.EDIT, null);
         canvas(entries, "edit.label", "action.label", stroke(KeyEvent.VK_F2, 0));
         canvas(entries, "edit.quickInsert", "action.quickInsert", stroke(KeyEvent.VK_INSERT, 0));
         moveKeys(entries, "edit.moveLeft", "action.moveLeft", "action.moveLeftFar", KeyEvent.VK_LEFT);
@@ -108,7 +110,6 @@ public final class ShortcutCatalog {
         window(entries, "view.memoryMap", "memory.map.tab", MenuId.VIEW,
                 stroke(KeyEvent.VK_6, InputEvent.ALT_DOWN_MASK));
         window(entries, "view.selectTool", "action.toolSelect", MenuId.VIEW, null);
-        window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
         window(entries, "view.frameTool", "action.toolFrame", MenuId.VIEW, null);
         window(entries, "view.stickyNoteTool", "action.toolStickyNote", MenuId.VIEW, null);
         window(entries, "view.textTool", "action.toolText", MenuId.VIEW, null);

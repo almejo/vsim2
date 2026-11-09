@@ -90,7 +90,6 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("view.notes", view.inspectorToggleAction(InspectorPanel.NOTES));
         map.put("view.memoryMap", view.inspectorToggleAction(InspectorPanel.MEMORY_MAP));
         map.put("view.selectTool", actions.selectTool());
-        map.put("view.wireTool", actions.wireTool());
         map.put("view.panTool", actions.panTool());
         map.put("view.zoomTool", actions.zoomTool());
         map.put("view.zoomIn", actions.zoomIn());

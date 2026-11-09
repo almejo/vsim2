@@ -1,8 +1,8 @@
-package cl.almejo.vsim.ui.window;
+package cl.almejo.vsim.ui.wiring;
 
 import java.util.List;
 
-/** The icons of the Cable button's two modes, by file name under {@code icons/}. */
+/** The icons of the two items of Editar ▸ «Dibujar cables», by file name under {@code icons/}. */
 public final class WireModeIcons {
 
     public static final String CONTINUOUS = "wire-continuous";
@@ -11,7 +11,7 @@ public final class WireModeIcons {
     private WireModeIcons() {
     }
 
-    /** Every Cable mode icon, once. */
+    /** Every wire mode icon, once. */
     public static List<String> names() {
         return List.of(CONTINUOUS, PIECES);
     }

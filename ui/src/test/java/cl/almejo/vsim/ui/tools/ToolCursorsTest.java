@@ -25,10 +25,6 @@ class ToolCursorsTest {
         context.close();
     }
 
-    @Test
-    void theWireToolShowsTheCrosshair() {
-        assertThat(new WireTool(() -> WireMode.PIECES).cursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
-    }
 
     @Test
     void thePanToolShowsMove() {
