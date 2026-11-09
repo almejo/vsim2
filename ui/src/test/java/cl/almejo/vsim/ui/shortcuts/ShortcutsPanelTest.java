@@ -94,7 +94,7 @@ class ShortcutsPanelTest {
         assertThat(bindings.strokeFor("file.save")).isEmpty();
         panel.resetButton().doClick(0);
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
-        bindings.assign("file.open", control(KeyEvent.VK_K));
+        bindings.assign("file.open", control(KeyEvent.VK_J));
         panel.resetAllButton().doClick(0);
         assertThat(bindings.strokeFor("file.open")).contains(control(KeyEvent.VK_O));
     }

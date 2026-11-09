@@ -157,9 +157,9 @@ class ShortcutsExtensionTest {
 
     @Test
     void storedOverridesApplyWhenTheViewOpensAndInEveryView() {
-        preferences.shortcutsNode().put("file.open", "ctrl pressed K");
+        preferences.shortcutsNode().put("file.open", "ctrl pressed J");
         EditorView later = newView();
-        assertThat(later.actions().open().getValue(Action.ACCELERATOR_KEY)).isEqualTo(control(KeyEvent.VK_K));
+        assertThat(later.actions().open().getValue(Action.ACCELERATOR_KEY)).isEqualTo(control(KeyEvent.VK_J));
         bindings.assign("view.nextProblem", plain(KeyEvent.VK_F9));
         for (EditorView each : List.of(view, later)) {
             assertThat(canvasKeys(each).get(plain(KeyEvent.VK_F9))).isEqualTo("shortcut.view.nextProblem");

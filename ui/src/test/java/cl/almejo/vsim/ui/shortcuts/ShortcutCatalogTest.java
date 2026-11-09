@@ -38,14 +38,15 @@ class ShortcutCatalogTest {
         assertThat(ids()).doesNotHaveDuplicates().containsSubsequence(TRACK_C_IDS);
         List<Integer> groups = ShortcutCatalog.entries().stream().map(entry -> entry.group().ordinal()).toList();
         assertThat(groups).isSorted();
-        assertThat(ShortcutCatalog.entries()).allSatisfy(entry -> assertThat(entry.group()).isNotEqualTo(MenuId.HELP));
+        assertThat(ShortcutCatalog.entries()).filteredOn(entry -> entry.group() == MenuId.HELP)
+                .extracting(ShortcutEntry::id).containsExactly("help.findAction");
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndSixtyOneHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndSixtyTwoHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(61);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(62);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
         assertThat(ids()).containsSubsequence("edit.copy", "edit.copyCapture", "edit.paste");
     }

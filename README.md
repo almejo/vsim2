@@ -50,7 +50,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Colocar componentes](docs/funciones/edicion.md#colocar-componentes) con un clic o arrastrándolos desde la paleta, rotándolos antes de soltarlos; también con el teclado (Alt+2, las flechas y Enter).
 - [Favoritos](docs/funciones/edicion.md#favoritos): una estrella en la paleta copia el componente a «Favoritos», arriba de todo y en todas las ventanas.
 - [Recientes](docs/funciones/edicion.md#recientes): los últimos 5 componentes que colocaste en la sesión, justo debajo de «Favoritos».
-- [Inserción rápida](docs/funciones/edicion.md#inserción-rápida): doble clic en un espacio vacío o Insert abre un buscador de componentes que lo coloca ahí.
+- [Paleta de comandos](docs/funciones/edicion.md#paleta-de-comandos): doble clic en un espacio vacío o Insert busca un componente y lo coloca ahí; Ctrl+K (o Ayuda ▸ «Buscar una acción…») busca cualquier acción de los menús, con su atajo al lado.
 - [Seleccionar](docs/funciones/edicion.md#seleccionar) con clic, Mayús/Ctrl o un rectángulo que suma o quita, con cursores que dicen qué hará el clic.
 - [Mover con el teclado](docs/funciones/edicion.md#mover-con-el-teclado): las flechas mueven la selección en un solo paso de deshacer.
 - [Portapapeles](docs/funciones/edicion.md#portapapeles): cortar, copiar, pegar flotando y duplicar.

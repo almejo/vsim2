@@ -56,10 +56,10 @@ class QuickInsertTest {
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.canvas().setSize(800, 600);
-        features = new QuickInsertFeatures(view, (canvas, point, panel) -> {
+        features = new QuickInsertFeatures(view, new RecentActions(), (canvas, point, panel) -> {
             shown = panel;
             return () -> closed++;
-        });
+        }, Runnable::run, text -> { });
     }
 
     @AfterEach

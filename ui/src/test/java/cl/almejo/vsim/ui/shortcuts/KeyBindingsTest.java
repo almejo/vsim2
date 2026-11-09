@@ -41,11 +41,11 @@ class KeyBindingsTest {
 
     @Test
     void aShortcutSavedForTheRetiredCloseIdMovesToCloseWindow() {
-        preferences.shortcutsNode().put("file.close", "ctrl pressed K");
+        preferences.shortcutsNode().put("file.close", "ctrl pressed J");
 
         KeyBindings restarted = new KeyBindings(preferences);
 
-        assertThat(restarted.strokeFor("window.closeWindow")).contains(control(KeyEvent.VK_K));
+        assertThat(restarted.strokeFor("window.closeWindow")).contains(control(KeyEvent.VK_J));
         assertThat(stored("file.close")).isNull();
         assertThat(restarted.strokeFor("window.closeTab")).contains(control(KeyEvent.VK_W));
     }
@@ -68,7 +68,7 @@ class KeyBindingsTest {
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_W, CONTROL | InputEvent.SHIFT_DOWN_MASK));
 
         preferences.shortcutsNode().put("window.closeWindow", "ctrl pressed J");
-        preferences.shortcutsNode().put("file.close", "ctrl pressed K");
+        preferences.shortcutsNode().put("file.close", "ctrl pressed U");
         KeyBindings alreadyCustom = new KeyBindings(preferences);
         assertThat(alreadyCustom.strokeFor("window.closeWindow")).contains(control(KeyEvent.VK_J));
         assertThat(stored("file.close")).isNull();
@@ -166,10 +166,10 @@ class KeyBindingsTest {
     void badStoredValuesFallBackToTheDefault() {
         preferences.shortcutsNode().put("file.save", "not a stroke");
         preferences.shortcutsNode().put("file.open", "pressed SPACE");
-        preferences.shortcutsNode().put("unknown.id", "ctrl pressed K");
+        preferences.shortcutsNode().put("unknown.id", "ctrl pressed J");
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
         assertThat(bindings.strokeFor("file.open")).contains(control(KeyEvent.VK_O));
-        assertThat(bindings.conflictFor(control(KeyEvent.VK_K), "file.save")).isEmpty();
+        assertThat(bindings.conflictFor(control(KeyEvent.VK_J), "file.save")).isEmpty();
     }
 
     @Test

@@ -182,6 +182,8 @@ public final class ShortcutCatalog {
         window(entries, "window.splitVertical", "shortcut.splitVertical", MenuId.WINDOW, null);
         window(entries, "window.removeSplit", "action.removeSplit", MenuId.WINDOW, null);
         window(entries, "window.nextPane", "action.nextPane", MenuId.WINDOW, null);
+        // the command palette on «Acciones» (Ayuda ▸ «Buscar una acción…»): ⌘K on macOS
+        window(entries, "help.findAction", "action.findAction", MenuId.HELP, stroke(KeyEvent.VK_K, menu));
         return List.copyOf(entries);
     }
 
