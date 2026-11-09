@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.preferences;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JSeparator;
@@ -21,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PreferencesFeatureTest {
@@ -57,7 +60,7 @@ class PreferencesFeatureTest {
     void addsPreferencesBeforeTheCloseGroupAndRemovesItOnDispose() {
         JMenu file = view.menu(MenuId.FILE);
         List<String> before = entries(file);
-        Runnable disposer = new PreferencesFeature((parent, preferences) -> {
+        Runnable disposer = new PreferencesFeature((parent, preferences, tab) -> {
             openedFrom.add(parent);
             openedWith.add(preferences);
         }).install(view);
@@ -74,7 +77,7 @@ class PreferencesFeatureTest {
     @Test
     void theItemOpensTheDialogOverThisViewWithTheSharedPreferences() {
         JMenu file = view.menu(MenuId.FILE);
-        Runnable disposer = new PreferencesFeature((parent, preferences) -> {
+        Runnable disposer = new PreferencesFeature((parent, preferences, tab) -> {
             openedFrom.add(parent);
             openedWith.add(preferences);
         }).install(view);
@@ -94,7 +97,7 @@ class PreferencesFeatureTest {
 
     @Test
     void preferencesIsOfferedToTheShortcutEditorUntilDisposed() {
-        Runnable disposer = new PreferencesFeature((parent, preferences) -> {
+        Runnable disposer = new PreferencesFeature((parent, preferences, tab) -> {
         }).install(view);
         JMenu file = view.menu(MenuId.FILE);
         JMenuItem item = null;
@@ -107,5 +110,26 @@ class PreferencesFeatureTest {
         assertThat(view.shortcutActions().get("file.preferences")).isSameAs(item.getAction());
         disposer.run();
         assertThat(view.shortcutActions()).doesNotContainKey("file.preferences");
+    }
+
+    @Test
+    void theMenuItemOpensTheFirstTabAndEachPaletteEntryOpensItsOwn() {
+        List<Integer> openedTabs = new ArrayList<>();
+        Runnable disposer = new PreferencesFeature((parent, preferences, tab) -> openedTabs.add(tab))
+                .install(view);
+        try {
+            Action preferences = view.shortcutActions().get("file.preferences");
+            perform(preferences);
+            List<?> entries = (List<?>) preferences.getValue(Actions.PALETTE_ENTRIES);
+
+            assertThat(entries).extracting(entry -> ((Action) entry).getValue(Action.NAME))
+                    .containsExactly("Preferencias ▸ General", "Preferencias ▸ Atajos de teclado",
+                            "Preferencias ▸ IA");
+            perform((Action) entries.get(1));
+            perform((Action) entries.get(2));
+            assertThat(openedTabs).containsExactly(0, 1, 2);
+        } finally {
+            disposer.run();
+        }
     }
 }

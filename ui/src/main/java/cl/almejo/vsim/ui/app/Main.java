@@ -94,7 +94,7 @@ public final class Main {
         }
         Desktop.getDesktop().setPreferencesHandler(event -> SwingUtilities.invokeLater(() -> PreferencesDialog.show(
                 KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow(), application.preferences(),
-                application.aiServer())));
+                application.aiServer(), PreferencesDialog.GENERAL_TAB)));
     }
 
     /** macOS application menu ▸ About VSim 2: the same dialog as Ayuda ▸ «Acerca de VSim 2…». No-op elsewhere. */

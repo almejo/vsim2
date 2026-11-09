@@ -14,12 +14,22 @@ import javax.swing.JMenu;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import java.awt.Component;
-import java.util.function.BiConsumer;
+import java.util.ArrayList;
+import java.util.List;
 
-/** Archivo ▸ Preferencias…, placed in its own group just before "Cerrar ventana". */
+/**
+ * Archivo ▸ Preferencias…, placed in its own group just before "Cerrar ventana". The command palette also lists one
+ * entry per tab of the dialog ({@link Actions#PALETTE_ENTRIES}), which opens it on that tab.
+ */
 public final class PreferencesFeature implements EditorExtension {
 
-    private final BiConsumer<Component, AppPreferences> opener;
+    /** Opens the dialog on one of its tabs (an index of {@link PreferencesDialog#TAB_KEYS}). */
+    @FunctionalInterface
+    interface Opener {
+        void open(Component parent, AppPreferences preferences, int tab);
+    }
+
+    private final Opener opener;
 
     public PreferencesFeature() {
         this(PreferencesDialog::show);
@@ -27,10 +37,10 @@ public final class PreferencesFeature implements EditorExtension {
 
     /** With the application's AI server, so «IA» shows a port given on the command line for this session. */
     public PreferencesFeature(AiServerService aiServer) {
-        this((parent, preferences) -> PreferencesDialog.show(parent, preferences, aiServer));
+        this((parent, preferences, tab) -> PreferencesDialog.show(parent, preferences, aiServer, tab));
     }
 
-    PreferencesFeature(BiConsumer<Component, AppPreferences> opener) {
+    PreferencesFeature(Opener opener) {
         this.opener = opener;
     }
 
@@ -38,7 +48,8 @@ public final class PreferencesFeature implements EditorExtension {
     public Runnable install(EditorView view) {
         JMenu file = view.menu(MenuId.FILE);
         Action preferences = Actions.of(Messages.text("action.preferences"),
-                () -> opener.accept(view, view.services().preferences()));
+                () -> opener.open(view, view.services().preferences(), PreferencesDialog.GENERAL_TAB));
+        preferences.putValue(Actions.PALETTE_ENTRIES, tabEntries(view));
         JSeparator separator = new JPopupMenu.Separator();
         int position = insertionIndex(file, view.actions().closeTab());
         file.add(separator, position);
@@ -47,6 +58,18 @@ public final class PreferencesFeature implements EditorExtension {
             itemRemover.run();
             file.remove(separator);
         };
+    }
+
+    /** One entry per tab for the command palette («Preferencias ▸ Atajos de teclado»), opening the dialog there. */
+    private List<Action> tabEntries(EditorView view) {
+        List<Action> entries = new ArrayList<>();
+        for (int tab = 0; tab < PreferencesDialog.TAB_KEYS.size(); tab++) {
+            int chosenTab = tab;
+            entries.add(Actions.of(Messages.format("commandPalette.preferencesTab",
+                            Messages.text(PreferencesDialog.TAB_KEYS.get(tab))),
+                    () -> opener.open(view, view.services().preferences(), chosenTab)));
+        }
+        return List.copyOf(entries);
     }
 
     /** Before the separator that precedes {@code closeTab}, or at the end when the menu has no such item. */

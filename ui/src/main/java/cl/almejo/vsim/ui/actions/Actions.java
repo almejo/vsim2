@@ -9,6 +9,13 @@ import javax.swing.KeyStroke;
 /** Swing {@link Action}s that just run a {@link Runnable}, so a feature never writes an anonymous class for one. */
 public final class Actions {
 
+    /**
+     * The key of a {@code List<Action>} an action may carry: entries the command palette lists right after the
+     * action's own menu item, each under its own {@link Action#NAME} (Archivo ▸ Preferencias… offers one per tab,
+     * «Preferencias ▸ Atajos de teclado»).
+     */
+    public static final String PALETTE_ENTRIES = "vsim.paletteEntries";
+
     private Actions() {
     }
 

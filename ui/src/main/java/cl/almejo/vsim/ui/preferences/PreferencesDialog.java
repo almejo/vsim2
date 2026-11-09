@@ -13,6 +13,7 @@ import javax.swing.JTabbedPane;
 import java.awt.Component;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -22,19 +23,31 @@ import java.util.function.Consumer;
  */
 public final class PreferencesDialog {
 
+    /** The «General» tab, where the menu item opens the dialog. */
+    public static final int GENERAL_TAB = 0;
+
+    /** The titles of the tabs, in order: what {@code tab} indexes. */
+    static final List<String> TAB_KEYS = List.of("preferences.tab.general", "preferences.tab.shortcuts",
+            "preferences.tab.ai");
+
     private PreferencesDialog() {
     }
 
-    public static void show(Component parent, AppPreferences preferences) {
-        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.empty()));
+    /** Opens the dialog on {@code tab}, an index of {@link #TAB_KEYS}. */
+    public static void show(Component parent, AppPreferences preferences, int tab) {
+        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.empty()), tab);
     }
 
-    /** With the application's AI server: «IA» shows and copies a port given on the command line for this session. */
-    public static void show(Component parent, AppPreferences preferences, AiServerService aiServer) {
-        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.of(aiServer)));
+    /**
+     * With the application's AI server: «IA» shows and copies a port given on the command line for this session.
+     * Opens on {@code tab}, an index of {@link #TAB_KEYS}.
+     */
+    public static void show(Component parent, AppPreferences preferences, AiServerService aiServer, int tab) {
+        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.of(aiServer)), tab);
     }
 
-    private static void show(Component parent, JTabbedPane tabs) {
+    private static void show(Component parent, JTabbedPane tabs, int tab) {
+        tabs.setSelectedIndex(tab);
         Object[] options = {Messages.text("preferences.close")};
         JOptionPane.showOptionDialog(parent, tabs, Messages.text("preferences.title"), JOptionPane.DEFAULT_OPTION,
                 JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
@@ -63,10 +76,10 @@ public final class PreferencesDialog {
     static JTabbedPane tabs(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser,
                             Optional<AiServerService> aiServer) {
         JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab(Messages.text("preferences.tab.general"), new PreferencesForm(preferences, directoryChooser));
-        tabs.addTab(Messages.text("preferences.tab.shortcuts"), new ShortcutsPanel(new KeyBindings(preferences)));
+        tabs.addTab(Messages.text(TAB_KEYS.get(0)), new PreferencesForm(preferences, directoryChooser));
+        tabs.addTab(Messages.text(TAB_KEYS.get(1)), new ShortcutsPanel(new KeyBindings(preferences)));
         Consumer<String> clipboard = AiPreferencesPanel.systemClipboard();
-        tabs.addTab(Messages.text("preferences.tab.ai"),
+        tabs.addTab(Messages.text(TAB_KEYS.get(2)),
                 aiServer.map(server -> new AiPreferencesPanel(preferences, server, clipboard))
                         .orElseGet(() -> new AiPreferencesPanel(preferences, clipboard)));
         return tabs;
