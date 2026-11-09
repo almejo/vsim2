@@ -49,7 +49,7 @@ class GroupsPanelPracticeTest {
     void create() {
         model = new KarnaughModel();
         wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline(),
-                KarnaughWizard.Mode.PRACTICE);
+                KarnaughWizard.Mode.PRACTICE, () -> true);
         panel = wizard.groupsPanel();
         practicePanel = panel.practicePanel();
         practicePanel.setClearConfirmation((parent, count, name) -> {
@@ -112,7 +112,7 @@ class GroupsPanelPracticeTest {
     void theSolutionWizardShowsStepThreeAsBeforeThePracticeWithNoModeControl() {
         KarnaughModel solutionModel = new KarnaughModel();
         KarnaughWizard solution = new KarnaughWizard(solutionModel, KarnaughCost.GENERATOR,
-                new FakeCreationTarget(), Background.inline());
+                new FakeCreationTarget(), Background.inline(), () -> true);
         solutionModel.setValue(0, 1, LogicValue.ONE);
         solution.goTo(KarnaughWizard.Step.GROUPS);
         GroupsPanel groups = solution.groupsPanel();
@@ -129,7 +129,7 @@ class GroupsPanelPracticeTest {
     @Test
     void theSolutionWizardsMapStartsRightBelowTheInsetsAsBeforeThePractice() {
         KarnaughWizard solution = new KarnaughWizard(new KarnaughModel(), KarnaughCost.GENERATOR,
-                new FakeCreationTarget(), Background.inline());
+                new FakeCreationTarget(), Background.inline(), () -> true);
         solution.goTo(KarnaughWizard.Step.GROUPS);
         GroupsPanel groups = solution.groupsPanel();
         groups.setSize(1000, 700);

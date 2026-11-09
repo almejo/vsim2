@@ -28,6 +28,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 /**
  * The «Circuito desde tabla de verdad» wizard (spec §3): a step bar («1 Tabla · 2 Mapa · 3 Grupos · 4 Expresión ·
@@ -165,24 +166,26 @@ public final class KarnaughWizard extends JPanel {
     private Runnable afterCreating;
 
     /** A solution wizard ({@link Mode#SOLUTION}). */
-    public KarnaughWizard(KarnaughModel model, KarnaughCost cost, CreationTarget target, Background background) {
-        this(model, cost, target, background, Mode.SOLUTION);
+    public KarnaughWizard(KarnaughModel model, KarnaughCost cost, CreationTarget target, Background background,
+                          BooleanSupplier animations) {
+        this(model, cost, target, background, Mode.SOLUTION, animations);
     }
 
     /**
      * @param target     where «Crear» puts the circuit (and the component)
      * @param background where the circuit is built (off the EDT in the application)
      * @param mode       the solution or the practice, for good
+     * @param animations Preferencias ▸ «Animaciones», asked by the maps' marching ants at each step
      */
     public KarnaughWizard(KarnaughModel model, KarnaughCost cost, CreationTarget target, Background background,
-                          Mode mode) {
+                          Mode mode, BooleanSupplier animations) {
         super(new BorderLayout());
         this.model = model;
         this.mode = mode;
         model.practice().setPractising(mode == Mode.PRACTICE);
         this.tablePanel = new TablePanel(model, hover);
-        this.mapPanel = new MapPanel(model, hover);
-        this.groupsPanel = new GroupsPanel(model, hover);
+        this.mapPanel = new MapPanel(model, hover, animations);
+        this.groupsPanel = new GroupsPanel(model, hover, animations);
         this.expressionPanel = new ExpressionPanel(model, cost);
         this.createPanel = new CreatePanel(model, new CreationForm(target), new CircuitCreator(target, background),
                 this::closeAfterCreating, this::updateNavigation, () -> step == Step.CREATE);

@@ -43,7 +43,7 @@ public interface PresentationHost {
 
     /**
      * Editor thread: the windows of {@code document} travel smoothly to {@code origin}, where the AI builds the stage
-     * that begins (spec §6; reduced motion respected). Nothing by default.
+     * that begins (spec §6; «Animaciones: No» respected). Nothing by default.
      */
     default void travelToStageOrigin(DocumentId document, GridPoint origin) {
     }

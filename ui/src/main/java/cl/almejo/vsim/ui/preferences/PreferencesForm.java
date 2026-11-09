@@ -7,17 +7,16 @@ import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.CustomColorSchemes;
 import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.theme.SwitchBox;
 import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -77,8 +76,8 @@ public final class PreferencesForm extends JPanel {
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
-    private final JRadioButton animationsYesButton = new JRadioButton(Messages.text("preferences.animations.yes"));
-    private final JRadioButton animationsNoButton = new JRadioButton(Messages.text("preferences.animations.no"));
+    /** «Animaciones»: the same Sí/No switch as the boolean properties. */
+    private final SwitchBox animationsSwitch = new SwitchBox(true);
     private final JCheckBox animateViewMovesBox = new JCheckBox(Messages.text("preferences.animateViewMoves"));
     private final Runnable preferenceListener = this::followPreferences;
     private final JComboBox<Choice<String>> fontFamilyChoice = new JComboBox<>();
@@ -175,10 +174,9 @@ public final class PreferencesForm extends JPanel {
         addExternalEditorRow();
         add(restoreSessionBox, "skip 1, gaptop 12");
         JLabel animationsLabel = new JLabel(Messages.text("preferences.animations"));
-        animationsLabel.setLabelFor(animationsYesButton);
+        animationsLabel.setLabelFor(animationsSwitch);
         add(animationsLabel);
-        add(animationsYesButton, "split 2, growx 0");
-        add(animationsNoButton, "growx 0");
+        add(animationsSwitch, "growx 0");
         add(animateViewMovesBox, "skip 1");
         add(new JLabel(Messages.text("preferences.invertModifier")), "gaptop 12");
         add(invertModifierChoice, "gaptop 12");
@@ -186,15 +184,11 @@ public final class PreferencesForm extends JPanel {
     }
 
     /**
-     * «Animaciones: Sí / No» and, below it, «Animar los movimientos de la vista», which only counts (and is only
+     * «Animaciones», a Sí/No switch, and below it «Animar los movimientos de la vista», which only counts (and is only
      * enabled) with animations on; turning them off keeps its choice for when they come back.
      */
     private void wireAnimations() {
-        ButtonGroup animations = new ButtonGroup();
-        animations.add(animationsYesButton);
-        animations.add(animationsNoButton);
-        animationsYesButton.addActionListener(event -> preferences.setAnimations(true));
-        animationsNoButton.addActionListener(event -> preferences.setAnimations(false));
+        animationsSwitch.addActionListener(event -> preferences.setAnimations(animationsSwitch.isSelected()));
         animateViewMovesBox.addActionListener(
                 event -> preferences.setAnimateViewMoves(animateViewMovesBox.isSelected()));
         showAnimations();
@@ -202,7 +196,7 @@ public final class PreferencesForm extends JPanel {
 
     private void showAnimations() {
         boolean animations = preferences.animations();
-        (animations ? animationsYesButton : animationsNoButton).setSelected(true);
+        animationsSwitch.setSelected(animations);
         animateViewMovesBox.setSelected(preferences.animateViewMoves());
         animateViewMovesBox.setEnabled(animations);
     }
@@ -403,12 +397,8 @@ public final class PreferencesForm extends JPanel {
         showAnimations();
     }
 
-    JRadioButton animationsYesButton() {
-        return animationsYesButton;
-    }
-
-    JRadioButton animationsNoButton() {
-        return animationsNoButton;
+    SwitchBox animationsSwitch() {
+        return animationsSwitch;
     }
 
     JCheckBox animateViewMovesBox() {

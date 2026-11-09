@@ -184,6 +184,21 @@ class MemoryMapPanelTest {
     }
 
     @Test
+    void withAnimationsOffARunningAccessStaysFullyLitForASecondAndThenGoesOutAtOnce() {
+        panel.setAnimations(() -> false);
+        Component ram = ram("256");
+        panel.follow(Set.of(ram.id()));
+        panel.ingest(frame(Map.of(), Map.of(), 0), true);
+
+        panel.ingest(frame(Map.of(0x05, 1L), Map.of(), 10), true);
+        assertThat(panel.litIntensity(0x05)).isEqualTo(1.0);
+        clock.addAndGet(SECOND / 2);
+        assertThat(panel.litIntensity(0x05)).as("no fade: still fully lit").isEqualTo(1.0);
+        clock.addAndGet(SECOND / 2);
+        assertThat(panel.litIntensity(0x05)).as("after its second it is off").isZero();
+    }
+
+    @Test
     void recentEventsLightTheirCellEvenWhenTheCountsSayNothing() {
         Component ram = ram("256");
         panel.follow(Set.of(ram.id()));

@@ -6,6 +6,7 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import java.util.OptionalInt;
+import java.util.function.BooleanSupplier;
 
 /**
  * Step 2 «Mapa» (spec §3): the table on the left and, on the right, the Karnaugh map of each output in its tab, with
@@ -18,12 +19,12 @@ final class MapPanel extends JPanel implements WizardStep {
     private final WizardTable table;
     private final OutputTabs tabs;
 
-    MapPanel(KarnaughModel model, HoverState hover) {
+    MapPanel(KarnaughModel model, HoverState hover, BooleanSupplier animations) {
         super(new MigLayout("insets 12, fill", "[pref!][grow, fill]", "[grow, fill]"));
         this.model = model;
         this.hover = hover;
         this.table = new WizardTable(model, hover, false);
-        this.tabs = new OutputTabs(model, hover, false);
+        this.tabs = new OutputTabs(model, hover, false, animations);
         JPanel right = new JPanel(new MigLayout("insets 0, fill, wrap 1", "[grow, fill]", "[][grow, fill][]"));
         right.add(new Paragraph(Messages.text("karnaugh.map.help")), "wmin 100");
         right.add(tabs);

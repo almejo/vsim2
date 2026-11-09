@@ -26,6 +26,7 @@ import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -91,6 +92,40 @@ class PieceGlowTest {
         assertThat(canvas.isGlowing()).isFalse();
         assertThat(ticker.isRunning()).isFalse();
         assertThat(canvas.glowStrength()).isZero();
+    }
+
+    @Test
+    void withAnimationsOffTheGlowIsSteadyAndGoesOutAtOnceAfterOneAndAHalfSeconds() {
+        AtomicBoolean animations = new AtomicBoolean(false);
+        canvas.setAnimations(animations::get);
+        canvas.useGlowTicker(ticker, ticker::now);
+
+        canvas.glow(new Bounds(0, 0, 4, 4));
+        ticker.advance(1300);
+
+        assertThat(canvas.glowStrength()).as("no fade").isEqualTo(1.0);
+        animations.set(true);
+        assertThat(canvas.glowStrength()).as("a steady glow stays steady when the setting comes back").isEqualTo(1.0);
+        ticker.advance(300);
+        assertThat(canvas.isGlowing()).isFalse();
+        assertThat(ticker.isRunning()).isFalse();
+    }
+
+    @Test
+    void turningAnimationsOffWhileItFadesEndsTheGlowInsteadOfLightingItAgain() {
+        AtomicBoolean animations = new AtomicBoolean(true);
+        canvas.setAnimations(animations::get);
+        canvas.useGlowTicker(ticker, ticker::now);
+        canvas.glow(new Bounds(0, 0, 4, 4));
+        ticker.advance(700);
+        assertThat(canvas.glowStrength()).isLessThan(1.0);
+
+        animations.set(false);
+
+        assertThat(canvas.glowStrength()).as("never brighter than it was").isZero();
+        ticker.advance(16);
+        assertThat(canvas.isGlowing()).isFalse();
+        assertThat(ticker.isRunning()).isFalse();
     }
 
     @Test

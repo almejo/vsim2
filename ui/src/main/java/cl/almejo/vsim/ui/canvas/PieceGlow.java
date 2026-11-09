@@ -14,8 +14,8 @@ import java.util.Optional;
 
 /**
  * The glow «Ver la pieza» gives the piece it travels to (spec §5.1): a halo around it that fades out over
- * {@link #DURATION_MILLIS}. Time is given by the caller (the canvas's clock), the colour is read from the scheme at
- * every paint, never kept.
+ * {@link #DURATION_MILLIS}; one started with «Animaciones: No» is steady for that long and then goes out at once. Time
+ * is given by the caller (the canvas's clock), the colour is read from the scheme at every paint, never kept.
  */
 final class PieceGlow {
 
@@ -27,11 +27,18 @@ final class PieceGlow {
 
     private Optional<Bounds> piece = Optional.empty();
     private long startMillis;
+    private boolean steady;
 
-    /** Starts (or restarts) the glow around {@code bounds} at {@code nowMillis}. */
-    void start(Bounds bounds, long nowMillis) {
+    /** Starts (or restarts) the glow around {@code bounds} at {@code nowMillis}; {@code steady}: it does not fade. */
+    void start(Bounds bounds, long nowMillis, boolean steady) {
         piece = Optional.of(bounds);
         startMillis = nowMillis;
+        this.steady = steady;
+    }
+
+    /** Whether this glow started with animations off (it stays at full strength until it ends). */
+    boolean steady() {
+        return steady;
     }
 
     void stop() {
@@ -42,21 +49,24 @@ final class PieceGlow {
         return piece.isPresent() && nowMillis - startMillis < DURATION_MILLIS;
     }
 
-    /** From 1 (just started) down to 0 (over, or none); linear, so the fade reads as even. */
+    /** From 1 (just started) down to 0 (over, or none), linear so the fade reads as even; a steady one stays 1. */
     double strengthAt(long nowMillis) {
         if (!activeAt(nowMillis)) {
             return 0;
         }
+        if (steady) {
+            return 1;
+        }
         return 1.0 - (double) Math.max(0, nowMillis - startMillis) / DURATION_MILLIS;
     }
 
-    /** Paints the halo in document coordinates; nothing when it is over. {@code steady}: no fade (no animations). */
-    void paint(Graphics2D graphics, ColorScheme scheme, long nowMillis, boolean steady) {
+    /** Paints the halo in document coordinates; nothing when it is over. */
+    void paint(Graphics2D graphics, ColorScheme scheme, long nowMillis) {
         if (!activeAt(nowMillis)) {
             return;
         }
         Bounds bounds = piece.orElseThrow();
-        double strength = steady ? 1.0 : strengthAt(nowMillis);
+        double strength = strengthAt(nowMillis);
         Graphics2D local = (Graphics2D) graphics.create();
         try {
             local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

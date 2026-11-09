@@ -19,10 +19,10 @@ import java.util.function.LongSupplier;
  * missing cursor; Automan's star moves all the time; the last written cell glows for 900 ms; after a scroll or a clear
  * the old picture fades over the effect's persistence (250 ms «Suave», 480 ms «Fuerte»).
  *
- * <p>Only a {@link TerminalAnimation#LIVE} view moves anything; a still one (reduced motion, an inactive window) and an
- * export show the cursor on and the still star, but the activity still follows every screen, so nothing that happened
- * meanwhile glows or fades when the view comes back to life. A screen seen for the first time (a new view, a restarted
- * simulation) neither glows nor fades. One per view, used on the EDT.
+ * <p>Only a {@link TerminalAnimation#LIVE} view moves anything; a still one («Animaciones: No», an inactive window)
+ * and an export show the cursor on and the still star, but the activity still follows every screen, so nothing that
+ * happened meanwhile glows or fades when the view comes back to life. A screen seen for the first time (a new view,
+ * a restarted simulation) neither glows nor fades. One per view, used on the EDT.
  */
 public final class TerminalActivity {
 

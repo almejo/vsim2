@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.differingPixels;
@@ -356,7 +357,7 @@ class CircuitCanvasTest {
 
     @Test
     void withAnimationsOffTheSelectionsAntsDoNotMarchAndComeBackWithThem() {
-        java.util.concurrent.atomic.AtomicBoolean animations = new java.util.concurrent.atomic.AtomicBoolean(false);
+        AtomicBoolean animations = new AtomicBoolean(false);
         canvas.setAnimations(animations::get);
         canvas.overrideOnScreen(() -> true);
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
@@ -512,7 +513,7 @@ class CircuitCanvasTest {
 
     @Test
     void withAnimationsOffTheRedGlowUnderProblemWiresIsSteadyAtItsBrightestAndNoClockRuns() {
-        java.util.concurrent.atomic.AtomicBoolean animations = new java.util.concurrent.atomic.AtomicBoolean(false);
+        AtomicBoolean animations = new AtomicBoolean(false);
         canvas.setAnimations(animations::get);
 
         makeAWidthMismatch();

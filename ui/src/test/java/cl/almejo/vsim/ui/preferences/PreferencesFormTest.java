@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.CustomColorSchemes;
 import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -189,24 +190,27 @@ class PreferencesFormTest {
     }
 
     @Test
-    void animationsAreYesByDefaultAndNoTurnsThemOffAndDisablesTheViewMovesBox() {
+    void animationsAreASwitchOnSiByDefaultAndNoTurnsThemOffAndDisablesTheViewMovesBox() {
         PreferencesForm form = form();
-        assertThat(form.animationsYesButton().getText()).isEqualTo("Sí");
-        assertThat(form.animationsNoButton().getText()).isEqualTo("No");
-        assertThat(form.animationsYesButton().isSelected()).isTrue();
+        SwitchBox animations = form.animationsSwitch();
+        assertThat(animations).as("the same switch as the boolean properties").isInstanceOf(SwitchBox.class);
+        assertThat(animations.isSelected()).isTrue();
+        assertThat(animations.getText()).isEqualTo("Sí");
         assertThat(form.animateViewMovesBox().isEnabled()).isTrue();
 
-        form.animationsNoButton().doClick(0);
+        animations.doClick(0);
 
         assertThat(preferences.animations()).isFalse();
+        assertThat(animations.getText()).isEqualTo("No");
         assertThat(form.animateViewMovesBox().isEnabled()).isFalse();
         assertThat(form.animateViewMovesBox().isSelected()).as("the choice is kept for later").isTrue();
-        assertThat(form().animationsNoButton().isSelected()).isTrue();
+        assertThat(form().animationsSwitch().isSelected()).isFalse();
         assertThat(form().animateViewMovesBox().isEnabled()).isFalse();
 
-        form.animationsYesButton().doClick(0);
+        animations.doClick(0);
 
         assertThat(preferences.animations()).isTrue();
+        assertThat(animations.getText()).isEqualTo("Sí");
         assertThat(form.animateViewMovesBox().isEnabled()).isTrue();
     }
 
@@ -216,10 +220,11 @@ class PreferencesFormTest {
 
         preferences.setAnimations(false);
 
-        assertThat(form.animationsNoButton().isSelected()).isTrue();
+        assertThat(form.animationsSwitch().isSelected()).isFalse();
+        assertThat(form.animationsSwitch().getText()).isEqualTo("No");
         assertThat(form.animateViewMovesBox().isEnabled()).isFalse();
         preferences.setAnimations(true);
-        assertThat(form.animationsYesButton().isSelected()).isTrue();
+        assertThat(form.animationsSwitch().isSelected()).isTrue();
         assertThat(form.animateViewMovesBox().isEnabled()).isTrue();
     }
 

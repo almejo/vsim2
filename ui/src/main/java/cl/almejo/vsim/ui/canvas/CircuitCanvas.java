@@ -1014,22 +1014,28 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /**
      * «Ver la pieza»: makes the piece at {@code bounds} glow for 1.5 s so the eye finds it after the view travelled
-     * (spec §5.1). A new glow replaces the one going.
+     * (spec §5.1). A new glow replaces the one going. With «Animaciones: No» it is steady and goes out at once.
      */
     public void glow(Bounds bounds) {
-        pieceGlow.start(Objects.requireNonNull(bounds, "bounds"), glowClock.getAsLong());
+        pieceGlow.start(Objects.requireNonNull(bounds, "bounds"), glowClock.getAsLong(), !animations.getAsBoolean());
         glowTicker.start(this::glowFrame);
         repaint();
     }
 
     /** True while a piece glows. */
     public boolean isGlowing() {
-        return pieceGlow.activeAt(glowClock.getAsLong());
+        return pieceGlowShows(glowClock.getAsLong());
     }
 
     /** The glow's strength now, 1 down to 0. */
     double glowStrength() {
-        return pieceGlow.strengthAt(glowClock.getAsLong());
+        long now = glowClock.getAsLong();
+        return pieceGlowShows(now) ? pieceGlow.strengthAt(now) : 0;
+    }
+
+    /** Whether the piece glow shows at {@code nowMillis}: a fade cut short by «Animaciones: No» ends at once. */
+    private boolean pieceGlowShows(long nowMillis) {
+        return pieceGlow.activeAt(nowMillis) && (pieceGlow.steady() || animations.getAsBoolean());
     }
 
     /** Drives the glow with {@code ticker} and {@code clock} (milliseconds) instead of a Swing timer: for tests. */
@@ -1039,12 +1045,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         glowClock = Objects.requireNonNull(clock, "clock");
     }
 
+    /** One frame of the piece glow: repaints while it fades and when it ends (a steady glow looks the same). */
     private void glowFrame() {
-        if (!pieceGlow.activeAt(glowClock.getAsLong())) {
+        if (!pieceGlowShows(glowClock.getAsLong())) {
             glowTicker.stop();
             pieceGlow.stop();
+            repaint();
+        } else if (!pieceGlow.steady()) {
+            repaint();
         }
-        repaint();
     }
 
     public void addOverlay(CanvasOverlay overlay) {
@@ -1741,7 +1750,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
             }
-            pieceGlow.paint(local, renderer.scheme(), glowClock.getAsLong(), !animations.getAsBoolean());
+            long now = glowClock.getAsLong();
+            if (pieceGlowShows(now)) {
+                pieceGlow.paint(local, renderer.scheme(), now);
+            }
             canvasDragOut.paintDragOutPreview(local);
             tool.paintOverlay(local, this);
             for (CircuitCanvas owner : sharing) {

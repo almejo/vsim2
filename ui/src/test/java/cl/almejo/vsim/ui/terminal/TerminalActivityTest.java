@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.within;
 /**
  * What a view animates on a Terminal, on a fake clock: the blinking cursor, Automan's star, the last character's glow
  * (900 ms) and the phosphor persistence after a scroll or a clear (250 / 480 ms); nothing of it when the view is still
- * (reduced motion, an inactive window) or exporting.
+ * («Animaciones: No», an inactive window) or exporting.
  */
 class TerminalActivityTest {
 

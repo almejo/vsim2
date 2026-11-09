@@ -22,7 +22,6 @@ import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.actions.ToolChoice;
 import cl.almejo.vsim.ui.app.Animations;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
@@ -89,7 +88,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
@@ -1224,16 +1222,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      * Matriz LED's afterglow) stops or starts at once instead of at its next repaint.
      */
     private Runnable repaintWhenAnimationsChange(CircuitCanvas pane) {
-        AppPreferences preferences = services.preferences();
-        AtomicBoolean animated = new AtomicBoolean(Animations.enabled(preferences));
-        Runnable listener = () -> {
-            boolean now = Animations.enabled(preferences);
-            if (animated.getAndSet(now) != now) {
-                pane.animationsChanged();
-            }
-        };
-        preferences.addListener(listener);
-        return () -> preferences.removeListener(listener);
+        return Animations.onChange(services.preferences(), pane::animationsChanged);
     }
 
     private static void bindKey(CircuitCanvas pane, Map<KeyStroke, String> bound, KeyStroke stroke, String name,

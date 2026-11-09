@@ -80,11 +80,6 @@ public final class WaveformPanel extends JPanel {
     private List<ChannelRows.ChannelRow> cachedRows = List.of();
     private boolean disposed;
 
-    /** Whether the row blink (going to a probe) may blink; with «No» the row stays lit, still, for the same time. */
-    public void setAnimations(BooleanSupplier animations) {
-        this.animations = animations;
-    }
-
     public WaveformPanel(OpenDocument openDocument, ProbeActions actions, Supplier<ColorScheme> scheme,
                          TextPrompt prompt, Consumer<String> showInCircuit, Runnable hide) {
         super(new BorderLayout());
@@ -132,6 +127,11 @@ public final class WaveformPanel extends JPanel {
             }
         });
         updateTimer();
+    }
+
+    /** Whether the row blink (going to a probe) may blink; with «No» the row stays lit, still, for the same time. */
+    public void setAnimations(BooleanSupplier animations) {
+        this.animations = animations;
     }
 
     /** The document's probes changed: rows, plot height and timer follow. */

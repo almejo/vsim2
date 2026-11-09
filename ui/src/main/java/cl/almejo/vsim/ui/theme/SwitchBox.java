@@ -1,8 +1,6 @@
-package cl.almejo.vsim.ui.panels;
+package cl.almejo.vsim.ui.theme;
 
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.theme.ThemeColors;
-
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.JCheckBox;
@@ -16,16 +14,17 @@ import java.awt.RenderingHints;
 /**
  * An on/off setting drawn as a switch (a track with a knob) followed by «Sí» or «No». It is a {@link JCheckBox}, so
  * everything that reads or listens to a check box (the value, the action listeners, Space) works unchanged. Colours
- * come from the look and feel every time it paints.
+ * come from the look and feel every time it paints. Used for the boolean properties (Propiedades) and for
+ * Preferencias ▸ «Animaciones».
  */
-final class SwitchBox extends JCheckBox {
+public final class SwitchBox extends JCheckBox {
 
     private static final int TRACK_WIDTH = 30;
     private static final int TRACK_HEIGHT = 16;
     private static final int KNOB_MARGIN = 2;
     private static final int GAP = 8;
 
-    SwitchBox(boolean selected) {
+    public SwitchBox(boolean selected) {
         super("", selected);
         setOpaque(false);
         setFocusPainted(false);
@@ -89,10 +88,10 @@ final class SwitchBox extends JCheckBox {
             local.setFont(getFont());
             FontMetrics metrics = local.getFontMetrics();
             local.setColor(isEnabled() ? getForeground() : ThemeColors.ui("Label.disabledForeground", Color.GRAY));
-            local.drawString(getText(), trackWidth + UIScale.scale(GAP), (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent());
+            local.drawString(getText(), trackWidth + UIScale.scale(GAP),
+                    (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent());
         } finally {
             local.dispose();
         }
     }
-
 }

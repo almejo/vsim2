@@ -25,7 +25,7 @@ class PracticeSafetyTest {
         model = new KarnaughModel();
         model.setValue(0, 1, LogicValue.ONE);
         wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline(),
-                KarnaughWizard.Mode.PRACTICE);
+                KarnaughWizard.Mode.PRACTICE, () -> true);
         wizard.setOnClose(() -> closes++);
         wizard.setPracticeCloseConfirmation(parent -> {
             closeQuestions++;

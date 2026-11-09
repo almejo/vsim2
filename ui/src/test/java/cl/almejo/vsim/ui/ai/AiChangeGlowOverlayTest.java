@@ -89,21 +89,39 @@ class AiChangeGlowOverlayTest {
     }
 
     @Test
-    void turningAnimationsOffWhileItFadesMakesItSteadyFromThatMoment() throws Exception {
+    void turningAnimationsOffWhileItFadesEndsTheGlowInsteadOfLightingItAgain() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             AiChangeGlowOverlay overlay = overlay();
             overlay.show(Set.of(vertical.id()));
             clock.set(475 * MILLISECOND);
+            assertThat(alpha(overlay)).isEqualTo(70);
 
             animations.set(false);
-            overlay.tick();
 
-            assertThat(alpha(overlay)).isEqualTo(AiChangeGlowOverlay.FULL_ALPHA);
-            assertThat(overlay.isTimerRunning()).isTrue();
-            clock.set(1_500 * MILLISECOND);
+            assertThat(alpha(overlay)).as("never brighter than it was: the fade ends in its final state").isZero();
             overlay.tick();
             assertThat(overlay.isTimerRunning()).isFalse();
-            assertThat(alpha(overlay)).isZero();
+            assertThat(overlay.current()).isEmpty();
+            overlay.dispose();
+        });
+    }
+
+    @Test
+    void aSteadyGlowIsNotRepaintedEveryFrame() throws Exception {
+        animations.set(false);
+        SwingUtilities.invokeAndWait(() -> {
+            AiChangeGlowOverlay overlay = overlay();
+            overlay.show(Set.of(vertical.id()));
+            int shown = repaints.get();
+            for (int frame = 1; frame <= 40; frame++) {
+                clock.set(frame * AiChangeGlowOverlay.TIMER_MILLISECONDS * MILLISECOND);
+                overlay.tick();
+            }
+            assertThat(repaints.get()).as("nothing changes on screen while it is steady").isEqualTo(shown);
+
+            clock.set(1_500 * MILLISECOND);
+            overlay.tick();
+            assertThat(repaints.get()).as("one repaint when it goes out").isEqualTo(shown + 1);
             overlay.dispose();
         });
     }

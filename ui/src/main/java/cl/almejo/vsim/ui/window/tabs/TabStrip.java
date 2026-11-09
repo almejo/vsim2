@@ -288,6 +288,12 @@ public final class TabStrip extends JComponent implements Accessible {
         repaint();
     }
 
+    /** Preferencias ▸ «Animaciones» changed: a working robot starts bobbing again with «Sí» (it stops with «No»). */
+    public void animationsChanged() {
+        animateMarks();
+        repaint();
+    }
+
     /** The showing strip under {@code screenPoint} (with a few pixels of tolerance above and below), if any. */
     public static Optional<TabStrip> at(Point screenPoint) {
         for (TabStrip strip : List.copyOf(SHOWING)) {

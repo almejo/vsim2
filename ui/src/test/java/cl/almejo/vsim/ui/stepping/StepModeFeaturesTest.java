@@ -321,6 +321,44 @@ class StepModeFeaturesTest {
         assertThat(openDocument.stepMode()).isTrue();
     }
 
+    /** With «Animaciones: No» a step lit with no fade: a switch, its wire and a NOT gate, in the mode, one click. */
+    private void stepWithAnimationsOff() {
+        view.services().preferences().setAnimations(false);
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
+        addWire(4, 1, 8, 1);
+        place(openDocument, StandardComponentTypes.BUFFER, 8, -1, Map.of(StandardComponentTypes.NEGATE, true));
+        settleThenEnterStepMode();
+        openDocument.interact(toggle.id());
+        awaitStep(1);
+        clock.set(1_000);
+        showLatestSnapshot();
+        clock.set(60_000_000_000L);
+        showLatestSnapshot();
+        assertThat(features.overlay().current()).as("with «No» the outline stays while paused").isPresent();
+    }
+
+    @Test
+    void withAnimationsOffPlayClearsTheStepOutline() {
+        stepWithAnimationsOff();
+
+        perform(view.actions().start());
+        assertThat(awaitSimulation(openDocument).running()).isTrue();
+        showLatestSnapshot();
+
+        assertThat(features.overlay().current()).as("running again: the wires' values no longer match the outline")
+                .isEmpty();
+    }
+
+    @Test
+    void withAnimationsOffLeavingTheStepModeClearsTheStepOutline() {
+        stepWithAnimationsOff();
+
+        perform(features.stepModeAction());
+
+        assertThat(openDocument.stepMode()).isFalse();
+        assertThat(features.overlay().current()).as("the mode is left: the outline goes").isEmpty();
+    }
+
     @Test
     void aFixedStepLightsWhatChangedInTheJumpAndMovesTheWaveformCursor() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)

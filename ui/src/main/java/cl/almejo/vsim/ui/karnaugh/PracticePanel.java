@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -95,6 +96,7 @@ final class PracticePanel extends JPanel {
 
     private final KarnaughModel model;
     private final Runnable focusMap;
+    private final BooleanSupplier animations;
     private final Paragraph header = new Paragraph("");
     private final Paragraph specialCase = new Paragraph("", Font.BOLD);
     private final Paragraph notice = new ColouredParagraph(WizardColors::warning);
@@ -120,10 +122,11 @@ final class PracticePanel extends JPanel {
     private Supplier<Color> reviewColour = WizardColors::foreground;
 
     /** @param focusMap gives the keyboard to the shown map (after a legend click, so Supr deletes the group) */
-    PracticePanel(KarnaughModel model, Runnable focusMap) {
+    PracticePanel(KarnaughModel model, BooleanSupplier animations, Runnable focusMap) {
         super(new MigLayout("insets 0, fillx, wrap 1, hidemode 3", "[grow, fill]"));
         this.model = model;
         this.focusMap = focusMap;
+        this.animations = animations;
         hintButton.addActionListener(event -> model.practice().pressHint());
         reviewButton.addActionListener(event -> review());
         giveUpButton.addActionListener(event -> giveUp());
@@ -346,7 +349,7 @@ final class PracticePanel extends JPanel {
         }
         if (solutionMap == null || solutionMap.output() != output) {
             solutionHolder.removeAll();
-            solutionMap = new KarnaughMapView(model, new HoverState(), output, true);
+            solutionMap = new KarnaughMapView(model, new HoverState(), output, true, animations);
             solutionMap.showSolutionOnly();
             solutionMap.setCompact();
             solutionHolder.add(solutionMap);

@@ -171,7 +171,9 @@ class ShortcutsExtensionTest {
     void disposingRemovesThePreferencesListener() {
         int withOneView = preferences.listenerCount();
         EditorView second = newView();
-        assertThat(preferences.listenerCount()).isGreaterThan(withOneView); // the shortcuts and the pane follow it
+        // the shortcuts follow it, and so do the pane (it repaints when «Animaciones» changes) and the wires'
+        // Editar ▸ «Dibujar cables»
+        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 3);
         views.remove(second);
         second.dispose();
         assertThat(preferences.listenerCount()).isEqualTo(withOneView);

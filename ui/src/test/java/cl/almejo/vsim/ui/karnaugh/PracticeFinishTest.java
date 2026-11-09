@@ -54,7 +54,7 @@ class PracticeFinishTest {
             model.setValue(2, row, LogicValue.ONE);
         }
         wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline(),
-                KarnaughWizard.Mode.PRACTICE);
+                KarnaughWizard.Mode.PRACTICE, () -> true);
         wizard.setOnClose(() -> { });
         wizard.setLeaveConfirmation((parent, message) -> {
             leaveQuestions.add(message);
@@ -114,7 +114,7 @@ class PracticeFinishTest {
 
         KarnaughModel solutionModel = new KarnaughModel();
         KarnaughWizard solution = new KarnaughWizard(solutionModel, KarnaughCost.GENERATOR,
-                new FakeCreationTarget(), Background.inline());
+                new FakeCreationTarget(), Background.inline(), () -> true);
         solution.goTo(KarnaughWizard.Step.GROUPS);
         JTabbedPane solutionTabs = (JTabbedPane) solution.groupsPanel().mapView(0).getParent();
         assertThat(solutionTabs.getTitleAt(0)).isEqualTo("F");
@@ -233,7 +233,7 @@ class PracticeFinishTest {
         KarnaughModel solutionModel = new KarnaughModel();
         solutionModel.setValue(0, 1, LogicValue.ONE);
         KarnaughWizard solution = new KarnaughWizard(solutionModel, KarnaughCost.GENERATOR,
-                new FakeCreationTarget(), Background.inline());
+                new FakeCreationTarget(), Background.inline(), () -> true);
         solution.setLeaveConfirmation((parent, message) -> {
             leaveQuestions.add(message);
             return false;

@@ -62,6 +62,8 @@ final class KarnaughMapView extends JComponent {
     private final HoverState hover;
     final int output;
     final boolean showGroups;
+    /** Preferencias ▸ «Animaciones»: with «No» the outlines stay still (no marching ants). */
+    private final BooleanSupplier animations;
     private boolean followsPractice = true;
     private boolean compact;
     private final MarchingAnts ants = new MarchingAnts();
@@ -79,11 +81,13 @@ final class KarnaughMapView extends JComponent {
     /** Whether the keyboard is in use (the cursor is outlined) since the last mouse press. */
     boolean keyboardActive;
 
-    KarnaughMapView(KarnaughModel model, HoverState hover, int output, boolean showGroups) {
+    KarnaughMapView(KarnaughModel model, HoverState hover, int output, boolean showGroups,
+                    BooleanSupplier animations) {
         this.model = model;
         this.hover = hover;
         this.output = output;
         this.showGroups = showGroups;
+        this.animations = animations;
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent event) {
@@ -458,9 +462,12 @@ final class KarnaughMapView extends JComponent {
         return selected;
     }
 
-    /** Starts the ants when something is outlined on a showing map, stops them otherwise. */
+    /**
+     * Starts the ants when something is outlined on a showing map and «Animaciones» is on, stops them otherwise (with
+     * «No» the outline stays dashed and still; each step asks again, so the setting applies live).
+     */
     void updateAnimation() {
-        boolean wanted = outlining() && showing.getAsBoolean();
+        boolean wanted = outlining() && showing.getAsBoolean() && animations.getAsBoolean();
         if (wanted && !ticker.isRunning()) {
             ticker.start(this::antsTick);
         } else if (!wanted && ticker.isRunning()) {

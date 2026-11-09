@@ -28,9 +28,11 @@ import java.util.function.Supplier;
 /**
  * The brief glow over what an AI task changed when it ends (spec §4: «changed parts glow briefly»): the step mode's
  * glow ({@link StepHighlight}: fully lit, then fading out within 800 ms; with animations off steady for 1.5 s and then
- * out at once) in the scheme's selection colour, a band over
- * each changed wire and a rounded outline around each changed part. Elements no longer in the document are skipped.
- * Its timer runs only while the glow is on. Also lights each step «Presentar» applies (IA.2). EDT only.
+ * out at once) in the scheme's selection colour, a band over each changed wire and a rounded outline around each
+ * changed part. Elements no longer in the document are skipped. Its timer runs only while the glow is on, and
+ * repaints only when what shows changes: every step of a fade, but a steady glow only when it goes out. Turning
+ * animations off during a fade ends it at once (never brighter than it was). Also lights each step «Presentar»
+ * applies (IA.2). EDT only.
  */
 public final class AiChangeGlowOverlay implements CanvasOverlay {
 
@@ -54,6 +56,8 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
     private final BooleanSupplier animations;
     private final Timer timer;
     private StepHighlight glow;
+    /** Whether the glow shown started with animations off: steady for {@link #STEADY_NANOS}, it does not fade. */
+    private boolean steady;
     private boolean disposed;
 
     /** {@code scheme} is read on every paint; {@code repaint} runs on every change and fade step. */
@@ -73,6 +77,7 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
             return;
         }
         glow = new StepHighlight(changed, ANY_NETLIST, nanoClock.getAsLong());
+        steady = !animations.getAsBoolean();
         if (!timer.isRunning()) {
             timer.start();
         }
@@ -87,19 +92,30 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
         return timer.isRunning();
     }
 
-    /** One fade step: repaints, and once the glow is over drops it and stops the timer. */
+    /**
+     * One timer step: once the glow is over drops it and stops the timer. Repaints while it fades and when it goes
+     * out; a steady glow looks the same until then.
+     */
     void tick() {
         if (glow == null || isOver(glow)) {
             glow = null;
             timer.stop();
+            repaint.run();
+        } else if (!steady) {
+            repaint.run();
         }
-        repaint.run();
     }
 
-    /** Whether the glow is done: after its fade, or with animations off after its steady 1.5 s. */
+    /**
+     * Whether the glow is done: a steady one after its 1.5 s; a fading one after its fade, or as soon as animations
+     * are off (the fade ends in its final state).
+     */
     private boolean isOver(StepHighlight shown) {
         long now = nanoClock.getAsLong();
-        return animations.getAsBoolean() ? shown.isOver(now) : now - shown.startNanos() >= STEADY_NANOS;
+        if (steady) {
+            return now - shown.startNanos() >= STEADY_NANOS;
+        }
+        return !animations.getAsBoolean() || shown.isOver(now);
     }
 
     public void dispose() {
@@ -114,7 +130,7 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
         if (shown == null) {
             return;
         }
-        double lit = animations.getAsBoolean() ? shown.alpha(nanoClock.getAsLong()) : isOver(shown) ? 0 : 1;
+        double lit = isOver(shown) ? 0 : steady ? 1 : shown.alpha(nanoClock.getAsLong());
         int alpha = (int) Math.round(FULL_ALPHA * lit);
         if (alpha <= 0) {
             return;

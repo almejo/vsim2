@@ -198,6 +198,7 @@ public final class Application {
                 applicationWindows::presentationSettings, automationHost::documentId,
                 PresentationModeWatcher.Target.of(automationApi), presentationModeThread());
         preferences.addListener(presentationWatcher::refresh); // lives as long as the application
+        Animations.followInScrolling(preferences); // lives as long as the application
         this.aiServer = new AiServerService(preferences, automationApi,
                 new AiServerService.QueuedWork() {
                     @Override

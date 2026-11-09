@@ -19,7 +19,8 @@ import java.util.function.Supplier;
 /**
  * Paints the glow of the last «Avanzar» (M6.1-B): a translucent 7 px band in the scheme's selection color over each
  * changed wire, its opacity following {@link StepHighlight#alpha}. With animations off it does not fade: the band
- * stays full and still until the next step, an edit (the netlist changes) or «Reiniciar». Its timer runs only while a
+ * stays full and still until the next step, an edit (the netlist changes) or «Reiniciar», or until
+ * {@link StepModeFeatures} clears it (the simulation runs again, the mode is left). Its timer runs only while a
  * glow is fading and never starts again after {@link #dispose()}. EDT only.
  */
 public final class StepHighlightOverlay implements CanvasOverlay {

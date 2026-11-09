@@ -467,6 +467,26 @@ class TabStripTest {
     }
 
     @Test
+    void turningAnimationsBackOnRestartsTheRobotsBob() {
+        ManualFrameTicker ticker = new ManualFrameTicker();
+        AtomicBoolean animations = new AtomicBoolean(true);
+        TabStrip strip = new TabStrip(model, animations::get, ticker, ticker::now);
+        strip.setSize(600, TabStrip.HEIGHT);
+        markTabs(strip);
+        marks.put("ram", WORKING);
+        strip.marksChanged();
+        animations.set(false);
+        strip.animationsChanged();
+        ticker.advance(16);
+        assertThat(ticker.isRunning()).as("«No»: the robot stops").isFalse();
+
+        animations.set(true);
+        strip.animationsChanged();
+
+        assertThat(ticker.isRunning()).as("«Sí» again: it bobs without waiting for the AI's marks to change").isTrue();
+    }
+
+    @Test
     void theTooltipOfAMarkedTabSaysTheAiIsWorkingThereWithItsTask() {
         markTabs(strip);
         marks.put("ram", WORKING);

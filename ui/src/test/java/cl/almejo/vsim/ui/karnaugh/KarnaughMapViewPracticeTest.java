@@ -24,6 +24,7 @@ import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static cl.almejo.vsim.core.logic.Minimization.Form.SUM_OF_PRODUCTS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +35,7 @@ class KarnaughMapViewPracticeTest {
     private PracticeModel practice;
     private KarnaughMapView view;
     private ManualFrameTicker ticker;
+    private final AtomicBoolean animations = new AtomicBoolean(true);
 
     @BeforeEach
     void create() {
@@ -44,7 +46,7 @@ class KarnaughMapViewPracticeTest {
 
     private void withInputs(int inputs) {
         model.setInputCount(inputs);
-        view = new KarnaughMapView(model, new HoverState(), 0, true);
+        view = new KarnaughMapView(model, new HoverState(), 0, true, animations::get);
         view.setSize(400, 400);
         ticker = new ManualFrameTicker();
         view.setTicker(ticker);
@@ -316,7 +318,7 @@ class KarnaughMapViewPracticeTest {
         model.setValue(0, 6, LogicValue.ONE);
         model.setValue(0, 7, LogicValue.ONE);
         HoverState hover = new HoverState();
-        KarnaughMapView solution = new KarnaughMapView(model, hover, 0, true);
+        KarnaughMapView solution = new KarnaughMapView(model, hover, 0, true, () -> true);
         solution.setSize(400, 400);
         solution.showSolutionOnly();
         assertThat(solution.explainedGroup()).isEmpty();
@@ -365,6 +367,25 @@ class KarnaughMapViewPracticeTest {
         practice.setPractising(false);
         view.refreshPractice();
         assertThat(ticker.isRunning()).isFalse();
+    }
+
+    @Test
+    void withAnimationsOffTheOutlineStaysStillAndTheAntsFollowTheSettingLive() {
+        animations.set(false);
+        click(at(0, 0)); // a new group (not selected)
+        click(at(0, 0)); // selects it
+        assertThat(view.selectedHere()).as("the group is selected and outlined").isPresent();
+        assertThat(ticker.isRunning()).as("«Animaciones: No»: the ants do not march").isFalse();
+
+        animations.set(true);
+        view.refreshPractice();
+        assertThat(ticker.isRunning()).as("back to «Sí»").isTrue();
+        double phase = view.antsPhase();
+
+        animations.set(false);
+        ticker.advance(16);
+        assertThat(ticker.isRunning()).as("switched to «No» meanwhile: they stop at their next step").isFalse();
+        assertThat(view.antsPhase()).as("and stay where they were").isEqualTo(phase);
     }
 
     @Test

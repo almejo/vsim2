@@ -6,6 +6,7 @@ import javax.swing.JTabbedPane;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 /**
  * One tab per output with its Karnaugh map (steps 2 and 3). The selected tab follows the model's selected output both
@@ -18,13 +19,15 @@ final class OutputTabs extends JTabbedPane {
     private final KarnaughModel model;
     private final HoverState hover;
     private final boolean showGroups;
+    private final BooleanSupplier animations;
     private final List<KarnaughMapView> views = new ArrayList<>();
     private boolean updating;
 
-    OutputTabs(KarnaughModel model, HoverState hover, boolean showGroups) {
+    OutputTabs(KarnaughModel model, HoverState hover, boolean showGroups, BooleanSupplier animations) {
         this.model = model;
         this.hover = hover;
         this.showGroups = showGroups;
+        this.animations = animations;
         rebuild();
         addChangeListener(event -> {
             if (!updating && getSelectedIndex() >= 0) {
@@ -101,7 +104,7 @@ final class OutputTabs extends JTabbedPane {
             removeAll();
             views.clear();
             for (int output = 0; output < model.outputCount(); output++) {
-                KarnaughMapView view = new KarnaughMapView(model, hover, output, showGroups);
+                KarnaughMapView view = new KarnaughMapView(model, hover, output, showGroups, animations);
                 views.add(view);
                 addTab(model.outputNames().get(output), view);
             }

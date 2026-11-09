@@ -184,7 +184,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 ## Animaciones
 
-- Archivo ▸ Preferencias… ▸ General ▸ «Animaciones: Sí / No» (Sí por defecto) es una sola opción para todas las animaciones de VSim. Es solo de VSim: no lee ninguna opción del sistema (ni el interruptor de animaciones de GNOME ni otro). Cambia al instante, sin reiniciar: lo que se está moviendo termina de una vez en su estado final.
+- Archivo ▸ Preferencias… ▸ General ▸ «Animaciones» (Sí por defecto) es una sola opción para todas las animaciones de VSim: un interruptor (la pista con su perilla y «Sí» o «No» al lado, el mismo de las propiedades de sí o no de las piezas). Es solo de VSim: no lee ninguna opción del sistema (ni el interruptor de animaciones de GNOME ni otro). Cambia al instante, sin reiniciar: lo que se está moviendo termina de una vez en su estado final.
 - «Animar los movimientos de la vista» queda justo debajo y solo cuenta con animaciones: con «No» se ve desactivada (guarda tu elección para cuando vuelvas a «Sí») y la vista salta en vez de [viajar](buscar.md#viaje-suave-de-la-vista). El botón «Viaje suave» de la barra Buscar también queda desactivado, y su ayuda dice por qué.
 - Con «No»:
   - la vista salta de una vez (buscar, ir a un problema, «Ver todo el circuito», lo que hizo la IA, entrar a un componente);
@@ -192,10 +192,12 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   - el cursor de los Terminales queda encendido fijo, y el cursor y la estrella de Automan quietos;
   - el brillo que se apaga de una Matriz LED se apaga de una vez, y el brillo de una pieza no se desvanece;
   - los avisos sobre el circuito, las etiquetas de [los atajos que se usan](#mostrar-los-atajos-que-se-usan), el globo y el subtítulo de [Presentar](ia-mcp.md#presentar) aparecen y se van sin fundido;
-  - plegar un grupo de pestañas es instantáneo y el robot de la IA en la pestaña no se mece;
-  - lo que informa queda quieto, nunca escondido: un cortocircuito queda en rojo fijo (sin pulso), y lo mismo el resplandor rojo bajo un cable con problema; ir a un problema deja el resaltado fijo 1,5 s en vez de parpadear (también la fila de una sonda en las formas de onda); lo que cambió en un paso a paso queda con un contorno fijo hasta el próximo paso o la próxima edición; lo que cambió la IA queda fijo 1,5 s y se apaga de una vez; la captura muestra su destello entero 0,35 s y se va sin desvanecerse;
+  - plegar un grupo de pestañas es instantáneo y el robot de la IA en la pestaña no se mece (vuelve a mecerse apenas eliges «Sí», si la IA sigue trabajando);
+  - las listas, los árboles y los paneles se desplazan con la rueda del mouse de un salto, sin suavizado;
+  - lo que informa queda quieto, nunca escondido: un cortocircuito queda en rojo fijo (sin pulso), y lo mismo el resplandor rojo bajo un cable con problema; ir a un problema deja el resaltado fijo 1,5 s en vez de parpadear (también la fila de una sonda en las formas de onda); lo que cambió en un paso a paso queda con un contorno fijo hasta el próximo paso, la próxima edición, «Reiniciar» o hasta que la simulación vuelve a correr («Iniciar» o salir del paso a paso), porque desde ahí los valores ya no son los de ese paso; lo que cambió la IA queda fijo 1,5 s y se apaga de una vez; en el modo «Reciente» del [mapa de memoria](simulacion-y-paso-a-paso.md#mapa-de-memoria) cada acceso queda encendido entero un segundo y se apaga de una vez; la captura muestra su destello entero 0,35 s y se va sin desvanecerse;
   - la lupa «Mirar adentro» aparece y se va de una vez, sin crecer ni achicarse (lo que muestra por dentro sigue en vivo);
-  - el contorno de la selección y el rectángulo de selección del editor de formas quedan punteados y quietos: las hormigas no marchan.
+  - el contorno de la selección, el rectángulo de selección del editor de formas y lo que se marca en los mapas de la [práctica de Karnaugh](tabla-de-verdad-karnaugh-y-expresiones.md#modo-práctica-de-karnaugh) (el grupo elegido, el rectángulo que se dibuja, el cursor del teclado) quedan punteados y quietos: las hormigas no marchan.
+- Si eliges «No» mientras algo se desvanece (el brillo de lo que cambió la IA, el de una pieza), se apaga en ese momento: nunca vuelve a encenderse más fuerte.
 - Nunca cambia la simulación: los LED, el reloj, las formas de onda que avanzan, lo que escribe un Terminal y lo que muestra la lupa siguen igual. «No» quita adornos y movimiento, nunca valores.
 
 ## Acerca de VSim 2

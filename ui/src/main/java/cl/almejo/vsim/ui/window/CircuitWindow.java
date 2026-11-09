@@ -54,6 +54,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final Application application;
     private final WindowTabs tabs;
     private final Runnable windowsListener = this::windowsChanged;
+    /** Stops telling the tabs that «Animaciones» changed (a working robot bobs again with «Sí»). */
+    private final Runnable stopFollowingAnimations;
     private final RecentFiles recentFiles;
     private final KeyBindings keyBindings;
     /** The real full screen of this window and «Modo presentación» on it (F11). */
@@ -69,6 +71,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         this.keyBindings = new KeyBindings(services.preferences());
         this.tabs = new WindowTabs(new Host(), place -> newView(place, services),
                 new SplitLayoutStore(services.preferences()), () -> Animations.enabled(services.preferences()));
+        this.stopFollowingAnimations = Animations.onChange(services.preferences(), tabs::animationsChanged);
         setContentPane(tabs);
         this.screenMode = ScreenMode.of(this);
         this.fullScreen = new FullScreenFeatures(getRootPane(), tabs, screenMode, services.preferences());
@@ -417,6 +420,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
         closed = true;
         application.removeWindowsListener(windowsListener);
+        stopFollowingAnimations.run();
         fullScreen.dispose();
         tabs.disposeAll();
         dispose();
@@ -430,6 +434,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         closed = true;
         try {
             application.removeWindowsListener(windowsListener);
+            stopFollowingAnimations.run();
             fullScreen.dispose(); // out of the full screen first, its bars back in their places
             tabs.disposeAll();
         } catch (RuntimeException exception) {

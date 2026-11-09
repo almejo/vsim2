@@ -32,6 +32,7 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 /**
  * Step 3 «Grupos» (spec §3): the map of each output with its minimal groups, a legend (① B'C, ② BD…) in the groups'
@@ -74,15 +75,15 @@ final class GroupsPanel extends JPanel implements WizardStep {
     private List<Term> shownTerms = List.of();
     private boolean active;
 
-    GroupsPanel(KarnaughModel model, HoverState hover) {
+    GroupsPanel(KarnaughModel model, HoverState hover, BooleanSupplier animations) {
         // The solution wizard keeps step 3's layout from before the practice: no «Forma:» row.
         super(new MigLayout("insets 12, fill, hidemode 3", "[grow, fill][400!, fill]",
                 model.practice().practising() ? "[][grow, fill]" : "[grow, fill]"));
         this.model = model;
         this.optionControls = OptionControls.formsOnly(model::options, model::setOptions);
         this.hover = hover;
-        this.tabs = new OutputTabs(model, hover, true);
-        this.practicePanel = new PracticePanel(model,
+        this.tabs = new OutputTabs(model, hover, true, animations);
+        this.practicePanel = new PracticePanel(model, animations,
                 () -> tabs.view(model.selectedOutput()).requestFocusInWindow());
 
         for (JToggleButton toggle : List.of(whyToggle, rulesToggle)) {

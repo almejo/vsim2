@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
+import cl.almejo.vsim.ui.theme.SwitchBox;
 import com.formdev.flatlaf.util.UIScale;
 import org.junit.jupiter.api.Test;
 

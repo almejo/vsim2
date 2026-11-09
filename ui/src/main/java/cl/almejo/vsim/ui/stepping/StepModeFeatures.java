@@ -61,7 +61,7 @@ public final class StepModeFeatures {
     private final JLabel status = new JLabel();
     private final StepHighlightOverlay overlay;
     private final PendingOutlineOverlay pendingOverlay;
-    private final Runnable stepModeListener = this::refresh;
+    private final Runnable stepModeListener = this::stepModeChanged;
     private final Consumer<SimulationSnapshot> snapshotListener = this::snapshotPublished;
     private final List<Runnable> shortcutRemovers;
     private final List<Runnable> removeOverlays;
@@ -196,6 +196,8 @@ public final class StepModeFeatures {
         }
         if (snapshot.time() < shownTime) {
             overlay.clear(); // «Reiniciar»: what changed before is gone
+        } else if (snapshot.running()) {
+            clearStillOutline(); // running again: the values under a still outline no longer match it
         }
         shownTime = snapshot.time();
         Optional<StepReport> latest = openDocument.latestStep();
@@ -228,6 +230,24 @@ public final class StepModeFeatures {
 
     private void refresh() {
         refresh(openDocument.latestSnapshot());
+    }
+
+    /** Leaving the mode drops a still outline («Animaciones: No»: it never fades); then the controls follow. */
+    private void stepModeChanged() {
+        if (!disposed && !openDocument.stepMode()) {
+            clearStillOutline();
+        }
+        refresh();
+    }
+
+    /**
+     * With «Animaciones: No» the outline of the last step does not fade, so it goes as soon as it stops being true:
+     * when the simulation runs again or the step mode is left. With animations it fades by itself.
+     */
+    private void clearStillOutline() {
+        if (overlay.current().isPresent() && !Animations.enabled(view.services().preferences())) {
+            overlay.clear();
+        }
     }
 
     private void refresh(SimulationSnapshot snapshot) {

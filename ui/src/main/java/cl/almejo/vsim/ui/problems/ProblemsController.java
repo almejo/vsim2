@@ -97,8 +97,8 @@ public final class ProblemsController {
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
     private final DocumentListener structureListener = (document, change) -> refreshStructure();
     private final HistoryListener historyListener = history -> refreshStructure();
-    /** «Animaciones» changed: the pulse starts or stops at once, with the shorts already on screen. */
-    private final Runnable animationsListener = this::refreshPulse;
+    /** Stops following «Animaciones» (when it changes the pulse starts or stops at once, with the shorts shown). */
+    private final Runnable stopFollowingAnimations;
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private int libraryProblemCount;
@@ -169,7 +169,7 @@ public final class ProblemsController {
             }
         };
         simulationMenu.addMenuListener(pauseListener);
-        view.services().preferences().addListener(animationsListener);
+        this.stopFollowingAnimations = Animations.onChange(view.services().preferences(), this::refreshPulse);
         openDocument.document().addListener(structureListener);
         if (circuit != openDocument) {
             circuit.document().addListener(structureListener);
@@ -458,7 +458,7 @@ public final class ProblemsController {
         circuit.document().removeListener(structureListener);
         circuit.history().removeListener(historyListener);
         blink.dispose();
-        view.services().preferences().removeListener(animationsListener);
+        stopFollowingAnimations.run();
         pulse.dispose();
         removeFromPanes.run();
         viewMenu.remove(nextItem);

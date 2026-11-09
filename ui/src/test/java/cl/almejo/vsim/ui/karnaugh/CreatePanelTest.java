@@ -37,7 +37,7 @@ class CreatePanelTest {
     }
 
     private void open(Background background) {
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, background);
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, background, () -> true);
         wizard.setOnClose(() -> closed++);
         wizard.setDiscardConfirmation(parent -> {
             asked++;
@@ -302,7 +302,7 @@ class CreatePanelTest {
                 throw new IllegalStateException("could not route channel 3");
             }
         };
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, failing, Background.inline());
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, failing, Background.inline(), () -> true);
         wizard.setOnClose(() -> closed++);
         wizard.setDiscardConfirmation(parent -> {
             asked++;
@@ -354,7 +354,7 @@ class CreatePanelTest {
                 throw new IllegalStateException("could not route channel 3");
             }
         };
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, failing, Background.inline());
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, failing, Background.inline(), () -> true);
         wizard.goTo(KarnaughWizard.Step.CREATE);
         controls().createButton().doClick();
 

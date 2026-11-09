@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -12,6 +13,7 @@ import cl.almejo.vsim.ui.window.Menus;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import java.nio.file.Path;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -70,18 +72,20 @@ public final class KarnaughExtension implements EditorExtension {
     @Override
     public Runnable install(EditorView view) {
         CreationTarget target = targets.apply(view);
+        BooleanSupplier animations = () -> Animations.enabled(view.services().preferences());
         Action action = Actions.of(Messages.text("action.circuitFromTruthTable"),
-                () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background)));
+                () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
+                        animations)));
         Runnable toolsItemRemover = Menus.install(view, MenuId.TOOLS, -1, action, SHORTCUT_ID);
         Action practiceAction = Actions.of(Messages.text("action.karnaughPractice"),
                 () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
-                        KarnaughWizard.Mode.PRACTICE)));
+                        KarnaughWizard.Mode.PRACTICE, animations)));
         Runnable practiceRemover = Menus.install(view, MenuId.TOOLS, -1, practiceAction, PRACTICE_SHORTCUT_ID);
         // The truth-table window's «Abrir en el asistente de Karnaugh» opens a wizard on its table.
         view.setTableWizard(spec -> {
             KarnaughModel model = new KarnaughModel();
             model.load(spec);
-            opener.open(view, new KarnaughWizard(model, cost, target, background));
+            opener.open(view, new KarnaughWizard(model, cost, target, background, animations));
         });
 
         // «Ver en Karnaugh…» of the expressions dialog: a wizard over it on the expressions' table (read-only there),
@@ -89,7 +93,7 @@ public final class KarnaughExtension implements EditorExtension {
         ExpressionsPanel.WizardOpener openInWizard = (owner, spec) -> {
             KarnaughModel model = new KarnaughModel();
             model.load(spec);
-            KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background);
+            KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background, animations);
             wizard.showTableFromExpressions(owner::closeAfterCreating);
             wizard.goTo(KarnaughWizard.Step.GROUPS);
             opener.open(owner, wizard);
@@ -106,7 +110,7 @@ public final class KarnaughExtension implements EditorExtension {
             KarnaughModel model = new KarnaughModel();
             model.load(spec);
             model.setOptions(options);
-            KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background);
+            KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background, animations);
             wizard.goTo(KarnaughWizard.Step.MAP);
             opener.open(view, wizard);
         };

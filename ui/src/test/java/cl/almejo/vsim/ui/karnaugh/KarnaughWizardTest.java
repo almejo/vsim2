@@ -38,7 +38,8 @@ class KarnaughWizardTest {
     @BeforeEach
     void create() {
         model = new KarnaughModel();
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline());
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline(),
+                () -> true);
     }
 
     private static void press(JTable table, int row, int column) {
@@ -473,7 +474,8 @@ class KarnaughWizardTest {
         int[] closed = {0};
         int[] afterCreating = {0};
         int[] asked = {0};
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline());
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline(),
+                () -> true);
         wizard.setOnClose(() -> closed[0]++);
         wizard.setDiscardConfirmation(parent -> {
             asked[0]++;
@@ -511,7 +513,7 @@ class KarnaughWizardTest {
         int[] closed = {0};
         int[] afterCreating = {0};
         FakeCreationTarget target = new FakeCreationTarget();
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, Background.inline());
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, Background.inline(), () -> true);
         wizard.setOnClose(() -> closed[0]++);
         wizard.showTableFromExpressions(() -> afterCreating[0]++);
         wizard.goTo(KarnaughWizard.Step.CREATE);

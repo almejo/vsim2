@@ -1070,6 +1070,11 @@ public final class WindowTabs extends JPanel {
      * Releases every tab's editor; the window is closing. The views stay readable (the application keeps where each
      * file was in Recientes after the window disposed itself). Idempotent.
      */
+    /** Preferencias ▸ «Animaciones» changed: the strip's working robots start or stop bobbing. */
+    public void animationsChanged() {
+        strip.animationsChanged();
+    }
+
     public void disposeAll() {
         if (disposed) {
             return;

@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The canvas animates a Terminal (Automan's star, blink, glow, persistence) on the renderer's clock; an export or a
- * printed page shows a still screen without effects, whatever the time, and a still view (reduced motion, an
+ * printed page shows a still screen without effects, whatever the time, and a still view («Animaciones: No», an
  * inactive window) moves nothing.
  */
 class CircuitRendererTerminalTest {

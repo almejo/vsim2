@@ -44,7 +44,7 @@ class StudentGroupsTest {
         }
         model.setTitle("Mi tabla");
         wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, Background.inline(),
-                KarnaughWizard.Mode.PRACTICE);
+                KarnaughWizard.Mode.PRACTICE, () -> true);
         wizard.setOnClose(() -> { });
         expression = wizard.expressionPanel();
     }
@@ -93,7 +93,7 @@ class StudentGroupsTest {
             solutionModel.setValue(0, row, LogicValue.ONE);
         }
         KarnaughWizard solution = new KarnaughWizard(solutionModel, KarnaughCost.GENERATOR, target,
-                Background.inline());
+                Background.inline(), () -> true);
         solutionModel.practice().add(0, SUM_OF_PRODUCTS, group(A | B, B));
         solutionModel.practice().add(0, SUM_OF_PRODUCTS, group(A | C, A | C));
         solutionModel.practice().add(0, SUM_OF_PRODUCTS, group(B | C, B | C));

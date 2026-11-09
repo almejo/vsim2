@@ -46,8 +46,9 @@ import java.util.function.Supplier;
  * The «Mapa de memoria» tab (spec §6, mockup §4): the whole memory last selected as a square-ish grid, one cell per
  * word or, above {@link #MAXIMUM_CELLS} words, per block of words (the wheel zooms in down to single words around the
  * mouse). Three modes: «Reciente» lights each access (blue read, orange write) and fades it in about a second of wall
- * time while running; paused, the accesses of the last step stay lit until the next step. «Acumulado» is a heat map
- * of the counts since the simulation started (log scale). «Valores» colours each word by its value (0 = empty).
+ * time while running (with «Animaciones: No» it stays fully lit that second and then goes out at once); paused, the
+ * accesses of the last step stay lit until the next step. «Acumulado» is a heat map of the counts since the
+ * simulation started (log scale). «Valores» colours each word by its value (0 = empty).
  *
  * <p>The data comes only from the simulation thread's {@link MemoryMapFrame}s (through {@link OpenDocument}); the
  * panel asks for a frame only while it is showing. What lit up is worked out once per frame from the change in the
@@ -77,6 +78,8 @@ public final class MemoryMapPanel extends JPanel {
     private final Supplier<ColorScheme> scheme;
     private final LongSupplier nanoClock;
     private final BooleanSupplier active;
+    /** Preferencias ▸ «Animaciones» (read at every paint): with «No» a lit cell does not fade. */
+    private BooleanSupplier animations = () -> true;
 
     private final CardLayout cards = new CardLayout();
     private final JLabel emptyLabel = new JLabel(Messages.text("memory.map.empty"), SwingConstants.CENTER);
@@ -258,6 +261,14 @@ public final class MemoryMapPanel extends JPanel {
         if (changed || wasFading) {
             grid.repaint();
         }
+    }
+
+    /**
+     * Where to ask whether VSim animates ({@code Animations.enabled}, read each time): with «No» an access in
+     * «Reciente» stays fully lit for {@link #FADE_NANOS} and then goes out at once, instead of fading.
+     */
+    public void setAnimations(BooleanSupplier animations) {
+        this.animations = Objects.requireNonNull(animations, "animations");
     }
 
     /** Stops asking for frames; the panel is not used afterwards. */
@@ -454,6 +465,9 @@ public final class MemoryMapPanel extends JPanel {
     private double litIntensity(int cell, long now) {
         if (cell < 0 || cell >= litAccess.length || litAccess[cell] == NOT_LIT) {
             return 0;
+        }
+        if (!animations.getAsBoolean()) {
+            return now - litAtNanos[cell] < FADE_NANOS ? 1 : 0; // «Animaciones: No»: fully lit, then out at once
         }
         double intensity = 1.0 - (double) (now - litAtNanos[cell]) / FADE_NANOS;
         return Math.max(0, Math.min(1, intensity));

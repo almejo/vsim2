@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.LedPainter;
+import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import cl.almejo.vsim.ui.paint.KeyboardPainter;
 import net.miginfocom.swing.MigLayout;
