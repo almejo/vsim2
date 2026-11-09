@@ -27,7 +27,6 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
-
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -90,7 +89,6 @@ public final class EditorActions {
     private final Action rotateCounterClockwise;
     private final Action configure;
     private final Action selectTool;
-
     private final Action panTool;
     private final Action zoomTool;
     private final Action zoomIn;
@@ -170,7 +168,6 @@ public final class EditorActions {
         configure = Actions.of(Messages.text("action.configure"), null,
                 () -> singleConfigurable().ifPresent(this::configure));
         selectTool = Actions.of(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
-
         panTool = Actions.of(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
         zoomTool = Actions.of(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
         zoomTool.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.toolZoom"));
@@ -274,7 +271,6 @@ public final class EditorActions {
     public Action rotateCounterClockwise() { return rotateCounterClockwise; }
     public Action configure() { return configure; }
     public Action selectTool() { return selectTool; }
-
     public Action panTool() { return panTool; }
     /** «Zoom»: the zoom tool on every pane (a rectangle fills the pane, a click steps in, Alt/Mayús+click out). */
     public Action zoomTool() { return zoomTool; }
@@ -359,7 +355,6 @@ public final class EditorActions {
         edit.add(configure);
         JMenu view = tagged(new JMenu(Messages.text("menu.view")), MenuId.VIEW);
         view.add(selectTool);
-
         view.add(panTool);
         view.add(zoomTool);
         view.addSeparator();
@@ -528,7 +523,6 @@ public final class EditorActions {
         }
         pane.selectionMoves().nudge(openDocument, selection, selection.effectiveIds(), deltaX, deltaY);
     }
-
 
     private void zoomToCircuit() {
         CircuitCanvas pane = activePane.get();

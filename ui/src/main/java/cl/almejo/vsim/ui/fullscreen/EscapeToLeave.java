@@ -124,7 +124,8 @@ final class EscapeToLeave implements KeyEventDispatcher, KeyEventPostProcessor {
 
     /** A tool at work, or a gesture on an edge handle: Esc is theirs. */
     private static boolean wantsEscape(CircuitCanvas canvas) {
-        return canvas.tool() != canvas.defaultTool() || canvas.tool().holdsGesture() || canvas.isEdgeGestureActive();
+        return canvas.tool() != canvas.defaultTool() || canvas.tool().holdsGesture() || canvas.drawsBetweenClicks()
+                || canvas.isEdgeGestureActive();
     }
 
     private static boolean hasCapturedKeyboard(CircuitCanvas canvas) {

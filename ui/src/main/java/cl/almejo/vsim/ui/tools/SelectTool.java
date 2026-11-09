@@ -233,6 +233,9 @@ public final class SelectTool implements Tool {
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
         if (continuousWire.inProgress()) {
             continuousWire.pressed(context, event);
+            if (!continuousWire.inProgress()) {
+                updateHover(context, event); // a right click ended the path: the ring and cursor follow the pointer
+            }
             return;
         }
         if (secondPressAfterAnEndedPath(event)) {
@@ -772,6 +775,7 @@ public final class SelectTool implements Tool {
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
         if (continuousWire.inProgress()) {
             lastHover = event;
+            clearHoverPin(context);
             continuousWire.pointerAt(context, event);
             showCursor(context, CanvasCursor.CROSSHAIR);
             return;
@@ -1056,6 +1060,9 @@ public final class SelectTool implements Tool {
         return switch (keyCode) {
             case KeyEvent.VK_ESCAPE -> {
                 continuousWire.cancel(context);
+                if (lastHover != null) {
+                    updateHover(context, lastHover); // no stale ring or crosshair after the path
+                }
                 yield true;
             }
             case KeyEvent.VK_BACK_SPACE -> dropLastStep(context);

@@ -12,6 +12,9 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.CanvasClicks;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -328,6 +331,29 @@ class EditorViewTest {
     }
 
     @Test
+    void escapeFromOutsideTheCanvasCancelsAPathDrawnFromSelection() {
+        pinAt(view.openDocument(), 2, 2);
+        Tool selection = view.canvas().tool();
+        selection.mousePressed(view.canvas(), TestToolContext.at(2, 2));
+        selection.mouseReleased(view.canvas(), TestToolContext.at(2, 2));
+        assertThat(view.canvas().drawsBetweenClicks()).isTrue();
+        view.escapeToCanvas();
+        assertThat(view.canvas().drawsBetweenClicks()).isFalse();
+    }
+
+    @Test
+    void aPathStartingFromSelectionEndsTheKeyboardCaptureSoItsKeysAreThePaths() {
+        pinAt(view.openDocument(), 5, 5);
+        CircuitCanvas canvas = view.canvas();
+        canvas.setSize(800, 300);
+        canvas.applyViewState(new ViewState(1, canvas.getWidth() / 16.0, canvas.getHeight() / 16.0));
+        view.keyboardCapture().capture("some-part");
+        CanvasClicks.click(canvas, 40, 40);
+        assertThat(canvas.drawsBetweenClicks()).isTrue();
+        assertThat(view.keyboardCapture().captured()).isEmpty();
+    }
+
+    @Test
     void toolButtonsAndPaletteFollowTheCanvasTool() {
         perform(view.actions().zoomTool());
         assertThat(view.canvas().tool()).isInstanceOf(ZoomTool.class);
@@ -562,7 +588,6 @@ class EditorViewTest {
         }
         throw new AssertionError("no status label starting with " + prefix);
     }
-
 
     private AbstractButton toggle(javax.swing.Action action) {
         for (java.awt.Component child : view.toolBar().getComponents()) {

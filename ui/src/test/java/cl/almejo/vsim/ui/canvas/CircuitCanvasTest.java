@@ -1105,7 +1105,6 @@ class CircuitCanvasTest {
         assertThat(cursorType()).isEqualTo(Cursor.DEFAULT_CURSOR);
     }
 
-
     @Test
     void spaceAndTheMiddleButtonShowMoveAndThenGiveTheToolItsCursorBack() {
         canvas.setCursor(CanvasCursor.CROSSHAIR);

@@ -2,11 +2,9 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.icons.Icons;
-
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
-
 import cl.almejo.vsim.ui.tools.ZoomTool;
 
 import javax.swing.Action;
@@ -32,7 +30,6 @@ final class EditorToolBar {
     private final JToolBar toolBar = new JToolBar();
     private final ButtonGroup toolButtons = new ButtonGroup();
     private final JToggleButton selectButton;
-
     private final JToggleButton panButton;
     private final JToggleButton zoomButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
@@ -126,7 +123,6 @@ final class EditorToolBar {
     void showTool(Tool tool) {
         switch (tool) {
             case SelectTool select -> selectButton.setSelected(true);
-
             case PanTool pan -> panButton.setSelected(true);
             case ZoomTool zoom -> zoomButton.setSelected(true);
             default -> {

@@ -25,7 +25,6 @@ class ToolCursorsTest {
         context.close();
     }
 
-
     @Test
     void thePanToolShowsMove() {
         assertThat(new PanTool().cursor().getType()).isEqualTo(Cursor.MOVE_CURSOR);

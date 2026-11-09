@@ -250,6 +250,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         inlineEditor = new InlineTextEditor(this::canvas);
         forEachPane(this::configurePane);
         forEachPane(pane -> pane.addDrawingListener(actions::refresh)); // Deshacer drops a corner while a wire is drawn
+        forEachPane(pane -> pane.addDrawingListener(() -> releaseKeyboardWhileDrawing(pane))); // its keys are the path's
         bindZoomKeys();
         bindEscapeToTheTool();
         palette.setFocusAfterMouseChoice(() -> canvas().requestFocusInWindow());
@@ -944,7 +945,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             public boolean isEnabled() {
                 // the canvas's own key handler already gave the key to the tool
                 CircuitCanvas canvas = canvas();
-                return canvas.tool() != canvas.defaultTool() && !canvas.isFocusOwner()
+                return (canvas.tool() != canvas.defaultTool() || canvas.drawsBetweenClicks()) && !canvas.isFocusOwner()
                         && MenuSelectionManager.defaultManager().getSelectedPath().length == 0;
             }
 
@@ -963,7 +964,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public void escapeToCanvas() {
         CircuitCanvas canvas = canvas();
-        if (canvas.tool() != canvas.defaultTool()) {
+        if (canvas.tool() != canvas.defaultTool() || canvas.drawsBetweenClicks()) {
             canvas.pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
         }
         viewFocus.request(canvas);
@@ -1153,14 +1154,12 @@ public final class EditorView extends JPanel implements CanvasHost {
         }
     }
 
-
     /** Runs {@code action} as its toolbar button would: only while it is enabled (the status-bar run state). */
     private void performIfEnabled(Action action) {
         if (action.isEnabled()) {
             action.actionPerformed(new ActionEvent(statusBar, ActionEvent.ACTION_PERFORMED, ""));
         }
     }
-
 
     /** A new pane's canvas: same document, a renderer of its own, the window's selection. */
     private CircuitCanvas newPane() {
@@ -1218,6 +1217,12 @@ public final class EditorView extends JPanel implements CanvasHost {
                                 Action action) {
         pane.bindKey(stroke, name, action);
         bound.put(stroke, name);
+    }
+
+    private void releaseKeyboardWhileDrawing(CircuitCanvas pane) {
+        if (pane.drawsBetweenClicks()) {
+            keyboardCapture.release();
+        }
     }
 
     /**

@@ -72,4 +72,31 @@ class SelectToolHoverTest {
         assertThat(alphaAt(image, 4, 4)).isZero();
         assertThat(alphaAt(image, -5, -5)).isZero();
     }
+
+    private void startAPathFromThePin() {
+        place(context.openDocument(), StandardComponentTypes.BUFFER, 10, 8, Map.of(StandardComponentTypes.NEGATE, true));
+        tool.mouseMoved(context, TestToolContext.at(10, 10));
+        tool.mousePressed(context, TestToolContext.at(10, 10));
+        tool.mouseReleased(context, TestToolContext.at(10, 10));
+        assertThat(tool.drawsBetweenClicks()).isTrue();
+    }
+
+    @Test
+    void theHoverRingIsGoneRightAfterEscapeEndsAPathAwayFromAnyPin() {
+        startAPathFromThePin();
+        tool.mouseMoved(context, TestToolContext.at(30, 30));
+        tool.keyPressed(context, java.awt.event.KeyEvent.VK_ESCAPE, false);
+        assertThat(tool.drawsBetweenClicks()).isFalse();
+        assertThat(tool.hoverPin()).isNull();
+        assertThat(context.lastCursor()).isNotEqualTo(CanvasCursor.CROSSHAIR);
+    }
+
+    @Test
+    void theHoverRingIsGoneRightAfterARightClickEndsAPath() {
+        startAPathFromThePin();
+        tool.mousePressed(context, TestToolContext.event(30, 30, CanvasMouseEvent.SECONDARY, 1,
+                false));
+        assertThat(tool.drawsBetweenClicks()).isFalse();
+        assertThat(tool.hoverPin()).isNull();
+    }
 }
