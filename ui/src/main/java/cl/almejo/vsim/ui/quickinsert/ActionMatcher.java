@@ -12,7 +12,8 @@ import java.util.regex.Pattern;
  * ignoring case, accents and the «…» of the menus. A word of {@value #STEM_MINIMUM} letters or more also matches by
  * its stem (all but its last {@value #ENDING_LENGTH} letters), so «presentar» finds «Modo presentación» as well as
  * «Presentar lo que hace la IA». Rows whose name has every word as written come first, then those whose name has
- * them by their stem, then those found through their menu; each group keeps the menu order.
+ * them by their stem, then those found through their menu or their hidden search words («add» finds the example
+ * «Sumador completo» by «full adder»); each group keeps the menu order.
  */
 final class ActionMatcher {
 
@@ -41,7 +42,7 @@ final class ActionMatcher {
 
     private static int rank(ActionRow row, List<String> words) {
         String name = normalized(row.name());
-        String everything = name + " " + normalized(row.menuPath());
+        String everything = name + " " + normalized(row.menuPath()) + " " + normalized(row.searchTerms());
         if (words.stream().allMatch(name::contains)) {
             return Rank.NAME.ordinal();
         }

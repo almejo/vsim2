@@ -17,9 +17,10 @@ import java.util.Optional;
  * @param disabledReason why it cannot run, only for a disabled row
  * @param selected       the state of a check or radio item; empty for a plain one
  * @param action         what choosing the row does (a click on the item, so a check item flips)
+ * @param searchTerms    words the row is also found by, never shown; empty when it has none
  */
 record ActionRow(String name, String menuPath, Optional<String> shortcut, boolean enabled,
-                 Optional<String> disabledReason, Optional<Boolean> selected, Action action) {
+                 Optional<String> disabledReason, Optional<Boolean> selected, Action action, String searchTerms) {
 
     ActionRow {
         Objects.requireNonNull(name, "name");
@@ -28,6 +29,7 @@ record ActionRow(String name, String menuPath, Optional<String> shortcut, boolea
         Objects.requireNonNull(disabledReason, "disabledReason");
         Objects.requireNonNull(selected, "selected");
         Objects.requireNonNull(action, "action");
+        Objects.requireNonNull(searchTerms, "searchTerms");
     }
 
     /**

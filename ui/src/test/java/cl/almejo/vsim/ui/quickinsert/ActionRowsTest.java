@@ -65,6 +65,19 @@ class ActionRowsTest {
     }
 
     @Test
+    void anItemIsAlsoFoundByTheHiddenWordsItCarries() {
+        JMenu examples = new JMenu("Ejemplos");
+        JMenuItem fullAdder = new JMenuItem(Actions.of("Sumador completo", () -> { }));
+        fullAdder.putClientProperty(Actions.SEARCH_TERMS, "full adder");
+        examples.add(fullAdder);
+        view.menu(MenuId.FILE).add(examples);
+
+        assertThat(row("Sumador completo").searchTerms()).isEqualTo("full adder");
+        assertThat(ActionMatcher.filter(ActionRows.of(view), "add")).extracting(ActionRow::name)
+                .contains("Sumador completo");
+    }
+
+    @Test
     void theShortcutIsTheCurrentOneAfterTheUserRebindsIt() {
         assertThat(row("Guardar como…").shortcut()).contains("Ctrl+Shift+S");
 

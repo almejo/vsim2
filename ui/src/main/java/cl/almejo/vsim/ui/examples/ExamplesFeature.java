@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -67,6 +68,7 @@ public final class ExamplesFeature implements EditorExtension {
         for (String id : BundledExamples.ids()) {
             JMenuItem item = new JMenuItem(Messages.text(nameKey(id)));
             item.setToolTipText(Messages.text(nameKey(id) + ".description"));
+            item.putClientProperty(Actions.SEARCH_TERMS, id.replace('-', ' '));
             item.addActionListener(event -> open(id, view));
             examples.add(item);
         }

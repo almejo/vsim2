@@ -16,6 +16,12 @@ public final class Actions {
      */
     public static final String PALETTE_ENTRIES = "vsim.paletteEntries";
 
+    /**
+     * The key of a {@code String} a menu item may carry as a client property: words the command palette also finds
+     * it by, though they are not shown (an example's own name, «full adder», besides «Sumador completo»).
+     */
+    public static final String SEARCH_TERMS = "vsim.searchTerms";
+
     private Actions() {
     }
 

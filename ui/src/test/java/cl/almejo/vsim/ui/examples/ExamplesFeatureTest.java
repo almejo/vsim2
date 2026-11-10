@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.bundled.BundledExamples;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -103,6 +104,8 @@ class ExamplesFeatureTest {
                 "Punto de parada", "Formatos de valor", "Matriz LED", "Marquesina");
         assertThat(item(examples, "Sumador completo").getToolTipText())
                 .isEqualTo("Suma A, B y el acarreo de entrada con dos XOR, dos AND y una OR");
+        assertThat(item(examples, "Sumador completo").getClientProperty(Actions.SEARCH_TERMS))
+                .isEqualTo("full adder");
 
         disposer.run();
         assertThat(texts(file)).isEqualTo(before);

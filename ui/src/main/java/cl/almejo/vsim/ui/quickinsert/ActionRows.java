@@ -115,7 +115,8 @@ final class ActionRows {
         boolean enabled = button.isEnabled();
         rows.add(new ActionRow(name, path, shortcutOf(button).map(KeyBindings::describe), enabled,
                 enabled ? Optional.empty() : Optional.of(reasonOf(action)), selectedOf(button),
-                Actions.unnamed(button::isEnabled, () -> button.doClick(0))));
+                Actions.unnamed(button::isEnabled, () -> button.doClick(0)),
+                button.getClientProperty(Actions.SEARCH_TERMS) instanceof String terms ? terms : ""));
         if (action != null) {
             extraEntriesOf(action).forEach(extra -> addExtra(extra, path));
         }
@@ -125,7 +126,7 @@ final class ActionRows {
         Object name = extra.getValue(Action.NAME);
         if (name instanceof String text && !text.isBlank() && listed.add(extra)) {
             rows.add(new ActionRow(text, path, Optional.empty(), extra.isEnabled(),
-                    extra.isEnabled() ? Optional.empty() : Optional.of(reasonOf(extra)), Optional.empty(), extra));
+                    extra.isEnabled() ? Optional.empty() : Optional.of(reasonOf(extra)), Optional.empty(), extra, ""));
         }
     }
 
