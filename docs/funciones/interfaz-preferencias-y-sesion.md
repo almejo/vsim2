@@ -208,6 +208,36 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   breve, salvo con Preferencias ▸ [Animaciones](#animaciones) en «No». Al cerrarla, el teclado vuelve al circuito si
   lo tenía al abrirla.
 
+## Qué hay de nuevo
+
+- La primera vez que abres una versión nueva de VSim (también la primera vez que lo instalas), unas burbujas te
+  muestran, una por una, lo nuevo de esa versión: la ventana se oscurece salvo lo que la burbuja apunta, que queda
+  enmarcado en el color de la burbuja, y la flecha de la burbuja apunta a su centro. En esta versión son seis: los
+  cables de corrido (en el botón Selección), la captura al portapapeles (su botón), el botón «Formas de onda», el
+  modo presentación (su botón), «Mostrar los atajos al usarlos» (en el título del menú Ver, sin abrirlo) y
+  «Animaciones» (en el título del menú Archivo).
+- Cada burbuja tiene su título, su texto (las teclas dibujadas como teclas, con los nombres en tu idioma y las que
+  tienes ahora) y, cuando lo que apunta tiene atajo, una línea «Atajo» con esa tecla (si lo cambiaste, sale el tuyo);
+  si no tiene atajo, la línea dice dónde está («En el menú: Ver ▸ Mostrar los atajos al usarlos», «En el menú:
+  Archivo ▸ Preferencias ▸ General»). Abajo, «n de m» dice en cuál vas, y «Listo», ‹ y › las recorren; con el teclado,
+  → o Enter pasa a la siguiente, ← vuelve y Esc es «Listo». ‹ está apagado en la primera y › en la última termina.
+  Los botones de la burbuja no se quedan con el teclado: el circuito lo conserva y lo recupera al terminar.
+- «Listo», Esc, › en la última o empezar a editar (cambiar el circuito o hacer un gesto en él) terminan la ronda de
+  esa versión: no vuelve a salir sola hasta la próxima versión, que muestra sus propias burbujas. Ayuda ▸ «Qué hay de
+  nuevo» (justo después de «Atajos de teclado»; también en la [paleta de comandos](edicion.md#paleta-de-comandos)) las
+  vuelve a mostrar desde la primera cuando quieras.
+- Salen solas solo en la primera ventana, cuando ya se terminó de abrir; nunca en el
+  [modo presentación](#modo-presentación) ni mientras la IA está trabajando: esperan a que salgas del modo o a que la
+  IA termine. Si cierras VSim antes de verlas, salen la próxima vez. Entrar al modo presentación las termina.
+- Si lo que una burbuja apunta no se ve (por ejemplo, un botón que no cabe en una ventana angosta), esa burbuja se
+  salta y «n de m» cuenta solo las que se muestran; si desaparece mientras su burbuja está abierta, pasa a la
+  siguiente. La burbuja se pone sola donde cabe: bajo la barra de herramientas y los títulos de los menús, sobre la
+  barra de estado, a la derecha de la franja izquierda y a la izquierda de la derecha; si no cabe, al otro lado y
+  después a los demás, siempre dentro de la ventana y nunca sobre los menús; en una ventana muy chica va centrada y
+  sin flecha. Sigue a la ventana cuando cambia de tamaño.
+- Usa el color de acento del tema (claro u oscuro) y pasa de un lugar a otro deslizándose; con Preferencias ▸
+  [Animaciones](#animaciones) en «No», salta.
+
 ## Atajos de teclado
 
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.

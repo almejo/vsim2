@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.groups.GroupsExtension;
@@ -112,6 +113,19 @@ class ApplicationExtensionsTest {
             }
         }
         assertThat(editor).isNotNegative().isLessThan(icons);
+    }
+
+    @Test
+    void theHelpMenuListsWhatsNewRightAfterTheKeyboardShortcuts() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            List<String> help = texts(view.menu(MenuId.HELP));
+            int sheet = help.indexOf(Messages.text("action.shortcutSheet"));
+            assertThat(sheet).isNotNegative();
+            assertThat(help.get(sheet + 1)).isEqualTo(Messages.text("action.whatsNew"));
+        } finally {
+            view.dispose();
+        }
     }
 
     @Test

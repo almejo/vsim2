@@ -1,6 +1,12 @@
 package cl.almejo.vsim.ui.whatsnew;
 
+import cl.almejo.vsim.core.VsimVersion;
+import cl.almejo.vsim.ui.ai.AiServerService;
+import cl.almejo.vsim.ui.ai.AiServerState;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.KeyDispatchers;
+import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -24,18 +30,22 @@ public final class WhatsNewExtension implements EditorExtension {
         /** {@code listener} hears every change; returns what stops it. */
         Runnable addListener(Runnable listener);
 
-        /** No AI: it never works (tests that install every extension). */
-        static AiActivity none() {
+        /** The application's AI server: working while it runs a task. */
+        static AiActivity of(AiServerService server) {
             return new AiActivity() {
                 @Override
                 public boolean working() {
-                    return false;
+                    return server.state() instanceof AiServerState.Working;
                 }
 
                 @Override
                 public Runnable addListener(Runnable listener) {
-                    return () -> {
-                    };
+                    return server.addListener(new AiServerService.Listener() {
+                        @Override
+                        public void stateChanged() {
+                            listener.run(); // a task beginning or ending changes the state too
+                        }
+                    });
                 }
             };
         }
@@ -78,6 +88,20 @@ public final class WhatsNewExtension implements EditorExtension {
     private final Seams seams;
     /** Made with the first view's preferences; one for the whole run. */
     private StartupNotices notices;
+
+    private static final int FRAME_MILLISECONDS = 16;
+
+    /**
+     * The real thing: this VSim's version and news, the development switch, the window settling after it shows, the
+     * application's AI server, the focus manager, Swing timers and Preferencias ▸ «Animaciones».
+     */
+    public WhatsNewExtension(AiServerService aiServer) {
+        this(new Seams(VsimVersion.current(), NewsFiles::forRunning, StartupNotices.NewsRule.current(),
+                new SettledWindow(), AiActivity.of(aiServer),
+                new BubbleTours(new BubbleTours.Seams(KeyDispatchers.focusManager(),
+                        () -> FrameTicker.swing(FRAME_MILLISECONDS), System::currentTimeMillis,
+                        Animations::enabled))));
+    }
 
     WhatsNewExtension(Seams seams) {
         this.seams = Objects.requireNonNull(seams, "seams");

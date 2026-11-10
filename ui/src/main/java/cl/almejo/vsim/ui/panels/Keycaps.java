@@ -65,6 +65,28 @@ public final class Keycaps {
      */
     public static int paint(Graphics2D painter, Font font, float scale, List<String> keys, boolean plusBetween, int x,
                             int top, Color foreground) {
+        return paint(painter, font, scale, keys, plusBetween, x, top,
+                new Colours(withAlpha(foreground, FILL_ALPHA), withAlpha(foreground, BORDER_ALPHA), foreground,
+                        foreground));
+    }
+
+    /**
+     * Draws {@code keys} as solid caps, in inverted colours: filled with {@code capColour}, the names in
+     * {@code textColour} and the «+» between them in {@code capColour} (the keys inside a «Qué hay de nuevo» bubble,
+     * whose ink is the cap and whose colour the name). Returns the x just past the last cap.
+     */
+    public static int paintSolid(Graphics2D painter, Font font, float scale, List<String> keys, boolean plusBetween,
+                                 int x, int top, Color capColour, Color textColour) {
+        return paint(painter, font, scale, keys, plusBetween, x, top,
+                new Colours(capColour, capColour, textColour, capColour));
+    }
+
+    /** The colours of a row of caps: their fill, border and names, and the «+» between them. */
+    private record Colours(Color fill, Color border, Color text, Color plus) {
+    }
+
+    private static int paint(Graphics2D painter, Font font, float scale, List<String> keys, boolean plusBetween, int x,
+                             int top, Colours colours) {
         FontMetrics regular = painter.getFontMetrics(font);
         int capHeight = regular.getHeight() + 2 * scaled(KEY_PADDING_Y, scale);
         int baseline = top + scaled(KEY_PADDING_Y, scale) + regular.getAscent();
@@ -73,7 +95,7 @@ public final class Keycaps {
         for (int index = 0; index < keys.size(); index++) {
             if (index > 0) {
                 painter.setFont(font);
-                painter.setColor(foreground);
+                painter.setColor(colours.plus());
                 if (plusBetween) {
                     painter.drawString(PLUS, position + scaled(PLUS_GAP, scale), baseline);
                 }
@@ -82,12 +104,12 @@ public final class Keycaps {
             }
             String key = keys.get(index);
             int width = painter.getFontMetrics(keyFont(font)).stringWidth(key) + 2 * scaled(KEY_PADDING_X, scale);
-            painter.setColor(withAlpha(foreground, FILL_ALPHA));
+            painter.setColor(colours.fill());
             painter.fillRoundRect(position, top, width, capHeight, corner, corner);
-            painter.setColor(withAlpha(foreground, BORDER_ALPHA));
+            painter.setColor(colours.border());
             painter.setStroke(new BasicStroke(Math.max(1f, scale)));
             painter.drawRoundRect(position, top, width - 1, capHeight - 1, corner, corner);
-            painter.setColor(foreground);
+            painter.setColor(colours.text());
             painter.setFont(keyFont(font));
             painter.drawString(key, position + scaled(KEY_PADDING_X, scale), baseline);
             position += width;
