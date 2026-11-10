@@ -12,6 +12,7 @@ import java.awt.event.HierarchyBoundsAdapter;
 import java.awt.event.HierarchyBoundsListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.geom.Point2D;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -26,8 +27,11 @@ import java.util.function.LongSupplier;
  * centre ({@link ViewState}), given back after every resize or move of the pane until the window settled
  * ({@link #SETTLE_MILLISECONDS}) or the user acts on the pane: a press, or any zoom or pan (the wheel, Ctrl+=, the
  * status bar's slider), seen as the view no longer being where this class left it. Every split pane keeps its own.
- * EDT only in the editor; synchronized because tests drive it off the EDT while the panes' resize events reach it on
- * the EDT, and checking where a view was left must not interleave with putting it back.
+ * Confined to the EDT, so checking where a view was left never interleaves with putting it back: the editor calls it
+ * there, and a call from another thread (tests drive presentation mode off the EDT) is carried out on the EDT and
+ * waited for. No lock of its own: the panes' resize events reach it on the EDT holding the AWT tree lock, and the
+ * former {@code synchronized} methods, holding their lock while adding or removing a pane's listeners (which take the
+ * tree lock), deadlocked the tests (2026-11-09).
  */
 final class CircuitAnchor {
 
@@ -51,8 +55,12 @@ final class CircuitAnchor {
     }
 
     /** Remembers what {@code panes} show now; until the window settles they come back to it after every resize. */
-    synchronized void hold(List<CircuitCanvas> panes) {
-        release();
+    void hold(List<CircuitCanvas> panes) {
+        onTheEdt(() -> holdOnTheEdt(panes));
+    }
+
+    private void holdOnTheEdt(List<CircuitCanvas> panes) {
+        releaseOnTheEdt();
         followUntil = clock.getAsLong() + SETTLE_MILLISECONDS;
         for (CircuitCanvas pane : panes) {
             if (pane.getWidth() <= 0 || pane.getHeight() <= 0 || !SwingUtilities.isDescendingFrom(pane, rootPane)) {
@@ -68,23 +76,24 @@ final class CircuitAnchor {
         ComponentListener resizes = new ComponentAdapter() {
             @Override
             public void componentMoved(ComponentEvent event) {
-                paneChanged(pane);
+                fromAnEvent(() -> paneChangedOnTheEdt(pane));
             }
 
             @Override
             public void componentResized(ComponentEvent event) {
-                paneChanged(pane);
+                fromAnEvent(() -> paneChangedOnTheEdt(pane));
             }
         };
         HierarchyBoundsListener ancestorResizes = new HierarchyBoundsAdapter() {
             @Override
             public void ancestorResized(HierarchyEvent event) {
-                paneChanged(pane);
+                fromAnEvent(() -> paneChangedOnTheEdt(pane));
             }
         };
         pane.addComponentListener(resizes);
         pane.addHierarchyBoundsListener(ancestorResizes);
-        Runnable stopPressObserver = pane.addPressObserver(() -> forget(pane)); // the user works on it now
+        // the user works on it now
+        Runnable stopPressObserver = pane.addPressObserver(() -> fromAnEvent(() -> forget(pane)));
         removals.add(() -> {
             pane.removeComponentListener(resizes);
             pane.removeHierarchyBoundsListener(ancestorResizes);
@@ -93,14 +102,18 @@ final class CircuitAnchor {
     }
 
     /** Gives every held pane its saved view (after the window was laid out anew). */
-    synchronized void follow() {
-        List.copyOf(savedViews.keySet()).forEach(this::paneChanged);
+    void follow() {
+        onTheEdt(() -> List.copyOf(savedViews.keySet()).forEach(this::paneChangedOnTheEdt));
     }
 
     /** {@code pane} was resized or moved: it shows its saved view again, unless the window already settled. */
-    synchronized void paneChanged(CircuitCanvas pane) {
+    void paneChanged(CircuitCanvas pane) {
+        onTheEdt(() -> paneChangedOnTheEdt(pane));
+    }
+
+    private void paneChangedOnTheEdt(CircuitCanvas pane) {
         if (clock.getAsLong() > followUntil) {
-            release();
+            releaseOnTheEdt();
             return;
         }
         ViewState saved = savedViews.get(pane);
@@ -115,7 +128,7 @@ final class CircuitAnchor {
         leftAt.put(pane, Placement.of(pane));
     }
 
-    private synchronized void forget(CircuitCanvas pane) {
+    private void forget(CircuitCanvas pane) {
         savedViews.remove(pane);
         leftAt.remove(pane);
     }
@@ -133,10 +146,52 @@ final class CircuitAnchor {
     }
 
     /** Stops following the panes. */
-    synchronized void release() {
+    void release() {
+        onTheEdt(this::releaseOnTheEdt);
+    }
+
+    private void releaseOnTheEdt() {
         removals.forEach(Runnable::run);
         removals.clear();
         savedViews.clear();
         leftAt.clear();
+    }
+
+    /**
+     * Runs the reaction to a pane's event on the EDT: at once there, else later and never waiting, since an off-EDT
+     * layout (tests) hands the panes their ancestor-resized events holding the tree lock, which the EDT may be waiting
+     * for. Later calls to this class run after it (the event queue keeps their order).
+     */
+    private static void fromAnEvent(Runnable reaction) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            reaction.run();
+        } else {
+            SwingUtilities.invokeLater(reaction);
+        }
+    }
+
+    /**
+     * Runs {@code work} on the EDT: at once there, else waiting for it (rethrowing what it threw). A caller off the
+     * EDT must hold no Swing lock (the tree lock), or the EDT could never run it.
+     */
+    private static void onTheEdt(Runnable work) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            work.run();
+            return;
+        }
+        try {
+            SwingUtilities.invokeAndWait(work);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted while waiting for the EDT", interrupted);
+        } catch (InvocationTargetException failure) {
+            if (failure.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            if (failure.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw new IllegalStateException(failure.getCause());
+        }
     }
 }

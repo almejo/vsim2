@@ -28,7 +28,7 @@ class EscapeToLeaveWirePathTest {
     private CircuitCanvas right;
 
     @BeforeEach
-    void create() {
+    void create() throws Exception {
         Messages.initialize(Messages.SPANISH);
         fixture = new FullScreenFixture(List.of(new FullScreenExtension()));
         view = fixture.addTab();
@@ -38,6 +38,8 @@ class EscapeToLeaveWirePathTest {
         panes.setSize(800, 300);
         panes.split(CanvasPanes.Orientation.VERTICAL, 0.5);
         panes.doLayout();
+        // the panes' resize events reach the circuit anchor on the EDT: let them run before the views are set below
+        SwingUtilities.invokeAndWait(() -> { });
         left = view.panes().get(0);
         right = view.panes().get(1);
         left.applyViewState(new ViewState(1, left.getWidth() / 16.0, left.getHeight() / 16.0));
