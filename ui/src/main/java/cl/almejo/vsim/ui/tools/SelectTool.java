@@ -1332,6 +1332,26 @@ public final class SelectTool implements Tool {
         return !isIdle() || heldButton != null;
     }
 
+    @Override
+    public String gesturePhrase(ToolContext context) {
+        if (continuousWire.inProgress()) {
+            return GesturePhrases.continuousWire();
+        }
+        if (wire != null) {
+            return GesturePhrases.pieceWire();
+        }
+        if (isMovingTheSelection()) {
+            return GesturePhrases.moving(context.selectionMoves().preferences(), segmentWire(context).isPresent());
+        }
+        return "";
+    }
+
+    /** A press on a selected or just selected element has been dragged: a click that did not move says nothing yet. */
+    private boolean isMovingTheSelection() {
+        return pressPoint != null && lastDrag != null && (pointerDeltaX != 0 || pointerDeltaY != 0)
+                && bandStart == null && labelComponent == null && activeDelegate == null && heldButton == null;
+    }
+
     /** Forgets the press in progress without changing the document: the drag goes on outside the canvas. */
     public void cancelMove(ToolContext context) {
         reset();

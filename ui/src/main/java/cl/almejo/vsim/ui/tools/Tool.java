@@ -57,6 +57,16 @@ public interface Tool {
         return Optional.empty();
     }
 
+    /**
+     * What the keys and the next click do right now, in one line for the status bar («Dibujando un cable: clic:
+     * esquina · Esc: cancela»), while the tool holds a gesture (a wire being drawn, a move, a paste, a part being
+     * placed); empty when there is none and on plain hover. The canvas asks after every input event and when the tool
+     * changes, so a tool derives it from its state and has no ending to announce. The default says nothing.
+     */
+    default String gesturePhrase(ToolContext context) {
+        return "";
+    }
+
     /** True while the tool paints a marching-ants outline of its own (the canvas keeps its animation clock running). */
     default boolean animatesOutline() {
         return false;

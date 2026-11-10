@@ -19,7 +19,6 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.preferences.PreferencesForm;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -276,6 +275,6 @@ public final class SelectionMoves {
         AppPreferences.InvertModifier modifier = preferences.invertModifier();
         return modifier == AppPreferences.InvertModifier.NONE
                 ? Messages.format("wiresFollow.hintNoKey", Messages.text("action.wiresFollow"))
-                : Messages.format("wiresFollow.hint", PreferencesForm.invertModifierName(modifier));
+                : Messages.format("wiresFollow.hint", InvertModifierNames.of(modifier));
     }
 }

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.wiring.NewContact;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
 import cl.almejo.vsim.ui.snap.ContactCache;
 import cl.almejo.vsim.ui.snap.ContactDots;
@@ -66,6 +67,11 @@ public final class PlaceComponentTool implements Tool {
     @Override
     public boolean placesFromPalette() {
         return true;
+    }
+
+    @Override
+    public String gesturePhrase(ToolContext context) {
+        return GesturePhrases.placing(Messages.componentName(type, presetParameters));
     }
 
     @Override

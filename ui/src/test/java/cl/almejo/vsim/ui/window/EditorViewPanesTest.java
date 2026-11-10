@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
@@ -158,6 +159,46 @@ class EditorViewPanesTest {
         assertThat(heard).containsExactly("changed");
     }
 
+    /** A tool that always has a gesture phrase to show. */
+    private static final class PhraseTool implements Tool {
+        private final String phrase;
+
+        PhraseTool(String phrase) {
+            this.phrase = phrase;
+        }
+
+        @Override
+        public String gesturePhrase(ToolContext context) {
+            return phrase;
+        }
+    }
+
+    @Test
+    void onlyTheActivePaneShowsItsGesturePhraseAndTheOtherOneComesBackWhenItBecomesActive() {
+        view.canvasPanes().split(Orientation.VERTICAL, 0.5);
+        CircuitCanvas left = view.panes().get(0);
+        CircuitCanvas right = view.panes().get(1);
+
+        right.setTool(new PhraseTool("Frase derecha"));
+        assertThat(view.statusBar().text()).doesNotContain("Frase derecha");
+
+        left.setTool(new PhraseTool("Frase izquierda"));
+        assertThat(view.statusBar().text()).contains("Frase izquierda").doesNotContain("Frase derecha");
+
+        press(right);
+        assertThat(view.statusBar().text()).contains("Frase derecha").doesNotContain("Frase izquierda");
+    }
+
+    @Test
+    void theGesturePhraseGoesWhenTheActivePaneChangesItsTool() {
+        view.canvas().setTool(new PhraseTool("Frase"));
+        assertThat(view.statusBar().text()).contains("Frase");
+
+        view.canvas().useDefaultTool();
+
+        assertThat(view.statusBar().text()).doesNotContain("Frase");
+    }
+
     @Test
     void theStatusBarZoomFollowsTheActivePane() {
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);
@@ -200,5 +241,72 @@ class EditorViewPanesTest {
         view.selection().select(gate.id());
         openDocument.history().undo();
         assertThat(view.selection().isEmpty()).isTrue(); // the surviving pane still prunes the shared selection
+    }
+
+    private void moveFocus(CircuitCanvas from, CircuitCanvas to) {
+        for (java.awt.event.FocusListener listener : from.getFocusListeners()) {
+            listener.focusLost(new java.awt.event.FocusEvent(from, java.awt.event.FocusEvent.FOCUS_LOST, false, to));
+        }
+        for (java.awt.event.FocusListener listener : to.getFocusListeners()) {
+            listener.focusGained(new java.awt.event.FocusEvent(to, java.awt.event.FocusEvent.FOCUS_GAINED, false, from));
+        }
+    }
+
+    /** A continuous wire started in the left pane, left under way while the right pane takes the focus. */
+    private CircuitCanvas startAWireInTheLeftPane() {
+        Messages.initialize(Messages.SPANISH);
+        view.services().preferences().setWireMode(cl.almejo.vsim.ui.tools.WireMode.CONTINUOUS);
+        view.canvasPanes().split(Orientation.VERTICAL, 0.5);
+        view.canvasPanes().doLayout();
+        CircuitCanvas left = view.panes().get(0);
+        UiTestSupport.pinAt(openDocument, 5, 5);
+        left.applyViewState(new ViewState(1, left.getWidth() / 16.0, left.getHeight() / 16.0));
+        cl.almejo.vsim.ui.CanvasClicks.click(left, 40, 40);
+        assertThat(left.drawsBetweenClicks()).isTrue();
+        return left;
+    }
+
+    @Test
+    void aContinuousWireContinuedInTheOtherPaneKeepsItsPhraseUntilItEnds() {
+        CircuitCanvas left = startAWireInTheLeftPane();
+        CircuitCanvas right = view.panes().get(1);
+        assertThat(view.statusBar().text()).contains("Dibujando un cable");
+
+        moveFocus(left, right);
+        press(right);
+        assertThat(view.canvas()).isSameAs(right);
+        assertThat(view.statusBar().text()).contains("Dibujando un cable");
+
+        left.interruptGesture();
+        assertThat(view.statusBar().text()).doesNotContain("Dibujando un cable");
+    }
+
+    @Test
+    void theWirePhraseGoesWhenTheFocusLeavesTheWindowFromTheOtherPane() {
+        CircuitCanvas left = startAWireInTheLeftPane();
+        CircuitCanvas right = view.panes().get(1);
+        moveFocus(left, right);
+        press(right);
+
+        for (java.awt.event.FocusListener listener : right.getFocusListeners()) {
+            listener.focusLost(new java.awt.event.FocusEvent(right, java.awt.event.FocusEvent.FOCUS_LOST));
+        }
+
+        assertThat(view.statusBar().text()).doesNotContain("Dibujando un cable");
+    }
+
+    @Test
+    void aTabChangeOrAnAiStartTakesTheWirePhraseAway() {
+        Messages.initialize(Messages.SPANISH);
+        view.services().preferences().setWireMode(cl.almejo.vsim.ui.tools.WireMode.CONTINUOUS);
+        UiTestSupport.pinAt(openDocument, 5, 5);
+        view.canvas().applyViewState(new ViewState(1, view.canvas().getWidth() / 16.0,
+                view.canvas().getHeight() / 16.0));
+        cl.almejo.vsim.ui.CanvasClicks.click(view.canvas(), 40, 40);
+        assertThat(view.statusBar().text()).contains("Dibujando un cable");
+
+        view.interruptGestures();
+
+        assertThat(view.statusBar().text()).doesNotContain("Dibujando un cable");
     }
 }
