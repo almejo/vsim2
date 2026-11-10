@@ -736,12 +736,14 @@ public final class EditorView extends JPanel implements CanvasHost {
         statusBar.showNotice(text);
     }
 
-    /** Only the active pane speaks for the window: a gesture phrase of another pane waits until it is active. */
+    /**
+     * The active pane speaks for the window, with the phrase of the path under way in another pane when there is one
+     * (it holds the keys); any pane's change refreshes it, so a path drawn from the other pane never leaves a stale
+     * phrase.
+     */
     @Override
     public void gesturePhraseChanged(CircuitCanvas pane, String phrase) {
-        if (pane == canvas()) {
-            statusBar.showGesture(phrase);
-        }
+        statusBar.showGesture(canvas().gesturePhrase());
     }
 
     /** A component tab without an instance to show («Sin valores», spec §6.3) says where to choose one. */

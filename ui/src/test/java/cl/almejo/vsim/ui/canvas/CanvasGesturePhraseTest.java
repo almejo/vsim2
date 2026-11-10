@@ -6,9 +6,11 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,9 +35,15 @@ class CanvasGesturePhraseTest {
 
     private final List<String> published = new ArrayList<>();
     private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+    private final SelectionMoves selectionMoves = SelectionMoves.detached();
     private final CircuitCanvas canvas = new CircuitCanvas(openDocument,
             new CircuitRenderer(openDocument.registry(), PainterRegistry.standard(), ColorScheme.LIGHT),
             new CanvasHost() {
+                @Override
+                public SelectionMoves selectionMoves() {
+                    return selectionMoves;
+                }
+
                 @Override
                 public void showContextMenu(CircuitCanvas source, Optional<DocumentElement> target,
                                             Point2D screenPosition) {
@@ -142,5 +150,34 @@ class CanvasGesturePhraseTest {
         assertThat(published).containsExactly("");
         fireFocus(FocusEvent.FOCUS_GAINED);
         assertThat(published).containsExactly("", "Arrastrando");
+    }
+
+    /** A tool whose phrase names the invert key, as a move does. */
+    private static final class InvertKeyTool implements Tool {
+        @Override
+        public String gesturePhrase(ToolContext context) {
+            return "Invierte: " + context.selectionMoves().preferences().invertModifier();
+        }
+    }
+
+    @Test
+    void thePhraseIsToldAgainWhenAPreferenceItNamesChangesMidGesture() {
+        canvas.setTool(new InvertKeyTool());
+        published.clear();
+
+        selectionMoves.preferences().setInvertModifier(AppPreferences.InvertModifier.ALT);
+
+        assertThat(published).containsExactly("Invierte: ALT");
+    }
+
+    @Test
+    void aDisposedCanvasNoLongerListensToThePreferences() {
+        canvas.setTool(new InvertKeyTool());
+        canvas.dispose();
+        published.clear();
+
+        selectionMoves.preferences().setInvertModifier(AppPreferences.InvertModifier.ALT);
+
+        assertThat(published).isEmpty();
     }
 }

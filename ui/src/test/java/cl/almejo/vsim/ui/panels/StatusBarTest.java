@@ -446,4 +446,20 @@ class StatusBarTest {
             UIManager.setLookAndFeel(previous);
         }
     }
+
+    @Test
+    void theGesturePhraseStaysLeftOfThePushWhateverTheNoticeShows() {
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showShortCircuits(1);
+        statusBar.showNotice("Cable borrado", "Deshacer", () -> { });
+        statusBar.showGesture("Moviendo: suelta para dejarlas");
+        statusBar.setSize(1200, 24);
+        statusBar.doLayout();
+
+        JLabel gesture = statusBar.gestureLabel();
+        JLabel problems = statusBar.shortCircuitsLabel();
+        assertThat(gesture.getX()).isGreaterThan(statusBar.noticeLabel().getX());
+        assertThat(problems.getX()).as("the problems sit at the right end, after the push")
+                .isGreaterThan(gesture.getX() + gesture.getWidth() + 100);
+    }
 }

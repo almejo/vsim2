@@ -172,6 +172,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean drawingTold;
     /** The gesture phrase the host was last told, so it hears of changes only. */
     private String gesturePhraseTold = "";
+    /** A preference the phrase names (the invert key, «Los cables siguen») changed mid-gesture. */
+    private final Runnable preferenceListener = this::publishGesturePhrase;
     /** The canvas lost the keyboard focus (another window, a dialog): the phrase's keys do not act here until it is back. */
     private boolean keyboardFocusLost;
     private Tool tool = defaultTool;
@@ -236,6 +238,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         openDocument.document().addListener(documentListener);
         openDocument.addRefreshListener(refreshListener);
         selection.addListener(selectionListener);
+        selectionMoves.preferences().addListener(preferenceListener);
         viewport.addChangeListener(this::viewMovedUnderThePointer);
         MouseHandler mouseHandler = new MouseHandler();
         addMouseListener(mouseHandler);
@@ -252,7 +255,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
             @Override
             public void focusLost(FocusEvent event) {
-                keyboardFocusLost = true;
+                // the focus going to a sibling pane of this window keeps the keys (and the phrase) of a path under way
+                keyboardFocusLost = !(event.getOppositeComponent() instanceof CircuitCanvas sibling
+                        && otherPanes.get().contains(sibling));
                 publishGesturePhrase();
                 keyHandler.forgetModifiers();
                 spaceDown = false;
@@ -768,6 +773,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         openDocument.document().removeListener(documentListener);
         openDocument.removeRefreshListener(refreshListener);
         selection.removeListener(selectionListener);
+        selectionMoves.preferences().removeListener(preferenceListener);
     }
 
     /**
@@ -1479,7 +1485,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * keyboard focus, as the keys would not reach it.
      */
     public String gesturePhrase() {
-        return keyboardFocusLost ? "" : tool.gesturePhrase(this);
+        if (keyboardFocusLost) {
+            return "";
+        }
+        CircuitCanvas keys = keyPane(); // a path under way in another pane takes this pane's keys, so it speaks
+        return keys.tool.gesturePhrase(keys);
     }
 
     private void publishGesturePhrase() {

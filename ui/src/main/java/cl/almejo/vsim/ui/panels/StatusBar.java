@@ -71,10 +71,12 @@ public final class StatusBar extends JPanel {
 
     /** {@code noticeTimerFactory} builds the one-shot timer that hides a notice; tests pass a fake. */
     public StatusBar(Function<Runnable, Timer> noticeTimerFactory) {
+        // Columns, one per component before the push: state, time, speed, selection, hint (yields), notice (yields),
+        // the notice's button (hidemode 2: size 0 but its cell stays), the gesture phrase (yields).
         // Zones by priority (B01): when the bar is short the gesture help and the notice give way first (their whole
         // text stays in the tooltip), then an activity and the zoom slider; the state, the problems, the indicators
         // and the zoom percentage keep their width.
-        super(new MigLayout("insets 2 8 2 8", "[][][][shrinkprio " + YIELDING_PRIORITY + "][shrinkprio "
+        super(new MigLayout("insets 2 8 2 8", "[][][][][shrinkprio " + YIELDING_PRIORITY + "][shrinkprio "
                 + YIELDING_PRIORITY + "][][shrinkprio " + YIELDING_PRIORITY + "]push[][]"));
         noticeTimer = noticeTimerFactory.apply(this::hideNotice);
         add(simulation);
@@ -87,7 +89,8 @@ public final class StatusBar extends JPanel {
         add(notice, YIELDING_CONSTRAINTS);
         noticeAction.putClientProperty("JButton.buttonType", "borderless");
         noticeAction.addActionListener(event -> noticeActionRun.run());
-        add(noticeAction, "hidemode 3");
+        // hidemode 2 (size 0, cell kept), not 3: a hidden button must not shift the columns the priorities name
+        add(noticeAction, "hidemode 2");
         add(gesture, YIELDING_CONSTRAINTS);
         add(shortCircuits);
         add(failure);
@@ -325,10 +328,6 @@ public final class StatusBar extends JPanel {
     }
 
     /**
-     * Shows {@code text} while the pointer is over something that explains itself (a tunnel: «CLK: 1 entrada, 3
-     * salidas»); an empty text hides it.
-     */
-    /**
      * Shows {@code phrase}, what the keys and the next click do while a gesture is under way («Moviendo: suelta para
      * dejarlas · Mayús: …»); an empty phrase hides it. It has its own label, so a hover hint never takes its place.
      */
@@ -342,6 +341,10 @@ public final class StatusBar extends JPanel {
         return gesture;
     }
 
+    /**
+     * Shows {@code text} while the pointer is over something that explains itself (a tunnel: «CLK: 1 entrada, 3
+     * salidas»); an empty text hides it.
+     */
     public void showHint(String text) {
         hint.setText(text);
         hint.setVisible(!text.isEmpty());

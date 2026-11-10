@@ -1,10 +1,12 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -170,5 +172,21 @@ class GesturePhraseTest {
 
         assertThat(phrase(placing)).startsWith("Colocando " + Messages.componentName(clock) + ":")
                 .contains("R / Mayús+R: gira", "Mayús+clic: sigue colocando", "Esc: cancela");
+    }
+
+    @Test
+    void movingASingleSelectedWireAlsoSaysTheKeyThatSlidesIt() {
+        Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(30, 0),
+                new GridPoint(40, 0));
+        context.openDocument().execute(new AddWireCommand(wire));
+        context.selection.select(wire.id());
+        press(35, 0);
+        dragTo(35, 4);
+
+        assertThat(phrase(select)).startsWith("Moviendo:").contains("Alt: desliza el cable");
+        releaseAt(35, 4);
+
+        startMovingTheBuffer();
+        assertThat(phrase(select)).doesNotContain("desliza el cable");
     }
 }
