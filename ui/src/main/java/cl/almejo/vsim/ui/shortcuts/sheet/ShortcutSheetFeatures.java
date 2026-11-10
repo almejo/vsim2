@@ -36,7 +36,7 @@ import java.util.Optional;
 /**
  * The sheet of shortcuts of one editor view: a card on a dimmed circuit area (not the menus) with a selection of the
  * shortcuts the user has now ({@link SheetSelection}), the phrase of the gesture under way, the switch «Mostrar los
- * atajos que se usan» (the same preference as the Ver item) and a link to Preferencias ▸ Atajos de teclado.
+ * atajos al usarlos» (the same preference as the Ver item) and a link to Preferencias ▸ Atajos de teclado.
  * <p>
  * «?» opens and closes it: the typed character, so it is the same key on a Spanish (Mayús+') and a US (Mayús+/)
  * keyboard, and never while a text field or a table has the keyboard (there it is typed) or a part of the circuit has
@@ -45,7 +45,7 @@ import java.util.Optional;
  * stays on: every pane claims the Esc while the sheet is open). Holding «?» toggles it once ({@link HeldKey}); a click
  * on the dimmed circuit around the card closes it. Ayuda ▸ «Atajos de teclado» shows «?» and does the same.
  * The canvas keeps the keyboard while the sheet shows; on closing it gets it back. While open, the chips of «Mostrar
- * los atajos que se usan» are hidden.
+ * los atajos al usarlos» are hidden.
  */
 final class ShortcutSheetFeatures {
 

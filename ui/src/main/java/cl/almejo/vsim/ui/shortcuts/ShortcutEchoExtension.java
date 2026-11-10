@@ -17,7 +17,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * Ver ▸ «Mostrar los atajos que se usan» in every editor view ({@link ShortcutEchoFeatures}). Installed late, after
+ * Ver ▸ «Mostrar los atajos al usarlos» in every editor view ({@link ShortcutEchoFeatures}). Installed late, after
  * the other extensions have added their menu items and toolbar buttons and before {@link ShortcutsExtension}.
  */
 public final class ShortcutEchoExtension implements EditorExtension {

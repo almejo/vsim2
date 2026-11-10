@@ -40,8 +40,8 @@ import java.util.function.Consumer;
 /**
  * What the sheet of shortcuts shows: a dark translucent veil over the circuit area (the circuit still shows, dimmed)
  * and on it a centred card, at most {@value #MAXIMUM_CARD_WIDTH} px wide, with the groups of shortcuts (each key a
- * keycap, as in the chips of «Mostrar los atajos que se usan»), the strip with the phrase of the gesture under way
- * (only while there is one) and, last, the foot: the switch «Mostrar los atajos que se usan», the hint «? o Esc» and
+ * keycap, as in the chips of «Mostrar los atajos al usarlos»), the strip with the phrase of the gesture under way
+ * (only while there is one) and, last, the foot: the switch «Mostrar los atajos al usarlos», the hint «? o Esc» and
  * the link «Ver y cambiar todos los atajos…». It never takes the keyboard (the canvas keeps it, so the phrase of a
  * gesture stays and «?» or Esc reach the sheet's key hook); a click on the veil closes the sheet, one on the card stays
  * there. Colours come from the theme at paint time; everything is drawn at {@link #opacity()} while it fades in.
@@ -120,11 +120,14 @@ final class ShortcutSheetPanel extends JPanel {
         return foot;
     }
 
-    /** Shows {@code shown}: the first half of the groups stacked on the left, the rest on the right. */
+    /**
+     * Shows {@code shown}: the first half of the groups stacked on the left, the rest (one more when they are odd, the
+     * short ones: Ver, Simular, Ayuda) on the right.
+     */
     void setColumns(List<SheetSelection.Column> shown) {
         columns = List.copyOf(shown);
         columnsPanel.removeAll();
-        int leftCount = (columns.size() + 1) / 2;
+        int leftCount = columns.size() / 2;
         columnsPanel.add(stack(columns.subList(0, leftCount)), "wmin 0");
         columnsPanel.add(stack(columns.subList(leftCount, columns.size())), "wmin 0");
         revalidate();

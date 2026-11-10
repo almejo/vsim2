@@ -106,7 +106,7 @@ public final class AppPreferences {
         putFlag(SHOW_BUS_VALUES, show);
     }
 
-    /** «Mostrar los atajos que se usan»: a chip with the shortcut of each action run; off by default. */
+    /** «Mostrar los atajos al usarlos»: a chip with the shortcut of each action run; off by default. */
     public boolean showUsedShortcuts() {
         return flag(SHOW_USED_SHORTCUTS, false);
     }

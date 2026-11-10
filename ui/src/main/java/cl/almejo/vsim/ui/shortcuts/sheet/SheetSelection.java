@@ -32,7 +32,7 @@ final class SheetSelection {
 
     /** The sheet's columns, in order. */
     enum Group {
-        FILE, EDIT, VIEW, SIMULATE;
+        FILE, EDIT, VIEW, SIMULATE, HELP;
 
         String title() {
             return switch (this) {
@@ -40,6 +40,7 @@ final class SheetSelection {
                 case EDIT -> Messages.text("shortcutSheet.group.edit");
                 case VIEW -> Messages.text("shortcutSheet.group.view");
                 case SIMULATE -> Messages.text("shortcutSheet.group.simulate");
+                case HELP -> Messages.text("shortcutSheet.group.help");
             };
         }
     }

@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Ver ▸ «Mostrar los atajos que se usan»: a chip per action run by key, menu item or toolbar button. */
+/** Ver ▸ «Mostrar los atajos al usarlos»: a chip per action run by key, menu item or toolbar button. */
 class ShortcutEchoFeaturesTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();

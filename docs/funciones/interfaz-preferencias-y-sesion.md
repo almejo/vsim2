@@ -157,9 +157,9 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   de «Presentar» de la IA (ver [Presentar](ia-mcp.md#presentar)) sigue a la vista. El atajo F11 se cambia en
   [Atajos de teclado](#atajos-de-teclado).
 
-## Mostrar los atajos que se usan
+## Mostrar los atajos al usarlos
 
-- Ver ▸ «Mostrar los atajos que se usan» (apagado de entrada; se recuerda al reiniciar y vale para todas las
+- Ver ▸ «Mostrar los atajos al usarlos» (apagado de entrada; se recuerda al reiniciar y vale para todas las
   ventanas). Funciona igual dentro y fuera del [modo presentación](#modo-presentación): sirve para que en una clase o
   un video se vea qué atajo tiene lo que se va haciendo.
 - Cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra, abajo en
@@ -177,10 +177,10 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - «?» oscurece el área del circuito (no los menús; el circuito se sigue viendo detrás, más oscuro) y muestra encima
   una tarjeta centrada, de hasta unos 900 px de ancho, con una selección de unos 30 atajos en cuatro grupos, cada tecla
   dibujada en su casilla («Ctrl» + «Mayús» + «Z»): Archivo (Nuevo, Abrir, Guardar, Guardar como, Copiar captura),
-  Editar (Deshacer, Rehacer, Copiar, Cortar, Pegar, Duplicar, Seleccionar todo, Borrar, Rotar, Etiqueta, Insertar
+  Editar (Deshacer, Rehacer, Copiar, Cortar, Pegar, Duplicar, Seleccionar todo, Borrar, Rotar, Etiqueta, Ordenar circuito, Insertar
   componente), Ver (Zoom, Ver todo el circuito, Zoom a la selección, Buscar, Siguiente problema, Modo presentación y
-  Formas de onda si le diste una tecla) y Simular (Iniciar o pausar, Avanzar un paso fijo, Avanzar al próximo evento,
-  Reiniciar, Buscar una acción y la propia «?»). Otra vez «?», Esc o un clic en el circuito oscurecido la cierran (Esc
+  Formas de onda si le diste una tecla), Simular (Iniciar o pausar, Avanzar un paso fijo, Avanzar al próximo evento,
+  Reiniciar) y Ayuda (Buscar una acción y la propia «?»). Otra vez «?», Esc o un clic en el circuito oscurecido la cierran (Esc
   la cierra antes que cualquier otra cosa; en el [modo presentación](#modo-presentación) cierra solo la hoja, sin salir
   del modo). Mantener «?» apretada no la hace parpadear: abre o cierra una sola vez hasta que sueltas la tecla.
   También se abre y se cierra con Ayuda ▸ «Atajos de teclado», que muestra «?» como su tecla, y aparece en la
@@ -194,10 +194,10 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Abajo en la tarjeta, mientras haces un gesto (dibujar un cable, mover piezas, pegar, colocar un componente), una
   franja repite la [frase del gesto](#frase-del-gesto): qué hace el próximo clic y qué teclas sirven ahora. Sin gesto en curso no aparece.
   El circuito conserva el teclado mientras la hoja está abierta, así que esas teclas siguen funcionando.
-- Al pie de la tarjeta, a la izquierda, el interruptor Sí/No «Mostrar los atajos que se usan» es la misma opción de
-  Ver ▸ «Mostrar los atajos que se usan»: encenderlo aquí la marca en el menú y al revés, y cambiarlo no cierra la
+- Al pie de la tarjeta, a la izquierda, el interruptor Sí/No «Mostrar los atajos al usarlos» es la misma opción de
+  Ver ▸ «Mostrar los atajos al usarlos»: encenderlo aquí la marca en el menú y al revés, y cambiarlo no cierra la
   hoja. Mientras la hoja está abierta no aparecen las etiquetas de
-  [Mostrar los atajos que se usan](#mostrar-los-atajos-que-se-usan), para que no se tapen. Al medio dice «? o Esc
+  [Mostrar los atajos al usarlos](#mostrar-los-atajos-al-usarlos), para que no se tapen. Al medio dice «? o Esc
   cierra la hoja», y a la derecha el enlace «Ver y cambiar todos los atajos…» cierra la hoja y abre Preferencias en la
   pestaña «Atajos de teclado».
 - Usa los colores del tema (claro u oscuro; en los dos el circuito queda más oscuro detrás) y aparece con un fundido
@@ -210,7 +210,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 - Las teclas se nombran en el idioma de VSim, igual en todas partes donde se muestra un atajo (la tabla de atajos, la
   [paleta de comandos](edicion.md#paleta-de-comandos), las ayudas de los botones, las etiquetas de
-  [Mostrar los atajos que se usan](#mostrar-los-atajos-que-se-usan)): «Ctrl+Mayús+S», «Supr», «Retroceso», «Espacio»,
+  [Mostrar los atajos al usarlos](#mostrar-los-atajos-al-usarlos)): «Ctrl+Mayús+S», «Supr», «Retroceso», «Espacio»,
   «Insert», «Inicio», «Fin», «RePág», «AvPág» y las flechas «↑ ↓ ← →»; en inglés «Ctrl+Shift+S», «Delete»,
   «Backspace». En macOS se escriben con ⌃ ⌥ ⇧ ⌘ y la tecla, sin «+» («⇧⌘S»). Los atajos que se ven a la derecha de
   los ítems de los menús los escribe el sistema y pueden salir con sus nombres («Shift»).
@@ -237,7 +237,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   - las barras del [modo presentación](#modo-presentación) aparecen sin deslizarse;
   - el cursor de los Terminales queda encendido fijo, y el cursor y la estrella de Automan quietos;
   - el brillo que se apaga de una Matriz LED se apaga de una vez, y el brillo de una pieza no se desvanece;
-  - los avisos sobre el circuito, las etiquetas de [los atajos que se usan](#mostrar-los-atajos-que-se-usan), el globo y el subtítulo de [Presentar](ia-mcp.md#presentar) aparecen y se van sin fundido;
+  - los avisos sobre el circuito, las etiquetas de [Mostrar los atajos al usarlos](#mostrar-los-atajos-al-usarlos), el globo y el subtítulo de [Presentar](ia-mcp.md#presentar) aparecen y se van sin fundido;
   - plegar un grupo de pestañas es instantáneo y el robot de la IA en la pestaña no se mece (vuelve a mecerse apenas eliges «Sí», si la IA sigue trabajando);
   - las listas, los árboles y los paneles se desplazan con la rueda del mouse de un salto, sin suavizado;
   - lo que informa queda quieto, nunca escondido: un cortocircuito queda en rojo fijo (sin pulso), y lo mismo el resplandor rojo bajo un cable con problema; ir a un problema deja el resaltado fijo 1,5 s en vez de parpadear (también la fila de una sonda en las formas de onda); lo que cambió en un paso a paso queda con un contorno fijo hasta el próximo paso, la próxima edición, «Reiniciar» o hasta que la simulación vuelve a correr («Iniciar» o salir del paso a paso), porque desde ahí los valores ya no son los de ese paso; lo que cambió la IA queda fijo 1,5 s y se apaga de una vez; en el modo «Reciente» del [mapa de memoria](simulacion-y-paso-a-paso.md#mapa-de-memoria) cada acceso queda encendido entero un segundo y se apaga de una vez; la captura muestra su destello entero 0,35 s y se va sin desvanecerse;

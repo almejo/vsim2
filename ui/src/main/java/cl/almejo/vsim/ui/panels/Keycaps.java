@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * The keys of a shortcut drawn as keycaps: a translucent rounded box with a border and the key's name in bold, one per
  * key, with a «+» between them (or just a small gap in the macOS notation). Shared by the big chips of «Mostrar los
- * atajos que se usan» ({@link CanvasNotice}, scaled up for projectors) and the sheet of shortcuts (at the UI's size).
+ * atajos al usarlos» ({@link CanvasNotice}, scaled up for projectors) and the sheet of shortcuts (at the UI's size).
  * The colour is the caller's, read at paint time.
  */
 public final class Keycaps {

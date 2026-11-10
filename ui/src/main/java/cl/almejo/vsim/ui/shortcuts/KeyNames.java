@@ -14,7 +14,7 @@ import java.util.Locale;
  * «Retroceso», «Espacio» in Spanish, «Ctrl+Shift+S», «Delete» in English, and «⇧⌘S» in the macOS notation. Swing's
  * own names ({@link KeyEvent#getKeyText}) follow the JVM's language, not VSim's, and say «Shift» on a Spanish
  * desktop; every place that shows a key (the sheet of shortcuts, the command palette, the tooltips, the shortcuts
- * table, the chips of «Mostrar los atajos que se usan») asks here, so a key has one name everywhere. A stroke of a
+ * table, the chips of «Mostrar los atajos al usarlos») asks here, so a key has one name everywhere. A stroke of a
  * typed character («?») is that character.
  */
 public final class KeyNames {

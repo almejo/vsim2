@@ -252,14 +252,15 @@ class ShortcutSheetTest {
         assertThat(items).filteredOn(item -> !item.id().equals(SheetSelection.THE_SHEET))
                 .allSatisfy(item -> assertThat(ShortcutCatalog.find(item.id())).isPresent());
         assertThat(items).extracting(SheetSelection.Item::group).containsSequence(SheetSelection.Group.FILE)
-                .contains(SheetSelection.Group.EDIT, SheetSelection.Group.VIEW, SheetSelection.Group.SIMULATE);
+                .contains(SheetSelection.Group.EDIT, SheetSelection.Group.VIEW, SheetSelection.Group.SIMULATE,
+                        SheetSelection.Group.HELP);
     }
 
     @Test
     void theSheetShowsTheGroupsWithTheCurrentKeys() {
         ShortcutSheetPanel panel = openSheet();
 
-        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Simular");
+        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Simular", "Ayuda");
         assertThat(panel.rows()).contains("Ctrl+N · Nuevo", "Ctrl+Z · Deshacer", "Supr · Borrar",
                 "Ctrl+Mayús+Z · Rehacer", "F6 · Avanzar un paso fijo", "? · Atajos de teclado");
         assertThat(panel.rows()).as("the waveforms toggle has no key by default").noneMatch(
@@ -313,7 +314,7 @@ class ShortcutSheetTest {
         ShortcutSheetPanel panel = openSheet();
 
         assertThat(panel.showUsedShortcuts()).isInstanceOf(cl.almejo.vsim.ui.theme.SwitchBox.class);
-        assertThat(panel.showUsedShortcutsLabel().getText()).isEqualTo("Mostrar los atajos que se usan");
+        assertThat(panel.showUsedShortcutsLabel().getText()).isEqualTo("Mostrar los atajos al usarlos");
         assertThat(panel.showUsedShortcutsLabel().getLabelFor()).isSameAs(panel.showUsedShortcuts());
     }
 

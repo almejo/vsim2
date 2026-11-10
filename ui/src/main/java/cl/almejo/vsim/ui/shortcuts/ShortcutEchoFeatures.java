@@ -36,7 +36,7 @@ import java.util.Set;
 import java.util.Collections;
 
 /**
- * «Mostrar los atajos que se usan» of one editor view: while the option is on, each action run by its shortcut, a
+ * «Mostrar los atajos al usarlos» of one editor view: while the option is on, each action run by its shortcut, a
  * menu item or a toolbar button shows a chip at the bottom centre of the circuit area with its shortcut and name
  * («Ctrl+Z · Deshacer»; only the name when it has none), about 1.5 s, three at most. Menu items and toolbar buttons
  * are listened to (the listener is added after the action's own, and Swing calls the last added first, so the name
