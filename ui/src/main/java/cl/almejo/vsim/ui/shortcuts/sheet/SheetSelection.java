@@ -19,20 +19,24 @@ import java.util.Optional;
 
 /**
  * Which shortcuts the sheet shows and in which groups: the resource {@value #RESOURCE} (a {@code [GROUP]} line, then
- * one {@link ShortcutCatalog} id per line). The keys are never in the file: {@link #groups} reads the user's bindings
- * each time, so a rebound shortcut shows its new key and one left without a key is left out.
+ * one {@link ShortcutCatalog} id per line, or {@value #THE_SHEET} for the sheet's own key). The keys are never in the
+ * file: {@link #groups} reads the user's bindings each time, so a rebound shortcut shows its new key and one left
+ * without a key is left out.
  */
 final class SheetSelection {
 
     static final String RESOURCE = "/shortcuts/sheet.txt";
     private static final String COMMENT = "#";
+    /** The line of the selection that stands for the sheet's own key, «?» (not a catalog shortcut). */
+    static final String THE_SHEET = "?";
 
     /** The sheet's columns, in order. */
     enum Group {
-        EDIT, VIEW, SIMULATE;
+        FILE, EDIT, VIEW, SIMULATE;
 
         String title() {
             return switch (this) {
+                case FILE -> Messages.text("shortcutSheet.group.file");
                 case EDIT -> Messages.text("shortcutSheet.group.edit");
                 case VIEW -> Messages.text("shortcutSheet.group.view");
                 case SIMULATE -> Messages.text("shortcutSheet.group.simulate");
@@ -44,8 +48,14 @@ final class SheetSelection {
     record Item(Group group, String id) {
     }
 
-    /** A shortcut as the sheet shows it: its keys in the user's language and the action's name. */
-    record Row(String keys, String name) {
+    /**
+     * A shortcut as the sheet shows it: its keys in the user's language as text («Ctrl+Mayús+Z») and one by one for
+     * the keycaps, and the action's name.
+     */
+    record Row(String text, List<String> keys, String name) {
+        Row {
+            keys = List.copyOf(keys);
+        }
     }
 
     /** A titled column of rows. */
@@ -107,16 +117,26 @@ final class SheetSelection {
     }
 
     private static Optional<Row> rowOf(String id, KeyBindings bindings) {
+        if (id.equals(THE_SHEET)) {
+            KeyStroke questionMark = ShortcutSheetFeatures.QUESTION_MARK;
+            return Optional.of(new Row(KeyNames.describe(questionMark), KeyNames.keys(questionMark,
+                    KeyNames.MAC_NOTATION), Messages.text("action.shortcutSheet")));
+        }
         Optional<ShortcutEntry> entry = ShortcutCatalog.find(id);
         Optional<KeyStroke> stroke = bindings.strokeFor(id);
         if (entry.isEmpty() || stroke.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new Row(KeyNames.describe(stroke.get()), nameOf(entry.get())));
+        return Optional.of(new Row(KeyNames.describe(stroke.get()),
+                KeyNames.keys(stroke.get(), KeyNames.MAC_NOTATION), nameOf(entry.get())));
     }
 
-    /** The action's own name, without the «…» of a menu item that opens a dialog. */
+    /**
+     * The action's own name, short: without the «…» of a menu item that opens a dialog nor a closing remark in
+     * parentheses («Modo presentación (pantalla completa)» is «Modo presentación» on the sheet).
+     */
     private static String nameOf(ShortcutEntry entry) {
-        return Messages.text(entry.nameKey()).replaceAll("(…|\\.\\.\\.)\\s*$", "").strip();
+        return Messages.text(entry.nameKey()).replaceAll("(…|\\.\\.\\.)\\s*$", "")
+                .replaceAll("\\s*\\([^()]*\\)\\s*$", "").strip();
     }
 }

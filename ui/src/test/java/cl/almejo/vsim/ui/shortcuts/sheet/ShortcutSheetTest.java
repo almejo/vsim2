@@ -92,7 +92,7 @@ class ShortcutSheetTest {
         root = new JRootPane();
         root.setJMenuBar(view.menuBar());
         root.setContentPane(view);
-        root.setSize(1000, 700);
+        root.setSize(1400, 1000);
         layOut(root);
     }
 
@@ -245,21 +245,105 @@ class ShortcutSheetTest {
     }
 
     @Test
-    void everyIdOfTheSelectionIsAShortcutOfTheCatalog() {
+    void everyIdOfTheSelectionIsAShortcutOfTheCatalogOrTheSheetItself() {
         List<SheetSelection.Item> items = SheetSelection.load();
 
-        assertThat(items).hasSizeBetween(15, 20);
-        assertThat(items).allSatisfy(item -> assertThat(ShortcutCatalog.find(item.id())).isPresent());
-        assertThat(items).extracting(SheetSelection.Item::group).containsSequence(SheetSelection.Group.EDIT)
-                .contains(SheetSelection.Group.VIEW, SheetSelection.Group.SIMULATE);
+        assertThat(items).hasSizeBetween(28, 32);
+        assertThat(items).filteredOn(item -> !item.id().equals(SheetSelection.THE_SHEET))
+                .allSatisfy(item -> assertThat(ShortcutCatalog.find(item.id())).isPresent());
+        assertThat(items).extracting(SheetSelection.Item::group).containsSequence(SheetSelection.Group.FILE)
+                .contains(SheetSelection.Group.EDIT, SheetSelection.Group.VIEW, SheetSelection.Group.SIMULATE);
     }
 
     @Test
     void theSheetShowsTheGroupsWithTheCurrentKeys() {
         ShortcutSheetPanel panel = openSheet();
 
-        assertThat(panel.groupTitles()).containsExactly("Editar", "Ver", "Simular");
-        assertThat(panel.rows()).contains("Ctrl+Z · Deshacer", "Supr · Borrar", "Ctrl+Mayús+Z · Rehacer");
+        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Simular");
+        assertThat(panel.rows()).contains("Ctrl+N · Nuevo", "Ctrl+Z · Deshacer", "Supr · Borrar",
+                "Ctrl+Mayús+Z · Rehacer", "F6 · Avanzar un paso fijo", "? · Atajos de teclado");
+        assertThat(panel.rows()).as("the waveforms toggle has no key by default").noneMatch(
+                row -> row.endsWith("· Formas de onda"));
+    }
+
+    @Test
+    void holdingTheQuestionMarkTogglesOnceWhereTheSystemRepeatsWithoutReleases() {
+        dispatch(pressed(KeyEvent.VK_QUOTE, 1));
+        questionMarkOn(view.canvas());
+        for (int repeat = 0; repeat < 5; repeat++) {
+            dispatch(pressed(KeyEvent.VK_QUOTE, 2 + repeat));
+            questionMarkOn(view.canvas());
+            assertThat(sheet()).as("repeat %d", repeat).isPresent();
+        }
+        dispatch(released(KeyEvent.VK_QUOTE, 10));
+
+        dispatch(pressed(KeyEvent.VK_QUOTE, 20));
+        questionMarkOn(view.canvas());
+        assertThat(sheet()).as("a new press closes it").isEmpty();
+    }
+
+    @Test
+    void holdingTheQuestionMarkTogglesOnceWhereTheSystemRepeatsWithReleaseAndPressPairs() {
+        dispatch(pressed(KeyEvent.VK_SLASH, 1));
+        questionMarkOn(view.canvas());
+        for (int repeat = 0; repeat < 5; repeat++) {
+            long when = 2 + repeat;
+            dispatch(released(KeyEvent.VK_SLASH, when)); // X11: each repeat is a release and a press at one instant
+            dispatch(pressed(KeyEvent.VK_SLASH, when));
+            questionMarkOn(view.canvas());
+            assertThat(sheet()).as("repeat %d", repeat).isPresent();
+        }
+        dispatch(released(KeyEvent.VK_SLASH, 10));
+
+        dispatch(pressed(KeyEvent.VK_SLASH, 20));
+        questionMarkOn(view.canvas());
+        assertThat(sheet()).isEmpty();
+    }
+
+    private KeyEvent pressed(int keyCode, long when) {
+        return new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, when, InputEvent.SHIFT_DOWN_MASK, keyCode, '?');
+    }
+
+    private KeyEvent released(int keyCode, long when) {
+        return new KeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, when, InputEvent.SHIFT_DOWN_MASK, keyCode, '?');
+    }
+
+    @Test
+    void theOptionIsTheSwitchOfVSimWithItsLabel() {
+        ShortcutSheetPanel panel = openSheet();
+
+        assertThat(panel.showUsedShortcuts()).isInstanceOf(cl.almejo.vsim.ui.theme.SwitchBox.class);
+        assertThat(panel.showUsedShortcutsLabel().getText()).isEqualTo("Mostrar los atajos que se usan");
+        assertThat(panel.showUsedShortcutsLabel().getLabelFor()).isSameAs(panel.showUsedShortcuts());
+    }
+
+    @Test
+    void theCardIsCentredOnTheDimmedAreaAtMostAboutNineHundredWide() {
+        ShortcutSheetPanel panel = openSheet();
+        java.awt.Rectangle card = panel.card().getBounds();
+
+        assertThat(card.width).isPositive().isLessThanOrEqualTo(ShortcutSheetPanel.MAXIMUM_CARD_WIDTH);
+        assertThat(Math.abs(card.x + card.width / 2 - panel.getWidth() / 2)).isLessThanOrEqualTo(1);
+        assertThat(card.y).as("the circuit shows around it").isPositive();
+    }
+
+    @Test
+    void aClickOnTheDimmedAreaClosesTheSheetAndOneOnTheCardDoesNot() {
+        ShortcutSheetPanel panel = openSheet();
+        java.awt.Rectangle card = panel.card().getBounds();
+
+        click(panel, card.x + 5, card.y + 5);
+        assertThat(sheet()).isPresent();
+        click(panel, 2, 2);
+        assertThat(sheet()).isEmpty();
+    }
+
+    private static void click(Component target, int x, int y) {
+        java.awt.event.MouseEvent event = new java.awt.event.MouseEvent(target,
+                java.awt.event.MouseEvent.MOUSE_CLICKED, 0, 0, x, y, 1, false, java.awt.event.MouseEvent.BUTTON1);
+        for (java.awt.event.MouseListener listener : target.getMouseListeners()) {
+            listener.mouseClicked(event);
+        }
     }
 
     @Test

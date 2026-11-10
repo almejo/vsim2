@@ -1,10 +1,21 @@
 # The shortcuts the sheet of «?» shows (Ayuda ▸ «Atajos de teclado»), grouped as on the sheet: a [GROUP] line starts
-# a group (EDIT, VIEW, SIMULATE), then one ShortcutCatalog id per line. The keys come from the user's bindings at
-# each showing; an id without a key is left out. ShortcutSheetTest checks every id exists in the catalog.
+# a group (FILE, EDIT, VIEW, SIMULATE), then one ShortcutCatalog id per line; «?» stands for the sheet's own key. The
+# keys come from the user's bindings at each showing; an id without a key is left out. ShortcutSheetTest checks every
+# id exists in the catalog.
+[FILE]
+file.new
+file.open
+file.save
+file.saveAs
+edit.copyCapture
 [EDIT]
 edit.undo
 edit.redo
+edit.copy
+edit.cut
+edit.paste
 edit.duplicate
+edit.selectAll
 edit.delete
 edit.rotateClockwise
 edit.label
@@ -16,9 +27,11 @@ view.zoomToSelection
 edit.find
 view.nextProblem
 view.presentationMode
+waveforms.toggle
 [SIMULATE]
 simulation.startOrPause
 simulation.step
 simulation.advance
 simulation.restart
 help.findAction
+?

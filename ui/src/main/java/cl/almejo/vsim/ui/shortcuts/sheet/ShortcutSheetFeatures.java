@@ -34,15 +34,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The sheet of shortcuts of one editor view: a card over the circuit area (not the menus) with a selection of the
- * shortcuts the user has now ({@link SheetSelection}), the phrase of the gesture under way, the checkbox «Mostrar los
+ * The sheet of shortcuts of one editor view: a card on a dimmed circuit area (not the menus) with a selection of the
+ * shortcuts the user has now ({@link SheetSelection}), the phrase of the gesture under way, the switch «Mostrar los
  * atajos que se usan» (the same preference as the Ver item) and a link to Preferencias ▸ Atajos de teclado.
  * <p>
  * «?» opens and closes it: the typed character, so it is the same key on a Spanish (Mayús+') and a US (Mayús+/)
  * keyboard, and never while a text field or a table has the keyboard (there it is typed) or a part of the circuit has
  * captured it (the Terminal). It is fixed like Esc, not a catalog shortcut: a catalog stroke is a key press, which
  * differs from layout to layout. Esc closes it before anything else sees the Esc (in presentation mode too, which then
- * stays on: every pane claims the Esc while the sheet is open). Ayuda ▸ «Atajos de teclado» shows «?» and does the same.
+ * stays on: every pane claims the Esc while the sheet is open). Holding «?» toggles it once ({@link HeldKey}); a click
+ * on the dimmed circuit around the card closes it. Ayuda ▸ «Atajos de teclado» shows «?» and does the same.
  * The canvas keeps the keyboard while the sheet shows; on closing it gets it back. While open, the chips of «Mostrar
  * los atajos que se usan» are hidden.
  */
@@ -65,6 +66,7 @@ final class ShortcutSheetFeatures {
     private final List<Runnable> whileOpen = new ArrayList<>();
     private final List<SheetSelection.Item> selection = SheetSelection.load();
     private ShortcutSheetPanel panel;
+    private final HeldKey heldKey = new HeldKey();
     private boolean disposed;
 
     ShortcutSheetFeatures(EditorView view, ShortcutSheetExtension.Seams seams) {
@@ -100,6 +102,7 @@ final class ShortcutSheetFeatures {
 
     private boolean keyEvent(KeyEvent event) {
         Component source = event.getComponent();
+        heldKey.see(event);
         if (disposed || source == null || MenuSelectionManager.defaultManager().getSelectedPath().length > 0) {
             return false;
         }
@@ -110,7 +113,10 @@ final class ShortcutSheetFeatures {
         }
         if (isQuestionMark(event) && SwingUtilities.isDescendingFrom(source, view) && !typesText(source)
                 && view.keyboardCapture().captured().isEmpty()) {
-            toggle();
+            if (!heldKey.isRepeat()) { // holding «?» toggles once, it does not flicker
+                toggle();
+                heldKey.used();
+            }
             event.consume();
             return true;
         }
@@ -146,7 +152,8 @@ final class ShortcutSheetFeatures {
         if (disposed || isOpen() || rootPane == null) {
             return;
         }
-        ShortcutSheetPanel opened = new ShortcutSheetPanel(preferences::setShowUsedShortcuts, this::showAllShortcuts);
+        ShortcutSheetPanel opened = new ShortcutSheetPanel(preferences::setShowUsedShortcuts, this::showAllShortcuts,
+                this::close);
         panel = opened;
         JLayeredPane layers = rootPane.getLayeredPane();
         layers.add(opened, JLayeredPane.POPUP_LAYER);
@@ -202,7 +209,7 @@ final class ShortcutSheetFeatures {
                 new Rectangle(view.canvasPanes().getSize()), layers);
         area.grow(-MARGIN, -MARGIN);
         panel.setBounds(area);
-        panel.validate();
+        panel.doLayout();
     }
 
     private void refresh() {

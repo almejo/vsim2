@@ -10,10 +10,8 @@ import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -75,7 +73,7 @@ public final class CanvasNotice extends JComponent {
         if (chip == null) {
             setSize(metrics.stringWidth(text) + 2 * PADDING_X, metrics.getHeight() + 2 * PADDING_Y);
         } else {
-            setSize(chipWidth(), chipHeight(metrics));
+            setSize(chipWidth(), chipHeight());
         }
     }
 
@@ -90,28 +88,8 @@ public final class CanvasNotice extends JComponent {
         return Math.round(value * scale);
     }
 
-    private Font keyFont() {
-        return getFont().deriveFont(Font.BOLD);
-    }
-
-    private int keyPaddingX() {
-        return scaled(8);
-    }
-
-    private int keyPaddingY() {
-        return scaled(3);
-    }
-
-    private int chipHeight(FontMetrics metrics) {
-        return metrics.getHeight() + 2 * keyPaddingY() + 2 * scaled(PADDING_Y);
-    }
-
-    private int keyWidth(String key) {
-        return getFontMetrics(keyFont()).stringWidth(key) + 2 * keyPaddingX();
-    }
-
-    private int separatorWidth() {
-        return chip.plusBetween() ? getFontMetrics(getFont()).stringWidth("+") + 2 * scaled(6) : scaled(6);
+    private int chipHeight() {
+        return Keycaps.height(this, getFont(), scale) + 2 * scaled(PADDING_Y);
     }
 
     private int dotWidth() {
@@ -119,10 +97,7 @@ public final class CanvasNotice extends JComponent {
     }
 
     private int chipWidth() {
-        int width = 2 * scaled(PADDING_X);
-        for (int index = 0; index < chip.keys().size(); index++) {
-            width += keyWidth(chip.keys().get(index)) + (index > 0 ? separatorWidth() : 0);
-        }
+        int width = 2 * scaled(PADDING_X) + Keycaps.width(this, getFont(), scale, chip.keys(), chip.plusBetween());
         if (!chip.keys().isEmpty()) {
             width += dotWidth();
         }
@@ -322,35 +297,14 @@ public final class CanvasNotice extends JComponent {
         }
     }
 
-    /** The keycaps (a rounded box and border each, bold key name), the «+» between them, « · » and the name. */
+    /** The keycaps ({@link Keycaps}), « · » and the name. */
     private void paintChip(Graphics2D painter) {
         FontMetrics regular = painter.getFontMetrics(getFont());
         Color foreground = toastForeground();
         int baseline = (getHeight() - regular.getHeight()) / 2 + regular.getAscent();
-        int capHeight = regular.getHeight() + 2 * keyPaddingY();
-        int capTop = (getHeight() - capHeight) / 2;
-        int x = scaled(PADDING_X);
-        for (int index = 0; index < chip.keys().size(); index++) {
-            if (index > 0) {
-                painter.setFont(getFont());
-                painter.setColor(foreground);
-                if (chip.plusBetween()) {
-                    painter.drawString("+", x + scaled(6), baseline);
-                }
-                x += separatorWidth();
-            }
-            String key = chip.keys().get(index);
-            int width = keyWidth(key);
-            painter.setColor(new Color(foreground.getRed(), foreground.getGreen(), foreground.getBlue(), 48));
-            painter.fillRoundRect(x, capTop, width, capHeight, scaled(8), scaled(8));
-            painter.setColor(new Color(foreground.getRed(), foreground.getGreen(), foreground.getBlue(), 190));
-            painter.setStroke(new BasicStroke(Math.max(1f, scale)));
-            painter.drawRoundRect(x, capTop, width - 1, capHeight - 1, scaled(8), scaled(8));
-            painter.setColor(foreground);
-            painter.setFont(keyFont());
-            painter.drawString(key, x + keyPaddingX(), baseline);
-            x += width;
-        }
+        int capTop = (getHeight() - Keycaps.height(this, getFont(), scale)) / 2;
+        int x = Keycaps.paint(painter, getFont(), scale, chip.keys(), chip.plusBetween(), scaled(PADDING_X), capTop,
+                foreground);
         painter.setFont(getFont());
         painter.setColor(foreground);
         if (!chip.keys().isEmpty()) {
