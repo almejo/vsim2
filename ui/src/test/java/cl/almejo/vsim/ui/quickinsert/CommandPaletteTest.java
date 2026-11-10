@@ -288,13 +288,13 @@ class CommandPaletteTest {
 
     @Test
     void theEmptyCanvasNamesTheCurrentKeyOfFindAnActionOnEveryPane() {
-        assertThat(view.canvas().emptyHintLines().get(2)).contains("Ctrl+K: todas las acciones");
+        assertThat(view.canvas().emptyHintLines().get(2)).contains("Ctrl+K: ejecutar cualquier acción");
         new KeyBindings(view.services().preferences()).assign("help.findAction",
                 KeyStroke.getKeyStroke(KeyEvent.VK_J, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK));
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);
 
         assertThat(view.panes()).allSatisfy(pane ->
-                assertThat(pane.emptyHintLines().get(2)).contains("Ctrl+Alt+J: todas las acciones"));
+                assertThat(pane.emptyHintLines().get(2)).contains("Ctrl+Alt+J: ejecutar cualquier acción"));
         new KeyBindings(view.services().preferences()).clear("help.findAction");
         assertThat(view.canvas().emptyHintLines().get(2)).endsWith("· Ayuda ▸ Buscar una acción…");
     }

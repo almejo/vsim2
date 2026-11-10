@@ -118,7 +118,7 @@ class EmptyCanvasHintTest {
     @Test
     void theThirdLineTellsTheDoubleClickAndTheKeyOfEveryAction() {
         assertThat(EmptyCanvasHint.lines(Optional.of("Ctrl+Alt+J")).get(2))
-                .isEqualTo("Doble clic: insertar un componente · Ctrl+Alt+J: todas las acciones");
+                .isEqualTo("Doble clic: insertar un componente · Ctrl+Alt+J: ejecutar cualquier acción");
     }
 
     @Test
