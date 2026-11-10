@@ -66,6 +66,14 @@ final class ActionRows {
         return List.copyOf(reader.rows);
     }
 
+    /** The actions (by identity) that have a row in {@code view}, for the test that every shortcut has one. */
+    static Set<Object> listedActionsOf(EditorView view) {
+        ActionRows reader = new ActionRows(view, Collections.unmodifiableSet(identitySetOf(Set.of())));
+        reader.readMenuBar(view.menuBar());
+        reader.readToolBar(view.toolBar().getComponents());
+        return reader.listed;
+    }
+
     private static Set<Action> identitySetOf(Set<Action> actions) {
         Set<Action> identities = Collections.newSetFromMap(new IdentityHashMap<>());
         identities.addAll(actions);

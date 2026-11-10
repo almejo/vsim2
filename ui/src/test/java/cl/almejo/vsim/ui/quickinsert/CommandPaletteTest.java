@@ -46,6 +46,7 @@ class CommandPaletteTest {
     private int opened;
     private int closed;
     private int counted;
+    private int focusGiven;
 
     @BeforeEach
     void create() {
@@ -53,6 +54,7 @@ class CommandPaletteTest {
         view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.canvas().setSize(800, 600);
         features = newFeatures(view);
+        features.giveFocusWith(canvas -> focusGiven++);
         view.menu(MenuId.TOOLS).add(new JMenuItem(Actions.of("Contar", () -> counted++)));
     }
 
@@ -163,6 +165,32 @@ class CommandPaletteTest {
     }
 
     @Test
+    void anActionThatOpensADialogSaysNothingAfterwardsBecauseTheUserMayHaveCancelledIt() {
+        int[] opened = {0};
+        view.menu(MenuId.FILE).add(new JMenuItem(Actions.of("Abrir archivo…", () -> opened[0]++)));
+        findAction();
+        shown.setQuery("archivo");
+
+        shown.acceptSelection();
+        flushLater();
+
+        assertThat(opened[0]).isEqualTo(1);
+        assertThat(notices).isEmpty();
+    }
+
+    @Test
+    void escAndChoosingGiveTheFocusBackButLosingItToAnotherComponentDoesNot() {
+        findAction();
+        shown.cancel();
+        assertThat(focusGiven).isEqualTo(1);
+
+        findAction();
+        shown.focusLost();
+        assertThat(closed).isEqualTo(2);
+        assertThat(focusGiven).as("the inspector's field the user clicked keeps it").isEqualTo(1);
+    }
+
+    @Test
     void aDisabledActionIsShownButChoosingItDoesNothing() {
         Action disabled = Actions.of("Imprimir…", () -> counted++);
         disabled.setEnabled(false);
@@ -248,7 +276,7 @@ class CommandPaletteTest {
         shown.acceptSelection();
 
         assertThat(document.document().components()).extracting(Component::typeId).containsExactly("xor");
-        assertThat(notices).containsExactly("XOR colocado donde hiciste doble clic");
+        assertThat(notices).containsExactly("Listo: XOR, donde hiciste doble clic");
         insert();
         shown.setQuery("xor");
         shown.acceptSelection();

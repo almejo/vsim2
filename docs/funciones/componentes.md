@@ -44,7 +44,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
   dibujan gruesos, como los de los bloques; el Buffer es un triángulo (con burbuja si está negado).
 - La paleta tiene una entrada por compuerta, en este orden: AND, OR, XOR, NAND, NOR, XNOR, Buffer y NOT. NAND, NOR,
   XNOR y NOT son atajos: colocan un AND, un OR, un XOR o un Buffer con «Negar salida» ya marcada, con un clic, al
-  arrastrarlos, desde la inserción rápida (escribiendo «nand», «xnor», «not»…) o desde «Favoritos» y «Recientes»,
+  arrastrarlos, desde la paleta de comandos (escribiendo «nand», «xnor», «not»…) o desde «Favoritos» y «Recientes»,
   donde cuentan como su propia entrada. El nombre sigue a «Negar salida» en todas partes (Propiedades, el árbol de
   componentes, la búsqueda, Problemas): marcarla en un AND lo convierte en «NAND», y en el árbol agrupado los NAND
   van en su propio grupo. Los favoritos guardados con las compuertas de antes («AND de 3 entradas», «NAND de 2
@@ -132,7 +132,7 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
 ## Categorías de la paleta
 
 - La paleta tiene nueve categorías, en este orden: **Compuertas** (AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT, buffer tri-estado e inversor controlado), **Cableado** (separador y unión de bus, túneles, extensor y selector de bits), **Aritmética** (sumador, comparador, ALU, restador, negador, multiplicador, divisor, desplazador, contador de unos), **Multiplexores** (multiplexor, decodificador, demultiplexor, codificador con prioridad), **Secuenciales** (flip-flops D, JK, T y SR, registro, contador), **Memoria** (RAM, ROM), **Entrada/Salida** (reloj, interruptor, pulsador, constante, LED, displays, [Terminal, Teclado y UART 16550](#terminal-y-teclado) y los pines de entrada y de salida), **Depuración** (diagrama de tiempo y [punto de parada](simulacion-y-paso-a-paso.md#punto-de-parada)) y, al final, **Mis componentes** y los componentes de este circuito. Ya no existen «Básicas», «Bloques» ni «Pines de componente».
-- Los archivos no guardan la categoría, así que los circuitos de antes se abren igual; los favoritos y los recientes siguen donde estaban porque se guardan por identificador. La búsqueda de la paleta y de la inserción rápida muestran el nombre de la categoría nueva en cada resultado.
+- Los archivos no guardan la categoría, así que los circuitos de antes se abren igual; los favoritos y los recientes siguen donde estaban porque se guardan por identificador. La búsqueda de la paleta lateral y la de la paleta de comandos muestran el nombre de la categoría nueva en cada resultado.
 
 ## Bloques de N bits
 

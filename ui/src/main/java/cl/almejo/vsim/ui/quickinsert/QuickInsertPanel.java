@@ -55,6 +55,9 @@ final class QuickInsertPanel extends JPanel {
 
         /** Close without doing anything. */
         void cancel();
+
+        /** The window lost the focus (the user went elsewhere): close, leaving the focus where it went. */
+        void focusLost();
     }
 
     /** A row of the list: a group heading, a component or an action. */
@@ -367,6 +370,11 @@ final class QuickInsertPanel extends JPanel {
 
     void cancel() {
         listener.cancel();
+    }
+
+    /** The palette's window lost the focus to something else. */
+    void focusLost() {
+        listener.focusLost();
     }
 
     /**

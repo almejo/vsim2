@@ -33,8 +33,11 @@ final class ActionMatcher {
         if (words.isEmpty()) {
             return List.of();
         }
-        return rows.stream().filter(row -> rank(row, words) < Rank.NONE.ordinal())
-                .sorted(Comparator.comparingInt(row -> rank(row, words))).toList();
+        record Ranked(ActionRow row, int rank) {
+        }
+        return rows.stream().map(row -> new Ranked(row, rank(row, words)))
+                .filter(ranked -> ranked.rank() < Rank.NONE.ordinal())
+                .sorted(Comparator.comparingInt(Ranked::rank)).map(Ranked::row).toList();
     }
 
     /** How well a row matches, best first. */

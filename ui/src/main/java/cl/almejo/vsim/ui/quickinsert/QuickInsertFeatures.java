@@ -87,6 +87,7 @@ final class QuickInsertFeatures {
     private CircuitCanvas popupCanvas;
     private Runnable closePopup = () -> { };
     private boolean disposed;
+    private Consumer<CircuitCanvas> giveFocus = CircuitCanvas::requestFocusInWindow;
 
     /** The real thing: a floating window, the Swing event queue and notices over the circuit area. */
     QuickInsertFeatures(EditorView view, RecentActions recents) {
@@ -179,7 +180,7 @@ final class QuickInsertFeatures {
         WindowAdapter focusLoss = new WindowAdapter() {
             @Override
             public void windowLostFocus(WindowEvent event) {
-                panel.cancel();
+                panel.focusLost();
             }
         };
         dialog.addWindowFocusListener(focusLoss);
@@ -189,6 +190,11 @@ final class QuickInsertFeatures {
             dialog.removeWindowFocusListener(focusLoss);
             dialog.dispose();
         };
+    }
+
+    /** Replaces how the canvas gets the focus back (tests only: headless there is no focus to observe). */
+    void giveFocusWith(Consumer<CircuitCanvas> replacement) {
+        giveFocus = replacement;
     }
 
     /** The key of «Buscar una acción…»: opens on «Acciones», or toggles the palette that is open. */
@@ -264,6 +270,13 @@ final class QuickInsertFeatures {
                 close();
             }
         }
+
+        @Override
+        public void focusLost() {
+            if (panel != null && panel == QuickInsertFeatures.this.panel) {
+                close(false);
+            }
+        }
     }
 
     private void choose(CircuitCanvas canvas, Point position, Optional<CanvasMouseEvent> chosenPoint,
@@ -277,7 +290,7 @@ final class QuickInsertFeatures {
         close();
         view.palette().chooseEntry(available.get());
         if (!canvas.tool().placesFromPalette()) {
-            canvas.requestFocusInWindow(); // nobody started placing it (no chooser for user components)
+            giveFocus.accept(canvas); // nobody started placing it (no chooser for user components)
             return;
         }
         CanvasMouseEvent placement = chosenPoint.map(event -> new CanvasMouseEvent(event.gridPosition(),
@@ -290,7 +303,7 @@ final class QuickInsertFeatures {
             canvas.tool().mousePressed(canvas, placement);
             notices.accept(Messages.format("commandPalette.placedAtDoubleClick", available.get().name()));
         });
-        canvas.requestFocusInWindow();
+        giveFocus.accept(canvas);
     }
 
     /** Closes the palette (the canvas gets the focus back), then runs {@code row} once, if it can still run. */
@@ -305,12 +318,15 @@ final class QuickInsertFeatures {
                 return;
             }
             row.action().actionPerformed(new ActionEvent(view, ActionEvent.ACTION_PERFORMED, row.name()));
-            notices.accept(Messages.format("commandPalette.done", withoutEllipsis(row.name())));
+            if (!opensADialog(row)) {
+                notices.accept(Messages.format("commandPalette.done", row.name()));
+            }
         });
     }
 
-    private static String withoutEllipsis(String name) {
-        return name.endsWith("…") ? name.substring(0, name.length() - 1) : name;
+    /** By the menus' convention, a text ending in «…» opens a dialog the user may cancel: no «Hecho» then. */
+    private static boolean opensADialog(ActionRow row) {
+        return row.name().endsWith("…") || row.name().endsWith("...");
     }
 
     /**
@@ -339,6 +355,11 @@ final class QuickInsertFeatures {
     }
 
     private void close() {
+        close(true);
+    }
+
+    /** Closes the palette; the canvas gets the focus back unless the user took it somewhere else on purpose. */
+    private void close(boolean returnFocus) {
         if (panel == null) {
             return;
         }
@@ -350,7 +371,9 @@ final class QuickInsertFeatures {
         Runnable closer = closePopup;
         closePopup = () -> { };
         closer.run();
-        canvas.requestFocusInWindow();
+        if (returnFocus) {
+            giveFocus.accept(canvas);
+        }
     }
 
     void dispose() {
