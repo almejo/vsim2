@@ -171,9 +171,9 @@ class ShortcutsExtensionTest {
     void disposingRemovesThePreferencesListener() {
         int withOneView = preferences.listenerCount();
         EditorView second = newView();
-        // the shortcuts follow it, and so do the pane (it repaints when «Animaciones» changes) and the wires'
-        // Editar ▸ «Dibujar cables»
-        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 3);
+        // the shortcuts follow it, and so do the pane (it repaints when «Animaciones» changes and re-tells the
+        // gesture phrase when the invert key changes) and the wires' Editar ▸ «Dibujar cables»
+        assertThat(preferences.listenerCount()).isEqualTo(withOneView + 4);
         views.remove(second);
         second.dispose();
         assertThat(preferences.listenerCount()).isEqualTo(withOneView);
