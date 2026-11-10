@@ -115,6 +115,19 @@ public final class AppPreferences {
         putFlag(SHOW_USED_SHORTCUTS, show);
     }
 
+    /**
+     * The version of VSim whose «Qué hay de nuevo» bubbles the user last saw (or that had none); empty on a first
+     * install.
+     */
+    public Optional<String> newsShownVersion() {
+        return optional(NEWS_SHOWN_VERSION);
+    }
+
+    public void setNewsShownVersion(String version) {
+        Objects.requireNonNull(version, "version");
+        put(NEWS_SHOWN_VERSION, version);
+    }
+
     /** «Cuadrícula ▸»: dots unless the user chose otherwise (or the stored value is unreadable). */
     public GridStyle gridStyle() {
         return enumValue(GRID_STYLE, GridStyle.class, GridStyle.DOTS);
@@ -191,6 +204,7 @@ public final class AppPreferences {
     static final String SHOW_BUS_VALUES = "view.busValues";
     static final String SHOW_SHEETS = "sheets.show";
     static final String SHOW_USED_SHORTCUTS = "shortcutEcho.show";
+    static final String NEWS_SHOWN_VERSION = "whatsNew.shownVersion";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
     private static final String CIRCUIT_TREE_SPLIT = "ui.circuitTree.split";

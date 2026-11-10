@@ -50,6 +50,7 @@ import cl.almejo.vsim.ui.terminal.KeyboardInspectorRows;
 import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
@@ -83,6 +84,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -237,6 +239,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
         add(splitAndStrip, BorderLayout.CENTER);
         add(statusBar, BorderLayout.SOUTH);
+        registerNewsTargets();
 
         canvasPanes.addPanesListener(this::panesChanged);
         knownPanes = List.copyOf(canvasPanes.panes());
@@ -931,11 +934,20 @@ public final class EditorView extends JPanel implements CanvasHost {
         }
     }
 
+    /** The side strips and the status bar, for the «Qué hay de nuevo» bubbles that point at them. */
+    private void registerNewsTargets() {
+        NewsTargets.register(leftColumn, NewsTargets.LEFT_STRIP, NewsTargets.Side.RIGHT);
+        NewsTargets.register(inspector.strip(), NewsTargets.RIGHT_STRIP, NewsTargets.Side.LEFT);
+        NewsTargets.register(statusBar, NewsTargets.STATUS_BAR, NewsTargets.Side.ABOVE);
+    }
+
     private void indexMenus() {
         for (int index = 0; index < menuBar.getMenuCount(); index++) {
             JMenu menu = menuBar.getMenu(index);
             if (menu.getClientProperty(MenuId.class) instanceof MenuId id) {
                 menus.put(id, menu);
+                NewsTargets.register(menu, NewsTargets.MENU_PREFIX + id.name().toLowerCase(Locale.ROOT),
+                        NewsTargets.Side.BELOW);
             }
         }
     }

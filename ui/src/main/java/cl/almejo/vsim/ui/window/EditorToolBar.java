@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ZoomTool;
+import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 
 import javax.swing.Action;
 import javax.swing.Box;
@@ -44,6 +45,7 @@ final class EditorToolBar {
     EditorToolBar(EditorActions actions) {
         this.actions = actions;
         selectButton = new JToggleButton(actions.selectTool());
+        NewsTargets.register(selectButton, NewsTargets.TOOLBAR_SELECT, NewsTargets.Side.BELOW);
         panButton = new JToggleButton(actions.panTool());
         zoomButton = new JToggleButton(actions.zoomTool());
         for (ToolbarSlot slot : ToolbarSlot.values()) {

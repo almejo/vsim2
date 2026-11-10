@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.panels.CanvasNotice;
 import cl.almejo.vsim.ui.toolbar.SplitButton;
 import cl.almejo.vsim.ui.toolbar.SplitButtonMode;
+import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
@@ -91,6 +92,7 @@ final class CaptureButtonFeatures {
                         Messages.text("capture.mode.visibleCircuit.description")));
         this.button = SplitButton.forAction(PREFERENCE_ID, Messages.text("capture.menuTitle"), modes, preferences,
                 mode -> copy(kindOf(mode.id())));
+        NewsTargets.register(button, NewsTargets.TOOLBAR_CAPTURE, NewsTargets.Side.BELOW);
         Action action = Actions.of(Messages.text("action.copyCapture"), () -> copy(kindOf(button.mode().id())));
         this.copyAction = action;
         action.putValue(Action.SMALL_ICON, Icons.get(CaptureIcons.WINDOW, Icons.MENU_SIZE));

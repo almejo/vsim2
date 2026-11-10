@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ToolbarSlot;
@@ -26,6 +27,7 @@ public final class WaveformsToolbarExtension implements EditorExtension {
         }
         JToggleButton button = new JToggleButton(toggle);
         button.setFocusable(false);
+        NewsTargets.register(button, NewsTargets.TOOLBAR_WAVEFORMS, NewsTargets.Side.BELOW);
         return view.addToolbarComponent(button, ToolbarSlot.AFTER_SIMULATION);
     }
 }

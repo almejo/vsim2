@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
+import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -48,6 +49,7 @@ public final class FullScreenExtension implements EditorExtension {
         // not built on the action: its tooltip says how to leave, which the toolbar's shortcut tooltips would replace
         JToggleButton toolbarButton = new JToggleButton(Icons.get(FullScreenIcons.FULL_SCREEN, Icons.TOOLBAR_SIZE));
         toolbarButton.setFocusable(false);
+        NewsTargets.register(toolbarButton, NewsTargets.TOOLBAR_PRESENTATION_MODE, NewsTargets.Side.BELOW);
         toolbarButton.setEnabled(features.isPresent());
         toolbarButton.addActionListener(event -> features.ifPresent(FullScreenFeatures::toggle));
         Runnable removeButton = view.addToolbarComponent(toolbarButton, ToolbarSlot.RIGHT, 2);

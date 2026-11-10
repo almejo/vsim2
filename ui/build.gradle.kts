@@ -45,6 +45,10 @@ tasks.named<JavaExec>("run") {
     // or VSIM_AI_PORT=47100, which the run inherits)
     (providers.systemProperty("vsim.ai.port").orNull ?: providers.gradleProperty("vsimAiPort").orNull)
         ?.let { systemProperty("vsim.ai.port", it) }
+    // «Qué hay de nuevo» at every launch, to review the bubbles: ./gradlew :ui:run -PvsimWhatsNewAlways (development
+    // only; the shipped jar never sets it)
+    providers.gradleProperty("vsimWhatsNewAlways").orNull
+        ?.let { systemProperty("vsim.whatsNew.always", if (it.isBlank()) "true" else it) }
 }
 
 // --- M4-D executable jar ---
