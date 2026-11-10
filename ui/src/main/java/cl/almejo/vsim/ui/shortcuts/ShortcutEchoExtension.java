@@ -22,6 +22,13 @@ import java.util.function.Supplier;
  */
 public final class ShortcutEchoExtension implements EditorExtension {
 
+    /**
+     * The client property of an {@link EditorView} that hides the chips while it is {@code Boolean.TRUE}: something
+     * shown over the circuit area (the sheet of shortcuts) would be covered by them. The chips shown go at once and no
+     * new one shows until it is cleared.
+     */
+    public static final String CHIPS_HIDDEN_PROPERTY = "vsim.shortcutChipsHidden";
+
     private static final int FRAME_MILLISECONDS = 16;
 
     private final Seams seams;

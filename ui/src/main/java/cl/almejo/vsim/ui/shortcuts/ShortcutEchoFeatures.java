@@ -24,6 +24,8 @@ import java.awt.Component;
 import java.awt.KeyEventDispatcher;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -61,6 +63,7 @@ final class ShortcutEchoFeatures {
     private final CanvasNoticeStack chips;
     private final KeyEventDispatcher keyDispatcher = this::keyPressed;
     private final Runnable preferencesListener = this::refresh;
+    private final PropertyChangeListener hiddenListener = this::hiddenChanged;
     private final ActionListener buttonListener = this::buttonPressed;
     private final Set<AbstractButton> hooked = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<Runnable> menuListenerRemovers = new ArrayList<>();
@@ -87,7 +90,18 @@ final class ShortcutEchoFeatures {
         }
         seams.dispatchers().add(keyDispatcher);
         preferences.addListener(preferencesListener);
+        view.addPropertyChangeListener(ShortcutEchoExtension.CHIPS_HIDDEN_PROPERTY, hiddenListener);
         refresh();
+    }
+
+    private boolean chipsHidden() {
+        return Boolean.TRUE.equals(view.getClientProperty(ShortcutEchoExtension.CHIPS_HIDDEN_PROPERTY));
+    }
+
+    private void hiddenChanged(PropertyChangeEvent event) {
+        if (chipsHidden()) {
+            chips.clear();
+        }
     }
 
     private void refresh() {
@@ -201,6 +215,9 @@ final class ShortcutEchoFeatures {
     }
 
     private void pushChip(Optional<KeyStroke> stroke, String name) {
+        if (chipsHidden()) {
+            return;
+        }
         chips.push(stroke.map(found -> KeyNames.keys(found, seams.macNotation())).orElse(List.of()),
                 !seams.macNotation(), name);
     }
@@ -212,6 +229,7 @@ final class ShortcutEchoFeatures {
         disposed = true;
         seams.dispatchers().remove(keyDispatcher);
         preferences.removeListener(preferencesListener);
+        view.removePropertyChangeListener(ShortcutEchoExtension.CHIPS_HIDDEN_PROPERTY, hiddenListener);
         menuListenerRemovers.forEach(Runnable::run);
         hooked.forEach(button -> button.removeActionListener(buttonListener));
         hooked.clear();

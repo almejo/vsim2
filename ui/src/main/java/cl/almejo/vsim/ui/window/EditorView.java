@@ -149,6 +149,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
     private final Listeners<Runnable> tabShownListeners = new Listeners<>();
+    private final Listeners<Runnable> gesturePhraseListeners = new Listeners<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
 
     private final EditorToolBar editorToolBar;
@@ -744,6 +745,15 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void gesturePhraseChanged(CircuitCanvas pane, String phrase) {
         statusBar.showGesture(canvas().gesturePhrase());
+        gesturePhraseListeners.fire(Runnable::run);
+    }
+
+    /**
+     * Runs {@code listener} each time the window's gesture phrase may have changed (the one the status bar shows: the
+     * active pane's {@link CircuitCanvas#gesturePhrase}); returns its removal.
+     */
+    public Runnable addGesturePhraseListener(Runnable listener) {
+        return gesturePhraseListeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
     /** A component tab without an instance to show («Sin valores», spec §6.3) says where to choose one. */
@@ -1277,6 +1287,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private void activePaneChanged(CircuitCanvas pane) {
         statusBar.showZoom(pane.viewport().zoom());
         statusBar.showGesture(pane.gesturePhrase());
+        gesturePhraseListeners.fire(Runnable::run);
         toolChanged(pane.tool());
     }
 

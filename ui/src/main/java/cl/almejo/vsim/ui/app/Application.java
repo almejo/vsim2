@@ -91,6 +91,7 @@ import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.ShortcutEchoExtension;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
+import cl.almejo.vsim.ui.shortcuts.sheet.ShortcutSheetExtension;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
 import cl.almejo.vsim.ui.theme.TextFontManager;
 import cl.almejo.vsim.ui.theme.ThemeManager;
@@ -320,6 +321,7 @@ public final class Application {
         editorExtensions.add(new FavoritesExtension());
         editorExtensions.add(new RecentComponentsExtension()); // one list for every window: created once here
         editorExtensions.add(new QuickInsertExtension()); // its Insert key before the shortcuts extension
+        editorExtensions.add(new ShortcutSheetExtension()); // «?»: its Ayuda item after «Buscar una acción…»
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new WaveformsToolbarExtension()); // the «Formas de onda» toggle, right after «Presentar»

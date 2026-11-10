@@ -26,6 +26,9 @@ public final class PreferencesDialog {
     /** The «General» tab, where the menu item opens the dialog. */
     public static final int GENERAL_TAB = 0;
 
+    /** The «Atajos de teclado» tab, where the sheet of shortcuts sends the user to see and change them all. */
+    public static final int SHORTCUTS_TAB = 1;
+
     /** The titles of the tabs, in order: what {@code tab} indexes. */
     static final List<String> TAB_KEYS = List.of("preferences.tab.general", "preferences.tab.shortcuts",
             "preferences.tab.ai");

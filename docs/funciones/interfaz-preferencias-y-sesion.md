@@ -172,6 +172,32 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   Tampoco la muestran, por ahora, los ítems de las listas que cambian solas: Archivo ▸ Recientes, Archivo ▸ Ejemplos y
   la lista de ventanas abiertas de Ventana.
 
+## Hoja de atajos
+
+- «?» muestra una hoja sobre el área del circuito (no tapa los menús) con una selección de unos 18 atajos, agrupados en
+  Editar, Ver y Simular: Deshacer, Rehacer, Duplicar, Borrar, Rotar, Etiqueta, Insertar componente, Zoom, Ver todo el
+  circuito, Zoom a la selección, Buscar, Siguiente problema, Modo presentación, Iniciar o pausar, Avanzar N t, Avanzar
+  al próximo evento, Reiniciar y Buscar una acción. Otra vez «?» o Esc la cierran (Esc la cierra antes que cualquier
+  otra cosa; en el [modo presentación](#modo-presentación) cierra solo la hoja, sin salir del modo). También se abre y
+  se cierra con Ayuda ▸ «Atajos de teclado», que muestra «?» como su tecla, y aparece en la
+  [paleta de comandos](edicion.md#paleta-de-comandos).
+- «?» es el carácter escrito, así que es la misma tecla con el teclado español (Mayús+') y con el de EE. UU.
+  (Mayús+/), igual en Windows, Linux y macOS. Mientras escribes en un campo de texto (las propiedades, la búsqueda de
+  la paleta, la barra Buscar) o un Terminal o un Teclado tiene el teclado, «?» se escribe. Es una tecla fija, como Esc:
+  no se cambia en [Atajos de teclado](#atajos-de-teclado).
+- Las teclas son las que tienes ahora, con los nombres en tu idioma: si cambias un atajo, la hoja muestra el nuevo al
+  instante, y un atajo que dejaste sin tecla sale de la hoja.
+- Abajo, mientras haces un gesto (dibujar un cable, mover piezas, pegar, colocar un componente), una franja repite la
+  [frase del gesto](#frase-del-gesto): qué hace el próximo clic y qué teclas sirven ahora. Sin gesto en curso no aparece.
+  El circuito conserva el teclado mientras la hoja está abierta, así que esas teclas siguen funcionando.
+- Al pie, la casilla «Mostrar los atajos que se usan» es la misma opción de Ver ▸ «Mostrar los atajos que se usan»:
+  marcarla aquí la marca en el menú y al revés, y hacer clic en ella no cierra la hoja. Mientras la hoja está abierta
+  no aparecen las etiquetas de [Mostrar los atajos que se usan](#mostrar-los-atajos-que-se-usan), para que no se
+  tapen. A la misma altura, el enlace «Ver y cambiar todos los atajos…» cierra la hoja y abre Preferencias en la
+  pestaña «Atajos de teclado».
+- Usa los colores del tema (claro u oscuro) y aparece con un fundido breve, salvo con Preferencias ▸
+  [Animaciones](#animaciones) en «No». Al cerrarla, el circuito recupera el teclado.
+
 ## Atajos de teclado
 
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.
