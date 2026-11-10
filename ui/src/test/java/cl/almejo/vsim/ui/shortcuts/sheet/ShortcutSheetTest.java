@@ -328,6 +328,17 @@ class ShortcutSheetTest {
     }
 
     @Test
+    void theWholeCardFitsAWindowNineHundredPixelsHigh() {
+        root.setSize(1400, 900);
+        layOut(root);
+        ShortcutSheetPanel panel = openSheet();
+
+        assertThat(panel.card().getHeight()).as("nothing cut off")
+                .isEqualTo(panel.card().getPreferredSize().height);
+        assertThat(panel.card().getY()).isPositive();
+    }
+
+    @Test
     void aClickOnTheDimmedAreaClosesTheSheetAndOneOnTheCardDoesNot() {
         ShortcutSheetPanel panel = openSheet();
         java.awt.Rectangle card = panel.card().getBounds();

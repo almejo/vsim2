@@ -132,20 +132,20 @@ final class ShortcutSheetPanel extends JPanel {
     }
 
     private static JPanel stack(List<SheetSelection.Column> groups) {
-        JPanel stack = new JPanel(new MigLayout("insets 0, wrap 1, gapy 16", "[left]"));
+        JPanel stack = new JPanel(new MigLayout("insets 0, wrap 1, gapy 24", "[left]"));
         stack.setOpaque(false);
         groups.forEach(group -> stack.add(groupPanel(group)));
         return stack;
     }
 
     private static JPanel groupPanel(SheetSelection.Column group) {
-        JPanel panel = new JPanel(new MigLayout("insets 0, wrap 2, gapy 4, gapx 12", "[right][left]"));
+        JPanel panel = new JPanel(new MigLayout("insets 0, wrap 2, gapy 10, gapx 12", "[right][left]"));
         panel.setOpaque(false);
         JLabel heading = new ThemedLabel("Label.disabledForeground", group.title().toUpperCase(Locale.ROOT));
         Font font = heading.getFont();
         heading.setFont(font.deriveFont(Map.of(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD,
                 TextAttribute.SIZE, font.getSize2D() * HEADING_SCALE, TextAttribute.TRACKING, HEADING_TRACKING)));
-        panel.add(heading, "span 2, gapbottom 4, align left");
+        panel.add(heading, "span 2, gapbottom 6, align left");
         for (SheetSelection.Row row : group.rows()) {
             panel.add(new KeycapsLabel(row.keys()));
             panel.add(new ThemedLabel("Label.foreground", row.name()));
@@ -385,7 +385,7 @@ final class ShortcutSheetPanel extends JPanel {
         }
     }
 
-    /** A text button drawn as a link, in the theme's link colour read at paint time; never takes the keyboard. */
+    /** A text button drawn as a link, without underline, in the theme's link colour read at paint time; no keyboard. */
     private static final class LinkButton extends JButton {
 
         LinkButton(String text) {
@@ -397,7 +397,6 @@ final class ShortcutSheetPanel extends JPanel {
             setOpaque(false);
             setMargin(new Insets(0, 0, 0, 0));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            setFont(getFont().deriveFont(Map.of(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON)));
         }
 
         @Override
