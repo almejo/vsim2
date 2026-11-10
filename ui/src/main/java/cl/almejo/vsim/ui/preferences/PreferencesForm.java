@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.paint.CustomColorSchemes;
 import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.theme.SwitchBox;
+import cl.almejo.vsim.ui.wiring.InvertModifierNames;
 import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
@@ -123,7 +124,7 @@ public final class PreferencesForm extends JPanel {
                 languageChoice.addItem(new Choice<>(Optional.of(tag), Messages.text(nameKey))));
 
         for (AppPreferences.InvertModifier modifier : AppPreferences.InvertModifier.values()) {
-            invertModifierChoice.addItem(new Choice<>(modifier, invertModifierName(modifier)));
+            invertModifierChoice.addItem(new Choice<>(modifier, InvertModifierNames.of(modifier)));
         }
         select(invertModifierChoice, preferences.invertModifier());
         invertModifierChoice.addActionListener(
@@ -403,15 +404,6 @@ public final class PreferencesForm extends JPanel {
 
     JCheckBox animateViewMovesBox() {
         return animateViewMovesBox;
-    }
-
-    /** The text of an invert key, also used by the follow toggle's tooltip. */
-    public static String invertModifierName(AppPreferences.InvertModifier modifier) {
-        return switch (modifier) {
-            case SHIFT -> Messages.text("preferences.invertModifier.SHIFT");
-            case ALT -> Messages.text("preferences.invertModifier.ALT");
-            case NONE -> Messages.text("preferences.invertModifier.NONE");
-        };
     }
 
     static String themeName(AppPreferences.Theme theme) {

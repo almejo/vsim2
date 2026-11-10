@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.wiring.NewContact;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
 import cl.almejo.vsim.ui.snap.ContactCache;
 import cl.almejo.vsim.ui.snap.ContactDots;
@@ -89,6 +90,15 @@ public final class FloatingSelectionTool implements Tool {
     /** Where the fragment's (0,0) currently is, in grid units. */
     public GridPoint position() {
         return position;
+    }
+
+    @Override
+    public String gesturePhrase(ToolContext context) {
+        if (finished) {
+            return "";
+        }
+        return fromPalette.map(type -> GesturePhrases.dropping(Messages.componentName(type)))
+                .orElseGet(GesturePhrases::pasting);
     }
 
     /** The document selection is cleared so that nothing but the floating fragment can be acted upon. */

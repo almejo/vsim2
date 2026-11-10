@@ -170,6 +170,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Runnable> drawingListeners = new CopyOnWriteArrayList<>();
     /** What {@link #drawingListeners} were last told about this canvas's tool. */
     private boolean drawingTold;
+    /** The gesture phrase the host was last told, so it hears of changes only. */
+    private String gesturePhraseTold = "";
+    /** The canvas lost the keyboard focus (another window, a dialog): the phrase's keys do not act here until it is back. */
+    private boolean keyboardFocusLost;
     private Tool tool = defaultTool;
     private GridStyle gridStyle = GridStyle.DOTS;
     private boolean paintBusValues = true;
@@ -241,7 +245,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         addKeyListener(keyHandler);
         addFocusListener(new FocusAdapter() {
             @Override
+            public void focusGained(FocusEvent event) {
+                keyboardFocusLost = false;
+                publishGesturePhrase();
+            }
+
+            @Override
             public void focusLost(FocusEvent event) {
+                keyboardFocusLost = true;
+                publishGesturePhrase();
                 keyHandler.forgetModifiers();
                 spaceDown = false;
                 panAnchor = null;
@@ -1459,6 +1471,23 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             antsTimer.stop();
         }
         tellDrawingListeners();
+        publishGesturePhrase();
+    }
+
+    /**
+     * What the keys and the next click do now (see {@link Tool#gesturePhrase}); empty while this canvas has lost the
+     * keyboard focus, as the keys would not reach it.
+     */
+    public String gesturePhrase() {
+        return keyboardFocusLost ? "" : tool.gesturePhrase(this);
+    }
+
+    private void publishGesturePhrase() {
+        String phrase = gesturePhrase();
+        if (!phrase.equals(gesturePhraseTold)) {
+            gesturePhraseTold = phrase;
+            host.gesturePhraseChanged(this, phrase);
+        }
     }
 
     private void tellDrawingListeners() {

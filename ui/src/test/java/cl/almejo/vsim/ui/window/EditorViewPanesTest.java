@@ -158,6 +158,46 @@ class EditorViewPanesTest {
         assertThat(heard).containsExactly("changed");
     }
 
+    /** A tool that always has a gesture phrase to show. */
+    private static final class PhraseTool implements Tool {
+        private final String phrase;
+
+        PhraseTool(String phrase) {
+            this.phrase = phrase;
+        }
+
+        @Override
+        public String gesturePhrase(ToolContext context) {
+            return phrase;
+        }
+    }
+
+    @Test
+    void onlyTheActivePaneShowsItsGesturePhraseAndTheOtherOneComesBackWhenItBecomesActive() {
+        view.canvasPanes().split(Orientation.VERTICAL, 0.5);
+        CircuitCanvas left = view.panes().get(0);
+        CircuitCanvas right = view.panes().get(1);
+
+        right.setTool(new PhraseTool("Frase derecha"));
+        assertThat(view.statusBar().text()).doesNotContain("Frase derecha");
+
+        left.setTool(new PhraseTool("Frase izquierda"));
+        assertThat(view.statusBar().text()).contains("Frase izquierda").doesNotContain("Frase derecha");
+
+        press(right);
+        assertThat(view.statusBar().text()).contains("Frase derecha").doesNotContain("Frase izquierda");
+    }
+
+    @Test
+    void theGesturePhraseGoesWhenTheActivePaneChangesItsTool() {
+        view.canvas().setTool(new PhraseTool("Frase"));
+        assertThat(view.statusBar().text()).contains("Frase");
+
+        view.canvas().useDefaultTool();
+
+        assertThat(view.statusBar().text()).doesNotContain("Frase");
+    }
+
     @Test
     void theStatusBarZoomFollowsTheActivePane() {
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);

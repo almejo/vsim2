@@ -41,6 +41,8 @@ public final class StatusBar extends JPanel {
     private final JLabel hint = new JLabel();
     private final JLabel notice = new JLabel();
     private final JButton noticeAction = new JButton();
+    /** What the keys do during the gesture under way; after the notice, before the problems. */
+    private final JLabel gesture = new JLabel();
     private Runnable noticeActionRun = () -> { };
     private final JLabel shortCircuits = new ErrorTextLabel();
     private final JLabel failure = new ErrorTextLabel();
@@ -73,7 +75,7 @@ public final class StatusBar extends JPanel {
         // text stays in the tooltip), then an activity and the zoom slider; the state, the problems, the indicators
         // and the zoom percentage keep their width.
         super(new MigLayout("insets 2 8 2 8", "[][][][shrinkprio " + YIELDING_PRIORITY + "][shrinkprio "
-                + YIELDING_PRIORITY + "][]push[][]"));
+                + YIELDING_PRIORITY + "][][shrinkprio " + YIELDING_PRIORITY + "]push[][]"));
         noticeTimer = noticeTimerFactory.apply(this::hideNotice);
         add(simulation);
         time.setToolTipText(Messages.text("status.timeTip"));
@@ -86,6 +88,7 @@ public final class StatusBar extends JPanel {
         noticeAction.putClientProperty("JButton.buttonType", "borderless");
         noticeAction.addActionListener(event -> noticeActionRun.run());
         add(noticeAction, "hidemode 3");
+        add(gesture, YIELDING_CONSTRAINTS);
         add(shortCircuits);
         add(failure);
         add(pauseNotice);
@@ -95,6 +98,7 @@ public final class StatusBar extends JPanel {
         hint.setVisible(false);
         notice.setVisible(false);
         noticeAction.setVisible(false);
+        gesture.setVisible(false);
         shortCircuits.setVisible(false);
         failure.setVisible(false);
         pauseNotice.setVisible(false);
@@ -324,6 +328,20 @@ public final class StatusBar extends JPanel {
      * Shows {@code text} while the pointer is over something that explains itself (a tunnel: «CLK: 1 entrada, 3
      * salidas»); an empty text hides it.
      */
+    /**
+     * Shows {@code phrase}, what the keys and the next click do while a gesture is under way («Moviendo: suelta para
+     * dejarlas · Mayús: …»); an empty phrase hides it. It has its own label, so a hover hint never takes its place.
+     */
+    public void showGesture(String phrase) {
+        gesture.setText(phrase);
+        gesture.setToolTipText(phrase.isEmpty() ? null : phrase);
+        gesture.setVisible(!phrase.isEmpty());
+    }
+
+    JLabel gestureLabel() {
+        return gesture;
+    }
+
     public void showHint(String text) {
         hint.setText(text);
         hint.setVisible(!text.isEmpty());
@@ -406,8 +424,8 @@ public final class StatusBar extends JPanel {
 
     /** Visible texts joined with " · " (what the user reads, left to right), the zoom percentage last («125 %»). */
     public String text() {
-        Stream<String> labels = Stream.of(simulation, time, achievedSpeed, selection, hint, notice, shortCircuits,
-                        failure, pauseNotice, placeHint)
+        Stream<String> labels = Stream.of(simulation, time, achievedSpeed, selection, hint, notice, gesture,
+                        shortCircuits, failure, pauseNotice, placeHint)
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText);
         Stream<String> zoom = zoomControl != null && zoomControl.isVisible() ? Stream.of(zoomControl.text())

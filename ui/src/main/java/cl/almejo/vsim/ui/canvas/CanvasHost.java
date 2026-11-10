@@ -49,6 +49,13 @@ public interface CanvasHost {
     default void showNotice(String text) {
     }
 
+    /**
+     * {@code canvas}'s tool says what the keys and the next click do now ({@code phrase}, empty when no gesture is
+     * under way): the window shows it in its status bar when {@code canvas} is its active pane. Ignored by default.
+     */
+    default void gesturePhraseChanged(CircuitCanvas canvas, String phrase) {
+    }
+
     /** Opens the content editor of a RAM or ROM; hosts without one open the configure dialog. */
     default void editMemory(Component component) {
         configure(component);

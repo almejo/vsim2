@@ -736,6 +736,14 @@ public final class EditorView extends JPanel implements CanvasHost {
         statusBar.showNotice(text);
     }
 
+    /** Only the active pane speaks for the window: a gesture phrase of another pane waits until it is active. */
+    @Override
+    public void gesturePhraseChanged(CircuitCanvas pane, String phrase) {
+        if (pane == canvas()) {
+            statusBar.showGesture(phrase);
+        }
+    }
+
     /** A component tab without an instance to show («Sin valores», spec §6.3) says where to choose one. */
     private void showPlaceHint() {
         boolean noValues = openDocument.isBody() && openDocument.contextPath().isEmpty();
@@ -1266,6 +1274,7 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     private void activePaneChanged(CircuitCanvas pane) {
         statusBar.showZoom(pane.viewport().zoom());
+        statusBar.showGesture(pane.gesturePhrase());
         toolChanged(pane.tool());
     }
 

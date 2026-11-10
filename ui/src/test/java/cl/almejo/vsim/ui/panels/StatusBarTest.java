@@ -305,6 +305,42 @@ class StatusBarTest {
     }
 
     @Test
+    void theGesturePhraseComesAfterTheNoticeAndBeforeTheProblemsAndIsEmptyWithoutGesture() {
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showShortCircuits(1);
+        statusBar.showNotice("Guardado");
+        statusBar.showGesture("Moviendo: suelta para dejarlas");
+        statusBar.setSize(1200, 24);
+        statusBar.doLayout();
+
+        assertThat(statusBar.text()).contains("Guardado · Moviendo: suelta para dejarlas · ");
+        JLabel gesture = statusBar.gestureLabel();
+        assertThat(gesture.getX()).isGreaterThan(statusBar.noticeLabel().getX());
+        assertThat(gesture.getX() + gesture.getWidth()).isLessThanOrEqualTo(statusBar.shortCircuitsLabel().getX());
+
+        statusBar.showGesture("");
+        assertThat(gesture.isVisible()).isFalse();
+        assertThat(statusBar.text()).doesNotContain("Moviendo");
+    }
+
+    @Test
+    void aLongGesturePhraseGivesWayBeforeTheProblemsAndKeepsItsWholeTextInTheTooltip() {
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showZoom(1);
+        statusBar.showShortCircuits(2);
+        String longPhrase = "Dibujando un cable: " + "clic: esquina · ".repeat(30);
+        statusBar.showGesture(longPhrase);
+        statusBar.setSize(640, 24);
+
+        statusBar.doLayout();
+
+        JLabel problems = statusBar.shortCircuitsLabel();
+        assertThat(problems.getWidth()).isEqualTo(problems.getPreferredSize().width);
+        assertThat(problems.getX() + problems.getWidth()).isLessThanOrEqualTo(statusBar.getWidth());
+        assertThat(statusBar.gestureLabel().getToolTipText()).isEqualTo(longPhrase);
+    }
+
+    @Test
     void indicatorsStayAtTheRightEndAfterTheActivitiesAndGoWhenRemoved() {
         JLabel indicator = new JLabel("IA: apagada");
         JLabel activity = new JLabel("IA trabajando: Flip-flop D…");

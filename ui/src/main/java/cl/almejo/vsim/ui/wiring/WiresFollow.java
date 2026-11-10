@@ -24,7 +24,13 @@ public final class WiresFollow {
      * key, so the two keys are never the same.
      */
     public static boolean segmentKeyHeld(AppPreferences preferences, boolean shiftDown, boolean altDown) {
+        return segmentKey(preferences) == AppPreferences.InvertModifier.SHIFT ? shiftDown : altDown;
+    }
+
+    /** The key that drags a selected wire sideways: {@code ALT}, or {@code SHIFT} when Alt is the invert key. */
+    public static AppPreferences.InvertModifier segmentKey(AppPreferences preferences) {
         Objects.requireNonNull(preferences, "preferences");
-        return preferences.invertModifier() == AppPreferences.InvertModifier.ALT ? shiftDown : altDown;
+        return preferences.invertModifier() == AppPreferences.InvertModifier.ALT
+                ? AppPreferences.InvertModifier.SHIFT : AppPreferences.InvertModifier.ALT;
     }
 }

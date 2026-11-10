@@ -4,7 +4,6 @@ import cl.almejo.vsim.ui.actions.AcceleratorTooltip;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.preferences.PreferencesForm;
 import cl.almejo.vsim.ui.tools.WireMode;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -85,7 +84,7 @@ public final class WiresFollowFeatures {
     private String invertSuffix() {
         AppPreferences.InvertModifier modifier = preferences.invertModifier();
         return modifier == AppPreferences.InvertModifier.NONE ? ""
-                : Messages.format("wiresFollow.invertSuffix", PreferencesForm.invertModifierName(modifier));
+                : Messages.format("wiresFollow.invertSuffix", InvertModifierNames.of(modifier));
     }
 
     public void dispose() {
