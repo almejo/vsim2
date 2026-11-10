@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.shortcuts.sheet;
 
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.preferences.PreferencesDialog;
@@ -44,16 +45,15 @@ import java.util.Optional;
  * differs from layout to layout. Esc closes it before anything else sees the Esc (in presentation mode too, which then
  * stays on: every pane claims the Esc while the sheet is open). Holding «?» toggles it once ({@link HeldKey}); a click
  * on the dimmed circuit around the card closes it. Ayuda ▸ «Atajos de teclado» shows «?» and does the same.
- * The canvas keeps the keyboard while the sheet shows; on closing it gets it back. While open, the chips of «Mostrar
- * los atajos al usarlos» are hidden.
+ * The canvas keeps the keyboard while the sheet shows, and any other key closes the sheet and then acts as usual
+ * ({@link #closesTheSheetFirst}); on closing the canvas gets the keyboard back if it had it. While open, the chips of
+ * «Mostrar los atajos al usarlos» are hidden.
  */
 final class ShortcutSheetFeatures {
 
     static final KeyStroke QUESTION_MARK = KeyStroke.getKeyStroke('?');
     private static final String FIND_ACTION_ID = "help.findAction";
     private static final String PREFERENCES_ID = "file.preferences";
-    /** Space left between the sheet and the edges of the circuit area. */
-    private static final int MARGIN = 8;
     private static final long FADE_MILLISECONDS = 150;
 
     private final EditorView view;
@@ -67,6 +67,8 @@ final class ShortcutSheetFeatures {
     private final List<SheetSelection.Item> selection = SheetSelection.load();
     private ShortcutSheetPanel panel;
     private final HeldKey heldKey = new HeldKey();
+    /** Whether closing gives the keyboard to the canvas: it had it (or nothing had it) when the sheet opened. */
+    private boolean canvasHadTheKeyboard = true;
     private boolean disposed;
 
     ShortcutSheetFeatures(EditorView view, ShortcutSheetExtension.Seams seams) {
@@ -111,6 +113,11 @@ final class ShortcutSheetFeatures {
             event.consume();
             return true;
         }
+        if (isOpen() && closesTheSheetFirst(event)
+                && SwingUtilities.getRootPane(source) == SwingUtilities.getRootPane(view)) {
+            close(); // and the key goes on to do what it does: the user sees its effect with the sheet gone
+            return false;
+        }
         if (isQuestionMark(event) && SwingUtilities.isDescendingFrom(source, view) && !typesText(source)
                 && view.keyboardCapture().captured().isEmpty()) {
             if (!heldKey.isRepeat()) { // holding «?» toggles once, it does not flicker
@@ -121,6 +128,22 @@ final class ShortcutSheetFeatures {
             return true;
         }
         return false;
+    }
+
+    /**
+     * A key pressed while the sheet shows closes it and then acts as usual (the user's choice, 2026-11-09: «Cerrar y
+     * actuar»): Supr deletes, an arrow moves, Espacio flips the elbow. Not Esc (it only closes), not a modifier alone,
+     * and not the press that types «?», whose typed character toggles the sheet.
+     */
+    private static boolean closesTheSheetFirst(KeyEvent event) {
+        if (event.getID() != KeyEvent.KEY_PRESSED || event.getKeyChar() == QUESTION_MARK.getKeyChar()) {
+            return false;
+        }
+        return switch (event.getKeyCode()) {
+            case KeyEvent.VK_SHIFT, KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_ALT_GRAPH, KeyEvent.VK_META,
+                 KeyEvent.VK_WINDOWS, KeyEvent.VK_CAPS_LOCK, KeyEvent.VK_NUM_LOCK, KeyEvent.VK_UNDEFINED -> false;
+            default -> true;
+        };
     }
 
     private static boolean isPlainEscape(KeyEvent event) {
@@ -152,6 +175,9 @@ final class ShortcutSheetFeatures {
         if (disposed || isOpen() || rootPane == null) {
             return;
         }
+        canvasHadTheKeyboard = view.keyboardFocus().owner()
+                .map(owner -> owner instanceof CircuitCanvas && SwingUtilities.isDescendingFrom(owner, view))
+                .orElse(true);
         ShortcutSheetPanel opened = new ShortcutSheetPanel(preferences::setShowUsedShortcuts, this::showAllShortcuts,
                 this::close);
         panel = opened;
@@ -207,7 +233,6 @@ final class ShortcutSheetFeatures {
         }
         Rectangle area = SwingUtilities.convertRectangle(view.canvasPanes(),
                 new Rectangle(view.canvasPanes().getSize()), layers);
-        area.grow(-MARGIN, -MARGIN);
         panel.setBounds(area);
         panel.doLayout();
     }
@@ -282,7 +307,7 @@ final class ShortcutSheetFeatures {
         for (int index = undo.size() - 1; index >= 0; index--) {
             undo.get(index).run();
         }
-        if (!disposed) {
+        if (!disposed && canvasHadTheKeyboard) {
             view.keyboardFocus().request(view.canvas());
         }
     }

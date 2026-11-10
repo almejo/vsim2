@@ -230,7 +230,8 @@ public final class ShortcutsTableModel extends AbstractTableModel {
             return true;
         }
         return bindings.strokeFor(entry.id())
-                .map(stroke -> normalized(KeyNames.describe(stroke)).contains(filter))
+                .map(stroke -> normalized(KeyNames.describe(stroke)).contains(filter)
+                        || normalized(KeyNames.describeInEnglish(stroke)).contains(filter)) // «shift» finds «Mayús»
                 .orElse(false);
     }
 

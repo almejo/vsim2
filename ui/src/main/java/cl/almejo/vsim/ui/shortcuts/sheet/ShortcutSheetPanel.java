@@ -13,7 +13,10 @@ import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.Scrollable;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import java.awt.AlphaComposite;
@@ -52,6 +55,8 @@ final class ShortcutSheetPanel extends JPanel {
     static final int MAXIMUM_CARD_WIDTH = 900;
     /** The veil left visible around the card. */
     private static final int VEIL_MARGIN = 24;
+    /** One wheel notch or arrow click of the groups' scroll bar: about a row. */
+    private static final int SCROLL_UNIT = 16;
     private static final int CORNER = 18;
     private static final int SHADOW_SIZE = 14;
     private static final int SHADOW_ALPHA = 7;
@@ -62,8 +67,10 @@ final class ShortcutSheetPanel extends JPanel {
     private static final String ROW_SEPARATOR = " · ";
 
     private final JPanel card = new Card();
-    private final JPanel columnsPanel = new JPanel(new MigLayout("insets 0, fillx, gapx 40",
-            "[grow, fill][grow, fill]", "[top]"));
+    private final JPanel columnsPanel = new ColumnsPanel();
+    private final JScrollPane groupsScroll = new JScrollPane(columnsPanel,
+            ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+    private final JPanel foot;
     private final JTextArea gesture = new GestureStrip();
     private final JLabel showUsedShortcutsLabel = new ThemedLabel("Label.foreground",
             Messages.text("action.showUsedShortcuts"));
@@ -93,10 +100,27 @@ final class ShortcutSheetPanel extends JPanel {
         card.addMouseListener(new MouseAdapter() { }); // a click on the card is the card's
         add(card);
         columnsPanel.setOpaque(false);
-        card.add(columnsPanel, "growx, wmin 0");
+        prepareScroll();
+        card.add(groupsScroll, "grow, push, wmin 0, hmin 0");
         gesture.setVisible(false);
         card.add(gesture, "hidemode 3, growx, wmin 0, gaptop 14");
-        card.add(foot(showUsedShortcutsChosen, allShortcutsChosen), "growx, wmin 0, gaptop 14");
+        foot = foot(showUsedShortcutsChosen, allShortcutsChosen);
+        card.add(foot, "growx, wmin 0, gaptop 14");
+    }
+
+    /**
+     * When the card does not fit the circuit area (a 1366×768 screen, 125 % scaling) only the groups scroll, with the
+     * wheel or the bar; the gesture strip and the foot stay in view. It never takes the keyboard: a key closes the sheet.
+     */
+    private void prepareScroll() {
+        groupsScroll.setBorder(null);
+        groupsScroll.setViewportBorder(null);
+        groupsScroll.setOpaque(false);
+        groupsScroll.getViewport().setOpaque(false);
+        groupsScroll.setFocusable(false);
+        groupsScroll.getVerticalScrollBar().setFocusable(false);
+        groupsScroll.getVerticalScrollBar().setUnitIncrement(SCROLL_UNIT);
+        groupsScroll.setWheelScrollingEnabled(true);
     }
 
     /** The switch with its label on the left, the closing hint in the middle, the link on the right. */
@@ -198,6 +222,14 @@ final class ShortcutSheetPanel extends JPanel {
         return rows;
     }
 
+    JScrollPane groupsScroll() {
+        return groupsScroll;
+    }
+
+    JPanel foot() {
+        return foot;
+    }
+
     JPanel card() {
         return card;
     }
@@ -264,6 +296,7 @@ final class ShortcutSheetPanel extends JPanel {
         Graphics2D painter = (Graphics2D) graphics.create();
         try {
             painter.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            // a scrim is black in every theme (only its strength follows the theme): no theme key names one
             painter.setColor(new Color(0, 0, 0, FlatLaf.isLafDark() ? DARK_VEIL_ALPHA : LIGHT_VEIL_ALPHA));
             painter.fillRect(0, 0, getWidth(), getHeight());
             Rectangle bounds = card.getBounds();
@@ -280,6 +313,39 @@ final class ShortcutSheetPanel extends JPanel {
     private static Color themeColor(String key, Color fallback) {
         Color color = UIManager.getColor(key);
         return color == null ? fallback : color;
+    }
+
+    /** The two stacks of groups, as wide as the scroll's viewport so only the height scrolls. */
+    private static final class ColumnsPanel extends JPanel implements Scrollable {
+
+        ColumnsPanel() {
+            super(new MigLayout("insets 0, fillx, gapx 40", "[grow, fill][grow, fill]", "[top]"));
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return SCROLL_UNIT;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return Math.max(SCROLL_UNIT, visible.height - SCROLL_UNIT);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 
     /** The card: rounded, in the theme's panel colour with its border, with generous padding. */

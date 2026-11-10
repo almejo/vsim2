@@ -156,6 +156,14 @@ class ShortcutsTableModelTest {
     }
 
     @Test
+    void searchFindsAShortcutByItsSpanishOrItsEnglishKeyNames() {
+        model.setFilter("ctrl+mayus+s");
+        assertThat(column(0)).contains("Guardar como…");
+        model.setFilter("ctrl+shift+s");
+        assertThat(column(0)).contains("Guardar como…");
+    }
+
+    @Test
     void searchAndTheRowButtonsCancelAnInProgressCapture() {
         model.beginCapture("file.save");
         model.setFilter("guar");

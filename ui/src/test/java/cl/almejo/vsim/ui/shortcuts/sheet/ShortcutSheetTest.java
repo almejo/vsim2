@@ -58,6 +58,7 @@ class ShortcutSheetTest {
     private final AtomicLong clock = new AtomicLong(1_000);
     private final List<Component> focusRequests = new ArrayList<>();
     private boolean animations = true;
+    private Component focusOwner;
     private OpenDocument openDocument;
     private EditorView view;
     private JRootPane root;
@@ -81,7 +82,7 @@ class ShortcutSheetTest {
         view.useKeyboardFocus(new KeyboardFocus() {
             @Override
             public Optional<Component> owner() {
-                return Optional.empty();
+                return Optional.ofNullable(focusOwner);
             }
 
             @Override
@@ -337,6 +338,9 @@ class ShortcutSheetTest {
         assertThat(panel.card().getHeight()).as("nothing cut off")
                 .isEqualTo(panel.card().getPreferredSize().height);
         assertThat(panel.card().getY()).isPositive();
+        javax.swing.JViewport viewport = panel.groupsScroll().getViewport();
+        assertThat(viewport.getExtentSize().height).as("no scroll")
+                .isGreaterThanOrEqualTo(viewport.getView().getPreferredSize().height);
     }
 
     @Test
@@ -462,7 +466,107 @@ class ShortcutSheetTest {
         assertThat(view.canvasPanes().getWidth()).isPositive();
         java.awt.Rectangle area = javax.swing.SwingUtilities.convertRectangle(view.canvasPanes(),
                 new java.awt.Rectangle(view.canvasPanes().getSize()), root.getLayeredPane());
-        assertThat(area.contains(panel.getBounds())).isTrue();
+        assertThat(panel.getBounds()).as("the whole circuit area, no band of live canvas").isEqualTo(area);
+    }
+
+    @Test
+    void anArrowClosesTheSheetAndMovesTheSelectionOnce() {
+        cl.almejo.vsim.core.document.Component gate = UiTestSupport.place(openDocument,
+                StandardComponentTypes.BUFFER, 5, 5, java.util.Map.of());
+        view.canvas().selection().select(gate.id());
+        openSheet();
+
+        keyOnCanvas(KeyEvent.VK_RIGHT, 0, KeyEvent.CHAR_UNDEFINED);
+
+        assertThat(sheet()).isEmpty();
+        assertThat(openDocument.document().component(gate.id())
+                .orElseThrow().position()).isEqualTo(new cl.almejo.vsim.core.geometry.GridPoint(6, 5));
+    }
+
+    @Test
+    void aModifierAloneKeepsTheSheetOpen() {
+        openSheet();
+
+        keyOnCanvas(KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK, KeyEvent.CHAR_UNDEFINED);
+        keyOnCanvas(KeyEvent.VK_CONTROL, InputEvent.CTRL_DOWN_MASK, KeyEvent.CHAR_UNDEFINED);
+
+        assertThat(sheet()).isPresent();
+    }
+
+    @Test
+    void thePressOfTheQuestionMarkKeyLeavesTheClosingToItsTypedCharacter() {
+        openSheet();
+
+        keyOnCanvas(KeyEvent.VK_QUOTE, InputEvent.SHIFT_DOWN_MASK, '?');
+        assertThat(sheet()).isPresent();
+        questionMarkOn(view.canvas());
+
+        assertThat(sheet()).isEmpty();
+    }
+
+    @Test
+    void spaceDuringAWireClosesTheSheetAndFlipsTheElbow() {
+        int[] flips = new int[1];
+        view.canvas().setTool(new Tool() {
+            @Override
+            public boolean flipElbow(ToolContext context) {
+                flips[0]++;
+                return true;
+            }
+        });
+        openSheet();
+
+        keyOnCanvas(KeyEvent.VK_SPACE, 0, ' ');
+        KeyEvent release = new KeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, 0, 0, KeyEvent.VK_SPACE, ' ');
+        dispatch(release);
+        for (java.awt.event.KeyListener listener : view.canvas().getKeyListeners()) {
+            listener.keyReleased(release);
+        }
+
+        assertThat(sheet()).isEmpty();
+        assertThat(flips[0]).isEqualTo(1);
+    }
+
+    @Test
+    void closingGivesTheKeyboardBackToTheCanvasOnlyWhenItHadIt() {
+        JTextField field = new JTextField();
+        view.add(field);
+        focusOwner = field;
+        openSheet();
+
+        dispatch(escape(view.canvas()));
+
+        assertThat(focusRequests).doesNotContain(view.canvas());
+    }
+
+    /** A key pressed on the canvas as Swing delivers it: the key hooks, then the canvas's listeners and bindings. */
+    private void keyOnCanvas(int keyCode, int modifiers, char character) {
+        KeyEvent event = new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, 0, modifiers, keyCode, character);
+        if (dispatch(event)) {
+            return;
+        }
+        for (java.awt.event.KeyListener listener : view.canvas().getKeyListeners()) {
+            listener.keyPressed(event);
+        }
+        if (!event.isConsumed()) {
+            javax.swing.SwingUtilities.processKeyBindings(event);
+        }
+    }
+
+    @Test
+    void inAShortAreaTheGroupsScrollAndTheFootStaysVisible() {
+        root.setSize(1280, 650);
+        layOut(root);
+        ShortcutSheetPanel panel = openSheet();
+        javax.swing.JScrollPane groups = panel.groupsScroll();
+
+        assertThat(groups.getViewport().getExtentSize().height)
+                .isLessThan(groups.getViewport().getView().getPreferredSize().height);
+        java.awt.Rectangle foot = javax.swing.SwingUtilities.convertRectangle(panel.foot().getParent(),
+                panel.foot().getBounds(), panel.card());
+        assertThat(new java.awt.Rectangle(panel.card().getSize()).contains(foot)).isTrue();
+        assertThat(panel.card().getHeight()).isLessThanOrEqualTo(panel.getHeight());
+        assertThat(groups.isFocusable()).isFalse();
     }
 
     @Test

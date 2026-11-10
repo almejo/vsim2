@@ -175,14 +175,18 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 ## Hoja de atajos
 
 - «?» oscurece el área del circuito (no los menús; el circuito se sigue viendo detrás, más oscuro) y muestra encima
-  una tarjeta centrada, de hasta unos 900 px de ancho, con una selección de unos 30 atajos en cuatro grupos, cada tecla
+  una tarjeta centrada, de hasta unos 900 px de ancho, con una selección de unos 30 atajos en cinco grupos, cada tecla
   dibujada en su casilla («Ctrl» + «Mayús» + «Z»): Archivo (Nuevo, Abrir, Guardar, Guardar como, Copiar captura),
-  Editar (Deshacer, Rehacer, Copiar, Cortar, Pegar, Duplicar, Seleccionar todo, Borrar, Rotar, Etiqueta, Ordenar circuito, Insertar
-  componente), Ver (Zoom, Ver todo el circuito, Zoom a la selección, Buscar, Siguiente problema, Modo presentación y
-  Formas de onda si le diste una tecla), Simular (Iniciar o pausar, Avanzar un paso fijo, Avanzar al próximo evento,
-  Reiniciar) y Ayuda (Buscar una acción y la propia «?»). Otra vez «?», Esc o un clic en el circuito oscurecido la cierran (Esc
+  Editar (Deshacer, Rehacer, Copiar, Cortar, Pegar, Duplicar, Seleccionar todo, Borrar, Rotar, Etiqueta, Ordenar
+  circuito, Enmarcar selección, Insertar componente), Ver (Zoom, Ver todo el circuito, Zoom a la selección, Buscar,
+  Siguiente problema, Modo presentación y Formas de onda si le diste una tecla), Simular (Iniciar o pausar, Avanzar un
+  paso fijo, Avanzar al próximo evento, Reiniciar) y Ayuda (Buscar una acción y la propia «?»). Si la tarjeta no cabe
+  (una pantalla de 1366×768, la letra al 125 %), los grupos se desplazan dentro de ella con la rueda y el pie queda a
+  la vista. Otra vez «?», Esc o un clic en cualquier parte del circuito oscurecido la cierran, sin hacer nada más (Esc
   la cierra antes que cualquier otra cosa; en el [modo presentación](#modo-presentación) cierra solo la hoja, sin salir
-  del modo). Mantener «?» apretada no la hace parpadear: abre o cierra una sola vez hasta que sueltas la tecla.
+  del modo). Cualquier otra tecla cierra la hoja y hace lo suyo de siempre, así ves el resultado: Supr borra, una
+  flecha mueve, Espacio cambia el codo del cable en curso, Ctrl+Z deshace; Ctrl, Mayús o Alt solas no la cierran.
+  Mantener «?» apretada no la hace parpadear: abre o cierra una sola vez hasta que sueltas la tecla.
   También se abre y se cierra con Ayuda ▸ «Atajos de teclado», que muestra «?» como su tecla, y aparece en la
   [paleta de comandos](edicion.md#paleta-de-comandos).
 - «?» es el carácter escrito, así que es la misma tecla con el teclado español (Mayús+') y con el de EE. UU.
@@ -193,7 +197,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   instante, y un atajo que dejaste sin tecla sale de la hoja.
 - Abajo en la tarjeta, mientras haces un gesto (dibujar un cable, mover piezas, pegar, colocar un componente), una
   franja repite la [frase del gesto](#frase-del-gesto): qué hace el próximo clic y qué teclas sirven ahora. Sin gesto en curso no aparece.
-  El circuito conserva el teclado mientras la hoja está abierta, así que esas teclas siguen funcionando.
+  El circuito conserva el teclado mientras la hoja está abierta: esas teclas cierran la hoja y actúan.
 - Al pie de la tarjeta, a la izquierda, el interruptor Sí/No «Mostrar los atajos al usarlos» es la misma opción de
   Ver ▸ «Mostrar los atajos al usarlos»: encenderlo aquí la marca en el menú y al revés, y cambiarlo no cierra la
   hoja. Mientras la hoja está abierta no aparecen las etiquetas de
@@ -201,7 +205,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   cierra la hoja», y a la derecha el enlace «Ver y cambiar todos los atajos…» cierra la hoja y abre Preferencias en la
   pestaña «Atajos de teclado».
 - Usa los colores del tema (claro u oscuro; en los dos el circuito queda más oscuro detrás) y aparece con un fundido
-  breve, salvo con Preferencias ▸ [Animaciones](#animaciones) en «No». Al cerrarla, el circuito recupera el teclado.
+  breve, salvo con Preferencias ▸ [Animaciones](#animaciones) en «No». Al cerrarla, el teclado vuelve al circuito si
+  lo tenía al abrirla.
 
 ## Atajos de teclado
 

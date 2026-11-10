@@ -8,6 +8,8 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.ResourceBundle;
+import java.util.function.Function;
 
 /**
  * The one place that turns a shortcut into text for the user, in the user's language: «Ctrl+Mayús+S», «Supr»,
@@ -38,36 +40,50 @@ public final class KeyNames {
         return String.join(macNotation ? "" : PLUS, keys(stroke, macNotation));
     }
 
+    /**
+     * «Ctrl+Shift+S» whatever VSim's language: what a user who learnt the English names types in the search of
+     * Preferencias ▸ Atajos de teclado.
+     */
+    public static String describeInEnglish(KeyStroke stroke) {
+        ResourceBundle english = Messages.bundle(Locale.ENGLISH);
+        return String.join(PLUS, keys(stroke, false, english::getString));
+    }
+
     /** The keys of {@code stroke} one by one (to draw each as a keycap): modifiers first, the key last. */
     public static List<String> keys(KeyStroke stroke, boolean macNotation) {
+        return keys(stroke, macNotation, Messages::text);
+    }
+
+    /** Like {@link #keys(KeyStroke, boolean)}, with the key names {@code names} gives for the bundle keys. */
+    private static List<String> keys(KeyStroke stroke, boolean macNotation, Function<String, String> names) {
         if (stroke.getKeyEventType() == KeyEvent.KEY_TYPED) {
             return List.of(String.valueOf(stroke.getKeyChar()));
         }
         List<String> keys = new ArrayList<>(macNotation ? macModifiers(stroke.getModifiers())
-                : modifiers(stroke.getModifiers()));
-        keys.add(keyName(stroke.getKeyCode()));
+                : modifiers(stroke.getModifiers(), names));
+        keys.add(keyName(stroke.getKeyCode(), names));
         return List.copyOf(keys);
     }
 
     /** Ctrl, Meta, Alt, AltGr, Mayús: the order of «Ctrl+Alt+Mayús+L». */
-    private static List<String> modifiers(int modifiers) {
-        List<String> names = new ArrayList<>();
+    private static List<String> modifiers(int modifiers, Function<String, String> names) {
+        List<String> named = new ArrayList<>();
         if ((modifiers & InputEvent.CTRL_DOWN_MASK) != 0) {
-            names.add(Messages.text("keyName.control"));
+            named.add(names.apply("keyName.control"));
         }
         if ((modifiers & InputEvent.META_DOWN_MASK) != 0) {
-            names.add(Messages.text("keyName.meta"));
+            named.add(names.apply("keyName.meta"));
         }
         if ((modifiers & InputEvent.ALT_DOWN_MASK) != 0) {
-            names.add(Messages.text("keyName.alt"));
+            named.add(names.apply("keyName.alt"));
         }
         if ((modifiers & InputEvent.ALT_GRAPH_DOWN_MASK) != 0) {
-            names.add(Messages.text("keyName.altGraph"));
+            named.add(names.apply("keyName.altGraph"));
         }
         if ((modifiers & InputEvent.SHIFT_DOWN_MASK) != 0) {
-            names.add(Messages.text("keyName.shift"));
+            named.add(names.apply("keyName.shift"));
         }
-        return names;
+        return named;
     }
 
     /** ⌃ ⌥ ⇧ ⌘, the order macOS writes them in. */
@@ -92,7 +108,7 @@ public final class KeyNames {
      * A key with a name on the keyboard gets it from the bundles; letters, digits and F-keys are themselves; a symbol
      * key is its symbol. Anything else falls back to Swing's name.
      */
-    private static String keyName(int keyCode) {
+    private static String keyName(int keyCode, Function<String, String> names) {
         if ((keyCode >= KeyEvent.VK_A && keyCode <= KeyEvent.VK_Z)
                 || (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9)) {
             return String.valueOf((char) keyCode);
@@ -104,17 +120,17 @@ public final class KeyNames {
             return "F" + (keyCode - KeyEvent.VK_F13 + 13);
         }
         return switch (keyCode) {
-            case KeyEvent.VK_DELETE -> Messages.text("keyName.delete");
-            case KeyEvent.VK_BACK_SPACE -> Messages.text("keyName.backSpace");
-            case KeyEvent.VK_SPACE -> Messages.text("keyName.space");
-            case KeyEvent.VK_INSERT -> Messages.text("keyName.insert");
-            case KeyEvent.VK_ENTER -> Messages.text("keyName.enter");
-            case KeyEvent.VK_ESCAPE -> Messages.text("keyName.escape");
-            case KeyEvent.VK_TAB -> Messages.text("keyName.tab");
-            case KeyEvent.VK_HOME -> Messages.text("keyName.home");
-            case KeyEvent.VK_END -> Messages.text("keyName.end");
-            case KeyEvent.VK_PAGE_UP -> Messages.text("keyName.pageUp");
-            case KeyEvent.VK_PAGE_DOWN -> Messages.text("keyName.pageDown");
+            case KeyEvent.VK_DELETE -> names.apply("keyName.delete");
+            case KeyEvent.VK_BACK_SPACE -> names.apply("keyName.backSpace");
+            case KeyEvent.VK_SPACE -> names.apply("keyName.space");
+            case KeyEvent.VK_INSERT -> names.apply("keyName.insert");
+            case KeyEvent.VK_ENTER -> names.apply("keyName.enter");
+            case KeyEvent.VK_ESCAPE -> names.apply("keyName.escape");
+            case KeyEvent.VK_TAB -> names.apply("keyName.tab");
+            case KeyEvent.VK_HOME -> names.apply("keyName.home");
+            case KeyEvent.VK_END -> names.apply("keyName.end");
+            case KeyEvent.VK_PAGE_UP -> names.apply("keyName.pageUp");
+            case KeyEvent.VK_PAGE_DOWN -> names.apply("keyName.pageDown");
             case KeyEvent.VK_UP -> "↑";
             case KeyEvent.VK_DOWN -> "↓";
             case KeyEvent.VK_LEFT -> "←";

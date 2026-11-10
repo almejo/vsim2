@@ -20,6 +20,7 @@ edit.delete
 edit.rotateClockwise
 edit.label
 edit.tidyWires
+edit.frameSelection
 edit.quickInsert
 [VIEW]
 view.zoomTool
