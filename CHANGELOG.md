@@ -37,6 +37,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Los atajos se escriben con los nombres de las teclas en tu idioma en la paleta de comandos (sus filas y sus pestañas), las ayudas de los botones, la tabla de Preferencias ▸ Atajos de teclado y las etiquetas de «Mostrar los atajos que se usan»: «Ctrl+Mayús+S», «Supr», «Retroceso», «Espacio» en vez de «Ctrl+Shift+S», «Delete», «Back Space», «Space» (en inglés siguen en inglés). Los menús muestran el atajo con los nombres del sistema. Ver [Atajos de teclado](docs/funciones/interfaz-preferencias-y-sesion.md#atajos-de-teclado).
 - El texto del lienzo vacío suma una tercera línea, «Doble clic: insertar un componente · Ctrl+K: ejecutar cualquier acción», con el atajo que tenga «Buscar una acción…» (el tuyo, si lo cambiaste). Ver [Lienzo vacío](docs/funciones/interfaz-preferencias-y-sesion.md#lienzo-vacío).
 - VSim ya no mira el interruptor de animaciones de GNOME: lo que antes se quedaba quieto por él ahora sigue a Preferencias ▸ «Animaciones», y «Animar los movimientos de la vista» viene activado por defecto en todos los sistemas.
 - Desactivar «Animar los movimientos de la vista» ya solo hace que la vista salte en vez de viajar: los fundidos del globo y el subtítulo de Presentar, el plegado de las pestañas y el robot de la IA que se mece siguen animados, y solo Preferencias ▸ «Animaciones: No» los detiene.

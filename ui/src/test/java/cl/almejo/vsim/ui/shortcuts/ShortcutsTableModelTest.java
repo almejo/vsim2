@@ -62,7 +62,7 @@ class ShortcutsTableModelTest {
         assertThat(model.entryAt(0)).isEmpty();
         assertThat(model.getValueAt(1, 0)).isEqualTo("Nuevo");
         assertThat(model.entryAt(1)).hasValueSatisfying(entry -> assertThat(entry.id()).isEqualTo("file.new"));
-        assertThat(shortcutOf("file.save")).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
+        assertThat(shortcutOf("file.save")).isEqualTo(KeyNames.describe(control(KeyEvent.VK_S)));
         assertThat(shortcutOf("file.preferences")).isEmpty();
         assertThat(model.isCellEditable(1, 1)).isFalse();
     }
@@ -89,7 +89,7 @@ class ShortcutsTableModelTest {
         assertThat(model.offer(control(KeyEvent.VK_J))).isEqualTo(ShortcutsTableModel.Outcome.ASSIGNED);
         assertThat(model.isCapturing()).isFalse();
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_J));
-        assertThat(shortcutOf("file.save")).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_J)));
+        assertThat(shortcutOf("file.save")).isEqualTo(KeyNames.describe(control(KeyEvent.VK_J)));
         assertThat(model.message()).isEmpty();
     }
 
@@ -98,7 +98,7 @@ class ShortcutsTableModelTest {
         model.beginCapture("file.save");
         model.cancelCapture();
         assertThat(model.isCapturing()).isFalse();
-        assertThat(shortcutOf("file.save")).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
+        assertThat(shortcutOf("file.save")).isEqualTo(KeyNames.describe(control(KeyEvent.VK_S)));
     }
 
     @Test
@@ -106,7 +106,7 @@ class ShortcutsTableModelTest {
         model.beginCapture("edit.selectAll");
         assertThat(model.offer(control(KeyEvent.VK_S))).isEqualTo(ShortcutsTableModel.Outcome.CONFLICT);
         assertThat(model.message())
-                .isEqualTo(Messages.format("shortcuts.conflict", KeyBindings.describe(control(KeyEvent.VK_S)),
+                .isEqualTo(Messages.format("shortcuts.conflict", KeyNames.describe(control(KeyEvent.VK_S)),
                         "Guardar"))
                 .contains("ya lo usa «Guardar».");
         assertThat(model.pendingConflict()).hasValueSatisfying(entry ->
@@ -137,7 +137,7 @@ class ShortcutsTableModelTest {
             model.beginCapture("file.save");
             assertThat(model.offer(reserved)).isEqualTo(ShortcutsTableModel.Outcome.REFUSED);
             assertThat(model.message())
-                    .isEqualTo(Messages.format("shortcuts.reserved", KeyBindings.describe(reserved)));
+                    .isEqualTo(Messages.format("shortcuts.reserved", KeyNames.describe(reserved)));
         }
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
     }
@@ -173,7 +173,7 @@ class ShortcutsTableModelTest {
         model.beginCapture("file.save");
         model.resetAll();
         assertThat(model.isCapturing()).isFalse();
-        assertThat(shortcutOf("file.save")).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
+        assertThat(shortcutOf("file.save")).isEqualTo(KeyNames.describe(control(KeyEvent.VK_S)));
     }
 
     @Test
@@ -202,7 +202,7 @@ class ShortcutsTableModelTest {
         KeyStroke bare = KeyStroke.getKeyStroke(KeyEvent.VK_W, 0);
         model.beginCapture("view.selectTool");
         assertThat(model.offer(bare)).isEqualTo(ShortcutsTableModel.Outcome.REFUSED);
-        assertThat(model.message()).isEqualTo(Messages.format("shortcuts.needsModifier", KeyBindings.describe(bare)));
+        assertThat(model.message()).isEqualTo(Messages.format("shortcuts.needsModifier", KeyNames.describe(bare)));
         assertThat(bindings.strokeFor("view.selectTool")).isEmpty();
         model.beginCapture("edit.rotateClockwise");
         assertThat(model.offer(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0))).isEqualTo(ShortcutsTableModel.Outcome.ASSIGNED);

@@ -172,13 +172,6 @@ public final class KeyBindings {
                 || (keyCode >= KeyEvent.VK_F13 && keyCode <= KeyEvent.VK_F24);
     }
 
-    /** «Ctrl+S», «F2», with the key and modifier names Swing gives on this platform. */
-    public static String describe(KeyStroke stroke) {
-        String modifiers = KeyEvent.getModifiersExText(stroke.getModifiers());
-        String key = KeyEvent.getKeyText(stroke.getKeyCode());
-        return modifiers.isEmpty() ? key : modifiers + "+" + key;
-    }
-
     private ShortcutEntry require(String id) {
         return ShortcutCatalog.find(id).orElseThrow(() -> new IllegalArgumentException("not a shortcut id: " + id));
     }

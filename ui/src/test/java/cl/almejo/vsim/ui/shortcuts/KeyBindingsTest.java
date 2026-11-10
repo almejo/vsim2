@@ -188,13 +188,6 @@ class KeyBindingsTest {
     }
 
     @Test
-    void describeUsesTheNamesSwingGivesKeysAndModifiers() {
-        assertThat(KeyBindings.describe(control(KeyEvent.VK_S)))
-                .isEqualTo(KeyEvent.getModifiersExText(CONTROL) + "+" + KeyEvent.getKeyText(KeyEvent.VK_S));
-        assertThat(KeyBindings.describe(plain(KeyEvent.VK_F2))).isEqualTo(KeyEvent.getKeyText(KeyEvent.VK_F2));
-    }
-
-    @Test
     void aMenuActionRefusesAKeyWithoutCtrlAltOrMeta() {
         int shift = InputEvent.SHIFT_DOWN_MASK;
         for (KeyStroke bare : java.util.List.of(plain(KeyEvent.VK_W), KeyStroke.getKeyStroke(KeyEvent.VK_W, shift),

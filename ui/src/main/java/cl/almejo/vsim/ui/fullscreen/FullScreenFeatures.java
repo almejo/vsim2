@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.CanvasNotice;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.WindowTabs;
 
@@ -245,7 +246,7 @@ public final class FullScreenFeatures {
     /** «Modo presentación · Esc o F11 para salir · …», with the shortcut the user gave the mode, if any. */
     static String noticeText(AppPreferences preferences) {
         Optional<KeyStroke> stroke = new KeyBindings(preferences).strokeFor(FullScreenExtension.SHORTCUT_ID);
-        return stroke.map(shortcut -> Messages.format("fullScreen.notice", KeyBindings.describe(shortcut)))
+        return stroke.map(shortcut -> Messages.format("fullScreen.notice", KeyNames.describe(shortcut)))
                 .orElseGet(() -> Messages.text("fullScreen.notice.noShortcut"));
     }
 

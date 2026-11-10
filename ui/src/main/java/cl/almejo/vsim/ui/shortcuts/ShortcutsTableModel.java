@@ -131,16 +131,16 @@ public final class ShortcutsTableModel extends AbstractTableModel {
         capturingId = null;
         Outcome outcome;
         if (KeyBindings.isReserved(stroke)) {
-            message = Messages.format("shortcuts.reserved", KeyBindings.describe(stroke));
+            message = Messages.format("shortcuts.reserved", KeyNames.describe(stroke));
             outcome = Outcome.REFUSED;
         } else if (KeyBindings.needsModifier(entry, stroke)) {
-            message = Messages.format("shortcuts.needsModifier", KeyBindings.describe(stroke));
+            message = Messages.format("shortcuts.needsModifier", KeyNames.describe(stroke));
             outcome = Outcome.REFUSED;
         } else {
             Optional<ShortcutEntry> conflict = bindings.conflictFor(stroke, entry.id());
             if (conflict.isPresent()) {
                 pending = new PendingReassign(entry, stroke, conflict.get());
-                message = Messages.format("shortcuts.conflict", KeyBindings.describe(stroke),
+                message = Messages.format("shortcuts.conflict", KeyNames.describe(stroke),
                         Messages.text(conflict.get().nameKey()));
                 outcome = Outcome.CONFLICT;
             } else {
@@ -206,7 +206,7 @@ public final class ShortcutsTableModel extends AbstractTableModel {
         if (entry.id().equals(capturingId)) {
             return Messages.text("shortcuts.prompt");
         }
-        return bindings.strokeFor(entry.id()).map(KeyBindings::describe).orElse("");
+        return bindings.strokeFor(entry.id()).map(KeyNames::describe).orElse("");
     }
 
     private void rebuild() {
@@ -230,7 +230,7 @@ public final class ShortcutsTableModel extends AbstractTableModel {
             return true;
         }
         return bindings.strokeFor(entry.id())
-                .map(stroke -> normalized(KeyBindings.describe(stroke)).contains(filter))
+                .map(stroke -> normalized(KeyNames.describe(stroke)).contains(filter))
                 .orElse(false);
     }
 

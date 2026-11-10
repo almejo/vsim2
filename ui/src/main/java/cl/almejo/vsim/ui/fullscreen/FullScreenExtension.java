@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -76,7 +77,7 @@ public final class FullScreenExtension implements EditorExtension {
     static String tooltip(AppPreferences preferences, boolean active) {
         Optional<KeyStroke> stroke = new KeyBindings(preferences).strokeFor(SHORTCUT_ID);
         String key = active ? "fullScreen.tooltip.leave" : "fullScreen.tooltip.enter";
-        return stroke.map(shortcut -> Messages.format(key, KeyBindings.describe(shortcut)))
+        return stroke.map(shortcut -> Messages.format(key, KeyNames.describe(shortcut)))
                 .orElseGet(() -> Messages.text(key + ".noShortcut"));
     }
 }

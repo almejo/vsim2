@@ -79,7 +79,7 @@ class ActionRowsTest {
 
     @Test
     void theShortcutIsTheCurrentOneAfterTheUserRebindsIt() {
-        assertThat(row("Guardar como…").shortcut()).contains("Ctrl+Shift+S");
+        assertThat(row("Guardar como…").shortcut()).contains("Ctrl+Mayús+S");
 
         new KeyBindings(view.services().preferences()).assign("file.saveAs",
                 KeyStroke.getKeyStroke(KeyEvent.VK_J, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK));
@@ -89,7 +89,7 @@ class ActionRowsTest {
 
     @Test
     void aCanvasKeyShowsBesideItsItemThoughTheMenuHasNoAccelerator() {
-        assertThat(row("Borrar").shortcut()).contains("Delete");
+        assertThat(row("Borrar").shortcut()).contains("Supr");
     }
 
     @Test

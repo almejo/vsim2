@@ -2,7 +2,7 @@ package cl.almejo.vsim.ui.window.tabs;
 
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -272,9 +272,9 @@ class TabStripTest {
         KeyStroke ctrlN = KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK);
         KeyStroke ctrlT = KeyStroke.getKeyStroke(KeyEvent.VK_T, InputEvent.CTRL_DOWN_MASK);
         strip.setNewTabShortcut(() -> Optional.of(ctrlN));
-        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyBindings.describe(ctrlN) + ")");
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyNames.describe(ctrlN) + ")");
         strip.setNewTabShortcut(() -> Optional.of(ctrlT));
-        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyBindings.describe(ctrlT) + ")");
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyNames.describe(ctrlT) + ")");
         strip.setNewTabShortcut(Optional::empty);
         assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito");
     }

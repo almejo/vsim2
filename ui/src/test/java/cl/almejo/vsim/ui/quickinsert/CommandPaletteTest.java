@@ -258,11 +258,11 @@ class CommandPaletteTest {
 
     @Test
     void aReboundShortcutIsTheOneTheTabsShowAndThePaletteAnswers() {
-        KeyStroke rebound = KeyStroke.getKeyStroke(KeyEvent.VK_J, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK);
+        KeyStroke rebound = KeyStroke.getKeyStroke(KeyEvent.VK_J, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK);
         new KeyBindings(view.services().preferences()).assign("help.findAction", rebound);
         insert();
 
-        assertThat(shown.tabTitles()).containsExactly("Componentes · Insert", "Acciones · Ctrl+Alt+J");
+        assertThat(shown.tabTitles()).containsExactly("Componentes · Insert", "Acciones · Ctrl+Mayús+J");
         press(shown.searchField(), rebound);
         assertThat(shown.tab()).isEqualTo(PaletteTab.ACTIONS);
         assertThat(shown.searchField().getInputMap()

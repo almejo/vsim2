@@ -3,7 +3,7 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.ProblemBadge;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 
@@ -276,7 +276,7 @@ final class InspectorStrip extends JPanel {
         private void showTooltip() {
             Optional<KeyStroke> stroke = shortcut.map(action -> action.getValue(Action.ACCELERATOR_KEY))
                     .filter(KeyStroke.class::isInstance).map(KeyStroke.class::cast);
-            setToolTipText(stroke.map(key -> Messages.format("inspector.tooltip", title, KeyBindings.describe(key)))
+            setToolTipText(stroke.map(key -> Messages.format("inspector.tooltip", title, KeyNames.describe(key)))
                     .orElse(title));
         }
 

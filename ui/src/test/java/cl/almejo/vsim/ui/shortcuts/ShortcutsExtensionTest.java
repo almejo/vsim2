@@ -210,7 +210,7 @@ class ShortcutsExtensionTest {
     }
 
     private static String withShortcut(String text, KeyStroke stroke) {
-        return text + " (" + KeyBindings.describe(stroke) + ")";
+        return text + " (" + KeyNames.describe(stroke) + ")";
     }
 
     private EditorView iconView() {

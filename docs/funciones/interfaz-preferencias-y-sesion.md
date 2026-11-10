@@ -166,7 +166,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   el centro del circuito, una etiqueta como «Ctrl+Z · Deshacer». Si la acción no tiene atajo, solo su nombre. Dura
   1,5 segundos (aparece y se va suavemente), con hasta tres apiladas, la más nueva abajo. Es grande a propósito (casi el doble que el texto de la interfaz, para un proyector o un video), con cada tecla en su casilla y el nombre de la acción al lado.
 - El atajo que se muestra es el que tienes ahora (los cambios de [Atajos de teclado](#atajos-de-teclado) se ven al
-  instante), con los nombres de teclas de tu sistema (en macOS, ⌃ ⌥ ⇧ ⌘ y la tecla: «⌘Z»).
+  instante), con los nombres de las teclas en tu idioma (en macOS, ⌃ ⌥ ⇧ ⌘ y la tecla: «⌘Z»).
 - No muestra nada de lo que escribes en un campo de texto, ni de lo que va a un Terminal o un Teclado que tiene el
   teclado, ni los clics del ratón sobre el circuito. Con una tecla mantenida apretada no repite la misma etiqueta.
   Tampoco la muestran, por ahora, los ítems de las listas que cambian solas: Archivo ▸ Recientes, Archivo ▸ Ejemplos y
@@ -176,6 +176,13 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.
 - Además de los atajos de siempre se puede dar uno a Selección, Mover vista, los dos modos de Editar ▸ «Dibujar cables», Escribir el zoom…, Centrar circuito, Configurar…, Iniciar, Pausar, Avanzar 10 t, Preferencias… y Nueva vista. Las teclas del lienzo (Supr, R, Mayús+R, F2, F8, Mayús+F8, Z para la herramienta Zoom, Mayús+1 para «Ver todo el circuito» y Mayús+2 para «Zoom a la selección») también se cambian ahí; Retroceso sigue borrando. Las teclas del lienzo actúan mientras el lienzo tiene el foco, así no molestan al escribir en un campo de texto.
+
+- Las teclas se nombran en el idioma de VSim, igual en todas partes donde se muestra un atajo (la tabla de atajos, la
+  [paleta de comandos](edicion.md#paleta-de-comandos), las ayudas de los botones, las etiquetas de
+  [Mostrar los atajos que se usan](#mostrar-los-atajos-que-se-usan)): «Ctrl+Mayús+S», «Supr», «Retroceso», «Espacio»,
+  «Insert», «Inicio», «Fin», «RePág», «AvPág» y las flechas «↑ ↓ ← →»; en inglés «Ctrl+Shift+S», «Delete»,
+  «Backspace». En macOS se escriben con ⌃ ⌥ ⇧ ⌘ y la tecla, sin «+» («⇧⌘S»). Los atajos que se ven a la derecha de
+  los ítems de los menús los escribe el sistema y pueden salir con sus nombres («Shift»).
 
 ## Preferencias
 

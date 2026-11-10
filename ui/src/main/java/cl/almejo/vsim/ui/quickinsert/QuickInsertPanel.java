@@ -6,7 +6,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PaletteFilter;
 import cl.almejo.vsim.ui.panels.TextChanges;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -166,7 +166,7 @@ final class QuickInsertPanel extends JPanel {
 
     /** «Acciones · Ctrl+K»: a tab's title with the key that opens it, when it has one. */
     private static String tabTitle(String title, Optional<KeyStroke> key) {
-        return key.map(stroke -> Messages.format("commandPalette.tabWithKey", title, KeyBindings.describe(stroke)))
+        return key.map(stroke -> Messages.format("commandPalette.tabWithKey", title, KeyNames.describe(stroke)))
                 .orElse(title);
     }
 

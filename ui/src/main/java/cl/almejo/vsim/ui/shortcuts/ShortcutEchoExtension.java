@@ -11,7 +11,6 @@ import java.awt.AWTEvent;
 import java.awt.Component;
 import java.awt.EventQueue;
 import java.awt.KeyboardFocusManager;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
@@ -56,8 +55,7 @@ public final class ShortcutEchoExtension implements EditorExtension {
     public ShortcutEchoExtension() {
         this(new Seams(() -> FrameTicker.swing(FRAME_MILLISECONDS), System::currentTimeMillis, Animations::enabled,
                 KeyDispatchers.focusManager(), () -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(),
-                EventQueue::getCurrentEvent,
-                System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")));
+                EventQueue::getCurrentEvent, KeyNames.MAC_NOTATION));
     }
 
     public ShortcutEchoExtension(Seams seams) {

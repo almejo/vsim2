@@ -8,7 +8,7 @@ import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.window.EditorServices;
@@ -96,7 +96,7 @@ class TidyToolbarTest {
         AbstractButton tidy = (AbstractButton) components.get(redo + 1);
         assertThat(tidy.getAction().getValue(Action.NAME)).isEqualTo("Ordenar circuito");
         // Ctrl+Alt+L as this platform names it (⌃+⌥+L on macOS).
-        assertThat(tidy.getToolTipText()).isEqualTo("Ordenar circuito (" + KeyBindings.describe(KeyStroke.getKeyStroke(
+        assertThat(tidy.getToolTipText()).isEqualTo("Ordenar circuito (" + KeyNames.describe(KeyStroke.getKeyStroke(
                 KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK)) + ")");
         assertThat(tidy.getHideActionText()).isTrue();
         assertThat(buttons()).noneMatch(button -> "Exportar imagen…".equals(button.getAction().getValue(Action.NAME)));
@@ -120,7 +120,7 @@ class TidyToolbarTest {
         assertThat(arrow.getHideActionText()).isTrue();
         assertThat(arrow.isFocusable()).isFalse();
         // Ctrl+Alt+Mayús+L as this platform names it.
-        assertThat(arrow.getToolTipText()).isEqualTo("Ordenar circuito… (" + KeyBindings.describe(
+        assertThat(arrow.getToolTipText()).isEqualTo("Ordenar circuito… (" + KeyNames.describe(
                 KeyStroke.getKeyStroke(KeyEvent.VK_L,
                         InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)) + ")");
     }

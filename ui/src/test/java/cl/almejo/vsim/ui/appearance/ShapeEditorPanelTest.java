@@ -20,7 +20,7 @@ import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -163,7 +163,7 @@ class ShapeEditorPanelTest {
         ShapeEditorPanel panel = panel(definition(), false);
         panel.apply(SymbolDraft.of(panel.appearance(), definition().pinout(), false)
                 .applyTemplate(SymbolTemplates.Template.MUX));
-        String undo = KeyBindings.describe(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ShortcutCatalog.menuMask()));
+        String undo = KeyNames.describe(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ShortcutCatalog.menuMask()));
         assertThat(button(panel, "shape.undo").getToolTipText()).contains(undo);
     }
 

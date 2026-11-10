@@ -2,7 +2,7 @@ package cl.almejo.vsim.ui.appearance;
 
 import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 
 import javax.swing.KeyStroke;
@@ -144,6 +144,6 @@ final class ShapeEditorTexts {
 
     /** The platform text of the menu modifier with {@code keyCode} («Ctrl+Z», «⌘Z»). */
     static String shortcut(int keyCode) {
-        return KeyBindings.describe(KeyStroke.getKeyStroke(keyCode, ShortcutCatalog.menuMask()));
+        return KeyNames.describe(KeyStroke.getKeyStroke(keyCode, ShortcutCatalog.menuMask()));
     }
 }

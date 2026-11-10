@@ -72,7 +72,7 @@ final class ToolbarTooltips {
         Object description = action.getValue(Action.SHORT_DESCRIPTION);
         String text = String.valueOf(description != null ? description : action.getValue(Action.NAME));
         button.setToolTipText(strokes.apply(idsByButton.get(button))
-                .map(stroke -> Messages.format("tooltip.withShortcut", text, KeyBindings.describe(stroke)))
+                .map(stroke -> Messages.format("tooltip.withShortcut", text, KeyNames.describe(stroke)))
                 .orElse(text));
     }
 }

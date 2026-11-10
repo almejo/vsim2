@@ -11,7 +11,7 @@ import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.waveform.ProbeActions;
 import cl.almejo.vsim.ui.waveform.WaveformPanel;
@@ -161,7 +161,7 @@ class PolishEndToEndTest {
             Action undo = view.actions().undo();
             KeyStroke undoKey = KeyStroke.getKeyStroke(KeyEvent.VK_Z, ShortcutCatalog.menuMask());
             assertThat(toolbarButton(view, undo).getToolTipText())
-                    .isEqualTo(undo.getValue(Action.NAME) + " (" + KeyBindings.describe(undoKey) + ")");
+                    .isEqualTo(undo.getValue(Action.NAME) + " (" + KeyNames.describe(undoKey) + ")");
             assertThat(toolbarButton(view, view.actions().step()).getToolTipText())
                     .isEqualTo("Avanza la simulación 10 unidades de tiempo (F6)");
             assertThat(view.actions().step().getValue(Action.NAME)).isEqualTo("Avanzar 10 t");

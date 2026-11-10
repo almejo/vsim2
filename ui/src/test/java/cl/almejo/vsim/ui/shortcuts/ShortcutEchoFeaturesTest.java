@@ -162,7 +162,7 @@ class ShortcutEchoFeaturesTest {
         boolean taken = keyOnCanvas(KeyEvent.VK_1, InputEvent.SHIFT_DOWN_MASK);
 
         assertThat(taken).as("the echo never takes the key").isFalse();
-        assertThat(chips()).singleElement().asString().endsWith("1 · Ver todo el circuito");
+        assertThat(chips()).containsExactly("Mayús+1 · Ver todo el circuito");
     }
 
     @Test
@@ -241,7 +241,7 @@ class ShortcutEchoFeaturesTest {
         menuItem(MenuId.EDIT, view.selectionActions().selectAll()).doClick();
 
         assertThat(chips()).singleElement().asString().matches("\\S+A · Seleccionar todo").doesNotContain("+");
-        assertThat(ShortcutEchoFeatures.describe(KeyStroke.getKeyStroke(KeyEvent.VK_Z,
+        assertThat(KeyNames.describe(KeyStroke.getKeyStroke(KeyEvent.VK_Z,
                 InputEvent.META_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), true)).isEqualTo("⇧⌘Z");
     }
 

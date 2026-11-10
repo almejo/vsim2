@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.panels.CanvasNotice;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.SelectToolDelegate;
@@ -122,7 +123,7 @@ final class QuickInsertFeatures {
      */
     private Runnable installOn(CircuitCanvas canvas) {
         canvas.setFindActionKey(() -> new KeyBindings(view.services().preferences()).strokeFor(FIND_ACTION_ID)
-                .map(KeyBindings::describe));
+                .map(KeyNames::describe));
         Runnable removeDelegate = canvas.defaultTool() instanceof SelectTool selectTool
                 ? selectTool.addDelegate((context, event) -> doubleClicked(canvas, context, event))
                 : () -> {

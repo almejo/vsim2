@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.quickinsert;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutEntry;
@@ -121,7 +122,7 @@ final class ActionRows {
             return;
         }
         boolean enabled = button.isEnabled();
-        rows.add(new ActionRow(name, path, shortcutOf(button).map(KeyBindings::describe), enabled,
+        rows.add(new ActionRow(name, path, shortcutOf(button).map(KeyNames::describe), enabled,
                 enabled ? Optional.empty() : Optional.of(reasonOf(action)), selectedOf(button),
                 Actions.unnamed(button::isEnabled, () -> button.doClick(0)),
                 button.getClientProperty(Actions.SEARCH_TERMS) instanceof String terms ? terms : ""));

@@ -23,7 +23,6 @@ import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.KeyEventDispatcher;
 import java.awt.event.ActionListener;
-import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -171,7 +170,7 @@ final class ShortcutEchoFeatures {
         String id = name.substring(ShortcutsExtension.BINDING_PREFIX.length());
         Optional<KeyStroke> stroke = strokeOf(id);
         String actionName = nameOf(action);
-        String text = stroke.map(found -> describe(found, seams.macNotation()) + " · " + actionName)
+        String text = stroke.map(found -> KeyNames.describe(found, seams.macNotation()) + " · " + actionName)
                 .orElse(actionName);
         long now = seams.clock().getAsLong();
         if (text.equals(lastKeyChip) && now - lastKeyChipTime < REPEAT_MILLISECONDS) {
@@ -202,49 +201,8 @@ final class ShortcutEchoFeatures {
     }
 
     private void pushChip(Optional<KeyStroke> stroke, String name) {
-        chips.push(stroke.map(found -> keysOf(found, seams.macNotation())).orElse(List.of()),
+        chips.push(stroke.map(found -> KeyNames.keys(found, seams.macNotation())).orElse(List.of()),
                 !seams.macNotation(), name);
-    }
-
-    /** The keys of {@code stroke} one by one, to draw each as a keycap: modifiers first, the key last. */
-    static List<String> keysOf(KeyStroke stroke, boolean macNotation) {
-        List<String> keys = new ArrayList<>();
-        if (macNotation) {
-            String described = describe(stroke, true);
-            String key = KeyEvent.getKeyText(stroke.getKeyCode());
-            described.substring(0, described.length() - key.length()).codePoints()
-                    .forEach(symbol -> keys.add(new String(Character.toChars(symbol))));
-            keys.add(key);
-            return keys;
-        }
-        String modifiers = KeyEvent.getModifiersExText(stroke.getModifiers());
-        if (!modifiers.isEmpty()) {
-            keys.addAll(List.of(modifiers.split("\\+")));
-        }
-        keys.add(KeyEvent.getKeyText(stroke.getKeyCode()));
-        return keys;
-    }
-
-    /** «Ctrl+Mayús+Z», or «⇧⌘Z» in the macOS notation (⌃ ⌥ ⇧ ⌘ and the key, nothing between). */
-    static String describe(KeyStroke stroke, boolean macNotation) {
-        if (!macNotation) {
-            return KeyBindings.describe(stroke);
-        }
-        int modifiers = stroke.getModifiers();
-        StringBuilder text = new StringBuilder();
-        if ((modifiers & InputEvent.CTRL_DOWN_MASK) != 0) {
-            text.append('⌃');
-        }
-        if ((modifiers & InputEvent.ALT_DOWN_MASK) != 0) {
-            text.append('⌥');
-        }
-        if ((modifiers & InputEvent.SHIFT_DOWN_MASK) != 0) {
-            text.append('⇧');
-        }
-        if ((modifiers & InputEvent.META_DOWN_MASK) != 0) {
-            text.append('⌘');
-        }
-        return text.append(KeyEvent.getKeyText(stroke.getKeyCode())).toString();
     }
 
     void dispose() {

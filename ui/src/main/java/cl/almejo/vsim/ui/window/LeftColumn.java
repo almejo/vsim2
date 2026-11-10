@@ -4,7 +4,7 @@ import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 
 import javax.swing.Action;
 import javax.swing.BorderFactory;
@@ -290,7 +290,7 @@ public final class LeftColumn extends JPanel {
         private void refreshHeader() {
             titleButton.setText((body.isVisible() ? OPEN_ARROW : FOLDED_ARROW) + title);
             Object stroke = toggle.getValue(Action.ACCELERATOR_KEY);
-            keyLabel.setText(stroke instanceof KeyStroke keyStroke ? KeyBindings.describe(keyStroke) : "");
+            keyLabel.setText(stroke instanceof KeyStroke keyStroke ? KeyNames.describe(keyStroke) : "");
         }
 
         /** The header's colours and font come from the current theme: set again on every theme change. */

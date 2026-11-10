@@ -45,7 +45,7 @@ class ShortcutsPanelTest {
         assertThat(panel.table().getValueAt(row, 1)).isEqualTo("Presiona la combinación…");
         press(KeyEvent.VK_J, CONTROL);
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_J));
-        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_J)));
+        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyNames.describe(control(KeyEvent.VK_J)));
         assertThat(panel.table().getSelectedRow()).isEqualTo(row);
     }
 
@@ -54,7 +54,7 @@ class ShortcutsPanelTest {
         int row = select("file.save");
         panel.changeButton().doClick(0);
         press(KeyEvent.VK_ESCAPE, 0);
-        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
+        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyNames.describe(control(KeyEvent.VK_S)));
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
     }
 
@@ -82,7 +82,7 @@ class ShortcutsPanelTest {
         panel.changeButton().doClick(0);
         press(KeyEvent.VK_SPACE, 0);
         assertThat(panel.messageLabel().getText())
-                .isEqualTo(Messages.format("shortcuts.reserved", KeyBindings.describe(KeyStroke.getKeyStroke(
+                .isEqualTo(Messages.format("shortcuts.reserved", KeyNames.describe(KeyStroke.getKeyStroke(
                         KeyEvent.VK_SPACE, 0))));
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
     }
@@ -113,7 +113,7 @@ class ShortcutsPanelTest {
     private void assertCaptureCancelled(int row) {
         assertThat(panel.capture().isActive()).isFalse();
         assertThat(panel.model().isCapturing()).isFalse();
-        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
+        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyNames.describe(control(KeyEvent.VK_S)));
         // a later key must not reach the model (it would throw IllegalStateException)
         press(KeyEvent.VK_J, CONTROL);
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
@@ -163,7 +163,7 @@ class ShortcutsPanelTest {
             press(KeyEvent.VK_J, CONTROL);
             assertThat(bindings.strokeFor("file.save")).isNotEqualTo(java.util.Optional.of(control(KeyEvent.VK_J)));
             panel.resetButton().doClick(0);
-            assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
+            assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyNames.describe(control(KeyEvent.VK_S)));
         }
     }
 }
