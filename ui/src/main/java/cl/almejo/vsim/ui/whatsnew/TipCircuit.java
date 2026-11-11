@@ -81,6 +81,11 @@ final class TipCircuit {
         return snapshot;
     }
 
+    /** Whether the circuit has a frame: a picture about frames draws bigger ({@link TipPicture}). */
+    boolean hasFrame() {
+        return !document.frames().isEmpty();
+    }
+
     /** The circuit drawn in {@code scheme}; empty for an empty circuit. */
     Optional<CircuitImage> image(PainterRegistry painters, ColorScheme scheme) {
         return CircuitImage.of(document, netlist, document.structureRevision(), snapshot, registry, painters, scheme,

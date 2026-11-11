@@ -75,6 +75,11 @@ final class TipPicture extends JComponent {
      * «antes y después» halves comes out near it too).
      */
     private static final double MAXIMUM_SCALE = 0.7;
+    /**
+     * A circuit with a frame is about the frame (its title has to read at the card's real size), so it may draw
+     * bigger than the others.
+     */
+    private static final double FRAMED_MAXIMUM_SCALE = 1.4;
     /** The big key: the UI font times this. */
     private static final float BIG_KEY_SCALE = 1.4f;
     private static final int KEY_PLATE_PADDING = 4;
@@ -193,7 +198,7 @@ final class TipPicture extends JComponent {
         Rectangle closer = new Rectangle(area.x + area.width - paneWidth, area.y, paneWidth, area.height);
         slot(0).filter(CircuitSlot.class::isInstance).map(slot -> ((CircuitSlot) slot).circuit())
                 .flatMap(circuit -> circuit.image(painters, scheme.get())).ifPresent(image -> {
-                    double scale = fittingScale(image, whole);
+                    double scale = fittingScale(image, whole, MAXIMUM_SCALE);
                     paintCircuit(painter, image, whole, scale);
                     paintCircuit(painter, image, closer, scale * ZOOM_IN);
                 });
@@ -222,7 +227,8 @@ final class TipPicture extends JComponent {
         switch (slot) {
             case CircuitSlot circuitSlot -> circuitSlot.circuit().image(painters, scheme.get())
                     .ifPresent(image -> paintCircuit(painter, image, area,
-                            scale.orElseGet(() -> fittingScale(image, area))));
+                            scale.orElseGet(() -> fittingScale(image, area,
+                                    circuitSlot.circuit().hasFrame() ? FRAMED_MAXIMUM_SCALE : MAXIMUM_SCALE))));
             case ImageSlot imageSlot -> paintImage(painter, imageSlot.image(), area);
         }
     }
@@ -239,14 +245,14 @@ final class TipPicture extends JComponent {
             if (image.isEmpty()) {
                 return OptionalDouble.empty();
             }
-            scale = Math.min(scale, fittingScale(image.get(), slot));
+            scale = Math.min(scale, fittingScale(image.get(), slot, MAXIMUM_SCALE));
         }
         return OptionalDouble.of(scale);
     }
 
     /** As big as {@code image} fits in {@code area}, never past 100 %. */
-    private static double fittingScale(CircuitImage image, Rectangle area) {
-        return Math.min(MAXIMUM_SCALE, Math.min((double) area.width / image.width(1.0),
+    private static double fittingScale(CircuitImage image, Rectangle area, double maximum) {
+        return Math.min(maximum, Math.min((double) area.width / image.width(1.0),
                 (double) area.height / image.height(1.0)));
     }
 

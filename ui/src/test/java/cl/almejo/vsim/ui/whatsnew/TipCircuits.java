@@ -525,13 +525,19 @@ final class TipCircuits {
     }
 
     /**
-     * «Marcos»: a half adder with a titled frame around both gates, complete and with air on every side: the inputs
-     * and the LEDs stay outside, and only wires going sideways cross its border (none the title bar).
+     * «Marcos»: two switches into an XOR and an LED, with a titled frame around just the XOR, with air on every side:
+     * the inputs and the LED stay outside, and only the wires going sideways cross its border (none the title bar).
      */
     private static CircuitDocument frameSelection() {
         Builder builder = new Builder("Marcos");
-        builder.halfAdder(0);
-        builder.document.add(new Frame(builder.document.newFrameId(), new GridPoint(13, 1), 10, 16, "A + B",
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", false);
+        builder.wire(6, 4, 12, 4);
+        builder.wire(6, 8, 12, 8);
+        builder.gate(StandardComponentTypes.XOR, 12, 4);
+        builder.wire(16, 6, 22, 6);
+        builder.ledTurnedAt(22, 6);
+        builder.document.add(new Frame(builder.document.newFrameId(), new GridPoint(9, 1), 11, 9, "A + B",
                 FrameTint.NONE, false));
         return builder.document;
     }
