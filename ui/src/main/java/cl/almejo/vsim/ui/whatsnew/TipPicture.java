@@ -76,10 +76,10 @@ final class TipPicture extends JComponent {
      */
     private static final double MAXIMUM_SCALE = 0.7;
     /**
-     * A circuit with a frame is about the frame (its title has to read at the card's real size), so it may draw
-     * bigger than the others.
+     * A circuit picture alone (not one of the two of «antes y después», which share the smaller cap) fills its box up
+     * to this scale, so a small circuit and its values and labels read at the card's real size.
      */
-    private static final double FRAMED_MAXIMUM_SCALE = 1.4;
+    private static final double ALONE_MAXIMUM_SCALE = 1.4;
     /** The big key: the UI font times this. */
     private static final float BIG_KEY_SCALE = 1.4f;
     private static final int KEY_PLATE_PADDING = 4;
@@ -227,8 +227,7 @@ final class TipPicture extends JComponent {
         switch (slot) {
             case CircuitSlot circuitSlot -> circuitSlot.circuit().image(painters, scheme.get())
                     .ifPresent(image -> paintCircuit(painter, image, area,
-                            scale.orElseGet(() -> fittingScale(image, area,
-                                    circuitSlot.circuit().hasFrame() ? FRAMED_MAXIMUM_SCALE : MAXIMUM_SCALE))));
+                            scale.orElseGet(() -> fittingScale(image, area, ALONE_MAXIMUM_SCALE))));
             case ImageSlot imageSlot -> paintImage(painter, imageSlot.image(), area);
         }
     }

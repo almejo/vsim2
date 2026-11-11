@@ -34,7 +34,7 @@ edit-in-place       | before-after | tip.editInPlace.title       | tip.editInPla
 frame-selection     | circuit      | tip.frameSelection.title    | tip.frameSelection.text    | frame-selection.vsim                              | edit.frameSelection | circuit
 sticky-note         | circuit      | tip.stickyNote.title        | tip.stickyNote.text        | sticky-note.vsim                                  | -                    | circuit
 bit-selector        | circuit      | tip.bitSelector.title       | tip.bitSelector.text       | bit-selector.vsim                                 | -                    | circuit
-width-follows       | circuit      | tip.widthFollows.title      | tip.widthFollows.text      | width-follows.vsim                                | edit.undo          | circuit
+width-follows       | circuit      | tip.widthFollows.title      | tip.widthFollows.text      | width-follows.vsim                                | -                    | circuit
 bus-splitter        | circuit      | tip.busSplitter.title       | tip.busSplitter.text       | bus-splitter.vsim                                 | -                    | circuit
 show-as             | circuit      | tip.showAs.title            | tip.showAs.text            | show-as.vsim                                      | -                    | circuit
 step-by-step        | circuit      | tip.stepByStep.title        | tip.stepByStep.text        | step-by-step.vsim                                 | simulation.advance   | circuit simulation.stepMode
