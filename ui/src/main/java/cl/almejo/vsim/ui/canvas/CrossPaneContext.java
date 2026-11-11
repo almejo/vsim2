@@ -83,6 +83,11 @@ final class CrossPaneContext implements ToolContext {
     }
 
     @Override
+    public Optional<javax.swing.KeyStroke> shortcut(String id) {
+        return owner.shortcut(id);
+    }
+
+    @Override
     public SelectionMoves selectionMoves() {
         return owner.selectionMoves();
     }

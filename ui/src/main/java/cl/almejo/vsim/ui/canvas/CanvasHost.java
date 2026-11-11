@@ -33,6 +33,12 @@ public interface CanvasHost {
         return SelectionMoves.detached();
     }
 
+    /** The user's current stroke for the shortcut {@code id}; hosts without bindings answer the catalog's default. */
+    default Optional<javax.swing.KeyStroke> shortcut(String id) {
+        return cl.almejo.vsim.ui.shortcuts.ShortcutCatalog.find(id)
+                .flatMap(cl.almejo.vsim.ui.shortcuts.ShortcutEntry::defaultStroke);
+    }
+
     /** Edits in place the value of a Constante; hosts without in-place editing open the configure dialog. */
     default void editValue(Component component) {
         configure(component);

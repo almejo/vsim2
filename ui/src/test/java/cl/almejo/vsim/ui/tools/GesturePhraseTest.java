@@ -175,6 +175,15 @@ class GesturePhraseTest {
     }
 
     @Test
+    void placingAPartNamesTheRotationKeysTheUserChose() {
+        ComponentType clock = context.openDocument().registry().require(StandardComponentTypes.CLOCK);
+        context.keyBindings.assign("edit.rotateClockwise", javax.swing.KeyStroke.getKeyStroke(
+                java.awt.event.KeyEvent.VK_R, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+
+        assertThat(phrase(new PlaceComponentTool(clock))).contains("Ctrl+R / Mayús+R: gira");
+    }
+
+    @Test
     void movingASingleSelectedWireAlsoSaysTheKeyThatSlidesIt() {
         Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(30, 0),
                 new GridPoint(40, 0));

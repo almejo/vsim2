@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.tools.RotateShortcuts;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.awt.Cursor;
@@ -86,12 +87,22 @@ public final class PlaceDefinitionTool implements Tool {
     }
 
     @Override
-    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
-        if (keyCode == KeyEvent.VK_R) {
-            rotation = shiftDown ? rotation.counterClockwise() : rotation.clockwise();
-            context.repaint();
-            return true;
+    public boolean keyStrokePressed(ToolContext context, javax.swing.KeyStroke stroke) {
+        java.util.Optional<Rotation> turned = RotateShortcuts.turned(context, stroke, rotation);
+        if (turned.isEmpty()) {
+            return false;
         }
+        rotation = turned.get();
+        context.repaint();
+        return true;
+    }
+
+    public Rotation rotation() {
+        return rotation;
+    }
+
+    @Override
+    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
         if (keyCode == KeyEvent.VK_ESCAPE) {
             context.useDefaultTool();
             return true;

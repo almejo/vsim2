@@ -108,6 +108,15 @@ public interface Tool {
     }
 
     /**
+     * A key was pressed, as the stroke it makes (modifiers included); a tool that reacts to the user's shortcuts (the
+     * part being placed rotating with «Girar») asks {@link ToolContext#shortcut} at this moment. Told before
+     * {@link #keyPressed}; true when the tool consumed it, so canvas key bindings must not run.
+     */
+    default boolean keyStrokePressed(ToolContext context, javax.swing.KeyStroke stroke) {
+        return false;
+    }
+
+    /**
      * Espacio was tapped (pressed and released with no pan in between) over the canvas: a tool drawing an «L» puts its
      * elbow on the other side; true when it did. The default does nothing.
      */

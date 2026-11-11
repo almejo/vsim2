@@ -43,6 +43,7 @@ import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.panels.ZoomControl;
 import cl.almejo.vsim.ui.problems.ProblemsController;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.terminal.CapturedKeys;
 import cl.almejo.vsim.ui.terminal.KeyboardCapture;
@@ -1193,6 +1194,11 @@ public final class EditorView extends JPanel implements CanvasHost {
         if (action.isEnabled()) {
             action.actionPerformed(new ActionEvent(statusBar, ActionEvent.ACTION_PERFORMED, ""));
         }
+    }
+
+    @Override
+    public Optional<KeyStroke> shortcut(String id) {
+        return new KeyBindings(services.preferences()).strokeFor(id);
     }
 
     /** A new pane's canvas: same document, a renderer of its own, the window's selection. */

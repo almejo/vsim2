@@ -79,7 +79,7 @@ class PlacementSnapTest {
         ComponentTypeRegistry registry = context.openDocument().registry();
         tool.mouseMoved(context, TestToolContext.at(9, 20));
         assertThat(tool.hover()).isEqualTo(new GridPoint(9, 20)); // its left edge at 9: five units off
-        tool.keyPressed(context, KeyEvent.VK_R, false);
+        tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, 0));
         Component rotated = registry.require(StandardComponentTypes.BUFFER).newComponent(new ElementId("probe"),
                 new GridPoint(9, 20), tool.rotation(), Map.of(), "");
         Bounds rotatedBounds = ElementBounds.of(rotated, registry);

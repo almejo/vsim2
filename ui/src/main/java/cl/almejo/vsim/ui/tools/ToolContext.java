@@ -93,6 +93,15 @@ public interface ToolContext {
     default void componentPlaced(String paletteId) {
     }
 
+    /**
+     * The user's current stroke for the shortcut catalog entry {@code id} ({@code edit.rotateClockwise}), read at the
+     * moment of the key so a rebind applies at once; hosts without bindings answer the catalog's default.
+     */
+    default Optional<javax.swing.KeyStroke> shortcut(String id) {
+        return cl.almejo.vsim.ui.shortcuts.ShortcutCatalog.find(id)
+                .flatMap(cl.almejo.vsim.ui.shortcuts.ShortcutEntry::defaultStroke);
+    }
+
     void repaint();
 
     void setTool(Tool tool);

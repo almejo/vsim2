@@ -52,6 +52,9 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     /** The status-bar notices of moves (M6.7), in order. */
     public final List<String> notices = new ArrayList<>();
     public final AppPreferences preferences = AppPreferences.inMemory();
+    /** The user's shortcuts ({@link #shortcut}); a test may rebind them. */
+    public final cl.almejo.vsim.ui.shortcuts.KeyBindings keyBindings =
+            new cl.almejo.vsim.ui.shortcuts.KeyBindings(preferences);
     public final SelectionMoves selectionMoves = new SelectionMoves(preferences, notices::add);
     /** What the tools snap with; none unless a test sets one (every gesture as before the magnet). */
     public Snapper snapper = Snapper.none();
@@ -67,6 +70,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public TestToolContext(OpenDocument openDocument) {
         this.openDocument = openDocument;
         this.hitTester = new HitTester(openDocument.registry());
+    }
+
+    @Override
+    public Optional<javax.swing.KeyStroke> shortcut(String id) {
+        return keyBindings.strokeFor(id);
     }
 
     public static TestToolContext withNewDocument() {

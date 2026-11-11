@@ -60,7 +60,14 @@ final class GesturePhrases {
     }
 
     /** A part from the palette following the pointer. */
-    static String placing(String componentName) {
-        return Messages.format("gesture.placing", componentName);
+    static String placing(String componentName, ToolContext context) {
+        String rotateKeys = java.util.stream.Stream.of("edit.rotateClockwise", "edit.rotateCounterClockwise")
+                .map(context::shortcut)
+                .flatMap(java.util.Optional::stream)
+                .map(cl.almejo.vsim.ui.shortcuts.KeyNames::describe)
+                .collect(java.util.stream.Collectors.joining(" / "));
+        return rotateKeys.isEmpty()
+                ? Messages.format("gesture.placingNoRotate", componentName)
+                : Messages.format("gesture.placing", componentName, rotateKeys);
     }
 }

@@ -173,8 +173,14 @@ class FloatingSelectionToolTest {
     @Test
     void rotateKeysAreConsumedAndChangeNothing() {
         FloatingSelectionTool tool = floating(3, 3);
-        assertThat(tool.keyPressed(context, KeyEvent.VK_R, false)).isTrue();
-        assertThat(tool.keyPressed(context, KeyEvent.VK_R, true)).isTrue();
+        javax.swing.KeyStroke controlR = javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R,
+                java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        assertThat(tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, 0))).isTrue();
+        assertThat(tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R,
+                java.awt.event.InputEvent.SHIFT_DOWN_MASK))).isTrue();
+        assertThat(tool.keyStrokePressed(context, controlR)).isFalse();
+        context.keyBindings.assign("edit.rotateClockwise", controlR); // follows the user's binding
+        assertThat(tool.keyStrokePressed(context, controlR)).isTrue();
         assertThat(tool.position()).isEqualTo(new GridPoint(3, 3));
         assertThat(document.isEmpty()).isTrue();
         assertThat(history.canUndo()).isFalse();

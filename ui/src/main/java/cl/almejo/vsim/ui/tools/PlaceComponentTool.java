@@ -27,7 +27,7 @@ import java.util.Set;
  * Places a component where the user clicks, then returns to the default tool (Shift keeps placing). Ajustar
  * (alignment-guides spec §3.4): the ghost is snapped to the circuit's parts, guides and grid lines and shows its
  * alignment lines; a press places it where the magnet takes the press point (the ghost's place when the pointer has
- * not moved), and R or {@link #refreshSnap} redo the ghost from the last raw point. A dot marks each point where
+ * not moved), and the rotate shortcuts or {@link #refreshSnap} redo the ghost from the last raw point. A dot marks each point where
  * the ghost would touch a net of the circuit ({@link ContactDots}), before the lines.
  */
 public final class PlaceComponentTool implements Tool {
@@ -71,7 +71,7 @@ public final class PlaceComponentTool implements Tool {
 
     @Override
     public String gesturePhrase(ToolContext context) {
-        return GesturePhrases.placing(Messages.componentName(type, presetParameters));
+        return GesturePhrases.placing(Messages.componentName(type, presetParameters), context);
     }
 
     @Override
@@ -132,15 +132,21 @@ public final class PlaceComponentTool implements Tool {
     }
 
     @Override
-    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
-        if (keyCode == KeyEvent.VK_R) {
-            rotation = shiftDown ? rotation.counterClockwise() : rotation.clockwise();
-            if (rawHover != null) {
-                snapHover(context);
-            }
-            context.repaint();
-            return true;
+    public boolean keyStrokePressed(ToolContext context, javax.swing.KeyStroke stroke) {
+        Optional<Rotation> turned = RotateShortcuts.turned(context, stroke, rotation);
+        if (turned.isEmpty()) {
+            return false;
         }
+        rotation = turned.get();
+        if (rawHover != null) {
+            snapHover(context);
+        }
+        context.repaint();
+        return true;
+    }
+
+    @Override
+    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
         if (keyCode == KeyEvent.VK_ESCAPE) {
             context.useDefaultTool();
             return true;

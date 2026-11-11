@@ -47,15 +47,41 @@ class PlaceComponentToolTest {
         assertThat(context.tool).isSameAs(tool);
     }
 
+    private static javax.swing.KeyStroke plainR() {
+        return javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, 0);
+    }
+
+    private static javax.swing.KeyStroke shiftR() {
+        return javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+    }
+
+    private static javax.swing.KeyStroke controlR() {
+        return javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+    }
+
     @Test
     void rKeysRotateThePreviewAndTheNextPlacement() {
-        assertThat(tool.keyPressed(context, KeyEvent.VK_R, false)).isTrue();
+        assertThat(tool.keyStrokePressed(context, plainR())).isTrue();
         assertThat(tool.rotation()).isEqualTo(Rotation.R90);
-        tool.keyPressed(context, KeyEvent.VK_R, true);
-        tool.keyPressed(context, KeyEvent.VK_R, true);
+        tool.keyStrokePressed(context, shiftR());
+        tool.keyStrokePressed(context, shiftR());
         assertThat(tool.rotation()).isEqualTo(Rotation.R270);
         tool.mousePressed(context, TestToolContext.at(0, 0));
         assertThat(context.openDocument().document().components().get(0).rotation()).isEqualTo(Rotation.R270);
+    }
+
+    @Test
+    void theRotationFollowsTheUsersBindingAtOnce() {
+        context.keyBindings.assign("edit.rotateClockwise", controlR());
+        assertThat(tool.keyStrokePressed(context, plainR())).isFalse();
+        assertThat(tool.rotation()).isEqualTo(Rotation.R0);
+        assertThat(tool.keyStrokePressed(context, controlR())).isTrue();
+        assertThat(tool.rotation()).isEqualTo(Rotation.R90);
+        context.keyBindings.assign("edit.rotateCounterClockwise",
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_E, 0));
+        assertThat(tool.keyStrokePressed(context, shiftR())).isFalse();
+        tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_E, 0));
+        assertThat(tool.rotation()).isEqualTo(Rotation.R0);
     }
 
     @Test

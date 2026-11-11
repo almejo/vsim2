@@ -207,11 +207,13 @@ public final class FloatingSelectionTool implements Tool {
             context.useDefaultTool();
             return true;
         }
-        if (keyCode == KeyEvent.VK_R) {
-            // Rotating a floating fragment is not supported; consume the key so canvas bindings do not act on the document.
-            return true;
-        }
         return false;
+    }
+
+    /** Rotating a floating fragment is not supported; the rotate shortcuts are consumed so they do not turn the document. */
+    @Override
+    public boolean keyStrokePressed(ToolContext context, javax.swing.KeyStroke stroke) {
+        return !finished && RotateShortcuts.clockwise(context, stroke).isPresent();
     }
 
     @Override

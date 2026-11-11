@@ -53,7 +53,7 @@ class PlaceDefinitionToolTest {
         try (TestToolContext context = TestToolContext.withNewDocument()) {
             PlaceDefinitionTool tool = new PlaceDefinitionTool(doubleInverter);
             context.setTool(tool);
-            assertThat(tool.keyPressed(context, KeyEvent.VK_R, false)).isTrue();
+            assertThat(tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, 0))).isTrue();
 
             tool.mousePressed(context, TestToolContext.event(0, 0, CanvasMouseEvent.PRIMARY, 1, true));
             assertThat(context.tool).isSameAs(tool);
@@ -68,6 +68,19 @@ class PlaceDefinitionToolTest {
             context.setTool(tool);
             assertThat(tool.keyPressed(context, KeyEvent.VK_ESCAPE, false)).isTrue();
             assertThat(context.tool).isSameAs(context.defaultTool);
+        }
+    }
+
+    @Test
+    void rotatesWithTheUsersBindingNotAFixedR() {
+        try (TestToolContext context = TestToolContext.withNewDocument()) {
+            PlaceDefinitionTool tool = new PlaceDefinitionTool(doubleInverter);
+            javax.swing.KeyStroke controlR = javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R,
+                    java.awt.event.InputEvent.CTRL_DOWN_MASK);
+            context.keyBindings.assign("edit.rotateClockwise", controlR);
+            assertThat(tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, 0))).isFalse();
+            assertThat(tool.keyStrokePressed(context, controlR)).isTrue();
+            assertThat(tool.rotation()).isEqualTo(Rotation.R90);
         }
     }
 

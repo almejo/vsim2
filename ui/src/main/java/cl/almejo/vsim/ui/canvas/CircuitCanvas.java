@@ -1635,6 +1635,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     @Override
+    public Optional<javax.swing.KeyStroke> shortcut(String id) {
+        return host.shortcut(id);
+    }
+
+    @Override
     public void useDefaultTool() {
         setTool(defaultTool);
     }
@@ -1648,6 +1653,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             return true;
         }
         return keyPane().giveKeyToTool(keyCode, shiftDown);
+    }
+
+    /** {@code stroke} goes to this canvas's tool (the user's shortcuts it reacts to); true when it used it. */
+    private boolean giveStrokeToTool(javax.swing.KeyStroke stroke) {
+        boolean used = tool.keyStrokePressed(toolContext(), stroke);
+        updateAnimation();
+        return used;
     }
 
     /** {@code keyCode} goes to this canvas's tool; the other panes stop showing a gesture the key ended. */
@@ -2170,7 +2182,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             modifierChanged(event, true);
-            if (keyPane().giveKeyToTool(event.getKeyCode(), event.isShiftDown())) {
+            if (keyPane().giveStrokeToTool(javax.swing.KeyStroke.getKeyStrokeForEvent(event))
+                    || keyPane().giveKeyToTool(event.getKeyCode(), event.isShiftDown())) {
                 event.consume();
             }
         }
