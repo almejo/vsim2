@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.actions;
 
+import cl.almejo.vsim.core.simulation.SimulationSpeeds;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.HistoryListener;
@@ -55,7 +56,7 @@ import java.util.function.Supplier;
 public final class EditorActions {
 
     /** The speed selector's choices in units per millisecond; the infinite one runs as fast as the engine can. */
-    public static final List<Double> SPEEDS = List.of(0.1, 1.0, 10.0, 100.0, 1000.0, Double.POSITIVE_INFINITY);
+    public static final List<Double> SPEEDS = SimulationSpeeds.AVAILABLE;
 
     /** The icon before the speed selector in the toolbar, by file name under {@code icons/} (M6.1-E). */
     public static final String SPEED_ICON = "speed";
@@ -409,7 +410,7 @@ public final class EditorActions {
                 return getPreferredSize(); // a toolbar would otherwise stretch it over all the free width
             }
         };
-        selector.setSelectedItem(1.0);
+        selector.setSelectedItem(openDocument.simulationSpeed());
         selector.setToolTipText(Messages.text("toolbar.speedTip"));
         selector.setRenderer(new DefaultListCellRenderer() {
             @Override

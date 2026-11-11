@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.document;
 
+import cl.almejo.vsim.core.simulation.SimulationSpeeds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -48,11 +49,28 @@ public final class CircuitDocument {
     /** Whether a change outside {@link #changeLiveValues} was recorded since the last notification. */
     private boolean pendingStructuralChange;
     private String name = "";
+    private double simulationSpeed = SimulationSpeeds.DEFAULT;
     private final List<Runnable> probeListeners = new CopyOnWriteArrayList<>();
     private List<Probe> probes = List.of();
     private long nextProbeNumber = 1;
     private final List<Runnable> guideListeners = new CopyOnWriteArrayList<>();
     private List<Guide> guides = List.of();
+
+    /**
+     * The simulation speed chosen for this circuit (one of {@link SimulationSpeeds#AVAILABLE}); saved with the file.
+     * Not a command and not a document change: choosing a speed alone does not modify the circuit.
+     */
+    public double simulationSpeed() {
+        return simulationSpeed;
+    }
+
+    /** @throws IllegalArgumentException when {@code speed} is not one of {@link SimulationSpeeds#AVAILABLE} */
+    public void setSimulationSpeed(double speed) {
+        if (!SimulationSpeeds.AVAILABLE.contains(speed)) {
+            throw new IllegalArgumentException("unknown simulation speed: " + speed);
+        }
+        simulationSpeed = speed;
+    }
 
     public String name() {
         return name;

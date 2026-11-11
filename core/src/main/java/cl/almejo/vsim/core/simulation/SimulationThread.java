@@ -92,7 +92,7 @@ public final class SimulationThread implements AutoCloseable {
 
     // Only touched on the simulation thread (or by tick() in tests).
     private boolean running;
-    private double speed = 1.0;
+    private volatile double speed = SimulationSpeeds.DEFAULT;
     private double pendingUnits;
     private long sliceUnits = INITIAL_SLICE_UNITS;
     /** True when a request, a pause or a failure must publish at once, whatever the snapshot cadence. */
@@ -500,6 +500,11 @@ public final class SimulationThread implements AutoCloseable {
             throw new IllegalArgumentException("speed must be positive: " + unitsPerMillisecond);
         }
         requests.add(() -> speed = unitsPerMillisecond);
+    }
+
+    /** The speed the engine thread is aiming at now (a {@link #setSpeed} request counts once it has been handled). */
+    public double speed() {
+        return speed;
     }
 
     /** The units simulated per real millisecond lately (over about a quarter of a second); 0 while paused. */

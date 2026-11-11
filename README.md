@@ -105,6 +105,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Simulación y paso a paso
 
+- [Velocidad guardada en el archivo](docs/funciones/simulacion-y-paso-a-paso.md#velocidad-guardada-en-el-archivo): el `.vsim` recuerda la velocidad de simulación y la aplica al abrirlo.
 - [Cortocircuitos](docs/funciones/simulacion-y-paso-a-paso.md#cortocircuitos) marcados en el circuito, listados en Problemas y recorridos con F8.
 - [Insignia de problemas](docs/funciones/simulacion-y-paso-a-paso.md#insignia-de-problemas): el ícono «Problemas» del panel derecho cuenta los problemas también con el panel cerrado (rojo con errores, ámbar solo con avisos) y la tarjeta del circuito dice «n problemas».
 - [Paso a paso](docs/funciones/simulacion-y-paso-a-paso.md#paso-a-paso): avanzar al próximo evento, al próximo flanco de reloj (de subida o de bajada: medio ciclo) o un ciclo de reloj completo, ver qué cambió, qué flanco fue y qué viene, y reiniciar.

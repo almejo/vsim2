@@ -232,6 +232,8 @@ public final class OpenDocument implements AutoCloseable {
         document.addProbeListener(() -> simulation.setProbes(updateProbeNets()));
         synchronize();
         simulation.start();
+        // A speed stored with the file applies at once, before the first tick.
+        simulation.setSpeed(document.simulationSpeed());
         simulation.resume();
         // M6.1-E: names an older VSim stored by default become live; not a command, the document stays unmodified.
         ProbeNames.forgetDefaultNames(document, this.registry);
@@ -1257,7 +1259,23 @@ public final class OpenDocument implements AutoCloseable {
         return simulation.achievedUnitsPerMillisecond();
     }
 
+    /** The speed chosen for this circuit, the one saved with it (the engine reaches it a moment after a change). */
+    public double simulationSpeed() {
+        return body != null ? body.parent.simulationSpeed() : document.simulationSpeed();
+    }
+
+    /** The speed the simulation thread is running at now (for tests and diagnostics). */
+    public double engineSpeed() {
+        return simulation.speed();
+    }
+
+    /** Sets the simulation speed; it is saved with the file next time, and is not a modification by itself. */
     public void setSpeed(double unitsPerMillisecond) {
+        if (body != null) {
+            body.parent.setSpeed(unitsPerMillisecond);
+            return;
+        }
+        document.setSimulationSpeed(unitsPerMillisecond);
         simulation.setSpeed(unitsPerMillisecond);
     }
 

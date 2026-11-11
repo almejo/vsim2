@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.io;
 
+import cl.almejo.vsim.core.simulation.SimulationSpeeds;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
@@ -265,7 +266,32 @@ public final class CircuitFormat {
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<FrameEntry> frames,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<GuideEntries.GuideEntry> guides,
-                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<StickyNoteEntry> stickyNotes) {
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<StickyNoteEntry> stickyNotes,
+                       @JsonInclude(JsonInclude.Include.NON_NULL) Object simulationSpeed) {
+    }
+
+    private static final String MAXIMUM_SPEED = "max";
+
+    /** A number of units per millisecond, or «max»; null (no key) at the default speed so such files keep their bytes. */
+    private static Object speedEntry(double speed) {
+        if (speed == SimulationSpeeds.DEFAULT) {
+            return null;
+        }
+        if (Double.isInfinite(speed)) {
+            return MAXIMUM_SPEED;
+        }
+        return speed == Math.rint(speed) ? (Object) (long) speed : (Object) speed;
+    }
+
+    /** The speed a file stores; a missing, malformed or unknown value is the default speed. */
+    private static double speed(Object entry) {
+        if (MAXIMUM_SPEED.equals(entry)) {
+            return Double.POSITIVE_INFINITY;
+        }
+        if (entry instanceof Number number && SimulationSpeeds.AVAILABLE.contains(number.doubleValue())) {
+            return number.doubleValue();
+        }
+        return SimulationSpeeds.DEFAULT;
     }
 
     private final ComponentTypeRegistry registry;
@@ -318,7 +344,8 @@ public final class CircuitFormat {
                 document.probes().stream().map(CircuitFormat::probeEntry).toList(),
                 document.frames().stream().map(CircuitFormat::frameEntry).toList(),
                 document.guides().stream().map(GuideEntries::entry).toList(),
-                document.stickyNotes().stream().map(CircuitFormat::stickyNoteEntry).toList());
+                document.stickyNotes().stream().map(CircuitFormat::stickyNoteEntry).toList(),
+                speedEntry(document.simulationSpeed()));
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
@@ -392,6 +419,7 @@ public final class CircuitFormat {
         }
         document.setProbes(probes(entries(file.probes())));
         document.setGuides(guides);
+        document.setSimulationSpeed(speed(file.simulationSpeed()));
         return document;
     }
 

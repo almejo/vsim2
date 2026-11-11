@@ -2,6 +2,10 @@
 
 Parte de las [funciones de VSim 2](../funciones.md).
 
+## Velocidad guardada en el archivo
+
+- El archivo `.vsim` guarda la velocidad de simulación que tenía el circuito al guardarlo (la del selector de la barra de herramientas: de ×0,1 a ×1000 y «Máxima»), y al abrirlo esa velocidad se aplica de inmediato, sin preguntar. Sirve para circuitos que necesitan, por ejemplo, ×1000 para verse andar. Cambiar la velocidad no marca el circuito como modificado: se guarda la próxima vez que guardes por cualquier motivo. A ×1 (la velocidad de siempre) el archivo no lleva nada, y un archivo sin velocidad guardada abre a ×1. Si el valor guardado no es una de las velocidades del selector, el circuito abre a ×1 y el selector lo muestra. Una VSim anterior ignora la velocidad y abre a ×1.
+
 ## Cortocircuitos
 
 - Los cortocircuitos se ven en rojo pulsante, con un halo en cada pin que maneja la red; al pasar el mouse sobre el cable se listan los drivers. Click en "⚠ N cortocircuitos" o F8 / Mayús+F8 salta al siguiente/anterior; la sección Problemas del panel derecho los lista (doble click navega). Simulación → "Pausar al detectar cortocircuito" detiene la simulación cuando aparece uno nuevo. Un cortocircuito dentro de un componente propio resalta su instancia y F8 lleva a ella; si une redes del circuito a través de una instancia, solo se resalta (y muestra los drivers al pasar el mouse) la red principal.
