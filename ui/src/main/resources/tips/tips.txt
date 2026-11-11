@@ -25,3 +25,11 @@ clean-wires         | before-after | tip.cleanWires.title        | tip.cleanWire
 find                | circuit      | tip.find.title              | tip.find.text              | find.vsim                                         | edit.find            | circuit
 find-action         | image        | tip.findAction.title        | tip.findAction.text        | find-action.png                                   | help.findAction      | find-action.vsim help.findAction
 split-view          | split        | tip.splitView.title         | tip.splitView.text         | split-view.vsim                                   | window.splitVertical | circuit window.splitVertical
+place-several       | before-after | tip.placeSeveral.title      | tip.placeSeveral.text      | place-several-before.vsim, place-several-after.vsim | edit.rotateClockwise | circuit
+slide-wire          | before-after | tip.slideWire.title         | tip.slideWire.text         | slide-wire-before.vsim, slide-wire-after.vsim     | alt                  | circuit
+tunnels             | circuit      | tip.tunnels.title           | tip.tunnels.text           | tunnels.vsim                                      | -                    | circuit
+zoom-to-fit         | circuit      | tip.zoomToFit.title         | tip.zoomToFit.text         | zoom-to-fit.vsim                                  | view.zoomToFit       | circuit
+arrow-keys          | before-after | tip.arrowKeys.title         | tip.arrowKeys.text         | arrow-keys-before.vsim, arrow-keys-after.vsim     | edit.moveUp          | circuit
+edit-in-place       | before-after | tip.editInPlace.title       | tip.editInPlace.text       | edit-in-place-before.vsim, edit-in-place-after.vsim | edit.label         | circuit
+frame-selection     | before-after | tip.frameSelection.title    | tip.frameSelection.text    | frame-selection-before.vsim, frame-selection-after.vsim | edit.frameSelection | circuit
+sticky-note         | circuit      | tip.stickyNote.title        | tip.stickyNote.text        | sticky-note.vsim                                  | -                    | circuit

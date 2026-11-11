@@ -258,15 +258,16 @@ class TipOfTheDayTest {
         tipItem(view).doClick(0);
         TipCard card = openCard(view);
 
+        Tip last = tips.get(tips.size() - 1); // the tips are added at the end of the file: the last one changes
         card.previousButton().doClick(0);
-        assertThat(card.title()).isEqualTo(Messages.text(SPLIT_VIEW));
+        assertThat(card.title()).isEqualTo(Messages.text(last.titleKey()));
         card.nextButton().doClick(0);
         assertThat(card.title()).isEqualTo(Messages.text(LOOK_INSIDE));
         card.nextButton().doClick(0);
         assertThat(card.title()).isEqualTo(Messages.text(TIDY_CIRCUIT));
 
         assertThat(card.visibleTexts()).noneMatch(text -> text.matches(".*\\d+\\s+(de|of)\\s+\\d+.*"));
-        assertThat(preferences.seenTips()).containsExactlyInAnyOrder("look-inside", "tidy-circuit", "split-view");
+        assertThat(preferences.seenTips()).containsExactlyInAnyOrder("look-inside", "tidy-circuit", last.id());
     }
 
     @Test

@@ -1,0 +1,84 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Colocar varias seguidas",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 1,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c3",
+    "type" : "led",
+    "x" : 15,
+    "y" : 1,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c4",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c6",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c8",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "0"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w2",
+    "x1" : 6,
+    "y1" : 2,
+    "x2" : 12,
+    "y2" : 2
+  }, {
+    "id" : "w5",
+    "x1" : 6,
+    "y1" : 5,
+    "x2" : 12,
+    "y2" : 5
+  }, {
+    "id" : "w7",
+    "x1" : 6,
+    "y1" : 8,
+    "x2" : 12,
+    "y2" : 8
+  }, {
+    "id" : "w9",
+    "x1" : 6,
+    "y1" : 11,
+    "x2" : 12,
+    "y2" : 11
+  } ],
+  "labels" : [ ]
+}

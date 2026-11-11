@@ -272,12 +272,12 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   día al iniciar» (cambiar una cambia la otra al instante). Ayuda ▸ «Consejo del día» (justo después de «Qué hay de
   nuevo»; también en la [paleta de comandos](edicion.md#paleta-de-comandos)) la abre cuando quieras.
 - Aparece deslizándose y aclarándose; con Preferencias ▸ [Animaciones](#animaciones) en «No», aparece de una vez.
-- Por ahora trae once consejos, en este orden: «Mirar adentro» (Alt sobre un componente tuyo), «Ordenar circuito»
+- Por ahora trae diecinueve consejos, en este orden: «Mirar adentro» (Alt sobre un componente tuyo), «Ordenar circuito»
   (Ctrl+Alt+L: un circuito desordenado, con puntas de cable sueltas, y cómo lo deja), «Insertar rápido» (doble clic
   en un lugar vacío abre «Insertar componente»; también Insert), «Cable continuo y el codo» (Espacio), «Doble clic:
   un tramo; triple: la red», «Duplicar sin el portapapeles» (Ctrl+D), «Saltar al próximo problema» (F8 y Mayús+F8),
   «Limpiar cables» (Ctrl+Alt+L también borra puntas sueltas y une tramos; Ctrl+Alt+Mayús+L muestra antes qué
-  cambia), «Buscar» (Ctrl+F, F3), «Buscar una acción» (Ctrl+K) y «Dividir la vista».
+  cambia), «Buscar» (Ctrl+F, F3), «Buscar una acción» (Ctrl+K), «Dividir la vista», «Colocar varias seguidas» (Mayús+clic sigue colocando la misma pieza; Girar la gira antes), «Deslizar un cable de costado» (Alt y arrastrar un cable seleccionado), «Túneles», «Ver todo y la selección» (Mayús+1 y Mayús+2), «Mover con las flechas» (un cuadro; con Mayús, cinco), «Editar el texto en el lugar» (doble clic o F2), «Marcos» (Ctrl+G) y «Notas adhesivas» (Ver ▸ Nota adhesiva).
 
 ## Atajos de teclado
 

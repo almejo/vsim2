@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.layout.CircuitTidy;
@@ -20,6 +22,8 @@ import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.wiring.CanvasTextBoxes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -84,6 +88,16 @@ class TipCircuitsTest {
     void theNextProblemCircuitHasOneShortCircuitToGoTo() throws Exception {
         assertThat(listedProblems(TipCircuit.read("next-problem.vsim"))).singleElement()
                 .isInstanceOf(ShortCircuit.class);
+    }
+
+    @Test
+    void aTipPictureIncludesTheStickyNoteOfItsCircuit() throws Exception {
+        TipCircuit circuit = TipCircuit.load("sticky-note.vsim");
+        StickyNote note = TipCircuit.read("sticky-note.vsim").stickyNotes().get(0);
+
+        Bounds drawn = circuit.image(PainterRegistry.standard(), ColorScheme.LIGHT).orElseThrow().gridBounds();
+
+        assertThat(drawn.x() + drawn.width()).isGreaterThanOrEqualTo(note.position().x() + note.width());
     }
 
     @Test

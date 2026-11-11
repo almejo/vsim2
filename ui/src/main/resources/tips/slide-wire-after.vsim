@@ -1,0 +1,72 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Deslizar un cable de costado",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c5",
+    "type" : "buffer",
+    "x" : 16,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c8",
+    "type" : "led",
+    "x" : 23,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "Y",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w2",
+    "x1" : 6,
+    "y1" : 4,
+    "x2" : 12,
+    "y2" : 4
+  }, {
+    "id" : "w3",
+    "x1" : 12,
+    "y1" : 4,
+    "x2" : 12,
+    "y2" : 10
+  }, {
+    "id" : "w4",
+    "x1" : 12,
+    "y1" : 10,
+    "x2" : 16,
+    "y2" : 10
+  }, {
+    "id" : "w6",
+    "x1" : 20,
+    "y1" : 10,
+    "x2" : 24,
+    "y2" : 10
+  }, {
+    "id" : "w7",
+    "x1" : 24,
+    "y1" : 8,
+    "x2" : 24,
+    "y2" : 10
+  } ],
+  "labels" : [ ]
+}

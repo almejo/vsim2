@@ -84,6 +84,6 @@ final class TipCircuit {
     /** The circuit drawn in {@code scheme}; empty for an empty circuit. */
     Optional<CircuitImage> image(PainterRegistry painters, ColorScheme scheme) {
         return CircuitImage.of(document, netlist, document.structureRevision(), snapshot, registry, painters, scheme,
-                Optional.empty());
+                Optional.empty(), true); // a tip may be about a sticky note: it is part of the picture here
     }
 }

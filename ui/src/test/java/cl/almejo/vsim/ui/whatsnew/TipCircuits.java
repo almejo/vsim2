@@ -6,6 +6,11 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -56,6 +61,19 @@ final class TipCircuits {
         builders.put("find.vsim", TipCircuits::find);
         builders.put("find-action.vsim", TipCircuits::findAction);
         builders.put("split-view.vsim", TipCircuits::splitView);
+        builders.put("place-several-before.vsim", () -> placeSeveral(1));
+        builders.put("place-several-after.vsim", () -> placeSeveral(4));
+        builders.put("slide-wire-before.vsim", () -> slideWire(8));
+        builders.put("slide-wire-after.vsim", () -> slideWire(12));
+        builders.put("tunnels.vsim", TipCircuits::tunnels);
+        builders.put("zoom-to-fit.vsim", TipCircuits::zoomToFit);
+        builders.put("arrow-keys-before.vsim", () -> arrowKeys(5));
+        builders.put("arrow-keys-after.vsim", () -> arrowKeys(4));
+        builders.put("edit-in-place-before.vsim", () -> editInPlace("L1"));
+        builders.put("edit-in-place-after.vsim", () -> editInPlace("Y"));
+        builders.put("frame-selection-before.vsim", () -> frameSelection(false));
+        builders.put("frame-selection-after.vsim", () -> frameSelection(true));
+        builders.put("sticky-note.vsim", TipCircuits::stickyNote);
         return builders;
     }
 
@@ -137,6 +155,40 @@ final class TipCircuits {
                         new GridPoint(coordinates[index - 2], coordinates[index - 1]),
                         new GridPoint(coordinates[index], coordinates[index + 1])));
             }
+        }
+
+        /** An LED turned a quarter clockwise, its input (now on its left) at ({@code pinX}, {@code pinY}). */
+        void ledTurnedAt(int pinX, int pinY) {
+            GridPoint input = registry.require(StandardComponentTypes.LED).pin(0).position();
+            GridPoint turned = Rotation.R90.apply(input);
+            place(StandardComponentTypes.LED, new GridPoint(pinX - turned.x(), pinY - turned.y()), Rotation.R90,
+                    NO_PARAMETERS, "");
+        }
+
+        /** A wire tunnel of {@code typeId} named {@code name} with its pin at {@code pinPoint}. */
+        void tunnel(String typeId, GridPoint pinPoint, String name) {
+            placeByPin(typeId, pinPoint, 0, Map.of("name", name), "");
+        }
+
+        /**
+         * The half adder of {@link #wireSegmentSelect()} shifted {@code shift} units to the right: switches A and B,
+         * an XOR and an AND, the sum and carry LEDs. Its gates are at (16 + shift, 4) and (16 + shift, 10).
+         */
+        void halfAdder(int shift) {
+            switchAt(2 + shift, 3, "A", true);
+            switchAt(2 + shift, 7, "B", false);
+            gate(StandardComponentTypes.XOR, 16 + shift, 4);
+            gate(StandardComponentTypes.AND, 16 + shift, 10);
+            wire(6 + shift, 4, 10 + shift, 4);
+            wire(10 + shift, 4, 16 + shift, 4);
+            wire(10 + shift, 4, 10 + shift, 10, 16 + shift, 10);
+            wire(6 + shift, 8, 12 + shift, 8);
+            wire(12 + shift, 8, 16 + shift, 8);
+            wire(12 + shift, 8, 12 + shift, 14, 16 + shift, 14);
+            wire(20 + shift, 6, 26 + shift, 6, 26 + shift, 4);
+            ledAt(25 + shift, 1, "S");
+            wire(20 + shift, 12, 30 + shift, 12, 30 + shift, 10);
+            ledAt(29 + shift, 7, "C");
         }
 
         void text(int x, int y, String text) {
@@ -381,6 +433,119 @@ final class TipCircuits {
         Component inverter = builder.placeByPin(StandardComponentTypes.BUFFER, new GridPoint(15, 8), 0,
                 Map.of(StandardComponentTypes.NEGATE, true), "");
         builder.ledAfter(builder.pin(inverter, 1), 2, "Y");
+        return builder.document;
+    }
+
+    /**
+     * «Colocar varias seguidas»: four switches whose wires end where a LED turned with {@code edit.rotateClockwise}
+     * fits; before, the first LED is placed; after, Mayús+clic placed the other three.
+     */
+    private static CircuitDocument placeSeveral(int leds) {
+        Builder builder = new Builder("Colocar varias seguidas");
+        for (int row = 0; row < 4; row++) {
+            int pinRow = 2 + row * 3;
+            builder.switchAt(2, pinRow - 1, "", row % 2 == 0);
+            builder.wire(6, pinRow, 12, pinRow);
+            if (row < leds) {
+                builder.ledTurnedAt(12, pinRow);
+            }
+        }
+        return builder.document;
+    }
+
+    /**
+     * «Deslizar un cable de costado»: a switch, a NOT and an LED, the wire between the first two going around a
+     * vertical stretch at {@code stretchX}, which Alt+drag slides sideways (8 before, 12 after).
+     */
+    private static CircuitDocument slideWire(int stretchX) {
+        Builder builder = new Builder("Deslizar un cable de costado");
+        builder.switchAt(2, 3, "A", true);
+        builder.wire(6, 4, stretchX, 4, stretchX, 10, 16, 10);
+        builder.not(16, 8);
+        builder.wire(20, 10, 24, 10, 24, 8);
+        builder.ledAt(23, 5, "Y");
+        return builder.document;
+    }
+
+    /** «Túneles»: a switch on a tunnel's entrance far from an exit that feeds an LED: no wire between. */
+    private static CircuitDocument tunnels() {
+        Builder builder = new Builder("Túneles");
+        builder.switchAt(2, 3, "A", true);
+        builder.wire(6, 4, 9, 4);
+        builder.tunnel(StandardComponentTypes.TUNNEL_ENTRANCE, new GridPoint(9, 4), "A");
+        builder.tunnel(StandardComponentTypes.TUNNEL_EXIT, new GridPoint(22, 14), "A");
+        builder.wire(22, 14, 28, 14, 28, 12);
+        builder.ledAt(27, 9, "Y");
+        return builder.document;
+    }
+
+    /**
+     * «Ver todo y la selección»: a half adder and, far to its right, a lone chain: the zoom that shows both (or just
+     * the half adder, the selection) is what the tip is about.
+     */
+    private static CircuitDocument zoomToFit() {
+        Builder builder = new Builder("Ver todo y la selección");
+        builder.halfAdder(0);
+        builder.switchAt(46, 4, "", true);
+        builder.wire(50, 5, 54, 5);
+        builder.not(54, 3);
+        builder.wire(58, 5, 62, 5, 62, 3);
+        builder.ledAt(61, 0, "");
+        return builder.document;
+    }
+
+    /**
+     * «Mover con las flechas»: an AND whose wires jog because it sits one grid step too low; after, ↑ moved it one
+     * step (the gate's top at {@code gateTop}: 5 before, 4 after) and the wires run straight.
+     */
+    private static CircuitDocument arrowKeys(int gateTop) {
+        Builder builder = new Builder("Mover con las flechas");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", true);
+        builder.gate(StandardComponentTypes.AND, 12, gateTop);
+        int offset = gateTop - 4;
+        if (offset == 0) {
+            builder.wire(6, 4, 12, 4);
+            builder.wire(6, 8, 12, 8);
+        } else {
+            builder.wire(6, 4, 9, 4, 9, 4 + offset, 12, 4 + offset);
+            builder.wire(6, 8, 9, 8, 9, 8 + offset, 12, 8 + offset);
+        }
+        builder.wire(16, 6 + offset, 22, 6 + offset, 22, 4);
+        builder.ledAt(21, 1, "");
+        return builder.document;
+    }
+
+    /** «Editar el texto en el lugar»: a switch and an LED whose label is {@code label} (L1 before, Y after). */
+    private static CircuitDocument editInPlace(String label) {
+        Builder builder = new Builder("Editar el texto en el lugar");
+        builder.switchAt(2, 3, "A", true);
+        builder.wire(6, 4, 14, 4);
+        builder.ledAt(13, 1, label);
+        return builder.document;
+    }
+
+    /** «Marcos»: a half adder; after, a titled frame around its two gates (what Enmarcar selección draws). */
+    private static CircuitDocument frameSelection(boolean framed) {
+        Builder builder = new Builder("Marcos");
+        builder.halfAdder(0);
+        if (framed) {
+            builder.document.add(new Frame(builder.document.newFrameId(), new GridPoint(14, 2), 10, 15, "A + B",
+                    FrameTint.NONE, false));
+        }
+        return builder.document;
+    }
+
+    /** «Notas adhesivas»: a switch, a NOT and an LED with a yellow note beside them. */
+    private static CircuitDocument stickyNote() {
+        Builder builder = new Builder("Notas adhesivas");
+        builder.switchAt(2, 5, "A", true);
+        builder.wire(6, 6, 8, 6);
+        builder.not(8, 4);
+        builder.wire(12, 6, 16, 6, 16, 4);
+        builder.ledAt(15, 1, "Y");
+        builder.document.add(new StickyNote(builder.document.newStickyNoteId(), new GridPoint(22, 1), 8, 6,
+                StickyColor.YELLOW, new StickyText("A = 1"), false));
         return builder.document;
     }
 }

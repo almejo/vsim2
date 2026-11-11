@@ -1,0 +1,70 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Notas adhesivas",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c3",
+    "type" : "buffer",
+    "x" : 8,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c6",
+    "type" : "led",
+    "x" : 15,
+    "y" : 1,
+    "rotation" : 0,
+    "label" : "Y",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w2",
+    "x1" : 6,
+    "y1" : 6,
+    "x2" : 8,
+    "y2" : 6
+  }, {
+    "id" : "w4",
+    "x1" : 12,
+    "y1" : 6,
+    "x2" : 16,
+    "y2" : 6
+  }, {
+    "id" : "w5",
+    "x1" : 16,
+    "y1" : 4,
+    "x2" : 16,
+    "y2" : 6
+  } ],
+  "labels" : [ ],
+  "stickyNotes" : [ {
+    "id" : "s7",
+    "x" : 22,
+    "y" : 1,
+    "width" : 8,
+    "height" : 6,
+    "color" : "YELLOW",
+    "kind" : "text",
+    "text" : "A = 1"
+  } ]
+}

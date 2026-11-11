@@ -1,0 +1,198 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Ver todo y la selección",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "B",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c3",
+    "type" : "xor",
+    "x" : 16,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
+    }
+  }, {
+    "id" : "c4",
+    "type" : "and",
+    "x" : 16,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
+    }
+  }, {
+    "id" : "c15",
+    "type" : "led",
+    "x" : 25,
+    "y" : 1,
+    "rotation" : 0,
+    "label" : "S",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c18",
+    "type" : "led",
+    "x" : 29,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "C",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c19",
+    "type" : "switch",
+    "x" : 46,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c21",
+    "type" : "buffer",
+    "x" : 54,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c24",
+    "type" : "led",
+    "x" : 61,
+    "y" : 0,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w5",
+    "x1" : 6,
+    "y1" : 4,
+    "x2" : 10,
+    "y2" : 4
+  }, {
+    "id" : "w6",
+    "x1" : 10,
+    "y1" : 4,
+    "x2" : 16,
+    "y2" : 4
+  }, {
+    "id" : "w7",
+    "x1" : 10,
+    "y1" : 4,
+    "x2" : 10,
+    "y2" : 10
+  }, {
+    "id" : "w8",
+    "x1" : 10,
+    "y1" : 10,
+    "x2" : 16,
+    "y2" : 10
+  }, {
+    "id" : "w9",
+    "x1" : 6,
+    "y1" : 8,
+    "x2" : 12,
+    "y2" : 8
+  }, {
+    "id" : "w10",
+    "x1" : 12,
+    "y1" : 8,
+    "x2" : 16,
+    "y2" : 8
+  }, {
+    "id" : "w11",
+    "x1" : 12,
+    "y1" : 8,
+    "x2" : 12,
+    "y2" : 14
+  }, {
+    "id" : "w12",
+    "x1" : 12,
+    "y1" : 14,
+    "x2" : 16,
+    "y2" : 14
+  }, {
+    "id" : "w13",
+    "x1" : 20,
+    "y1" : 6,
+    "x2" : 26,
+    "y2" : 6
+  }, {
+    "id" : "w14",
+    "x1" : 26,
+    "y1" : 4,
+    "x2" : 26,
+    "y2" : 6
+  }, {
+    "id" : "w16",
+    "x1" : 20,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w17",
+    "x1" : 30,
+    "y1" : 10,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w20",
+    "x1" : 50,
+    "y1" : 5,
+    "x2" : 54,
+    "y2" : 5
+  }, {
+    "id" : "w22",
+    "x1" : 58,
+    "y1" : 5,
+    "x2" : 62,
+    "y2" : 5
+  }, {
+    "id" : "w23",
+    "x1" : 62,
+    "y1" : 3,
+    "x2" : 62,
+    "y2" : 5
+  } ],
+  "labels" : [ ]
+}

@@ -1,0 +1,101 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Mover con las flechas",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "B",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c3",
+    "type" : "and",
+    "x" : 12,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
+    }
+  }, {
+    "id" : "c12",
+    "type" : "led",
+    "x" : 21,
+    "y" : 1,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w4",
+    "x1" : 6,
+    "y1" : 4,
+    "x2" : 9,
+    "y2" : 4
+  }, {
+    "id" : "w5",
+    "x1" : 9,
+    "y1" : 4,
+    "x2" : 9,
+    "y2" : 5
+  }, {
+    "id" : "w6",
+    "x1" : 9,
+    "y1" : 5,
+    "x2" : 12,
+    "y2" : 5
+  }, {
+    "id" : "w7",
+    "x1" : 6,
+    "y1" : 8,
+    "x2" : 9,
+    "y2" : 8
+  }, {
+    "id" : "w8",
+    "x1" : 9,
+    "y1" : 8,
+    "x2" : 9,
+    "y2" : 9
+  }, {
+    "id" : "w9",
+    "x1" : 9,
+    "y1" : 9,
+    "x2" : 12,
+    "y2" : 9
+  }, {
+    "id" : "w10",
+    "x1" : 16,
+    "y1" : 7,
+    "x2" : 22,
+    "y2" : 7
+  }, {
+    "id" : "w11",
+    "x1" : 22,
+    "y1" : 4,
+    "x2" : 22,
+    "y2" : 7
+  } ],
+  "labels" : [ ]
+}
