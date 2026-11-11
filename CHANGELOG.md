@@ -9,6 +9,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ## Sin publicar
 
+## Versión 0.8 — 2026-11-11
+
+Los cables se dibujan de corrido desde Selección; modo presentación a pantalla completa con los atajos a la vista,
+captura de la ventana y botón de formas de onda; Ctrl+K para buscar cualquier acción, hoja de atajos con «?», consejo
+del día y burbujas de «Qué hay de nuevo»; la velocidad de simulación se guarda en el archivo y los marcos dentro de
+un componente ya no se pierden.
+
 ### Agregado
 
 - Velocidad guardada en el archivo: el `.vsim` guarda la velocidad de simulación elegida (×0,1 a ×1000 o «Máxima») y al abrirlo se aplica de inmediato, sin preguntar. Elegir una velocidad es una edición más (marca el circuito como modificado y Ctrl+Z la deshace), y a ×1 el archivo no cambia. Detalle en [Simulación](docs/funciones/simulacion-y-paso-a-paso.md#velocidad-guardada-en-el-archivo).
