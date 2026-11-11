@@ -78,6 +78,18 @@ class TipsFileTest {
                 .hasMessageContaining("line 1");
         assertThatThrownBy(() -> TipsFile.parse(List.of("a | drawing | t | x | one.png | - | -")))
                 .hasMessageContaining("line 1");
+        assertThatThrownBy(() -> TipsFile.parse(List.of("a | split | t | x | one.png | - | -")))
+                .hasMessageContaining("line 1");
+    }
+
+    @Test
+    void aSplitTipIsOneCircuitDrawnTwiceThatItsTryOpensAndSplits() {
+        Tip tip = TipsFile.parse(List.of(
+                "split-view | split | t | x | split-view.vsim | window.splitVertical | window.splitVertical")).get(0);
+
+        assertThat(tip.kind()).isEqualTo(TipKind.SPLIT);
+        assertThat(tip.circuit()).contains("split-view.vsim");
+        assertThat(tip.trial()).contains(new Tip.Trial(Optional.of("window.splitVertical")));
     }
 
     @Test

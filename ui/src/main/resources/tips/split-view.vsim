@@ -1,0 +1,95 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Dividir la vista",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 0,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 0,
+    "y" : 9,
+    "rotation" : 0,
+    "label" : "B",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c3",
+    "type" : "xor",
+    "x" : 9,
+    "y" : 6,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
+    }
+  }, {
+    "id" : "c7",
+    "type" : "buffer",
+    "x" : 15,
+    "y" : 6,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c10",
+    "type" : "led",
+    "x" : 20,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "Y",
+    "parameters" : {
+      "color" : "green"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w4",
+    "x1" : 4,
+    "y1" : 6,
+    "x2" : 9,
+    "y2" : 6
+  }, {
+    "id" : "w5",
+    "x1" : 4,
+    "y1" : 10,
+    "x2" : 9,
+    "y2" : 10
+  }, {
+    "id" : "w6",
+    "x1" : 13,
+    "y1" : 8,
+    "x2" : 15,
+    "y2" : 8
+  }, {
+    "id" : "w8",
+    "x1" : 19,
+    "y1" : 8,
+    "x2" : 21,
+    "y2" : 8
+  }, {
+    "id" : "w9",
+    "x1" : 21,
+    "y1" : 6,
+    "x2" : 21,
+    "y2" : 8
+  } ],
+  "labels" : [ ]
+}

@@ -12,6 +12,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -95,6 +96,8 @@ final class TipCard extends JComponent {
     private final JButton nextButton = new JButton(NEXT_ARROW);
     private Content content;
     private float opacity = 1f;
+    private Runnable resized = () -> {
+    };
 
     TipCard(PainterRegistry painters, Supplier<ColorScheme> scheme, Handlers handlers) {
         Objects.requireNonNull(handlers, "handlers");
@@ -151,15 +154,25 @@ final class TipCard extends JComponent {
     void show(Content shown) {
         this.content = Objects.requireNonNull(shown, "shown");
         titleLabel.setText(shown.title());
-        textView.flow = shown.text();
+        textView.show(shown.text());
         picture.show(shown.picture());
         tryButton.setVisible(shown.canTry());
         showAtStartBox.setSelected(shown.showAtStart());
-        textView.invalidate(); // its height follows the text: the card measures itself again
+        measureAgain();
+        repaint();
+    }
+
+    /** {@code resized} runs when the card takes another size (a text of another length): it goes back in place. */
+    void whenResized(Runnable resized) {
+        this.resized = Objects.requireNonNull(resized, "resized");
+    }
+
+    /** Its height follows the text: the card measures itself again and is placed again. */
+    private void measureAgain() {
         invalidate();
         setSize(getPreferredSize());
         revalidate();
-        repaint();
+        resized.run();
     }
 
     /** How opaque the card is drawn, 0 to 1 (it fades in when animations are on). */
@@ -291,14 +304,25 @@ final class TipCard extends JComponent {
     }
 
     /** The tip's text, wrapped in the card's width, its keys as light keycaps in the theme's accent. */
-    private static final class TextView extends JComponent {
+    private final class TextView extends JComponent {
 
         private FlowText flow = new FlowText(List.of());
+        /**
+         * The height the text took when it was last painted, -1 before: on a scaled screen the painter may wrap a
+         * word differently than the measure ahead of it, and then the card takes the painted height.
+         */
+        private int paintedHeight = -1;
+
+        void show(FlowText shown) {
+            flow = shown;
+            paintedHeight = -1;
+            invalidate();
+        }
 
         @Override
         public Dimension getPreferredSize() {
             int width = innerWidth();
-            return new Dimension(width, flow.height(this, textFont(), width));
+            return new Dimension(width, paintedHeight >= 0 ? paintedHeight : flow.height(this, textFont(), width));
         }
 
         @Override
@@ -308,9 +332,13 @@ final class TipCard extends JComponent {
                 painter.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 painter.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
                         RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                Color ink = UIManager.getColor("Label.foreground");
-                flow.paintOutlined(painter, this, textFont(), 0, 0, getWidth(), ink == null ? Color.BLACK : ink,
-                        ThemeColors.accent());
+                Color ink = TipPicture.inkColour();
+                int bottom = flow.paintOutlined(painter, textFont(), 0, 0, getWidth(), ink, ThemeColors.accent(),
+                        ink);
+                if (bottom != getHeight()) {
+                    paintedHeight = bottom;
+                    SwingUtilities.invokeLater(TipCard.this::measureAgain);
+                }
             } finally {
                 painter.dispose();
             }

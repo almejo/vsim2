@@ -94,6 +94,7 @@ final class TipShowing {
         card = new TipCard(view.services().painters(), () -> view.services().appearance().scheme(),
                 new TipCard.Handlers(this::closeGivingBackTheFocus, this::previous, this::next, this::tryIt,
                         preferences::setShowTipAtStart));
+        card.whenResized(this::place);
         show(index);
         layers.add(card, LAYER);
         whileOpen.add(() -> {

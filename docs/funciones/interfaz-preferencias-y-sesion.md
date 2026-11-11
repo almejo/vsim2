@@ -247,11 +247,15 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   dibujadas como teclas. Si cambiaste un atajo en Preferencias, el consejo muestra el tuyo, en el texto y en la tecla
   grande del dibujo, al instante; si una acción quedó sin atajo, el texto dice dónde está en los menús
   («Ventana ▸ Dividir ▸ A los lados») y el dibujo no muestra tecla. Abajo, «Mostrar al iniciar», «Probarlo» y ‹ ›.
-- Hay tres tipos de dibujo: un circuito pequeño que VSim dibuja con tu esquema de colores (claro u oscuro); «antes y
-  después», dos dibujos lado a lado con una flecha y la tecla grande (entre ellos, o debajo si es una combinación
-  larga como Ctrl+Alt+L); o una imagen. La tecla grande la dibuja VSim, nunca viene en una imagen.
+- Hay cuatro tipos de dibujo: un circuito pequeño que VSim dibuja con tu esquema de colores (claro u oscuro); «antes y
+  después», dos dibujos lado a lado, «Antes → Después» debajo y la tecla grande (entre ellos, o abajo si es una
+  combinación larga como Ctrl+Alt+L); un circuito en dos paneles con una división, entero a la izquierda y de cerca a
+  la derecha, como se ve una vista dividida; o una imagen. Todos los dibujos de circuitos los hace VSim con tus
+  colores, y la tecla grande también: nunca viene en una imagen. Las teclas tienen el nombre en el color del texto,
+  así se leen en el tema claro y en el oscuro.
 - «Probarlo» abre el circuito del consejo en una pestaña nueva (una copia sin nombre de archivo; el circuito que
-  tienes abierto no se toca) y, si el consejo habla de un diálogo, lo abre ahí. Solo sale en los consejos que tienen
+  tienes abierto no se toca) y, si el consejo habla de un diálogo o de una acción, la hace ahí («Dividir la vista» lo
+  abre ya dividido). Solo sale en los consejos que tienen
   algo que abrir.
 - ‹ y › recorren los consejos y dan la vuelta; la tarjeta nunca dice cuántos hay. VSim recuerda cuáles ya viste (no un
   número): el próximo es el primero de la lista que no has visto, así un consejo que trae una versión nueva no espera
@@ -266,8 +270,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   día al iniciar» (cambiar una cambia la otra al instante). Ayuda ▸ «Consejo del día» (justo después de «Qué hay de
   nuevo»; también en la [paleta de comandos](edicion.md#paleta-de-comandos)) la abre cuando quieras.
 - Aparece deslizándose y aclarándose; con Preferencias ▸ [Animaciones](#animaciones) en «No», aparece de una vez.
-- Por ahora trae tres consejos: «Mirar adentro» (Alt sobre un componente tuyo), «Ordenar circuito» (Ctrl+Alt+L) y
-  «Dividir la vista».
+- Por ahora trae tres consejos: «Mirar adentro» (Alt sobre un componente tuyo), «Ordenar circuito» (Ctrl+Alt+L: un
+  circuito desordenado, con puntas de cable sueltas, y cómo lo deja) y «Dividir la vista».
 
 ## Atajos de teclado
 

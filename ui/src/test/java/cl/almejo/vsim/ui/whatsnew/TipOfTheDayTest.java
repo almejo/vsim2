@@ -271,14 +271,32 @@ class TipOfTheDayTest {
 
     @Test
     void probarloShowsOnlyWhenTheTipOpensSomething() {
+        tips = List.of(TipsFile.load().get(0), new Tip("nothing-to-open", TipKind.IMAGE, SPLIT_VIEW,
+                "tip.splitView.text", List.of("nothing.png"), Optional.empty(), Optional.empty()));
+        newExtensions();
         EditorView view = newView();
         tipItem(view).doClick(0);
         TipCard card = openCard(view);
 
         assertThat(card.tryButton().isVisible()).isTrue();
-        card.previousButton().doClick(0);
+        card.nextButton().doClick(0);
         assertThat(card.title()).isEqualTo(Messages.text(SPLIT_VIEW));
         assertThat(card.tryButton().isVisible()).isFalse();
+    }
+
+    @Test
+    void theSplitViewTipsProbarloOpensItsCircuitAlreadySplit() {
+        tips = List.of(TipsFile.load().get(2));
+        newExtensions();
+        EditorView view = newView();
+        tipItem(view).doClick(0);
+        assertThat(openCard(view).title()).isEqualTo(Messages.text(SPLIT_VIEW));
+
+        openCard(view).tryButton().doClick(0);
+
+        assertThat(openedByTrying).hasSize(1);
+        assertThat(openedByTrying.get(0).panes()).hasSize(2);
+        assertThat(view.panes()).hasSize(1);
     }
 
     @Test

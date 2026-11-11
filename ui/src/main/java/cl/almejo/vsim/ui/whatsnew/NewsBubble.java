@@ -141,13 +141,13 @@ final class NewsBubble extends JComponent {
             painter.setColor(BubbleColors.ink());
             painter.drawString(content.title(), left, y + titleMetrics.getAscent());
             y += titleMetrics.getHeight() + UIScale.scale(TITLE_GAP);
-            y = content.text().paint(painter, this, textFont(), left, y, inner, BubbleColors.ink(),
+            y = content.text().paint(painter, textFont(), left, y, inner, BubbleColors.ink(),
                     BubbleColors.fill()) + UIScale.scale(SECTION_GAP);
             if (content.line().isPresent()) {
                 painter.setColor(BubbleColors.rule());
                 painter.fillRect(left, y, inner, Math.max(1, UIScale.scale(1)));
                 y += UIScale.scale(RULE_GAP);
-                content.line().get().paint(painter, this, smallFont(), left, y, inner, BubbleColors.ink(),
+                content.line().get().paint(painter, smallFont(), left, y, inner, BubbleColors.ink(),
                         BubbleColors.fill());
             }
             paintCount(painter, left);

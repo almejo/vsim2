@@ -4,7 +4,8 @@
 #   id | kind | title key | text key | pictures | key | try
 # kind:     circuit (one .vsim VSim draws with the user's theme), before-after (two pictures, .vsim or .png, with the
 #           big key between them) or image (one .png, with as little text as possible; a capture with text: one, in
-#           English, for every language).
+#           English, for every language), or split (one .vsim drawn twice in two panes, whole and zoomed in on its
+#           middle, as a split view shows it).
 # pictures: resources in this folder, separated by «,». The circuits are built by TipCircuits (ui tests).
 # key:      the key VSim draws big in the picture, a catalog id or a fixed key, without braces; «-» for none.
 # try:      «-» (no «Probarlo»), «circuit» (opens the tip's first circuit in a new tab) or a ShortcutCatalog id (opens
@@ -14,4 +15,4 @@
 # TipsFileTest checks all of it.
 look-inside  | circuit      | tip.lookInside.title  | tip.lookInside.text  | look-inside.vsim                                  | alt            | circuit
 tidy-circuit | before-after | tip.tidyCircuit.title | tip.tidyCircuit.text | tidy-circuit-before.vsim, tidy-circuit-after.vsim | edit.tidyWires | circuit
-split-view   | image        | tip.splitView.title   | tip.splitView.text   | split-view.png                                    | -              | -
+split-view   | split        | tip.splitView.title   | tip.splitView.text   | split-view.vsim                                   | window.splitVertical | window.splitVertical

@@ -10,12 +10,12 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.layout.CircuitTidy;
-import cl.almejo.vsim.core.layout.CircuitTidyOptions;
-import cl.almejo.vsim.core.layout.TextBoxes;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.wiring.CanvasTextBoxes;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,6 +45,7 @@ final class TipCircuits {
         builders.put("look-inside.vsim", TipCircuits::lookInside);
         builders.put("tidy-circuit-before.vsim", TipCircuits::tidyBefore);
         builders.put("tidy-circuit-after.vsim", TipCircuits::tidyAfter);
+        builders.put("split-view.vsim", TipCircuits::splitView);
         return builders;
     }
 
@@ -140,32 +141,60 @@ final class TipCircuits {
     }
 
     /**
-     * «Ordenar circuito», before: a 2-input AND with its switches and LED placed by hand, a little crooked: the parts
-     * out of line and the wires of the inputs with steps.
+     * «Ordenar circuito», before: Y = A · B + C placed by hand and left messy: the switches, the gates and the LED out
+     * of line, the wires with steps, two loose wire ends (one up from A's wire, one past the LED's corner) and C's
+     * wire in two pieces.
      */
     static CircuitDocument tidyBefore() {
         Builder builder = new Builder("Ordenar circuito");
-        Component gate = builder.placeAt(StandardComponentTypes.AND, 13, 7, "");
-        builder.placeByPin(StandardComponentTypes.SWITCH, new GridPoint(5, 4), 0, ON, "A");
-        builder.route(new GridPoint(5, 4), new GridPoint(9, 4), new GridPoint(9, 7), new GridPoint(13, 7));
-        builder.placeByPin(StandardComponentTypes.SWITCH, new GridPoint(4, 13), 0, ON, "B");
-        builder.route(new GridPoint(4, 13), new GridPoint(10, 13), new GridPoint(10, 11), new GridPoint(13, 11));
-        GridPoint output = builder.pin(gate, 2);
-        GridPoint ledPin = output.translate(5, -3);
-        builder.route(output, output.translate(5, 0), ledPin);
-        builder.placeByPin(StandardComponentTypes.LED, ledPin, 0, Map.of("color", "green"), "Y");
+        builder.placeAt(StandardComponentTypes.AND, 11, 6, "");
+        builder.placeAt(StandardComponentTypes.OR, 20, 11, "");
+        builder.placeByPin(StandardComponentTypes.SWITCH, new GridPoint(4, 4), 0, ON, "A");
+        builder.route(new GridPoint(4, 4), new GridPoint(9, 4), new GridPoint(9, 6), new GridPoint(11, 6));
+        builder.route(new GridPoint(9, 4), new GridPoint(9, 1));
+        builder.placeByPin(StandardComponentTypes.SWITCH, new GridPoint(3, 12), 0, ON, "B");
+        builder.route(new GridPoint(3, 12), new GridPoint(7, 12), new GridPoint(7, 10), new GridPoint(11, 10));
+        builder.placeByPin(StandardComponentTypes.SWITCH, new GridPoint(5, 18), 0, OFF, "C");
+        builder.route(new GridPoint(5, 18), new GridPoint(10, 18), new GridPoint(17, 18), new GridPoint(17, 15),
+                new GridPoint(20, 15));
+        builder.route(new GridPoint(15, 8), new GridPoint(17, 8), new GridPoint(17, 11), new GridPoint(20, 11));
+        builder.route(new GridPoint(24, 13), new GridPoint(27, 13), new GridPoint(30, 13));
+        builder.route(new GridPoint(27, 13), new GridPoint(27, 9));
+        builder.placeByPin(StandardComponentTypes.LED, new GridPoint(27, 9), 0, Map.of("color", "green"), "Y");
         return builder.document;
     }
 
-    /** «Ordenar circuito», after: {@link #tidyBefore} as «Ordenar circuito» leaves it. */
+    /**
+     * «Ordenar circuito», after: {@link #tidyBefore} as Editar ▸ «Ordenar circuito» leaves it with its default options
+     * (what a fresh install's preferences hold) and the canvas's text boxes.
+     */
     static CircuitDocument tidyAfter() {
         CircuitDocument before = tidyBefore();
         ComponentTypeRegistry registry = StandardComponentTypes.registry();
         Set<ElementId> everything = before.elements().stream().map(DocumentElement::id)
                 .collect(Collectors.toUnmodifiableSet());
-        CircuitDocument after = CircuitTidy.plan(before, registry, everything, CircuitTidyOptions.ALL,
-                TextBoxes.NONE, () -> false, stage -> { }).orElseThrow().after();
+        CircuitDocument after = CircuitTidy.plan(before, registry, everything,
+                AppPreferences.inMemory().tidyOptions(), new CanvasTextBoxes(registry), () -> false, stage -> { })
+                .orElseThrow().after();
         after.setName(before.name());
         return after;
+    }
+
+    /**
+     * «Dividir la vista»: two switches into an XOR, then a NOT and an LED. The XOR sits in the middle of the circuit,
+     * so the picture's zoomed-in pane (which shows the middle) shows it big.
+     */
+    static CircuitDocument splitView() {
+        Builder builder = new Builder("Dividir la vista");
+        builder.placeByPin(StandardComponentTypes.SWITCH, new GridPoint(4, 6), 0, ON, "A");
+        builder.placeByPin(StandardComponentTypes.SWITCH, new GridPoint(4, 10), 0, ON, "B");
+        builder.placeAt(StandardComponentTypes.XOR, 9, 6, "");
+        builder.route(new GridPoint(4, 6), new GridPoint(9, 6));
+        builder.route(new GridPoint(4, 10), new GridPoint(9, 10));
+        builder.route(new GridPoint(13, 8), new GridPoint(15, 8));
+        Component inverter = builder.placeByPin(StandardComponentTypes.BUFFER, new GridPoint(15, 8), 0,
+                Map.of(StandardComponentTypes.NEGATE, true), "");
+        builder.ledAfter(builder.pin(inverter, 1), 2, "Y");
+        return builder.document;
     }
 }

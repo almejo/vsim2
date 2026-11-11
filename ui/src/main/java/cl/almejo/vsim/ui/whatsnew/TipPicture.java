@@ -68,13 +68,17 @@ final class TipPicture extends JComponent {
     /** The mockup's picture: 180 × 100. */
     private static final double ASPECT = 100.0 / 180.0;
     private static final int CORNER = 6;
-    private static final int PADDING = 8;
+    private static final int PADDING = 6;
     /** A tip circuit is never drawn bigger than the canvas at 100 %. */
     private static final double MAXIMUM_SCALE = 1.0;
     /** The big key: the UI font times this. */
     private static final float BIG_KEY_SCALE = 1.4f;
     private static final int KEY_PLATE_PADDING = 4;
     private static final int KEY_GAP = 10;
+    /** The room between the two pictures of «antes y después» when no key goes between them. */
+    private static final int SLOT_GAP = 8;
+    /** How much closer the right pane of a split view shows the circuit than the left one. */
+    private static final double ZOOM_IN = 2.2;
     /** A key at most this share of the picture's width goes between the two pictures; a wider one under them. */
     private static final double MIDDLE_KEY_SHARE = 0.25;
     private static final int ARROW_LENGTH = 22;
@@ -128,6 +132,7 @@ final class TipPicture extends JComponent {
         Rectangle area = new Rectangle(padding, padding, getWidth() - 2 * padding, getHeight() - 2 * padding);
         switch (content.kind()) {
             case CIRCUIT, IMAGE -> paintAlone(painter, area);
+            case SPLIT -> paintSplit(painter, area);
             case BEFORE_AFTER -> paintBeforeAndAfter(painter, area);
         }
     }
@@ -143,9 +148,8 @@ final class TipPicture extends JComponent {
     }
 
     /**
-     * Two pictures with an arrow between them and «Antes» / «Después» under them. A short key (one or two caps) goes
-     * between them above the arrow, as in the mockup; a longer one (Ctrl+Alt+L) under the arrow, across the bottom,
-     * so the pictures keep their room.
+     * Two pictures side by side, «Antes» → «Después» under them. A short key (one or two caps) goes between the
+     * pictures, as in the mockup; a longer one (Ctrl+Alt+L) across the bottom, so the pictures keep the whole width.
      */
     private void paintBeforeAndAfter(Graphics2D painter, Rectangle area) {
         Font caption = captionFont();
@@ -154,8 +158,8 @@ final class TipPicture extends JComponent {
         int keyWidth = content.key().map(keys -> Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys,
                 !KeyNames.MAC_NOTATION)).orElse(0);
         int keyHeight = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
-        boolean keyBetween = keyWidth <= area.width * MIDDLE_KEY_SHARE;
-        int middle = Math.max(keyBetween ? keyWidth : 0, UIScale.scale(ARROW_LENGTH)) + 2 * UIScale.scale(KEY_GAP);
+        boolean keyBetween = content.key().isPresent() && keyWidth <= area.width * MIDDLE_KEY_SHARE;
+        int middle = keyBetween ? keyWidth + 2 * UIScale.scale(KEY_GAP) : UIScale.scale(SLOT_GAP);
         int keyRow = content.key().isPresent() && !keyBetween ? keyHeight + UIScale.scale(KEY_GAP) : 0;
         int slotWidth = (area.width - middle) / 2;
         Rectangle before = new Rectangle(area.x, area.y, slotWidth, area.height - captionHeight - keyRow);
@@ -168,15 +172,39 @@ final class TipPicture extends JComponent {
         paintCentred(painter, Messages.text("tip.before"), before, captionBaseline);
         paintCentred(painter, Messages.text("tip.after"), after, captionBaseline);
         int centreX = area.x + area.width / 2;
-        int centreY = before.y + before.height / 2;
-        if (keyBetween) {
-            content.key().ifPresent(keys -> paintKey(painter, keys, centreX - keyWidth / 2, centreY - keyHeight));
-            paintArrow(painter, centreX, centreY + UIScale.scale(KEY_GAP));
-        } else {
-            paintArrow(painter, centreX, centreY);
-            content.key().ifPresent(keys -> paintKey(painter, keys, centreX - keyWidth / 2,
-                    area.y + area.height - keyHeight));
-        }
+        paintArrow(painter, centreX, captionBaseline - captionMetrics.getAscent() / 2 + UIScale.scale(1));
+        content.key().ifPresent(keys -> {
+            int top = keyBetween ? before.y + (before.height - keyHeight) / 2 : area.y + area.height - keyHeight;
+            paintKey(painter, keys, centreX - keyWidth / 2, top);
+        });
+    }
+
+    /**
+     * The circuit in two panes with a divider between them, as a split view shows it: the whole circuit on the left,
+     * and on the right its middle {@value #ZOOM_IN} times closer (the tip's circuit puts a gate there). Its key (if
+     * any) in the bottom-right corner.
+     */
+    private void paintSplit(Graphics2D painter, Rectangle area) {
+        int divider = UIScale.scale(SLOT_GAP);
+        int paneWidth = (area.width - divider) / 2;
+        Rectangle whole = new Rectangle(area.x, area.y, paneWidth, area.height);
+        Rectangle closer = new Rectangle(area.x + area.width - paneWidth, area.y, paneWidth, area.height);
+        slot(0).filter(CircuitSlot.class::isInstance).map(slot -> ((CircuitSlot) slot).circuit())
+                .flatMap(circuit -> circuit.image(painters, scheme.get())).ifPresent(image -> {
+                    double scale = fittingScale(image, whole);
+                    paintCircuit(painter, image, whole, scale);
+                    paintCircuit(painter, image, closer, scale * ZOOM_IN);
+                });
+        int dividerX = area.x + paneWidth + divider / 2;
+        painter.setColor(borderColour());
+        painter.setStroke(new BasicStroke(UIScale.scale(2f)));
+        painter.drawLine(dividerX, area.y - UIScale.scale(PADDING), dividerX,
+                area.y + area.height + UIScale.scale(PADDING));
+        content.key().ifPresent(keys -> {
+            int width = Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION);
+            int height = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
+            paintKey(painter, keys, area.x + area.width - width, area.y + area.height - height);
+        });
     }
 
     private Optional<Slot> slot(int index) {
@@ -197,10 +225,20 @@ final class TipPicture extends JComponent {
     }
 
     private static void paintCircuit(Graphics2D painter, CircuitImage image, Rectangle area) {
-        double scale = Math.min(MAXIMUM_SCALE, Math.min((double) area.width / image.width(1.0),
+        paintCircuit(painter, image, area, fittingScale(image, area));
+    }
+
+    /** As big as {@code image} fits in {@code area}, never past 100 %. */
+    private static double fittingScale(CircuitImage image, Rectangle area) {
+        return Math.min(MAXIMUM_SCALE, Math.min((double) area.width / image.width(1.0),
                 (double) area.height / image.height(1.0)));
+    }
+
+    /** {@code image} at {@code scale}, its centre on the centre of {@code area}, cut to {@code area}. */
+    private static void paintCircuit(Graphics2D painter, CircuitImage image, Rectangle area, double scale) {
         Graphics2D placed = (Graphics2D) painter.create();
         try {
+            placed.clip(area);
             placed.translate(area.x + (area.width - image.width(scale)) / 2,
                     area.y + (area.height - image.height(scale)) / 2);
             image.paint(placed, scale);
@@ -226,7 +264,8 @@ final class TipPicture extends JComponent {
         Color background = scheme.get().background();
         painter.setColor(new Color(background.getRed(), background.getGreen(), background.getBlue(), PLATE_ALPHA));
         painter.fillRoundRect(x - plate, y - plate, width + 2 * plate, height + 2 * plate, 2 * plate, 2 * plate);
-        Keycaps.paint(painter, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION, x, y, ThemeColors.accent());
+        Keycaps.paintOutlined(painter, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION, x, y,
+                ThemeColors.accent(), inkColour());
     }
 
     private void paintArrow(Graphics2D painter, int centreX, int y) {
@@ -251,6 +290,12 @@ final class TipPicture extends JComponent {
     private static Font captionFont() {
         Font font = keyFont();
         return font.deriveFont(font.getSize2D() - 2);
+    }
+
+    /** The text's colour of the theme: the names on the keycaps, readable in light and dark. */
+    static Color inkColour() {
+        Color ink = UIManager.getColor("Label.foreground");
+        return ink == null ? Color.BLACK : ink;
     }
 
     static Color mutedColour() {
