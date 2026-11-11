@@ -515,7 +515,7 @@ class TipOfTheDayTest {
     void probarloOpensTheCircuitInANewTabAndRunsTheNamedActionThereLeavingTheOpenCircuitAlone() {
         tips = List.of(new Tip("trial", TipKind.CIRCUIT, LOOK_INSIDE, "tip.lookInside.text",
                 List.of("tidy-circuit-before.vsim"), Optional.empty(),
-                Optional.of(new Tip.Trial(Optional.of("edit.selectAll")))));
+                Optional.of(new Tip.Trial(Optional.of("tidy-circuit-before.vsim"), Optional.of("edit.selectAll")))));
         newExtensions();
         EditorView view = newView();
         tipItem(view).doClick(0);
@@ -528,6 +528,23 @@ class TipOfTheDayTest {
         assertThat(tab.selection().isEmpty()).isFalse();
         assertThat(view.openDocument().document().components()).isEmpty();
         assertThat(view.openDocument().isModified()).isFalse();
+    }
+
+    @Test
+    void probarloWithOnlyAnActionRunsItOnANewEmptyCircuit() {
+        tips = List.of(new Tip("action-only", TipKind.IMAGE, SPLIT_VIEW, "tip.splitView.text",
+                List.of("placeholder.png"), Optional.empty(),
+                Optional.of(new Tip.Trial(Optional.empty(), Optional.of("window.splitVertical")))));
+        newExtensions();
+        EditorView view = newView();
+        tipItem(view).doClick(0);
+
+        openCard(view).tryButton().doClick(0);
+
+        assertThat(openedByTrying).hasSize(1);
+        assertThat(openedByTrying.get(0).openDocument().document().components()).isEmpty();
+        assertThat(openedByTrying.get(0).panes()).hasSize(2);
+        assertThat(view.panes()).hasSize(1);
     }
 
     // --- closing the window ---

@@ -17,8 +17,9 @@ import java.util.Set;
  * The tips of the day, read from {@value #RESOURCE}: one tip per line in the order they are shown, seven columns
  * separated by «|» (id, kind, title key, text key, pictures, key, try); «#» starts a comment line. The pictures are
  * resources under {@value #FOLDER}, separated by «,»; the key is the {@code {…}} name VSim draws big in the picture, or
- * «-»; try is «-» (no «Probarlo»), «circuit» (open the tip's circuit) or a {@code ShortcutCatalog} id (open it and run
- * that action). Adding a tip is a line here, its pictures and its two texts (spec: no fixed number of tips).
+ * «-»; try is «-» (no «Probarlo») or a circuit to open («circuit»: the tip's first circuit picture, or a .vsim of its
+ * own) and/or a {@code ShortcutCatalog} id to run on it (alone: on a new empty circuit). Adding a tip is a line here,
+ * its pictures and its two texts (spec: no fixed number of tips).
  */
 final class TipsFile {
 
@@ -82,20 +83,38 @@ final class TipsFile {
         if (!kind.accepts(pictures)) {
             throw broken(number, "the pictures of a " + columns[1] + " tip: " + columns[4]);
         }
-        Tip tip = new Tip(columns[0], kind, columns[2], columns[3], pictures, optional(columns[5]),
-                optional(columns[6]).map(TipsFile::trial));
-        if (tip.trial().isPresent() && tip.circuit().isEmpty()) {
-            throw broken(number, "«Probarlo» needs a circuit to open");
-        }
-        return tip;
+        Optional<Tip.Trial> trial = columns[6].equals(NONE) ? Optional.empty()
+                : Optional.of(trial(columns[6], pictures, number));
+        return new Tip(columns[0], kind, columns[2], columns[3], pictures, optional(columns[5]), trial);
     }
 
     private static Optional<String> optional(String column) {
         return column.equals(NONE) ? Optional.empty() : Optional.of(column);
     }
 
-    private static Tip.Trial trial(String column) {
-        return new Tip.Trial(column.equals(OPEN_THE_CIRCUIT) ? Optional.empty() : Optional.of(column));
+    /**
+     * The try column's words: «circuit» (the tip's first circuit picture) or a .vsim of its own, and an action id; an
+     * action alone runs on a new empty circuit.
+     */
+    private static Tip.Trial trial(String column, List<String> pictures, int number) {
+        Optional<String> circuit = Optional.empty();
+        Optional<String> actionId = Optional.empty();
+        for (String word : column.split("\\s+")) {
+            if (word.equals(OPEN_THE_CIRCUIT) || TipKind.isCircuit(word)) {
+                if (circuit.isPresent()) {
+                    throw broken(number, "«Probarlo» opens one circuit: " + column);
+                }
+                circuit = Optional.of(word.equals(OPEN_THE_CIRCUIT) ? pictures.stream().filter(TipKind::isCircuit)
+                        .findFirst().orElseThrow(() -> broken(number, "«circuit» but no circuit picture"))
+                        : word);
+            } else {
+                if (actionId.isPresent()) {
+                    throw broken(number, "«Probarlo» runs one action: " + column);
+                }
+                actionId = Optional.of(word);
+            }
+        }
+        return new Tip.Trial(circuit, actionId);
     }
 
     private static IllegalArgumentException broken(int number, String problem) {

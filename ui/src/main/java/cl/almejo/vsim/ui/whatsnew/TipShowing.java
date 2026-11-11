@@ -170,18 +170,19 @@ final class TipShowing {
     // --- «Probarlo» ---
 
     /**
-     * Opens the tip's circuit, a fresh copy named after the tip, in a new tab of the window, and runs the tip's action
-     * there once the tab shows (the dialog the tip is about). The card goes: the user is trying now.
+     * Opens the tip's circuit (a fresh copy, or a new empty circuit), named after the tip, in a new tab of the window,
+     * and runs the tip's action there once the tab shows (the dialog the tip is about). The card goes: the user is
+     * trying now.
      */
     private void tryIt() {
         Tip tip = tips.get(current);
-        Optional<String> circuit = tip.circuit();
-        if (tip.trial().isEmpty() || circuit.isEmpty()) {
+        if (tip.trial().isEmpty()) {
             return;
         }
+        Optional<String> circuit = tip.trial().get().circuit();
         CircuitDocument document;
         try {
-            document = TipCircuit.read(circuit.get());
+            document = circuit.isPresent() ? TipCircuit.read(circuit.get()) : new CircuitDocument();
         } catch (CircuitFormatException exception) {
             LOGGER.error("Could not open the circuit of the tip {}", tip.id(), exception);
             return;

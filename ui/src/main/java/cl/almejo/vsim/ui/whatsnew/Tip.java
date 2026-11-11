@@ -19,13 +19,18 @@ record Tip(String id, TipKind kind, String titleKey, String textKey, List<String
            Optional<String> pictureKey, Optional<Trial> trial) {
 
     /**
-     * «Probarlo»: open the tip's circuit in a new tab and, when {@code actionId} (a {@code ShortcutCatalog} id) is
-     * there, run that action on it (a tip about a dialog opens the real dialog).
+     * «Probarlo»: open {@code circuit} (a resource under {@code /tips/}; empty: a new empty circuit) in a new tab and,
+     * when {@code actionId} (a {@code ShortcutCatalog} id) is there, run that action on it (a tip about a dialog opens
+     * the real dialog). At least one of the two.
      */
-    record Trial(Optional<String> actionId) {
+    record Trial(Optional<String> circuit, Optional<String> actionId) {
 
         Trial {
+            Objects.requireNonNull(circuit, "circuit");
             Objects.requireNonNull(actionId, "actionId");
+            if (circuit.isEmpty() && actionId.isEmpty()) {
+                throw new IllegalArgumentException("a trial opens a circuit or runs an action");
+            }
         }
     }
 
@@ -37,10 +42,5 @@ record Tip(String id, TipKind kind, String titleKey, String textKey, List<String
         pictures = List.copyOf(pictures);
         Objects.requireNonNull(pictureKey, "pictureKey");
         Objects.requireNonNull(trial, "trial");
-    }
-
-    /** The first circuit among the pictures: what «Probarlo» opens. */
-    Optional<String> circuit() {
-        return pictures.stream().filter(TipKind::isCircuit).findFirst();
     }
 }

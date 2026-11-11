@@ -46,15 +46,11 @@ final class TipCircuits {
         builders.put("look-inside.vsim", TipCircuits::lookInside);
         builders.put("tidy-circuit-before.vsim", TipCircuits::tidyBefore);
         builders.put("tidy-circuit-after.vsim", TipCircuits::tidyAfter);
-        builders.put("quick-insert-before.vsim", () -> quickInsert(false));
-        builders.put("quick-insert-after.vsim", () -> quickInsert(true));
-        builders.put("continuous-wire-before.vsim", () -> continuousWire(false));
-        builders.put("continuous-wire-after.vsim", () -> continuousWire(true));
+        builders.put("continuous-wire.vsim", TipCircuits::continuousWire);
         builders.put("wire-segment-select.vsim", TipCircuits::wireSegmentSelect);
         builders.put("duplicate-before.vsim", () -> duplicate(1));
         builders.put("duplicate-after.vsim", () -> duplicate(2));
         builders.put("next-problem.vsim", TipCircuits::nextProblem);
-        builders.put("wires-follow.vsim", TipCircuits::wiresFollow);
         builders.put("clean-wires-before.vsim", TipCircuits::cleanWiresBefore);
         builders.put("clean-wires-after.vsim", TipCircuits::cleanWiresAfter);
         builders.put("find.vsim", TipCircuits::find);
@@ -249,36 +245,13 @@ final class TipCircuits {
     }
 
     /**
-     * «Insertar rápido»: two switches and an LED with a gap where the AND goes; after, the AND sits in the gap and its
-     * output reaches the LED, which lights (A = B = 1). Before, the LED stands alone: its wire comes with the gate.
+     * «Cable continuo y el codo», to try: a switch and an LED higher up, not wired yet, so «Probarlo» leaves the user
+     * the wire to draw (and its elbow to flip with Espacio).
      */
-    static CircuitDocument quickInsert(boolean withTheGate) {
-        Builder builder = new Builder("Insertar rápido");
-        builder.switchAt(2, 3, "A", true);
-        builder.switchAt(2, 7, "B", true);
-        builder.wire(6, 4, 10, 4);
-        builder.wire(6, 8, 10, 8);
-        if (withTheGate) {
-            builder.gate(StandardComponentTypes.AND, 10, 4);
-            builder.wire(14, 6, 18, 6, 18, 4);
-        }
-        builder.ledAt(17, 1, "Y");
-        return builder.document;
-    }
-
-    /**
-     * «Cable continuo y el codo»: a switch wired to an LED that is higher. Before, the elbow goes up first and the
-     * wire reaches the LED's foot sideways; after one tap of Espacio it goes right first and comes up into the foot.
-     */
-    static CircuitDocument continuousWire(boolean flipped) {
+    static CircuitDocument continuousWire() {
         Builder builder = new Builder("Cable continuo y el codo");
         builder.switchAt(2, 7, "A", true);
         builder.ledAt(13, 2, "Y");
-        if (flipped) {
-            builder.wire(6, 8, 14, 8, 14, 5);
-        } else {
-            builder.wire(6, 8, 6, 5, 14, 5);
-        }
         return builder.document;
     }
 
@@ -336,19 +309,6 @@ final class TipCircuits {
         builder.wire(18, 12, 22, 12, 22, 9);
         builder.wire(22, 9, 26, 9, 26, 7);
         builder.ledAt(25, 4, "Y");
-        return builder.document;
-    }
-
-    /** «Los cables siguen al mover»: two switches, an OR and an LED; drag the OR and its three wires stretch. */
-    static CircuitDocument wiresFollow() {
-        Builder builder = new Builder("Los cables siguen al mover");
-        builder.switchAt(2, 3, "A", true);
-        builder.switchAt(2, 7, "B", false);
-        builder.wire(6, 4, 12, 4);
-        builder.wire(6, 8, 12, 8);
-        builder.gate(StandardComponentTypes.OR, 12, 4);
-        builder.wire(16, 6, 22, 6, 22, 4);
-        builder.ledAt(21, 1, "Y");
         return builder.document;
     }
 

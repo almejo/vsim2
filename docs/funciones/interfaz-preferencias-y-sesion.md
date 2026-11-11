@@ -250,12 +250,13 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Hay cuatro tipos de dibujo: un circuito pequeño que VSim dibuja con tu esquema de colores (claro u oscuro); «antes y
   después», dos dibujos lado a lado y a la misma escala, «Antes → Después» debajo y la tecla grande abajo; un
   circuito en dos paneles con una división, entero a la izquierda y de cerca a
-  la derecha, como se ve una vista dividida; o una imagen. Todos los dibujos de circuitos los hace VSim con tus
+  la derecha, como se ve una vista dividida; o una imagen (una captura de VSim, la misma en todos los idiomas).
+  Todos los dibujos de circuitos los hace VSim con tus
   colores y a un tamaño parecido en todos los consejos, y la tecla grande también: nunca viene en una imagen. Las
   teclas tienen el nombre en el color del texto, así se leen en el tema claro y en el oscuro. Un título largo pasa a
   una segunda línea en vez de cortarse.
-- «Probarlo» abre el circuito del consejo en una pestaña nueva (una copia sin nombre de archivo; el circuito que
-  tienes abierto no se toca) y, si el consejo habla de un diálogo o de una acción, la hace ahí («Dividir la vista» lo
+- «Probarlo» abre el circuito del consejo (o uno vacío) en una pestaña nueva (una copia sin nombre de archivo; el
+  circuito que tienes abierto no se toca) y, si el consejo habla de un diálogo o de una acción, la hace ahí («Dividir la vista» lo
   abre ya dividido; «Buscar una acción» abre la búsqueda de acciones). Solo sale en los consejos que tienen algo que
   abrir.
 - ‹ y › recorren los consejos y dan la vuelta; la tarjeta nunca dice cuántos hay. VSim recuerda cuáles ya viste (no un
@@ -271,12 +272,12 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   día al iniciar» (cambiar una cambia la otra al instante). Ayuda ▸ «Consejo del día» (justo después de «Qué hay de
   nuevo»; también en la [paleta de comandos](edicion.md#paleta-de-comandos)) la abre cuando quieras.
 - Aparece deslizándose y aclarándose; con Preferencias ▸ [Animaciones](#animaciones) en «No», aparece de una vez.
-- Por ahora trae doce consejos, en este orden: «Mirar adentro» (Alt sobre un componente tuyo), «Ordenar circuito»
+- Por ahora trae once consejos, en este orden: «Mirar adentro» (Alt sobre un componente tuyo), «Ordenar circuito»
   (Ctrl+Alt+L: un circuito desordenado, con puntas de cable sueltas, y cómo lo deja), «Insertar rápido» (doble clic
-  en un lugar vacío o Insert), «Cable continuo y el codo» (Espacio), «Doble clic: un tramo; triple: la red»,
-  «Duplicar sin el portapapeles» (Ctrl+D), «Saltar al próximo problema» (F8 y Mayús+F8), «Los cables siguen al
-  mover» (Mayús, o la tecla elegida en Preferencias, lo invierte), «Limpiar cables» (Ctrl+Alt+L también borra puntas
-  sueltas y une tramos), «Buscar» (Ctrl+F, F3), «Buscar una acción» (Ctrl+K) y «Dividir la vista».
+  en un lugar vacío abre «Insertar componente»; también Insert), «Cable continuo y el codo» (Espacio), «Doble clic:
+  un tramo; triple: la red», «Duplicar sin el portapapeles» (Ctrl+D), «Saltar al próximo problema» (F8 y Mayús+F8),
+  «Limpiar cables» (Ctrl+Alt+L también borra puntas sueltas y une tramos; Ctrl+Alt+Mayús+L muestra antes qué
+  cambia), «Buscar» (Ctrl+F, F3), «Buscar una acción» (Ctrl+K) y «Dividir la vista».
 
 ## Atajos de teclado
 

@@ -3,25 +3,25 @@
 # One tip per line, seven columns separated by «|»:
 #   id | kind | title key | text key | pictures | key | try
 # kind:     circuit (one .vsim VSim draws with the user's theme), before-after (two pictures, .vsim or .png, with the
-#           big key between them) or image (one .png, with as little text as possible; a capture with text: one, in
+#           big key under them) or image (one .png, with as little text as possible; a capture with text: one, in
 #           English, for every language), or split (one .vsim drawn twice in two panes, whole and zoomed in on its
 #           middle, as a split view shows it).
 # pictures: resources in this folder, separated by «,». The circuits are built by TipCircuits (ui tests).
 # key:      the key VSim draws big in the picture, a catalog id or a fixed key, without braces; «-» for none.
-# try:      «-» (no «Probarlo»), «circuit» (opens the tip's first circuit in a new tab) or a ShortcutCatalog id (opens
-#           it and runs that action, e.g. the dialog the tip is about).
+# try:      «-» (no «Probarlo»), or what «Probarlo» opens in a new tab and runs there, separated by spaces: a circuit
+#           («circuit»: the tip's first circuit picture; or a .vsim of its own, for an image tip) and a ShortcutCatalog
+#           id (e.g. the dialog the tip is about). An action alone runs on a new empty circuit.
 # Texts (both bundles, «# --- Consejo del día ---») may name keys as {alt}, {shift}, {space}, {escape}, {backspace},
 # {enter} or {<catalog id>}: the user's own key, or the action's place in the menus when it has none.
 # TipsFileTest checks all of it.
-look-inside         | circuit      | tip.lookInside.title        | tip.lookInside.text        | look-inside.vsim                                        | alt                  | circuit
-tidy-circuit        | before-after | tip.tidyCircuit.title       | tip.tidyCircuit.text       | tidy-circuit-before.vsim, tidy-circuit-after.vsim       | edit.tidyWires       | circuit
-quick-insert        | before-after | tip.quickInsert.title       | tip.quickInsert.text       | quick-insert-before.vsim, quick-insert-after.vsim       | edit.quickInsert     | circuit
-continuous-wire     | before-after | tip.continuousWire.title    | tip.continuousWire.text    | continuous-wire-before.vsim, continuous-wire-after.vsim | space                | circuit
-wire-segment-select | circuit      | tip.wireSegmentSelect.title | tip.wireSegmentSelect.text | wire-segment-select.vsim                                | -                    | circuit
-duplicate           | before-after | tip.duplicate.title         | tip.duplicate.text         | duplicate-before.vsim, duplicate-after.vsim             | edit.duplicate       | circuit
-next-problem        | circuit      | tip.nextProblem.title       | tip.nextProblem.text       | next-problem.vsim                                       | view.nextProblem     | circuit
-wires-follow        | circuit      | tip.wiresFollow.title       | tip.wiresFollow.text       | wires-follow.vsim                                       | edit.wiresFollow     | circuit
-clean-wires         | before-after | tip.cleanWires.title        | tip.cleanWires.text        | clean-wires-before.vsim, clean-wires-after.vsim         | edit.tidyWires       | circuit
-find                | circuit      | tip.find.title              | tip.find.text              | find.vsim                                               | edit.find            | circuit
-find-action         | circuit      | tip.findAction.title        | tip.findAction.text        | find-action.vsim                                        | help.findAction      | help.findAction
-split-view          | split        | tip.splitView.title         | tip.splitView.text         | split-view.vsim                                         | window.splitVertical | window.splitVertical
+look-inside         | image        | tip.lookInside.title        | tip.lookInside.text        | look-inside.png                                   | alt                  | look-inside.vsim
+tidy-circuit        | before-after | tip.tidyCircuit.title       | tip.tidyCircuit.text       | tidy-circuit-before.vsim, tidy-circuit-after.vsim | edit.tidyWires       | circuit
+quick-insert        | image        | tip.quickInsert.title       | tip.quickInsert.text       | quick-insert.png                                  | -                    | edit.quickInsert
+continuous-wire     | image        | tip.continuousWire.title    | tip.continuousWire.text    | continuous-wire.png                               | space                | continuous-wire.vsim
+wire-segment-select | image        | tip.wireSegmentSelect.title | tip.wireSegmentSelect.text | wire-segment-select.png                           | -                    | wire-segment-select.vsim
+duplicate           | before-after | tip.duplicate.title         | tip.duplicate.text         | duplicate-before.vsim, duplicate-after.vsim       | edit.duplicate       | circuit
+next-problem        | circuit      | tip.nextProblem.title       | tip.nextProblem.text       | next-problem.vsim                                 | view.nextProblem     | circuit
+clean-wires         | before-after | tip.cleanWires.title        | tip.cleanWires.text        | clean-wires-before.vsim, clean-wires-after.vsim   | edit.tidyWires       | circuit
+find                | circuit      | tip.find.title              | tip.find.text              | find.vsim                                         | edit.find            | circuit
+find-action         | image        | tip.findAction.title        | tip.findAction.text        | find-action.png                                   | help.findAction      | find-action.vsim help.findAction
+split-view          | split        | tip.splitView.title         | tip.splitView.text         | split-view.vsim                                   | window.splitVertical | circuit window.splitVertical

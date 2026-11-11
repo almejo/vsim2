@@ -46,7 +46,7 @@ class TipsFileTest {
                 "",
                 "look-inside | circuit | tip.a.title | tip.a.text | look-inside.vsim | alt | circuit",
                 "tidy | before-after | tip.b.title | tip.b.text | before.vsim, after.vsim | edit.tidyWires | "
-                        + "simulation.truthTable",
+                        + "circuit simulation.truthTable",
                 "split-view | image | tip.c.title | tip.c.text | split-view.png | - | -"));
 
         assertThat(tips).extracting(Tip::id).containsExactly("look-inside", "tidy", "split-view");
@@ -55,11 +55,31 @@ class TipsFileTest {
         assertThat(tips.get(1).pictures()).containsExactly("before.vsim", "after.vsim");
         assertThat(tips.get(0).pictureKey()).contains("alt");
         assertThat(tips.get(2).pictureKey()).isEmpty();
-        assertThat(tips.get(0).trial()).contains(new Tip.Trial(Optional.empty()));
-        assertThat(tips.get(1).trial()).contains(new Tip.Trial(Optional.of("simulation.truthTable")));
+        assertThat(tips.get(0).trial()).contains(new Tip.Trial(Optional.of("look-inside.vsim"), Optional.empty()));
+        assertThat(tips.get(1).trial())
+                .contains(new Tip.Trial(Optional.of("before.vsim"), Optional.of("simulation.truthTable")));
         assertThat(tips.get(2).trial()).isEmpty();
-        assertThat(tips.get(1).circuit()).contains("before.vsim");
-        assertThat(tips.get(2).circuit()).isEmpty();
+    }
+
+    @Test
+    void anImageTipMayOpenACircuitOfItsOwnOrRunAnActionOnANewEmptyOne() {
+        List<Tip> tips = TipsFile.parse(List.of(
+                "a | image | t | x | a.png | - | a.vsim",
+                "b | image | t | x | b.png | - | edit.quickInsert",
+                "c | image | t | x | c.png | - | c.vsim help.findAction"));
+
+        assertThat(tips.get(0).trial()).contains(new Tip.Trial(Optional.of("a.vsim"), Optional.empty()));
+        assertThat(tips.get(1).trial()).contains(new Tip.Trial(Optional.empty(), Optional.of("edit.quickInsert")));
+        assertThat(tips.get(2).trial())
+                .contains(new Tip.Trial(Optional.of("c.vsim"), Optional.of("help.findAction")));
+    }
+
+    @Test
+    void aTryOpensAtMostOneCircuitAndRunsAtMostOneAction() {
+        assertThatThrownBy(() -> TipsFile.parse(List.of("a | image | t | x | a.png | - | a.vsim b.vsim")))
+                .hasMessageContaining("line 1");
+        assertThatThrownBy(() -> TipsFile.parse(List.of("a | image | t | x | a.png | - | edit.find edit.cut")))
+                .hasMessageContaining("line 1");
     }
 
     @Test
@@ -85,15 +105,16 @@ class TipsFileTest {
     @Test
     void aSplitTipIsOneCircuitDrawnTwiceThatItsTryOpensAndSplits() {
         Tip tip = TipsFile.parse(List.of(
-                "split-view | split | t | x | split-view.vsim | window.splitVertical | window.splitVertical")).get(0);
+                "split-view | split | t | x | split-view.vsim | window.splitVertical | circuit window.splitVertical"))
+                .get(0);
 
         assertThat(tip.kind()).isEqualTo(TipKind.SPLIT);
-        assertThat(tip.circuit()).contains("split-view.vsim");
-        assertThat(tip.trial()).contains(new Tip.Trial(Optional.of("window.splitVertical")));
+        assertThat(tip.trial())
+                .contains(new Tip.Trial(Optional.of("split-view.vsim"), Optional.of("window.splitVertical")));
     }
 
     @Test
-    void aTipThatOpensSomethingNeedsACircuit() {
+    void circuitInTheTryNeedsACircuitAmongThePictures() {
         assertThatThrownBy(() -> TipsFile.parse(List.of("a | image | t | x | one.png | - | circuit")))
                 .hasMessageContaining("line 1");
     }
@@ -145,6 +166,8 @@ class TipsFileTest {
                             .forEach(key -> assertKeyResolves(key.name(), actions, locale + " " + tip.textKey()));
                 }
                 tip.pictureKey().ifPresent(name -> assertKeyResolves(name, actions, tip.id() + " picture key"));
+                tip.trial().flatMap(Tip.Trial::circuit).ifPresent(circuit -> assertThat(TipCircuits.builders())
+                        .as(tip.id() + " opens " + circuit).containsKey(circuit));
                 tip.trial().flatMap(Tip.Trial::actionId).ifPresent(actionId -> {
                     assertThat(ShortcutCatalog.find(actionId)).as(tip.id() + " " + actionId).isPresent();
                     assertThat(actions).as(tip.id() + " " + actionId).containsKey(actionId);
