@@ -1,0 +1,60 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Limpiar cables",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "buffer",
+    "x" : 10,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c3",
+    "type" : "led",
+    "x" : 17,
+    "y" : 0,
+    "rotation" : 0,
+    "label" : "Y",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w4",
+    "x1" : 6,
+    "y1" : 5,
+    "x2" : 10,
+    "y2" : 5
+  }, {
+    "id" : "w7",
+    "x1" : 14,
+    "y1" : 5,
+    "x2" : 18,
+    "y2" : 5
+  }, {
+    "id" : "w9",
+    "x1" : 18,
+    "y1" : 3,
+    "x2" : 18,
+    "y2" : 5
+  } ],
+  "labels" : [ ]
+}

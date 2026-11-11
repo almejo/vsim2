@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -45,9 +46,28 @@ final class TipCircuits {
         builders.put("look-inside.vsim", TipCircuits::lookInside);
         builders.put("tidy-circuit-before.vsim", TipCircuits::tidyBefore);
         builders.put("tidy-circuit-after.vsim", TipCircuits::tidyAfter);
+        builders.put("quick-insert-before.vsim", () -> quickInsert(false));
+        builders.put("quick-insert-after.vsim", () -> quickInsert(true));
+        builders.put("continuous-wire-before.vsim", () -> continuousWire(false));
+        builders.put("continuous-wire-after.vsim", () -> continuousWire(true));
+        builders.put("wire-segment-select.vsim", TipCircuits::wireSegmentSelect);
+        builders.put("duplicate-before.vsim", () -> duplicate(1));
+        builders.put("duplicate-after.vsim", () -> duplicate(2));
+        builders.put("next-problem.vsim", TipCircuits::nextProblem);
+        builders.put("wires-follow.vsim", TipCircuits::wiresFollow);
+        builders.put("clean-wires-before.vsim", TipCircuits::cleanWiresBefore);
+        builders.put("clean-wires-after.vsim", TipCircuits::cleanWiresAfter);
+        builders.put("find.vsim", TipCircuits::find);
+        builders.put("find-action.vsim", TipCircuits::findAction);
         builders.put("split-view.vsim", TipCircuits::splitView);
         return builders;
     }
+
+    /**
+     * The circuits whose picture is about a problem, with how many rows the Problems list shows for them; every other
+     * tip circuit shows none.
+     */
+    static final Map<String, Integer> PROBLEMS_SHOWN = Map.of("next-problem.vsim", 1);
 
     /** A small document with its own registry (the standard types and the document's definitions). */
     private static final class Builder {
@@ -87,6 +107,50 @@ final class TipCircuits {
             for (int index = 1; index < points.length; index++) {
                 document.add(new Wire(document.newWireId(), points[index - 1], points[index]));
             }
+        }
+
+        /** A 1-bit switch whose box starts at ({@code left}, {@code top}); its output is at (left + 4, top + 1). */
+        void switchAt(int left, int top, String label, boolean on) {
+            place(StandardComponentTypes.SWITCH, new GridPoint(left, top), Rotation.R0, on ? ON : OFF, label);
+        }
+
+        /** An LED whose box starts at ({@code left}, {@code top}); its input is at (left + 1, top + 3), below. */
+        void ledAt(int left, int top, String label) {
+            place(StandardComponentTypes.LED, new GridPoint(left, top), Rotation.R0, NO_PARAMETERS, label);
+        }
+
+        /**
+         * A 2-input gate at ({@code left}, {@code top}): inputs (left, top) and (left, top + 4), output
+         * (left + 4, top + 2).
+         */
+        void gate(String typeId, int left, int top) {
+            placeAt(typeId, left, top, "");
+        }
+
+        /** A NOT (a negated buffer) at ({@code left}, {@code top}): input (left, top + 2), output (left + 4, top + 2).
+         */
+        void not(int left, int top) {
+            place(StandardComponentTypes.BUFFER, new GridPoint(left, top), Rotation.R0,
+                    Map.of(StandardComponentTypes.NEGATE, true), "");
+        }
+
+        /** Straight wires through the points {@code x0, y0, x1, y1, …}. */
+        void wire(int... coordinates) {
+            for (int index = 2; index + 1 < coordinates.length; index += 2) {
+                document.add(new Wire(document.newWireId(),
+                        new GridPoint(coordinates[index - 2], coordinates[index - 1]),
+                        new GridPoint(coordinates[index], coordinates[index + 1])));
+            }
+        }
+
+        void text(int x, int y, String text) {
+            document.add(new TextLabel(document.newLabelId(), new GridPoint(x, y), text));
+        }
+
+        private void place(String typeId, GridPoint position, Rotation rotation, Map<String, Object> parameters,
+                           String label) {
+            document.add(registry.require(typeId).newComponent(document.newComponentId(), position, rotation,
+                    parameters, label));
         }
 
         /** An LED standing two rows above the end of a wire that leaves {@code from} to the right. */
@@ -169,7 +233,11 @@ final class TipCircuits {
      * (what a fresh install's preferences hold) and the canvas's text boxes.
      */
     static CircuitDocument tidyAfter() {
-        CircuitDocument before = tidyBefore();
+        return tidied(tidyBefore());
+    }
+
+    /** {@code before} as Editar ▸ «Ordenar circuito» leaves it: its default options, the canvas's text boxes. */
+    private static CircuitDocument tidied(CircuitDocument before) {
         ComponentTypeRegistry registry = StandardComponentTypes.registry();
         Set<ElementId> everything = before.elements().stream().map(DocumentElement::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -178,6 +246,164 @@ final class TipCircuits {
                 .orElseThrow().after();
         after.setName(before.name());
         return after;
+    }
+
+    /**
+     * «Insertar rápido»: two switches and an LED with a gap where the AND goes; after, the AND sits in the gap and its
+     * output reaches the LED, which lights (A = B = 1). Before, the LED stands alone: its wire comes with the gate.
+     */
+    static CircuitDocument quickInsert(boolean withTheGate) {
+        Builder builder = new Builder("Insertar rápido");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", true);
+        builder.wire(6, 4, 10, 4);
+        builder.wire(6, 8, 10, 8);
+        if (withTheGate) {
+            builder.gate(StandardComponentTypes.AND, 10, 4);
+            builder.wire(14, 6, 18, 6, 18, 4);
+        }
+        builder.ledAt(17, 1, "Y");
+        return builder.document;
+    }
+
+    /**
+     * «Cable continuo y el codo»: a switch wired to an LED that is higher. Before, the elbow goes up first and the
+     * wire reaches the LED's foot sideways; after one tap of Espacio it goes right first and comes up into the foot.
+     */
+    static CircuitDocument continuousWire(boolean flipped) {
+        Builder builder = new Builder("Cable continuo y el codo");
+        builder.switchAt(2, 7, "A", true);
+        builder.ledAt(13, 2, "Y");
+        if (flipped) {
+            builder.wire(6, 8, 14, 8, 14, 5);
+        } else {
+            builder.wire(6, 8, 6, 5, 14, 5);
+        }
+        return builder.document;
+    }
+
+    /** «Doble clic: un tramo»: a half adder whose inputs fan out with T junctions: a wire has a stretch and a net. */
+    static CircuitDocument wireSegmentSelect() {
+        Builder builder = new Builder("Doble clic: un tramo; triple: la red");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", false);
+        builder.gate(StandardComponentTypes.XOR, 16, 4);
+        builder.gate(StandardComponentTypes.AND, 16, 10);
+        builder.wire(6, 4, 10, 4);
+        builder.wire(10, 4, 16, 4);
+        builder.wire(10, 4, 10, 10, 16, 10);
+        builder.wire(6, 8, 12, 8);
+        builder.wire(12, 8, 16, 8);
+        builder.wire(12, 8, 12, 14, 16, 14);
+        builder.wire(20, 6, 26, 6, 26, 4);
+        builder.ledAt(25, 1, "S");
+        builder.wire(20, 12, 30, 12, 30, 10);
+        builder.ledAt(29, 7, "C");
+        return builder.document;
+    }
+
+    /** «Duplicar»: a switch, a NOT and an LED in a row; after, the same row twice. */
+    static CircuitDocument duplicate(int rows) {
+        Builder builder = new Builder("Duplicar sin el portapapeles");
+        for (int row = 0; row < rows; row++) {
+            int top = row * 8;
+            builder.switchAt(2, top + 4, "", true);
+            builder.wire(6, top + 5, 8, top + 5);
+            builder.not(8, top + 3);
+            builder.wire(12, top + 5, 16, top + 5, 16, top + 3);
+            builder.ledAt(15, top, "");
+        }
+        return builder.document;
+    }
+
+    /**
+     * «Saltar al próximo problema»: the outputs of an AND and an OR tied to one LED, a usual first mistake. With A = 1
+     * and B = 0 the AND gives 0 and the OR 1: a short circuit, the only row of the Problems list.
+     */
+    static CircuitDocument nextProblem() {
+        Builder builder = new Builder("Saltar al próximo problema");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 11, "B", false);
+        builder.gate(StandardComponentTypes.AND, 14, 4);
+        builder.gate(StandardComponentTypes.OR, 14, 10);
+        builder.wire(6, 4, 10, 4);
+        builder.wire(10, 4, 14, 4);
+        builder.wire(10, 4, 10, 10, 14, 10);
+        builder.wire(6, 12, 12, 12);
+        builder.wire(12, 12, 12, 8, 14, 8);
+        builder.wire(12, 12, 12, 14, 14, 14);
+        builder.wire(18, 6, 22, 6, 22, 9);
+        builder.wire(18, 12, 22, 12, 22, 9);
+        builder.wire(22, 9, 26, 9, 26, 7);
+        builder.ledAt(25, 4, "Y");
+        return builder.document;
+    }
+
+    /** «Los cables siguen al mover»: two switches, an OR and an LED; drag the OR and its three wires stretch. */
+    static CircuitDocument wiresFollow() {
+        Builder builder = new Builder("Los cables siguen al mover");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", false);
+        builder.wire(6, 4, 12, 4);
+        builder.wire(6, 8, 12, 8);
+        builder.gate(StandardComponentTypes.OR, 12, 4);
+        builder.wire(16, 6, 22, 6, 22, 4);
+        builder.ledAt(21, 1, "Y");
+        return builder.document;
+    }
+
+    /**
+     * «Limpiar cables», before: a switch, a NOT and an LED, the wires cut in pieces in a straight line and two loose
+     * ends hanging from them (one with a corner).
+     */
+    static CircuitDocument cleanWiresBefore() {
+        Builder builder = new Builder("Limpiar cables");
+        builder.switchAt(2, 4, "A", true);
+        builder.not(10, 3);
+        builder.ledAt(17, 0, "Y");
+        builder.wire(6, 5, 8, 5);
+        builder.wire(8, 5, 10, 5);
+        builder.wire(8, 5, 8, 8);
+        builder.wire(14, 5, 16, 5);
+        builder.wire(16, 5, 18, 5, 18, 3);
+        builder.wire(16, 5, 16, 8, 19, 8);
+        return builder.document;
+    }
+
+    /** «Limpiar cables», after: {@link #cleanWiresBefore} as «Ordenar circuito» leaves it. */
+    static CircuitDocument cleanWiresAfter() {
+        return tidied(cleanWiresBefore());
+    }
+
+    /** «Buscar»: Y = A·B + C, its parts labelled and the formula as a text, all of which the search finds. */
+    static CircuitDocument find() {
+        Builder builder = new Builder("Buscar");
+        builder.switchAt(2, 2, "A", true);
+        builder.switchAt(2, 6, "B", true);
+        builder.switchAt(2, 12, "C", false);
+        builder.wire(6, 3, 10, 3);
+        builder.wire(6, 7, 10, 7);
+        builder.gate(StandardComponentTypes.AND, 10, 3);
+        builder.wire(14, 5, 18, 5);
+        builder.wire(6, 13, 16, 13, 16, 9, 18, 9);
+        builder.gate(StandardComponentTypes.OR, 18, 5);
+        builder.wire(22, 7, 26, 7, 26, 5);
+        builder.ledAt(25, 2, "Y");
+        builder.text(19, 13, "Y = A·B + C");
+        return builder.document;
+    }
+
+    /** «Buscar una acción»: any small circuit to try the palette on; two switches, an XOR and an LED. */
+    static CircuitDocument findAction() {
+        Builder builder = new Builder("Buscar una acción");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", false);
+        builder.wire(6, 4, 12, 4);
+        builder.wire(6, 8, 12, 8);
+        builder.gate(StandardComponentTypes.XOR, 12, 4);
+        builder.wire(16, 6, 22, 6, 22, 4);
+        builder.ledAt(21, 1, "Y");
+        return builder.document;
     }
 
     /**

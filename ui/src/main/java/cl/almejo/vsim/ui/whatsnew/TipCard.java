@@ -88,8 +88,9 @@ final class TipCard extends JComponent {
     };
     private final JButton closeButton = new JButton(CLOSE);
     private final TipPicture picture;
-    private final JLabel titleLabel = new JLabel();
-    private final TextView textView = new TextView();
+    /** The title wraps like the text, so a long one in any language is never cut. */
+    private final TextView titleView = new TextView(TipCard::titleFont);
+    private final TextView textView = new TextView(TipCard::textFont);
     private final JCheckBox showAtStartBox = new JCheckBox(Messages.text("tip.showAtStart"));
     private final JButton tryButton = new JButton(Messages.text("tip.try"));
     private final JButton previousButton = new JButton(PREVIOUS_ARROW);
@@ -114,7 +115,6 @@ final class TipCard extends JComponent {
         header.setFont(smallFont());
         closeButton.setToolTipText(Messages.text("tip.close"));
         closeButton.putClientProperty("JButton.buttonType", "toolBarButton");
-        titleLabel.setFont(titleFont());
         showAtStartBox.setFont(smallFont());
         showAtStartBox.setOpaque(false);
         previousButton.setToolTipText(Messages.text("tip.previous"));
@@ -132,8 +132,8 @@ final class TipCard extends JComponent {
         add(header, "split 2, growx, pushx");
         add(closeButton, "aligny center");
         add(picture, "w " + inner + "!, h " + TipPicture.heightFor(inner) + "!, gaptop " + UIScale.scale(2));
-        add(titleLabel, "growx, gaptop " + UIScale.scale(2));
-        add(textView, "w " + inner + "!");
+        add(titleView, textConstraints(titleView, true));
+        add(textView, textConstraints(textView, false));
         add(showAtStartBox, "split 4, growx, pushx, gaptop " + UIScale.scale(4));
         add(tryButton);
         add(previousButton);
@@ -146,6 +146,12 @@ final class TipCard extends JComponent {
         });
     }
 
+    /** A text's cell: the card's inner width and the height its text takes now (the title a little apart). */
+    private static String textConstraints(TextView view, boolean title) {
+        return "w " + innerWidth() + "!, h " + view.getPreferredSize().height + "!"
+                + (title ? ", gaptop " + UIScale.scale(2) : "");
+    }
+
     /** The width inside the padding, scaled. */
     static int innerWidth() {
         return UIScale.scale(WIDTH) - 2 * UIScale.scale(PADDING_X);
@@ -153,7 +159,7 @@ final class TipCard extends JComponent {
 
     void show(Content shown) {
         this.content = Objects.requireNonNull(shown, "shown");
-        titleLabel.setText(shown.title());
+        titleView.show(new FlowText(List.of(new FlowText.Words(shown.title()))));
         textView.show(shown.text());
         picture.show(shown.picture());
         tryButton.setVisible(shown.canTry());
@@ -169,6 +175,10 @@ final class TipCard extends JComponent {
 
     /** Its height follows the text: the card measures itself again and is placed again. */
     private void measureAgain() {
+        // MigLayout keeps a component's size from its constraints: the texts' heights go there, fresh each time
+        MigLayout layout = (MigLayout) getLayout();
+        layout.setComponentConstraints(titleView, textConstraints(titleView, true));
+        layout.setComponentConstraints(textView, textConstraints(textView, false));
         invalidate();
         setSize(getPreferredSize());
         revalidate();
@@ -249,7 +259,7 @@ final class TipCard extends JComponent {
     // --- what tests read ---
 
     String title() {
-        return titleLabel.getText();
+        return content == null ? "" : content.title();
     }
 
     /** Every text the card shows: the labels, the buttons and the words of its text. */
@@ -262,6 +272,7 @@ final class TipCard extends JComponent {
                 texts.add(button.getText());
             }
         }
+        texts.add(title());
         texts.addAll(textWords());
         return texts;
     }
@@ -303,15 +314,20 @@ final class TipCard extends JComponent {
         return showAtStartBox;
     }
 
-    /** The tip's text, wrapped in the card's width, its keys as light keycaps in the theme's accent. */
+    /** A text of the card (its title or the tip's text), wrapped in the card's width, keys as light keycaps. */
     private final class TextView extends JComponent {
 
+        private final Supplier<Font> font;
         private FlowText flow = new FlowText(List.of());
         /**
          * The height the text took when it was last painted, -1 before: on a scaled screen the painter may wrap a
          * word differently than the measure ahead of it, and then the card takes the painted height.
          */
         private int paintedHeight = -1;
+
+        TextView(Supplier<Font> font) {
+            this.font = font;
+        }
 
         void show(FlowText shown) {
             flow = shown;
@@ -322,7 +338,7 @@ final class TipCard extends JComponent {
         @Override
         public Dimension getPreferredSize() {
             int width = innerWidth();
-            return new Dimension(width, paintedHeight >= 0 ? paintedHeight : flow.height(this, textFont(), width));
+            return new Dimension(width, paintedHeight >= 0 ? paintedHeight : flow.height(this, font.get(), width));
         }
 
         @Override
@@ -333,7 +349,7 @@ final class TipCard extends JComponent {
                 painter.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
                         RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 Color ink = TipPicture.inkColour();
-                int bottom = flow.paintOutlined(painter, textFont(), 0, 0, getWidth(), ink, ThemeColors.accent(),
+                int bottom = flow.paintOutlined(painter, font.get(), 0, 0, getWidth(), ink, ThemeColors.accent(),
                         ink);
                 if (bottom != getHeight()) {
                     paintedHeight = bottom;

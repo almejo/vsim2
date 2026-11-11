@@ -286,7 +286,7 @@ class TipOfTheDayTest {
 
     @Test
     void theSplitViewTipsProbarloOpensItsCircuitAlreadySplit() {
-        tips = List.of(TipsFile.load().get(2));
+        tips = TipsFile.load().stream().filter(tip -> tip.id().equals("split-view")).toList();
         newExtensions();
         EditorView view = newView();
         tipItem(view).doClick(0);

@@ -1,0 +1,77 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Insertar rápido",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "B",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c5",
+    "type" : "and",
+    "x" : 10,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
+    }
+  }, {
+    "id" : "c8",
+    "type" : "led",
+    "x" : 17,
+    "y" : 1,
+    "rotation" : 0,
+    "label" : "Y",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 6,
+    "y1" : 4,
+    "x2" : 10,
+    "y2" : 4
+  }, {
+    "id" : "w4",
+    "x1" : 6,
+    "y1" : 8,
+    "x2" : 10,
+    "y2" : 8
+  }, {
+    "id" : "w6",
+    "x1" : 14,
+    "y1" : 6,
+    "x2" : 18,
+    "y2" : 6
+  }, {
+    "id" : "w7",
+    "x1" : 18,
+    "y1" : 4,
+    "x2" : 18,
+    "y2" : 6
+  } ],
+  "labels" : [ ]
+}

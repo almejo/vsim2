@@ -167,8 +167,9 @@ class TipsFileTest {
 
     private static void assertPictureLoads(String picture) throws Exception {
         if (TipKind.isCircuit(picture)) {
-            TipCircuit circuit = TipCircuit.load(picture);
-            assertThat(circuit.snapshot().problems()).as(picture).isEmpty();
+            // TipCircuitsTest checks each one is what its builder makes and shows only the problems it is about
+            assertThat(TipCircuits.builders()).as(picture + " has a builder").containsKey(picture);
+            assertThat(TipCircuit.load(picture).snapshot().failure()).as(picture).isEmpty();
             return;
         }
         try (InputStream stream = TipsFileTest.class.getResourceAsStream(TipsFile.FOLDER + picture)) {

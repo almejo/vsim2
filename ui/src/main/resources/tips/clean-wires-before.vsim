@@ -1,0 +1,90 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Limpiar cables",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "buffer",
+    "x" : 10,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c3",
+    "type" : "led",
+    "x" : 17,
+    "y" : 0,
+    "rotation" : 0,
+    "label" : "Y",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w4",
+    "x1" : 6,
+    "y1" : 5,
+    "x2" : 8,
+    "y2" : 5
+  }, {
+    "id" : "w5",
+    "x1" : 8,
+    "y1" : 5,
+    "x2" : 10,
+    "y2" : 5
+  }, {
+    "id" : "w6",
+    "x1" : 8,
+    "y1" : 5,
+    "x2" : 8,
+    "y2" : 8
+  }, {
+    "id" : "w7",
+    "x1" : 14,
+    "y1" : 5,
+    "x2" : 16,
+    "y2" : 5
+  }, {
+    "id" : "w8",
+    "x1" : 16,
+    "y1" : 5,
+    "x2" : 18,
+    "y2" : 5
+  }, {
+    "id" : "w9",
+    "x1" : 18,
+    "y1" : 3,
+    "x2" : 18,
+    "y2" : 5
+  }, {
+    "id" : "w10",
+    "x1" : 16,
+    "y1" : 5,
+    "x2" : 16,
+    "y2" : 8
+  }, {
+    "id" : "w11",
+    "x1" : 16,
+    "y1" : 8,
+    "x2" : 19,
+    "y2" : 8
+  } ],
+  "labels" : [ ]
+}

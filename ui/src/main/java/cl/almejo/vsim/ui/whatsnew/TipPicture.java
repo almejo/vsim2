@@ -25,6 +25,7 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.Supplier;
 
 /**
@@ -69,18 +70,19 @@ final class TipPicture extends JComponent {
     private static final double ASPECT = 100.0 / 180.0;
     private static final int CORNER = 6;
     private static final int PADDING = 6;
-    /** A tip circuit is never drawn bigger than the canvas at 100 %. */
-    private static final double MAXIMUM_SCALE = 1.0;
+    /**
+     * A tip circuit is never drawn bigger than this, so the parts look about the same size in every tip (a pair of
+     * «antes y después» halves comes out near it too).
+     */
+    private static final double MAXIMUM_SCALE = 0.7;
     /** The big key: the UI font times this. */
     private static final float BIG_KEY_SCALE = 1.4f;
     private static final int KEY_PLATE_PADDING = 4;
     private static final int KEY_GAP = 10;
-    /** The room between the two pictures of «antes y después» when no key goes between them. */
+    /** The room between the two pictures of «antes y después» and the two panes of a split view. */
     private static final int SLOT_GAP = 8;
     /** How much closer the right pane of a split view shows the circuit than the left one. */
     private static final double ZOOM_IN = 2.2;
-    /** A key at most this share of the picture's width goes between the two pictures; a wider one under them. */
-    private static final double MIDDLE_KEY_SHARE = 0.25;
     private static final int ARROW_LENGTH = 22;
     private static final int ARROW_HEAD = 4;
     private static final int CAPTION_GAP = 2;
@@ -137,9 +139,12 @@ final class TipPicture extends JComponent {
         }
     }
 
-    /** One picture filling the area, its key (if any) in the bottom-right corner over it. */
+    /** One picture over the area, its key (if any) in the bottom-right corner, in a row of its own. */
     private void paintAlone(Graphics2D painter, Rectangle area) {
-        slot(0).ifPresent(slot -> paintSlot(painter, slot, area));
+        int keyRow = content.key().isPresent()
+                ? Keycaps.height(this, keyFont(), BIG_KEY_SCALE) + UIScale.scale(KEY_GAP) / 2 : 0;
+        Rectangle picture = new Rectangle(area.x, area.y, area.width, area.height - keyRow);
+        slot(0).ifPresent(slot -> paintSlot(painter, slot, picture, OptionalDouble.empty()));
         content.key().ifPresent(keys -> {
             int width = Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION);
             int height = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
@@ -148,8 +153,8 @@ final class TipPicture extends JComponent {
     }
 
     /**
-     * Two pictures side by side, «Antes» → «Después» under them. A short key (one or two caps) goes between the
-     * pictures, as in the mockup; a longer one (Ctrl+Alt+L) across the bottom, so the pictures keep the whole width.
+     * Two pictures side by side at one scale, «Antes» → «Después» under them and the key across the bottom, so the
+     * pictures keep the whole width (the mockup's key between them left them too little room).
      */
     private void paintBeforeAndAfter(Graphics2D painter, Rectangle area) {
         Font caption = captionFont();
@@ -158,14 +163,13 @@ final class TipPicture extends JComponent {
         int keyWidth = content.key().map(keys -> Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys,
                 !KeyNames.MAC_NOTATION)).orElse(0);
         int keyHeight = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
-        boolean keyBetween = content.key().isPresent() && keyWidth <= area.width * MIDDLE_KEY_SHARE;
-        int middle = keyBetween ? keyWidth + 2 * UIScale.scale(KEY_GAP) : UIScale.scale(SLOT_GAP);
-        int keyRow = content.key().isPresent() && !keyBetween ? keyHeight + UIScale.scale(KEY_GAP) : 0;
-        int slotWidth = (area.width - middle) / 2;
+        int keyRow = content.key().isPresent() ? keyHeight + UIScale.scale(KEY_GAP) : 0;
+        int slotWidth = (area.width - UIScale.scale(SLOT_GAP)) / 2;
         Rectangle before = new Rectangle(area.x, area.y, slotWidth, area.height - captionHeight - keyRow);
         Rectangle after = new Rectangle(area.x + area.width - slotWidth, area.y, slotWidth, before.height);
-        slot(0).ifPresent(slot -> paintSlot(painter, slot, before));
-        slot(1).ifPresent(slot -> paintSlot(painter, slot, after));
+        OptionalDouble common = commonScale(before);
+        slot(0).ifPresent(slot -> paintSlot(painter, slot, before, common));
+        slot(1).ifPresent(slot -> paintSlot(painter, slot, after, common));
         painter.setFont(caption);
         painter.setColor(mutedColour());
         int captionBaseline = before.y + before.height + captionMetrics.getAscent();
@@ -173,10 +177,8 @@ final class TipPicture extends JComponent {
         paintCentred(painter, Messages.text("tip.after"), after, captionBaseline);
         int centreX = area.x + area.width / 2;
         paintArrow(painter, centreX, captionBaseline - captionMetrics.getAscent() / 2 + UIScale.scale(1));
-        content.key().ifPresent(keys -> {
-            int top = keyBetween ? before.y + (before.height - keyHeight) / 2 : area.y + area.height - keyHeight;
-            paintKey(painter, keys, centreX - keyWidth / 2, top);
-        });
+        content.key().ifPresent(keys -> paintKey(painter, keys, centreX - keyWidth / 2,
+                area.y + area.height - keyHeight));
     }
 
     /**
@@ -216,16 +218,30 @@ final class TipPicture extends JComponent {
     }
 
     /** {@code slot} as big as it fits in {@code area} (a circuit never past 100 %), centred. */
-    private void paintSlot(Graphics2D painter, Slot slot, Rectangle area) {
+    private void paintSlot(Graphics2D painter, Slot slot, Rectangle area, OptionalDouble scale) {
         switch (slot) {
             case CircuitSlot circuitSlot -> circuitSlot.circuit().image(painters, scheme.get())
-                    .ifPresent(image -> paintCircuit(painter, image, area));
+                    .ifPresent(image -> paintCircuit(painter, image, area,
+                            scale.orElseGet(() -> fittingScale(image, area))));
             case ImageSlot imageSlot -> paintImage(painter, imageSlot.image(), area);
         }
     }
 
-    private static void paintCircuit(Graphics2D painter, CircuitImage image, Rectangle area) {
-        paintCircuit(painter, image, area, fittingScale(image, area));
+    /**
+     * One scale for both circuits of «antes y después», the one at which both fit in a slot of {@code slot}'s size:
+     * the same parts look the same size on both sides. Empty when a side is not a circuit.
+     */
+    private OptionalDouble commonScale(Rectangle slot) {
+        double scale = MAXIMUM_SCALE;
+        for (int index = 0; index < 2; index++) {
+            Optional<CircuitImage> image = slot(index).filter(CircuitSlot.class::isInstance)
+                    .flatMap(found -> ((CircuitSlot) found).circuit().image(painters, scheme.get()));
+            if (image.isEmpty()) {
+                return OptionalDouble.empty();
+            }
+            scale = Math.min(scale, fittingScale(image.get(), slot));
+        }
+        return OptionalDouble.of(scale);
     }
 
     /** As big as {@code image} fits in {@code area}, never past 100 %. */
