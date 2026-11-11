@@ -39,8 +39,9 @@ final class EnterChip {
     /** Follows the pointer; true when the chip appeared, moved to another instance or went (a repaint is due). */
     boolean hover(ToolContext context, CanvasMouseEvent event) {
         Optional<Component> next = instanceAt(context, event.gridPosition())
-                // the pointer went from the instance onto its chip, which sticks out of it
-                .or(() -> hovered.filter(instance -> contains(context, instance, event.gridPosition())));
+                // the pointer went from the instance onto its chip, which sticks out of it, over ground that is not the
+                // drawn shape (a custom shape need not fill its extent) or even the extent
+                .or(() -> hovered.filter(instance -> insideReach(context, instance, event.gridPosition())));
         boolean changed = !next.map(Component::id).equals(hovered.map(Component::id));
         hovered = next;
         return changed;
@@ -122,6 +123,51 @@ final class EnterChip {
     private static boolean contains(ToolContext context, Component instance, Point2D gridPosition) {
         return chipOf(context, instance).contains(gridPosition.getX() * GridPoint.PIXELS_PER_UNIT,
                 gridPosition.getY() * GridPoint.PIXELS_PER_UNIT);
+    }
+
+    /**
+     * True when {@code gridPosition} is in the convex hull of the instance's extent and its chip: the chip reaches only a
+     * few pixels into the extent's corner, so a pointer heading for it in a straight line from the drawn shape leaves
+     * the extent beside the chip; inside the hull every such line stays.
+     */
+    private static boolean insideReach(ToolContext context, Component instance, Point2D gridPosition) {
+        Bounds box = ElementBounds.of(instance, context.openDocument().registry());
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        Rectangle2D chip = chipOf(context, instance);
+        double[][] corners = {
+                {box.x() * unit, box.y() * unit}, {box.x() * unit, box.maximumY() * unit},
+                {box.maximumX() * unit, box.y() * unit}, {box.maximumX() * unit, box.maximumY() * unit},
+                {chip.getMinX(), chip.getMinY()}, {chip.getMinX(), chip.getMaxY()},
+                {chip.getMaxX(), chip.getMinY()}, {chip.getMaxX(), chip.getMaxY()}};
+        double pointX = gridPosition.getX() * unit;
+        double pointY = gridPosition.getY() * unit;
+        // an edge of the hull has every corner on one side; the point is inside when it is on that side of all of them
+        for (int first = 0; first < corners.length; first++) {
+            for (int second = 0; second < corners.length; second++) {
+                if (first != second && isHullEdge(corners, first, second)) {
+                    double side = (corners[second][0] - corners[first][0]) * (pointY - corners[first][1])
+                            - (corners[second][1] - corners[first][1]) * (pointX - corners[first][0]);
+                    if (side < 0) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    /** True when every corner is on or to the left of the line from {@code first} to {@code second}, and not all on it. */
+    private static boolean isHullEdge(double[][] corners, int first, int second) {
+        boolean someOff = false;
+        for (double[] corner : corners) {
+            double side = (corners[second][0] - corners[first][0]) * (corner[1] - corners[first][1])
+                    - (corners[second][1] - corners[first][1]) * (corner[0] - corners[first][0]);
+            if (side < 0) {
+                return false;
+            }
+            someOff |= side > 0;
+        }
+        return someOff;
     }
 
     /** Over the instance's top-right corner, reaching up and right out of it, at a constant size on screen. */

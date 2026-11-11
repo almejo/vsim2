@@ -1,6 +1,12 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
+import cl.almejo.vsim.core.component.appearance.SymbolElement;
+import cl.almejo.vsim.core.component.appearance.SymbolNode;
+import cl.almejo.vsim.core.component.appearance.SymbolPath;
+import cl.almejo.vsim.core.component.appearance.SymbolPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.UartTypes;
 import cl.almejo.vsim.core.command.AddElementsCommand;
@@ -1035,5 +1041,64 @@ class SelectToolTest {
         assertThat(tool.enterChipBounds(context)).isPresent();
         tool.mouseMoved(context, TestToolContext.at(40, 40));
         assertThat(tool.enterChipBounds(context)).isEmpty();
+    }
+
+    /** The inverter drawn as a triangle pointing right: its top-right corner of the extent is empty. */
+    private Component triangleInstance(int x, int y) {
+        int full = 4 * SymbolPoint.EIGHTHS;
+        SymbolPath triangle = new SymbolPath(List.of(
+                new SymbolNode(new SymbolPoint(0, 0), Optional.empty()),
+                new SymbolNode(new SymbolPoint(0, full), Optional.empty()),
+                new SymbolNode(new SymbolPoint(full, full / 2), Optional.empty())), true, false);
+        SymbolDrawing drawing = new SymbolDrawing(new GridSize(4, 4), List.<SymbolElement>of(triangle), true);
+        context.openDocument().execute(new PutDefinitionsCommand(
+                List.of(ExampleDefinitions.inverter().withAppearance(Optional.of(drawing)))));
+        return place(context.openDocument(), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), x, y, Map.of());
+    }
+
+    @Test
+    void theEnterChipStaysWhilePointerCrossesTheEmptyPartOfTheExtentOfACustomShape() {
+        Component instance = triangleInstance(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(0.5, 2)); // on the drawn shape
+        Rectangle2D chip = tool.enterChipBounds(context).orElseThrow();
+        tool.mouseMoved(context, TestToolContext.at(3.6, 0.3)); // empty corner of the extent, outside the triangle
+        assertThat(tool.enterChipBounds(context)).contains(chip);
+        double gridX = chip.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        double gridY = chip.getCenterY() / GridPoint.PIXELS_PER_UNIT;
+        tool.mouseMoved(context, TestToolContext.at(gridX, gridY));
+        assertThat(tool.enterChipBounds(context)).contains(chip);
+
+        context.click(tool, gridX, gridY);
+
+        assertThat(context.entered).isEqualTo(instance);
+    }
+
+    @Test
+    void theEnterChipOfACustomShapeGoesWhenThePointerLeavesTheExtent() {
+        triangleInstance(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(0.5, 2));
+        assertThat(tool.enterChipBounds(context)).isPresent();
+        tool.mouseMoved(context, TestToolContext.at(3.6, 0.3));
+        tool.mouseMoved(context, TestToolContext.at(10, 10));
+        assertThat(tool.enterChipBounds(context)).isEmpty();
+    }
+
+    @Test
+    void theEnterChipStaysOnAStraightPathFromTheShapeToItEvenWhenThePathLeavesTheExtentBesideTheChip() {
+        triangleInstance(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(0.5, 3));
+        Rectangle2D chip = tool.enterChipBounds(context).orElseThrow();
+        double targetX = chip.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        double targetY = chip.getCenterY() / GridPoint.PIXELS_PER_UNIT;
+        double[][] starts = {{0.5, 3}, {3.5, 3.5}, {3, 2}, {1, 1}};
+        for (double[] start : starts) {
+            tool.mouseMoved(context, TestToolContext.at(start[0], start[1]));
+            for (int step = 1; step <= 40; step++) {
+                tool.mouseMoved(context, TestToolContext.at(start[0] + (targetX - start[0]) * step / 40,
+                        start[1] + (targetY - start[1]) * step / 40));
+                assertThat(tool.enterChipBounds(context)).as("from %s step %d", java.util.Arrays.toString(start), step)
+                        .isPresent();
+            }
+        }
     }
 }

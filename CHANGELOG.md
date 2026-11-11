@@ -106,6 +106,7 @@ circuito» separa lo que se tapa y endereza cables; un panel derecho nuevo con i
 
 ### Arreglado
 
+- El chip «Entrar ↘» ya no se va cuando vas hacia él en línea recta desde un componente con una forma que no llena su recuadro (un triángulo, por ejemplo): se queda mientras el puntero está entre el componente y el chip, y se va al salir de ahí.
 - La pieza que flota antes de colocarla (de la paleta o de «Mis componentes») gira con tus teclas de Girar y Girar al revés, no siempre con R: si cambias el atajo en Preferencias ▸ Atajos de teclado (por ejemplo a Ctrl+R), la pieza gira con esa tecla al instante y R deja de girarla; la frase de la barra de estado nombra tus teclas. Ver [Colocar componentes](docs/funciones/edicion.md#colocar-componentes).
 - Cuando un cambio en Propiedades se rechaza porque un pin nuevo caería sobre un cable (mostrar Q̅ en un flip-flop, pasar una Matriz LED a «Barrido» con cables puestos), el aviso nombra ese pin; antes siempre hablaba de Q̅, también en piezas que no lo tienen.
 - Cuando Propiedades rechaza un cambio por un cable (por ejemplo «Entrada: Barrido» en una Matriz LED, o «Mostrar Q̅» en un flip-flop), el control vuelve al valor que la pieza tiene, en vez de seguir mostrando el valor rechazado; el aviso en rojo se queda.
