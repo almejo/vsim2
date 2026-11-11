@@ -50,24 +50,35 @@ final class GesturePhrases {
     }
 
     /** A copied fragment following the pointer. */
-    static String pasting() {
-        return Messages.text("gesture.pasting");
+    static String pasting(ToolContext context) {
+        return withRotateKeys(context, "gesture.pasting", "gesture.pastingNoRotate");
     }
 
     /** A fragment dragged out of the palette (a user component) following the pointer. */
-    static String dropping(String componentName) {
-        return Messages.format("gesture.dropping", componentName);
+    static String dropping(String componentName, ToolContext context) {
+        return withRotateKeys(context, "gesture.dropping", "gesture.droppingNoRotate", componentName);
     }
 
     /** A part from the palette following the pointer. */
     static String placing(String componentName, ToolContext context) {
+        return withRotateKeys(context, "gesture.placing", "gesture.placingNoRotate", componentName);
+    }
+
+    /**
+     * {@code key} with the user's rotate keys as the last argument, or {@code keyWithoutKeys} when both are unbound;
+     * {@code leading} come first.
+     */
+    private static String withRotateKeys(ToolContext context, String key, String keyWithoutKeys, Object... leading) {
         String rotateKeys = java.util.stream.Stream.of("edit.rotateClockwise", "edit.rotateCounterClockwise")
                 .map(context::shortcut)
                 .flatMap(java.util.Optional::stream)
                 .map(cl.almejo.vsim.ui.shortcuts.KeyNames::describe)
                 .collect(java.util.stream.Collectors.joining(" / "));
-        return rotateKeys.isEmpty()
-                ? Messages.format("gesture.placingNoRotate", componentName)
-                : Messages.format("gesture.placing", componentName, rotateKeys);
+        if (rotateKeys.isEmpty()) {
+            return Messages.format(keyWithoutKeys, leading);
+        }
+        Object[] arguments = java.util.Arrays.copyOf(leading, leading.length + 1);
+        arguments[leading.length] = rotateKeys;
+        return Messages.format(key, arguments);
     }
 }

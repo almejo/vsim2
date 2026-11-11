@@ -18,7 +18,9 @@ import cl.almejo.vsim.core.geometry.Rotation;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -60,9 +62,24 @@ public final class RotateElementsCommand implements Command {
         document.batch(() -> turned.forEach(change -> document.replace(change.after())));
     }
 
+    /**
+     * {@code elements} turned a quarter turn as a group, exactly as the command would turn them in a document, in the
+     * same order (an element that looks the same after the turn comes back as it was). For a floating selection.
+     */
+    public static List<DocumentElement> turnedGroup(List<DocumentElement> elements, boolean clockwise,
+                                                    ComponentTypeRegistry registry) {
+        RotateElementsCommand command = new RotateElementsCommand(List.of(), clockwise, registry);
+        Map<DocumentElement, DocumentElement> after = new IdentityHashMap<>();
+        command.turnedElements(elements).forEach(turn -> after.put(turn.before(), turn.after()));
+        return elements.stream().map(element -> after.getOrDefault(element, element)).toList();
+    }
+
     /** The elements the turn changes, in selection order. */
     private List<Turn> turned(CircuitDocument document) {
-        List<DocumentElement> elements = ids.stream().map(document::element).flatMap(Optional::stream).toList();
+        return turnedElements(ids.stream().map(document::element).flatMap(Optional::stream).toList());
+    }
+
+    private List<Turn> turnedElements(List<DocumentElement> elements) {
         Optional<Bounds> bounds = ElementBounds.union(elements, registry);
         if (bounds.isEmpty()) {
             return List.of();

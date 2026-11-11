@@ -170,21 +170,60 @@ class FloatingSelectionToolTest {
         }
     }
 
+    private static javax.swing.KeyStroke stroke(int modifiers) {
+        return javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, modifiers);
+    }
+
+    /** A buffer and a wire to its right, as a copied group. */
+    private FloatingSelectionTool floatingGroup(int x, int y) {
+        CircuitFragment group = new CircuitFragment(gate.components(),
+                List.of(new cl.almejo.vsim.core.document.Wire(new ElementId("w1"), new GridPoint(6, 2),
+                        new GridPoint(12, 2))), List.of());
+        FloatingSelectionTool tool = new FloatingSelectionTool(group, new GridPoint(x, y));
+        context.setTool(tool);
+        return tool;
+    }
+
     @Test
-    void rotateKeysAreConsumedAndChangeNothing() {
-        FloatingSelectionTool tool = floating(3, 3);
-        javax.swing.KeyStroke controlR = javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R,
-                java.awt.event.InputEvent.CTRL_DOWN_MASK);
-        assertThat(tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, 0))).isTrue();
-        assertThat(tool.keyStrokePressed(context, javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R,
-                java.awt.event.InputEvent.SHIFT_DOWN_MASK))).isTrue();
-        assertThat(tool.keyStrokePressed(context, controlR)).isFalse();
-        context.keyBindings.assign("edit.rotateClockwise", controlR); // follows the user's binding
-        assertThat(tool.keyStrokePressed(context, controlR)).isTrue();
-        assertThat(tool.position()).isEqualTo(new GridPoint(3, 3));
+    void theRotateKeysTurnTheFloatingGroupWithoutTouchingTheDocument() {
+        FloatingSelectionTool tool = floatingGroup(3, 3);
+        assertThat(tool.keyStrokePressed(context, stroke(0))).isTrue();
+        Component turned = tool.fragment().components().get(0);
+        assertThat(turned.rotation()).isEqualTo(Rotation.R90);
+        // the wire that ran right of the gate now runs below it, and the group still starts at (0, 0)
+        cl.almejo.vsim.core.document.Wire wire = tool.fragment().wires().get(0);
+        assertThat(wire.start().x()).isEqualTo(wire.end().x());
+        assertThat(tool.fragment().bounds(registry).x()).isZero();
+        assertThat(tool.fragment().bounds(registry).y()).isZero();
+        assertThat(tool.keyStrokePressed(context, stroke(java.awt.event.InputEvent.SHIFT_DOWN_MASK))).isTrue();
+        assertThat(tool.fragment().components().get(0).rotation()).isEqualTo(Rotation.R0);
         assertThat(document.isEmpty()).isTrue();
         assertThat(history.canUndo()).isFalse();
         assertThat(context.tool).isSameAs(tool);
+    }
+
+    @Test
+    void droppingARotatedGroupIsOneUndoStep() {
+        FloatingSelectionTool tool = floatingGroup(3, 3);
+        tool.keyStrokePressed(context, stroke(0));
+        tool.keyStrokePressed(context, stroke(0));
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ENTER, false)).isTrue();
+        assertThat(document.components()).singleElement()
+                .satisfies(placed -> assertThat(placed.rotation()).isEqualTo(Rotation.R180));
+        history.undo();
+        assertThat(document.isEmpty()).isTrue();
+        assertThat(history.canUndo()).isFalse();
+    }
+
+    @Test
+    void theRotationFollowsTheUsersBinding() {
+        javax.swing.KeyStroke controlR = stroke(java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        context.keyBindings.assign("edit.rotateClockwise", controlR);
+        FloatingSelectionTool tool = floatingGroup(3, 3);
+        assertThat(tool.keyStrokePressed(context, stroke(0))).isFalse();
+        assertThat(tool.fragment().components().get(0).rotation()).isEqualTo(Rotation.R0);
+        assertThat(tool.keyStrokePressed(context, controlR)).isTrue();
+        assertThat(tool.fragment().components().get(0).rotation()).isEqualTo(Rotation.R90);
     }
 
     @Test

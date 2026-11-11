@@ -53,7 +53,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Paleta de comandos](docs/funciones/edicion.md#paleta-de-comandos): doble clic en un espacio vacío o Insert busca un componente y lo coloca ahí; Ctrl+K (o Ayuda ▸ «Buscar una acción…») busca cualquier acción de los menús, con su atajo al lado.
 - [Seleccionar](docs/funciones/edicion.md#seleccionar) con clic, Mayús/Ctrl o un rectángulo que suma o quita, con cursores que dicen qué hará el clic.
 - [Mover con el teclado](docs/funciones/edicion.md#mover-con-el-teclado): las flechas mueven la selección en un solo paso de deshacer.
-- [Portapapeles](docs/funciones/edicion.md#portapapeles): cortar, copiar, pegar flotando y duplicar.
+- [Portapapeles](docs/funciones/edicion.md#portapapeles): cortar, copiar, pegar flotando (que se puede girar antes de dejarlo) y duplicar.
 - [Arrastrar entre ventanas](docs/funciones/edicion.md#arrastrar-entre-ventanas) para mover o copiar entre vistas y circuitos.
 - [Etiquetas, textos y Propiedades](docs/funciones/edicion.md#etiquetas-textos-y-propiedades): etiquetas que se mueven, textos libres (con la herramienta Texto de la barra: un clic y escribes; notas de varias líneas: Mayús+Enter agrega una línea al editarlas, también en Propiedades; con fondo, color de letra y borde si quieres) y un panel para editar lo seleccionado (sin nada seleccionado, el nombre del circuito, aparte del nombre de su archivo), con una tarjeta arriba, secciones, interruptores para los ajustes de sí o no y un ícono gris junto al nombre de cada ajuste común.
 - [Elegir un color](docs/funciones/edicion.md#elegir-un-color) con una fila de muestras, igual para LED, marcos, túneles y notas.

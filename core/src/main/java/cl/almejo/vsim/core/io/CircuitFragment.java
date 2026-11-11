@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.io;
 
+import cl.almejo.vsim.core.command.RotateElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
@@ -111,6 +112,26 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
     public boolean isEmpty() {
         return components.isEmpty() && wires.isEmpty() && labels.isEmpty() && frames.isEmpty()
                 && stickyNotes.isEmpty();
+    }
+
+    /**
+     * This fragment turned a quarter turn as a group, like Girar turns a selection ({@link RotateElementsCommand}),
+     * and moved so its bounds start again at (0,0). A fragment of one lone text label comes back as it was.
+     */
+    public CircuitFragment rotated(boolean clockwise, ComponentTypeRegistry registry) {
+        List<DocumentElement> turned = RotateElementsCommand.turnedGroup(elements(), clockwise, registry);
+        int componentCount = components.size();
+        int wireCount = componentCount + wires.size();
+        int labelCount = wireCount + labels.size();
+        int frameCount = labelCount + frames.size();
+        CircuitFragment result = new CircuitFragment(
+                turned.subList(0, componentCount).stream().map(Component.class::cast).toList(),
+                turned.subList(componentCount, wireCount).stream().map(Wire.class::cast).toList(),
+                turned.subList(wireCount, labelCount).stream().map(TextLabel.class::cast).toList(), definitions,
+                turned.subList(labelCount, frameCount).stream().map(Frame.class::cast).toList(),
+                turned.subList(frameCount, turned.size()).stream().map(StickyNote.class::cast).toList());
+        Bounds bounds = result.bounds(registry);
+        return result.translate(-bounds.x(), -bounds.y());
     }
 
     public CircuitFragment translate(int deltaX, int deltaY) {

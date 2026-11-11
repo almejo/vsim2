@@ -38,7 +38,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Portapapeles
 
-- Portapapeles: Ctrl+X / Ctrl+C / Ctrl+V (⌘ en macOS). Lo pegado flota semitransparente bajo el mouse (con el mouse fuera del canvas, junto al original si viene de este mismo circuito y ese lugar está a la vista; si no, en el centro de la vista): un click lo deja ahí; si en cambio se arrastra, queda flotando donde se suelta y se fija con un click fuera de él o con Enter. Esc cancela. Ctrl+D duplica sin tocar el portapapeles.
+- Portapapeles: Ctrl+X / Ctrl+C / Ctrl+V (⌘ en macOS). Lo pegado flota semitransparente bajo el mouse (con el mouse fuera del canvas, junto al original si viene de este mismo circuito y ese lugar está a la vista; si no, en el centro de la vista): un click lo deja ahí; si en cambio se arrastra, queda flotando donde se suelta y se fija con un click fuera de él o con Enter. Mientras flota (pegado o duplicado) tus teclas de Girar y Girar al revés (R y Mayús+R por defecto) giran todo el grupo un cuarto de vuelta, igual que Girar con una selección, y el grupo se deja girado con un solo paso de deshacer. Esc cancela. Ctrl+D duplica sin tocar el portapapeles.
 
 ## Arrastrar entre ventanas
 

@@ -160,7 +160,7 @@ class GesturePhraseTest {
         FloatingSelectionTool pasting = new FloatingSelectionTool(fragment, new GridPoint(3, 3));
         context.setTool(pasting);
 
-        assertThat(phrase(pasting)).startsWith("Pegando:").contains("Enter", "Esc: cancela");
+        assertThat(phrase(pasting)).startsWith("Pegando:").contains("Enter", "R / Mayús+R: gira", "Esc: cancela");
         pasting.keyPressed(context, KeyEvent.VK_ESCAPE, false);
         assertThat(phrase(pasting)).isEmpty();
     }

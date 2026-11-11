@@ -33,7 +33,7 @@ import java.util.Set;
  * one {@link PasteCommand}. It follows the mouse (its origin at the pointer) until the first primary press. If that
  * first press is released without dragging, the fragment is committed right there (one click drops a paste). If it is
  * dragged, the fragment moves with the drag and stays floating; afterwards a press outside it commits and a press on
- * it grabs and drags it. Enter commits; Esc, Delete and Backspace cancel; R is consumed (no rotation while floating). Leaving the tool any other way (pasting again, choosing another
+ * it grabs and drags it. Enter commits; Esc, Delete and Backspace cancel; the user's rotate shortcuts turn it. Leaving the tool any other way (pasting again, choosing another
  * tool) commits it.
  *
  * <p>Ajustar (alignment-guides spec §3.4): where the pointer puts the fragment is snapped to the circuit's parts,
@@ -49,7 +49,7 @@ public final class FloatingSelectionTool implements Tool {
     /** A press that moves less than this many grid units before release is a click. */
     public static final double CLICK_TOLERANCE = 0.5;
 
-    private final CircuitFragment fragment;
+    private CircuitFragment fragment;
     private final Optional<ComponentType> fromPalette;
     private GridPoint position;
     /** Where the pointer puts the fragment's (0,0) before the magnet. */
@@ -97,8 +97,8 @@ public final class FloatingSelectionTool implements Tool {
         if (finished) {
             return "";
         }
-        return fromPalette.map(type -> GesturePhrases.dropping(Messages.componentName(type)))
-                .orElseGet(GesturePhrases::pasting);
+        return fromPalette.map(type -> GesturePhrases.dropping(Messages.componentName(type), context))
+                .orElseGet(() -> GesturePhrases.pasting(context));
     }
 
     /** The document selection is cleared so that nothing but the floating fragment can be acted upon. */
@@ -210,10 +210,23 @@ public final class FloatingSelectionTool implements Tool {
         return false;
     }
 
-    /** Rotating a floating fragment is not supported; the rotate shortcuts are consumed so they do not turn the document. */
+    /**
+     * The user's rotate shortcuts turn the whole floating fragment a quarter turn, the way Girar turns a selection (it
+     * keeps its top-left where it was); nothing reaches the document until it is dropped, so it is still one undo step.
+     */
     @Override
     public boolean keyStrokePressed(ToolContext context, javax.swing.KeyStroke stroke) {
-        return !finished && RotateShortcuts.clockwise(context, stroke).isPresent();
+        if (finished) {
+            return false;
+        }
+        Optional<Boolean> clockwise = RotateShortcuts.clockwise(context, stroke);
+        if (clockwise.isEmpty()) {
+            return false;
+        }
+        fragment = fragment.rotated(clockwise.get(), types(context));
+        place(context);
+        context.repaint();
+        return true;
     }
 
     @Override
