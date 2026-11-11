@@ -33,3 +33,11 @@ arrow-keys          | before-after | tip.arrowKeys.title         | tip.arrowKeys
 edit-in-place       | before-after | tip.editInPlace.title       | tip.editInPlace.text       | edit-in-place-before.vsim, edit-in-place-after.vsim | edit.label         | circuit
 frame-selection     | circuit      | tip.frameSelection.title    | tip.frameSelection.text    | frame-selection.vsim                              | edit.frameSelection | circuit
 sticky-note         | circuit      | tip.stickyNote.title        | tip.stickyNote.text        | sticky-note.vsim                                  | -                    | circuit
+bit-selector        | circuit      | tip.bitSelector.title       | tip.bitSelector.text       | bit-selector.vsim                                 | -                    | circuit
+width-follows       | circuit      | tip.widthFollows.title      | tip.widthFollows.text      | width-follows.vsim                                | edit.undo          | circuit
+bus-splitter        | circuit      | tip.busSplitter.title       | tip.busSplitter.text       | bus-splitter.vsim                                 | -                    | circuit
+show-as             | circuit      | tip.showAs.title            | tip.showAs.text            | show-as.vsim                                      | -                    | circuit
+step-by-step        | circuit      | tip.stepByStep.title        | tip.stepByStep.text        | step-by-step.vsim                                 | simulation.advance   | circuit simulation.stepMode
+restart             | circuit      | tip.restart.title           | tip.restart.text           | restart.vsim                                      | simulation.restart   | circuit
+breakpoint          | circuit      | tip.breakpoint.title        | tip.breakpoint.text        | breakpoint.vsim                                   | -                    | circuit
+short-circuit       | circuit      | tip.shortCircuit.title      | tip.shortCircuit.text      | short-circuit.vsim                                | -                    | circuit

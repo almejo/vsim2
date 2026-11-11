@@ -1,0 +1,39 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "El ancho sigue al bus",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "constant",
+    "x" : 2,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "auto",
+      "value" : "0x2A",
+      "width" : 8
+    }
+  }, {
+    "id" : "c3",
+    "type" : "led",
+    "x" : 12,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red",
+      "width" : 8
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w2",
+    "x1" : 8,
+    "y1" : 6,
+    "x2" : 12,
+    "y2" : 6
+  } ],
+  "labels" : [ ]
+}

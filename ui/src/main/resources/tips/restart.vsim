@@ -1,0 +1,67 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Reiniciar sin tocar los interruptores",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "counter",
+    "x" : 10,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "format" : "auto",
+      "width" : 4
+    }
+  }, {
+    "id" : "c2",
+    "type" : "clock",
+    "x" : 8,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 1000,
+      "time-up" : 1000
+    }
+  }, {
+    "id" : "c5",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "EN",
+    "parameters" : {
+      "value" : "1"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 10,
+    "y1" : 14,
+    "x2" : 20,
+    "y2" : 14
+  }, {
+    "id" : "w4",
+    "x1" : 20,
+    "y1" : 10,
+    "x2" : 20,
+    "y2" : 14
+  }, {
+    "id" : "w6",
+    "x1" : 6,
+    "y1" : 13,
+    "x2" : 16,
+    "y2" : 13
+  }, {
+    "id" : "w7",
+    "x1" : 16,
+    "y1" : 10,
+    "x2" : 16,
+    "y2" : 13
+  } ],
+  "labels" : [ ]
+}

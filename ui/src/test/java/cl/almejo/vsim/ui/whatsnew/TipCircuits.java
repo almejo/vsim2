@@ -1,6 +1,9 @@
 package cl.almejo.vsim.ui.whatsnew;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.BreakpointTypes;
+import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.component.standard.WiringTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -73,6 +76,14 @@ final class TipCircuits {
         builders.put("edit-in-place-after.vsim", () -> editInPlace("Y"));
         builders.put("frame-selection.vsim", TipCircuits::frameSelection);
         builders.put("sticky-note.vsim", TipCircuits::stickyNote);
+        builders.put("bit-selector.vsim", TipCircuits::bitSelector);
+        builders.put("width-follows.vsim", TipCircuits::widthFollows);
+        builders.put("bus-splitter.vsim", TipCircuits::busSplitter);
+        builders.put("show-as.vsim", TipCircuits::showAs);
+        builders.put("step-by-step.vsim", TipCircuits::stepByStep);
+        builders.put("restart.vsim", TipCircuits::restart);
+        builders.put("breakpoint.vsim", TipCircuits::breakpoint);
+        builders.put("short-circuit.vsim", TipCircuits::shortCircuit);
         return builders;
     }
 
@@ -80,7 +91,7 @@ final class TipCircuits {
      * The circuits whose picture is about a problem, with how many rows the Problems list shows for them; every other
      * tip circuit shows none.
      */
-    static final Map<String, Integer> PROBLEMS_SHOWN = Map.of("next-problem.vsim", 1);
+    static final Map<String, Integer> PROBLEMS_SHOWN = Map.of("next-problem.vsim", 1, "short-circuit.vsim", 1);
 
     /** A small document with its own registry (the standard types and the document's definitions). */
     private static final class Builder {
@@ -110,6 +121,12 @@ final class TipCircuits {
                     new GridPoint(left, top), Rotation.R0, NO_PARAMETERS, label);
             document.add(component);
             return component;
+        }
+
+        /** A 4-bit counter with its top-left corner at ({@code left}, {@code top}). */
+        void counterAt(int left, int top) {
+            place(StandardComponentTypes.COUNTER, new GridPoint(left, top), Rotation.R0,
+                    Map.of(StandardComponentTypes.WIDTH, 4), "");
         }
 
         GridPoint pin(Component component, int pinIndex) {
@@ -188,6 +205,14 @@ final class TipCircuits {
             ledAt(25 + shift, 1, "S");
             wire(20 + shift, 12, 30 + shift, 12, 30 + shift, 10);
             ledAt(29 + shift, 7, "C");
+        }
+
+        /** A Constante of {@code width} bits whose pin is at {@code pinPoint}. */
+        Component constant(GridPoint pinPoint, int width, String value, Map<String, Object> more) {
+            Map<String, Object> parameters = new java.util.HashMap<>(more);
+            parameters.put(StandardComponentTypes.WIDTH, width);
+            parameters.put(StandardComponentTypes.VALUE, value);
+            return placeByPin(StandardComponentTypes.CONSTANT, pinPoint, 0, parameters, "");
         }
 
         void text(int x, int y, String text) {
@@ -552,6 +577,118 @@ final class TipCircuits {
         builder.ledAt(15, 1, "Y");
         builder.document.add(new StickyNote(builder.document.newStickyNoteId(), new GridPoint(22, 1), 8, 6,
                 StickyColor.YELLOW, new StickyText("A = 1"), false));
+        return builder.document;
+    }
+
+    /**
+     * «Buses y selector de bits»: an 8-bit Constante (0xA5) on a bus into a bit selector, a 3-bit Constante picking
+     * group 2, and the LED that shows that bit (a 1, so it is lit).
+     */
+    private static CircuitDocument bitSelector() {
+        Builder builder = new Builder("Buses y selector de bits");
+        builder.constant(new GridPoint(6, 6), 8, "0xA5", Map.of());
+        builder.wire(6, 6, 12, 6);
+        builder.placeByPin(WiringTypes.BIT_SELECTOR, new GridPoint(12, 6), 0, NO_PARAMETERS, "");
+        builder.constant(new GridPoint(10, 12), 3, "2", Map.of());
+        builder.wire(10, 12, 15, 12, 15, 9);
+        builder.wire(18, 6, 24, 6, 24, 4);
+        builder.ledAt(23, 1, "");
+        return builder.document;
+    }
+
+    /** «El ancho sigue al bus»: an 8-bit Constante wired to an LED that took its 8 bits, as the wire joined them. */
+    private static CircuitDocument widthFollows() {
+        Builder builder = new Builder("El ancho sigue al bus");
+        builder.constant(new GridPoint(8, 6), 8, "0x2A", Map.of());
+        builder.wire(8, 6, 12, 6);
+        builder.placeByPin(StandardComponentTypes.LED, new GridPoint(12, 6), 0,
+                Map.of(StandardComponentTypes.WIDTH, 8), "");
+        return builder.document;
+    }
+
+    /**
+     * «Separador y unión de bus»: a 4-bit Constante, a splitter two squares from its pin (where «Agregar separador de
+     * bus» puts it) and one LED on each bit, fanned out so the wires do not cross.
+     */
+    private static CircuitDocument busSplitter() {
+        Builder builder = new Builder("Separador y unión de bus");
+        builder.constant(new GridPoint(4, 8), 4, "0b0110", Map.of());
+        builder.wire(4, 8, 6, 8);
+        builder.placeByPin(StandardComponentTypes.BUS_SPLITTER, new GridPoint(6, 8), 0,
+                Map.of(StandardComponentTypes.WIDTH, 4), "");
+        for (int bit = 0; bit < 4; bit++) {
+            int pinRow = 9 + bit;
+            int ledRow = 9 + bit * 3;
+            int turnX = 9 + (3 - bit);
+            if (bit == 0) {
+                builder.wire(8, pinRow, 16, pinRow);
+            } else {
+                builder.wire(8, pinRow, turnX, pinRow, turnX, ledRow, 16, ledRow);
+            }
+            builder.ledTurnedAt(16, ledRow);
+        }
+        return builder.document;
+    }
+
+    /** «Mostrar como»: one 8-bit Constante (65) on four output pins: binary, hexadecimal, decimal and character. */
+    private static CircuitDocument showAs() {
+        Builder builder = new Builder("Mostrar como");
+        builder.constant(new GridPoint(8, 8), 8, "65", Map.of());
+        String[] formats = {ConstantValue.BINARY, ConstantValue.HEX, ConstantValue.DECIMAL, ConstantValue.ASCII};
+        builder.wire(8, 8, 14, 8, 14, 3, 14, 15);
+        for (int row = 0; row < formats.length; row++) {
+            int y = 3 + row * 4;
+            builder.wire(14, y, 18, y);
+            builder.placeByPin(InterfacePins.OUTPUT_PIN, new GridPoint(18, y), 0,
+                    Map.of(StandardComponentTypes.WIDTH, 8, ConstantValue.FORMAT, formats[row]), "");
+        }
+        return builder.document;
+    }
+
+    /** «Paso a paso»: a switch and three NOTs in a row on an LED, a gate for each step of the signal. */
+    private static CircuitDocument stepByStep() {
+        Builder builder = new Builder("Paso a paso");
+        builder.switchAt(2, 5, "A", true);
+        builder.wire(6, 6, 8, 6);
+        builder.not(8, 4);
+        builder.wire(12, 6, 14, 6);
+        builder.not(14, 4);
+        builder.wire(18, 6, 20, 6);
+        builder.not(20, 4);
+        builder.wire(24, 6, 28, 6, 28, 4);
+        builder.ledAt(27, 1, "Y");
+        return builder.document;
+    }
+
+    /** «Reiniciar»: a clock on a 4-bit counter, held on by a switch that stays on after a restart. */
+    private static CircuitDocument restart() {
+        Builder builder = new Builder("Reiniciar sin tocar los interruptores");
+        builder.counterAt(10, 3);
+        builder.placeByPin(StandardComponentTypes.CLOCK, new GridPoint(10, 14), 0, NO_PARAMETERS, "");
+        builder.wire(10, 14, 20, 14, 20, 10);
+        builder.switchAt(2, 12, "EN", true);
+        builder.wire(6, 13, 16, 13, 16, 10);
+        return builder.document;
+    }
+
+    /** «Punto de parada»: a clock and a 4-bit counter whose count goes to a breakpoint set to 9. */
+    private static CircuitDocument breakpoint() {
+        Builder builder = new Builder("Punto de parada");
+        builder.counterAt(4, 3);
+        builder.placeByPin(StandardComponentTypes.CLOCK, new GridPoint(4, 14), 0, NO_PARAMETERS, "");
+        builder.wire(4, 14, 14, 14, 14, 10);
+        builder.wire(16, 5, 22, 5);
+        builder.placeByPin(BreakpointTypes.BREAKPOINT, new GridPoint(22, 5), 0,
+                Map.of(StandardComponentTypes.WIDTH, 4, StandardComponentTypes.VALUE, "9"), "");
+        return builder.document;
+    }
+
+    /** «Cortocircuitos»: two switches, one on and one off, push the same wire: red, a halo on each pin. */
+    private static CircuitDocument shortCircuit() {
+        Builder builder = new Builder("Cortocircuitos");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 9, "B", false);
+        builder.wire(6, 4, 12, 4, 12, 10, 6, 10);
         return builder.document;
     }
 }

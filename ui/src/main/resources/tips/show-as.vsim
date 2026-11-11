@@ -1,0 +1,108 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Mostrar como",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "constant",
+    "x" : 2,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "auto",
+      "value" : "65",
+      "width" : 8
+    }
+  }, {
+    "id" : "c6",
+    "type" : "output-pin",
+    "x" : 18,
+    "y" : 2,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "binary",
+      "width" : 8
+    }
+  }, {
+    "id" : "c8",
+    "type" : "output-pin",
+    "x" : 18,
+    "y" : 6,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "hex",
+      "width" : 8
+    }
+  }, {
+    "id" : "c10",
+    "type" : "output-pin",
+    "x" : 18,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "decimal",
+      "width" : 8
+    }
+  }, {
+    "id" : "c12",
+    "type" : "output-pin",
+    "x" : 18,
+    "y" : 14,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "ascii",
+      "width" : 8
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w2",
+    "x1" : 8,
+    "y1" : 8,
+    "x2" : 14,
+    "y2" : 8
+  }, {
+    "id" : "w3",
+    "x1" : 14,
+    "y1" : 3,
+    "x2" : 14,
+    "y2" : 8
+  }, {
+    "id" : "w4",
+    "x1" : 14,
+    "y1" : 3,
+    "x2" : 14,
+    "y2" : 15
+  }, {
+    "id" : "w5",
+    "x1" : 14,
+    "y1" : 3,
+    "x2" : 18,
+    "y2" : 3
+  }, {
+    "id" : "w7",
+    "x1" : 14,
+    "y1" : 7,
+    "x2" : 18,
+    "y2" : 7
+  }, {
+    "id" : "w9",
+    "x1" : 14,
+    "y1" : 11,
+    "x2" : 18,
+    "y2" : 11
+  }, {
+    "id" : "w11",
+    "x1" : 14,
+    "y1" : 15,
+    "x2" : 18,
+    "y2" : 15
+  } ],
+  "labels" : [ ]
+}

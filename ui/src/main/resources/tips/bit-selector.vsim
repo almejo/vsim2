@@ -1,0 +1,86 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.7",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Buses y selector de bits",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "constant",
+    "x" : 0,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "auto",
+      "value" : "0xA5",
+      "width" : 8
+    }
+  }, {
+    "id" : "c3",
+    "type" : "bit-selector",
+    "x" : 12,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputWidth" : 8,
+      "outputWidth" : 1
+    }
+  }, {
+    "id" : "c4",
+    "type" : "constant",
+    "x" : 5,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "format" : "auto",
+      "value" : "2",
+      "width" : 3
+    }
+  }, {
+    "id" : "c9",
+    "type" : "led",
+    "x" : 23,
+    "y" : 1,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w2",
+    "x1" : 6,
+    "y1" : 6,
+    "x2" : 12,
+    "y2" : 6
+  }, {
+    "id" : "w5",
+    "x1" : 10,
+    "y1" : 12,
+    "x2" : 15,
+    "y2" : 12
+  }, {
+    "id" : "w6",
+    "x1" : 15,
+    "y1" : 9,
+    "x2" : 15,
+    "y2" : 12
+  }, {
+    "id" : "w7",
+    "x1" : 18,
+    "y1" : 6,
+    "x2" : 24,
+    "y2" : 6
+  }, {
+    "id" : "w8",
+    "x1" : 24,
+    "y1" : 4,
+    "x2" : 24,
+    "y2" : 6
+  } ],
+  "labels" : [ ]
+}
