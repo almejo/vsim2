@@ -147,7 +147,7 @@ class QuickInsertTest {
         shown.acceptSelection();
         assertThat(document.document().components()).isEmpty();
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
-        view.canvas().tool().keyPressed(view.canvas(), KeyEvent.VK_R, false);
+        view.canvas().tool().keyStrokePressed(view.canvas(), javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_R, 0));
         assertThat(((PlaceComponentTool) view.canvas().tool()).rotation()).isEqualTo(Rotation.R90);
         view.canvas().tool().keyPressed(view.canvas(), KeyEvent.VK_ESCAPE, false);
         assertThat(document.document().components()).isEmpty();
