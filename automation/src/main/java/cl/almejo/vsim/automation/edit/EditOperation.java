@@ -174,18 +174,28 @@ public sealed interface EditOperation {
 
     /**
      * «Crear componente desde selección» on the targets: a user component named {@code name} whose pins are the
-     * targets' interface pins and test parts (every test part becomes pins, as the dialog proposes). {@code pinNames}
+     * targets' interface pins and test parts (every test part becomes pins, as the dialog proposes, but the
+     * {@code keepInside} ones: targets that are test parts and stay inside as the dialog's unchecked ones do: a
+     * switch as a constant of its value, a constant or clock as it is, an LED, display or time diagram left out).
+     * {@code pinNames}
      * renames pins: key an interface pin, or a test part that gives one pin. With {@code replaceSelection} the targets
      * are replaced by one instance; without it they stay, as «cómo se hizo» (spec §6). {@code alias} names the new
      * definition for {@link PlaceInstance} in the same call.
      */
     record CreateComponent(Optional<String> alias, String name, List<String> targets, Map<String, String> pinNames,
-                           boolean replaceSelection) implements EditOperation {
+                           boolean replaceSelection, List<String> keepInside) implements EditOperation {
         public CreateComponent {
             Objects.requireNonNull(alias, "alias");
             Objects.requireNonNull(name, "name");
             targets = List.copyOf(targets);
             pinNames = Map.copyOf(pinNames);
+            keepInside = List.copyOf(keepInside);
+        }
+
+        /** Every test part becomes pins. */
+        public CreateComponent(Optional<String> alias, String name, List<String> targets,
+                               Map<String, String> pinNames, boolean replaceSelection) {
+            this(alias, name, targets, pinNames, replaceSelection, List.of());
         }
     }
 

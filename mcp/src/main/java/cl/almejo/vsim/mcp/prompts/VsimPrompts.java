@@ -223,7 +223,8 @@ public final class VsimPrompts {
                 + "Dale a sus pines nombres que digan qué son (A, B, Cin, S, Cout…, no in1, in2), con las entradas "
                 + "a la izquierda y las salidas a la derecha. " + WORK_AS_A_TASK + " Usa CreateComponent con "
                 + "replaceSelection true para que una instancia reemplace las partes, como hace el menú, salvo "
-                + "que te pida conservarlas.\n\n" + CHECK_EVERY_STAGE;
+                + "que te pida conservarlas. Los interruptores, constantes y relojes se vuelven pines; los que deben "
+                + "quedar adentro (una constante fija, un reloj) van en keepInside.\n\n" + CHECK_EVERY_STAGE;
     }
 
     private static String export(Arguments arguments) {

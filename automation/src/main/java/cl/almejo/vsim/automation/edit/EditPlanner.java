@@ -908,7 +908,7 @@ final class EditPlanner {
 
     // --- user components ---
 
-    /** «Crear componente desde selección» with every test part turned into pins, as the dialog proposes. */
+    /** «Crear componente desde selección» with every test part turned into pins, as the dialog proposes, but the {@code keepInside} ones. */
     private void createComponent(CreateComponent operation) {
         String name = requireFreeName(operation.name());
         String alias = newAlias(operation.alias());
@@ -928,6 +928,13 @@ final class EditPlanner {
         }
         Set<ElementId> convertedParts = new LinkedHashSet<>();
         testParts.forEach(part -> convertedParts.add(part.id()));
+        for (String target : operation.keepInside()) {
+            ElementId keptId = requireElement(target).id();
+            if (!convertedParts.remove(keptId)) {
+                throw new AutomationException(AutomationError.INVALID_REFERENCE, "keepInside " + target
+                        + " is not a test part (switch, constant, clock, LED, display, time diagram) of the targets");
+            }
+        }
         ConvertedSelection selection = ConvertedSelection.of(candidate, ids, convertedParts, Map.of(), registry);
         Map<ElementId, String> renamed = renamedPins(operation.pinNames(), selection);
         Set<String> takenIds = new LinkedHashSet<>();

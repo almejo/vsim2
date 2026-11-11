@@ -423,6 +423,30 @@ class ToolCallsTest {
     }
 
     @Test
+    void createComponentKeepsTheTestPartsOfKeepInsideInsteadOfMakingPins() {
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "PlacePart", "alias", "fixed", "typeId", "constant", "x", 0, "y", 1),
+                Map.of("op", "PlacePart", "alias", "gate", "typeId", "buffer", "x", 8, "y", 0,
+                        "parameters", Map.of("negate", true)),
+                Map.of("op", "PlacePart", "alias", "y", "typeId", "output-pin", "x", 18, "y", 1, "label", "Y"),
+                Map.of("op", "Connect", "from", Map.of("target", "new:fixed", "pinName", "out"),
+                        "to", Map.of("target", "new:gate", "pinName", "in")),
+                Map.of("op", "Connect", "from", Map.of("target", "new:gate", "pinName", "out"),
+                        "to", Map.of("target", "new:y", "pinName", "pin")))));
+
+        Map<String, Object> receipt = call("vsim_edit", edit(task, 1, List.of(
+                Map.of("op", "CreateComponent", "name", "Inversor fijo", "replaceSelection", false,
+                        "targets", List.of("c1", "c2", "c3"), "keepInside", List.of("c1")))));
+
+        assertThat(list(receipt, "components")).singleElement().satisfies(component -> {
+            assertThat(component).containsEntry("name", "Inversor fijo");
+            assertThat((List<?>) component.get("inputs")).isEmpty();
+        });
+        assertThat(tool("vsim_edit").inputSchema().toString()).contains("keepInside");
+    }
+
+    @Test
     void undoingTheTaskTakesItsEditsBack() {
         String task = beginTask();
         call("vsim_edit", edit(task, 0, List.of(place("one", 0, 0))));

@@ -195,6 +195,8 @@ final class EditTools {
                         .property("pinNames", Schema.mapOf("Renamed pins, keyed by interface pin or test part",
                                 Schema.nonEmptyString("")))
                         .property("replaceSelection", Schema.bool(""))
+                        .property("keepInside", targets("Test parts that stay inside, not pins (a switch becomes "
+                                + "a constant)"))
                         .required("name", "targets", "replaceSelection").build(),
                 operation("PlaceInstance", "Places an instance of a user component: the circuit's own or one of "
                         + "the user's library")
@@ -279,7 +281,7 @@ final class EditTools {
                     operation.enumeration("orientation", Guide.Orientation.class), operation.integer("position"));
             case "CreateComponent" -> new EditOperation.CreateComponent(operation.optionalString("alias"),
                     operation.string("name"), operation.strings("targets"), operation.stringMap("pinNames"),
-                    operation.bool("replaceSelection", false));
+                    operation.bool("replaceSelection", false), operation.strings("keepInside"));
             case "PlaceInstance" -> new EditOperation.PlaceInstance(operation.optionalString("alias"),
                     operation.string("definition"), operation.integer("x"), operation.integer("y"),
                     rotationOf(operation));

@@ -649,6 +649,70 @@ class EditServiceTest {
                 .satisfies(component -> assertThat(component.id().value()).isEqualTo(instanceId));
     }
 
+    /** A constant ("source": a switch or a constant) feeding a NOT that drives the output pin Y. */
+    private Map<String, String> sourceThroughNot(String sourceType) {
+        EditReceipt receipt = service.edit(request(
+                place("source", sourceType, 0, 1),
+                place("not", "not", 8, 0),
+                new PlacePart(Optional.of("y"), "output-pin", 18, 1, Rotation.R0, Map.of(), "Y"),
+                connect("new:source", "out", "new:not", "in"),
+                connect("new:not", "out", "new:y", "pin")));
+        return new java.util.HashMap<>(receipt.aliases());
+    }
+
+    @Test
+    void aConstantKeptInsideStaysAConstantInTheBodyAndGivesNoPin() {
+        Map<String, String> ids = sourceThroughNot("constant");
+        List<String> targets = List.of(ids.get("source"), ids.get("not"), ids.get("y"));
+
+        EditReceipt receipt = service.edit(request(new CreateComponent(Optional.empty(), "Inversor", targets,
+                Map.of(), false, List.of(ids.get("source")))));
+
+        EditReceipt.CreatedComponent created = receipt.components().getFirst();
+        assertThat(created.inputs()).isEmpty();
+        assertThat(created.outputs()).containsExactly("Y");
+        assertThat(circuit.document().definitions()).singleElement().satisfies(definition ->
+                assertThat(definition.body().components()).extracting(Component::typeId)
+                        .contains("constant").doesNotContain("input-pin"));
+    }
+
+    @Test
+    void aSwitchKeptInsideBecomesAConstantOfItsValue() {
+        Map<String, String> ids = sourceThroughNot("switch");
+        List<String> targets = List.of(ids.get("source"), ids.get("not"), ids.get("y"));
+
+        EditReceipt receipt = service.edit(request(new CreateComponent(Optional.empty(), "Inversor", targets,
+                Map.of(), false, List.of(ids.get("source")))));
+
+        assertThat(receipt.components().getFirst().inputs()).isEmpty();
+        assertThat(circuit.document().definitions()).singleElement().satisfies(definition ->
+                assertThat(definition.body().components()).extracting(Component::typeId)
+                        .contains("constant").doesNotContain("switch", "input-pin"));
+    }
+
+    @Test
+    void withoutKeepInsideEveryTestPartBecomesAPin() {
+        Map<String, String> ids = sourceThroughNot("constant");
+        List<String> targets = List.of(ids.get("source"), ids.get("not"), ids.get("y"));
+
+        EditReceipt receipt = service.edit(request(new CreateComponent(Optional.empty(), "Inversor", targets,
+                Map.of(), false)));
+
+        assertThat(receipt.components().getFirst().inputs()).hasSize(1);
+    }
+
+    @Test
+    void keepingInsideSomethingThatIsNotATestPartOfTheTargetsIsRefused() {
+        Map<String, String> ids = sourceThroughNot("constant");
+        List<String> targets = List.of(ids.get("source"), ids.get("not"), ids.get("y"));
+
+        AutomationException refusal = assertRefused(request(new CreateComponent(Optional.empty(), "Inversor",
+                targets, Map.of(), false, List.of(ids.get("not")))), AutomationError.INVALID_REFERENCE);
+
+        assertThat(refusal.getMessage()).contains("keepInside", ids.get("not"));
+        assertThat(circuit.document().definitions()).isEmpty();
+    }
+
     @Test
     void twoInstancesOfAFullAdderAreChainedByTheirCarry() {
         Map<String, String> ids = service.edit(request(fullAdder())).aliases();
