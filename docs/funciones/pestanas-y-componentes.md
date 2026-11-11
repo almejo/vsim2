@@ -37,6 +37,9 @@ Cómo se crean y se guardan los componentes propios está en
 - **Qué se edita**: lo que se cambia en la pestaña de un componente cambia el componente del circuito. Afecta a todas
   sus piezas, y cada cambio es un solo paso de deshacer del circuito, que se puede deshacer desde cualquiera de sus
   pestañas (primero se pasa a la pestaña donde se hizo; ver **Deshacer** más abajo). La librería no cambia sola.
+- **Marcos y notas adentro**: los marcos y las notas adhesivas que pongas en la pestaña de un componente son parte de
+  él: se guardan en el archivo del circuito con el componente (también al copiarlo o al guardarlo en la librería) y
+  vuelven a aparecer al abrirlo.
 - **Qué valores se ven**: la pestaña muestra los valores de una sola pieza mientras el circuito simula: la pieza por
   la que entraste. Si esa pieza se borra, la pestaña pasa a mostrar otra pieza del mismo componente. Si no queda
   ninguna, la pestaña queda sin valores.

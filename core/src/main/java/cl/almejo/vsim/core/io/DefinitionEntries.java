@@ -9,6 +9,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -23,7 +25,11 @@ import java.util.Optional;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 
-/** The JSON shape of a definition, shared by circuit files, clipboard fragments and component files. */
+/**
+ * The JSON shape of a definition, shared by circuit files, clipboard fragments and component files. Its body's frames
+ * and sticky notes use the circuit's own entries ({@code frames}, {@code stickyNotes}), written only when there are
+ * some: a body without them keeps the bytes it had before they were saved.
+ */
 final class DefinitionEntries {
 
     record PinEntry(String name, int x, int y, String direction, int width, String source) {
@@ -32,6 +38,8 @@ final class DefinitionEntries {
     record DefinitionEntry(String id, String name, String description, int width, int height, List<PinEntry> pinout,
                            List<CircuitFormat.ComponentEntry> components, List<CircuitFormat.WireEntry> wires,
                            List<CircuitFormat.LabelEntry> labels,
+                           @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.FrameEntry> frames,
+                           @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.StickyNoteEntry> stickyNotes,
                            @JsonInclude(JsonInclude.Include.NON_NULL) Long revision,
                            @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance) {
     }
@@ -48,6 +56,8 @@ final class DefinitionEntries {
                 definition.body().components().stream().map(CircuitFormat::componentEntry).toList(),
                 definition.body().wires().stream().map(CircuitFormat::wireEntry).toList(),
                 definition.body().labels().stream().map(CircuitFormat::labelEntry).toList(),
+                definition.body().frames().stream().map(CircuitFormat::frameEntry).toList(),
+                definition.body().stickyNotes().stream().map(CircuitFormat::stickyNoteEntry).toList(),
                 definition.revision(), definition.appearance().map(AppearanceEntries::entry).orElse(null));
     }
 
@@ -86,7 +96,8 @@ final class DefinitionEntries {
             }
             put(document, new ComponentDefinition(definition.id(), definition.name(), definition.description(),
                     definition.size(), definition.pinout(),
-                    new CircuitFragment(normalized, definition.body().wires(), definition.body().labels()),
+                    new CircuitFragment(normalized, definition.body().wires(), definition.body().labels(), List.of(),
+                            definition.body().frames(), definition.body().stickyNotes()),
                     definition.appearance(), definition.revision()));
         }
     }
@@ -123,7 +134,16 @@ final class DefinitionEntries {
             for (CircuitFormat.LabelEntry label : CircuitFormat.entries(entry.labels())) {
                 labels.add(CircuitFormat.label(CircuitFormat.requireEntry(label, "labels of " + entry.id())));
             }
-            CircuitFragment body = new CircuitFragment(components, wires, labels);
+            List<Frame> frames = new ArrayList<>();
+            for (CircuitFormat.FrameEntry frame : CircuitFormat.entries(entry.frames())) {
+                frames.add(CircuitFormat.frame(CircuitFormat.requireEntry(frame, "frames of " + entry.id())));
+            }
+            List<StickyNote> stickyNotes = new ArrayList<>();
+            for (CircuitFormat.StickyNoteEntry note : CircuitFormat.entries(entry.stickyNotes())) {
+                stickyNotes.add(CircuitFormat.stickyNote(CircuitFormat.requireEntry(note,
+                        "stickyNotes of " + entry.id())));
+            }
+            CircuitFragment body = new CircuitFragment(components, wires, labels, List.of(), frames, stickyNotes);
             CircuitDocument duplicateCheck = new CircuitDocument();
             for (DocumentElement element : body.elements()) {
                 duplicateCheck.add(element);

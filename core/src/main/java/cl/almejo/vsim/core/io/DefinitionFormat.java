@@ -27,6 +27,8 @@ public final class DefinitionFormat {
                          String description, int width, int height, List<DefinitionEntries.PinEntry> pinout,
                          List<CircuitFormat.ComponentEntry> components, List<CircuitFormat.WireEntry> wires,
                          List<CircuitFormat.LabelEntry> labels,
+                         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.FrameEntry> frames,
+                         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.StickyNoteEntry> stickyNotes,
                          @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
                          @JsonInclude(JsonInclude.Include.NON_NULL) Long revision,
                          @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance) {
@@ -43,7 +45,7 @@ public final class DefinitionFormat {
         DefinitionEntries.DefinitionEntry root = DefinitionEntries.entry(bundle.root());
         ComponentFile file = new ComponentFile(FileHeader.FORMAT, FileHeader.savedWith(), CircuitFormat.FORMAT_VERSION,
                 KIND_COMPONENT, root.id(), root.name(), root.description(), root.width(), root.height(), root.pinout(),
-                root.components(), root.wires(), root.labels(),
+                root.components(), root.wires(), root.labels(), root.frames(), root.stickyNotes(),
                 bundle.dependencies().stream().map(DefinitionEntries::entry).toList(), root.revision(),
                 root.appearance());
         try {
@@ -62,8 +64,8 @@ public final class DefinitionFormat {
         List<DefinitionEntries.DefinitionEntry> entries =
                 new ArrayList<>(CircuitFormat.entries(file.definitions()));
         entries.add(new DefinitionEntries.DefinitionEntry(file.id(), file.name(), file.description(), file.width(),
-                file.height(), file.pinout(), file.components(), file.wires(), file.labels(), file.revision(),
-                file.appearance()));
+                file.height(), file.pinout(), file.components(), file.wires(), file.labels(), file.frames(),
+                file.stickyNotes(), file.revision(), file.appearance()));
         DefinitionEntries.readInto(scratch, entries, local);
         ComponentDefinition definition = scratch.definition(file.id()).orElseThrow();
         try {

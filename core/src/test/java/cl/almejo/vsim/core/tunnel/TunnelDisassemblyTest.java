@@ -5,7 +5,14 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.Disassembly;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -71,6 +78,26 @@ class TunnelDisassemblyTest {
         disassemble(instance, plan);
         Map<String, Tunnels.TunnelGroup> groups = Tunnels.groups(circuit.document());
         assertThat(tunnelCounts(groups)).containsOnly(Map.entry("A", 2), Map.entry("A_2", 1), Map.entry("A_3", 2));
+    }
+
+    @Test
+    void renamingABodyTunnelKeepsTheBodysFramesAndStickyNotes() {
+        CircuitFragment body = buffer.body();
+        Frame frame = new Frame(new ElementId("f9"), new GridPoint(0, 0), 10, 6, "Buffer", FrameTint.BLUE, false);
+        StickyNote note = new StickyNote(new ElementId("s9"), new GridPoint(12, 0), 8, 6, StickyColor.YELLOW,
+                new StickyText("ojo"), false);
+        ComponentDefinition withNotes = buffer.withBody(new CircuitFragment(body.components(), body.wires(),
+                body.labels(), List.of(), List.of(frame), List.of(note)));
+        circuit.document().putDefinition(withNotes);
+        Component instance = circuit.place(SubcircuitTypes.typeIdOf(TunnelSimulationTest.TUNNEL_BUFFER), 40, 40,
+                Map.of());
+        circuit.entrance("A", new GridPoint(0, 0));
+
+        Disassembly.Plan plan = Disassembly.plan(circuit.document(), instance, withNotes, circuit.registry());
+
+        assertThat(plan.renamedTunnels()).isNotEmpty();
+        assertThat(plan.body().frames()).containsExactly(frame);
+        assertThat(plan.body().stickyNotes()).containsExactly(note);
     }
 
     @Test

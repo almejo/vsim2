@@ -248,7 +248,7 @@ public final class Tunnels {
                         : component)
                 .toList();
         return new RenamedFragment(new CircuitFragment(components, fragment.wires(), fragment.labels(),
-                fragment.definitions(), fragment.frames()), renames);
+                fragment.definitions(), fragment.frames(), fragment.stickyNotes()), renames);
     }
 
     /**
