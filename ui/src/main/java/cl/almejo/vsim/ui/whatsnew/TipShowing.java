@@ -29,9 +29,6 @@ import java.awt.event.ComponentListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,9 +40,9 @@ import java.util.Optional;
 
 /**
  * One showing of the tip of the day's card over a view (mockup v11): in the bottom-right corner of the canvas area,
- * above the circuit but never blocking it. ‹ › walk the tips (each one shown counts as seen), × and Esc close it (not
- * while typing in a text field), and so do starting to edit (a change of the circuit, a press on it), entering
- * presentation mode and the view going away. It never takes the focus; closing gives the canvas back the focus when
+ * above the circuit but never blocking it. ‹ › walk the tips (each one shown counts as seen), × and Esc (while the
+ * card has the focus) close it, and so do entering presentation mode and the view going away; editing the circuit,
+ * pressing on it or the focus moving never close it. It never takes the focus; closing gives the canvas back the focus when
  * the card had it. It fades and slides in with «Animaciones» on. EDT only.
  */
 final class TipShowing {
@@ -279,19 +276,6 @@ final class TipShowing {
     private void listen() {
         seams.dispatchers().add(keyHook);
         whileOpen.add(() -> seams.dispatchers().remove(keyHook));
-        whileOpen.add(view.forEachPane(pane -> {
-            MouseListener startsEditing = new MouseAdapter() {
-                @Override
-                public void mousePressed(MouseEvent event) {
-                    close(); // a gesture on the circuit: the user is editing now
-                }
-            };
-            pane.addMouseListener(startsEditing);
-            return () -> pane.removeMouseListener(startsEditing);
-        }));
-        Runnable edited = this::close;
-        view.openDocument().addChangeListener(edited);
-        whileOpen.add(() -> view.openDocument().removeChangeListener(edited));
         whileOpen.add(view.addFullScreenLayoutListener(() -> {
             if (view.fullScreenStage().isPresent()) {
                 close(); // presentation mode: the screen belongs to the class now
@@ -325,10 +309,14 @@ final class TipShowing {
         whileOpen.add(() -> view.removeHierarchyListener(hidden));
     }
 
-    /** Esc in this window closes the card, but not while typing in a text field nor with a menu open. */
+    /**
+     * Esc closes the card only while the card has the focus (the user clicked into it): at any other time Esc belongs
+     * to the circuit, and working on the circuit never closes the card (the user, 2026-11-11). Not with a menu open.
+     */
     private boolean keyEvent(KeyEvent event) {
         Component source = event.getComponent();
-        if (!isOpen() || event.getID() != KeyEvent.KEY_PRESSED || event.getKeyCode() != KeyEvent.VK_ESCAPE
+        if (!isOpen() || view.keyboardFocus().owner().filter(owner -> SwingUtilities.isDescendingFrom(owner, card))
+                .isEmpty() || event.getID() != KeyEvent.KEY_PRESSED || event.getKeyCode() != KeyEvent.VK_ESCAPE
                 || source == null || source instanceof JTextComponent
                 || SwingUtilities.getRootPane(source) != SwingUtilities.getRootPane(view)
                 || MenuSelectionManager.defaultManager().getSelectedPath().length > 0) {

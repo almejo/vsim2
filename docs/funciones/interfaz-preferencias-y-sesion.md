@@ -262,8 +262,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - ‹ y › recorren los consejos y dan la vuelta; la tarjeta nunca dice cuántos hay. VSim recuerda cuáles ya viste (no un
   número): el próximo es el primero de la lista que no has visto, así un consejo que trae una versión nueva no espera
   a que des toda la vuelta. Cuando ya los viste todos, vuelve a empezar desde el primero.
-- Se cierra con ×, con Esc (salvo mientras escribes en un campo de texto) o al empezar a editar (cambiar el circuito o
-  hacer un gesto en él). Entrar al [modo presentación](#modo-presentación) o cambiar de pestaña también la cierra.
+- Se queda hasta que la cierras tú: con ×, o con Esc cuando la tarjeta tiene el foco (si hiciste clic en ella). Editar
+  el circuito, hacer clic en él o mover el foco a otra parte u otra ventana no la cierran. Entrar al [modo presentación](#modo-presentación) o cambiar de pestaña también la cierra.
 - Sale sola solo en la primera ventana, cuando ya se terminó de abrir, y nunca: la primera vez que abres VSim, el
   mismo día que salen las burbujas de [Qué hay de nuevo](#qué-hay-de-nuevo) (ellas ganan), en el modo presentación ni
   mientras la IA está trabajando (espera a que salgas del modo o a que la IA termine). Si sale, no vuelve a salir sola

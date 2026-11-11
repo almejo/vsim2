@@ -463,36 +463,43 @@ class TipOfTheDayTest {
     }
 
     @Test
-    void escapeClosesItButNotWhileTypingInATextField() {
+    void escapeClosesItOnlyWhileTheCardHasTheFocus() {
         EditorView view = newView();
         tipItem(view).doClick(0);
+        TipCard card = openCard(view);
         JTextField field = new JTextField();
         ((JComponent) view.canvasPanes()).add(field);
 
+        // Esc while working on the circuit belongs to the circuit (it cancels a tool): the card stays
+        assertThat(press(view.canvas(), KeyEvent.VK_ESCAPE)).isFalse();
+        assertThat(card(view)).isPresent();
+        focusOwner = Optional.of(card.nextButton());
         assertThat(press(field, KeyEvent.VK_ESCAPE)).isFalse();
         assertThat(card(view)).isPresent();
-        assertThat(press(view.canvas(), KeyEvent.VK_ESCAPE)).isTrue();
+        assertThat(press(card.nextButton(), KeyEvent.VK_ESCAPE)).isTrue();
         assertThat(card(view)).isEmpty();
     }
 
     @Test
-    void changingTheCircuitClosesIt() {
+    void changingTheCircuitDoesNotCloseIt() {
         EditorView view = newView();
         tipItem(view).doClick(0);
 
         UiTestSupport.place(view.openDocument(), StandardComponentTypes.SWITCH, 2, 2, Map.of());
 
-        assertThat(card(view)).isEmpty();
+        assertThat(card(view)).isPresent();
     }
 
     @Test
-    void aPressOnTheCircuitClosesIt() {
+    void aPressOnTheCircuitAndTheFocusMovingAwayDoNotCloseIt() {
         EditorView view = newView();
         tipItem(view).doClick(0);
 
         UiTestSupport.press(view.canvas());
+        focusOwner = Optional.of(view.canvas());
+        view.canvas().dispatchEvent(new java.awt.event.FocusEvent(view.canvas(), java.awt.event.FocusEvent.FOCUS_LOST));
 
-        assertThat(card(view)).isEmpty();
+        assertThat(card(view)).isPresent();
     }
 
     @Test
