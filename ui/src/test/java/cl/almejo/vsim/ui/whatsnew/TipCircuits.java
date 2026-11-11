@@ -72,8 +72,7 @@ final class TipCircuits {
         builders.put("zoom-to-fit.vsim", TipCircuits::zoomToFit);
         builders.put("arrow-keys-before.vsim", () -> arrowKeys(5));
         builders.put("arrow-keys-after.vsim", () -> arrowKeys(4));
-        builders.put("edit-in-place-before.vsim", () -> editInPlace("L1"));
-        builders.put("edit-in-place-after.vsim", () -> editInPlace("Y"));
+        builders.put("edit-in-place.vsim", () -> editInPlace("L1"));
         builders.put("frame-selection.vsim", TipCircuits::frameSelection);
         builders.put("sticky-note.vsim", TipCircuits::stickyNote);
         builders.put("bit-selector.vsim", TipCircuits::bitSelector);
@@ -540,7 +539,7 @@ final class TipCircuits {
         return builder.document;
     }
 
-    /** «Editar el texto en el lugar»: a switch and an LED whose label is {@code label} (L1 before, Y after). */
+    /** «Editar el texto en el lugar»: a switch and an LED labelled {@code label}, for «Probarlo» to rename it (the picture is a capture). */
     private static CircuitDocument editInPlace(String label) {
         Builder builder = new Builder("Editar el texto en el lugar");
         builder.switchAt(2, 3, "A", true);
