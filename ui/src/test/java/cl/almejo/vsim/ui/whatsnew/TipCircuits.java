@@ -83,6 +83,8 @@ final class TipCircuits {
         builders.put("restart.vsim", TipCircuits::restart);
         builders.put("breakpoint.vsim", TipCircuits::breakpoint);
         builders.put("short-circuit.vsim", TipCircuits::shortCircuit);
+        builders.put("truth-table.vsim", TipCircuits::truthTable);
+        builders.put("circuit-from-expressions.vsim", TipCircuits::circuitFromExpressions);
         return builders;
     }
 
@@ -688,6 +690,27 @@ final class TipCircuits {
         builder.switchAt(2, 3, "A", true);
         builder.switchAt(2, 9, "B", false);
         builder.wire(6, 4, 12, 4, 12, 10, 6, 10);
+        return builder.document;
+    }
+
+    /** «Tabla de verdad»: the half adder, a combinational circuit for «Probarlo» to open the table of. */
+    private static CircuitDocument truthTable() {
+        Builder builder = new Builder("Tabla de verdad");
+        builder.halfAdder(0);
+        return builder.document;
+    }
+
+    /** «Circuito desde expresiones»: the expression typed in the window, as a text, under the XOR it builds. */
+    private static CircuitDocument circuitFromExpressions() {
+        Builder builder = new Builder("Circuito desde expresiones");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", false);
+        builder.wire(6, 4, 12, 4);
+        builder.wire(6, 8, 12, 8);
+        builder.gate(StandardComponentTypes.XOR, 12, 4);
+        builder.wire(16, 6, 20, 6, 20, 4);
+        builder.ledAt(19, 1, "S");
+        builder.text(9, 12, "S = A ^ B");
         return builder.document;
     }
 }

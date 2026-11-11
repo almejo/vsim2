@@ -41,3 +41,13 @@ step-by-step        | circuit      | tip.stepByStep.title        | tip.stepBySte
 restart             | circuit      | tip.restart.title           | tip.restart.text           | restart.vsim                                      | simulation.restart   | circuit
 breakpoint          | circuit      | tip.breakpoint.title        | tip.breakpoint.text        | breakpoint.vsim                                   | -                    | circuit
 short-circuit       | circuit      | tip.shortCircuit.title      | tip.shortCircuit.text      | short-circuit.vsim                                | -                    | circuit
+waveform-chain      | image        | tip.waveformChain.title     | tip.waveformChain.text     | waveform-chain.png                                | -                    | step-by-step.vsim
+waveform-delays     | image        | tip.waveformDelays.title    | tip.waveformDelays.text    | waveform-delays.png                               | -                    | step-by-step.vsim
+enter-component     | image        | tip.enterComponent.title    | tip.enterComponent.text    | enter-component.png                               | -                    | look-inside.vsim
+custom-shape        | image        | tip.customShape.title       | tip.customShape.text       | custom-shape.png                                  | -                    | look-inside.vsim
+used-shortcuts      | image        | tip.usedShortcuts.title     | tip.usedShortcuts.text     | used-shortcuts.png                                | -                    | -
+truth-table         | image        | tip.truthTable.title        | tip.truthTable.text        | truth-table.png                                   | -                    | truth-table.vsim simulation.truthTable
+circuit-from-table  | image        | tip.circuitFromTable.title  | tip.circuitFromTable.text  | circuit-from-table.png                            | -                    | tools.circuitFromTruthTable
+circuit-from-expressions | circuit | tip.circuitFromExpressions.title | tip.circuitFromExpressions.text | circuit-from-expressions.vsim              | -                    | tools.circuitFromExpressions
+karnaugh-practice   | image        | tip.karnaughPractice.title  | tip.karnaughPractice.text  | karnaugh-practice.png                             | -                    | tools.karnaughPractice
+import-logisim      | image        | tip.importLogisim.title     | tip.importLogisim.text     | import-logisim.png                                | -                    | -
