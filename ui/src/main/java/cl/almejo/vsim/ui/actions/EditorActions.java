@@ -404,7 +404,21 @@ public final class EditorActions {
     }
 
     public JComboBox<Double> createSpeedSelector() {
+        Runnable[] follow = new Runnable[1];
         JComboBox<Double> selector = new JComboBox<>(SPEEDS.toArray(Double[]::new)) {
+            @Override
+            public void addNotify() {
+                super.addNotify();
+                openDocument.removeSpeedListener(follow[0]);
+                openDocument.addSpeedListener(follow[0]);
+            }
+
+            @Override
+            public void removeNotify() {
+                openDocument.removeSpeedListener(follow[0]);
+                super.removeNotify();
+            }
+
             @Override
             public java.awt.Dimension getMaximumSize() {
                 return getPreferredSize(); // a toolbar would otherwise stretch it over all the free width
@@ -422,6 +436,9 @@ public final class EditorActions {
             }
         });
         selector.addActionListener(event -> openDocument.setSpeed((Double) selector.getSelectedItem()));
+        // An undo or a redo changes the speed: the selector shows it (the action listener finds it already set).
+        follow[0] = () -> selector.setSelectedItem(openDocument.simulationSpeed());
+        openDocument.addSpeedListener(follow[0]); // from now on, not only once shown (removeNotify lets go of it)
         return selector;
     }
 

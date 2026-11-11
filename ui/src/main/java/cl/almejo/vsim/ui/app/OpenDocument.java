@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.LoosensPins;
+import cl.almejo.vsim.core.command.SetSimulationSpeedCommand;
 import cl.almejo.vsim.core.command.SetSwitchValueCommand;
 import cl.almejo.vsim.core.command.WrapsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -148,6 +149,9 @@ public final class OpenDocument implements AutoCloseable {
     /** Whether the simulated circuit has a clock, also inside a user component (M6.1-B); set with each recompile. */
     private boolean hasClock;
     private final Listeners<Runnable> stepModeListeners = new Listeners<>();
+    private final Listeners<Runnable> speedListeners = new Listeners<>();
+    /** The speed last handed to the engine; on a body place unused (the parent's engine is the one). */
+    private double engineSpeedRequested;
     /** The working copies of the bodies opened from this document, by definition id (main document only). */
     private final Map<String, BodyWorkingCopy> workingCopies = new HashMap<>();
     /** The pieces each applied inside edit could not give a new pin where it goes ({@link #keptOldShapes()}). */
@@ -219,6 +223,7 @@ public final class OpenDocument implements AutoCloseable {
         this.simulation = new SimulationThread(new SimulationEngine());
         document.addListener((changed, change) -> documentChanged(change));
         history.addListener(changed -> {
+            followSpeed();
             changeCount++;
             Command top = changed.undoCommand().orElse(null);
             if (top != topOfHistory) {
@@ -233,7 +238,8 @@ public final class OpenDocument implements AutoCloseable {
         synchronize();
         simulation.start();
         // A speed stored with the file applies at once, before the first tick.
-        simulation.setSpeed(document.simulationSpeed());
+        engineSpeedRequested = document.simulationSpeed();
+        simulation.setSpeed(engineSpeedRequested);
         simulation.resume();
         // M6.1-E: names an older VSim stored by default become live; not a command, the document stays unmodified.
         ProbeNames.forgetDefaultNames(document, this.registry);
@@ -1264,19 +1270,40 @@ public final class OpenDocument implements AutoCloseable {
         return body != null ? body.parent.simulationSpeed() : document.simulationSpeed();
     }
 
+    /** Told after the circuit's speed changes by a choice, an undo or a redo (the speed selector follows it). */
+    public void addSpeedListener(Runnable listener) {
+        main().speedListeners.add(listener);
+    }
+
+    public void removeSpeedListener(Runnable listener) {
+        main().speedListeners.remove(listener);
+    }
+
+    /** Puts the engine on the document's speed when an undo step (execute, undo, redo) changed it. */
+    private void followSpeed() {
+        double speed = document.simulationSpeed();
+        if (speed != engineSpeedRequested) {
+            engineSpeedRequested = speed;
+            simulation.setSpeed(speed);
+            speedListeners.fire(Runnable::run);
+        }
+    }
+
     /** The speed the simulation thread is running at now (for tests and diagnostics). */
     public double engineSpeed() {
         return simulation.speed();
     }
 
-    /** Sets the simulation speed; it is saved with the file next time, and is not a modification by itself. */
+    /**
+     * Chooses the simulation speed: one undo step of the circuit (a body tab's choice goes to its parent circuit), saved
+     * with the file. The same speed again does nothing.
+     */
     public void setSpeed(double unitsPerMillisecond) {
         if (body != null) {
             body.parent.setSpeed(unitsPerMillisecond);
             return;
         }
-        document.setSimulationSpeed(unitsPerMillisecond);
-        simulation.setSpeed(unitsPerMillisecond);
+        SetSimulationSpeedCommand.changing(document, unitsPerMillisecond).ifPresent(this::execute);
     }
 
     /** Session option, off by default and not saved: pause the simulation when a new short circuit appears. */

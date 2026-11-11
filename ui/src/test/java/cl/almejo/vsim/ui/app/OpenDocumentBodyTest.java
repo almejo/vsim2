@@ -76,6 +76,20 @@ class OpenDocumentBodyTest {
     }
 
     @Test
+    void aSpeedChosenInABodyTabIsOneStepOfTheParentCircuit() {
+        withTwoBlocks();
+        OpenDocument body = body(BLOCK, Optional.of(FIRST.value()));
+
+        body.setSpeed(10.0);
+
+        assertThat(openDocument.simulationSpeed()).isEqualTo(10.0);
+        assertThat(body.simulationSpeed()).isEqualTo(10.0);
+        assertThat(openDocument.isModified()).isTrue();
+        openDocument.history().undo();
+        assertThat(body.simulationSpeed()).isEqualTo(1.0);
+    }
+
+    @Test
     void openBodyShowsTheWorkingCopyWithTheSameIds() {
         withTwoBlocks();
 

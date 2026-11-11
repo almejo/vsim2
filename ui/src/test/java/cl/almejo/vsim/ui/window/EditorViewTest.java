@@ -513,6 +513,25 @@ class EditorViewTest {
     }
 
     @Test
+    void theSpeedSelectorFollowsAChoiceAndItsUndo() {
+        int index = 0;
+        while (!(view.toolBar().getComponent(index) instanceof JComboBox)) {
+            index++;
+        }
+        JComboBox<?> speed = (JComboBox<?>) view.toolBar().getComponent(index);
+        assertThat(speed.getSelectedItem()).isEqualTo(1.0);
+
+        speed.setSelectedItem(1000.0);
+        assertThat(openDocument.simulationSpeed()).isEqualTo(1000.0);
+        assertThat(openDocument.isModified()).isTrue();
+
+        openDocument.history().undo();
+        assertThat(speed.getSelectedItem()).isEqualTo(1.0);
+        openDocument.history().redo();
+        assertThat(speed.getSelectedItem()).isEqualTo(1000.0);
+    }
+
+    @Test
     void theStepSaysHowFarItGoesAndTheSpeedSelectorExplainsItself() {
         Action step = view.actions().step();
         assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 10 t");
