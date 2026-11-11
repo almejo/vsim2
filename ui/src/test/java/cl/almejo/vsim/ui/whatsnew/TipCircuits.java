@@ -71,8 +71,7 @@ final class TipCircuits {
         builders.put("arrow-keys-after.vsim", () -> arrowKeys(4));
         builders.put("edit-in-place-before.vsim", () -> editInPlace("L1"));
         builders.put("edit-in-place-after.vsim", () -> editInPlace("Y"));
-        builders.put("frame-selection-before.vsim", () -> frameSelection(false));
-        builders.put("frame-selection-after.vsim", () -> frameSelection(true));
+        builders.put("frame-selection.vsim", TipCircuits::frameSelection);
         builders.put("sticky-note.vsim", TipCircuits::stickyNote);
         return builders;
     }
@@ -525,14 +524,15 @@ final class TipCircuits {
         return builder.document;
     }
 
-    /** «Marcos»: a half adder; after, a titled frame around its two gates (what Enmarcar selección draws). */
-    private static CircuitDocument frameSelection(boolean framed) {
+    /**
+     * «Marcos»: a half adder with a titled frame around both gates, complete and with air on every side: the inputs
+     * and the LEDs stay outside, and only wires going sideways cross its border (none the title bar).
+     */
+    private static CircuitDocument frameSelection() {
         Builder builder = new Builder("Marcos");
         builder.halfAdder(0);
-        if (framed) {
-            builder.document.add(new Frame(builder.document.newFrameId(), new GridPoint(14, 2), 10, 15, "A + B",
-                    FrameTint.NONE, false));
-        }
+        builder.document.add(new Frame(builder.document.newFrameId(), new GridPoint(13, 1), 10, 16, "A + B",
+                FrameTint.NONE, false));
         return builder.document;
     }
 

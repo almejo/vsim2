@@ -31,5 +31,5 @@ tunnels             | circuit      | tip.tunnels.title           | tip.tunnels.t
 zoom-to-fit         | circuit      | tip.zoomToFit.title         | tip.zoomToFit.text         | zoom-to-fit.vsim                                  | view.zoomToFit       | circuit
 arrow-keys          | before-after | tip.arrowKeys.title         | tip.arrowKeys.text         | arrow-keys-before.vsim, arrow-keys-after.vsim     | edit.moveUp          | circuit
 edit-in-place       | before-after | tip.editInPlace.title       | tip.editInPlace.text       | edit-in-place-before.vsim, edit-in-place-after.vsim | edit.label         | circuit
-frame-selection     | before-after | tip.frameSelection.title    | tip.frameSelection.text    | frame-selection-before.vsim, frame-selection-after.vsim | edit.frameSelection | circuit
+frame-selection     | circuit      | tip.frameSelection.title    | tip.frameSelection.text    | frame-selection.vsim                              | edit.frameSelection | circuit
 sticky-note         | circuit      | tip.stickyNote.title        | tip.stickyNote.text        | sticky-note.vsim                                  | -                    | circuit
