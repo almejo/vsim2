@@ -49,6 +49,10 @@ tasks.named<JavaExec>("run") {
     // only; the shipped jar never sets it)
     providers.gradleProperty("vsimWhatsNewAlways").orNull
         ?.let { systemProperty("vsim.whatsNew.always", if (it.isBlank()) "true" else it) }
+    // The tip of the day at every launch (a first one too), to review the tips: ./gradlew :ui:run -PvsimTipAlways
+    // (development only; the shipped jar never sets it)
+    providers.gradleProperty("vsimTipAlways").orNull
+        ?.let { systemProperty("vsim.tip.always", if (it.isBlank()) "true" else it) }
 }
 
 // --- M4-D executable jar ---

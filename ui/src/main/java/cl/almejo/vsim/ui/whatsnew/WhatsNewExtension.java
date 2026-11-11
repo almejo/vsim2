@@ -10,9 +10,11 @@ import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * «Qué hay de nuevo»: Ayuda ▸ «Qué hay de nuevo» in every editor view, and, the first time a version opens, its
@@ -71,9 +73,12 @@ public final class WhatsNewExtension implements EditorExtension {
      * @param readiness      when a view's window is shown and settled
      * @param ai             whether the AI works now
      * @param tours          the bubbles themselves
+     * @param tipRule        when the tip of the day comes (it asks the same {@link StartupNotices})
+     * @param today          the local calendar day now
      */
     record Seams(String runningVersion, Function<String, Optional<NewsFile>> news, StartupNotices.NewsRule rule,
-                 WindowReadiness readiness, AiActivity ai, Tours tours) {
+                 WindowReadiness readiness, AiActivity ai, Tours tours, StartupNotices.TipRule tipRule,
+                 Supplier<LocalDate> today) {
 
         Seams {
             Objects.requireNonNull(runningVersion, "runningVersion");
@@ -82,6 +87,14 @@ public final class WhatsNewExtension implements EditorExtension {
             Objects.requireNonNull(readiness, "readiness");
             Objects.requireNonNull(ai, "ai");
             Objects.requireNonNull(tours, "tours");
+            Objects.requireNonNull(tipRule, "tipRule");
+            Objects.requireNonNull(today, "today");
+        }
+
+        /** The tip once a day by the system's calendar. */
+        Seams(String runningVersion, Function<String, Optional<NewsFile>> news, StartupNotices.NewsRule rule,
+              WindowReadiness readiness, AiActivity ai, Tours tours) {
+            this(runningVersion, news, rule, readiness, ai, tours, StartupNotices.TipRule.ONCE_PER_DAY, LocalDate::now);
         }
     }
 
@@ -100,7 +113,7 @@ public final class WhatsNewExtension implements EditorExtension {
                 new SettledWindow(), AiActivity.of(aiServer),
                 new BubbleTours(new BubbleTours.Seams(KeyDispatchers.focusManager(),
                         () -> FrameTicker.swing(FRAME_MILLISECONDS), System::currentTimeMillis,
-                        Animations::enabled))));
+                        Animations::enabled)), StartupNotices.TipRule.current(), LocalDate::now));
     }
 
     WhatsNewExtension(Seams seams) {
@@ -113,10 +126,14 @@ public final class WhatsNewExtension implements EditorExtension {
         return features::dispose;
     }
 
-    private StartupNotices noticesFor(AppPreferences preferences) {
+    /**
+     * The run's notices, made with the first view's preferences; the tip of the day ({@link TipOfTheDayExtension})
+     * asks the same ones, so the bubbles and the tip never come on the same start.
+     */
+    StartupNotices noticesFor(AppPreferences preferences) {
         if (notices == null) {
             notices = new StartupNotices(preferences, seams.runningVersion(),
-                    version -> seams.news().apply(version).isPresent(), seams.rule());
+                    version -> seams.news().apply(version).isPresent(), seams.rule(), seams.tipRule(), seams.today());
         }
         return notices;
     }

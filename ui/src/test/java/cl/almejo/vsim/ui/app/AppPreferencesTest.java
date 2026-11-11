@@ -12,8 +12,10 @@ import org.junit.jupiter.api.Test;
 
 import java.awt.Dimension;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.AbstractPreferences;
 
@@ -596,5 +598,30 @@ class AppPreferencesTest {
         assertThat(again.aiPauseMillis()).isEqualTo(5000);
         node.put("ai.pace", "SIDEWAYS");
         assertThat(again.aiPace()).isEqualTo(PresentationPace.STEP_BY_STEP);
+    }
+
+    @Test
+    void theTipOfTheDayShowsAtStartUntilTurnedOffAndRemembersItsDayAndTheSeenTips() {
+        assertThat(preferences.showTipAtStart()).isTrue();
+        assertThat(preferences.tipShownDay()).isEmpty();
+        assertThat(preferences.seenTips()).isEmpty();
+
+        preferences.setShowTipAtStart(false);
+        preferences.setTipShownDay(LocalDate.of(2026, 11, 10));
+        preferences.setSeenTips(Set.of("look-inside", "tidy-circuit"));
+
+        AppPreferences again = new AppPreferences(node);
+        assertThat(again.showTipAtStart()).isFalse();
+        assertThat(again.tipShownDay()).contains(LocalDate.of(2026, 11, 10));
+        assertThat(again.seenTips()).containsExactlyInAnyOrder("look-inside", "tidy-circuit");
+        again.setSeenTips(Set.of());
+        assertThat(again.seenTips()).isEmpty();
+    }
+
+    @Test
+    void anUnreadableTipDayCountsAsNeverShown() {
+        node.put("tip.shownDay", "yesterday");
+
+        assertThat(preferences.tipShownDay()).isEmpty();
     }
 }

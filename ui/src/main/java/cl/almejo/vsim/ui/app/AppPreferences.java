@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -26,9 +28,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.WeakHashMap;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 /** User preferences (spec §6.7, §6.10, §5.6), stored with {@code java.util.prefs}. Setters notify on real changes. */
 public final class AppPreferences {
@@ -128,6 +132,44 @@ public final class AppPreferences {
         put(NEWS_SHOWN_VERSION, version);
     }
 
+    /** «Mostrar al iniciar» of the tip of the day (also in Preferencias ▸ General); on by default. */
+    public boolean showTipAtStart() {
+        return flag(SHOW_TIP_AT_START, true);
+    }
+
+    public void setShowTipAtStart(boolean show) {
+        putFlag(SHOW_TIP_AT_START, show);
+    }
+
+    /** The calendar day the tip of the day last showed by itself; empty when never (or unreadable). */
+    public Optional<LocalDate> tipShownDay() {
+        try {
+            return optional(TIP_SHOWN_DAY).map(LocalDate::parse);
+        } catch (DateTimeParseException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public void setTipShownDay(LocalDate day) {
+        Objects.requireNonNull(day, "day");
+        put(TIP_SHOWN_DAY, day.toString());
+    }
+
+    /** The ids of the tips of the day already shown; empty once every tip was seen and the round starts again. */
+    public Set<String> seenTips() {
+        return read(SEEN_TIPS, "").lines().filter(id -> !id.isBlank()).collect(Collectors.toUnmodifiableSet());
+    }
+
+    /** One id per line, sorted so the stored text does not depend on the set's order. */
+    public void setSeenTips(Set<String> tipIds) {
+        for (String tipId : tipIds) {
+            if (tipId.isBlank() || tipId.contains("\n") || tipId.contains("\r")) {
+                throw new IllegalArgumentException("A tip id must be nonblank and single-line: " + tipId);
+            }
+        }
+        put(SEEN_TIPS, String.join("\n", new TreeSet<>(tipIds)));
+    }
+
     /** «Cuadrícula ▸»: dots unless the user chose otherwise (or the stored value is unreadable). */
     public GridStyle gridStyle() {
         return enumValue(GRID_STYLE, GridStyle.class, GridStyle.DOTS);
@@ -205,6 +247,9 @@ public final class AppPreferences {
     static final String SHOW_SHEETS = "sheets.show";
     static final String SHOW_USED_SHORTCUTS = "shortcutEcho.show";
     static final String NEWS_SHOWN_VERSION = "whatsNew.shownVersion";
+    static final String SHOW_TIP_AT_START = "tip.showAtStart";
+    static final String TIP_SHOWN_DAY = "tip.shownDay";
+    static final String SEEN_TIPS = "tip.seen";
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
     private static final String CIRCUIT_TREE_SPLIT = "ui.circuitTree.split";

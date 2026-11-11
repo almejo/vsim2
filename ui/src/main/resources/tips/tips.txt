@@ -1,0 +1,17 @@
+# The tips of the day, in the order they are shown. VSim remembers which tips were seen and shows the first one not
+# seen yet, so a tip added in a newer version comes first wherever it goes; put it where it should first be seen.
+# One tip per line, seven columns separated by «|»:
+#   id | kind | title key | text key | pictures | key | try
+# kind:     circuit (one .vsim VSim draws with the user's theme), before-after (two pictures, .vsim or .png, with the
+#           big key between them) or image (one .png, with as little text as possible; a capture with text: one, in
+#           English, for every language).
+# pictures: resources in this folder, separated by «,». The circuits are built by TipCircuits (ui tests).
+# key:      the key VSim draws big in the picture, a catalog id or a fixed key, without braces; «-» for none.
+# try:      «-» (no «Probarlo»), «circuit» (opens the tip's first circuit in a new tab) or a ShortcutCatalog id (opens
+#           it and runs that action, e.g. the dialog the tip is about).
+# Texts (both bundles, «# --- Consejo del día ---») may name keys as {alt}, {shift}, {space}, {escape}, {backspace},
+# {enter} or {<catalog id>}: the user's own key, or the action's place in the menus when it has none.
+# TipsFileTest checks all of it.
+look-inside  | circuit      | tip.lookInside.title  | tip.lookInside.text  | look-inside.vsim                                  | alt            | circuit
+tidy-circuit | before-after | tip.tidyCircuit.title | tip.tidyCircuit.text | tidy-circuit-before.vsim, tidy-circuit-after.vsim | edit.tidyWires | circuit
+split-view   | image        | tip.splitView.title   | tip.splitView.text   | split-view.png                                    | -              | -

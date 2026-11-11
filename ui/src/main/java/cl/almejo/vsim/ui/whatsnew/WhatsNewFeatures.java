@@ -56,14 +56,14 @@ final class WhatsNewFeatures {
 
     /** This view's window shows: the first one of the run asks whether the bubbles are due. */
     private void windowReady() {
-        if (disposed || notices.claimForWindow().isEmpty()) {
+        if (disposed || notices.claimForWindow(view).filter(StartupNotices.Notice.NEWS_BUBBLES::equals).isEmpty()) {
             return;
         }
         Optional<NewsFile> news = news();
         if (news.isEmpty()) {
             return;
         }
-        gate = new TourGate(new ViewConditions(), () -> open(news.get()));
+        gate = new TourGate(new ViewConditions(view, seams.ai()), () -> open(news.get()));
         gate.windowReady();
     }
 
@@ -104,29 +104,5 @@ final class WhatsNewFeatures {
         }
         takeAwayTheTour();
         view.menu(MenuId.HELP).remove(item);
-    }
-
-    /** Presentation mode of this view and the AI's work, as the gate reads them. */
-    private final class ViewConditions implements TourGate.Conditions {
-
-        @Override
-        public boolean presenting() {
-            return view.fullScreenStage().isPresent();
-        }
-
-        @Override
-        public boolean aiWorking() {
-            return seams.ai().working();
-        }
-
-        @Override
-        public Runnable addChangeListener(Runnable listener) {
-            Runnable removeLayoutListener = view.addFullScreenLayoutListener(listener);
-            Runnable removeAiListener = seams.ai().addListener(listener);
-            return () -> {
-                removeAiListener.run();
-                removeLayoutListener.run();
-            };
-        }
     }
 }

@@ -77,6 +77,8 @@ public final class PreferencesForm extends JPanel {
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
+    /** The same preference as the tip of the day's own «Mostrar al iniciar». */
+    private final JCheckBox showTipAtStartBox = new JCheckBox(Messages.text("preferences.showTipAtStart"));
     /** «Animaciones»: the same Sí/No switch as the boolean properties. */
     private final SwitchBox animationsSwitch = new SwitchBox(true);
     private final JCheckBox animateViewMovesBox = new JCheckBox(Messages.text("preferences.animateViewMoves"));
@@ -155,6 +157,8 @@ public final class PreferencesForm extends JPanel {
         refreshLibrary();
         restoreSessionBox.setSelected(preferences.restoreSession());
         restoreSessionBox.addActionListener(event -> preferences.setRestoreSession(restoreSessionBox.isSelected()));
+        showTipAtStartBox.setSelected(preferences.showTipAtStart());
+        showTipAtStartBox.addActionListener(event -> preferences.setShowTipAtStart(showTipAtStartBox.isSelected()));
         wireAnimations();
         // the find bar's ↷ changes it too, also while this dialog is open
         preferences.addListener(preferenceListener);
@@ -174,6 +178,7 @@ public final class PreferencesForm extends JPanel {
         add(restoreLibraryButton, "growx 0");
         addExternalEditorRow();
         add(restoreSessionBox, "skip 1, gaptop 12");
+        add(showTipAtStartBox, "skip 1");
         JLabel animationsLabel = new JLabel(Messages.text("preferences.animations"));
         animationsLabel.setLabelFor(animationsSwitch);
         add(animationsLabel);
@@ -388,14 +393,22 @@ public final class PreferencesForm extends JPanel {
         return restoreSessionBox;
     }
 
+    JCheckBox showTipAtStartBox() {
+        return showTipAtStartBox;
+    }
+
     /** Stops following the preferences: the dialog closed. */
     public void dispose() {
         preferences.removeListener(preferenceListener);
     }
 
-    /** Shows the options that can change elsewhere while the dialog is open (setSelected fires no action). */
+    /**
+     * Shows the options that can change elsewhere while the dialog is open (setSelected fires no action): the find
+     * bar's ↷, the tip of the day's «Mostrar al iniciar».
+     */
     private void followPreferences() {
         showAnimations();
+        showTipAtStartBox.setSelected(preferences.showTipAtStart());
     }
 
     SwitchBox animationsSwitch() {

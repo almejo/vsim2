@@ -8,6 +8,7 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.function.Function;
 
@@ -61,8 +62,21 @@ public final class KeyNames {
         }
         List<String> keys = new ArrayList<>(macNotation ? macModifiers(stroke.getModifiers())
                 : modifiers(stroke.getModifiers(), names));
-        keys.add(keyName(stroke.getKeyCode(), names));
+        int keyCode = stroke.getKeyCode();
+        keys.add(macNotation ? macModifierKey(keyCode).orElseGet(() -> keyName(keyCode, names))
+                : keyName(keyCode, names));
         return List.copyOf(keys);
+    }
+
+    /** A modifier key pressed alone (the Alt held to look inside a component), as macOS writes it. */
+    private static Optional<String> macModifierKey(int keyCode) {
+        return switch (keyCode) {
+            case KeyEvent.VK_CONTROL -> Optional.of("⌃");
+            case KeyEvent.VK_ALT -> Optional.of("⌥");
+            case KeyEvent.VK_SHIFT -> Optional.of("⇧");
+            case KeyEvent.VK_META -> Optional.of("⌘");
+            default -> Optional.empty();
+        };
     }
 
     /** Ctrl, Meta, Alt, AltGr, Mayús: the order of «Ctrl+Alt+Mayús+L». */
@@ -120,6 +134,10 @@ public final class KeyNames {
             return "F" + (keyCode - KeyEvent.VK_F13 + 13);
         }
         return switch (keyCode) {
+            case KeyEvent.VK_CONTROL -> names.apply("keyName.control");
+            case KeyEvent.VK_ALT -> names.apply("keyName.alt");
+            case KeyEvent.VK_SHIFT -> names.apply("keyName.shift");
+            case KeyEvent.VK_META -> names.apply("keyName.meta");
             case KeyEvent.VK_DELETE -> names.apply("keyName.delete");
             case KeyEvent.VK_BACK_SPACE -> names.apply("keyName.backSpace");
             case KeyEvent.VK_SPACE -> names.apply("keyName.space");

@@ -91,4 +91,15 @@ class KeyNamesTest {
         assertThat(KeyNames.keys(stroke(KeyEvent.VK_S, InputEvent.META_DOWN_MASK | SHIFT), true))
                 .containsExactly("⇧", "⌘", "S");
     }
+
+    @Test
+    void aModifierKeyPressedAloneIsNamedLikeTheModifier() {
+        Messages.initialize(Messages.SPANISH);
+
+        assertThat(KeyNames.keys(stroke(KeyEvent.VK_ALT, 0), false)).containsExactly("Alt");
+        assertThat(KeyNames.keys(stroke(KeyEvent.VK_SHIFT, 0), false)).containsExactly("Mayús");
+        assertThat(KeyNames.keys(stroke(KeyEvent.VK_CONTROL, 0), false)).containsExactly("Ctrl");
+        assertThat(KeyNames.keys(stroke(KeyEvent.VK_ALT, 0), true)).containsExactly("⌥");
+        assertThat(KeyNames.keys(stroke(KeyEvent.VK_SHIFT, 0), true)).containsExactly("⇧");
+    }
 }

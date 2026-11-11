@@ -238,6 +238,37 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Usa el color de acento del tema (claro u oscuro) y pasa de un lugar a otro deslizándose; con Preferencias ▸
   [Animaciones](#animaciones) en «No», salta.
 
+## Consejo del día
+
+- Al abrir VSim, como mucho una vez al día, una tarjeta abajo a la derecha del circuito enseña algo que ya existe y
+  que no se descubre solo, con un dibujo y tus teclas de verdad. No bloquea nada: puedes seguir trabajando con ella
+  abierta, y no se queda con el teclado (un clic en ella se lo da; al cerrarla, el circuito lo recupera).
+- Arriba, la ampolleta prendida, «Consejo del día» y ×. Después, el dibujo, el título y el texto, con las teclas
+  dibujadas como teclas. Si cambiaste un atajo en Preferencias, el consejo muestra el tuyo, en el texto y en la tecla
+  grande del dibujo, al instante; si una acción quedó sin atajo, el texto dice dónde está en los menús
+  («Ventana ▸ Dividir ▸ A los lados») y el dibujo no muestra tecla. Abajo, «Mostrar al iniciar», «Probarlo» y ‹ ›.
+- Hay tres tipos de dibujo: un circuito pequeño que VSim dibuja con tu esquema de colores (claro u oscuro); «antes y
+  después», dos dibujos lado a lado con una flecha y la tecla grande (entre ellos, o debajo si es una combinación
+  larga como Ctrl+Alt+L); o una imagen. La tecla grande la dibuja VSim, nunca viene en una imagen.
+- «Probarlo» abre el circuito del consejo en una pestaña nueva (una copia sin nombre de archivo; el circuito que
+  tienes abierto no se toca) y, si el consejo habla de un diálogo, lo abre ahí. Solo sale en los consejos que tienen
+  algo que abrir.
+- ‹ y › recorren los consejos y dan la vuelta; la tarjeta nunca dice cuántos hay. VSim recuerda cuáles ya viste (no un
+  número): el próximo es el primero de la lista que no has visto, así un consejo que trae una versión nueva no espera
+  a que des toda la vuelta. Cuando ya los viste todos, vuelve a empezar desde el primero.
+- Se cierra con ×, con Esc (salvo mientras escribes en un campo de texto) o al empezar a editar (cambiar el circuito o
+  hacer un gesto en él). Entrar al [modo presentación](#modo-presentación) o cambiar de pestaña también la cierra.
+- Sale sola solo en la primera ventana, cuando ya se terminó de abrir, y nunca: la primera vez que abres VSim, el
+  mismo día que salen las burbujas de [Qué hay de nuevo](#qué-hay-de-nuevo) (ellas ganan), en el modo presentación ni
+  mientras la IA está trabajando (espera a que salgas del modo o a que la IA termine). Si sale, no vuelve a salir sola
+  hasta el día siguiente; si cierras VSim antes de que salga, sale la próxima vez.
+- «Mostrar al iniciar» la apaga o la prende; es la misma opción que Preferencias ▸ General ▸ «Mostrar el consejo del
+  día al iniciar» (cambiar una cambia la otra al instante). Ayuda ▸ «Consejo del día» (justo después de «Qué hay de
+  nuevo»; también en la [paleta de comandos](edicion.md#paleta-de-comandos)) la abre cuando quieras.
+- Aparece deslizándose y aclarándose; con Preferencias ▸ [Animaciones](#animaciones) en «No», aparece de una vez.
+- Por ahora trae tres consejos: «Mirar adentro» (Alt sobre un componente tuyo), «Ordenar circuito» (Ctrl+Alt+L) y
+  «Dividir la vista».
+
 ## Atajos de teclado
 
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.
@@ -258,6 +289,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - El 0, 1 o Z escrito en un interruptor es blanco, salvo cuando el color del interruptor es tan claro que el blanco no se leería (por ejemplo el dorado del 1 en «Placa», el blanco del 1 en CSim o el verde claro del 1 en Claro y Oscuro): ahí es negro.
 - «Editor externo»: el comando que abre los archivos de memoria enlazados (por ejemplo `code` o `gedit`; el archivo va al final); vacío usa el editor del sistema. Ver [Memoria: archivos enlazados](componentes.md#memoria-archivos-enlazados).
 - "Seguir sistema" consulta el modo oscuro del sistema al iniciar y al elegir esa opción (macOS, Windows y GNOME); si no puede saberlo, usa el tema claro.
+- «Mostrar el consejo del día al iniciar» (encendido de entrada) es la misma opción que «Mostrar al iniciar» de la
+  tarjeta del [Consejo del día](#consejo-del-día).
 - `-Dvsim.language=en` (o `./gradlew :ui:run -PvsimLanguage=en`) manda sobre el idioma guardado.
 - Las preferencias se guardan con `java.util.prefs` (nodo `cl/almejo/vsim2`).
 - Preferencias ▸ General ▸ «Letra de etiquetas y textos» elige la letra (Predeterminada o cualquiera instalada) y el tamaño (8 a 24, 10 por defecto) de las etiquetas de los componentes, los textos libres y los títulos de los marcos (estos en negrita, un punto más grandes hasta llenar la franja del título: con letras grandes dejan de crecer para no cortarse). Cambia al instante en todas las ventanas (una edición en el lugar que esté abierta se confirma), en lo que se puede seleccionar con un clic y en las imágenes exportadas. Si la letra guardada no está instalada en este computador (preferencias copiadas de otro), se usa la predeterminada sin perder la elección. Si la letra no tiene algún carácter (Fira Code no tiene «‑», el guion que no corta la línea), ese carácter se toma de la letra predeterminada en vez de dibujar un cuadradito, en el lienzo, en las imágenes, en el PDF y en papel. El texto dentro de las piezas (como el valor de una Constante) no cambia.

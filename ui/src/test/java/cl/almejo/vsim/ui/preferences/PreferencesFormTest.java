@@ -179,6 +179,19 @@ class PreferencesFormTest {
     }
 
     @Test
+    void theTipOfTheDayBoxIsTheCardsMostrarAlIniciarBothWays() {
+        PreferencesForm form = form();
+        assertThat(form.showTipAtStartBox().getText()).isEqualTo("Mostrar el consejo del día al iniciar");
+        assertThat(form.showTipAtStartBox().isSelected()).isTrue();
+
+        form.showTipAtStartBox().doClick(0);
+        assertThat(preferences.showTipAtStart()).isFalse();
+
+        preferences.setShowTipAtStart(true); // the card's «Mostrar al iniciar», with the dialog open
+        assertThat(form.showTipAtStartBox().isSelected()).isTrue();
+    }
+
+    @Test
     void theAnimateViewMovesBoxShowsAndChangesThePreference() {
         PreferencesForm form = form();
         assertThat(form.animateViewMovesBox().getText()).isEqualTo("Animar los movimientos de la vista");

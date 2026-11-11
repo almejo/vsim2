@@ -100,6 +100,7 @@ import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
 import cl.almejo.vsim.ui.tunnel.TunnelsExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsToolbarExtension;
+import cl.almejo.vsim.ui.whatsnew.TipOfTheDayExtension;
 import cl.almejo.vsim.ui.whatsnew.WhatsNewExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.CloseSequence;
@@ -324,7 +325,10 @@ public final class Application {
         editorExtensions.add(new QuickInsertExtension()); // its Insert key before the shortcuts extension
         editorExtensions.add(new ShortcutSheetExtension()); // «?»: its Ayuda item after «Buscar una acción…»
         // «Qué hay de nuevo»: its Ayuda item after «Atajos de teclado»; one per application (the first window's bubbles)
-        editorExtensions.add(new WhatsNewExtension(ai.server()));
+        WhatsNewExtension whatsNew = new WhatsNewExtension(ai.server());
+        editorExtensions.add(whatsNew);
+        // «Consejo del día»: its Ayuda item after «Qué hay de nuevo»; asks the same startup notices (the bubbles win)
+        editorExtensions.add(new TipOfTheDayExtension(whatsNew, ai.server()));
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new WaveformsToolbarExtension()); // the «Formas de onda» toggle, right after «Presentar»

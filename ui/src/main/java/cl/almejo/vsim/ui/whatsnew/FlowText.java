@@ -16,7 +16,8 @@ import java.util.regex.Pattern;
 
 /**
  * Words and keycaps flowing in lines of a given width, as a bubble's text («{space} cambia el codo») and its «Atajo»
- * line draw them: each key a solid keycap in the bubble's ink. Measures and paints with the same layout.
+ * line draw them (each key a solid keycap in the bubble's ink), or a tip of the day's text (light outlined keycaps).
+ * Measures and paints with the same layout.
  */
 final class FlowText {
 
@@ -68,9 +69,36 @@ final class FlowText {
         return placed.get(placed.size() - 1).lineTop() + lineHeight(metricsSource, font);
     }
 
-    /** Paints the flow from ({@code left}, {@code top}) in {@code width}; returns the y just under it. */
+    /** How one row of keycaps is drawn from (x, top). */
+    @FunctionalInterface
+    private interface CapPainter {
+        void paint(Graphics2D painter, Font font, List<String> keys, int x, int top);
+    }
+
+    /**
+     * Paints the flow from ({@code left}, {@code top}) in {@code width}, the keys as solid caps of {@code ink} with
+     * their names in {@code fill} (a bubble); returns the y just under it.
+     */
     int paint(Graphics2D painter, Component metricsSource, Font font, int left, int top, int width, Color ink,
               Color fill) {
+        return paint(painter, metricsSource, font, left, top, width, ink,
+                (capPainter, capFont, keys, x, capTop) -> Keycaps.paintSolid(capPainter, capFont, KEYCAP_SCALE, keys,
+                        !KeyNames.MAC_NOTATION, x, capTop, ink, fill));
+    }
+
+    /**
+     * Paints the flow like {@link #paint(Graphics2D, Component, Font, int, int, int, Color, Color)}, the words in
+     * {@code ink} and the keys as light caps outlined in {@code keyColour} (a tip of the day's text).
+     */
+    int paintOutlined(Graphics2D painter, Component metricsSource, Font font, int left, int top, int width,
+                      Color ink, Color keyColour) {
+        return paint(painter, metricsSource, font, left, top, width, ink,
+                (capPainter, capFont, keys, x, capTop) -> Keycaps.paint(capPainter, capFont, KEYCAP_SCALE, keys,
+                        !KeyNames.MAC_NOTATION, x, capTop, keyColour));
+    }
+
+    private int paint(Graphics2D painter, Component metricsSource, Font font, int left, int top, int width, Color ink,
+                      CapPainter caps) {
         int lineHeight = lineHeight(metricsSource, font);
         FontMetrics metrics = metricsSource.getFontMetrics(font);
         int capHeight = Keycaps.height(metricsSource, font, KEYCAP_SCALE);
@@ -83,8 +111,7 @@ final class FlowText {
                 painter.drawString(word, left + placed.x(),
                         lineTop + (lineHeight - metrics.getHeight()) / 2 + metrics.getAscent());
             } else if (placed.piece() instanceof Keys keys) {
-                Keycaps.paintSolid(painter, font, KEYCAP_SCALE, keys.keys(), !KeyNames.MAC_NOTATION,
-                        left + placed.x(), lineTop + (lineHeight - capHeight) / 2, ink, fill);
+                caps.paint(painter, font, keys.keys(), left + placed.x(), lineTop + (lineHeight - capHeight) / 2);
             }
             bottom = lineTop + lineHeight;
         }

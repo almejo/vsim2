@@ -14,9 +14,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The text of a bubble with its keys cut out: «{space} cambia el codo» is a key and a plain part. A key is a fixed key
- * of a gesture ({@code {escape}}, {@code {space}}, {@code {backspace}}) or a {@code ShortcutCatalog} id, which shows the
- * key the user gave that action now; the bubble draws each key as a keycap with the names of the user's language.
+ * The text of a bubble or a tip of the day with its keys cut out: «{space} cambia el codo» is a key and a plain part.
+ * A key is a fixed key of a gesture ({@code {escape}}, {@code {space}}, {@code {alt}}…) or a {@code ShortcutCatalog}
+ * id, which shows the key the user gave that action now; each key is drawn as a keycap with the names of the user's
+ * language.
  */
 final class NewsText {
 
@@ -42,11 +43,17 @@ final class NewsText {
 
     private static final Pattern KEY = Pattern.compile("\\{([A-Za-z][A-Za-z0-9.]*)}");
 
-    /** The keys of gestures, which no catalog entry names (they are fixed in the canvas). */
+    /**
+     * The keys of gestures, which no catalog entry names (they are fixed in the canvas): Alt held to look inside a
+     * component, Mayús held to keep placing, Enter to finish.
+     */
     private static final Map<String, KeyStroke> FIXED_KEYS = Map.of(
             "escape", KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
             "space", KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0),
-            "backspace", KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0));
+            "backspace", KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0),
+            "enter", KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0),
+            "alt", KeyStroke.getKeyStroke(KeyEvent.VK_ALT, 0),
+            "shift", KeyStroke.getKeyStroke(KeyEvent.VK_SHIFT, 0));
 
     private NewsText() {
     }

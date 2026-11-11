@@ -1,0 +1,265 @@
+package cl.almejo.vsim.ui.whatsnew;
+
+import cl.almejo.vsim.ui.export.CircuitImage;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.Keycaps;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
+import cl.almejo.vsim.ui.theme.ThemeColors;
+import com.formdev.flatlaf.util.UIScale;
+
+import javax.swing.JComponent;
+import javax.swing.UIManager;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.geom.Path2D;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Supplier;
+
+/**
+ * The picture of a tip of the day (mockup v11): its circuit drawn with the user's scheme, two pictures side by side
+ * with the big key between them («antes y después»), or an image; the big key is the user's own binding, drawn here by
+ * VSim (never part of an image), on a plate so a circuit under it does not show through. Everything is read at paint
+ * time: the scheme, the theme's accent and fonts.
+ */
+final class TipPicture extends JComponent {
+
+    /** One picture: a tip circuit, or an image (a capture). */
+    sealed interface Slot permits CircuitSlot, ImageSlot {
+    }
+
+    record CircuitSlot(TipCircuit circuit) implements Slot {
+
+        CircuitSlot {
+            Objects.requireNonNull(circuit, "circuit");
+        }
+    }
+
+    record ImageSlot(BufferedImage image) implements Slot {
+
+        ImageSlot {
+            Objects.requireNonNull(image, "image");
+        }
+    }
+
+    /** What the picture shows: its kind, its pictures (a slot that could not be read is left blank) and its key. */
+    record Content(TipKind kind, List<Optional<Slot>> slots, Optional<List<String>> key) {
+
+        Content {
+            Objects.requireNonNull(kind, "kind");
+            slots = List.copyOf(slots);
+            Objects.requireNonNull(key, "key");
+        }
+
+        static final Content EMPTY = new Content(TipKind.IMAGE, List.of(), Optional.empty());
+    }
+
+    /** The mockup's picture: 180 × 100. */
+    private static final double ASPECT = 100.0 / 180.0;
+    private static final int CORNER = 6;
+    private static final int PADDING = 8;
+    /** A tip circuit is never drawn bigger than the canvas at 100 %. */
+    private static final double MAXIMUM_SCALE = 1.0;
+    /** The big key: the UI font times this. */
+    private static final float BIG_KEY_SCALE = 1.4f;
+    private static final int KEY_PLATE_PADDING = 4;
+    private static final int KEY_GAP = 10;
+    /** A key at most this share of the picture's width goes between the two pictures; a wider one under them. */
+    private static final double MIDDLE_KEY_SHARE = 0.25;
+    private static final int ARROW_LENGTH = 22;
+    private static final int ARROW_HEAD = 4;
+    private static final int CAPTION_GAP = 2;
+    private static final int PLATE_ALPHA = 235;
+
+    private final PainterRegistry painters;
+    private final Supplier<ColorScheme> scheme;
+    private Content content = Content.EMPTY;
+
+    TipPicture(PainterRegistry painters, Supplier<ColorScheme> scheme) {
+        this.painters = Objects.requireNonNull(painters, "painters");
+        this.scheme = Objects.requireNonNull(scheme, "scheme");
+        setOpaque(false);
+    }
+
+    /** The height of the picture at {@code width}, the mockup's proportions. */
+    static int heightFor(int width) {
+        return (int) Math.round(width * ASPECT);
+    }
+
+    void show(Content shown) {
+        this.content = Objects.requireNonNull(shown, "shown");
+        repaint();
+    }
+
+    @Override
+    protected void paintComponent(Graphics graphics) {
+        Graphics2D painter = (Graphics2D) graphics.create();
+        try {
+            painter.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            painter.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            RoundRectangle2D frame = new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1,
+                    UIScale.scale(CORNER), UIScale.scale(CORNER));
+            painter.setColor(scheme.get().background());
+            painter.fill(frame);
+            Graphics2D inside = (Graphics2D) painter.create();
+            inside.clip(frame);
+            paintContent(inside);
+            inside.dispose();
+            painter.setColor(borderColour());
+            painter.draw(frame);
+        } finally {
+            painter.dispose();
+        }
+    }
+
+    private void paintContent(Graphics2D painter) {
+        int padding = UIScale.scale(PADDING);
+        Rectangle area = new Rectangle(padding, padding, getWidth() - 2 * padding, getHeight() - 2 * padding);
+        switch (content.kind()) {
+            case CIRCUIT, IMAGE -> paintAlone(painter, area);
+            case BEFORE_AFTER -> paintBeforeAndAfter(painter, area);
+        }
+    }
+
+    /** One picture filling the area, its key (if any) in the bottom-right corner over it. */
+    private void paintAlone(Graphics2D painter, Rectangle area) {
+        slot(0).ifPresent(slot -> paintSlot(painter, slot, area));
+        content.key().ifPresent(keys -> {
+            int width = Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION);
+            int height = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
+            paintKey(painter, keys, area.x + area.width - width, area.y + area.height - height);
+        });
+    }
+
+    /**
+     * Two pictures with an arrow between them and «Antes» / «Después» under them. A short key (one or two caps) goes
+     * between them above the arrow, as in the mockup; a longer one (Ctrl+Alt+L) under the arrow, across the bottom,
+     * so the pictures keep their room.
+     */
+    private void paintBeforeAndAfter(Graphics2D painter, Rectangle area) {
+        Font caption = captionFont();
+        FontMetrics captionMetrics = getFontMetrics(caption);
+        int captionHeight = captionMetrics.getHeight() + UIScale.scale(CAPTION_GAP);
+        int keyWidth = content.key().map(keys -> Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys,
+                !KeyNames.MAC_NOTATION)).orElse(0);
+        int keyHeight = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
+        boolean keyBetween = keyWidth <= area.width * MIDDLE_KEY_SHARE;
+        int middle = Math.max(keyBetween ? keyWidth : 0, UIScale.scale(ARROW_LENGTH)) + 2 * UIScale.scale(KEY_GAP);
+        int keyRow = content.key().isPresent() && !keyBetween ? keyHeight + UIScale.scale(KEY_GAP) : 0;
+        int slotWidth = (area.width - middle) / 2;
+        Rectangle before = new Rectangle(area.x, area.y, slotWidth, area.height - captionHeight - keyRow);
+        Rectangle after = new Rectangle(area.x + area.width - slotWidth, area.y, slotWidth, before.height);
+        slot(0).ifPresent(slot -> paintSlot(painter, slot, before));
+        slot(1).ifPresent(slot -> paintSlot(painter, slot, after));
+        painter.setFont(caption);
+        painter.setColor(mutedColour());
+        int captionBaseline = before.y + before.height + captionMetrics.getAscent();
+        paintCentred(painter, Messages.text("tip.before"), before, captionBaseline);
+        paintCentred(painter, Messages.text("tip.after"), after, captionBaseline);
+        int centreX = area.x + area.width / 2;
+        int centreY = before.y + before.height / 2;
+        if (keyBetween) {
+            content.key().ifPresent(keys -> paintKey(painter, keys, centreX - keyWidth / 2, centreY - keyHeight));
+            paintArrow(painter, centreX, centreY + UIScale.scale(KEY_GAP));
+        } else {
+            paintArrow(painter, centreX, centreY);
+            content.key().ifPresent(keys -> paintKey(painter, keys, centreX - keyWidth / 2,
+                    area.y + area.height - keyHeight));
+        }
+    }
+
+    private Optional<Slot> slot(int index) {
+        return index < content.slots().size() ? content.slots().get(index) : Optional.empty();
+    }
+
+    private void paintCentred(Graphics2D painter, String text, Rectangle under, int baseline) {
+        painter.drawString(text, under.x + (under.width - painter.getFontMetrics().stringWidth(text)) / 2, baseline);
+    }
+
+    /** {@code slot} as big as it fits in {@code area} (a circuit never past 100 %), centred. */
+    private void paintSlot(Graphics2D painter, Slot slot, Rectangle area) {
+        switch (slot) {
+            case CircuitSlot circuitSlot -> circuitSlot.circuit().image(painters, scheme.get())
+                    .ifPresent(image -> paintCircuit(painter, image, area));
+            case ImageSlot imageSlot -> paintImage(painter, imageSlot.image(), area);
+        }
+    }
+
+    private static void paintCircuit(Graphics2D painter, CircuitImage image, Rectangle area) {
+        double scale = Math.min(MAXIMUM_SCALE, Math.min((double) area.width / image.width(1.0),
+                (double) area.height / image.height(1.0)));
+        Graphics2D placed = (Graphics2D) painter.create();
+        try {
+            placed.translate(area.x + (area.width - image.width(scale)) / 2,
+                    area.y + (area.height - image.height(scale)) / 2);
+            image.paint(placed, scale);
+        } finally {
+            placed.dispose();
+        }
+    }
+
+    private static void paintImage(Graphics2D painter, BufferedImage image, Rectangle area) {
+        double scale = Math.min((double) area.width / image.getWidth(), (double) area.height / image.getHeight());
+        int width = (int) Math.round(image.getWidth() * scale);
+        int height = (int) Math.round(image.getHeight() * scale);
+        painter.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        painter.drawImage(image, area.x + (area.width - width) / 2, area.y + (area.height - height) / 2, width,
+                height, null);
+    }
+
+    /** The big key on a plate of the circuit's background, so what is under it does not show through. */
+    private void paintKey(Graphics2D painter, List<String> keys, int x, int y) {
+        int width = Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION);
+        int height = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
+        int plate = UIScale.scale(KEY_PLATE_PADDING);
+        Color background = scheme.get().background();
+        painter.setColor(new Color(background.getRed(), background.getGreen(), background.getBlue(), PLATE_ALPHA));
+        painter.fillRoundRect(x - plate, y - plate, width + 2 * plate, height + 2 * plate, 2 * plate, 2 * plate);
+        Keycaps.paint(painter, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION, x, y, ThemeColors.accent());
+    }
+
+    private void paintArrow(Graphics2D painter, int centreX, int y) {
+        int half = UIScale.scale(ARROW_LENGTH) / 2;
+        int head = UIScale.scale(ARROW_HEAD);
+        Path2D arrow = new Path2D.Float();
+        arrow.moveTo(centreX - half, y);
+        arrow.lineTo(centreX + half, y);
+        arrow.moveTo(centreX + half - head, y - head);
+        arrow.lineTo(centreX + half, y);
+        arrow.lineTo(centreX + half - head, y + head);
+        painter.setColor(mutedColour());
+        painter.setStroke(new BasicStroke(UIScale.scale(1.5f), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        painter.draw(arrow);
+    }
+
+    private static Font keyFont() {
+        Font font = UIManager.getFont("Label.font");
+        return font == null ? new Font(Font.SANS_SERIF, Font.PLAIN, 13) : font;
+    }
+
+    private static Font captionFont() {
+        Font font = keyFont();
+        return font.deriveFont(font.getSize2D() - 2);
+    }
+
+    static Color mutedColour() {
+        Color muted = UIManager.getColor("Label.disabledForeground");
+        return muted == null ? Color.GRAY : muted;
+    }
+
+    static Color borderColour() {
+        Color border = UIManager.getColor("Component.borderColor");
+        return border == null ? Color.LIGHT_GRAY : border;
+    }
+}
