@@ -155,7 +155,7 @@ class BubbleTourTest {
         assertThat(JLayeredPane.getLayer(overlays().get(0)))
                 .isGreaterThan(JLayeredPane.FRAME_CONTENT_LAYER).isLessThan(JLayeredPane.POPUP_LAYER);
         assertThat(tour.title()).isEqualTo(Messages.text("whatsNew.wires.title"));
-        assertThat(tour.count()).isEqualTo("1 de 6");
+        assertThat(tour.count()).isEqualTo("1 de 8");
         assertThat(tour.previousEnabled()).isFalse();
     }
 
@@ -169,11 +169,11 @@ class BubbleTourTest {
         press(KeyEvent.VK_LEFT);
         assertThat(tour.title()).isEqualTo(Messages.text("whatsNew.wires.title"));
         press(KeyEvent.VK_LEFT);
-        assertThat(tour.count()).isEqualTo("1 de 6");
-        for (int step = 0; step < 5; step++) {
+        assertThat(tour.count()).isEqualTo("1 de 8");
+        for (int step = 0; step < 7; step++) {
             press(KeyEvent.VK_ENTER);
         }
-        assertThat(tour.count()).isEqualTo("6 de 6");
+        assertThat(tour.count()).isEqualTo("8 de 8");
         assertThat(ended).isZero();
 
         tour.next();
@@ -210,12 +210,12 @@ class BubbleTourTest {
         target(NewsTargets.TOOLBAR_WAVEFORMS).setVisible(false);
         BubbleTour tour = start();
 
-        assertThat(tour.count()).isEqualTo("1 de 5");
+        assertThat(tour.count()).isEqualTo("1 de 7");
         tour.next();
         tour.next();
 
         assertThat(tour.title()).isEqualTo(Messages.text("whatsNew.presentationMode.title"));
-        assertThat(tour.count()).isEqualTo("3 de 5");
+        assertThat(tour.count()).isEqualTo("3 de 7");
     }
 
     @Test
@@ -229,7 +229,7 @@ class BubbleTourTest {
         tour.targetsChanged();
 
         assertThat(tour.title()).isEqualTo(Messages.text("whatsNew.presentationMode.title"));
-        assertThat(tour.count()).isEqualTo("3 de 5");
+        assertThat(tour.count()).isEqualTo("3 de 7");
     }
 
     @Test
@@ -407,5 +407,24 @@ class BubbleTourTest {
         TourOverlay overlay = overlays().get(0);
         assertThat(overlay.buttons()).isNotEmpty().allSatisfy(button -> assertThat(button.isFocusable()).isFalse());
         assertThat(overlay.getMouseListeners()).isEmpty();
+    }
+
+    @Test
+    void theHelpBubblesShowCtrlKAndTheFixedQuestionMarkOnTheSameMenuTarget() {
+        BubbleTour tour = start();
+        for (int step = 0; step < 6; step++) {
+            tour.next();
+        }
+        assertThat(tour.title()).isEqualTo(Messages.text("whatsNew.findAction.title"));
+        assertThat(tour.count()).isEqualTo("7 de 8");
+        KeyStroke findAction = new KeyBindings(preferences).strokeFor("help.findAction").orElseThrow();
+        assertThat(tour.line()).contains(new BubbleLine.Shortcut(KeyNames.keys(findAction, KeyNames.MAC_NOTATION)));
+
+        tour.next();
+
+        assertThat(tour.title()).isEqualTo(Messages.text("whatsNew.shortcutSheet.title"));
+        assertThat(tour.count()).isEqualTo("8 de 8");
+        assertThat(tour.line()).contains(new BubbleLine.Shortcut(
+                KeyNames.keys(KeyStroke.getKeyStroke('?'), KeyNames.MAC_NOTATION)));
     }
 }

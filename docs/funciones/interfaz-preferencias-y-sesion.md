@@ -212,10 +212,11 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 - La primera vez que abres una versión nueva de VSim (también la primera vez que lo instalas), unas burbujas te
   muestran, una por una, lo nuevo de esa versión: la ventana se oscurece salvo lo que la burbuja apunta, que queda
-  enmarcado en el color de la burbuja, y la flecha de la burbuja apunta a su centro. En esta versión son seis: los
+  enmarcado en el color de la burbuja, y la flecha de la burbuja apunta a su centro. En esta versión son ocho: los
   cables de corrido (en el botón Selección), la captura al portapapeles (su botón), el botón «Formas de onda», el
-  modo presentación (su botón), «Mostrar los atajos al usarlos» (en el título del menú Ver, sin abrirlo) y
-  «Animaciones» (en el título del menú Archivo).
+  modo presentación (su botón), «Mostrar los atajos al usarlos» (en el título del menú Ver, sin abrirlo),
+  «Animaciones» (en el título del menú Archivo), «Buscar una acción» (Ctrl+K) y la hoja de atajos («?»), las dos
+  en el título del menú Ayuda; la de «?» muestra siempre esa tecla, porque no se puede cambiar.
 - Cada burbuja tiene su título, su texto (las teclas dibujadas como teclas, con los nombres en tu idioma y las que
   tienes ahora) y, cuando lo que apunta tiene atajo, una línea «Atajo» con esa tecla (si lo cambiaste, sale el tuyo);
   si no tiene atajo, la línea dice dónde está («En el menú: Ver ▸ Mostrar los atajos al usarlos», «En el menú:

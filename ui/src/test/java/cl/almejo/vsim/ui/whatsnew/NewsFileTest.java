@@ -91,7 +91,7 @@ class NewsFileTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             NewsFile news = NewsFiles.load("0.8").orElseThrow();
-            assertThat(news.steps()).hasSize(6);
+            assertThat(news.steps()).hasSize(8);
             for (NewsStep step : news.steps()) {
                 assertThat(NewsTargets.find(view, step.targetId())).as(step.targetId()).isPresent();
                 for (Locale locale : List.of(Locale.forLanguageTag("es"), Locale.ENGLISH)) {
@@ -104,6 +104,9 @@ class NewsFileTest {
                                     .as(locale + " " + step.textKey() + " {" + key.name() + "}").isTrue());
                 }
                 step.action().ifPresent(reference -> {
+                    if (NewsText.isFixedKey(reference.shortcutId())) {
+                        return; // a key no one can rebind («?»): there is no action to look for
+                    }
                     assertThat(ShortcutCatalog.find(reference.shortcutId())).as(reference.shortcutId()).isPresent();
                     Action action = view.shortcutActions().get(reference.shortcutId());
                     assertThat(action).as(reference.shortcutId()).isNotNull();

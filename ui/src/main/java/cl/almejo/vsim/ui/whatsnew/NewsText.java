@@ -48,6 +48,7 @@ final class NewsText {
      * component, Mayús held to keep placing, Enter to finish.
      */
     private static final Map<String, KeyStroke> FIXED_KEYS = Map.of(
+            "questionMark", KeyStroke.getKeyStroke('?'),
             "escape", KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
             "space", KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0),
             "backspace", KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0),
@@ -74,6 +75,11 @@ final class NewsText {
             parts.add(new Plain(text.substring(position)));
         }
         return List.copyOf(parts);
+    }
+
+    /** Whether {@code name} is a fixed key (one nobody can rebind). */
+    static boolean isFixedKey(String name) {
+        return FIXED_KEYS.containsKey(name);
     }
 
     /** Whether {@code name} is a fixed key or a catalog id. */

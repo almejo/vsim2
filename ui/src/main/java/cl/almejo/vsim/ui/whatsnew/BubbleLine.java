@@ -43,6 +43,10 @@ sealed interface BubbleLine {
             return Optional.empty();
         }
         NewsStep.ActionReference reference = action.get();
+        if (NewsText.isFixedKey(reference.shortcutId())) { // «?»: a key nobody can rebind, shown as it is
+            return NewsText.strokeOf(reference.shortcutId(), new KeyBindings(view.services().preferences()))
+                    .map(stroke -> new Shortcut(KeyNames.keys(stroke, KeyNames.MAC_NOTATION)));
+        }
         if (reference.paletteEntry().isEmpty()) {
             Optional<BubbleLine> shortcut = new KeyBindings(view.services().preferences())
                     .strokeFor(reference.shortcutId())
