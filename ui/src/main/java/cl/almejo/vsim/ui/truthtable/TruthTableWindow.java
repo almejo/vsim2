@@ -22,6 +22,7 @@ import javax.swing.WindowConstants;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
@@ -175,6 +176,7 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     public void allowTryingRows(boolean allowed) {
         tryingAllowed = allowed;
         tryHint.setVisible(allowed);
+        growToFit();
     }
 
     @Override
@@ -182,6 +184,19 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         wizard.setVisible(true);
         wizard.setEnabled(refusal.isEmpty());
         wizard.setToolTipText(refusal.orElse(null));
+        growToFit(); // the button arrives after the table sized the window: without this it is cut off
+    }
+
+    /** Widens or heightens the window up to what its content asks for; never shrinks a size the user chose. */
+    private void growToFit() {
+        if (!packed) {
+            return; // the first table packs the window anyway
+        }
+        Dimension preferred = getPreferredSize();
+        Dimension size = getSize();
+        if (preferred.width > size.width || preferred.height > size.height) {
+            setSize(Math.max(preferred.width, size.width), Math.max(preferred.height, size.height));
+        }
     }
 
     @Override
