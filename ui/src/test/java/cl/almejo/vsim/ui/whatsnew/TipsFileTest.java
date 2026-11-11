@@ -40,6 +40,28 @@ class TipsFileTest {
     Path directory;
 
     @Test
+    void theDevelopmentSwitchStartsTheListAtTheNamedTipAndLeavesTheEarlierOnesOut() {
+        List<Tip> tips = TipsFile.parse(List.of(
+                "one | circuit | tip.a.title | tip.a.text | a.vsim | - | -",
+                "two | circuit | tip.b.title | tip.b.text | b.vsim | - | -",
+                "three | circuit | tip.c.title | tip.c.text | c.vsim | - | -"));
+
+        assertThat(TipsFile.startingAt(tips, "two")).extracting(Tip::id).containsExactly("two", "three");
+        assertThat(TipsFile.startingAt(tips, "one")).extracting(Tip::id).containsExactly("one", "two", "three");
+    }
+
+    @Test
+    void anUnknownOrMissingStartIgnoresTheSwitch() {
+        List<Tip> tips = TipsFile.parse(List.of(
+                "one | circuit | tip.a.title | tip.a.text | a.vsim | - | -",
+                "two | circuit | tip.b.title | tip.b.text | b.vsim | - | -"));
+
+        assertThat(TipsFile.startingAt(tips, "nope")).isEqualTo(tips);
+        assertThat(TipsFile.startingAt(tips, null)).isEqualTo(tips);
+        assertThat(TipsFile.startingAt(tips, " ")).isEqualTo(tips);
+    }
+
+    @Test
     void aFileListsItsTipsInOrderSkippingCommentsAndBlankLines() {
         List<Tip> tips = TipsFile.parse(List.of(
                 "# a comment",

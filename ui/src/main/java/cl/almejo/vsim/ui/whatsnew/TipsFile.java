@@ -12,6 +12,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The tips of the day, read from {@value #RESOURCE}: one tip per line in the order they are shown, seven columns
@@ -22,6 +24,11 @@ import java.util.Set;
  * its pictures and its two texts (spec: no fixed number of tips).
  */
 final class TipsFile {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TipsFile.class);
+
+    /** The development switch's property: a tip id; the list starts at that tip (gradle -PvsimTipFrom). */
+    static final String FROM_PROPERTY = "vsim.tip.from";
 
     /** Where the tips' file and pictures live on the classpath. */
     static final String FOLDER = "/tips/";
@@ -37,8 +44,29 @@ final class TipsFile {
     private TipsFile() {
     }
 
-    /** The tips bundled with VSim. */
+    /** The tips bundled with VSim, from the development switch's tip on when it is set. */
     static List<Tip> load() {
+        return startingAt(loadAll(), System.getProperty(FROM_PROPERTY));
+    }
+
+    /**
+     * {@code tips} from the one with id {@code firstId} on; the earlier ones are left out. A blank or unknown id
+     * (logged) changes nothing. Only for reviewing new tips: the shipped jar never sets the switch.
+     */
+    static List<Tip> startingAt(List<Tip> tips, String firstId) {
+        if (firstId == null || firstId.isBlank()) {
+            return tips;
+        }
+        for (int index = 0; index < tips.size(); index++) {
+            if (tips.get(index).id().equals(firstId.strip())) {
+                return tips.subList(index, tips.size());
+            }
+        }
+        LOGGER.warn("{}={} is not a tip id; showing every tip", FROM_PROPERTY, firstId);
+        return tips;
+    }
+
+    private static List<Tip> loadAll() {
         try (InputStream stream = TipsFile.class.getResourceAsStream(RESOURCE)) {
             if (stream == null) {
                 throw new IllegalStateException("missing " + RESOURCE);

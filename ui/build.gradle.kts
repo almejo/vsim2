@@ -53,6 +53,10 @@ tasks.named<JavaExec>("run") {
     // (development only; the shipped jar never sets it)
     providers.gradleProperty("vsimTipAlways").orNull
         ?.let { systemProperty("vsim.tip.always", if (it.isBlank()) "true" else it) }
+    // The tips list starts at that tip id, to review new tips: ./gradlew :ui:run -PvsimTipAlways -PvsimTipFrom=<id>
+    // (development only; the shipped jar never sets it)
+    providers.gradleProperty("vsimTipFrom").orNull?.takeIf { it.isNotBlank() }
+        ?.let { systemProperty("vsim.tip.from", it) }
 }
 
 // --- M4-D executable jar ---
