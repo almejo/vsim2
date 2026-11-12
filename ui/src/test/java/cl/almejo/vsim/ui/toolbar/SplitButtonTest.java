@@ -182,6 +182,21 @@ class SplitButtonTest {
                 .as("an unknown stored id falls back to the default").isEqualTo("circuit");
     }
 
+    @Test
+    void aModeWithoutIconIsOnlyForTheToggleVariant() {
+        List<SplitButtonMode> iconless = List.of(new SplitButtonMode("one", null, "One", "One"));
+        assertThatThrownBy(() -> SplitButton.forAction("x", null, iconless, preferences, mode -> { }))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SplitButton.forTool("x", null, iconless, preferences, mode -> { }))
+                .isInstanceOf(IllegalArgumentException.class);
+        javax.swing.Action toggle = new javax.swing.AbstractAction("Fixed") {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+            }
+        };
+        assertThat(SplitButton.forToggle("x", null, iconless, preferences, toggle).mode().id()).isEqualTo("one");
+    }
+
     private static List<JRadioButtonMenuItem> radioItems(JPopupMenu menu) {
         List<JRadioButtonMenuItem> items = new ArrayList<>();
         for (Component component : menu.getComponents()) {

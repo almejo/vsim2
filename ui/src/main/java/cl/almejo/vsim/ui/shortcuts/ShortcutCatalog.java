@@ -132,7 +132,7 @@ public final class ShortcutCatalog {
         window(entries, "view.showGuides", "action.showGuides", MenuId.VIEW, null);
         window(entries, "view.busValues", "action.busValues", MenuId.VIEW, null);
         window(entries, "view.magnifier", "action.magnifier", MenuId.VIEW, null);
-        // held, not pressed: the lens shows while the key under Esc is down (LensFeatures watches its release);
+        // a toggle: each press of the key under Esc turns the lens on or off (LensFeatures hooks the key);
         // canvas scope: a bare key that only acts with the focus in a canvas pane
         canvasView(entries, "view.lens", "action.lens", stroke(KeyEvent.VK_BACK_QUOTE, 0));
         window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);

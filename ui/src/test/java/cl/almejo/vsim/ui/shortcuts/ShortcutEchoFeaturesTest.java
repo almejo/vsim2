@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
+import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
@@ -63,6 +64,14 @@ class ShortcutEchoFeaturesTest {
         buildView();
     }
 
+    /** Whether the view registers the lens's action under its catalog id before the shortcuts bind (as LensFeatures). */
+    private boolean withTheLens;
+
+    private void buildAgain() {
+        view.dispose();
+        buildView();
+    }
+
     private void buildView() {
         ShortcutEchoExtension extension = new ShortcutEchoExtension(new ShortcutEchoExtension.Seams(() -> {
             ManualFrameTicker ticker = new ManualFrameTicker();
@@ -70,13 +79,27 @@ class ShortcutEchoFeaturesTest {
             return ticker;
         }, clock::get, candidate -> true, new RecordingKeyDispatchers(dispatchers), () -> focusOwner, () -> currentEvent, mac));
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of(extension, new ShortcutsExtension()));
+                preferences, new ComponentLibrary(), List.of(extension, theLensRegistration(), new ShortcutsExtension()));
         view = new EditorView(openDocument, services, UiTestSupport.NO_WINDOW);
         root = new JRootPane();
         root.setJMenuBar(view.menuBar());
         root.setContentPane(view);
         root.setSize(900, 600);
         layOut(root);
+    }
+
+    private EditorExtension theLensRegistration() {
+        return view -> {
+            if (!withTheLens) {
+                return () -> {
+                };
+            }
+            return view.registerShortcutAction("view.lens", new javax.swing.AbstractAction("Lupa") {
+                @Override
+                public void actionPerformed(java.awt.event.ActionEvent event) {
+                }
+            });
+        };
     }
 
     @AfterEach
@@ -243,8 +266,9 @@ class ShortcutEchoFeaturesTest {
     }
 
     @Test
-    void theKeyUnderEscOfAnotherLayoutShowsTheChipOfTheBackQuoteBinding() {
-        new KeyBindings(preferences).assign("view.zoomTool", KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0));
+    void theKeyUnderEscOfAnotherLayoutShowsTheChipOfTheLens() {
+        withTheLens = true;
+        buildAgain();
         KeyEvent masculine = new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_UNDEFINED,
                 KeyEvent.CHAR_UNDEFINED) {
             @Override
@@ -256,7 +280,27 @@ class ShortcutEchoFeaturesTest {
             dispatcher.dispatchKeyEvent(masculine);
         }
 
-        assertThat(chips()).singleElement().asString().startsWith("Tecla bajo Esc · ");
+        assertThat(chips()).singleElement().asString().startsWith("Tecla bajo Esc · Lupa");
+    }
+
+    @Test
+    void theBackQuoteAliasOfOtherLayoutsOnlyNamesTheLensNotAnotherActionBoundToBackQuote() {
+        withTheLens = true;
+        buildAgain();
+        new KeyBindings(preferences).assign("view.lens", KeyStroke.getKeyStroke(KeyEvent.VK_F9, 0));
+        new KeyBindings(preferences).assign("view.zoomTool", KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0));
+        KeyEvent masculine = new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_UNDEFINED,
+                KeyEvent.CHAR_UNDEFINED) {
+            @Override
+            public int getExtendedKeyCode() {
+                return 0x010000BA;
+            }
+        };
+        for (KeyEventDispatcher dispatcher : dispatchers) {
+            dispatcher.dispatchKeyEvent(masculine);
+        }
+
+        assertThat(chips()).isEmpty();
     }
 
     @Test

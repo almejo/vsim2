@@ -49,30 +49,34 @@ Parte de las [funciones de VSim 2](../funciones.md).
 Para ver de cerca un trocito del circuito sin cambiar el zoom, como la lupa de accesibilidad del sistema.
 
 - **Ponerla y quitarla con una tecla**: al pulsar la tecla que está bajo Esc, a la izquierda del 1, sin ninguna otra
-  (es la ` en un teclado inglés y la º en uno español; en otras distribuciones, la ², § o ° que haya ahí) aparece un
+  (es la ` en un teclado inglés y la º en uno español; en otros teclados VSim también reconoce la ² y la §; si la tuya
+  no responde, cámbiala en «Atajos de teclado») aparece un
   círculo alrededor del puntero que muestra cuatro veces más grande (o 2× u 8×, según el ▾ de su botón) solo lo que hay
   ahí; el resto del lienzo queda igual. Al pulsarla otra vez se va. Es una tecla para usar con una sola mano y que no
   choca con ningún atajo. Cada pulsación cuenta una vez: si la mantienes apretada, su repetición no la pone y la quita
   ni repite el aviso de «Mostrar los atajos que se usan». Solo actúa con el foco en el lienzo: en un campo de texto,
-  el inspector o la barra de búsqueda la tecla escribe como siempre. La tecla se cambia en Preferencias ▸ «Atajos de
+  el inspector o la barra de búsqueda la tecla escribe como siempre, y mientras un Teclado o una Terminal tiene el
+  teclado (se escribe en él) tampoco actúa: la tecla va a la pieza. La tecla se cambia en Preferencias ▸ «Atajos de
   teclado» («Lupa»), por otra tecla suelta o con Ctrl, Alt o Mayús.
 - **En el menú**: Ver ▸ «Lupa», justo después de «Mirar adentro», es la misma: la pone y la quita, y su marca dice si
   está puesta (también cuando la pusiste con la tecla). En «Acciones» (Ctrl+K) se encuentra como «Lupa», con su
-  tecla. Es de cada ventana y no se guarda: VSim abre siempre con la lupa apagada.
+  tecla. Es de cada pestaña (cada una la pone y la quita por separado) y no se guarda: VSim abre siempre con la lupa apagada.
 - **Botón de la barra**: justo después del ojo de «Mirar adentro» hay un botón con la lupa (un trocito que se abre en
   uno grande): su parte principal es «Lupa», la misma de la tecla y del menú, y su ▾ («Aumento de la lupa») elige 2×,
   4× u 8×. Su ayuda dice «Lupa: agranda el trocito bajo el puntero (Tecla bajo Esc)», con la tecla que tengas puesta; esa tecla se nombra por su lugar, porque lo que tiene impreso cambia con el teclado. El aumento
   elegido se guarda y vale en todas las ventanas y pestañas (4× al principio); elegirlo no pone ni quita la lupa.
 - **Es el circuito de verdad**, no una foto: sigue al puntero y a la simulación en vivo, con la cuadrícula, lo
   seleccionado y lo que estés haciendo (un cable a medias, una pieza por colocar). El punto bajo el puntero es el mismo
-  dentro y fuera de la lupa, así un clic cae donde lo ves. Agranda también más allá del zoom máximo: a 400 % se ve como
-  a 1200 %.
+  dentro y fuera de la lupa, así un clic cae donde lo ves. Agranda también más allá del zoom máximo: a 400 % y con 4× se ve como a 1600 %
+  (hasta 3200 % con 8×). Si la pones con el puntero ya sobre el lienzo, aparece de inmediato, sin moverlo antes.
 - **Cómo se ve**: un círculo de 100 píxeles de radio con un borde en el color de acento del tema, una cruz tenue en el
   centro y el aumento («4×») bajo su borde, a la derecha; con el tema claro y el oscuro. Sale solo en el panel bajo el
   puntero (con la [vista dividida](#dividir-la-vista), en uno a la vez) y se esconde cuando el puntero sale del lienzo;
   funciona igual en el [modo presentación](#modo-presentación).
 - **Solo para mirar**: no cambia la herramienta, el cursor, la selección ni el circuito, no lo marca como modificado ni
-  deja pasos de deshacer, y nunca sale al exportar una imagen o un PDF ni al imprimir.
+  deja pasos de deshacer, y nunca sale al exportar el circuito como imagen o PDF ni al imprimir. Sí sale en lo que ves
+  de la ventana: «Copiar captura» y «Exportar imagen de la ventana» la incluyen si está puesta y el puntero está sobre
+  el lienzo, igual que cualquier otra cosa que se vea ahí.
 - No es [Mirar adentro](pestanas-y-componentes.md#mirar-adentro-ver-el-interior-sin-entrar), que muestra el interior de
   un componente propio, ni la herramienta Zoom, que cambia el zoom del panel.
 

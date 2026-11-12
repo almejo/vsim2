@@ -14,7 +14,7 @@
 # Texts (both bundles, «# --- Consejo del día ---») may name keys as {alt}, {shift}, {space}, {escape}, {backspace},
 # {enter} or {<catalog id>}: the user's own key, or the action's place in the menus when it has none.
 # TipsFileTest checks all of it.
-look-inside         | image        | tip.lookInside.title       | tip.lookInside.text        | look-inside.png                                   | alt                  | look-inside.vsim
+look-inside         | image        | tip.lookInside.title        | tip.lookInside.text        | look-inside.png                                   | alt                  | look-inside.vsim
 tidy-circuit        | before-after | tip.tidyCircuit.title       | tip.tidyCircuit.text       | tidy-circuit-before.vsim, tidy-circuit-after.vsim | edit.tidyWires       | circuit
 quick-insert        | image        | tip.quickInsert.title       | tip.quickInsert.text       | quick-insert.png                                  | -                    | edit.quickInsert
 continuous-wire     | image        | tip.continuousWire.title    | tip.continuousWire.text    | continuous-wire.png                               | space                | continuous-wire.vsim
@@ -51,4 +51,4 @@ circuit-from-table  | image        | tip.circuitFromTable.title  | tip.circuitFr
 circuit-from-expressions | circuit | tip.circuitFromExpressions.title | tip.circuitFromExpressions.text | circuit-from-expressions.vsim              | -                    | tools.circuitFromExpressions
 karnaugh-practice   | image        | tip.karnaughPractice.title  | tip.karnaughPractice.text  | karnaugh-practice.png                             | -                    | tools.karnaughPractice
 import-logisim      | image        | tip.importLogisim.title     | tip.importLogisim.text     | import-logisim.png                                | -                    | -
-lens                | image        | tip.lens.title              | tip.lens.text              | lens.png                                          | view.lens            | tidy-circuit-after.vsim
+lens                | image        | tip.lens.title              | tip.lens.text              | lens.png                                          | view.lens            | tidy-circuit-after.vsim view.lens

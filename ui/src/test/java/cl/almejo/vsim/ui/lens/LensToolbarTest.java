@@ -69,6 +69,12 @@ class LensToolbarTest {
     }
 
     @Test
+    void theToolbarButtonHasTheAccessibleNameLupa() {
+        assertThat(features.splitButton().mainButton().getAccessibleContext().getAccessibleName())
+                .isEqualTo("Lupa");
+    }
+
+    @Test
     void theButtonSitsRightAfterTheEyeOfLookInside() {
         EditorFixture other = EditorFixture.create(AppPreferences.inMemory());
         javax.swing.Action eye = new javax.swing.AbstractAction("eye") {

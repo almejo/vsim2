@@ -18,7 +18,7 @@ import java.awt.geom.Point2D;
 /**
  * Paints the accessibility lens on a pane (approved mockup v5, 2026-11-11): the pane's own scene enlarged around the
  * pointer and clipped to a circle of {@link LensState#RADIUS}, a ring and a faint crosshair at the centre in the
- * theme's accent, and the magnification («3×») under the ring's bottom right. Colours are read at every paint.
+ * theme's accent, and the magnification («4×») under the ring's bottom right. Colours are read at every paint.
  */
 final class LensPainter {
 

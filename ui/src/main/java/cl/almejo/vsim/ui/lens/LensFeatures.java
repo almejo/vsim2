@@ -25,6 +25,7 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
@@ -41,13 +42,14 @@ import java.util.OptionalInt;
  * The accessibility lens of one editor view: an enlarged circle of the circuit around the pointer, like a screen
  * magnifier, painted from the real scene of the pane under the pointer ({@link LensPainter}). One action turns it on
  * and off: Ver ▸ «Lupa», the toolbar button's main part and the key of {@value #SHORTCUT} (by default the key under
- * Esc, left of 1, with no modifier: ` or º; rebindable; it only acts with the focus in a canvas pane). Each physical
+ * Esc, left of 1, with no modifier: ` or º; rebindable; it only acts with the focus in a canvas pane, and not while
+ * a Keyboard or Terminal part has the keyboard). Each physical
  * press toggles it once: the key repeating while held is taken by a key hook before anybody else sees it (the canvas
  * binding and the key echo of «Mostrar los atajos que se usan» included). It is purely visual: no tool, cursor,
  * selection or document changes, no undo step. Being on is never saved. {@link #dispose()} takes back everything.
  *
  * <p>The toolbar button right after «Mirar adentro»'s eye is a {@link SplitButton}: its main part is «Lupa» (the same
- * action as the menu item and the key) and its ▾ picks the magnification (2×, 3×, 4×; 3× by default). The
+ * action as the menu item and the key) and its ▾ picks the magnification (2×, 4×, 8×; 4× by default). The
  * magnification is saved in the preferences and shared by every view; being on is never saved.
  */
 public final class LensFeatures {
@@ -76,6 +78,14 @@ public final class LensFeatures {
         Runnable watch(EditorView view, Runnable whenDeactivated);
     }
 
+    /** Where the pointer is over a pane now, if it is (the lens turned on shows at once, with no move first). */
+    @FunctionalInterface
+    interface PointerLocations {
+
+        Optional<Point> over(CircuitCanvas pane);
+    }
+
+    private final PointerLocations pointerLocations;
     private final EditorView view;
     private final KeyBindings keyBindings;
     private final KeyDispatchers dispatchers;
@@ -103,6 +113,13 @@ public final class LensFeatures {
 
     /** With the key hooks and the window watch of a test. */
     LensFeatures(EditorView view, KeyDispatchers dispatchers, WindowDeactivations deactivations) {
+        this(view, dispatchers, deactivations, LensFeatures::pointerOver);
+    }
+
+    /** With, besides, where the pointer is over a pane (a test says it; the real one asks the pane). */
+    LensFeatures(EditorView view, KeyDispatchers dispatchers, WindowDeactivations deactivations,
+                 PointerLocations pointerLocations) {
+        this.pointerLocations = Objects.requireNonNull(pointerLocations, "pointerLocations");
         this.view = Objects.requireNonNull(view, "view");
         this.keyBindings = new KeyBindings(view.services().preferences());
         this.dispatchers = Objects.requireNonNull(dispatchers, "dispatchers");
@@ -132,6 +149,11 @@ public final class LensFeatures {
         this.paneRemover = view.forEachPane(this::listenTo);
         dispatchers.add(keyHook);
         this.deactivationRemover = deactivations.watch(view, this::forgetTheKey);
+    }
+
+    /** The real answer: the pane's own mouse position, empty when the pointer is not over it. */
+    private static Optional<Point> pointerOver(CircuitCanvas pane) {
+        return pane.isShowing() ? Optional.ofNullable(pane.getMousePosition()) : Optional.empty();
     }
 
     /** The toolbar's split button: «Lupa» and its ▾ with the magnification. */
@@ -183,8 +205,24 @@ public final class LensFeatures {
         changing(() -> state.setFactor(factor));
     }
 
+    /** The pointer may already rest over a pane: the lens shows at once, with no move first. */
+    private void showUnderThePointer() {
+        for (CircuitCanvas pane : view.panes()) {
+            Optional<Point> location = pointerLocations.over(pane);
+            if (location.isPresent()) {
+                state.pointerAt(pane, location.get());
+                return;
+            }
+        }
+    }
+
     private void setOn(boolean on) {
-        changing(() -> state.setOn(on));
+        changing(() -> {
+            state.setOn(on);
+            if (on) {
+                showUnderThePointer();
+            }
+        });
         toggle.putValue(Action.SELECTED_KEY, on);
     }
 
@@ -196,6 +234,9 @@ public final class LensFeatures {
     private boolean keyEvent(KeyEvent event) {
         if (disposed) {
             return false;
+        }
+        if (event.getID() == KeyEvent.KEY_PRESSED && view.keyboardCapture().captured().isPresent()) {
+            return false; // a Keyboard or Terminal part has the keyboard: every key is for it, the lens's too
         }
         if (event.getID() == KeyEvent.KEY_PRESSED && comesFromThisView(event) && isTheBoundStroke(event)) {
             int key = KeyCodes.of(event);
@@ -259,7 +300,7 @@ public final class LensFeatures {
     /** The current binding, read at each press so a rebinding works at once. */
     private boolean isTheBoundStroke(KeyEvent event) {
         return keyBindings.strokeFor(SHORTCUT)
-                .filter(stroke -> KeyCodes.matches(stroke.getKeyCode(), KeyCodes.of(event))
+                .filter(stroke -> KeyCodes.matches(stroke.getKeyCode(), event)
                         && (stroke.getModifiers() & KEYBOARD_MODIFIERS) == (event.getModifiersEx() & KEYBOARD_MODIFIERS))
                 .isPresent();
     }

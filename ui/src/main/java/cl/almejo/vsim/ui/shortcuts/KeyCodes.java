@@ -15,13 +15,13 @@ public final class KeyCodes {
     public static final int EXTENDED_FLAG = 0x01000000;
 
     /**
-     * What the key under Esc reports on the layouts we know: ` (US, UK, most), º and ª (Spanish), ² (French), § (Swiss,
-     * Italian, Nordic), ° (Latin American) and the dead ^ (German, Polish).
+     * What the key under Esc, bare, reports on the layouts we know: ` (US, UK, most), º (Spanish), ² (French) and §
+     * (Swiss, Nordic). Left out on purpose: the dead ^ (it is the key right of P on French and Belgian layouts), ª and
+     * ° (the Shift of that key on the Spanish and Latin American layouts, so a bare press never reports them).
+     * Unverified on Windows and macOS.
      */
     private static final Set<Integer> UNDER_ESC = Set.of(
-            KeyEvent.VK_BACK_QUOTE, KeyEvent.VK_DEAD_CIRCUMFLEX,
-            EXTENDED_FLAG + 0xBA, EXTENDED_FLAG + 0xAA, EXTENDED_FLAG + 0xB2, EXTENDED_FLAG + 0xA7,
-            EXTENDED_FLAG + 0xB0);
+            KeyEvent.VK_BACK_QUOTE, EXTENDED_FLAG + 0xBA, EXTENDED_FLAG + 0xB2, EXTENDED_FLAG + 0xA7);
 
     private KeyCodes() {
     }
@@ -43,6 +43,14 @@ public final class KeyCodes {
      */
     public static boolean matches(int bound, int pressed) {
         return bound == pressed || (bound == KeyEvent.VK_BACK_QUOTE && isUnderEsc(pressed));
+    }
+
+    /**
+     * Whether a shortcut whose key is {@code bound} is the key of {@code event}, by its key code or by its extended
+     * one: a system may give the key a real code and say only in the extended one which character it is.
+     */
+    public static boolean matches(int bound, KeyEvent event) {
+        return matches(bound, of(event)) || matches(bound, event.getExtendedKeyCode());
     }
 
     /** The character of an extended key code, if {@code keyCode} is one. */

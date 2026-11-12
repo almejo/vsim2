@@ -146,12 +146,23 @@ class LensFeaturesTest {
         dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, now, modifiers, extendedCode));
     }
 
+    /** A key Java gives a real code and, besides, an extended one that says which character it is (Windows, macOS). */
+    private void pressRealWithExtended(int keyCode, int extendedCode) {
+        now += 200;
+        dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, now, 0, keyCode, extendedCode));
+    }
+
     private static final class ExtendedKeyEvent extends KeyEvent {
 
         private final int extendedCode;
 
         ExtendedKeyEvent(java.awt.Component source, int id, long when, int modifiers, int extendedCode) {
-            super(source, id, when, modifiers, UNDEFINED, KeyEvent.CHAR_UNDEFINED);
+            this(source, id, when, modifiers, UNDEFINED, extendedCode);
+        }
+
+        ExtendedKeyEvent(java.awt.Component source, int id, long when, int modifiers, int keyCode,
+                         int extendedCode) {
+            super(source, id, when, modifiers, keyCode, KeyEvent.CHAR_UNDEFINED);
             this.extendedCode = extendedCode;
         }
 
@@ -225,7 +236,7 @@ class LensFeaturesTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0x010000BA, 0x010000B2, 0x010000A7, 0x010000B0})
+    @ValueSource(ints = {0x010000BA, 0x010000B2, 0x010000A7})
     void theKeyUnderEscOfOtherLayoutsTogglesItToo(int extendedCode) {
         move(view.canvas(), 100, 100);
         pressExtended(extendedCode, 0);
@@ -234,6 +245,67 @@ class LensFeaturesTest {
         releaseExtended(extendedCode, 0);
         pressExtended(extendedCode, 0);
         assertThat(features.state().isOn()).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0x010000AA, 0x010000B0, KeyEvent.VK_DEAD_CIRCUMFLEX})
+    void keysThatAreNotTheOneUnderEscOnAnyLayoutDoNothing(int code) {
+        move(view.canvas(), 100, 100);
+        if (code == KeyEvent.VK_DEAD_CIRCUMFLEX) {
+            press(code, 0);
+        } else {
+            pressExtended(code, 0);
+        }
+        assertThat(features.state().isOn()).isFalse();
+    }
+
+    @Test
+    void aRealKeyCodeWithTheExtendedCodeOfTheKeyUnderEscStillToggles() {
+        move(view.canvas(), 100, 100);
+        pressRealWithExtended(KeyEvent.VK_BACK_SLASH, 0x010000BA); // º as a system with a real code reports it
+        assertThat(features.state().isOn()).isTrue();
+        pressRealWithExtended(KeyEvent.VK_BACK_SLASH, 0x010000BA);
+        assertThat(features.state().isOn()).as("the same key repeating").isTrue();
+    }
+
+    @Test
+    void aKeyBoundByItsExtendedCodeMatchesWhenTheEventAlsoHasARealCode() {
+        new KeyBindings(preferences).assign(LensFeatures.SHORTCUT, KeyStroke.getKeyStroke(0x010000E7, 0)); // ç
+        move(view.canvas(), 100, 100);
+        pressRealWithExtended(KeyEvent.VK_C, 0x010000E7);
+        assertThat(features.state().isOn()).isTrue();
+    }
+
+    @Test
+    void whileAPartHasTheKeyboardTheKeyDoesNothingAndEveryPressReachesThePart() {
+        view.keyboardCapture().capture("some-part");
+        move(view.canvas(), 100, 100);
+        assertThat(press(KeyEvent.VK_BACK_QUOTE, 0)).isFalse();
+        assertThat(pressAt(now + 30, KeyEvent.VK_BACK_QUOTE, 0)).as("a repeat is not taken").isFalse();
+        pressExtended(0x010000BA, 0);
+        assertThat(features.state().isOn()).isFalse();
+        view.keyboardCapture().release();
+        pressExtended(0x010000BA, 0);
+        assertThat(features.state().isOn()).as("with the keyboard back it works").isTrue();
+    }
+
+    @Test
+    void turningItOnWithThePointerAlreadyOverAPaneShowsItAtOnce() {
+        features.dispose();
+        features = new LensFeatures(view, new RecordingKeyDispatchers(dispatchers),
+                (watched, whenDeactivated) -> () -> {
+                }, pane -> java.util.Optional.of(new java.awt.Point(120, 80)));
+        features.toggleAction().actionPerformed(null);
+        assertThat(features.state().isShowingOn(view.canvas())).isTrue();
+        assertThat(features.state().pointer()).contains(new java.awt.Point(120, 80));
+    }
+
+    @Test
+    void turningItOnWithNoPointerOverAPaneWaitsForTheFirstMove() {
+        features.toggleAction().actionPerformed(null);
+        assertThat(features.state().isShowing()).isFalse();
+        move(view.canvas(), 10, 10);
+        assertThat(features.state().isShowing()).isTrue();
     }
 
     @Test

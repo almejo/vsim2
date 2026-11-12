@@ -47,6 +47,9 @@ import java.util.Collections;
  */
 final class ShortcutEchoFeatures {
 
+    /** The catalog id of the lens ({@code LensFeatures.SHORTCUT}; the lens package depends on this one). */
+    private static final String LENS_ID = "view.lens";
+
     static final String SHORTCUT_ID = "view.showUsedShortcuts";
     private static final Duration CHIP_DURATION = Duration.ofMillis(1500);
     private static final int MAXIMUM_CHIPS = 3;
@@ -203,7 +206,7 @@ final class ShortcutEchoFeatures {
     /**
      * The name of the shortcut binding {@code event} runs on {@code pane}, looked up as Swing does (the extended key
      * code first: a key with no {@code VK_} constant, ç, is bound by it); for a key under Esc other than ` (º, ²…),
-     * the binding of ` too, which is what that key means for a shortcut ({@link KeyCodes#matches}).
+     * the lens's binding when it is on ` (what that key means for it, {@link KeyCodes#matches}); no other action's.
      */
     private static Optional<String> bindingOf(CircuitCanvas pane, KeyEvent event) {
         List<KeyStroke> strokes = new ArrayList<>();
@@ -211,14 +214,19 @@ final class ShortcutEchoFeatures {
             strokes.add(KeyStroke.getKeyStroke(event.getExtendedKeyCode(), event.getModifiersEx(), false));
         }
         strokes.add(KeyStroke.getKeyStrokeForEvent(event));
-        if (KeyCodes.of(event) != KeyEvent.VK_BACK_QUOTE && KeyCodes.isUnderEsc(KeyCodes.of(event))) {
-            strokes.add(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, event.getModifiersEx(), false));
-        }
         for (KeyStroke stroke : strokes) {
             if (pane.getInputMap(JComponent.WHEN_FOCUSED).get(stroke) instanceof String name
                     && name.startsWith(ShortcutsExtension.BINDING_PREFIX)) {
                 return Optional.of(name);
             }
+        }
+        String lensBinding = ShortcutsExtension.BINDING_PREFIX + LENS_ID;
+        boolean isAnotherKeyUnderEsc = KeyCodes.of(event) != KeyEvent.VK_BACK_QUOTE
+                && (KeyCodes.isUnderEsc(KeyCodes.of(event)) || KeyCodes.isUnderEsc(event.getExtendedKeyCode()));
+        if (isAnotherKeyUnderEsc && pane.getInputMap(JComponent.WHEN_FOCUSED).get(
+                KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, event.getModifiersEx(), false)) instanceof String name
+                && name.equals(lensBinding)) {
+            return Optional.of(name);
         }
         return Optional.empty();
     }

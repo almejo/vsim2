@@ -86,12 +86,18 @@ public final class SplitButton extends JComponent {
         this.pressed = Objects.requireNonNull(pressed, "pressed");
         this.toolVariant = toolVariant;
         this.toggleVariant = toggle != null;
+        if (!toggleVariant && this.modes.stream().anyMatch(candidate -> candidate.icon() == null)) {
+            throw new IllegalArgumentException("Only a toggle split button's modes may have no icon");
+        }
         mainButton = toggleVariant ? new JToggleButton(toggle) : toolVariant ? new JToggleButton() : new JButton();
         mainButton.setHideActionText(true); // a toolbar button shows its icon; the name is in the tooltip
         SplitButtonMode defaultMode = modeWithId(defaultModeId).orElse(this.modes.get(0));
         mode = preferences.splitButtonMode(preferenceId).flatMap(this::modeWithId).orElse(defaultMode);
         build();
         showMode();
+        if (toggleVariant) { // an icon-only button: its action's name is what a screen reader says
+            mainButton.getAccessibleContext().setAccessibleName(String.valueOf(toggle.getValue(Action.NAME)));
+        }
     }
 
     /**
