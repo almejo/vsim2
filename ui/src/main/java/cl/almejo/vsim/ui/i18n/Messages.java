@@ -13,6 +13,7 @@ import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.Map;
 import java.util.MissingResourceException;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -56,6 +57,11 @@ public final class Messages {
             LOGGER.warn("Missing message key {}", key);
             return "!" + key + "!";
         }
+    }
+
+    /** The text of {@code key}, or empty when the bundle has none (a key that is optional by design). */
+    public static Optional<String> find(String key) {
+        return current.containsKey(key) ? Optional.of(current.getString(key)) : Optional.empty();
     }
 
     public static String format(String key, Object... arguments) {

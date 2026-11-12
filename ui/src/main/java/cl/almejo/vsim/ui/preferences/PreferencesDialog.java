@@ -9,8 +9,10 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import java.awt.Component;
+import java.awt.GridLayout;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -32,6 +34,20 @@ public final class PreferencesDialog {
     /** The titles of the tabs, in order: what {@code tab} indexes. */
     static final List<String> TAB_KEYS = List.of("preferences.tab.general", "preferences.tab.shortcuts",
             "preferences.tab.ai");
+
+    /** Until the groups have their own list: the four pages of the form one above the other in the «General» tab. */
+    private static final class StackedForm extends JPanel {
+        private final PreferencesForm form;
+
+        StackedForm(PreferencesForm form) {
+            super(new GridLayout(0, 1));
+            this.form = form;
+            add(form.general());
+            add(form.appearance());
+            add(form.accessibility());
+            add(form.files());
+        }
+    }
 
     private PreferencesDialog() {
     }
@@ -60,8 +76,8 @@ public final class PreferencesDialog {
     /** Lets the tabs stop following the preferences once the dialog is closed. */
     static void dispose(JTabbedPane tabs) {
         for (int index = 0; index < tabs.getTabCount(); index++) {
-            if (tabs.getComponentAt(index) instanceof PreferencesForm form) {
-                form.dispose();
+            if (tabs.getComponentAt(index) instanceof StackedForm stacked) {
+                stacked.form.dispose();
             } else if (tabs.getComponentAt(index) instanceof AiPreferencesPanel ai) {
                 ai.dispose();
             }
@@ -79,7 +95,7 @@ public final class PreferencesDialog {
     static JTabbedPane tabs(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser,
                             Optional<AiServerService> aiServer) {
         JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab(Messages.text(TAB_KEYS.get(0)), new PreferencesForm(preferences, directoryChooser));
+        tabs.addTab(Messages.text(TAB_KEYS.get(0)), new StackedForm(new PreferencesForm(preferences, directoryChooser)));
         tabs.addTab(Messages.text(TAB_KEYS.get(1)), new ShortcutsPanel(new KeyBindings(preferences)));
         Consumer<String> clipboard = AiPreferencesPanel.systemClipboard();
         tabs.addTab(Messages.text(TAB_KEYS.get(2)),

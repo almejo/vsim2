@@ -10,14 +10,12 @@ import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.wiring.InvertModifierNames;
 import com.formdev.flatlaf.FlatLaf;
-import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -33,10 +31,11 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 /**
- * Content of the preferences dialog (spec §6.7, §6.10, §5.6). Every change is stored at once; the theme manager
- * and the library follow the preferences live, the language applies at the next start.
+ * The controls of the preferences dialog's four option groups (spec §6.7, §6.10, §5.6) and their wiring: it owns the
+ * controls and lays them out as {@link PreferencesPage}s, one per group. Every change is stored at once; the theme
+ * manager and the library follow the preferences live, the language applies at the next start.
  */
-public final class PreferencesForm extends JPanel {
+public final class PreferencesForm {
 
     /** A combo item: the stored value and the text shown for it. */
     record Choice<T>(T value, String label) {
@@ -93,6 +92,10 @@ public final class PreferencesForm extends JPanel {
     private final JButton customizeSchemeButton = new JButton(Messages.text("preferences.scheme.customize"));
     private final JButton deleteSchemeButton = new JButton(Messages.text("preferences.scheme.delete"));
     private boolean refreshingSchemes;
+    private final PreferencesPage general;
+    private final PreferencesPage appearance;
+    private final PreferencesPage accessibility;
+    private final PreferencesPage files;
 
     public PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser) {
         this(preferences, directoryChooser, SchemeEditorDialog::open, SchemeEditorDialog::chooseColor,
@@ -108,7 +111,6 @@ public final class PreferencesForm extends JPanel {
     PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser,
                     SchemeEditorDialog.Opener schemeEditorOpener, SchemeEditorPanel.ColorChooser colorChooser,
                     BooleanSupplier themeIsDark, DeleteConfirmer deleteConfirmer) {
-        super(new MigLayout("insets dialog, wrap 2", "[right][grow, fill]"));
         this.preferences = preferences;
         this.directoryChooser = directoryChooser;
         this.customSchemes = new CustomColorSchemes(preferences);
@@ -163,30 +165,80 @@ public final class PreferencesForm extends JPanel {
         // the find bar's ↷ changes it too, also while this dialog is open
         preferences.addListener(preferenceListener);
 
-        add(new JLabel(Messages.text("preferences.theme")));
-        add(themeChoice);
-        add(new JLabel(Messages.text("preferences.scheme")));
-        add(schemeChoice);
-        add(customizeSchemeButton, "skip 1, split 2, growx 0");
-        add(deleteSchemeButton, "growx 0");
-        add(new JLabel(Messages.text("preferences.language")));
-        add(languageChoice);
-        add(new JLabel(Messages.text("preferences.language.note")), "skip 1");
-        add(new JLabel(Messages.text("preferences.library")));
-        add(libraryField);
-        add(chooseLibraryButton, "skip 1, split 2, growx 0");
-        add(restoreLibraryButton, "growx 0");
-        addExternalEditorRow();
-        add(restoreSessionBox, "skip 1, gaptop 12");
-        add(showTipAtStartBox, "skip 1");
-        JLabel animationsLabel = new JLabel(Messages.text("preferences.animations"));
-        animationsLabel.setLabelFor(animationsSwitch);
-        add(animationsLabel);
-        add(animationsSwitch, "growx 0");
-        add(animateViewMovesBox, "skip 1");
-        add(new JLabel(Messages.text("preferences.invertModifier")), "gaptop 12");
-        add(invertModifierChoice, "gaptop 12");
-        addTextFontRows();
+        wireExternalEditor();
+        wireTextFont();
+        general = buildGeneral();
+        appearance = buildAppearance();
+        accessibility = buildAccessibility();
+        files = buildFiles();
+    }
+
+    /** «General»: Idioma, Al iniciar, Edición. */
+    private PreferencesPage buildGeneral() {
+        return PreferencesPage.builder()
+                .section("preferences.section.language")
+                .row(PreferenceRow.labeled("language", "preferences.language", languageChoice, "",
+                        new PreferenceRow.Placed(new JLabel(Messages.text("preferences.language.note")), "skip 1")))
+                .section("preferences.section.startup")
+                .row(PreferenceRow.checkBox("restoreSession", restoreSessionBox, "skip 1"))
+                .row(PreferenceRow.checkBox("showTipAtStart", showTipAtStartBox, "skip 1"))
+                .section("preferences.section.editing")
+                .row(PreferenceRow.labeled("invertModifier", "preferences.invertModifier", invertModifierChoice, ""))
+                .build();
+    }
+
+    /** «Aspecto»: Ventana (where the interface zoom and font will join) and Circuito. */
+    private PreferencesPage buildAppearance() {
+        return PreferencesPage.builder()
+                .section("preferences.section.window")
+                .row(PreferenceRow.labeled("theme", "preferences.theme", themeChoice, ""))
+                .section("preferences.section.circuit")
+                .row(PreferenceRow.labeled("scheme", "preferences.scheme", schemeChoice, "",
+                        new PreferenceRow.Placed(customizeSchemeButton, "skip 1, split 2, growx 0"),
+                        new PreferenceRow.Placed(deleteSchemeButton, "growx 0")).ignoringValues())
+                .row(PreferenceRow.labeled("textFont", "preferences.textFont", fontFamilyChoice, "split 2",
+                        new PreferenceRow.Placed(fontSizeSpinner, "growx 0")).ignoringValues())
+                .build();
+    }
+
+    /** «Accesibilidad»: Movimiento. */
+    private PreferencesPage buildAccessibility() {
+        return PreferencesPage.builder()
+                .section("preferences.section.motion")
+                .row(PreferenceRow.labeled("animations", "preferences.animations", animationsSwitch, "growx 0")
+                        .ignoringValues())
+                .row(PreferenceRow.checkBox("animateViewMoves", animateViewMovesBox, "skip 1"))
+                .build();
+    }
+
+    /** «Archivos»: Librería and Memorias. */
+    private PreferencesPage buildFiles() {
+        return PreferencesPage.builder()
+                .section("preferences.section.library")
+                .row(PreferenceRow.labeled("library", "preferences.library", libraryField, "",
+                        new PreferenceRow.Placed(chooseLibraryButton, "skip 1, split 2, growx 0"),
+                        new PreferenceRow.Placed(restoreLibraryButton, "growx 0")))
+                .section("preferences.section.memories")
+                .row(PreferenceRow.labeled("externalEditor", "preferences.externalEditor", externalEditorField, "",
+                        new PreferenceRow.Placed(new JLabel(Messages.text("preferences.externalEditor.note")),
+                                "skip 1")))
+                .build();
+    }
+
+    PreferencesPage general() {
+        return general;
+    }
+
+    PreferencesPage appearance() {
+        return appearance;
+    }
+
+    PreferencesPage accessibility() {
+        return accessibility;
+    }
+
+    PreferencesPage files() {
+        return files;
     }
 
     /**
@@ -211,7 +263,7 @@ public final class PreferencesForm extends JPanel {
      * «Editor externo» (memory spec §8.2): the command that opens a memory's linked file, stored on Enter and when the
      * field loses the focus; empty means the system's editor.
      */
-    private void addExternalEditorRow() {
+    private void wireExternalEditor() {
         externalEditorField.setText(preferences.externalEditor().orElse(""));
         Runnable store = () -> preferences.setExternalEditor(Optional.of(externalEditorField.getText().strip())
                 .filter(command -> !command.isEmpty()));
@@ -222,11 +274,6 @@ public final class PreferencesForm extends JPanel {
                 store.run();
             }
         });
-        JLabel caption = new JLabel(Messages.text("preferences.externalEditor"));
-        caption.setLabelFor(externalEditorField);
-        add(caption, "gaptop 12");
-        add(externalEditorField, "gaptop 12");
-        add(new JLabel(Messages.text("preferences.externalEditor.note")), "skip 1");
     }
 
     /**
@@ -234,7 +281,7 @@ public final class PreferencesForm extends JPanel {
      * and the size, stored at once. A stored family that is not installed here is listed under its own name, so
      * opening the form never changes it.
      */
-    private void addTextFontRows() {
+    private void wireTextFont() {
         TextFont stored = preferences.textFont();
         fontFamilyChoice.addItem(new Choice<>(TextFont.DEFAULT.family(),
                 Messages.text("preferences.textFont.default")));
@@ -251,10 +298,6 @@ public final class PreferencesForm extends JPanel {
                 1));
         fontFamilyChoice.addActionListener(event -> storeTextFont());
         fontSizeSpinner.addChangeListener(event -> storeTextFont());
-
-        add(new JLabel(Messages.text("preferences.textFont")), "gaptop 12");
-        add(fontFamilyChoice, "gaptop 12, split 2");
-        add(fontSizeSpinner, "growx 0");
     }
 
     /** Selects the entry of {@code family}, whatever its case («dejavu sans» stored, «DejaVu Sans» listed). */
@@ -312,7 +355,7 @@ public final class PreferencesForm extends JPanel {
                     ColorSchemes.displayName(id)), scheme);
         });
         SchemeEditorPanel editor = new SchemeEditorPanel(start, colorChooser);
-        if (!schemeEditorOpener.open(this, editor)) {
+        if (!schemeEditorOpener.open(appearance, editor)) {
             return;
         }
         if (custom.isPresent()) {
@@ -329,7 +372,7 @@ public final class PreferencesForm extends JPanel {
      * tema».
      */
     private void deleteScheme() {
-        selectedCustomScheme().filter(custom -> deleteConfirmer.confirm(this, custom.name())).ifPresent(custom -> {
+        selectedCustomScheme().filter(custom -> deleteConfirmer.confirm(appearance, custom.name())).ifPresent(custom -> {
             customSchemes.delete(custom.id());
             refreshSchemes();
         });
@@ -428,7 +471,7 @@ public final class PreferencesForm extends JPanel {
     }
 
     private void chooseLibraryDirectory() {
-        directoryChooser.choose(this, preferences.libraryDirectory()).ifPresent(directory -> {
+        directoryChooser.choose(files, preferences.libraryDirectory()).ifPresent(directory -> {
             preferences.setLibraryDirectory(Optional.of(directory));
             refreshLibrary();
         });

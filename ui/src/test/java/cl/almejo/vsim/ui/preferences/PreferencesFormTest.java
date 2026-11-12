@@ -20,6 +20,7 @@ import java.awt.Font;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -62,6 +63,49 @@ class PreferencesFormTest {
             }
         }
         throw new AssertionError("no item " + value);
+    }
+
+    @Test
+    void theFourPagesHoldTheRowsOfTheGroupsUnderTheirSectionsInOrder() {
+        PreferencesForm form = form();
+
+        assertThat(form.general().sectionRows()).containsExactly(
+                Map.entry("preferences.section.language", List.of("language")),
+                Map.entry("preferences.section.startup", List.of("restoreSession", "showTipAtStart")),
+                Map.entry("preferences.section.editing", List.of("invertModifier")));
+        assertThat(form.appearance().sectionRows()).containsExactly(
+                Map.entry("preferences.section.window", List.of("theme")),
+                Map.entry("preferences.section.circuit", List.of("scheme", "textFont")));
+        assertThat(form.accessibility().sectionRows()).containsExactly(
+                Map.entry("preferences.section.motion", List.of("animations", "animateViewMoves")));
+        assertThat(form.files().sectionRows()).containsExactly(
+                Map.entry("preferences.section.library", List.of("library")),
+                Map.entry("preferences.section.memories", List.of("externalEditor")));
+    }
+
+    @Test
+    void searchingFindsTheOptionsByTheWordsOfTheirValuesAndKeywords() {
+        PreferencesForm form = form();
+
+        assertThat(form.appearance().filter("oscuro")).isEqualTo(1);
+        assertThat(form.appearance().visibleRowIds()).containsExactly("theme");
+        assertThat(form.files().filter("carpeta")).isEqualTo(1);
+        assertThat(form.files().visibleRowIds()).containsExactly("library");
+        assertThat(form.general().filter("mayús")).isEqualTo(1);
+        assertThat(form.general().visibleRowIds()).containsExactly("invertModifier");
+        assertThat(form.accessibility().filter("movimiento")).isEqualTo(2);
+    }
+
+    @Test
+    void liveChangesStillShowWhileAFilterHidesRows() {
+        PreferencesForm form = form();
+        form.accessibility().filter("vista");
+
+        preferences.setAnimations(false);
+
+        assertThat(form.accessibility().visibleRowIds()).containsExactly("animateViewMoves");
+        assertThat(form.animateViewMovesBox().isEnabled()).isFalse();
+        form.dispose();
     }
 
     @Test
