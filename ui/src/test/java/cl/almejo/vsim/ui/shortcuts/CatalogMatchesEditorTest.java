@@ -29,7 +29,7 @@ class CatalogMatchesEditorTest {
     private static final Set<String> REGISTERED_BY_EXTENSIONS = Set.of("simulation.advance",
             "simulation.advanceToClockEdge", "simulation.advanceClockCycle", "edit.tidyWires", "edit.tidyWiresOptions",
             "edit.frameSelection", "edit.wiresFollow", "edit.find", "edit.findNext", "edit.findPrevious", "edit.quickInsert",
-            "view.snap", "file.print", "edit.copyCapture", "view.presentationMode", "help.findAction");
+            "view.snap", "file.print", "edit.copyCapture", "view.presentationMode", "help.findAction", "view.lens");
 
     private OpenDocument openDocument;
     private EditorView view;

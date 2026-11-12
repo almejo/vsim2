@@ -104,6 +104,19 @@ public final class Viewport {
         changed();
     }
 
+    /**
+     * A detached copy of this viewport enlarged {@code factor} times around screen point {@code centre}: the grid
+     * point under {@code centre} stays there. Its zoom is not clamped to {@value #MAXIMUM_ZOOM}, since it is no view
+     * of its own but the accessibility lens's picture of this one (4 × 3 = 12).
+     */
+    Viewport magnifiedAround(Point2D centre, double factor) {
+        Viewport magnified = new Viewport();
+        magnified.zoom = zoom * factor;
+        magnified.originX = centre.getX() + (originX - centre.getX()) * factor;
+        magnified.originY = centre.getY() + (originY - centre.getY()) * factor;
+        return magnified;
+    }
+
     /** Maps document coordinates (8 px per grid unit, what painters draw in) to the screen. */
     public AffineTransform documentTransform() {
         AffineTransform transform = AffineTransform.getTranslateInstance(originX, originY);

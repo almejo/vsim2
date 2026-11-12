@@ -9,6 +9,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ## Sin publicar
 
+### Agregado
+
+- Lupa: mientras mantienes Ctrl+Mayús+L (⌘+Mayús+L en macOS; se cambia en Atajos de teclado) un círculo alrededor del puntero muestra tres veces más grande solo ese trocito del circuito, como la lupa de accesibilidad del sistema; al soltar se va. Ver ▸ «Lupa fija» la deja puesta (no se guarda: VSim abre siempre con ella apagada). Es el circuito de verdad, en vivo con la simulación y en cada panel de una vista dividida o en el modo presentación; el punto bajo el puntero es el mismo dentro y fuera, así los clics caen donde los ves, y no cambia nada del circuito ni deja pasos de deshacer. Ver [Lupa](docs/funciones/interfaz-preferencias-y-sesion.md#lupa).
+
 ### Cambiado
 
 - Preferencias en grupos: el diálogo deja de ser una sola pestaña «General» llena de opciones y pasa a una lista a la izquierda (General, Aspecto, Accesibilidad, Archivos, y tras una línea Atajos de teclado e IA) con títulos de sección en cada página (Idioma, Al iniciar, Edición; Ventana, Circuito; Movimiento; Librería, Memorias). Las mismas opciones, las mismas claves guardadas: el tema y la letra del circuito están en Aspecto, las animaciones en Accesibilidad, la librería y el editor externo en Archivos. Un buscador arriba de la lista («Buscar en Preferencias», Ctrl+F lo enfoca, Esc lo borra) encuentra una opción por su nombre, sus valores o palabras parecidas, sin tildes ni mayúsculas, y deja solo los grupos y filas que coinciden, con lo encontrado marcado y la cantidad de cada grupo. Al abrir el diálogo el cursor ya está en el buscador. Enter en el buscador pasa al primer control de la página (no cierra el diálogo). El número de «Atajos de teclado» sigue lo que escribes en su propio buscador. El diálogo se abre en el último grupo que viste, y la paleta de comandos ofrece uno «Preferencias ▸ …» por grupo (seis). Ver [Preferencias](docs/funciones/interfaz-preferencias-y-sesion.md#preferencias).

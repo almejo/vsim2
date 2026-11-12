@@ -132,6 +132,8 @@ public final class ShortcutCatalog {
         window(entries, "view.showGuides", "action.showGuides", MenuId.VIEW, null);
         window(entries, "view.busValues", "action.busValues", MenuId.VIEW, null);
         window(entries, "view.magnifier", "action.magnifier", MenuId.VIEW, null);
+        // held, not pressed: the lens shows while the keys are down (LensFeatures watches their release)
+        window(entries, "view.lens", "action.lens", MenuId.VIEW, stroke(KeyEvent.VK_L, menu | shift));
         window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);
         window(entries, "view.addVerticalGuide", "action.addVerticalGuide", MenuId.VIEW, null);
         window(entries, "view.clearGuides", "action.clearGuides", MenuId.VIEW, null);

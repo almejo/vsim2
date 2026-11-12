@@ -43,10 +43,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndSixtyTwoHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndSixtyThreeHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(62);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(63);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
         assertThat(ids()).containsSubsequence("edit.copy", "edit.copyCapture", "edit.paste");
     }
@@ -75,6 +75,14 @@ class ShortcutCatalogTest {
         assertThat(ShortcutCatalog.find("view.presentationMode")).contains(new ShortcutEntry("view.presentationMode",
                 "action.presentationMode", MenuId.VIEW, Scope.WINDOW,
                 Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_F11, 0))));
+    }
+
+    @Test
+    void theLensIsHeldWithMenuMayusLUnderVerRightAfterMirarAdentro() {
+        assertThat(ShortcutCatalog.find("view.lens")).contains(new ShortcutEntry("view.lens", "action.lens",
+                MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_L,
+                ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK))));
+        assertThat(ids()).containsSubsequence("view.magnifier", "view.lens");
     }
 
     @Test

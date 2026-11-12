@@ -51,6 +51,7 @@ import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
 import cl.almejo.vsim.ui.resize.PartResizeExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.busvalues.BusValuesExtension;
+import cl.almejo.vsim.ui.lens.LensExtension;
 import cl.almejo.vsim.ui.magnifier.MagnifierExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
 import cl.almejo.vsim.ui.snap.SnapExtension;
@@ -316,6 +317,7 @@ public final class Application {
         editorExtensions.add(new SheetsExtension(sheetAnchors)); // its Ver item right after «Borrar guías»
         editorExtensions.add(new BusValuesExtension());
         editorExtensions.add(new MagnifierExtension()); // its Ver item right after «Valores de los buses»
+        editorExtensions.add(new LensExtension()); // «Lupa fija» right after «Mirar adentro»
         editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());

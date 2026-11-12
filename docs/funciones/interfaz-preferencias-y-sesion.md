@@ -44,6 +44,31 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - Ver ▸ «Ver todo el circuito» (Mayús+1, o el botón «Ver todo» del control de zoom de la barra de estado) acerca o aleja la vista hasta que el circuito entero, con sus etiquetas y textos, ocupa nueve décimos del panel, centrado; con un circuito chico acerca hasta 400 %, y con un circuito vacío no hace nada. Ver ▸ «Zoom a la selección» (Mayús+2) hace lo mismo con lo seleccionado, así una sola compuerta se ve grande; sin nada seleccionado está deshabilitado. Las dos llegan con un [viaje suave](buscar.md#viaje-suave-de-la-vista) (o de un salto si «Animar los movimientos de la vista» está desactivado), actúan sobre el panel activo, no marcan el circuito como modificado y no cuentan como paso de deshacer. «Centrar circuito» sigue igual: centra sin cambiar tu zoom.
 - **Herramienta Zoom** (su botón, una lupa, es la última de las herramientas, después de «Mover vista»; también Ver ▸ «Zoom» y la tecla Z, que se puede cambiar en Atajos de teclado): arrastra un recuadro y, al soltar, la vista viaja hasta que el recuadro llena el panel justo, tocando dos bordes opuestos (un recuadro angosto se ajusta por su lado largo); hasta 400 %, así un recuadro muy chico llega a 400 % con su centro en el medio. Mientras arrastras, el recuadro se pinta como el de la selección y al lado de su esquina inferior derecha dice el zoom al que llegará («250 %», o «400 %» si llega al tope). Si el puntero sale del panel, el recuadro queda en el borde y soltar afuera igual acerca; el panel no se desplaza solo. Un clic (moviendo menos de 5 píxeles) acerca un paso (×1,25) alrededor del punto, y Alt + clic, Mayús + clic o el botón derecho alejan un paso, al instante, como un paso de Ctrl+rueda; en 400 % o en 25 % no se mueve nada. Alt o Mayús durante un arrastre no cambian nada: un recuadro siempre acerca. El cursor es una lupa con «+», con «−» mientras tienes Alt o Mayús apretada, y una cruz mientras arrastras. Esc mientras arrastras suelta el recuadro sin hacer zoom y la herramienta sigue; Esc sin recuadro vuelve a Selección. El botón del medio, Espacio y la rueda funcionan como siempre, el clic derecho no abre el menú contextual, y nada de esto marca el circuito como modificado ni cuenta como paso de deshacer. El recuadro y su porcentaje nunca salen al exportar una imagen o un PDF ni al imprimir.
 
+## Lupa
+
+Para ver de cerca un trocito del circuito sin cambiar el zoom, como la lupa de accesibilidad del sistema.
+
+- **Mantener para ver**: mientras mantienes Ctrl+Mayús+L (⌘+Mayús+L en macOS) aparece un círculo alrededor del
+  puntero que muestra tres veces más grande solo lo que hay ahí; el resto del lienzo queda igual. Al soltar cualquiera
+  de las teclas se va, y también si la ventana pierde el foco (por ejemplo, al abrirse un diálogo). Si mantienes la
+  tecla, su repetición no la hace parpadear. El atajo se cambia en Preferencias ▸ «Atajos de teclado» («Lupa»), y
+  sigue funcionando aunque el foco esté en otro panel de la ventana.
+- **Lupa fija**: Ver ▸ «Lupa fija», justo después de «Mirar adentro», la deja puesta sin mantener ninguna tecla; otra
+  vez la quita. En «Acciones» (Ctrl+K) se encuentra como «Lupa fija». Es de cada ventana y no se guarda: VSim abre
+  siempre con la lupa apagada.
+- **Es el circuito de verdad**, no una foto: sigue al puntero y a la simulación en vivo, con la cuadrícula, lo
+  seleccionado y lo que estés haciendo (un cable a medias, una pieza por colocar). El punto bajo el puntero es el mismo
+  dentro y fuera de la lupa, así un clic cae donde lo ves. Agranda también más allá del zoom máximo: a 400 % se ve como
+  a 1200 %.
+- **Cómo se ve**: un círculo de 100 píxeles de radio con un borde en el color de acento del tema, una cruz tenue en el
+  centro y el aumento («3×») bajo su borde, a la derecha; con el tema claro y el oscuro. Sale solo en el panel bajo el
+  puntero (con la [vista dividida](#dividir-la-vista), en uno a la vez) y se esconde cuando el puntero sale del lienzo;
+  funciona igual en el [modo presentación](#modo-presentación).
+- **Solo para mirar**: no cambia la herramienta, el cursor, la selección ni el circuito, no lo marca como modificado ni
+  deja pasos de deshacer, y nunca sale al exportar una imagen o un PDF ni al imprimir.
+- No es [Mirar adentro](pestanas-y-componentes.md#mirar-adentro-ver-el-interior-sin-entrar), que muestra el interior de
+  un componente propio, ni la herramienta Zoom, que cambia el zoom del panel.
+
 ## Frase del gesto
 
 - Mientras haces algo con el mouse, la barra de estado dice qué hace el próximo clic y qué teclas sirven en ese momento, solo las que de verdad actúan ahí. Está a la izquierda, después de los avisos y antes de los problemas (⚠), que siguen siempre visibles; si la barra es corta, la frase se corta primero y el tooltip la muestra entera.
@@ -329,10 +354,10 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   - plegar un grupo de pestañas es instantáneo y el robot de la IA en la pestaña no se mece (vuelve a mecerse apenas eliges «Sí», si la IA sigue trabajando);
   - las listas, los árboles y los paneles se desplazan con la rueda del mouse de un salto, sin suavizado;
   - lo que informa queda quieto, nunca escondido: un cortocircuito queda en rojo fijo (sin pulso), y lo mismo el resplandor rojo bajo un cable con problema; ir a un problema deja el resaltado fijo 1,5 s en vez de parpadear (también la fila de una sonda en las formas de onda); lo que cambió en un paso a paso queda con un contorno fijo hasta el próximo paso, la próxima edición, «Reiniciar» o hasta que la simulación vuelve a correr («Iniciar» o salir del paso a paso), porque desde ahí los valores ya no son los de ese paso; lo que cambió la IA queda fijo 1,5 s y se apaga de una vez; en el modo «Reciente» del [mapa de memoria](simulacion-y-paso-a-paso.md#mapa-de-memoria) cada acceso queda encendido entero un segundo y se apaga de una vez; la captura muestra su destello entero 0,35 s y se va sin desvanecerse;
-  - la lupa «Mirar adentro» aparece y se va de una vez, sin crecer ni achicarse (lo que muestra por dentro sigue en vivo);
+  - el panel de «Mirar adentro» aparece y se va de una vez, sin crecer ni achicarse (lo que muestra por dentro sigue en vivo);
   - el contorno de la selección, el rectángulo de selección del editor de formas y lo que se marca en los mapas de la [práctica de Karnaugh](tabla-de-verdad-karnaugh-y-expresiones.md#modo-práctica-de-karnaugh) (el grupo elegido, el rectángulo que se dibuja, el cursor del teclado) quedan punteados y quietos: las hormigas no marchan.
 - Si eliges «No» mientras algo se desvanece (el brillo de lo que cambió la IA, el de una pieza), se apaga en ese momento: nunca vuelve a encenderse más fuerte.
-- Nunca cambia la simulación: los LED, el reloj, las formas de onda que avanzan, lo que escribe un Terminal y lo que muestra la lupa siguen igual. «No» quita adornos y movimiento, nunca valores.
+- Nunca cambia la simulación: los LED, el reloj, las formas de onda que avanzan, lo que escribe un Terminal y lo que muestran «Mirar adentro» y la [Lupa](#lupa) siguen igual. «No» quita adornos y movimiento, nunca valores.
 
 ## Acerca de VSim 2
 

@@ -141,6 +141,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Consumer<CircuitFragment>> incomingFragmentListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> placementListeners = new CopyOnWriteArrayList<>();
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
+    private final List<ScreenOverlay> screenOverlays = new CopyOnWriteArrayList<>();
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
     private final List<BooleanSupplier> escapeClaims = new CopyOnWriteArrayList<>();
@@ -1086,6 +1087,20 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     /**
+     * Paints {@code overlay} over the whole pane in logical pixels, after the edge bars and the empty-canvas hint (the
+     * accessibility lens); the returned runnable takes it back.
+     */
+    public Runnable addScreenOverlay(ScreenOverlay overlay) {
+        screenOverlays.add(Objects.requireNonNull(overlay, "overlay"));
+        repaint();
+        return () -> {
+            if (screenOverlays.remove(overlay)) {
+                repaint();
+            }
+        };
+    }
+
+    /**
      * Puts {@code component} on top of the canvas (M6.5: the inline text editor); it is a real Swing child, so it
      * takes the mouse and the keyboard, and never shows in an exported image. The caller sets its bounds, in canvas
      * pixels. The returned runnable takes it away again.
@@ -1228,6 +1243,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** For tests: the overlays installed now, in paint order. */
     public List<CanvasOverlay> overlays() {
         return List.copyOf(overlays);
+    }
+
+    /** For tests: features must remove the screen overlays they add. */
+    public int screenOverlayCount() {
+        return screenOverlays.size();
     }
 
     @Override
@@ -1789,10 +1809,37 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     @Override
     protected void paintComponent(Graphics graphics) {
+        paintScene(graphics, viewport);
+        Graphics2D screen = (Graphics2D) graphics.create(); // logical pixels: the device transform only
+        try {
+            edgeController.paint(screen);
+            paintEmptyHint(screen);
+            for (ScreenOverlay overlay : screenOverlays) {
+                overlay.paint(screen, this);
+            }
+        } finally {
+            screen.dispose();
+        }
+        updateTerminalAnimation();
+    }
+
+    /**
+     * The scene of this pane (background, grid, circuit, overlays, glows and the tools' previews, from the frame's
+     * state) enlarged {@code factor} times around {@code centre} (logical pixels of this pane), on {@code screen}: the
+     * accessibility lens. The grid point under {@code centre} stays there, and the zoom is not clamped to
+     * {@link Viewport#MAXIMUM_ZOOM}. The edge bars, the empty-canvas hint and the screen overlays are not part of it;
+     * the caller clips {@code screen} to the lens.
+     */
+    public void paintSceneMagnified(Graphics2D screen, Point2D centre, double factor) {
+        paintScene(screen, viewport.magnifiedAround(centre, factor));
+    }
+
+    /** The scene seen through {@code shown}: this pane's viewport, or the lens's enlarged copy of it. */
+    private void paintScene(Graphics graphics, Viewport shown) {
         Graphics2D local = (Graphics2D) graphics.create();
         try {
-            renderer.paintBackground(local, viewport, getWidth(), getHeight(), gridStyle, gridLineSpacing);
-            local.transform(viewport.documentTransform());
+            renderer.paintBackground(local, shown, getWidth(), getHeight(), gridStyle, gridLineSpacing);
+            local.transform(shown.documentTransform());
             List<CircuitCanvas> sharing = panesSharingAGesture();
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
@@ -1814,14 +1861,6 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         } finally {
             local.dispose();
         }
-        Graphics2D screen = (Graphics2D) graphics.create(); // logical pixels: the device transform only
-        try {
-            edgeController.paint(screen);
-            paintEmptyHint(screen);
-        } finally {
-            screen.dispose();
-        }
-        updateTerminalAnimation();
     }
 
     /**

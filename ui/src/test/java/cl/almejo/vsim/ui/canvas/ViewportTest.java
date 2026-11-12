@@ -116,4 +116,22 @@ class ViewportTest {
         viewport.showAt(0.01, 0, 0, 800, 600);
         assertThat(viewport.zoom()).isEqualTo(Viewport.MINIMUM_ZOOM);
     }
+
+    @Test
+    void aMagnifiedCopyKeepsThePointUnderTheCentreAndIsNotClamped() {
+        viewport.panBy(-130, 45);
+        viewport.zoomAt(0, 0, Viewport.MAXIMUM_ZOOM);
+        Point2D centre = new Point2D.Double(210, 140);
+        Viewport magnified = viewport.magnifiedAround(centre, 3);
+
+        assertThat(magnified.zoom()).isEqualTo(Viewport.MAXIMUM_ZOOM * 3);
+        Point2D gridAtCentre = viewport.screenToGrid(centre.getX(), centre.getY());
+        Point2D magnifiedCentre = magnified.gridToScreen(gridAtCentre.getX(), gridAtCentre.getY());
+        assertThat(magnifiedCentre.getX()).isCloseTo(210, within(1e-9));
+        assertThat(magnifiedCentre.getY()).isCloseTo(140, within(1e-9));
+        Point2D away = viewport.gridToScreen(gridAtCentre.getX() + 1, gridAtCentre.getY());
+        Point2D magnifiedAway = magnified.gridToScreen(gridAtCentre.getX() + 1, gridAtCentre.getY());
+        assertThat(magnifiedAway.getX() - 210).isCloseTo(3 * (away.getX() - 210), within(1e-9));
+        assertThat(viewport.zoom()).as("the original is untouched").isEqualTo(Viewport.MAXIMUM_ZOOM);
+    }
 }
