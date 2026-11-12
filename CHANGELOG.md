@@ -9,6 +9,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ## Sin publicar
 
+### Cambiado
+
+- Preferencias en grupos: el diálogo deja de ser una sola pestaña «General» llena de opciones y pasa a una lista a la izquierda (General, Aspecto, Accesibilidad, Archivos, y tras una línea Atajos de teclado e IA) con títulos de sección en cada página (Idioma, Al iniciar, Edición; Ventana, Circuito; Movimiento; Librería, Memorias). Las mismas opciones, las mismas claves guardadas: el tema y la letra del circuito están en Aspecto, las animaciones en Accesibilidad, la librería y el editor externo en Archivos. Un buscador arriba de la lista («Buscar en Preferencias», Ctrl+F lo enfoca, Esc lo borra) encuentra una opción por su nombre, sus valores o palabras parecidas, sin tildes ni mayúsculas, y deja solo los grupos y filas que coinciden, con lo encontrado marcado y la cantidad de cada grupo. El diálogo se abre en el último grupo que viste, y la paleta de comandos ofrece uno «Preferencias ▸ …» por grupo (seis).
+
 ## Versión 0.8 — 2026-11-11
 
 Los cables se dibujan de corrido desde Selección; modo presentación a pantalla completa con los atajos a la vista,

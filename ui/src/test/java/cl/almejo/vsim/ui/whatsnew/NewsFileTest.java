@@ -77,6 +77,12 @@ class NewsFileTest {
         assertThat(NewsFiles.forRunning("unknown")).isEmpty();
     }
 
+    private static List<NewsStep> concat(NewsFile first, NewsFile second) {
+        List<NewsStep> steps = new java.util.ArrayList<>(first.steps());
+        steps.addAll(second.steps());
+        return steps;
+    }
+
     @Test
     void everyNewsFileNamesRegisteredTargetsKeysOfBothBundlesAndKnownKeys() {
         Messages.initialize(Messages.SPANISH);
@@ -90,9 +96,10 @@ class NewsFileTest {
         OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            NewsFile news = NewsFiles.load("0.8").orElseThrow();
-            assertThat(news.steps()).hasSize(8);
-            for (NewsStep step : news.steps()) {
+            assertThat(NewsFiles.load("0.8").orElseThrow().steps()).hasSize(8);
+            NewsFile next = NewsFiles.load("0.9").orElseThrow();
+            assertThat(next.steps()).extracting(NewsStep::textKey).contains("whatsNew.preferences.text");
+            for (NewsStep step : concat(NewsFiles.load("0.8").orElseThrow(), next)) {
                 assertThat(NewsTargets.find(view, step.targetId())).as(step.targetId()).isPresent();
                 for (Locale locale : List.of(Locale.forLanguageTag("es"), Locale.ENGLISH)) {
                     ResourceBundle bundle = Messages.bundle(locale);
