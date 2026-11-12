@@ -223,6 +223,36 @@ public final class AppPreferences {
         }
     }
 
+    /** The accessibility lens's shape (Preferencias, Accesibilidad, Lupa): a circle by default, or a rounded rectangle. */
+    public enum LensShape {
+        ROUND, RECTANGLE;
+
+        String id() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    /** The accessibility lens's size: its radius in logical pixels (the rectangle is 1.5 x that wide, 1 x high). */
+    public enum LensSize {
+        SMALL(70), MEDIUM(100), LARGE(140);
+
+        private final int radius;
+
+        LensSize(int radius) {
+            this.radius = radius;
+        }
+
+        public int radius() {
+            return radius;
+        }
+
+        String id() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    static final String LENS_SHAPE = "lens.shape";
+    static final String LENS_SIZE = "lens.size";
     static final String THEME = "theme";
     static final String COLOR_SCHEME = "colorScheme";
     static final String LANGUAGE = "language";
@@ -770,6 +800,38 @@ public final class AppPreferences {
     public void setInvertModifier(InvertModifier modifier) {
         Objects.requireNonNull(modifier, "modifier");
         put(INVERT_MODIFIER, modifier.name());
+    }
+
+    // --- Lupa ---
+
+    /** The lens's shape; round when unset or unreadable. */
+    public LensShape lensShape() {
+        return lowerCaseEnumValue(LENS_SHAPE, LensShape.class, LensShape.ROUND);
+    }
+
+    public void setLensShape(LensShape shape) {
+        Objects.requireNonNull(shape, "shape");
+        put(LENS_SHAPE, shape.id());
+    }
+
+    /** The lens's size; medium when unset or unreadable. */
+    public LensSize lensSize() {
+        return lowerCaseEnumValue(LENS_SIZE, LensSize.class, LensSize.MEDIUM);
+    }
+
+    public void setLensSize(LensSize size) {
+        Objects.requireNonNull(size, "size");
+        put(LENS_SIZE, size.id());
+    }
+
+    private <E extends Enum<E>> E lowerCaseEnumValue(String key, Class<E> type, E fallback) {
+        String stored = read(key, "");
+        for (E constant : type.getEnumConstants()) {
+            if (constant.name().equalsIgnoreCase(stored)) {
+                return constant;
+            }
+        }
+        return fallback;
     }
 
     // --- Animaciones ---

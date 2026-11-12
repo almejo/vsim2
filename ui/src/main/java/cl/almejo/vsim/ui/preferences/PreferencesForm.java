@@ -71,6 +71,8 @@ public final class PreferencesForm {
     private final JComboBox<Choice<Optional<String>>> schemeChoice = new JComboBox<>();
     private final JComboBox<Choice<Optional<String>>> languageChoice = new JComboBox<>();
     private final JComboBox<Choice<AppPreferences.InvertModifier>> invertModifierChoice = new JComboBox<>();
+    private final JComboBox<Choice<AppPreferences.LensShape>> lensShapeChoice = new JComboBox<>();
+    private final JComboBox<Choice<AppPreferences.LensSize>> lensSizeChoice = new JComboBox<>();
     private final JTextField libraryField = new JTextField(32);
     private final JTextField externalEditorField = new JTextField(32);
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
@@ -133,6 +135,16 @@ public final class PreferencesForm {
         select(invertModifierChoice, preferences.invertModifier());
         invertModifierChoice.addActionListener(
                 event -> preferences.setInvertModifier(selected(invertModifierChoice)));
+
+        for (AppPreferences.LensShape shape : AppPreferences.LensShape.values()) {
+            lensShapeChoice.addItem(new Choice<>(shape, lensShapeName(shape)));
+        }
+        for (AppPreferences.LensSize size : AppPreferences.LensSize.values()) {
+            lensSizeChoice.addItem(new Choice<>(size, lensSizeName(size)));
+        }
+        showLens();
+        lensShapeChoice.addActionListener(event -> preferences.setLensShape(selected(lensShapeChoice)));
+        lensSizeChoice.addActionListener(event -> preferences.setLensSize(selected(lensSizeChoice)));
 
         select(themeChoice, preferences.theme());
         refreshSchemes();
@@ -201,13 +213,16 @@ public final class PreferencesForm {
                 .build();
     }
 
-    /** «Accesibilidad»: Movimiento. */
+    /** «Accesibilidad»: Movimiento and Lupa. */
     private PreferencesPage buildAccessibility() {
         return PreferencesPage.builder()
                 .section("preferences.section.motion")
                 .row(PreferenceRow.labeled("animations", "preferences.animations", animationsSwitch, "growx 0")
                         .ignoringValues())
                 .row(PreferenceRow.checkBox("animateViewMoves", animateViewMovesBox, "skip 1"))
+                .section("preferences.section.lens")
+                .row(PreferenceRow.labeled("lensShape", "preferences.lens.shape", lensShapeChoice, ""))
+                .row(PreferenceRow.labeled("lensSize", "preferences.lens.size", lensSizeChoice, ""))
                 .build();
     }
 
@@ -447,11 +462,40 @@ public final class PreferencesForm {
 
     /**
      * Shows the options that can change elsewhere while the dialog is open (setSelected fires no action): the find
-     * bar's ↷, the tip of the day's «Mostrar al iniciar».
+     * bar's ↷, the tip of the day's «Mostrar al iniciar», the lens's shape and size.
      */
     private void followPreferences() {
         showAnimations();
+        showLens();
         showTipAtStartBox.setSelected(preferences.showTipAtStart());
+    }
+
+    private static String lensShapeName(AppPreferences.LensShape shape) {
+        return switch (shape) {
+            case ROUND -> Messages.text("preferences.lens.shape.ROUND");
+            case RECTANGLE -> Messages.text("preferences.lens.shape.RECTANGLE");
+        };
+    }
+
+    private static String lensSizeName(AppPreferences.LensSize size) {
+        return switch (size) {
+            case SMALL -> Messages.text("preferences.lens.size.SMALL");
+            case MEDIUM -> Messages.text("preferences.lens.size.MEDIUM");
+            case LARGE -> Messages.text("preferences.lens.size.LARGE");
+        };
+    }
+
+    private void showLens() {
+        select(lensShapeChoice, preferences.lensShape());
+        select(lensSizeChoice, preferences.lensSize());
+    }
+
+    JComboBox<Choice<AppPreferences.LensShape>> lensShapeChoice() {
+        return lensShapeChoice;
+    }
+
+    JComboBox<Choice<AppPreferences.LensSize>> lensSizeChoice() {
+        return lensSizeChoice;
     }
 
     SwitchBox animationsSwitch() {

@@ -402,6 +402,34 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theLensIsRoundAndMediumByDefaultAndShapeAndSizeRoundTripAndNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.lensShape()).isEqualTo(AppPreferences.LensShape.ROUND);
+        assertThat(preferences.lensSize()).isEqualTo(AppPreferences.LensSize.MEDIUM);
+
+        preferences.setLensShape(AppPreferences.LensShape.RECTANGLE);
+        preferences.setLensShape(AppPreferences.LensShape.RECTANGLE);
+        preferences.setLensSize(AppPreferences.LensSize.LARGE);
+
+        assertThat(changes).hasValue(2);
+        assertThat(node.get("lens.shape", "")).isEqualTo("rectangle");
+        assertThat(node.get("lens.size", "")).isEqualTo("large");
+        assertThat(new AppPreferences(node).lensShape()).isEqualTo(AppPreferences.LensShape.RECTANGLE);
+        assertThat(new AppPreferences(node).lensSize()).isEqualTo(AppPreferences.LensSize.LARGE);
+        assertThat(AppPreferences.LensSize.SMALL.radius()).isEqualTo(70);
+        assertThat(AppPreferences.LensSize.MEDIUM.radius()).isEqualTo(100);
+        assertThat(AppPreferences.LensSize.LARGE.radius()).isEqualTo(140);
+    }
+
+    @Test
+    void anUnknownStoredLensShapeOrSizeFallsBackToTheDefaults() {
+        node.put("lens.shape", "star");
+        node.put("lens.size", "huge");
+        assertThat(preferences.lensShape()).isEqualTo(AppPreferences.LensShape.ROUND);
+        assertThat(preferences.lensSize()).isEqualTo(AppPreferences.LensSize.MEDIUM);
+    }
+
+    @Test
     void theBusValuesAreShownByDefaultAndTheChoiceRoundTripsAndNotifies() {
         preferences.addListener(changes::incrementAndGet);
         assertThat(preferences.showBusValues()).isTrue();

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.lens;
 
+import cl.almejo.vsim.ui.app.AppPreferences;
 import org.junit.jupiter.api.Test;
 
 import java.awt.geom.Point2D;
@@ -21,7 +22,8 @@ class LensStateTest {
         assertThat(state.factor()).isEqualTo(LensState.DEFAULT_FACTOR).isEqualTo(4);
         assertThat(state.pointerPane()).isEmpty();
         assertThat(LensState.FACTORS).containsExactly(2.0, 4.0, 8.0);
-        assertThat(LensState.RADIUS).isEqualTo(100);
+        assertThat(state.shape()).isEqualTo(AppPreferences.LensShape.ROUND);
+        assertThat(state.radius()).isEqualTo(100);
     }
 
     @Test
@@ -76,5 +78,15 @@ class LensStateTest {
         assertThat(state.factor()).isEqualTo(4);
         assertThatThrownBy(() -> state.setFactor(5)).isInstanceOf(IllegalArgumentException.class);
         assertThat(state.factor()).isEqualTo(4);
+    }
+
+    @Test
+    void theShapeAndTheSizeCanChangeAndTheRadiusFollowsTheSize() {
+        state.setShape(AppPreferences.LensShape.RECTANGLE);
+        state.setSize(AppPreferences.LensSize.SMALL);
+        assertThat(state.shape()).isEqualTo(AppPreferences.LensShape.RECTANGLE);
+        assertThat(state.radius()).isEqualTo(70);
+        state.setSize(AppPreferences.LensSize.LARGE);
+        assertThat(state.radius()).isEqualTo(140);
     }
 }

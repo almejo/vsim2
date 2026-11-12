@@ -69,8 +69,12 @@ Para ver de cerca un trocito del circuito sin cambiar el zoom, como la lupa de a
   seleccionado y lo que estés haciendo (un cable a medias, una pieza por colocar). El punto bajo el puntero es el mismo
   dentro y fuera de la lupa, así un clic cae donde lo ves. Agranda también más allá del zoom máximo: a 400 % y con 4× se ve como a 1600 %
   (hasta 3200 % con 8×). Si la pones con el puntero ya sobre el lienzo, aparece de inmediato, sin moverlo antes.
-- **Cómo se ve**: un círculo de 100 píxeles de radio con un borde en el color de acento del tema, una cruz tenue en el
-  centro y el aumento («4×») bajo su borde, a la derecha; con el tema claro y el oscuro. Sale solo en el panel bajo el
+- **Cómo se ve**: por defecto un círculo de 100 píxeles de radio con un borde en el color de acento del tema, una cruz
+  tenue en el centro y el aumento («4×») bajo su borde, a la derecha; con el tema claro y el oscuro. Preferencias ▸
+  Accesibilidad ▸ «Lupa» cambia su **Forma** (Redonda o Rectangular: un rectángulo apaisado de esquinas redondeadas, una
+  vez y media el radio de ancho a cada lado del centro y un radio de alto) y su **Tamaño** (Chica, Mediana o Grande:
+  radio de 70, 100 o 140 píxeles). Cambian al instante en todas las pestañas abiertas, también con la lupa puesta, y se
+  guardan; el aumento no está ahí: sigue solo en el ▾ del botón. Sale solo en el panel bajo el
   puntero (con la [vista dividida](#dividir-la-vista), en uno a la vez) y se esconde cuando el puntero sale del lienzo;
   funciona igual en el [modo presentación](#modo-presentación).
 - **Solo para mirar**: no cambia la herramienta, el cursor, la selección ni el circuito, no lo marca como modificado ni
@@ -333,7 +337,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…) muestra las opciones en grupos, una lista a la izquierda y la página del grupo a la derecha; el botón «Cerrar» es el único y los cambios valen al instante:
   - **General**: Idioma (con «Se aplica al reiniciar»), Al iniciar (abrir los circuitos de la última sesión, mostrar el consejo del día) y Edición (la tecla para invertir al arrastrar).
   - **Aspecto**: Ventana (el tema) y Circuito (el esquema de color con «Personalizar…» y «Borrar», y la letra de etiquetas y textos).
-  - **Accesibilidad**: Movimiento (el interruptor «Animaciones» y «Animar los movimientos de la vista»).
+  - **Accesibilidad**: Movimiento (el interruptor «Animaciones» y «Animar los movimientos de la vista») y Lupa (su forma, redonda o rectangular, y su tamaño: chica, mediana o grande).
   - **Archivos**: Librería (el directorio de la librería) y Memorias (el editor externo).
   - Una línea separa estos cuatro de **Atajos de teclado** y **IA**, que son los de siempre. Cada página pone un título gris a cada sección, seguido de una línea.
 - Arriba de la lista está el buscador («Buscar en Preferencias»). Encuentra una opción por su nombre, por los textos de sus valores («oscuro» encuentra Tema, «mayús» encuentra la tecla para invertir) y por otras palabras con que se la busca («carpeta» encuentra el directorio de la librería, «movimiento» las animaciones), sin importar mayúsculas ni tildes («libreria» encuentra «librería»). Mientras hay texto, la lista muestra solo los grupos con resultados, cada uno con su cantidad a la derecha; cada página, solo las filas que coinciden (y los títulos de sección que aún tienen alguna), con lo encontrado marcado; si el grupo que mirabas no tiene resultados, pasa al primero que sí. En «Atajos de teclado» la cantidad es la de atajos que su buscador deja (el buscador del diálogo escribe en el suyo, y la cantidad sigue también lo que escribes directamente ahí; el grupo no desaparece de la lista aunque llegue a 0), y «IA» se muestra entera y cuenta las palabras de sus etiquetas que coinciden. Si nada coincide, la lista queda vacía y la derecha dice «Nada coincide con «…»». Al borrar el texto todo vuelve como estaba.

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.lens;
 
+import cl.almejo.vsim.ui.app.AppPreferences;
+
 import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Objects;
@@ -18,11 +20,11 @@ public final class LensState<P> {
     public static final List<Double> FACTORS = List.of(2.0, 4.0, 8.0);
     /** The magnification of a lens nobody chose one for (the approved mockup's). */
     public static final double DEFAULT_FACTOR = 4;
-    /** The lens's radius in logical pixels: medium, fixed until Preferencias gets a size (2026-11-11). */
-    public static final int RADIUS = 100;
 
     private boolean on;
     private double factor = DEFAULT_FACTOR;
+    private AppPreferences.LensShape shape = AppPreferences.LensShape.ROUND;
+    private AppPreferences.LensSize size = AppPreferences.LensSize.MEDIUM;
     private Optional<P> pointerPane = Optional.empty();
     private Optional<Point2D> pointer = Optional.empty();
 
@@ -60,6 +62,30 @@ public final class LensState<P> {
             pointerPane = Optional.empty();
             pointer = Optional.empty();
         }
+    }
+
+    /** Round or rectangular (Preferencias, Accesibilidad, Lupa). */
+    public void setShape(AppPreferences.LensShape shape) {
+        this.shape = Objects.requireNonNull(shape, "shape");
+    }
+
+    public AppPreferences.LensShape shape() {
+        return shape;
+    }
+
+    /** Small, medium or large (Preferencias, Accesibilidad, Lupa). */
+    public void setSize(AppPreferences.LensSize size) {
+        this.size = Objects.requireNonNull(size, "size");
+    }
+
+    /** The lens's radius in logical pixels, from its size. */
+    public int radius() {
+        return size.radius();
+    }
+
+    /** Shape and radius together. */
+    LensLook look() {
+        return new LensLook(shape, radius());
     }
 
     /** The pane under the pointer, if any. */

@@ -579,10 +579,92 @@ class LensFeaturesTest {
         assertThat(differencesOutsideTheLens(before, paint(other), new Point2D.Double(-1000, -1000))).isZero();
     }
 
+    /** How many times thicker the wire (row 150) is at column {@code x} with the lens at (200, 150) than without it. */
+    private double thickening(int x) {
+        CircuitCanvas pane = paneWithAWire(1);
+        BufferedImage plain = paint(pane);
+        features.toggleAction().actionPerformed(null);
+        move(pane, 200, 150);
+        double ratio = inkWidth(paint(pane), x, 60, 240) / inkWidth(plain, x, 60, 240);
+        exit(pane);
+        features.toggleAction().actionPerformed(null);
+        return ratio;
+    }
+
+    @Test
+    void theRoundLensDoesNotReachThePointsOfARectangularOnesWings() {
+        assertThat(thickening(330)).isLessThan(1.3);
+        assertThat(thickening(260)).isGreaterThan(3.3);
+    }
+
+    @Test
+    void theRectangularLensIsOneAndAHalfRadiiWideAndOneHighOnEachSide() {
+        preferences.setLensShape(AppPreferences.LensShape.RECTANGLE);
+        assertThat(features.state().shape()).isEqualTo(AppPreferences.LensShape.RECTANGLE);
+        assertThat(thickening(330)).as("inside, beyond the circle").isGreaterThan(3.3);
+        assertThat(thickening(355)).as("outside, 5 px from the edge").isLessThan(1.3);
+        assertThat(thickening(200 - 155)).isLessThan(1.3);
+    }
+
+    @Test
+    void theRectangularOutlineHasCornersRoundedWithAnEightPixelRadius() {
+        LensLook rectangle = new LensLook(AppPreferences.LensShape.RECTANGLE, 100);
+        java.awt.Shape outline = rectangle.outline(new Point2D.Double(200, 150));
+        assertThat(outline.contains(345, 55)).isTrue();
+        assertThat(outline.contains(348, 52)).as("2 px in from both edges is cut by the corner").isFalse();
+        assertThat(outline.contains(349, 150)).isTrue();
+        assertThat(outline.contains(200, 51)).isTrue();
+        assertThat(outline.contains(200, 48)).isFalse();
+        assertThat(new LensLook(AppPreferences.LensShape.ROUND, 100).outline(new Point2D.Double(200, 150))
+                .contains(348, 150)).isFalse();
+    }
+
+    @Test
+    void theSizesAreSeventyOneHundredAndOneHundredFortyPixelsOfRadius() {
+        preferences.setLensSize(AppPreferences.LensSize.SMALL);
+        assertThat(thickening(200 + 60)).isGreaterThan(3.3);
+        assertThat(thickening(200 + 85)).isLessThan(1.3);
+        preferences.setLensSize(AppPreferences.LensSize.LARGE);
+        assertThat(thickening(200 + 130)).isGreaterThan(3.3);
+        assertThat(thickening(200 + 150)).isLessThan(1.3);
+    }
+
+    @Test
+    void changingTheShapeOrSizeInPreferencesReshapesAShowingLensAndRepaintsBothAreas() {
+        CircuitCanvas pane = paneWithAWire(1);
+        features.toggleAction().actionPerformed(null);
+        move(pane, 200, 150);
+        java.awt.Rectangle round = LensPainter.area(new Point2D.Double(200, 150), features.state().look());
+
+        preferences.setLensShape(AppPreferences.LensShape.RECTANGLE);
+        preferences.setLensSize(AppPreferences.LensSize.SMALL);
+
+        assertThat(features.state().shape()).isEqualTo(AppPreferences.LensShape.RECTANGLE);
+        assertThat(features.state().radius()).isEqualTo(70);
+        java.awt.Rectangle small = LensPainter.area(new Point2D.Double(200, 150), features.state().look());
+        assertThat(small.contains(200 + 105, 150)).isTrue();
+        assertThat(small.contains(200 + 112, 150)).isFalse();
+        assertThat(round.contains(200 + 100, 150)).isTrue();
+        assertThat(round.contains(200 + 110, 150)).isFalse();
+    }
+
+    @Test
+    void theRectangularAreaReachesTheWingsTheLabelStaysUnderTheBottomRight() {
+        LensLook rectangle = new LensLook(AppPreferences.LensShape.RECTANGLE, 100);
+        Point2D centre = new Point2D.Double(200, 150);
+        java.awt.Rectangle area = LensPainter.area(centre, rectangle);
+        assertThat(area.contains(200 + 150, 150)).isTrue();
+        assertThat(area.contains(200 - 150, 150 - 100)).isTrue();
+        java.awt.Rectangle label = LensPainter.labelArea(centre, rectangle);
+        assertThat(label.y).isGreaterThan(150 + 100);
+        assertThat(label.x).isGreaterThan(200);
+        assertThat(area.contains(label)).isTrue();
+    }
+
     /** Pixels that differ outside the lens's circle (with its ring) and its zoom label around {@code centre}. */
     private static int differencesOutsideTheLens(BufferedImage first, BufferedImage second, Point2D centre) {
-        java.awt.Rectangle label = LensPainter.labelArea(centre);
-        double ringOutside = LensState.RADIUS + 3;
+        java.awt.Rectangle label = LensPainter.labelArea(centre, new LensLook(AppPreferences.LensShape.ROUND, 100));
+        double ringOutside = 100 + 3;
         int count = 0;
         for (int y = 0; y < HEIGHT; y++) {
             for (int x = 0; x < WIDTH; x++) {

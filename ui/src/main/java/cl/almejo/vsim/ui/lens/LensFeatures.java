@@ -139,6 +139,8 @@ public final class LensFeatures {
         this.button = SplitButton.forToggle(ZOOM_PREFERENCE, Messages.text("lens.zoomMenuTitle"), zoomModes(),
                 preferences, toggle, String.valueOf((int) LensState.DEFAULT_FACTOR));
         state.setFactor(factorOf(button.mode()));
+        state.setShape(preferences.lensShape());
+        state.setSize(preferences.lensSize());
         button.addModeListener(mode -> setFactor(factorOf(mode)));
         NewsTargets.register(button, NewsTargets.TOOLBAR_LENS, NewsTargets.Side.BELOW);
         refreshTooltip();
@@ -172,12 +174,16 @@ public final class LensFeatures {
         return Double.parseDouble(mode.id());
     }
 
-    /** What another view's ▾ chose shows here too, and a rebinding of the key shows in the tooltip. */
+    /** What another view's ▾ chose shows here too, Preferencias' shape and size reshape the lens, and a rebinding of the key shows in the tooltip. */
     private void followPreferences() {
         preferences.splitButtonMode(ZOOM_PREFERENCE)
                 .filter(chosen -> zoomModes().stream().anyMatch(mode -> mode.id().equals(chosen)))
                 .filter(chosen -> !chosen.equals(button.mode().id()))
                 .ifPresent(button::setMode);
+        changing(() -> {
+            state.setShape(preferences.lensShape());
+            state.setSize(preferences.lensSize());
+        });
         refreshTooltip();
     }
 
@@ -341,7 +347,7 @@ public final class LensFeatures {
         pane.addMouseMotionListener(pointer);
         Runnable overlayRemover = pane.addScreenOverlay((screen, painted) -> {
             if (state.isShowingOn(painted)) {
-                LensPainter.paint(screen, painted, state.pointer().orElseThrow(), state.factor());
+                LensPainter.paint(screen, painted, state.pointer().orElseThrow(), state.factor(), state.look());
             }
         });
         return () -> {
@@ -372,7 +378,7 @@ public final class LensFeatures {
             return Optional.empty();
         }
         return Optional.of(new ShownLens(state.pointerPane().orElseThrow(),
-                LensPainter.area(state.pointer().orElseThrow()), state.factor()));
+                LensPainter.area(state.pointer().orElseThrow(), state.look()), state.factor()));
     }
 
     /** Where a shown lens paints, and at which magnification (a new one repaints the same area). */

@@ -77,7 +77,8 @@ class PreferencesFormTest {
                 Map.entry("preferences.section.window", List.of("theme")),
                 Map.entry("preferences.section.circuit", List.of("scheme", "textFont")));
         assertThat(form.accessibility().sectionRows()).containsExactly(
-                Map.entry("preferences.section.motion", List.of("animations", "animateViewMoves")));
+                Map.entry("preferences.section.motion", List.of("animations", "animateViewMoves")),
+                Map.entry("preferences.section.lens", List.of("lensShape", "lensSize")));
         assertThat(form.files().sectionRows()).containsExactly(
                 Map.entry("preferences.section.library", List.of("library")),
                 Map.entry("preferences.section.memories", List.of("externalEditor")));
@@ -94,6 +95,31 @@ class PreferencesFormTest {
         assertThat(form.general().filter("mayús")).isEqualTo(1);
         assertThat(form.general().visibleRowIds()).containsExactly("invertModifier");
         assertThat(form.accessibility().filter("movimiento")).isEqualTo(2);
+        assertThat(form.accessibility().filter("rectangular")).isEqualTo(1);
+        assertThat(form.accessibility().visibleRowIds()).containsExactly("lensShape");
+        assertThat(form.accessibility().filter("grande")).isEqualTo(1);
+        assertThat(form.accessibility().visibleRowIds()).containsExactly("lensSize");
+    }
+
+    @Test
+    void theLensRowsStoreTheChoiceAndFollowChangesMadeElsewhere() {
+        PreferencesForm form = form();
+        assertThat(form.lensShapeChoice().getItemCount()).isEqualTo(2);
+        assertThat(form.lensSizeChoice().getItemCount()).isEqualTo(3);
+        assertThat(selected(form.lensShapeChoice()))
+                .isEqualTo(AppPreferences.LensShape.ROUND);
+        assertThat(selected(form.lensSizeChoice()))
+                .isEqualTo(AppPreferences.LensSize.MEDIUM);
+
+        choose(form.lensShapeChoice(), AppPreferences.LensShape.RECTANGLE);
+        choose(form.lensSizeChoice(), AppPreferences.LensSize.SMALL);
+        assertThat(preferences.lensShape()).isEqualTo(AppPreferences.LensShape.RECTANGLE);
+        assertThat(preferences.lensSize()).isEqualTo(AppPreferences.LensSize.SMALL);
+
+        preferences.setLensSize(AppPreferences.LensSize.LARGE);
+        assertThat(selected(form.lensSizeChoice()))
+                .isEqualTo(AppPreferences.LensSize.LARGE);
+        form.dispose();
     }
 
     @Test
