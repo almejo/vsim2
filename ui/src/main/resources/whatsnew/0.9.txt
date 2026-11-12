@@ -1,4 +1,5 @@
 # «Qué hay de nuevo» in VSim 0.9: the bubbles shown, in this order, the first time 0.9 opens (and with Ayuda ▸ «Qué hay
 # de nuevo»). Same format as 0.8.txt: one bubble per line, four columns separated by «|»:
 #   target id (NewsTargets) | title key | text key (both bundles) | action or «-»
-menu.file | whatsNew.preferences.title | whatsNew.preferences.text | file.preferences
+menu.file    | whatsNew.preferences.title | whatsNew.preferences.text | file.preferences
+toolbar.lens | whatsNew.lens.title        | whatsNew.lens.text        | view.lens

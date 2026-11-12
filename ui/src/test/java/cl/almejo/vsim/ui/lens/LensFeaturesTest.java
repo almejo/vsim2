@@ -103,60 +103,103 @@ class LensFeaturesTest {
         throw new AssertionError("no «Lupa fija» item in Ver");
     }
 
+    private static final int UNDEFINED = KeyEvent.VK_UNDEFINED;
+
+    /** A key Java reports as undefined with an extended code (º on a Spanish layout on Linux). */
+    private void pressExtended(int extendedCode, int modifiers) {
+        dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, modifiers, extendedCode));
+    }
+
+    private void releaseExtended(int extendedCode, int modifiers) {
+        dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, modifiers, extendedCode));
+    }
+
+    private static final class ExtendedKeyEvent extends KeyEvent {
+
+        private final int extendedCode;
+
+        ExtendedKeyEvent(java.awt.Component source, int id, int modifiers, int extendedCode) {
+            super(source, id, 0, modifiers, UNDEFINED, KeyEvent.CHAR_UNDEFINED);
+            this.extendedCode = extendedCode;
+        }
+
+        @Override
+        public int getExtendedKeyCode() {
+            return extendedCode;
+        }
+    }
+
     @Test
-    void holdingControlShiftLShowsTheLensAndReleasingTheLHidesIt() {
+    void theDefaultIsTheKeyUnderEscHeldWithNoModifier() {
+        assertThat(new KeyBindings(preferences).strokeFor(LensFeatures.SHORTCUT))
+                .contains(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0));
+    }
+
+    @Test
+    void holdingTheBackQuoteInTheCanvasShowsTheLensAndReleasingItHidesIt() {
         move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_L, CONTROL_SHIFT);
+        press(KeyEvent.VK_BACK_QUOTE, 0);
         assertThat(features.state().isShowingOn(view.canvas())).isTrue();
-        release(KeyEvent.VK_L, CONTROL_SHIFT);
+        release(KeyEvent.VK_BACK_QUOTE, 0);
         assertThat(features.state().isShowing()).isFalse();
     }
 
     @Test
-    void releasingControlOrShiftFirstHidesItToo() {
+    void theSameKeyInATextFieldOfTheViewTypesNormally() {
+        javax.swing.JTextField field = new javax.swing.JTextField();
+        view.add(field);
         move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_L, CONTROL_SHIFT);
-        release(KeyEvent.VK_CONTROL, InputEvent.SHIFT_DOWN_MASK);
-        assertThat(features.state().isShowing()).as("Ctrl released first").isFalse();
-        press(KeyEvent.VK_L, CONTROL_SHIFT);
-        release(KeyEvent.VK_SHIFT, InputEvent.CTRL_DOWN_MASK);
-        assertThat(features.state().isShowing()).as("Shift released first").isFalse();
+        dispatch(new KeyEvent(field, KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_BACK_QUOTE, '`'));
+        assertThat(features.state().isOn()).isFalse();
+        view.remove(field);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0x010000BA, 0x010000B2, 0x010000A7, 0x010000B0})
+    void theKeyUnderEscOfOtherLayoutsShowsItToo(int extendedCode) {
+        move(view.canvas(), 100, 100);
+        pressExtended(extendedCode, 0);
+        assertThat(features.state().isShowingOn(view.canvas())).isTrue();
+        releaseExtended(extendedCode, 0);
+        assertThat(features.state().isShowing()).isFalse();
+    }
+
+    @Test
+    void aKeyOfAnotherCharacterWithAnExtendedCodeDoesNothing() {
+        move(view.canvas(), 100, 100);
+        pressExtended(0x010000E9, 0);
+        assertThat(features.state().isOn()).isFalse();
+    }
+
+    @Test
+    void aModifierAddedMidHoldDoesNotBreakItAndReleasingTheKeyHides() {
+        move(view.canvas(), 100, 100);
+        press(KeyEvent.VK_BACK_QUOTE, 0);
+        press(KeyEvent.VK_BACK_QUOTE, InputEvent.SHIFT_DOWN_MASK);
+        release(KeyEvent.VK_SHIFT, 0);
+        assertThat(features.state().isShowing()).isTrue();
+        release(KeyEvent.VK_BACK_QUOTE, InputEvent.SHIFT_DOWN_MASK);
+        assertThat(features.state().isShowing()).isFalse();
     }
 
     @Test
     void theKeyRepeatingKeepsItShowingAndAnotherKeyReleasedDoesNotHideIt() {
         move(view.canvas(), 100, 100);
         for (int repeat = 0; repeat < 5; repeat++) {
-            press(KeyEvent.VK_L, CONTROL_SHIFT);
+            press(KeyEvent.VK_BACK_QUOTE, 0);
         }
-        release(KeyEvent.VK_A, CONTROL_SHIFT);
+        release(KeyEvent.VK_A, 0);
         assertThat(features.state().isShowing()).isTrue();
     }
 
     @Test
-    void theLetterAloneOrWithOtherModifiersDoesNothing() {
-        move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_L, 0);
-        press(KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK);
-        press(KeyEvent.VK_L, CONTROL_SHIFT | InputEvent.ALT_DOWN_MASK);
-        assertThat(features.state().isOn()).isFalse();
-    }
-
-    @Test
-    void theWindowLosingTheFocusHidesAHeldLens() {
-        move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_L, CONTROL_SHIFT);
-        assertThat(deactivationWatchers).hasSize(1);
-        deactivationWatchers.get(0).run();
-        assertThat(features.state().isShowing()).isFalse();
-    }
-
-    @Test
-    void aRebindingToAFunctionKeyHoldsWithThatKeyOnly() {
+    void theHoldRebindsToAnotherKeyAndTheOldOneStopsWorking() {
         new KeyBindings(preferences).assign(LensFeatures.SHORTCUT, KeyStroke.getKeyStroke(KeyEvent.VK_F9, 0));
         move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_L, CONTROL_SHIFT);
+        press(KeyEvent.VK_BACK_QUOTE, 0);
         assertThat(features.state().isOn()).as("the old default").isFalse();
+        pressExtended(0x010000BA, 0);
+        assertThat(features.state().isOn()).as("an alias of the old default").isFalse();
         press(KeyEvent.VK_F9, 0);
         assertThat(features.state().isShowing()).isTrue();
         release(KeyEvent.VK_F9, 0);
@@ -164,13 +207,34 @@ class LensFeaturesTest {
     }
 
     @Test
-    void aCommandKeyBindingIsReleasedWithTheCommandKey() {
-        new KeyBindings(preferences).assign(LensFeatures.SHORTCUT,
-                KeyStroke.getKeyStroke(KeyEvent.VK_L, InputEvent.META_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK));
+    void aBareLetterCanBeTheHoldKeyToo() {
+        new KeyBindings(preferences).assign(LensFeatures.SHORTCUT, KeyStroke.getKeyStroke(KeyEvent.VK_K, 0));
         move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_L, InputEvent.META_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK);
+        press(KeyEvent.VK_K, 0);
         assertThat(features.state().isShowing()).isTrue();
-        release(KeyEvent.VK_META, InputEvent.SHIFT_DOWN_MASK);
+        release(KeyEvent.VK_K, 0);
+        assertThat(features.state().isShowing()).isFalse();
+    }
+
+    @Test
+    void aBindingWithModifiersIsMatchedOnThemAndReleasedWithThem() {
+        new KeyBindings(preferences).assign(LensFeatures.SHORTCUT,
+                KeyStroke.getKeyStroke(KeyEvent.VK_L, CONTROL_SHIFT));
+        move(view.canvas(), 100, 100);
+        press(KeyEvent.VK_L, 0);
+        assertThat(features.state().isOn()).isFalse();
+        press(KeyEvent.VK_L, CONTROL_SHIFT);
+        assertThat(features.state().isShowing()).isTrue();
+        release(KeyEvent.VK_CONTROL, InputEvent.SHIFT_DOWN_MASK);
+        assertThat(features.state().isShowing()).isFalse();
+    }
+
+    @Test
+    void theWindowLosingTheFocusHidesAHeldLens() {
+        move(view.canvas(), 100, 100);
+        press(KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(deactivationWatchers).hasSize(1);
+        deactivationWatchers.get(0).run();
         assertThat(features.state().isShowing()).isFalse();
     }
 
@@ -178,7 +242,7 @@ class LensFeaturesTest {
     void aKeyFromOutsideTheViewDoesNotHoldIt() {
         EditorView other = fixture.otherView();
         move(view.canvas(), 100, 100);
-        dispatch(new KeyEvent(other.canvas(), KeyEvent.KEY_PRESSED, 0, CONTROL_SHIFT, KeyEvent.VK_L,
+        dispatch(new KeyEvent(other.canvas(), KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_BACK_QUOTE,
                 KeyEvent.CHAR_UNDEFINED));
         assertThat(features.state().isOn()).isFalse();
     }
@@ -216,7 +280,7 @@ class LensFeaturesTest {
     void theHoldIsAShortcutOfTheViewWithItsDefaultAndNoMenuItem() {
         assertThat(view.shortcutActions()).containsKey(LensFeatures.SHORTCUT);
         assertThat(new KeyBindings(preferences).strokeFor(LensFeatures.SHORTCUT))
-                .contains(KeyStroke.getKeyStroke(KeyEvent.VK_L, CONTROL_SHIFT));
+                .contains(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0));
         Action hold = view.shortcutActions().get(LensFeatures.SHORTCUT);
         for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
             if (child instanceof javax.swing.JMenuItem item) {

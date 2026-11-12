@@ -69,6 +69,16 @@ class KeyNamesTest {
     }
 
     @Test
+    void theKeyUnderEscIsOgInSpanishAndABackQuoteInEnglishAndAnExtendedCodeIsItsCharacter() {
+        Messages.initialize(Messages.SPANISH);
+        assertThat(KeyNames.describe(stroke(KeyEvent.VK_BACK_QUOTE, 0), false)).isEqualTo("º");
+        assertThat(KeyNames.describe(stroke(0x01000000 + 0xB2, 0), false)).isEqualTo("²");
+        assertThat(KeyNames.describeInEnglish(stroke(KeyEvent.VK_BACK_QUOTE, 0))).isEqualTo("`");
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(KeyNames.describe(stroke(KeyEvent.VK_BACK_QUOTE, 0), false)).isEqualTo("`");
+    }
+
+    @Test
     void aTypedCharacterIsThatCharacter() {
         assertThat(KeyNames.describe(KeyStroke.getKeyStroke('?'), false)).isEqualTo("?");
     }

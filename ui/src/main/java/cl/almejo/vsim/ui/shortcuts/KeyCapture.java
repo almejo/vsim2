@@ -44,7 +44,7 @@ final class KeyCapture extends KeyAdapter {
             return;
         }
         event.consume();
-        int keyCode = event.getKeyCode();
+        int keyCode = KeyCodes.of(event);
         if (LONE_KEYS.contains(keyCode)) {
             return;
         }

@@ -39,6 +39,21 @@ class KeyCaptureTest {
     }
 
     @Test
+    void aKeyJavaCallsUndefinedIsCapturedByItsExtendedCode() {
+        capture.start();
+        KeyEvent ordinal = new KeyEvent(source, KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_UNDEFINED,
+                KeyEvent.CHAR_UNDEFINED) {
+            @Override
+            public int getExtendedKeyCode() {
+                return 0x010000BA;
+            }
+        };
+        capture.keyPressed(ordinal);
+        assertThat(captured).containsExactly(KeyStroke.getKeyStroke(0x010000BA, 0));
+        assertThat(capture.isActive()).isFalse();
+    }
+
+    @Test
     void nothingIsTouchedWhileInactive() {
         KeyEvent letter = press(KeyEvent.VK_A, 0);
         capture.keyPressed(letter);

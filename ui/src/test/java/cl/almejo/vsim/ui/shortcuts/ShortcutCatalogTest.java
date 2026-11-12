@@ -78,10 +78,9 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void theLensIsHeldWithMenuMayusLUnderVerRightAfterMirarAdentro() {
+    void theLensIsHeldWithTheKeyUnderEscInTheCanvasRightAfterMirarAdentro() {
         assertThat(ShortcutCatalog.find("view.lens")).contains(new ShortcutEntry("view.lens", "action.lens",
-                MenuId.VIEW, Scope.WINDOW, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_L,
-                ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK))));
+                MenuId.VIEW, Scope.CANVAS, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0))));
         assertThat(ids()).containsSubsequence("view.magnifier", "view.lens");
     }
 

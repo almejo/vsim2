@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyCodes;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.toolbar.SplitButton;
 import cl.almejo.vsim.ui.toolbar.SplitButtonMode;
@@ -41,8 +42,9 @@ import java.util.Optional;
 /**
  * The accessibility lens of one editor view: an enlarged circle of the circuit around the pointer, like a screen
  * magnifier, painted from the real scene of the pane under the pointer ({@link LensPainter}). It shows while the key
- * of {@value #SHORTCUT} is held (Ctrl+Mayús+L, ⌘+Mayús+L on macOS; rebindable) and goes when that key or one of its
- * modifiers is released or the window loses the focus; Ver ▸ «Lupa fija» keeps it on. It is purely visual: no tool,
+ * of {@value #SHORTCUT} is held (by default the key under Esc, left of 1, with no modifier: ` or º; rebindable; it only
+ * acts with the focus in a canvas pane) and goes when that key or one of its modifiers is released or the window loses
+ * the focus; Ver ▸ «Lupa fija» keeps it on. It is purely visual: no tool,
  * cursor, selection or document changes, no undo step. Neither held nor fixed is saved. {@link #dispose()} takes
  * back everything.
  *
@@ -164,7 +166,7 @@ public final class LensFeatures {
         refreshTooltip();
     }
 
-    /** «Lupa fija: …(o mantén Ctrl+Mayús+L)», with the key the catalog gives now (none: without the parenthesis). */
+    /** «Lupa fija: …(o mantén º)», with the key the catalog gives now (none: without the parenthesis). */
     private void refreshTooltip() {
         String tooltip = keyBindings.strokeFor(SHORTCUT)
                 .map(stroke -> Messages.format("action.lens.tooltip", KeyNames.describe(stroke)))
@@ -235,24 +237,26 @@ public final class LensFeatures {
         return false;
     }
 
+    /** Only a canvas pane of this view: in a text field, the inspector or the find bar the key types normally. */
     private boolean comesFromThisView(KeyEvent event) {
-        return event.getSource() instanceof Component source && SwingUtilities.isDescendingFrom(source, view);
+        return event.getSource() instanceof CircuitCanvas source && SwingUtilities.isDescendingFrom(source, view);
     }
 
     /** The current binding, read at each press so a rebinding works at once. */
     private boolean isTheBoundStroke(KeyEvent event) {
-        return keyBindings.strokeFor(SHORTCUT).filter(stroke -> stroke.getKeyCode() == event.getKeyCode()
+        return keyBindings.strokeFor(SHORTCUT).filter(stroke -> KeyCodes.matches(stroke.getKeyCode(), KeyCodes.of(event))
                 && (stroke.getModifiers() & KEYBOARD_MODIFIERS) == (event.getModifiersEx() & KEYBOARD_MODIFIERS))
                 .isPresent();
     }
 
     /** The held stroke's key, or the key of one of its modifiers (Ctrl, Mayús, ⌘…), went up. */
     private boolean releasesTheHeldStroke(KeyEvent event) {
-        return state.isHeld() && heldStroke.filter(stroke -> isPartOf(stroke, event.getKeyCode())).isPresent();
+        return state.isHeld() && heldStroke.filter(stroke -> isPartOf(stroke, event)).isPresent();
     }
 
-    private static boolean isPartOf(KeyStroke stroke, int keyCode) {
-        if (stroke.getKeyCode() == keyCode) {
+    private static boolean isPartOf(KeyStroke stroke, KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (KeyCodes.matches(stroke.getKeyCode(), KeyCodes.of(event))) {
             return true;
         }
         return MODIFIER_KEYS.entrySet().stream().anyMatch(

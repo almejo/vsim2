@@ -153,11 +153,11 @@ public final class KeyNames {
             case KeyEvent.VK_DOWN -> "↓";
             case KeyEvent.VK_LEFT -> "←";
             case KeyEvent.VK_RIGHT -> "→";
-            default -> symbolOrSwingName(keyCode);
+            default -> symbolOrSwingName(keyCode, names);
         };
     }
 
-    private static String symbolOrSwingName(int keyCode) {
+    private static String symbolOrSwingName(int keyCode, Function<String, String> names) {
         return switch (keyCode) {
             case KeyEvent.VK_MINUS -> "-";
             case KeyEvent.VK_EQUALS -> "=";
@@ -168,10 +168,10 @@ public final class KeyNames {
             case KeyEvent.VK_BACK_SLASH -> "\\";
             case KeyEvent.VK_SEMICOLON -> ";";
             case KeyEvent.VK_QUOTE -> "'";
-            case KeyEvent.VK_BACK_QUOTE -> "`";
+            case KeyEvent.VK_BACK_QUOTE -> names.apply("keyName.backQuote");
             case KeyEvent.VK_OPEN_BRACKET -> "[";
             case KeyEvent.VK_CLOSE_BRACKET -> "]";
-            default -> KeyEvent.getKeyText(keyCode);
+            default -> KeyCodes.extendedCharacter(keyCode).orElseGet(() -> KeyEvent.getKeyText(keyCode));
         };
     }
 }

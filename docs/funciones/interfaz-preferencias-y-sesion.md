@@ -48,17 +48,20 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 Para ver de cerca un trocito del circuito sin cambiar el zoom, como la lupa de accesibilidad del sistema.
 
-- **Mantener para ver**: mientras mantienes Ctrl+Mayús+L (⌘+Mayús+L en macOS) aparece un círculo alrededor del
-  puntero que muestra tres veces más grande (o 2× o 4×, según el ▾ de su botón) solo lo que hay ahí; el resto del lienzo queda igual. Al soltar cualquiera
-  de las teclas se va, y también si la ventana pierde el foco (por ejemplo, al abrirse un diálogo). Si mantienes la
-  tecla, su repetición no la hace parpadear. El atajo se cambia en Preferencias ▸ «Atajos de teclado» («Lupa»), y
-  sigue funcionando aunque el foco esté en otro panel de la ventana.
+- **Mantener para ver**: mientras mantienes la tecla que está bajo Esc, a la izquierda del 1, sin ninguna otra (es la
+  ` en un teclado inglés y la º en uno español; en otras distribuciones, la ², § o ° que haya ahí) aparece un círculo
+  alrededor del puntero que muestra tres veces más grande (o 2× o 4×, según el ▾ de su botón) solo lo que hay ahí; el
+  resto del lienzo queda igual. Es una tecla para usar con una sola mano y que no choca con ningún atajo. Al soltarla
+  se va, y también si la ventana pierde el foco (por ejemplo, al abrirse un diálogo). Si la mantienes, su repetición no
+  la hace parpadear, y si sin soltarla apretas Mayús o Ctrl no pasa nada. Solo actúa con el foco en el lienzo: en un
+  campo de texto, el inspector o la barra de búsqueda la tecla escribe como siempre. La tecla se cambia en
+  Preferencias ▸ «Atajos de teclado» («Lupa»), por otra tecla suelta o con Ctrl, Alt o Mayús.
 - **Lupa fija**: Ver ▸ «Lupa fija», justo después de «Mirar adentro», la deja puesta sin mantener ninguna tecla; otra
   vez la quita. En «Acciones» (Ctrl+K) se encuentra como «Lupa fija». Es de cada ventana y no se guarda: VSim abre
   siempre con la lupa apagada.
 - **Botón de la barra**: justo después del ojo de «Mirar adentro» hay un botón con la lupa (un trocito que se abre en
   uno grande): su parte principal es «Lupa fija» y su ▾ («Aumento de la lupa») elige 2×, 3× o 4×. Su ayuda dice
-  «Lupa fija: agranda el trocito bajo el puntero (o mantén Ctrl+Mayús+L)», con la tecla que tengas puesta. El aumento
+  «Lupa fija: agranda el trocito bajo el puntero (o mantén º)», con la tecla que tengas puesta. El aumento
   elegido se guarda y vale en todas las ventanas y pestañas (3× al principio); elegirlo no pone ni quita la lupa.
 - **Es el circuito de verdad**, no una foto: sigue al puntero y a la simulación en vivo, con la cuadrícula, lo
   seleccionado y lo que estés haciendo (un cable a medias, una pieza por colocar). El punto bajo el puntero es el mismo
