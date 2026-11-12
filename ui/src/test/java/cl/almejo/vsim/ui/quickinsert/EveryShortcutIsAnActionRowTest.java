@@ -44,8 +44,6 @@ class EveryShortcutIsAnActionRowTest {
     private static Map<String, String> exceptions() {
         Map<String, String> reasons = new HashMap<>();
         reasons.put("edit.quickInsert", "it opens the palette itself, on «Componentes»; from «Acciones» Tab goes there");
-        reasons.put("view.lens", "a key to hold, not to run: the lens shows while it is held and goes on its release;"
-                + " its row in «Acciones» is «Lupa fija», which keeps the lens on");
         String nudge = "an arrow-key nudge of the selection: a row for each of the eight would only be noise, and"
                 + " the palette gives the focus back to the canvas, so the keys are the way to use them";
         for (String direction : List.of("Left", "Right", "Up", "Down")) {

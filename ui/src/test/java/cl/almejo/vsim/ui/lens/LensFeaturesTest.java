@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.app.RecordingKeyDispatchers;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
@@ -22,6 +23,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.KeyEventDispatcher;
@@ -36,7 +38,7 @@ import java.util.List;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The accessibility lens of one view: held with its key, «Lupa fija», the pointer, the panes and its pixels. */
+/** The accessibility lens of one view: toggled with its key or Ver ▸ «Lupa», the pointer, the panes and its pixels. */
 class LensFeaturesTest {
 
     private static final int CONTROL_SHIFT = InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK;
@@ -71,19 +73,47 @@ class LensFeaturesTest {
         fixture.close();
     }
 
-    private void dispatch(KeyEvent event) {
+    /** The time of the next key event: a person's presses are well apart unless a test says otherwise. */
+    private long now = 10_000;
+
+    /**
+     * Hands {@code event} to the key hooks as the focus manager does (a hook that takes it stops it), then, if nobody
+     * took it, to the key bindings of the component it is for. Returns whether a hook took it.
+     */
+    private boolean dispatch(KeyEvent event) {
         for (KeyEventDispatcher dispatcher : List.copyOf(dispatchers)) {
-            dispatcher.dispatchKeyEvent(event);
+            if (dispatcher.dispatchKeyEvent(event)) {
+                return true;
+            }
         }
+        SwingUtilities.processKeyBindings(event);
+        return false;
     }
 
-    private void press(int keyCode, int modifiers) {
-        dispatch(new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, 0, modifiers, keyCode, KeyEvent.CHAR_UNDEFINED));
+    private boolean press(int keyCode, int modifiers) {
+        now += 200;
+        return pressAt(now, keyCode, modifiers);
+    }
+
+    private boolean pressAt(long when, int keyCode, int modifiers) {
+        return dispatch(new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, when, modifiers, keyCode,
+                KeyEvent.CHAR_UNDEFINED));
     }
 
     private void release(int keyCode, int modifiers) {
-        dispatch(new KeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, 0, modifiers, keyCode,
+        now += 200;
+        releaseAt(now, keyCode, modifiers);
+    }
+
+    private void releaseAt(long when, int keyCode, int modifiers) {
+        dispatch(new KeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, when, modifiers, keyCode,
                 KeyEvent.CHAR_UNDEFINED));
+    }
+
+    /** A press and its release, a moment apart. */
+    private void tap(int keyCode, int modifiers) {
+        press(keyCode, modifiers);
+        release(keyCode, modifiers);
     }
 
     private static void move(CircuitCanvas pane, int x, int y) {
@@ -94,32 +124,34 @@ class LensFeaturesTest {
         pane.dispatchEvent(new MouseEvent(pane, MouseEvent.MOUSE_EXITED, 0, 0, -1, -1, 0, false));
     }
 
-    private JCheckBoxMenuItem fixedItem() {
+    private JCheckBoxMenuItem lensItem() {
         for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (child instanceof JCheckBoxMenuItem item && item.getAction() == features.fixedAction()) {
+            if (child instanceof JCheckBoxMenuItem item && item.getAction() == features.toggleAction()) {
                 return item;
             }
         }
-        throw new AssertionError("no «Lupa fija» item in Ver");
+        throw new AssertionError("no «Lupa» item in Ver");
     }
 
     private static final int UNDEFINED = KeyEvent.VK_UNDEFINED;
 
     /** A key Java reports as undefined with an extended code (º on a Spanish layout on Linux). */
     private void pressExtended(int extendedCode, int modifiers) {
-        dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, modifiers, extendedCode));
+        now += 200;
+        dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, now, modifiers, extendedCode));
     }
 
     private void releaseExtended(int extendedCode, int modifiers) {
-        dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, modifiers, extendedCode));
+        now += 200;
+        dispatch(new ExtendedKeyEvent(view.canvas(), KeyEvent.KEY_RELEASED, now, modifiers, extendedCode));
     }
 
     private static final class ExtendedKeyEvent extends KeyEvent {
 
         private final int extendedCode;
 
-        ExtendedKeyEvent(java.awt.Component source, int id, int modifiers, int extendedCode) {
-            super(source, id, 0, modifiers, UNDEFINED, KeyEvent.CHAR_UNDEFINED);
+        ExtendedKeyEvent(java.awt.Component source, int id, long when, int modifiers, int extendedCode) {
+            super(source, id, when, modifiers, UNDEFINED, KeyEvent.CHAR_UNDEFINED);
             this.extendedCode = extendedCode;
         }
 
@@ -130,18 +162,56 @@ class LensFeaturesTest {
     }
 
     @Test
-    void theDefaultIsTheKeyUnderEscHeldWithNoModifier() {
+    void theDefaultIsTheKeyUnderEscWithNoModifier() {
         assertThat(new KeyBindings(preferences).strokeFor(LensFeatures.SHORTCUT))
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0));
     }
 
     @Test
-    void holdingTheBackQuoteInTheCanvasShowsTheLensAndReleasingItHidesIt() {
+    void theKeyTurnsTheLensOnAndPressingItAgainTurnsItOff() {
         move(view.canvas(), 100, 100);
         press(KeyEvent.VK_BACK_QUOTE, 0);
         assertThat(features.state().isShowingOn(view.canvas())).isTrue();
         release(KeyEvent.VK_BACK_QUOTE, 0);
-        assertThat(features.state().isShowing()).isFalse();
+        assertThat(features.state().isShowingOn(view.canvas())).as("releasing does not turn it off").isTrue();
+        tap(KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(features.state().isOn()).isFalse();
+    }
+
+    @Test
+    void theKeyRepeatingWithoutReleasesTogglesOnceAndTheRepeatsAreTaken() {
+        move(view.canvas(), 100, 100);
+        assertThat(pressAt(1_000, KeyEvent.VK_BACK_QUOTE, 0)).as("the first press goes on").isFalse();
+        for (int repeat = 1; repeat <= 10; repeat++) {
+            assertThat(pressAt(1_000 + 500 + 30L * repeat, KeyEvent.VK_BACK_QUOTE, 0))
+                    .as("a repeat reaches nobody else").isTrue();
+        }
+        releaseAt(2_000, KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(features.state().isOn()).isTrue();
+    }
+
+    @Test
+    void theKeyRepeatingAsReleaseAndPressPairsTogglesOnce() {
+        move(view.canvas(), 100, 100);
+        pressAt(1_000, KeyEvent.VK_BACK_QUOTE, 0);
+        for (long when = 1_500; when < 2_000; when += 30) {
+            releaseAt(when, KeyEvent.VK_BACK_QUOTE, 0);
+            assertThat(pressAt(when, KeyEvent.VK_BACK_QUOTE, 0)).as("a repeat reaches nobody else").isTrue();
+        }
+        releaseAt(2_000, KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(features.state().isOn()).isTrue();
+        pressAt(2_200, KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(features.state().isOn()).as("a new press, well after the release").isFalse();
+    }
+
+    @Test
+    void anotherKeyBetweenTwoPressesDoesNotMakeTheSecondARepeat() {
+        move(view.canvas(), 100, 100);
+        press(KeyEvent.VK_BACK_QUOTE, 0);
+        release(KeyEvent.VK_A, 0);
+        release(KeyEvent.VK_BACK_QUOTE, 0);
+        press(KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(features.state().isOn()).isFalse();
     }
 
     @Test
@@ -156,12 +226,14 @@ class LensFeaturesTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0x010000BA, 0x010000B2, 0x010000A7, 0x010000B0})
-    void theKeyUnderEscOfOtherLayoutsShowsItToo(int extendedCode) {
+    void theKeyUnderEscOfOtherLayoutsTogglesItToo(int extendedCode) {
         move(view.canvas(), 100, 100);
         pressExtended(extendedCode, 0);
-        assertThat(features.state().isShowingOn(view.canvas())).isTrue();
+        pressExtended(extendedCode, 0);
+        assertThat(features.state().isShowingOn(view.canvas())).as("on once, the second press repeats").isTrue();
         releaseExtended(extendedCode, 0);
-        assertThat(features.state().isShowing()).isFalse();
+        pressExtended(extendedCode, 0);
+        assertThat(features.state().isOn()).isFalse();
     }
 
     @Test
@@ -172,74 +244,51 @@ class LensFeaturesTest {
     }
 
     @Test
-    void aModifierAddedMidHoldDoesNotBreakItAndReleasingTheKeyHides() {
-        move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_BACK_QUOTE, 0);
-        press(KeyEvent.VK_BACK_QUOTE, InputEvent.SHIFT_DOWN_MASK);
-        release(KeyEvent.VK_SHIFT, 0);
-        assertThat(features.state().isShowing()).isTrue();
-        release(KeyEvent.VK_BACK_QUOTE, InputEvent.SHIFT_DOWN_MASK);
-        assertThat(features.state().isShowing()).isFalse();
-    }
-
-    @Test
-    void theKeyRepeatingKeepsItShowingAndAnotherKeyReleasedDoesNotHideIt() {
-        move(view.canvas(), 100, 100);
-        for (int repeat = 0; repeat < 5; repeat++) {
-            press(KeyEvent.VK_BACK_QUOTE, 0);
-        }
-        release(KeyEvent.VK_A, 0);
-        assertThat(features.state().isShowing()).isTrue();
-    }
-
-    @Test
-    void theHoldRebindsToAnotherKeyAndTheOldOneStopsWorking() {
+    void theKeyRebindsToAnotherKeyAndTheOldOneStopsWorking() {
         new KeyBindings(preferences).assign(LensFeatures.SHORTCUT, KeyStroke.getKeyStroke(KeyEvent.VK_F9, 0));
         move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_BACK_QUOTE, 0);
+        tap(KeyEvent.VK_BACK_QUOTE, 0);
         assertThat(features.state().isOn()).as("the old default").isFalse();
         pressExtended(0x010000BA, 0);
         assertThat(features.state().isOn()).as("an alias of the old default").isFalse();
-        press(KeyEvent.VK_F9, 0);
+        tap(KeyEvent.VK_F9, 0);
         assertThat(features.state().isShowing()).isTrue();
-        release(KeyEvent.VK_F9, 0);
+        tap(KeyEvent.VK_F9, 0);
         assertThat(features.state().isShowing()).isFalse();
     }
 
     @Test
-    void aBareLetterCanBeTheHoldKeyToo() {
+    void aBareLetterCanBeTheKeyToo() {
         new KeyBindings(preferences).assign(LensFeatures.SHORTCUT, KeyStroke.getKeyStroke(KeyEvent.VK_K, 0));
         move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_K, 0);
+        tap(KeyEvent.VK_K, 0);
         assertThat(features.state().isShowing()).isTrue();
-        release(KeyEvent.VK_K, 0);
-        assertThat(features.state().isShowing()).isFalse();
     }
 
     @Test
-    void aBindingWithModifiersIsMatchedOnThemAndReleasedWithThem() {
+    void aBindingWithModifiersIsMatchedOnThem() {
         new KeyBindings(preferences).assign(LensFeatures.SHORTCUT,
                 KeyStroke.getKeyStroke(KeyEvent.VK_L, CONTROL_SHIFT));
         move(view.canvas(), 100, 100);
-        press(KeyEvent.VK_L, 0);
+        tap(KeyEvent.VK_L, 0);
         assertThat(features.state().isOn()).isFalse();
-        press(KeyEvent.VK_L, CONTROL_SHIFT);
+        tap(KeyEvent.VK_L, CONTROL_SHIFT);
         assertThat(features.state().isShowing()).isTrue();
-        release(KeyEvent.VK_CONTROL, InputEvent.SHIFT_DOWN_MASK);
-        assertThat(features.state().isShowing()).isFalse();
     }
 
     @Test
-    void theWindowLosingTheFocusHidesAHeldLens() {
+    void aReleaseLostWithTheWindowDoesNotSwallowTheNextPress() {
         move(view.canvas(), 100, 100);
         press(KeyEvent.VK_BACK_QUOTE, 0);
         assertThat(deactivationWatchers).hasSize(1);
-        deactivationWatchers.get(0).run();
-        assertThat(features.state().isShowing()).isFalse();
+        deactivationWatchers.get(0).run(); // the key went up in another window
+        assertThat(features.state().isOn()).as("going to another window does not turn it off").isTrue();
+        press(KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(features.state().isOn()).isFalse();
     }
 
     @Test
-    void aKeyFromOutsideTheViewDoesNotHoldIt() {
+    void aKeyFromOutsideTheViewDoesNothing() {
         EditorView other = fixture.otherView();
         move(view.canvas(), 100, 100);
         dispatch(new KeyEvent(other.canvas(), KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_BACK_QUOTE,
@@ -248,54 +297,66 @@ class LensFeaturesTest {
     }
 
     @Test
-    void lupaFijaIsAnUncheckedItemOfVerAndItsActionTogglesTheLens() {
-        assertThat(texts(view.menu(MenuId.VIEW))).contains("Lupa fija");
-        assertThat(fixedItem().isSelected()).isFalse();
-        move(view.canvas(), 100, 100);
-
-        fixedItem().doClick();
-
-        assertThat(features.state().isFixed()).isTrue();
-        assertThat(features.state().isShowingOn(view.canvas())).isTrue();
-        assertThat(fixedItem().isSelected()).isTrue();
-        features.fixedAction().actionPerformed(null);
-        assertThat(features.state().isFixed()).isFalse();
-        assertThat(fixedItem().isSelected()).isFalse();
+    void withTheCanvasKeyBindingsEachPressTogglesExactlyOnce() {
+        Runnable shortcuts = new ShortcutsExtension().install(view);
+        try {
+            move(view.canvas(), 100, 100);
+            press(KeyEvent.VK_BACK_QUOTE, 0);
+            assertThat(features.state().isOn()).as("the binding and the hook do not both toggle").isTrue();
+            release(KeyEvent.VK_BACK_QUOTE, 0);
+            pressExtended(0x010000BA, 0);
+            assertThat(features.state().isOn()).as("º, which the binding does not know").isFalse();
+            releaseExtended(0x010000BA, 0);
+            press(KeyEvent.VK_BACK_QUOTE, 0);
+            assertThat(features.state().isOn()).isTrue();
+        } finally {
+            shortcuts.run();
+        }
     }
 
     @Test
-    void lupaFijaIsNotSavedANewViewStartsWithItOff() {
-        features.fixedAction().actionPerformed(null);
+    void lupaIsAnUncheckedItemOfVerSharingItsStateWithTheKey() {
+        assertThat(texts(view.menu(MenuId.VIEW))).contains("Lupa").doesNotContain("Lupa fija");
+        assertThat(lensItem().isSelected()).isFalse();
+        move(view.canvas(), 100, 100);
+
+        lensItem().doClick();
+        assertThat(features.state().isShowingOn(view.canvas())).isTrue();
+        assertThat(lensItem().isSelected()).isTrue();
+
+        tap(KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(features.state().isOn()).isFalse();
+        assertThat(lensItem().isSelected()).as("the key unchecks it").isFalse();
+        tap(KeyEvent.VK_BACK_QUOTE, 0);
+        assertThat(lensItem().isSelected()).isTrue();
+    }
+
+    @Test
+    void theLensIsNotSavedANewViewStartsWithItOff() {
+        features.toggleAction().actionPerformed(null);
         EditorView other = fixture.otherView();
         LensFeatures otherFeatures = install(other);
         try {
-            assertThat(otherFeatures.state().isFixed()).isFalse();
-            assertThat(otherFeatures.fixedAction().getValue(Action.SELECTED_KEY)).isEqualTo(false);
+            assertThat(otherFeatures.state().isOn()).isFalse();
+            assertThat(otherFeatures.toggleAction().getValue(Action.SELECTED_KEY)).isEqualTo(false);
         } finally {
             otherFeatures.dispose();
         }
     }
 
     @Test
-    void theHoldIsAShortcutOfTheViewWithItsDefaultAndNoMenuItem() {
-        assertThat(view.shortcutActions()).containsKey(LensFeatures.SHORTCUT);
-        assertThat(new KeyBindings(preferences).strokeFor(LensFeatures.SHORTCUT))
-                .contains(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0));
-        Action hold = view.shortcutActions().get(LensFeatures.SHORTCUT);
-        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (child instanceof javax.swing.JMenuItem item) {
-                assertThat(item.getAction()).as("a menu item would run the hold on its own").isNotSameAs(hold);
-            }
-        }
+    void theKeysActionIsTheMenuItemsAction() {
+        assertThat(view.shortcutActions().get(LensFeatures.SHORTCUT)).isSameAs(features.toggleAction());
+        assertThat(lensItem().getAction()).isSameAs(features.toggleAction());
     }
 
     @Test
     void thePointerLeavingThePaneHidesIt() {
-        features.fixedAction().actionPerformed(null);
+        features.toggleAction().actionPerformed(null);
         move(view.canvas(), 100, 100);
         exit(view.canvas());
         assertThat(features.state().isShowing()).isFalse();
-        assertThat(features.state().isFixed()).isTrue();
+        assertThat(features.state().isOn()).isTrue();
     }
 
     @Test
@@ -303,7 +364,7 @@ class LensFeaturesTest {
         view.canvasPanes().split(Orientation.HORIZONTAL, 0.5);
         List<CircuitCanvas> panes = view.panes();
         assertThat(panes).hasSize(2);
-        features.fixedAction().actionPerformed(null);
+        features.toggleAction().actionPerformed(null);
         move(panes.get(1), 50, 50);
         assertThat(features.state().isShowingOn(panes.get(1))).isTrue();
         assertThat(features.state().isShowingOn(panes.get(0))).isFalse();
@@ -315,7 +376,7 @@ class LensFeaturesTest {
     @Test
     void disposeTakesBackTheItemTheShortcutTheKeyHookAndTheOverlays() {
         features.dispose();
-        assertThat(texts(view.menu(MenuId.VIEW))).doesNotContain("Lupa fija");
+        assertThat(texts(view.menu(MenuId.VIEW))).doesNotContain("Lupa");
         assertThat(view.shortcutActions()).doesNotContainKey(LensFeatures.SHORTCUT);
         assertThat(dispatchers).isEmpty();
         assertThat(view.canvas().screenOverlayCount()).isZero();
@@ -398,7 +459,7 @@ class LensFeaturesTest {
         int[] plainRun = inkedRun(plain, 240, 40, 260);
         assertThat(plainRun[0]).as("the wire shows").isPositive();
 
-        features.fixedAction().actionPerformed(null);
+        features.toggleAction().actionPerformed(null);
         move(pane, 200, 160); // 10 px under the wire's centre
         BufferedImage magnified = paint(pane);
 
@@ -421,7 +482,7 @@ class LensFeaturesTest {
         int[] plainRun = inkedRun(plain, 240, 40, 260);
         double plainCentre = (plainRun[0] + plainRun[1]) / 2.0;
 
-        features.fixedAction().actionPerformed(null);
+        features.toggleAction().actionPerformed(null);
         move(pane, 200, 160);
         BufferedImage magnified = paint(pane);
 
@@ -440,7 +501,7 @@ class LensFeaturesTest {
         other.setGridStyle(GridStyle.NONE);
         addLongWireAtRow(15);
         BufferedImage before = paint(other);
-        features.fixedAction().actionPerformed(null);
+        features.toggleAction().actionPerformed(null);
         move(hovered, 200, 160);
         assertThat(differencesOutsideTheLens(before, paint(other), new Point2D.Double(-1000, -1000))).isZero();
     }

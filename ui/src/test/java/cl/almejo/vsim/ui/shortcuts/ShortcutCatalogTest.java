@@ -78,7 +78,7 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void theLensIsHeldWithTheKeyUnderEscInTheCanvasRightAfterMirarAdentro() {
+    void theLensIsToggledWithTheKeyUnderEscInTheCanvasRightAfterMirarAdentro() {
         assertThat(ShortcutCatalog.find("view.lens")).contains(new ShortcutEntry("view.lens", "action.lens",
                 MenuId.VIEW, Scope.CANVAS, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0))));
         assertThat(ids()).containsSubsequence("view.magnifier", "view.lens");

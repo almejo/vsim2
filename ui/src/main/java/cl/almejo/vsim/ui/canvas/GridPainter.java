@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.geom.Point2D;
 import java.util.OptionalInt;
 
@@ -20,7 +21,10 @@ public final class GridPainter {
     private GridPainter() {
     }
 
-    /** The grid in {@code style} over the whole {@code width} by {@code height}; the background is the caller's. */
+    /**
+     * The grid in {@code style} over the {@code width} by {@code height} pane (only where {@code graphics} can paint);
+     * the background is the caller's.
+     */
     public static void paint(Graphics2D graphics, Viewport viewport, int width, int height, GridStyle style,
                              int lineSpacing, ColorScheme scheme) {
         switch (style) {
@@ -35,8 +39,12 @@ public final class GridPainter {
     public static void paintDots(Graphics2D graphics, Viewport viewport, int width, int height,
                                  ColorScheme scheme) {
         int step = viewport.pixelsPerUnit() < MINIMUM_DOT_SPACING ? 4 : 1;
-        Point2D topLeft = viewport.screenToGrid(0, 0);
-        Point2D bottomRight = viewport.screenToGrid(width, height);
+        Rectangle area = paintedArea(graphics, width, height);
+        if (area.isEmpty()) {
+            return;
+        }
+        Point2D topLeft = viewport.screenToGrid(area.x, area.y);
+        Point2D bottomRight = viewport.screenToGrid(area.getMaxX(), area.getMaxY());
         int firstX = Math.floorDiv((int) Math.floor(topLeft.getX()), step) * step;
         int firstY = Math.floorDiv((int) Math.floor(topLeft.getY()), step) * step;
         int dotSize = viewport.zoom() >= 2 ? 2 : 1;
@@ -61,16 +69,30 @@ public final class GridPainter {
             return;
         }
         int step = finest.getAsInt();
-        Point2D topLeft = viewport.screenToGrid(0, 0);
-        Point2D bottomRight = viewport.screenToGrid(width, height);
+        Rectangle area = paintedArea(graphics, width, height);
+        if (area.isEmpty()) {
+            return;
+        }
+        Point2D topLeft = viewport.screenToGrid(area.x, area.y);
+        Point2D bottomRight = viewport.screenToGrid(area.getMaxX(), area.getMaxY());
         for (int gridX = firstMultiple(topLeft.getX(), step); gridX <= bottomRight.getX(); gridX += step) {
             graphics.setColor(lineColor(scheme, gridX, majorStep));
-            graphics.fillRect((int) Math.round(viewport.gridToScreen(gridX, 0).getX()), 0, 1, height);
+            graphics.fillRect((int) Math.round(viewport.gridToScreen(gridX, 0).getX()), area.y, 1, area.height);
         }
         for (int gridY = firstMultiple(topLeft.getY(), step); gridY <= bottomRight.getY(); gridY += step) {
             graphics.setColor(lineColor(scheme, gridY, majorStep));
-            graphics.fillRect(0, (int) Math.round(viewport.gridToScreen(0, gridY).getY()), width, 1);
+            graphics.fillRect(area.x, (int) Math.round(viewport.gridToScreen(0, gridY).getY()), area.width, 1);
         }
+    }
+
+    /**
+     * The part of the {@code width} by {@code height} pane the grid has to cover: where {@code graphics} can paint (a
+     * repaint of a small area, the lens moving or a hover, clips to it), so a big pane does not cost every dot.
+     */
+    private static Rectangle paintedArea(Graphics2D graphics, int width, int height) {
+        Rectangle pane = new Rectangle(0, 0, width, height);
+        Rectangle clip = graphics.getClipBounds();
+        return clip == null ? pane : pane.intersection(clip);
     }
 
     private static Color lineColor(ColorScheme scheme, int gridCoordinate, int majorStep) {

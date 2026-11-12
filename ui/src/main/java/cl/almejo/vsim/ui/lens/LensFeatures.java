@@ -20,6 +20,7 @@ import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.Icon;
+import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
@@ -35,40 +36,41 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * The accessibility lens of one editor view: an enlarged circle of the circuit around the pointer, like a screen
- * magnifier, painted from the real scene of the pane under the pointer ({@link LensPainter}). It shows while the key
- * of {@value #SHORTCUT} is held (by default the key under Esc, left of 1, with no modifier: ` or º; rebindable; it only
- * acts with the focus in a canvas pane) and goes when that key or one of its modifiers is released or the window loses
- * the focus; Ver ▸ «Lupa fija» keeps it on. It is purely visual: no tool,
- * cursor, selection or document changes, no undo step. Neither held nor fixed is saved. {@link #dispose()} takes
- * back everything.
+ * magnifier, painted from the real scene of the pane under the pointer ({@link LensPainter}). One action turns it on
+ * and off: Ver ▸ «Lupa», the toolbar button's main part and the key of {@value #SHORTCUT} (by default the key under
+ * Esc, left of 1, with no modifier: ` or º; rebindable; it only acts with the focus in a canvas pane). Each physical
+ * press toggles it once: the key repeating while held is taken by a key hook before anybody else sees it (the canvas
+ * binding and the key echo of «Mostrar los atajos que se usan» included). It is purely visual: no tool, cursor,
+ * selection or document changes, no undo step. Being on is never saved. {@link #dispose()} takes back everything.
  *
- * <p>The toolbar button right after «Mirar adentro»'s eye is a {@link SplitButton}: its main part is «Lupa fija» (the
- * same action as the menu item) and its ▾ picks the magnification (2×, 3×, 4×; 3× by default). The magnification is
- * saved in the preferences and shared by every view; being fixed is never saved.
+ * <p>The toolbar button right after «Mirar adentro»'s eye is a {@link SplitButton}: its main part is «Lupa» (the same
+ * action as the menu item and the key) and its ▾ picks the magnification (2×, 3×, 4×; 3× by default). The
+ * magnification is saved in the preferences and shared by every view; being on is never saved.
  */
 public final class LensFeatures {
 
-    /** The catalog id of the key to hold. */
+    /** The catalog id of the key that turns the lens on and off. */
     public static final String SHORTCUT = "view.lens";
 
     /** The id the ▾'s choice is saved under ({@code splitButton.lens.zoom}). */
     static final String ZOOM_PREFERENCE = "lens.zoom";
 
-    /** The modifiers a key stroke of the keyboard can hold (mouse buttons left out), with the key of each one. */
-    private static final Map<Integer, Integer> MODIFIER_KEYS = Map.of(
-            InputEvent.SHIFT_DOWN_MASK, KeyEvent.VK_SHIFT,
-            InputEvent.CTRL_DOWN_MASK, KeyEvent.VK_CONTROL,
-            InputEvent.ALT_DOWN_MASK, KeyEvent.VK_ALT,
-            InputEvent.META_DOWN_MASK, KeyEvent.VK_META,
-            InputEvent.ALT_GRAPH_DOWN_MASK, KeyEvent.VK_ALT_GRAPH);
-    private static final int KEYBOARD_MODIFIERS = MODIFIER_KEYS.keySet().stream()
-            .mapToInt(Integer::intValue).reduce(0, (all, mask) -> all | mask);
+    /** The modifiers a key stroke of the keyboard can hold (mouse buttons left out). */
+    private static final int KEYBOARD_MODIFIERS = InputEvent.SHIFT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK
+            | InputEvent.ALT_DOWN_MASK | InputEvent.META_DOWN_MASK | InputEvent.ALT_GRAPH_DOWN_MASK;
+
+    /**
+     * A press of the key this soon after its release is the key repeating, not a new press: some systems repeat a
+     * held key as release and press pairs (with the same time, or a few milliseconds apart), and nobody presses a key
+     * again this fast.
+     */
+    static final long REPEAT_GAP_MILLISECONDS = 50;
 
     /** Where a view hears that its window stopped being the active one; the returned runnable stops listening. */
     @FunctionalInterface
@@ -81,8 +83,7 @@ public final class LensFeatures {
     private final KeyBindings keyBindings;
     private final KeyDispatchers dispatchers;
     private final LensState<CircuitCanvas> state = new LensState<>();
-    private final Action hold;
-    private final Action fixed;
+    private final Action toggle;
     private final JMenu viewMenu;
     private final JCheckBoxMenuItem menuItem;
     private final KeyEventDispatcher keyHook = this::keyEvent;
@@ -93,8 +94,10 @@ public final class LensFeatures {
     private final Runnable preferenceFollower = this::followPreferences;
     private final Runnable paneRemover;
     private final Runnable deactivationRemover;
-    /** The stroke that showed the held lens: its key and modifiers are what hide it (a rebinding meanwhile too). */
-    private Optional<KeyStroke> heldStroke = Optional.empty();
+    /** The lens's key while it is down (its code as {@link KeyCodes#of} gives it): another press is a repeat. */
+    private OptionalInt keyDown = OptionalInt.empty();
+    /** The lens's key's last release, to tell a repeat's release and press pair from a new press. */
+    private Optional<KeyRelease> lastRelease = Optional.empty();
     private boolean disposed;
 
     public LensFeatures(EditorView view) {
@@ -106,27 +109,21 @@ public final class LensFeatures {
         this.view = Objects.requireNonNull(view, "view");
         this.keyBindings = new KeyBindings(view.services().preferences());
         this.dispatchers = Objects.requireNonNull(dispatchers, "dispatchers");
-        this.hold = new AbstractAction(Messages.text("action.lens")) {
+        this.toggle = new AbstractAction(Messages.text("action.lens")) {
             @Override
             public void actionPerformed(ActionEvent event) {
-                pressed(keyBindings.strokeFor(SHORTCUT));
+                setOn(!state.isOn());
             }
         };
-        this.fixed = new AbstractAction(Messages.text("action.lensFixed")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                setFixed(!state.isFixed());
-            }
-        };
-        fixed.putValue(Action.SELECTED_KEY, false);
-        Icons.install(fixed, LensIcons.LENS);
+        toggle.putValue(Action.SELECTED_KEY, false);
+        Icons.install(toggle, LensIcons.LENS);
         this.preferences = view.services().preferences();
         this.viewMenu = view.menu(MenuId.VIEW);
-        this.menuItem = new JCheckBoxMenuItem(fixed);
+        this.menuItem = new JCheckBoxMenuItem(toggle);
         menuItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("lens.searchTerms"));
         viewMenu.insert(menuItem, indexInViewMenu());
         this.button = SplitButton.forToggle(ZOOM_PREFERENCE, Messages.text("lens.zoomMenuTitle"), zoomModes(),
-                preferences, fixed, String.valueOf((int) LensState.DEFAULT_FACTOR));
+                preferences, toggle, String.valueOf((int) LensState.DEFAULT_FACTOR));
         state.setFactor(factorOf(button.mode()));
         button.addModeListener(mode -> setFactor(factorOf(mode)));
         NewsTargets.register(button, NewsTargets.TOOLBAR_LENS, NewsTargets.Side.BELOW);
@@ -134,13 +131,13 @@ public final class LensFeatures {
         this.toolbarRemover = view.addToolbarComponentAfterAction(button,
                 view.shortcutActions().get("view.magnifier"));
         preferences.addListener(preferenceFollower);
-        this.shortcutRemover = view.registerShortcutAction(SHORTCUT, hold);
+        this.shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);
         this.paneRemover = view.forEachPane(this::listenTo);
         dispatchers.add(keyHook);
-        this.deactivationRemover = deactivations.watch(view, this::released);
+        this.deactivationRemover = deactivations.watch(view, this::forgetTheKey);
     }
 
-    /** The toolbar's split button: «Lupa fija» and its ▾ with the magnification. */
+    /** The toolbar's split button: «Lupa» and its ▾ with the magnification. */
     public SplitButton splitButton() {
         return button;
     }
@@ -166,12 +163,12 @@ public final class LensFeatures {
         refreshTooltip();
     }
 
-    /** «Lupa fija: …(o mantén º)», with the key the catalog gives now (none: without the parenthesis). */
+    /** «Lupa: … (º)», with the key the catalog gives now (none: without the parenthesis). */
     private void refreshTooltip() {
         String tooltip = keyBindings.strokeFor(SHORTCUT)
                 .map(stroke -> Messages.format("action.lens.tooltip", KeyNames.describe(stroke)))
                 .orElse(Messages.text("action.lens.tooltipNoKey"));
-        fixed.putValue(Action.SHORT_DESCRIPTION, tooltip);
+        toggle.putValue(Action.SHORT_DESCRIPTION, tooltip);
         button.mainButton().setToolTipText(tooltip);
     }
 
@@ -193,12 +190,12 @@ public final class LensFeatures {
         }
     }
 
-    /** «Lupa fija» (menu item, and the toolbar's button): its {@code SELECTED_KEY} is the state. */
-    public Action fixedAction() {
-        return fixed;
+    /** «Lupa» (menu item, toolbar button and key): its {@code SELECTED_KEY} is whether the lens is on. */
+    public Action toggleAction() {
+        return toggle;
     }
 
-    /** Held, fixed, magnification and pointer: read it, change it through this class. */
+    /** On, magnification and pointer: read it, change it through this class. */
     public LensState<CircuitCanvas> state() {
         return state;
     }
@@ -208,31 +205,70 @@ public final class LensFeatures {
         changing(() -> state.setFactor(factor));
     }
 
-    private void setFixed(boolean on) {
-        changing(() -> state.setFixed(on));
-        fixed.putValue(Action.SELECTED_KEY, on);
+    private void setOn(boolean on) {
+        changing(() -> state.setOn(on));
+        toggle.putValue(Action.SELECTED_KEY, on);
     }
 
-    private void pressed(Optional<KeyStroke> stroke) {
-        heldStroke = stroke;
-        changing(state::press);
-    }
-
-    private void released() {
-        heldStroke = Optional.empty();
-        changing(state::release);
-    }
-
-    /** Every key of the application, before the components get it; none is taken. */
+    /**
+     * Every key of the application, before the components get it. A first press of the lens's key in a canvas pane
+     * of this view turns the lens on or off (unless the pane's own binding will, see {@link #thePaneBindingRunsIt})
+     * and goes on; the key repeating is taken, so nobody else sees the repeats.
+     */
     private boolean keyEvent(KeyEvent event) {
         if (disposed) {
             return false;
         }
         if (event.getID() == KeyEvent.KEY_PRESSED && comesFromThisView(event) && isTheBoundStroke(event)) {
-            // a key repeating sends more presses (X11 too, without releases in between): the lens just stays
-            hold.actionPerformed(new ActionEvent(event.getSource(), ActionEvent.ACTION_PERFORMED, SHORTCUT));
-        } else if (event.getID() == KeyEvent.KEY_RELEASED && releasesTheHeldStroke(event)) {
-            released();
+            int key = KeyCodes.of(event);
+            boolean repeat = isRepeat(key, event.getWhen());
+            keyDown = OptionalInt.of(key);
+            if (repeat) {
+                return true;
+            }
+            if (!thePaneBindingRunsIt(event)) {
+                toggle.actionPerformed(new ActionEvent(event.getSource(), ActionEvent.ACTION_PERFORMED, SHORTCUT));
+            }
+        } else if (event.getID() == KeyEvent.KEY_RELEASED && keyDown.isPresent()
+                && keyDown.getAsInt() == KeyCodes.of(event)) {
+            keyDown = OptionalInt.empty();
+            lastRelease = Optional.of(new KeyRelease(KeyCodes.of(event), event.getWhen()));
+        }
+        return false;
+    }
+
+    /** Still down, or released only a moment ago: the key repeating (see {@link #REPEAT_GAP_MILLISECONDS}). */
+    private boolean isRepeat(int key, long when) {
+        if (keyDown.isPresent() && keyDown.getAsInt() == key) {
+            return true;
+        }
+        return lastRelease.filter(release -> release.key() == key
+                && when - release.when() < REPEAT_GAP_MILLISECONDS).isPresent();
+    }
+
+    /** The window went away with the key perhaps down: its release will not come here, so the next press is new. */
+    private void forgetTheKey() {
+        keyDown = OptionalInt.empty();
+        lastRelease = Optional.empty();
+    }
+
+    /**
+     * Whether the pane's key bindings will run «Lupa» for {@code event} right after the hooks (the canvas binding
+     * {@code ShortcutsExtension} makes for the current stroke), looked up as Swing does: the extended key code first.
+     * Then the hook leaves the toggling to it, so a press toggles once. Another key under Esc (º when the binding is
+     * `) has no binding, and the hook toggles itself.
+     */
+    private boolean thePaneBindingRunsIt(KeyEvent event) {
+        JComponent pane = (JComponent) event.getSource();
+        KeyStroke plain = KeyStroke.getKeyStrokeForEvent(event);
+        List<KeyStroke> strokes = event.getKeyCode() == event.getExtendedKeyCode() ? List.of(plain)
+                : List.of(KeyStroke.getKeyStroke(event.getExtendedKeyCode(), event.getModifiersEx(), false), plain);
+        for (KeyStroke stroke : strokes) {
+            Object name = pane.getInputMap(JComponent.WHEN_FOCUSED).get(stroke);
+            Action action = name == null ? null : pane.getActionMap().get(name);
+            if (action != null && action.isEnabled()) {
+                return action == toggle;
+            }
         }
         return false;
     }
@@ -244,23 +280,14 @@ public final class LensFeatures {
 
     /** The current binding, read at each press so a rebinding works at once. */
     private boolean isTheBoundStroke(KeyEvent event) {
-        return keyBindings.strokeFor(SHORTCUT).filter(stroke -> KeyCodes.matches(stroke.getKeyCode(), KeyCodes.of(event))
-                && (stroke.getModifiers() & KEYBOARD_MODIFIERS) == (event.getModifiersEx() & KEYBOARD_MODIFIERS))
+        return keyBindings.strokeFor(SHORTCUT)
+                .filter(stroke -> KeyCodes.matches(stroke.getKeyCode(), KeyCodes.of(event))
+                        && (stroke.getModifiers() & KEYBOARD_MODIFIERS) == (event.getModifiersEx() & KEYBOARD_MODIFIERS))
                 .isPresent();
     }
 
-    /** The held stroke's key, or the key of one of its modifiers (Ctrl, Mayús, ⌘…), went up. */
-    private boolean releasesTheHeldStroke(KeyEvent event) {
-        return state.isHeld() && heldStroke.filter(stroke -> isPartOf(stroke, event)).isPresent();
-    }
-
-    private static boolean isPartOf(KeyStroke stroke, KeyEvent event) {
-        int keyCode = event.getKeyCode();
-        if (KeyCodes.matches(stroke.getKeyCode(), KeyCodes.of(event))) {
-            return true;
-        }
-        return MODIFIER_KEYS.entrySet().stream().anyMatch(
-                modifier -> (stroke.getModifiers() & modifier.getKey()) != 0 && modifier.getValue() == keyCode);
+    /** When the lens's key went up, and which key it was. */
+    private record KeyRelease(int key, long when) {
     }
 
     /** The pointer over one pane and the lens painted on it; the returned runnable takes both back. */
@@ -367,7 +394,7 @@ public final class LensFeatures {
         disposed = true;
         preferences.removeListener(preferenceFollower);
         toolbarRemover.run();
-        changing(state::release);
+        changing(() -> state.setOn(false));
         deactivationRemover.run();
         dispatchers.remove(keyHook);
         paneRemover.run();

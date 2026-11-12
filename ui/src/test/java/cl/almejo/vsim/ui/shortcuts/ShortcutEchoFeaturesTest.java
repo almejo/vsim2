@@ -233,6 +233,50 @@ class ShortcutEchoFeaturesTest {
     }
 
     @Test
+    void aHeldKeyRepeatingShowsItsChipOnce() {
+        for (int repeat = 0; repeat < 40; repeat++) { // 1.2 s of a key repeating every 30 ms
+            keyOnCanvas(KeyEvent.VK_1, InputEvent.SHIFT_DOWN_MASK);
+            clock.addAndGet(30);
+        }
+
+        assertThat(chips()).containsExactly("Mayús+1 · Ver todo el circuito");
+    }
+
+    @Test
+    void theKeyUnderEscOfAnotherLayoutShowsTheChipOfTheBackQuoteBinding() {
+        new KeyBindings(preferences).assign("view.zoomTool", KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0));
+        KeyEvent masculine = new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_UNDEFINED,
+                KeyEvent.CHAR_UNDEFINED) {
+            @Override
+            public int getExtendedKeyCode() {
+                return 0x010000BA; // º on a Spanish layout on Linux
+            }
+        };
+        for (KeyEventDispatcher dispatcher : dispatchers) {
+            dispatcher.dispatchKeyEvent(masculine);
+        }
+
+        assertThat(chips()).singleElement().asString().startsWith("º · ");
+    }
+
+    @Test
+    void aKeyBoundByItsExtendedCodeShowsItsChip() {
+        new KeyBindings(preferences).assign("view.zoomTool", KeyStroke.getKeyStroke(0x010000E7, 0)); // ç
+        KeyEvent cedilla = new KeyEvent(view.canvas(), KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_UNDEFINED,
+                KeyEvent.CHAR_UNDEFINED) {
+            @Override
+            public int getExtendedKeyCode() {
+                return 0x010000E7;
+            }
+        };
+        for (KeyEventDispatcher dispatcher : dispatchers) {
+            dispatcher.dispatchKeyEvent(cedilla);
+        }
+
+        assertThat(chips()).singleElement().asString().startsWith("ç · ");
+    }
+
+    @Test
     void theShortcutIsInThePlatformNotation() {
         view.dispose();
         mac = true;

@@ -317,7 +317,7 @@ public final class Application {
         editorExtensions.add(new SheetsExtension(sheetAnchors)); // its Ver item right after «Borrar guías»
         editorExtensions.add(new BusValuesExtension());
         editorExtensions.add(new MagnifierExtension()); // its Ver item right after «Valores de los buses»
-        editorExtensions.add(new LensExtension()); // «Lupa fija» right after «Mirar adentro»
+        editorExtensions.add(new LensExtension()); // «Lupa» right after «Mirar adentro»
         editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());

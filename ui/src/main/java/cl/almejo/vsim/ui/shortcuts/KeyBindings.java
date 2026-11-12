@@ -8,6 +8,7 @@ import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -17,7 +18,7 @@ import java.util.prefs.Preferences;
 
 /**
  * The shortcut of every catalog action: its default unless the user changed it. Overrides live in
- * {@link AppPreferences#shortcutsNode()} (catalog id → {@code KeyStroke.toString()}, {@code ""} = none); a value that
+ * {@link AppPreferences#shortcutsNode()} (catalog id → {@link #format}, {@code ""} = none); a value that
  * does not parse, is reserved or is a plain key on a menu action ({@link #isAllowedFor}) is ignored and logged once. One stroke belongs to one action at most: {@link #assign}
  * and {@link #reset} take it away from whichever action had it. Every write ends with
  * {@link AppPreferences#shortcutsChanged()}, so every window re-applies. EDT only.
@@ -28,6 +29,8 @@ public final class KeyBindings {
     private static final int COMMAND_MODIFIERS = InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK
             | InputEvent.META_DOWN_MASK | InputEvent.ALT_GRAPH_DOWN_MASK;
     private static final Set<KeyStroke> RESERVED = reservedStrokes(ShortcutCatalog.menuMask());
+    /** How {@link #format} writes a key known only by its extended code. */
+    private static final String EXTENDED_KEY_PREFIX = "EXTENDED_";
 
     private final AppPreferences preferences;
     private final Set<String> reported = new HashSet<>();
@@ -182,17 +185,45 @@ public final class KeyBindings {
         if (stroke.equals(entry.defaultStroke())) {
             node.remove(entry.id());
         } else {
-            node.put(entry.id(), stroke.map(KeyStroke::toString).orElse(""));
+            node.put(entry.id(), stroke.map(KeyBindings::format).orElse(""));
         }
+    }
+
+    /**
+     * The stored form of {@code stroke}: {@code KeyStroke.toString()}, except for a key with no {@code VK_} constant
+     * (º on a Spanish layout on Linux), which that form writes as {@code UNKNOWN} and cannot read back: it is written
+     * {@value #EXTENDED_KEY_PREFIX} and its extended code in hexadecimal ({@code "shift pressed EXTENDED_10000E7"}).
+     */
+    static String format(KeyStroke stroke) {
+        String text = stroke.toString();
+        if (KeyCodes.extendedCharacter(stroke.getKeyCode()).isEmpty()) {
+            return text;
+        }
+        return text.substring(0, text.lastIndexOf(' ') + 1) + EXTENDED_KEY_PREFIX
+                + Integer.toHexString(stroke.getKeyCode()).toUpperCase(Locale.ROOT);
     }
 
     private static KeyStroke parse(String stored) {
         try {
-            KeyStroke stroke = KeyStroke.getKeyStroke(stored);
+            KeyStroke stroke = parseExtended(stored).orElseGet(() -> KeyStroke.getKeyStroke(stored));
             return stroke != null && stroke.getKeyEventType() == KeyEvent.KEY_PRESSED ? stroke : null;
         } catch (IllegalArgumentException exception) {
             return null;
         }
+    }
+
+    /** A stroke {@link #format} wrote with an extended key code, read back: its modifiers parsed on a stand-in key. */
+    private static Optional<KeyStroke> parseExtended(String stored) {
+        int keyStart = stored.lastIndexOf(' ') + 1;
+        if (!stored.startsWith(EXTENDED_KEY_PREFIX, keyStart)) {
+            return Optional.empty();
+        }
+        int keyCode = Integer.parseUnsignedInt(stored.substring(keyStart + EXTENDED_KEY_PREFIX.length()), 16);
+        KeyStroke modifiers = KeyStroke.getKeyStroke(stored.substring(0, keyStart) + "A");
+        if (modifiers == null || KeyCodes.extendedCharacter(keyCode).isEmpty()) {
+            throw new IllegalArgumentException("not a stored extended key: " + stored);
+        }
+        return Optional.of(KeyStroke.getKeyStroke(keyCode, modifiers.getModifiers(), false));
     }
 
     private static Set<KeyStroke> reservedStrokes(int menu) {

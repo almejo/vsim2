@@ -5,12 +5,16 @@ import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 /**
  * The background of the canvas: dots, lines (every N units, 2 by default, stronger every 5 N) or nothing, thinning out
@@ -159,5 +163,24 @@ class GridBackgroundTest {
         assertThat(image.getRGB(0, 5)).as("x = 0").isEqualTo(majorLine());
         assertThat(image.getRGB(40, 5)).as("x = 5").isEqualTo(minorLine());
         assertThat(image.getRGB(80, 5)).as("x = 10").isEqualTo(minorLine());
+    }
+
+    /**
+     * A repaint of a small area (the lens moving, a hover) paints only the grid inside it: a pane as big as a city
+     * would take minutes if every dot of it were drawn.
+     */
+    @ParameterizedTest
+    @EnumSource(value = GridStyle.class, names = {"DOTS", "LINES"})
+    void aClippedRepaintPaintsOnlyTheGridInsideTheClip(GridStyle style) {
+        int huge = 400_000;
+        Viewport viewport = new Viewport();
+        BufferedImage image = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.clipRect(40, 40, 60, 60);
+        assertTimeoutPreemptively(Duration.ofSeconds(5),
+                () -> renderer.paintBackground(graphics, viewport, huge, huge, style, 2));
+        graphics.dispose();
+        assertThat(image.getRGB(48, 48)).as("x = y = 6, inside the clip").isNotEqualTo(background());
+        assertThat(image.getRGB(8, 8)).as("outside the clip").isEqualTo(Color.BLACK.getRGB());
     }
 }

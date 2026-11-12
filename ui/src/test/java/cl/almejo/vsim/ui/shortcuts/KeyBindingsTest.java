@@ -85,6 +85,19 @@ class KeyBindingsTest {
     }
 
     @Test
+    void aKeyWithOnlyAnExtendedCodeSurvivesARestart() {
+        KeyStroke masculine = KeyStroke.getKeyStroke(0x010000BA, 0); // º on a Spanish layout on Linux
+        KeyStroke shiftedCedilla = KeyStroke.getKeyStroke(0x010000E7, InputEvent.SHIFT_DOWN_MASK);
+        bindings.assign("view.lens", masculine);
+        bindings.assign("view.zoomTool", shiftedCedilla);
+
+        KeyBindings restarted = new KeyBindings(preferences);
+
+        assertThat(restarted.strokeFor("view.lens")).contains(masculine);
+        assertThat(restarted.strokeFor("view.zoomTool")).contains(shiftedCedilla);
+    }
+
+    @Test
     void assigningTheDefaultAgainStoresNoOverride() {
         bindings.assign("file.save", control(KeyEvent.VK_G));
         bindings.assign("file.save", control(KeyEvent.VK_S));

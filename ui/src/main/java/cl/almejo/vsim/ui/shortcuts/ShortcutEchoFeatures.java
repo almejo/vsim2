@@ -50,7 +50,10 @@ final class ShortcutEchoFeatures {
     static final String SHORTCUT_ID = "view.showUsedShortcuts";
     private static final Duration CHIP_DURATION = Duration.ofMillis(1500);
     private static final int MAXIMUM_CHIPS = 3;
-    /** A held key repeats; the same chip is not shown again within this time. */
+    /**
+     * A held key repeats: the same chip is not shown again while its key keeps coming within this time of the last
+     * time, so a key held for seconds shows one chip (two separate uses a moment apart show one too).
+     */
     private static final long REPEAT_MILLISECONDS = 400;
 
     private final EditorView view;
@@ -173,10 +176,11 @@ final class ShortcutEchoFeatures {
                 || keyboardGoesElsewhere()) {
             return false;
         }
-        Object binding = pane.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStrokeForEvent(event));
-        if (!(binding instanceof String name) || !name.startsWith(ShortcutsExtension.BINDING_PREFIX)) {
+        Optional<String> bound = bindingOf(pane, event);
+        if (bound.isEmpty()) {
             return false;
         }
+        String name = bound.get();
         Action action = pane.getActionMap().get(name);
         if (action == null || !action.isEnabled()) {
             return false;
@@ -187,13 +191,36 @@ final class ShortcutEchoFeatures {
         String text = stroke.map(found -> KeyNames.describe(found, seams.macNotation()) + " · " + actionName)
                 .orElse(actionName);
         long now = seams.clock().getAsLong();
-        if (text.equals(lastKeyChip) && now - lastKeyChipTime < REPEAT_MILLISECONDS) {
-            return false;
-        }
+        boolean repeating = text.equals(lastKeyChip) && now - lastKeyChipTime < REPEAT_MILLISECONDS;
         lastKeyChip = text;
-        lastKeyChipTime = now;
-        pushChip(stroke, actionName);
+        lastKeyChipTime = now; // a key held down keeps repeating within the time: one chip for the whole hold
+        if (!repeating) {
+            pushChip(stroke, actionName);
+        }
         return false;
+    }
+
+    /**
+     * The name of the shortcut binding {@code event} runs on {@code pane}, looked up as Swing does (the extended key
+     * code first: a key with no {@code VK_} constant, ç, is bound by it); for a key under Esc other than ` (º, ²…),
+     * the binding of ` too, which is what that key means for a shortcut ({@link KeyCodes#matches}).
+     */
+    private static Optional<String> bindingOf(CircuitCanvas pane, KeyEvent event) {
+        List<KeyStroke> strokes = new ArrayList<>();
+        if (event.getKeyCode() != event.getExtendedKeyCode()) {
+            strokes.add(KeyStroke.getKeyStroke(event.getExtendedKeyCode(), event.getModifiersEx(), false));
+        }
+        strokes.add(KeyStroke.getKeyStrokeForEvent(event));
+        if (KeyCodes.of(event) != KeyEvent.VK_BACK_QUOTE && KeyCodes.isUnderEsc(KeyCodes.of(event))) {
+            strokes.add(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, event.getModifiersEx(), false));
+        }
+        for (KeyStroke stroke : strokes) {
+            if (pane.getInputMap(JComponent.WHEN_FOCUSED).get(stroke) instanceof String name
+                    && name.startsWith(ShortcutsExtension.BINDING_PREFIX)) {
+                return Optional.of(name);
+            }
+        }
+        return Optional.empty();
     }
 
     private Optional<String> idOf(Action action) {

@@ -6,9 +6,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * When the accessibility lens shows, and where: it is on while its key is held or «Lupa fija» keeps it, and it shows
+ * When the accessibility lens shows, and where: once turned on (its key, Ver ▸ «Lupa» or the toolbar button), it shows
  * on the pane under the pointer, at the pointer. Pure state (the panes are of type {@code P}, so it is tested without
- * Swing); EDT only. Neither held nor fixed is ever saved: every view starts with the lens off.
+ * Swing); EDT only. Being on is never saved: every view starts with the lens off.
  *
  * @param <P> what a pane is (the circuit canvas in the editor)
  */
@@ -21,37 +21,19 @@ public final class LensState<P> {
     /** The lens's radius in logical pixels: medium, fixed until Preferencias gets a size (2026-11-11). */
     public static final int RADIUS = 100;
 
-    private boolean held;
-    private boolean fixed;
+    private boolean on;
     private double factor = DEFAULT_FACTOR;
     private Optional<P> pointerPane = Optional.empty();
     private Optional<Point2D> pointer = Optional.empty();
 
-    /** The lens's key went down (again, when it repeats). */
-    public void press() {
-        held = true;
+    /** Turned on or off by its key, Ver ▸ «Lupa» or the toolbar button. */
+    public void setOn(boolean on) {
+        this.on = on;
     }
 
-    /** The lens's key or one of its modifiers went up, or the window lost the focus. */
-    public void release() {
-        held = false;
-    }
-
-    public boolean isHeld() {
-        return held;
-    }
-
-    public void setFixed(boolean fixed) {
-        this.fixed = fixed;
-    }
-
-    public boolean isFixed() {
-        return fixed;
-    }
-
-    /** Held or fixed: it shows wherever the pointer is over a pane. */
+    /** On: it shows wherever the pointer is over a pane. */
     public boolean isOn() {
-        return held || fixed;
+        return on;
     }
 
     /** One of {@link #FACTORS}. */

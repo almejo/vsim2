@@ -101,9 +101,9 @@ class LensToolbarTest {
     }
 
     @Test
-    void theMainPartIsTheFixedToggleAndThreeTimesIsTheDefault() {
+    void theMainPartIsTheLensToggleAndThreeTimesIsTheDefault() {
         SplitButton button = features.splitButton();
-        assertThat(button.mainButton().getAction()).isSameAs(features.fixedAction());
+        assertThat(button.mainButton().getAction()).isSameAs(features.toggleAction());
         assertThat(button.mode().id()).isEqualTo("3");
         assertThat(features.state().factor()).isEqualTo(3.0);
         assertThat(radioItems(button.popupMenu())).extracting(AbstractButton::getText)
@@ -119,7 +119,7 @@ class LensToolbarTest {
             assertThat(features.state().factor()).isEqualTo(4.0);
             assertThat(other.state().factor()).as("the other view follows").isEqualTo(4.0);
             assertThat(other.splitButton().mode().id()).isEqualTo("4");
-            assertThat(features.state().isFixed()).as("choosing does not press it").isFalse();
+            assertThat(features.state().isOn()).as("choosing does not press it").isFalse();
         } finally {
             other.dispose();
             otherFixture.close();
@@ -135,30 +135,29 @@ class LensToolbarTest {
     }
 
     @Test
-    void theFixedStateIsNotSavedButTheZoomIs() {
-        features.fixedAction().actionPerformed(null);
+    void beingOnIsNotSavedButTheZoomIs() {
+        features.toggleAction().actionPerformed(null);
         radioItems(features.splitButton().popupMenu()).get(0).doClick();
         features.dispose();
         features = install(view);
-        assertThat(features.state().isFixed()).isFalse();
+        assertThat(features.state().isOn()).isFalse();
         assertThat(features.state().factor()).isEqualTo(2.0);
     }
 
     @Test
     void pressingTheMainPartKeepsTheLensOnAndOffAndTheMenuItemFollows() {
         features.splitButton().mainButton().doClick();
-        assertThat(features.state().isFixed()).isTrue();
+        assertThat(features.state().isOn()).isTrue();
         assertThat(features.splitButton().mainButton().isSelected()).isTrue();
         features.splitButton().mainButton().doClick();
-        assertThat(features.state().isFixed()).isFalse();
+        assertThat(features.state().isOn()).isFalse();
     }
 
     @Test
     void theTooltipNamesTheBoundKeyAndFollowsARebinding() {
         javax.swing.KeyStroke initial = new KeyBindings(preferences).strokeFor("view.lens").orElseThrow();
         assertThat(features.splitButton().mainButton().getToolTipText())
-                .contains("Lupa fija: agranda el trocito bajo el puntero")
-                .contains("(o mantén " + KeyNames.describe(initial) + ")");
+                .isEqualTo("Lupa: agranda el trocito bajo el puntero (" + KeyNames.describe(initial) + ")");
         new KeyBindings(preferences).assign("view.lens",
                 javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F9, 0));
         assertThat(features.splitButton().mainButton().getToolTipText()).contains("F9").doesNotContain("Mayús");

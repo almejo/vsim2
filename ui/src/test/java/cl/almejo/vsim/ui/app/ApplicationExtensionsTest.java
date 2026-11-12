@@ -196,7 +196,7 @@ class ApplicationExtensionsTest {
                     "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
                     "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Mirar adentro",
-                    "Lupa fija", "---",
+                    "Lupa", "---",
                     "Siguiente problema", "Problema anterior", "---",
                     "Formas de onda", "---",
                     "Presentar lo que hace la IA", "Ritmo de Presentar", "---",

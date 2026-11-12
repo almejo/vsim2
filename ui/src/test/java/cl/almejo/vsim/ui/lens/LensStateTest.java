@@ -7,7 +7,7 @@ import java.awt.geom.Point2D;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** When the lens shows: held or fixed, and the pointer over a pane (strings stand in for the panes). */
+/** When the lens shows: on, and the pointer over a pane (strings stand in for the panes). */
 class LensStateTest {
 
     private static final Point2D POINT = new Point2D.Double(40, 50);
@@ -25,9 +25,9 @@ class LensStateTest {
     }
 
     @Test
-    void heldWithThePointerOverAPaneShowsOnThatPaneOnly() {
+    void onWithThePointerOverAPaneShowsOnThatPaneOnly() {
         state.pointerAt("left", POINT);
-        state.press();
+        state.setOn(true);
         assertThat(state.isShowing()).isTrue();
         assertThat(state.isShowingOn("left")).isTrue();
         assertThat(state.isShowingOn("right")).isFalse();
@@ -35,37 +35,23 @@ class LensStateTest {
     }
 
     @Test
-    void heldWithoutThePointerOverAPaneIsOnButShowsNothing() {
-        state.press();
+    void onWithoutThePointerOverAPaneShowsNothing() {
+        state.setOn(true);
         assertThat(state.isOn()).isTrue();
         assertThat(state.isShowing()).isFalse();
     }
 
     @Test
-    void releasingHidesAHeldLensButNotAFixedOne() {
+    void turningItOffHidesIt() {
         state.pointerAt("left", POINT);
-        state.press();
-        state.release();
+        state.setOn(true);
+        state.setOn(false);
         assertThat(state.isShowing()).isFalse();
-        state.setFixed(true);
-        state.press();
-        state.release();
-        assertThat(state.isShowing()).isTrue();
-    }
-
-    @Test
-    void repeatedPressesKeepItHeld() {
-        state.pointerAt("left", POINT);
-        state.press();
-        state.press();
-        state.press();
-        assertThat(state.isHeld()).isTrue();
-        assertThat(state.isShowing()).isTrue();
     }
 
     @Test
     void thePointerLeavingItsPaneHidesItAndLeavingAnotherPaneDoesNot() {
-        state.setFixed(true);
+        state.setOn(true);
         state.pointerAt("left", POINT);
         state.pointerLeft("right");
         assertThat(state.isShowingOn("left")).isTrue();
@@ -76,7 +62,7 @@ class LensStateTest {
 
     @Test
     void thePointerMovingToAnotherPaneMovesTheLens() {
-        state.setFixed(true);
+        state.setOn(true);
         state.pointerAt("left", POINT);
         state.pointerAt("right", new Point2D.Double(5, 6));
         assertThat(state.isShowingOn("left")).isFalse();
