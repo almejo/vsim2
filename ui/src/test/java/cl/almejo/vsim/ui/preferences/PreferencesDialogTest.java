@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JOptionPane;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,5 +44,41 @@ class PreferencesDialogTest {
         panel.dispose();
 
         assertThat(preferences.listenerCount()).isEqualTo(listeners);
+    }
+
+    @Test
+    void theDialogOpensWithTheSearchFieldFocusedNotTheCloseButton() {
+        PreferencesPanel panel = panel(AppPreferences.inMemory());
+        panel.searchField().setText("tema");
+        panel.searchField().select(0, 0);
+
+        JOptionPane pane = PreferencesDialog.optionPane(panel);
+        PreferencesDialog.focusSearchWhenOpened(panel).windowOpened(null);
+
+        assertThat(pane.getInitialValue()).as("no initial button that takes the focus").isNull();
+        assertThat(pane.getOptions()).hasSize(1);
+        assertThat(panel.searchField().getSelectedText()).isEqualTo("tema");
+        panel.dispose();
+    }
+
+    @Test
+    void theShortcutsCountFollowsTheFieldOfItsOwnPanelAndTheDialogsSearchDrivesItAgain() {
+        PreferencesPanel panel = panel(AppPreferences.inMemory());
+        ShortcutsPanel shortcuts = (ShortcutsPanel) panel.groups().get(4).page();
+        panel.searchField().setText("copiar");
+        int fromDialog = panel.countFor("shortcuts");
+        assertThat(fromDialog).isPositive().isEqualTo(shortcuts.matchCount("copiar"));
+
+        shortcuts.setQuery("zzzzzz"); // the user types in the panel's own field
+
+        assertThat(panel.countFor("shortcuts")).isZero();
+        assertThat(panel.visibleGroupIds()).as("the page the user is typing in stays").contains("shortcuts");
+        assertThat(panel.searchField().getText()).as("no loop back into the dialog's search").isEqualTo("copiar");
+
+        panel.searchField().setText("pegar");
+
+        assertThat(shortcuts.query()).isEqualTo("pegar");
+        assertThat(panel.countFor("shortcuts")).isPositive().isEqualTo(shortcuts.matchCount("pegar"));
+        panel.dispose();
     }
 }

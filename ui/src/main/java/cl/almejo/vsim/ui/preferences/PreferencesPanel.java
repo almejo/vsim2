@@ -157,8 +157,7 @@ final class PreferencesPanel extends JPanel {
         getActionMap().put(FOCUS_SEARCH, new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent event) {
-                searchField.requestFocusInWindow();
-                searchField.selectAll();
+                focusSearch();
             }
 
             @Override
@@ -216,6 +215,12 @@ final class PreferencesPanel extends JPanel {
         list.repaint();
     }
 
+    /** Puts the cursor in the search field with its text selected (Ctrl+F, and when the dialog opens). */
+    void focusSearch() {
+        searchField.requestFocusInWindow();
+        searchField.selectAll();
+    }
+
     JTextField searchField() {
         return searchField;
     }
@@ -240,6 +245,17 @@ final class PreferencesPanel extends JPanel {
                 choose(groupId);
                 return;
             }
+        }
+    }
+
+    /**
+     * A page changed how many matches it has by itself (the user typed in its own search field): the list shows the
+     * new count. The group stays listed, so the page the user is typing in does not vanish under the cursor.
+     */
+    void countChanged(String groupId, int count) {
+        if (counts.containsKey(groupId)) {
+            counts.put(groupId, count);
+            list.repaint();
         }
     }
 

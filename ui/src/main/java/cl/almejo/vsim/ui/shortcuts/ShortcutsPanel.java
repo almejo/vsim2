@@ -124,6 +124,11 @@ public final class ShortcutsPanel extends JPanel {
         searchField.setText(query);
     }
 
+    /** {@code listener} runs whenever the text of the search field changes, however it changed (typed or set). */
+    public void addQueryListener(Runnable listener) {
+        TextChanges.onChange(searchField, listener);
+    }
+
     public String query() {
         return searchField.getText();
     }

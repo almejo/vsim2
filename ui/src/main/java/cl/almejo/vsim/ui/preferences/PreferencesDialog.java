@@ -8,9 +8,12 @@ import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
 
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import java.awt.Component;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -58,13 +61,34 @@ public final class PreferencesDialog {
     }
 
     private static void show(Component parent, PreferencesPanel panel) {
-        Object[] options = {Messages.text("preferences.close")};
+        JOptionPane pane = optionPane(panel);
+        JDialog dialog = pane.createDialog(parent, Messages.text("preferences.title"));
+        dialog.addWindowListener(focusSearchWhenOpened(panel));
         try {
-            JOptionPane.showOptionDialog(parent, panel, Messages.text("preferences.title"),
-                    JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+            dialog.setVisible(true);
         } finally {
+            dialog.dispose();
             panel.dispose(); // modal: it is closed now
         }
+    }
+
+    /** The content with its only button, which is not the initial value, so it does not take the focus on opening. */
+    static JOptionPane optionPane(PreferencesPanel panel) {
+        return new JOptionPane(panel, JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null,
+                new Object[]{Messages.text("preferences.close")}, null);
+    }
+
+    /**
+     * The dialog opens with the cursor in the search field (the option pane's own listener, added first, runs before
+     * this one and leaves the focus where it was put).
+     */
+    static WindowAdapter focusSearchWhenOpened(PreferencesPanel panel) {
+        return new WindowAdapter() {
+            @Override
+            public void windowOpened(WindowEvent event) {
+                panel.focusSearch();
+            }
+        };
     }
 
     /** The whole content of the dialog; package-private so a headless test builds it without showing anything. */
@@ -85,10 +109,14 @@ public final class PreferencesDialog {
             return shortcuts.matchCount(query.strip());
         }));
         groups.add(group("ai", false, ai, query -> matchingTexts(ai, query)));
-        return new PreferencesPanel(preferences, groups, groupId, shortcuts::isCapturing, () -> {
+        PreferencesPanel panel = new PreferencesPanel(preferences, groups, groupId, shortcuts::isCapturing, () -> {
             form.dispose();
             ai.dispose();
         });
+        // typing in the shortcuts panel's own field changes its count; the dialog's search driving that field too
+        // (same number, nothing is written back to the dialog's field, so no loop)
+        shortcuts.addQueryListener(() -> panel.countChanged(SHORTCUTS_GROUP, shortcuts.matchCount(shortcuts.query())));
+        return panel;
     }
 
     private static PreferencesGroup group(String id, boolean separatorBefore, JComponent page,
