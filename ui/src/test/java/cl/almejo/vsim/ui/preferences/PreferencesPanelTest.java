@@ -8,11 +8,16 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.ContainerOrderFocusTraversalPolicy;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -133,6 +138,22 @@ class PreferencesPanelTest {
         }
     }
 
+    /**
+     * What the dialog does for the panel: it is a focus cycle root with a traversal policy that takes only what
+     * takes a focus (Swing's layout policy needs a real window to sort, so a container-order one stands in).
+     */
+    private static void inAFocusCycle(PreferencesPanel panel) {
+        panel.setFocusCycleRoot(true);
+        panel.setFocusTraversalPolicy(new ContainerOrderFocusTraversalPolicy() {
+            @Override
+            protected boolean accept(Component component) {
+                return super.accept(component) && !(component instanceof JLabel || component instanceof JPanel
+                        || component instanceof JScrollPane || component instanceof JViewport);
+            }
+        });
+        panel.addNotify(); // displayable, as the policy needs (nothing is shown)
+    }
+
     private static boolean pressEnterIn(JComponent component) {
         KeyStroke enter = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
         Object key = component.getInputMap().get(enter);
@@ -144,6 +165,7 @@ class PreferencesPanelTest {
     @Test
     void enterInTheSearchFieldIsTakenToGoToTheFirstControlOfThePageAndNeverClosesTheDialog() {
         PreferencesPanel panel = panel(Optional.empty());
+        inAFocusCycle(panel);
         panel.searchField().setText("oscuro");
 
         assertThat(pressEnterIn(panel.searchField())).as("consumed: the default button does not get it").isTrue();
@@ -151,8 +173,25 @@ class PreferencesPanelTest {
     }
 
     @Test
+    void enterGoesToTheFirstFocusableControlWhateverItsKind() {
+        JPanel page = new JPanel();
+        page.add(new javax.swing.JLabel("not a control"));
+        javax.swing.JTree tree = new javax.swing.JTree(); // a kind of control no list of classes would know
+        page.add(tree);
+        page.add(new javax.swing.JButton("later"));
+        PreferencesPanel panel = new PreferencesPanel(preferences,
+                List.of(new PreferencesGroup("general", "preferences.group.general", page, false, query -> 1)),
+                Optional.empty(), () -> false, () -> { });
+        opened.add(panel);
+        inAFocusCycle(panel);
+
+        assertThat(panel.firstControl()).containsSame(tree);
+    }
+
+    @Test
     void enterIsLeftAloneWhenNothingMatches() {
         PreferencesPanel panel = panel(Optional.empty());
+        inAFocusCycle(panel);
         panel.searchField().setText("zzzzzz");
 
         assertThat(panel.firstControl()).isEmpty();

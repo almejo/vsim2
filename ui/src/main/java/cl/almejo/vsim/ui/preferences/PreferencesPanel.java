@@ -10,29 +10,25 @@ import com.formdev.flatlaf.icons.FlatSearchIcon;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
-import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
-import javax.swing.JSlider;
-import javax.swing.JSpinner;
-import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
-import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.FocusTraversalPolicy;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.LinkedHashMap;
@@ -252,7 +248,7 @@ final class PreferencesPanel extends JPanel {
         return counts.getOrDefault(groupId, 0);
     }
 
-    /** The first control (field, box, combo, table…) of the page shown that can take the focus; empty with no page. */
+    /** The first component of the page shown that the focus traversal policy gives the focus to; empty with no page. */
     Optional<JComponent> firstControl() {
         if (selectedId == null || listModel.isEmpty()) {
             return Optional.empty();
@@ -261,28 +257,14 @@ final class PreferencesPanel extends JPanel {
                 .flatMap(group -> firstControlIn(group.page()));
     }
 
-    private static Optional<JComponent> firstControlIn(Component parent) {
-        if (!(parent instanceof Container container)) {
-            return Optional.empty();
-        }
-        for (Component child : container.getComponents()) {
-            if (!child.isVisible()) {
-                continue;
-            }
-            boolean control = child instanceof AbstractButton || child instanceof JComboBox<?>
-                    || child instanceof JTextComponent || child instanceof JTable || child instanceof JSpinner
-                    || child instanceof JList<?> || child instanceof JSlider;
-            if (control && child.isEnabled() && child.isFocusable()) {
-                return Optional.of((JComponent) child);
-            }
-            if (!control) {
-                Optional<JComponent> inside = firstControlIn(child);
-                if (inside.isPresent()) {
-                    return inside;
-                }
-            }
-        }
-        return Optional.empty();
+    /** The first component the focus traversal policy of the dialog would give the focus to inside {@code page}. */
+    private static Optional<JComponent> firstControlIn(Container page) {
+        Container cycleRoot = page.getFocusCycleRootAncestor(); // the dialog, once the panel is in one
+        FocusTraversalPolicy policy = cycleRoot == null
+                ? KeyboardFocusManager.getCurrentKeyboardFocusManager().getDefaultFocusTraversalPolicy()
+                : cycleRoot.getFocusTraversalPolicy();
+        Component first = policy.getFirstComponent(page);
+        return first instanceof JComponent control ? Optional.of(control) : Optional.empty();
     }
 
     /** The cell the list paints for the row {@code index}, as it is now (for tests). */
