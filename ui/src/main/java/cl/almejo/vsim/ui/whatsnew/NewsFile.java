@@ -4,12 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 /**
  * The «Qué hay de nuevo» bubbles of one release, in order, read from {@code whatsnew/<version>.txt}: one bubble per
  * line, four columns separated by «|» (target id, title key, text key, action or «-»); «#» starts a comment line. The
- * action is a {@code ShortcutCatalog} id, optionally with «#n» for its n-th palette entry.
+ * action is a {@code ShortcutCatalog} id, optionally with «#id» for its palette entry of that id.
  */
 record NewsFile(String version, List<NewsStep> steps) {
 
@@ -57,13 +56,12 @@ record NewsFile(String version, List<NewsStep> steps) {
         }
         int separator = column.indexOf(ENTRY_SEPARATOR);
         if (separator < 0) {
-            return Optional.of(new NewsStep.ActionReference(column, OptionalInt.empty()));
+            return Optional.of(new NewsStep.ActionReference(column, Optional.empty()));
         }
-        try {
-            int entry = Integer.parseInt(column.substring(separator + 1));
-            return Optional.of(new NewsStep.ActionReference(column.substring(0, separator), OptionalInt.of(entry)));
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("line " + number + ": bad palette entry: " + column, exception);
+        String entry = column.substring(separator + 1).strip();
+        if (entry.isEmpty()) {
+            throw new IllegalArgumentException("line " + number + ": bad palette entry: " + column);
         }
+        return Optional.of(new NewsStep.ActionReference(column.substring(0, separator).strip(), Optional.of(entry)));
     }
 }

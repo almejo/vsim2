@@ -66,9 +66,11 @@ public final class PreferencesFeature implements EditorExtension {
     private List<Action> groupEntries(EditorView view) {
         List<Action> entries = new ArrayList<>();
         for (String groupId : PreferencesDialog.GROUP_IDS) {
-            entries.add(Actions.of(Messages.format("commandPalette.preferencesTab",
+            Action entry = Actions.of(Messages.format("commandPalette.preferencesTab",
                             Messages.text(PreferencesDialog.titleKey(groupId))),
-                    () -> opener.open(view, view.services().preferences(), Optional.of(groupId))));
+                    () -> opener.open(view, view.services().preferences(), Optional.of(groupId)));
+            entry.putValue(Actions.PALETTE_ENTRY_ID, groupId);
+            entries.add(entry);
         }
         return List.copyOf(entries);
     }

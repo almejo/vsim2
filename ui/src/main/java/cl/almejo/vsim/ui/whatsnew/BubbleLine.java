@@ -63,7 +63,7 @@ sealed interface BubbleLine {
             return MenuPaths.pathOf(view.menuBar(), owner).map(MenuPath::new);
         }
         // a palette entry («Preferencias ▸ General») is written after the menus that hold its action («Archivo»)
-        Optional<String> entryName = MenuPaths.paletteEntryName(owner, reference.paletteEntry().getAsInt());
+        Optional<String> entryName = MenuPaths.paletteEntryName(owner, reference.paletteEntry().get());
         return MenuPaths.parentOf(view.menuBar(), owner)
                 .flatMap(parent -> entryName.map(name -> new MenuPath(MenuPaths.join(parent, name))));
     }
@@ -142,14 +142,15 @@ sealed interface BubbleLine {
             return Optional.empty();
         }
 
-        /** The name of the {@code entry}-th command-palette entry of {@code action} («Preferencias ▸ General»). */
-        static Optional<String> paletteEntryName(Action action, int entry) {
-            if (action.getValue(Actions.PALETTE_ENTRIES) instanceof List<?> entries && entry >= 0
-                    && entry < entries.size() && entries.get(entry) instanceof Action entryAction
-                    && entryAction.getValue(Action.NAME) instanceof String name) {
-                return Optional.of(name);
+        /** The name of the command-palette entry of {@code action} with the id {@code entryId} («Preferencias ▸ General»). */
+        static Optional<String> paletteEntryName(Action action, String entryId) {
+            if (!(action.getValue(Actions.PALETTE_ENTRIES) instanceof List<?> entries)) {
+                return Optional.empty();
             }
-            return Optional.empty();
+            return entries.stream().filter(Action.class::isInstance).map(Action.class::cast)
+                    .filter(entry -> entryId.equals(entry.getValue(Actions.PALETTE_ENTRY_ID)))
+                    .map(entry -> entry.getValue(Action.NAME)).filter(String.class::isInstance)
+                    .map(String.class::cast).findFirst();
         }
     }
 }

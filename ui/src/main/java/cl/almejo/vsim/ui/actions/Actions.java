@@ -17,6 +17,12 @@ public final class Actions {
     public static final String PALETTE_ENTRIES = "vsim.paletteEntries";
 
     /**
+     * The key of a {@code String} an entry of {@link #PALETTE_ENTRIES} may carry: its stable id, so a reference to the
+     * entry (a news bubble) does not depend on its position.
+     */
+    public static final String PALETTE_ENTRY_ID = "vsim.paletteEntryId";
+
+    /**
      * The key of a {@code String} a menu item may carry as a client property: words the command palette also finds
      * it by, though they are not shown (an example's own name, «full adder», besides «Sumador completo»).
      */

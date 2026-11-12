@@ -127,6 +127,8 @@ class PreferencesFeatureTest {
                     .containsExactly("Preferencias ▸ General", "Preferencias ▸ Aspecto",
                             "Preferencias ▸ Accesibilidad", "Preferencias ▸ Archivos",
                             "Preferencias ▸ Atajos de teclado", "Preferencias ▸ IA");
+            assertThat(entries).extracting(entry -> ((Action) entry).getValue(Actions.PALETTE_ENTRY_ID))
+                    .containsExactlyElementsOf(PreferencesDialog.GROUP_IDS);
             for (Object entry : entries) {
                 perform((Action) entry);
             }

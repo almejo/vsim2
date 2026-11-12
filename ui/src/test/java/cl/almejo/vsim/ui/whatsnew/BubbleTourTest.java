@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.whatsnew;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.UiTestSupport;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Application;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
@@ -309,6 +311,21 @@ class BubbleTourTest {
         tour.next();
 
         assertThat(tour.line()).contains(new BubbleLine.MenuPath("Archivo ▸ Preferencias ▸ Accesibilidad"));
+    }
+
+    @Test
+    void aPaletteEntryIsFoundByItsIdWhateverItsPosition() {
+        Action reordered = Actions.of("owner", () -> { });
+        Action accessibility = Actions.of("Preferencias ▸ Accesibilidad", () -> { });
+        accessibility.putValue(Actions.PALETTE_ENTRY_ID, "accessibility");
+        Action general = Actions.of("Preferencias ▸ General", () -> { });
+        general.putValue(Actions.PALETTE_ENTRY_ID, "general");
+        reordered.putValue(Actions.PALETTE_ENTRIES, List.of(accessibility, general));
+
+        assertThat(BubbleLine.MenuPaths.paletteEntryName(reordered, "general")).contains("Preferencias ▸ General");
+        assertThat(BubbleLine.MenuPaths.paletteEntryName(reordered, "accessibility"))
+                .contains("Preferencias ▸ Accesibilidad");
+        assertThat(BubbleLine.MenuPaths.paletteEntryName(reordered, "nope")).isEmpty();
     }
 
     @Test

@@ -23,7 +23,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.ResourceBundle;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
@@ -43,16 +42,16 @@ class NewsFileTest {
                 "",
                 "toolbar.select | whatsNew.wires.title | whatsNew.wires.text | -",
                 "toolbar.capture | whatsNew.capture.title | whatsNew.capture.text | edit.copyCapture",
-                "menu.file | whatsNew.animations.title | whatsNew.animations.text | file.preferences#0"));
+                "menu.file | whatsNew.animations.title | whatsNew.animations.text | file.preferences#general"));
 
         assertThat(news.version()).isEqualTo("0.8");
         assertThat(news.steps()).extracting(NewsStep::targetId)
                 .containsExactly("toolbar.select", "toolbar.capture", "menu.file");
         assertThat(news.steps().get(0).action()).isEmpty();
         assertThat(news.steps().get(1).action())
-                .contains(new NewsStep.ActionReference("edit.copyCapture", OptionalInt.empty()));
+                .contains(new NewsStep.ActionReference("edit.copyCapture", Optional.empty()));
         assertThat(news.steps().get(2).action())
-                .contains(new NewsStep.ActionReference("file.preferences", OptionalInt.of(0)));
+                .contains(new NewsStep.ActionReference("file.preferences", Optional.of("general")));
     }
 
     @Test
@@ -119,7 +118,9 @@ class NewsFileTest {
                     assertThat(action).as(reference.shortcutId()).isNotNull();
                     reference.paletteEntry().ifPresent(entry -> assertThat(
                             action.getValue(Actions.PALETTE_ENTRIES) instanceof List<?> entries
-                                    && entry < entries.size()).as(reference.shortcutId() + "#" + entry).isTrue());
+                                    && entries.stream().anyMatch(candidate -> candidate instanceof Action entryAction
+                                    && entry.equals(entryAction.getValue(Actions.PALETTE_ENTRY_ID))))
+                            .as(reference.shortcutId() + "#" + entry).isTrue());
                 });
             }
         } finally {
