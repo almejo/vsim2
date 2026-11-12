@@ -6,9 +6,12 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.plaf.FontUIResource;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -176,5 +179,49 @@ class PreferencesPageTest {
 
         assertThat(page.visibleRowIds()).containsExactly("restoreSession");
         assertThat(sessionBox.getX()).isEqualTo(before).isPositive();
+    }
+
+    @Test
+    void aDisabledCheckBoxKeepsItsDisabledTextColourWhileItsTextIsHighlighted() {
+        Object before = UIManager.get("CheckBox.disabledText");
+        try {
+            UIManager.put("CheckBox.disabledText", new Color(0x123456));
+            JCheckBox box = new JCheckBox("Animar los movimientos");
+            PreferenceRow row = PreferenceRow.checkBox("animate", box, "skip 1");
+            box.setEnabled(false);
+            row.highlight("movi");
+
+            assertThat(box.getText()).containsIgnoringCase("color:#123456").contains("background:");
+
+            box.setEnabled(true);
+
+            assertThat(box.getText()).doesNotContain("color:#123456").contains("background:");
+            UIManager.put("CheckBox.disabledText", new Color(0x654321));
+            box.setEnabled(false);
+            assertThat(box.getText()).containsIgnoringCase("color:#654321");
+        } finally {
+            UIManager.put("CheckBox.disabledText", before);
+        }
+    }
+
+    @Test
+    void theLabelColumnIsMeasuredAgainWhenTheFontChanges() {
+        Object before = UIManager.get("Label.font");
+        PreferencesPage page = page();
+        try {
+            page.setSize(new Dimension(900, 400));
+            page.doLayout();
+            int small = themeCombo.getX();
+
+            UIManager.put("Label.font", new FontUIResource("Dialog", Font.PLAIN, 40));
+            SwingUtilities.updateComponentTreeUI(page);
+            page.setSize(new Dimension(900, 400));
+            page.getPreferredSize();
+            page.doLayout();
+
+            assertThat(themeCombo.getX()).isGreaterThan(small);
+        } finally {
+            UIManager.put("Label.font", before);
+        }
     }
 }

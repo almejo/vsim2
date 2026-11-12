@@ -34,6 +34,7 @@ final class PreferenceRow {
     private final String plainText;
     private final JComponent control;
     private boolean ignoringValues;
+    private String markedQuery = "";
 
     private PreferenceRow(String id, List<Placed> placed, JLabel label, AbstractButton checkBox, String plainText,
                           JComponent control) {
@@ -43,6 +44,9 @@ final class PreferenceRow {
         this.checkBox = checkBox;
         this.plainText = plainText;
         this.control = control;
+        // HTML text ignores the disabled look of the button, so a change of state marks the text again
+        JComponent texted = label != null ? label : checkBox;
+        texted.addPropertyChangeListener("enabled", event -> highlight(markedQuery));
     }
 
     /** A label (the text of {@code labelKey}) and its {@code control}, then the {@code extras} on lines below. */
@@ -128,6 +132,7 @@ final class PreferenceRow {
 
     /** Marks where {@code query} occurs in the label or check box text; the plain text for a blank query. */
     void highlight(String query) {
+        markedQuery = query;
         String text = marked(query);
         if (label != null) {
             label.setText(text);
@@ -141,8 +146,12 @@ final class PreferenceRow {
         if (ranges.isEmpty()) {
             return plainText;
         }
+        boolean enabled = label != null ? label.isEnabled() : checkBox.isEnabled();
         String style = "background:" + hex(markBackground());
         StringBuilder html = new StringBuilder("<html>");
+        if (!enabled) {
+            html.append("<span style=\"color:").append(hex(disabledText())).append("\">");
+        }
         int position = 0;
         for (PreferencesSearch.Range range : ranges) {
             html.append(escaped(plainText.substring(position, range.start())));
@@ -150,7 +159,14 @@ final class PreferenceRow {
                     .append(escaped(plainText.substring(range.start(), range.end()))).append("</span>");
             position = range.end();
         }
-        return html.append(escaped(plainText.substring(position))).toString();
+        html.append(escaped(plainText.substring(position)));
+        return (enabled ? html : html.append("</span>")).toString();
+    }
+
+    /** The text colour of a disabled check box or label, read from the theme each time. */
+    private Color disabledText() {
+        String key = label != null ? "Label.disabledForeground" : "CheckBox.disabledText";
+        return ThemeColors.ui(key, ThemeColors.ui("Label.disabledForeground", Color.GRAY));
     }
 
     /**

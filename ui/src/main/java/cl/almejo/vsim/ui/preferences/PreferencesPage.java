@@ -8,6 +8,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -90,6 +91,7 @@ final class PreferencesPage extends JPanel {
 
     private final List<Section> sections = new ArrayList<>();
     private String query = "";
+    private int labelColumnWidth = -1;
 
     private PreferencesPage() {
         super(new MigLayout("insets dialog, wrap 2, hidemode 3", "[right][grow, fill]"));
@@ -99,9 +101,26 @@ final class PreferencesPage extends JPanel {
     private void fixLabelColumn() {
         int widest = sections.stream().flatMap(section -> section.rows.stream()).mapToInt(PreferenceRow::labelWidth)
                 .max().orElse(0);
-        if (getLayout() instanceof MigLayout layout) {
+        if (widest != labelColumnWidth && getLayout() instanceof MigLayout layout) {
+            labelColumnWidth = widest;
             layout.setColumnConstraints("[right, " + widest + "px!][grow, fill]");
         }
+    }
+
+    /**
+     * A change of font or look and feel updates the labels after the page itself (their fonts are read again one by
+     * one), so the column is measured again before it is next sized or laid out, when the labels are up to date.
+     */
+    @Override
+    public Dimension getPreferredSize() {
+        fixLabelColumn();
+        return super.getPreferredSize();
+    }
+
+    @Override
+    public void doLayout() {
+        fixLabelColumn();
+        super.doLayout();
     }
 
     static Builder builder() {
