@@ -256,7 +256,7 @@ class ShortcutEchoFeaturesTest {
             dispatcher.dispatchKeyEvent(masculine);
         }
 
-        assertThat(chips()).singleElement().asString().startsWith("º · ");
+        assertThat(chips()).singleElement().asString().startsWith("Tecla bajo Esc · ");
     }
 
     @Test

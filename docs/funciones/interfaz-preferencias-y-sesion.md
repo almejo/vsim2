@@ -61,7 +61,7 @@ Para ver de cerca un trocito del circuito sin cambiar el zoom, como la lupa de a
   tecla. Es de cada ventana y no se guarda: VSim abre siempre con la lupa apagada.
 - **Botón de la barra**: justo después del ojo de «Mirar adentro» hay un botón con la lupa (un trocito que se abre en
   uno grande): su parte principal es «Lupa», la misma de la tecla y del menú, y su ▾ («Aumento de la lupa») elige 2×,
-  4× u 8×. Su ayuda dice «Lupa: agranda el trocito bajo el puntero (º)», con la tecla que tengas puesta. El aumento
+  4× u 8×. Su ayuda dice «Lupa: agranda el trocito bajo el puntero (Tecla bajo Esc)», con la tecla que tengas puesta; esa tecla se nombra por su lugar, porque lo que tiene impreso cambia con el teclado. El aumento
   elegido se guarda y vale en todas las ventanas y pestañas (4× al principio); elegirlo no pone ni quita la lupa.
 - **Es el circuito de verdad**, no una foto: sigue al puntero y a la simulación en vivo, con la cuadrícula, lo
   seleccionado y lo que estés haciendo (un cable a medias, una pieza por colocar). El punto bajo el puntero es el mismo

@@ -69,13 +69,14 @@ class KeyNamesTest {
     }
 
     @Test
-    void theKeyUnderEscIsOgInSpanishAndABackQuoteInEnglishAndAnExtendedCodeIsItsCharacter() {
+    void theKeyUnderEscIsNamedByItsPlaceInEveryLayoutAndAnExtendedCodeIsItsCharacter() {
+        // the user (2026-11-12): what the key prints depends on the layout (º, `, ², §…), its place does not
         Messages.initialize(Messages.SPANISH);
-        assertThat(KeyNames.describe(stroke(KeyEvent.VK_BACK_QUOTE, 0), false)).isEqualTo("º");
+        assertThat(KeyNames.describe(stroke(KeyEvent.VK_BACK_QUOTE, 0), false)).isEqualTo("Tecla bajo Esc");
         assertThat(KeyNames.describe(stroke(0x01000000 + 0xB2, 0), false)).isEqualTo("²");
-        assertThat(KeyNames.describeInEnglish(stroke(KeyEvent.VK_BACK_QUOTE, 0))).isEqualTo("`");
+        assertThat(KeyNames.describeInEnglish(stroke(KeyEvent.VK_BACK_QUOTE, 0))).isEqualTo("Key under Esc");
         Messages.initialize(Locale.ENGLISH);
-        assertThat(KeyNames.describe(stroke(KeyEvent.VK_BACK_QUOTE, 0), false)).isEqualTo("`");
+        assertThat(KeyNames.describe(stroke(KeyEvent.VK_BACK_QUOTE, 0), false)).isEqualTo("Key under Esc");
     }
 
     @Test
