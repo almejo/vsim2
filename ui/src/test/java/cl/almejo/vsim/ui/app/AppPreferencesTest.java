@@ -624,4 +624,14 @@ class AppPreferencesTest {
 
         assertThat(preferences.tipShownDay()).isEmpty();
     }
+
+    @Test
+    void theLastPreferencesGroupIsEmptyUntilOneIsStoredAndThenRoundTrips() {
+        AppPreferences preferences = AppPreferences.inMemory();
+        assertThat(preferences.lastPreferencesGroup()).isEmpty();
+
+        preferences.setLastPreferencesGroup("files");
+
+        assertThat(preferences.lastPreferencesGroup()).contains("files");
+    }
 }

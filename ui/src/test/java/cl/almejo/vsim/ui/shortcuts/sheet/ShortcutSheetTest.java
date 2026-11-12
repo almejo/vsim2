@@ -414,23 +414,21 @@ class ShortcutSheetTest {
     }
 
     @Test
-    void theLinkClosesTheSheetAndOpensPreferencesOnTheShortcutsTab() {
+    void theLinkClosesTheSheetAndOpensPreferencesOnTheShortcutsGroup() {
         List<String> opened = new ArrayList<>();
-        Action preferencesAction = Actions.of("Preferencias…", () -> opened.add("general"));
-        List<Action> tabs = new ArrayList<>();
-        for (int tab = 0; tab < 3; tab++) {
-            int chosen = tab;
-            tabs.add(Actions.of("tab " + tab, () -> opened.add("tab " + chosen)));
+        Action preferencesAction = Actions.of("Preferencias…", () -> opened.add("last seen"));
+        List<Action> groups = new ArrayList<>();
+        for (String groupId : PreferencesDialog.GROUP_IDS) {
+            groups.add(Actions.of("group " + groupId, () -> opened.add(groupId)));
         }
-        preferencesAction.putValue(Actions.PALETTE_ENTRIES, List.copyOf(tabs));
+        preferencesAction.putValue(Actions.PALETTE_ENTRIES, List.copyOf(groups));
         view.registerShortcutAction("file.preferences", preferencesAction);
         ShortcutSheetPanel panel = openSheet();
 
         panel.allShortcutsLink().doClick();
 
         assertThat(sheet()).isEmpty();
-        assertThat(opened).containsExactly("tab " + PreferencesDialog.SHORTCUTS_TAB);
-        assertThat(PreferencesDialog.SHORTCUTS_TAB).isEqualTo(1);
+        assertThat(opened).containsExactly("shortcuts");
     }
 
     @Test

@@ -1,0 +1,273 @@
+package cl.almejo.vsim.ui.preferences;
+
+import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
+import cl.almejo.vsim.ui.theme.ThemeColors;
+import com.formdev.flatlaf.FlatClientProperties;
+import com.formdev.flatlaf.icons.FlatSearchIcon;
+import net.miginfocom.swing.MigLayout;
+
+import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
+import javax.swing.DefaultListModel;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JSeparator;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BooleanSupplier;
+
+/**
+ * The content of the preferences dialog: a search field above the list of groups on the left, the page of the
+ * selected group on the right. A search narrows the list to the groups with matches (each with its count) and each
+ * page to its matching rows; the selected group is stored as the last seen, so the dialog reopens on it.
+ */
+final class PreferencesPanel extends JPanel {
+
+    /** The list column in pixels: the 170 of the mockup plus the room the search placeholder and its icon need. */
+    private static final int LIST_WIDTH = 195;
+    private static final String NO_RESULTS_CARD = "\u0000none";
+    private static final KeyStroke ESCAPE = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+    private static final String CLEAR_SEARCH = "clearSearch";
+    private static final String FOCUS_SEARCH = "focusSearch";
+
+    private final AppPreferences preferences;
+    private final List<PreferencesGroup> groups;
+    private final BooleanSupplier keyboardCaptured;
+    private final Runnable disposer;
+    private final JTextField searchField = new JTextField();
+    private final DefaultListModel<PreferencesGroup> listModel = new DefaultListModel<>();
+    private final JList<PreferencesGroup> list = new JList<>(listModel);
+    private final CardLayout cards = new CardLayout();
+    private final JPanel cardPanel = new JPanel(cards);
+    private final JLabel noResults = new JLabel("", SwingConstants.CENTER);
+    private final Map<String, Integer> counts = new LinkedHashMap<>();
+    private String selectedId;
+    /** True while the panel itself moves the selection (a search), which is not a choice of the user. */
+    private boolean adjusting;
+
+    /**
+     * @param requested        the group to open on; empty opens on the last one seen (the first when none is known)
+     * @param keyboardCaptured whether a page is recording a key: Ctrl+F is then not taken from it
+     * @param disposer         what releases the pages when the dialog closes
+     */
+    PreferencesPanel(AppPreferences preferences, List<PreferencesGroup> groups, Optional<String> requested,
+                     BooleanSupplier keyboardCaptured, Runnable disposer) {
+        super(new MigLayout("insets 0", "[" + LIST_WIDTH + "!][]0[grow, fill]", "[grow, fill]"));
+        this.preferences = preferences;
+        this.groups = List.copyOf(groups);
+        this.keyboardCaptured = keyboardCaptured;
+        this.disposer = disposer;
+
+        configureSearchField();
+        configureList();
+        for (PreferencesGroup group : groups) {
+            cardPanel.add(group.page(), group.id());
+            counts.put(group.id(), 0);
+        }
+        cardPanel.add(noResults, NO_RESULTS_CARD);
+
+        JPanel left = new JPanel(new MigLayout("insets 0 0 0 8, wrap 1", "[grow, fill]", "[][grow, fill]"));
+        left.add(searchField);
+        left.add(list);
+        add(left, "grow");
+        add(new JSeparator(SwingConstants.VERTICAL), "growy, gapx 0 8");
+        add(cardPanel);
+        installKeys();
+
+        selectInitially(requested);
+        applyQuery();
+    }
+
+    private void configureSearchField() {
+        searchField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, Messages.text("preferences.search"));
+        searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, new FlatSearchIcon());
+        searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true);
+        searchField.getAccessibleContext().setAccessibleName(Messages.text("preferences.search"));
+        TextChanges.onChange(searchField, this::applyQuery);
+    }
+
+    private void configureList() {
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.setCellRenderer(new GroupRenderer());
+        list.getAccessibleContext().setAccessibleName(Messages.text("preferences.title"));
+        list.addListSelectionListener(event -> {
+            PreferencesGroup chosen = list.getSelectedValue();
+            if (!event.getValueIsAdjusting() && !adjusting && chosen != null) {
+                choose(chosen.id());
+            }
+        });
+    }
+
+    /** Esc in the field clears it (and only then consumes the key); Ctrl+F (⌘F) anywhere goes to the field. */
+    private void installKeys() {
+        searchField.getInputMap(JComponent.WHEN_FOCUSED).put(ESCAPE, CLEAR_SEARCH);
+        searchField.getActionMap().put(CLEAR_SEARCH, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                searchField.setText("");
+            }
+
+            @Override
+            public boolean isEnabled() {
+                return !searchField.getText().isEmpty();
+            }
+        });
+        KeyStroke find = KeyStroke.getKeyStroke(KeyEvent.VK_F, ShortcutCatalog.menuMask());
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(find, FOCUS_SEARCH);
+        getActionMap().put(FOCUS_SEARCH, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                searchField.requestFocusInWindow();
+                searchField.selectAll();
+            }
+
+            @Override
+            public boolean isEnabled() {
+                return !keyboardCaptured.getAsBoolean();
+            }
+        });
+    }
+
+    /** The user chose {@code groupId}: it is shown and remembered for the next time. */
+    private void choose(String groupId) {
+        selectedId = groupId;
+        preferences.setLastPreferencesGroup(groupId);
+        cards.show(cardPanel, groupId);
+    }
+
+    private void selectInitially(Optional<String> requested) {
+        Optional<String> asked = requested.filter(this::isKnown);
+        selectedId = asked.or(() -> preferences.lastPreferencesGroup().filter(this::isKnown))
+                .orElse(groups.get(0).id());
+        asked.ifPresent(preferences::setLastPreferencesGroup);
+    }
+
+    private boolean isKnown(String groupId) {
+        return groups.stream().anyMatch(group -> group.id().equals(groupId));
+    }
+
+    /** Applies the search to every page, then shows the groups that match (all when it is blank). */
+    private void applyQuery() {
+        String query = searchField.getText();
+        boolean searching = !query.isBlank();
+        for (PreferencesGroup group : groups) {
+            counts.put(group.id(), group.filter().applyAsInt(query));
+        }
+        List<PreferencesGroup> visible = groups.stream()
+                .filter(group -> !searching || counts.get(group.id()) > 0).toList();
+        adjusting = true;
+        try {
+            listModel.clear();
+            visible.forEach(listModel::addElement);
+            if (!visible.isEmpty() && visible.stream().noneMatch(group -> group.id().equals(selectedId))) {
+                selectedId = visible.get(0).id();
+            }
+            visible.stream().filter(group -> group.id().equals(selectedId)).findFirst()
+                    .ifPresent(group -> list.setSelectedValue(group, false));
+        } finally {
+            adjusting = false;
+        }
+        if (visible.isEmpty()) {
+            noResults.setText(Messages.format("preferences.search.none", query.strip()));
+            cards.show(cardPanel, NO_RESULTS_CARD);
+        } else {
+            noResults.setText("");
+            cards.show(cardPanel, selectedId);
+        }
+        list.repaint();
+    }
+
+    JTextField searchField() {
+        return searchField;
+    }
+
+    List<PreferencesGroup> groups() {
+        return groups;
+    }
+
+    List<String> visibleGroupIds() {
+        return java.util.Collections.list(listModel.elements()).stream().map(PreferencesGroup::id).toList();
+    }
+
+    String selectedGroupId() {
+        return selectedId;
+    }
+
+    /** Chooses {@code groupId} as the user does: it is shown and stored as the last seen. */
+    void select(String groupId) {
+        for (int index = 0; index < listModel.size(); index++) {
+            if (listModel.get(index).id().equals(groupId)) {
+                list.setSelectedIndex(index);
+                choose(groupId);
+                return;
+            }
+        }
+    }
+
+    /** The matches of {@code groupId} for the current search. */
+    int countFor(String groupId) {
+        return counts.getOrDefault(groupId, 0);
+    }
+
+    /** The text that replaces the page when nothing matches; empty otherwise. */
+    String noResultsText() {
+        return noResults.getText();
+    }
+
+    /** Stops every page following the preferences: the dialog closed. */
+    void dispose() {
+        disposer.run();
+    }
+
+    /** A list row: the title, the count (muted, on the right) while searching, a line above the separated group. */
+    private final class GroupRenderer implements ListCellRenderer<PreferencesGroup> {
+        private final JPanel outer = new JPanel(new BorderLayout());
+        private final JPanel inner = new JPanel(new BorderLayout(8, 0));
+        private final JLabel title = new JLabel();
+        private final JLabel count = new JLabel();
+
+        GroupRenderer() {
+            outer.setOpaque(false);
+            inner.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+            inner.add(title, BorderLayout.CENTER);
+            inner.add(count, BorderLayout.EAST);
+            outer.add(inner, BorderLayout.CENTER);
+        }
+
+        @Override
+        public Component getListCellRendererComponent(JList<? extends PreferencesGroup> owner,
+                                                      PreferencesGroup group, int index, boolean selected,
+                                                      boolean focused) {
+            boolean searching = !searchField.getText().isBlank();
+            title.setText(Messages.text(group.titleKey()));
+            count.setText(searching ? String.valueOf(counts.getOrDefault(group.id(), 0)) : "");
+            inner.setOpaque(selected);
+            inner.setBackground(owner.getSelectionBackground());
+            Color muted = ThemeColors.ui("Label.disabledForeground", owner.getForeground());
+            title.setForeground(selected ? owner.getSelectionForeground() : owner.getForeground());
+            count.setForeground(selected ? owner.getSelectionForeground() : muted);
+            outer.setBorder(group.separatorBefore() && !searching ? BorderFactory.createCompoundBorder(
+                    BorderFactory.createEmptyBorder(6, 0, 0, 0), BorderFactory.createMatteBorder(1, 0, 0, 0,
+                            ThemeColors.ui("Component.borderColor", muted))) : BorderFactory.createEmptyBorder());
+            return outer;
+        }
+    }
+}

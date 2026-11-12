@@ -114,6 +114,25 @@ public final class ShortcutsPanel extends JPanel {
         add(resetAllButton, "growx 0");
     }
 
+    /** How many shortcuts the search field would keep for {@code query}; the panel does not change. */
+    public int matchCount(String query) {
+        return model.countMatches(query);
+    }
+
+    /** Types {@code query} in the search field, as the user would (a capture in progress is abandoned). */
+    public void setQuery(String query) {
+        searchField.setText(query);
+    }
+
+    public String query() {
+        return searchField.getText();
+    }
+
+    /** Whether a key is being recorded for a shortcut: every key then belongs to the capture. */
+    public boolean isCapturing() {
+        return capture.isActive() || model.isCapturing();
+    }
+
     ShortcutsTableModel model() { return model; }
     JTable table() { return table; }
     KeyCapture capture() { return capture; }

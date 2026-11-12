@@ -7,101 +7,97 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
 
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JTabbedPane;
 import java.awt.Component;
-import java.awt.GridLayout;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 
 /**
- * The modal preferences dialog: tabs «General», «Atajos de teclado» and «IA». Changes are live, so its only button
- * closes it.
+ * The modal preferences dialog: a list of groups («General», «Aspecto», «Accesibilidad», «Archivos», then «Atajos de
+ * teclado» and «IA») with a search field above it. Changes are live, so its only button closes it.
  */
 public final class PreferencesDialog {
 
-    /** The «General» tab, where the menu item opens the dialog. */
-    public static final int GENERAL_TAB = 0;
+    /** The groups, in order: their ids are stored as the last group seen and name the palette's entries. */
+    public static final List<String> GROUP_IDS = List.of("general", "appearance", "accessibility", "files",
+            "shortcuts", "ai");
 
-    /** The «Atajos de teclado» tab, where the sheet of shortcuts sends the user to see and change them all. */
-    public static final int SHORTCUTS_TAB = 1;
+    /** The group where the sheet of shortcuts sends the user to see and change them all. */
+    public static final String SHORTCUTS_GROUP = "shortcuts";
 
-    /** The titles of the tabs, in order: what {@code tab} indexes. */
-    static final List<String> TAB_KEYS = List.of("preferences.tab.general", "preferences.tab.shortcuts",
-            "preferences.tab.ai");
-
-    /** Until the groups have their own list: the four pages of the form one above the other in the «General» tab. */
-    private static final class StackedForm extends JPanel {
-        private final PreferencesForm form;
-
-        StackedForm(PreferencesForm form) {
-            super(new GridLayout(0, 1));
-            this.form = form;
-            add(form.general());
-            add(form.appearance());
-            add(form.accessibility());
-            add(form.files());
-        }
-    }
+    private static final String TITLE_KEY_PREFIX = "preferences.group.";
+    private static final String AI_KEYWORDS_KEY = "preferences.keywords.ai";
 
     private PreferencesDialog() {
     }
 
-    /** Opens the dialog on {@code tab}, an index of {@link #TAB_KEYS}. */
-    public static void show(Component parent, AppPreferences preferences, int tab) {
-        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.empty()), tab);
+    /** The message key of the title of the group {@code groupId} (one of {@link #GROUP_IDS}). */
+    public static String titleKey(String groupId) {
+        return TITLE_KEY_PREFIX + groupId;
+    }
+
+    /** Opens the dialog on {@code groupId}, or on the last group seen when empty. */
+    public static void show(Component parent, AppPreferences preferences, Optional<String> groupId) {
+        show(parent, panel(preferences, PreferencesDialog::chooseDirectory, Optional.empty(), groupId));
     }
 
     /**
      * With the application's AI server: «IA» shows and copies a port given on the command line for this session.
-     * Opens on {@code tab}, an index of {@link #TAB_KEYS}.
+     * Opens on {@code groupId}, or on the last group seen when empty.
      */
-    public static void show(Component parent, AppPreferences preferences, AiServerService aiServer, int tab) {
-        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.of(aiServer)), tab);
+    public static void show(Component parent, AppPreferences preferences, AiServerService aiServer,
+                            Optional<String> groupId) {
+        show(parent, panel(preferences, PreferencesDialog::chooseDirectory, Optional.of(aiServer), groupId));
     }
 
-    private static void show(Component parent, JTabbedPane tabs, int tab) {
-        tabs.setSelectedIndex(tab);
+    private static void show(Component parent, PreferencesPanel panel) {
         Object[] options = {Messages.text("preferences.close")};
-        JOptionPane.showOptionDialog(parent, tabs, Messages.text("preferences.title"), JOptionPane.DEFAULT_OPTION,
+        JOptionPane.showOptionDialog(parent, panel, Messages.text("preferences.title"), JOptionPane.DEFAULT_OPTION,
                 JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
-        dispose(tabs); // modal: it is closed now
+        panel.dispose(); // modal: it is closed now
     }
 
-    /** Lets the tabs stop following the preferences once the dialog is closed. */
-    static void dispose(JTabbedPane tabs) {
-        for (int index = 0; index < tabs.getTabCount(); index++) {
-            if (tabs.getComponentAt(index) instanceof StackedForm stacked) {
-                stacked.form.dispose();
-            } else if (tabs.getComponentAt(index) instanceof AiPreferencesPanel ai) {
-                ai.dispose();
-            }
-        }
+    /** The whole content of the dialog; package-private so a headless test builds it without showing anything. */
+    static PreferencesPanel panel(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser,
+                                  Optional<AiServerService> aiServer, Optional<String> groupId) {
+        PreferencesForm form = new PreferencesForm(preferences, directoryChooser);
+        ShortcutsPanel shortcuts = new ShortcutsPanel(new KeyBindings(preferences));
+        AiPreferencesPanel ai = aiServer.map(server -> new AiPreferencesPanel(preferences, server,
+                        AiPreferencesPanel.systemClipboard()))
+                .orElseGet(() -> new AiPreferencesPanel(preferences, AiPreferencesPanel.systemClipboard()));
+        List<PreferencesGroup> groups = new ArrayList<>();
+        groups.add(group("general", false, form.general(), form.general()::filter));
+        groups.add(group("appearance", false, form.appearance(), form.appearance()::filter));
+        groups.add(group("accessibility", false, form.accessibility(), form.accessibility()::filter));
+        groups.add(group("files", false, form.files(), form.files()::filter));
+        groups.add(group(SHORTCUTS_GROUP, true, shortcuts, query -> {
+            shortcuts.setQuery(query);
+            return shortcuts.matchCount(query);
+        }));
+        groups.add(group("ai", false, ai, query -> matchingTexts(ai, query)));
+        return new PreferencesPanel(preferences, groups, groupId, shortcuts::isCapturing, () -> {
+            form.dispose();
+            ai.dispose();
+        });
     }
 
-    /**
-     * «General» (the unchanged form), «Atajos de teclado» (M6-C) and «IA» (IA.1); package-private so a headless test
-     * sees them.
-     */
-    static JTabbedPane tabs(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser) {
-        return tabs(preferences, directoryChooser, Optional.empty());
+    private static PreferencesGroup group(String id, boolean separatorBefore, JComponent page,
+                                          ToIntFunction<String> filter) {
+        return new PreferencesGroup(id, titleKey(id), page, separatorBefore, filter);
     }
 
-    static JTabbedPane tabs(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser,
-                            Optional<AiServerService> aiServer) {
-        JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab(Messages.text(TAB_KEYS.get(0)), new StackedForm(new PreferencesForm(preferences, directoryChooser)));
-        tabs.addTab(Messages.text(TAB_KEYS.get(1)), new ShortcutsPanel(new KeyBindings(preferences)));
-        Consumer<String> clipboard = AiPreferencesPanel.systemClipboard();
-        tabs.addTab(Messages.text(TAB_KEYS.get(2)),
-                aiServer.map(server -> new AiPreferencesPanel(preferences, server, clipboard))
-                        .orElseGet(() -> new AiPreferencesPanel(preferences, clipboard)));
-        return tabs;
+    /** «IA» is shown whole: its count is how many of its labels, buttons and keywords the query finds. */
+    private static int matchingTexts(AiPreferencesPanel ai, String query) {
+        List<String> texts = new ArrayList<>(ai.searchTexts());
+        Messages.find(AI_KEYWORDS_KEY).ifPresent(texts::add);
+        return (int) texts.stream().filter(text -> PreferencesSearch.matches(text, query)).count();
     }
 
     static Optional<Path> chooseDirectory(Component parent, Path current) {

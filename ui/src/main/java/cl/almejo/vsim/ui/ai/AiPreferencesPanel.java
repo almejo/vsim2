@@ -12,6 +12,7 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -112,6 +113,13 @@ public final class AiPreferencesPanel extends JPanel {
         add(copyButton, "skip 1, growx 0");
         add(feedback, "skip 1");
         add(dataNote, "skip 1, gaptop 12");
+    }
+
+    /** The texts of the panel's labels, buttons and notes: what the preferences search looks at. */
+    public List<String> searchTexts() {
+        return List.of(startWithVsimBox.getText(), Messages.text("ai.preferences.port"), defaultPortButton.getText(),
+                Messages.text("ai.preferences.portNote"), newSecretButton.getText(), copyButton.getText(),
+                dataNote.getText());
     }
 
     /** The system clipboard (never in a headless test). */

@@ -132,6 +132,16 @@ public final class AppPreferences {
         put(NEWS_SHOWN_VERSION, version);
     }
 
+    /** The id of the group Archivo ▸ Preferencias… showed last, so it opens there next time; empty when never. */
+    public Optional<String> lastPreferencesGroup() {
+        return optional(PREFERENCES_LAST_GROUP);
+    }
+
+    public void setLastPreferencesGroup(String groupId) {
+        Objects.requireNonNull(groupId, "groupId");
+        put(PREFERENCES_LAST_GROUP, groupId);
+    }
+
     /** «Mostrar al iniciar» of the tip of the day (also in Preferencias ▸ General); on by default. */
     public boolean showTipAtStart() {
         return flag(SHOW_TIP_AT_START, true);
@@ -247,6 +257,7 @@ public final class AppPreferences {
     static final String SHOW_SHEETS = "sheets.show";
     static final String SHOW_USED_SHORTCUTS = "shortcutEcho.show";
     static final String NEWS_SHOWN_VERSION = "whatsNew.shownVersion";
+    static final String PREFERENCES_LAST_GROUP = "preferences.lastGroup";
     static final String SHOW_TIP_AT_START = "tip.showAtStart";
     static final String TIP_SHOWN_DAY = "tip.shownDay";
     static final String SEEN_TIPS = "tip.seen";

@@ -285,15 +285,16 @@ final class ShortcutSheetFeatures {
         }));
     }
 
-    /** The command of Preferencias that opens it on «Atajos de teclado» (one per tab, as the palette lists them). */
+    /** The command of Preferencias that opens it on «Atajos de teclado» (one per group, as the palette lists them). */
     private Optional<Action> shortcutsPreferences() {
         Action preferencesAction = view.shortcutActions().get(PREFERENCES_ID);
-        if (preferencesAction == null || !(preferencesAction.getValue(Actions.PALETTE_ENTRIES) instanceof List<?> tabs)
-                || tabs.size() <= PreferencesDialog.SHORTCUTS_TAB
-                || !(tabs.get(PreferencesDialog.SHORTCUTS_TAB) instanceof Action shortcutsTab)) {
+        int shortcutsIndex = PreferencesDialog.GROUP_IDS.indexOf(PreferencesDialog.SHORTCUTS_GROUP);
+        if (preferencesAction == null || !(preferencesAction.getValue(Actions.PALETTE_ENTRIES) instanceof List<?> groups)
+                || groups.size() <= shortcutsIndex
+                || !(groups.get(shortcutsIndex) instanceof Action shortcutsGroup)) {
             return Optional.empty();
         }
-        return Optional.of(shortcutsTab);
+        return Optional.of(shortcutsGroup);
     }
 
     /** Takes the sheet away and gives the canvas the keyboard back. */

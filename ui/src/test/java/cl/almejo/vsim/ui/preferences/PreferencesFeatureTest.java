@@ -21,6 +21,7 @@ import javax.swing.JSeparator;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
@@ -113,9 +114,9 @@ class PreferencesFeatureTest {
     }
 
     @Test
-    void theMenuItemOpensTheFirstTabAndEachPaletteEntryOpensItsOwn() {
-        List<Integer> openedTabs = new ArrayList<>();
-        Runnable disposer = new PreferencesFeature((parent, preferences, tab) -> openedTabs.add(tab))
+    void theMenuItemOpensTheLastGroupSeenAndEachPaletteEntryOpensItsOwn() {
+        List<Optional<String>> openedGroups = new ArrayList<>();
+        Runnable disposer = new PreferencesFeature((parent, preferences, group) -> openedGroups.add(group))
                 .install(view);
         try {
             Action preferences = view.shortcutActions().get("file.preferences");
@@ -123,11 +124,15 @@ class PreferencesFeatureTest {
             List<?> entries = (List<?>) preferences.getValue(Actions.PALETTE_ENTRIES);
 
             assertThat(entries).extracting(entry -> ((Action) entry).getValue(Action.NAME))
-                    .containsExactly("Preferencias ▸ General", "Preferencias ▸ Atajos de teclado",
-                            "Preferencias ▸ IA");
-            perform((Action) entries.get(1));
-            perform((Action) entries.get(2));
-            assertThat(openedTabs).containsExactly(0, 1, 2);
+                    .containsExactly("Preferencias ▸ General", "Preferencias ▸ Aspecto",
+                            "Preferencias ▸ Accesibilidad", "Preferencias ▸ Archivos",
+                            "Preferencias ▸ Atajos de teclado", "Preferencias ▸ IA");
+            for (Object entry : entries) {
+                perform((Action) entry);
+            }
+            assertThat(openedGroups).containsExactly(Optional.empty(), Optional.of("general"),
+                    Optional.of("appearance"), Optional.of("accessibility"), Optional.of("files"),
+                    Optional.of("shortcuts"), Optional.of("ai"));
         } finally {
             disposer.run();
         }

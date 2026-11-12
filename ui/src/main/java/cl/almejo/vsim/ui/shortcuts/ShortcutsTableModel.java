@@ -213,7 +213,7 @@ public final class ShortcutsTableModel extends AbstractTableModel {
         List<Row> result = new ArrayList<>();
         MenuId currentGroup = null;
         for (ShortcutEntry entry : ShortcutCatalog.entries()) {
-            if (!matches(entry)) {
+            if (!matches(entry, filter)) {
                 continue;
             }
             if (entry.group() != currentGroup) {
@@ -225,7 +225,13 @@ public final class ShortcutsTableModel extends AbstractTableModel {
         rows = List.copyOf(result);
     }
 
-    private boolean matches(ShortcutEntry entry) {
+    /** How many actions a search for {@code text} keeps; changes nothing. */
+    public int countMatches(String text) {
+        String wanted = normalized(text.strip());
+        return (int) ShortcutCatalog.entries().stream().filter(entry -> matches(entry, wanted)).count();
+    }
+
+    private boolean matches(ShortcutEntry entry, String filter) {
         if (filter.isEmpty() || normalized(Messages.text(entry.nameKey())).contains(filter)) {
             return true;
         }
