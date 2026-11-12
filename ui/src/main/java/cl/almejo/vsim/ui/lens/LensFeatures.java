@@ -19,13 +19,10 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
-import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import java.awt.Component;
-import java.awt.Graphics;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Rectangle;
@@ -143,10 +140,9 @@ public final class LensFeatures {
     }
 
     private static List<SplitButtonMode> zoomModes() {
-        Icon none = new BlankIcon();
         return LensState.FACTORS.stream().map(factor -> {
             String text = Messages.format("lens.zoomLabel", (int) (double) factor);
-            return new SplitButtonMode(String.valueOf((int) (double) factor), none, text, text);
+            return new SplitButtonMode(String.valueOf((int) (double) factor), null, text, text);
         }).toList();
     }
 
@@ -170,24 +166,6 @@ public final class LensFeatures {
                 .orElse(Messages.text("action.lens.tooltipNoKey"));
         toggle.putValue(Action.SHORT_DESCRIPTION, tooltip);
         button.mainButton().setToolTipText(tooltip);
-    }
-
-    /** An empty 1 px icon: the ▾'s items show the magnification as text alone. */
-    private static final class BlankIcon implements Icon {
-
-        @Override
-        public void paintIcon(Component component, Graphics graphics, int x, int y) {
-        }
-
-        @Override
-        public int getIconWidth() {
-            return 1;
-        }
-
-        @Override
-        public int getIconHeight() {
-            return 1;
-        }
     }
 
     /** «Lupa» (menu item, toolbar button and key): its {@code SELECTED_KEY} is whether the lens is on. */

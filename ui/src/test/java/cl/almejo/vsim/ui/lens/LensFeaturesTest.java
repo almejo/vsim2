@@ -453,7 +453,7 @@ class LensFeaturesTest {
     }
 
     @Test
-    void atThreeTimesTheWireIsThreeTimesThickerAroundThePointerAndNothingOutsideTheLensChanges() {
+    void atTheDefaultFactorTheWireIsThatMuchThickerAroundThePointerAndNothingOutsideTheLensChanges() {
         CircuitCanvas pane = paneWithAWire(1);
         BufferedImage plain = paint(pane);
         int[] plainRun = inkedRun(plain, 240, 40, 260);
@@ -466,11 +466,12 @@ class LensFeaturesTest {
         int[] lensRun = inkedRun(magnified, 240, 75, 245); // inside the ring, which crosses this column
         double plainCentre = (plainRun[0] + plainRun[1]) / 2.0;
         double lensCentre = (lensRun[0] + lensRun[1]) / 2.0;
-        assertThat(lensCentre).as("30 px above the pointer").isBetween(160 - 3 * (160 - plainCentre) - 1.5,
-                160 - 3 * (160 - plainCentre) + 1.5);
+        double factor = features.state().factor();
+        assertThat(lensCentre).as("factor × 10 px above the pointer")
+                .isBetween(160 - factor * (160 - plainCentre) - 1.5, 160 - factor * (160 - plainCentre) + 1.5);
         double plainWidth = inkWidth(plain, 240, 40, 260);
         double lensWidth = inkWidth(magnified, 240, 75, 245);
-        assertThat(lensWidth / plainWidth).as("%s px against %s px", lensWidth, plainWidth).isBetween(2.6, 3.4);
+        assertThat(lensWidth / plainWidth).as("%s px against %s px", lensWidth, plainWidth).isBetween(factor * 0.87, factor * 1.13);
         assertThat(differencesOutsideTheLens(plain, magnified, new Point2D.Double(200, 160))).isZero();
     }
 
@@ -488,7 +489,7 @@ class LensFeaturesTest {
 
         int[] lensRun = inkedRun(magnified, 240, 75, 245);
         double lensCentre = (lensRun[0] + lensRun[1]) / 2.0;
-        double expected = 160 - 3 * (160 - plainCentre);
+        double expected = 160 - features.state().factor() * (160 - plainCentre);
         assertThat(lensCentre).isBetween(expected - 1.5, expected + 1.5);
     }
 

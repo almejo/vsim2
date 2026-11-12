@@ -15,9 +15,9 @@ import java.util.Optional;
 public final class LensState<P> {
 
     /** The magnifications the toolbar's ▾ offers. */
-    public static final List<Double> FACTORS = List.of(2.0, 3.0, 4.0);
+    public static final List<Double> FACTORS = List.of(2.0, 4.0, 8.0);
     /** The magnification of a lens nobody chose one for (the approved mockup's). */
-    public static final double DEFAULT_FACTOR = 3;
+    public static final double DEFAULT_FACTOR = 4;
     /** The lens's radius in logical pixels: medium, fixed until Preferencias gets a size (2026-11-11). */
     public static final int RADIUS = 100;
 

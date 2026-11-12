@@ -18,9 +18,9 @@ class LensStateTest {
     void aNewLensIsOffAtThreeTimesWithNoPointer() {
         assertThat(state.isOn()).isFalse();
         assertThat(state.isShowing()).isFalse();
-        assertThat(state.factor()).isEqualTo(LensState.DEFAULT_FACTOR).isEqualTo(3);
+        assertThat(state.factor()).isEqualTo(LensState.DEFAULT_FACTOR).isEqualTo(4);
         assertThat(state.pointerPane()).isEmpty();
-        assertThat(LensState.FACTORS).containsExactly(2.0, 3.0, 4.0);
+        assertThat(LensState.FACTORS).containsExactly(2.0, 4.0, 8.0);
         assertThat(LensState.RADIUS).isEqualTo(100);
     }
 

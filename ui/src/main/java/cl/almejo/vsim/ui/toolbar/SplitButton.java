@@ -87,6 +87,7 @@ public final class SplitButton extends JComponent {
         this.toolVariant = toolVariant;
         this.toggleVariant = toggle != null;
         mainButton = toggleVariant ? new JToggleButton(toggle) : toolVariant ? new JToggleButton() : new JButton();
+        mainButton.setHideActionText(true); // a toolbar button shows its icon; the name is in the tooltip
         SplitButtonMode defaultMode = modeWithId(defaultModeId).orElse(this.modes.get(0));
         mode = preferences.splitButtonMode(preferenceId).flatMap(this::modeWithId).orElse(defaultMode);
         build();

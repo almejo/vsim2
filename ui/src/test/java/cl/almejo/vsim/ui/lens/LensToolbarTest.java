@@ -101,24 +101,28 @@ class LensToolbarTest {
     }
 
     @Test
-    void theMainPartIsTheLensToggleAndThreeTimesIsTheDefault() {
+    void theMainPartIsTheLensToggleWithoutTextAndFourTimesIsTheDefault() {
         SplitButton button = features.splitButton();
         assertThat(button.mainButton().getAction()).isSameAs(features.toggleAction());
-        assertThat(button.mode().id()).isEqualTo("3");
-        assertThat(features.state().factor()).isEqualTo(3.0);
+        assertThat(button.mainButton().getHideActionText()).as("icon only in the toolbar").isTrue();
+        assertThat(button.mode().id()).isEqualTo("4");
+        assertThat(features.state().factor()).isEqualTo(4.0);
         assertThat(radioItems(button.popupMenu())).extracting(AbstractButton::getText)
-                .containsExactly("2×", "3×", "4×");
+                .containsExactly("2×", "4×", "8×");
+        assertThat(radioItems(button.popupMenu())).extracting(AbstractButton::getIcon)
+                .as("no icon beside the magnifications (FlatLaf paints a selected icon as a square)")
+                .containsOnlyNulls();
     }
 
     @Test
-    void choosingFourTimesChangesTheFactorOfEveryViewAndSurvivesANewView() {
+    void choosingEightTimesChangesTheFactorOfEveryViewAndSurvivesANewView() {
         EditorFixture otherFixture = EditorFixture.create(preferences);
         LensFeatures other = install(otherFixture.view());
         try {
             radioItems(features.splitButton().popupMenu()).get(2).doClick();
-            assertThat(features.state().factor()).isEqualTo(4.0);
-            assertThat(other.state().factor()).as("the other view follows").isEqualTo(4.0);
-            assertThat(other.splitButton().mode().id()).isEqualTo("4");
+            assertThat(features.state().factor()).isEqualTo(8.0);
+            assertThat(other.state().factor()).as("the other view follows").isEqualTo(8.0);
+            assertThat(other.splitButton().mode().id()).isEqualTo("8");
             assertThat(features.state().isOn()).as("choosing does not press it").isFalse();
         } finally {
             other.dispose();
@@ -127,7 +131,7 @@ class LensToolbarTest {
         EditorFixture later = EditorFixture.create(preferences);
         LensFeatures fresh = install(later.view());
         try {
-            assertThat(fresh.state().factor()).isEqualTo(4.0);
+            assertThat(fresh.state().factor()).isEqualTo(8.0);
         } finally {
             fresh.dispose();
             later.close();
