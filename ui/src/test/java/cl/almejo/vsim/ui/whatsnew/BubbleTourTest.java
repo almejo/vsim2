@@ -308,7 +308,7 @@ class BubbleTourTest {
 
         tour.next();
 
-        assertThat(tour.line()).contains(new BubbleLine.MenuPath("Archivo ▸ Preferencias ▸ General"));
+        assertThat(tour.line()).contains(new BubbleLine.MenuPath("Archivo ▸ Preferencias ▸ Accesibilidad"));
     }
 
     @Test

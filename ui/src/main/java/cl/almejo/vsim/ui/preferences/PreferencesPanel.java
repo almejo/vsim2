@@ -10,22 +10,29 @@ import com.formdev.flatlaf.icons.FlatSearchIcon;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
+import javax.swing.JSlider;
+import javax.swing.JSpinner;
+import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.LinkedHashMap;
@@ -41,12 +48,18 @@ import java.util.function.BooleanSupplier;
  */
 final class PreferencesPanel extends JPanel {
 
-    /** The list column in pixels: the 170 of the mockup plus the room the search placeholder and its icon need. */
+    /**
+     * The width of the list column in MigLayout's unitless (logical) pixels, which scale with the interface font: the
+     * 170 of the mockup plus the room the search placeholder and its icon need, enough for the longest title and a
+     * three-digit count.
+     */
     private static final int LIST_WIDTH = 195;
     private static final String NO_RESULTS_CARD = "\u0000none";
     private static final KeyStroke ESCAPE = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
     private static final String CLEAR_SEARCH = "clearSearch";
     private static final String FOCUS_SEARCH = "focusSearch";
+    private static final KeyStroke ENTER = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
+    private static final String GO_TO_PAGE = "goToPage";
 
     private final AppPreferences preferences;
     private final List<PreferencesGroup> groups;
@@ -116,7 +129,8 @@ final class PreferencesPanel extends JPanel {
         });
     }
 
-    /** Esc in the field clears it (and only then consumes the key); Ctrl+F (⌘F) anywhere goes to the field. */
+    /** Esc in the field clears it (and only then consumes the key); Enter goes to the page's first control (never to
+     * the dialog's default button, which would close it); Ctrl+F (⌘F) anywhere goes to the field. */
     private void installKeys() {
         searchField.getInputMap(JComponent.WHEN_FOCUSED).put(ESCAPE, CLEAR_SEARCH);
         searchField.getActionMap().put(CLEAR_SEARCH, new AbstractAction() {
@@ -128,6 +142,18 @@ final class PreferencesPanel extends JPanel {
             @Override
             public boolean isEnabled() {
                 return !searchField.getText().isEmpty();
+            }
+        });
+        searchField.getInputMap(JComponent.WHEN_FOCUSED).put(ENTER, GO_TO_PAGE);
+        searchField.getActionMap().put(GO_TO_PAGE, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                firstControl().ifPresent(JComponent::requestFocusInWindow);
+            }
+
+            @Override
+            public boolean isEnabled() {
+                return firstControl().isPresent();
             }
         });
         KeyStroke find = KeyStroke.getKeyStroke(KeyEvent.VK_F, ShortcutCatalog.menuMask());
@@ -146,10 +172,9 @@ final class PreferencesPanel extends JPanel {
         });
     }
 
-    /** The user chose {@code groupId}: it is shown and remembered for the next time. */
+    /** The user chose {@code groupId}: it is shown, and stored as the last seen when the dialog closes. */
     private void choose(String groupId) {
         selectedId = groupId;
-        preferences.setLastPreferencesGroup(groupId);
         cards.show(cardPanel, groupId);
     }
 
@@ -227,13 +252,56 @@ final class PreferencesPanel extends JPanel {
         return counts.getOrDefault(groupId, 0);
     }
 
+    /** The first control (field, box, combo, table…) of the page shown that can take the focus; empty with no page. */
+    Optional<JComponent> firstControl() {
+        if (selectedId == null || listModel.isEmpty()) {
+            return Optional.empty();
+        }
+        return groups.stream().filter(group -> group.id().equals(selectedId)).findFirst()
+                .flatMap(group -> firstControlIn(group.page()));
+    }
+
+    private static Optional<JComponent> firstControlIn(Component parent) {
+        if (!(parent instanceof Container container)) {
+            return Optional.empty();
+        }
+        for (Component child : container.getComponents()) {
+            if (!child.isVisible()) {
+                continue;
+            }
+            boolean control = child instanceof AbstractButton || child instanceof JComboBox<?>
+                    || child instanceof JTextComponent || child instanceof JTable || child instanceof JSpinner
+                    || child instanceof JList<?> || child instanceof JSlider;
+            if (control && child.isEnabled() && child.isFocusable()) {
+                return Optional.of((JComponent) child);
+            }
+            if (!control) {
+                Optional<JComponent> inside = firstControlIn(child);
+                if (inside.isPresent()) {
+                    return inside;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** The cell the list paints for the row {@code index}, as it is now (for tests). */
+    JComponent renderedRow(int index) {
+        return (JComponent) list.getCellRenderer().getListCellRendererComponent(list, listModel.get(index), index,
+                list.isSelectedIndex(index), false);
+    }
+
     /** The text that replaces the page when nothing matches; empty otherwise. */
     String noResultsText() {
         return noResults.getText();
     }
 
-    /** Stops every page following the preferences: the dialog closed. */
+    /** The dialog closed: stores the group it showed as the last seen (once, not on every click) and stops every
+     * page following the preferences. */
     void dispose() {
+        if (selectedId != null) {
+            preferences.setLastPreferencesGroup(selectedId);
+        }
         disposer.run();
     }
 
@@ -259,11 +327,18 @@ final class PreferencesPanel extends JPanel {
             boolean searching = !searchField.getText().isBlank();
             title.setText(Messages.text(group.titleKey()));
             count.setText(searching ? String.valueOf(counts.getOrDefault(group.id(), 0)) : "");
+            boolean active = owner.hasFocus();
+            Color selectionBackground = active ? owner.getSelectionBackground()
+                    : ThemeColors.ui("List.selectionInactiveBackground", owner.getSelectionBackground());
+            Color selectionForeground = active ? owner.getSelectionForeground()
+                    : ThemeColors.ui("List.selectionInactiveForeground", owner.getSelectionForeground());
+            outer.getAccessibleContext().setAccessibleName(title.getText()
+                    + (searching ? ", " + count.getText() : ""));
             inner.setOpaque(selected);
-            inner.setBackground(owner.getSelectionBackground());
+            inner.setBackground(selectionBackground);
             Color muted = ThemeColors.ui("Label.disabledForeground", owner.getForeground());
-            title.setForeground(selected ? owner.getSelectionForeground() : owner.getForeground());
-            count.setForeground(selected ? owner.getSelectionForeground() : muted);
+            title.setForeground(selected ? selectionForeground : owner.getForeground());
+            count.setForeground(selected ? selectionForeground : muted);
             outer.setBorder(group.separatorBefore() && !searching ? BorderFactory.createCompoundBorder(
                     BorderFactory.createEmptyBorder(6, 0, 0, 0), BorderFactory.createMatteBorder(1, 0, 0, 0,
                             ThemeColors.ui("Component.borderColor", muted))) : BorderFactory.createEmptyBorder());

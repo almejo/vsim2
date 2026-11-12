@@ -83,6 +83,7 @@ final class PreferencesPage extends JPanel {
         }
 
         PreferencesPage build() {
+            page.fixLabelColumn();
             return page;
         }
     }
@@ -92,6 +93,15 @@ final class PreferencesPage extends JPanel {
 
     private PreferencesPage() {
         super(new MigLayout("insets dialog, wrap 2, hidemode 3", "[right][grow, fill]"));
+    }
+
+    /** The label column as wide as the widest label of the page, hidden or not, so rows do not jump while filtering. */
+    private void fixLabelColumn() {
+        int widest = sections.stream().flatMap(section -> section.rows.stream()).mapToInt(PreferenceRow::labelWidth)
+                .max().orElse(0);
+        if (getLayout() instanceof MigLayout layout) {
+            layout.setColumnConstraints("[right, " + widest + "px!][grow, fill]");
+        }
     }
 
     static Builder builder() {
@@ -144,6 +154,9 @@ final class PreferencesPage extends JPanel {
     @Override
     public void updateUI() {
         super.updateUI();
+        if (sections != null && !sections.isEmpty()) {
+            fixLabelColumn();
+        }
         if (query != null && !query.isBlank()) {
             filter(query);
         }

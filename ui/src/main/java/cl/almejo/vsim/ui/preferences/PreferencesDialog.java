@@ -59,9 +59,12 @@ public final class PreferencesDialog {
 
     private static void show(Component parent, PreferencesPanel panel) {
         Object[] options = {Messages.text("preferences.close")};
-        JOptionPane.showOptionDialog(parent, panel, Messages.text("preferences.title"), JOptionPane.DEFAULT_OPTION,
-                JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
-        panel.dispose(); // modal: it is closed now
+        try {
+            JOptionPane.showOptionDialog(parent, panel, Messages.text("preferences.title"),
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        } finally {
+            panel.dispose(); // modal: it is closed now
+        }
     }
 
     /** The whole content of the dialog; package-private so a headless test builds it without showing anything. */
@@ -78,8 +81,8 @@ public final class PreferencesDialog {
         groups.add(group("accessibility", false, form.accessibility(), form.accessibility()::filter));
         groups.add(group("files", false, form.files(), form.files()::filter));
         groups.add(group(SHORTCUTS_GROUP, true, shortcuts, query -> {
-            shortcuts.setQuery(query);
-            return shortcuts.matchCount(query);
+            shortcuts.setQuery(query.strip());
+            return shortcuts.matchCount(query.strip());
         }));
         groups.add(group("ai", false, ai, query -> matchingTexts(ai, query)));
         return new PreferencesPanel(preferences, groups, groupId, shortcuts::isCapturing, () -> {

@@ -2,7 +2,7 @@
 # de nuevo»). One bubble per line, four columns separated by «|»:
 #   target id (NewsTargets) | title key | text key (both bundles) | action or «-»
 # The action is a ShortcutCatalog id whose key the bubble shows on its «Atajo» line, or, without a key, where it is in
-# the menus («En el menú»); «#n» picks its n-th command-palette entry (file.preferences#0 is «Preferencias ▸ General»),
+# the menus («En el menú»); «#n» picks its n-th command-palette entry (file.preferences#2 is «Preferencias ▸ Accesibilidad»),
 # or a fixed key nobody can rebind (questionMark: the shortcut sheet).
 # Texts may name keys as {space}, {backspace}, {escape} or {<catalog id>}. NewsFileTest checks all of it.
 toolbar.select           | whatsNew.wires.title            | whatsNew.wires.text            | -
@@ -10,6 +10,6 @@ toolbar.capture          | whatsNew.capture.title          | whatsNew.capture.te
 toolbar.waveforms        | whatsNew.waveforms.title        | whatsNew.waveforms.text        | -
 toolbar.presentationMode | whatsNew.presentationMode.title | whatsNew.presentationMode.text | view.presentationMode
 menu.view                | whatsNew.usedShortcuts.title    | whatsNew.usedShortcuts.text    | view.showUsedShortcuts
-menu.file                | whatsNew.animations.title       | whatsNew.animations.text       | file.preferences#0
+menu.file                | whatsNew.animations.title       | whatsNew.animations.text       | file.preferences#2
 menu.help                | whatsNew.findAction.title       | whatsNew.findAction.text       | help.findAction
 menu.help                | whatsNew.shortcutSheet.title    | whatsNew.shortcutSheet.text    | questionMark

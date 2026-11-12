@@ -1,7 +1,8 @@
 package cl.almejo.vsim.ui.preferences;
 
 import cl.almejo.vsim.ui.i18n.Messages;
-import com.formdev.flatlaf.FlatLaf;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import javax.swing.AbstractButton;
 import javax.swing.JCheckBox;
@@ -72,6 +73,15 @@ final class PreferenceRow {
         return this;
     }
 
+    /** The width its label needs (0 for a check box): the page keeps its label column that wide while filtering. */
+    int labelWidth() {
+        if (label == null) {
+            return 0;
+        }
+        java.awt.Insets insets = label.getInsets();
+        return label.getFontMetrics(label.getFont()).stringWidth(plainText) + insets.left + insets.right;
+    }
+
     String id() {
         return id;
     }
@@ -131,7 +141,7 @@ final class PreferenceRow {
         if (ranges.isEmpty()) {
             return plainText;
         }
-        String style = "background:" + hex(markBackground()) + ";color:" + hex(markForeground());
+        String style = "background:" + hex(markBackground());
         StringBuilder html = new StringBuilder("<html>");
         int position = 0;
         for (PreferencesSearch.Range range : ranges) {
@@ -143,13 +153,13 @@ final class PreferenceRow {
         return html.append(escaped(plainText.substring(position))).toString();
     }
 
-    /** A pale amber chip in light themes and a dark amber one in dark themes, chosen each time (never cached). */
+    /**
+     * A chip of the theme's warning amber over the panel background, faded until the label's text stays readable:
+     * worked out from the theme each time (never cached), so every look and feel gets its own.
+     */
     private static Color markBackground() {
-        return FlatLaf.isLafDark() ? new Color(0x3D3216) : new Color(0xFFE79A);
-    }
-
-    private static Color markForeground() {
-        return FlatLaf.isLafDark() ? new Color(0xF3D68A) : new Color(0x5A3F00);
+        Color tint = ThemeColors.ui("Component.warning.focusedBorderColor", new Color(0xE2A53A));
+        return ReadableColors.readableTint(tint, ReadableColors.dark() ? 0.6 : 0.5);
     }
 
     private static String hex(Color color) {

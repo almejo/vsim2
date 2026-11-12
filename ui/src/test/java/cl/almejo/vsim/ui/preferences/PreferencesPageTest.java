@@ -1,12 +1,18 @@
 package cl.almejo.vsim.ui.preferences;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.UIManager;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -124,5 +130,51 @@ class PreferencesPageTest {
         PreferenceRow row = PreferenceRow.labeled("textFont", "preferences.textFont", families, "").ignoringValues();
 
         assertThat(row.words()).doesNotContain("DejaVu");
+    }
+
+    private static Color chipOf(String html) {
+        Matcher matcher = Pattern.compile("background:#([0-9A-Fa-f]{6})").matcher(html);
+        assertThat(matcher.find()).as(html).isTrue();
+        return new Color(Integer.parseInt(matcher.group(1), 16));
+    }
+
+    @Test
+    void theHighlightFollowsTheThemeColoursAndKeepsTheTextReadable() {
+        Object before = UIManager.get("Component.warning.focusedBorderColor");
+        try {
+            JCheckBox box = new JCheckBox("a b");
+            PreferenceRow row = PreferenceRow.checkBox("odd", box, "skip 1");
+            UIManager.put("Component.warning.focusedBorderColor", new Color(0xFF0000));
+            row.highlight("b");
+            Color red = chipOf(box.getText());
+            UIManager.put("Component.warning.focusedBorderColor", new Color(0x0000FF));
+            row.highlight("b");
+            Color blue = chipOf(box.getText());
+
+            assertThat(red.getRed()).isGreaterThan(red.getBlue());
+            assertThat(blue.getBlue()).isGreaterThan(blue.getRed());
+            Color text = UIManager.getColor("Label.foreground");
+            if (text != null) {
+                assertThat(ReadableColors.contrast(text, red)).isGreaterThanOrEqualTo(
+                        ReadableColors.MINIMUM_TEXT_CONTRAST);
+            }
+        } finally {
+            UIManager.put("Component.warning.focusedBorderColor", before);
+        }
+    }
+
+    @Test
+    void theLabelColumnKeepsItsWidthWhileFiltering() {
+        PreferencesPage page = page();
+        page.setSize(new Dimension(700, 400));
+        page.doLayout();
+        int before = sessionBox.getX();
+
+        page.filter("sesion");
+        page.setSize(new Dimension(700, 400));
+        page.doLayout();
+
+        assertThat(page.visibleRowIds()).containsExactly("restoreSession");
+        assertThat(sessionBox.getX()).isEqualTo(before).isPositive();
     }
 }

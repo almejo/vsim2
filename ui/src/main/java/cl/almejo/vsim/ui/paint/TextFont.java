@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * The font of component labels, free texts and frame titles (M6.8, Preferencias ▸ General): a family and a size.
+ * The font of component labels, free texts and frame titles (M6.8, Preferencias ▸ Aspecto): a family and a size.
  * A family that is not installed here (preferences copied from another computer) paints in SansSerif; the record
  * keeps the name, so the preference is not lost.
  */

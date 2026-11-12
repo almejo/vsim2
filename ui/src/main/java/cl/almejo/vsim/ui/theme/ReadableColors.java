@@ -62,6 +62,27 @@ public final class ReadableColors {
         return perceivedBrightness(background) < 0.5;
     }
 
+    /**
+     * {@code share} of {@code tint} over the panel background, faded until {@code Label.foreground} text on it keeps
+     * a contrast of at least {@link #MINIMUM_TEXT_CONTRAST}:1 (the background itself when no fade is enough).
+     * Read from the current theme each time: never cache it.
+     */
+    public static Color readableTint(Color tint, double share) {
+        Color base = panelBackground();
+        Color text = UIManager.getColor("Label.foreground");
+        if (text == null) {
+            text = dark() ? Color.WHITE : Color.BLACK;
+        }
+        for (double fading = share; fading > 0; fading -= 0.02) {
+            Color candidate = over(new Color(tint.getRed(), tint.getGreen(), tint.getBlue(),
+                    (int) Math.round(fading * 255)), base);
+            if (contrast(text, candidate) >= MINIMUM_TEXT_CONTRAST) {
+                return candidate;
+            }
+        }
+        return base;
+    }
+
     /** The simple brightness of {@code color}, 0 (black) to 1 (white): weighted sRGB channels, no gamma. */
     public static double perceivedBrightness(Color color) {
         return (0.2126 * color.getRed() + 0.7152 * color.getGreen() + 0.0722 * color.getBlue()) / 255;

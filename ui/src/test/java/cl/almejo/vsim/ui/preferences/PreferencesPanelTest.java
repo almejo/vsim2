@@ -11,6 +11,8 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -75,13 +77,86 @@ class PreferencesPanelTest {
     }
 
     @Test
-    void selectingAGroupStoresIt() {
+    void selectingAGroupIsStoredOnceWhenTheDialogCloses() {
         PreferencesPanel panel = panel(Optional.empty());
 
         panel.select("ai");
+        panel.select("files");
 
-        assertThat(panel.selectedGroupId()).isEqualTo("ai");
-        assertThat(preferences.lastPreferencesGroup()).contains("ai");
+        assertThat(panel.selectedGroupId()).isEqualTo("files");
+        assertThat(preferences.lastPreferencesGroup()).as("not on every click").isEmpty();
+        panel.dispose();
+        assertThat(preferences.lastPreferencesGroup()).contains("files");
+    }
+
+    @Test
+    void whatASearchLeavesSelectedIsWhatIsStoredAtClose() {
+        PreferencesPanel panel = panel(Optional.empty());
+
+        panel.searchField().setText("oscuro");
+        panel.dispose();
+
+        assertThat(preferences.lastPreferencesGroup()).contains("appearance");
+    }
+
+    @Test
+    void aBlankSearchIsNotWrittenIntoTheShortcutsField() {
+        PreferencesPanel panel = panel(Optional.empty());
+        ShortcutsPanel shortcuts = (ShortcutsPanel) panel.groups().get(4).page();
+
+        panel.searchField().setText("   ");
+
+        assertThat(shortcuts.query()).isEmpty();
+    }
+
+    @Test
+    void theListRowsHaveAnAccessibleNameWithTheirCountWhileSearching() {
+        PreferencesPanel panel = panel(Optional.empty());
+
+        assertThat(panel.renderedRow(0).getAccessibleContext().getAccessibleName()).isEqualTo("General");
+        panel.searchField().setText("oscuro");
+        assertThat(panel.renderedRow(0).getAccessibleContext().getAccessibleName()).isEqualTo("Aspecto, 1");
+    }
+
+    @Test
+    void aSelectedRowOfAListWithoutFocusUsesTheInactiveSelectionColour() {
+        Object before = UIManager.get("List.selectionInactiveBackground");
+        try {
+            UIManager.put("List.selectionInactiveBackground", new Color(0x123456));
+            PreferencesPanel panel = panel(Optional.empty());
+
+            JComponent inner = (JComponent) panel.renderedRow(0).getComponent(0);
+
+            assertThat(inner.getBackground()).isEqualTo(new Color(0x123456));
+        } finally {
+            UIManager.put("List.selectionInactiveBackground", before);
+        }
+    }
+
+    private static boolean pressEnterIn(JComponent component) {
+        KeyStroke enter = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
+        Object key = component.getInputMap().get(enter);
+        Action action = key == null ? null : component.getActionMap().get(key);
+        return action != null && SwingUtilities.notifyAction(action, enter,
+                new KeyEvent(component, KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_ENTER, '\n'), component, 0);
+    }
+
+    @Test
+    void enterInTheSearchFieldIsTakenToGoToTheFirstControlOfThePageAndNeverClosesTheDialog() {
+        PreferencesPanel panel = panel(Optional.empty());
+        panel.searchField().setText("oscuro");
+
+        assertThat(pressEnterIn(panel.searchField())).as("consumed: the default button does not get it").isTrue();
+        assertThat(panel.firstControl()).isPresent().get().isInstanceOf(javax.swing.JComboBox.class);
+    }
+
+    @Test
+    void enterIsLeftAloneWhenNothingMatches() {
+        PreferencesPanel panel = panel(Optional.empty());
+        panel.searchField().setText("zzzzzz");
+
+        assertThat(panel.firstControl()).isEmpty();
+        assertThat(pressEnterIn(panel.searchField())).isFalse();
     }
 
     @Test
@@ -158,6 +233,8 @@ class PreferencesPanelTest {
         assertThat(panel.visibleGroupIds()).contains("ai");
         assertThat(panel.countFor("ai")).isPositive();
         panel.searchField().setText("secreto");
+        assertThat(panel.visibleGroupIds()).contains("ai");
+        panel.searchField().setText("conectar");
         assertThat(panel.visibleGroupIds()).contains("ai");
     }
 
