@@ -1031,6 +1031,15 @@ public final class EditorView extends JPanel implements CanvasHost {
         return editorToolBar.addComponent(component, slot, order);
     }
 
+    /**
+     * Adds {@code component} to the toolbar right after the button whose action is {@code anchor} (the toggles after
+     * the tools are in that group); when no button has it, right after the last tool button. Returns what takes it
+     * back.
+     */
+    public Runnable addToolbarComponentAfterAction(JComponent component, Action anchor) {
+        return editorToolBar.addComponentAfterAction(component, anchor);
+    }
+
     /** Like {@link #addToolbarComponent(JComponent, ToolbarSlot, int)} with order 0. */
     public Runnable addToolbarComponent(JComponent component, ToolbarSlot slot) {
         return editorToolBar.addComponent(component, slot, 0);

@@ -21,6 +21,7 @@ public final class NewsTargets {
 
     public static final String TOOLBAR_SELECT = "toolbar.select";
     public static final String TOOLBAR_CAPTURE = "toolbar.capture";
+    public static final String TOOLBAR_LENS = "toolbar.lens";
     public static final String TOOLBAR_WAVEFORMS = "toolbar.waveforms";
     public static final String TOOLBAR_PRESENTATION_MODE = "toolbar.presentationMode";
     /** The prefix of a menu title's id: {@code menu.file}, {@code menu.view}, … (the {@code MenuId} in lower case). */

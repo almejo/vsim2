@@ -140,6 +140,48 @@ class SplitButtonTest {
         assertThat(action("shot").mainButton()).isNotInstanceOf(JToggleButton.class);
     }
 
+    @Test
+    void theToggleVariantIsAToggleOnTheActionAndChoosingAModeDoesNotPressIt() {
+        java.util.concurrent.atomic.AtomicBoolean on = new java.util.concurrent.atomic.AtomicBoolean();
+        javax.swing.Action toggle = new javax.swing.AbstractAction("Fixed") {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                on.set(!on.get());
+                putValue(SELECTED_KEY, on.get());
+                pressedModes.add("toggled");
+            }
+        };
+        toggle.putValue(javax.swing.Action.SELECTED_KEY, false);
+        SplitButton button = SplitButton.forToggle("zoom", "Zoom", MODES, preferences, toggle);
+        assertThat(button.mainButton()).isInstanceOf(JToggleButton.class);
+        assertThat(button.mainButton().getAction()).isSameAs(toggle);
+        radioItems(button.popupMenu()).get(1).doClick();
+        assertThat(button.mode().id()).isEqualTo("circuit");
+        assertThat(pressedModes).as("the mode choice did not toggle").isEmpty();
+        assertThat(button.mainButton().isSelected()).isFalse();
+        button.mainButton().doClick();
+        assertThat(pressedModes).containsExactly("toggled");
+        assertThat(button.mainButton().isSelected()).as("state follows the action").isTrue();
+        toggle.putValue(javax.swing.Action.SELECTED_KEY, false);
+        assertThat(button.mainButton().isSelected()).isFalse();
+    }
+
+    @Test
+    void theToggleVariantKeepsTheActionsTooltipAndAnExplicitDefaultModeNeedNotBeTheFirst() {
+        javax.swing.Action toggle = new javax.swing.AbstractAction("Fixed") {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+            }
+        };
+        toggle.putValue(javax.swing.Action.SHORT_DESCRIPTION, "the action's tip");
+        SplitButton button = SplitButton.forToggle("zoom", null, MODES, preferences, toggle, "circuit");
+        assertThat(button.mode().id()).isEqualTo("circuit");
+        assertThat(button.mainButton().getToolTipText()).isEqualTo("the action's tip");
+        preferences.setSplitButtonMode("zoom", "gone");
+        assertThat(SplitButton.forToggle("zoom", null, MODES, preferences, toggle, "circuit").mode().id())
+                .as("an unknown stored id falls back to the default").isEqualTo("circuit");
+    }
+
     private static List<JRadioButtonMenuItem> radioItems(JPopupMenu menu) {
         List<JRadioButtonMenuItem> items = new ArrayList<>();
         for (Component component : menu.getComponents()) {

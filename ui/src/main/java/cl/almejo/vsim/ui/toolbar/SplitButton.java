@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.toolbar;
 import cl.almejo.vsim.ui.app.AppPreferences;
 
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.Icon;
@@ -34,7 +35,7 @@ import java.util.function.Consumer;
  * remembered in {@link AppPreferences} under the button's preference id, so the next start finds it again; a stored
  * id that no longer exists falls back to the first mode.
  *
- * <p>Two variants share everything but the main part:
+ * <p>Three variants share everything but the main part:
  * <ul>
  *   <li>{@link #forAction}: a plain button; pressing it runs the callback with the current mode. Choosing a mode in
  *   the ▾ only selects it.</li>
@@ -42,6 +43,9 @@ import java.util.function.Consumer;
  *   toolbar's tool {@link ButtonGroup}, so its selection follows the active tool. Pressing it runs the callback
  *   (typically activating the tool) and so does choosing a mode in the ▾, which therefore also activates the
  *   tool.</li>
+ *   <li>{@link #forToggle}: the main part is a {@link JToggleButton} on an {@code Action} (its
+ *   {@code SELECTED_KEY} is the state, its icon and tooltip are used as they are); choosing a mode in the ▾ only
+ *   selects it and never presses.</li>
  * </ul>
  *
  * <p>Keyboard: the ▾ is focusable; Space and Enter (the button's own action) and Alt+Down open the popup. Colours of
@@ -62,13 +66,16 @@ public final class SplitButton extends JComponent {
     private final AppPreferences preferences;
     private final Consumer<SplitButtonMode> pressed;
     private final boolean toolVariant;
+    /** For {@link #forToggle}: the main part is the action's own, so the mode never changes its icon or tooltip. */
+    private final boolean toggleVariant;
     private final AbstractButton mainButton;
     private final JButton arrowButton = new JButton(new ArrowIcon());
     private final List<Consumer<SplitButtonMode>> modeListeners = new CopyOnWriteArrayList<>();
     private SplitButtonMode mode;
 
     private SplitButton(String preferenceId, String menuTitle, List<SplitButtonMode> modes,
-                        AppPreferences preferences, Consumer<SplitButtonMode> pressed, boolean toolVariant) {
+                        AppPreferences preferences, Consumer<SplitButtonMode> pressed, boolean toolVariant,
+                        Action toggle, String defaultModeId) {
         this.preferenceId = Objects.requireNonNull(preferenceId, "preferenceId");
         this.menuTitle = menuTitle;
         this.modes = List.copyOf(modes);
@@ -78,8 +85,10 @@ public final class SplitButton extends JComponent {
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.pressed = Objects.requireNonNull(pressed, "pressed");
         this.toolVariant = toolVariant;
-        mainButton = toolVariant ? new JToggleButton() : new JButton();
-        mode = preferences.splitButtonMode(preferenceId).flatMap(this::modeWithId).orElse(this.modes.get(0));
+        this.toggleVariant = toggle != null;
+        mainButton = toggleVariant ? new JToggleButton(toggle) : toolVariant ? new JToggleButton() : new JButton();
+        SplitButtonMode defaultMode = modeWithId(defaultModeId).orElse(this.modes.get(0));
+        mode = preferences.splitButtonMode(preferenceId).flatMap(this::modeWithId).orElse(defaultMode);
         build();
         showMode();
     }
@@ -94,7 +103,7 @@ public final class SplitButton extends JComponent {
      */
     public static SplitButton forAction(String preferenceId, String menuTitle, List<SplitButtonMode> modes,
                                         AppPreferences preferences, Consumer<SplitButtonMode> pressed) {
-        return new SplitButton(preferenceId, menuTitle, modes, preferences, pressed, false);
+        return new SplitButton(preferenceId, menuTitle, modes, preferences, pressed, false, null, null);
     }
 
     /**
@@ -104,7 +113,25 @@ public final class SplitButton extends JComponent {
      */
     public static SplitButton forTool(String preferenceId, String menuTitle, List<SplitButtonMode> modes,
                                       AppPreferences preferences, Consumer<SplitButtonMode> pressed) {
-        return new SplitButton(preferenceId, menuTitle, modes, preferences, pressed, true);
+        return new SplitButton(preferenceId, menuTitle, modes, preferences, pressed, true, null, null);
+    }
+
+    /**
+     * A toggle button: {@link #mainButton()} is a {@link JToggleButton} on {@code toggle}, whose
+     * {@code SELECTED_KEY} is the state and whose icon and tooltip are the action's own. Choosing a mode in the ▾
+     * only selects it: it never presses the button. The first mode is the default.
+     */
+    public static SplitButton forToggle(String preferenceId, String menuTitle, List<SplitButtonMode> modes,
+                                        AppPreferences preferences, Action toggle) {
+        return forToggle(preferenceId, menuTitle, modes, preferences, toggle, null);
+    }
+
+    /** Like {@link #forToggle(String, String, List, AppPreferences, Action)}, with {@code defaultModeId} the default. */
+    public static SplitButton forToggle(String preferenceId, String menuTitle, List<SplitButtonMode> modes,
+                                        AppPreferences preferences, Action toggle, String defaultModeId) {
+        Objects.requireNonNull(toggle, "toggle");
+        return new SplitButton(preferenceId, menuTitle, modes, preferences, ignored -> {
+        }, false, toggle, defaultModeId);
     }
 
     /** The current mode. */
@@ -147,7 +174,7 @@ public final class SplitButton extends JComponent {
     }
 
     /** A fresh popup for the current state: the caption (when there is a title) and a radio item per mode. */
-    JPopupMenu popupMenu() {
+    public JPopupMenu popupMenu() {
         JPopupMenu menu = new JPopupMenu();
         if (menuTitle != null) {
             JMenuItem caption = new JMenuItem(menuTitle);
@@ -173,6 +200,9 @@ public final class SplitButton extends JComponent {
     }
 
     private java.util.Optional<SplitButtonMode> modeWithId(String id) {
+        if (id == null) {
+            return java.util.Optional.empty();
+        }
         return modes.stream().filter(candidate -> candidate.id().equals(id)).findFirst();
     }
 
@@ -184,6 +214,9 @@ public final class SplitButton extends JComponent {
     }
 
     private void showMode() {
+        if (toggleVariant) {
+            return;
+        }
         mainButton.setIcon(mode.icon());
         mainButton.setToolTipText(mode.description());
         mainButton.getAccessibleContext().setAccessibleName(mode.description());
@@ -201,7 +234,9 @@ public final class SplitButton extends JComponent {
 
     private void build() {
         setLayout(new BorderLayout());
-        mainButton.addActionListener(event -> pressed.accept(mode));
+        if (!toggleVariant) {
+            mainButton.addActionListener(event -> pressed.accept(mode));
+        }
         mainButton.putClientProperty("JButton.buttonType", TOOLBAR_BUTTON_TYPE);
         arrowButton.putClientProperty("JButton.buttonType", TOOLBAR_BUTTON_TYPE);
         arrowButton.setFocusable(true);

@@ -79,6 +79,7 @@ class ActionIconsTest {
         used.addAll(cl.almejo.vsim.ui.wiring.WiresFollowIcons.names());
         used.addAll(cl.almejo.vsim.ui.busvalues.BusValuesIcons.names());
         used.addAll(cl.almejo.vsim.ui.magnifier.MagnifierIcons.names());
+        used.addAll(cl.almejo.vsim.ui.lens.LensIcons.names());
         used.addAll(cl.almejo.vsim.ui.sheets.SheetsIcons.names());
         used.addAll(cl.almejo.vsim.ui.snap.SnapIcons.names());
         used.addAll(cl.almejo.vsim.ui.print.PrintIcons.names());

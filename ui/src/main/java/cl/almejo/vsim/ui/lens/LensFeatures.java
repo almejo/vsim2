@@ -3,8 +3,14 @@ package cl.almejo.vsim.ui.lens;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.KeyDispatchers;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
+import cl.almejo.vsim.ui.toolbar.SplitButton;
+import cl.almejo.vsim.ui.toolbar.SplitButtonMode;
+import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -12,10 +18,12 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
+import javax.swing.Icon;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
+import java.awt.Graphics;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Rectangle;
@@ -25,6 +33,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeListener;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,11 +45,18 @@ import java.util.Optional;
  * modifiers is released or the window loses the focus; Ver ▸ «Lupa fija» keeps it on. It is purely visual: no tool,
  * cursor, selection or document changes, no undo step. Neither held nor fixed is saved. {@link #dispose()} takes
  * back everything.
+ *
+ * <p>The toolbar button right after «Mirar adentro»'s eye is a {@link SplitButton}: its main part is «Lupa fija» (the
+ * same action as the menu item) and its ▾ picks the magnification (2×, 3×, 4×; 3× by default). The magnification is
+ * saved in the preferences and shared by every view; being fixed is never saved.
  */
 public final class LensFeatures {
 
     /** The catalog id of the key to hold. */
     public static final String SHORTCUT = "view.lens";
+
+    /** The id the ▾'s choice is saved under ({@code splitButton.lens.zoom}). */
+    static final String ZOOM_PREFERENCE = "lens.zoom";
 
     /** The modifiers a key stroke of the keyboard can hold (mouse buttons left out), with the key of each one. */
     private static final Map<Integer, Integer> MODIFIER_KEYS = Map.of(
@@ -69,6 +85,10 @@ public final class LensFeatures {
     private final JCheckBoxMenuItem menuItem;
     private final KeyEventDispatcher keyHook = this::keyEvent;
     private final Runnable shortcutRemover;
+    private final AppPreferences preferences;
+    private final SplitButton button;
+    private final Runnable toolbarRemover;
+    private final Runnable preferenceFollower = this::followPreferences;
     private final Runnable paneRemover;
     private final Runnable deactivationRemover;
     /** The stroke that showed the held lens: its key and modifiers are what hide it (a rebinding meanwhile too). */
@@ -97,17 +117,81 @@ public final class LensFeatures {
             }
         };
         fixed.putValue(Action.SELECTED_KEY, false);
+        Icons.install(fixed, LensIcons.LENS);
+        this.preferences = view.services().preferences();
         this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(fixed);
         menuItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("lens.searchTerms"));
         viewMenu.insert(menuItem, indexInViewMenu());
+        this.button = SplitButton.forToggle(ZOOM_PREFERENCE, Messages.text("lens.zoomMenuTitle"), zoomModes(),
+                preferences, fixed, String.valueOf((int) LensState.DEFAULT_FACTOR));
+        state.setFactor(factorOf(button.mode()));
+        button.addModeListener(mode -> setFactor(factorOf(mode)));
+        NewsTargets.register(button, NewsTargets.TOOLBAR_LENS, NewsTargets.Side.BELOW);
+        refreshTooltip();
+        this.toolbarRemover = view.addToolbarComponentAfterAction(button,
+                view.shortcutActions().get("view.magnifier"));
+        preferences.addListener(preferenceFollower);
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT, hold);
         this.paneRemover = view.forEachPane(this::listenTo);
         dispatchers.add(keyHook);
         this.deactivationRemover = deactivations.watch(view, this::released);
     }
 
-    /** «Lupa fija» (menu item, and the toolbar's button later): its {@code SELECTED_KEY} is the state. */
+    /** The toolbar's split button: «Lupa fija» and its ▾ with the magnification. */
+    public SplitButton splitButton() {
+        return button;
+    }
+
+    private static List<SplitButtonMode> zoomModes() {
+        Icon none = new BlankIcon();
+        return LensState.FACTORS.stream().map(factor -> {
+            String text = Messages.format("lens.zoomLabel", (int) (double) factor);
+            return new SplitButtonMode(String.valueOf((int) (double) factor), none, text, text);
+        }).toList();
+    }
+
+    private static double factorOf(SplitButtonMode mode) {
+        return Double.parseDouble(mode.id());
+    }
+
+    /** What another view's ▾ chose shows here too, and a rebinding of the key shows in the tooltip. */
+    private void followPreferences() {
+        preferences.splitButtonMode(ZOOM_PREFERENCE)
+                .filter(chosen -> zoomModes().stream().anyMatch(mode -> mode.id().equals(chosen)))
+                .filter(chosen -> !chosen.equals(button.mode().id()))
+                .ifPresent(button::setMode);
+        refreshTooltip();
+    }
+
+    /** «Lupa fija: …(o mantén Ctrl+Mayús+L)», with the key the catalog gives now (none: without the parenthesis). */
+    private void refreshTooltip() {
+        String tooltip = keyBindings.strokeFor(SHORTCUT)
+                .map(stroke -> Messages.format("action.lens.tooltip", KeyNames.describe(stroke)))
+                .orElse(Messages.text("action.lens.tooltipNoKey"));
+        fixed.putValue(Action.SHORT_DESCRIPTION, tooltip);
+        button.mainButton().setToolTipText(tooltip);
+    }
+
+    /** An empty 1 px icon: the ▾'s items show the magnification as text alone. */
+    private static final class BlankIcon implements Icon {
+
+        @Override
+        public void paintIcon(Component component, Graphics graphics, int x, int y) {
+        }
+
+        @Override
+        public int getIconWidth() {
+            return 1;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return 1;
+        }
+    }
+
+    /** «Lupa fija» (menu item, and the toolbar's button): its {@code SELECTED_KEY} is the state. */
     public Action fixedAction() {
         return fixed;
     }
@@ -277,6 +361,8 @@ public final class LensFeatures {
             return;
         }
         disposed = true;
+        preferences.removeListener(preferenceFollower);
+        toolbarRemover.run();
         changing(state::release);
         deactivationRemover.run();
         dispatchers.remove(keyHook);

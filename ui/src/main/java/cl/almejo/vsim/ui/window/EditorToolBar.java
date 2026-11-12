@@ -83,6 +83,34 @@ final class EditorToolBar {
         };
     }
 
+    /** See {@link EditorView#addToolbarComponentAfterAction}. */
+    Runnable addComponentAfterAction(JComponent component, Action anchor) {
+        int position = indexOfToolbarButtonOf(anchor);
+        if (position < 0) {
+            position = indexOfToolButton(zoomButton);
+        }
+        toolBar.add(component, position + 1);
+        toolBar.revalidate();
+        return () -> {
+            toolBar.remove(component);
+            toolBar.revalidate();
+            toolBar.repaint();
+        };
+    }
+
+    private int indexOfToolbarButtonOf(Action action) {
+        if (action == null) {
+            return -1;
+        }
+        for (int index = 0; index < toolBar.getComponentCount(); index++) {
+            if (toolBar.getComponent(index) instanceof javax.swing.AbstractButton button
+                    && button.getAction() == action) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
     /** See {@link EditorView#addToolbarComponent}. */
     Runnable addComponent(JComponent component, ToolbarSlot slot, int order) {
         List<SlotEntry> entries = slots.get(slot);
