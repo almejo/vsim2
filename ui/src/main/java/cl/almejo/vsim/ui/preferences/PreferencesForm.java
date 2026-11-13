@@ -19,6 +19,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import java.awt.Component;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -357,11 +360,38 @@ public final class PreferencesForm {
                 break;
             }
         }
-        interfaceZoomChoice.addActionListener(event -> preferences.setInterfaceZoom(selected(interfaceZoomChoice)));
-        interfaceFontChoice.addActionListener(
-                event -> preferences.setInterfaceFontFamily(selected(interfaceFontChoice)));
-        presentationZoomChoice.addActionListener(
-                event -> preferences.setPresentationInterfaceZoom(selected(presentationZoomChoice)));
+        storeWhenChosen(interfaceZoomChoice, () -> preferences.setInterfaceZoom(selected(interfaceZoomChoice)));
+        storeWhenChosen(interfaceFontChoice,
+                () -> preferences.setInterfaceFontFamily(selected(interfaceFontChoice)));
+        storeWhenChosen(presentationZoomChoice,
+                () -> preferences.setPresentationInterfaceZoom(selected(presentationZoomChoice)));
+    }
+
+    /**
+     * Stores {@code combo}'s choice once it is made, not on each entry the arrow keys pass through with the list open:
+     * every stored size or font reinstalls the look and feel of every window. With the list closed, a change stores at
+     * once; with it open, it stores when the list closes, after the combo's own dispatch.
+     */
+    static void storeWhenChosen(JComboBox<?> combo, Runnable store) {
+        combo.addActionListener(event -> {
+            if (!combo.isPopupVisible()) {
+                store.run();
+            }
+        });
+        combo.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+                SwingUtilities.invokeLater(store);
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent event) {
+            }
+        });
     }
 
     private static String percentText(int percent) {

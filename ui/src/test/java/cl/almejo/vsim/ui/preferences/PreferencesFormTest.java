@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.JComboBox;
+import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Font;
 import java.nio.file.Path;
@@ -360,6 +361,31 @@ class PreferencesFormTest {
         assertThat(preferences.interfaceZoom()).isEqualTo(175);
         assertThat(preferences.presentationInterfaceZoom()).isEqualTo(AppPreferences.PRESENTATION_ZOOM_UNCHANGED);
         assertThat(preferences.interfaceFontFamily()).isEqualTo(font.getItemAt(font.getItemCount() - 1).value());
+    }
+
+    @Test
+    void anInterfaceChoiceWithTheListOpenIsStoredOnlyWhenTheListCloses() throws Exception {
+        boolean[] popupVisible = {true};
+        JComboBox<String> combo = new JComboBox<>(new String[]{"100 %", "125 %", "150 %"}) {
+            @Override
+            public boolean isPopupVisible() {
+                return popupVisible[0];
+            }
+        };
+        List<Object> stored = new ArrayList<>();
+        PreferencesForm.storeWhenChosen(combo, () -> stored.add(combo.getSelectedItem()));
+
+        combo.setSelectedIndex(1);
+        combo.setSelectedIndex(2);
+        assertThat(stored).as("the arrow keys only pass through").isEmpty();
+
+        popupVisible[0] = false;
+        combo.firePopupMenuWillBecomeInvisible();
+        SwingUtilities.invokeAndWait(() -> { });
+        assertThat(stored).containsExactly("150 %");
+
+        combo.setSelectedIndex(0);
+        assertThat(stored).as("with the list closed it stores at once").containsExactly("150 %", "100 %");
     }
 
     @Test
