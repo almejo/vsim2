@@ -128,6 +128,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -161,6 +163,8 @@ public final class Application {
     private final ThemeManager themeManager;
     private final TextFontManager textFontManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
+    /** The windows in «Modo presentación» now. */
+    private final Set<CircuitWindow> presentingWindows = Collections.newSetFromMap(new IdentityHashMap<>());
     private SystemOpenFiles systemOpenFiles = new SystemOpenFiles();
     private final RecentFiles recentFiles;
     private final SessionStore sessionStore;
@@ -661,6 +665,19 @@ public final class Application {
     /** Where the AI works now, for the tabs of every window. */
     public PlaceMarks placeMarks() {
         return placeMarks;
+    }
+
+    /**
+     * {@code window} entered or left «Modo presentación»: while any window is in it, the interface takes the
+     * presentation size (Preferencias, Aspecto, «En modo presentación»).
+     */
+    public void presentationModeChanged(CircuitWindow window, boolean active) {
+        if (active) {
+            presentingWindows.add(window);
+        } else {
+            presentingWindows.remove(window);
+        }
+        themeManager.setPresenting(!presentingWindows.isEmpty());
     }
 
     /** {@code window} was activated: files sent from outside and the AI's new circuits go there now. */

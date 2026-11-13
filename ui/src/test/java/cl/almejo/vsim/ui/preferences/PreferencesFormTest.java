@@ -74,7 +74,8 @@ class PreferencesFormTest {
                 Map.entry("preferences.section.startup", List.of("restoreSession", "showTipAtStart")),
                 Map.entry("preferences.section.editing", List.of("invertModifier")));
         assertThat(form.appearance().sectionRows()).containsExactly(
-                Map.entry("preferences.section.window", List.of("theme")),
+                Map.entry("preferences.section.window",
+                        List.of("theme", "interfaceZoom", "interfaceFont", "presentationZoom")),
                 Map.entry("preferences.section.circuit", List.of("scheme", "textFont")));
         assertThat(form.accessibility().sectionRows()).containsExactly(
                 Map.entry("preferences.section.motion", List.of("animations", "animateViewMoves")),
@@ -337,6 +338,40 @@ class PreferencesFormTest {
         preferences.setInvertModifier(AppPreferences.InvertModifier.NONE);
         assertThat(selected(form().invertModifierChoice())).isEqualTo(AppPreferences.InvertModifier.NONE);
     }
+
+    @Test
+    void theInterfaceRowsShowTheDefaultsAndStoreEachChoiceAtOnce() {
+        PreferencesForm form = form();
+        JComboBox<PreferencesForm.Choice<Integer>> zoom = form.interfaceZoomChoice();
+        JComboBox<PreferencesForm.Choice<Optional<String>>> font = form.interfaceFontChoice();
+        JComboBox<PreferencesForm.Choice<Integer>> presentation = form.presentationZoomChoice();
+
+        assertThat(labels(zoom)).containsExactly("100 %", "125 %", "150 %", "175 %", "200 %");
+        assertThat(((PreferencesForm.Choice<?>) zoom.getSelectedItem()).value()).isEqualTo(100);
+        assertThat(font.getItemAt(0).label()).isEqualTo("Predeterminada");
+        assertThat(font.getSelectedIndex()).isZero();
+        assertThat(labels(presentation)).containsExactly("Sin cambio", "125 %", "150 %", "175 %", "200 %");
+        assertThat(((PreferencesForm.Choice<?>) presentation.getSelectedItem()).value()).isEqualTo(150);
+
+        choose(zoom, 175);
+        choose(presentation, AppPreferences.PRESENTATION_ZOOM_UNCHANGED);
+        font.setSelectedIndex(font.getItemCount() - 1);
+
+        assertThat(preferences.interfaceZoom()).isEqualTo(175);
+        assertThat(preferences.presentationInterfaceZoom()).isEqualTo(AppPreferences.PRESENTATION_ZOOM_UNCHANGED);
+        assertThat(preferences.interfaceFontFamily()).isEqualTo(font.getItemAt(font.getItemCount() - 1).value());
+    }
+
+    @Test
+    void aStoredInterfaceFontThatIsNotInstalledIsShownAndKept() {
+        preferences.setInterfaceFontFamily(Optional.of("Fuente Que No Existe"));
+        PreferencesForm form = form();
+        JComboBox<PreferencesForm.Choice<Optional<String>>> font = form.interfaceFontChoice();
+
+        assertThat(((PreferencesForm.Choice<?>) font.getSelectedItem()).label()).isEqualTo("Fuente Que No Existe");
+        assertThat(preferences.interfaceFontFamily()).contains("Fuente Que No Existe");
+    }
+
 
     @Test
     void theTextFontListsTheDefaultFirstAndSavesTheFamilyAndTheSize() {
