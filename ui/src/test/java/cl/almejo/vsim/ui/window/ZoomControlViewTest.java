@@ -16,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JTextField;
 import java.util.ArrayList;
@@ -139,15 +140,18 @@ class ZoomControlViewTest {
 
     @Test
     void escribirElZoomIsInTheVerMenuAfterZoomALaSeleccionWithItsShortcutId() {
+        JMenu zoomMenu = MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.ZOOM).orElseThrow();
         List<String> texts = new ArrayList<>();
         List<JMenuItem> items = new ArrayList<>();
-        for (int index = 0; index < view.menu(MenuId.VIEW).getItemCount(); index++) {
-            JMenuItem item = view.menu(MenuId.VIEW).getItem(index);
+        for (int index = 0; index < zoomMenu.getItemCount(); index++) {
+            JMenuItem item = zoomMenu.getItem(index);
             texts.add(item == null ? "---" : item.getText());
             items.add(item);
         }
         int position = texts.indexOf("Escribir el zoom…");
-        assertThat(position).isEqualTo(texts.indexOf("Zoom a la selección") + 1);
+        assertThat(position).as("after the separator that follows «Zoom a la selección»")
+                .isEqualTo(texts.indexOf("Zoom a la selección") + 2);
+        assertThat(texts.get(position - 1)).isEqualTo("---");
         assertThat(items.get(position).getAction()).isSameAs(control().typeZoomAction());
         assertThat(ShortcutCatalog.find("view.zoomField")).contains(new ShortcutEntry("view.zoomField",
                 "action.zoomField", MenuId.VIEW, Scope.WINDOW, Optional.empty()));

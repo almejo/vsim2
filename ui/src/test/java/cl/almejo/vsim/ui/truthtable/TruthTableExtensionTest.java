@@ -168,9 +168,9 @@ class TruthTableExtensionTest {
     }
 
     @Test
-    void theSimulationMenuEndsWithTheItemAndDisposeTakesEverythingBack() {
+    void theLogicMenuHoldsTheItemAndDisposeTakesEverythingBack() {
         EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
-        List<String> before = texts(bare.menu(MenuId.SIMULATION));
+        List<String> before = texts(bare.menu(MenuId.LOGIC));
         int listeners = openDocument.changeListenerCount();
         TruthTableFeatures features = new TruthTableFeatures(bare, (view, title, controls) -> {
             FakeDisplay display = new FakeDisplay(title, controls);
@@ -179,15 +179,15 @@ class TruthTableExtensionTest {
         }, (parent, message) -> messages.add(message), this::confirm,
                 new TruthTableRunner(Runnable::run, Runnable::run));
         try {
-            assertThat(texts(bare.menu(MenuId.SIMULATION))).endsWith("---", "Tabla de verdad…");
+            assertThat(texts(bare.menu(MenuId.LOGIC))).containsExactly("Tabla de verdad…");
             assertThat(bare.shortcutActions()).containsEntry("simulation.truthTable", features.action());
             identityCircuit();
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             assertThat(features.openWindowCount()).isEqualTo(1);
 
             features.dispose();
 
-            assertThat(texts(bare.menu(MenuId.SIMULATION))).isEqualTo(before);
+            assertThat(texts(bare.menu(MenuId.LOGIC))).isEqualTo(before);
             assertThat(bare.shortcutActions()).doesNotContainKey("simulation.truthTable");
             assertThat(openDocument.changeListenerCount()).isEqualTo(listeners);
             assertThat(displays.get(0).closed).isTrue();
@@ -207,7 +207,7 @@ class TruthTableExtensionTest {
         identityCircuit();
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            perform(last(view.menu(MenuId.SIMULATION)));
+            perform(last(view.menu(MenuId.LOGIC)));
 
             assertThat(displays).hasSize(1);
             FakeDisplay display = displays.get(0);
@@ -225,7 +225,7 @@ class TruthTableExtensionTest {
     void aRefusalIsAMessageAndOpensNoWindow() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            perform(last(view.menu(MenuId.SIMULATION)));
+            perform(last(view.menu(MenuId.LOGIC)));
 
             assertThat(messages).containsExactly("No hay entradas: usa interruptores o pines de entrada");
             assertThat(displays).isEmpty();
@@ -288,7 +288,7 @@ class TruthTableExtensionTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             view.canvas().selection().selectAll(openDocument.document());
-            perform(last(view.menu(MenuId.SIMULATION)));
+            perform(last(view.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             assertThat(display.title).isEqualTo("Tabla de verdad — selección");
             assertThat(display.table.rows()).hasSize(2);
@@ -305,7 +305,7 @@ class TruthTableExtensionTest {
             assertThat(display.table.rows()).hasSize(2);
 
             view.canvas().selection().clear();
-            perform(last(view.menu(MenuId.SIMULATION)));
+            perform(last(view.menu(MenuId.LOGIC)));
             assertThat(displays.get(1).table.rows()).hasSize(4);
         } finally {
             view.dispose();
@@ -330,7 +330,7 @@ class TruthTableExtensionTest {
                     return () -> due.remove(task);
                 });
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             assertThat(delays).containsExactly(TruthTableFeatures.PROGRESS_DELAY_MILLISECONDS);
             assertThat(display.progress).as("nothing before 300 ms").isEmpty();
@@ -371,7 +371,7 @@ class TruthTableExtensionTest {
         List<Runnable> due = new ArrayList<>();
         TruthTableFeatures features = manualFeatures(bare, work, due);
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
 
             display.controls.cancel();
@@ -394,8 +394,8 @@ class TruthTableExtensionTest {
         List<Runnable> work = new ArrayList<>();
         TruthTableFeatures features = manualFeatures(bare, work, new ArrayList<>());
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             assertThat(displays.get(0).notices).containsExactly(CANCELLED_NOTICE);
             assertThat(displays.get(1).notices).isEmpty();
 
@@ -416,7 +416,7 @@ class TruthTableExtensionTest {
         List<Runnable> work = new ArrayList<>();
         TruthTableFeatures features = manualFeatures(bare, work, new ArrayList<>());
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
 
             display.controls.recalculate();
@@ -434,8 +434,8 @@ class TruthTableExtensionTest {
     void disposingTheViewClosesItsWindowsAndAClosedWindowIsForgotten() {
         identityCircuit();
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
-        perform(last(view.menu(MenuId.SIMULATION)));
-        perform(last(view.menu(MenuId.SIMULATION)));
+        perform(last(view.menu(MenuId.LOGIC)));
+        perform(last(view.menu(MenuId.LOGIC)));
         displays.get(0).controls.closed();
 
         view.dispose();
@@ -452,7 +452,7 @@ class TruthTableExtensionTest {
         place(openDocument, StandardComponentTypes.LED, 20, 0, Map.of());
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            perform(last(view.menu(MenuId.SIMULATION)));
+            perform(last(view.menu(MenuId.LOGIC)));
             assertThat(questions).as("1 024 rows are computed at once").isEmpty();
             FakeDisplay display = displays.get(0);
             assertThat(display.table.rows()).hasSize(1024);
@@ -470,7 +470,7 @@ class TruthTableExtensionTest {
             assertThat(questions).as("this window already accepted 2 048 rows").hasSize(2);
 
             answer = false;
-            perform(last(view.menu(MenuId.SIMULATION)));
+            perform(last(view.menu(MenuId.LOGIC)));
             assertThat(questions).hasSize(3);
             assertThat(displays).as("declined before opening: no window").hasSize(1);
             assertThat(messages).isEmpty();
@@ -489,7 +489,7 @@ class TruthTableExtensionTest {
         bare.setTableWizard(wizards::add);
         TruthTableFeatures features = features(bare);
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             assertThat(display.wizardOffers).containsExactly(Optional.empty());
 
@@ -516,7 +516,7 @@ class TruthTableExtensionTest {
         bare.setTableWizard(wizards::add);
         TruthTableFeatures features = features(bare);
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             assertThat(display.wizardOffers)
                     .containsExactly(Optional.of("Karnaugh necesita al menos 2 entradas de 1 bit."));
@@ -534,7 +534,7 @@ class TruthTableExtensionTest {
         EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         TruthTableFeatures features = features(bare);
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             assertThat(displays.get(0).table).isNotNull();
             assertThat(displays.get(0).wizardOffers).isEmpty();
         } finally {
@@ -552,7 +552,7 @@ class TruthTableExtensionTest {
         TruthTableFeatures features = features(bare);
         try {
             assertThat(bare.canvas().snapshotListenerCount()).as("no window, nothing to follow").isEqualTo(listeners);
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             assertThat(bare.canvas().snapshotListenerCount()).isEqualTo(listeners + 1);
 
@@ -563,14 +563,14 @@ class TruthTableExtensionTest {
             features.followSnapshot(liveSnapshot(switchIs(toggle, Value.ZERO)));
             assertThat(display.currentRow).hasValue(0);
 
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             assertThat(bare.canvas().snapshotListenerCount()).as("one listener for all the windows")
                     .isEqualTo(listeners + 1);
             display.controls.closed();
             displays.get(1).controls.closed();
             assertThat(bare.canvas().snapshotListenerCount()).isEqualTo(listeners);
 
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             features.dispose();
             assertThat(bare.canvas().snapshotListenerCount()).isEqualTo(listeners);
         } finally {
@@ -586,7 +586,7 @@ class TruthTableExtensionTest {
         EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         TruthTableFeatures features = features(bare);
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             features.followSnapshot(liveSnapshot(switchIs(toggle, Value.ONE)));
             assertThat(display.currentRow).hasValue(1);
@@ -613,7 +613,7 @@ class TruthTableExtensionTest {
         EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         TruthTableFeatures features = features(bare);
         try {
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             assertThat(display.table.inputs()).extracting(column -> column.name()).containsExactly("A", "B", "C");
             assertThat(display.tryingAllowed).as("every input is a switch of the document").isTrue();
@@ -654,7 +654,7 @@ class TruthTableExtensionTest {
         TruthTableFeatures features = features(bare);
         try {
             bare.canvas().selection().select(instance.id());
-            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.LOGIC)));
             FakeDisplay display = displays.get(0);
             assertThat(display.table.inputs()).extracting(column -> column.name()).containsExactly("a");
             assertThat(display.table.inputs().get(0).componentId()).isEqualTo("c1");

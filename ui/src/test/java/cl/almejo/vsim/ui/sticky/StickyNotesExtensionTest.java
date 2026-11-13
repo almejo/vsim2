@@ -86,9 +86,9 @@ class StickyNotesExtensionTest {
         return names;
     }
 
-    private List<String> viewMenuTexts() {
+    private List<String> toolsMenuTexts() {
         List<String> names = new ArrayList<>();
-        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
+        for (java.awt.Component child : view.menu(MenuId.TOOLS).getMenuComponents()) {
             if (child instanceof JMenuItem item) {
                 names.add(item.getText());
             }
@@ -97,12 +97,10 @@ class StickyNotesExtensionTest {
     }
 
     @Test
-    void theToolComesRightAfterMarcoInTheToolbarAndTheViewMenu() {
+    void theToolComesRightAfterMarcoInTheToolbarAndTheToolsMenu() {
         assertThat(toolbarTools()).containsSubsequence("Selección", "Marco", "Nota adhesiva", "Mover vista");
         assertThat(toolbarTools().indexOf("Nota adhesiva")).isEqualTo(toolbarTools().indexOf("Marco") + 1);
-        assertThat(viewMenuTexts().subList(0, 11))
-                .containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "Selección",
-                        "Marco", "Nota adhesiva", "Mover vista", "Zoom");
+        assertThat(toolsMenuTexts()).containsExactly("Selección", "Marco", "Nota adhesiva", "Mover vista", "Zoom");
         assertThat(view.shortcutActions()).containsKey("view.stickyNoteTool");
     }
 
@@ -116,7 +114,7 @@ class StickyNotesExtensionTest {
         };
 
         assertThat(view.toolButton(StickyNoteTool.class)).isEmpty();
-        assertThat(viewMenuTexts()).doesNotContain("Nota adhesiva");
+        assertThat(toolsMenuTexts()).doesNotContain("Nota adhesiva");
         assertThat(view.shortcutActions()).doesNotContainKey("view.stickyNoteTool");
         SelectTool select = (SelectTool) view.canvas().defaultTool();
         assertThat(select.delegates()).noneMatch(StickyNoteGestures.class::isInstance);

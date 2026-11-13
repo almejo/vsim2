@@ -306,7 +306,7 @@ class BubbleTourTest {
         for (int step = 0; step < 4; step++) {
             tour.next();
         }
-        assertThat(tour.line()).contains(new BubbleLine.MenuPath("Ver ▸ Mostrar los atajos al usarlos"));
+        assertThat(tour.line()).contains(new BubbleLine.MenuPath("Ver ▸ Presentar ▸ Mostrar los atajos al usarlos"));
 
         tour.next();
 

@@ -27,10 +27,13 @@ import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlots;
+import cl.almejo.vsim.ui.window.MenuSlot;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JMenu;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -401,15 +404,14 @@ class GuidesFeaturesTest {
     // --- menus ---------------------------------------------------------------------------------------------------
 
     @Test
-    void theVerItemsComeRightAfterTheGridSubmenu() {
+    void theItemsComeAfterTheGridSubmenuInVerCuadriculaYGuias() {
         GridFeatures grid = new GridFeatures(view);
         try {
             features.dispose();
             GuidesFeatures afterGrid = newFeatures(view);
-            List<String> texts = texts(view.menu(MenuId.VIEW).getMenuComponents());
-            int gridIndex = texts.indexOf("Cuadrícula");
-            assertThat(texts.subList(gridIndex, gridIndex + 6)).containsExactly("Cuadrícula", "Mostrar guías",
-                    "Agregar guía horizontal", "Agregar guía vertical", "Borrar guías", "---");
+            JMenu gridAndGuides = MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.GRID_AND_GUIDES).orElseThrow();
+            assertThat(texts(gridAndGuides.getMenuComponents())).containsExactly("Cuadrícula", "---", "Mostrar guías",
+                    "Agregar guía horizontal", "Agregar guía vertical", "Borrar guías");
             assertThat(view.shortcutActions()).containsEntry("view.showGuides", afterGrid.showGuidesAction())
                     .containsEntry("view.addHorizontalGuide", afterGrid.addHorizontalAction())
                     .containsEntry("view.addVerticalGuide", afterGrid.addVerticalAction())
@@ -602,7 +604,9 @@ class GuidesFeaturesTest {
         assertThat(canvas.overlayCount()).isEqualTo(overlaysShown - 1);
         assertThat(preferences.listenerCount()).isEqualTo(preferenceListeners - 1);
         assertThat(openDocument.document().guideListenerCount()).isEqualTo(guideListeners - 1);
-        assertThat(view.menu(MenuId.VIEW).getMenuComponentCount()).isEqualTo(viewItems - 5); // with its separator
+        assertThat(MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.GRID_AND_GUIDES))
+                .as("the submenu goes with its last item").isEmpty();
+        assertThat(view.menu(MenuId.VIEW).getMenuComponentCount()).isEqualTo(viewItems - 1);
         assertThat(view.shortcutActions()).doesNotContainKeys("view.showGuides", "view.addHorizontalGuide",
                 "view.addVerticalGuide", "view.clearGuides");
         assertThat(texts(view.contextMenu(Optional.empty(), new Point2D.Double(3, 3)).getComponents()))

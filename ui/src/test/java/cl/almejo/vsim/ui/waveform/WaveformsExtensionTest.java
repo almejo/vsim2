@@ -21,7 +21,10 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,9 +71,9 @@ class WaveformsExtensionTest {
     }
 
     private static JCheckBoxMenuItem toggleItem(EditorView view) {
-        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (child instanceof JCheckBoxMenuItem item && item.getText().equals("Formas de onda")) {
-                return item;
+        for (JMenuItem item : UiTestSupport.itemsDeep(view.menu(MenuId.VIEW))) {
+            if (item instanceof JCheckBoxMenuItem checkBox && checkBox.getText().equals("Formas de onda")) {
+                return checkBox;
             }
         }
         throw new AssertionError("no Formas de onda item");
@@ -97,7 +100,8 @@ class WaveformsExtensionTest {
     void theViewMenuTogglesThePanelUnderTheCanvas() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda");
+            assertThat(texts(MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.PANELS).orElseThrow()))
+                    .endsWith("---", "Formas de onda");
             assertThat(view.bottomDock().content()).containsInstanceOf(WaveformPanel.class);
             assertThat(view.bottomDock().isDockShowing()).isFalse();
             assertThat(toggleItem(view).isSelected()).isFalse();

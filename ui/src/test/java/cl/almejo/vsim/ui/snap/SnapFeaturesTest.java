@@ -11,6 +11,8 @@ import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlots;
+import cl.almejo.vsim.ui.window.MenuSlot;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,8 +61,13 @@ class SnapFeaturesTest {
         fixture.close();
     }
 
+    private static JMenu gridAndGuides(EditorView target) {
+        return MenuSlots.find(target.menu(MenuId.VIEW), MenuSlot.GRID_AND_GUIDES).orElseThrow();
+    }
+
     private static JMenu snapToMenu(EditorView target) {
-        for (java.awt.Component child : target.menu(MenuId.VIEW).getMenuComponents()) {
+        JMenu container = gridAndGuides(target);
+        for (java.awt.Component child : container.getMenuComponents()) {
             if (child instanceof JMenu menu && "Ajustar a".equals(menu.getText())) {
                 return menu;
             }
@@ -79,12 +86,13 @@ class SnapFeaturesTest {
     }
 
     @Test
-    void theItemsSitRightAfterTheGridSubmenuWithTheDefaults() {
-        List<String> viewTexts = texts(view.menu(MenuId.VIEW));
-        int gridIndex = viewTexts.indexOf("Cuadrícula");
-        assertThat(viewTexts.subList(gridIndex, gridIndex + 3)).containsExactly("Cuadrícula", "Ajustar",
+    void theItemsSitRightAfterTheGridSubmenuInCuadriculaYGuiasWithTheDefaults() {
+        JMenu gridAndGuides = gridAndGuides(view);
+        List<String> menuTexts = texts(gridAndGuides);
+        int gridIndex = menuTexts.indexOf("Cuadrícula");
+        assertThat(menuTexts.subList(gridIndex, gridIndex + 3)).containsExactly("Cuadrícula", "Ajustar",
                 "Ajustar a");
-        JMenuItem toggleItem = view.menu(MenuId.VIEW).getItem(gridIndex + 1);
+        JMenuItem toggleItem = gridAndGuides.getItem(gridIndex + 1);
         assertThat(toggleItem).isInstanceOf(JCheckBoxMenuItem.class);
         assertThat(toggleItem.isSelected()).isTrue();
         JMenu snapTo = snapToMenu(view);
@@ -195,7 +203,7 @@ class SnapFeaturesTest {
         features.dispose();
         features.dispose();
 
-        assertThat(texts(view.menu(MenuId.VIEW))).doesNotContain("Ajustar", "Ajustar a").contains("Cuadrícula");
+        assertThat(texts(gridAndGuides(view))).doesNotContain("Ajustar", "Ajustar a").contains("Cuadrícula");
         assertThat(snapButtons(view, features.toggleAction())).isEmpty();
         assertThat(view.shortcutActions()).doesNotContainKeys("view.snap", "view.snapToParts", "view.snapToGuides",
                 "view.snapToGridLines");

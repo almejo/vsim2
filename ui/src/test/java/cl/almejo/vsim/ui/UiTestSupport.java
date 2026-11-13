@@ -35,6 +35,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -122,6 +123,25 @@ public final class UiTestSupport {
                 Rotation.R0, parameters, "");
         document.execute(new AddElementsCommand(List.of(component)));
         return component;
+    }
+
+    /** Every item of {@code menu} and of its submenus, depth first (submenus included, separators not). */
+    public static List<JMenuItem> itemsDeep(JMenu menu) {
+        List<JMenuItem> items = new ArrayList<>();
+        for (java.awt.Component child : menu.getMenuComponents()) {
+            if (child instanceof JMenuItem item) {
+                items.add(item);
+                if (item instanceof JMenu submenu) {
+                    items.addAll(itemsDeep(submenu));
+                }
+            }
+        }
+        return items;
+    }
+
+    /** The first item called {@code text} in {@code menu} or its submenus: the menus nest since 0.9. */
+    public static Optional<JMenuItem> itemDeep(JMenu menu, String text) {
+        return itemsDeep(menu).stream().filter(item -> text.equals(item.getText())).findFirst();
     }
 
     /** The text of each item of {@code menu}, {@code "---"} for a separator. */

@@ -151,8 +151,8 @@ class FullScreenWaveformsTest {
     }
 
     private JMenuItem waveformsItem() {
-        for (Component item : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (item instanceof JMenuItem menuItem && "Formas de onda".equals(menuItem.getText())) {
+        for (JMenuItem menuItem : cl.almejo.vsim.ui.UiTestSupport.itemsDeep(view.menu(MenuId.VIEW))) {
+            if ("Formas de onda".equals(menuItem.getText())) {
                 return menuItem;
             }
         }

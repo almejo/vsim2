@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutEntry;
 import cl.almejo.vsim.ui.waveform.ProbeActions;
 import cl.almejo.vsim.ui.waveform.WaveformPanel;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -75,12 +76,8 @@ class WaveformsEndToEndTest {
     }
 
     private static JMenuItem viewItem(EditorView view, String text) {
-        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (child instanceof JMenuItem item && text.equals(item.getText())) {
-                return item;
-            }
-        }
-        throw new AssertionError("no View item " + text);
+        return UiTestSupport.itemDeep(view.menu(MenuId.VIEW), text)
+                .orElseThrow(() -> new AssertionError("no View item " + text));
     }
 
     @Test
@@ -147,8 +144,10 @@ class WaveformsEndToEndTest {
                 "menu.view.waveforms", MenuId.VIEW, Scope.WINDOW, Optional.empty()));
         List<ShortcutEntry> viewEntries = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.VIEW).toList();
-        // then «Presentar», «Modo presentación» and «Mostrar los atajos al usarlos»
-        assertThat(viewEntries.get(viewEntries.size() - 4).id()).isEqualTo("waveforms.toggle");
+        // «Ver ▸ Paneles»: the six panels, then the waveforms
+        int waveformsIndex = viewEntries.stream().map(ShortcutEntry::id).toList().indexOf("waveforms.toggle");
+        assertThat(waveformsIndex).isPositive();
+        assertThat(viewEntries.get(waveformsIndex - 1).id()).isEqualTo("view.memoryMap");
 
         KeyStroke stroke = KeyStroke.getKeyStroke(KeyEvent.VK_F9, 0);
         new KeyBindings(preferences).assign("waveforms.toggle", stroke);

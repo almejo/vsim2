@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.busvalues;
 import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -46,7 +47,7 @@ class BusValuesFeaturesTest {
 
     private static List<JCheckBoxMenuItem> viewItems(EditorView target) {
         List<JCheckBoxMenuItem> found = new ArrayList<>();
-        for (Component child : target.menu(MenuId.VIEW).getMenuComponents()) {
+        for (Component child : UiTestSupport.itemsDeep(target.menu(MenuId.VIEW))) {
             if (child instanceof JCheckBoxMenuItem item && NAME.equals(item.getText())) {
                 found.add(item);
             }

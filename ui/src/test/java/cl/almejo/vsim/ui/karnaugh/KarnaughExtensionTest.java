@@ -17,12 +17,15 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.itemsDeep;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class KarnaughExtensionTest {
@@ -58,14 +61,15 @@ class KarnaughExtensionTest {
     }
 
     @Test
-    void theToolsMenuItemOpensAFreshWizardOnTheTable() {
-        JMenu tools = view.menu(MenuId.TOOLS);
-        assertThat(tools.getItemCount()).isEqualTo(3);
-        assertThat(tools.getItem(0).getText()).isEqualTo("Circuito desde tabla de verdad…");
-        assertThat(view.shortcutActions().get("tools.circuitFromTruthTable")).isSameAs(tools.getItem(0).getAction());
+    void theLogicMenuItemOpensAFreshWizardOnTheTable() {
+        JMenu logic = view.menu(MenuId.LOGIC);
+        assertThat(texts(logic)).containsExactly("Circuito desde tabla de verdad…", "Circuito desde expresiones…", "---",
+                "Practicar Karnaugh…");
+        JMenuItem fromTable = logicItem("Circuito desde tabla de verdad…");
+        assertThat(view.shortcutActions().get("tools.circuitFromTruthTable")).isSameAs(fromTable.getAction());
 
-        tools.getItem(0).doClick();
-        tools.getItem(0).doClick();
+        fromTable.doClick();
+        fromTable.doClick();
 
         assertThat(opened).hasSize(2);
         assertThat(opened.get(0)).isNotSameAs(opened.get(1));
@@ -77,13 +81,15 @@ class KarnaughExtensionTest {
     }
 
     @Test
-    void thePracticeItemComesRightAfterTheWizardAndOpensAFreshWizardInPracticeMode() {
-        JMenu tools = view.menu(MenuId.TOOLS);
-        assertThat(tools.getItem(1).getText()).isEqualTo("Practicar Karnaugh…");
-        assertThat(view.shortcutActions().get("tools.karnaughPractice")).isSameAs(tools.getItem(1).getAction());
+    void thePracticeItemComesAfterTheWizardsAndOpensAFreshWizardInPracticeMode() {
+        JMenuItem practice = logicItem("Practicar Karnaugh…");
+        assertThat(texts(view.menu(MenuId.LOGIC)).indexOf("Practicar Karnaugh…"))
+                .as("in its own group, after the two «Circuito desde…» items")
+                .isEqualTo(3);
+        assertThat(view.shortcutActions().get("tools.karnaughPractice")).isSameAs(practice.getAction());
 
-        tools.getItem(1).doClick();
-        tools.getItem(1).doClick();
+        practice.doClick();
+        practice.doClick();
 
         assertThat(opened).hasSize(2);
         assertThat(opened.get(0)).isNotSameAs(opened.get(1));
@@ -96,14 +102,14 @@ class KarnaughExtensionTest {
     }
 
     @Test
-    void theToolsMenuOpensAFreshExpressionsDialogRightAfterTheWizard() {
-        JMenu tools = view.menu(MenuId.TOOLS);
-        assertThat(tools.getItem(2).getText()).isEqualTo("Circuito desde expresiones…");
+    void theLogicMenuOpensAFreshExpressionsDialogRightAfterTheWizard() {
+        JMenuItem fromExpressions = logicItem("Circuito desde expresiones…");
+        assertThat(texts(view.menu(MenuId.LOGIC)).indexOf("Circuito desde expresiones…")).isEqualTo(1);
         assertThat(view.shortcutActions().get("tools.circuitFromExpressions"))
-                .isSameAs(tools.getItem(2).getAction());
+                .isSameAs(fromExpressions.getAction());
 
-        tools.getItem(2).doClick();
-        tools.getItem(2).doClick();
+        fromExpressions.doClick();
+        fromExpressions.doClick();
 
         assertThat(expressions).hasSize(2);
         assertThat(expressions.get(0)).isNotSameAs(expressions.get(1));
@@ -114,7 +120,7 @@ class KarnaughExtensionTest {
 
     @Test
     void seeInKarnaughOpensTheWizardOnTheGroupsWithTheTable() {
-        view.menu(MenuId.TOOLS).getItem(2).doClick();
+        logicItem("Circuito desde expresiones…").doClick();
         ExpressionsPanel panel = expressions.getFirst();
         panel.titleField().setText("Mayoría");
         panel.lineField(0).setText("M = A B + A C + B C");
@@ -136,7 +142,7 @@ class KarnaughExtensionTest {
 
     @Test
     void creatingFromTheWizardOverTheExpressionsClosesBoth() {
-        view.menu(MenuId.TOOLS).getItem(2).doClick();
+        logicItem("Circuito desde expresiones…").doClick();
         ExpressionsPanel panel = expressions.getFirst();
         int[] expressionsClosed = {0};
         int[] wizardClosed = {0};
@@ -217,16 +223,21 @@ class KarnaughExtensionTest {
 
     @Test
     void disposingTheViewTakesTheItemsAndTheShortcutsBack() {
-        JMenu tools = view.menu(MenuId.TOOLS);
+        JMenu logic = view.menu(MenuId.LOGIC);
         JMenu file = view.menu(MenuId.FILE);
         int fileItems = file.getMenuComponentCount();
         view.dispose();
-        assertThat(tools.getItemCount()).isZero();
+        assertThat(logic.getItemCount()).isZero();
         assertThat(file.getMenuComponentCount()).as("the submenu and its separator").isEqualTo(fileItems - 2);
         assertThat(ImportMenu.find(file)).isEmpty();
         assertThat(view.shortcutActions()).doesNotContainKeys("tools.circuitFromTruthTable",
                 "tools.karnaughPractice", "tools.circuitFromExpressions", "file.importTruthTable");
         assertThat(view.tableWizard()).isEmpty();
+    }
+
+    private JMenuItem logicItem(String text) {
+        return itemsDeep(view.menu(MenuId.LOGIC)).stream().filter(item -> text.equals(item.getText())).findFirst()
+                .orElseThrow();
     }
 
     private static JMenu importMenu(JMenu file) {

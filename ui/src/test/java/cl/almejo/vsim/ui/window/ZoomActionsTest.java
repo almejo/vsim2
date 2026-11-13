@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JComponent;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
@@ -197,19 +198,20 @@ class ZoomActionsTest {
     }
 
     @Test
-    void theVerMenuListsThemAfterZoomOneHundredPercentWithoutAnAccelerator() {
+    void theZoomSubmenuListsThemAfterZoomOneHundredPercentWithoutAnAccelerator() {
         List<String> texts = new ArrayList<>();
         List<JMenuItem> items = new ArrayList<>();
-        for (int index = 0; index < view.menu(MenuId.VIEW).getItemCount(); index++) {
-            JMenuItem item = view.menu(MenuId.VIEW).getItem(index);
+        JMenu zoomMenu = MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.ZOOM).orElseThrow();
+        for (int index = 0; index < zoomMenu.getItemCount(); index++) {
+            JMenuItem item = zoomMenu.getItem(index);
             texts.add(item == null ? "---" : item.getText());
             items.add(item);
         }
         assertThat(texts).containsSubsequence("Zoom 100 %", "Ver todo el circuito", "Zoom a la selección",
                 "Centrar circuito");
         assertThat(texts.indexOf("Ver todo el circuito")).isEqualTo(texts.indexOf("Zoom 100 %") + 1);
-        assertThat(texts.indexOf("Centrar circuito")).as("after «Escribir el zoom…»")
-                .isEqualTo(texts.indexOf("Zoom a la selección") + 2);
+        assertThat(texts.indexOf("Centrar circuito")).as("after the separator and «Escribir el zoom…»")
+                .isEqualTo(texts.indexOf("Zoom a la selección") + 3);
         JMenuItem fit = items.get(texts.indexOf("Ver todo el circuito"));
         assertThat(fit.getAction()).isSameAs(view.actions().zoomToFit());
         assertThat(fit.getAccelerator()).as("a canvas key, like F8").isNull();

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Alt+3 … Alt+6 and Ver ▸ Propiedades … Mapa de memoria: each one is the section's toggle. */
@@ -87,15 +88,11 @@ class InspectorShortcutsTest {
     }
 
     @Test
-    void theViewMenuListsThemRightAfterThePaletteWithTheirNames() {
-        JMenu viewMenu = view.menu(MenuId.VIEW);
+    void thePanelsSubmenuListsThemRightAfterThePaletteWithTheirNames() {
+        JMenu panels = MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.PANELS).orElseThrow();
 
-        List<String> texts = new ArrayList<>();
-        for (int index = 0; index < 8; index++) {
-            texts.add(viewMenu.getItem(index) == null ? "---" : viewMenu.getItem(index).getText());
-        }
-        assertThat(texts).containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas",
-                "Mapa de memoria", "---", "Selección");
+        assertThat(texts(panels)).containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas",
+                "Mapa de memoria");
     }
 
     @Test

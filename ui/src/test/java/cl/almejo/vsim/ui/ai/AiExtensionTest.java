@@ -41,8 +41,8 @@ class AiExtensionTest {
     }
 
     @Test
-    void itAddsTheAiPanelToHerramientasAndTakesEverythingBack() {
-        JMenu tools = view.menu(MenuId.TOOLS);
+    void itAddsTheAiPanelToVentanaAndTakesEverythingBack() {
+        JMenu tools = view.menu(MenuId.WINDOW);
         List<String> before = texts(tools);
         int statusComponents = view.statusBar().getComponentCount();
         int overlays = view.canvas().overlayCount();

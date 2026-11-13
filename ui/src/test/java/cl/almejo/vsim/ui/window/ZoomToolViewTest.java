@@ -148,9 +148,9 @@ class ZoomToolViewTest {
     }
 
     @Test
-    void zIsACanvasKeyOfEveryPaneAndTheMenuItemSitsAfterMoverVista() {
+    void zIsACanvasKeyOfEveryPaneAndTheToolsMenuItemSitsAfterMoverVista() {
         assertThat(ShortcutCatalog.find("view.zoomTool")).contains(new ShortcutEntry("view.zoomTool",
-                "action.toolZoom", MenuId.VIEW, Scope.CANVAS, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_Z, 0))));
+                "action.toolZoom", MenuId.TOOLS, Scope.CANVAS, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_Z, 0))));
         view.canvasPanes().split(Orientation.VERTICAL, 0.5);
         for (CircuitCanvas pane : view.panes()) {
             Object name = pane.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, 0));
@@ -159,8 +159,8 @@ class ZoomToolViewTest {
         }
         List<String> texts = new ArrayList<>();
         List<JMenuItem> items = new ArrayList<>();
-        for (int index = 0; index < view.menu(MenuId.VIEW).getItemCount(); index++) {
-            JMenuItem item = view.menu(MenuId.VIEW).getItem(index);
+        for (int index = 0; index < view.menu(MenuId.TOOLS).getItemCount(); index++) {
+            JMenuItem item = view.menu(MenuId.TOOLS).getItem(index);
             texts.add(item == null ? "---" : item.getText());
             items.add(item);
         }

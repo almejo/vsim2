@@ -417,7 +417,7 @@ class AiStatusFeaturesTest {
         proposals.propose(ProposedPreference.THEME, "DARK", "");
 
         assertThat(view.statusBar().text())
-                .contains("La IA propone un cambio: míralo en Herramientas ▸ IA (MCP)…");
+                .contains("La IA propone un cambio: míralo en Ventana ▸ IA (MCP)…");
     }
 
     @Test

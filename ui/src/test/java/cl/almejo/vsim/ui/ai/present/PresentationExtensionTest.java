@@ -9,6 +9,8 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -116,8 +118,9 @@ class PresentationExtensionTest {
 
         Runnable again = extension.install(view);
 
-        assertThat(texts(viewMenu)).endsWith("---", "Presentar lo que hace la IA", "Ritmo de Presentar");
-        assertThat(viewMenu.getItem(viewMenu.getItemCount() - 2)).isInstanceOf(JCheckBoxMenuItem.class);
+        JMenu presentMenu = MenuSlots.find(viewMenu, MenuSlot.PRESENT).orElseThrow();
+        assertThat(texts(presentMenu)).containsExactly("Presentar lo que hace la IA", "Ritmo de Presentar");
+        assertThat(presentMenu.getItem(0)).isInstanceOf(JCheckBoxMenuItem.class);
         assertThat(view.toolBar().getComponentCount()).isEqualTo(toolbarBefore + 1);
         assertThat(view.shortcutActions()).containsKey(PresentationExtension.SHORTCUT_ID);
         // the panel and the callouts/ghosts each hear the task
@@ -222,11 +225,11 @@ class PresentationExtensionTest {
         assertThat(features().isPanelShown()).isFalse();
     }
 
-    /** Agreed with the user: the pace and the pause are chosen before a task too, under Ver. */
+    /** Agreed with the user: the pace and the pause are chosen before a task too, under Ver ▸ Presentar. */
     @Test
     void verOffersThePaceAndThePauseBeforeAnyTask() {
-        JMenu viewMenu = view.menu(MenuId.VIEW);
-        JMenu pace = (JMenu) viewMenu.getItem(viewMenu.getItemCount() - 1);
+        JMenu presentMenu = MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.PRESENT).orElseThrow();
+        JMenu pace = (JMenu) presentMenu.getItem(presentMenu.getItemCount() - 1);
         assertThat(texts(pace)).containsExactly("De corrido", "Paso a paso", "---",
                 "Pausa entre pasos (De corrido)");
         JMenuItem continuous = pace.getItem(0);

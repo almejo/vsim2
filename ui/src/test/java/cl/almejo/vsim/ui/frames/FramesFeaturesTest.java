@@ -35,6 +35,7 @@ import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FramesFeaturesTest {
@@ -384,7 +385,7 @@ class FramesFeaturesTest {
     }
 
     @Test
-    void theMarcoToolHasAToolbarButtonBetweenCableAndManoAndAViewMenuItem() {
+    void theMarcoToolHasAToolbarButtonBetweenCableAndManoAndAToolsMenuItem() {
         List<String> names = new ArrayList<>();
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof javax.swing.JToggleButton button) {
@@ -392,14 +393,7 @@ class FramesFeaturesTest {
             }
         }
         assertThat(names).containsExactly("Selección", "Marco", "Mover vista", "Zoom");
-        List<String> viewTexts = new ArrayList<>();
-        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (child instanceof JMenuItem item) {
-                viewTexts.add(item.getText());
-            }
-        }
-        assertThat(viewTexts.subList(0, 10)).containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "Selección",
-                "Marco", "Mover vista", "Zoom");
+        assertThat(texts(view.menu(MenuId.TOOLS))).containsExactly("Selección", "Marco", "Mover vista", "Zoom");
     }
 
     @Test
@@ -411,10 +405,6 @@ class FramesFeaturesTest {
         features.dispose();
 
         assertThat(view.toolButton(FrameTool.class)).isEmpty();
-        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (child instanceof JMenuItem item) {
-                assertThat(item.getText()).isNotEqualTo("Marco");
-            }
-        }
+        assertThat(texts(view.menu(MenuId.TOOLS))).doesNotContain("Marco");
     }
 }

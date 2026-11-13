@@ -56,8 +56,8 @@ class ShortcutsTableModelTest {
         assertThat(model.getColumnCount()).isEqualTo(2);
         assertThat(model.getColumnName(0)).isEqualTo("Acción");
         assertThat(model.getColumnName(1)).isEqualTo("Atajo");
-        assertThat(groups()).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Herramientas", "Ventana",
-                "Ayuda");
+        assertThat(groups()).containsExactly("Archivo", "Editar", "Ver", "Herramientas", "Simulación", "Lógica",
+                "Ventana", "Ayuda");
         assertThat(model.isGroupRow(0)).isTrue();
         assertThat(model.entryAt(0)).isEmpty();
         assertThat(model.getValueAt(1, 0)).isEqualTo("Nuevo");
@@ -72,8 +72,8 @@ class ShortcutsTableModelTest {
         model.setFilter("guar");
         assertThat(column(0)).containsExactly("Archivo", "Guardar", "Guardar como…");
         model.setFilter("SELECCION");
-        assertThat(column(0)).containsExactly("Editar", "Seleccionar todo", "Enmarcar selección", "Ver", "Selección",
-                "Zoom a la selección");
+        assertThat(column(0)).containsExactly("Editar", "Seleccionar todo", "Enmarcar selección", "Ver", "Zoom a la selección",
+                "Herramientas", "Selección");
         model.setFilter("zzz");
         assertThat(model.getRowCount()).isZero();
         assertThat(model.rowOf("file.save")).isEqualTo(-1);

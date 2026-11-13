@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.Menus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -126,18 +125,13 @@ class ShortcutEchoFeaturesTest {
     }
 
     private JMenuItem menuItem(MenuId menu, Action action) {
-        int index = Menus.indexOf(view.menu(menu), action);
-        assertThat(index).isGreaterThanOrEqualTo(0);
-        return (JMenuItem) view.menu(menu).getMenuComponent(index);
+        return UiTestSupport.itemsDeep(view.menu(menu)).stream().filter(item -> item.getAction() == action).findFirst()
+                .orElseThrow(() -> new AssertionError("no item for " + action.getValue(Action.NAME) + " in " + menu));
     }
 
     private JMenuItem viewItemNamed(String text) {
-        for (Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
-            if (child instanceof JMenuItem item && text.equals(item.getText())) {
-                return item;
-            }
-        }
-        throw new AssertionError("no Ver item " + text);
+        return UiTestSupport.itemDeep(view.menu(MenuId.VIEW), text)
+                .orElseThrow(() -> new AssertionError("no Ver item " + text));
     }
 
     private boolean keyOnCanvas(int keyCode, int modifiers) {

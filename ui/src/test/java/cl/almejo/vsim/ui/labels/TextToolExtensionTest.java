@@ -43,7 +43,7 @@ class TextToolExtensionTest {
     }
 
     @Test
-    void theToolComesRightAfterNotaAdhesivaInTheToolbarAndTheViewMenu() {
+    void theToolComesRightAfterNotaAdhesivaInTheToolbarAndTheToolsMenu() {
         List<String> names = new ArrayList<>();
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof JToggleButton button) {
@@ -51,9 +51,8 @@ class TextToolExtensionTest {
             }
         }
         assertThat(names).containsExactly("Selección", "Nota adhesiva", "Texto", "Mover vista", "Zoom");
-        assertThat(texts(view.menu(MenuId.VIEW)).subList(0, 12))
-                .containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "---", "Selección",
-                        "Nota adhesiva", "Texto", "Mover vista", "Zoom");
+        assertThat(texts(view.menu(MenuId.TOOLS)))
+                .containsExactly("Selección", "Nota adhesiva", "Texto", "Mover vista", "Zoom");
         assertThat(view.shortcutActions()).containsKey("view.textTool");
     }
 

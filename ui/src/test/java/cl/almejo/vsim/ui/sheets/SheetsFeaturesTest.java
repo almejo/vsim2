@@ -9,7 +9,6 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.app.PreferenceLayer;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
-import cl.almejo.vsim.ui.guides.GuidesFeatures;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -22,7 +21,10 @@ import cl.almejo.vsim.ui.print.SheetGrid;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,14 +46,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * «Mostrar hojas de impresión» in the views (sheets spec §0a, §5): the toggle in Ver and on the toolbar follows
+ * «Hojas de impresión» in the views (sheets spec §0a, §5): the toggle in Ver and on the toolbar follows
  * {@code sheets.show}, each pane gets its overlay and summary label only while the sheets are shown, and the anchor is
  * taken by the first view that lays the sheets out tiled, kept while editing and while any view of the document shows
  * them, cleared when none does.
  */
 class SheetsFeaturesTest {
 
-    private static final String NAME = "Mostrar hojas de impresión";
+    private static final String NAME = "Hojas de impresión";
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private final SheetAnchors anchors = new SheetAnchors();
@@ -111,7 +113,7 @@ class SheetsFeaturesTest {
 
     private static List<JCheckBoxMenuItem> items(EditorView target) {
         List<JCheckBoxMenuItem> found = new ArrayList<>();
-        for (java.awt.Component child : target.menu(MenuId.VIEW).getMenuComponents()) {
+        for (java.awt.Component child : UiTestSupport.itemsDeep(target.menu(MenuId.VIEW))) {
             if (child instanceof JCheckBoxMenuItem item && NAME.equals(item.getText())) {
                 found.add(item);
             }
@@ -172,14 +174,8 @@ class SheetsFeaturesTest {
     }
 
     @Test
-    void theItemComesRightAfterClearGuidesAndTheShortcutHasNoDefaultKey() {
-        GuidesFeatures guides = new GuidesFeatures(view);
-        cleanUps.add(0, guides::dispose);
-        features.dispose();
-        install(view);
-
-        List<String> texts = texts(view.menu(MenuId.VIEW));
-        assertThat(texts.get(texts.indexOf("Borrar guías") + 1)).isEqualTo(NAME);
+    void theItemIsInVerMostrarAndTheShortcutHasNoDefaultKey() {
+        assertThat(texts(MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.SHOW).orElseThrow())).containsExactly(NAME);
         assertThat(view.shortcutActions()).containsKey("view.showSheets");
         assertThat(ShortcutCatalog.find("view.showSheets").orElseThrow().defaultStroke()).isEmpty();
     }

@@ -109,9 +109,9 @@ class ProblemsControllerTest {
     }
 
     @Test
-    void installsTheProblemsTabTheViewItemsAndThePauseOption() {
+    void installsTheProblemsTabTheEditItemsAndThePauseOption() {
         assertThat(view.inspector().title(InspectorPanel.PROBLEMS)).contains("Problemas");
-        assertThat(itemTexts(view.menu(MenuId.VIEW))).contains("Siguiente problema", "Problema anterior");
+        assertThat(itemTexts(view.menu(MenuId.EDIT))).contains("Siguiente problema", "Problema anterior");
         JCheckBoxMenuItem pause = pauseItem();
         assertThat(pause.getText()).isEqualTo("Pausar al detectar cortocircuito");
         assertThat(pause.isSelected()).isFalse();
@@ -332,11 +332,11 @@ class ProblemsControllerTest {
     @Test
     void disposeRemovesEverythingTheControllerRegistered() {
         ProblemsController problems = view.problems();
-        int viewItems = view.menu(MenuId.VIEW).getItemCount();
+        int editItems = view.menu(MenuId.EDIT).getItemCount();
         int simulationItems = view.menu(MenuId.SIMULATION).getItemCount();
         int simulationListeners = view.menu(MenuId.SIMULATION).getMenuListeners().length;
         problems.dispose();
-        assertThat(view.menu(MenuId.VIEW).getItemCount()).isLessThan(viewItems);
+        assertThat(view.menu(MenuId.EDIT).getItemCount()).isLessThan(editItems);
         assertThat(view.menu(MenuId.SIMULATION).getItemCount()).isLessThan(simulationItems);
         assertThat(view.menu(MenuId.SIMULATION).getMenuListeners()).hasSize(simulationListeners - 1);
         assertThat(view.canvas().getActionMap().get("nextProblem")).isNull();

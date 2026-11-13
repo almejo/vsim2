@@ -6,11 +6,14 @@ import cl.almejo.vsim.ui.busvalues.BusValuesExtension;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.Component;
 import java.util.ArrayList;
@@ -52,9 +55,13 @@ class NetCardExtensionTest {
         fixture.close();
     }
 
+    private static JMenu showMenu(EditorView target) {
+        return MenuSlots.find(target.menu(MenuId.VIEW), MenuSlot.SHOW).orElseThrow();
+    }
+
     private static List<JCheckBoxMenuItem> items(EditorView target) {
         List<JCheckBoxMenuItem> found = new ArrayList<>();
-        for (Component child : target.menu(MenuId.VIEW).getMenuComponents()) {
+        for (Component child : showMenu(target).getMenuComponents()) {
             if (child instanceof JCheckBoxMenuItem item && NAME.equals(item.getText())) {
                 found.add(item);
             }
@@ -67,7 +74,7 @@ class NetCardExtensionTest {
         assertThat(AppPreferences.inMemory().highlightNetOnHover()).isFalse();
         assertThat(items(view)).hasSize(1);
         assertThat(items(view).get(0).isSelected()).isEqualTo(preferences.highlightNetOnHover());
-        Component[] components = view.menu(MenuId.VIEW).getMenuComponents();
+        Component[] components = showMenu(view).getMenuComponents();
         int index = List.of(components).indexOf(items(view).get(0));
         assertThat(((JMenuItem) components[index - 1]).getText()).isEqualTo("Valores de los buses");
     }

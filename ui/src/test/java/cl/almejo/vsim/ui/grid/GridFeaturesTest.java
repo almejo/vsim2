@@ -9,6 +9,8 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutEntry;
 import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +54,11 @@ class GridFeaturesTest {
     }
 
     private static Optional<JMenu> gridMenu(EditorView target) {
-        for (java.awt.Component child : target.menu(MenuId.VIEW).getMenuComponents()) {
+        Optional<JMenu> container = MenuSlots.find(target.menu(MenuId.VIEW), MenuSlot.GRID_AND_GUIDES);
+        if (container.isEmpty()) {
+            return Optional.empty();
+        }
+        for (java.awt.Component child : container.get().getMenuComponents()) {
             if (child instanceof JMenu menu && "Cuadrícula".equals(menu.getText())) {
                 return Optional.of(menu);
             }
@@ -69,12 +75,10 @@ class GridFeaturesTest {
     }
 
     @Test
-    void theGridSubmenuComesAfterCentrarCircuitoWithThreeStylesAndTheCycle() {
-        assertThat(texts(view.menu(MenuId.VIEW))).containsSubsequence("Zoom 100 %", "Centrar circuito", "---",
-                "Cuadrícula");
-        List<String> viewTexts = texts(view.menu(MenuId.VIEW));
-        assertThat(viewTexts.get(viewTexts.indexOf("Centrar circuito") + 1)).isEqualTo("---");
-        assertThat(viewTexts.get(viewTexts.indexOf("Centrar circuito") + 2)).isEqualTo("Cuadrícula");
+    void theGridSubmenuIsInVerCuadriculaYGuiasWithThreeStylesAndTheCycle() {
+        assertThat(texts(view.menu(MenuId.VIEW))).containsSubsequence("Zoom", "Cuadrícula y guías");
+        assertThat(texts(MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.GRID_AND_GUIDES).orElseThrow()))
+                .containsExactly("Cuadrícula");
         assertThat(texts(gridMenu(view).orElseThrow())).containsExactly("Puntos", "Líneas", "Nada", "---",
                 "Separación", "---", "Cambiar el estilo de la cuadrícula");
         assertThat(selected(view)).containsExactly(true, false, false);
@@ -171,12 +175,14 @@ class GridFeaturesTest {
         preferences.setGridStyle(GridStyle.LINES);
         preferences.setGridLineSpacing(4);
         List<String> before = texts(view.menu(MenuId.VIEW));
+        assertThat(before).contains("Cuadrícula y guías");
 
         features.dispose();
         features.dispose();
 
         assertThat(gridMenu(view)).isEmpty();
-        assertThat(texts(view.menu(MenuId.VIEW))).hasSize(before.size() - 2);
+        assertThat(texts(view.menu(MenuId.VIEW))).as("the submenu goes with its last item")
+                .hasSize(before.size() - 1).doesNotContain("Cuadrícula y guías");
         assertThat(view.shortcutActions()).doesNotContainKey("view.cycleGrid");
         assertThat(preferences.listenerCount()).isEqualTo(listeners - 1);
         assertThat(view.canvas().gridStyle()).isEqualTo(GridStyle.DOTS);
