@@ -7,7 +7,8 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.CanvasNotice;
 import cl.almejo.vsim.ui.panels.CanvasNoticeStack;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.Menus;
 
 import javax.swing.AbstractButton;
@@ -63,7 +64,7 @@ final class ShortcutEchoFeatures {
     private final AppPreferences preferences;
     private final ShortcutEchoExtension.Seams seams;
     private final Action toggle;
-    private final JMenu viewMenu;
+    private final Runnable menuRemover;
     private final JCheckBoxMenuItem menuItem;
     private final Runnable shortcutRemover;
     private final CanvasNoticeStack chips;
@@ -85,9 +86,8 @@ final class ShortcutEchoFeatures {
                 MAXIMUM_CHIPS, seams.tickers(), seams.clock(), () -> seams.animations().test(preferences));
         this.toggle = Actions.of(Messages.text("action.showUsedShortcuts"),
                 () -> preferences.setShowUsedShortcuts(!preferences.showUsedShortcuts()));
-        this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(toggle);
-        viewMenu.add(menuItem);
+        this.menuRemover = MenuSlots.add(view, MenuSlot.SHOW_USED_SHORTCUTS, menuItem);
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT_ID, toggle);
         hookAll();
         for (JMenu menu : topMenus()) {
@@ -270,6 +270,6 @@ final class ShortcutEchoFeatures {
         hooked.clear();
         chips.clear();
         shortcutRemover.run();
-        viewMenu.remove(menuItem);
+        menuRemover.run();
     }
 }

@@ -15,14 +15,13 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import javax.swing.JSeparator;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.geom.Point2D;
@@ -67,8 +66,7 @@ public final class GuidesFeatures {
     private final Action addHorizontal;
     private final Action addVertical;
     private final Action clear;
-    private final JMenu viewMenu;
-    private final List<Component> menuComponents = new ArrayList<>();
+    private final List<Runnable> menuRemovers = new ArrayList<>();
     private final List<Runnable> removers = new ArrayList<>();
     /** The rulers, lines and drags of each pane of the view. */
     private final Map<CircuitCanvas, PaneGuides> panes = new LinkedHashMap<>();
@@ -93,7 +91,6 @@ public final class GuidesFeatures {
                 () -> addAtPoint(Orientation.VERTICAL, pointerOrMiddle()));
         this.clear = Actions.of(Messages.text("action.clearGuides"),
                 () -> SetGuidesCommand.clearing(document()).ifPresent(openDocument::execute));
-        this.viewMenu = view.menu(MenuId.VIEW);
         insertMenuItems();
         removers.add(view.registerShortcutAction(SHOW_SHORTCUT, showGuides));
         removers.add(view.registerShortcutAction(ADD_HORIZONTAL_SHORTCUT, addHorizontal));
@@ -140,49 +137,13 @@ public final class GuidesFeatures {
 
     // --- menus ---------------------------------------------------------------------------------------------------
 
-    /**
-     * Puts the items at the end of the group of «Cuadrícula ▸» (so the snapping items, installed before, stay next to
-     * the grid); without the grid submenu, in their own group after «Centrar circuito».
-     */
+    /** Ver ▸ Cuadrícula y guías: the guide items, in their own group after the grid and snapping ones. */
     private void insertMenuItems() {
-        int index = endOfGridGroup();
-        if (index < 0) {
-            index = indexAfterCenterView();
-            viewMenu.insertSeparator(index);
-            menuComponents.add(viewMenu.getMenuComponent(index));
-            index++;
-        }
         List<JMenuItem> items = List.of(new JCheckBoxMenuItem(showGuides), new JMenuItem(addHorizontal),
                 new JMenuItem(addVertical), new JMenuItem(clear));
         for (JMenuItem item : items) {
-            viewMenu.insert(item, index++);
-            menuComponents.add(item);
+            menuRemovers.add(MenuSlots.add(view, MenuSlot.GUIDES, item));
         }
-    }
-
-    private int endOfGridGroup() {
-        String gridText = Messages.text("menu.view.grid");
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenu submenu && gridText.equals(submenu.getText())) {
-                int end = index + 1;
-                while (end < viewMenu.getMenuComponentCount()
-                        && !(viewMenu.getMenuComponent(end) instanceof JSeparator)) {
-                    end++;
-                }
-                return end;
-            }
-        }
-        return -1;
-    }
-
-    private int indexAfterCenterView() {
-        Action centerView = view.actions().centerView();
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == centerView) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
     }
 
     /** The menu of the rulers' corner of {@code pane}: the guide items of Ver, the new guides in its middle. */
@@ -332,7 +293,7 @@ public final class GuidesFeatures {
         document().removeGuideListener(guideListener);
         removers.forEach(Runnable::run);
         removers.clear();
-        menuComponents.forEach(viewMenu::remove);
-        menuComponents.clear();
+        menuRemovers.forEach(Runnable::run);
+        menuRemovers.clear();
     }
 }

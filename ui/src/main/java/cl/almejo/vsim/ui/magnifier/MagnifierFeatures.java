@@ -10,13 +10,13 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
@@ -43,7 +43,7 @@ public final class MagnifierFeatures {
     private final Action toggle;
     private final MagnifierPresenter popup;
     private final MagnifierHover hover;
-    private final JMenu viewMenu;
+    private final Runnable menuRemover;
     private final JCheckBoxMenuItem menuItem;
     private final Runnable toolButtonRemover;
     private final Runnable shortcutRemover;
@@ -90,9 +90,8 @@ public final class MagnifierFeatures {
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.magnifier.tooltip"));
         Icons.install(toggle, MagnifierIcons.EYE);
         toggle.putValue(Action.SELECTED_KEY, false);
-        this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(toggle);
-        viewMenu.insert(menuItem, indexInViewMenu());
+        this.menuRemover = MenuSlots.add(view, MenuSlot.LOOK_INSIDE, menuItem);
         this.toolButtonRemover = view.addToolbarToggleAfterTools(new JToggleButton(toggle));
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);
         this.marksRemover = EveryPane.addOverlay(view, new MagnifierOutline(
@@ -192,17 +191,6 @@ public final class MagnifierFeatures {
         menu.add(ContextMenuEntry.LOOK_INSIDE.tag(new JMenuItem(lookInside)));
     }
 
-    /** After «Valores de los buses» when the menu has it; else at the end of the menu. */
-    private int indexInViewMenu() {
-        String busValuesText = Messages.text("action.busValues");
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && busValuesText.equals(item.getText())) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
-    }
-
     public void dispose() {
         if (disposed) {
             return;
@@ -214,6 +202,6 @@ public final class MagnifierFeatures {
         marksRemover.run();
         shortcutRemover.run();
         toolButtonRemover.run();
-        viewMenu.remove(menuItem);
+        menuRemover.run();
     }
 }

@@ -12,10 +12,10 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -50,10 +50,7 @@ public final class StickyNotesExtension implements EditorExtension {
                 () -> view.setToolOnEveryPane(StickyNoteTool::new));
         Icons.install(tool, StickyNoteIcons.TOOL);
         removers.add(view.addToolButton(tool, StickyNoteTool.class));
-        JMenu viewMenu = view.menu(MenuId.VIEW);
-        JMenuItem toolItem = new JMenuItem(tool);
-        viewMenu.insert(toolItem, indexAfterSelectTool(view, viewMenu));
-        removers.add(() -> viewMenu.remove(toolItem));
+        removers.add(MenuSlots.add(view, MenuSlot.STICKY_NOTE_TOOL, new JMenuItem(tool)));
         removers.add(view.registerShortcutAction("view.stickyNoteTool", tool));
         removers.add(view.forEachPane(this::installOn));
         StickyNoteMenu menu = new StickyNoteMenu(view.openDocument(), view::canvas, confirmation);
@@ -63,17 +60,6 @@ public final class StickyNotesExtension implements EditorExtension {
             }
         }));
         return () -> removers.reversed().forEach(Runnable::run);
-    }
-
-    private static int indexAfterSelectTool(EditorView view, JMenu viewMenu) {
-        Action selectTool = view.actions().selectTool();
-        for (int index = 0; index < viewMenu.getItemCount(); index++) {
-            JMenuItem item = viewMenu.getItem(index);
-            if (item != null && item.getAction() == selectTool) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getItemCount();
     }
 
     /** On one pane: the select tool's note gestures and the tooltip of a folded note. */

@@ -41,8 +41,8 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 - Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar (en un touchpad, dos dedos hacia arriba, abajo o los lados); botón del medio o Espacio+arrastrar: mover la vista.
 - **Control de zoom** al final de la barra de estado (después de «IA: …»): «−» (Alejar), un deslizador, «+» (Acercar), el porcentaje, «100 %», «Ver todo el circuito» y «Zoom a la selección» (deshabilitado sin nada seleccionado). El deslizador va de 25 % a 400 % con 100 % justo al medio, y cada vez que el zoom se duplica avanza lo mismo (50 % y 200 % quedan a un cuarto de cada punta); cerca del medio se queda en 100 % (una marca chica lo indica). Moverlo acerca o aleja al instante alrededor del centro del panel; usarlo con el mouse no le quita el teclado al lienzo (Tab sí llega a él). Con el foco en el deslizador, ← / ↓ alejan un paso, → / ↑ acercan un paso, Re Pág duplica, Av Pág divide por dos, Inicio va a 25 % y Fin a 400 %; la rueda del mouse sobre él da un paso por muesca. En el porcentaje se escribe un número y Enter («150», «150 %», «62,5»; uno fuera de rango queda en 25 % o 400 %) o se elige uno de la lista (25, 50, 75, 100, 150, 200, 300 y 400 %; las flechas la recorren y el zoom cambia al elegir con clic o Enter): la vista llega con un [viaje suave](buscar.md#viaje-suave-de-la-vista) alrededor del centro y el foco vuelve al lienzo. Si lo escrito no es un número, el campo se marca en rojo y dice «Escribe un porcentaje entre 25 y 400»; Esc devuelve el zoom actual. «100 %» vuelve a 100 % sin mover el centro, como Ctrl+0. Ver ▸ «Escribir el zoom…» lleva el teclado al porcentaje, ya seleccionado para escribir encima (no trae atajo, pero se le puede dar uno). En una ventana angosta el deslizador se achica primero; el porcentaje y «IA: …» no se salen de la barra. El zoom no marca el circuito como modificado ni cuenta como paso de deshacer.
-- Ver ▸ «Ver todo el circuito» (Mayús+1, o el botón «Ver todo» del control de zoom de la barra de estado) acerca o aleja la vista hasta que el circuito entero, con sus etiquetas y textos, ocupa nueve décimos del panel, centrado; con un circuito chico acerca hasta 400 %, y con un circuito vacío no hace nada. Ver ▸ «Zoom a la selección» (Mayús+2) hace lo mismo con lo seleccionado, así una sola compuerta se ve grande; sin nada seleccionado está deshabilitado. Las dos llegan con un [viaje suave](buscar.md#viaje-suave-de-la-vista) (o de un salto si «Animar los movimientos de la vista» está desactivado), actúan sobre el panel activo, no marcan el circuito como modificado y no cuentan como paso de deshacer. «Centrar circuito» sigue igual: centra sin cambiar tu zoom.
-- **Herramienta Zoom** (su botón, una lupa, es la última de las herramientas, después de «Mover vista»; también Ver ▸ «Zoom» y la tecla Z, que se puede cambiar en Atajos de teclado): arrastra un recuadro y, al soltar, la vista viaja hasta que el recuadro llena el panel justo, tocando dos bordes opuestos (un recuadro angosto se ajusta por su lado largo); hasta 400 %, así un recuadro muy chico llega a 400 % con su centro en el medio. Mientras arrastras, el recuadro se pinta como el de la selección y al lado de su esquina inferior derecha dice el zoom al que llegará («250 %», o «400 %» si llega al tope). Si el puntero sale del panel, el recuadro queda en el borde y soltar afuera igual acerca; el panel no se desplaza solo. Un clic (moviendo menos de 5 píxeles) acerca un paso (×1,25) alrededor del punto, y Alt + clic, Mayús + clic o el botón derecho alejan un paso, al instante, como un paso de Ctrl+rueda; en 400 % o en 25 % no se mueve nada. Alt o Mayús durante un arrastre no cambian nada: un recuadro siempre acerca. El cursor es una lupa con «+», con «−» mientras tienes Alt o Mayús apretada, y una cruz mientras arrastras. Esc mientras arrastras suelta el recuadro sin hacer zoom y la herramienta sigue; Esc sin recuadro vuelve a Selección. El botón del medio, Espacio y la rueda funcionan como siempre, el clic derecho no abre el menú contextual, y nada de esto marca el circuito como modificado ni cuenta como paso de deshacer. El recuadro y su porcentaje nunca salen al exportar una imagen o un PDF ni al imprimir.
+- Ver ▸ Zoom ▸ «Ver todo el circuito» (Mayús+1, o el botón «Ver todo» del control de zoom de la barra de estado) acerca o aleja la vista hasta que el circuito entero, con sus etiquetas y textos, ocupa nueve décimos del panel, centrado; con un circuito chico acerca hasta 400 %, y con un circuito vacío no hace nada. Ver ▸ «Zoom a la selección» (Mayús+2) hace lo mismo con lo seleccionado, así una sola compuerta se ve grande; sin nada seleccionado está deshabilitado. Las dos llegan con un [viaje suave](buscar.md#viaje-suave-de-la-vista) (o de un salto si «Animar los movimientos de la vista» está desactivado), actúan sobre el panel activo, no marcan el circuito como modificado y no cuentan como paso de deshacer. «Centrar circuito» sigue igual: centra sin cambiar tu zoom.
+- **Herramienta Zoom** (su botón, una lupa, es la última de las herramientas, después de «Mover vista»; también Herramientas ▸ «Zoom» y la tecla Z, que se puede cambiar en Atajos de teclado): arrastra un recuadro y, al soltar, la vista viaja hasta que el recuadro llena el panel justo, tocando dos bordes opuestos (un recuadro angosto se ajusta por su lado largo); hasta 400 %, así un recuadro muy chico llega a 400 % con su centro en el medio. Mientras arrastras, el recuadro se pinta como el de la selección y al lado de su esquina inferior derecha dice el zoom al que llegará («250 %», o «400 %» si llega al tope). Si el puntero sale del panel, el recuadro queda en el borde y soltar afuera igual acerca; el panel no se desplaza solo. Un clic (moviendo menos de 5 píxeles) acerca un paso (×1,25) alrededor del punto, y Alt + clic, Mayús + clic o el botón derecho alejan un paso, al instante, como un paso de Ctrl+rueda; en 400 % o en 25 % no se mueve nada. Alt o Mayús durante un arrastre no cambian nada: un recuadro siempre acerca. El cursor es una lupa con «+», con «−» mientras tienes Alt o Mayús apretada, y una cruz mientras arrastras. Esc mientras arrastras suelta el recuadro sin hacer zoom y la herramienta sigue; Esc sin recuadro vuelve a Selección. El botón del medio, Espacio y la rueda funcionan como siempre, el clic derecho no abre el menú contextual, y nada de esto marca el circuito como modificado ni cuenta como paso de deshacer. El recuadro y su porcentaje nunca salen al exportar una imagen o un PDF ni al imprimir.
 
 ## Lupa
 
@@ -58,7 +58,7 @@ Para ver de cerca un trocito del circuito sin cambiar el zoom, como la lupa de a
   el inspector o la barra de búsqueda la tecla escribe como siempre, y mientras un Teclado o una Terminal tiene el
   teclado (se escribe en él) tampoco actúa: la tecla va a la pieza. La tecla se cambia en Preferencias ▸ «Atajos de
   teclado» («Lupa»), por otra tecla suelta o con Ctrl, Alt o Mayús.
-- **En el menú**: Ver ▸ «Lupa», justo después de «Mirar adentro», es la misma: la pone y la quita, y su marca dice si
+- **En el menú**: Ver ▸ «Lupa», justo antes de «Mirar adentro», es la misma: la pone y la quita, y su marca dice si
   está puesta (también cuando la pusiste con la tecla). En «Acciones» (Ctrl+K) se encuentra como «Lupa», con su
   tecla. Es de cada pestaña (cada una la pone y la quita por separado) y no se guarda: VSim abre siempre con la lupa apagada.
 - **Botón de la barra**: justo después del ojo de «Mirar adentro» hay un botón con la lupa (un trocito que se abre en
@@ -94,18 +94,18 @@ Para ver de cerca un trocito del circuito sin cambiar el zoom, como la lupa de a
 
 ## Cuadrícula
 
-- Ver ▸ «Cuadrícula ▸» elige qué se dibuja detrás del circuito: «Puntos» (los de siempre, la opción por defecto), «Líneas» (papel cuadriculado: una línea fina cada 2 unidades y una un poco más marcada cada 10) o «Nada». La elección vale para todas las ventanas y vistas, cambia al instante y se recuerda al reiniciar. «Cambiar el estilo de la cuadrícula», en el mismo submenú, pasa de Puntos a Líneas, a Nada y de vuelta a Puntos; no trae atajo, pero se le puede dar uno en Preferencias ▸ «Atajos de teclado».
-- Ver ▸ «Cuadrícula ▸ Separación ▸» elige cada cuántas unidades va una línea: 2 (la opción por defecto), 4, 5 o 10. Cada quinta línea es la más marcada (cada 10 unidades con 2, cada 20 con 4, cada 25 con 5 y cada 50 con 10). La misma separación es la que usa «Ajustar a ▸ Líneas de la cuadrícula», aunque la cuadrícula se vea como puntos o no se vea. Vale para todas las ventanas y vistas y se recuerda al reiniciar; no se guarda en el circuito. Los pines y los cables siguen en la cuadrícula de una unidad, como siempre, y los puntos no cambian.
+- Ver ▸ Cuadrícula y guías ▸ «Cuadrícula ▸» elige qué se dibuja detrás del circuito: «Puntos» (los de siempre, la opción por defecto), «Líneas» (papel cuadriculado: una línea fina cada 2 unidades y una un poco más marcada cada 10) o «Nada». La elección vale para todas las ventanas y vistas, cambia al instante y se recuerda al reiniciar. «Cambiar el estilo de la cuadrícula», en el mismo submenú, pasa de Puntos a Líneas, a Nada y de vuelta a Puntos; no trae atajo, pero se le puede dar uno en Preferencias ▸ «Atajos de teclado».
+- Ver ▸ Cuadrícula y guías ▸ «Cuadrícula ▸ Separación ▸» elige cada cuántas unidades va una línea: 2 (la opción por defecto), 4, 5 o 10. Cada quinta línea es la más marcada (cada 10 unidades con 2, cada 20 con 4, cada 25 con 5 y cada 50 con 10). La misma separación es la que usa «Ajustar a ▸ Líneas de la cuadrícula», aunque la cuadrícula se vea como puntos o no se vea. Vale para todas las ventanas y vistas y se recuerda al reiniciar; no se guarda en el circuito. Los pines y los cables siguen en la cuadrícula de una unidad, como siempre, y los puntos no cambian.
 - Al alejar, las líneas se ralean como los puntos: cuando las finas quedarían a menos de unos 6 px solo se dibujan las más marcadas, y si también esas quedan muy juntas no se dibuja ninguna.
 - Las líneas tienen su propio color en cada esquema («Líneas de la cuadrícula» en el editor de esquemas, muy suave sobre el fondo); la de cada 10 usa ese color con el doble de opacidad. Un esquema propio guardado antes de esta opción toma el color de sus puntos, más suave.
 - La cuadrícula es solo del editor: las imágenes exportadas (PNG, SVG) y el PDF salen iguales con puntos, líneas o nada.
 
 ## Ajustar
 
-- «Ajustar» (el botón del imán en la barra, justo después de las herramientas; también Ver ▸ «Ajustar» y Ctrl+Mayús+M, ⌘+Mayús+M en macOS) hace que lo que mueves salte a alinearse cuando queda cerca: viene prendido. Apagado, todo se mueve como antes, solo por la cuadrícula. Vale para todas las ventanas y se recuerda al reiniciar.
-- Ver ▸ «Ajustar a ▸» elige a qué se ajusta: «Piezas» (prendido), «Guías» (prendido) y «Líneas de la cuadrícula» (apagado). Se puede cambiar aunque «Ajustar» esté apagado, y lo elegido se recuerda. Si no hay nada elegido, el botón lo dice: «Ajustar: nada elegido». Ninguno de los tres trae atajo, pero se les puede dar uno en Preferencias ▸ «Atajos de teclado».
+- «Ajustar» (el botón del imán en la barra, justo después de las herramientas; también Ver ▸ Cuadrícula y guías ▸ «Ajustar» y Ctrl+Mayús+M, ⌘+Mayús+M en macOS) hace que lo que mueves salte a alinearse cuando queda cerca: viene prendido. Apagado, todo se mueve como antes, solo por la cuadrícula. Vale para todas las ventanas y se recuerda al reiniciar.
+- Ver ▸ Cuadrícula y guías ▸ «Ajustar a ▸» elige a qué se ajusta: «Piezas» (prendido), «Guías» (prendido) y «Líneas de la cuadrícula» (apagado). Se puede cambiar aunque «Ajustar» esté apagado, y lo elegido se recuerda. Si no hay nada elegido, el botón lo dice: «Ajustar: nada elegido». Ninguno de los tres trae atajo, pero se les puede dar uno en Preferencias ▸ «Atajos de teclado».
 - **Piezas**: el borde izquierdo, el centro o el borde derecho de lo que mueves (y arriba, centro, abajo) se alinea con cualquiera de esas líneas de los componentes y marcos que se ven en pantalla. Cada eje se ajusta por su cuenta. Solo cuentan los componentes y marcos: los cables, textos y etiquetas que van en la selección se mueven con ella sin decidir nada; una selección de solo textos no se ajusta.
-- **Guías**: las guías del circuito atraen igual que las piezas y, a la misma distancia, ganan. Si solo mueves cables, se ajustan los extremos de los cables a las guías (y a las líneas de la cuadrícula, si están elegidas). Con Ver ▸ «Mostrar guías» apagado, las guías no atraen.
+- **Guías**: las guías del circuito atraen igual que las piezas y, a la misma distancia, ganan. Si solo mueves cables, se ajustan los extremos de los cables a las guías (y a las líneas de la cuadrícula, si están elegidas). Con Ver ▸ Cuadrícula y guías ▸ «Mostrar guías» apagado, las guías no atraen.
 - **Líneas de la cuadrícula**: el borde izquierdo y el de arriba de lo que mueves (o los extremos de los cables) caen siempre en la línea más cercana, con la separación elegida en «Cuadrícula ▸ Separación ▸» y a cualquier zoom, se vea la cuadrícula como puntos, líneas o nada. Solo actúan en un eje donde no hay una pieza o guía cerca, para no tapar la alineación.
 - El imán alcanza unos 12 px en la pantalla y nunca menos de una unidad: al 25 % se ajusta desde 6 unidades, al 50 % desde 3 y desde el 100 % desde una. Las mitades de unidad no cuentan: lo que mueves sigue siempre en la cuadrícula.
 - Mientras arrastras aparece una línea magenta fina, con una marquita en cada punta, por cada alineación que se cumple (como mucho tres por eje): va de lo que mueves a la pieza más lejana alineada, una unidad más allá de cada lado. Una columna de muchas entradas alineadas muestra una sola línea larga.
@@ -127,8 +127,26 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Cada guía tiene un triángulo en la regla que cruza. Para moverla se arrastra su línea con la herramienta de selección (a menos de 3 px y sin Shift ni Ctrl, que siguen siendo de la selección; si hay algo del circuito debajo —una pieza, un cable, un pin que empezaría un cable o el borde de un marco—, eso gana) o su triángulo; el cursor cambia a una flecha doble encima de ella. Arrastrarla de vuelta a su regla la quita («Guía quitada»); soltarla sobre otra guía las junta en una.
 - Sin arrastrar: clic derecho en el lienzo vacío da «Agregar guía horizontal aquí» y «Agregar guía vertical aquí»; clic derecho sobre una guía, «Quitar guía» (con las guías escondidas, el menú no las ofrece). En Ver están «Mostrar guías», «Agregar guía horizontal» y «Agregar guía vertical» (donde está el puntero si está sobre el lienzo, si no en el centro) y «Borrar guías» (desactivado si no hay guías, y en un solo paso de deshacer); agregar una guía con las guías escondidas vuelve a mostrarlas. Ninguno trae atajo; se les puede dar uno en Preferencias ▸ «Atajos de teclado». Un clic en el cuadrado donde se juntan las reglas abre un menú con esas mismas opciones (las guías nuevas van al centro del lienzo).
 - Las guías son del circuito: se guardan en el archivo, se ven en todas las vistas del circuito (Ventana ▸ «Nueva pestaña del mismo circuito») y cada cambio se deshace con Ctrl+Z en un paso. Si una guía cambia en otra vista (o con deshacer) mientras se arrastra, el arrastre se cancela.
-- Ver ▸ «Mostrar guías» (encendido por defecto, vale para todas las ventanas y se recuerda) esconde las reglas y las guías; el lienzo vuelve a llegar hasta el borde y las guías siguen guardadas en el circuito.
+- Ver ▸ Cuadrícula y guías ▸ «Mostrar guías» (encendido por defecto, vale para todas las ventanas y se recuerda) esconde las reglas y las guías; el lienzo vuelve a llegar hasta el borde y las guías siguen guardadas en el circuito.
 - Las reglas y las guías son solo del editor: las imágenes exportadas (PNG, SVG) y el PDF salen iguales con o sin guías.
+
+## Menús
+
+- La barra tiene ocho menús: Archivo, Editar, Ver, Herramientas, Simulación, Lógica, Ventana y Ayuda (desde la 0.9).
+- **Ver** es corto, con submenús: Paneles ▸ (Árbol del circuito Alt+1, Paleta Alt+2, Propiedades Alt+3, Problemas
+  Alt+4, Notas Alt+5, Mapa de memoria Alt+6 y, tras una línea, Formas de onda), Zoom ▸ (Acercar, Alejar, Zoom 100 %,
+  Ver todo el circuito, Zoom a la selección y, tras una línea, Escribir el zoom… y Centrar circuito), Cuadrícula y
+  guías ▸ (Cuadrícula ▸, Ajustar, Ajustar a ▸ y, tras una línea, Mostrar guías, Agregar guía horizontal, Agregar guía
+  vertical y Borrar guías), Mostrar ▸ (Valores de los buses, Resaltar la red al pasar, Hojas de impresión); luego
+  Lupa y Mirar adentro; al final Modo presentación (pantalla completa) (F11) y Presentar ▸ (Presentar lo que hace la
+  IA, Ritmo de Presentar y, tras una línea, Mostrar los atajos al usarlos).
+- **Herramientas** tiene las herramientas del editor: Selección, Marco, Nota adhesiva, Texto, Mover vista y Zoom (Z).
+- **Lógica**, después de Simulación: Tabla de verdad…, Circuito desde tabla de verdad…, Circuito desde expresiones… y
+  Practicar Karnaugh….
+- «Siguiente problema» (F8) y «Problema anterior» (Mayús+F8) están en Editar, después de «Buscar anterior»; «IA
+  (MCP)…» está al final de Ventana.
+- Los atajos son los mismos de antes, también los que hayas asignado tú en Atajos de teclado, que muestra cada acción
+  bajo su menú nuevo (igual que «Buscar una acción…», Ctrl+K).
 
 ## Íconos, barra de herramientas y cursores
 
@@ -148,7 +166,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   muestran igual. Abierto o cerrado, su sección y su ancho se recuerdan al continuar donde quedaste (ver
   [Sesión y recuperación](#sesión-y-recuperación)).
 - Sus cuatro secciones tienen tecla: Alt+3 «Propiedades», Alt+4 «Problemas», Alt+5 «Notas» y Alt+6 «Mapa de memoria»
-  (también Ver ▸, justo después de «Árbol del circuito» y «Paleta»; se pueden cambiar en Atajos de teclado, y el
+  (también Ver ▸ Paneles, justo después de «Árbol del circuito» y «Paleta»; se pueden cambiar en Atajos de teclado, y el
   globo de cada ícono de la tira dice la tecla: «Propiedades · Alt+3»). Con el panel cerrado, la tecla lo abre en esa
   sección y le da el foco; si esa sección ya está abierta, cierra el panel y el foco vuelve al lienzo; si hay otra
   abierta, cambia a esta.
@@ -178,11 +196,11 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   barras. Su botón «Ocultar» solo las baja (las sondas siguen y el borde sigue funcionando). En el modo, su barra de
   herramientas muestra un pin («Fijar las formas de onda»; inclinado y gris, o derecho y rojo cuando está apretado):
   apretado, el panel queda abajo fijo y el circuito se acorta para dejarle espacio; soltándolo, el panel vuelve a esconderse cuando el puntero sale de él. VSim recuerda el pin para la
-  próxima vez. Abrir el panel en el modo (Ver ▸ Formas de onda, su botón de la barra de herramientas, «Ver en formas
+  próxima vez. Abrir el panel en el modo (Ver ▸ Paneles ▸ Formas de onda, su botón de la barra de herramientas, «Ver en formas
   de onda» o un clic en la marca de una sonda) lo muestra un momento desde abajo, o fijo si el pin está apretado;
   cerrarlo con el ítem o el botón lo esconde detrás del borde aunque esté fijado (el pin se sigue recordando). Sin sondas ni el panel abierto, el borde de abajo no hace nada.
 - Tampoco se ven las marcas para editar: las reglas de las guías (y su esquina), los «⋮» para dividir la vista y el
-  borde que marca el panel activo en una vista dividida. Las guías ya puestas siguen a la vista (según Ver ▸ Guías) y
+  borde que marca el panel activo en una vista dividida. Las guías ya puestas siguen a la vista (según Ver ▸ Cuadrícula y guías ▸ «Mostrar guías») y
   las divisiones que ya tiene la vista se quedan.
 - Para salir: F11, Esc, Ver ▸ «Modo presentación (pantalla completa)» (marcado con ✓ mientras está activo) o el botón
   de la barra de herramientas, que queda apretado y cuyo globo dice «Salir del modo presentación (F11 o Esc)». Esc
@@ -202,7 +220,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 ## Mostrar los atajos al usarlos
 
-- Ver ▸ «Mostrar los atajos al usarlos» (apagado de entrada; se recuerda al reiniciar y vale para todas las
+- Ver ▸ Presentar ▸ «Mostrar los atajos al usarlos» (apagado de entrada; se recuerda al reiniciar y vale para todas las
   ventanas). Funciona igual dentro y fuera del [modo presentación](#modo-presentación): sirve para que en una clase o
   un video se vea qué atajo tiene lo que se va haciendo.
 - Cada acción que haces con su atajo, con un ítem de menú o con un botón de la barra de herramientas muestra, abajo en
@@ -221,8 +239,8 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   una tarjeta centrada, de hasta unos 900 px de ancho, con una selección de unos 30 atajos en cinco grupos, cada tecla
   dibujada en su casilla («Ctrl» + «Mayús» + «Z»): Archivo (Nuevo, Abrir, Guardar, Guardar como, Copiar captura),
   Editar (Deshacer, Rehacer, Copiar, Cortar, Pegar, Duplicar, Seleccionar todo, Borrar, Rotar, Etiqueta, Ordenar
-  circuito, Enmarcar selección, Insertar componente), Ver (Zoom, Ver todo el circuito, Zoom a la selección, Buscar,
-  Siguiente problema, Modo presentación y Formas de onda si le diste una tecla), Simular (Iniciar o pausar, Avanzar un
+  circuito, Enmarcar selección, Insertar componente, Siguiente problema), Ver (Zoom, Ver todo el circuito, Zoom a la
+  selección, Buscar, Modo presentación y Formas de onda si le diste una tecla), Simular (Iniciar o pausar, Avanzar un
   paso fijo, Avanzar al próximo evento, Reiniciar) y Ayuda (Buscar una acción y la propia «?»). Si la tarjeta no cabe
   (una pantalla de 1366×768, la letra al 125 %), los grupos se desplazan dentro de ella con la rueda y el pie queda a
   la vista. Otra vez «?», Esc o un clic en cualquier parte del circuito oscurecido la cierran, sin hacer nada más (Esc
@@ -242,7 +260,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   franja repite la [frase del gesto](#frase-del-gesto): qué hace el próximo clic y qué teclas sirven ahora. Sin gesto en curso no aparece.
   El circuito conserva el teclado mientras la hoja está abierta: esas teclas cierran la hoja y actúan.
 - Al pie de la tarjeta, a la izquierda, el interruptor Sí/No «Mostrar los atajos al usarlos» es la misma opción de
-  Ver ▸ «Mostrar los atajos al usarlos»: encenderlo aquí la marca en el menú y al revés, y cambiarlo no cierra la
+  Ver ▸ Presentar ▸ «Mostrar los atajos al usarlos»: encenderlo aquí la marca en el menú y al revés, y cambiarlo no cierra la
   hoja. Mientras la hoja está abierta no aparecen las etiquetas de
   [Mostrar los atajos al usarlos](#mostrar-los-atajos-al-usarlos), para que no se tapen. Al medio dice «? o Esc
   cierra la hoja», y a la derecha el enlace «Ver y cambiar todos los atajos…» cierra la hoja y abre Preferencias en la
@@ -262,7 +280,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   en el título del menú Ayuda; la de «?» muestra siempre esa tecla, porque no se puede cambiar.
 - Cada burbuja tiene su título, su texto (las teclas dibujadas como teclas, con los nombres en tu idioma y las que
   tienes ahora) y, cuando lo que apunta tiene atajo, una línea «Atajo» con esa tecla (si lo cambiaste, sale el tuyo);
-  si no tiene atajo, la línea dice dónde está («En el menú: Ver ▸ Mostrar los atajos al usarlos», «En el menú:
+  si no tiene atajo, la línea dice dónde está («En el menú: Ver ▸ Presentar ▸ Mostrar los atajos al usarlos», «En el menú:
   Archivo ▸ Preferencias ▸ Accesibilidad»). Abajo, «n de m» dice en cuál vas, y «Listo», ‹ y › las recorren; con el teclado,
   → o Enter pasa a la siguiente, ← vuelve y Esc es «Listo». ‹ está apagado en la primera y › en la última termina.
   Los botones de la burbuja no se quedan con el teclado: el circuito lo conserva y lo recupera al terminar.

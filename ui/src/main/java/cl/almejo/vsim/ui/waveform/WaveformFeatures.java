@@ -14,13 +14,13 @@ import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
@@ -42,8 +42,7 @@ public final class WaveformFeatures {
     private final WaveformPanel panel;
     private final Action toggle;
     private final Runnable dockListener;
-    private final JMenu viewMenu;
-    private final Component separator;
+    private final Runnable menuRemover;
     private final JCheckBoxMenuItem toggleItem;
     private final Runnable shortcutRemover;
     private final Runnable probeListener;
@@ -79,11 +78,8 @@ public final class WaveformFeatures {
         this.dockListener = () -> toggle.putValue(Action.SELECTED_KEY, dock.isDockShowing());
         dock.addDockListener(dockListener);
         dockListener.run();
-        this.viewMenu = view.menu(MenuId.VIEW);
-        viewMenu.addSeparator();
-        this.separator = viewMenu.getMenuComponent(viewMenu.getMenuComponentCount() - 1);
         this.toggleItem = new JCheckBoxMenuItem(toggle);
-        viewMenu.add(toggleItem);
+        this.menuRemover = MenuSlots.add(view, MenuSlot.WAVEFORMS, toggleItem);
         this.shortcutRemover = view.registerShortcutAction("waveforms.toggle", toggle);
         view.addContextMenuContributor(new WaveformMenuContributor(actions, this::afterAdd));
         this.markers = new ProbeMarkerOverlay(openDocument, () -> view.canvas().scheme());
@@ -233,8 +229,7 @@ public final class WaveformFeatures {
         view.bottomDock().removeDockListener(dockListener);
         blink.dispose();
         panel.dispose();
-        viewMenu.remove(toggleItem);
-        viewMenu.remove(separator);
+        menuRemover.run();
         view.bottomDock().hideDock();
         view.bottomDock().setContent(null);
     }

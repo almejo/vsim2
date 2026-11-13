@@ -16,16 +16,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ShortcutCatalogTest {
 
-    /** Track C's entries in menu order; later tracks may add entries (A adds waveforms.toggle under Ver). */
+    /**
+     * Track C's entries in menu order (the menus of 0.9: the problems in Editar, the tools in Herramientas); later
+     * tracks may add entries.
+     */
     static final List<String> TRACK_C_IDS = List.of("file.new", "file.open", "file.save", "file.saveAs",
             "file.preferences", "file.exit", "edit.undo", "edit.redo", "edit.delete",
             "edit.rotateClockwise", "edit.rotateCounterClockwise", "edit.configure", "edit.cut", "edit.copy",
-            "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.circuitTree", "view.palette",
+            "edit.paste", "edit.duplicate", "edit.selectAll", "view.nextProblem", "view.previousProblem",
+            "edit.label", "view.circuitTree", "view.palette",
             "view.properties", "view.problems", "view.notes", "view.memoryMap",
-            "view.selectTool",
-            "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
-            "view.zoomField", "view.centerView", "view.nextProblem",
-            "view.previousProblem", "simulation.start", "simulation.pause", "simulation.step", "window.newView",
+            "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
+            "view.zoomField", "view.centerView", "view.selectTool", "view.panTool", "simulation.start", "simulation.pause", "simulation.step", "window.newView",
             "window.newWindow", "window.moveGroup", "window.foldGroup", "window.nextTab", "window.previousTab",
             "window.closeTab", "window.closeComponents", "window.closeWindow");
 
@@ -61,15 +63,20 @@ class ShortcutCatalogTest {
             assertThat(ShortcutCatalog.find(id).orElseThrow().scope()).as(id).isEqualTo(Scope.WINDOW);
         }
         assertThat(ids()).containsSubsequence("view.cycleGrid", "view.snap", "view.snapToParts",
-                "view.snapToGuides", "view.snapToGridLines", "waveforms.toggle");
+                "view.snapToGuides", "view.snapToGridLines", "view.showGuides");
     }
 
     @Test
-    void presentarHasNoDefaultStrokeAndThePresentationModeIsTheLastOfVerWithF11() {
+    void verFollowsItsSubmenusAndPresentarHasNoDefaultStrokeButThePresentationModeHasF11() {
         List<String> view = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.VIEW).map(ShortcutEntry::id).toList();
-        assertThat(view).endsWith("waveforms.toggle", "view.aiPresent", "view.presentationMode",
-                "view.showUsedShortcuts");
+        assertThat(view).containsExactly("view.circuitTree", "view.palette", "view.properties", "view.problems",
+                "view.notes", "view.memoryMap", "waveforms.toggle", "view.zoomIn", "view.zoomOut", "view.zoomReset",
+                "view.zoomToFit", "view.zoomToSelection", "view.zoomField", "view.centerView", "view.cycleGrid",
+                "view.snap", "view.snapToParts", "view.snapToGuides", "view.snapToGridLines", "view.showGuides",
+                "view.addHorizontalGuide", "view.addVerticalGuide", "view.clearGuides", "view.busValues",
+                "view.highlightNet", "view.showSheets", "view.lens", "view.magnifier", "view.presentationMode",
+                "view.aiPresent", "view.showUsedShortcuts");
         assertThat(ShortcutCatalog.find("view.aiPresent")).contains(new ShortcutEntry("view.aiPresent",
                 "action.aiPresent", MenuId.VIEW, Scope.WINDOW, Optional.empty()));
         assertThat(ShortcutCatalog.find("view.presentationMode")).contains(new ShortcutEntry("view.presentationMode",
@@ -78,10 +85,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void theLensIsToggledWithTheKeyUnderEscInTheCanvasRightAfterMirarAdentro() {
+    void theLensIsToggledWithTheKeyUnderEscInTheCanvasRightBeforeMirarAdentro() {
         assertThat(ShortcutCatalog.find("view.lens")).contains(new ShortcutEntry("view.lens", "action.lens",
                 MenuId.VIEW, Scope.CANVAS, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_QUOTE, 0))));
-        assertThat(ids()).containsSubsequence("view.magnifier", "view.lens");
+        assertThat(ids()).containsSubsequence("view.lens", "view.magnifier");
     }
 
     @Test
@@ -212,7 +219,7 @@ class ShortcutCatalogTest {
         assertThat(simulation).containsExactly("simulation.start", "simulation.pause", "simulation.startOrPause",
                 "simulation.restart",
                 "simulation.step", "simulation.stepSize", "simulation.stepMode", "simulation.advance",
-                "simulation.advanceToClockEdge", "simulation.advanceClockCycle", "simulation.truthTable");
+                "simulation.advanceToClockEdge", "simulation.advanceClockCycle");
         assertThat(ShortcutCatalog.find("simulation.step").orElseThrow().defaultStroke())
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0));
         assertThat(ShortcutCatalog.find("simulation.step").orElseThrow().nameKey())
@@ -227,26 +234,45 @@ class ShortcutCatalogTest {
         assertThat(ShortcutCatalog.find("simulation.advanceClockCycle").orElseThrow().defaultStroke())
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F7, ShortcutCatalog.menuMask()));
         assertThat(ShortcutCatalog.find("simulation.truthTable")).contains(new ShortcutEntry("simulation.truthTable",
-                "action.truthTable", MenuId.SIMULATION, Scope.WINDOW, Optional.empty()));
+                "action.truthTable", MenuId.LOGIC, Scope.WINDOW, Optional.empty()));
     }
 
     @Test
-    void theToolsMenuHasTheKarnaughWizardTheExpressionsAndTheAiPanelWithoutADefaultStroke() {
+    void theToolsMenuHasTheEditorsToolsKeepingTheirOldIds() {
         List<String> tools = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.TOOLS).map(ShortcutEntry::id).toList();
-        assertThat(tools).containsExactly("tools.circuitFromTruthTable", "tools.karnaughPractice",
-                "tools.circuitFromExpressions", "tools.aiPanel");
-        assertThat(ShortcutCatalog.find("tools.aiPanel")).contains(new ShortcutEntry("tools.aiPanel",
-                "action.aiPanel", MenuId.TOOLS, Scope.WINDOW, Optional.empty()));
+        assertThat(tools).containsExactly("view.selectTool", "view.frameTool", "view.stickyNoteTool",
+                "view.textTool", "view.panTool", "view.zoomTool");
+        assertThat(ShortcutCatalog.find("view.zoomTool")).contains(new ShortcutEntry("view.zoomTool",
+                "action.toolZoom", MenuId.TOOLS, Scope.CANVAS, Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_Z, 0))));
+    }
+
+    @Test
+    void theLogicMenuHasTheTruthTableKarnaughAndTheExpressionsWithoutADefaultStroke() {
+        List<String> logic = ShortcutCatalog.entries().stream()
+                .filter(entry -> entry.group() == MenuId.LOGIC).map(ShortcutEntry::id).toList();
+        assertThat(logic).containsExactly("simulation.truthTable", "tools.circuitFromTruthTable",
+                "tools.circuitFromExpressions", "tools.karnaughPractice");
         assertThat(ShortcutCatalog.find("tools.circuitFromTruthTable")).contains(new ShortcutEntry(
-                "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.TOOLS, Scope.WINDOW,
+                "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.LOGIC, Scope.WINDOW,
                 Optional.empty()));
         assertThat(ShortcutCatalog.find("tools.karnaughPractice")).contains(new ShortcutEntry(
-                "tools.karnaughPractice", "action.karnaughPractice", MenuId.TOOLS, Scope.WINDOW,
+                "tools.karnaughPractice", "action.karnaughPractice", MenuId.LOGIC, Scope.WINDOW,
                 Optional.empty()));
         assertThat(ShortcutCatalog.find("tools.circuitFromExpressions")).contains(new ShortcutEntry(
-                "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.TOOLS, Scope.WINDOW,
+                "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.LOGIC, Scope.WINDOW,
                 Optional.empty()));
+    }
+
+    @Test
+    void theAiPanelIsLastInVentanaAndTheProblemKeysAreInEditar() {
+        assertThat(ShortcutCatalog.find("tools.aiPanel")).contains(new ShortcutEntry("tools.aiPanel",
+                "action.aiPanel", MenuId.WINDOW, Scope.WINDOW, Optional.empty()));
+        assertThat(ShortcutCatalog.entries()).filteredOn(entry -> entry.group() == MenuId.WINDOW)
+                .last().extracting(ShortcutEntry::id).isEqualTo("tools.aiPanel");
+        assertThat(ShortcutCatalog.find("view.nextProblem").orElseThrow().group()).isEqualTo(MenuId.EDIT);
+        assertThat(ShortcutCatalog.find("view.previousProblem").orElseThrow().group()).isEqualTo(MenuId.EDIT);
+        assertThat(ids()).containsSubsequence("edit.findPrevious", "view.nextProblem", "view.previousProblem");
     }
 
     @Test

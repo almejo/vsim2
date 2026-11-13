@@ -5,3 +5,6 @@ menu.file    | whatsNew.preferences.title | whatsNew.preferences.text | file.pre
 toolbar.lens | whatsNew.lens.title        | whatsNew.lens.text        | view.lens
 menu.file    | whatsNew.interfaceZoom.title | whatsNew.interfaceZoom.text | file.preferences
 menu.view    | whatsNew.highlightNet.title | whatsNew.highlightNet.text | view.highlightNet
+menu.tools   | whatsNew.toolsMenu.title  | whatsNew.toolsMenu.text  | -
+menu.logic   | whatsNew.logicMenu.title  | whatsNew.logicMenu.text  | -
+menu.view    | whatsNew.shortView.title  | whatsNew.shortView.text  | -

@@ -39,6 +39,7 @@ import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.Menus;
 import cl.almejo.vsim.ui.window.SeePiece;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
@@ -47,6 +48,7 @@ import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
+import javax.swing.JPopupMenu;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.event.MenuEvent;
@@ -82,7 +84,11 @@ public final class ProblemsController {
     private final OpenDocument circuit;
     private final EditorView view;
     private final StatusBar statusBar;
-    private final JMenu viewMenu;
+    private static final String FIND_PREVIOUS_ID = "edit.findPrevious";
+    private final JMenu editMenu;
+    /** The separators before and after the two problem items of Editar. */
+    private final JPopupMenu.Separator separatorBefore = new JPopupMenu.Separator();
+    private final JPopupMenu.Separator separatorAfter = new JPopupMenu.Separator();
     private final JMenu simulationMenu;
     private final NetBlink blink;
     private final ShortCircuitPulse pulse;
@@ -149,10 +155,10 @@ public final class ProblemsController {
                 panel);
         view.inspector().showShortcut(InspectorPanel.PROBLEMS, view.inspectorToggleAction(InspectorPanel.PROBLEMS));
 
-        viewMenu = view.menu(MenuId.VIEW);
-        viewMenu.addSeparator();
-        nextItem = viewMenu.add(nextProblem);
-        previousItem = viewMenu.add(previousProblem);
+        editMenu = view.menu(MenuId.EDIT);
+        nextItem = new JMenuItem(nextProblem);
+        previousItem = new JMenuItem(previousProblem);
+        placeMenuItems();
         simulationMenu = view.menu(MenuId.SIMULATION);
         simulationMenu.addSeparator();
         pauseItem = new JCheckBoxMenuItem(pauseOnShortCircuit);
@@ -465,10 +471,38 @@ public final class ProblemsController {
         stopFollowingAnimations.run();
         pulse.dispose();
         removeFromPanes.run();
-        viewMenu.remove(nextItem);
-        viewMenu.remove(previousItem);
+        menuEntries().forEach(editMenu::remove);
         simulationMenu.remove(pauseItem);
         simulationMenu.removeMenuListener(pauseListener);
+    }
+
+    /**
+     * Editar ▸ «Siguiente problema» (F8) and «Problema anterior» (Mayús+F8), a group of their own right after «Buscar
+     * anterior» (since 0.9; they were in Ver), else at the end of the menu. The view calls it again once its
+     * extensions are in, since the find items arrive with an extension.
+     */
+    public void placeMenuItems() {
+        menuEntries().forEach(editMenu::remove);
+        Action findPrevious = view.shortcutActions().get(FIND_PREVIOUS_ID);
+        int index = findPrevious == null ? -1 : Menus.indexOf(editMenu, findPrevious);
+        if (index < 0) {
+            editMenu.add(separatorBefore);
+            editMenu.add(nextItem);
+            editMenu.add(previousItem);
+            return;
+        }
+        editMenu.add(separatorBefore, ++index);
+        editMenu.add(nextItem, ++index);
+        editMenu.add(previousItem, ++index);
+        index++;
+        if (index < editMenu.getMenuComponentCount()
+                && !(editMenu.getMenuComponent(index) instanceof JPopupMenu.Separator)) {
+            editMenu.add(separatorAfter, index);
+        }
+    }
+
+    private List<java.awt.Component> menuEntries() {
+        return List.of(separatorBefore, nextItem, previousItem, separatorAfter);
     }
 
     /**

@@ -9,13 +9,12 @@ import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.ToolbarSlot;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
-import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import java.util.Optional;
@@ -40,11 +39,7 @@ public final class FullScreenExtension implements EditorExtension {
         Icons.install(toggle, FullScreenIcons.FULL_SCREEN);
         toggle.setEnabled(features.isPresent());
 
-        JMenu viewMenu = view.menu(MenuId.VIEW);
-        JPopupMenu.Separator menuSeparator = new JPopupMenu.Separator();
-        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
-        viewMenu.add(menuSeparator);
-        viewMenu.add(menuItem);
+        Runnable menuRemover = MenuSlots.add(view, MenuSlot.PRESENTATION_MODE, new JCheckBoxMenuItem(toggle));
 
         // not built on the action: its tooltip says how to leave, which the toolbar's shortcut tooltips would replace
         JToggleButton toolbarButton = new JToggleButton(Icons.get(FullScreenIcons.FULL_SCREEN, Icons.TOOLBAR_SIZE));
@@ -70,8 +65,7 @@ public final class FullScreenExtension implements EditorExtension {
             stopFollowingTheMode.run();
             removeShortcut.run();
             removeButton.run();
-            viewMenu.remove(menuItem);
-            viewMenu.remove(menuSeparator);
+            menuRemover.run();
         };
     }
 

@@ -26,6 +26,8 @@ import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -404,13 +406,14 @@ class ShortcutSheetTest {
     }
 
     private void clickViewItem(Action action) {
-        for (Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
+        for (Component child : MenuSlots.find(view.menu(MenuId.VIEW), MenuSlot.ZOOM).orElseThrow()
+                .getMenuComponents()) {
             if (child instanceof JMenuItem item && item.getAction() == action) {
                 item.doClick();
                 return;
             }
         }
-        throw new AssertionError("no Ver item for " + action.getValue(Action.NAME));
+        throw new AssertionError("no Ver ▸ Zoom item for " + action.getValue(Action.NAME));
     }
 
     @Test

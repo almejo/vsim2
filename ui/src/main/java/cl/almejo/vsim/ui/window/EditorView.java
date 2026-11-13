@@ -225,7 +225,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         capturedKeys.useClipboard(FragmentClipboard.system()::readPlainText);
         this.zoomControl = new ZoomControl(new ActivePaneZoom(), new ZoomControl.Actions(actions.zoomOut(),
                 actions.zoomIn(), actions.zoomReset(), actions.zoomToFit(), actions.zoomToSelection()));
-        addAfter(menu(MenuId.VIEW), actions.zoomToSelection(), zoomControl.typeZoomAction());
+        addZoomAndToolItems();
         editorToolBar = new EditorToolBar(actions);
         toolBar = editorToolBar.toolBar();
 
@@ -282,6 +282,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             for (EditorExtension extension : services.extensions()) {
                 extensionDisposers.add(extension.install(this));
             }
+            problems.placeMenuItems(); // after «Buscar anterior», which an extension adds
         } catch (RuntimeException exception) {
             try {
                 dispose(); // undoes the extensions installed so far and leaves no listener on shared objects
@@ -493,16 +494,28 @@ public final class EditorView extends JPanel implements CanvasHost {
         return menu;
     }
 
-    /** Ver ▸ «Árbol del circuito» (Alt+1) and «Paleta» (Alt+2) first, checked while their panel is open. */
+    /** Ver ▸ Paneles ▸ «Árbol del circuito» (Alt+1) and «Paleta» (Alt+2) first, checked while their panel is open. */
     private void addLeftColumnItems() {
-        JMenu view = menu(MenuId.VIEW);
-        view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.CIRCUIT)), 0);
-        view.insert(new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.PALETTE)), 1);
-        int index = 2;
+        MenuSlots.add(this, MenuSlot.PANEL_TOGGLES,
+                new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.CIRCUIT)));
+        MenuSlots.add(this, MenuSlot.PANEL_TOGGLES,
+                new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.PALETTE)));
         for (Action toggle : inspectorToggles.values()) {
-            view.insert(new JMenuItem(toggle), index++);
+            MenuSlots.add(this, MenuSlot.PANEL_TOGGLES, new JMenuItem(toggle));
         }
-        view.insertSeparator(index);
+    }
+
+    /** Ver ▸ Zoom and the three tools of Herramientas this view owns (the others come from extensions). */
+    private void addZoomAndToolItems() {
+        for (Action step : List.of(actions.zoomIn(), actions.zoomOut(), actions.zoomReset(), actions.zoomToFit(),
+                actions.zoomToSelection())) {
+            MenuSlots.add(this, MenuSlot.ZOOM_STEPS, new JMenuItem(step));
+        }
+        MenuSlots.add(this, MenuSlot.ZOOM_FIELD, new JMenuItem(zoomControl.typeZoomAction()));
+        MenuSlots.add(this, MenuSlot.CENTER_VIEW, new JMenuItem(actions.centerView()));
+        MenuSlots.add(this, MenuSlot.SELECT_TOOL, new JMenuItem(actions.selectTool()));
+        MenuSlots.add(this, MenuSlot.PAN_TOOL, new JMenuItem(actions.panTool()));
+        MenuSlots.add(this, MenuSlot.ZOOM_TOOL, new JMenuItem(actions.zoomTool()));
     }
 
     private void createInspectorToggles() {
@@ -904,18 +917,6 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void editValue(Component component, Value startingValue) {
         labelFeatures.actions().editInputValue(component, startingValue);
-    }
-
-    /** Puts {@code action} into {@code menu} right after the item of {@code anchor}. */
-    private static void addAfter(JMenu menu, Action anchor, Action action) {
-        for (int index = 0; index < menu.getItemCount(); index++) {
-            JMenuItem item = menu.getItem(index);
-            if (item != null && item.getAction() == anchor) {
-                menu.insert(action, index + 1);
-                return;
-            }
-        }
-        throw new IllegalStateException("no menu item for " + anchor.getValue(Action.NAME));
     }
 
     /**

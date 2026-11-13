@@ -24,6 +24,8 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.ExportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -170,44 +172,59 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theViewMenuEndsWithTheWaveformsTogglePresentarAndThePresentationMode() {
+    void theViewMenuIsShortWithItsSubmenusInPlace() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda", "---",
-                    "Presentar lo que hace la IA", "Ritmo de Presentar", "---",
-                    "Modo presentación (pantalla completa)", "Mostrar los atajos al usarlos");
-            assertThat(view.shortcutActions()).containsKeys("view.aiPresent", "view.presentationMode",
+            JMenu viewMenu = view.menu(MenuId.VIEW);
+            assertThat(texts(viewMenu)).containsExactly("Paneles", "---", "Zoom", "Cuadrícula y guías", "Mostrar",
+                    "---", "Lupa", "Mirar adentro", "---", "Modo presentación (pantalla completa)", "Presentar");
+            assertThat(texts(submenu(viewMenu, MenuSlot.PANELS))).containsExactly("Árbol del circuito", "Paleta",
+                    "Propiedades", "Problemas", "Notas", "Mapa de memoria", "---", "Formas de onda");
+            assertThat(texts(submenu(viewMenu, MenuSlot.ZOOM))).containsExactly("Acercar", "Alejar", "Zoom 100 %",
+                    "Ver todo el circuito", "Zoom a la selección", "---", "Escribir el zoom…", "Centrar circuito");
+            assertThat(texts(submenu(viewMenu, MenuSlot.GRID_AND_GUIDES))).containsExactly("Cuadrícula", "Ajustar",
+                    "Ajustar a", "---", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
+                    "Borrar guías");
+            assertThat(texts(submenu(viewMenu, MenuSlot.SHOW))).containsExactly("Valores de los buses",
+                    "Resaltar la red al pasar", "Hojas de impresión");
+            assertThat(texts(submenu(viewMenu, MenuSlot.PRESENT))).containsExactly("Presentar lo que hace la IA",
+                    "Ritmo de Presentar", "---", "Mostrar los atajos al usarlos");
+            assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
+                    "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
+                    "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues",
+                    "view.highlightNet", "view.magnifier", "view.lens", "view.aiPresent", "view.presentationMode",
                     "view.showUsedShortcuts");
+            assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
             assertThat(view.bottomDock().content()).isPresent();
+            assertThat(view.canvas().edgeHandles()).hasSize(6); // the rulers, corner and grab; the two split grips
         } finally {
             view.dispose();
         }
     }
 
     @Test
-    void theViewMenuHasTheGridSubmenuTheSnapItemsAndTheGuideItemsAfterTheZoomGroup() {
+    void theToolsMenuHoldsTheEditorsTools() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Árbol del circuito", "Paleta", "Propiedades", "Problemas", "Notas", "Mapa de memoria", "---",
-                    "Selección", "Marco", "Nota adhesiva",
-                    "Texto",
-                    "Mover vista", "Zoom", "---", "Acercar", "Alejar", "Zoom 100 %", "Ver todo el circuito",
-                    "Zoom a la selección", "Escribir el zoom…",
-                    "Centrar circuito", "---", "Cuadrícula",
-                    "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
-                    "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Resaltar la red al pasar", "Mirar adentro",
-                    "Lupa", "---",
-                    "Siguiente problema", "Problema anterior", "---",
-                    "Formas de onda", "---",
-                    "Presentar lo que hace la IA", "Ritmo de Presentar", "---",
-                    "Modo presentación (pantalla completa)", "Mostrar los atajos al usarlos");
-            assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
-                    "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
-                    "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues", "view.highlightNet", "view.magnifier",
-                    "view.lens");
-            assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
-                    KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
-            assertThat(view.canvas().edgeHandles()).hasSize(6); // the rulers, corner and grab; the two split grips
+            assertThat(texts(view.menu(MenuId.TOOLS))).containsExactly("Selección", "Marco", "Nota adhesiva", "Texto",
+                    "Mover vista", "Zoom");
+            assertThat(view.shortcutActions()).containsKeys("view.frameTool", "view.stickyNoteTool",
+                    "view.textTool");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theEditMenuHasTheProblemItemsRightAfterTheFindItems() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            List<String> edit = texts(view.menu(MenuId.EDIT));
+            int find = edit.indexOf("Buscar…");
+            assertThat(find).isNotNegative();
+            assertThat(edit.subList(find, find + 7)).containsExactly("Buscar…", "Buscar siguiente",
+                    "Buscar anterior", "---", "Siguiente problema", "Problema anterior", "---");
         } finally {
             view.dispose();
         }
@@ -220,7 +237,7 @@ class ApplicationExtensionsTest {
             assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Iniciar o pausar", "Reiniciar",
                     "Avanzar 10 t", "Tamaño del avance…", "Paso a paso", "Avanzar al próximo evento",
                     "Avanzar al próximo flanco de reloj", "Avanzar un ciclo de reloj", "---",
-                    "Pausar al detectar cortocircuito", "---", "Tabla de verdad…");
+                    "Pausar al detectar cortocircuito");
             assertThat(view.shortcutActions().get("simulation.advance").getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0));
             assertThat(view.shortcutActions().get("simulation.advanceToClockEdge").getValue(Action.ACCELERATOR_KEY))
@@ -234,16 +251,58 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theToolsMenuOpensTheKarnaughWizardTheExpressionsAndTheAiPanel() {
+    void theLogicMenuGathersTheTruthTableTheTwoCircuitsAndKarnaugh() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.TOOLS))).containsExactly("Circuito desde tabla de verdad…",
-                    "Practicar Karnaugh…", "Circuito desde expresiones…", "---", "IA (MCP)…");
-            assertThat(view.shortcutActions()).containsKeys("tools.circuitFromTruthTable",
-                    "tools.karnaughPractice", "tools.circuitFromExpressions", "tools.aiPanel");
+            assertThat(texts(view.menu(MenuId.LOGIC))).containsExactly("Tabla de verdad…", "---",
+                    "Circuito desde tabla de verdad…", "Circuito desde expresiones…", "---", "Practicar Karnaugh…");
+            assertThat(view.shortcutActions()).containsKeys("simulation.truthTable", "tools.circuitFromTruthTable",
+                    "tools.karnaughPractice", "tools.circuitFromExpressions");
         } finally {
             view.dispose();
         }
+    }
+
+    @Test
+    void installingAndUninstallingEveryExtensionLeavesTheMenusAsTheyWere() {
+        EditorView view = new EditorView(openDocument, services.withExtensions(List.of()), NO_WINDOW);
+        try {
+            List<String> before = menuTree(view);
+            List<Runnable> disposers = new java.util.ArrayList<>();
+            for (EditorExtension extension : services.extensions()) {
+                disposers.add(extension.install(view));
+            }
+            assertThat(menuTree(view)).isNotEqualTo(before);
+            java.util.Collections.reverse(disposers);
+            disposers.forEach(Runnable::run);
+            assertThat(menuTree(view)).isEqualTo(before);
+        } finally {
+            view.dispose();
+        }
+    }
+
+    /** Every menu of the bar with its submenus, one line per entry, indented by depth. */
+    private static List<String> menuTree(EditorView view) {
+        List<String> lines = new java.util.ArrayList<>();
+        for (MenuId id : MenuId.values()) {
+            addTree(view.menu(id), "", lines);
+        }
+        return lines;
+    }
+
+    private static void addTree(JMenu menu, String indent, List<String> lines) {
+        lines.add(indent + menu.getText());
+        for (java.awt.Component child : menu.getMenuComponents()) {
+            if (child instanceof JMenu submenu) {
+                addTree(submenu, indent + "  ", lines);
+            } else {
+                lines.add(indent + "  " + (child instanceof javax.swing.JMenuItem item ? item.getText() : "---"));
+            }
+        }
+    }
+
+    private static JMenu submenu(JMenu menu, MenuSlot slot) {
+        return MenuSlots.find(menu, slot).orElseThrow(() -> new AssertionError("no submenu " + slot));
     }
 
     @Test
@@ -377,7 +436,7 @@ class ApplicationExtensionsTest {
             assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
                     "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
                     "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---",
-                    "Dividir", "Siguiente panel");
+                    "Dividir", "Siguiente panel", "---", "IA (MCP)…");
             assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_S, ShortcutCatalog.menuMask()));
             assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)

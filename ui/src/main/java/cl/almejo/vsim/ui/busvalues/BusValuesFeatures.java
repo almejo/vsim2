@@ -5,14 +5,12 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
-import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
 import java.awt.event.ActionEvent;
 
@@ -31,7 +29,7 @@ public final class BusValuesFeatures {
     private final EditorView view;
     private final AppPreferences preferences;
     private final Action toggle;
-    private final JMenu viewMenu;
+    private final Runnable menuRemover;
     private final JCheckBoxMenuItem menuItem;
     private final Runnable toolButtonRemover;
     private final Runnable shortcutRemover;
@@ -50,9 +48,8 @@ public final class BusValuesFeatures {
         };
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.busValues"));
         Icons.install(toggle, BusValuesIcons.BUS_VALUES);
-        this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(toggle);
-        viewMenu.insert(menuItem, indexInViewMenu());
+        this.menuRemover = MenuSlots.add(view, MenuSlot.BUS_VALUES, menuItem);
         this.toolButtonRemover = view.addToolbarToggleAfterTools(new JToggleButton(toggle));
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);
         preferences.addListener(preferencesListener);
@@ -80,28 +77,6 @@ public final class BusValuesFeatures {
         }
     }
 
-    /** At the end of the group of «Cuadrícula ▸» and the guides; else after «Centrar circuito»; else at the end. */
-    private int indexInViewMenu() {
-        String gridText = Messages.text("menu.view.grid");
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenu submenu && gridText.equals(submenu.getText())) {
-                int end = index + 1;
-                while (end < viewMenu.getMenuComponentCount()
-                        && !(viewMenu.getMenuComponent(end) instanceof JSeparator)) {
-                    end++;
-                }
-                return end;
-            }
-        }
-        Action centerView = view.actions().centerView();
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == centerView) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
-    }
-
     public void dispose() {
         if (disposed) {
             return;
@@ -111,6 +86,6 @@ public final class BusValuesFeatures {
         paneInstallation.run();
         shortcutRemover.run();
         toolButtonRemover.run();
-        viewMenu.remove(menuItem);
+        menuRemover.run();
     }
 }

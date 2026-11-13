@@ -7,16 +7,15 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
-import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -48,7 +47,6 @@ public final class SnapFeatures {
     private final Action parts;
     private final Action guides;
     private final Action gridLines;
-    private final JMenu viewMenu;
     private final JCheckBoxMenuItem toggleItem;
     private final JMenu snapToMenu;
     private final List<Runnable> removals = new ArrayList<>();
@@ -68,19 +66,13 @@ public final class SnapFeatures {
         this.lastState = SnapState.of(preferences);
 
         removals.add(view.addToolbarToggleAfterTools(new JToggleButton(toggle)));
-        this.viewMenu = view.menu(MenuId.VIEW);
         this.toggleItem = new JCheckBoxMenuItem(toggle);
         this.snapToMenu = new JMenu(Messages.text("menu.view.snapTo"));
         snapToMenu.add(new JCheckBoxMenuItem(parts));
         snapToMenu.add(new JCheckBoxMenuItem(guides));
         snapToMenu.add(new JCheckBoxMenuItem(gridLines));
-        int index = indexAfterGrid();
-        viewMenu.insert(toggleItem, index);
-        viewMenu.insert(snapToMenu, index + 1);
-        removals.add(() -> {
-            viewMenu.remove(snapToMenu);
-            viewMenu.remove(toggleItem);
-        });
+        removals.add(MenuSlots.add(view, MenuSlot.SNAP, toggleItem));
+        removals.add(MenuSlots.add(view, MenuSlot.SNAP, snapToMenu));
         removals.add(view.registerShortcutAction(SNAP_SHORTCUT, toggle));
         removals.add(view.registerShortcutAction(PARTS_SHORTCUT, parts));
         removals.add(view.registerShortcutAction(GUIDES_SHORTCUT, guides));
@@ -205,18 +197,6 @@ public final class SnapFeatures {
         if (!disposed) {
             pane.tool().refreshSnap(pane.toolContext());
         }
-    }
-
-    /** Right after Ver ▸ «Cuadrícula ▸» (the grid extension's submenu), else at the end of Ver. */
-    private int indexAfterGrid() {
-        String gridText = Messages.text("menu.view.grid");
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            Component child = viewMenu.getMenuComponent(index);
-            if (child instanceof JMenu menu && gridText.equals(menu.getText())) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
     }
 
     public void dispose() {

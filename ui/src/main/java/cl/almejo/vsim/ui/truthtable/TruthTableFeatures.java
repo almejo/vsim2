@@ -18,12 +18,11 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.karnaugh.KarnaughHandoff;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.Menus;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.Action;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
@@ -76,8 +75,6 @@ public final class TruthTableFeatures {
     private final TruthTableRunner runner;
     private final Delay delay;
     private final Action action;
-    private final JMenu simulationMenu;
-    private final Component separator;
     private final Runnable itemRemover;
     private final List<Session> sessions = new ArrayList<>();
     /** On the canvas while a window is open: moves each window's highlight to the row of the live inputs. */
@@ -106,10 +103,8 @@ public final class TruthTableFeatures {
         this.runner = runner;
         this.delay = delay;
         this.action = Actions.of(Messages.text("action.truthTable"), () -> open(view.selection().ids()));
-        this.simulationMenu = view.menu(MenuId.SIMULATION);
-        simulationMenu.addSeparator();
-        this.separator = simulationMenu.getMenuComponent(simulationMenu.getMenuComponentCount() - 1);
-        this.itemRemover = Menus.install(view, MenuId.SIMULATION, -1, action, "simulation.truthTable");
+        // Lógica ▸ «Tabla de verdad…»; the id keeps its old «simulation.» prefix so saved key bindings still apply
+        this.itemRemover = MenuSlots.install(view, MenuSlot.TRUTH_TABLE, action, "simulation.truthTable");
         view.addContextMenuContributor(new Contributor());
     }
 
@@ -196,7 +191,6 @@ public final class TruthTableFeatures {
         }
         disposed = true;
         itemRemover.run();
-        simulationMenu.remove(separator);
         runner.dispose();
         for (Session session : List.copyOf(sessions)) {
             session.closed = true;

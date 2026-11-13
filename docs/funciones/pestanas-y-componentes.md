@@ -199,7 +199,7 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   «Valores de» en la de un componente, y con «Sin valores» la del primer uso del componente. Elegirla así no lleva a
   ninguna parte ni le quita el foco a lo que lo tenía. Elegir una sola pieza en el lienzo elige su fila.
 - **Acordeón**: las cabeceras «Circuito» y «Paleta» pliegan su panel con un clic, y el otro ocupa el espacio. Alt+1 y
-  Alt+2 (se pueden cambiar en Atajos de teclado; también Ver ▸ «Árbol del circuito» y «Paleta») funcionan como las
+  Alt+2 (se pueden cambiar en Atajos de teclado; también Ver ▸ Paneles ▸ «Árbol del circuito» y «Paleta») funcionan como las
   ventanas de herramientas de un IDE: si el panel está plegado lo abren y le dan el foco; si está abierto sin el foco,
   le dan el foco; si ya lo tiene, lo pliegan y el foco vuelve al lienzo. Con
   los dos abiertos, el divisor entre ellos se arrastra y VSim lo recuerda. Lo plegado es de cada ventana, vale para

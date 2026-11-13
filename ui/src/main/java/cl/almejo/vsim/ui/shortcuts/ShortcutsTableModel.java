@@ -195,8 +195,9 @@ public final class ShortcutsTableModel extends AbstractTableModel {
             case FILE -> "menu.file";
             case EDIT -> "menu.edit";
             case VIEW -> "menu.view";
-            case SIMULATION -> "menu.simulation";
             case TOOLS -> "menu.tools";
+            case SIMULATION -> "menu.simulation";
+            case LOGIC -> "menu.logic";
             case WINDOW -> "menu.window";
             case HELP -> "menu.help";
         });

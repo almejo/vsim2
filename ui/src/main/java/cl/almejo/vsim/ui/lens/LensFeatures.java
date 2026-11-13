@@ -13,14 +13,13 @@ import cl.almejo.vsim.ui.toolbar.SplitButton;
 import cl.almejo.vsim.ui.toolbar.SplitButtonMode;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
 import javax.swing.JComponent;
-import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.KeyEventDispatcher;
@@ -91,7 +90,7 @@ public final class LensFeatures {
     private final KeyDispatchers dispatchers;
     private final LensState<CircuitCanvas> state = new LensState<>();
     private final Action toggle;
-    private final JMenu viewMenu;
+    private final Runnable menuRemover;
     private final JCheckBoxMenuItem menuItem;
     private final KeyEventDispatcher keyHook = this::keyEvent;
     private final Runnable shortcutRemover;
@@ -132,10 +131,9 @@ public final class LensFeatures {
         toggle.putValue(Action.SELECTED_KEY, false);
         Icons.install(toggle, LensIcons.LENS);
         this.preferences = view.services().preferences();
-        this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(toggle);
         menuItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("lens.searchTerms"));
-        viewMenu.insert(menuItem, indexInViewMenu());
+        this.menuRemover = MenuSlots.add(view, MenuSlot.LENS, menuItem);
         this.button = SplitButton.forToggle(ZOOM_PREFERENCE, Messages.text("lens.zoomMenuTitle"), zoomModes(),
                 preferences, toggle, String.valueOf((int) LensState.DEFAULT_FACTOR));
         state.setFactor(factorOf(button.mode()));
@@ -389,17 +387,6 @@ public final class LensFeatures {
         }
     }
 
-    /** Right after «Mirar adentro» when the menu has it; else at the end of the menu. */
-    private int indexInViewMenu() {
-        String lookInside = Messages.text("action.magnifier");
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && lookInside.equals(item.getText())) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
-    }
-
     /** The real watch: the focus manager's active window becoming another one (a dialog, another app). */
     private static Runnable watchTheActiveWindow(EditorView view, Runnable whenDeactivated) {
         KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
@@ -424,6 +411,6 @@ public final class LensFeatures {
         dispatchers.remove(keyHook);
         paneRemover.run();
         shortcutRemover.run();
-        viewMenu.remove(menuItem);
+        menuRemover.run();
     }
 }

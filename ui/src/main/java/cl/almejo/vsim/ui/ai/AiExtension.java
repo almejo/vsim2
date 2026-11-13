@@ -85,11 +85,11 @@ public final class AiExtension implements EditorExtension {
         AiStatusFeatures status = new AiStatusFeatures(view, service, ids, proposals, System::nanoTime);
         PanelWindow panelWindow = new PanelWindow(view);
         Action open = Actions.of(Messages.text("action.aiPanel"), () -> panelWindow.show());
-        JMenu tools = view.menu(MenuId.TOOLS);
+        JMenu window = view.menu(MenuId.WINDOW); // last, after a separator: it opens a window of its own
         JSeparator separator = new JPopupMenu.Separator();
         JMenuItem item = new JMenuItem(open);
-        tools.add(separator);
-        tools.add(item);
+        window.add(separator);
+        window.add(item);
         Runnable removeShortcut = view.registerShortcutAction(SHORTCUT_ID, open);
         AiStatusIndicator indicator = new AiStatusIndicator(service, panelWindow::show);
         Runnable removeIndicator = view.statusBar().addIndicator(indicator);
@@ -97,8 +97,8 @@ public final class AiExtension implements EditorExtension {
             removeIndicator.run();
             indicator.dispose();
             removeShortcut.run();
-            tools.remove(item);
-            tools.remove(separator);
+            window.remove(item);
+            window.remove(separator);
             panelWindow.dispose();
             status.dispose();
         };

@@ -6,14 +6,14 @@ import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
-import java.awt.Component;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -32,9 +32,8 @@ public final class GridFeatures {
 
     private final EditorView view;
     private final AppPreferences preferences;
-    private final JMenu viewMenu;
     private final JMenu gridMenu;
-    private final Component separator;
+    private final Runnable menuRemover;
     private final Map<GridStyle, JRadioButtonMenuItem> items = new EnumMap<>(GridStyle.class);
     private final Map<Integer, JRadioButtonMenuItem> spacingItems = new LinkedHashMap<>();
     private final Action cycle;
@@ -60,11 +59,7 @@ public final class GridFeatures {
         gridMenu.add(spacingMenu());
         gridMenu.addSeparator();
         gridMenu.add(new JMenuItem(cycle));
-        this.viewMenu = view.menu(MenuId.VIEW);
-        int index = indexAfterCenterView();
-        viewMenu.insertSeparator(index);
-        this.separator = viewMenu.getMenuComponent(index);
-        viewMenu.insert(gridMenu, index + 1);
+        this.menuRemover = MenuSlots.add(view, MenuSlot.GRID, gridMenu);
         this.shortcutRemover = view.registerShortcutAction(CYCLE_SHORTCUT, cycle);
         this.preferencesListener = this::refresh;
         preferences.addListener(preferencesListener);
@@ -134,16 +129,6 @@ public final class GridFeatures {
         }
     }
 
-    private int indexAfterCenterView() {
-        Action centerView = view.actions().centerView();
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == centerView) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
-    }
-
     public void dispose() {
         if (disposed) {
             return;
@@ -151,8 +136,7 @@ public final class GridFeatures {
         disposed = true;
         shortcutRemover.run();
         preferences.removeListener(preferencesListener);
-        viewMenu.remove(gridMenu);
-        viewMenu.remove(separator);
+        menuRemover.run();
         paneInstallation.run();
     }
 }

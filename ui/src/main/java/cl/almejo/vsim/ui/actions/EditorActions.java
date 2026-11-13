@@ -354,24 +354,16 @@ public final class EditorActions {
         edit.add(rotateClockwise);
         edit.add(rotateCounterClockwise);
         edit.add(configure);
+        // Ver, Herramientas and Lógica are laid out by their slots (MenuSlot): EditorView and the extensions fill them
         JMenu view = tagged(new JMenu(Messages.text("menu.view")), MenuId.VIEW);
-        view.add(selectTool);
-        view.add(panTool);
-        view.add(zoomTool);
-        view.addSeparator();
-        view.add(zoomIn);
-        view.add(zoomOut);
-        view.add(zoomReset);
-        view.add(zoomToFit);
-        view.add(zoomToSelection);
-        view.add(centerView);
+        JMenu tools = tagged(new JMenu(Messages.text("menu.tools")), MenuId.TOOLS);
         JMenu simulation = tagged(new JMenu(Messages.text("menu.simulation")), MenuId.SIMULATION);
         simulation.add(start);
         simulation.add(pause);
         simulation.add(startOrPause);
         simulation.add(restart);
         simulation.add(step);
-        JMenu tools = tagged(new JMenu(Messages.text("menu.tools")), MenuId.TOOLS); // filled by extensions
+        JMenu logic = tagged(new JMenu(Messages.text("menu.logic")), MenuId.LOGIC);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
         windowMenu.add(newView);
         windowMenu.add(newWindowWithCircuit);
@@ -390,8 +382,9 @@ public final class EditorActions {
         menuBar.add(file);
         menuBar.add(edit);
         menuBar.add(view);
-        menuBar.add(simulation);
         menuBar.add(tools);
+        menuBar.add(simulation);
+        menuBar.add(logic);
         menuBar.add(windowMenu);
         menuBar.add(help);
         return menuBar;

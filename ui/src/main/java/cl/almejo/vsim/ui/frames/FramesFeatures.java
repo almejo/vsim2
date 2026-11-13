@@ -19,6 +19,8 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
@@ -52,8 +54,7 @@ public final class FramesFeatures {
     private final JMenuItem menuItem;
     private final Runnable shortcutRemover;
     private final Action frameTool;
-    private final JMenu viewMenu;
-    private final JMenuItem toolMenuItem;
+    private final Runnable toolMenuRemover;
     private final Runnable toolButtonRemover;
     private final Runnable toolShortcutRemover;
     private final FrameMenu frameMenu;
@@ -81,9 +82,7 @@ public final class FramesFeatures {
         this.frameTool = Actions.of(Messages.text("action.toolFrame"), () -> view.setToolOnEveryPane(FrameTool::new));
         Icons.install(frameTool, FrameIcons.FRAME_TOOL);
         this.toolButtonRemover = view.addToolButton(frameTool, FrameTool.class);
-        this.viewMenu = view.menu(MenuId.VIEW);
-        this.toolMenuItem = new JMenuItem(frameTool);
-        viewMenu.insert(toolMenuItem, indexAfterSelectTool());
+        this.toolMenuRemover = MenuSlots.add(view, MenuSlot.FRAME_TOOL, new JMenuItem(frameTool));
         this.toolShortcutRemover = view.registerShortcutAction("view.frameTool", frameTool);
         this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
                 view.openDocument().document(), view.openDocument().registry(), ids)
@@ -111,17 +110,6 @@ public final class FramesFeatures {
             }
         }
         return editMenu.getItemCount();
-    }
-
-    private int indexAfterSelectTool() {
-        Action selectTool = view.actions().selectTool();
-        for (int index = 0; index < viewMenu.getItemCount(); index++) {
-            JMenuItem item = viewMenu.getItem(index);
-            if (item != null && item.getAction() == selectTool) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getItemCount();
     }
 
     /** The «Marco» tool's action (toolbar button and View menu item). */
@@ -235,7 +223,7 @@ public final class FramesFeatures {
         shortcutRemover.run();
         toolShortcutRemover.run();
         toolButtonRemover.run();
-        viewMenu.remove(toolMenuItem);
+        toolMenuRemover.run();
         paneInstallation.run();
         deleteListenerRemover.run();
         view.selection().removeListener(selectionListener);

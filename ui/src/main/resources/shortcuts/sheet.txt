@@ -22,12 +22,12 @@ edit.label
 edit.tidyWires
 edit.frameSelection
 edit.quickInsert
+view.nextProblem
 [VIEW]
 view.zoomTool
 view.zoomToFit
 view.zoomToSelection
 edit.find
-view.nextProblem
 view.presentationMode
 waveforms.toggle
 [SIMULATE]

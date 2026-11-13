@@ -5,10 +5,10 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,22 +26,9 @@ public final class TextToolExtension implements EditorExtension {
         Action tool = Actions.of(Messages.text("action.toolText"), () -> view.setToolOnEveryPane(TextTool::new));
         Icons.install(tool, TextToolIcons.TOOL);
         removers.add(view.addToolButton(tool, TextTool.class));
-        JMenu viewMenu = view.menu(MenuId.VIEW);
-        JMenuItem toolItem = new JMenuItem(tool);
-        viewMenu.insert(toolItem, indexAfterSelectTool(view, viewMenu));
-        removers.add(() -> viewMenu.remove(toolItem));
+        removers.add(MenuSlots.add(view, MenuSlot.TEXT_TOOL, new JMenuItem(tool)));
         removers.add(view.registerShortcutAction("view.textTool", tool));
         return () -> removers.reversed().forEach(Runnable::run);
     }
 
-    private static int indexAfterSelectTool(EditorView view, JMenu viewMenu) {
-        Action selectTool = view.actions().selectTool();
-        for (int index = 0; index < viewMenu.getItemCount(); index++) {
-            JMenuItem item = viewMenu.getItem(index);
-            if (item != null && item.getAction() == selectTool) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getItemCount();
-    }
 }

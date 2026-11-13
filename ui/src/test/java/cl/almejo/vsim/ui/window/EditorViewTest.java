@@ -137,14 +137,14 @@ class EditorViewTest {
     }
 
     @Test
-    void menuBarHasTheSevenMenusInOrder() {
+    void menuBarHasTheEightMenusInOrder() {
         List<String> titles = new ArrayList<>();
         for (int index = 0; index < view.menuBar().getMenuCount(); index++) {
             JMenu menu = view.menuBar().getMenu(index);
             titles.add(menu.getText());
         }
-        assertThat(titles).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Herramientas", "Ventana",
-                "Ayuda");
+        assertThat(titles).containsExactly("Archivo", "Editar", "Ver", "Herramientas", "Simulación", "Lógica",
+                "Ventana", "Ayuda");
     }
 
     @Test

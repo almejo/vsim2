@@ -8,7 +8,8 @@ import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.Menus;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
 import javax.swing.JMenuItem;
@@ -76,11 +77,11 @@ public final class KarnaughExtension implements EditorExtension {
         Action action = Actions.of(Messages.text("action.circuitFromTruthTable"),
                 () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
                         animations)));
-        Runnable toolsItemRemover = Menus.install(view, MenuId.TOOLS, -1, action, SHORTCUT_ID);
+        Runnable toolsItemRemover = MenuSlots.install(view, MenuSlot.CIRCUIT_FROM_TRUTH_TABLE, action, SHORTCUT_ID);
         Action practiceAction = Actions.of(Messages.text("action.karnaughPractice"),
                 () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
                         KarnaughWizard.Mode.PRACTICE, animations)));
-        Runnable practiceRemover = Menus.install(view, MenuId.TOOLS, -1, practiceAction, PRACTICE_SHORTCUT_ID);
+        Runnable practiceRemover = MenuSlots.install(view, MenuSlot.KARNAUGH_PRACTICE, practiceAction, PRACTICE_SHORTCUT_ID);
         // The truth-table window's «Abrir en el asistente de Karnaugh» opens a wizard on its table.
         view.setTableWizard(spec -> {
             KarnaughModel model = new KarnaughModel();
@@ -101,7 +102,7 @@ public final class KarnaughExtension implements EditorExtension {
         Action expressionsAction = Actions.of(Messages.text("action.circuitFromExpressions"),
                 () -> expressionsOpener.open(view, new ExpressionsPanel(target, background,
                         view.services().preferences(), cost, openInWizard)));
-        Runnable expressionsRemover = Menus.install(view, MenuId.TOOLS, -1, expressionsAction,
+        Runnable expressionsRemover = MenuSlots.install(view, MenuSlot.CIRCUIT_FROM_EXPRESSIONS, expressionsAction,
                 EXPRESSIONS_SHORTCUT_ID);
 
         // «Abrir en el asistente» of the import dialog: that dialog is closed, the normal (editable) wizard opens over

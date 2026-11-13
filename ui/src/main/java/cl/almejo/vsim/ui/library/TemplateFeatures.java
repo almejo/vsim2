@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.window.panes.EveryPane;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import java.util.List;
 import java.util.function.Consumer;
@@ -23,21 +24,22 @@ public final class TemplateFeatures {
     private final TemplateActions actions;
     private final LibraryPalette palette;
     private final Action importComponent;
-    private final Runnable importItemRemover;
+    /** Takes back Editar's two items and Archivo ▸ Importar ▸ «Componente…». */
+    private final Runnable menuItemsRemover;
     private final LibraryVersionBadge badge;
     private final Runnable problemsListener;
     /** Takes the badge overlay and the kept-versions warning back from every pane. */
     private final Runnable removeFromPanes;
 
     private TemplateFeatures(EditorView view, LibraryService service, TemplateActions actions, LibraryPalette palette,
-                             Action importComponent, Runnable importItemRemover, LibraryVersionBadge badge,
+                             Action importComponent, Runnable menuItemsRemover, LibraryVersionBadge badge,
                              Runnable problemsListener, Runnable removeFromPanes) {
         this.view = view;
         this.service = service;
         this.actions = actions;
         this.palette = palette;
         this.importComponent = importComponent;
-        this.importItemRemover = importItemRemover;
+        this.menuItemsRemover = menuItemsRemover;
         this.badge = badge;
         this.problemsListener = problemsListener;
         this.removeFromPanes = removeFromPanes;
@@ -46,9 +48,10 @@ public final class TemplateFeatures {
     public static TemplateFeatures install(EditorView view, LibraryService service, LibraryDialogs dialogs) {
         TemplateActions actions = new TemplateActions(view.openDocument(), view::canvas, service, dialogs);
         JMenu edit = view.menu(MenuId.EDIT);
-        edit.addSeparator();
-        edit.add(actions.createComponent());
-        edit.add(actions.updateComponent());
+        JPopupMenu.Separator editSeparator = new JPopupMenu.Separator();
+        edit.add(editSeparator);
+        JMenuItem createItem = edit.add(actions.createComponent());
+        JMenuItem updateItem = edit.add(actions.updateComponent());
         view.addContextMenuContributor(actions.contributor());
         Runnable removeDescriptionRows = view.labelFeatures().properties().addComponentRows(actions.descriptionRows());
         view.setTemplateActions(actions);
@@ -59,6 +62,12 @@ public final class TemplateFeatures {
         JMenuItem importItem = new JMenuItem(importComponent);
         importItem.setText(Messages.text("menu.file.import.component"));
         Runnable importItemRemover = ImportMenu.add(view.menu(MenuId.FILE), importItem);
+        Runnable menuItemsRemover = () -> {
+            importItemRemover.run();
+            edit.remove(updateItem);
+            edit.remove(createItem);
+            edit.remove(editSeparator);
+        };
 
         LibraryPalette palette = new LibraryPalette(view, service, dialogs, importer, importComponent);
         palette.install();
@@ -96,7 +105,7 @@ public final class TemplateFeatures {
             pane.addIncomingFragmentListener(keptVersionsWarning);
             return () -> pane.removeIncomingFragmentListener(keptVersionsWarning);
         });
-        return new TemplateFeatures(view, service, actions, palette, importComponent, importItemRemover, badge,
+        return new TemplateFeatures(view, service, actions, palette, importComponent, menuItemsRemover, badge,
                 problemsListener, () -> {
                     removeDescriptionRows.run();
                     removeWarnings.run();
@@ -127,7 +136,7 @@ public final class TemplateFeatures {
      * Archivo ▸ Importar.
      */
     public void dispose() {
-        importItemRemover.run();
+        menuItemsRemover.run();
         view.setComponentFileImporter(null);
         view.setTemplateActions(null);
         removeFromPanes.run();

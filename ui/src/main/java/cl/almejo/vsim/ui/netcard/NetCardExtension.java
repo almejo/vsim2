@@ -5,13 +5,12 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
 
 /**
@@ -36,10 +35,9 @@ public final class NetCardExtension implements EditorExtension {
         Runnable preferencesListener = () ->
                 toggle.putValue(Action.SELECTED_KEY, preferences.highlightNetOnHover());
         toggle.putValue(Action.SELECTED_KEY, preferences.highlightNetOnHover());
-        JMenu viewMenu = view.menu(MenuId.VIEW);
         JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
         menuItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("highlightNet.searchTerms"));
-        viewMenu.insert(menuItem, indexAfterBusValues(viewMenu));
+        Runnable menuRemover = MenuSlots.add(view, MenuSlot.HIGHLIGHT_NET, menuItem);
         Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);
         preferences.addListener(preferencesListener);
         Runnable featuresRemover = NetCardFeatures.install(view, preferences);
@@ -47,17 +45,8 @@ public final class NetCardExtension implements EditorExtension {
             featuresRemover.run();
             preferences.removeListener(preferencesListener);
             shortcutRemover.run();
-            viewMenu.remove(menuItem);
+            menuRemover.run();
         };
     }
 
-    private static int indexAfterBusValues(JMenu viewMenu) {
-        String busValuesText = Messages.text("action.busValues");
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && busValuesText.equals(item.getText())) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
-    }
 }

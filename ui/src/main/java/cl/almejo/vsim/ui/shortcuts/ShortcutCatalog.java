@@ -82,6 +82,9 @@ public final class ShortcutCatalog {
         window(entries, "edit.find", "action.find", MenuId.EDIT, stroke(KeyEvent.VK_F, menu));
         window(entries, "edit.findNext", "action.findNext", MenuId.EDIT, stroke(KeyEvent.VK_F3, 0));
         window(entries, "edit.findPrevious", "action.findPrevious", MenuId.EDIT, stroke(KeyEvent.VK_F3, shift));
+        // Editar, after the find items (in Ver until 0.8; the ids stay)
+        canvas(entries, "view.nextProblem", "action.nextProblem", stroke(KeyEvent.VK_F8, 0));
+        canvas(entries, "view.previousProblem", "action.previousProblem", stroke(KeyEvent.VK_F8, shift));
         window(entries, "edit.frameSelection", "action.frameSelection", MenuId.EDIT, stroke(KeyEvent.VK_G, menu));
         window(entries, "edit.tidyWires", "action.tidyWires", MenuId.EDIT,
                 stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK));
@@ -97,11 +100,11 @@ public final class ShortcutCatalog {
         moveKeys(entries, "edit.moveRight", "action.moveRight", "action.moveRightFar", KeyEvent.VK_RIGHT);
         moveKeys(entries, "edit.moveUp", "action.moveUp", "action.moveUpFar", KeyEvent.VK_UP);
         moveKeys(entries, "edit.moveDown", "action.moveDown", "action.moveDownFar", KeyEvent.VK_DOWN);
-        // the left column's accordion (spec §5.3): Alt+digit, free of the canvas keys and of the menus' mnemonics
+        // Ver ▸ Paneles: the left column's accordion (spec §5.3): Alt+digit, free of the canvas keys and of the menus'
+        // mnemonics; the right panel's sections: Alt+3 … Alt+6, the same keys as the strip's tooltips show
         window(entries, "view.circuitTree", "action.circuitTree", MenuId.VIEW,
                 stroke(KeyEvent.VK_1, InputEvent.ALT_DOWN_MASK));
         window(entries, "view.palette", "action.palette", MenuId.VIEW, stroke(KeyEvent.VK_2, InputEvent.ALT_DOWN_MASK));
-        // the right panel's sections: Alt+3 … Alt+6, the same keys as the strip's tooltips show
         window(entries, "view.properties", "inspector.properties", MenuId.VIEW,
                 stroke(KeyEvent.VK_3, InputEvent.ALT_DOWN_MASK));
         window(entries, "view.problems", "problems.tab", MenuId.VIEW,
@@ -109,13 +112,8 @@ public final class ShortcutCatalog {
         window(entries, "view.notes", "stickyNotes.tab", MenuId.VIEW, stroke(KeyEvent.VK_5, InputEvent.ALT_DOWN_MASK));
         window(entries, "view.memoryMap", "memory.map.tab", MenuId.VIEW,
                 stroke(KeyEvent.VK_6, InputEvent.ALT_DOWN_MASK));
-        window(entries, "view.selectTool", "action.toolSelect", MenuId.VIEW, null);
-        window(entries, "view.frameTool", "action.toolFrame", MenuId.VIEW, null);
-        window(entries, "view.stickyNoteTool", "action.toolStickyNote", MenuId.VIEW, null);
-        window(entries, "view.textTool", "action.toolText", MenuId.VIEW, null);
-        window(entries, "view.panTool", "action.toolPan", MenuId.VIEW, null);
-        // a plain letter: a canvas key, so typing «z» in a text field never picks the tool (zoom spec §5.1)
-        canvasView(entries, "view.zoomTool", "action.toolZoom", stroke(KeyEvent.VK_Z, 0));
+        window(entries, "waveforms.toggle", "menu.view.waveforms", MenuId.VIEW, null);
+        // Ver ▸ Zoom
         window(entries, "view.zoomIn", "action.zoomIn", MenuId.VIEW, stroke(KeyEvent.VK_EQUALS, menu));
         window(entries, "view.zoomOut", "action.zoomOut", MenuId.VIEW, stroke(KeyEvent.VK_MINUS, menu));
         window(entries, "view.zoomReset", "action.zoomReset", MenuId.VIEW, stroke(KeyEvent.VK_0, menu));
@@ -124,30 +122,38 @@ public final class ShortcutCatalog {
         canvasView(entries, "view.zoomToSelection", "action.zoomToSelection", stroke(KeyEvent.VK_2, shift));
         window(entries, "view.zoomField", "action.zoomField", MenuId.VIEW, null);
         window(entries, "view.centerView", "action.centerView", MenuId.VIEW, null);
+        // Ver ▸ Cuadrícula y guías
         window(entries, "view.cycleGrid", "action.cycleGrid", MenuId.VIEW, null);
         window(entries, "view.snap", "action.snap", MenuId.VIEW, stroke(KeyEvent.VK_M, menu | shift));
         window(entries, "view.snapToParts", "shortcut.snapToParts", MenuId.VIEW, null);
         window(entries, "view.snapToGuides", "shortcut.snapToGuides", MenuId.VIEW, null);
         window(entries, "view.snapToGridLines", "shortcut.snapToGridLines", MenuId.VIEW, null);
         window(entries, "view.showGuides", "action.showGuides", MenuId.VIEW, null);
-        window(entries, "view.busValues", "action.busValues", MenuId.VIEW, null);
-        window(entries, "view.magnifier", "action.magnifier", MenuId.VIEW, null);
-        window(entries, "view.highlightNet", "action.highlightNet", MenuId.VIEW, null);
-        // a toggle: each press of the key under Esc turns the lens on or off (LensFeatures hooks the key);
-        // canvas scope: a bare key that only acts with the focus in a canvas pane
-        canvasView(entries, "view.lens", "action.lens", stroke(KeyEvent.VK_BACK_QUOTE, 0));
         window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);
         window(entries, "view.addVerticalGuide", "action.addVerticalGuide", MenuId.VIEW, null);
         window(entries, "view.clearGuides", "action.clearGuides", MenuId.VIEW, null);
+        // Ver ▸ Mostrar
+        window(entries, "view.busValues", "action.busValues", MenuId.VIEW, null);
+        window(entries, "view.highlightNet", "action.highlightNet", MenuId.VIEW, null);
         window(entries, "view.showSheets", "action.showSheets", MenuId.VIEW, null);
-        canvasView(entries, "view.nextProblem", "action.nextProblem", stroke(KeyEvent.VK_F8, 0));
-        canvasView(entries, "view.previousProblem", "action.previousProblem", stroke(KeyEvent.VK_F8, shift));
-        window(entries, "waveforms.toggle", "menu.view.waveforms", MenuId.VIEW, null);
-        window(entries, "view.aiPresent", "action.aiPresent", MenuId.VIEW, null);
-        // «Modo presentación (pantalla completa)», last in Ver; F11 is the usual full-screen key
+        // a toggle: each press of the key under Esc turns the lens on or off (LensFeatures hooks the key);
+        // canvas scope: a bare key that only acts with the focus in a canvas pane
+        canvasView(entries, "view.lens", "action.lens", stroke(KeyEvent.VK_BACK_QUOTE, 0));
+        window(entries, "view.magnifier", "action.magnifier", MenuId.VIEW, null);
+        // «Modo presentación (pantalla completa)»; F11 is the usual full-screen key
         window(entries, "view.presentationMode", "action.presentationMode", MenuId.VIEW,
                 stroke(KeyEvent.VK_F11, 0));
+        // Ver ▸ Presentar
+        window(entries, "view.aiPresent", "action.aiPresent", MenuId.VIEW, null);
         window(entries, "view.showUsedShortcuts", "action.showUsedShortcuts", MenuId.VIEW, null);
+        // Herramientas: the editor's tools (their ids keep the «view.» prefix of 0.8, so saved key bindings still apply)
+        window(entries, "view.selectTool", "action.toolSelect", MenuId.TOOLS, null);
+        window(entries, "view.frameTool", "action.toolFrame", MenuId.TOOLS, null);
+        window(entries, "view.stickyNoteTool", "action.toolStickyNote", MenuId.TOOLS, null);
+        window(entries, "view.textTool", "action.toolText", MenuId.TOOLS, null);
+        window(entries, "view.panTool", "action.toolPan", MenuId.TOOLS, null);
+        // a plain letter: a canvas key, so typing «z» in a text field never picks the tool (zoom spec §5.1)
+        canvasKey(entries, "view.zoomTool", "action.toolZoom", MenuId.TOOLS, stroke(KeyEvent.VK_Z, 0));
         window(entries, "simulation.start", "action.start", MenuId.SIMULATION, null);
         window(entries, "simulation.pause", "action.pause", MenuId.SIMULATION, null);
         window(entries, "simulation.startOrPause", "action.startOrPause", MenuId.SIMULATION,
@@ -161,11 +167,11 @@ public final class ShortcutCatalog {
                 stroke(KeyEvent.VK_F7, shift));
         window(entries, "simulation.advanceClockCycle", "action.advanceClockCycle", MenuId.SIMULATION,
                 stroke(KeyEvent.VK_F7, menu));
-        window(entries, "simulation.truthTable", "action.truthTable", MenuId.SIMULATION, null);
-        window(entries, "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.TOOLS, null);
-        window(entries, "tools.karnaughPractice", "action.karnaughPractice", MenuId.TOOLS, null);
-        window(entries, "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.TOOLS, null);
-        window(entries, "tools.aiPanel", "action.aiPanel", MenuId.TOOLS, null);
+        // Lógica (since 0.9): the old «simulation.» and «tools.» ids stay, so saved key bindings still apply
+        window(entries, "simulation.truthTable", "action.truthTable", MenuId.LOGIC, null);
+        window(entries, "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.LOGIC, null);
+        window(entries, "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.LOGIC, null);
+        window(entries, "tools.karnaughPractice", "action.karnaughPractice", MenuId.LOGIC, null);
         window(entries, "window.newView", "action.newWindow", MenuId.WINDOW, null);
         // Pestañas y editar por dentro (spec §4.8): «Cerrar pestaña» took Ctrl+W from «Cerrar ventana», which is
         // Ctrl+Mayús+W now; both are also in Archivo.
@@ -186,6 +192,8 @@ public final class ShortcutCatalog {
         window(entries, "window.splitVertical", "shortcut.splitVertical", MenuId.WINDOW, null);
         window(entries, "window.removeSplit", "action.removeSplit", MenuId.WINDOW, null);
         window(entries, "window.nextPane", "action.nextPane", MenuId.WINDOW, null);
+        // Ventana, last (in Herramientas until 0.8; the id stays)
+        window(entries, "tools.aiPanel", "action.aiPanel", MenuId.WINDOW, null);
         // the command palette on «Acciones» (Ayuda ▸ «Buscar una acción…»): ⌘K on macOS
         window(entries, "help.findAction", "action.findAction", MenuId.HELP, stroke(KeyEvent.VK_K, menu));
         return List.copyOf(entries);
@@ -196,14 +204,20 @@ public final class ShortcutCatalog {
         entries.add(new ShortcutEntry(id, nameKey, group, Scope.WINDOW, Optional.ofNullable(defaultStroke)));
     }
 
-    /** Canvas keys of the Editar menu (Supr, R, Mayús+R, F2, the arrows). */
+    /** Canvas keys of the Editar menu (Supr, R, Mayús+R, F2, the arrows, F8 and Mayús+F8). */
     private static void canvas(List<ShortcutEntry> entries, String id, String nameKey, KeyStroke defaultStroke) {
         entries.add(new ShortcutEntry(id, nameKey, MenuId.EDIT, Scope.CANVAS, Optional.of(defaultStroke)));
     }
 
-    /** Canvas keys of the Ver menu (Z, Mayús+1, Mayús+2, F8, Mayús+F8): the menu items show no accelerator. */
+    /** Canvas keys of the Ver menu (Mayús+1, Mayús+2, the lens): the menu items show no accelerator. */
     private static void canvasView(List<ShortcutEntry> entries, String id, String nameKey, KeyStroke defaultStroke) {
-        entries.add(new ShortcutEntry(id, nameKey, MenuId.VIEW, Scope.CANVAS, Optional.of(defaultStroke)));
+        canvasKey(entries, id, nameKey, MenuId.VIEW, defaultStroke);
+    }
+
+    /** A canvas key listed under {@code group} (Z under Herramientas): its menu item shows no accelerator. */
+    private static void canvasKey(List<ShortcutEntry> entries, String id, String nameKey, MenuId group,
+                                  KeyStroke defaultStroke) {
+        entries.add(new ShortcutEntry(id, nameKey, group, Scope.CANVAS, Optional.of(defaultStroke)));
     }
 
     /** An arrow that moves the selection one grid unit; with Mayús five (the id of that one ends in «Far»). */

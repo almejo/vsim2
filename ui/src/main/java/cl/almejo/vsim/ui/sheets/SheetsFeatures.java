@@ -19,15 +19,13 @@ import cl.almejo.vsim.ui.print.PrintedSheets;
 import cl.almejo.vsim.ui.print.SheetGrid;
 import cl.almejo.vsim.ui.print.SheetPlan;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Rectangle2D;
@@ -54,7 +52,6 @@ import java.util.function.Consumer;
 public final class SheetsFeatures {
 
     private static final String SHORTCUT = "view.showSheets";
-    private static final String CLEAR_GUIDES_SHORTCUT = "view.clearGuides";
 
     /** Shows a popup menu (headless tests record it instead). */
     @FunctionalInterface
@@ -69,7 +66,7 @@ public final class SheetsFeatures {
     private final SheetsExtension extension;
     private final SheetsQuickOptions quickOptions;
     private final Action toggle;
-    private final JMenu viewMenu;
+    private final Runnable menuRemover;
     private final JCheckBoxMenuItem menuItem;
     private final List<Runnable> removers = new ArrayList<>();
     /** What each pane shows of the sheets. */
@@ -98,9 +95,8 @@ public final class SheetsFeatures {
         };
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.showSheets"));
         Icons.install(toggle, SheetsIcons.PRINT_SHEETS);
-        this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(toggle);
-        viewMenu.insert(menuItem, indexInViewMenu());
+        this.menuRemover = MenuSlots.add(view, MenuSlot.SHEETS, menuItem);
         removers.add(view.addToolbarToggleAfterTools(new JToggleButton(toggle)));
         removers.add(view.registerShortcutAction(SHORTCUT, toggle));
         preferences.addListener(preferencesListener);
@@ -232,37 +228,6 @@ public final class SheetsFeatures {
         quickOptions.show(pane, x, y);
     }
 
-    /**
-     * Right after «Borrar guías»; without the guides at the end of the group of «Cuadrícula ▸»; else after «Centrar
-     * circuito»; else at the end.
-     */
-    private int indexInViewMenu() {
-        Action clearGuides = view.shortcutActions().get(CLEAR_GUIDES_SHORTCUT);
-        for (int index = 0; clearGuides != null && index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == clearGuides) {
-                return index + 1;
-            }
-        }
-        String gridText = Messages.text("menu.view.grid");
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenu submenu && gridText.equals(submenu.getText())) {
-                int end = index + 1;
-                while (end < viewMenu.getMenuComponentCount()
-                        && !(viewMenu.getMenuComponent(end) instanceof JSeparator)) {
-                    end++;
-                }
-                return end;
-            }
-        }
-        Action centerView = view.actions().centerView();
-        for (int index = 0; index < viewMenu.getMenuComponentCount(); index++) {
-            if (viewMenu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == centerView) {
-                return index + 1;
-            }
-        }
-        return viewMenu.getMenuComponentCount();
-    }
-
     public void dispose() {
         if (disposed) {
             return;
@@ -273,7 +238,7 @@ public final class SheetsFeatures {
         anchors.removeListener(anchorListener);
         removers.forEach(Runnable::run);
         removers.clear();
-        viewMenu.remove(menuItem);
+        menuRemover.run();
         extension.forget(this);
         extension.releaseIfNoViewShows(document());
     }

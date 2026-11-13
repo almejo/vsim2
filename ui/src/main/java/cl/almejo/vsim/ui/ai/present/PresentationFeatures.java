@@ -17,14 +17,14 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.MenuSlot;
+import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.ToolbarSlot;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
-import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
 import java.awt.event.ComponentAdapter;
@@ -56,8 +56,7 @@ final class PresentationFeatures {
     private final AppPreferences preferences;
     private final Executor editorThread;
     private final Action toggle;
-    private final JMenu viewMenu;
-    private final JPopupMenu.Separator menuSeparator = new JPopupMenu.Separator();
+    private final List<Runnable> menuRemovers;
     private final JCheckBoxMenuItem menuItem;
     /** Ver ▸ «Ritmo de Presentar»: the pace and the pause, also before a task (agreed with the user). */
     private final JMenu paceMenu = new JMenu(Messages.text("action.aiPresentPace"));
@@ -116,12 +115,10 @@ final class PresentationFeatures {
                 () -> preferences.setAiPresenting(!preferences.aiPresenting()));
         Icons.install(toggle, PresentationIcons.PRESENT);
 
-        this.viewMenu = view.menu(MenuId.VIEW);
         this.menuItem = new JCheckBoxMenuItem(toggle);
-        viewMenu.add(menuSeparator);
-        viewMenu.add(menuItem);
         buildPaceMenu();
-        viewMenu.add(paceMenu);
+        this.menuRemovers = List.of(MenuSlots.add(view, MenuSlot.AI_PRESENT, menuItem),
+                MenuSlots.add(view, MenuSlot.AI_PRESENT, paceMenu));
         this.toolbarButton = new JToggleButton(toggle);
         this.removeToolbarButton = view.addToolbarComponent(toolbarButton, ToolbarSlot.RIGHT, 1);
         this.removeShortcut = view.registerShortcutAction(PresentationExtension.SHORTCUT_ID, toggle);
@@ -401,9 +398,7 @@ final class PresentationFeatures {
         placement.dispose();
         panel.dispose();
         removeShortcut.run();
-        viewMenu.remove(paceMenu);
-        viewMenu.remove(menuItem);
-        viewMenu.remove(menuSeparator);
+        menuRemovers.reversed().forEach(Runnable::run);
         removeToolbarButton.run();
     }
 
