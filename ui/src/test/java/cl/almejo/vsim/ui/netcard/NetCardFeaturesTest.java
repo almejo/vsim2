@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.netcard;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
@@ -12,6 +13,8 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
+import cl.almejo.vsim.ui.inline.InlineEditRequest;
+import cl.almejo.vsim.ui.inline.InlineValidators;
 import cl.almejo.vsim.ui.tools.PanTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +30,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -424,13 +428,94 @@ class NetCardFeaturesTest {
     }
 
     @Test
-    void deletingTheWireClosesAPinnedCard() {
+    void deletingEveryWireOfTheNetClosesAPinnedCard() {
+        pinTheCard();
+        List<ElementId> wires = List.copyOf(pane().shown().orElseThrow().wires());
+
+        openDocument.execute(new RemoveElementsCommand(wires));
+
+        assertThat(pane().card()).isEmpty();
+        assertThat(pane().shown()).isEmpty();
+    }
+
+    @Test
+    void deletingTheWireTheCardWasOpenedOnKeepsItOnTheRestOfTheNet() {
         pinTheCard();
 
         openDocument.execute(new RemoveElementsCommand(List.of(example.andOutput().id())));
 
-        assertThat(pane().card()).isEmpty();
+        assertThat(pane().card()).isPresent();
+        assertThat(pane().shown()).hasValueSatisfying(summary -> {
+            assertThat(summary.wires()).contains(example.notInput().id()).doesNotContain(example.andOutput().id());
+            assertThat(summary.drivers()).isEmpty();
+        });
+        assertThat(shownCard().texts()).contains("⚠ Nadie la maneja: vale Z");
+    }
+
+    @Test
+    void anEditOfThePinnedNetShowsOnTheCardWithoutMovingThePointer() {
+        pinTheCard();
+
+        NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.LED, Map.of(), "L7", 0, 35, 30);
+        addWire(openDocument, 35, 20, 35, 30);
+
+        assertThat(shownCard().texts()).contains("LED L7 · in");
+    }
+
+    @Test
+    void theCardFollowsItsNetWhenTheNetlistIsCompiledAgainUnderOtherIds() {
+        showTheCard();
+        String before = netOf(openDocument, example.andOutput());
+
+        openDocument.execute(new RemoveElementsCommand(List.of(example.and().id()))); // the net was named by its pin
+        String after = netOf(openDocument, example.andOutput());
+
+        assertThat(after).isNotEqualTo(before);
+        assertThat(pane().shown().orElseThrow().netId().value()).isEqualTo(after);
+        assertThat(pane().card()).isPresent();
+    }
+
+    @Test
+    void aWireBeingDrawnLightsNothing() {
+        NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.LED, Map.of(), "L8", 0, 50, 30);
+        Point2D pin = screenOf(50, 30);
+        CanvasClicks.click(canvas, (int) Math.round(pin.getX()), (int) Math.round(pin.getY()));
+        assertThat(canvas.drawsBetweenClicks()).isTrue();
+
+        moveOverTheAndOutput();
+
         assertThat(pane().shown()).isEmpty();
+    }
+
+    @Test
+    void theInlineEditorOpenLightsNothing() {
+        fixture.view().inlineEditor().open(new InlineEditRequest(new Rectangle2D.Double(80, 40, 160, 24),
+                new Font(Font.SANS_SERIF, Font.PLAIN, 12), "hola", InlineValidators.anyText(), text -> { }));
+
+        moveOverTheAndOutput();
+
+        assertThat(pane().shown()).isEmpty();
+    }
+
+    @Test
+    void panningWithSpaceHeldLightsNothing() {
+        KeyEvent space = new KeyEvent(canvas, KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_SPACE, ' ');
+        for (KeyListener listener : canvas.getKeyListeners()) {
+            listener.keyPressed(space);
+        }
+
+        moveOverTheAndOutput();
+
+        assertThat(pane().shown()).isEmpty();
+    }
+
+    @Test
+    void aPinnedCardStaysWhenTheToolChanges() {
+        pinTheCard();
+
+        fixture.view().setToolOnEveryPane(PanTool::new);
+
+        assertThat(shownCard().isPinned()).isTrue();
     }
 
     @Test

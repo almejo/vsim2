@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.netcard;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.RenderState;
@@ -53,7 +54,7 @@ class NetHaloTest {
                 .orElseThrow();
         NetSummary sameNetNewValue = new NetSummary(summary.netId(), summary.width(), summary.wires(),
                 summary.points(), summary.drivers(), summary.readers(), summary.tunnelNames(),
-                new NetValue.Simulated(cl.almejo.vsim.core.value.Value.ONE), summary.problem());
+                new NetValue.Simulated(Value.ONE), summary.problem());
         NetHalo halo = new NetHalo(Optional::empty);
 
         Area first = halo.areaOf(summary, openDocument.document());

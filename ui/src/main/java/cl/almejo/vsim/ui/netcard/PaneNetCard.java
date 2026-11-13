@@ -26,6 +26,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +45,9 @@ import java.util.function.Consumer;
  * A pinned card claims Esc ({@link CircuitCanvas#addEscapeClaim(BooleanSupplier, Runnable)}: the canvas closes it
  * before its tool sees the key, and presentation mode leaves it the key) and closes with it, with ✕ or with a press
  * on the pane outside it. Any card closes when the user is taken away from the view (its tab is hidden). The summary is built from the netlist and the latest
- * snapshot on demand and kept until the document, the netlist or the snapshot changes (the card follows the live
- * value); when the wire the net was found by is deleted, the net goes out and the card with it.
+ * snapshot on demand and kept until the document, the netlist or what the snapshot says of the net changes (the card
+ * follows the live value); when the wire the net was found by is deleted the net stays lit on another of its wires,
+ * and it goes out, with the card, only when none is left.
  */
 final class PaneNetCard {
 
@@ -209,9 +211,16 @@ final class PaneNetCard {
         } else {
             wireOfNet.put(net.get().id(), wire.get().id());
             hover.overWire(net.get().id());
+            forgetWiresOfOtherNets(net.get().id());
             lighting.accept(this);
         }
         changed();
+    }
+
+    /** Only the lit net and the one the pointer rests on keep their wire. */
+    private void forgetWiresOfOtherNets(NetId rested) {
+        Optional<NetId> lit = hover.current();
+        wireOfNet.keySet().removeIf(net -> !net.equals(rested) && !lit.map(net::equals).orElse(false));
     }
 
     /** The wire under {@code gridPoint}; none over a pin, whose balloon stays. */
@@ -224,10 +233,13 @@ final class PaneNetCard {
         return hit.filter(Wire.class::isInstance).map(Wire.class::cast);
     }
 
-    /** The Selección tool with nothing pressed, dragged or drawn, and no text editor floating over the pane. */
+    /**
+     * The Selección tool with nothing pressed, dragged or drawn, no pan under way (Espacio held, the middle button)
+     * and no text editor floating over the pane.
+     */
     boolean isIdle() {
         return pane.tool() instanceof SelectTool selectTool && !selectTool.autoscrolls()
-                && !pane.drawsBetweenClicks() && !anotherChildFloatsOverThePane();
+                && !pane.drawsBetweenClicks() && !pane.isPanning() && !anotherChildFloatsOverThePane();
     }
 
     /** True while the pane holds a Swing child other than the card (the inline text editor). */
@@ -368,9 +380,29 @@ final class PaneNetCard {
             return;
         }
         ElementId wire = wireOfNet.get(current.get());
-        if (wire == null || openDocument.document().wire(wire).isEmpty()) {
+        Optional<ElementId> anchor = wire != null && openDocument.document().wire(wire).isPresent()
+                ? Optional.of(wire) : remainingWireOfTheNet(wire);
+        if (anchor.isEmpty()) {
             close();
+            return;
         }
+        wireOfNet.put(current.get(), anchor.get());
+        changed(); // the card shows the edit at once, also with the simulation stopped
+    }
+
+    /**
+     * Another wire of the lit net that is still in the document, when the one it was found by is gone (deleted, or
+     * merged or split under a new id): the net stays lit on what is left of it.
+     */
+    private Optional<ElementId> remainingWireOfTheNet(ElementId goneWire) {
+        Cached last = cached;
+        if (last == null || !last.wire().equals(goneWire) || last.summary().isEmpty()) {
+            return Optional.empty();
+        }
+        CircuitDocument document = openDocument.document();
+        return last.summary().get().wires().stream()
+                .filter(candidate -> document.wire(candidate).isPresent())
+                .min(Comparator.comparing(ElementId::value));
     }
 
     private Optional<NetSummary> summaryOf(ElementId wire) {

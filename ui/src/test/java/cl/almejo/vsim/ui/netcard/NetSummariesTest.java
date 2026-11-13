@@ -7,10 +7,12 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.PassThroughCircuit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -122,6 +124,47 @@ class NetSummariesTest {
         Wire bus = addWire(openDocument, 10, 40, 20, 40);
 
         assertThat(summaryOf(bus, SimulationSnapshot.EMPTY).partFormat()).contains(Probe.fixedFormat(3));
+    }
+
+    @Test
+    void aCustomComponentIsNotEnteredItsOwnPinIsTheEnd() {
+        PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
+
+        NetSummary summary = summaryOf(circuit.left(), SimulationSnapshot.EMPTY);
+
+        assertThat(summary.wires()).containsExactly(circuit.left().id());
+        assertThat(summary.drivers()).extracting(NetEnd::componentId).containsExactly(circuit.high().id());
+        assertThat(summary.readers()).extracting(NetEnd::componentId).containsExactly(circuit.instance().id());
+    }
+
+    @Test
+    void theDriversOfAShortCircuitThroughACustomComponentAreAllNamedWithTheirValues() {
+        PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
+        String inner = InstancePath.child(circuit.instance().id().value(), "c1");
+        ShortCircuit shortCircuit = new ShortCircuit(circuit.rootNetId(openDocument), List.of(
+                new DriverRef(circuit.high().id().value(), 0, Value.ONE), new DriverRef(inner, 0, Value.ZERO)), 5);
+        SimulationSnapshot snapshot = new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
+                Map.of(), List.of(shortCircuit), Optional.empty());
+
+        NetSummary summary = summaryOf(circuit.left(), snapshot);
+
+        assertThat(NetCardText.drivers(summary)).hasSize(2);
+        NetEnd fromInside = NetCardText.drivers(summary).get(1);
+        assertThat(fromInside.componentId()).isEqualTo(circuit.instance().id());
+        assertThat(fromInside.valueText()).contains("0");
+    }
+
+    @Test
+    void pinsOfDifferentWidthsOnOneNetAreAWidthMismatch() {
+        NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.CONSTANT,
+                Map.of(StandardComponentTypes.WIDTH, 4), "", 0, 10, 40);
+        NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.LED, Map.of(), "L1", 0, 20, 40);
+        Wire joint = addWire(openDocument, 10, 40, 20, 40);
+
+        NetSummary summary = summaryOf(joint, SimulationSnapshot.EMPTY);
+
+        assertThat(summary.problem()).containsInstanceOf(NetProblem.WidthMismatch.class);
+        assertThat(NetCardText.problem(summary.problem().orElseThrow())).isNotBlank();
     }
 
     @Test
