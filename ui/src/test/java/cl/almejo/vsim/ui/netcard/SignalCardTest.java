@@ -6,6 +6,11 @@ import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
+import javax.swing.JLabel;
+import javax.swing.UIManager;
+import java.awt.Color;
+import java.awt.Container;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
@@ -114,6 +119,71 @@ class SignalCardTest {
         dispatch(item, MouseEvent.MOUSE_EXITED, -500, -500);
 
         assertThat(heard).containsExactly("entered", "left");
+    }
+
+    private static NetSummary andOutputWith(Value value) {
+        NetSummary one = andOutput();
+        return new NetSummary(one.netId(), one.width(), one.wires(), one.points(), one.drivers(), one.readers(),
+                one.tunnelNames(), new NetValue.Simulated(value), Optional.empty());
+    }
+
+    private static NetSummary busWith(Value value) {
+        return new NetSummary(new NetId("n2"), 4, Set.of(new ElementId("w2")), Set.of(),
+                List.of(end("c1", "Constante K", "out")), List.of(end("c2", "Sonda S", "in")), List.of(),
+                new NetValue.Simulated(value), Optional.empty());
+    }
+
+    @Test
+    void aNewValueChangesTheTextsInPlaceSoItsButtonsStayClickable() {
+        showAndLayOut(andOutputWith(Value.ONE), false);
+        AbstractButton pin = card.pinButton();
+        AbstractButton led = card.endButton("LED L1 · in").orElseThrow();
+
+        showAndLayOut(andOutputWith(Value.ZERO), false);
+
+        assertThat(card.pinButton()).isSameAs(pin);
+        assertThat(card.endButton("LED L1 · in")).containsSame(led);
+        assertThat(card.texts()).contains("Red de 1 bit = 0", "0 (bajo)").doesNotContain("Red de 1 bit = 1");
+    }
+
+    @Test
+    void aCountingBusKeepsItsButtonsWhileItsValueChanges() {
+        showAndLayOut(busWith(Value.of(4, 0xB)), false);
+        AbstractButton probe = card.endButton("Sonda S · in").orElseThrow();
+
+        showAndLayOut(busWith(Value.of(4, 0xC)), false);
+
+        assertThat(card.endButton("Sonda S · in")).containsSame(probe);
+        assertThat(card.texts()).contains("Red de 4 bits = 0xC", "1100", "12");
+    }
+
+    @Test
+    void theSecondaryTextsReadTheirColourWhenPainted() {
+        showAndLayOut(andOutput(), false);
+        Color original = UIManager.getColor("Label.disabledForeground");
+        try {
+            Color changed = new Color(1, 2, 3);
+            UIManager.put("Label.disabledForeground", changed);
+
+            assertThat(labelWithText(card, "La maneja").getForeground()).isEqualTo(changed);
+        } finally {
+            UIManager.put("Label.disabledForeground", original);
+        }
+    }
+
+    private static JLabel labelWithText(Container container, String text) {
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof JLabel label && text.equals(label.getText())) {
+                return label;
+            }
+            if (child instanceof Container nested) {
+                JLabel found = labelWithText(nested, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     @Test

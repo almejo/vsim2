@@ -258,6 +258,9 @@ final class PaneNetCard {
             }
             return;
         }
+        if (removeCard == null) {
+            card.lookMayHaveChanged(); // a theme or zoom change while it was away is not told to it
+        }
         card.show(summary.get(), hover.pinned());
         card.setOpacity(hover.opacity());
         if (removeCard == null) {

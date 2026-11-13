@@ -89,10 +89,15 @@ final class SignalCard extends JComponent {
     private final Listener listener;
     private final PointerOverCard pointerOverCard = new PointerOverCard();
     private final List<EndButton> endButtons = new ArrayList<>();
+    /** The value texts of the grid, top to bottom: a new value of the same net only changes their text. */
+    private final List<JLabel> valueLabels = new ArrayList<>();
     private NetSummary summary;
     private boolean pinned;
     private float opacity = 1f;
     private AbstractButton pinButton;
+    private JLabel title;
+    /** What the children were built for; null before the first build or after the look and feel may have changed. */
+    private Structure builtFor;
 
     SignalCard(Listener listener) {
         this.listener = Objects.requireNonNull(listener, "listener");
@@ -101,15 +106,46 @@ final class SignalCard extends JComponent {
         addMouseListener(pointerOverCard);
     }
 
-    /** Shows {@code summary}; built again only when it or the pinning changed (the pointer may be over an item). */
+    /**
+     * What decides the card's children: everything but the value texts. While it stays the same (a clock or a
+     * counter on the net) the texts change in place, so 📌, ✕ and the part links under the pointer are never replaced
+     * between a press and its release.
+     */
+    private record Structure(boolean pinned, int width, List<NetEnd> drivers, List<NetEnd> readers,
+                             List<String> tunnelNames, Optional<NetProblem> problem, List<String> valueRowLabels) {
+
+        static Structure of(NetSummary summary, boolean pinned) {
+            return new Structure(pinned, summary.width(), summary.drivers(), summary.readers(),
+                    summary.tunnelNames(), summary.problem(),
+                    NetCardText.valueRows(summary).stream().map(NetCardText.Row::label).toList());
+        }
+    }
+
+    /**
+     * Shows {@code summary}: built again only when its structure or the pinning changed, else only the header and
+     * the value texts change (the pointer may be over an item).
+     */
     void show(NetSummary newSummary, boolean newPinned) {
         Objects.requireNonNull(newSummary, "newSummary");
-        if (newSummary.equals(summary) && newPinned == pinned && getComponentCount() > 0) {
+        if (newSummary.equals(summary) && newPinned == pinned && builtFor != null) {
             return;
         }
         summary = newSummary;
         pinned = newPinned;
-        rebuild();
+        Structure structure = Structure.of(newSummary, newPinned);
+        if (structure.equals(builtFor)) {
+            changeTheValueTexts();
+        } else {
+            rebuild();
+        }
+    }
+
+    /**
+     * The card comes back over the pane: the look and feel may have changed while it was away (a theme, the
+     * interface zoom), and only a card in the component tree hears it, so the next {@link #show} builds it again.
+     */
+    void lookMayHaveChanged() {
+        builtFor = null;
     }
 
     boolean isPinned() {
@@ -201,23 +237,35 @@ final class SignalCard extends JComponent {
         return pinButton;
     }
 
+    private void changeTheValueTexts() {
+        title.setText(NetCardText.header(summary));
+        List<NetCardText.Row> rows = NetCardText.valueRows(summary);
+        for (int index = 0; index < rows.size(); index++) {
+            valueLabels.get(index).setText(rows.get(index).text());
+        }
+        revalidate();
+        repaint();
+    }
+
     private void rebuild() {
         removeAll();
         endButtons.clear();
+        valueLabels.clear();
+        builtFor = Structure.of(summary, pinned);
         setBorder(BorderFactory.createEmptyBorder(UIScale.scale(PADDING_VERTICAL), UIScale.scale(PADDING_HORIZONTAL),
                 UIScale.scale(PADDING_VERTICAL), UIScale.scale(PADDING_HORIZONTAL)));
         add(header());
         List<NetCardText.Row> rows = NetCardText.valueRows(summary);
         if (!rows.isEmpty()) {
-            add(grid(rows));
+            add(grid(rows, valueLabels));
         }
-        summary.problem().ifPresent(problem -> add(line(NetCardText.problem(problem), problemColor())));
+        summary.problem().ifPresent(problem -> add(left(new ToneLabel(NetCardText.problem(problem), Tone.PROBLEM))));
         addSection(NetCardText.driversTitle(), summary.drivers());
         addSection(NetCardText.readersTitle(), summary.readers());
         if (!summary.tunnelNames().isEmpty()) {
             add(grid(summary.tunnelNames().stream()
                     .map(name -> new NetCardText.Row(NetCardText.tunnelsTitle(), NetCardText.tunnel(name)))
-                    .toList()));
+                    .toList(), new ArrayList<>()));
         }
         add(hint());
         listenToThePointer(this);
@@ -227,7 +275,7 @@ final class SignalCard extends JComponent {
 
     private JComponent header() {
         JPanel header = row(new BorderLayout(UIScale.scale(COLUMN_GAP), 0));
-        JLabel title = new JLabel(NetCardText.header(summary));
+        title = new JLabel(NetCardText.header(summary));
         title.putClientProperty(STYLE_CLASS, SEMIBOLD);
         header.add(title, BorderLayout.CENTER);
         pinButton = pinned
@@ -246,8 +294,8 @@ final class SignalCard extends JComponent {
         return button;
     }
 
-    /** Two columns: «con signo» and «-5». */
-    private JComponent grid(List<NetCardText.Row> rows) {
+    /** Two columns: «con signo» and «-5»; the texts of the second column are added to {@code texts}. */
+    private JComponent grid(List<NetCardText.Row> rows, List<JLabel> texts) {
         JPanel grid = row(new GridBagLayout());
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.anchor = GridBagConstraints.WEST;
@@ -256,22 +304,22 @@ final class SignalCard extends JComponent {
             constraints.gridx = 0;
             constraints.weightx = 0;
             constraints.insets = new Insets(0, 0, 0, UIScale.scale(COLUMN_GAP));
-            JLabel label = new JLabel(rows.get(index).label());
+            JLabel label = new ToneLabel(rows.get(index).label(), Tone.SECONDARY);
             label.putClientProperty(STYLE_CLASS, SMALL);
-            label.setForeground(secondaryColor());
             grid.add(label, constraints);
             constraints.gridx = 1;
             constraints.weightx = 1;
             constraints.insets = new Insets(0, 0, 0, 0);
-            grid.add(new JLabel(rows.get(index).text()), constraints);
+            JLabel text = new JLabel(rows.get(index).text());
+            texts.add(text);
+            grid.add(text, constraints);
         }
         return grid;
     }
 
-    private void addSection(String title, List<NetEnd> ends) {
-        JLabel heading = new JLabel(title);
+    private void addSection(String sectionTitle, List<NetEnd> ends) {
+        JLabel heading = new ToneLabel(sectionTitle, Tone.SECONDARY);
         heading.putClientProperty(STYLE_CLASS, SMALL);
-        heading.setForeground(secondaryColor());
         heading.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(SECTION_GAP), 0, 0, 0));
         add(left(heading));
         if (ends.isEmpty()) {
@@ -286,17 +334,10 @@ final class SignalCard extends JComponent {
     }
 
     private JComponent hint() {
-        JLabel hint = new JLabel(Messages.text(pinned ? "netCard.hintPinned" : "netCard.hint"));
+        JLabel hint = new ToneLabel(Messages.text(pinned ? "netCard.hintPinned" : "netCard.hint"), Tone.SECONDARY);
         hint.putClientProperty(STYLE_CLASS, SMALL);
-        hint.setForeground(secondaryColor());
         hint.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(SECTION_GAP), 0, 0, 0));
         return left(hint);
-    }
-
-    private static JComponent line(String text, Color color) {
-        JLabel line = new JLabel(text);
-        line.setForeground(color);
-        return left(line);
     }
 
     private static JPanel row(java.awt.LayoutManager layout) {
@@ -323,12 +364,39 @@ final class SignalCard extends JComponent {
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    private static Color secondaryColor() {
-        return uiColor("Label.disabledForeground", Color.GRAY);
+    /** The colour of a secondary or problem text, by its key in the look and feel. */
+    private enum Tone {
+        SECONDARY("Label.disabledForeground", Color.GRAY),
+        PROBLEM("Actions.Red", new Color(0xDB5860));
+
+        private final String key;
+        private final Color fallback;
+
+        Tone(String key, Color fallback) {
+            this.key = key;
+            this.fallback = fallback;
+        }
+
+        Color color() {
+            return uiColor(key, fallback);
+        }
     }
 
-    private static Color problemColor() {
-        return uiColor("Actions.Red", new Color(0xDB5860));
+    /** A label whose colour is read from the look and feel each time it is asked (when it paints), never kept. */
+    private static final class ToneLabel extends JLabel {
+
+        private final Tone tone;
+
+        ToneLabel(String text, Tone tone) {
+            super(text);
+            this.tone = tone;
+        }
+
+        @Override
+        public Color getForeground() {
+            // null while JLabel's constructor installs the look and feel, before this field is set
+            return tone == null ? super.getForeground() : tone.color();
+        }
     }
 
     private static Color uiColor(String key, Color fallback) {

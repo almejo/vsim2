@@ -17,6 +17,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.UIManager;
+import javax.swing.plaf.FontUIResource;
+import java.awt.Font;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -335,6 +338,25 @@ class NetCardFeaturesTest {
 
         assertThat(pane().card()).isPresent();
         assertThat(shownCard().opacity()).isEqualTo(1f);
+    }
+
+    @Test
+    void aCardShownAgainTakesTheLookAndFeelThatChangedWhileItWasAway() {
+        showTheCard();
+        moveOverNothing();
+        ticker.advance(2_000);
+        assertThat(pane().card()).isEmpty();
+        Font original = UIManager.getFont("Button.font");
+        try {
+            FontUIResource bigger = new FontUIResource(Font.SANS_SERIF, Font.PLAIN, 31);
+            UIManager.put("Button.font", bigger);
+
+            showTheCard();
+
+            assertThat(shownCard().endButton("NOT U2 · in").orElseThrow().getFont()).isEqualTo(bigger);
+        } finally {
+            UIManager.put("Button.font", original);
+        }
     }
 
     @Test
