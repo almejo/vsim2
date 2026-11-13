@@ -65,9 +65,21 @@ public final class NetSummaries {
      */
     static Optional<NetSummary> forWire(OpenDocument document, ElementId wire, SimulationSnapshot snapshot,
                                         Supplier<TopLevelNets> topLevelNets) {
+        return forWire(document, wire, snapshot, topLevelNets,
+                () -> InstanceNames.names(document.document().components(), document.document()));
+    }
+
+    /**
+     * As {@link #forWire(OpenDocument, ElementId, SimulationSnapshot, Supplier)}; {@code names} (asked only when an
+     * unlabeled part is on the net) gives every part's name in the circuit («Interruptor 2»), which the caller may keep
+     * for the document's revision.
+     */
+    static Optional<NetSummary> forWire(OpenDocument document, ElementId wire, SimulationSnapshot snapshot,
+                                        Supplier<TopLevelNets> topLevelNets,
+                                        Supplier<Map<ElementId, String>> names) {
         Objects.requireNonNull(snapshot, "snapshot");
         return document.netlist().netForWire(wire)
-                .map(net -> new Builder(document, net, snapshot, topLevelNets).summary());
+                .map(net -> new Builder(document, net, snapshot, topLevelNets, names).summary());
     }
 
     /** The summary of one net, built once. */
@@ -79,9 +91,10 @@ public final class NetSummaries {
         private final SimulationSnapshot snapshot;
         private final boolean current;
         private final Supplier<TopLevelNets> topLevelNets;
-        private final Map<ElementId, String> names;
+        private final Supplier<Map<ElementId, String>> names;
 
-        Builder(OpenDocument openDocument, Net net, SimulationSnapshot snapshot, Supplier<TopLevelNets> topLevelNets) {
+        Builder(OpenDocument openDocument, Net net, SimulationSnapshot snapshot, Supplier<TopLevelNets> topLevelNets,
+                Supplier<Map<ElementId, String>> names) {
             this.document = openDocument.document();
             this.registry = openDocument.registry();
             this.net = net;
@@ -89,7 +102,7 @@ public final class NetSummaries {
             this.current = snapshot.token() == openDocument.netlistToken()
                     && !snapshot.equals(SimulationSnapshot.EMPTY);
             this.topLevelNets = topLevelNets;
-            this.names = InstanceNames.names(document.components(), document);
+            this.names = names;
         }
 
         NetSummary summary() {
@@ -126,10 +139,11 @@ public final class NetSummaries {
                     new ArrayList<>(new TreeSet<>(tunnelNames)), value, problem(shortCircuit, drivers, value));
         }
 
+        /** The pins of the net in the order their parts were added, the pins of one part by index. */
         private List<PinRef> pinsInDocumentOrder() {
-            List<ElementId> order = document.components().stream().map(Component::id).toList();
             return net.pins().stream()
-                    .sorted(Comparator.comparingInt((PinRef pin) -> order.indexOf(pin.componentId()))
+                    .filter(pin -> document.component(pin.componentId()).isPresent())
+                    .sorted(Comparator.comparingLong((PinRef pin) -> document.orderOf(pin.componentId()))
                             .thenComparingInt(PinRef::pinIndex))
                     .toList();
         }
@@ -143,7 +157,7 @@ public final class NetSummaries {
         /** «AND U1» for a labeled part (its type and label), else its name in the circuit («AND», «Interruptor 2»). */
         private String partText(Component component) {
             return component.label().isBlank()
-                    ? names.getOrDefault(component.id(), InstanceNames.typeName(component, document))
+                    ? names.get().getOrDefault(component.id(), InstanceNames.typeName(component, document))
                     : Messages.format("netCard.partLabeled", InstanceNames.typeName(component, document),
                     component.label());
         }

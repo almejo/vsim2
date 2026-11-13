@@ -270,6 +270,20 @@ class NetCardFeaturesTest {
     }
 
     @Test
+    void aNewSnapshotThatLeavesTheNetAsItWasDoesNotBuildItsSummaryAgain() {
+        showTheCard();
+        latest.set(snapshot(openDocument, Map.of(netOf(openDocument, example.andOutput()), Value.ONE)));
+        pane().snapshotArrived();
+        NetSummary first = pane().shown().orElseThrow();
+
+        latest.set(snapshot(openDocument, Map.of(netOf(openDocument, example.andOutput()), Value.ONE,
+                netOf(openDocument, example.inputA()), Value.ZERO)));
+        pane().snapshotArrived();
+
+        assertThat(pane().shown()).containsSame(first);
+    }
+
+    @Test
     void thePointerOverTheCardKeepsItAndLeavingItFadesItAway() {
         showTheCard();
         moveOverNothing();

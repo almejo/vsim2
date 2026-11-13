@@ -8,12 +8,15 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
+import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.tools.SelectTool;
+import cl.almejo.vsim.ui.window.InstanceNames;
 import cl.almejo.vsim.ui.window.EditorView;
 import com.formdev.flatlaf.util.UIScale;
 
@@ -73,6 +76,7 @@ final class PaneNetCard {
     /** The last wire hovered on each net: the summary is found from it, also after the netlist is compiled again. */
     private final Map<NetId, ElementId> wireOfNet = new HashMap<>();
     private Cached cached;
+    private CachedNames cachedNames;
     private float paintedOpacity;
     private Point lastPointer = new Point();
     /** Takes the card off the pane; null while it is not there. */
@@ -81,9 +85,25 @@ final class PaneNetCard {
     private NetId placedFor;
     private boolean disposed;
 
-    /** The summary built for one revision of the document, one netlist, one snapshot and one wire. */
-    private record Cached(ElementId wire, long revision, long netlistToken, SimulationSnapshot snapshot,
+    /**
+     * The summary built for one revision of the document, one netlist, one wire and what a snapshot tells of its
+     * net: a new snapshot (one per frame while running) that leaves the net as it was does not build it again.
+     */
+    private record Cached(ElementId wire, long revision, long netlistToken, SnapshotOfNet snapshot,
                           Optional<NetSummary> summary) {
+    }
+
+    /** What a summary reads from a snapshot: whether it is current, the value of the net and the problems. */
+    private record SnapshotOfNet(long token, boolean empty, Optional<Value> value, List<Problem> problems) {
+
+        static SnapshotOfNet of(SimulationSnapshot snapshot, Optional<Net> net) {
+            return new SnapshotOfNet(snapshot.token(), snapshot == SimulationSnapshot.EMPTY,
+                    net.map(found -> snapshot.netValues().get(found.id().value())), snapshot.problems());
+        }
+    }
+
+    /** The names of the parts in one revision of the document («Interruptor 2»). */
+    private record CachedNames(long revision, Map<ElementId, String> names) {
     }
 
     PaneNetCard(EditorView view, CircuitCanvas pane, NetCardFeatures.Setup setup, BooleanSupplier enabled,
@@ -356,16 +376,28 @@ final class PaneNetCard {
     private Optional<NetSummary> summaryOf(ElementId wire) {
         CircuitDocument document = openDocument.document();
         SimulationSnapshot snapshot = setup.snapshots().apply(openDocument);
+        SnapshotOfNet ofNet = SnapshotOfNet.of(snapshot, openDocument.netlist().netForWire(wire));
         Cached last = cached;
         if (last != null && last.wire().equals(wire) && last.revision() == document.revision()
-                && last.netlistToken() == openDocument.netlistToken() && last.snapshot() == snapshot) {
+                && last.netlistToken() == openDocument.netlistToken() && last.snapshot().equals(ofNet)) {
             return last.summary();
         }
         Optional<NetSummary> summary = NetSummaries.forWire(openDocument, wire, snapshot,
-                () -> pane.highlights().topLevelNets(document, openDocument.netlist()));
+                () -> pane.highlights().topLevelNets(document, openDocument.netlist()), this::partNames);
         summary.ifPresent(found -> followRenamedNet(found.netId(), wire));
-        cached = new Cached(wire, document.revision(), openDocument.netlistToken(), snapshot, summary);
+        cached = new Cached(wire, document.revision(), openDocument.netlistToken(), ofNet, summary);
         return summary;
+    }
+
+    private Map<ElementId, String> partNames() {
+        CircuitDocument document = openDocument.document();
+        CachedNames last = cachedNames;
+        if (last != null && last.revision() == document.revision()) {
+            return last.names();
+        }
+        Map<ElementId, String> names = InstanceNames.names(document.components(), document);
+        cachedNames = new CachedNames(document.revision(), names);
+        return names;
     }
 
     /** The netlist was compiled again and the lit net has a new id: the rules follow it. */

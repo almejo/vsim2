@@ -47,6 +47,23 @@ class NetHaloTest {
     }
 
     @Test
+    void theBandIsWorkedOutOncePerNetAndRevisionNotOncePerPaint() {
+        NetCardCircuits.AndExample example = NetCardCircuits.andExample(openDocument);
+        NetSummary summary = NetSummaries.forWire(openDocument, example.andOutput().id(), SimulationSnapshot.EMPTY)
+                .orElseThrow();
+        NetSummary sameNetNewValue = new NetSummary(summary.netId(), summary.width(), summary.wires(),
+                summary.points(), summary.drivers(), summary.readers(), summary.tunnelNames(),
+                new NetValue.Simulated(cl.almejo.vsim.core.value.Value.ONE), summary.problem());
+        NetHalo halo = new NetHalo(Optional::empty);
+
+        Area first = halo.areaOf(summary, openDocument.document());
+
+        assertThat(halo.areaOf(sameNetNewValue, openDocument.document())).isSameAs(first);
+        NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.LED, Map.of(), "L9", 0, 70, 70);
+        assertThat(halo.areaOf(summary, openDocument.document())).isNotSameAs(first);
+    }
+
+    @Test
     void nothingIsPaintedWithoutAHoveredNet() {
         NetCardCircuits.andExample(openDocument);
         NetHalo halo = new NetHalo(Optional::empty);

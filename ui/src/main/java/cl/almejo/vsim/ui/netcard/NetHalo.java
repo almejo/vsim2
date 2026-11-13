@@ -18,6 +18,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -49,9 +50,36 @@ final class NetHalo implements CanvasOverlay {
     private static final int RING_ALPHA = 230;
 
     private final Supplier<Optional<Shown>> shown;
+    /** The band of the last net painted: worked out again only when the net or the document changes. */
+    private CachedArea cached;
+
+    /** The band of one net's wires and junctions in one revision of one document. */
+    private record CachedArea(CircuitDocument document, long revision, Set<ElementId> wires, Set<GridPoint> points,
+                              Area area) {
+
+        boolean isFor(NetSummary summary, CircuitDocument otherDocument) {
+            return document == otherDocument && revision == otherDocument.revision()
+                    && wires.equals(summary.wires()) && points.equals(summary.points());
+        }
+    }
 
     NetHalo(Supplier<Optional<Shown>> shown) {
         this.shown = Objects.requireNonNull(shown, "shown");
+    }
+
+    /**
+     * {@link #area} of {@code summary}'s net, kept while its wires, its junctions and the document's revision stay the
+     * same: an area union grows worse than linearly with the wires, and the halo is painted every frame while the
+     * simulation runs (twice when the Lupa shows it). The value of the net plays no part.
+     */
+    Area areaOf(NetSummary summary, CircuitDocument document) {
+        CachedArea last = cached;
+        if (last != null && last.isFor(summary, document)) {
+            return last.area();
+        }
+        Area area = area(summary, document);
+        cached = new CachedArea(document, document.revision(), summary.wires(), summary.points(), area);
+        return area;
     }
 
     /** The band around the wires and junctions of {@code summary}'s net, without the wires themselves. */
@@ -88,7 +116,7 @@ final class NetHalo implements CanvasOverlay {
             float opacity = lit.get().opacity();
             NetSummary summary = lit.get().summary();
             halo.setColor(PainterSupport.withAlpha(accent, Math.round(BAND_ALPHA * opacity)));
-            halo.fill(area(summary, state.document()));
+            halo.fill(areaOf(summary, state.document()));
             paintRings(halo, summary, accent, opacity);
         } finally {
             halo.dispose();
