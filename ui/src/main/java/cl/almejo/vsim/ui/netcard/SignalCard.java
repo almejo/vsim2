@@ -65,6 +65,9 @@ final class SignalCard extends JComponent {
         void pointerEntered();
 
         void pointerLeft();
+
+        /** The card was dragged: it wants to be at {@code location} (in its parent), which the user may clamp. */
+        void dragged(Point location);
     }
 
     /** Unscaled sizes, in pixels at 100 %. */
@@ -75,6 +78,8 @@ final class SignalCard extends JComponent {
     private static final int CORNER = 10;
     private static final int ICON_SIZE = 14;
     private static final int LINK_PADDING = 1;
+    /** How far the pointer must move after a press before it is a drag and not a click on the card's body. */
+    private static final int DRAG_THRESHOLD = 4;
     /** The waveform panel's pushpin and the find bar's cross, recoloured by FlatLaf in dark themes. */
     private static final String PIN_ICON = "waveform-pin";
     private static final String CLOSE_ICON = "find-close";
@@ -88,6 +93,7 @@ final class SignalCard extends JComponent {
 
     private final Listener listener;
     private final PointerOverCard pointerOverCard = new PointerOverCard();
+    private final Dragger dragger = new Dragger();
     private final List<EndButton> endButtons = new ArrayList<>();
     /** The value texts of the grid, top to bottom: a new value of the same net only changes their text. */
     private final List<JLabel> valueLabels = new ArrayList<>();
@@ -96,6 +102,7 @@ final class SignalCard extends JComponent {
     private float opacity = 1f;
     private AbstractButton pinButton;
     private JLabel title;
+    private JPanel header;
     /** What the children were built for; null before the first build or after the look and feel may have changed. */
     private Structure builtFor;
 
@@ -104,6 +111,9 @@ final class SignalCard extends JComponent {
         setOpaque(false);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         addMouseListener(pointerOverCard);
+        addMouseListener(dragger);
+        addMouseMotionListener(dragger);
+        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
     }
 
     /**
@@ -111,11 +121,11 @@ final class SignalCard extends JComponent {
      * counter on the net) the texts change in place, so 📌, ✕ and the part links under the pointer are never replaced
      * between a press and its release.
      */
-    private record Structure(boolean pinned, int width, List<NetEnd> drivers, List<NetEnd> readers,
+    private record Structure(int width, List<NetEnd> drivers, List<NetEnd> readers,
                              List<String> tunnelNames, Optional<NetProblem> problem, List<String> valueRowLabels) {
 
-        static Structure of(NetSummary summary, boolean pinned) {
-            return new Structure(pinned, summary.width(), NetCardText.drivers(summary), summary.readers(),
+        static Structure of(NetSummary summary) {
+            return new Structure(summary.width(), NetCardText.drivers(summary), summary.readers(),
                     summary.tunnelNames(), summary.problem(),
                     NetCardText.valueRows(summary).stream().map(NetCardText.Row::label).toList());
         }
@@ -130,10 +140,14 @@ final class SignalCard extends JComponent {
         if (newSummary.equals(summary) && newPinned == pinned && builtFor != null) {
             return;
         }
+        boolean pinningChanged = newPinned != pinned;
         summary = newSummary;
         pinned = newPinned;
-        Structure structure = Structure.of(newSummary, newPinned);
+        Structure structure = Structure.of(newSummary);
         if (structure.equals(builtFor)) {
+            if (pinningChanged) {
+                swapThePinButton(); // in place: the pointer may be dragging a child of the card
+            }
             changeTheValueTexts();
         } else {
             rebuild();
@@ -251,7 +265,7 @@ final class SignalCard extends JComponent {
         removeAll();
         endButtons.clear();
         valueLabels.clear();
-        builtFor = Structure.of(summary, pinned);
+        builtFor = Structure.of(summary);
         setBorder(BorderFactory.createEmptyBorder(UIScale.scale(PADDING_VERTICAL), UIScale.scale(PADDING_HORIZONTAL),
                 UIScale.scale(PADDING_VERTICAL), UIScale.scale(PADDING_HORIZONTAL)));
         add(header());
@@ -267,24 +281,36 @@ final class SignalCard extends JComponent {
                     .map(name -> new NetCardText.Row(NetCardText.tunnelsTitle(), NetCardText.tunnel(name)))
                     .toList(), new ArrayList<>()));
         }
-        if (pinned) {
-            add(hint());
-        }
         listenToThePointer(this);
         revalidate();
         repaint();
     }
 
     private JComponent header() {
-        JPanel header = row(new BorderLayout(UIScale.scale(COLUMN_GAP), 0));
+        header = row(new BorderLayout(UIScale.scale(COLUMN_GAP), 0));
         title = new JLabel(NetCardText.header(summary));
         title.putClientProperty(STYLE_CLASS, SEMIBOLD);
         header.add(title, BorderLayout.CENTER);
-        pinButton = pinned
-                ? iconButton(Icons.get(CLOSE_ICON, ICON_SIZE), "netCard.close", listener::closePressed)
-                : iconButton(Icons.get(PIN_ICON, ICON_SIZE), "netCard.pin", listener::pinPressed);
+        pinButton = newPinButton();
         header.add(pinButton, BorderLayout.EAST);
         return header;
+    }
+
+    /** 📌 on an unpinned card, ✕ on a pinned one. */
+    private AbstractButton newPinButton() {
+        return pinned
+                ? iconButton(Icons.get(CLOSE_ICON, ICON_SIZE), "netCard.close", listener::closePressed)
+                : iconButton(Icons.get(PIN_ICON, ICON_SIZE), "netCard.pin", listener::pinPressed);
+    }
+
+    /** The card was pinned with the same content: only the header's button changes. */
+    private void swapThePinButton() {
+        header.remove(pinButton);
+        pinButton = newPinButton();
+        header.add(pinButton, BorderLayout.EAST);
+        listenToThePointer(header);
+        revalidate();
+        repaint();
     }
 
     private static AbstractButton iconButton(Icon icon, String tooltipKey, Runnable action) {
@@ -333,13 +359,6 @@ final class SignalCard extends JComponent {
             endButtons.add(button);
             add(left(button));
         }
-    }
-
-    private JComponent hint() {
-        JLabel hint = new ToneLabel(Messages.text("netCard.hintPinned"), Tone.SECONDARY);
-        hint.putClientProperty(STYLE_CLASS, SMALL);
-        hint.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(SECTION_GAP), 0, 0, 0));
-        return left(hint);
     }
 
     private static JPanel row(java.awt.LayoutManager layout) {
@@ -410,6 +429,12 @@ final class SignalCard extends JComponent {
         for (Component child : container.getComponents()) {
             child.removeMouseListener(pointerOverCard);
             child.addMouseListener(pointerOverCard);
+            if (!(child instanceof AbstractButton)) { // 📌, ✕ and the part links keep their clicks
+                child.removeMouseListener(dragger);
+                child.removeMouseMotionListener(dragger);
+                child.addMouseListener(dragger);
+                child.addMouseMotionListener(dragger);
+            }
             if (child instanceof Container nested) {
                 listenToThePointer(nested);
             }
@@ -436,6 +461,51 @@ final class SignalCard extends JComponent {
             super(NetCardText.end(end));
             styleAsLink(this);
             addActionListener(event -> listener.endPressed(end));
+        }
+    }
+
+    /**
+     * Moves the card with the pointer once it travelled more than a few pixels from the press (so a click on the
+     * body is not a drag). Positions are taken in the card's parent, which the card's own movement does not shift.
+     */
+    private final class Dragger extends MouseAdapter {
+
+        private Point pressedAt;
+        private Point cardAtPress;
+        private boolean dragging;
+
+        @Override
+        public void mousePressed(MouseEvent event) {
+            Container parent = getParent();
+            if (parent == null || !SwingUtilities.isLeftMouseButton(event)) {
+                pressedAt = null;
+                return;
+            }
+            pressedAt = SwingUtilities.convertPoint(event.getComponent(), event.getPoint(), parent);
+            cardAtPress = getLocation();
+        }
+
+        @Override
+        public void mouseDragged(MouseEvent event) {
+            Container parent = getParent();
+            if (pressedAt == null || parent == null) {
+                return;
+            }
+            Point now = SwingUtilities.convertPoint(event.getComponent(), event.getPoint(), parent);
+            int deltaX = now.x - pressedAt.x;
+            int deltaY = now.y - pressedAt.y;
+            int threshold = UIScale.scale(DRAG_THRESHOLD);
+            if (!dragging && Math.abs(deltaX) <= threshold && Math.abs(deltaY) <= threshold) {
+                return;
+            }
+            dragging = true;
+            listener.dragged(new Point(cardAtPress.x + deltaX, cardAtPress.y + deltaY));
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent event) {
+            pressedAt = null;
+            dragging = false;
         }
     }
 

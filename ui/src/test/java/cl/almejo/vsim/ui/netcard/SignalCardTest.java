@@ -49,6 +49,11 @@ class SignalCardTest {
         public void pointerLeft() {
             heard.add("left");
         }
+
+        @Override
+        public void dragged(java.awt.Point location) {
+            heard.add("dragged " + location.x + "," + location.y);
+        }
     });
 
     private static NetEnd end(String id, String part, String pin) {

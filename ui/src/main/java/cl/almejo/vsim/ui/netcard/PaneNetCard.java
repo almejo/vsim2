@@ -501,5 +501,13 @@ final class PaneNetCard {
             hover.leaveCard();
             changed();
         }
+
+        /** Moving a card means keeping it: it is pinned, and it stays where it was dropped while it is shown. */
+        @Override
+        public void dragged(Point location) {
+            hover.pin();
+            changed();
+            fitAt(location);
+        }
     }
 }

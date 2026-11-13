@@ -223,6 +223,119 @@ class NetCardFeaturesTest {
         assertThat(canvas.snapshotListenerCount()).isEqualTo(listeners);
     }
 
+    @Test
+    void draggingTheCardMovesItByTheDeltaAndPinsIt() {
+        showTheCard();
+        SignalCard card = shownCard();
+        int startX = card.getX();
+        int startY = card.getY();
+
+        drag(card, 5, 5, 45, 25);
+
+        assertThat(card.getX()).isEqualTo(startX + 40);
+        assertThat(card.getY()).isEqualTo(startY + 20);
+        assertThat(card.isPinned()).isTrue();
+    }
+
+    @Test
+    void theDraggedCardStaysInsideThePane() {
+        showTheCard();
+        SignalCard card = shownCard();
+
+        drag(card, 5, 5, 5 + 5_000, 5 + 5_000);
+        assertThat(card.getX() + card.getWidth()).isLessThanOrEqualTo(canvas.getWidth());
+        assertThat(card.getY() + card.getHeight()).isLessThanOrEqualTo(canvas.getHeight());
+        assertThat(card.getX()).isGreaterThan(canvas.getWidth() - card.getWidth() - 10);
+
+        drag(card, 5, 5, 5 - 5_000, 5 - 5_000);
+        assertThat(card.getX()).isBetween(0, 10);
+        assertThat(card.getY()).isBetween(0, 10);
+    }
+
+    @Test
+    void pressingOnAPartLinkAndMovingDoesNotDragTheCard() {
+        showTheCard();
+        SignalCard card = shownCard();
+        javax.swing.AbstractButton link = card.endButton("LED L1 · in").orElseThrow();
+        int startX = card.getX();
+        int startY = card.getY();
+
+        drag(link, 1, 1, 61, 41);
+
+        assertThat(card.getX()).isEqualTo(startX);
+        assertThat(card.getY()).isEqualTo(startY);
+        assertThat(card.isPinned()).isFalse();
+    }
+
+    @Test
+    void aClickWithoutMovementNeitherMovesNorPinsTheCard() {
+        showTheCard();
+        SignalCard card = shownCard();
+        int startX = card.getX();
+        int startY = card.getY();
+
+        drag(card, 5, 5, 6, 6); // under the threshold
+
+        assertThat(card.getX()).isEqualTo(startX);
+        assertThat(card.getY()).isEqualTo(startY);
+        assertThat(card.isPinned()).isFalse();
+    }
+
+    @Test
+    void aValueRefreshKeepsTheMovedPosition() {
+        showTheCard();
+        SignalCard card = shownCard();
+        drag(card, 5, 5, 105, 65);
+        int movedX = card.getX();
+        int movedY = card.getY();
+
+        latest.set(snapshot(openDocument, Map.of(netOf(openDocument, example.andOutput()), Value.ONE)));
+        pane().snapshotArrived();
+
+        assertThat(shownCard().getX()).isEqualTo(movedX);
+        assertThat(shownCard().getY()).isEqualTo(movedY);
+    }
+
+    @Test
+    void thePinnedCardHasNoHintLine() {
+        pinTheCard();
+
+        assertThat(shownCard().texts()).noneMatch(text -> text.contains("Esc"));
+    }
+
+    /**
+     * A press on {@code pressed}, a drag and a release, with the points relative to {@code pressed} where it was
+     * pressed: like the real events, each one is relative to where the component is at that moment.
+     */
+    private void drag(java.awt.Component pressed, int fromX, int fromY, int toX, int toY) {
+        java.awt.Point origin = javax.swing.SwingUtilities.convertPoint(pressed, 0, 0, canvas);
+        int fromPaneX = origin.x + fromX;
+        int fromPaneY = origin.y + fromY;
+        MouseEvent press = relativeEvent(pressed, MouseEvent.MOUSE_PRESSED, fromPaneX, fromPaneY);
+        for (MouseListener listener : pressed.getMouseListeners()) {
+            listener.mousePressed(press);
+        }
+        for (int step = 1; step <= 4; step++) {
+            MouseEvent move = relativeEvent(pressed, MouseEvent.MOUSE_DRAGGED,
+                    fromPaneX + (toX - fromX) * step / 4, fromPaneY + (toY - fromY) * step / 4);
+            for (MouseMotionListener listener : pressed.getMouseMotionListeners()) {
+                listener.mouseDragged(move);
+            }
+        }
+        MouseEvent release = relativeEvent(pressed, MouseEvent.MOUSE_RELEASED, fromPaneX + toX - fromX,
+                fromPaneY + toY - fromY);
+        for (MouseListener listener : pressed.getMouseListeners()) {
+            listener.mouseReleased(release);
+        }
+    }
+
+    /** An event at a point of the pane, expressed relative to {@code target} where it is now. */
+    private MouseEvent relativeEvent(java.awt.Component target, int id, int paneX, int paneY) {
+        java.awt.Point point = javax.swing.SwingUtilities.convertPoint(canvas, paneX, paneY, target);
+        return new MouseEvent(target, id, 0, InputEvent.BUTTON1_DOWN_MASK, point.x, point.y, 1, false,
+                MouseEvent.BUTTON1);
+    }
+
     private SignalCard shownCard() {
         return pane().card().orElseThrow(() -> new AssertionError("no card on the pane"));
     }
