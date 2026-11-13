@@ -152,6 +152,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
     private final Listeners<Runnable> tabShownListeners = new Listeners<>();
+    private final Listeners<Runnable> takenAwayListeners = new Listeners<>();
     private final Listeners<Runnable> gesturePhraseListeners = new Listeners<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
 
@@ -367,6 +368,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      * cancelado»), for the caller to show where the user looks now; empty when nothing was cancelled.
      */
     public Optional<String> interruptGestures() {
+        takenAwayListeners.fire(Runnable::run);
         Optional<String> notice = Optional.empty();
         for (CircuitCanvas pane : panes()) {
             Optional<String> paneNotice = pane.interruptGesture();
@@ -375,6 +377,15 @@ public final class EditorView extends JPanel implements CanvasHost {
             }
         }
         return notice;
+    }
+
+    /**
+     * Runs {@code listener} each time the user is taken away from this view ({@link #interruptGestures}: its tab was
+     * hidden, the AI started a task on its circuit), so what is shown over a pane (a signal card) closes. Returns its
+     * removal.
+     */
+    public Runnable addTakenAwayListener(Runnable listener) {
+        return takenAwayListeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
     /** Puts every pane back on its default tool (Elegir) and ends the window's tool choice. */

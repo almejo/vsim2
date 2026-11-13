@@ -129,6 +129,20 @@ final class SignalCard extends JComponent {
         return opacity;
     }
 
+    /**
+     * The card left the pane: the pointer is no longer over it. Swing sends no exit to a removed component, so without
+     * this the next card would never say the pointer entered it (and would fade under the pointer).
+     */
+    void forgetThePointer() {
+        pointerOverCard.inside = false;
+    }
+
+    @Override
+    public void removeNotify() {
+        forgetThePointer();
+        super.removeNotify();
+    }
+
     /** The interface zoom or the theme changed: the scaled padding is worked out again. */
     @Override
     public void updateUI() {

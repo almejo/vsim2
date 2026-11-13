@@ -46,7 +46,6 @@ class NetCardFeaturesTest {
     private CircuitCanvas canvas;
     private NetCardFeatures features;
     private NetCardCircuits.AndExample example;
-    private List<KeyListener> keyListenersOfTheEditor;
 
     @BeforeEach
     void create() {
@@ -55,7 +54,6 @@ class NetCardFeaturesTest {
         canvas = fixture.view().canvas();
         canvas.setSize(1200, 800);
         example = NetCardCircuits.andExample(openDocument);
-        keyListenersOfTheEditor = List.of(canvas.getKeyListeners());
         features = new NetCardFeatures(fixture.view(), preferences,
                 new NetCardFeatures.Setup(() -> ticker, ticker::now, () -> DELAY, document -> latest.get()));
     }
@@ -223,15 +221,21 @@ class NetCardFeaturesTest {
         }
     }
 
-    /** Esc as the feature's own key listener sees it (the editor's tool takes Esc for itself too). */
+    /** Esc as the editor delivers it: to every key listener of the canvas, its own first. */
     private KeyEvent pressEscape() {
         KeyEvent escape = new KeyEvent(canvas, KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
         for (KeyListener listener : canvas.getKeyListeners()) {
-            if (!keyListenersOfTheEditor.contains(listener)) {
-                listener.keyPressed(escape);
-            }
+            listener.keyPressed(escape);
         }
         return escape;
+    }
+
+    /** The pointer leaves the canvas (onto the card, which is a child of it). */
+    private void leaveTheCanvas() {
+        MouseEvent exited = new MouseEvent(canvas, MouseEvent.MOUSE_EXITED, 0, 0, -1, -1, 0, false);
+        for (MouseListener listener : canvas.getMouseListeners()) {
+            listener.mouseExited(exited);
+        }
     }
 
     @Test
@@ -294,7 +298,7 @@ class NetCardFeaturesTest {
     void escClosesAPinnedCardAndIsLeftAloneOtherwise() {
         showTheCard();
         assertThat(canvas.isEscapeClaimed()).isFalse();
-        assertThat(pressEscape().isConsumed()).isFalse();
+        pressEscape();
         assertThat(pane().card()).isPresent();
 
         pinTheCard();
@@ -304,6 +308,43 @@ class NetCardFeaturesTest {
         assertThat(escape.isConsumed()).isTrue();
         assertThat(pane().card()).isEmpty();
         assertThat(canvas.isEscapeClaimed()).isFalse();
+    }
+
+    @Test
+    void escOnAPinnedCardClosesOnlyTheCardAndKeepsTheSelection() {
+        pinTheCard();
+        shownCard().endButton("NOT U2 · in").orElseThrow().doClick();
+        assertThat(fixture.view().selection().ids()).containsExactly(example.not().id());
+
+        pressEscape();
+
+        assertThat(pane().card()).isEmpty();
+        assertThat(fixture.view().selection().ids()).containsExactly(example.not().id());
+    }
+
+    @Test
+    void aCardClosedWithThePointerOnItDoesNotLeaveTheNextOneFadingUnderThePointer() {
+        pinTheCard();
+        shownCard().pinButton().doClick();
+        assertThat(pane().card()).isEmpty();
+
+        showTheCard();
+        leaveTheCanvas();
+        dispatchToCard(shownCard(), MouseEvent.MOUSE_ENTERED, 2, 2);
+        ticker.advance(3_000);
+
+        assertThat(pane().card()).isPresent();
+        assertThat(shownCard().opacity()).isEqualTo(1f);
+    }
+
+    @Test
+    void hidingTheTabClosesAPinnedCard() {
+        pinTheCard();
+
+        fixture.view().interruptGestures();
+
+        assertThat(pane().card()).isEmpty();
+        assertThat(pane().shown()).isEmpty();
     }
 
     @Test

@@ -145,6 +145,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
     private final List<BooleanSupplier> escapeClaims = new CopyOnWriteArrayList<>();
+    private final List<EscapeHandler> escapeHandlers = new CopyOnWriteArrayList<>();
     private final EdgeController edgeController = new EdgeController(this::getSize);
     private final DocumentListener documentListener;
     private final Runnable refreshListener = this::bodyRefreshed;
@@ -1176,9 +1177,46 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return () -> escapeClaims.remove(claim);
     }
 
+    /**
+     * Adds a claim on Esc that the canvas itself serves: while {@code claim} holds, an Esc pressed on this pane (with
+     * no modifier) runs {@code onEscape} and goes no further, before the tool sees it (a pinned signal card closes
+     * and the selection stays). Presentation mode leaves it the key, as with {@link #addEscapeClaim(BooleanSupplier)}.
+     * The returned runnable removes it.
+     */
+    public Runnable addEscapeClaim(BooleanSupplier claim, Runnable onEscape) {
+        EscapeHandler handler = new EscapeHandler(Objects.requireNonNull(claim, "claim"),
+                Objects.requireNonNull(onEscape, "onEscape"));
+        Runnable removeClaim = addEscapeClaim(claim);
+        escapeHandlers.add(handler);
+        return () -> {
+            escapeHandlers.remove(handler);
+            removeClaim.run();
+        };
+    }
+
     /** Whether something shown over this pane wants the next Esc ({@link #addEscapeClaim}). */
     public boolean isEscapeClaimed() {
         return escapeClaims.stream().anyMatch(BooleanSupplier::getAsBoolean);
+    }
+
+    /** True while Espacio is held or the middle button pans the view. */
+    public boolean isPanning() {
+        return spaceDown || panAnchor != null;
+    }
+
+    /** Runs the first Esc handler whose claim holds; true when one did. */
+    private boolean serveEscapeClaim() {
+        for (EscapeHandler handler : escapeHandlers) {
+            if (handler.claim().getAsBoolean()) {
+                handler.onEscape().run();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** An Esc claim the canvas serves itself ({@link #addEscapeClaim(BooleanSupplier, Runnable)}). */
+    private record EscapeHandler(BooleanSupplier claim, Runnable onEscape) {
     }
 
     /**
@@ -2205,6 +2243,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         public void keyPressed(KeyEvent event) {
             if (host.takeKey(CircuitCanvas.this, event)) {
                 event.consume(); // a part has the keyboard: no key binding runs (decision 5)
+                return;
+            }
+            if (event.getKeyCode() == KeyEvent.VK_ESCAPE && event.getModifiersEx() == 0 && serveEscapeClaim()) {
+                event.consume(); // what is shown over the pane closes; the tool keeps its selection
                 return;
             }
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {

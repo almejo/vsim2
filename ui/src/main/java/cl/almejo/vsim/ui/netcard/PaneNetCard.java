@@ -19,8 +19,6 @@ import com.formdev.flatlaf.util.UIScale;
 
 import java.awt.Dimension;
 import java.awt.Point;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
@@ -40,8 +38,9 @@ import java.util.function.Consumer;
  * lights a net (no drag, no rubber band, no wire being drawn, no floating text editor), and never over a pin, whose
  * balloon stays.
  * <p>
- * A pinned card claims Esc ({@link CircuitCanvas#addEscapeClaim}, so presentation mode leaves it the key) and closes
- * with it, with ✕ or with a press on the pane outside it. The summary is built from the netlist and the latest
+ * A pinned card claims Esc ({@link CircuitCanvas#addEscapeClaim(BooleanSupplier, Runnable)}: the canvas closes it
+ * before its tool sees the key, and presentation mode leaves it the key) and closes with it, with ✕ or with a press
+ * on the pane outside it. Any card closes when the user is taken away from the view (its tab is hidden). The summary is built from the netlist and the latest
  * snapshot on demand and kept until the document, the netlist or the snapshot changes (the card follows the live
  * value); when the wire the net was found by is deleted, the net goes out and the card with it.
  */
@@ -66,10 +65,10 @@ final class PaneNetCard {
     private final NetHalo halo;
     private final SignalCard card;
     private final Pointer pointer = new Pointer();
-    private final KeyAdapter escape = new EscapeClosesAPinnedCard();
     private final DocumentListener documentListener = (document, change) -> documentChanged();
     private final Consumer<SimulationSnapshot> snapshotListener = snapshot -> snapshotArrived();
     private final Runnable removeEscapeClaim;
+    private final Runnable removeTakenAwayListener;
     private final CircuitDocument listenedDocument;
     /** The last wire hovered on each net: the summary is found from it, also after the netlist is compiled again. */
     private final Map<NetId, ElementId> wireOfNet = new HashMap<>();
@@ -103,10 +102,11 @@ final class PaneNetCard {
         this.listenedDocument = openDocument.document();
         pane.addMouseListener(pointer);
         pane.addMouseMotionListener(pointer);
-        pane.addKeyListener(escape);
         pane.addOverlay(halo);
         pane.addSnapshotListener(snapshotListener);
-        removeEscapeClaim = pane.addEscapeClaim(hover::pinned);
+        // the canvas serves this Esc before its tool, so a pinned card closes and the selection stays
+        removeEscapeClaim = pane.addEscapeClaim(hover::pinned, this::close);
+        removeTakenAwayListener = view.addTakenAwayListener(this::close);
         listenedDocument.addListener(documentListener);
     }
 
@@ -163,9 +163,9 @@ final class PaneNetCard {
         disposed = true;
         close();
         removeEscapeClaim.run();
+        removeTakenAwayListener.run();
         pane.removeMouseListener(pointer);
         pane.removeMouseMotionListener(pointer);
-        pane.removeKeyListener(escape);
         pane.removeOverlay(halo);
         pane.removeSnapshotListener(snapshotListener);
         listenedDocument.removeListener(documentListener);
@@ -274,6 +274,7 @@ final class PaneNetCard {
 
     private void takeTheCardAway() {
         placedFor = null;
+        card.forgetThePointer(); // Swing tells a removed card no exit
         if (removeCard != null) {
             Runnable remove = removeCard;
             removeCard = null;
@@ -400,18 +401,6 @@ final class PaneNetCard {
         public void mouseExited(MouseEvent event) {
             hover.offWire();
             changed();
-        }
-    }
-
-    /** Esc closes a pinned card, and only a pinned one: otherwise the key goes on (to the tool, to presentation). */
-    private final class EscapeClosesAPinnedCard extends KeyAdapter {
-
-        @Override
-        public void keyPressed(KeyEvent event) {
-            if (event.getKeyCode() == KeyEvent.VK_ESCAPE && event.getModifiersEx() == 0 && hover.pinned()) {
-                close();
-                event.consume();
-            }
         }
     }
 
