@@ -14,7 +14,6 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.netlist.PinRef;
-import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
@@ -591,18 +590,8 @@ public final class ProblemsController {
                 .filter(widthMismatch -> widthMismatch.netId().equals(reportedId))
                 .findFirst();
         if (mismatch.isEmpty() && net.widthMismatch()) {
-            mismatch = Optional.of(new WidthMismatch(net.id().value(), net.pins().stream()
-                    .filter(pin -> hasAWidthOfItsOwn(document, pin))
-                    .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
-                    .toList()));
+            mismatch = Optional.of(ProblemText.ownPinsMismatch(net, document, openDocument.registry()));
         }
         return mismatch.map(found -> ProblemText.describe(found, document, openDocument.registry()));
-    }
-
-    /** False for a tunnel's pin: it takes the net's width, so it is never one side of a mismatch (like the engine). */
-    private boolean hasAWidthOfItsOwn(CircuitDocument document, PinRef pin) {
-        return document.component(pin.componentId())
-                .map(component -> !openDocument.registry().typeOf(component).pin(pin.pinIndex()).isAdaptiveWidth())
-                .orElse(true);
     }
 }
