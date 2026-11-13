@@ -1,22 +1,27 @@
 package cl.almejo.vsim.ui.netcard;
 
 import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.i18n.Messages;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The texts of the signal card, all from the bundles: the header «Red de 4 bits = 0xB», the value rows (one bit:
- * «valor 1 (alto)»; a bus: bin, hex, dec, con signo, octal, with the bus balloon's rules for Z and X), the section
- * titles, the ends «AND U1 · out» and the problem lines.
+ * «valor 1 (alto)»; a bus: every format of the bus balloon, with its rules for Z and X), the section titles, the
+ * ends «AND U1 · out» and the problem lines.
  */
 final class NetCardText {
 
     /** One row of the value grid: «con signo» and «-5». */
     record Row(String label, String text) {
     }
+
+    /** A 7-bit bus reads as an ASCII character too, as an 8-bit one does. */
+    private static final int CHARACTER_WIDTH = 7;
 
     private NetCardText() {
     }
@@ -38,7 +43,9 @@ final class NetCardText {
 
     /**
      * The value grid: none while not simulating; «X (cortocircuito)» for a shorted value; one bit with what it means;
-     * a bus in binary and hex, and in decimal, signed and octal when every bit is defined.
+     * a bus in binary and hex, and when every bit is defined also in decimal, signed and octal, as a character with 7
+     * or 8 bits, as a float with 16, 32 or 64 and in fixed point when the part that drives it shows it so: the same
+     * formats as the bus balloon ({@link BusValueText#otherFormats(Value, String)}).
      */
     static List<Row> valueRows(NetSummary summary) {
         if (!(summary.value() instanceof NetValue.Simulated simulated)) {
@@ -57,10 +64,25 @@ final class NetCardText {
         if (!value.isFullyDefined()) {
             return List.of(binary, hex);
         }
-        return List.of(binary, hex,
+        List<Row> rows = new ArrayList<>(List.of(binary, hex,
                 format("netCard.row.decimal", value, ConstantValue.DECIMAL),
                 format("netCard.row.signed", value, ConstantValue.SIGNED),
-                format("netCard.row.octal", value, ConstantValue.OCTAL));
+                format("netCard.row.octal", value, ConstantValue.OCTAL)));
+        if (value.width() == CHARACTER_WIDTH || value.width() == Byte.SIZE) {
+            rows.add(format("netCard.row.character", value, ConstantValue.ASCII));
+        }
+        if (value.width() == Short.SIZE || value.width() == Integer.SIZE || value.width() == Long.SIZE) {
+            rows.add(format("netCard.row.float", value, ConstantValue.FLOAT));
+        }
+        summary.partFormat()
+                .filter(partFormat -> ConstantValue.FIXED.equals(Probe.valueFormatOf(partFormat)))
+                .ifPresent(partFormat -> rows.add(fixedPoint(value, Probe.fractionBitsOf(partFormat))));
+        return List.copyOf(rows);
+    }
+
+    private static Row fixedPoint(Value value, int fractionBits) {
+        String text = ConstantValue.display(value.bits(), value.width(), ConstantValue.FIXED, fractionBits);
+        return new Row(Messages.text("netCard.row.fixed"), Messages.format("netCard.fixedValue", text, fractionBits));
     }
 
     private static Row format(String labelKey, Value value, String format) {
@@ -81,6 +103,19 @@ final class NetCardText {
         String pin = end.pinText().isEmpty() ? end.partText()
                 : Messages.format("netCard.end", end.partText(), end.pinText());
         return end.valueText().map(value -> Messages.format("netCard.endWithValue", pin, value)).orElse(pin);
+    }
+
+    /**
+     * «La maneja»: the net's drivers, then the drivers of its short circuit that are not among them (a part inside a
+     * component's body, by its route), each with the value it imposes, so no driver that fights is hidden.
+     */
+    static List<NetEnd> drivers(NetSummary summary) {
+        if (!(summary.problem().orElse(null) instanceof NetProblem.ShortCircuit shortCircuit)) {
+            return summary.drivers();
+        }
+        List<NetEnd> drivers = new ArrayList<>(summary.drivers());
+        shortCircuit.drivers().stream().filter(driver -> !drivers.contains(driver)).forEach(drivers::add);
+        return List.copyOf(drivers);
     }
 
     static String driversTitle() {

@@ -225,7 +225,7 @@ final class PaneNetCard {
     }
 
     /** The Selección tool with nothing pressed, dragged or drawn, and no text editor floating over the pane. */
-    private boolean isIdle() {
+    boolean isIdle() {
         return pane.tool() instanceof SelectTool selectTool && !selectTool.autoscrolls()
                 && !pane.drawsBetweenClicks() && !anotherChildFloatsOverThePane();
     }

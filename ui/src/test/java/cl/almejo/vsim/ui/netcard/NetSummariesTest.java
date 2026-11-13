@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.netcard;
 
+import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
@@ -110,6 +112,16 @@ class NetSummariesTest {
                 .containsExactly(Optional.of("1"), Optional.of("0"));
         assertThat(summary.drivers()).extracting(NetEnd::valueText)
                 .containsExactly(Optional.of("1"), Optional.of("0"));
+    }
+
+    @Test
+    void aBusKeepsTheFormatOfThePartThatDrivesIt() {
+        NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.CONSTANT,
+                Map.of(StandardComponentTypes.WIDTH, 8, ConstantValue.FORMAT, ConstantValue.FIXED,
+                        ConstantValue.FRACTION, 3), "", 0, 10, 40);
+        Wire bus = addWire(openDocument, 10, 40, 20, 40);
+
+        assertThat(summaryOf(bus, SimulationSnapshot.EMPTY).partFormat()).contains(Probe.fixedFormat(3));
     }
 
     @Test

@@ -115,7 +115,7 @@ final class SignalCard extends JComponent {
                              List<String> tunnelNames, Optional<NetProblem> problem, List<String> valueRowLabels) {
 
         static Structure of(NetSummary summary, boolean pinned) {
-            return new Structure(pinned, summary.width(), summary.drivers(), summary.readers(),
+            return new Structure(pinned, summary.width(), NetCardText.drivers(summary), summary.readers(),
                     summary.tunnelNames(), summary.problem(),
                     NetCardText.valueRows(summary).stream().map(NetCardText.Row::label).toList());
         }
@@ -260,7 +260,7 @@ final class SignalCard extends JComponent {
             add(grid(rows, valueLabels));
         }
         summary.problem().ifPresent(problem -> add(left(new ToneLabel(NetCardText.problem(problem), Tone.PROBLEM))));
-        addSection(NetCardText.driversTitle(), summary.drivers());
+        addSection(NetCardText.driversTitle(), NetCardText.drivers(summary));
         addSection(NetCardText.readersTitle(), summary.readers());
         if (!summary.tunnelNames().isEmpty()) {
             add(grid(summary.tunnelNames().stream()

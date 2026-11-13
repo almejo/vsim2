@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 /**
  * «Resaltar la red al pasar» in one editor window: on every pane (split views included, through
  * {@link EditorView#forEachPane}) hovering a wire with the Selección tool idle lights its whole net
- * ({@link PaneNetCard}); the wire's balloon gives way to it while the preference is on. Each pane has its own; a
+ * ({@link PaneNetCard}); the wire's balloon gives way to it where a card can show. Each pane has its own; a
  * net lit in one pane goes out, unless pinned, when the pointer lights one in another.
  */
 public final class NetCardFeatures {
@@ -63,7 +63,7 @@ public final class NetCardFeatures {
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.setup = Objects.requireNonNull(setup, "setup");
         preferences.addListener(preferenceListener);
-        removeBalloonVeto = view.problems().addWireBalloonVeto(preferences::highlightNetOnHover);
+        removeBalloonVeto = view.problems().addWireBalloonVeto(this::cardCanShowIn);
         removeFromPanes = view.forEachPane(this::installOn);
     }
 
@@ -82,6 +82,16 @@ public final class NetCardFeatures {
             panes.remove(pane);
             card.dispose();
         };
+    }
+
+    /**
+     * True when hovering a wire of {@code pane} lights its net (the preference is on, the Selección tool is at rest
+     * there): only then does the card take the place of the wire's balloon, which otherwise stays with its value and
+     * problems.
+     */
+    private boolean cardCanShowIn(CircuitCanvas pane) {
+        return preferences.highlightNetOnHover()
+                && Optional.ofNullable(panes.get(pane)).map(PaneNetCard::isIdle).orElse(false);
     }
 
     /** The pane that lit a net now: an unpinned card of another pane goes. */

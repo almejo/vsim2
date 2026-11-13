@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.PartFormats;
 import cl.almejo.vsim.ui.canvas.TopLevelNets;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.PinNames;
@@ -136,7 +137,8 @@ public final class NetSummaries {
             List<NetEnd> drivers = drivers(outputs, bidirectionals, shortCircuit);
             NetValue value = value();
             return new NetSummary(net.id(), net.width(), net.wires(), net.points(), drivers, readers,
-                    new ArrayList<>(new TreeSet<>(tunnelNames)), value, problem(shortCircuit, drivers, value));
+                    new ArrayList<>(new TreeSet<>(tunnelNames)), value, problem(shortCircuit, drivers, value),
+                    net.width() > 1 ? PartFormats.of(net, document, registry) : Optional.empty());
         }
 
         /** The pins of the net in the order their parts were added, the pins of one part by index. */

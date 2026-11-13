@@ -175,6 +175,23 @@ class NetCardFeaturesTest {
     }
 
     @Test
+    void whereNoCardCanShowTheBusBalloonStaysEvenWithThePreferenceOn() {
+        NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.CONSTANT, Map.of(WIDTH, 4), "", 0, 10,
+                40);
+        Wire bus = addWire(openDocument, 10, 40, 20, 40);
+        fixture.view().problems().showSnapshot(snapshot(openDocument, Map.of(netOf(openDocument, bus),
+                Value.of(4, 0xB))));
+        Point2D over = screenOf(15, 40);
+        MouseEvent hover = new MouseEvent(canvas, MouseEvent.MOUSE_MOVED, 0, 0, (int) over.getX(), (int) over.getY(),
+                0, false);
+
+        fixture.view().setToolOnEveryPane(PanTool::new);
+
+        assertThat(preferences.highlightNetOnHover()).isTrue();
+        assertThat(canvas.getToolTipText(hover)).startsWith("Bus de 4 bits = 0xB");
+    }
+
+    @Test
     void turningThePreferenceOffPutsOutTheHalo() {
         moveOverTheAndOutput();
 

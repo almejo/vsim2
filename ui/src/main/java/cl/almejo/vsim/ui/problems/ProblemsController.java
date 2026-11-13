@@ -59,8 +59,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Short-circuit navigation of one editor window (spec §6.12): F8 / Shift+F8, the status bar warning and its click,
@@ -107,7 +107,7 @@ public final class ProblemsController {
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
     /** While any of these holds, a wire has no balloon: the signal card replaces it («Resaltar la red al pasar»). */
-    private final List<BooleanSupplier> wireBalloonVetoes = new CopyOnWriteArrayList<>();
+    private final List<Predicate<CircuitCanvas>> wireBalloonVetoes = new CopyOnWriteArrayList<>();
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
@@ -499,7 +499,7 @@ public final class ProblemsController {
             return Optional.empty();
         }
         if (hit.isPresent() && hit.get() instanceof Wire wire) {
-            if (wireBalloonVetoed()) {
+            if (wireBalloonVetoed(canvas)) {
                 return Optional.empty();
             }
             return openDocument.netlist().netForWire(wire.id()).flatMap(net -> wireTooltip(canvas, document, net));
@@ -511,16 +511,17 @@ public final class ProblemsController {
     }
 
     /**
-     * Adds a veto on the balloon of a wire (the bus balloon and the problems of its net), consulted on every tooltip:
-     * while {@code veto} holds the signal card shows it instead. The pin balloon is never vetoed. Returns its removal.
+     * Adds a veto on the balloon of a wire (the bus balloon and the problems of its net), consulted on every tooltip
+     * with the pane it is asked in: while {@code veto} holds there the signal card shows it instead. The pin balloon is
+     * never vetoed. Returns its removal.
      */
-    public Runnable addWireBalloonVeto(BooleanSupplier veto) {
+    public Runnable addWireBalloonVeto(Predicate<CircuitCanvas> veto) {
         wireBalloonVetoes.add(Objects.requireNonNull(veto, "veto"));
         return () -> wireBalloonVetoes.remove(veto);
     }
 
-    private boolean wireBalloonVetoed() {
-        return wireBalloonVetoes.stream().anyMatch(BooleanSupplier::getAsBoolean);
+    private boolean wireBalloonVetoed(CircuitCanvas canvas) {
+        return wireBalloonVetoes.stream().anyMatch(veto -> veto.test(canvas));
     }
 
     /**
