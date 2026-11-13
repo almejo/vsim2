@@ -1,0 +1,132 @@
+package cl.almejo.vsim.ui.netcard;
+
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.ShortCircuit;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
+import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.netcard.NetCardCircuits.netOf;
+import static cl.almejo.vsim.ui.netcard.NetCardCircuits.snapshot;
+import static org.assertj.core.api.Assertions.assertThat;
+
+class NetSummariesTest {
+
+    private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+
+    @AfterEach
+    void closeTheDocument() {
+        openDocument.close();
+    }
+
+    private NetSummary summaryOf(Wire wire, SimulationSnapshot snapshot) {
+        return NetSummaries.forWire(openDocument, wire.id(), snapshot).orElseThrow();
+    }
+
+    private static List<String> texts(List<NetEnd> ends) {
+        return ends.stream().map(end -> end.partText() + " · " + end.pinText()).toList();
+    }
+
+    @Test
+    void theOutputOfAnAndHasOneDriverAndTwoReaders() {
+        NetCardCircuits.AndExample example = NetCardCircuits.andExample(openDocument);
+
+        NetSummary summary = summaryOf(example.andOutput(), SimulationSnapshot.EMPTY);
+
+        assertThat(summary.width()).isEqualTo(1);
+        assertThat(summary.wires()).hasSize(4).contains(example.andOutput().id(), example.notInput().id());
+        assertThat(summary.drivers()).extracting(NetEnd::componentId).containsExactly(example.and().id());
+        assertThat(texts(summary.drivers())).containsExactly("AND U1 · out");
+        assertThat(summary.readers()).extracting(NetEnd::componentId)
+                .containsExactlyInAnyOrder(example.ledL1().id(), example.not().id());
+        assertThat(texts(summary.readers())).containsExactlyInAnyOrder("LED L1 · in", "NOT U2 · in");
+        assertThat(summary.tunnelNames()).isEmpty();
+        assertThat(summary.problem()).isEmpty();
+    }
+
+    @Test
+    void aCurrentSnapshotGivesTheValueOfTheNet() {
+        NetCardCircuits.AndExample example = NetCardCircuits.andExample(openDocument);
+        SimulationSnapshot snapshot = snapshot(openDocument, Map.of(netOf(openDocument, example.andOutput()),
+                Value.ONE));
+
+        NetSummary summary = summaryOf(example.andOutput(), snapshot);
+
+        assertThat(summary.value()).isEqualTo(new NetValue.Simulated(Value.ONE));
+    }
+
+    @Test
+    void aStaleSnapshotIsNotSimulatingNeverAWrongValue() {
+        NetCardCircuits.AndExample example = NetCardCircuits.andExample(openDocument);
+        SimulationSnapshot stale = new SimulationSnapshot(1, openDocument.netlistToken() + 1, 10, true,
+                Map.of(netOf(openDocument, example.andOutput()), Value.ONE), Map.of(), List.of(), Optional.empty());
+
+        assertThat(summaryOf(example.andOutput(), stale).value()).isEqualTo(new NetValue.NotSimulating());
+        assertThat(summaryOf(example.andOutput(), SimulationSnapshot.EMPTY).value())
+                .isEqualTo(new NetValue.NotSimulating());
+    }
+
+    @Test
+    void aNetThroughATunnelHasTheWiresOfBothSidesTheFarReadersAndTheTunnelName() {
+        NetCardCircuits.TunnelExample example = NetCardCircuits.tunnelExample(openDocument);
+
+        NetSummary summary = summaryOf(example.nearWire(), SimulationSnapshot.EMPTY);
+
+        assertThat(summary.wires()).containsExactlyInAnyOrder(example.nearWire().id(), example.farWire().id());
+        assertThat(summary.readers()).extracting(NetEnd::componentId).containsExactly(example.ledL3().id());
+        assertThat(summary.drivers()).extracting(NetEnd::componentId).containsExactly(example.and().id());
+        assertThat(summary.tunnelNames()).containsExactly("LISTO");
+    }
+
+    @Test
+    void aShortCircuitIsTheProblemWithTheValueOfEachDriver() {
+        Component high = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
+        Component low = place(openDocument, StandardComponentTypes.SWITCH, 0, 6, Map.of("value", "0"));
+        Wire joint = addWire(openDocument, 4, 1, 4, 7);
+        String netId = netOf(openDocument, joint);
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE),
+                new DriverRef(low.id().value(), 0, Value.ZERO)), 5);
+        SimulationSnapshot snapshot = new SimulationSnapshot(1, openDocument.netlistToken(), 10, true,
+                Map.of(netId, Value.ONE.withConflict()), Map.of(), List.of(shortCircuit), Optional.empty());
+
+        NetSummary summary = summaryOf(joint, snapshot);
+
+        assertThat(summary.problem()).containsInstanceOf(NetProblem.ShortCircuit.class);
+        NetProblem.ShortCircuit problem = (NetProblem.ShortCircuit) summary.problem().orElseThrow();
+        assertThat(problem.drivers()).extracting(NetEnd::componentId).containsExactly(high.id(), low.id());
+        assertThat(problem.drivers()).extracting(NetEnd::valueText)
+                .containsExactly(Optional.of("1"), Optional.of("0"));
+        assertThat(summary.drivers()).extracting(NetEnd::valueText)
+                .containsExactly(Optional.of("1"), Optional.of("0"));
+    }
+
+    @Test
+    void aNetNothingDrivesIsUndriven() {
+        Component led = NetCardCircuits.placeWithPinAt(openDocument, StandardComponentTypes.LED, Map.of(), "L1", 0,
+                20, 10);
+        Wire loose = addWire(openDocument, 10, 10, 20, 10);
+
+        NetSummary summary = summaryOf(loose, SimulationSnapshot.EMPTY);
+
+        assertThat(summary.readers()).extracting(NetEnd::componentId).containsExactly(led.id());
+        assertThat(summary.drivers()).isEmpty();
+        assertThat(summary.problem()).contains(new NetProblem.Undriven());
+    }
+
+    @Test
+    void aWireThatIsGoneHasNoSummary() {
+        assertThat(NetSummaries.forWire(openDocument, new ElementId("w99"), SimulationSnapshot.EMPTY)).isEmpty();
+    }
+}

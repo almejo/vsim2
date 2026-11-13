@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
@@ -66,6 +68,23 @@ public final class ProblemText {
         return shortCircuit.drivers().stream()
                 .map(driver -> driver(driver, document))
                 .collect(Collectors.joining(SEPARATOR));
+    }
+
+    /**
+     * The width mismatch of {@code net} told by its own pins, for a net the netlist flags before any simulation: every
+     * pin but a tunnel's, which takes the net's width and so is never one side of a mismatch (like the engine).
+     */
+    public static WidthMismatch ownPinsMismatch(Net net, CircuitDocument document, ComponentTypeRegistry registry) {
+        return new WidthMismatch(net.id().value(), net.pins().stream()
+                .filter(pin -> hasAWidthOfItsOwn(document, registry, pin))
+                .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
+                .toList());
+    }
+
+    private static boolean hasAWidthOfItsOwn(CircuitDocument document, ComponentTypeRegistry registry, PinRef pin) {
+        return document.component(pin.componentId())
+                .map(component -> !registry.typeOf(component).pin(pin.pinIndex()).isAdaptiveWidth())
+                .orElse(true);
     }
 
     public static String describe(Problem problem, CircuitDocument document, ComponentTypeRegistry registry) {

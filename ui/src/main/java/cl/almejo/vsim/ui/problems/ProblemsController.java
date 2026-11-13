@@ -14,7 +14,6 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.netlist.PinRef;
-import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
@@ -57,7 +56,10 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
@@ -104,6 +106,8 @@ public final class ProblemsController {
     private int libraryProblemCount;
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
+    /** While any of these holds, a wire has no balloon: the signal card replaces it («Resaltar la red al pasar»). */
+    private final List<BooleanSupplier> wireBalloonVetoes = new CopyOnWriteArrayList<>();
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
@@ -495,12 +499,28 @@ public final class ProblemsController {
             return Optional.empty();
         }
         if (hit.isPresent() && hit.get() instanceof Wire wire) {
+            if (wireBalloonVetoed()) {
+                return Optional.empty();
+            }
             return openDocument.netlist().netForWire(wire.id()).flatMap(net -> wireTooltip(canvas, document, net));
         }
         if (hit.isPresent() && hit.get() instanceof Component component) {
             return displayTooltip(component);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Adds a veto on the balloon of a wire (the bus balloon and the problems of its net), consulted on every tooltip:
+     * while {@code veto} holds the signal card shows it instead. The pin balloon is never vetoed. Returns its removal.
+     */
+    public Runnable addWireBalloonVeto(BooleanSupplier veto) {
+        wireBalloonVetoes.add(Objects.requireNonNull(veto, "veto"));
+        return () -> wireBalloonVetoes.remove(veto);
+    }
+
+    private boolean wireBalloonVetoed() {
+        return wireBalloonVetoes.stream().anyMatch(BooleanSupplier::getAsBoolean);
     }
 
     /**
@@ -591,18 +611,8 @@ public final class ProblemsController {
                 .filter(widthMismatch -> widthMismatch.netId().equals(reportedId))
                 .findFirst();
         if (mismatch.isEmpty() && net.widthMismatch()) {
-            mismatch = Optional.of(new WidthMismatch(net.id().value(), net.pins().stream()
-                    .filter(pin -> hasAWidthOfItsOwn(document, pin))
-                    .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
-                    .toList()));
+            mismatch = Optional.of(ProblemText.ownPinsMismatch(net, document, openDocument.registry()));
         }
         return mismatch.map(found -> ProblemText.describe(found, document, openDocument.registry()));
-    }
-
-    /** False for a tunnel's pin: it takes the net's width, so it is never one side of a mismatch (like the engine). */
-    private boolean hasAWidthOfItsOwn(CircuitDocument document, PinRef pin) {
-        return document.component(pin.componentId())
-                .map(component -> !openDocument.registry().typeOf(component).pin(pin.pinIndex()).isAdaptiveWidth())
-                .orElse(true);
     }
 }

@@ -17,7 +17,7 @@ import java.awt.event.ActionEvent;
 /**
  * Ver ▸ «Resaltar la red al pasar»: a check box (shortcut id {@code view.highlightNet}, no default key) that mirrors
  * {@link AppPreferences#highlightNetOnHover()}, so every pane and window shows the same state. It sits right after
- * «Valores de los buses». The highlight and the signal card themselves are installed by {@code NetCardFeatures}.
+ * «Valores de los buses». The highlight and the signal card themselves are installed by {@link NetCardFeatures}.
  */
 public final class NetCardExtension implements EditorExtension {
 
@@ -42,7 +42,9 @@ public final class NetCardExtension implements EditorExtension {
         viewMenu.insert(menuItem, indexAfterBusValues(viewMenu));
         Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);
         preferences.addListener(preferencesListener);
+        Runnable featuresRemover = NetCardFeatures.install(view, preferences);
         return () -> {
+            featuresRemover.run();
             preferences.removeListener(preferencesListener);
             shortcutRemover.run();
             viewMenu.remove(menuItem);
