@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.netcard;
 
+import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
@@ -17,10 +18,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.Point2D;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,6 +46,7 @@ class NetCardFeaturesTest {
     private CircuitCanvas canvas;
     private NetCardFeatures features;
     private NetCardCircuits.AndExample example;
+    private List<KeyListener> keyListenersOfTheEditor;
 
     @BeforeEach
     void create() {
@@ -50,6 +55,7 @@ class NetCardFeaturesTest {
         canvas = fixture.view().canvas();
         canvas.setSize(1200, 800);
         example = NetCardCircuits.andExample(openDocument);
+        keyListenersOfTheEditor = List.of(canvas.getKeyListeners());
         features = new NetCardFeatures(fixture.view(), preferences,
                 new NetCardFeatures.Setup(() -> ticker, ticker::now, () -> DELAY, document -> latest.get()));
     }
@@ -188,5 +194,167 @@ class NetCardFeaturesTest {
 
         assertThat(canvas.overlays()).hasSize(overlays);
         assertThat(canvas.snapshotListenerCount()).isEqualTo(listeners);
+    }
+
+    private SignalCard shownCard() {
+        return pane().card().orElseThrow(() -> new AssertionError("no card on the pane"));
+    }
+
+    private void showTheCard() {
+        moveOverTheAndOutput();
+        ticker.advance(DELAY);
+    }
+
+    private void pinTheCard() {
+        showTheCard();
+        SignalCard card = shownCard();
+        dispatchToCard(card, MouseEvent.MOUSE_ENTERED, 2, 2);
+        card.pinButton().doClick();
+    }
+
+    private static void dispatchToCard(SignalCard card, int id, int x, int y) {
+        MouseEvent event = new MouseEvent(card, id, 0, 0, x, y, 0, false);
+        for (MouseListener listener : card.getMouseListeners()) {
+            if (id == MouseEvent.MOUSE_ENTERED) {
+                listener.mouseEntered(event);
+            } else {
+                listener.mouseExited(event);
+            }
+        }
+    }
+
+    /** Esc as the feature's own key listener sees it (the editor's tool takes Esc for itself too). */
+    private KeyEvent pressEscape() {
+        KeyEvent escape = new KeyEvent(canvas, KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
+        for (KeyListener listener : canvas.getKeyListeners()) {
+            if (!keyListenersOfTheEditor.contains(listener)) {
+                listener.keyPressed(escape);
+            }
+        }
+        return escape;
+    }
+
+    @Test
+    void theCardShowsAfterTheBalloonDelayNextToThePointerInsideThePane() {
+        moveOverTheAndOutput();
+        ticker.advance(DELAY - 16);
+        assertThat(pane().card()).isEmpty();
+        ticker.advance(16);
+
+        SignalCard card = shownCard();
+        assertThat(card.getParent()).isSameAs(canvas);
+        assertThat(card.texts()).containsSubsequence("Red de 1 bit = sin simular", "La maneja", "AND U1 · out",
+                "Llega a");
+        assertThat(card.texts()).contains("LED L1 · in", "NOT U2 · in");
+        Point2D pointer = screenOf(32.5, 10);
+        assertThat(card.getX()).isGreaterThan((int) pointer.getX());
+        assertThat(card.getY()).isGreaterThan((int) pointer.getY());
+        assertThat(card.getX() + card.getWidth()).isLessThanOrEqualTo(canvas.getWidth());
+    }
+
+    @Test
+    void theCardShowsTheLiveValue() {
+        showTheCard();
+
+        latest.set(snapshot(openDocument, Map.of(netOf(openDocument, example.andOutput()), Value.ONE)));
+        pane().snapshotArrived();
+
+        assertThat(shownCard().texts()).contains("Red de 1 bit = 1");
+    }
+
+    @Test
+    void thePointerOverTheCardKeepsItAndLeavingItFadesItAway() {
+        showTheCard();
+        moveOverNothing();
+        ticker.advance(500);
+        assertThat(shownCard().opacity()).isLessThan(1f);
+
+        dispatchToCard(shownCard(), MouseEvent.MOUSE_ENTERED, 2, 2);
+        ticker.advance(3_000);
+        assertThat(shownCard().opacity()).isEqualTo(1f);
+        dispatchToCard(shownCard(), MouseEvent.MOUSE_EXITED, -50, -50);
+        ticker.advance(1_000);
+
+        assertThat(pane().card()).isEmpty();
+        assertThat(pane().shown()).isEmpty();
+    }
+
+    @Test
+    void aPinnedCardStaysAfterThePointerLeavesWithItsNetLit() {
+        pinTheCard();
+        dispatchToCard(shownCard(), MouseEvent.MOUSE_EXITED, -50, -50);
+        moveOverNothing();
+        ticker.advance(2_000);
+
+        assertThat(shownCard().isPinned()).isTrue();
+        assertThat(pane().shown()).isPresent();
+    }
+
+    @Test
+    void escClosesAPinnedCardAndIsLeftAloneOtherwise() {
+        showTheCard();
+        assertThat(canvas.isEscapeClaimed()).isFalse();
+        assertThat(pressEscape().isConsumed()).isFalse();
+        assertThat(pane().card()).isPresent();
+
+        pinTheCard();
+        assertThat(canvas.isEscapeClaimed()).isTrue();
+        KeyEvent escape = pressEscape();
+
+        assertThat(escape.isConsumed()).isTrue();
+        assertThat(pane().card()).isEmpty();
+        assertThat(canvas.isEscapeClaimed()).isFalse();
+    }
+
+    @Test
+    void aClickOnTheCanvasOutsideClosesAPinnedCard() {
+        pinTheCard();
+
+        Point2D away = screenOf(60, 60);
+        MouseEvent pressed = new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, InputEvent.BUTTON1_DOWN_MASK,
+                (int) away.getX(), (int) away.getY(), 1, false, MouseEvent.BUTTON1);
+        for (MouseListener listener : canvas.getMouseListeners()) {
+            listener.mousePressed(pressed);
+        }
+
+        assertThat(pane().card()).isEmpty();
+    }
+
+    @Test
+    void clickingAPartOnTheCardSelectsItAndTakesTheViewThere() {
+        showTheCard();
+
+        shownCard().endButton("NOT U2 · in").orElseThrow().doClick();
+
+        assertThat(fixture.view().selection().ids()).containsExactly(example.not().id());
+    }
+
+    @Test
+    void deletingTheWireClosesAPinnedCard() {
+        pinTheCard();
+
+        openDocument.execute(new RemoveElementsCommand(List.of(example.andOutput().id())));
+
+        assertThat(pane().card()).isEmpty();
+        assertThat(pane().shown()).isEmpty();
+    }
+
+    @Test
+    void turningThePreferenceOffClosesTheCard() {
+        pinTheCard();
+
+        preferences.setHighlightNetOnHover(false);
+
+        assertThat(pane().card()).isEmpty();
+    }
+
+    @Test
+    void disposingTakesTheCardAway() {
+        pinTheCard();
+
+        features.dispose();
+
+        assertThat(canvas.getComponentCount()).isZero();
+        assertThat(canvas.isEscapeClaimed()).isFalse();
     }
 }
