@@ -110,6 +110,15 @@ public final class AppPreferences {
         putFlag(SHOW_BUS_VALUES, show);
     }
 
+    /** «Resaltar la red al pasar»: hovering a wire highlights its net and shows the signal card; on by default. */
+    public boolean highlightNetOnHover() {
+        return flag(HIGHLIGHT_NET_ON_HOVER, true);
+    }
+
+    public void setHighlightNetOnHover(boolean highlight) {
+        putFlag(HIGHLIGHT_NET_ON_HOVER, highlight);
+    }
+
     /** «Mostrar los atajos al usarlos»: a chip with the shortcut of each action run; off by default. */
     public boolean showUsedShortcuts() {
         return flag(SHOW_USED_SHORTCUTS, false);
@@ -284,6 +293,7 @@ public final class AppPreferences {
     static final String SNAP_TO_GRID_LINES = "snap.gridLines";
     static final String SHOW_GUIDES = "guides.show";
     static final String SHOW_BUS_VALUES = "view.busValues";
+    static final String HIGHLIGHT_NET_ON_HOVER = "view.highlightNet";
     static final String SHOW_SHEETS = "sheets.show";
     static final String SHOW_USED_SHORTCUTS = "shortcutEcho.show";
     static final String NEWS_SHOWN_VERSION = "whatsNew.shownVersion";
