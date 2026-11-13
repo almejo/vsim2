@@ -24,6 +24,11 @@ class NetCardSplitViewTest {
     private static final long DELAY = 750;
 
     private final AppPreferences preferences = AppPreferences.inMemory();
+
+    {
+        // The feature starts off; these tests are about how it behaves once turned on.
+        preferences.setHighlightNetOnHover(true);
+    }
     private final ManualFrameTicker ticker = new ManualFrameTicker();
     private EditorFixture fixture;
     private NetCardFeatures features;

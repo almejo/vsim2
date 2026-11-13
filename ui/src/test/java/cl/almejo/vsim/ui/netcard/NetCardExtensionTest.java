@@ -63,10 +63,10 @@ class NetCardExtensionTest {
     }
 
     @Test
-    void theItemIsOnByDefaultRightAfterTheBusValues() {
-        assertThat(preferences.highlightNetOnHover()).isTrue();
+    void theItemIsOffByDefaultRightAfterTheBusValues() {
+        assertThat(AppPreferences.inMemory().highlightNetOnHover()).isFalse();
         assertThat(items(view)).hasSize(1);
-        assertThat(items(view).get(0).isSelected()).isTrue();
+        assertThat(items(view).get(0).isSelected()).isEqualTo(preferences.highlightNetOnHover());
         Component[] components = view.menu(MenuId.VIEW).getMenuComponents();
         int index = List.of(components).indexOf(items(view).get(0));
         assertThat(((JMenuItem) components[index - 1]).getText()).isEqualTo("Valores de los buses");
@@ -75,11 +75,11 @@ class NetCardExtensionTest {
     @Test
     void clickingWritesThePreferenceAndEveryViewFollows() {
         items(view).get(0).doClick();
-        assertThat(preferences.highlightNetOnHover()).isFalse();
-        assertThat(items(otherView).get(0).isSelected()).isFalse();
+        assertThat(preferences.highlightNetOnHover()).isTrue();
+        assertThat(items(otherView).get(0).isSelected()).isTrue();
 
-        preferences.setHighlightNetOnHover(true);
-        assertThat(items(view).get(0).isSelected()).isTrue();
+        preferences.setHighlightNetOnHover(false);
+        assertThat(items(view).get(0).isSelected()).isFalse();
     }
 
     @Test

@@ -267,7 +267,9 @@ final class SignalCard extends JComponent {
                     .map(name -> new NetCardText.Row(NetCardText.tunnelsTitle(), NetCardText.tunnel(name)))
                     .toList(), new ArrayList<>()));
         }
-        add(hint());
+        if (pinned) {
+            add(hint());
+        }
         listenToThePointer(this);
         revalidate();
         repaint();
@@ -334,7 +336,7 @@ final class SignalCard extends JComponent {
     }
 
     private JComponent hint() {
-        JLabel hint = new ToneLabel(Messages.text(pinned ? "netCard.hintPinned" : "netCard.hint"), Tone.SECONDARY);
+        JLabel hint = new ToneLabel(Messages.text("netCard.hintPinned"), Tone.SECONDARY);
         hint.putClientProperty(STYLE_CLASS, SMALL);
         hint.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(SECTION_GAP), 0, 0, 0));
         return left(hint);

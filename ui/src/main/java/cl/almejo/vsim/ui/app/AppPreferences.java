@@ -110,9 +110,9 @@ public final class AppPreferences {
         putFlag(SHOW_BUS_VALUES, show);
     }
 
-    /** «Resaltar la red al pasar»: hovering a wire highlights its net and shows the signal card; on by default. */
+    /** «Resaltar la red al pasar»: hovering a wire highlights its net and shows the signal card; off by default. */
     public boolean highlightNetOnHover() {
-        return flag(HIGHLIGHT_NET_ON_HOVER, true);
+        return flag(HIGHLIGHT_NET_ON_HOVER, false);
     }
 
     public void setHighlightNetOnHover(boolean highlight) {

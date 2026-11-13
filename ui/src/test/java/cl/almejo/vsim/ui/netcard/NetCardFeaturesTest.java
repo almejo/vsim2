@@ -46,6 +46,11 @@ class NetCardFeaturesTest {
     private static final long DELAY = 750;
 
     private final AppPreferences preferences = AppPreferences.inMemory();
+
+    {
+        // The feature starts off; these tests are about how it behaves once turned on.
+        preferences.setHighlightNetOnHover(true);
+    }
     private final ManualFrameTicker ticker = new ManualFrameTicker();
     private final AtomicReference<SimulationSnapshot> latest = new AtomicReference<>(SimulationSnapshot.EMPTY);
     private EditorFixture fixture;
