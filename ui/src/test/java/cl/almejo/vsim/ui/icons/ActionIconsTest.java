@@ -92,6 +92,7 @@ class ActionIconsTest {
         used.addAll(cl.almejo.vsim.ui.panels.ParameterIcons.names());
         used.addAll(cl.almejo.vsim.ui.window.InspectorPanel.iconNames());
         used.add(cl.almejo.vsim.ui.karnaugh.TableImportPanel.HINT_ICON);
+        used.add("netcard-pin"); // the red 📌 of the signal card (netcard.SignalCard, package-private)
         assertThat(used).containsExactlyElementsOf(IconsTest.iconNames());
     }
 
