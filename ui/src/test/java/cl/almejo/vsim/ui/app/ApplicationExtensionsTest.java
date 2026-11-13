@@ -195,7 +195,7 @@ class ApplicationExtensionsTest {
                     "Zoom a la selección", "Escribir el zoom…",
                     "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
-                    "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Mirar adentro",
+                    "Borrar guías", "Mostrar hojas de impresión", "Valores de los buses", "Resaltar la red al pasar", "Mirar adentro",
                     "Lupa", "---",
                     "Siguiente problema", "Problema anterior", "---",
                     "Formas de onda", "---",
@@ -203,7 +203,7 @@ class ApplicationExtensionsTest {
                     "Modo presentación (pantalla completa)", "Mostrar los atajos al usarlos");
             assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
                     "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
-                    "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues", "view.magnifier",
+                    "view.addVerticalGuide", "view.clearGuides", "view.showSheets", "view.busValues", "view.highlightNet", "view.magnifier",
                     "view.lens");
             assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
                     KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));

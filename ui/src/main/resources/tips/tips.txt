@@ -52,3 +52,4 @@ circuit-from-expressions | circuit | tip.circuitFromExpressions.title | tip.circ
 karnaugh-practice   | image        | tip.karnaughPractice.title  | tip.karnaughPractice.text  | karnaugh-practice.png                             | -                    | tools.karnaughPractice
 import-logisim      | image        | tip.importLogisim.title     | tip.importLogisim.text     | import-logisim.png                                | -                    | -
 lens                | image        | tip.lens.title              | tip.lens.text              | lens.png                                          | view.lens            | tidy-circuit-after.vsim view.lens
+highlight-net       | circuit      | tip.highlightNet.title      | tip.highlightNet.text      | highlight-net.vsim                                | -                    | circuit

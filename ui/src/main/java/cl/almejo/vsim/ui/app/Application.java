@@ -53,6 +53,7 @@ import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.busvalues.BusValuesExtension;
 import cl.almejo.vsim.ui.lens.LensExtension;
 import cl.almejo.vsim.ui.magnifier.MagnifierExtension;
+import cl.almejo.vsim.ui.netcard.NetCardExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
 import cl.almejo.vsim.ui.snap.SnapExtension;
 import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
@@ -317,6 +318,7 @@ public final class Application {
         editorExtensions.add(new SheetsExtension(sheetAnchors)); // its Ver item right after «Borrar guías»
         editorExtensions.add(new BusValuesExtension());
         editorExtensions.add(new MagnifierExtension()); // its Ver item right after «Valores de los buses»
+        editorExtensions.add(new NetCardExtension()); // «Resaltar la red al pasar» right after «Valores de los buses»
         editorExtensions.add(new LensExtension()); // «Lupa» right after «Mirar adentro»
         editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));

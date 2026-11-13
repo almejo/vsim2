@@ -3,3 +3,4 @@
 #   target id (NewsTargets) | title key | text key (both bundles) | action or «-»
 menu.file    | whatsNew.preferences.title | whatsNew.preferences.text | file.preferences
 toolbar.lens | whatsNew.lens.title        | whatsNew.lens.text        | view.lens
+menu.view    | whatsNew.highlightNet.title | whatsNew.highlightNet.text | view.highlightNet

@@ -1,0 +1,123 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.8",
+  "formatVersion" : 6,
+  "kind" : "circuit",
+  "name" : "Resaltar la red",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 3,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "B",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c5",
+    "type" : "and",
+    "x" : 12,
+    "y" : 4,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
+    }
+  }, {
+    "id" : "c8",
+    "type" : "led",
+    "x" : 19,
+    "y" : 1,
+    "rotation" : 0,
+    "label" : "S",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c11",
+    "type" : "buffer",
+    "x" : 20,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
+    }
+  }, {
+    "id" : "c14",
+    "type" : "led",
+    "x" : 27,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "N",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 6,
+    "y1" : 4,
+    "x2" : 12,
+    "y2" : 4
+  }, {
+    "id" : "w4",
+    "x1" : 6,
+    "y1" : 8,
+    "x2" : 12,
+    "y2" : 8
+  }, {
+    "id" : "w6",
+    "x1" : 16,
+    "y1" : 6,
+    "x2" : 20,
+    "y2" : 6
+  }, {
+    "id" : "w7",
+    "x1" : 20,
+    "y1" : 4,
+    "x2" : 20,
+    "y2" : 6
+  }, {
+    "id" : "w9",
+    "x1" : 18,
+    "y1" : 6,
+    "x2" : 18,
+    "y2" : 12
+  }, {
+    "id" : "w10",
+    "x1" : 18,
+    "y1" : 12,
+    "x2" : 20,
+    "y2" : 12
+  }, {
+    "id" : "w12",
+    "x1" : 24,
+    "y1" : 12,
+    "x2" : 28,
+    "y2" : 12
+  }, {
+    "id" : "w13",
+    "x1" : 28,
+    "y1" : 10,
+    "x2" : 28,
+    "y2" : 12
+  } ],
+  "labels" : [ ]
+}

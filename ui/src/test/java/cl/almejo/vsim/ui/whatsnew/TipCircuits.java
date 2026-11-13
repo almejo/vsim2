@@ -85,6 +85,7 @@ final class TipCircuits {
         builders.put("short-circuit.vsim", TipCircuits::shortCircuit);
         builders.put("truth-table.vsim", TipCircuits::truthTable);
         builders.put("circuit-from-expressions.vsim", TipCircuits::circuitFromExpressions);
+        builders.put("highlight-net.vsim", TipCircuits::highlightNet);
         return builders;
     }
 
@@ -711,6 +712,23 @@ final class TipCircuits {
         builder.wire(16, 6, 20, 6, 20, 4);
         builder.ledAt(19, 1, "S");
         builder.text(9, 12, "S = A ^ B");
+        return builder.document;
+    }
+
+    /** «Resaltar la red»: two switches into an AND whose output goes to an LED and, through a branch, to a NOT. */
+    private static CircuitDocument highlightNet() {
+        Builder builder = new Builder("Resaltar la red");
+        builder.switchAt(2, 3, "A", true);
+        builder.switchAt(2, 7, "B", true);
+        builder.wire(6, 4, 12, 4);
+        builder.wire(6, 8, 12, 8);
+        builder.gate(StandardComponentTypes.AND, 12, 4);
+        builder.wire(16, 6, 20, 6, 20, 4);
+        builder.ledAt(19, 1, "S");
+        builder.wire(18, 6, 18, 12, 20, 12);
+        builder.not(20, 10);
+        builder.wire(24, 12, 28, 12, 28, 10);
+        builder.ledAt(27, 7, "N");
         return builder.document;
     }
 }
