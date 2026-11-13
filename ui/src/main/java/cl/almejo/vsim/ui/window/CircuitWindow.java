@@ -75,6 +75,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         setContentPane(tabs);
         this.screenMode = ScreenMode.of(this);
         this.fullScreen = new FullScreenFeatures(getRootPane(), tabs, screenMode, services.preferences());
+        // the interface may grow while this window presents (Preferencias, Aspecto, «En modo presentación»)
+        fullScreen.addActiveListener(() -> application.presentationModeChanged(this, fullScreen.isActive()));
         setIconImages(AppIcons.images());
         // Component files are imported into the library instead of being opened as circuits (M4-A ruling); drops on
         // the window, the canvas and the palette are handled after the drop finishes (EditorView.dropFiles).

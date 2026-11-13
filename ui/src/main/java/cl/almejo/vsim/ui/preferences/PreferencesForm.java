@@ -19,6 +19,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import java.awt.Component;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -85,6 +88,9 @@ public final class PreferencesForm {
     private final JCheckBox animateViewMovesBox = new JCheckBox(Messages.text("preferences.animateViewMoves"));
     private final Runnable preferenceListener = this::followPreferences;
     private final JComboBox<Choice<String>> fontFamilyChoice = new JComboBox<>();
+    private final JComboBox<Choice<Integer>> interfaceZoomChoice = new JComboBox<>();
+    private final JComboBox<Choice<Optional<String>>> interfaceFontChoice = new JComboBox<>();
+    private final JComboBox<Choice<Integer>> presentationZoomChoice = new JComboBox<>();
     private final JSpinner fontSizeSpinner = new JSpinner();
     private final CustomColorSchemes customSchemes;
     private final SchemeEditorDialog.Opener schemeEditorOpener;
@@ -179,6 +185,7 @@ public final class PreferencesForm {
 
         wireExternalEditor();
         wireTextFont();
+        wireInterface();
         general = buildGeneral();
         appearance = buildAppearance();
         accessibility = buildAccessibility();
@@ -199,11 +206,16 @@ public final class PreferencesForm {
                 .build();
     }
 
-    /** «Aspecto»: Ventana (where the interface zoom and font will join) and Circuito. */
+    /** «Aspecto»: Ventana (theme, the interface's size and font) and Circuito. */
     private PreferencesPage buildAppearance() {
         return PreferencesPage.builder()
                 .section("preferences.section.window")
                 .row(PreferenceRow.labeled("theme", "preferences.theme", themeChoice, ""))
+                .row(PreferenceRow.labeled("interfaceZoom", "preferences.interfaceZoom", interfaceZoomChoice, ""))
+                .row(PreferenceRow.labeled("interfaceFont", "preferences.interfaceFont", interfaceFontChoice, "")
+                        .ignoringValues())
+                .row(PreferenceRow.labeled("presentationZoom", "preferences.presentationZoom",
+                        presentationZoomChoice, ""))
                 .section("preferences.section.circuit")
                 .row(PreferenceRow.labeled("scheme", "preferences.scheme", schemeChoice, "",
                         new PreferenceRow.Placed(customizeSchemeButton, "skip 1, split 2, growx 0"),
@@ -315,6 +327,77 @@ public final class PreferencesForm {
         fontSizeSpinner.addChangeListener(event -> storeTextFont());
     }
 
+    /**
+     * The interface's size («Tamaño de la interfaz», 100 % to 200 %), its font («Predeterminada» = the look and feel's
+     * own, then the installed families; a stored family not installed here is listed under its own name) and its size
+     * in «Modo presentación» («Sin cambio» or a size). Stored at once; the theme manager applies them live.
+     */
+    private void wireInterface() {
+        for (int percent : AppPreferences.INTERFACE_ZOOMS) {
+            interfaceZoomChoice.addItem(new Choice<>(percent, percentText(percent)));
+        }
+        presentationZoomChoice.addItem(new Choice<>(AppPreferences.PRESENTATION_ZOOM_UNCHANGED,
+                Messages.text("preferences.presentationZoom.unchanged")));
+        for (int percent : AppPreferences.INTERFACE_ZOOMS) {
+            if (percent > 100) {
+                presentationZoomChoice.addItem(new Choice<>(percent, percentText(percent)));
+            }
+        }
+        Optional<String> storedFamily = preferences.interfaceFontFamily();
+        interfaceFontChoice.addItem(new Choice<>(Optional.empty(), Messages.text("preferences.interfaceFont.default")));
+        storedFamily.filter(family -> !TextFont.isInstalled(family))
+                .ifPresent(family -> interfaceFontChoice.addItem(new Choice<>(Optional.of(family), family)));
+        for (String family : TextFont.installedFamilies()) {
+            interfaceFontChoice.addItem(new Choice<>(Optional.of(family), family));
+        }
+        select(interfaceZoomChoice, preferences.interfaceZoom());
+        select(presentationZoomChoice, preferences.presentationInterfaceZoom());
+        for (int index = 0; index < interfaceFontChoice.getItemCount(); index++) {
+            Optional<String> listed = interfaceFontChoice.getItemAt(index).value();
+            if (listed.isEmpty() ? storedFamily.isEmpty()
+                    : storedFamily.filter(family -> family.equalsIgnoreCase(listed.get())).isPresent()) {
+                interfaceFontChoice.setSelectedIndex(index);
+                break;
+            }
+        }
+        storeWhenChosen(interfaceZoomChoice, () -> preferences.setInterfaceZoom(selected(interfaceZoomChoice)));
+        storeWhenChosen(interfaceFontChoice,
+                () -> preferences.setInterfaceFontFamily(selected(interfaceFontChoice)));
+        storeWhenChosen(presentationZoomChoice,
+                () -> preferences.setPresentationInterfaceZoom(selected(presentationZoomChoice)));
+    }
+
+    /**
+     * Stores {@code combo}'s choice once it is made, not on each entry the arrow keys pass through with the list open:
+     * every stored size or font reinstalls the look and feel of every window. With the list closed, a change stores at
+     * once; with it open, it stores when the list closes, after the combo's own dispatch.
+     */
+    static void storeWhenChosen(JComboBox<?> combo, Runnable store) {
+        combo.addActionListener(event -> {
+            if (!combo.isPopupVisible()) {
+                store.run();
+            }
+        });
+        combo.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+                SwingUtilities.invokeLater(store);
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent event) {
+            }
+        });
+    }
+
+    private static String percentText(int percent) {
+        return Messages.format("preferences.interfaceZoom.percent", percent);
+    }
+
     /** Selects the entry of {@code family}, whatever its case («dejavu sans» stored, «DejaVu Sans» listed). */
     private void selectFamily(String family) {
         for (int index = 0; index < fontFamilyChoice.getItemCount(); index++) {
@@ -413,6 +496,18 @@ public final class PreferencesForm {
 
     JSpinner fontSizeSpinner() {
         return fontSizeSpinner;
+    }
+
+    JComboBox<Choice<Integer>> interfaceZoomChoice() {
+        return interfaceZoomChoice;
+    }
+
+    JComboBox<Choice<Optional<String>>> interfaceFontChoice() {
+        return interfaceFontChoice;
+    }
+
+    JComboBox<Choice<Integer>> presentationZoomChoice() {
+        return presentationZoomChoice;
     }
 
     JComboBox<Choice<AppPreferences.Theme>> themeChoice() {

@@ -162,6 +162,8 @@ public final class Application {
     private final ThemeManager themeManager;
     private final TextFontManager textFontManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
+    /** The windows in «Modo presentación» now; set once the theme manager exists. */
+    private final PresentingWindows<CircuitWindow> presentingWindows;
     private SystemOpenFiles systemOpenFiles = new SystemOpenFiles();
     private final RecentFiles recentFiles;
     private final SessionStore sessionStore;
@@ -253,6 +255,7 @@ public final class Application {
                         sheetAnchors));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
+        this.presentingWindows = new PresentingWindows<>(themeManager::setPresenting);
         this.textFontManager = new TextFontManager(preferences);
         this.recentFiles = new RecentFiles(preferences);
         this.sessionStore = new SessionStore(preferences);
@@ -665,6 +668,14 @@ public final class Application {
         return placeMarks;
     }
 
+    /**
+     * {@code window} entered or left «Modo presentación»: while any window is in it, the interface takes the
+     * presentation size (Preferencias, Aspecto, «En modo presentación»).
+     */
+    public void presentationModeChanged(CircuitWindow window, boolean active) {
+        presentingWindows.changed(window, active);
+    }
+
     /** {@code window} was activated: files sent from outside and the AI's new circuits go there now. */
     public void windowActivated(CircuitWindow window) {
         windows.activated(window);
@@ -742,6 +753,7 @@ public final class Application {
         sessionEnding.windowClosing(windows.all().equals(List.of(window)));
         windows.documentsOf(window).forEach(document -> rememberWindowState(window, document));
         windowPreferences.remove(window);
+        presentingWindows.closed(window); // also when leaving the mode failed while closing
         windows.removeWindow(window).forEach(this::closeDocument);
         presentationWatcher.refresh(); // a closed circuit's step waiting for «Siguiente» is dropped
         sessionEnding.windowClosed(windows.isEmpty());

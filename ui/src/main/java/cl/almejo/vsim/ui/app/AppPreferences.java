@@ -307,6 +307,9 @@ public final class AppPreferences {
     static final String TERMINAL_WINDOWS = "terminal-windows";
     static final String GRID_LINE_SPACING = "grid.lineSpacing";
     static final String INVERT_MODIFIER = "invertModifier";
+    static final String INTERFACE_ZOOM = "interface.zoom";
+    static final String INTERFACE_FONT_FAMILY = "interface.fontFamily";
+    static final String PRESENTATION_INTERFACE_ZOOM = "interface.presentationZoom";
     static final String TEXT_FONT_FAMILY = "textFontFamily";
     static final String TEXT_FONT_SIZE = "textFontSize";
     static final String COLOR_SCHEMES = "colorSchemes";
@@ -947,6 +950,64 @@ public final class AppPreferences {
     public void setExternalEditor(Optional<String> command) {
         Objects.requireNonNull(command, "command");
         put(EXTERNAL_EDITOR, command.map(String::strip).orElse(""));
+    }
+
+    // --- Interface zoom and font (Preferencias, Aspecto, Ventana) ---
+
+    /** The sizes «Tamaño de la interfaz» offers, in percent of the look and feel's own size. */
+    public static final List<Integer> INTERFACE_ZOOMS = List.of(100, 125, 150, 175, 200);
+    /** «En modo presentación: Sin cambio»: presentation mode keeps the interface's size. */
+    public static final int PRESENTATION_ZOOM_UNCHANGED = 0;
+    /** What presentation mode raises the interface to until the user chooses (the projector in the back row). */
+    public static final int DEFAULT_PRESENTATION_ZOOM = 150;
+
+    /** The whole interface's size in percent (menus, panels, dialogs); 100 when unset or not one of the offered. */
+    public int interfaceZoom() {
+        return storedZoom(INTERFACE_ZOOM, 100, false);
+    }
+
+    public void setInterfaceZoom(int percent) {
+        requireOffered(percent, false);
+        put(INTERFACE_ZOOM, Integer.toString(percent));
+    }
+
+    /** The interface's font family; empty is the look and feel's own. */
+    public Optional<String> interfaceFontFamily() {
+        return optional(INTERFACE_FONT_FAMILY);
+    }
+
+    public void setInterfaceFontFamily(Optional<String> family) {
+        Objects.requireNonNull(family, "family");
+        put(INTERFACE_FONT_FAMILY, family.map(String::strip).orElse(""));
+    }
+
+    /**
+     * The interface's size while a window is in «Modo presentación», in percent, or
+     * {@link #PRESENTATION_ZOOM_UNCHANGED}; it never makes the interface smaller than {@link #interfaceZoom()}.
+     */
+    public int presentationInterfaceZoom() {
+        return storedZoom(PRESENTATION_INTERFACE_ZOOM, DEFAULT_PRESENTATION_ZOOM, true);
+    }
+
+    public void setPresentationInterfaceZoom(int percent) {
+        requireOffered(percent, true);
+        put(PRESENTATION_INTERFACE_ZOOM, Integer.toString(percent));
+    }
+
+    private int storedZoom(String key, int fallback, boolean unchangedAllowed) {
+        try {
+            int stored = Integer.parseInt(read(key, ""));
+            return INTERFACE_ZOOMS.contains(stored) || (unchangedAllowed && stored == PRESENTATION_ZOOM_UNCHANGED)
+                    ? stored : fallback;
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    private static void requireOffered(int percent, boolean unchangedAllowed) {
+        if (!INTERFACE_ZOOMS.contains(percent) && !(unchangedAllowed && percent == PRESENTATION_ZOOM_UNCHANGED)) {
+            throw new IllegalArgumentException("Not an offered interface size: " + percent);
+        }
     }
 
     // --- M6.8 text font ---

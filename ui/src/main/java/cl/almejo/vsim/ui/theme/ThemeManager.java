@@ -21,6 +21,9 @@ import java.util.function.Function;
  * 2 s, so it never happens on the EDT: {@code Main} asks before the EDT starts ({@link #askSystemBeforeStart}) and
  * that answer serves the first "Seguir sistema"; choosing "Seguir sistema" later asks on {@code probeExecutor} and
  * applies the answer through {@code uiExecutor}, keeping the current look meanwhile. Everything else runs on the EDT.
+ * <p>
+ * It also installs the interface's size and font ({@link InterfaceLook}): the preferences' size, or the larger
+ * presentation size while a window is in «Modo presentación» ({@link #setPresenting}).
  */
 public final class ThemeManager {
 
@@ -48,6 +51,8 @@ public final class ThemeManager {
     private int probeRequest;
     private boolean installed;
     private boolean installedDark;
+    private boolean presenting;
+    private InterfaceLook installedLook = InterfaceLook.STANDARD;
 
     /** Asks the system on the calling thread, at once (tests). */
     public ThemeManager(AppPreferences preferences, Appearance appearance, DarkModeProbe probe,
@@ -130,6 +135,25 @@ public final class ThemeManager {
         started = false;
     }
 
+    /**
+     * Whether some window is in «Modo presentación»: the interface takes the presentation size while it is. Installs
+     * at once when that changes the size.
+     */
+    public void setPresenting(boolean presenting) {
+        if (this.presenting == presenting) {
+            return;
+        }
+        this.presenting = presenting;
+        if (started && installed) {
+            install(installedDark);
+        }
+    }
+
+    /** The interface's size and font installed now. */
+    public InterfaceLook installedLook() {
+        return installedLook;
+    }
+
     /** Whether the installed look and feel is the dark one. */
     public boolean dark() {
         return installedDark;
@@ -171,10 +195,12 @@ public final class ThemeManager {
     }
 
     private void install(boolean dark) {
-        if (!installed || dark != installedDark) {
-            if (installer.install(dark)) {
+        InterfaceLook look = InterfaceLook.of(preferences, presenting);
+        if (!installed || dark != installedDark || !look.equals(installedLook)) {
+            if (installer.install(dark, look)) {
                 installed = true;
                 installedDark = dark;
+                installedLook = look;
             }
         }
         appearance.setScheme(schemeFor(preferences.colorScheme(), installedDark, customSchemes::lookup));

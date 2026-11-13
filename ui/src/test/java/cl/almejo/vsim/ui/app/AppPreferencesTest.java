@@ -53,6 +53,24 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theInterfaceSizesRoundTripAndAnUnofferedStoredSizeReadsAsTheDefault() {
+        AppPreferences preferences = AppPreferences.inMemory();
+        preferences.setInterfaceZoom(125);
+        preferences.setPresentationInterfaceZoom(AppPreferences.PRESENTATION_ZOOM_UNCHANGED);
+        preferences.setInterfaceFontFamily(Optional.of(" DejaVu Sans "));
+        assertThat(preferences.interfaceZoom()).isEqualTo(125);
+        assertThat(preferences.presentationInterfaceZoom()).isZero();
+        assertThat(preferences.interfaceFontFamily()).contains("DejaVu Sans");
+        preferences.setInterfaceFontFamily(Optional.empty());
+        assertThat(preferences.interfaceFontFamily()).isEmpty();
+
+        AppPreferences garbage = new AppPreferences(new FixedPreferences(
+                Map.of("interface.zoom", "300", "interface.presentationZoom", "nada")));
+        assertThat(garbage.interfaceZoom()).isEqualTo(100);
+        assertThat(garbage.presentationInterfaceZoom()).isEqualTo(150);
+    }
+
+    @Test
     void anUnreadableStoredTextFontSizeFallsBackToTheDefaultAndAMissingFamilyIsKept() {
         AppPreferences stored = new AppPreferences(new FixedPreferences(
                 Map.of("textFontFamily", "Fuente De Otro Computador", "textFontSize", "99")));

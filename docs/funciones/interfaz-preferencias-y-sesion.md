@@ -196,6 +196,9 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   paleta y del panel derecho y las formas de onda abiertas o cerradas, con la altura que tenían antes de entrar. Es por ventana (cada una en su monitor) y no se recuerda al reiniciar VSim. La ventanita
   de «Presentar» de la IA (ver [Presentar](ia-mcp.md#presentar)) sigue a la vista. El atajo F11 se cambia en
   [Atajos de teclado](#atajos-de-teclado).
+- Mientras una ventana está en el modo presentación, la interfaz crece a 150 % (o al tamaño elegido en Preferencias ▸
+  Aspecto ▸ «En modo presentación»; nunca se achica) y al salir vuelve a su tamaño; ver
+  [Tamaño y letra de la interfaz](#tamaño-y-letra-de-la-interfaz).
 
 ## Mostrar los atajos al usarlos
 
@@ -336,7 +339,7 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…) muestra las opciones en grupos, una lista a la izquierda y la página del grupo a la derecha; el botón «Cerrar» es el único y los cambios valen al instante:
   - **General**: Idioma (con «Se aplica al reiniciar»), Al iniciar (abrir los circuitos de la última sesión, mostrar el consejo del día) y Edición (la tecla para invertir al arrastrar).
-  - **Aspecto**: Ventana (el tema) y Circuito (el esquema de color con «Personalizar…» y «Borrar», y la letra de etiquetas y textos).
+  - **Aspecto**: Ventana (el tema, el [tamaño y la letra de la interfaz](#tamaño-y-letra-de-la-interfaz) y cuánto crece en el modo presentación) y Circuito (el esquema de color con «Personalizar…» y «Borrar», y la letra de etiquetas y textos).
   - **Accesibilidad**: Movimiento (el interruptor «Animaciones» y «Animar los movimientos de la vista») y Lupa (su forma, redonda o rectangular, y su tamaño: chica, mediana o grande).
   - **Archivos**: Librería (el directorio de la librería) y Memorias (el editor externo).
   - Una línea separa estos cuatro de **Atajos de teclado** y **IA**, que son los de siempre. Cada página pone un título gris a cada sección, seguido de una línea.
@@ -355,6 +358,13 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 - Las preferencias se guardan con `java.util.prefs` (nodo `cl/almejo/vsim2`).
 - Preferencias ▸ Aspecto ▸ «Letra de etiquetas y textos» elige la letra (Predeterminada o cualquiera instalada) y el tamaño (8 a 24, 10 por defecto) de las etiquetas de los componentes, los textos libres y los títulos de los marcos (estos en negrita, un punto más grandes hasta llenar la franja del título: con letras grandes dejan de crecer para no cortarse). Cambia al instante en todas las ventanas (una edición en el lugar que esté abierta se confirma), en lo que se puede seleccionar con un clic y en las imágenes exportadas. Si la letra guardada no está instalada en este computador (preferencias copiadas de otro), se usa la predeterminada sin perder la elección. Si la letra no tiene algún carácter (Fira Code no tiene «‑», el guion que no corta la línea), ese carácter se toma de la letra predeterminada en vez de dibujar un cuadradito, en el lienzo, en las imágenes, en el PDF y en papel. El texto dentro de las piezas (como el valor de una Constante) no cambia.
 - Esquemas de colores propios: en Preferencias ▸ Aspecto, «Personalizar…» (junto al esquema de color) abre un editor que parte de una copia del esquema elegido (con «Según el tema», del que da el tema actual): un nombre («Oscuro (copia)» por defecto), un botón por cada uno de los 22 colores (muestra y código hexadecimal; abre el selector de colores, con transparencia) y una vista previa con un circuito de muestra, sobre las líneas y los puntos de la cuadrícula, que cambia al instante, dibujada con la misma letra que el lienzo. «Guardar» lo agrega a la lista de esquemas (después de los incluidos, por nombre) y lo elige; «Cancelar» no guarda nada. Con un esquema propio elegido, «Personalizar…» lo edita en su lugar (las ventanas cambian al guardar) y «Borrar» lo elimina después de pedir confirmación; si era el que estaba en uso, se vuelve a «Según el tema». Los esquemas se guardan en las preferencias; un esquema guardado que ya no existe se muestra como «Según el tema». El color «Pines» es el del punto (o el cuadrado, en un bus) que marca cada pin; las patas, los bordes, las uniones de cables y los pines sin conectar usan el del borde de las piezas. Un esquema propio guardado antes de que existiera «Pines» lo toma de su borde, así se ve igual.
+
+## Tamaño y letra de la interfaz
+
+- Preferencias ▸ Aspecto ▸ Ventana ▸ «Tamaño de la interfaz» agranda toda la interfaz: menús, barras, pestañas, paneles, diálogos y sus márgenes (100 %, 125 %, 150 %, 175 % o 200 %; 100 % por defecto). Sirve para proyectar en clases, para pantallas de alta resolución y para leer con más comodidad. Cambia al instante en todas las ventanas abiertas, sin reiniciar, y se guarda.
+- Es distinto del zoom del lienzo (que acerca o aleja solo el circuito) y de la [lupa](#lupa) (que agranda solo el trocito bajo el puntero): el circuito se ve igual, con su zoom y su «Letra de etiquetas y textos».
+- «Letra de la interfaz» elige la letra de los menús, paneles y diálogos: Predeterminada (la del tema) o cualquiera instalada. Si la letra guardada no está instalada en este computador, se muestra con su nombre y se usa la predeterminada sin perder la elección.
+- «En modo presentación» agranda la interfaz mientras una ventana está en el [modo presentación](#modo-presentación), para que el menú y los paneles que aparecen desde los bordes se lean desde el fondo de la sala: Sin cambio, 125 %, 150 % (por defecto), 175 % o 200 %. Nunca la achica: si «Tamaño de la interfaz» ya es mayor, se queda ese. Crecen todas las ventanas y diálogos de VSim, no solo la que presenta (también las que quedaron en la pantalla del computador). Al salir vuelve al tamaño de siempre.
 
 ## Animaciones
 
