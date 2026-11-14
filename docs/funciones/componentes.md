@@ -261,7 +261,7 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
 - Del formato de Logisim (`v2.0 raw`, con repeticiones `N*palabra`) se lee también una repetición de 0 palabras (`0*0`), que no agrega nada, como en Logisim: el BinaryConverter2 del LRV32IM la escribe en algunos programas.
 - **Dentro de un componente propio**: al crear un componente (o convertir un marco) con una RAM o ROM enlazada a un archivo entre las piezas de la selección, el diálogo agrega la casilla «Mantener los enlaces de las memorias», marcada al comienzo: el componente se queda con el enlace (es del componente, igual en todas sus piezas; se guarda relativo a la carpeta del circuito y se reabre bien). Desmarcada, la memoria entra con sus palabras pero sin el enlace, y un mensaje lo dice: «El enlace a rom.hex no viaja dentro del componente; se guardó una copia». «Actualizar componente…» ofrece la misma casilla, también marcada al comienzo: el componente actualizado se queda con el enlace, o, desmarcada, con una copia de las palabras y el mismo mensaje. La casilla solo aparece si la memoria está en la selección misma, no dentro de un componente anidado.
 
-## Máquinas de estados
+## Máquinas de estado
 
 - **Crearla**: en la paleta, Memoria ▸ «Máquina de estados» (el buscador de la paleta la encuentra con
   «máquina» o «estados»). Elígela y haz clic donde quieras ponerla (Mayús sigue poniendo más; Esc o el clic derecho
@@ -273,8 +273,8 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
 - **Qué es**: un componente propio cuyo interior no son piezas y cables sino un diagrama de estados y flechas, que se
   dibuja en su pestaña. Parte con un estado `S0`, inicial, y con los pines `RST` y `CLK`; un nombre nuevo en una
   condición o en una salida de Moore agrega su pin. Es una sola pieza que se simula directo, sin compuertas por dentro:
-  cambia de estado en el flanco de `CLK` que diga su ajuste (por omisión el de bajada, como los flip-flops) y `RST = 1`
-  la lleva al estado inicial y la mantiene ahí. Una entrada sin valor, en Z o en conflicto cuenta como 0 en las
+  cambia de estado en el flanco de bajada de `CLK`, como los flip-flops, y `RST = 1` la lleva al estado inicial y la
+  mantiene ahí. Una entrada sin valor, en Z o en conflicto cuenta como 0 en las
   condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco.
 - **La cara de la pieza**: el nombre arriba, los pines a los lados, en el medio el nombre del estado en que está (en
   naranja) y debajo «S0 → S1»: el estado actual y el que tomará en el próximo flanco con las entradas de hoy (solo el
@@ -287,6 +287,16 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   una próxima versión), y «Actualizar componente…» no ofrece las máquinas como el componente a reemplazar: si las
   únicas del circuito son máquinas, un mensaje lo explica.
 - **Archivos**: guardar un circuito con una máquina usa el formato 7; una versión anterior de VSim no puede abrirlo.
+
+### Dibujar el diagrama
+
+En la pestaña de una máquina de estados el centro es su diagrama y se dibuja con el puntero; cada cambio es un solo paso de deshacer del circuito y Deshacer lo deshace ahí mismo, en la pestaña de la máquina.
+
+- **Estados**: doble clic en el vacío crea un estado con el primer nombre libre (`S0`, `S1`, …), también la paleta ▸ «Estado» y un clic donde va, o Editar ▸ «Nuevo estado» (al medio de la vista). Arrastrar desde el centro de un estado lo mueve (con los demás elegidos).
+- **Flechas**: al acercar el puntero al borde de un estado el borde se ilumina; arrastrar desde ahí hasta otro estado crea una flecha, y soltar en el mismo estado crea una flecha a sí mismo. La paleta ▸ «Transición» une dos estados arrastrando desde cualquier parte del primero; Editar ▸ «Nueva transición» une los dos estados elegidos (con uno solo, una flecha a sí mismo). Al crearla se abre su condición para escribirla. Las flechas son rectas; se curvan solo cuando dos o más unen los mismos estados.
+- **Condiciones y nombres en línea**: doble clic en una condición (o en una flecha) la edita donde está dibujada, y doble clic en un estado edita su nombre; también F2 o Editar ▸ «Escribir el nombre o la condición» sobre lo elegido. Enter confirma, Esc deja todo como estaba. La condición usa la notación de «Circuito desde expresiones» (`x`, `x'`, `a·b`, `a b`, `a + b`); una flecha sin condición se toma cuando ninguna otra del estado se cumple. Un nombre nuevo en una condición agrega una entrada a la pieza en el circuito. Una condición que no se entiende se guarda como la escribiste, en rojo, y Propiedades dice qué tiene y en qué posición. El nombre de un estado no puede quedar vacío ni repetirse.
+- **Elegir y borrar**: clic elige un estado o una flecha, Mayús+clic agrega o quita, y arrastrar en el vacío elige lo que queda dentro del rectángulo. Supr (o Editar ▸ Borrar) borra lo elegido; un estado se lleva sus flechas. Se puede borrar el estado inicial. Esc suelta la herramienta de la paleta o lo elegido.
+- **Propiedades**: con un estado elegido, su nombre, sus salidas (Moore) escritas `Z=1, Y=0` (una salida que no escribes vale 0; un nombre nuevo agrega una salida a la pieza) y la casilla «Estado inicial»; con una flecha, de dónde a dónde va y su condición; sin nada elegido, cuántos estados tiene la máquina, sus entradas y salidas y cómo se dibuja. Cada texto se aplica con Enter o al salir de él.
 
 ## Terminal y teclado
 
@@ -362,13 +372,3 @@ Tres piezas de Entrada/Salida para escribir y leer texto, compatibles con el TTY
 - **Sonidos**: con la pantalla integrada, el grupo *Sonido* tiene «Campana (BEL)» (pitido, destello de la ventana, las dos cosas o nada) y «Golpeteo de teletipo», que funcionan como en el [Terminal](#terminal). Suenan solo las UART del propio circuito, no las de dentro de un componente propio.
 - **Tamaño**: con la pantalla integrada, la UART mide lo que piden la tabla de registros y una pantalla de «Filas» × «Columnas» con su «Tamaño de letra». Con la UART elegida sola aparece la pestañita «⤡» del [Terminal](#terminal) bajo su esquina inferior derecha: arrastrarla cambia columnas y filas de a una celda, con la etiqueta «80×24», y los cables de los pines de abajo y de la derecha la siguen. Soltar es un solo paso de deshacer, Esc cancela y un doble clic vuelve a 80 × 24. Con «Pines TX y RX» no hay pantalla ni pestañita: la UART no reserva memoria para una pantalla ni para su historial, y al volver a «Integrada» la pantalla empieza vacía.
 - La IA lee y escribe en una UART integrada como en un Terminal y un Teclado (ver [IA (MCP)](ia-mcp.md#qué-puede-hacer-la-ia)).
-
-## Máquinas de estado: dibujar el diagrama
-
-En la pestaña de una máquina de estados el centro es su diagrama y se dibuja con el puntero; cada cambio es un solo paso de deshacer del circuito y Deshacer lo deshace ahí mismo, en la pestaña de la máquina.
-
-- **Estados**: doble clic en el vacío crea un estado con el primer nombre libre (`S0`, `S1`, …), también la paleta ▸ «Estado» y un clic donde va, o Editar ▸ «Nuevo estado» (al medio de la vista). Arrastrar desde el centro de un estado lo mueve (con los demás elegidos).
-- **Flechas**: al acercar el puntero al borde de un estado el borde se ilumina; arrastrar desde ahí hasta otro estado crea una flecha, y soltar en el mismo estado crea una flecha a sí mismo. La paleta ▸ «Transición» une dos estados arrastrando desde cualquier parte del primero; Editar ▸ «Nueva transición» une los dos estados elegidos (con uno solo, una flecha a sí mismo). Al crearla se abre su condición para escribirla. Las flechas son rectas; se curvan solo cuando dos o más unen los mismos estados.
-- **Condiciones y nombres en línea**: doble clic en una condición (o en una flecha) la edita donde está dibujada, y doble clic en un estado edita su nombre; también F2 o Editar ▸ «Escribir el nombre o la condición» sobre lo elegido. Enter confirma, Esc deja todo como estaba. La condición usa la notación de «Circuito desde expresiones» (`x`, `x'`, `a·b`, `a b`, `a + b`); una flecha sin condición se toma cuando ninguna otra del estado se cumple. Un nombre nuevo en una condición agrega una entrada a la pieza en el circuito. Una condición que no se entiende se guarda como la escribiste, en rojo, y Propiedades dice qué tiene y en qué posición. El nombre de un estado no puede quedar vacío ni repetirse.
-- **Elegir y borrar**: clic elige un estado o una flecha, Mayús+clic agrega o quita, y arrastrar en el vacío elige lo que queda dentro del rectángulo. Supr (o Editar ▸ Borrar) borra lo elegido; un estado se lleva sus flechas. Se puede borrar el estado inicial. Esc suelta la herramienta de la paleta o lo elegido.
-- **Propiedades**: con un estado elegido, su nombre, sus salidas (Moore) escritas `Z=1, Y=0` (una salida que no escribes vale 0; un nombre nuevo agrega una salida a la pieza) y la casilla «Estado inicial»; con una flecha, de dónde a dónde va y su condición; sin nada elegido, cuántos estados tiene la máquina, sus entradas y salidas y cómo se dibuja. Cada texto se aplica con Enter o al salir de él.
