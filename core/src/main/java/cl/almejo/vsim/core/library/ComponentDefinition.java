@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.machine.StateMachine;
 
 import java.util.HashSet;
 import java.util.List;
@@ -22,10 +23,22 @@ import java.util.regex.Pattern;
 /**
  * A user-defined component (template): a box of {@code size} with {@code pinout}, simulated as {@code body}.
  * Immutable. The body never carries definitions; nested ones live next to it (document, file, bundle).
+ * <p>
+ * A «Máquina de estados» is a definition with a {@code machine}: its body is generated from the machine and holds
+ * only the interface pins, and the simulation runs the machine natively instead of the body (design:
+ * docs/interno/superpowers/specs/2026-11-14-maquinas-de-estado-design.md §2.2). Every other definition has none.
  */
 public record ComponentDefinition(String id, String name, String description, GridSize size,
                                   List<DefinitionPin> pinout, CircuitFragment body,
-                                  Optional<SymbolDrawing> appearance, long revision) {
+                                  Optional<SymbolDrawing> appearance, long revision,
+                                  Optional<StateMachine> machine) {
+
+    /** A circuit definition (no machine). */
+    public ComponentDefinition(String id, String name, String description, GridSize size,
+                               List<DefinitionPin> pinout, CircuitFragment body,
+                               Optional<SymbolDrawing> appearance, long revision) {
+        this(id, name, description, size, pinout, body, appearance, revision, Optional.empty());
+    }
 
     public static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*");
 
@@ -48,6 +61,7 @@ public record ComponentDefinition(String id, String name, String description, Gr
         Objects.requireNonNull(size, "size");
         Objects.requireNonNull(body, "body");
         Objects.requireNonNull(appearance, "appearance");
+        Objects.requireNonNull(machine, "machine");
         if (revision < 1) {
             throw new IllegalArgumentException("component revision must be positive");
         }
@@ -118,7 +132,7 @@ public record ComponentDefinition(String id, String name, String description, Gr
             return this;
         }
         return new ComponentDefinition(id, newName, description, size, pinout, body, appearance,
-                Math.incrementExact(revision));
+                Math.incrementExact(revision), machine);
     }
 
     /**
@@ -130,12 +144,13 @@ public record ComponentDefinition(String id, String name, String description, Gr
         if (description.equals(next)) {
             return this;
         }
-        return new ComponentDefinition(id, name, next, size, pinout, body, appearance, Math.incrementExact(revision));
+        return new ComponentDefinition(id, name, next, size, pinout, body, appearance, Math.incrementExact(revision),
+                machine);
     }
 
     /** The same revision of this definition with {@code newBody} (its outside is unchanged). */
     public ComponentDefinition withBody(CircuitFragment newBody) {
-        return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision);
+        return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision, machine);
     }
 
     /** The index of the pin named {@code pinName} in the pinout (names are unique); empty when there is none. */
@@ -164,7 +179,7 @@ public record ComponentDefinition(String id, String name, String description, Gr
         }
         CircuitFragment newBody = new CircuitFragment(mapped, body.wires(), body.labels(), body.definitions(),
                 body.frames(), body.stickyNotes());
-        return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision);
+        return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision, machine);
     }
 
     /** One accepted definition appearance edit advances the revision once, regardless of its pin count. */
@@ -174,7 +189,7 @@ public record ComponentDefinition(String id, String name, String description, Gr
             return this;
         }
         return new ComponentDefinition(id, name, description, newSize, newPinout, body, newAppearance,
-                Math.incrementExact(revision));
+                Math.incrementExact(revision), machine);
     }
 
     /** Content equality for revision comparison; independent counters are not a component's identity. */
@@ -182,7 +197,7 @@ public record ComponentDefinition(String id, String name, String description, Gr
         Objects.requireNonNull(other, "other");
         return id.equals(other.id) && name.equals(other.name) && description.equals(other.description)
                 && size.equals(other.size) && pinout.equals(other.pinout) && body.equals(other.body)
-                && appearance.equals(other.appearance);
+                && appearance.equals(other.appearance) && machine.equals(other.machine);
     }
 
     /** Assigns a locally edited candidate its next revision; importing a library version does not use this. */
@@ -195,7 +210,12 @@ public record ComponentDefinition(String id, String name, String description, Gr
             return previous;
         }
         return new ComponentDefinition(id, name, description, size, pinout, body, appearance,
-                Math.incrementExact(previous.revision));
+                Math.incrementExact(previous.revision), machine);
+    }
+
+    /** Whether this definition is a «Máquina de estados» (its body is only the generated interface pins). */
+    public boolean isMachine() {
+        return machine.isPresent();
     }
 
     /** A new document holding the body's elements (and no definitions: the body never carries them). */
