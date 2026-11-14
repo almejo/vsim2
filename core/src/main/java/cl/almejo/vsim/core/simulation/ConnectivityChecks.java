@@ -44,6 +44,9 @@ import java.util.Set;
  * removed by an edit inside the component leaves, found from the circuit itself so it is listed again after
  * reopening. Only user components count (their pins can be removed; a standard part's box need not hold its pins),
  * and the corners do not (a pin is never put on one).
+ * <p>
+ * A state machine's body is never visited: the simulation runs the machine from its diagram, and its generated body
+ * holds only loose interface pins, which are not faults.
  */
 public final class ConnectivityChecks {
 
@@ -121,7 +124,8 @@ public final class ConnectivityChecks {
                 if (innerEnds) {
                     checkPins(level, component, type, prefix, pinPositions);
                 }
-                SubcircuitTypes.definitionOf(type).ifPresent(definition -> {
+                // A state machine runs natively from its diagram: its body is only its pins, nothing to check.
+                SubcircuitTypes.definitionOf(type).filter(definition -> !definition.isMachine()).ifPresent(definition -> {
                     Level body = bodies.computeIfAbsent(definition, this::compileBody);
                     checkInterface(body, definition, component, type, prefix);
                     visit(body, prefix + component.id().value() + InstancePath.SEPARATOR, depth + 1);
