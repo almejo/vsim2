@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
 import java.util.Optional;
@@ -15,11 +16,11 @@ public interface MachineStateSource {
     /** The state of the machine copy at {@code instancePath} in {@code snapshot}; empty when it shows none. */
     Optional<ActiveMachineState> activeState(SimulationSnapshot snapshot, String instancePath);
 
-    /**
-     * The running simulation's: the copy's published visible state. Wired to {@code MachineVisibleState} when the
-     * simulation of machines joins this branch (hito 1, task 3); until then no copy shows a state.
-     */
+    /** The running simulation's: the copy's published {@code MachineVisibleState}. */
     static MachineStateSource standard() {
-        return (snapshot, instancePath) -> Optional.empty();
+        return (snapshot, instancePath) -> snapshot.componentStates().get(instancePath) instanceof
+                VisibleState.MachineVisibleState state
+                ? Optional.of(new ActiveMachineState(state.stateId(), state.nextStateId(), state.nextTransitionId()))
+                : Optional.empty();
     }
 }
