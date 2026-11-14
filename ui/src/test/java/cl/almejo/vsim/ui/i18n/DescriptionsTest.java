@@ -47,6 +47,7 @@ class DescriptionsTest {
         StandardComponentTypes.presets().forEach(preset -> ids.add(preset.id()));
         // the name ids a type takes from its parameters (StandardComponentTypes.nameId) have their own description
         ids.add(StandardComponentTypes.TUNNEL_UNDIRECTED);
+        ids.add(cl.almejo.vsim.ui.machine.MachineCreation.PALETTE_ID); // the palette's «Máquina de estados»
         return ids;
     }
 

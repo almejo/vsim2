@@ -261,6 +261,27 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
 - Del formato de Logisim (`v2.0 raw`, con repeticiones `N*palabra`) se lee también una repetición de 0 palabras (`0*0`), que no agrega nada, como en Logisim: el BinaryConverter2 del LRV32IM la escribe en algunos programas.
 - **Dentro de un componente propio**: al crear un componente (o convertir un marco) con una RAM o ROM enlazada a un archivo entre las piezas de la selección, el diálogo agrega la casilla «Mantener los enlaces de las memorias», marcada al comienzo: el componente se queda con el enlace (es del componente, igual en todas sus piezas; se guarda relativo a la carpeta del circuito y se reabre bien). Desmarcada, la memoria entra con sus palabras pero sin el enlace, y un mensaje lo dice: «El enlace a rom.hex no viaja dentro del componente; se guardó una copia». «Actualizar componente…» ofrece la misma casilla, también marcada al comienzo: el componente actualizado se queda con el enlace, o, desmarcada, con una copia de las palabras y el mismo mensaje. La casilla solo aparece si la memoria está en la selección misma, no dentro de un componente anidado.
 
+## Máquinas de estados
+
+- **Crearla**: en la paleta, Memoria ▸ «Máquina de estados» (el buscador de la paleta la encuentra con
+  «máquina» o «estados»). Elígela y haz clic donde quieras ponerla (Mayús sigue poniendo más; Esc o el clic derecho
+  cancelan). Crea el componente y su pieza en un solo paso de deshacer; el componente aparece en «Componentes de este
+  circuito» con un nombre y un identificador propios, «Máquina 1» (`maquina-1`), «Máquina 2»… sin repetirse en el
+  circuito.
+- **Qué es**: un componente propio cuyo interior no son piezas y cables sino un diagrama de estados y flechas, que se
+  dibuja en su pestaña. Parte con un estado `S0`, inicial, y con los pines `RST` y `CLK`; un nombre nuevo en una
+  condición o en una salida de Moore agrega su pin. Es una sola pieza que se simula directo, sin compuertas por dentro:
+  cambia de estado en el flanco de `CLK` que diga su ajuste (por omisión el de bajada, como los flip-flops) y `RST = 1`
+  la lleva al estado inicial y la mantiene ahí. Una entrada sin valor, en Z o en conflicto cuenta como 0 en las
+  condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco.
+- **La cara de la pieza**: el nombre arriba, los pines a los lados, en el medio el nombre del estado en que está (en
+  naranja) y debajo «S0 → S1»: el estado actual y el que tomará en el próximo flanco con las entradas de hoy (solo el
+  nombre mientras `RST` la sujeta). Cada copia muestra su propio estado, también dentro de un componente propio. Una
+  forma dibujada en el editor de formas reemplaza esta cara.
+- **Entrar**: doble clic, Enter o «Entrar ↘» abren su pestaña, con el diagrama en lugar del lienzo del circuito; ahí las
+  acciones de piezas y cables están apagadas y dicen por qué. Editar el diagrama cambia todas las copias.
+- **Archivos**: guardar un circuito con una máquina usa el formato 7; una versión anterior de VSim no puede abrirlo.
+
 ## Terminal y teclado
 
 Tres piezas de Entrada/Salida para escribir y leer texto, compatibles con el TTY y el Teclado de Logisim (el RISC-V LRV32IM los usa) y con más: UTF-8, secuencias VT100/xterm con colores, perfiles, efectos de pantalla, una ventana propia con monitor de bytes, sonidos y herramientas para la IA. El ejemplo Archivo ▸ Ejemplos ▸ «Hola, terminal» los muestra funcionando (ver [Ejemplos](ejemplos.md)).

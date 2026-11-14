@@ -16,6 +16,8 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.machine.MachineCreation;
+import cl.almejo.vsim.ui.machine.PlaceMachineTool;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContentZoom;
 import cl.almejo.vsim.ui.actions.EditorActions;
@@ -213,7 +215,11 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {
-            setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
+            if (entry.id().equals(MachineCreation.PALETTE_ID)) {
+                setToolOnEveryPane(PlaceMachineTool::new);
+            } else {
+                setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
+            }
             canvas().requestFocusInWindow();
         });
         this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus,

@@ -13,6 +13,7 @@ import java.awt.FontMetrics;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Map;
+import java.util.Optional;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
@@ -20,7 +21,8 @@ import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
  * An instance of a user definition (spec §5.6): a box with the definition name along the top and each pin's name
  * inside the box next to the pin; texts shrink to fit, stay upright and never leave the box (or, for a pin
  * name, its pin's slot) in any rotation. The library-version badge is an overlay
- * ({@code LibraryVersionBadge}), not part of the drawing.
+ * ({@code LibraryVersionBadge}), not part of the drawing. A state machine's instance without a drawn appearance gets
+ * the {@link MachinePainter} face (its current state) instead of the plain box.
  */
 public final class SubcircuitPainter implements ComponentPainter {
 
@@ -35,6 +37,11 @@ public final class SubcircuitPainter implements ComponentPainter {
         if (SubcircuitTypes.appearanceOf(type).isPresent()) {
             SymbolPainter.paint(graphics, type, SubcircuitTypes.appearanceOf(type).orElseThrow(), scheme,
                     SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id()));
+            return;
+        }
+        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
+        if (definition.filter(ComponentDefinition::isMachine).isPresent()) {
+            MachinePainter.paintFace(graphics, type, definition.get(), state, scheme);
             return;
         }
         paintDefaultBox(graphics, type, scheme, PainterSupport.STROKE, 1);

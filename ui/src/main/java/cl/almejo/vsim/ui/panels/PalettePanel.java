@@ -19,6 +19,7 @@ import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.machine.MachineCreation;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
@@ -342,6 +343,9 @@ public final class PalettePanel extends JPanel {
         List<PaletteEntry> entries = new ArrayList<>();
         registry.all().stream().filter(type -> type.category() == category)
                 .forEach(type -> entries.add(PaletteEntry.of(type)));
+        if (category == ComponentCategory.MEMORY) {
+            entries.add(PaletteEntry.of(MachineCreation.paletteType()));
+        }
         for (ComponentPreset preset : StandardComponentTypes.presets()) {
             PaletteEntry.of(preset, registry).filter(entry -> entry.type().category() == category)
                     .ifPresent(entry -> entries.add(placeOf(entries, preset), entry));
