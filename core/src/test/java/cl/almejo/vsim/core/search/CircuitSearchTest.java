@@ -21,6 +21,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.Test;
 
@@ -87,6 +88,15 @@ class CircuitSearchTest {
                 List.of(), new CircuitFragment(List.of(part(halfAdderType, "c1", 0, 0, "H1"),
                 part(halfAdderType, "c2", 0, 8, "H2"),
                 part(StandardComponentTypes.OR, "c3", 8, 4, "")), List.of(), List.of())));
+    }
+
+    @Test
+    void theGeneratedPinsInsideAStateMachineAreNeverFound() {
+        document.putDefinition(MachineDefinitions.create("maquina-abc123", "Máquina 1"));
+        place(registry, document, SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, "");
+
+        assertThat(find("RST")).isEmpty();
+        assertThat(find("CLK")).isEmpty();
     }
 
     @Test

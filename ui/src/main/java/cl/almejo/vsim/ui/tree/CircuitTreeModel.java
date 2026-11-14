@@ -51,7 +51,9 @@ public final class CircuitTreeModel {
             String path = parentPath.isEmpty() ? component.id().value()
                     : InstancePath.child(parentPath, component.id().value());
             Optional<ComponentDefinition> definition = InstanceNames.definitionOf(component, document);
-            List<CircuitTreeNode> children = definition.isPresent() && depth < MAXIMUM_DEPTH
+            // a state machine's body is only the pins generated from its diagram: it is a leaf
+            List<CircuitTreeNode> children = definition.filter(found -> !found.isMachine()).isPresent()
+                    && depth < MAXIMUM_DEPTH
                     ? pieces(definition.get().body().components(), path, document, registry, depth + 1) : List.of();
             String typeName = TypeNames.of(component, registry);
             Optional<String> kind = component.label().isBlank() || definition.isPresent() ? Optional.empty()

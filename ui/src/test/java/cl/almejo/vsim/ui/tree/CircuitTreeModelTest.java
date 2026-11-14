@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.search.SearchQuery;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +80,17 @@ class CircuitTreeModelTest {
         assertThat(nested.path()).isEqualTo("c1/c3");
         assertThat(nested.definitionId()).contains(ExampleDefinitions.INVERTER);
         assertThat(nested.children().get(1).path()).isEqualTo("c1/c3/c2");
+    }
+
+    @Test
+    void aStateMachineIsALeafItsGeneratedPinsAreNotPieces() {
+        document.putDefinition(MachineDefinitions.create("maquina-abc123", "Máquina 1"));
+        add(SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, "");
+
+        CircuitTreeNode machine = CircuitTreeModel.build("x", document, registry).children().getFirst();
+
+        assertThat(machine.definitionId()).contains("maquina-abc123");
+        assertThat(machine.children()).isEmpty();
     }
 
     @Test

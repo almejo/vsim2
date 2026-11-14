@@ -272,7 +272,8 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   con otra que se llame igual.
 - **Qué es**: un componente propio cuyo interior no son piezas y cables sino un diagrama de estados y flechas, que se
   dibuja en su pestaña. Parte con un estado `S0`, inicial, y con los pines `RST` y `CLK`; un nombre nuevo en una
-  condición o en una salida de Moore agrega su pin. Es una sola pieza que se simula directo, sin compuertas por dentro:
+  condición o en una salida de Moore agrega su pin (en una pieza que ya tiene cables, el pin nuevo se agrega abajo sin
+  mover los demás, así que dos copias de la misma máquina pueden mostrar sus pines en otro orden). Es una sola pieza que se simula directo, sin compuertas por dentro:
   cambia de estado en el flanco de bajada de `CLK`, como los flip-flops, y `RST = 1` la lleva al estado inicial y la
   mantiene ahí. Una entrada sin valor, en Z o en conflicto cuenta como 0 en las
   condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco.
@@ -285,7 +286,8 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
 - **Lo que no se le hace**: su interior no se edita con piezas ni cables desde ningún lado (tampoco la IA: recibe el
   motivo). En el menú contextual de la pieza, «Desarmar» aparece apagado y dice por qué (convertirla a circuito llega en
   una próxima versión), y «Actualizar componente…» no ofrece las máquinas como el componente a reemplazar: si las
-  únicas del circuito son máquinas, un mensaje lo explica.
+  únicas del circuito son máquinas, un mensaje lo explica. «Mirar adentro» no se ofrece sobre una máquina, y el árbol
+  del circuito y Buscar no muestran ni encuentran los pines que lleva por dentro: la máquina es una hoja.
 - **Archivos**: guardar un circuito con una máquina usa el formato 7; una versión anterior de VSim no puede abrirlo.
 
 ### Dibujar el diagrama

@@ -10,7 +10,9 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import org.junit.jupiter.api.AfterEach;
@@ -192,5 +194,16 @@ class MagnifierHoverTest {
         assertThat(MagnifierHover.instanceAt(pane, onInstance).map(found -> found.id().value()))
                 .contains(INSTANCE);
         assertThat(MagnifierHover.instanceAt(pane, onGate)).isEqualTo(Optional.empty());
+    }
+
+    @Test
+    void aStateMachineHasNothingToLookInsideItsBodyIsOnlyItsPins() {
+        ComponentDefinition machine = MachineDefinitions.create("maquina-abc123", "Máquina 1");
+        fixture.openDocument().execute(new PutDefinitionsCommand(List.of(machine)));
+        Component piece = new Component(new ElementId("c40"), SubcircuitTypes.typeIdOf(machine.id()),
+                new GridPoint(10, 40), Rotation.R0, Map.of(), "");
+        fixture.openDocument().execute(new AddElementsCommand(List.of(piece)));
+
+        assertThat(MagnifierHover.instanceAt(pane, center(piece))).isEqualTo(Optional.empty());
     }
 }
