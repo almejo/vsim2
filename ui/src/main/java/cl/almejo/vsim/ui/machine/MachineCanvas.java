@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.machine.DiagramPoint;
@@ -10,6 +11,8 @@ import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.canvas.Viewport;
+import cl.almejo.vsim.ui.inline.InlineHost;
+import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import javax.swing.JComponent;
@@ -22,18 +25,21 @@ import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 /**
  * The centre of a machine's tab: its state diagram (spec 2026-11-14 §1 «The machine tab», §2.4), always the model as
  * it is now, with the active state and the next arrow of the copy entered through lit in the active colour. It zooms
  * and pans like the circuit canvas (Ctrl+wheel, the wheel, Mayús+wheel, the middle button, the window's zoom actions
  * through {@link ContentZoom}) and follows the simulation on the same 16 ms frames while it is shown. Diagram units
- * are pixels at 100 %. The gestures that draw and edit come with the diagram's tools.
+ * are pixels at 100 %. The gestures that draw and edit ({@link MachineTool}) make their edits through
+ * {@link #edit} and show what they are doing through {@link #showGestures}.
  */
 public final class MachineCanvas extends JComponent implements ContentZoom {
 
@@ -54,6 +60,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private final transient Viewport viewport = new Viewport();
     private final transient FrameTicker frames = FrameTicker.swing(FRAME_MILLISECONDS);
     private final transient Listeners<Runnable> frameListeners = new Listeners<>();
+    private final transient Listeners<Runnable> changeListeners = new Listeners<>();
     private final transient Runnable placeListener = this::placeChanged;
     private final transient Runnable stopRepaintingOnSelection;
     private transient Optional<ActiveMachineState> activeState = Optional.empty();
@@ -62,6 +69,33 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private boolean disposed;
     /** Where the middle button pressed, while it pans the view; null otherwise. */
     private transient Point2D panFrom;
+    /** What the drawing gestures show while they last (a moved state, a lit border, the rubber band). */
+    private transient Gestures gestures = Gestures.NONE;
+
+    /**
+     * What the diagram's gestures show on top of the model while they last: the machine as it would be after a drag
+     * (states being moved), and the marks of {@link MachineDiagramPainter.Overlay}.
+     */
+    interface Gestures {
+
+        Gestures NONE = new Gestures() {
+            @Override
+            public Optional<StateMachine> preview() {
+                return Optional.empty();
+            }
+
+            @Override
+            public MachineDiagramPainter.Overlay overlay() {
+                return MachineDiagramPainter.Overlay.NONE;
+            }
+        };
+
+        /** The machine to draw instead of the model while a drag lasts; empty to draw the model. */
+        Optional<StateMachine> preview();
+
+        /** The marks to draw over the diagram now. */
+        MachineDiagramPainter.Overlay overlay();
+    }
 
     /**
      * The diagram of the machine {@code definitionId} for the tab of {@code openDocument} (a body place of that
@@ -83,6 +117,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         this.scheme = Objects.requireNonNull(scheme, "scheme");
         setOpaque(true);
         setFocusable(true);
+        setLayout(null); // the inline editor floats over the diagram where it is asked to
         viewport.addChangeListener(this::repaint);
         openDocument.addChangeListener(placeListener);
         stopRepaintingOnSelection = selection.addListener(this::repaint);
@@ -110,6 +145,76 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** What is selected in this diagram (shared with the tab's right panel and gestures). */
     public MachineSelection selection() {
         return selection;
+    }
+
+    /**
+     * Makes {@code change} of the machine as one undo step of the circuit, executed through this tab's place so the
+     * step belongs to the machine's tab (its undo is undone here, its name says where); nothing when it changes
+     * nothing. Returns whether it made the edit.
+     */
+    public boolean edit(UnaryOperator<StateMachine> change) {
+        Optional<StateMachine> current = machine();
+        if (current.isEmpty()) {
+            return false;
+        }
+        StateMachine changed = change.apply(current.get());
+        if (changed.equals(current.get())) {
+            return false;
+        }
+        openDocument.execute(new EditMachineCommand(definitionId, changed));
+        return true;
+    }
+
+    /** Shows what {@code shown} gives on top of the diagram from now on (the drawing gestures). */
+    void showGestures(Gestures shown) {
+        gestures = Objects.requireNonNull(shown, "shown");
+        repaint();
+    }
+
+    /** {@code pixels} on screen as diagram units at the zoom shown now. */
+    double toDiagramLength(double pixels) {
+        return pixels / viewport.zoom();
+    }
+
+    /** This canvas as the surface an {@link InlineTextEditor} opens over (names and conditions). */
+    InlineHost inlineHost() {
+        return new InlineHost() {
+            @Override
+            public JComponent component() {
+                return MachineCanvas.this;
+            }
+
+            @Override
+            public Runnable addFloatingComponent(JComponent editor) {
+                add(editor, 0);
+                repaint();
+                return () -> {
+                    remove(editor);
+                    repaint();
+                };
+            }
+
+            @Override
+            public Runnable addViewportListener(Runnable listener) {
+                return viewport.addChangeListener(listener);
+            }
+
+            @Override
+            public Runnable addChangeListener(Runnable listener) {
+                openDocument.addChangeListener(listener);
+                return () -> openDocument.removeChangeListener(listener);
+            }
+
+            @Override
+            public AffineTransform documentTransform() {
+                return viewport.documentTransform();
+            }
+
+            @Override
+            public double zoom() {
+                return viewport.zoom();
+            }
+        };
     }
 
     /** The active state of the copy entered through, as of the last frame; empty with «Sin valores». */
@@ -152,6 +257,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** Runs {@code listener} after each frame of a shown diagram (the tab feeds its hidden panes); returns removal. */
     public Runnable addFrameListener(Runnable listener) {
         return frameListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** Runs {@code listener} after every change of the machine or of the tab's context; returns its removal. */
+    public Runnable addChangeListener(Runnable listener) {
+        return changeListeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
     /** Stops following the document and the simulation: the tab closed or left machine mode. */
@@ -234,15 +344,17 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             ColorScheme colours = scheme.get();
             canvas.setColor(MachineColors.background(colours));
             canvas.fillRect(0, 0, getWidth(), getHeight());
-            Optional<StateMachine> machine = machine();
+            Optional<StateMachine> machine = gestures.preview().or(this::machine);
             if (machine.isEmpty()) {
                 return;
             }
             canvas.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             canvas.transform(viewport.documentTransform());
-            MachineDiagramPainter.paint(canvas, machine.get(), MachineDiagramGeometry.of(machine.get()),
+            MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
+            MachineDiagramPainter.paint(canvas, machine.get(), geometry,
                     new MachineDiagramPainter.Marks(activeState, selection), colours);
+            MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), colours);
         } finally {
             canvas.dispose();
         }
@@ -276,6 +388,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         machine().ifPresent(selection::retainExisting);
         showLatestState();
         repaint();
+        changeListeners.fire(Runnable::run);
     }
 
     private void followFrames(boolean shown) {

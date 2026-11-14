@@ -30,8 +30,8 @@ import java.util.Set;
  * <ul>
  * <li>Archivo, Simulación, Ventana and Ayuda keep their items, except the ones that act on the circuit's parts
  * (Importar, the exports of the drawing, printing, splitting the panes);</li>
- * <li>Editar, Ver, Herramientas and Lógica lose theirs, except undo/redo, the zoom, the panels, the problems, the
- * presentation and the practice, which work on any tab;</li>
+ * <li>Editar, Ver, Herramientas and Lógica lose theirs, except undo/redo, Borrar (it deletes from the diagram), the
+ * zoom, the panels, the problems, the presentation and the practice, which work on any tab;</li>
  * <li>a toolbar button or a keyboard-only action that no menu keeps is disabled too.</li>
  * </ul>
  * Items without an action (Recientes, Ejemplos, the pace of Presentar) open files or change settings and stay.
@@ -118,12 +118,15 @@ final class MachineActionPolicy {
                 Messages.text(WHY_BY_ID.getOrDefault(id, "machine.disabled.circuitOnly")));
     }
 
-    /** The actions that work the same on any tab, wherever they are: undo, the zoom, the panels, the problems… */
+    /**
+     * The actions that work the same on any tab, wherever they are: undo, the zoom, the panels, the problems… and
+     * «Borrar», which the machine's tab points at the diagram's selection.
+     */
     private static Set<Action> keptEverywhere(EditorView view, Map<Action, String> idByAction) {
         EditorActions actions = view.actions();
         Set<Action> kept = Collections.newSetFromMap(new IdentityHashMap<>());
-        kept.addAll(List.of(actions.undo(), actions.redo(), actions.selectTool(), actions.zoomIn(),
-                actions.zoomOut(), actions.zoomReset(), actions.zoomToFit(), actions.centerView(),
+        kept.addAll(List.of(actions.undo(), actions.redo(), actions.delete(), actions.selectTool(),
+                actions.zoomIn(), actions.zoomOut(), actions.zoomReset(), actions.zoomToFit(), actions.centerView(),
                 view.zoomControl().typeZoomAction(), view.problems().nextProblem(), view.problems().previousProblem(),
                 view.leftColumn().toggleAction(LeftColumn.Section.CIRCUIT),
                 view.leftColumn().toggleAction(LeftColumn.Section.PALETTE)));
@@ -136,10 +139,10 @@ final class MachineActionPolicy {
         return kept;
     }
 
-    /** The editing a machine will do on its diagram (select, delete, copy, the hand and the zoom tool). */
+    /** The editing a machine will do on its diagram (select all, copy, the hand and the zoom tool). */
     private static Set<Action> laterActions(EditorActions actions, SelectionActions selectionActions) {
         Set<Action> later = Collections.newSetFromMap(new IdentityHashMap<>());
-        later.addAll(List.of(actions.delete(), actions.panTool(), actions.zoomTool(), actions.zoomToSelection(),
+        later.addAll(List.of(actions.panTool(), actions.zoomTool(), actions.zoomToSelection(),
                 selectionActions.cut(), selectionActions.copy(), selectionActions.paste(),
                 selectionActions.duplicate(), selectionActions.selectAll()));
         return later;

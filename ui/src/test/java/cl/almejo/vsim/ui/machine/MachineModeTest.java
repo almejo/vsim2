@@ -156,7 +156,7 @@ class MachineModeTest {
                 .isEqualTo(reason("machine.disabled.noBuses"));
         assertThat(byId.get("view.showSheets").getValue(Action.SHORT_DESCRIPTION))
                 .isEqualTo(reason("machine.disabled.noSheets"));
-        List<Action> circuitActions = List.of(view.actions().delete(), view.actions().rotateClockwise(),
+        List<Action> circuitActions = List.of(view.actions().rotateClockwise(),
                 view.actions().rotateCounterClockwise(), view.actions().configure(),
                 view.selectionActions().cut(), view.selectionActions().copy(), view.selectionActions().paste(),
                 view.selectionActions().duplicate(), view.selectionActions().selectAll(), byId.get("edit.quickInsert"),

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.command.Command;
+import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -17,17 +18,20 @@ import java.util.Optional;
  * everywhere) that shows the machine's diagram ({@link MachineCanvas}) where the circuit panes go and its own palette
  * ({@link MachinePalette}) instead of the parts. The generated pins-only body never reaches the user: its panes leave
  * the view, every circuit action is disabled with its reason ({@link MachineActionPolicy}) and the place refuses every
- * circuit edit (a paste, a dropped file, the AI). The machine's own edits are made on the circuit (its definition),
- * never through the place.
+ * circuit edit (a paste, a dropped file, the AI). The machine's own edits ({@link MachineEditing}) are each one
+ * {@link EditMachineCommand} of its definition, the only edit the place lets through, so it is one undo step of the
+ * circuit that belongs to this tab.
  */
 public final class MachineMode {
 
     private final MachineCanvas canvas;
     private final MachinePalette palette;
+    private final MachineEditing editing;
 
-    private MachineMode(MachineCanvas canvas, MachinePalette palette) {
+    private MachineMode(MachineCanvas canvas, MachinePalette palette, MachineEditing editing) {
         this.canvas = canvas;
         this.palette = palette;
+        this.editing = editing;
     }
 
     /**
@@ -53,15 +57,17 @@ public final class MachineMode {
         Runnable showDiagram = view.showInsteadOfCanvas(canvas, canvas);
         Runnable showPalette = view.leftColumn().showInsteadOfPalette(palette);
         Runnable enableCircuitActions = MachineActionPolicy.disableCircuitActions(view);
-        Runnable acceptCircuitEdits = place.addInsideEditGuard(MachineMode::refuseCircuitEdit);
+        Runnable acceptCircuitEdits = place.addInsideEditGuard(
+                command -> refuseCircuitEdit(command, machineId.get()));
         // the hidden panes' snapshot listeners (status bar, run buttons, Problemas) follow the diagram's frames
         Runnable stopFeedingThePanes = canvas.addFrameListener(
                 () -> view.panes().forEach(CircuitCanvas::refreshSnapshot));
-        view.putClientProperty(MachineMode.class, new MachineMode(canvas, palette));
+        MachineEditing editing = MachineEditing.install(view, canvas, palette);
+        view.putClientProperty(MachineMode.class, new MachineMode(canvas, palette, editing));
         return () -> {
             view.putClientProperty(MachineMode.class, null);
-            for (Runnable undo : List.of(stopFeedingThePanes, acceptCircuitEdits, enableCircuitActions, showPalette,
-                    showDiagram, canvas::dispose)) {
+            for (Runnable undo : List.of(editing::uninstall, stopFeedingThePanes, acceptCircuitEdits,
+                    enableCircuitActions, showPalette, showDiagram, canvas::dispose)) {
                 undo.run();
             }
         };
@@ -83,6 +89,21 @@ public final class MachineMode {
         return palette;
     }
 
+    /** The diagram's gestures. */
+    MachineTool tool() {
+        return editing.tool();
+    }
+
+    /** The inline editor of names and conditions. */
+    MachineInlineEditor inlineEditor() {
+        return editing.inlineEditor();
+    }
+
+    /** The rows the right panel's «Propiedades» shows. */
+    MachineInspectorRows inspectorRows() {
+        return editing.rows();
+    }
+
     /** What is selected in the diagram (the canvas's). */
     public MachineSelection selection() {
         return canvas.selection();
@@ -100,8 +121,15 @@ public final class MachineMode {
                 .map(ComponentDefinition::id);
     }
 
-    /** A machine's body holds only its generated pins: no circuit edit is made there. */
-    private static void refuseCircuitEdit(Command command) {
+    /**
+     * A machine's body holds only its generated pins: no circuit edit is made there. The one edit that passes is the
+     * machine's own ({@link EditMachineCommand} of this definition): it goes through the place so the step is the
+     * machine tab's (Deshacer there undoes it there, and its name says where).
+     */
+    private static void refuseCircuitEdit(Command command, String machineId) {
+        if (command instanceof EditMachineCommand edit && edit.definitionId().equals(machineId)) {
+            return;
+        }
         throw new InsideEditRefusedException("machine.refused.circuitEdit", List.of());
     }
 }

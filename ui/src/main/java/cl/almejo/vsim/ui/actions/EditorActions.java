@@ -114,6 +114,8 @@ public final class EditorActions {
     private final Action reportProblem;
     /** What the zoom actions act on instead of the active pane (a machine's diagram); empty for a circuit. */
     private Optional<ContentZoom> contentZoom = Optional.empty();
+    /** What «Borrar» deletes instead of the circuit's selection (a machine's diagram); empty for a circuit. */
+    private Optional<ContentDeletion> contentDeletion = Optional.empty();
 
     /**
      * The actions of one window: {@code activePane} (its active pane) is resolved each time an action runs (zoom, centre,
@@ -493,7 +495,7 @@ public final class EditorActions {
         Set<ElementId> selected = selection.ids();
         // while a path is drawn the keys that act on the selection do nothing
         boolean actsOnSelection = !selected.isEmpty() && !dropsACorner;
-        delete.setEnabled(actsOnSelection);
+        delete.setEnabled(contentDeletion.map(ContentDeletion::canDelete).orElse(actsOnSelection));
         rotateClockwise.setEnabled(actsOnSelection);
         rotateCounterClockwise.setEnabled(actsOnSelection);
         moveActions.values().forEach(move -> move.setEnabled(actsOnSelection));
@@ -516,6 +518,22 @@ public final class EditorActions {
         };
     }
 
+    /**
+     * «Borrar» deletes from {@code content} instead of the circuit's selection, and is enabled as {@code content}
+     * says at each {@link #refresh()}, until the returned runnable runs (a machine's diagram).
+     */
+    public Runnable deleteContentInstead(ContentDeletion content) {
+        Optional<ContentDeletion> deleting = Optional.of(Objects.requireNonNull(content, "content"));
+        contentDeletion = deleting;
+        refresh();
+        return () -> {
+            if (contentDeletion.equals(deleting)) {
+                contentDeletion = Optional.empty();
+                refresh();
+            }
+        };
+    }
+
     /** The content the zoom actions act on now, when the view shows one instead of its panes. */
     public Optional<ContentZoom> contentZoom() {
         return contentZoom;
@@ -532,6 +550,10 @@ public final class EditorActions {
     }
 
     private void deleteSelection() {
+        if (contentDeletion.isPresent()) {
+            contentDeletion.get().delete();
+            return;
+        }
         Set<ElementId> selected = selection.effectiveIds();
         if (!selected.isEmpty()) {
             deleteListeners.forEach(listener -> listener.accept(selected));
