@@ -24,8 +24,9 @@ import java.util.Optional;
  * the bodies that contain the machine follow with their wires. One undo step; revert restores definitions, pieces and
  * wires.
  *
- * <p>From the machine's tab it is executed like any edit there ({@code OpenDocument.execute}): the
- * {@link EditInsideCommand} wrapping it applies it to the document ({@link EditsDefinitionItself}).
+ * <p>It applies to the circuit document that owns the definition: the machine's tab executes it on its parent
+ * document's history (one undo step there), and the tab's working copy follows the new body as it follows any change
+ * made elsewhere. Wrapped in an {@link EditInsideCommand} it works too ({@link EditsDefinitionItself}).
  */
 public final class EditMachineCommand implements EditsDefinitionItself, LoosensPins {
 

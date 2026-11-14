@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
@@ -109,6 +110,8 @@ public final class CircuitFlattener {
         final Map<String, NetBuilder> nets = new LinkedHashMap<>();
         final Map<String, String> parents = new HashMap<>();
         final Map<ComponentDefinition, Body> bodies = new IdentityHashMap<>();
+        /** The native type of each machine definition, built once per flatten call like the bodies. */
+        final Map<ComponentDefinition, ComponentType> machineTypes = new IdentityHashMap<>();
         final List<TunnelProblem> tunnelProblems = new ArrayList<>();
         /** The circuit flattened: its pieces keep their own memory contents ({@link PieceMemories}). */
         final CircuitDocument root;
@@ -134,7 +137,11 @@ public final class CircuitFlattener {
                     continue;
                 }
                 Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
-                if (definition.isPresent()) {
+                if (definition.isPresent() && definition.get().isMachine()) {
+                    // a state machine runs natively: its body holds only its interface pins (spec §2.3)
+                    addComponent(new FlatComponent(flatId, machineTypes.computeIfAbsent(definition.get(),
+                            StateMachineTypes::typeOf), Map.of()), component, levelNetlist, prefix);
+                } else if (definition.isPresent()) {
                     expand(flatId, component, definition.get(), levelNetlist, prefix, depth);
                 } else if (!prefix.isEmpty() && InterfacePins.isInterface(type.id())) {
                     addComponent(new FlatComponent(flatId, interfaceProbe(type.pin(0).width()), Map.of()), component,
