@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.machine.MachineConditions;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
@@ -16,6 +17,7 @@ import java.awt.Stroke;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -23,7 +25,8 @@ import java.util.stream.Collectors;
 /**
  * Draws a machine's diagram in diagram units (the caller has applied the view's zoom and pan): the arrows with their
  * conditions and Mealy outputs, the states with their names and Moore outputs, the initial mark, the active state and
- * the next arrow in the active colour, and the selection dashed (the agreed mockup's look). Colours come from
+ * the next arrow in the active colour, the selection dashed (the agreed mockup's look), a condition that cannot be
+ * read in the problem colour, and what a gesture shows while it lasts ({@link Overlay}). Colours come from
  * {@link MachineColors} at each paint.
  */
 final class MachineDiagramPainter {
@@ -42,8 +45,67 @@ final class MachineDiagramPainter {
     private static final double OUTPUTS_BELOW = 20;
     private static final double INITIAL_LABEL_GAP = 8;
 
+    /** How wide a lit border (the pointer near it: a drag from there makes an arrow) and a drawn arrow are. */
+    private static final float LIT_BORDER_WIDTH = 4f;
+    /** How opaque the rubber band's inside is (0..255). */
+    private static final int RUBBER_BAND_ALPHA = 40;
+
     /** What to light and mark on top of the model. */
     record Marks(Optional<ActiveMachineState> active, MachineSelection selection) {
+    }
+
+    /**
+     * What a gesture shows while it lasts, on top of the diagram: the state whose border is lit, the arrow being drawn
+     * (from a state's border to the pointer) and the rubber band, all in diagram units.
+     */
+    record Overlay(Optional<String> litStateId, Optional<Line2D> pendingArrow, Optional<Rectangle2D> rubberBand) {
+
+        static final Overlay NONE = new Overlay(Optional.empty(), Optional.empty(), Optional.empty());
+    }
+
+    /** The font of a state's name, at 100 %. */
+    static Font nameFont() {
+        return new Font(Font.SANS_SERIF, Font.BOLD, NAME_SIZE);
+    }
+
+    /** The font of an arrow's label, at 100 %. */
+    static Font labelFont() {
+        return new Font(Font.MONOSPACED, Font.BOLD, LABEL_SIZE);
+    }
+
+    /** Where the label of {@code transition} is drawn, measured with {@code metrics} of {@link #labelFont()}. */
+    static Rectangle2D labelBounds(MachineTransition transition, MachineDiagramGeometry.Arrow arrow,
+                                   FontMetrics metrics) {
+        return textBounds(labelOf(transition), arrow.labelAnchor(), metrics);
+    }
+
+    /** Where {@code text} centred on {@code centre} goes (at least a few characters wide, so an empty one is found). */
+    static Rectangle2D textBounds(String text, Point2D centre, FontMetrics metrics) {
+        double width = Math.max(metrics.stringWidth(text), metrics.stringWidth("xxx"));
+        double height = metrics.getHeight();
+        return new Rectangle2D.Double(centre.getX() - width / 2, centre.getY() - height / 2, width, height);
+    }
+
+    /** Draws {@code overlay} over a diagram painted with {@code geometry}. */
+    static void paintOverlay(Graphics2D graphics, MachineDiagramGeometry geometry, Overlay overlay,
+                             ColorScheme scheme) {
+        Color highlight = MachineColors.selection(scheme);
+        graphics.setColor(highlight);
+        graphics.setStroke(new BasicStroke(LIT_BORDER_WIDTH));
+        overlay.litStateId().ifPresent(stateId -> graphics.draw(geometry.circle(stateId)));
+        overlay.pendingArrow().ifPresent(line -> {
+            graphics.setStroke(new BasicStroke(NEXT_ARROW_WIDTH));
+            graphics.draw(line);
+            paintHead(graphics, line.getP1(), line.getP2());
+        });
+        overlay.rubberBand().ifPresent(band -> {
+            graphics.setColor(new Color(highlight.getRed(), highlight.getGreen(), highlight.getBlue(),
+                    RUBBER_BAND_ALPHA));
+            graphics.fill(band);
+            graphics.setColor(highlight);
+            graphics.setStroke(dashed(1f));
+            graphics.draw(band);
+        });
     }
 
     private MachineDiagramPainter() {
@@ -78,8 +140,11 @@ final class MachineDiagramPainter {
         paintHead(graphics, arrow.headFrom(), arrow.end());
         String label = labelOf(transition);
         if (!label.isEmpty()) {
-            graphics.setColor(next ? MachineColors.active(scheme) : MachineColors.muted(scheme));
-            graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, LABEL_SIZE));
+            // a condition that cannot be read stays as written, in the problem colour
+            boolean unreadable = MachineConditions.parse(transition.condition()).problem().isPresent();
+            graphics.setColor(unreadable ? MachineColors.problem(scheme)
+                    : next ? MachineColors.active(scheme) : MachineColors.muted(scheme));
+            graphics.setFont(labelFont());
             drawCentred(graphics, label, arrow.labelAnchor());
         }
     }
@@ -142,7 +207,7 @@ final class MachineDiagramPainter {
         }
         Point2D centre = geometry.centre(state.id());
         graphics.setColor(MachineColors.text(scheme));
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, NAME_SIZE));
+        graphics.setFont(nameFont());
         drawCentred(graphics, state.name(), centre);
         if (!state.outputs().isEmpty()) {
             graphics.setColor(MachineColors.muted(scheme));

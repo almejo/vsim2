@@ -4,7 +4,9 @@ import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 
+import java.awt.BasicStroke;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.geom.CubicCurve2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
@@ -111,6 +113,42 @@ final class MachineDiagramGeometry {
         for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
             if (entry.getValue().distance(point) <= STATE_RADIUS) {
                 found = entry.getKey();
+            }
+        }
+        return Optional.ofNullable(found);
+    }
+
+    /** The part of a state a point is on: its middle (a drag moves it) or its border (a drag starts an arrow). */
+    enum StatePart { CENTRE, BORDER }
+
+    /** A point on the state {@code stateId}, on its {@code part}. */
+    record StateHit(String stateId, StatePart part) {
+    }
+
+    /**
+     * The state under {@code point} and which part of it: within {@code band} of its circle is its border (inside or
+     * just outside it), nearer the middle its centre. The state drawn last wins when they overlap.
+     */
+    Optional<StateHit> stateHitAt(Point2D point, double band) {
+        StateHit found = null;
+        for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
+            double distance = entry.getValue().distance(point);
+            if (Math.abs(distance - STATE_RADIUS) <= band) {
+                found = new StateHit(entry.getKey(), StatePart.BORDER);
+            } else if (distance < STATE_RADIUS) {
+                found = new StateHit(entry.getKey(), StatePart.CENTRE);
+            }
+        }
+        return Optional.ofNullable(found);
+    }
+
+    /** The arrow passing within {@code tolerance} of {@code point}; the one drawn last when several do. */
+    Optional<String> transitionAt(Point2D point, double tolerance) {
+        Stroke reach = new BasicStroke((float) (2 * tolerance), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+        String found = null;
+        for (Arrow arrow : arrows.values()) {
+            if (reach.createStrokedShape(arrow.path()).contains(point)) {
+                found = arrow.transitionId();
             }
         }
         return Optional.ofNullable(found);

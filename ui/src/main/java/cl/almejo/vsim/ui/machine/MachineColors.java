@@ -49,6 +49,11 @@ final class MachineColors {
         return mix(scheme.text(), scheme.background(), MUTED_MIX);
     }
 
+    /** A condition that cannot be read: the scheme's red (the conflict's). */
+    static Color problem(ColorScheme scheme) {
+        return scheme.wireConflict();
+    }
+
     static Color selection(ColorScheme scheme) {
         return scheme.selection();
     }

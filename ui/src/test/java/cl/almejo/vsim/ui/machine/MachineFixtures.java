@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
@@ -59,6 +60,19 @@ public final class MachineFixtures {
     public static OpenDocument circuitWithMachines(int copies) {
         OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         document.execute(new PutDefinitionsCommand(List.of(definition(detector()))));
+        for (int copy = 0; copy < copies; copy++) {
+            place(document, SubcircuitTypes.typeIdOf(DEFINITION_ID), copy * 20, 0, Map.of());
+        }
+        return document;
+    }
+
+    /**
+     * A new circuit holding the detector machine with its generated body and pins ({@code x}, {@code RST},
+     * {@code CLK} on the left, {@code Z} on the right), placed {@code copies} times; returns the document.
+     */
+    public static OpenDocument circuitWithGeneratedMachines(int copies) {
+        OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        document.execute(new PutDefinitionsCommand(List.of(MachineDefinitions.regenerated(definition(detector())))));
         for (int copy = 0; copy < copies; copy++) {
             place(document, SubcircuitTypes.typeIdOf(DEFINITION_ID), copy * 20, 0, Map.of());
         }

@@ -20,8 +20,8 @@ import java.awt.Font;
 /**
  * The left palette of a machine's tab (spec 2026-11-14 §1, the mockup's «Paleta»): the two drawing tools, «Estado»
  * and «Transición», and under «Y después» the next steps «Convertir a circuito…» and «Probar…», shown disabled with
- * «Llega en un próximo hito» until they arrive. The tools' gestures come with the diagram's drawing; here a tool is
- * only chosen (one at a time, or none).
+ * «Llega en un próximo hito» until they arrive. A tool is chosen here (one at a time, or none) and used once on the
+ * diagram ({@link MachineTool}): a click places a state, a drag joins two states.
  */
 public final class MachinePalette extends JPanel {
 
@@ -35,11 +35,11 @@ public final class MachinePalette extends JPanel {
     private final JButton convertButton = laterButton("machine.palette.convert");
     private final JButton testButton = laterButton("machine.palette.test");
     private final JLabel nextHeader = new JLabel(Messages.text("machine.palette.next"));
+    private final ButtonGroup tools = new ButtonGroup();
 
     public MachinePalette() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
-        ButtonGroup tools = new ButtonGroup();
         tools.add(stateButton);
         tools.add(transitionButton);
         add(stateButton);
@@ -64,6 +64,11 @@ public final class MachinePalette extends JPanel {
     /** «Transición»: joins two states with an arrow. */
     public JToggleButton transitionButton() {
         return transitionButton;
+    }
+
+    /** Chooses no tool: a placed state or a drawn arrow, or Esc, puts the diagram back to selecting. */
+    public void clearTool() {
+        tools.clearSelection();
     }
 
     /** «Convertir a circuito…» (hito 5). */
