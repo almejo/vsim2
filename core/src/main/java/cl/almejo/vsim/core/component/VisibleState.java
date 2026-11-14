@@ -29,6 +29,22 @@ public sealed interface VisibleState {
     record LedState(Value value) implements VisibleState {
     }
 
+    /**
+     * A «Máquina de estados»: its current state ({@code stateId} stable, {@code stateName} as shown) and where the
+     * next clock edge takes it with today's inputs ({@code nextTransitionId} empty when no arrow is taken and it
+     * stays; {@code nextStateId} empty only while {@code RST} holds it in the initial state).
+     */
+    record MachineVisibleState(String stateId, String stateName, Optional<String> nextStateId,
+                               Optional<String> nextTransitionId) implements VisibleState {
+
+        public MachineVisibleState {
+            Objects.requireNonNull(stateId, "stateId");
+            Objects.requireNonNull(stateName, "stateName");
+            Objects.requireNonNull(nextStateId, "nextStateId");
+            Objects.requireNonNull(nextTransitionId, "nextTransitionId");
+        }
+    }
+
     record SwitchState(Value value) implements VisibleState {
     }
 

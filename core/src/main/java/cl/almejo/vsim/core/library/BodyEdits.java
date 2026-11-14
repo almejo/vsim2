@@ -65,7 +65,7 @@ public final class BodyEdits {
         Optional<SymbolDrawing> appearance = previous.appearance().map(drawing -> drawing.size().equals(finalSize)
                 ? drawing : new SymbolDrawing(finalSize, drawing.elements(), drawing.showPinNames()));
         return new ComponentDefinition(previous.id(), previous.name(), previous.description(), size,
-                named(drafts), body, appearance, previous.revision()).revisedFrom(previous);
+                named(drafts), body, appearance, previous.revision(), previous.machine()).revisedFrom(previous);
     }
 
     /** True when {@code after} has another outside than {@code before}: size, or pins by position, direction, width. */

@@ -17,7 +17,8 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
- * Reads one line of «Circuito desde expresiones» (spec §3): {@code NAME = expression}.
+ * Reads one line of «Circuito desde expresiones» (spec §3): {@code NAME = expression}, or an expression alone (a
+ * state machine's condition, {@link #parseExpression}).
  * <p>
  * Names are a letter followed by letters, digits or {@code _} ({@code A}, {@code Cin}, {@code A1}, {@code carry_in});
  * letters written together are one name ({@code AB}). NOT is a postfix {@code '} (binds tightest) or a prefix
@@ -56,6 +57,24 @@ public final class ExpressionParser {
         }
     }
 
+    /** What {@link #parseExpression} read: the expression or its first problem, and the merged names like a line's. */
+    public record ExpressionResult(Optional<Expression> expression, Optional<ExpressionProblem> problem,
+                                   List<String> mergedNames) {
+
+        public ExpressionResult {
+            Objects.requireNonNull(expression, "expression");
+            Objects.requireNonNull(problem, "problem");
+            mergedNames = List.copyOf(mergedNames);
+            if (expression.isPresent() == problem.isPresent()) {
+                throw new IllegalArgumentException("either an expression or a problem");
+            }
+        }
+
+        static ExpressionResult failed(ExpressionProblem problem) {
+            return new ExpressionResult(Optional.empty(), Optional.of(problem), List.of());
+        }
+    }
+
     /** True for a valid variable or output name: a letter, then letters, digits or {@code _}. */
     public static boolean isName(String text) {
         if (text.isEmpty() || !Character.isLetter(text.charAt(0)) || isPrime(text.charAt(0))) {
@@ -90,13 +109,33 @@ public final class ExpressionParser {
         if (text.substring(equals + 1).isBlank()) {
             return ParseResult.failed(ExpressionProblem.at(equals + 1, ExpressionProblem.EMPTY_EXPRESSION));
         }
-        Parser parser = new Parser(tokens(text, equals + 1));
+        ExpressionResult result = parseFrom(text, equals + 1);
+        if (result.problem().isPresent()) {
+            return ParseResult.failed(result.problem().get());
+        }
+        return new ParseResult(Optional.of(new ExpressionLine(outputName, result.expression().orElseThrow())),
+                Optional.empty(), result.mergedNames());
+    }
+
+    /**
+     * Reads {@code text} as an expression alone, without {@code NAME =} (a state machine's condition); columns in the
+     * result are offsets in {@code text}. A blank text is {@link ExpressionProblem#EMPTY_EXPRESSION}.
+     */
+    public static ExpressionResult parseExpression(String text) {
+        Objects.requireNonNull(text, "text");
+        if (text.isBlank()) {
+            return ExpressionResult.failed(ExpressionProblem.at(0, ExpressionProblem.EMPTY_EXPRESSION));
+        }
+        return parseFrom(text, 0);
+    }
+
+    private static ExpressionResult parseFrom(String text, int start) {
+        Parser parser = new Parser(tokens(text, start));
         try {
             Expression expression = parser.parse();
-            return new ParseResult(Optional.of(new ExpressionLine(outputName, expression)), Optional.empty(),
-                    mergedNames(expression));
+            return new ExpressionResult(Optional.of(expression), Optional.empty(), mergedNames(expression));
         } catch (ParseFailure failure) {
-            return ParseResult.failed(failure.problem);
+            return ExpressionResult.failed(failure.problem);
         }
     }
 

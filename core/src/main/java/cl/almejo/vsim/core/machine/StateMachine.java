@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.machine;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -81,6 +82,9 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
             if (name == null || name.isBlank()) {
                 throw new IllegalArgumentException("a machine pin needs a name");
             }
+            if (MachineLimits.isReserved(name)) {
+                throw new IllegalArgumentException("every machine has the pin " + name + " already");
+            }
             if (!seen.add(name)) {
                 throw new IllegalArgumentException("machine pin name used twice: " + name);
             }
@@ -98,6 +102,75 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
     /** The arrows that leave {@code stateId}, in model order (self loops included). */
     public List<MachineTransition> transitionsFrom(String stateId) {
         return transitions.stream().filter(transition -> transition.fromId().equals(stateId)).toList();
+    }
+
+    /**
+     * The names the conditions read, in order of first appearance over the arrows (bad conditions add none), without
+     * {@code CLK}, {@code RST} and the names of {@link #outputNamesUsed() outputs} (an output is never an input).
+     */
+    public List<String> inputNamesUsed() {
+        Set<String> outputs = new HashSet<>(outputNamesUsed());
+        outputs.addAll(outputNames);
+        Set<String> names = new LinkedHashSet<>();
+        for (MachineTransition transition : transitions) {
+            for (String name : MachineConditions.parse(transition.condition()).names()) {
+                if (!MachineLimits.isReserved(name) && !outputs.contains(name)) {
+                    names.add(name);
+                }
+            }
+        }
+        return List.copyOf(names);
+    }
+
+    /**
+     * The names given a value by a state (Moore) or an arrow (Mealy), in order of first appearance (states first),
+     * without {@code CLK} and {@code RST}.
+     */
+    public List<String> outputNamesUsed() {
+        Set<String> names = new LinkedHashSet<>();
+        for (MachineState state : states) {
+            addOutputNames(names, state.outputs());
+        }
+        for (MachineTransition transition : transitions) {
+            addOutputNames(names, transition.outputs());
+        }
+        return List.copyOf(names);
+    }
+
+    private static void addOutputNames(Set<String> names, List<OutputAssignment> assignments) {
+        for (OutputAssignment assignment : assignments) {
+            if (!MachineLimits.isReserved(assignment.output())) {
+                names.add(assignment.output());
+            }
+        }
+    }
+
+    /**
+     * This machine with every name in use that is not a pin yet added after its pins (inputs and outputs), up to
+     * {@link MachineLimits}: «a new name in a condition creates an input». Pins no longer used stay («sin usar»).
+     */
+    public StateMachine withUsedNamesAdded() {
+        List<String> outputs = withAdded(outputNames, outputNamesUsed(), MachineLimits.MAXIMUM_OUTPUTS,
+                new HashSet<>(inputNames));
+        List<String> inputs = withAdded(inputNames, inputNamesUsed(), MachineLimits.MAXIMUM_INPUTS,
+                new HashSet<>(outputs));
+        if (inputs.equals(inputNames) && outputs.equals(outputNames)) {
+            return this;
+        }
+        return withPinNames(inputs, outputs);
+    }
+
+    private static List<String> withAdded(List<String> pins, List<String> used, int limit, Set<String> taken) {
+        List<String> result = new ArrayList<>(pins);
+        for (String name : used) {
+            if (result.size() >= limit) {
+                break;
+            }
+            if (!result.contains(name) && !taken.contains(name)) {
+                result.add(name);
+            }
+        }
+        return result;
     }
 
     public StateMachine withStates(List<MachineState> newStates) {

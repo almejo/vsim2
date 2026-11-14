@@ -192,6 +192,32 @@ class ExpressionParserTest {
         assertThat(ExpressionParser.parseLine("F = A +").mergedNames()).isEmpty();
     }
 
+    // --- an expression alone (state machine conditions) ---
+
+    @Test
+    void anExpressionAloneReadsLikeTheRightSideOfALine() {
+        ExpressionParser.ExpressionResult result = ExpressionParser.parseExpression("A B' + C");
+        assertThat(result.problem()).isEmpty();
+        assertThat(result.expression()).contains(or(and(A, new Not(B)), C));
+    }
+
+    @Test
+    void anExpressionAloneReportsColumnsInItsOwnText() {
+        ExpressionParser.ExpressionResult result = ExpressionParser.parseExpression("A + + B");
+        assertThat(result.expression()).isEmpty();
+        assertThat(result.problem().orElseThrow().messageKey()).isEqualTo(ExpressionProblem.MISSING_OPERAND);
+        assertThat(result.problem().orElseThrow().column()).isEqualTo(4);
+        assertThat(ExpressionParser.parseExpression("  ").problem().orElseThrow().messageKey())
+                .isEqualTo(ExpressionProblem.EMPTY_EXPRESSION);
+        assertThat(ExpressionParser.parseExpression("A = B").problem().orElseThrow().messageKey())
+                .isEqualTo(ExpressionProblem.UNEXPECTED_CHARACTER);
+    }
+
+    @Test
+    void anExpressionAloneReportsMergedNames() {
+        assertThat(ExpressionParser.parseExpression("AB + C").mergedNames()).containsExactly("AB");
+    }
+
     // --- the tree ---
 
     @Test

@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.StateMachine;
 
 import java.util.HashSet;
@@ -151,6 +152,19 @@ public record ComponentDefinition(String id, String name, String description, Gr
     /** The same revision of this definition with {@code newBody} (its outside is unchanged). */
     public ComponentDefinition withBody(CircuitFragment newBody) {
         return new ComponentDefinition(id, name, description, size, pinout, newBody, appearance, revision, machine);
+    }
+
+    /**
+     * The same revision of this definition as the «Máquina de estados» {@code newMachine}: its body, pinout and size
+     * generated from the model ({@link MachineBody}); a drawn appearance is kept and its pins reconciled as for any
+     * update ({@link AppearanceReconciler#preserveGeneralAppearance}). Edits give it its next revision with
+     * {@link #revisedFrom}.
+     */
+    public ComponentDefinition withMachine(StateMachine newMachine) {
+        MachineBody generated = MachineBody.of(Objects.requireNonNull(newMachine, "newMachine"));
+        ComponentDefinition plain = new ComponentDefinition(id, name, description, generated.size(),
+                generated.pinout(), generated.body(), Optional.empty(), revision, Optional.of(newMachine));
+        return appearance.isEmpty() ? plain : AppearanceReconciler.preserveGeneralAppearance(this, plain);
     }
 
     /** The index of the pin named {@code pinName} in the pinout (names are unique); empty when there is none. */

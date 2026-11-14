@@ -32,7 +32,8 @@ class InstanceMemoryContentsInFilesTest {
         String json = format.write(document);
         CircuitDocument read = format.read(json);
 
-        assertThat(json).contains("\"formatVersion\" : 6").contains("\"memoryContents\" : {");
+        assertThat(json).contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION)
+                .contains("\"memoryContents\" : {");
         assertThat(read.component(new ElementId("c1")).orElseThrow().memoryContents()).containsExactly(
                 Map.entry("c10", "@1 7"));
         assertThat(read.component(new ElementId("c2")).orElseThrow().memoryContents()).isEmpty();
@@ -56,7 +57,8 @@ class InstanceMemoryContentsInFilesTest {
 
     @Test
     void anOldFileLoadsWithoutOverrides() throws CircuitFormatException {
-        String old = format.write(twoSmallMemories()).replace("\"formatVersion\" : 6", "\"formatVersion\" : 5");
+        String old = format.write(twoSmallMemories()).replace("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION,
+                "\"formatVersion\" : 5");
 
         CircuitDocument read = format.read(old);
 
