@@ -112,6 +112,8 @@ public final class EditorActions {
     private final Action closeComponents;
     private final Action about;
     private final Action reportProblem;
+    /** What the zoom actions act on instead of the active pane (a machine's diagram); empty for a circuit. */
+    private Optional<ContentZoom> contentZoom = Optional.empty();
 
     /**
      * The actions of one window: {@code activePane} (its active pane) is resolved each time an action runs (zoom, centre,
@@ -172,17 +174,19 @@ public final class EditorActions {
         panTool = Actions.of(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
         zoomTool = Actions.of(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
         zoomTool.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.toolZoom"));
-        zoomIn = Actions.of(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0), 
-                () -> activePane.get().zoomIn());
+        zoomIn = Actions.of(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0),
+                () -> zoom(ContentZoom::zoomIn, CircuitCanvas::zoomIn));
         zoomOut = Actions.of(Messages.text("action.zoomOut"), shortcut(KeyEvent.VK_MINUS, 0),
-                () -> activePane.get().zoomOut());
+                () -> zoom(ContentZoom::zoomOut, CircuitCanvas::zoomOut));
         zoomReset = Actions.of(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0),
-                () -> activePane.get().resetZoom());
-        zoomToFit = Actions.of(Messages.text("action.zoomToFit"), null, this::zoomToCircuit);
+                () -> zoom(ContentZoom::resetZoom, CircuitCanvas::resetZoom));
+        zoomToFit = Actions.of(Messages.text("action.zoomToFit"), null,
+                () -> zoom(ContentZoom::zoomToFit, pane -> zoomToCircuit()));
         zoomToFit.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToFit"));
         zoomToSelection = Actions.of(Messages.text("action.zoomToSelection"), null, this::zoomToSelected);
         zoomToSelection.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToSelection"));
-        centerView = Actions.of(Messages.text("action.centerView"), null, () -> activePane.get().centerCircuit());
+        centerView = Actions.of(Messages.text("action.centerView"), null,
+                () -> zoom(ContentZoom::center, CircuitCanvas::centerCircuit));
         start = Actions.of(Messages.text("action.start"), null, openDocument::resume);
         pause = Actions.of(Messages.text("action.pause"), null, openDocument::pause);
         startOrPause = Actions.of(Messages.text("action.startOrPause"), KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
@@ -495,6 +499,30 @@ public final class EditorActions {
         moveActions.values().forEach(move -> move.setEnabled(actsOnSelection));
         zoomToSelection.setEnabled(!selected.isEmpty());
         configure.setEnabled(singleConfigurable().isPresent());
+    }
+
+    /**
+     * The zoom actions («Acercar», «Alejar», «Zoom 100 %», «Ver todo el circuito», «Centrar circuito») act on
+     * {@code content} instead of the active pane until the returned runnable runs: the view shows it in place of its
+     * circuit panes (a machine's diagram).
+     */
+    public Runnable zoomContentInstead(ContentZoom content) {
+        Optional<ContentZoom> zoomed = Optional.of(Objects.requireNonNull(content, "content"));
+        contentZoom = zoomed;
+        return () -> {
+            if (contentZoom.equals(zoomed)) {
+                contentZoom = Optional.empty();
+            }
+        };
+    }
+
+    /** The content the zoom actions act on now, when the view shows one instead of its panes. */
+    public Optional<ContentZoom> contentZoom() {
+        return contentZoom;
+    }
+
+    private void zoom(Consumer<ContentZoom> onContent, Consumer<CircuitCanvas> onPane) {
+        contentZoom.ifPresentOrElse(onContent, () -> onPane.accept(activePane.get()));
     }
 
     public void refreshSimulationButtons(boolean running) {

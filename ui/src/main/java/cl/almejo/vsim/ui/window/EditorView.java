@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.ContentZoom;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
@@ -137,8 +138,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
-    private final InspectorPanel inspector = new InspectorPanel(viewFocus, () -> viewFocus.request(canvas()));
+    private final InspectorPanel inspector = new InspectorPanel(viewFocus, () -> viewFocus.request(focusTarget()));
     private final CanvasArea canvasArea;
+    /** What {@link #showInsteadOfCanvas} shows where the panes go; empty while they show. */
+    private Optional<JComponent> canvasSubstitute = Optional.empty();
     private final BottomDock bottomDock;
     /** Canvas | right panel; the left column | this; both with the strip: rearranged by presentation mode. */
     private final JSplitPane inspectorSplit;
@@ -213,7 +216,8 @@ public final class EditorView extends JPanel implements CanvasHost {
             setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
             canvas().requestFocusInWindow();
         });
-        this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
+        this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus,
+                () -> viewFocus.request(focusTarget()));
         createInspectorToggles();
 
         this.menuBar = actions.createMenuBar();
@@ -313,6 +317,51 @@ public final class EditorView extends JPanel implements CanvasHost {
      * Actions that read or move the view resolve it when they run, never once at install.
      */
     public CircuitCanvas canvas() { return canvasPanes.active(); }
+
+    /**
+     * What gets the keyboard focus when it goes back to the canvas (a tab shown, Esc in a side panel): the active pane,
+     * or the content shown instead of the panes ({@link #showInsteadOfCanvas}).
+     */
+    public java.awt.Component focusTarget() {
+        if (canvasSubstitute.isPresent()) {
+            return canvasSubstitute.get();
+        }
+        return canvas();
+    }
+
+    /**
+     * Shows {@code content} where the circuit panes go (a machine's diagram, spec 2026-11-14 §2.4) until the returned
+     * runnable runs: the panes leave the view, so they get no pointer, key, focus or drop (their frame timer stops;
+     * whoever shows the content keeps their snapshot listeners fed with {@link CircuitCanvas#refreshSnapshot}), the
+     * zoom actions and the status bar's zoom act on {@code zoom}, and the focus goes to {@code content}. What is shown
+     * above the canvas (the place bar, the find bar) stays. One content at a time.
+     */
+    public Runnable showInsteadOfCanvas(JComponent content, ContentZoom zoom) {
+        Objects.requireNonNull(content, "content");
+        Objects.requireNonNull(zoom, "zoom");
+        if (canvasSubstitute.isPresent()) {
+            throw new IllegalStateException("the view already shows another content instead of its panes");
+        }
+        canvasArea.remove(canvasPanes);
+        canvasArea.add(content, BorderLayout.CENTER);
+        canvasSubstitute = Optional.of(content);
+        canvasArea.layOutNow();
+        Runnable stopZooming = actions.zoomContentInstead(zoom);
+        Runnable stopFollowingTheZoom = zoom.addViewListener(() -> statusBar.showZoom(zoom.zoom()));
+        statusBar.showZoom(zoom.zoom());
+        return () -> {
+            if (canvasSubstitute.isEmpty() || canvasSubstitute.get() != content) {
+                return;
+            }
+            stopFollowingTheZoom.run();
+            stopZooming.run();
+            canvasArea.remove(content);
+            canvasArea.add(canvasPanes, BorderLayout.CENTER);
+            canvasSubstitute = Optional.empty();
+            canvasArea.layOutNow();
+            statusBar.showZoom(canvas().viewport().zoom());
+        };
+    }
 
     /** Every pane of this window, in reading order. */
     public List<CircuitCanvas> panes() {
@@ -927,23 +976,26 @@ public final class EditorView extends JPanel implements CanvasHost {
 
         @Override
         public double zoom() {
-            return canvas().viewport().zoom();
+            return actions.contentZoom().map(ContentZoom::zoom).orElseGet(() -> canvas().viewport().zoom());
         }
 
         @Override
         public void zoomAroundCenter(double zoom) {
-            canvas().zoomAroundCenter(zoom);
+            actions.contentZoom().ifPresentOrElse(content -> content.zoomAroundCenter(zoom),
+                    () -> canvas().zoomAroundCenter(zoom));
         }
 
         @Override
         public void zoomTo(double zoom) {
-            CircuitCanvas pane = canvas();
-            pane.zoomTo(ZoomTargets.atZoom(pane.viewState(), zoom));
+            actions.contentZoom().ifPresentOrElse(content -> content.zoomAroundCenter(zoom), () -> {
+                CircuitCanvas pane = canvas();
+                pane.zoomTo(ZoomTargets.atZoom(pane.viewState(), zoom));
+            });
         }
 
         @Override
         public void returnFocus() {
-            canvas().requestFocusInWindow();
+            focusTarget().requestFocusInWindow();
         }
     }
 
@@ -1014,7 +1066,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         if (canvas.tool() != canvas.defaultTool() || canvas.drawsBetweenClicks()) {
             canvas.pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
         }
-        viewFocus.request(canvas);
+        viewFocus.request(focusTarget());
     }
 
     /**

@@ -1953,7 +1953,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     /** Called every frame: publishes a new snapshot and repaints only if something visible changed. */
-    void refreshSnapshot() {
+    /**
+     * Shows the document's latest snapshot now and hands it to the snapshot listeners (the status bar, Problemas). The
+     * frame timer does this while the pane is shown; a view that shows another content instead of its panes (a
+     * machine's diagram) calls it on its own frames, so what follows the snapshot keeps going.
+     */
+    public void refreshSnapshot() {
         display(openDocument.latestSnapshot());
     }
 

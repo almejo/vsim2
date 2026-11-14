@@ -36,6 +36,7 @@ import cl.almejo.vsim.ui.logisim.LogisimImportExtension;
 import cl.almejo.vsim.ui.capture.CaptureButtonExtension;
 import cl.almejo.vsim.ui.capture.WindowExportExtension;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
+import cl.almejo.vsim.ui.machine.MachineModeExtension;
 import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.print.PrintExtension;
@@ -350,6 +351,8 @@ public final class Application {
         editorExtensions.add(new LogisimImportExtension(startDirectory, chosen)); // the last item of Importar
         editorExtensions.add(new ShortcutEchoExtension()); // after every menu item and button, before the strokes
         editorExtensions.add(new ShortcutsExtension());
+        // a machine's tab: last, so it sees every menu item, button and shortcut it disables
+        editorExtensions.add(new MachineModeExtension());
         return List.copyOf(editorExtensions);
     }
 

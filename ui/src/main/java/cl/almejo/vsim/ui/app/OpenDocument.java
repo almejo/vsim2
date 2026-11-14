@@ -170,6 +170,8 @@ public final class OpenDocument implements AutoCloseable {
     private final Listeners<Runnable> refreshListeners = new Listeners<>();
     private final Listeners<Runnable> bodyRemovedListeners = new Listeners<>();
     private final Listeners<Consumer<InsideEditRefusedException>> refusalListeners = new Listeners<>();
+    /** Checks a body place's edits before they apply; one throws {@link InsideEditRefusedException} to refuse. */
+    private final Listeners<Consumer<Command>> insideEditGuards = new Listeners<>();
     /** A body place's last remapped snapshot and what it was made from; replaced whole, so any thread may read it. */
     private volatile Remapped remapped;
 
@@ -464,6 +466,16 @@ public final class OpenDocument implements AutoCloseable {
         return refusalListeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
+    /**
+     * Runs {@code guard} on every edit of this body place before it applies; the guard refuses one by throwing
+     * {@link InsideEditRefusedException}, which then goes where any refused edit inside goes (the refusal listeners,
+     * else the caller: the AI hears it). A machine's tab refuses every circuit edit of its pins-only body this way
+     * (a paste, a dropped file, the AI). Returns its removal.
+     */
+    public Runnable addInsideEditGuard(Consumer<Command> guard) {
+        return insideEditGuards.add(Objects.requireNonNull(guard, "guard"));
+    }
+
     /** The document itself; for a body place, its document. */
     private OpenDocument main() {
         return body == null ? this : body.parent;
@@ -532,6 +544,7 @@ public final class OpenDocument implements AutoCloseable {
         EditInsideCommand inside = new EditInsideCommand(workingCopy.definitionId(), command, workingCopy.document(),
                 registry, contextPath);
         try {
+            insideEditGuards.fire(guard -> guard.accept(command));
             workingCopy.write(() -> body.parent.execute(together.apply(inside)));
         } catch (InsideEditRefusedException refusal) {
             if (refusalListeners.size() == 0) {

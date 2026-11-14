@@ -733,7 +733,7 @@ public final class WindowTabs extends JPanel {
         }
         SwingUtilities.invokeLater(() -> {
             if (entry.id.equals(shownId)) {
-                entry.view.canvas().requestFocusInWindow();
+                entry.view.focusTarget().requestFocusInWindow();
             }
         });
     }
@@ -744,7 +744,7 @@ public final class WindowTabs extends JPanel {
         activeEntry().ifPresent(entry -> {
             entry.initialViewShown = true;
             entry.initialView.opened(maximized);
-            entry.view.canvas().requestFocusInWindow();
+            entry.view.focusTarget().requestFocusInWindow();
         });
     }
 

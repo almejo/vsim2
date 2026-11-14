@@ -154,6 +154,29 @@ public final class LeftColumn extends JPanel {
         };
     }
 
+    /**
+     * Shows {@code body} instead of the palette, under the same «Paleta» header and with the same fold and Alt+2, until
+     * the returned runnable runs (a machine's tab shows its own palette: Estado, Transición). Calling it twice does
+     * nothing more.
+     */
+    public Runnable showInsteadOfPalette(JComponent body) {
+        Objects.requireNonNull(body, "body");
+        Panel palette = panels.get(Section.PALETTE);
+        Panel replacement = new Panel(palette.title, body, toggles.get(Section.PALETTE), () -> flip(Section.PALETTE));
+        panels.put(Section.PALETTE, replacement);
+        layOutPanels();
+        boolean[] restored = {false};
+        return () -> {
+            if (restored[0]) {
+                return;
+            }
+            restored[0] = true;
+            panels.put(Section.PALETTE, palette);
+            replacement.dispose();
+            layOutPanels();
+        };
+    }
+
     /** The header text of {@code section}, when it shows one (headers show only with a panel above the palette). */
     public Optional<String> title(Section section) {
         if (!panels.containsKey(Section.CIRCUIT)) {
