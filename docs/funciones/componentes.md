@@ -266,8 +266,10 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
 - **Crearla**: en la paleta, Memoria ▸ «Máquina de estados» (el buscador de la paleta la encuentra con
   «máquina» o «estados»). Elígela y haz clic donde quieras ponerla (Mayús sigue poniendo más; Esc o el clic derecho
   cancelan). Crea el componente y su pieza en un solo paso de deshacer; el componente aparece en «Componentes de este
-  circuito» con un nombre y un identificador propios, «Máquina 1» (`maquina-1`), «Máquina 2»… sin repetirse en el
-  circuito.
+  circuito» con el nombre «Máquina 1», «Máquina 2»… (el siguiente libre en el circuito, también si se crea dentro de
+  un componente propio) y un identificador único, `maquina-` con seis letras o cifras al azar que no usa ni el
+  circuito ni «Mis componentes»: así, pegar una máquina en otro circuito o guardarla en la librería nunca la confunde
+  con otra que se llame igual.
 - **Qué es**: un componente propio cuyo interior no son piezas y cables sino un diagrama de estados y flechas, que se
   dibuja en su pestaña. Parte con un estado `S0`, inicial, y con los pines `RST` y `CLK`; un nombre nuevo en una
   condición o en una salida de Moore agrega su pin. Es una sola pieza que se simula directo, sin compuertas por dentro:

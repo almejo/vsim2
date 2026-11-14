@@ -216,7 +216,7 @@ public final class EditorView extends JPanel implements CanvasHost {
                 FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {
             if (entry.id().equals(MachineCreation.PALETTE_ID)) {
-                setToolOnEveryPane(PlaceMachineTool::new);
+                setToolOnEveryPane(() -> new PlaceMachineTool(services.library()::ids));
             } else {
                 setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
             }

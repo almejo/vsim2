@@ -8,12 +8,22 @@ import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.awt.Cursor;
 import java.awt.event.KeyEvent;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Armed by the palette's «Máquina de estados»: the next click on the canvas creates a machine there
  * ({@link MachineCreation#create}) and returns to the default tool (Shift keeps creating, as for any part).
  */
 public final class PlaceMachineTool implements Tool {
+
+    private final Supplier<Set<String>> libraryIds;
+
+    /** @param libraryIds the ids of «Mis componentes», read on each click: a new machine's id is none of them */
+    public PlaceMachineTool(Supplier<Set<String>> libraryIds) {
+        this.libraryIds = Objects.requireNonNull(libraryIds, "libraryIds");
+    }
 
     @Override
     public boolean placesFromPalette() {
@@ -34,7 +44,8 @@ public final class PlaceMachineTool implements Tool {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
-        CreateMachineCommand command = MachineCreation.create(context.openDocument(), event.snapped());
+        CreateMachineCommand command = MachineCreation.create(context.openDocument(), event.snapped(),
+                libraryIds.get());
         context.selection().select(command.instanceId().orElseThrow());
         context.repaint();
         if (!event.shiftDown()) {
