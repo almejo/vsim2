@@ -235,22 +235,41 @@ public final class TemplateActions {
             dialogs.showMessage(canvas.get(), Messages.text("template.noInterfacePins"));
             return;
         }
+        List<ComponentDefinition> targets = updateTargets(document);
+        if (targets.isEmpty()) {
+            dialogs.showMessage(canvas.get(), Messages.text("machine.refused.update"));
+            return;
+        }
         PinOrder order = DefinitionBuilder.defaultPinOrder(document, ids);
         ComponentForm form = ComponentForm.update(order, DefinitionBuilder.pinNames(document, order), takenNames(),
-                document.definitions(), offersMemoryLinks(document, ids));
+                targets, offersMemoryLinks(document, ids));
         dialogs.editComponent(canvas.get(), form).ifPresent(result -> update(ids, result, form.keepMemoryLinks()));
+    }
+
+    /**
+     * The definitions «Actualizar componente…» may replace: every one but the state machines, whose body is generated
+     * from their diagram (a selection would turn one silently into a circuit component and leave its tab with no
+     * machine, review I3).
+     */
+    private static List<ComponentDefinition> updateTargets(CircuitDocument document) {
+        return document.definitions().stream().filter(definition -> !definition.isMachine()).toList();
     }
 
     /**
      * "Desarmar": one undo step that removes the instance, pastes its body (interface pins included) unrotated with
      * the body's top-left at the instance's top-left, and bridges each instance pin that had an outside connection to
      * its pasted interface pin ({@link Disassembly}); the pasted parts become the selection. When the body would land
-     * on a foreign wire or pin nothing changes and a message says so; pins that cannot be bridged are named.
+     * on a foreign wire or pin nothing changes and a message says so; pins that cannot be bridged are named. A state
+     * machine is refused with its reason: its body is only its pins («Convertir a circuito» comes later).
      */
     public void disassemble(Component instance) {
         ComponentTypeRegistry registry = openDocument.registry();
         Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(registry.typeOf(instance));
         if (definition.isEmpty()) {
+            return;
+        }
+        if (definition.get().isMachine()) {
+            dialogs.showMessage(canvas.get(), Messages.text("machine.refused.disassemble"));
             return;
         }
         CircuitDocument document = openDocument.document();
@@ -348,11 +367,19 @@ public final class TemplateActions {
         return Actions.of(Messages.text("action.enter"), () -> canvas.get().enterComponent(instance));
     }
 
-    /** "Desarmar" for {@code instance}, with its icon. */
+    /** "Desarmar" for {@code instance}, with its icon; disabled with the reason as its tooltip on a state machine. */
     Action disassembleAction(Component instance) {
         Action action = Actions.of(Messages.text("action.disassemble"), () -> disassemble(instance));
         Icons.install(action, TemplateIcons.DISASSEMBLE);
+        if (definitionOf(instance).filter(ComponentDefinition::isMachine).isPresent()) {
+            action.setEnabled(false);
+            action.putValue(Action.SHORT_DESCRIPTION, Messages.text("machine.refused.disassemble"));
+        }
         return action;
+    }
+
+    private Optional<ComponentDefinition> definitionOf(Component instance) {
+        return SubcircuitTypes.definitionOf(openDocument.registry().typeOf(instance));
     }
 
     /** "Actualizar desde la librería" for {@code instance}, with its icon. */

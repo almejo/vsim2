@@ -282,6 +282,10 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   forma dibujada en el editor de formas reemplaza esta cara.
 - **Entrar**: doble clic, Enter o «Entrar ↘» abren su pestaña, con el diagrama en lugar del lienzo del circuito; ahí las
   acciones de piezas y cables están apagadas y dicen por qué. Editar el diagrama cambia todas las copias.
+- **Lo que no se le hace**: su interior no se edita con piezas ni cables desde ningún lado (tampoco la IA: recibe el
+  motivo). En el menú contextual de la pieza, «Desarmar» aparece apagado y dice por qué (convertirla a circuito llega en
+  una próxima versión), y «Actualizar componente…» no ofrece las máquinas como el componente a reemplazar: si las
+  únicas del circuito son máquinas, un mensaje lo explica.
 - **Archivos**: guardar un circuito con una máquina usa el formato 7; una versión anterior de VSim no puede abrirlo.
 
 ## Terminal y teclado
