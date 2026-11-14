@@ -171,6 +171,11 @@ public final class LogisimNotes {
     public static final String EXPORT_UNROUTED_PIN = "logisimExport.note.unroutedPin";
     /** A part with no free place near its VSim one: it goes apart, below the circuit. */
     public static final String EXPORT_CROWDED_PART = "logisimExport.note.crowdedPart";
+    /**
+     * A state machine, which Logisim has not: its circuit is only its pins, an empty box that does nothing; then the
+     * machine's name.
+     */
+    public static final String EXPORT_STATE_MACHINE = "logisimExport.note.stateMachine";
     /** Sticky notes and frames, which Logisim has not: how many were left out. */
     public static final String EXPORT_ANNOTATIONS = "logisimExport.note.annotations";
 
@@ -201,7 +206,7 @@ public final class LogisimNotes {
             EXPORT_SIGNEDNESS, EXPORT_CHARACTER_WIDTH, EXPORT_SWITCH_AS_CONSTANT, EXPORT_SWITCH_VALUE,
             EXPORT_TERMINAL_SIZE, EXPORT_KEYBOARD_BUFFER, EXPORT_LOOSE_WRITE_ENABLE, EXPORT_RAM_WITHOUT_WRITE_ENABLE,
             EXPORT_COUNTER_LOAD, EXPORT_LOOSE_BUFFER_CONTROL, EXPORT_UNROUTED_PIN, EXPORT_CROWDED_PART,
-            EXPORT_ANNOTATIONS);
+            EXPORT_STATE_MACHINE, EXPORT_ANNOTATIONS);
 
     private LogisimNotes() {
     }
