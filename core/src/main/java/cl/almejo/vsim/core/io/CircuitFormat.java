@@ -58,16 +58,17 @@ import java.util.function.UnaryOperator;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 
-/** Reads formats 2 to 6 and writes format 6 (JSON; first keys in {@link FileHeader}). */
+/** Reads formats 2 to 7 and writes format 7 (JSON; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
     /**
      * 4: parameterized gates ({@link LegacyGateMigration}); 5: the thin register ({@link RegisterShapeMigration}) and
      * the D flip-flop's Q̅, off on old parts ({@link FlipFlopNotOutputMigration}); 6: a piece's own memory contents
      * ({@code memoryContents}, optional: older files read unchanged, and an older VSim refuses a newer file instead of
-     * dropping them).
+     * dropping them); 7: a definition's optional {@code machine}, a «Máquina de estados» whose body is generated from it
+     * (an older VSim refuses the file instead of showing the machine as an empty component).
      */
-    public static final int FORMAT_VERSION = 6;
+    public static final int FORMAT_VERSION = 7;
     static final String KIND_CIRCUIT = "circuit";
     private static final String STICKY_KIND_TEXT = "text";
     private static final String STICKY_KIND_LIST = "list";

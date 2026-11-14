@@ -106,7 +106,7 @@ public final class LibraryImport {
         List<String> takenNames = library.entries().stream().map(entry -> entry.root().name()).toList();
         ComponentDefinition copy = new ComponentDefinition(DefinitionIds.unique(root.id(), takenIds),
                 DefinitionNames.unique(root.name(), takenNames), root.description(), root.size(), root.pinout(),
-                root.body(), root.appearance(), root.revision());
+                root.body(), root.appearance(), root.revision(), root.machine());
         return new DefinitionBundle(copy, bundle.dependencies());
     }
 

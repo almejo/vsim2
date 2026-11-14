@@ -63,6 +63,10 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         ComponentDefinition previous = document.definition(definitionId).orElseThrow(() ->
                 new IllegalStateException("the document has no definition " + definitionId));
         placeName = previous.name();
+        if (bodyCommand instanceof EditsDefinitionItself definitionEdit) {
+            applyToTheDefinition(document, definitionEdit);
+            return;
+        }
         if (prepared && !copyMatches(document)) {
             if (writeBack != null) {
                 writeBack.apply(document);
@@ -85,6 +89,21 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
             bodyCommand.revert(workingCopy);
             throw exception;
         }
+    }
+
+    /**
+     * An edit of the definition itself (a machine's diagram): it applies to the document, and the working copy, whose
+     * body it does not edit, is brought to the new body afterwards (ids kept). What its update of the placed pieces
+     * could not carry is reported like a write-back's.
+     */
+    private void applyToTheDefinition(CircuitDocument document, EditsDefinitionItself definitionEdit) {
+        if (!definitionEdit.definitionId().equals(definitionId)) {
+            throw new IllegalArgumentException("an edit of " + definitionId + " cannot change "
+                    + definitionEdit.definitionId());
+        }
+        definitionEdit.apply(document);
+        writeBack = definitionEdit.plannedUpdate().orElse(null);
+        bringCopyToTheDefinition(document);
     }
 
     /**
@@ -143,6 +162,11 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
 
     @Override
     public void revert(CircuitDocument document) {
+        if (bodyCommand instanceof EditsDefinitionItself definitionEdit) {
+            definitionEdit.revert(document);
+            bringCopyToTheDefinition(document);
+            return;
+        }
         if (!copyMatches(document)) {
             if (writeBack != null) {
                 writeBack.revert(document);

@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.7",
-  "formatVersion" : 6,
+  "formatVersion" : 7,
   "kind" : "circuit",
   "name" : "Ver todo y la selección",
   "components" : [ {
