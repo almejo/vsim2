@@ -37,6 +37,7 @@ import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -323,6 +324,26 @@ class EditorAutomationHostPlacesTest {
             return Boolean.TRUE;
         }).get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(AutomationException.class)
                 .cause().hasMessageContaining(Messages.format("inside.cannotNestItself"));
+    }
+
+    @Test
+    void theAiCannotEditAMachinesBodyThroughItsPlace() throws Exception {
+        ComponentDefinition machine = MachineDefinitions.create("maquina-ia", "Máquina 1");
+        onEditor(() -> {
+            circuit.execute(new PutDefinitionsCommand(List.of(machine)));
+            return null;
+        });
+        DocumentId inMachine = id.in(new PlaceRef(machine.id(), Optional.empty()));
+        long version = api.readCircuit(inMachine, ReadFilter.SUMMARY, Optional.empty()).version().value();
+
+        assertThatThrownBy(() -> api.editStep(new EditRequest(inMachine, new DocumentVersion(version), "op-9",
+                Optional.empty(), List.of(new EditOperation.PlacePart(Optional.of("lamp"), "led", 10, 10, Rotation.R0,
+                        Map.of(), "")), false), Optional.empty()))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> {
+                    assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
+                    assertThat(refusal.getMessage()).contains(Messages.format("machine.refused.circuitEdit"));
+                });
+        assertThat(onEditor(() -> circuit.document().definition(machine.id()).orElseThrow())).isSameAs(machine);
     }
 
     @Test

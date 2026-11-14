@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** A machine edit is one undo step; a new name in a condition adds a pin and the placed pieces' wires follow. */
 class EditMachineCommandTest {
@@ -98,6 +99,36 @@ class EditMachineCommandTest {
         assertThat(document.definition(MACHINE_ID)).containsSame(original);
         assertThat(history.canUndo()).isFalse();
         assertThat(workingCopy.components()).extracting(Component::label).doesNotContain("x");
+    }
+
+    @Test
+    void aCircuitEditInsideAMachineIsRefusedWhoeverMakesItAndNothingChanges() {
+        CircuitDocument workingCopy = original.bodyDocument(document);
+        Component lamp = new Component(new ElementId("c99"), StandardComponentTypes.LED, new GridPoint(40, 40),
+                Rotation.R0, Map.of(), "");
+        EditInsideCommand inside = new EditInsideCommand(MACHINE_ID, new AddElementsCommand(List.of(lamp)),
+                workingCopy, registry);
+
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> assertThat(refusal.messageKey()).isEqualTo(EditInsideCommand.MACHINE_REFUSAL));
+
+        assertThat(document.definition(MACHINE_ID)).containsSame(original);
+        assertThat(workingCopy.components()).doesNotContain(lamp);
+        assertThat(history.canUndo()).isFalse();
+    }
+
+    @Test
+    void anotherMachinesEditInsideAMachineIsRefusedToo() {
+        ComponentDefinition other = MachineDefinitions.create("maquina-otra", "Máquina 2");
+        document.putDefinition(other);
+        EditInsideCommand inside = new EditInsideCommand(MACHINE_ID, new EditMachineCommand(other.id(),
+                withSelfLoop("y")), original.bodyDocument(document), registry);
+
+        assertThatThrownBy(() -> history.execute(inside)).isInstanceOfSatisfying(InsideEditRefusedException.class,
+                refusal -> assertThat(refusal.messageKey()).isEqualTo(EditInsideCommand.MACHINE_REFUSAL));
+
+        assertThat(document.definition(other.id())).containsSame(other);
+        assertThat(history.canUndo()).isFalse();
     }
 
     @Test

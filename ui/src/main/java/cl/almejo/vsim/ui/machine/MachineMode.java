@@ -1,8 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
-import cl.almejo.vsim.core.command.Command;
+import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.EditMachineCommand;
-import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -17,10 +16,11 @@ import java.util.Optional;
  * tab of the machine's definition (tabs, window, toolbar, menus, history, «Valores de» and presentation mode work as
  * everywhere) that shows the machine's diagram ({@link MachineCanvas}) where the circuit panes go and its own palette
  * ({@link MachinePalette}) instead of the parts. The generated pins-only body never reaches the user: its panes leave
- * the view, every circuit action is disabled with its reason ({@link MachineActionPolicy}) and the place refuses every
- * circuit edit (a paste, a dropped file, the AI). The machine's own edits ({@link MachineEditing}) are each one
- * {@link EditMachineCommand} of its definition, the only edit the place lets through, so it is one undo step of the
- * circuit that belongs to this tab.
+ * the view and every circuit action is disabled with its reason ({@link MachineActionPolicy}). Any place of a machine's
+ * body, this tab's or one opened without it (the AI), refuses every circuit edit ({@link EditInsideCommand}). The
+ * machine's own edits ({@link MachineEditing}) are each one {@link EditMachineCommand} of its definition, the only
+ * edit a machine's place lets through; made through this tab's place, it is one undo step of the circuit that
+ * belongs to this tab.
  */
 public final class MachineMode {
 
@@ -57,8 +57,6 @@ public final class MachineMode {
         Runnable showDiagram = view.showInsteadOfCanvas(canvas, canvas);
         Runnable showPalette = view.leftColumn().showInsteadOfPalette(palette);
         Runnable enableCircuitActions = MachineActionPolicy.disableCircuitActions(view);
-        Runnable acceptCircuitEdits = place.addInsideEditGuard(
-                command -> refuseCircuitEdit(command, machineId.get()));
         // the hidden panes' snapshot listeners (status bar, run buttons, Problemas) follow the diagram's frames
         Runnable stopFeedingThePanes = canvas.addFrameListener(
                 () -> view.panes().forEach(CircuitCanvas::refreshSnapshot));
@@ -66,8 +64,7 @@ public final class MachineMode {
         view.putClientProperty(MachineMode.class, new MachineMode(canvas, palette, editing));
         return () -> {
             view.putClientProperty(MachineMode.class, null);
-            for (Runnable undo : List.of(editing::uninstall, stopFeedingThePanes, acceptCircuitEdits,
-                    enableCircuitActions, showPalette, showDiagram, canvas::dispose)) {
+            for (Runnable undo : List.of(editing::uninstall, stopFeedingThePanes, enableCircuitActions, showPalette, showDiagram, canvas::dispose)) {
                 undo.run();
             }
         };
@@ -119,17 +116,5 @@ public final class MachineMode {
         return circuit.get().document().definition(definitionId.get())
                 .filter(ComponentDefinition::isMachine)
                 .map(ComponentDefinition::id);
-    }
-
-    /**
-     * A machine's body holds only its generated pins: no circuit edit is made there. The one edit that passes is the
-     * machine's own ({@link EditMachineCommand} of this definition): it goes through the place so the step is the
-     * machine tab's (Deshacer there undoes it there, and its name says where).
-     */
-    private static void refuseCircuitEdit(Command command, String machineId) {
-        if (command instanceof EditMachineCommand edit && edit.definitionId().equals(machineId)) {
-            return;
-        }
-        throw new InsideEditRefusedException("machine.refused.circuitEdit", List.of());
     }
 }
