@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.library;
 
+import cl.almejo.vsim.ui.app.UserFolders;
 import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.ui.actions.TextPrompt;
@@ -42,7 +43,7 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
     private static final int DESCRIPTION_ROWS = 6;
     private static final int DESCRIPTION_COLUMNS = 40;
 
-    private Path lastDirectory = Path.of(System.getProperty("user.home"));
+    private Path lastDirectory = UserFolders.documents();
 
     private SwingLibraryDialogs() {
     }

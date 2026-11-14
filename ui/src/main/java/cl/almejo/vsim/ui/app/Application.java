@@ -734,7 +734,7 @@ public final class Application {
                 return examples;
             }
         }
-        return Path.of(System.getProperty("user.home"));
+        return UserFolders.documents();
     }
 
     public void rememberDirectory(Path file) {

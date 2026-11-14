@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.ai;
 
+import cl.almejo.vsim.ui.app.UserFolders;
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.AutomationHost;
@@ -39,7 +40,6 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.sheets.SheetAnchors;
 
 import javax.swing.SwingUtilities;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -141,7 +141,7 @@ public final class EditorAutomationHost implements AutomationHost {
         this.simulation = new SimulationHostSupport(id -> Optional.of(placeOf(id)), SwingUtilities::invokeLater,
                 queue);
         this.edits = new EditHostSupport(id -> Optional.of(placeOf(id)), this.windows::libraryComponents, queue);
-        this.exports = new ExportHostSupport(windowsOf, () -> Path.of(System.getProperty("user.home")),
+        this.exports = new ExportHostSupport(windowsOf, UserFolders::documents,
                 ForkJoinPool.commonPool(), SwingUtilities::invokeLater, Clock.systemDefaultZone(),
                 FolderOpener.desktop(), sheetAnchors);
     }

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.ui.app.UserFolders;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.JFileChooser;
@@ -10,7 +11,7 @@ import java.util.Optional;
 /** {@link MemoryLinkPrompts} with real file choosers and dialogs; the folder last chosen is offered next time. */
 final class SwingMemoryLinkPrompts implements MemoryLinkPrompts {
 
-    private Path lastFolder = Path.of(System.getProperty("user.home"));
+    private Path lastFolder = UserFolders.documents();
 
     @Override
     public Optional<Path> chooseLinkFile(java.awt.Component parent) {

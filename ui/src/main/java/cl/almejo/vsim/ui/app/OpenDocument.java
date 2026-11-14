@@ -680,10 +680,10 @@ public final class OpenDocument implements AutoCloseable {
         return dot > 0 ? fileName.substring(0, dot) : fileName;
     }
 
-    /** {@code preferred} when given, else the folder of this document's file, else the user's home. */
+    /** {@code preferred} when given, else the folder of this document's file, else the user's Documents folder. */
     public Path startDirectory(Optional<Path> preferred) {
         return preferred.or(() -> path().map(Path::getParent))
-                .orElseGet(() -> Path.of(System.getProperty("user.home")));
+                .orElseGet(UserFolders::documents);
     }
 
     public String suggestedFileName() {

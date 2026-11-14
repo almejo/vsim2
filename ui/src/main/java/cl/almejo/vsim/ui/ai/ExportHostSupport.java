@@ -63,8 +63,8 @@ import java.util.stream.Collectors;
  * without their dialogs, through the same code ({@link CircuitImage}, {@link WindowCapture}, {@link ImageExport},
  * {@link PrintInput}, {@link PagePainter}, {@link PdfExport}) and with the same options. The file goes only into
  * the folder VSim remembers for that export (an image: the image export's folder; a PDF: the PDF's; each falls back
- * on the other, and with neither on the user's {@code ~/VSim}), under a new name: never over an existing file
- * ({@code -2}, {@code -3}… instead). The picture is taken on the EDT, as the menus do; the file is written on
+ * on the other, and with neither on {@code VSim} in the user's Documents folder), under a new name: never over an
+ * existing file ({@code -2}, {@code -3}… instead). The picture is taken on the EDT, as the menus do; the file is written on
  * {@code writer}. The circuit's windows then say «La IA guardó …» in their status line, with «Abrir carpeta» where
  * the desktop can show a folder. Nothing here asks the user anything or shows a dialog.
  */
@@ -82,7 +82,7 @@ final class ExportHostSupport {
     private static final Pattern RESERVED_NAME = Pattern.compile("(?i)(con|prn|aux|nul|com[1-9]|lpt[1-9])(\\..*)?");
 
     private final Function<OpenDocument, List<ShownWindow>> windowsOf;
-    private final Supplier<Path> home;
+    private final Supplier<Path> documents;
     private final Executor writer;
     private final Executor editorThread;
     private final Clock clock;
@@ -91,17 +91,17 @@ final class ExportHostSupport {
 
     /**
      * @param windowsOf    the windows showing a circuit (their preferences, scheme and status line); EDT only
-     * @param home         the user's home folder
+     * @param documents    the user's Documents folder
      * @param writer       where files are written (never the EDT)
      * @param editorThread runs the status notices on the EDT
      * @param folderOpener «Abrir carpeta» on the notice
      * @param sheetAnchors where the print sheets shown on the canvas are anchored: a PDF of the whole circuit uses them
      */
-    ExportHostSupport(Function<OpenDocument, List<ShownWindow>> windowsOf, Supplier<Path> home, Executor writer,
+    ExportHostSupport(Function<OpenDocument, List<ShownWindow>> windowsOf, Supplier<Path> documents, Executor writer,
                       Executor editorThread, Clock clock, FolderOpener folderOpener, SheetAnchors sheetAnchors) {
         this.sheetAnchors = Objects.requireNonNull(sheetAnchors, "sheetAnchors");
         this.windowsOf = Objects.requireNonNull(windowsOf, "windowsOf");
-        this.home = Objects.requireNonNull(home, "home");
+        this.documents = Objects.requireNonNull(documents, "documents");
         this.writer = Objects.requireNonNull(writer, "writer");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -321,7 +321,10 @@ final class ExportHostSupport {
 
     // --- folder and name ---
 
-    /** The format's remembered folder, else the other export's, else {@code ~/VSim}; only folders that exist. */
+    /**
+     * The format's remembered folder, else the other export's, else {@code VSim} in the Documents folder; only folders
+     * that exist.
+     */
     Path folderFor(ExportRequest.Format format, Optional<AppPreferences> preferences) {
         Optional<Path> image = preferences.flatMap(AppPreferences::exportDirectory);
         Optional<Path> pdf = preferences.flatMap(AppPreferences::printDirectory);
@@ -329,7 +332,7 @@ final class ExportHostSupport {
         Optional<Path> second = format == ExportRequest.Format.PDF ? image : pdf;
         return first.filter(Files::isDirectory)
                 .or(() -> second.filter(Files::isDirectory))
-                .orElseGet(() -> home.get().resolve(DEFAULT_FOLDER))
+                .orElseGet(() -> documents.get().resolve(DEFAULT_FOLDER))
                 .toAbsolutePath();
     }
 

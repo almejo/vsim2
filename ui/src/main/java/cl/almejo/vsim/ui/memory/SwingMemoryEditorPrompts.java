@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.ui.app.UserFolders;
 import cl.almejo.vsim.core.memory.MemoryFileFormat;
 import cl.almejo.vsim.core.memory.MemoryFormats;
 import cl.almejo.vsim.ui.app.FileDialogs;
@@ -26,7 +27,7 @@ import java.util.function.Supplier;
 public final class SwingMemoryEditorPrompts implements MemoryEditorPrompts {
 
     private final Supplier<Component> parent;
-    private Path lastFolder = Path.of(System.getProperty("user.home"));
+    private Path lastFolder = UserFolders.documents();
 
     public SwingMemoryEditorPrompts(Supplier<Component> parent) {
         this.parent = parent;
