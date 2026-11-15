@@ -62,7 +62,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MachineProblemsOnDiagramTest {
 
     /** How far from a state's centre its halo is sampled: past the outline, inside the halo. */
-    private static final double HALO_SAMPLE = MachineDiagramGeometry.STATE_RADIUS + 5;
+    /** How far under a state's centre the halo is looked for: past its circle, before anything else. */
+    private static final double HALO_REACH = MachineDiagramGeometry.STATE_RADIUS + 12;
 
     @TempDir
     Path directory;
@@ -179,11 +180,10 @@ class MachineProblemsOnDiagramTest {
                 (snapshot, instancePath) -> Optional.empty(), scheme::get);
         standalone.setBounds(0, 0, 900, 600);
         Point2D centre = geometry().centre("d");
-        Point2D sample = standalone.toScreen(new DiagramPoint(centre.getX(), centre.getY() + HALO_SAMPLE));
 
-        Color light = pixel(standalone, sample);
+        Color light = haloPixel(standalone, centre);
         scheme.set(ColorSchemes.DARK);
-        Color dark = pixel(standalone, sample);
+        Color dark = haloPixel(standalone, centre);
         standalone.dispose();
 
         assertThat(light).isNotEqualTo(ColorScheme.LIGHT.background());
@@ -281,12 +281,27 @@ class MachineProblemsOnDiagramTest {
         assertThat(mode.selection().stateIds()).containsExactly("d");
     }
 
-    private static Color pixel(MachineCanvas painted, Point2D point) {
+    /**
+     * The most saturated pixel straight under the state at {@code centre}, just past its circle (up to
+     * {@link #HALO_REACH}): the halo, wherever its width and antialiasing put it.
+     */
+    private static Color haloPixel(MachineCanvas painted, Point2D centre) {
         BufferedImage image = new BufferedImage(painted.getWidth(), painted.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         painted.paint(graphics);
         graphics.dispose();
-        return new Color(image.getRGB((int) Math.round(point.getX()), (int) Math.round(point.getY())));
+        Color best = null;
+        float bestSaturation = -1;
+        for (double distance = MachineDiagramGeometry.STATE_RADIUS + 2; distance <= HALO_REACH; distance += 0.5) {
+            Point2D point = painted.toScreen(new DiagramPoint(centre.getX(), centre.getY() + distance));
+            Color colour = new Color(image.getRGB((int) Math.round(point.getX()), (int) Math.round(point.getY())));
+            float saturation = Color.RGBtoHSB(colour.getRed(), colour.getGreen(), colour.getBlue(), null)[1];
+            if (saturation > bestSaturation) {
+                best = colour;
+                bestSaturation = saturation;
+            }
+        }
+        return best;
     }
 
     /** Whether {@code colour} is nearer {@code expected} than {@code other} in hue (red to green ratio). */
