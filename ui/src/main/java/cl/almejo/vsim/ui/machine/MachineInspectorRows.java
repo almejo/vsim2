@@ -23,10 +23,12 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -35,13 +37,19 @@ import java.util.function.UnaryOperator;
  * goes and its condition, with what is wrong in it; with nothing selected, the machine's states and pins and how to
  * draw. A text applies on Enter or when the focus leaves it, each change one undo step; a wrong name or outputs text
  * only shows what is wrong, while a wrong condition is kept as written and says what is wrong (spec «a bad condition is
- * kept as text»). The Mealy outputs of an arrow and the pin list come in later milestones.
+ * kept as text»). An arrow also has its Mealy outputs, and the machine's own rows say whether it is Moore, Mealy or
+ * both. A change of the machine rebuilds the rows only when what they show changed (another element, another kind of
+ * rows); otherwise it updates, in place, the fields that have no focus and no typing waiting for Enter, so what the
+ * user is typing is never lost and the focus stays in the field after Enter. The pin list comes in a later milestone.
  */
 final class MachineInspectorRows extends JPanel {
 
     private static final long serialVersionUID = 1L;
     private static final String WIDE = "span 2, growx, wmin 0";
     private static final int UNIT_INCREMENT = 16;
+    private static final String MACHINE_ROWS = "machine";
+    private static final String SEVERAL_ROWS = "several:";
+    private static final String NO_ROWS = "none";
 
     private final transient MachineCanvas canvas;
     private final transient MachineSelection selection;
@@ -51,6 +59,12 @@ final class MachineInspectorRows extends JPanel {
     private transient Optional<JTextField> nameField = Optional.empty();
     private transient Optional<JTextField> outputsField = Optional.empty();
     private transient Optional<JTextField> conditionField = Optional.empty();
+    private transient Optional<JTextField> mealyOutputsField = Optional.empty();
+    private transient Optional<JLabel> kindLabel = Optional.empty();
+    /** What each field of the rows shown would say now; run after a change that does not rebuild them. */
+    private final transient List<Runnable> refreshers = new ArrayList<>();
+    /** What the rows were built for: the selected element, and the kind of rows. */
+    private transient String builtFor = "";
     private transient Optional<JCheckBox> initialBox = Optional.empty();
     private transient Optional<JLabel> arrowLabel = Optional.empty();
     /** True while this panel's own edit runs: the change it makes does not rebuild the rows under the user. */
@@ -60,7 +74,7 @@ final class MachineInspectorRows extends JPanel {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
         this.canvas = Objects.requireNonNull(canvas, "canvas");
         this.selection = canvas.selection();
-        stopFollowingSelection = selection.addListener(this::rebuild);
+        stopFollowingSelection = selection.addListener(this::selectionChanged);
         stopFollowingMachine = canvas.addChangeListener(this::machineChanged);
         rebuild();
     }
@@ -101,6 +115,15 @@ final class MachineInspectorRows extends JPanel {
         return conditionField;
     }
 
+    Optional<JTextField> mealyOutputsField() {
+        return mealyOutputsField;
+    }
+
+    /** «Moore», «Mealy» or «Moore y Mealy» in the machine's own rows; empty when another element is selected. */
+    Optional<String> kindText() {
+        return kindLabel.map(JLabel::getText);
+    }
+
     Optional<JCheckBox> initialBox() {
         return initialBox;
     }
@@ -111,20 +134,64 @@ final class MachineInspectorRows extends JPanel {
         stopFollowingMachine.run();
     }
 
-    private void machineChanged() {
-        if (!applying) {
+    private void selectionChanged() {
+        if (!builtFor.equals(shownFor())) {
             rebuild();
         }
     }
 
+    private void machineChanged() {
+        if (applying) {
+            return;
+        }
+        refreshOrRebuild();
+    }
+
+    /** Rebuilds when the rows must change; otherwise updates the fields that nobody is typing in. */
+    private void refreshOrRebuild() {
+        if (!builtFor.equals(shownFor()) || builtFor.startsWith(MACHINE_ROWS) || builtFor.startsWith(SEVERAL_ROWS)
+                || builtFor.equals(NO_ROWS)) {
+            rebuild();
+        } else {
+            refreshers.forEach(Runnable::run);
+        }
+    }
+
+    /** What the rows would be built for now. */
+    private String shownFor() {
+        Optional<StateMachine> machine = canvas.machine();
+        if (machine.isEmpty()) {
+            return NO_ROWS;
+        }
+        int count = selection.stateIds().size() + selection.transitionIds().size();
+        if (count == 0) {
+            return MACHINE_ROWS;
+        }
+        if (count > 1) {
+            return SEVERAL_ROWS + count;
+        }
+        if (!selection.stateIds().isEmpty()) {
+            String stateId = selection.stateIds().iterator().next();
+            return machine.get().state(stateId).isPresent() ? "state:" + stateId : NO_ROWS;
+        }
+        String transitionId = selection.transitionIds().iterator().next();
+        return machine.get().transition(transitionId)
+                .map(transition -> "transition:" + transitionId + ":" + transition.isOtherwise())
+                .orElse(NO_ROWS);
+    }
+
     private void rebuild() {
         removeAll();
+        refreshers.clear();
         nameField = Optional.empty();
         outputsField = Optional.empty();
         conditionField = Optional.empty();
+        mealyOutputsField = Optional.empty();
+        kindLabel = Optional.empty();
         initialBox = Optional.empty();
         arrowLabel = Optional.empty();
         showProblem(Optional.empty());
+        builtFor = shownFor();
         canvas.machine().ifPresent(this::showSelected);
         add(problem, WIDE);
         revalidate();
@@ -150,7 +217,20 @@ final class MachineInspectorRows extends JPanel {
         addRow(Messages.text("machine.properties.states"), new JLabel(String.valueOf(machine.states().size())));
         addRow(Messages.text("machine.properties.inputs"), new JLabel(listed(machine.inputNames())));
         addRow(Messages.text("machine.properties.outputs"), new JLabel(listed(machine.outputNames())));
+        JLabel kind = new JLabel(kindOf(machine));
+        addRow(Messages.text("machine.properties.kind"), kind);
+        kindLabel = Optional.of(kind);
         add(hint(Messages.text("machine.properties.howToDraw")), WIDE);
+    }
+
+    /** Where the machine assigns outputs: in its states (Moore), on its arrows (Mealy) or both; Moore when nowhere. */
+    private static String kindOf(StateMachine machine) {
+        boolean mealy = machine.transitions().stream().anyMatch(transition -> !transition.outputs().isEmpty());
+        boolean moore = machine.states().stream().anyMatch(state -> !state.outputs().isEmpty());
+        if (mealy && moore) {
+            return Messages.text("machine.properties.kind.both");
+        }
+        return Messages.text(mealy ? "machine.properties.kind.mealy" : "machine.properties.kind.moore");
     }
 
     private static String listed(List<String> names) {
@@ -160,14 +240,19 @@ final class MachineInspectorRows extends JPanel {
     private void showState(StateMachine machine, MachineState state) {
         addHeader(Messages.text("machine.properties.state"));
         JTextField name = textRow(Messages.text("machine.properties.stateName"), state.name(),
+                machineNow -> machineNow.state(state.id()).map(MachineState::name),
                 text -> applyName(state.id(), text));
         JTextField outputs = textRow(Messages.text("machine.properties.mooreOutputs"),
-                MachineOutputsText.write(state.outputs()), text -> applyOutputs(state.id(), text));
+                MachineOutputsText.write(state.outputs()),
+                machineNow -> machineNow.state(state.id()).map(found -> MachineOutputsText.write(found.outputs())),
+                text -> applyOutputs(state.id(), text));
         add(hint(Messages.text("machine.properties.mooreOutputsHint")), WIDE);
         JCheckBox initial = new JCheckBox(Messages.text("machine.properties.initial"),
                 machine.initialStateId().filter(state.id()::equals).isPresent());
         initial.addActionListener(event -> apply(current ->
                 MachineEdits.withInitial(current, state.id(), initial.isSelected())));
+        refreshers.add(() -> canvas.machine().ifPresent(machineNow -> initial.setSelected(
+                machineNow.initialStateId().filter(state.id()::equals).isPresent())));
         add(initial, WIDE);
         nameField = Optional.of(name);
         outputsField = Optional.of(outputs);
@@ -180,11 +265,28 @@ final class MachineInspectorRows extends JPanel {
                 nameOf(machine, transition.toId())));
         addRow(Messages.text("machine.properties.goes"), ends);
         JTextField condition = textRow(Messages.text("machine.properties.condition"), transition.condition(),
-                text -> apply(current -> MachineEdits.withCondition(current, transition.id(), text)));
+                machineNow -> machineNow.transition(transition.id()).map(MachineTransition::condition),
+                text -> {
+                    apply(current -> MachineEdits.withCondition(current, transition.id(), text));
+                    showProblem(MachineConditions.parse(text).problem().map(MachineInspectorRows::describe));
+                });
         add(hint(Messages.text(transition.isOtherwise() ? "machine.properties.otherwise"
                 : "machine.properties.conditionHint")), WIDE);
+        JTextField mealy = textRow(Messages.text("machine.properties.mealyOutputs"),
+                MachineOutputsText.write(transition.outputs()),
+                machineNow -> machineNow.transition(transition.id())
+                        .map(found -> MachineOutputsText.write(found.outputs())),
+                text -> applyMealyOutputs(transition.id(), text));
+        add(hint(Messages.text("machine.properties.mealyOutputsHint")), WIDE);
         arrowLabel = Optional.of(ends);
         conditionField = Optional.of(condition);
+        mealyOutputsField = Optional.of(mealy);
+        refreshers.add(() -> canvas.machine().ifPresent(machineNow -> ends.setText(Messages.format(
+                "machine.properties.ends", nameOf(machineNow, transition.fromId()),
+                nameOf(machineNow, transition.toId())))));
+        refreshers.add(() -> canvas.machine().flatMap(machineNow -> machineNow.transition(transition.id()))
+                .ifPresent(current -> showProblem(MachineConditions.parse(current.condition()).problem()
+                        .map(MachineInspectorRows::describe))));
         showProblem(MachineConditions.parse(transition.condition()).problem().map(MachineInspectorRows::describe));
     }
 
@@ -213,7 +315,20 @@ final class MachineInspectorRows extends JPanel {
         apply(machine -> MachineEdits.withMooreOutputs(machine, stateId, reading.outputs()));
     }
 
-    /** Makes the edit, then shows the selection again as it is after it. */
+    private void applyMealyOutputs(String transitionId, String text) {
+        MachineOutputsText.Reading reading = MachineOutputsText.read(text);
+        if (reading.problem().isPresent()) {
+            MachineOutputsText.Problem wrong = reading.problem().get();
+            showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
+            return;
+        }
+        apply(machine -> MachineEdits.withMealyOutputs(machine, transitionId, reading.outputs()));
+    }
+
+    /**
+     * Makes the edit, then updates what the rows show as it is after it: in place when they stay the same rows (the
+     * field the user typed in keeps its focus), rebuilt when the edit changed what they are for.
+     */
     private void apply(UnaryOperator<StateMachine> change) {
         applying = true;
         try {
@@ -221,7 +336,8 @@ final class MachineInspectorRows extends JPanel {
         } finally {
             applying = false;
         }
-        rebuild();
+        showProblem(Optional.empty());
+        refreshOrRebuild();
     }
 
     private void showProblem(Optional<String> text) {
@@ -229,7 +345,12 @@ final class MachineInspectorRows extends JPanel {
         problem.setVisible(text.isPresent());
     }
 
-    private JTextField textRow(String caption, String text, Consumer<String> onApply) {
+    /**
+     * A field that applies on Enter or when it loses the focus. {@code modelText} says what the machine holds for it;
+     * after a change made elsewhere the field takes it, unless it has the focus or typing not yet applied.
+     */
+    private JTextField textRow(String caption, String text, Function<StateMachine, Optional<String>> modelText,
+                               Consumer<String> onApply) {
         JTextField field = new JTextField(text);
         String[] applied = {text};
         Runnable applyIfChanged = () -> {
@@ -245,6 +366,14 @@ final class MachineInspectorRows extends JPanel {
                 if (field.isShowing()) {
                     applyIfChanged.run();
                 }
+            }
+        });
+        refreshers.add(() -> {
+            boolean typing = !field.getText().equals(applied[0]);
+            Optional<String> held = canvas.machine().flatMap(modelText);
+            if (!typing && !field.hasFocus() && held.isPresent() && !held.get().equals(field.getText())) {
+                field.setText(held.get());
+                applied[0] = held.get();
             }
         });
         addRow(caption, field);

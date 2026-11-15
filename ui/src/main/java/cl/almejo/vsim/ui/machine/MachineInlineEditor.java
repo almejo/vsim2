@@ -15,7 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Edits a state's name or an arrow's condition right where the diagram draws it (spec 2026-11-14 §1 «Drawing»), with
+ * Edits a state's name or an arrow's label (condition and Mealy outputs) right where the diagram draws it (spec 2026-11-14 §1 «Drawing»), with
  * the editor's usual one-line field over the canvas: Enter (or ✓, or a click elsewhere) puts it as one edit of the
  * machine, Esc (or ✗) leaves everything as it was. A name must be given and free; a condition is kept as written, also
  * when it cannot be read (the diagram draws it in the problem colour and the right panel says what is wrong).
@@ -52,7 +52,10 @@ final class MachineInlineEditor {
                 () -> canvas.machine().flatMap(current -> current.state(stateId)).isPresent());
     }
 
-    /** Opens the condition of the arrow {@code transitionId} for editing, over its label. */
+    /**
+     * Opens the whole label of the arrow {@code transitionId} for editing, over it: the condition and, after a
+     * {@code /}, its Mealy outputs ({@code x / Z=1}). Both are one edit; a bad outputs part blocks with its problem.
+     */
     void editCondition(String transitionId) {
         Optional<StateMachine> machine = canvas.machine();
         Optional<MachineTransition> transition = machine.flatMap(found -> found.transition(transitionId));
@@ -62,8 +65,8 @@ final class MachineInlineEditor {
         Font font = MachineDiagramPainter.labelFont();
         Rectangle2D area = MachineDiagramPainter.labelBounds(transition.get(),
                 MachineDiagramGeometry.of(machine.get()).arrow(transitionId), canvas.getFontMetrics(font));
-        editor.open(new InlineEditRequest(area, font, transition.get().condition(), text -> Optional.empty(),
-                        text -> canvas.edit(current -> MachineEdits.withCondition(current, transitionId, text)),
+        editor.open(new InlineEditRequest(area, font, MachineLabelText.of(transition.get()), this::labelProblem,
+                        text -> applyLabel(transitionId, text),
                         InlineEditRequest.Anchor.CENTER, List.of()),
                 () -> canvas.machine().flatMap(current -> current.transition(transitionId)).isPresent());
     }
@@ -71,6 +74,16 @@ final class MachineInlineEditor {
     /** Closes an open edit without applying it (the tab leaves machine mode). */
     void dispose() {
         editor.dispose();
+    }
+
+    private Optional<String> labelProblem(String text) {
+        return MachineLabelText.read(text).problem()
+                .map(problem -> Messages.format(problem.key(), problem.arguments().toArray()));
+    }
+
+    private void applyLabel(String transitionId, String text) {
+        MachineLabelText.Reading reading = MachineLabelText.read(text);
+        canvas.edit(current -> MachineEdits.withLabel(current, transitionId, reading.condition(), reading.outputs()));
     }
 
     private Optional<String> nameProblem(String stateId, String text) {

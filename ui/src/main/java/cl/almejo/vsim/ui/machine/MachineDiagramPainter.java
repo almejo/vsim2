@@ -151,11 +151,7 @@ final class MachineDiagramPainter {
 
     /** «x», «x / Z=1», «/ Z=1» (otherwise, with a Mealy output) or nothing (otherwise alone). */
     static String labelOf(MachineTransition transition) {
-        if (transition.outputs().isEmpty()) {
-            return transition.condition();
-        }
-        String outputs = "/ " + assignments(transition.outputs());
-        return transition.isOtherwise() ? outputs : transition.condition() + " " + outputs;
+        return MachineLabelText.of(transition);
     }
 
     private static String assignments(List<OutputAssignment> outputs) {

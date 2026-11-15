@@ -93,4 +93,13 @@ class MachineEditsTest {
         assertThat(edited.state("s1").orElseThrow().outputs()).containsExactly(new OutputAssignment("Y", false));
         assertThat(edited.transition("t5").orElseThrow().condition()).isEqualTo("a +");
     }
+
+    @Test
+    void mealyOutputsAreSetOnAnArrowAndKeepItsCondition() {
+        StateMachine edited = MachineEdits.withMealyOutputs(detector, "t2", List.of(new OutputAssignment("Z", true)));
+
+        assertThat(edited.transition("t2").orElseThrow().outputs()).containsExactly(new OutputAssignment("Z", true));
+        assertThat(edited.transition("t2").orElseThrow().condition())
+                .isEqualTo(detector.transition("t2").orElseThrow().condition());
+    }
 }

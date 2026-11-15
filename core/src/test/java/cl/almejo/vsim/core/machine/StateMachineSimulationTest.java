@@ -155,6 +155,28 @@ class StateMachineSimulationTest {
     }
 
     @Test
+    void aMealyOutputFollowsTheInputWithoutAClockEdge() {
+        StateMachine mealy = new StateMachine(
+                List.of(MachineExamples.state("s0", "S0", 0, List.of()),
+                        MachineExamples.state("s1", "S1", 100, List.of())),
+                List.of(MachineExamples.arrow("t0", "s0", "s1", ""),
+                        new MachineTransition("t1", "s1", "s1", "x", List.of(new OutputAssignment("Z", true))),
+                        MachineExamples.arrow("t2", "s1", "s1", "")),
+                java.util.Optional.of("s0"), List.of("x"), List.of("Z"), false, false, StateMachine.EDGE_FALLING,
+                List.of());
+        detectorWithSwitchesAndLed(mealy);
+        start();
+        fallingEdge("clk");
+        assertThat(stateName("m")).isEqualTo("S1");
+        assertThat(led("z")).as("x is 0: the otherwise arrow assigns nothing").isEqualTo(Value.ZERO);
+
+        set("x", true);
+        assertThat(led("z")).as("no edge, and Z follows x").isEqualTo(Value.ONE);
+        set("x", false);
+        assertThat(led("z")).isEqualTo(Value.ZERO);
+    }
+
+    @Test
     void anEditKeepsTheCurrentStateWhenItStillExists() {
         detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
         start();

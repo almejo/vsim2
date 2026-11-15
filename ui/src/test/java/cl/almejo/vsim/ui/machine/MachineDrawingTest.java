@@ -423,4 +423,112 @@ class MachineDrawingTest {
 
         assertThat(machine().transition("t3").orElseThrow().condition()).isEqualTo("x'");
     }
+
+    @Test
+    void anInlineLabelWithOutputsSetsConditionAndMealyOutputsInOneStepAndUndoRestoresBoth() {
+        String conditionBefore = machine().transition("t3").orElseThrow().condition();
+        doubleClick(at(240, -14));
+        assertThat(inline().textComponent().getText()).isEqualTo(conditionBefore);
+        inline().textComponent().setText("x' / Z=1");
+        inline().confirm();
+
+        MachineTransition edited = machine().transition("t3").orElseThrow();
+        assertThat(edited.condition()).isEqualTo("x'");
+        assertThat(edited.outputs()).containsExactly(new OutputAssignment("Z", true));
+
+        perform(view.actions().undo());
+        MachineTransition restored = machine().transition("t3").orElseThrow();
+        assertThat(restored.condition()).isEqualTo(conditionBefore);
+        assertThat(restored.outputs()).isEmpty();
+    }
+
+    @Test
+    void anInlineLabelWithABadOutputsPartIsRefusedWithItsProblem() {
+        Object stepBefore = document.history().undoCommand().orElse(null);
+        doubleClick(at(240, -14));
+        inline().textComponent().setText("x / Z=");
+
+        assertThat(inline().problemText().isVisible()).isTrue();
+        inline().confirm();
+
+        assertThat(inline().isOpen()).isTrue();
+        assertThat(document.history().undoCommand().orElse(null)).isSameAs(stepBefore);
+    }
+
+    @Test
+    void aNewOutputNameInAMealyPartAddsAPinToThePlacedCopy() {
+        assertThat(pinNames()).doesNotContain("Listo");
+        doubleClick(at(240, -14));
+        inline().textComponent().setText("x / Listo=1");
+        inline().confirm();
+
+        assertThat(pinNames()).contains("Listo");
+    }
+
+    @Test
+    void theArrowsRowsEditItsMealyOutputsAsOneUndoStep() {
+        mode.selection().selectTransition("t3");
+        MachineInspectorRows rows = mode.inspectorRows();
+
+        JTextField outputs = rows.mealyOutputsField().orElseThrow();
+        assertThat(outputs.getText()).isEmpty();
+        outputs.setText("Z=1, Y=0");
+        outputs.postActionEvent();
+
+        assertThat(machine().transition("t3").orElseThrow().outputs())
+                .containsExactly(new OutputAssignment("Z", true), new OutputAssignment("Y", false));
+        perform(view.actions().undo());
+        assertThat(machine().transition("t3").orElseThrow().outputs()).isEmpty();
+    }
+
+    @Test
+    void aBadMealyOutputsTextInThePanelIsNotAppliedAndSaysWhy() {
+        mode.selection().selectTransition("t3");
+        MachineInspectorRows rows = mode.inspectorRows();
+        JTextField outputs = rows.mealyOutputsField().orElseThrow();
+
+        outputs.setText("Z=2");
+        outputs.postActionEvent();
+
+        assertThat(machine().transition("t3").orElseThrow().outputs()).isEmpty();
+        assertThat(rows.problemText()).contains(Messages.format("machine.outputs.badValue", "2"));
+    }
+
+    @Test
+    void typingInTheConditionSurvivesAMachineChangeMadeElsewhere() {
+        mode.selection().selectTransition("t3");
+        MachineInspectorRows rows = mode.inspectorRows();
+        JTextField condition = rows.conditionField().orElseThrow();
+        condition.setText("x + half typed");
+
+        canvas.edit(current -> MachineEdits.withStateName(current, "s0", "Inicio"));
+
+        assertThat(rows.conditionField().orElseThrow()).isSameAs(condition);
+        assertThat(condition.getText()).isEqualTo("x + half typed");
+    }
+
+    @Test
+    void aFieldWithoutTheFocusFollowsAChangeMadeElsewhere() {
+        mode.selection().selectTransition("t3");
+        MachineInspectorRows rows = mode.inspectorRows();
+        JTextField condition = rows.conditionField().orElseThrow();
+
+        canvas.edit(current -> MachineEdits.withCondition(current, "t3", "x'"));
+
+        assertThat(rows.conditionField().orElseThrow().getText()).isEqualTo("x'");
+    }
+
+    @Test
+    void theMachinesRowsShowItsKindFromWhereTheOutputsAreAssigned() {
+        mode.selection().clear();
+        MachineInspectorRows rows = mode.inspectorRows();
+        assertThat(rows.kindText().orElseThrow()).isEqualTo(Messages.text("machine.properties.kind.moore"));
+
+        canvas.edit(current -> MachineEdits.withMealyOutputs(current, "t3", List.of(new OutputAssignment("Z", true))));
+        assertThat(rows.kindText().orElseThrow()).isEqualTo(Messages.text("machine.properties.kind.both"));
+
+        canvas.edit(current -> current.withStates(current.states().stream()
+                .map(state -> state.withOutputs(List.of())).toList()));
+        assertThat(rows.kindText().orElseThrow()).isEqualTo(Messages.text("machine.properties.kind.mealy"));
+    }
 }

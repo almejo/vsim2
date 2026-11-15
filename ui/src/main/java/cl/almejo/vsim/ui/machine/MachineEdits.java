@@ -119,6 +119,21 @@ final class MachineEdits {
         return machine.withState(stateId, state -> state.withOutputs(outputs));
     }
 
+    /** {@code machine} with {@code outputs} as the Mealy outputs of the arrow {@code transitionId}. */
+    static StateMachine withMealyOutputs(StateMachine machine, String transitionId, List<OutputAssignment> outputs) {
+        return machine.withTransition(transitionId, transition -> transition.withOutputs(outputs));
+    }
+
+    /**
+     * {@code machine} with {@code condition} and {@code outputs} on the arrow {@code transitionId} at once (the
+     * inline editor's whole label).
+     */
+    static StateMachine withLabel(StateMachine machine, String transitionId, String condition,
+                                  List<OutputAssignment> outputs) {
+        return machine.withTransition(transitionId,
+                transition -> transition.withCondition(condition).withOutputs(outputs));
+    }
+
     /** {@code machine} with {@code condition} as the arrow's condition, kept as written even when it is wrong. */
     static StateMachine withCondition(StateMachine machine, String transitionId, String condition) {
         return machine.withTransition(transitionId, transition -> transition.withCondition(condition));
