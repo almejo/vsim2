@@ -9,13 +9,11 @@ import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.window.EditorView;
 
 import javax.swing.Action;
-import javax.swing.InputMap;
-import javax.swing.JComponent;
-import javax.swing.KeyStroke;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Where a state machine's problem is shown (plan 2026-11-14, hito 2 task 8): a click on its row in Problemas, from any
@@ -93,29 +91,6 @@ public final class MachineProblemNavigation {
 
     private static Runnable bindKey(MachineCanvas canvas, String shortcutId, Action action,
                                     AppPreferences preferences) {
-        KeyBindings bindings = new KeyBindings(preferences);
-        InputMap keys = canvas.getInputMap(JComponent.WHEN_FOCUSED);
-        String name = "machine-" + shortcutId;
-        canvas.getActionMap().put(name, action);
-        KeyStroke[] bound = new KeyStroke[1];
-        Runnable followTheBinding = () -> {
-            if (bound[0] != null) {
-                keys.remove(bound[0]);
-                bound[0] = null;
-            }
-            bindings.strokeFor(shortcutId).ifPresent(stroke -> {
-                keys.put(stroke, name);
-                bound[0] = stroke;
-            });
-        };
-        followTheBinding.run();
-        preferences.addListener(followTheBinding);
-        return () -> {
-            preferences.removeListener(followTheBinding);
-            if (bound[0] != null) {
-                keys.remove(bound[0]);
-            }
-            canvas.getActionMap().remove(name);
-        };
+        return KeyBindings.follow(canvas, shortcutId, "machine-" + shortcutId, action, preferences, Set.of());
     }
 }

@@ -4,6 +4,9 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.Action;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -148,6 +151,39 @@ public final class KeyBindings {
             LOGGER.warn("Could not forget the keyboard shortcuts", exception);
         }
         preferences.shortcutsChanged();
+    }
+
+    /**
+     * Binds the key the user gave {@code shortcutId} in Atajos de teclado to {@code action} on {@code component}
+     * while it has the focus, under {@code actionName}, and follows later changes made in any window. A key in
+     * {@code leftAlone} (one the caller binds itself, like a fixed alias) is never taken nor removed. Returns what
+     * undoes it all.
+     */
+    public static Runnable follow(JComponent component, String shortcutId, String actionName, Action action,
+                                  AppPreferences preferences, Set<KeyStroke> leftAlone) {
+        KeyBindings bindings = new KeyBindings(preferences);
+        InputMap keys = component.getInputMap(JComponent.WHEN_FOCUSED);
+        component.getActionMap().put(actionName, action);
+        KeyStroke[] bound = new KeyStroke[1];
+        Runnable followTheBinding = () -> {
+            if (bound[0] != null) {
+                keys.remove(bound[0]);
+                bound[0] = null;
+            }
+            bindings.strokeFor(shortcutId).filter(stroke -> !leftAlone.contains(stroke)).ifPresent(stroke -> {
+                keys.put(stroke, actionName);
+                bound[0] = stroke;
+            });
+        };
+        followTheBinding.run();
+        preferences.addListener(followTheBinding);
+        return () -> {
+            preferences.removeListener(followTheBinding);
+            if (bound[0] != null) {
+                keys.remove(bound[0]);
+            }
+            component.getActionMap().remove(actionName);
+        };
     }
 
     /** Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso and the fixed zoom aliases (spec §5.2) are never assignable. */

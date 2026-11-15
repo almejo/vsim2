@@ -20,6 +20,7 @@ import java.awt.Component;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Drawing and editing in a machine's tab (spec 2026-11-14 §1 «Drawing»), put in place by {@link MachineMode}: the
@@ -93,30 +94,13 @@ final class MachineEditing {
      * user gave «Borrar» in Atajos de teclado (Supr by default), following later changes made in any window.
      */
     private static Runnable bindDelete(MachineCanvas canvas, Action delete, AppPreferences preferences) {
-        KeyBindings bindings = new KeyBindings(preferences);
         InputMap keys = canvas.getInputMap(JComponent.WHEN_FOCUSED);
         keys.put(ALIAS_KEY, DELETE);
-        canvas.getActionMap().put(DELETE, delete);
-        KeyStroke[] bound = new KeyStroke[1];
-        Runnable followTheBinding = () -> {
-            if (bound[0] != null) {
-                keys.remove(bound[0]);
-                bound[0] = null;
-            }
-            bindings.strokeFor(DELETE_SHORTCUT_ID).filter(stroke -> !stroke.equals(ALIAS_KEY)).ifPresent(stroke -> {
-                keys.put(stroke, DELETE);
-                bound[0] = stroke;
-            });
-        };
-        followTheBinding.run();
-        preferences.addListener(followTheBinding);
+        Runnable unbind = KeyBindings.follow(canvas, DELETE_SHORTCUT_ID, DELETE, delete, preferences,
+                Set.of(ALIAS_KEY));
         return () -> {
-            preferences.removeListener(followTheBinding);
+            unbind.run();
             keys.remove(ALIAS_KEY);
-            if (bound[0] != null) {
-                keys.remove(bound[0]);
-            }
-            canvas.getActionMap().remove(DELETE);
         };
     }
 
