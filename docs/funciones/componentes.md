@@ -324,7 +324,7 @@ Una flecha puede asignar salidas, además de las de Moore que asigna un estado. 
 
 En la pestaña de una máquina, bajo el diagrama, está su onda: la de la copia por la que entraste (la de «Valores de»), con una fila por entrada, la fila «estado» y una fila por salida, en ese orden, y arriba «Onda de Detector 11» (el nombre de la copia, con el camino si está dentro de un componente propio). La fila «estado» escribe el nombre de cada estado (`S0`, `S1`…), no su código, y «—» mientras la máquina no tiene estado; si después renombras, borras o reordenas estados, lo ya grabado se lee con los nombres de ahora. Cada copia graba su onda desde «Reiniciar», tenga o no su pestaña abierta, así que al entrar después de simular ya se ve lo que pasó; una salida de Mealy se ve cambiar entre dos flancos.
 
-- **Es el panel de Formas de onda de esa pestaña**: se abre solo al entrar si hay una copia; Ver ▸ Paneles ▸ Formas de onda y «Ocultar» lo cierran y lo abren, y «Seguir», el zoom, «Ver todo», el cursor y la columna de valores funcionan igual. Sus filas no se renombran, no se mueven ni se quitan, y no tienen menú.
+- **Es el panel de Formas de onda de esa pestaña**: se abre solo al entrar si hay una copia; Ver ▸ Paneles ▸ Formas de onda y «Ocultar» lo cierran y lo abren, y «Seguir», el zoom, «Ver todo», el cursor y la columna de valores funcionan igual. Sus filas no se renombran, no se mueven ni se quitan: el clic derecho en una muestra esas acciones apagadas y dice por qué.
 - **«Limpiar trazas»** borra lo grabado de todo el circuito, también las trazas del panel de Formas de onda del circuito: la simulación es una sola.
 - **Modo presentación**: espera en el borde de abajo y el 📌 la fija, como el panel de Formas de onda.
 - **Con «Sin valores»** no hay copia y la onda queda vacía, con el aviso «Entra por una copia para ver su onda».
@@ -337,7 +337,7 @@ En la pestaña de una máquina, bajo el diagrama, está su onda: la de la copia 
   en la pieza ▸ «Ver estados y salidas en formas de onda» (justo después de «Ver pines en formas de onda») agrega al
   panel de Formas de onda del circuito una fila con su estado, escrita con los nombres de los estados (se llama
   «c3 · estado», con la etiqueta de la pieza si tiene, como «c3.Z» la de un pin; no tiene «Mostrar como»), y una fila por salida, en un solo paso de deshacer; se guardan con el circuito como
-  cualquier canal y su insignia va sobre el borde de arriba de la pieza. Si ya están, la fila del estado parpadea.
+  cualquier canal y su insignia va sobre el borde de arriba de la pieza. Si ya están, la fila del estado parpadea. «Mostrar en el circuito» en la fila del estado lleva la vista a la pieza y la elige.
   Si se borra la pieza, la fila queda «(sin conexión)», como la de un pin. El mismo enlace está arriba de la onda de
   la máquina, para la copia por la que entraste; para una copia que está dentro de un componente propio se ve
   apagado y dice «Solo para máquinas puestas en el circuito principal». Dentro de la pestaña de un componente propio

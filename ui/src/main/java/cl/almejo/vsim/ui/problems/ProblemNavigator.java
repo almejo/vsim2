@@ -213,6 +213,23 @@ public final class ProblemNavigator {
     }
 
     /**
+     * Takes {@code canvas} to the top-level component {@code componentId}, selects it and focuses the canvas; a
+     * blinking net stops. False when the canvas's circuit has no such component. Used by the waveforms' «Mostrar en
+     * el circuito» on a machine's state row.
+     */
+    public static boolean focusComponent(CircuitCanvas canvas, NetBlink blink, ElementId componentId) {
+        Optional<Component> component = canvas.openDocument().document().component(componentId);
+        if (component.isEmpty()) {
+            return false;
+        }
+        canvas.travelTo(canvas.openDocument().registry().typeOf(component.get()).bounds(component.get()));
+        canvas.selection().set(List.of(componentId));
+        blink.stop();
+        canvas.requestFocusInWindow();
+        return true;
+    }
+
+    /**
      * A tunnel problem of the top circuit: travels to its tunnels (the two entradas of a duplicate, the lone salida)
      * and selects them, which says more than the net they share. False when none of them is in the top circuit (a
      * problem inside a component goes to its instance instead).

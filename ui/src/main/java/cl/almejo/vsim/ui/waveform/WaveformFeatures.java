@@ -1,5 +1,8 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.ui.actions.TextPrompt;
@@ -26,6 +29,7 @@ import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 /**
  * The waveform feature of one editor view (spec §3.2): the panel in the view's bottom dock, Ver ▸ Formas de onda,
@@ -218,13 +222,25 @@ public final class WaveformFeatures {
 
     /**
      * «Mostrar en el circuito»: centers the active pane on the probe's net, selects its wires (or its components) and
-     * blinks them.
+     * blinks them; for a machine's state row, travels to the machine piece and selects it.
      */
     void showInCircuit(String probeId) {
         if (disposed) {
             return;
         }
         OpenDocument openDocument = view.openDocument();
+        Optional<ElementId> machine = openDocument.document().probes().stream()
+                .filter(probe -> probe.id().equals(probeId))
+                .map(Probe::target)
+                .flatMap(target -> target instanceof ProbeTarget.MachineStateTarget state
+                        ? Stream.of(state.componentId())
+                        : Stream.empty())
+                .findFirst();
+        if (machine.isPresent()) {
+            // the state net lives only in the flat circuit: the row stands for the piece itself
+            ProblemNavigator.focusComponent(view.canvas(), blink, machine.get());
+            return;
+        }
         String netId = openDocument.probeNets().get(probeId);
         if (netId == null) {
             return;

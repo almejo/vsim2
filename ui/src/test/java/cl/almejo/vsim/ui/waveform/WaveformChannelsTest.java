@@ -15,6 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -146,13 +149,24 @@ class WaveformChannelsTest {
     }
 
     @Test
-    void rowsThatCannotBeEditedHaveNoMenu() {
+    void rowsThatCannotBeEditedShowTheirMenuOffSayingWhy() {
         List<String> ids = probes();
         assertThat(panel.menuOfRow(ids.get(0))).isPresent();
 
         panel.showChannels(new Strip());
 
-        assertThat(panel.menuOfRow(STATE)).as("no rename, move, remove or «Mostrar como»").isEmpty();
+        JPopupMenu menu = panel.menuOfRow(STATE).orElseThrow();
+        List<JMenuItem> items = Arrays.stream(menu.getComponents())
+                .filter(JMenuItem.class::isInstance)
+                .map(JMenuItem.class::cast)
+                .toList();
+        assertThat(items).extracting(JMenuItem::getText).contains(Messages.text("waveform.rename"),
+                Messages.text("waveform.showAs"), Messages.text("waveform.remove"),
+                Messages.text("waveform.showInCircuit"));
+        assertThat(items).allSatisfy(item -> {
+            assertThat(item.isEnabled()).isFalse();
+            assertThat(item.getToolTipText()).isEqualTo(Messages.text("waveform.rowsNotEdited"));
+        });
     }
 
     @Test

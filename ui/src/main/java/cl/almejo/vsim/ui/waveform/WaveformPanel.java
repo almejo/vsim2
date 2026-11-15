@@ -460,9 +460,30 @@ public final class WaveformPanel extends JPanel {
         showInCircuit.accept(probeId);
     }
 
-    /** The right-click menu of a row; none for rows that cannot be edited (a machine copy's own channels). */
+    /**
+     * The right-click menu of a row; for rows that cannot be edited (a machine copy's own channels) the same items,
+     * off, each saying why.
+     */
     Optional<JPopupMenu> menuOfRow(String probeId) {
-        return channels.editable() ? Optional.of(rowMenu(probeId)) : Optional.empty();
+        return Optional.of(channels.editable() ? rowMenu(probeId) : readOnlyRowMenu());
+    }
+
+    /** The row menu's items, off, with the reason as their tooltip; an empty key is a separator. */
+    private static JPopupMenu readOnlyRowMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        String reason = Messages.text("waveform.rowsNotEdited");
+        for (String key : List.of("waveform.rename", "waveform.showAs", "", "waveform.moveUp", "waveform.moveDown",
+                "", "waveform.remove", "waveform.removeAll", "", "waveform.showInCircuit")) {
+            if (key.isEmpty()) {
+                menu.addSeparator();
+                continue;
+            }
+            JMenuItem item = new JMenuItem(Messages.text(key));
+            item.setEnabled(false);
+            item.setToolTipText(reason);
+            menu.add(item);
+        }
+        return menu;
     }
 
     /** A double click on a row's name: shows its net in the circuit, for rows that can be edited (probes). */
