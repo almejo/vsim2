@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -25,8 +26,9 @@ final class SnapshotRemap {
     }
 
     /**
-     * The entries of {@code snapshot} under {@code path} with the prefix stripped: net values, component states and
-     * the short circuits and width mismatches of nets inside it (their parts outside dropped); other problems are the
+     * The entries of {@code snapshot} under {@code path} with the prefix stripped: net values, component states, the
+     * short circuits and width mismatches of nets inside it (their parts outside dropped) and the problems of the
+     * running machine copies inside it; other problems are the
      * document's (Problemas lists them). Time, revision, running state, token and failure are kept. An empty path
      * («Sin valores») keeps no values and no problems.
      */
@@ -67,6 +69,9 @@ final class SnapshotRemap {
                 case WidthMismatch mismatch when mismatch.netId().startsWith(prefix) ->
                         result.add(new WidthMismatch(mismatch.netId().substring(prefix.length()),
                                 pins(mismatch.pins(), prefix)));
+                case MachineProblem machine when machine.instancePath().filter(path -> path.startsWith(prefix))
+                        .isPresent() -> result.add(MachineProblem.of(machine.definitionId(),
+                        machine.instancePath().map(path -> path.substring(prefix.length())), machine.finding()));
                 default -> {
                     // the document's problem, or one outside this instance
                 }

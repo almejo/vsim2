@@ -334,6 +334,23 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     }
 
     /**
+     * A state machine's active state and the arrow it takes next (derived, not a role): today the scheme's write
+     * orange, so the diagrams look as they did, but named on its own so it can change without touching memories.
+     */
+    public Color machineActive() {
+        return memoryWrite;
+    }
+
+    /**
+     * A warning drawn on the board, such as an unreachable state's halo (derived, not a role): an opaque amber, deep
+     * on a light board and light on a dark one, pushed towards black or white until it reaches 3:1 like
+     * {@link #sheetCut()}; never the conflict red, which means an error.
+     */
+    public Color warning() {
+        return standingOut(isDark() ? new Color(0xFF, 0xB7, 0x4D) : new Color(0xB2, 0x6A, 0x00));
+    }
+
+    /**
      * {@code color}, mixed step by step towards black on a light board (white on a dark one), until it reaches
      * {@link #STANDING_OUT_CONTRAST} as painted over the background, keeping its alpha.
      */

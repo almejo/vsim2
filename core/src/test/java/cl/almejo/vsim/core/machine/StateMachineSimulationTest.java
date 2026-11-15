@@ -24,11 +24,13 @@ import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.Trace;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -136,6 +138,36 @@ class StateMachineSimulationTest {
         fallingEdge("clk");
 
         assertThat(stateName("m")).as("x counts as 0: S1's «otherwise» arrow").isEqualTo("S0");
+    }
+
+    @Test
+    void anInputInHighImpedanceAtTheEdgeIsToldUntilTheNextEdge() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        start();
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).isEmpty();
+
+        drive("x", Value.HIGH_IMPEDANCE);
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).as("no edge yet").isEmpty();
+        fallingEdge("clk");
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).containsExactly("x");
+
+        set("x", true);
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).as("still the last edge's").containsExactly("x");
+        fallingEdge("clk");
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).isEmpty();
+    }
+
+    @Test
+    void aClockInHighImpedanceIsToldWhileItLasts() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        start();
+        assertThat(machineState("m").clockUndefined()).isFalse();
+
+        drive("clk", Value.HIGH_IMPEDANCE);
+        assertThat(machineState("m").clockUndefined()).isTrue();
+
+        set("clk", false);
+        assertThat(machineState("m").clockUndefined()).isFalse();
     }
 
     @Test
@@ -264,6 +296,151 @@ class StateMachineSimulationTest {
         assertThat(led("z")).isEqualTo(Value.ONE);
     }
 
+    // --- the state channel ---
+
+    @Test
+    void theStateNetCarriesTheStateCodeAlongTheMockupsSequence() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        engine.update(flatten(), Map.of("estado", StateMachineTypes.stateNetId("m")));
+        engine.advance(SETTLE);
+
+        List<Long> codes = new ArrayList<>();
+        for (boolean x : List.of(false, true, true, true, false, true)) {
+            set("x", x);
+            fallingEdge("clk");
+            codes.add(stateCode("m").bits());
+        }
+
+        assertThat(codes).containsExactly(0L, 1L, 2L, 2L, 0L, 1L);
+        Trace trace = engine.waveforms().trace("estado").orElseThrow();
+        assertThat(trace.width()).isEqualTo(2);
+        assertThat(definedValues(trace)).containsExactly(0L, 1L, 2L, 0L, 1L);
+    }
+
+    @Test
+    void aMachineInsideAUserComponentHasItsOwnStateNet() {
+        document.putDefinition(MachineDefinitions.create(MACHINE_ID, "Máquina 1")
+                .withMachine(MachineExamples.twoOnesDetector()));
+        document.putDefinition(wrapper());
+        Component piece = new Component(new ElementId("w"), SubcircuitTypes.typeIdOf("wrapper"),
+                new GridPoint(20, 0), Rotation.R0, Map.of(), "");
+        document.add(piece);
+        feed(document, "x", StandardComponentTypes.SWITCH, piece, "x");
+        feed(document, "clk", StandardComponentTypes.SWITCH, piece, MachineLimits.CLOCK);
+        start();
+
+        set("x", true);
+        fallingEdge("clk");
+        fallingEdge("clk");
+
+        assertThat(stateCode("w/m")).isEqualTo(Value.of(2, 2));
+    }
+
+    @Test
+    void theStateNetCausesNoProblem() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        machinePiece(document, "loose", new GridPoint(60, 0));
+        FlatCircuit circuit = flatten();
+        engine.update(circuit);
+        engine.advance(SETTLE);
+        fallingEdge("clk");
+
+        assertThat(circuit.connectivityProblems()).noneMatch(problem -> problem.netId().contains("#"));
+        assertThat(circuit.nets()).filteredOn(net -> net.id().equals(StateMachineTypes.stateNetId("loose")))
+                .singleElement().satisfies(net -> assertThat(net.widthMismatch()).isFalse());
+        assertThat(engine.snapshot().problems()).isEmpty();
+    }
+
+    @Test
+    void fiveStatesNeedThreeBits() {
+        detectorWithSwitchesAndLed(withExtraStates(MachineExamples.twoOnesDetector(), 2));
+        start();
+
+        assertThat(stateCode("m")).isEqualTo(Value.of(3, 0));
+        assertThat(StateMachineTypes.stateWidth(withExtraStates(MachineExamples.twoOnesDetector(), 2))).isEqualTo(3);
+        assertThat(StateMachineTypes.stateWidth(withExtraStates(MachineExamples.twoOnesDetector(), 1))).isEqualTo(2);
+        assertThat(StateMachineTypes.stateWidth(StateMachine.initial())).isEqualTo(1);
+    }
+
+    @Test
+    void aMachineWithoutStatesDrivesHighImpedanceOnItsStateNet() {
+        StateMachine empty = MachineExamples.twoOnesDetector().withTransitions(List.of())
+                .withInitialStateId(Optional.empty()).withStates(List.of());
+        detectorWithSwitchesAndLed(empty);
+        start();
+
+        assertThat(flatten().netOfPin("m", 4)).as("the hidden pin after x, RST, CLK and Z")
+                .contains(StateMachineTypes.stateNetId("m"));
+        assertThat(stateCode("m").isFullyHighImpedance()).isTrue();
+    }
+
+    @Test
+    void resetDrivesTheInitialStatesCode() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        start();
+        set("x", true);
+        fallingEdge("clk");
+        fallingEdge("clk");
+
+        set("rst", true);
+
+        assertThat(stateCode("m")).isEqualTo(Value.of(2, 0));
+    }
+
+    @Test
+    void anEditThatWidensTheStateKeepsTheChannelBound() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        Map<String, String> channels = Map.of("estado", StateMachineTypes.stateNetId("m"));
+        engine.update(flatten(), channels);
+        engine.advance(SETTLE);
+        set("x", true);
+        fallingEdge("clk");
+        fallingEdge("clk");
+
+        new History(document).execute(new EditMachineCommand(MACHINE_ID,
+                withExtraStates(MachineExamples.twoOnesDetector(), 2)));
+        engine.update(flatten(), channels);
+        engine.advance(SETTLE);
+
+        assertThat(stateCode("m")).as("S2 kept, now 3 bits").isEqualTo(Value.of(3, 2));
+        Trace trace = engine.waveforms().trace("estado").orElseThrow();
+        assertThat(trace.width()).isEqualTo(3);
+        assertThat(trace.valueAt(engine.now())).contains(Value.of(3, 2));
+    }
+
+    @Test
+    void theStateCodeIsTheIndexInTheStates() {
+        StateMachine detector = MachineExamples.twoOnesDetector();
+
+        assertThat(StateMachineTypes.stateCode(detector, "s2")).hasValue(2);
+        assertThat(StateMachineTypes.stateCode(detector, "nope")).isEmpty();
+        assertThat(StateMachineTypes.stateIdOfCode(detector, 1)).contains("s1");
+        assertThat(StateMachineTypes.stateIdOfCode(detector, 3)).isEmpty();
+        assertThat(StateMachineTypes.stateIdOfCode(detector, -1)).isEmpty();
+    }
+
+    /** {@code machine} with {@code count} more states, {@code E0}, {@code E1}…, with no arrows. */
+    private static StateMachine withExtraStates(StateMachine machine, int count) {
+        List<MachineState> states = new ArrayList<>(machine.states());
+        for (int index = 0; index < count; index++) {
+            states.add(MachineExamples.state("e" + index, "E" + index, 300 + 100 * index, List.of()));
+        }
+        return machine.withStates(states);
+    }
+
+    /** The defined values {@code trace} took, in order, without its repeats or gaps. */
+    private static List<Long> definedValues(Trace trace) {
+        List<Long> values = new ArrayList<>();
+        for (int index = 0; index < trace.eventCount(); index++) {
+            trace.eventValue(index).filter(Value::isFullyDefined).ifPresent(value -> {
+                if (values.isEmpty() || values.get(values.size() - 1) != value.bits()) {
+                    values.add(value.bits());
+                }
+            });
+        }
+        return values;
+    }
+
     // --- the circuit ---
 
     /** The machine as piece {@code m}, switches {@code x}, {@code rst} and {@code clk}, and LED {@code z}. */
@@ -365,6 +542,10 @@ class StateMachineSimulationTest {
         VisibleState state = engine.snapshot().componentState(flatId);
         assertThat(state).as(flatId).isInstanceOf(MachineVisibleState.class);
         return (MachineVisibleState) state;
+    }
+
+    private Value stateCode(String flatId) {
+        return engine.netValue(StateMachineTypes.stateNetId(flatId));
     }
 
     private String stateName(String flatId) {

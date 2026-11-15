@@ -6,8 +6,8 @@ import java.awt.Color;
 
 /**
  * The colours of a machine's diagram, taken from the current {@link ColorScheme} each time they are asked (never kept:
- * the scheme changes live). The active state and the next arrow use the scheme's orange ({@code memoryWrite}, which
- * every scheme gives), as in the agreed mockup; a colour of its own can come with the part's face (hito 2).
+ * the scheme changes live). The active state and the next arrow use the scheme's {@code machineActive} orange, as in
+ * the agreed mockup.
  */
 public final class MachineColors {
 
@@ -24,7 +24,7 @@ public final class MachineColors {
     }
 
     public static Color active(ColorScheme scheme) {
-        return scheme.memoryWrite();
+        return scheme.machineActive();
     }
 
     /** The inside of the active state: the background tinted with the active colour, opaque. */

@@ -4,12 +4,16 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorFactory;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * The native type a «Máquina de estados» runs as (spec §2.3): the flattener does not expand its pins-only body but
@@ -17,10 +21,18 @@ import java.util.Objects;
  * outputs) and a {@link StateMachineBehavior}. The type id is the same for every revision of one machine, so a rebuild
  * after an edit hands the running state to the new behaviour ({@link Behavior#adoptStateFrom}); two types are equal
  * when their machines are, so a rebuild that changes nothing keeps the running instance.
+ * <p>
+ * After the pinout the type has one hidden output, the state channel: it carries the current state's code, its index
+ * in {@link StateMachine#states()}, {@link #stateWidth} bits wide, or Z while the machine holds no state. The
+ * document's type of the piece does not have it, so it is never drawn nor wired; the flattener gives it a net of its
+ * own, {@link #stateNetId}, which the waveform recorder watches like any net.
  */
 public final class StateMachineTypes {
 
     public static final String PREFIX = "machine:";
+
+    /** The hidden state pin's name, also the suffix of its net: no pin name the user gives holds {@code #}. */
+    static final String STATE_PIN_NAME = "#state";
 
     private StateMachineTypes() {
     }
@@ -39,8 +51,54 @@ public final class StateMachineTypes {
         Objects.requireNonNull(definition, "definition");
         StateMachine machine = definition.machine().orElseThrow(() ->
                 new IllegalArgumentException(definition.id() + " is not a state machine"));
-        return new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM, definition.size(),
-                definition.pinout().stream().map(DefinitionPin::spec).toList(), List.of(), new Factory(machine));
+        List<PinSpec> pins = new ArrayList<>(definition.pinout().stream().map(DefinitionPin::spec).toList());
+        pins.add(PinSpec.output(STATE_PIN_NAME, 0, 0, stateWidth(machine)));
+        return new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM, definition.size(), pins,
+                List.of(), new Factory(machine));
+    }
+
+    /** The machine a native type runs, when {@code type} is one made by {@link #typeOf}. */
+    public static Optional<StateMachine> machineOf(ComponentType type) {
+        Objects.requireNonNull(type, "type");
+        return type.behaviorFactory() instanceof Factory factory ? Optional.of(factory.machine()) : Optional.empty();
+    }
+
+    /**
+     * How many bits the state code needs: enough for every index of {@code machine}'s states, at least one (one state,
+     * or none, takes one bit). Four states take 2 bits, five take 3.
+     */
+    public static int stateWidth(StateMachine machine) {
+        int states = Math.max(1, machine.states().size());
+        return Math.max(1, Integer.SIZE - Integer.numberOfLeadingZeros(states - 1));
+    }
+
+    /** The index of the hidden state pin in the native type of {@code definition}: right after its pinout. */
+    public static int statePinIndex(ComponentDefinition definition) {
+        return definition.pinout().size();
+    }
+
+    /** The net the flattener gives the state pin of the machine copy {@code flatComponentId} ({@code w/m}). */
+    public static String stateNetId(String flatComponentId) {
+        return flatComponentId + STATE_PIN_NAME;
+    }
+
+    /** The code of state {@code stateId}: its index in {@code machine}'s states; empty for an unknown state. */
+    public static OptionalInt stateCode(StateMachine machine, String stateId) {
+        List<MachineState> states = machine.states();
+        for (int index = 0; index < states.size(); index++) {
+            if (states.get(index).id().equals(stateId)) {
+                return OptionalInt.of(index);
+            }
+        }
+        return OptionalInt.empty();
+    }
+
+    /** The state whose code is {@code code}; empty when no state has it (a code recorded before an edit). */
+    public static Optional<String> stateIdOfCode(StateMachine machine, long code) {
+        if (code < 0 || code >= machine.states().size()) {
+            return Optional.empty();
+        }
+        return Optional.of(machine.states().get((int) code).id());
     }
 
     /** Builds the behaviour of one machine; equal for equal machines, so a type keeps its identity across rebuilds. */

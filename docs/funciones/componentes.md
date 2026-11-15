@@ -284,7 +284,8 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   mover los demás, así que dos copias de la misma máquina pueden mostrar sus pines en otro orden). Es una sola pieza que se simula directo, sin compuertas por dentro:
   cambia de estado en el flanco de bajada de `CLK`, como los flip-flops, y `RST = 1` la lleva al estado inicial y la
   mantiene ahí. Una entrada sin valor, en Z o en conflicto cuenta como 0 en las
-  condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco.
+  condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco. Problemas avisa las dos cosas (ver
+  [Problemas de una máquina](#problemas-de-una-máquina)).
 - **La cara de la pieza**: el nombre arriba y los pines a los lados. Con 1 a 4 estados, en el medio su diagrama en
   miniatura, con sus flechas de verdad pero sin las condiciones (no caben) y los estados en un lugar fijo, no el de
   adentro (uno al centro, dos a los lados, tres en triángulo, cuatro en cuadrado empezando arriba a la izquierda): el
@@ -322,6 +323,15 @@ Una flecha puede asignar salidas, además de las de Moore que asigna un estado. 
 - **Cuándo cambian**: una salida de Mealy depende de la flecha que las entradas eligen ahora, así que cambia apenas cambia una entrada, sin esperar el flanco del reloj; las de Moore cambian al cambiar de estado. Si una salida no se asigna en la flecha elegida ni en el estado, vale 0, y si las dos asignan la misma, gana la flecha.
 - **Pines**: un nombre nuevo en las salidas de una flecha agrega ese pin a la pieza, igual que en un estado.
 - **Tipo**: sin nada elegido, Propiedades dice si la máquina es «Moore», «Mealy» o «Moore y Mealy», según dónde asigna salidas (solo informa; no se cambia ahí).
+
+### Problemas de una máquina
+
+Lo que una máquina tiene mal aparece en la lista Problemas del circuito, como cualquier otro problema, con el nombre de la máquina adelante («Máquina «Detector»: …») y, si es de una copia que está corriendo, también la copia («Máquina «Detector» en U1 › U3: …»). Los errores cuentan en la insignia roja; los avisos solo están en la lista, como los de los túneles. La IA lee las mismas filas.
+
+- **Errores**: la máquina no tiene estados; ningún estado está marcado como inicial; una condición que no se puede leer (dice en qué columna y qué le falta; esa flecha no se toma nunca y no entra en los demás chequeos); dos flechas sin condición que salen del mismo estado; dos flechas del mismo estado que se cumplen a la vez, con las entradas que lo muestran («Desde A, «x» y «x + y» se cumplen a la vez con x = 1, y = 0: la máquina no sabe a cuál ir.»; dos flechas que van al mismo estado con las mismas salidas no son un error); una condición que lee una salida, `CLK` o `RST` (se lee como 0); un nombre que ya no cabe como pin porque la máquina tiene 16 entradas o 16 salidas.
+- **Avisos**: un estado al que no se llega desde el inicial (no se avisa si no hay estado inicial); un estado con flechas con condición y sin una flecha sin condición, que para algunas entradas se queda donde está («En B no se dice qué pasa con x = 0: se queda en B. ¿Es lo que querías?»; un estado sin ninguna flecha simplemente se queda, sin aviso); una salida a la que ningún estado ni flecha le da valor (vale siempre 0, un aviso por salida); una entrada que ninguna condición usa; una flecha que le da a una salida otro valor que su estado (gana la flecha).
+- **Avisos de una copia que corre**: una entrada que una condición lee y que en el último flanco no tenía 0 ni 1 (Z o conflicto, por ejemplo sin conectar: se leyó como 0), y un `CLK` que ahora no tiene 0 ni 1 (sin conectar, por ejemplo): la máquina no avanza. Cada copia tiene los suyos, también dentro de un componente propio.
+- Un clic en el problema (o F8) lleva a la pieza de la copia en el circuito; un problema del diagrama mismo lleva a la primera copia. Una máquina que solo está en «Componentes de este circuito», sin ninguna copia puesta, igual muestra sus problemas.
 
 ## Terminal y teclado
 

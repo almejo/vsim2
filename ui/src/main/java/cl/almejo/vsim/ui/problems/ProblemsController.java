@@ -18,6 +18,7 @@ import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.ListedProblems;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -213,7 +214,7 @@ public final class ProblemsController {
         if (isOwn(problem)) {
             return false;
         }
-        Optional<String> focus = ProblemPlaces.focusOf(problem);
+        Optional<String> focus = ProblemPlaces.focusOf(problem, circuit.document());
         boolean inside = focus.filter(InstancePath::isNested).isPresent();
         if (!openDocument.isBody() && !inside) {
             return false;
@@ -387,16 +388,17 @@ public final class ProblemsController {
     }
 
     /**
-     * Errors are the short circuits, the width mismatches and the tunnel errors (what the status bar alarms about);
-     * everything else the list holds is a warning: display and tunnel warnings, outdated pieces, linked-file problems
-     * and the library files that did not load.
+     * Errors are the short circuits, the width mismatches, the tunnel errors (what the status bar alarms about) and
+     * the state machines' errors; everything else the list holds is a warning: display, tunnel and machine warnings,
+     * outdated pieces, linked-file problems and the library files that did not load.
      */
-    private static Counts countsOf(List<Problem> problems, int libraryProblems) {
+    static Counts countsOf(List<Problem> problems, int libraryProblems) {
         int errors = 0;
         int warnings = libraryProblems;
         for (Problem problem : problems) {
             boolean isError = problem instanceof ShortCircuit || problem instanceof WidthMismatch
-                    || problem instanceof TunnelProblem tunnel && !tunnel.isWarning();
+                    || problem instanceof TunnelProblem tunnel && !tunnel.isWarning()
+                    || problem instanceof MachineProblem machine && !machine.isWarning();
             if (isError) {
                 errors++;
             } else {

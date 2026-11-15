@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -14,6 +15,11 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineCopies;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachineExamples;
+import cl.almejo.vsim.core.machine.MachineFinding;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
@@ -116,6 +122,38 @@ class ListedProblemsTest {
                 .extracting(ConnectivityProblem::netId, ConnectivityProblem::elementId, ConnectivityProblem::cause)
                 .containsExactly(tuple("ownContents:c10", "c30/c10", ConnectivityProblem.Cause.OWN_CONTENTS_OVER_LINK),
                         tuple("ownContents:c99", "c30", ConnectivityProblem.Cause.OWN_CONTENTS_FOR_NOTHING));
+    }
+
+    @Test
+    void aMachinesProblemsAreListedForItsDefinitionAndItsRuntimeOnesForEachCopy() {
+        document.putDefinition(MachineDefinitions.create("maquina-1", "Detector")
+                .withMachine(MachineExamples.twoOnesDetector()));
+        document.putDefinition(MachineDefinitions.create("maquina-2", "Sin inicio")
+                .withMachine(StateMachine.initial().withInitialStateId(Optional.empty())));
+        Component copy = new Component(new ElementId("m"), SubcircuitTypes.typeIdOf("maquina-1"), GridPoint.ORIGIN,
+                Rotation.R0, Map.of(), "");
+        document.putDefinition(new ComponentDefinition("envoltorio", "Envoltorio", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(copy), List.of(), List.of())));
+        document.add(new Component(new ElementId("w"), SubcircuitTypes.typeIdOf("envoltorio"), new GridPoint(40, 0),
+                Rotation.R0, Map.of(), ""));
+        VisibleState.MachineVisibleState running = new VisibleState.MachineVisibleState("s1", "S1",
+                Optional.of("s2"), Optional.of("t2"), List.of("x"), false);
+        SimulationSnapshot snapshot = new SimulationSnapshot(0, 0, 0, true, Map.of(), Map.of("w/m", running),
+                List.of(), Optional.empty());
+
+        List<Problem> listed = ListedProblems.of(document, registry, ListedProblems.Sources.published(snapshot,
+                List.of()));
+
+        assertThat(listed).map(MachineProblem.class::cast)
+                .extracting(MachineProblem::definitionId, MachineProblem::instancePath,
+                        problem -> problem.finding().kind())
+                .containsExactly(
+                        tuple("maquina-2", Optional.empty(), MachineFinding.Kind.NO_INITIAL_STATE),
+                        tuple("maquina-1", Optional.of("w/m"), MachineFinding.Kind.INPUT_UNDEFINED_AT_EDGE));
+        assertThat(listed).extracting(Problem::netId).doesNotHaveDuplicates()
+                .allMatch(netId -> netId.startsWith("machine:"));
+        assertThat(MachineCopies.firstPathOf(document, "maquina-1")).contains("w/m");
+        assertThat(MachineCopies.firstPathOf(document, "maquina-2")).isEmpty();
     }
 
     /** A circuit no editor shows: what the simulation published, its connectivity included, and the given files. */

@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.ListedProblems;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -48,6 +49,7 @@ public final class ProblemsReader {
             case TunnelProblem tunnel -> "TUNNEL_" + tunnel.kind().name();
             case LinkedFileProblem linkedFile -> "LINKED_FILE_" + linkedFile.kind().name();
             case ConnectivityProblem connectivity -> ConnectivityProblemViews.kindOf(connectivity.cause());
+            case MachineProblem machine -> MachineProblemViews.kindOf(machine);
         };
     }
 
@@ -86,6 +88,7 @@ public final class ProblemsReader {
                 yield references.view(kind, true, problem.netId(), linkedFileMessage(source, linkedFile));
             }
             case ConnectivityProblem connectivity -> ConnectivityProblemViews.view(source, connectivity);
+            case MachineProblem machine -> MachineProblemViews.view(source, machine);
         };
     }
 

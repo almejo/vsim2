@@ -249,6 +249,24 @@ class ColorSchemesTest {
     }
 
     @Test
+    void theMachineActiveColourIsTodaysOrangeInEveryScheme() {
+        for (ColorScheme scheme : ALL) {
+            assertThat(scheme.machineActive()).as("%s", scheme).isEqualTo(scheme.memoryWrite());
+        }
+    }
+
+    @Test
+    void theWarningColourIsAnOpaqueAmberThatStandsOutFromEveryBoard() {
+        for (ColorScheme scheme : ALL) {
+            Color warning = scheme.warning();
+            assertThat(warning.getAlpha()).as("opaque: %s", scheme).isEqualTo(255);
+            assertThat(warning.getRed()).as("amber: red over blue: %s", scheme).isGreaterThan(warning.getBlue() + 60);
+            assertThat(contrast(warning, scheme.background())).as("%s", scheme).isGreaterThanOrEqualTo(3);
+            assertThat(warning).as("not the conflict red: %s", scheme).isNotEqualTo(scheme.wireConflict());
+        }
+    }
+
+    @Test
     void textAndOutlinesAreReadable() {
         for (ColorScheme scheme : STRICT) {
             assertThat(contrast(scheme.text(), scheme.background())).isGreaterThanOrEqualTo(READABLE);

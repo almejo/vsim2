@@ -190,6 +190,19 @@ class WaveformPanelTest {
     }
 
     @Test
+    void aClickNeverSnapsToAMachinesOwnChannel() {
+        List<String> ids = chain();
+        panel.axis().setWidth(800);
+        panel.axis().fit(0, 400); // 2 px per unit
+        panel.display(new WaveformSnapshot(1, 300, Map.of(ids.get(0), trace(0, Value.ONE),
+                "machine:c1:state", trace(0, Value.ZERO, 10, Value.ONE))));
+
+        panel.placeCursor(23);
+
+        assertThat(panel.axis().cursor()).as("not the machine's edge at 10").hasValue(12);
+    }
+
+    @Test
     void arrowKeysMoveTheCursorAlongTheSelectedRow() {
         List<String> ids = chain();
         panel.axis().setWidth(800);

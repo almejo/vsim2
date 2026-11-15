@@ -139,8 +139,10 @@ public final class CircuitFlattener {
                 Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
                 if (definition.isPresent() && definition.get().isMachine()) {
                     // a state machine runs natively: its body holds only its interface pins (spec §2.3)
-                    addComponent(new FlatComponent(flatId, machineTypes.computeIfAbsent(definition.get(),
-                            StateMachineTypes::typeOf), Map.of()), component, levelNetlist, prefix);
+                    ComponentType machineType = machineTypes.computeIfAbsent(definition.get(),
+                            StateMachineTypes::typeOf);
+                    addComponent(new FlatComponent(flatId, machineType, Map.of()), component, levelNetlist, prefix);
+                    addStateNet(flatId, machineType, StateMachineTypes.statePinIndex(definition.get()));
                 } else if (definition.isPresent()) {
                     expand(flatId, component, definition.get(), levelNetlist, prefix, depth);
                 } else if (!prefix.isEmpty() && InterfacePins.isInterface(type.id())) {
@@ -174,6 +176,17 @@ public final class CircuitFlattener {
                 levelNetlist.netForPin(new PinRef(component.id(), pinIndex))
                         .ifPresent(net -> nets.get(prefix + net.id().value()).pins.add(reference));
             }
+        }
+
+        /**
+         * The net of a machine copy's hidden state pin, its own and only its: no document net holds the pin, so it
+         * joins nothing, and with one driver and no reader it makes no short, no width mismatch and no connectivity
+         * problem.
+         */
+        private void addStateNet(String flatId, ComponentType machineType, int statePin) {
+            NetBuilder net = new NetBuilder(machineType.pin(statePin).width(), false);
+            net.pins.add(new FlatPinRef(flatId, statePin));
+            nets.put(StateMachineTypes.stateNetId(flatId), net);
         }
 
         private void expand(String instanceId, Component instance, ComponentDefinition definition,

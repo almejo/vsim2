@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.machine.MachineCopies;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -14,6 +15,7 @@ import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
@@ -118,6 +120,9 @@ public final class ProblemNavigator {
         if (problem instanceof LinkedFileProblem linkedFile) {
             return navigateToMemory(linkedFile);
         }
+        if (problem instanceof MachineProblem machine) {
+            return navigateToMachine(machine);
+        }
         if (problem instanceof TunnelProblem tunnel && navigateToTunnels(tunnel)) {
             return true;
         }
@@ -126,6 +131,27 @@ public final class ProblemNavigator {
             return navigateToInstances(problem);
         }
         focusNet(canvas.get(), blink, net.get());
+        return true;
+    }
+
+    /**
+     * A machine's problem shown on this canvas: selects the piece that holds its copy (the running copy, else the
+     * machine's first one). False when no piece of this circuit holds one.
+     */
+    private boolean navigateToMachine(MachineProblem problem) {
+        CircuitCanvas pane = canvas.get();
+        CircuitDocument document = pane.openDocument().document();
+        Optional<Component> piece = problem.instancePath()
+                .or(() -> MachineCopies.firstPathOf(document, problem.definitionId()))
+                .map(InstancePath::topLevel)
+                .flatMap(id -> document.component(new ElementId(id)));
+        if (piece.isEmpty()) {
+            return false;
+        }
+        pane.travelTo(pane.openDocument().registry().typeOf(piece.get()).bounds(piece.get()));
+        pane.selection().set(List.of(piece.get().id()));
+        blink.stop();
+        pane.requestFocusInWindow();
         return true;
     }
 
@@ -217,6 +243,7 @@ public final class ProblemNavigator {
             case TunnelProblem tunnel -> ids.addAll(tunnel.tunnels());
             case ConnectivityProblem connectivity -> ids.add(connectivity.elementId());
             case LinkedFileProblem linkedFile -> ids.add(linkedFile.elementId());
+            case MachineProblem machine -> machine.instancePath().ifPresent(ids::add);
         }
         CircuitDocument document = canvas.get().openDocument().document();
         ComponentTypeRegistry registry = canvas.get().openDocument().registry();
