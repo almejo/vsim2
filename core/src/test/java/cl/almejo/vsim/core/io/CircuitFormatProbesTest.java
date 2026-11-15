@@ -147,7 +147,9 @@ class CircuitFormatProbesTest {
                 arguments("[{\"id\":\"p1\",\"component\":\"c1\",\"pin\":-1}]", "probes[0]: negative pin -1"),
                 arguments("[{\"id\":\"p1\",\"wire\":\"w1\"},{\"id\":\"p1\",\"wire\":\"w2\"}]",
                         "probes[1]: duplicate id p1"),
-                arguments("[{\"id\":\"p1\",\"wire\":\"a/b\"}]", "probes[0]: element id must not contain"));
+                arguments("[{\"id\":\"p1\",\"wire\":\"a/b\"}]", "probes[0]: element id must not contain"),
+                arguments("[{\"id\":\"machine:c1:state\",\"wire\":\"w1\"}]",
+                        "probes[0]: id machine:c1:state starts with machine:, which only a machine's own channels use"));
     }
 
     @ParameterizedTest

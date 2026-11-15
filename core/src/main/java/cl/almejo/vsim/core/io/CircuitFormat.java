@@ -34,6 +34,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -588,7 +589,7 @@ public final class CircuitFormat {
     /**
      * The probes of a file, in order. A malformed entry fails with {@code INVALID_ELEMENT} and a detail that starts
      * with {@code probes[<index>]: }; a probe on a component or wire that does not exist is kept (it shows as not
-     * connected), since VSim itself writes these files.
+     * connected), since VSim itself writes these files. A probe id may not start with {@link MachineChannels#PREFIX}.
      */
     static List<Probe> probes(List<ProbeEntry> entries) throws CircuitFormatException {
         List<Probe> probes = new ArrayList<>();
@@ -601,6 +602,11 @@ public final class CircuitFormat {
             }
             if (entry.id() == null || entry.id().isBlank()) {
                 throw invalid(where + "missing id");
+            }
+            if (entry.id().startsWith(MachineChannels.PREFIX)) {
+                // the simulation records every machine copy under such ids: the probe would show the machine's trace
+                throw invalid(where + "id " + entry.id() + " starts with " + MachineChannels.PREFIX
+                        + ", which only a machine's own channels use");
             }
             if (!ids.add(entry.id())) {
                 throw invalid(where + "duplicate id " + entry.id());
