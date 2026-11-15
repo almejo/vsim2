@@ -1,12 +1,15 @@
 package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
 
 import javax.swing.Action;
+import javax.swing.InputMap;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -27,9 +30,9 @@ import java.util.List;
 final class MachineEditing {
 
     private static final String DELETE = "machine-delete";
-    /** The keys that delete on the diagram, as on the circuit canvas (Retroceso is its alias of Supr). */
-    private static final List<KeyStroke> DELETE_KEYS = List.of(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0),
-            KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0));
+    private static final String DELETE_SHORTCUT_ID = "edit.delete";
+    /** Retroceso deletes on the diagram as on the circuit canvas, whatever key «Borrar» is given. */
+    private static final KeyStroke ALIAS_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0);
 
     private final MachineTool tool;
     private final MachineInlineEditor inline;
@@ -56,7 +59,7 @@ final class MachineEditing {
         }
         undo.add(view.actions().deleteContentInstead(tool));
         undo.add(canvas.selection().addListener(view.actions()::refresh));
-        undo.add(bindDelete(canvas, view.actions().delete()));
+        undo.add(bindDelete(canvas, view.actions().delete(), view.services().preferences()));
         undo.add(addMenuItems(view.menu(MenuId.EDIT), view.actions().delete(), tool));
         undo.add(rows::dispose);
         undo.add(inline::dispose);
@@ -83,11 +86,34 @@ final class MachineEditing {
         uninstall.run();
     }
 
-    private static Runnable bindDelete(MachineCanvas canvas, Action delete) {
-        DELETE_KEYS.forEach(key -> canvas.getInputMap(JComponent.WHEN_FOCUSED).put(key, DELETE));
+    /**
+     * The keys of {@code delete} on the diagram: Retroceso always (the editor's fixed alias), and whatever key the
+     * user gave «Borrar» in Atajos de teclado (Supr by default), following later changes made in any window.
+     */
+    private static Runnable bindDelete(MachineCanvas canvas, Action delete, AppPreferences preferences) {
+        KeyBindings bindings = new KeyBindings(preferences);
+        InputMap keys = canvas.getInputMap(JComponent.WHEN_FOCUSED);
+        keys.put(ALIAS_KEY, DELETE);
         canvas.getActionMap().put(DELETE, delete);
+        KeyStroke[] bound = new KeyStroke[1];
+        Runnable followTheBinding = () -> {
+            if (bound[0] != null) {
+                keys.remove(bound[0]);
+                bound[0] = null;
+            }
+            bindings.strokeFor(DELETE_SHORTCUT_ID).filter(stroke -> !stroke.equals(ALIAS_KEY)).ifPresent(stroke -> {
+                keys.put(stroke, DELETE);
+                bound[0] = stroke;
+            });
+        };
+        followTheBinding.run();
+        preferences.addListener(followTheBinding);
         return () -> {
-            DELETE_KEYS.forEach(key -> canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(key));
+            preferences.removeListener(followTheBinding);
+            keys.remove(ALIAS_KEY);
+            if (bound[0] != null) {
+                keys.remove(bound[0]);
+            }
             canvas.getActionMap().remove(DELETE);
         };
     }

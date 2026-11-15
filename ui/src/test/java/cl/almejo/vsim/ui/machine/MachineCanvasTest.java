@@ -58,7 +58,8 @@ class MachineCanvasTest {
         assertThat(geometry.arrow("t2").kind()).isEqualTo(MachineDiagramGeometry.ArrowKind.CURVED);
         assertThat(geometry.arrow("t1").labelAnchor().getY()).isNotEqualTo(geometry.arrow("t2").labelAnchor().getY());
         assertThat(geometry.arrow("t3").kind()).isEqualTo(MachineDiagramGeometry.ArrowKind.STRAIGHT);
-        assertThat(geometry.arrow("t5").kind()).isEqualTo(MachineDiagramGeometry.ArrowKind.STRAIGHT);
+        // S2 -> S0 would pass behind S1: it bends around it (MachineArrowsAroundStatesTest)
+        assertThat(geometry.arrow("t5").kind()).isEqualTo(MachineDiagramGeometry.ArrowKind.CURVED);
         assertThat(geometry.arrow("t4").kind()).isEqualTo(MachineDiagramGeometry.ArrowKind.SELF_LOOP);
     }
 
