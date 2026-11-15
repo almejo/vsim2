@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.machine.MachineCreation;
+import cl.almejo.vsim.core.command.CreateMachineCommand;
 import cl.almejo.vsim.ui.machine.PlaceMachineTool;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContentZoom;
@@ -266,6 +267,7 @@ public final class EditorView extends JPanel implements CanvasHost {
                 () -> performIfEnabled(actions.start()));
         inlineEditor = new InlineTextEditor(this::canvas);
         forEachPane(this::configurePane);
+        forEachPane(pane -> pane.setPaletteActionDrop(MachineCreation.PALETTE_ID, this::dropNewMachine));
         forEachPane(pane -> pane.addDrawingListener(actions::refresh)); // Deshacer drops a corner while a wire is drawn
         forEachPane(pane -> pane.addDrawingListener(() -> releaseKeyboardWhileDrawing(pane))); // its keys are the path's
         bindZoomKeys();
@@ -1281,6 +1283,13 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /** A new pane's canvas: same document, a renderer of its own, the window's selection. */
+    /** A «Máquina de estados» dragged from the palette lands at {@code origin}: one undo step, and it is selected. */
+    private void dropNewMachine(GridPoint origin) {
+        CreateMachineCommand command = MachineCreation.create(openDocument, origin, services.library().ids());
+        selection.select(command.instanceId().orElseThrow());
+        canvas().repaint();
+    }
+
     private CircuitCanvas newPane() {
         CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), services.painters(),
                 services.appearance());

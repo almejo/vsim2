@@ -270,6 +270,14 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   un componente propio) y un identificador único, `maquina-` con seis letras o cifras al azar que no usa ni el
   circuito ni «Mis componentes»: así, pegar una máquina en otro circuito o guardarla en la librería nunca la confunde
   con otra que se llame igual.
+- **Arrastrarla**: también se puede arrastrar «Máquina de estados» desde la paleta hasta el lienzo del circuito:
+  se crea ahí, en un solo paso de deshacer, y queda elegida. Soltarla (o cualquier pieza) sobre el diagrama de una
+  máquina no crea nada y la barra de estado explica por qué.
+- **Flechas que no se esconden**: una flecha que, en línea recta, pasaría por detrás de un tercer estado se dibuja
+  curva, doblándose hacia el lado contrario, y se puede elegir con un clic en su línea; si dos flechas se cruzan,
+  el clic elige la más cercana al puntero.
+- **Borrar en el diagrama**: borra con la tecla que le hayas dado a «Borrar» en Atajos de teclado (Supr por
+  defecto, y cambia en el acto si la cambias) y con Retroceso.
 - **Qué es**: un componente propio cuyo interior no son piezas y cables sino un diagrama de estados y flechas, que se
   dibuja en su pestaña. Parte con un estado `S0`, inicial, y con los pines `RST` y `CLK`; un nombre nuevo en una
   condición o en una salida de Moore agrega su pin (en una pieza que ya tiene cables, el pin nuevo se agrega abajo sin

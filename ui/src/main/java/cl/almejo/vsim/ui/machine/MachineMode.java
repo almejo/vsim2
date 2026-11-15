@@ -54,6 +54,7 @@ public final class MachineMode {
         MachineCanvas canvas = new MachineCanvas(place, machineId.get(), selection, stateSource,
                 () -> view.services().appearance().scheme());
         MachinePalette palette = new MachinePalette();
+        canvas.setTransferHandler(new MachineDropRefusal(view::showNotice));
         Runnable showDiagram = view.showInsteadOfCanvas(canvas, canvas);
         Runnable showPalette = view.leftColumn().showInsteadOfPalette(palette);
         Runnable enableCircuitActions = MachineActionPolicy.disableCircuitActions(view);

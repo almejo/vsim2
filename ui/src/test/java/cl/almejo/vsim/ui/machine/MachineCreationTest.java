@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
+import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.TestToolContext;
@@ -179,6 +180,37 @@ class MachineCreationTest {
             view.palette().chooseEntry(entry);
 
             assertThat(view.canvas().tool()).isInstanceOf(PlaceMachineTool.class);
+        } finally {
+            view.dispose();
+            document.close();
+        }
+    }
+
+    @Test
+    void droppingTheEntryOnACircuitCanvasCreatesTheMachineThereInOneUndoStepAndSelectsIt() {
+        OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        EditorView view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        try {
+            view.canvas().setSize(800, 600);
+            java.awt.geom.Point2D spot = view.canvas().viewport().gridToScreen(10, 6);
+            java.awt.Point where = new java.awt.Point((int) Math.round(spot.getX()), (int) Math.round(spot.getY()));
+
+            boolean dropped = view.canvas().dropComponent(PaletteTransfer.encode(MachineCreation.PALETTE_ID), where);
+
+            assertThat(dropped).isTrue();
+            ComponentDefinition definition = document.document().definitions().getFirst();
+            assertThat(definition.id()).matches(MACHINE_ID);
+            assertThat(definition.name()).isEqualTo("Máquina 1");
+            assertThat(document.document().components()).hasSize(1);
+            Component piece = document.document().components().getFirst();
+            assertThat(piece.typeId()).isEqualTo(SubcircuitTypes.typeIdOf(definition.id()));
+            assertThat(piece.position()).isEqualTo(new GridPoint(10, 6));
+            assertThat(view.canvas().selection().ids()).containsExactly(piece.id());
+
+            document.history().undo();
+
+            assertThat(document.document().components()).isEmpty();
+            assertThat(document.document().definitions()).isEmpty();
         } finally {
             view.dispose();
             document.close();

@@ -4,12 +4,11 @@ import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 
-import java.awt.BasicStroke;
 import java.awt.Shape;
-import java.awt.Stroke;
 import java.awt.geom.CubicCurve2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.QuadCurve2D;
 import java.awt.geom.Rectangle2D;
@@ -22,8 +21,8 @@ import java.util.Optional;
 
 /**
  * Where a machine's diagram draws each thing, in diagram units (a pixel at 100 %): a circle per state, an arrow per
- * transition from border to border (straight; curved only when two or more join the same two states, bending to each
- * side of the line; a loop over the state for a self loop) with the place of its label, and the initial mark. The
+ * transition from border to border (straight; curved when two or more join the same two states, bending to each
+ * side of the line, or when a straight one would pass behind a third state, bending away from it; a loop over the state for a self loop) with the place of its label, and the initial mark. The
  * painter draws it and the gestures hit-test it, so both always agree. Pure: built from the model each time.
  */
 final class MachineDiagramGeometry {
@@ -32,6 +31,10 @@ final class MachineDiagramGeometry {
     static final double STATE_RADIUS = 40;
     /** How far the first curved arrow between two states bends from the straight line; the next ones bend more. */
     private static final double BEND = 22;
+    /** How much room a straight arrow keeps from a third state's circle before it is bent around it. */
+    private static final double CLEARANCE = 8;
+    /** How closely a curve is followed when measuring a distance to it. */
+    private static final double FLATNESS = 0.5;
     /** How far a label sits from its arrow. */
     private static final double LABEL_GAP = 14;
     /** How high a self loop rises over its state's border, and how wide it opens (radians from its axis). */
@@ -142,16 +145,36 @@ final class MachineDiagramGeometry {
         return Optional.ofNullable(found);
     }
 
-    /** The arrow passing within {@code tolerance} of {@code point}; the one drawn last when several do. */
+    /** The arrow passing within {@code tolerance} of {@code point}; the nearest one when several do. */
     Optional<String> transitionAt(Point2D point, double tolerance) {
-        Stroke reach = new BasicStroke((float) (2 * tolerance), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
         String found = null;
+        double nearest = Double.MAX_VALUE;
         for (Arrow arrow : arrows.values()) {
-            if (reach.createStrokedShape(arrow.path()).contains(point)) {
+            double distance = distanceTo(arrow.path(), point);
+            if (distance <= tolerance && distance <= nearest) {
+                nearest = distance;
                 found = arrow.transitionId();
             }
         }
         return Optional.ofNullable(found);
+    }
+
+    /** How far {@code point} is from the line of {@code path}. */
+    private static double distanceTo(Shape path, Point2D point) {
+        double nearest = Double.MAX_VALUE;
+        double[] coordinates = new double[6];
+        double lastX = 0;
+        double lastY = 0;
+        for (PathIterator segments = path.getPathIterator(null, FLATNESS); !segments.isDone(); segments.next()) {
+            int type = segments.currentSegment(coordinates);
+            if (type == PathIterator.SEG_LINETO) {
+                nearest = Math.min(nearest, Line2D.ptSegDist(lastX, lastY, coordinates[0], coordinates[1],
+                        point.getX(), point.getY()));
+            }
+            lastX = coordinates[0];
+            lastY = coordinates[1];
+        }
+        return nearest;
     }
 
     /** What the diagram covers (states, arrows, the initial mark); empty for a machine without states. */
@@ -182,12 +205,45 @@ final class MachineDiagramGeometry {
                 int turn = loopsOfState.merge(transition.fromId(), 1, Integer::sum) - 1;
                 arrows.put(transition.id(), selfLoop(transition, turn));
             } else if (joiningPair.get(pairKey(transition)) == 1) {
-                arrows.put(transition.id(), straight(transition));
+                arrows.put(transition.id(), aroundThirdState(transition)
+                        .map(bend -> curved(transition, bend)).orElseGet(() -> straight(transition)));
             } else {
                 int order = placedInDirection.merge(transition.fromId() + ">" + transition.toId(), 1, Integer::sum);
                 arrows.put(transition.id(), curved(transition, BEND * order));
             }
         }
+    }
+
+    /**
+     * How far a lone arrow must bend (positive: to the left of its direction) to clear a third state its straight
+     * line would pass within {@code STATE_RADIUS + CLEARANCE} of, away from that state; empty when nothing is in its
+     * way. With several in the way, the nearest to the line decides.
+     */
+    private Optional<Double> aroundThirdState(MachineTransition transition) {
+        Point2D from = centre(transition.fromId());
+        Point2D to = centre(transition.toId());
+        Point2D normal = leftNormal(from, to);
+        double reach = STATE_RADIUS + CLEARANCE;
+        double nearest = Double.MAX_VALUE;
+        double side = 0;
+        for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
+            if (entry.getKey().equals(transition.fromId()) || entry.getKey().equals(transition.toId())) {
+                continue;
+            }
+            Point2D third = entry.getValue();
+            double distance = Line2D.ptSegDist(from.getX(), from.getY(), to.getX(), to.getY(), third.getX(),
+                    third.getY());
+            if (distance < reach && distance < nearest) {
+                nearest = distance;
+                double leftOfLine = (third.getX() - from.getX()) * normal.getX()
+                        + (third.getY() - from.getY()) * normal.getY();
+                side = leftOfLine > 0 ? -1 : 1; // bend to the other side than the state
+            }
+        }
+        if (side == 0) {
+            return Optional.empty();
+        }
+        return Optional.of(side * Math.max(BEND, reach - nearest + BEND));
     }
 
     /** The two states an arrow joins, in either direction. */
@@ -218,7 +274,7 @@ final class MachineDiagramGeometry {
         Point2D start = towards(from, control, STATE_RADIUS);
         Point2D end = towards(to, control, STATE_RADIUS);
         Point2D peak = offset(middle(from, to), normal, bend);
-        Point2D label = offset(peak, normal, LABEL_GAP);
+        Point2D label = offset(peak, normal, Math.copySign(LABEL_GAP, bend));
         return new Arrow(transition.id(), ArrowKind.CURVED, new QuadCurve2D.Double(start.getX(), start.getY(),
                 control.getX(), control.getY(), end.getX(), end.getY()), start, end, control, label);
     }

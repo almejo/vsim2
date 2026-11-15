@@ -20,6 +20,8 @@ import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.panels.PaletteTransfer;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -37,6 +39,8 @@ import javax.swing.JMenuItem;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.TransferHandler;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -332,6 +336,56 @@ class MachineDrawingTest {
         Object name = canvas.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
 
         assertThat(canvas.getActionMap().get(name)).isSameAs(view.actions().delete());
+    }
+
+    @Test
+    void theDiagramFollowsTheKeysTheUserGaveBorrar() {
+        KeyStroke control = KeyStroke.getKeyStroke(KeyEvent.VK_D, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke supr = KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0);
+        KeyStroke retroceso = KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0);
+
+        new KeyBindings(preferences).assign("edit.delete", control);
+
+        javax.swing.InputMap keys = canvas.getInputMap(JComponent.WHEN_FOCUSED);
+        assertThat(canvas.getActionMap().get(keys.get(control))).isSameAs(view.actions().delete());
+        assertThat(keys.get(supr)).isNull();
+        assertThat(keys.get(retroceso)).isNotNull();
+        click(at(0, 0));
+        perform(canvas.getActionMap().get(keys.get(control)));
+        assertThat(machine().states()).extracting(MachineState::id).containsExactly("s1", "s2");
+
+        new KeyBindings(preferences).reset("edit.delete");
+
+        assertThat(keys.get(control)).isNull();
+        assertThat(canvas.getActionMap().get(keys.get(supr))).isSameAs(view.actions().delete());
+    }
+
+    @Test
+    void droppingAPaletteEntryOnTheDiagramCreatesNothingAndSaysWhy() {
+        int definitions = document.document().definitions().size();
+        TransferHandler handler = canvas.getTransferHandler();
+        TransferHandler.TransferSupport support = new TransferHandler.TransferSupport(canvas,
+                new StringSelection(PaletteTransfer.encode(MachineCreation.PALETTE_ID)));
+
+        assertThat(handler).isNotNull();
+        assertThat(handler.canImport(support)).isTrue();
+        assertThat(handler.importData(support)).isFalse();
+
+        assertThat(document.document().definitions()).hasSize(definitions);
+        assertThat(texts(view.statusBar())).contains(Messages.text("machine.dropRefused"));
+    }
+
+    private static List<String> texts(java.awt.Container container) {
+        List<String> found = new ArrayList<>();
+        for (java.awt.Component component : container.getComponents()) {
+            if (component instanceof javax.swing.JLabel label && label.getText() != null) {
+                found.add(label.getText());
+            }
+            if (component instanceof java.awt.Container inner) {
+                found.addAll(texts(inner));
+            }
+        }
+        return found;
     }
 
     @Test
