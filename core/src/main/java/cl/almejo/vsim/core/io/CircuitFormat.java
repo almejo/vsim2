@@ -66,7 +66,8 @@ public final class CircuitFormat {
      * the D flip-flop's Q̅, off on old parts ({@link FlipFlopNotOutputMigration}); 6: a piece's own memory contents
      * ({@code memoryContents}, optional: older files read unchanged, and an older VSim refuses a newer file instead of
      * dropping them); 7: a definition's optional {@code machine}, a «Máquina de estados» whose body is generated from it
-     * (an older VSim refuses the file instead of showing the machine as an empty component).
+     * (an older VSim refuses the file instead of showing the machine as an empty component), and a probe on a machine
+     * piece's state ({@code "watch": "state"}).
      */
     public static final int FORMAT_VERSION = 7;
     static final String KIND_CIRCUIT = "circuit";
@@ -239,20 +240,27 @@ public final class CircuitFormat {
     }
 
     /**
-     * One waveform channel: exactly one of {@code component} + {@code pin} or {@code wire}. An empty {@code name}
-     * (the live default name, M6.1-E) is left out of the file.
+     * One waveform channel: exactly one of {@code component} + {@code pin}, {@code wire}, or {@code component} +
+     * {@code watch: "state"} (a machine piece's state, format 7). An empty {@code name} (the live default name,
+     * M6.1-E) is left out of the file.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     record ProbeEntry(String id, @JsonInclude(JsonInclude.Include.NON_EMPTY) String name, String component,
-                      Integer pin, String wire, @JsonInclude(JsonInclude.Include.NON_NULL) String format) {
+                      Integer pin, String wire, String watch,
+                      @JsonInclude(JsonInclude.Include.NON_NULL) String format) {
     }
+
+    /** The {@code watch} of a probe on a machine piece's state. */
+    private static final String WATCH_STATE = "state";
 
     static ProbeEntry probeEntry(Probe probe) {
         return switch (probe.target()) {
             case ProbeTarget.PinTarget pin -> new ProbeEntry(probe.id(), probe.name(), pin.componentId().value(),
-                    pin.pinIndex(), null, formatEntry(probe));
+                    pin.pinIndex(), null, null, formatEntry(probe));
             case ProbeTarget.WireTarget wire -> new ProbeEntry(probe.id(), probe.name(), null, null,
-                    wire.wireId().value(), formatEntry(probe));
+                    wire.wireId().value(), null, formatEntry(probe));
+            case ProbeTarget.MachineStateTarget state -> new ProbeEntry(probe.id(), probe.name(),
+                    state.componentId().value(), null, null, WATCH_STATE, formatEntry(probe));
         };
     }
 
@@ -603,9 +611,16 @@ public final class CircuitFormat {
     }
 
     private static ProbeTarget probeTarget(ProbeEntry entry, String where) throws CircuitFormatException {
-        boolean pinShape = entry.component() != null && entry.pin() != null && entry.wire() == null;
-        boolean wireShape = entry.wire() != null && entry.component() == null && entry.pin() == null;
+        boolean pinShape = entry.component() != null && entry.pin() != null && entry.wire() == null
+                && entry.watch() == null;
+        boolean wireShape = entry.wire() != null && entry.component() == null && entry.pin() == null
+                && entry.watch() == null;
+        boolean stateShape = WATCH_STATE.equals(entry.watch()) && entry.component() != null && entry.pin() == null
+                && entry.wire() == null;
         try {
+            if (stateShape) {
+                return new ProbeTarget.MachineStateTarget(new ElementId(entry.component()));
+            }
             if (pinShape) {
                 if (entry.pin() < 0) {
                     throw invalid(where + "negative pin " + entry.pin());
@@ -618,7 +633,7 @@ public final class CircuitFormat {
         } catch (IllegalArgumentException exception) {
             throw invalid(where + exception.getMessage(), exception);
         }
-        throw invalid(where + "a probe needs either component and pin, or wire");
+        throw invalid(where + "a probe needs either component and pin, wire, or component and watch \"state\"");
     }
 
     private interface ElementSupplier {

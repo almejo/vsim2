@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -45,6 +46,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.AbstractButton;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -173,8 +175,12 @@ class MachineWaveStripTest {
         pulse(clock);
         UiTestSupport.awaitSimulation(document);
         String state = MachineChannels.stateChannelId(copy);
+        String output = MachineChannels.outputChannelId(copy, "Z");
         UiTestSupport.waitUntil(() -> document.latestWaveforms().trace(state)
-                .filter(trace -> trace.eventCount() >= 3).isPresent());
+                .filter(trace -> trace.eventCount() >= 4).isPresent()
+                && document.latestWaveforms().trace(output)
+                .filter(trace -> trace.eventValue(trace.eventCount() - 1).filter(Value.ONE::equals).isPresent())
+                .isPresent());
         panel.timerTick();
 
         assertThat(history(panel, state)).containsSubsequence("S0", "S1", "S2");
@@ -215,7 +221,7 @@ class MachineWaveStripTest {
         UiTestSupport.awaitSimulation(document);
         String output = MachineChannels.outputChannelId(copy, "Z");
         UiTestSupport.waitUntil(() -> document.latestWaveforms().trace(output)
-                .filter(trace -> trace.eventCount() >= 3).isPresent());
+                .filter(trace -> trace.eventCount() >= 4).isPresent());
         panel.timerTick();
 
         assertThat(history(panel, output)).as("no clock edge at all").containsSubsequence("0", "1", "0");
@@ -234,8 +240,8 @@ class MachineWaveStripTest {
         assertThat(panel.hasChannels()).isFalse();
     }
 
-    @Test
-    void aCopyInsideAComponentShowsItsOwnWave() {
+    /** A circuit whose only piece {@code w} wraps the detector as {@code m}; returns the tab entered at {@code w/m}. */
+    private EditorView tabOfAWrappedCopy() {
         ComponentDefinition machine = MachineDefinitions.regenerated(
                 MachineFixtures.definition(MachineFixtures.detector()));
         Component copy = new Component(new ElementId("m"), SubcircuitTypes.typeIdOf(machine.id()), GridPoint.ORIGIN,
@@ -246,7 +252,41 @@ class MachineWaveStripTest {
         document.execute(new PutDefinitionsCommand(List.of(machine, wrapper)));
         document.execute(new AddElementsCommand(List.of(new Component(new ElementId("w"),
                 SubcircuitTypes.typeIdOf(WRAPPER), new GridPoint(10, 10), Rotation.R0, Map.of(), ""))));
-        WaveformPanel panel = panelOf(viewOf(placeOf(machine.id(), Optional.of("w/m")), true));
+        return viewOf(placeOf(machine.id(), Optional.of("w/m")), true);
+    }
+
+    @Test
+    void theStripsLinkAddsTheCopysStateAndOutputsToTheCircuitsPanel() {
+        document = MachineFixtures.circuitWithGeneratedMachines(1);
+        String copy = MachineFixtures.copies(document).get(0);
+        WaveformPanel panel = panelOf(viewOf(placeOf(MachineFixtures.DEFINITION_ID, Optional.of(copy)), true));
+        AbstractButton link = panel.button(Messages.text("waveform.menu.showMachine"));
+        assertThat(link.isEnabled()).isTrue();
+
+        link.doClick(0);
+
+        assertThat(document.document().probes()).extracting(probe -> probe.target()).containsExactly(
+                new ProbeTarget.MachineStateTarget(new ElementId(copy)),
+                new ProbeTarget.PinTarget(new ElementId(copy), document.registry()
+                        .typeOf(document.document().component(new ElementId(copy)).orElseThrow())
+                        .pinIndexOf("Z").orElseThrow()));
+        document.history().undo();
+        assertThat(document.document().probes()).as("one undo step of the circuit").isEmpty();
+    }
+
+    @Test
+    void insideAComponentTheStripsLinkIsOffAndSaysWhy() {
+        WaveformPanel panel = panelOf(tabOfAWrappedCopy());
+
+        AbstractButton link = panel.button(Messages.text("waveform.menu.showMachine"));
+
+        assertThat(link.isEnabled()).isFalse();
+        assertThat(link.getToolTipText()).isEqualTo("Solo para máquinas puestas en el circuito principal");
+    }
+
+    @Test
+    void aCopyInsideAComponentShowsItsOwnWave() {
+        WaveformPanel panel = panelOf(tabOfAWrappedCopy());
 
         UiTestSupport.awaitSimulation(document);
         UiTestSupport.waitUntil(() -> document.latestWaveforms().trace(MachineChannels.stateChannelId("w/m"))

@@ -1,6 +1,13 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
@@ -13,8 +20,8 @@ import java.util.function.LongFunction;
 
 /**
  * The document's probes as a panel's rows (spec §3.2): one row per probe, in order, named by {@code names}, «sin
- * conexión» when it does not resolve; every row can be edited. The rows never include a machine copy's own channels,
- * which the recording also holds.
+ * conexión» when it does not resolve; every row can be edited. A probe on a machine's state is written with the
+ * state names. The rows never include a machine copy's own channels, which the recording also holds.
  */
 final class ProbeChannels implements WaveformChannels {
 
@@ -51,9 +58,27 @@ final class ProbeChannels implements WaveformChannels {
         return !openDocument.document().probes().isEmpty();
     }
 
+    /** A probe on a machine's state writes each code as the name of the state that has it now. */
     @Override
     public Optional<LongFunction<String>> valueNames(String channelId) {
-        return Optional.empty();
+        return openDocument.document().probes().stream()
+                .filter(probe -> probe.id().equals(channelId))
+                .findFirst()
+                .filter(probe -> probe.target() instanceof ProbeTarget.MachineStateTarget)
+                .map(probe -> code -> stateName(((ProbeTarget.MachineStateTarget) probe.target()).componentId(),
+                        code));
+    }
+
+    /** The name of the state whose code is {@code code} in the machine of piece {@code componentId}, read now. */
+    private String stateName(ElementId componentId, long code) {
+        CircuitDocument document = openDocument.document();
+        return document.component(componentId)
+                .flatMap(component -> SubcircuitTypes.definitionIdOf(component.typeId()))
+                .flatMap(document::definition)
+                .flatMap(ComponentDefinition::machine)
+                .flatMap(machine -> StateMachineTypes.stateIdOfCode(machine, code).flatMap(machine::state))
+                .map(MachineState::name)
+                .orElseGet(() -> Long.toString(code));
     }
 
     @Override

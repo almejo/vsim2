@@ -334,6 +334,15 @@ En la pestaña de una máquina, bajo el diagrama, está su onda: la de la copia 
 - **Modo presentación**: espera en el borde de abajo y el 📌 la fija, como el panel de Formas de onda.
 - **Con «Sin valores»** no hay copia y la onda queda vacía, con el aviso «Entra por una copia para ver su onda».
 - **El panel de Formas de onda del circuito** nunca muestra estas filas: solo las de sus propios canales.
+- **Ver estados y salidas en formas de onda**: para comparar la máquina con otras señales del circuito, clic derecho
+  en la pieza ▸ «Ver estados y salidas en formas de onda» (justo después de «Ver pines en formas de onda») agrega al
+  panel de Formas de onda del circuito una fila con su estado, escrita con los nombres de los estados (se llama
+  «c3 · estado», con la etiqueta de la pieza si tiene, como «c3.Z» la de un pin; no tiene «Mostrar como»), y una fila por salida, en un solo paso de deshacer; se guardan con el circuito como
+  cualquier canal y su insignia va sobre el borde de arriba de la pieza. Si ya están, la fila del estado parpadea.
+  Si se borra la pieza, la fila queda «(sin conexión)», como la de un pin. El mismo enlace está arriba de la onda de
+  la máquina, para la copia por la que entraste; para una copia que está dentro de un componente propio se ve
+  apagado y dice «Solo para máquinas puestas en el circuito principal». Dentro de la pestaña de un componente propio
+  hace lo mismo que «Ver pines en formas de onda» ahí.
 
 ### Problemas de una máquina
 

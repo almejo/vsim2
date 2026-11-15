@@ -40,10 +40,6 @@ final class MachineStripChannels implements WaveformChannels {
         this.headerActions = List.copyOf(headerActions);
     }
 
-    MachineStripChannels(OpenDocument place, String definitionId) {
-        this(place, definitionId, List.of());
-    }
-
     @Override
     public List<ChannelRows.ChannelRow> rows() {
         Optional<String> copy = copy();
