@@ -111,6 +111,20 @@ final class FullScreenFixture implements AutoCloseable {
         return view;
     }
 
+    /**
+     * A new tab on {@code document}, then the tab of its component {@code definitionId} entered at {@code contextPath},
+     * activated and laid out; the fixture closes both.
+     */
+    EditorView addComponentTab(OpenDocument document, String definitionId, Optional<String> contextPath) {
+        documents.add(document);
+        tabs.addTab(document, Optional.empty());
+        OpenDocument place = document.openBody(definitionId, contextPath);
+        documents.add(0, place); // closed before its document
+        EditorView view = tabs.addComponentTab(document, definitionId, place, Optional.empty());
+        layOut();
+        return view;
+    }
+
     /** Moves the shared clock (the bars' ticker's) and runs the frames of both tickers in between. */
     void advance(long milliseconds) {
         barTicker.advance(milliseconds);

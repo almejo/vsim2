@@ -94,6 +94,36 @@ public final class WaveformFeatures {
             dock.showDock();
         }
         this.inFullScreen = new WaveformsInFullScreen(view, panel, view.services().preferences());
+        view.putClientProperty(WaveformFeatures.class, this);
+    }
+
+    /** The waveform feature of {@code view}; empty when the view has none (or it was disposed). */
+    public static Optional<WaveformFeatures> of(EditorView view) {
+        return view.getClientProperty(WaveformFeatures.class) instanceof WaveformFeatures features
+                ? Optional.of(features) : Optional.empty();
+    }
+
+    /**
+     * The panel shows {@code channels} instead of the document's probes (a machine tab's wave strip): Ver ▸ Formas de
+     * onda, its «Ocultar», its pin and presentation mode's bottom edge then act on them. Returns what shows the probes
+     * again.
+     */
+    public Runnable showChannels(WaveformChannels channels) {
+        Runnable restorer = panel.showChannels(channels);
+        channelsChanged();
+        return () -> {
+            restorer.run();
+            channelsChanged();
+        };
+    }
+
+    /** What the panel's rows are made of changed outside the probes (a machine tab entered another copy). */
+    public void channelsChanged() {
+        if (disposed) {
+            return;
+        }
+        panel.probesChanged();
+        probesChangedInFullScreen();
     }
 
     /** The blink, the markers, their tooltip and their click in {@code pane}. Returns what undoes it. */
@@ -222,6 +252,7 @@ public final class WaveformFeatures {
             return;
         }
         disposed = true;
+        view.putClientProperty(WaveformFeatures.class, null);
         inFullScreen.dispose();
         removeFromPanes.run();
         shortcutRemover.run();

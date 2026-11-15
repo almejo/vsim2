@@ -297,8 +297,9 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   al menos 12 × 8 cuadros y solo crece con los pines: pasar de 4 a 5 estados no la cambia de tamaño. Girada, la cara
   sigue derecha. Cada copia muestra su propio estado, también dentro de un componente propio. Una forma dibujada en el
   editor de formas reemplaza esta cara.
-- **Entrar**: doble clic, Enter o «Entrar ↘» abren su pestaña, con el diagrama en lugar del lienzo del circuito; ahí las
-  acciones de piezas y cables están apagadas y dicen por qué. Editar el diagrama cambia todas las copias.
+- **Entrar**: doble clic, Enter o «Entrar ↘» abren su pestaña, con el diagrama en lugar del lienzo del circuito y,
+  debajo, [la onda de la copia](#la-onda-de-la-máquina); ahí las acciones de piezas y cables están apagadas y dicen
+  por qué. Editar el diagrama cambia todas las copias.
 - **Lo que no se le hace**: su interior no se edita con piezas ni cables desde ningún lado (tampoco la IA: recibe el
   motivo). En el menú contextual de la pieza, «Desarmar» aparece apagado y dice por qué (convertirla a circuito llega en
   una próxima versión), y «Actualizar componente…» no ofrece las máquinas como el componente a reemplazar: si las
@@ -323,6 +324,16 @@ Una flecha puede asignar salidas, además de las de Moore que asigna un estado. 
 - **Cuándo cambian**: una salida de Mealy depende de la flecha que las entradas eligen ahora, así que cambia apenas cambia una entrada, sin esperar el flanco del reloj; las de Moore cambian al cambiar de estado. Si una salida no se asigna en la flecha elegida ni en el estado, vale 0, y si las dos asignan la misma, gana la flecha.
 - **Pines**: un nombre nuevo en las salidas de una flecha agrega ese pin a la pieza, igual que en un estado.
 - **Tipo**: sin nada elegido, Propiedades dice si la máquina es «Moore», «Mealy» o «Moore y Mealy», según dónde asigna salidas (solo informa; no se cambia ahí).
+
+### La onda de la máquina
+
+En la pestaña de una máquina, bajo el diagrama, está su onda: la de la copia por la que entraste (la de «Valores de»), con una fila por entrada, la fila «estado» y una fila por salida, en ese orden, y arriba «Onda de Detector 11» (el nombre de la copia, con el camino si está dentro de un componente propio). La fila «estado» escribe el nombre de cada estado (`S0`, `S1`…), no su código, y «—» mientras la máquina no tiene estado; si después renombras, borras o reordenas estados, lo ya grabado se lee con los nombres de ahora. Cada copia graba su onda desde «Reiniciar», tenga o no su pestaña abierta, así que al entrar después de simular ya se ve lo que pasó; una salida de Mealy se ve cambiar entre dos flancos.
+
+- **Es el panel de Formas de onda de esa pestaña**: se abre solo al entrar si hay una copia; Ver ▸ Paneles ▸ Formas de onda y «Ocultar» lo cierran y lo abren, y «Seguir», el zoom, «Ver todo», el cursor y la columna de valores funcionan igual. Sus filas no se renombran, no se mueven ni se quitan, y no tienen menú.
+- **«Limpiar trazas»** borra lo grabado de todo el circuito, también las trazas del panel de Formas de onda del circuito: la simulación es una sola.
+- **Modo presentación**: espera en el borde de abajo y el 📌 la fija, como el panel de Formas de onda.
+- **Con «Sin valores»** no hay copia y la onda queda vacía, con el aviso «Entra por una copia para ver su onda».
+- **El panel de Formas de onda del circuito** nunca muestra estas filas: solo las de sus propios canales.
 
 ### Problemas de una máquina
 
