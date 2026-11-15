@@ -768,12 +768,13 @@ public final class OpenDocument implements AutoCloseable {
 
     /**
      * What makes the rows of this circuit's Problemas list ({@link ListedProblems}): the problems of {@code listed}
-     * (the snapshot shown), the wiring warnings, this session's loosened pins and pins placed elsewhere, and what the
-     * library check and the linked-file watcher reported. The editor's list and the AI's read both start here.
+     * (the snapshot shown, whose component states hold what the running machine copies read in Z), the wiring
+     * warnings, this session's loosened pins and pins placed elsewhere, and what the library check and the linked-file
+     * watcher reported. The editor's list and the AI's read both start here.
      */
     public ListedProblems.Sources problemSources(SimulationSnapshot listed) {
         return new ListedProblems.Sources(listed.problems(), connectivityProblems(), loosenedPins(), keptOldShapes(),
-                outdatedPieces(), linkedFileProblems());
+                outdatedPieces(), linkedFileProblems(), listed.componentStates());
     }
 
     /**

@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.OutdatedPieceChecks;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
@@ -42,14 +43,19 @@ public final class ProblemText {
     private ProblemText() {
     }
 
-    /** Errors before warnings: short circuits, width mismatches, tunnel errors, then display and tunnel warnings. */
+    /**
+     * Errors before warnings: short circuits, width mismatches, tunnel and machine errors, then display, tunnel and
+     * machine warnings.
+     */
     private static int rank(Problem problem) {
         return switch (problem) {
             case ShortCircuit shortCircuit -> 0;
             case WidthMismatch mismatch -> 1;
             case TunnelProblem tunnel when !tunnel.isWarning() -> 2;
+            case MachineProblem machine when !machine.isWarning() -> 2;
             case DisplayBusOverride display -> 3;
             case TunnelProblem tunnel -> 4;
+            case MachineProblem machine -> 4;
             case ConnectivityProblem connectivity -> 5;
             case LinkedFileProblem linkedFile -> 6;
         };
@@ -98,6 +104,7 @@ public final class ProblemText {
             case TunnelProblem tunnel -> tunnel(tunnel, document);
             case ConnectivityProblem connectivity -> connectivity(connectivity, document, registry);
             case LinkedFileProblem linkedFile -> linkedFile(linkedFile, document);
+            case MachineProblem machine -> MachineProblemText.describe(machine, document);
         };
     }
 

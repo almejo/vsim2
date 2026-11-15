@@ -141,6 +141,36 @@ class StateMachineSimulationTest {
     }
 
     @Test
+    void anInputInHighImpedanceAtTheEdgeIsToldUntilTheNextEdge() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        start();
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).isEmpty();
+
+        drive("x", Value.HIGH_IMPEDANCE);
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).as("no edge yet").isEmpty();
+        fallingEdge("clk");
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).containsExactly("x");
+
+        set("x", true);
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).as("still the last edge's").containsExactly("x");
+        fallingEdge("clk");
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).isEmpty();
+    }
+
+    @Test
+    void aClockInHighImpedanceIsToldWhileItLasts() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        start();
+        assertThat(machineState("m").clockUndefined()).isFalse();
+
+        drive("clk", Value.HIGH_IMPEDANCE);
+        assertThat(machineState("m").clockUndefined()).isTrue();
+
+        set("clk", false);
+        assertThat(machineState("m").clockUndefined()).isFalse();
+    }
+
+    @Test
     void theNextArrowFollowsTheInputs() {
         detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
         start();

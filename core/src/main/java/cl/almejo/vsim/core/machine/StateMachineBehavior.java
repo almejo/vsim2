@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.standard.ClockEdgeDetector;
 import cl.almejo.vsim.core.machine.MachineEvaluator.MachineStep;
 import cl.almejo.vsim.core.value.Value;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,7 +21,8 @@ import java.util.OptionalInt;
  * (falling by default, like the flip-flops; only a direct step between 0 and 1 counts, so a clock through Z or a
  * conflict makes none) it takes the arrow the inputs select ({@link MachineEvaluator}). {@code RST = 1} sends it to the
  * initial state at once and holds it there; an unconnected {@code RST} is 0. An input that is not 0 or 1 (Z,
- * a conflict) counts as 0 in the conditions; the problems that point it out come in hito 2. The outputs are the
+ * a conflict) counts as 0 in the conditions; the visible state tells the ones the conditions read that were so at the
+ * last edge, and a clock in Z or in conflict, for Problemas ({@link MachineChecks#runtime}). The outputs are the
  * current state's Moore outputs plus the Mealy outputs of the arrow today's inputs select, driven
  * {@link #OUTPUT_DELAY} after a change. A machine without states or without an initial state holds no state, drives
  * 0 and shows nothing. Starts in the initial state, so «Reiniciar», which recreates the behaviour, brings it back.
@@ -44,6 +46,12 @@ final class StateMachineBehavior implements Behavior {
     private Optional<String> currentStateId;
     private Map<String, Boolean> inputs = Map.of();
     private boolean resetActive;
+    /** The input pins a condition reads: only these are told when Z or in conflict at an edge. */
+    private final List<String> inputsRead;
+    /** Of {@link #inputsRead}, those that are Z or in conflict now, and those that were at the last edge. */
+    private List<String> undefinedInputs = List.of();
+    private List<String> undefinedInputsAtLastEdge = List.of();
+    private boolean clockUndefined;
     private final Map<String, Boolean> driven = new HashMap<>();
 
     StateMachineBehavior(StateMachine machine) {
@@ -55,6 +63,7 @@ final class StateMachineBehavior implements Behavior {
         this.statePin = clockPin + 1 + machine.outputNames().size();
         this.stateWidth = StateMachineTypes.stateWidth(machine);
         this.currentStateId = machine.initialStateId();
+        this.inputsRead = machine.inputNames().stream().filter(machine.inputNamesUsed()::contains).toList();
     }
 
     @Override
@@ -74,6 +83,7 @@ final class StateMachineBehavior implements Behavior {
         if (resetActive) {
             currentStateId = machine.initialStateId();
         } else if (edgeCame) {
+            undefinedInputsAtLastEdge = undefinedInputs;
             currentStateId.flatMap(stateId -> evaluator.next(stateId, inputs))
                     .ifPresent(step -> currentStateId = Optional.of(step.nextStateId()));
         }
@@ -83,12 +93,19 @@ final class StateMachineBehavior implements Behavior {
     /** Reads the inputs as the conditions see them (only 1 is true) and whether {@code RST} is 1. */
     private void readInputs(BehaviorContext context) {
         Map<String, Boolean> read = new HashMap<>();
+        List<String> undefined = new ArrayList<>();
         List<String> names = machine.inputNames();
         for (int index = 0; index < names.size(); index++) {
-            read.put(names.get(index), context.input(index).equals(Value.ONE));
+            Value value = context.input(index);
+            read.put(names.get(index), value.equals(Value.ONE));
+            if (!value.isFullyDefined() && inputsRead.contains(names.get(index))) {
+                undefined.add(names.get(index));
+            }
         }
         inputs = read;
+        undefinedInputs = List.copyOf(undefined);
         resetActive = context.input(resetPin).equals(Value.ONE);
+        clockUndefined = !context.input(clockPin).isFullyDefined();
     }
 
     /** Drives every output whose value changed (all of them when {@code everyOutput}, at the start). */
@@ -136,11 +153,12 @@ final class StateMachineBehavior implements Behavior {
         }
         MachineState state = current.get();
         if (resetActive) {
-            return new VisibleState.MachineVisibleState(state.id(), state.name(), Optional.empty(), Optional.empty());
+            return new VisibleState.MachineVisibleState(state.id(), state.name(), Optional.empty(), Optional.empty(),
+                    undefinedInputsAtLastEdge, clockUndefined);
         }
         Optional<MachineStep> step = evaluator.next(state.id(), inputs);
         return new VisibleState.MachineVisibleState(state.id(), state.name(), step.map(MachineStep::nextStateId),
-                step.flatMap(MachineStep::transitionId));
+                step.flatMap(MachineStep::transitionId), undefinedInputsAtLastEdge, clockUndefined);
     }
 
     /**

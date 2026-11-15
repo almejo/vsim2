@@ -276,7 +276,8 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   mover los demás, así que dos copias de la misma máquina pueden mostrar sus pines en otro orden). Es una sola pieza que se simula directo, sin compuertas por dentro:
   cambia de estado en el flanco de bajada de `CLK`, como los flip-flops, y `RST = 1` la lleva al estado inicial y la
   mantiene ahí. Una entrada sin valor, en Z o en conflicto cuenta como 0 en las
-  condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco.
+  condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco. Problemas avisa las dos cosas (ver
+  [Problemas de una máquina](#problemas-de-una-máquina)).
 - **La cara de la pieza**: el nombre arriba, los pines a los lados, en el medio el nombre del estado en que está (en
   naranja) y debajo «S0 → S1»: el estado actual y el que tomará en el próximo flanco con las entradas de hoy (solo el
   nombre mientras `RST` la sujeta). Cada copia muestra su propio estado, también dentro de un componente propio. Una
@@ -299,6 +300,15 @@ En la pestaña de una máquina de estados el centro es su diagrama y se dibuja c
 - **Condiciones y nombres en línea**: doble clic en una condición (o en una flecha) la edita donde está dibujada, y doble clic en un estado edita su nombre; también F2 o Editar ▸ «Escribir el nombre o la condición» sobre lo elegido. Enter confirma, Esc deja todo como estaba. La condición usa la notación de «Circuito desde expresiones» (`x`, `x'`, `a·b`, `a b`, `a + b`); una flecha sin condición se toma cuando ninguna otra del estado se cumple. Un nombre nuevo en una condición agrega una entrada a la pieza en el circuito. Una condición que no se entiende se guarda como la escribiste, en rojo, y Propiedades dice qué tiene y en qué posición. El nombre de un estado no puede quedar vacío ni repetirse.
 - **Elegir y borrar**: clic elige un estado o una flecha, Mayús+clic agrega o quita, y arrastrar en el vacío elige lo que queda dentro del rectángulo. Supr (o Editar ▸ Borrar) borra lo elegido; un estado se lleva sus flechas. Se puede borrar el estado inicial. Esc suelta la herramienta de la paleta o lo elegido.
 - **Propiedades**: con un estado elegido, su nombre, sus salidas (Moore) escritas `Z=1, Y=0` (una salida que no escribes vale 0; un nombre nuevo agrega una salida a la pieza) y la casilla «Estado inicial»; con una flecha, de dónde a dónde va y su condición; sin nada elegido, cuántos estados tiene la máquina, sus entradas y salidas y cómo se dibuja. Cada texto se aplica con Enter o al salir de él.
+
+### Problemas de una máquina
+
+Lo que una máquina tiene mal aparece en la lista Problemas del circuito, como cualquier otro problema, con el nombre de la máquina adelante («Máquina «Detector»: …») y, si es de una copia que está corriendo, también la copia («Máquina «Detector» en U1 › U3: …»). Los errores cuentan en la insignia roja; los avisos solo están en la lista, como los de los túneles. La IA lee las mismas filas.
+
+- **Errores**: la máquina no tiene estados; ningún estado está marcado como inicial; una condición que no se puede leer (dice en qué columna y qué le falta; esa flecha no se toma nunca y no entra en los demás chequeos); dos flechas sin condición que salen del mismo estado; dos flechas del mismo estado que se cumplen a la vez, con las entradas que lo muestran («Desde A, «x» y «x + y» se cumplen a la vez con x = 1, y = 0: la máquina no sabe a cuál ir.»; dos flechas que van al mismo estado con las mismas salidas no son un error); una condición que lee una salida, `CLK` o `RST` (se lee como 0); un nombre que ya no cabe como pin porque la máquina tiene 16 entradas o 16 salidas.
+- **Avisos**: un estado al que no se llega desde el inicial (no se avisa si no hay estado inicial); un estado con flechas con condición y sin una flecha sin condición, que para algunas entradas se queda donde está («En B no se dice qué pasa con x = 0: se queda en B. ¿Es lo que querías?»; un estado sin ninguna flecha simplemente se queda, sin aviso); una salida a la que ningún estado ni flecha le da valor (vale siempre 0, un aviso por salida); una entrada que ninguna condición usa; una flecha que le da a una salida otro valor que su estado (gana la flecha).
+- **Avisos de una copia que corre**: una entrada que una condición lee y que en el último flanco no tenía 0 ni 1 (Z o conflicto, por ejemplo sin conectar: se leyó como 0), y un `CLK` que ahora no tiene 0 ni 1 (sin conectar, por ejemplo): la máquina no avanza. Cada copia tiene los suyos, también dentro de un componente propio.
+- Un clic en el problema (o F8) lleva a la pieza de la copia en el circuito; un problema del diagrama mismo lleva a la primera copia. Una máquina que solo está en «Componentes de este circuito», sin ninguna copia puesta, igual muestra sus problemas.
 
 ## Terminal y teclado
 
