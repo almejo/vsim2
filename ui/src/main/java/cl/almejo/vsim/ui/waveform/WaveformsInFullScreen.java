@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.waveform;
 
-import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.fullscreen.EdgeBars;
 import cl.almejo.vsim.ui.fullscreen.FullScreenFeatures;
@@ -20,7 +19,8 @@ import java.util.Optional;
  *   <li>Unpinned, the panel waits behind the bottom screen edge, at once on entering (nothing to drag), and comes up
  *       over the circuit, full width, after the dwell; its «Ocultar» slides it away and the edge keeps working.</li>
  *   <li>The edge brings it whenever the circuit has a probe, even with the panel closed; with no probes only an open
- *       panel is there, and closing it leaves the edge inert.</li>
+ *       panel is there, and closing it leaves the edge inert. In a machine tab the panel is the copy's wave strip,
+ *       whose channels count as probes here.</li>
  *   <li>Pinned (its pin, shown only in the mode and remembered in {@link AppPreferences}), it is docked and the canvas
  *       is shorter, also when it was closed. Its «Ocultar» puts it behind the edge for the rest of this time in the
  *       mode, the pin still remembered. Removing the pin leaves it where it is until the pointer leaves it.</li>
@@ -35,7 +35,6 @@ final class WaveformsInFullScreen {
     private final WaveformPanel panel;
     private final AppPreferences preferences;
     private final BottomDock dock;
-    private final CircuitDocument document;
     /** The panel's holder behind the bottom edge: opaque, with the line on its top, as tall as the dock was. */
     private final JPanel edgeBar;
     private final Runnable dockListener = this::dockChanged;
@@ -59,7 +58,6 @@ final class WaveformsInFullScreen {
         this.panel = panel;
         this.preferences = preferences;
         this.dock = view.bottomDock();
-        this.document = view.openDocument().document();
         this.edgeBar = new JPanel(new BorderLayout()) {
             @Override
             public Dimension getPreferredSize() {
@@ -183,8 +181,9 @@ final class WaveformsInFullScreen {
         return preferences.fullScreenWaveformsPinned() && !unpinnedForNow;
     }
 
+    /** Whether the panel has rows: the document's probes, or in a machine tab its copy's own channels. */
     private boolean hasProbes() {
-        return !document.probes().isEmpty();
+        return panel.hasChannels();
     }
 
     /** Puts the pin and the panel where the mode, the probes, the dock and the pin say. */

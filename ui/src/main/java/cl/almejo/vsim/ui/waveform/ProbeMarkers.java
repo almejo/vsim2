@@ -45,10 +45,13 @@ public final class ProbeMarkers {
     }
 
     /**
-     * The edge of its component's box a probed pin is on, so the badge can go outward; {@code RIGHT} for a wire, a
-     * missing component or a pin inside the box.
+     * The edge of its component's box a probed pin is on, so the badge can go outward; {@code TOP} for a machine's
+     * state; {@code RIGHT} for a wire, a missing component or a pin inside the box.
      */
     static ProbeMarker.Side side(ProbeTarget target, CircuitDocument document, ComponentTypeRegistry registry) {
+        if (target instanceof ProbeTarget.MachineStateTarget) {
+            return ProbeMarker.Side.TOP;
+        }
         if (!(target instanceof ProbeTarget.PinTarget pin)) {
             return ProbeMarker.Side.RIGHT;
         }
@@ -75,7 +78,10 @@ public final class ProbeMarkers {
         return ProbeMarker.Side.RIGHT;
     }
 
-    /** The probed pin's location, or the grid point in the middle of the probed wire. */
+    /**
+     * The probed pin's location, the grid point in the middle of the probed wire, or for a machine's state the middle
+     * of its piece's top edge.
+     */
     static Optional<GridPoint> anchor(ProbeTarget target, CircuitDocument document, ComponentTypeRegistry registry) {
         return switch (target) {
             case ProbeTarget.PinTarget pin -> document.component(pin.componentId())
@@ -85,6 +91,10 @@ public final class ProbeMarkers {
             case ProbeTarget.WireTarget wire -> document.wire(wire.wireId())
                     .map(found -> new GridPoint(Math.floorDiv(found.start().x() + found.end().x(), 2),
                             Math.floorDiv(found.start().y() + found.end().y(), 2)));
+            case ProbeTarget.MachineStateTarget state -> document.component(state.componentId())
+                    .flatMap(component -> registry.findTypeOf(component)
+                            .map(type -> type.bounds(component))
+                            .map(box -> new GridPoint(box.x() + box.width() / 2, box.y())));
         };
     }
 }

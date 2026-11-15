@@ -48,7 +48,7 @@ final class ChannelNameColumn extends JComponent {
             @Override
             public void mouseClicked(MouseEvent event) {
                 if (SwingUtilities.isLeftMouseButton(event) && event.getClickCount() == 2) {
-                    probeAt(event.getY()).ifPresent(panel::showInCircuit);
+                    probeAt(event.getY()).ifPresent(panel::rowDoubleClicked);
                 }
             }
         });
@@ -56,7 +56,8 @@ final class ChannelNameColumn extends JComponent {
 
     private void popupIfTrigger(MouseEvent event) {
         if (event.isPopupTrigger()) {
-            probeAt(event.getY()).ifPresent(probeId -> panel.rowMenu(probeId).show(this, event.getX(), event.getY()));
+            probeAt(event.getY()).flatMap(panel::menuOfRow)
+                    .ifPresent(menu -> menu.show(this, event.getX(), event.getY()));
         }
     }
 
@@ -76,7 +77,7 @@ final class ChannelNameColumn extends JComponent {
         WaveformSnapshot snapshot = panel.displayed();
         long time = panel.axis().cursor().orElse(snapshot.time());
         return ChannelRows.valueText(snapshot.trace(row.probeId()).flatMap(trace -> trace.valueAt(time)),
-                row.format());
+                row.format(), panel.valueNames().get(row.probeId()));
     }
 
     @Override

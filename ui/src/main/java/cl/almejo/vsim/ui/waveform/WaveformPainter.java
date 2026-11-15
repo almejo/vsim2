@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.function.LongFunction;
 
 /**
  * Draws the rows of a waveform panel with the time diagram's conventions: one bit as high and low lines joined by
@@ -55,11 +56,21 @@ public final class WaveformPainter {
     /** As above; {@code formats} gives a channel id its bus format ({@link Probe#FORMAT_HEX} when absent). */
     public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
                              int width, ColorScheme scheme, Map<String, String> formats) {
+        paint(graphics, snapshot, channelIds, axis, width, scheme, formats, Map.of());
+    }
+
+    /**
+     * As above; {@code valueNames} gives a channel the names its values stand for (a machine's state row): such a row
+     * is a band per value with its name, 1-bit too, and «—» while it is Z.
+     */
+    public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
+                             int width, ColorScheme scheme, Map<String, String> formats,
+                             Map<String, LongFunction<String>> valueNames) {
         // Pure strokes: lines and the bus outlines land on the same pixel rows (normalization shifts paths by a row).
         Object strokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         try {
-            paintRows(graphics, snapshot, channelIds, axis, width, scheme, formats);
+            paintRows(graphics, snapshot, channelIds, axis, width, scheme, formats, valueNames);
         } finally {
             graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                     strokeControl == null ? RenderingHints.VALUE_STROKE_DEFAULT : strokeControl);
@@ -67,7 +78,8 @@ public final class WaveformPainter {
     }
 
     private static void paintRows(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds,
-                                  TimeAxis axis, int width, ColorScheme scheme, Map<String, String> formats) {
+                                  TimeAxis axis, int width, ColorScheme scheme, Map<String, String> formats,
+                                  Map<String, LongFunction<String>> valueNames) {
         int height = channelIds.size() * ROW_HEIGHT;
         graphics.setColor(scheme.diagramBackground());
         graphics.fill(new Rectangle2D.Double(0, 0, width, height));
@@ -76,7 +88,8 @@ public final class WaveformPainter {
             Optional<Trace> trace = snapshot.trace(channelIds.get(row));
             if (trace.isPresent()) {
                 paintRow(graphics, trace.get(), row * ROW_HEIGHT, axis, width, snapshot.time(), scheme,
-                        formats.getOrDefault(channelIds.get(row), Probe.FORMAT_HEX));
+                        formats.getOrDefault(channelIds.get(row), Probe.FORMAT_HEX),
+                        valueNames.get(channelIds.get(row)));
             }
         }
         OptionalLong cursor = axis.cursor();
@@ -122,6 +135,12 @@ public final class WaveformPainter {
         return present.bits() != 0 ? Level.HIGH : Level.LOW;
     }
 
+    /** As {@link #levelOf(Optional)}; in a named row every value but a gap or a conflict is a band. */
+    static Level levelOf(Optional<Value> value, LongFunction<String> names) {
+        Level level = levelOf(value);
+        return names != null && level != Level.GAP && level != Level.CONFLICT ? Level.BUS : level;
+    }
+
     private static void paintGrid(Graphics2D graphics, TimeAxis axis, int height, ColorScheme scheme) {
         graphics.setColor(scheme.diagramGrid());
         graphics.setStroke(LINE);
@@ -149,6 +168,12 @@ public final class WaveformPainter {
 
     static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
                         ColorScheme scheme, String format) {
+        return paintRow(graphics, trace, top, axis, width, now, scheme, format, null);
+    }
+
+    /** As above; a non-null {@code names} draws every value as a named band ({@link #paint} with value names). */
+    static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
+                        ColorScheme scheme, String format, LongFunction<String> names) {
         OptionalLong first = trace.firstTime();
         if (first.isEmpty()) {
             return 0;
@@ -176,7 +201,7 @@ public final class WaveformPainter {
             double column = Math.floor(right);
             long nextColumnTime = Math.max(time + 1, (long) Math.ceil(axis.timeAt(column + 1)));
             int next = index + 1;
-            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme, format);
+            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme, format, names);
             if (next < eventCount && trace.eventTime(next) < nextColumnTime && trace.eventTime(next) <= to) {
                 graphics.setColor(scheme.diagramTrace());
                 graphics.setStroke(LINE);
@@ -187,23 +212,24 @@ public final class WaveformPainter {
                 index = last + 1;
             } else {
                 Optional<Value> after = trace.eventValue(index);
-                paintEdge(graphics, levelOf(value), levelOf(after), right, top, scheme);
+                paintEdge(graphics, levelOf(value, names), levelOf(after, names), right, top, scheme);
                 value = after;
                 segmentStart = time;
                 index = next;
             }
         }
-        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme, format);
+        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme, format, names);
         return visited;
     }
 
     private static void paintSegment(Graphics2D graphics, Optional<Value> value, double left, double right,
-                                     double top, ColorScheme scheme, String format) {
+                                     double top, ColorScheme scheme, String format,
+                                     LongFunction<String> names) {
         if (right <= left) {
             return;
         }
         graphics.setStroke(LINE);
-        switch (levelOf(value)) {
+        switch (levelOf(value, names)) {
             case HIGH, LOW -> {
                 double y = levelOf(value) == Level.HIGH ? highY(top) : lowY(top);
                 graphics.setColor(scheme.diagramTrace());
@@ -217,14 +243,16 @@ public final class WaveformPainter {
             case CONFLICT -> {
                 graphics.setColor(scheme.wireConflict());
                 graphics.fill(new Rectangle2D.Double(left, highY(top), right - left, lowY(top) - highY(top)));
-                if (value.orElseThrow().width() > 1) {
+                if (value.orElseThrow().width() > 1 || names != null) {
                     paintText(graphics, BusValueText.CONFLICT, left, right, top, scheme.diagramTrace());
                 }
             }
             case BUS -> {
                 graphics.setColor(scheme.diagramTrace());
                 graphics.draw(hexagon(left, right, top));
-                paintText(graphics, busText(value.orElseThrow(), format), left, right, top, scheme.diagramTrace());
+                String text = names != null ? ChannelRows.valueText(value, format, names)
+                        : busText(value.orElseThrow(), format);
+                paintText(graphics, text, left, right, top, scheme.diagramTrace());
             }
             case GAP -> hatch(graphics, left, right, top, scheme);
         }

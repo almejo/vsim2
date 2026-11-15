@@ -8,16 +8,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 
 /** The rows of a waveform panel: one per probe, in order, with the name to show and whether the probe resolves. */
-final class ChannelRows {
+public final class ChannelRows {
 
-    record ChannelRow(String probeId, String name, boolean connected, String format) {
+    public record ChannelRow(String probeId, String name, boolean connected, String format) {
 
-        ChannelRow(String probeId, String name, boolean connected) {
+        public ChannelRow(String probeId, String name, boolean connected) {
             this(probeId, name, connected, Probe.FORMAT_HEX);
         }
     }
+
+    /** What a named row writes while its value is Z: a machine copy with no state. */
+    static final String NO_NAME = "—";
 
     private ChannelRows() {
     }
@@ -33,6 +37,22 @@ final class ChannelRows {
     /** {@code 1}, {@code 0}, {@code Z} or {@code X} for one bit; {@code 0x…} (or {@code X}) for a bus; nothing outside the recording. */
     static String valueText(Optional<Value> value) {
         return valueText(value, Probe.FORMAT_HEX);
+    }
+
+    /**
+     * As {@link #valueText(Optional, String)}, but a row with {@code names} (a machine's state row) writes the name
+     * of each value, 1-bit too: «S2», {@link #NO_NAME} while any bit is Z (no state), {@code X} in conflict. A null
+     * {@code names} is a plain row.
+     */
+    static String valueText(Optional<Value> value, String format, LongFunction<String> names) {
+        if (names == null || value.isEmpty()) {
+            return valueText(value, format);
+        }
+        Value present = value.get();
+        if (present.conflict()) {
+            return BusValueText.CONFLICT;
+        }
+        return present.isFullyDefined() ? names.apply(present.bits()) : NO_NAME;
     }
 
     /** As {@link #valueText(Optional)}, a bus in the probe's {@code format} ({@link BusValueText#of(Value, String)}). */

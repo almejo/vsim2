@@ -28,7 +28,7 @@ public final class ProbeNames {
 
     /**
      * {@code U3.q} (label, else id, dot, pin name) for a pin; for a wire, the name of the pin its net is anchored to
-     * now ({@link ProbeResolver#anchor}), else «cable w12».
+     * now ({@link ProbeResolver#anchor}), else «cable w12»; for a machine's state, «U3 · estado».
      */
     public static String defaultName(ProbeTarget target, CircuitDocument document, Netlist netlist,
                                      ComponentTypeRegistry registry) {
@@ -38,6 +38,9 @@ public final class ProbeNames {
                     .filter(ProbeTarget.PinTarget.class::isInstance)
                     .map(anchor -> pinName((ProbeTarget.PinTarget) anchor, document, registry, true))
                     .orElseGet(() -> wireName(wire));
+            case ProbeTarget.MachineStateTarget state -> Messages.format("waveform.machineStateName",
+                    document.component(state.componentId()).map(ProbeNames::ownerName)
+                            .orElse(state.componentId().value()));
         };
     }
 
@@ -68,6 +71,7 @@ public final class ProbeNames {
             case ProbeTarget.PinTarget pin -> probe.name().equals(pinName(pin, document, registry, false));
             case ProbeTarget.WireTarget wire -> STORED_WIRE_NAME_LOCALES.stream()
                     .anyMatch(locale -> probe.name().equals(wireName(wire, locale)));
+            case ProbeTarget.MachineStateTarget state -> false; // new in format 7: never stored by default
         };
     }
 

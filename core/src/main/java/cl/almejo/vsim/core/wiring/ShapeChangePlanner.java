@@ -211,6 +211,7 @@ public final class ShapeChangePlanner {
                     case ProbeTarget.PinTarget target -> nets.pinPoint(new PinRef(target.componentId(),
                             target.pinIndex()));
                     case ProbeTarget.WireTarget target -> nets.wireStart(target.wireId());
+                    case ProbeTarget.MachineStateTarget target -> null; // a state, not a net of wires
                 };
                 if (probed != null && nets.find(probed).equals(root)) {
                     return Optional.of(probe.name());

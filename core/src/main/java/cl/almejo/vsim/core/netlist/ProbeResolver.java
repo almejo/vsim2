@@ -5,6 +5,9 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.StateMachineTypes;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,15 +31,31 @@ public final class ProbeResolver {
         return Collections.unmodifiableMap(resolved);
     }
 
-    /** The net {@code target} watches, or empty when its component, pin or wire does not exist. */
+    /**
+     * The net {@code target} watches, or empty when its component, pin or wire does not exist. A machine piece's state
+     * is no net of {@code netlist}: it is the state net the flattener gives that copy, which the simulation records
+     * like any other.
+     */
     public static Optional<String> netOf(ProbeTarget target, CircuitDocument document, Netlist netlist) {
-        Optional<Net> net = switch (target) {
+        return switch (target) {
             case ProbeTarget.PinTarget pin -> document.component(pin.componentId()).isEmpty() ? Optional.empty()
-                    : netlist.netForPin(new PinRef(pin.componentId(), pin.pinIndex()));
+                    : netlist.netForPin(new PinRef(pin.componentId(), pin.pinIndex())).map(net -> net.id().value());
             case ProbeTarget.WireTarget wire -> document.wire(wire.wireId()).isEmpty() ? Optional.empty()
-                    : netlist.netForWire(wire.wireId());
+                    : netlist.netForWire(wire.wireId()).map(net -> net.id().value());
+            case ProbeTarget.MachineStateTarget state -> stateNetOf(state.componentId(), document);
         };
-        return net.map(found -> found.id().value());
+    }
+
+    /**
+     * The state net of the machine piece {@code componentId} ({@link StateMachineTypes#stateNetId}); empty when the
+     * piece is gone or is not a machine.
+     */
+    private static Optional<String> stateNetOf(ElementId componentId, CircuitDocument document) {
+        return document.component(componentId)
+                .flatMap(component -> SubcircuitTypes.definitionIdOf(component.typeId()))
+                .flatMap(document::definition)
+                .filter(ComponentDefinition::isMachine)
+                .map(definition -> StateMachineTypes.stateNetId(componentId.value()));
     }
 
     /**

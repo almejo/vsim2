@@ -57,6 +57,9 @@ final class ConnectivityChecker {
         Map<Integer, Set<String>> pinlessGroups = new HashMap<>();
         Set<String> unresolved = new HashSet<>();
         for (Probe probe : document.probes()) {
+            if (probe.target() instanceof ProbeTarget.MachineStateTarget) {
+                continue; // a machine's state: no wire changes it (as in Connectivity.of)
+            }
             Integer root = switch (probe.target()) {
                 case ProbeTarget.PinTarget pin -> {
                     PinRef reference = new PinRef(pin.componentId(), pin.pinIndex());
@@ -65,6 +68,7 @@ final class ConnectivityChecker {
                 }
                 case ProbeTarget.WireTarget wire ->
                         wireRoots.get(probeRetargets.getOrDefault(wire.wireId(), wire.wireId()));
+                case ProbeTarget.MachineStateTarget state -> null; // skipped above
             };
             if (root == null) {
                 unresolved.add(probe.id());

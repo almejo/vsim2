@@ -69,11 +69,13 @@ public final class MachineMode {
         Runnable stopFeedingThePanes = canvas.addFrameListener(
                 () -> view.panes().forEach(CircuitCanvas::refreshSnapshot));
         MachineEditing editing = MachineEditing.install(view, canvas, palette);
+        Runnable showProbes = MachineWaveStrip.install(view, place, machineId.get(), canvas);
         view.putClientProperty(MachineMode.class, new MachineMode(canvas, palette, editing,
                 () -> Animations.enabled(view.services().preferences())));
         return () -> {
             view.putClientProperty(MachineMode.class, null);
-            for (Runnable undo : List.of(editing::uninstall, stopFeedingThePanes, enableCircuitActions, showPalette, showDiagram, canvas::dispose)) {
+            for (Runnable undo : List.of(showProbes, editing::uninstall, stopFeedingThePanes, enableCircuitActions,
+                    showPalette, showDiagram, canvas::dispose)) {
                 undo.run();
             }
         };
