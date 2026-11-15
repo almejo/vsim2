@@ -1,15 +1,20 @@
 package cl.almejo.vsim.core.machine;
 
+import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.machine.MachineChannels.MachineChannel;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.FlatComponent;
 import cl.almejo.vsim.core.simulation.FlatNet;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -81,6 +86,44 @@ class MachineChannelsTest {
         assertThat(channels).hasSize(MachineChannels.MAXIMUM_CHANNELS / perCopy * perCopy);
         assertThat(channels.getLast().channelId()).isEqualTo(
                 MachineChannels.outputChannelId("c" + (MachineChannels.MAXIMUM_CHANNELS / perCopy - 1), "Z"));
+    }
+
+    @Test
+    void theBehaviourDrivesTheStateOnTheHiddenPinOfItsTypeWhateverThePinout() {
+        ComponentDefinition canonical = MachineDefinitions.regenerated(MachineDefinitions.create("maquina-1",
+                "Máquina 1").withMachine(MachineExamples.twoOnesDetector()));
+        List<DefinitionPin> pinout = new ArrayList<>(canonical.pinout());
+        pinout.removeLast(); // a pinout that is not the canonical one (an older file, hito 6's buses)
+        ComponentType type = StateMachineTypes.typeOf(canonical.withGeometry(canonical.size(), pinout,
+                canonical.appearance()));
+        Map<Integer, Value> driven = new HashMap<>();
+        BehaviorContext context = new BehaviorContext() {
+            @Override
+            public Value input(int pinIndex) {
+                return Value.ZERO;
+            }
+
+            @Override
+            public void drive(int pinIndex, Value value, long delay) {
+                driven.put(pinIndex, value);
+            }
+
+            @Override
+            public void schedule(long delay, Runnable action) {
+            }
+
+            @Override
+            public long now() {
+                return 0;
+            }
+        };
+
+        type.behaviorFactory().create(Map.of()).initialize(context);
+
+        int statePin = type.pinIndexOf(StateMachineTypes.STATE_PIN_NAME).orElseThrow();
+        assertThat(statePin).isEqualTo(pinout.size());
+        assertThat(driven).containsKey(statePin);
+        assertThat(driven.get(statePin).width()).isEqualTo(StateMachineTypes.stateWidth(MachineExamples.twoOnesDetector()));
     }
 
     @Test

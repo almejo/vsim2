@@ -52,9 +52,10 @@ public final class StateMachineTypes {
         StateMachine machine = definition.machine().orElseThrow(() ->
                 new IllegalArgumentException(definition.id() + " is not a state machine"));
         List<PinSpec> pins = new ArrayList<>(definition.pinout().stream().map(DefinitionPin::spec).toList());
+        int statePin = pins.size();
         pins.add(PinSpec.output(STATE_PIN_NAME, 0, 0, stateWidth(machine)));
         return new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM, definition.size(), pins,
-                List.of(), new Factory(machine));
+                List.of(), new Factory(machine, statePin));
     }
 
     /** The machine a native type runs, when {@code type} is one made by {@link #typeOf}. */
@@ -72,9 +73,15 @@ public final class StateMachineTypes {
         return Math.max(1, Integer.SIZE - Integer.numberOfLeadingZeros(states - 1));
     }
 
-    /** The index of the hidden state pin in the native type of {@code definition}: right after its pinout. */
-    public static int statePinIndex(ComponentDefinition definition) {
-        return definition.pinout().size();
+    /**
+     * The index of the hidden state pin in {@code type}, a native machine type made by {@link #typeOf}: the pin its
+     * behaviour drives, found by name, so the flattener and the behaviour never disagree.
+     *
+     * @throws IllegalArgumentException when {@code type} has no state pin
+     */
+    public static int statePinIndex(ComponentType type) {
+        return type.pinIndexOf(STATE_PIN_NAME).orElseThrow(() ->
+                new IllegalArgumentException(type.id() + " has no state pin"));
     }
 
     /** The net the flattener gives the state pin of the machine copy {@code flatComponentId} ({@code w/m}). */
@@ -101,12 +108,15 @@ public final class StateMachineTypes {
         return Optional.of(machine.states().get((int) code).id());
     }
 
-    /** Builds the behaviour of one machine; equal for equal machines, so a type keeps its identity across rebuilds. */
-    private record Factory(StateMachine machine) implements BehaviorFactory {
+    /**
+     * Builds the behaviour of one machine, which drives its state code on the type's hidden pin {@code statePin};
+     * equal for equal machines and pinouts, so a type keeps its identity across rebuilds.
+     */
+    private record Factory(StateMachine machine, int statePin) implements BehaviorFactory {
 
         @Override
         public Behavior create(Map<String, Object> parameters) {
-            return new StateMachineBehavior(machine);
+            return new StateMachineBehavior(machine, statePin);
         }
     }
 }

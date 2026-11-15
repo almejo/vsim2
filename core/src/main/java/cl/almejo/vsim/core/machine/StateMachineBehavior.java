@@ -39,7 +39,7 @@ final class StateMachineBehavior implements Behavior {
     private final int resetPin;
     private final int clockPin;
     private final ClockEdgeDetector edge;
-    /** The hidden pin after the outputs that carries the state code ({@link StateMachineTypes}). */
+    /** The hidden pin that carries the state code: its index in the native type ({@link StateMachineTypes}). */
     private final int statePin;
     private final int stateWidth;
     private Value drivenStateCode;
@@ -54,13 +54,13 @@ final class StateMachineBehavior implements Behavior {
     private boolean clockUndefined;
     private final Map<String, Boolean> driven = new HashMap<>();
 
-    StateMachineBehavior(StateMachine machine) {
+    StateMachineBehavior(StateMachine machine, int statePin) {
         this.machine = machine;
         this.evaluator = MachineEvaluator.of(machine);
         this.resetPin = machine.inputNames().size();
         this.clockPin = resetPin + 1;
         this.edge = ClockEdgeDetector.forEdge(machine.edge());
-        this.statePin = clockPin + 1 + machine.outputNames().size();
+        this.statePin = statePin;
         this.stateWidth = StateMachineTypes.stateWidth(machine);
         this.currentStateId = machine.initialStateId();
         this.inputsRead = machine.inputNames().stream().filter(machine.inputNamesUsed()::contains).toList();

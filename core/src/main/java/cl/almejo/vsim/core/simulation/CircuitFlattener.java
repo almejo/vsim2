@@ -142,7 +142,7 @@ public final class CircuitFlattener {
                     ComponentType machineType = machineTypes.computeIfAbsent(definition.get(),
                             StateMachineTypes::typeOf);
                     addComponent(new FlatComponent(flatId, machineType, Map.of()), component, levelNetlist, prefix);
-                    addStateNet(flatId, machineType, StateMachineTypes.statePinIndex(definition.get()));
+                    addStateNet(flatId, machineType, StateMachineTypes.statePinIndex(machineType));
                 } else if (definition.isPresent()) {
                     expand(flatId, component, definition.get(), levelNetlist, prefix, depth);
                 } else if (!prefix.isEmpty() && InterfacePins.isInterface(type.id())) {
