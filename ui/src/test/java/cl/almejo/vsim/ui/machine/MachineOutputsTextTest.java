@@ -11,6 +11,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MachineOutputsTextTest {
 
     @Test
+    void aStatesMooreLabelOnTheDiagramIsWrittenAsInProperties() {
+        List<OutputAssignment> outputs = List.of(new OutputAssignment("Z", true), new OutputAssignment("Y", false));
+
+        assertThat(MachineDiagramPainter.mooreLabelOf(outputs)).isEqualTo(MachineOutputsText.write(outputs))
+                .isEqualTo("Z=1, Y=0");
+    }
+
+    @Test
     void readsAssignmentsSeparatedByCommasOrSpaces() {
         MachineOutputsText.Reading reading = MachineOutputsText.read(" Z=1, Y = 0  Listo=1 ");
 

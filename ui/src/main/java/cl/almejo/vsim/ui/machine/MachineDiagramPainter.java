@@ -21,7 +21,6 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Draws a machine's diagram in diagram units (the caller has applied the view's zoom and pan): the arrows with their
@@ -214,9 +213,9 @@ final class MachineDiagramPainter {
         return MachineLabelText.of(transition);
     }
 
-    private static String assignments(List<OutputAssignment> outputs) {
-        return outputs.stream().map(output -> output.output() + "=" + (output.value() ? 1 : 0))
-                .collect(Collectors.joining(" "));
+    /** A state's Moore outputs under it, written as Propiedades and the arrow labels write them. */
+    static String mooreLabelOf(List<OutputAssignment> outputs) {
+        return MachineOutputsText.write(outputs);
     }
 
     private static void paintHead(Graphics2D graphics, Point2D from, Point2D tip) {
@@ -268,7 +267,7 @@ final class MachineDiagramPainter {
         if (!state.outputs().isEmpty()) {
             graphics.setColor(MachineColors.muted(scheme));
             graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, OUTPUT_SIZE));
-            drawCentred(graphics, assignments(state.outputs()),
+            drawCentred(graphics, mooreLabelOf(state.outputs()),
                     new Point2D.Double(centre.getX(), centre.getY() + OUTPUTS_BELOW));
         }
     }
