@@ -28,13 +28,23 @@ import java.util.WeakHashMap;
  * state's arrows read (at most 16, so 2^16 rows, as bits): the first row where both hold is the witness. Names that are
  * not input pins (an output, {@code CLK}, {@code RST}, a name beyond the 16 inputs) read 0, as in the simulation.
  * <p>
- * {@link #check} runs on every Problemas refresh, so its result is kept per machine (machines are immutable values;
- * the cache holds them weakly).
+ * {@link #check} runs on every Problemas refresh and on paint paths (the circuit's overlay, the diagram's glows), so
+ * its result is kept per machine (machines are immutable values; the cache holds them weakly). The last few machines
+ * looked up are first found by identity, which skips the record's deep hash (every state and arrow) on each call.
  */
 public final class MachineChecks {
 
     private static final Map<StateMachine, List<MachineFinding>> CACHE =
             Collections.synchronizedMap(new WeakHashMap<>());
+
+    /** How many recent machines {@link #check} finds by identity. */
+    private static final int RECENT_SIZE = 16;
+    /** The recent machines and their findings, by slot; written round-robin under the class's lock. */
+    private static final Recent[] RECENT = new Recent[RECENT_SIZE];
+    private static int nextRecentSlot;
+
+    private record Recent(StateMachine machine, List<MachineFinding> findings) {
+    }
 
     private MachineChecks() {
     }
@@ -42,13 +52,31 @@ public final class MachineChecks {
     /** Every problem of {@code machine}'s model, in {@link Kind} order and, within a kind, in model order. */
     public static List<MachineFinding> check(StateMachine machine) {
         Objects.requireNonNull(machine, "machine");
-        List<MachineFinding> cached = CACHE.get(machine);
-        if (cached != null) {
-            return cached;
+        List<MachineFinding> recent = recentFindings(machine);
+        if (recent != null) {
+            return recent;
         }
-        List<MachineFinding> findings = new Checker(machine).findings();
-        CACHE.put(machine, findings);
+        List<MachineFinding> findings = CACHE.get(machine);
+        if (findings == null) {
+            findings = new Checker(machine).findings();
+            CACHE.put(machine, findings);
+        }
+        remember(machine, findings);
         return findings;
+    }
+
+    private static synchronized List<MachineFinding> recentFindings(StateMachine machine) {
+        for (Recent recent : RECENT) {
+            if (recent != null && recent.machine() == machine) {
+                return recent.findings();
+            }
+        }
+        return null;
+    }
+
+    private static synchronized void remember(StateMachine machine, List<MachineFinding> findings) {
+        RECENT[nextRecentSlot] = new Recent(machine, findings);
+        nextRecentSlot = (nextRecentSlot + 1) % RECENT_SIZE;
     }
 
     /**
