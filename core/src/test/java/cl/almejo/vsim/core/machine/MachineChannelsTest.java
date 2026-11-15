@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.simulation.FlatNet;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -62,6 +63,24 @@ class MachineChannelsTest {
         assertThat(MachineChannels.of(circuit)).isEmpty();
         assertThat(StateMachineTypes.machineOf(andGate)).isEmpty();
         assertThat(StateMachineTypes.machineOf(detector)).contains(MachineExamples.twoOnesDetector());
+    }
+
+    @Test
+    void copiesPastTheCapRecordNothingAndNoCopyIsCutInHalf() {
+        int perCopy = 3;
+        int copies = MachineChannels.MAXIMUM_CHANNELS / perCopy + 2;
+        List<FlatComponent> components = new ArrayList<>();
+        List<FlatNet> nets = new ArrayList<>();
+        for (int copy = 0; copy < copies; copy++) {
+            components.add(new FlatComponent("c" + copy, detector, Map.of()));
+            nets.add(stateNet("c" + copy));
+        }
+
+        List<MachineChannel> channels = MachineChannels.of(new FlatCircuit(components, nets));
+
+        assertThat(channels).hasSize(MachineChannels.MAXIMUM_CHANNELS / perCopy * perCopy);
+        assertThat(channels.getLast().channelId()).isEqualTo(
+                MachineChannels.outputChannelId("c" + (MachineChannels.MAXIMUM_CHANNELS / perCopy - 1), "Z"));
     }
 
     @Test

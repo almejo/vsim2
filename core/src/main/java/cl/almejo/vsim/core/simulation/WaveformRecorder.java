@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.waveform.ChannelTrace;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
@@ -51,7 +52,7 @@ final class WaveformRecorder {
         }
         channels.forEach((channelId, netId) -> {
             RuntimeNet net = netId.isEmpty() ? null : netWithId.apply(netId);
-            ChannelTrace trace = traces.computeIfAbsent(channelId, id -> new ChannelTrace(net == null ? 1 : net.width));
+            ChannelTrace trace = traces.computeIfAbsent(channelId, id -> newTrace(id, net == null ? 1 : net.width));
             boolean changed;
             if (net == null) {
                 changed = trace.appendGap(now);
@@ -67,6 +68,13 @@ final class WaveformRecorder {
                 version++;
             }
         });
+    }
+
+    /** A machine channel keeps a shorter history than a probe ({@link MachineChannels#HISTORY_CHUNKS}). */
+    private static ChannelTrace newTrace(String channelId, int width) {
+        return channelId.startsWith(MachineChannels.PREFIX)
+                ? new ChannelTrace(width, MachineChannels.HISTORY_CHUNKS)
+                : new ChannelTrace(width);
     }
 
     /** {@code net} just changed value at {@code now} (called only when it has recorders). */

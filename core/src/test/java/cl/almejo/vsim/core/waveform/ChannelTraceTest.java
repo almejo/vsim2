@@ -119,6 +119,29 @@ class ChannelTraceTest {
     }
 
     @Test
+    void aTraceWithAShorterHistoryDropsItsOldestChunkSooner() {
+        ChannelTrace channel = new ChannelTrace(1, 2);
+        for (int index = 0; index < 3 * ChannelTrace.CHUNK_SIZE; index++) {
+            channel.append(10L * index, Value.of(index % 2 == 1));
+        }
+
+        Trace trace = channel.snapshot();
+        assertThat(trace.truncated()).isTrue();
+        assertThat(trace.eventCount()).isEqualTo(ChannelTrace.CHUNK_SIZE * 2);
+    }
+
+    @Test
+    void smallMultiBitValuesShareOneInstancePerCode() {
+        ChannelTrace channel = new ChannelTrace(6);
+        channel.append(0, Value.of(6, 5));
+        channel.append(10, Value.of(6, 7));
+        channel.append(20, Value.of(6, 5));
+
+        Trace trace = channel.snapshot();
+        assertThat(trace.valueAt(0).orElseThrow()).isSameAs(trace.valueAt(20).orElseThrow());
+    }
+
+    @Test
     void snapshotsShareFullChunksAndStayUnchanged() {
         ChannelTrace channel = alternating(ChannelTrace.CHUNK_SIZE + 3);
         Trace earlier = channel.snapshot();

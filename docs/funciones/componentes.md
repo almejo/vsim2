@@ -333,6 +333,10 @@ En la pestaña de una máquina, bajo el diagrama, está su onda: la de la copia 
 - **«Limpiar trazas»** borra lo grabado de todo el circuito, también las trazas del panel de Formas de onda del circuito: la simulación es una sola.
 - **Modo presentación**: espera en el borde de abajo y el 📌 la fija, como el panel de Formas de onda.
 - **Con «Sin valores»** no hay copia y la onda queda vacía, con el aviso «Entra por una copia para ver su onda».
+- **Cuánto guarda**: cada fila de una máquina guarda sus últimos 8.192 cambios (menos que una fila del panel de
+  Formas de onda del circuito, porque se graban todas las copias aunque nadie las mire), y un circuito graba como
+  mucho 512 filas de máquinas. Las copias que pasan de ahí no graban nada, y su onda lo dice: «Esta copia no se graba:
+  el circuito ya graba 512 señales de máquinas».
 - **El panel de Formas de onda del circuito** nunca muestra estas filas: solo las de sus propios canales.
 - **Ver estados y salidas en formas de onda**: para comparar la máquina con otras señales del circuito, clic derecho
   en la pieza ▸ «Ver estados y salidas en formas de onda» (justo después de «Ver pines en formas de onda») agrega al

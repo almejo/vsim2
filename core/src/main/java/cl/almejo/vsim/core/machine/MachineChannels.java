@@ -25,6 +25,18 @@ public final class MachineChannels {
     /** The start of every machine channel id. */
     public static final String PREFIX = "machine:";
 
+    /**
+     * The chunks of history a machine channel keeps ({@link cl.almejo.vsim.core.waveform.ChannelTrace#CHUNK_SIZE}
+     * events each), fewer than a probe's: they are recorded for every copy whether a panel shows them or not.
+     */
+    public static final int HISTORY_CHUNKS = 8;
+
+    /**
+     * The most machine channels one circuit records; copies past it (in the circuit's order, whole copies only)
+     * record nothing, and their strip says so.
+     */
+    public static final int MAXIMUM_CHANNELS = 512;
+
     private MachineChannels() {
     }
 
@@ -41,7 +53,8 @@ public final class MachineChannels {
 
     /**
      * The channels of every machine copy of {@code circuit}, copy by copy in the circuit's order: the state, the
-     * inputs, then the outputs, each in pin order.
+     * inputs, then the outputs, each in pin order. A copy whose channels would pass {@link #MAXIMUM_CHANNELS} is left
+     * out, and so are the copies after it.
      */
     public static List<MachineChannel> of(FlatCircuit circuit) {
         Objects.requireNonNull(circuit, "circuit");
@@ -55,7 +68,11 @@ public final class MachineChannels {
             if (netOfPin == null) {
                 netOfPin = netsByPin(circuit);
             }
-            channels.addAll(channelsOf(component, machine.get(), netOfPin));
+            List<MachineChannel> copyChannels = channelsOf(component, machine.get(), netOfPin);
+            if (channels.size() + copyChannels.size() > MAXIMUM_CHANNELS) {
+                break;
+            }
+            channels.addAll(copyChannels);
         }
         return List.copyOf(channels);
     }

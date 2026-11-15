@@ -65,11 +65,19 @@ final class MachineStripChannels implements WaveformChannels {
 
     @Override
     public Object rowsKey() {
-        return new RowsKey(copy(), machine(), circuit().document().revision());
+        return new RowsKey(copy(), machine(), circuit().document().revision(), recorded());
     }
 
-    /** What the rows and the title are made of: the copy, the machine's pins, the names along the copy's route. */
-    private record RowsKey(Optional<String> copy, Optional<StateMachine> machine, long revision) {
+    /**
+     * What the rows and the title are made of: the copy, the machine's pins, the names along the copy's route, and
+     * whether the circuit records it.
+     */
+    private record RowsKey(Optional<String> copy, Optional<StateMachine> machine, long revision, boolean recorded) {
+    }
+
+    /** False for a copy the circuit leaves out past {@link MachineChannels#MAXIMUM_CHANNELS}. */
+    private boolean recorded() {
+        return copy().map(path -> circuit().recordsMachineCopy(path)).orElse(true);
     }
 
     @Override
@@ -105,6 +113,9 @@ final class MachineStripChannels implements WaveformChannels {
 
     @Override
     public Optional<String> title() {
+        if (!recorded()) {
+            return Optional.of(Messages.format("machine.strip.notRecorded", MachineChannels.MAXIMUM_CHANNELS));
+        }
         return Optional.of(copy()
                 .map(path -> Messages.format("machine.strip.title",
                         InstanceNames.routeText(path, circuit().document())))

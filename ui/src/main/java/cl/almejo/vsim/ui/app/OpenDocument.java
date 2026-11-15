@@ -33,6 +33,7 @@ import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineChannels;
+import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.core.memory.LinkedFileChecks;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
@@ -146,6 +147,8 @@ public final class OpenDocument implements AutoCloseable {
      * id → net id; added to the probes' channels for the simulation, never to {@link #probeNets()}.
      */
     private Map<String, String> machineChannels = Map.of();
+    /** True when the last flattened circuit had more machine copies than {@link MachineChannels#MAXIMUM_CHANNELS}. */
+    private boolean machineCopiesLeftOut;
     private long changeCount;
     private long contentVersion;
     /** The command on top of the undo stack at the last history notification (for {@link #contentVersion()}). */
@@ -1797,6 +1800,7 @@ public final class OpenDocument implements AutoCloseable {
             LOGGER.error("Could not prepare {} for simulation", displayName(), exception);
             probeNets = Map.of();
             machineChannels = Map.of();
+            machineCopiesLeftOut = false;
             hasClock = false;
             connectivityProblems = List.of();
             if (netlistToken != document.structureRevision()) {
@@ -1817,7 +1821,18 @@ public final class OpenDocument implements AutoCloseable {
             channels.put(channel.channelId(), channel.netId());
         }
         machineChannels = Collections.unmodifiableMap(channels);
+        machineCopiesLeftOut = circuit.components().stream()
+                .filter(component -> StateMachineTypes.machineOf(component.type()).isPresent())
+                .anyMatch(component -> !channels.containsKey(MachineChannels.stateChannelId(component.id())));
         return simulationChannels();
+    }
+
+    /**
+     * Whether this circuit records the channels of the machine copy at flat path {@code path}: false only for a copy
+     * left out past {@link MachineChannels#MAXIMUM_CHANNELS}.
+     */
+    public boolean recordsMachineCopy(String path) {
+        return !machineCopiesLeftOut || machineChannels.containsKey(MachineChannels.stateChannelId(path));
     }
 
     /** The probes' channels, freshly resolved, and the machine channels of the last flattened circuit. */
