@@ -3,8 +3,13 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineChecks;
+import cl.almejo.vsim.core.machine.MachineFinding;
+import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.ContentZoom;
 import cl.almejo.vsim.ui.app.Listeners;
@@ -14,9 +19,13 @@ import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.inline.InlineHost;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.problems.MachineProblemText;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.ToolTipManager;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -28,6 +37,9 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -51,6 +63,14 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private static final double WHEEL_SCROLL_PIXELS = 40;
     /** «Ver todo» leaves this much of the canvas around the diagram. */
     private static final double FIT_SHARE = 0.9;
+    /** How far from an arrow, on screen, a click or the pointer still takes it. */
+    private static final double ARROW_REACH_PIXELS = 6;
+    /** A revealed problem blinks this many times (on and off), this fast, as a net found from Problemas. */
+    private static final int REVEAL_BLINKS = 6;
+    private static final int REVEAL_BLINK_MILLISECONDS = 180;
+    /** Space kept around revealed elements, in diagram units, so a halo is seen whole. */
+    private static final double REVEAL_MARGIN = 2 * MachineDiagramGeometry.STATE_RADIUS;
+    private static final String HTML_START = "<html>";
 
     private final transient OpenDocument openDocument;
     private final String definitionId;
@@ -71,6 +91,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private transient Point2D panFrom;
     /** What the drawing gestures show while they last (a moved state, a lit border, the rubber band). */
     private transient Gestures gestures = Gestures.NONE;
+    /** Where a problem asked to be shown before the canvas had a size: shown there instead of the whole diagram. */
+    private transient Optional<Rectangle2D> pendingReveal = Optional.empty();
+    /** What a reveal blinks, and how many blinks are left (lit when odd). */
+    private transient Optional<MachineFinding> blinking = Optional.empty();
+    private int blinksLeft;
+    private final transient Timer blinkTimer = new Timer(REVEAL_BLINK_MILLISECONDS, event -> blinkOnce());
 
     /**
      * What the diagram's gestures show on top of the model while they last: the machine as it would be after a drag
@@ -125,6 +151,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
         addMouseWheelListener(mouse);
+        ToolTipManager.sharedInstance().registerComponent(this);
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 followFrames(isShowing());
@@ -222,6 +249,146 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         return activeState;
     }
 
+    /** Which states and arrows glow for the machine's problems now (its model's, never a gesture's preview). */
+    MachineGlows glows() {
+        return machine().map(machine -> MachineGlows.of(MachineChecks.check(machine))).orElse(MachineGlows.NONE);
+    }
+
+    /**
+     * The problems this tab shows (its Propiedades, F8): the machine's own, then the ones of the running copy entered
+     * through (an input or the clock in Z): the same rows Problemas lists for them.
+     */
+    public List<MachineProblem> problems() {
+        Optional<StateMachine> machine = machine();
+        if (machine.isEmpty()) {
+            return List.of();
+        }
+        List<MachineProblem> problems = new ArrayList<>();
+        MachineChecks.check(machine.get()).forEach(finding ->
+                problems.add(MachineProblem.of(definitionId, Optional.empty(), finding)));
+        openDocument.contextPath().ifPresent(path -> runtimeFindings(path).forEach(finding ->
+                problems.add(MachineProblem.of(definitionId, Optional.of(path), finding))));
+        return List.copyOf(problems);
+    }
+
+    /** What the running copy at {@code path} reports, from the circuit's latest snapshot of its current netlist. */
+    private List<MachineFinding> runtimeFindings(String path) {
+        OpenDocument circuit = circuit();
+        SimulationSnapshot latest = circuit.latestSnapshot();
+        if (latest.token() != circuit.netlistToken()) {
+            return List.of();
+        }
+        return latest.componentStates().get(path) instanceof VisibleState.MachineVisibleState state
+                ? MachineChecks.runtime(state) : List.of();
+    }
+
+    /**
+     * Selects what {@code finding} is about (the arrows or states that glow for it), brings them into view and, with
+     * {@code blink}, makes them blink a few times; nothing is selected for a problem about neither (no initial state,
+     * an unused input), whose words the machine's Propiedades list.
+     */
+    void reveal(MachineFinding finding, boolean blink) {
+        selection.set(new LinkedHashSet<>(MachineGlows.statesOf(finding)),
+                new LinkedHashSet<>(MachineGlows.transitionsOf(finding)));
+        machine().flatMap(machine -> boundsOf(machine, finding)).ifPresent(bounds -> {
+            if (getWidth() > 0 && getHeight() > 0) {
+                showCentred(bounds, Math.min(viewport.zoom(), fitZoom(bounds)));
+            } else {
+                pendingReveal = Optional.of(bounds);
+            }
+        });
+        blinkTimer.stop();
+        blinking = Optional.of(finding);
+        blinksLeft = blink ? REVEAL_BLINKS : 0;
+        if (blink) {
+            blinkTimer.start();
+        }
+        requestFocusInWindow();
+        repaint();
+    }
+
+    /** Whether a revealed problem is blinking now. */
+    boolean isBlinking() {
+        return blinkTimer.isRunning();
+    }
+
+    private void blinkOnce() {
+        blinksLeft--;
+        if (blinksLeft <= 0) {
+            blinkTimer.stop();
+        }
+        repaint();
+    }
+
+    /** The glowing elements of {@code finding} with room around them; empty when it is about none. */
+    private static Optional<Rectangle2D> boundsOf(StateMachine machine, MachineFinding finding) {
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+        Rectangle2D result = null;
+        for (String stateId : MachineGlows.statesOf(finding)) {
+            if (machine.state(stateId).isPresent()) {
+                result = union(result, geometry.circle(stateId).getBounds2D());
+            }
+        }
+        for (String transitionId : MachineGlows.transitionsOf(finding)) {
+            if (machine.transition(transitionId).isPresent()) {
+                result = union(result, geometry.arrow(transitionId).path().getBounds2D());
+            }
+        }
+        if (result == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new Rectangle2D.Double(result.getX() - REVEAL_MARGIN, result.getY() - REVEAL_MARGIN,
+                result.getWidth() + 2 * REVEAL_MARGIN, result.getHeight() + 2 * REVEAL_MARGIN));
+    }
+
+    private static Rectangle2D union(Rectangle2D sofar, Rectangle2D more) {
+        return sofar == null ? more : sofar.createUnion(more);
+    }
+
+    /** The arrow whose condition or line is under {@code point}: labels first, they sit over the lines. */
+    Optional<String> transitionAt(StateMachine machine, MachineDiagramGeometry geometry, Point2D point) {
+        FontMetrics metrics = getFontMetrics(MachineDiagramPainter.labelFont());
+        String labelled = null;
+        for (MachineTransition transition : machine.transitions()) {
+            if (MachineDiagramPainter.labelBounds(transition, geometry.arrow(transition.id()), metrics)
+                    .contains(point)) {
+                labelled = transition.id();
+            }
+        }
+        return Optional.ofNullable(labelled)
+                .or(() -> geometry.transitionAt(point, toDiagramLength(ARROW_REACH_PIXELS)));
+    }
+
+    /** What is wrong with the state or arrow under the pointer, in words; nothing over a plain one. */
+    @Override
+    public String getToolTipText(MouseEvent event) {
+        return problemTextAt(event.getPoint()).orElse(null);
+    }
+
+    private Optional<String> problemTextAt(Point2D screenPoint) {
+        Optional<StateMachine> machine = machine();
+        if (machine.isEmpty()) {
+            return Optional.empty();
+        }
+        DiagramPoint diagramPoint = toDiagram(screenPoint);
+        Point2D at = new Point2D.Double(diagramPoint.x(), diagramPoint.y());
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
+        MachineGlows glows = glows();
+        List<MachineFinding> findings = geometry.stateAt(at).map(glows::findingsOfState)
+                .orElseGet(() -> transitionAt(machine.get(), geometry, at).map(glows::findingsOfTransition)
+                        .orElse(List.of()));
+        if (findings.isEmpty()) {
+            return Optional.empty();
+        }
+        List<String> lines = findings.stream()
+                .map(finding -> escaped(MachineProblemText.sentence(finding, machine.get()))).toList();
+        return Optional.of(HTML_START + String.join("<br>", lines) + "</html>");
+    }
+
+    private static String escaped(String plain) {
+        return plain.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
     /** The view's zoom and pan: diagram units to screen pixels. */
     public Viewport viewport() {
         return viewport;
@@ -268,6 +435,8 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     public void dispose() {
         disposed = true;
         frames.stop();
+        blinkTimer.stop();
+        ToolTipManager.sharedInstance().unregisterComponent(this);
         openDocument.removeChangeListener(placeListener);
         stopRepaintingOnSelection.run();
     }
@@ -319,7 +488,9 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         super.setBounds(x, y, width, height);
         if (!viewPlaced && width > 0 && height > 0) {
             viewPlaced = true;
-            diagramBounds().ifPresent(bounds -> showCentred(bounds, Math.min(1.0, fitZoom(bounds))));
+            Optional<Rectangle2D> revealed = pendingReveal;
+            pendingReveal = Optional.empty();
+            revealed.or(this::diagramBounds).ifPresent(bounds -> showCentred(bounds, Math.min(1.0, fitZoom(bounds))));
         }
     }
 
@@ -353,8 +524,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             canvas.transform(viewport.documentTransform());
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
             MachineDiagramPainter.paint(canvas, machine.get(), geometry,
-                    new MachineDiagramPainter.Marks(activeState, selection), colours);
+                    new MachineDiagramPainter.Marks(activeState, selection, glows()), colours);
             MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), colours);
+            if (blinkTimer.isRunning() && blinksLeft % 2 == 1) {
+                blinking.ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,
+                        MachineGlows.statesOf(finding), MachineGlows.transitionsOf(finding), colours));
+            }
         } finally {
             canvas.dispose();
         }

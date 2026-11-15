@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
@@ -51,7 +52,8 @@ final class MachineEditing {
     static MachineEditing install(EditorView view, MachineCanvas canvas, MachinePalette palette) {
         MachineInlineEditor inline = new MachineInlineEditor(canvas);
         MachineTool tool = new MachineTool(canvas, palette, inline);
-        MachineInspectorRows rows = new MachineInspectorRows(canvas);
+        MachineInspectorRows rows = new MachineInspectorRows(canvas,
+                finding -> canvas.reveal(finding, Animations.enabled(view.services().preferences())));
         List<Runnable> undo = new ArrayList<>();
         undo.add(tool.install());
         if (view.inspector().title(InspectorPanel.PROPERTIES).isPresent()) {

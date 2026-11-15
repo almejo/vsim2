@@ -38,6 +38,8 @@ public final class ProblemNavigator {
     private final Predicate<Problem> shownElsewhere;
     private List<Problem> problems = List.of();
     private int current = -1;
+    /** The problems {@link #next} and {@link #previous} stop at: every one, or a machine's in its tab. */
+    private Predicate<Problem> walked = problem -> true;
 
     /** {@code canvas} is resolved at every travel: the window's active pane. */
     public ProblemNavigator(Supplier<CircuitCanvas> canvas, NetBlink blink) {
@@ -88,6 +90,11 @@ public final class ProblemNavigator {
 
     public List<Problem> problems() {
         return problems;
+    }
+
+    /** From now on {@link #next} and {@link #previous} skip the problems {@code scope} does not hold for. */
+    void walkOnly(Predicate<Problem> scope) {
+        walked = scope;
     }
 
     public Optional<Problem> next() {
@@ -282,12 +289,14 @@ public final class ProblemNavigator {
     }
 
     private Optional<Problem> step(int direction) {
-        if (problems.isEmpty()) {
-            return Optional.empty();
-        }
         int start = current >= 0 ? current : (direction > 0 ? -1 : 0);
-        Problem problem = problems.get(Math.floorMod(start + direction, problems.size()));
-        navigateTo(problem);
-        return Optional.of(problem);
+        for (int distance = 1; distance <= problems.size(); distance++) {
+            Problem problem = problems.get(Math.floorMod(start + distance * direction, problems.size()));
+            if (walked.test(problem)) {
+                navigateTo(problem);
+                return Optional.of(problem);
+            }
+        }
+        return Optional.empty();
     }
 }

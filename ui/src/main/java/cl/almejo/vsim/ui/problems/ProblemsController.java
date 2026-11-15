@@ -115,6 +115,10 @@ public final class ProblemsController {
     private final ConnectionPoints connectionPoints;
     /** While any of these holds, a wire has no balloon: the signal card replaces it («Resaltar la red al pasar»). */
     private final List<Predicate<CircuitCanvas>> wireBalloonVetoes = new CopyOnWriteArrayList<>();
+    /** Asked first to show a problem in a place of its own (a state machine's tab); true when one showed it. */
+    private final List<Predicate<Problem>> problemShowers = new CopyOnWriteArrayList<>();
+    /** The problems F8 / Mayús+F8 walk in this view: every one, or a machine's in its tab. */
+    private Predicate<Problem> walked = problem -> true;
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
@@ -214,6 +218,9 @@ public final class ProblemsController {
         if (isOwn(problem)) {
             return false;
         }
+        if (problemShowers.stream().anyMatch(shower -> shower.test(problem))) {
+            return true;
+        }
         Optional<String> focus = ProblemPlaces.focusOf(problem, circuit.document());
         boolean inside = focus.filter(InstancePath::isNested).isPresent();
         if (!openDocument.isBody() && !inside) {
@@ -289,7 +296,7 @@ public final class ProblemsController {
         navigator.showSnapshot(combined);
         panel.showSnapshot(combined);
         showBadge(countsOf(problems, libraryProblemCount));
-        boolean anyProblem = !problems.isEmpty();
+        boolean anyProblem = problems.stream().anyMatch(walked);
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
     }
@@ -414,6 +421,31 @@ public final class ProblemsController {
         view.inspector().setBadge(InspectorPanel.PROBLEMS, errors ? counts.errors() : counts.warnings(),
                 errors ? InspectorPanel.Badge.ERROR : InspectorPanel.Badge.WARNING);
         view.labelFeatures().properties().setProblems(counts.errors(), counts.warnings());
+    }
+
+    /**
+     * Lets {@code shower} show the problems it knows where (a state machine's in its tab) before this view looks for
+     * their place: on F8, Mayús+F8 and a click in the list, it answers true when it showed one. Returns its removal.
+     */
+    public Runnable addProblemShower(Predicate<Problem> shower) {
+        problemShowers.add(Objects.requireNonNull(shower, "shower"));
+        return () -> problemShowers.remove(shower);
+    }
+
+    /**
+     * Makes F8 / Mayús+F8 walk only the problems {@code scope} holds for (a machine's tab walks that machine's); the
+     * list still shows every one. Returns what walks them all again.
+     */
+    public Runnable walkOnly(Predicate<Problem> scope) {
+        Objects.requireNonNull(scope, "scope");
+        walked = scope;
+        navigator.walkOnly(scope);
+        refreshStructure();
+        return () -> {
+            walked = problem -> true;
+            navigator.walkOnly(problem -> true);
+            refreshStructure();
+        };
     }
 
     /** The heading of the library section of the Problems tab. */

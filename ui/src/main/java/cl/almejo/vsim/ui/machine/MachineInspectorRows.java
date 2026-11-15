@@ -2,14 +2,19 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.logic.ExpressionProblem;
 import cl.almejo.vsim.core.machine.MachineConditions;
+import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.karnaugh.ExpressionProblemText;
+import cl.almejo.vsim.ui.problems.MachineProblemText;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.AbstractButton;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -41,6 +46,8 @@ import java.util.function.UnaryOperator;
  * both. A change of the machine rebuilds the rows only when what they show changed (another element, another kind of
  * rows); otherwise it updates, in place, the fields that have no focus and no typing waiting for Enter, so what the
  * user is typing is never lost and the focus stays in the field after Enter. The pin list comes in a later milestone.
+ * Under the rows, the problems of what is selected (what makes it glow), or with nothing selected the machine's
+ * problems, each one with a «Ver» that shows it on the diagram; they follow every change and the running copy.
  */
 final class MachineInspectorRows extends JPanel {
 
@@ -69,13 +76,28 @@ final class MachineInspectorRows extends JPanel {
     private transient Optional<JLabel> arrowLabel = Optional.empty();
     /** True while this panel's own edit runs: the change it makes does not rebuild the rows under the user. */
     private boolean applying;
+    /** Shows a problem on the diagram (selects, centres and blinks what it is about). */
+    private final transient Consumer<MachineFinding> reveal;
+    private final transient Runnable stopFollowingFrames;
+    /** The problems under the rows: a sentence and its «Ver» each. */
+    private final JPanel problemList = new JPanel(new MigLayout("wrap 2, insets 0, hidemode 3",
+            "[grow, fill, 60::][]"));
+    private transient List<MachineFinding> listedProblems = List.of();
+    private final transient List<String> problemLines = new ArrayList<>();
+    private final transient List<AbstractButton> problemLinks = new ArrayList<>();
 
-    MachineInspectorRows(MachineCanvas canvas) {
+    /** The rows of {@code canvas}'s machine; a problem's «Ver» calls {@code reveal}. */
+    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal) {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
         this.canvas = Objects.requireNonNull(canvas, "canvas");
+        this.reveal = Objects.requireNonNull(reveal, "reveal");
         this.selection = canvas.selection();
+        problemList.setOpaque(false);
+        problemList.setVisible(false);
         stopFollowingSelection = selection.addListener(this::selectionChanged);
         stopFollowingMachine = canvas.addChangeListener(this::machineChanged);
+        // a running copy's problems (an input in Z at the edge) come with the simulation, not with a change
+        stopFollowingFrames = canvas.addFrameListener(this::refreshProblemList);
         rebuild();
     }
 
@@ -101,6 +123,16 @@ final class MachineInspectorRows extends JPanel {
     /** «S1 → S2» for a selected arrow; empty otherwise. */
     Optional<String> arrowText() {
         return arrowLabel.map(JLabel::getText);
+    }
+
+    /** The problems listed under the rows, as they read («Error: …», «Aviso: …»). */
+    List<String> problemLines() {
+        return List.copyOf(problemLines);
+    }
+
+    /** The «Ver» of each listed problem, in the order of {@link #problemLines()}. */
+    List<AbstractButton> problemLinks() {
+        return List.copyOf(problemLinks);
     }
 
     Optional<JTextField> nameField() {
@@ -132,6 +164,7 @@ final class MachineInspectorRows extends JPanel {
     void dispose() {
         stopFollowingSelection.run();
         stopFollowingMachine.run();
+        stopFollowingFrames.run();
     }
 
     private void selectionChanged() {
@@ -154,6 +187,7 @@ final class MachineInspectorRows extends JPanel {
             rebuild();
         } else {
             refreshers.forEach(Runnable::run);
+            refreshProblemList();
         }
     }
 
@@ -194,8 +228,71 @@ final class MachineInspectorRows extends JPanel {
         builtFor = shownFor();
         canvas.machine().ifPresent(this::showSelected);
         add(problem, WIDE);
+        refreshProblemList();
+        add(problemList, WIDE);
         revalidate();
         repaint();
+    }
+
+    /** Lists the problems of what is selected now, when they changed. */
+    private void refreshProblemList() {
+        List<MachineFinding> current = problemsOfSelection();
+        if (current.equals(listedProblems)) {
+            return;
+        }
+        listedProblems = current;
+        problemList.removeAll();
+        problemLines.clear();
+        problemLinks.clear();
+        problemList.setVisible(!current.isEmpty());
+        if (!current.isEmpty()) {
+            StateMachine machine = canvas.machine().orElseThrow();
+            JLabel header = boldLabel(Messages.text("machine.properties.problems"));
+            problemList.add(header, "span 2, gaptop 6");
+            current.forEach(finding -> addProblemLine(machine, finding));
+        }
+        problemList.revalidate();
+        problemList.repaint();
+    }
+
+    /**
+     * The problems that make the selected state or arrow glow (an arrow's unreadable condition is already said by its
+     * field's line), the machine's own and its running copy's with nothing selected, none for several.
+     */
+    private List<MachineFinding> problemsOfSelection() {
+        if (canvas.machine().isEmpty()) {
+            return List.of();
+        }
+        int count = selection.stateIds().size() + selection.transitionIds().size();
+        if (count == 0) {
+            return canvas.problems().stream().map(MachineProblem::finding).toList();
+        }
+        if (count > 1) {
+            return List.of();
+        }
+        MachineGlows glows = canvas.glows();
+        if (!selection.stateIds().isEmpty()) {
+            return glows.findingsOfState(selection.stateIds().iterator().next());
+        }
+        return glows.findingsOfTransition(selection.transitionIds().iterator().next()).stream()
+                .filter(finding -> finding.kind() != MachineFinding.Kind.BAD_CONDITION)
+                .toList();
+    }
+
+    private void addProblemLine(StateMachine machine, MachineFinding finding) {
+        String sentence = MachineProblemText.sentence(finding, machine);
+        String line = Messages.format(finding.isWarning() ? "machine.properties.problem.warning"
+                : "machine.properties.problem.error", sentence);
+        JTextArea text = finding.isWarning() ? new Hint(line, false) : new WrappedErrorText(line);
+        JButton show = new JButton(Messages.text("machine.properties.problem.show"));
+        show.putClientProperty("JButton.buttonType", "borderless");
+        show.setToolTipText(Messages.text("machine.properties.problem.showTooltip"));
+        show.getAccessibleContext().setAccessibleDescription(sentence);
+        show.addActionListener(event -> reveal.accept(finding));
+        problemList.add(text, "wmin 0");
+        problemList.add(show, "top");
+        problemLines.add(line);
+        problemLinks.add(show);
     }
 
     private void showSelected(StateMachine machine) {
@@ -388,25 +485,34 @@ final class MachineInspectorRows extends JPanel {
     }
 
     private void addHeader(String text) {
-        JLabel header = new JLabel(text);
+        add(boldLabel(text), WIDE + ", gaptop 6");
+    }
+
+    private static JLabel boldLabel(String text) {
+        JLabel label = new JLabel(text);
         Font font = UIManager.getFont("Label.font");
         if (font != null) {
-            header.setFont(font.deriveFont(Font.BOLD));
+            label.setFont(font.deriveFont(Font.BOLD));
         }
-        add(header, WIDE + ", gaptop 6");
+        return label;
     }
 
     private static JTextArea hint(String text) {
-        return new Hint(text);
+        return new Hint(text, true);
     }
 
-    /** A quiet sentence that wraps at the panel's width, in the theme's muted colour read at paint time. */
+    /**
+     * A sentence that wraps at the panel's width: quiet, in the theme's muted colour read at paint time, or in the
+     * label's colour (a warning).
+     */
     private static final class Hint extends JTextArea {
 
         private static final long serialVersionUID = 1L;
+        private final boolean muted;
 
-        private Hint(String text) {
+        private Hint(String text, boolean muted) {
             super(text);
+            this.muted = muted;
             setEditable(false);
             setFocusable(false);
             setOpaque(false);
@@ -425,8 +531,8 @@ final class MachineInspectorRows extends JPanel {
 
         @Override
         public Color getForeground() {
-            Color muted = UIManager.getColor("Label.disabledForeground");
-            return muted != null ? muted : super.getForeground();
+            Color colour = UIManager.getColor(muted ? "Label.disabledForeground" : "Label.foreground");
+            return colour != null ? colour : super.getForeground();
         }
 
         @Override

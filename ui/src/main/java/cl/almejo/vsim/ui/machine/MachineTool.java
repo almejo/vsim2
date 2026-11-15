@@ -14,7 +14,6 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Cursor;
-import java.awt.FontMetrics;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -51,7 +50,6 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     /** How far from a state's circle, on screen, the pointer still lights its border. */
     private static final double BORDER_BAND_PIXELS = 8;
     /** How far from an arrow, on screen, a click still takes it. */
-    private static final double ARROW_REACH_PIXELS = 6;
     /** How far the pointer moves before a press becomes a drag, on screen. */
     private static final double DRAG_THRESHOLD_PIXELS = 4;
     /** Where a new state from the menu goes when the middle of the view is taken: this far to the right each time. */
@@ -289,20 +287,6 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         return new Point2D.Double(point.x(), point.y());
     }
 
-    /** The arrow whose condition or line is under {@code point}: labels first, they sit over the lines. */
-    private Optional<String> transitionAt(StateMachine machine, MachineDiagramGeometry geometry, Point2D point) {
-        FontMetrics metrics = canvas.getFontMetrics(MachineDiagramPainter.labelFont());
-        String labelled = null;
-        for (MachineTransition transition : machine.transitions()) {
-            if (MachineDiagramPainter.labelBounds(transition, geometry.arrow(transition.id()), metrics)
-                    .contains(point)) {
-                labelled = transition.id();
-            }
-        }
-        return Optional.ofNullable(labelled)
-                .or(() -> geometry.transitionAt(point, canvas.toDiagramLength(ARROW_REACH_PIXELS)));
-    }
-
     private void light(Optional<String> stateId) {
         if (!stateId.equals(litState)) {
             litState = stateId;
@@ -368,7 +352,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 pressState(event, point, hit.get().stateId());
                 return;
             }
-            Optional<String> arrow = transitionAt(machine.get(), geometry, at);
+            Optional<String> arrow = canvas.transitionAt(machine.get(), geometry, at);
             if (arrow.isPresent()) {
                 pressTransition(arrow.get());
                 return;
@@ -420,7 +404,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 inline.editStateName(state.get());
                 return;
             }
-            Optional<String> arrow = transitionAt(machine, geometry, at);
+            Optional<String> arrow = canvas.transitionAt(machine, geometry, at);
             if (arrow.isPresent()) {
                 inline.editCondition(arrow.get());
                 return;

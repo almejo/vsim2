@@ -54,6 +54,11 @@ public final class MachineColors {
         return scheme.wireConflict();
     }
 
+    /** A warning's glow: the scheme's amber. */
+    static Color warning(ColorScheme scheme) {
+        return scheme.warning();
+    }
+
     static Color selection(ColorScheme scheme) {
         return scheme.selection();
     }

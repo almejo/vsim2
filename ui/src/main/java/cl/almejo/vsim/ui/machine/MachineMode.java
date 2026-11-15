@@ -3,6 +3,8 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.simulation.MachineProblem;
+import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -10,6 +12,7 @@ import cl.almejo.vsim.ui.window.EditorView;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 /**
  * The machine mode of an editor view (spec 2026-11-14 §2.4): the tab of a «Máquina de estados» is an ordinary component
@@ -27,11 +30,15 @@ public final class MachineMode {
     private final MachineCanvas canvas;
     private final MachinePalette palette;
     private final MachineEditing editing;
+    /** Whether «Animaciones» is on now: a revealed problem then blinks. */
+    private final BooleanSupplier animations;
 
-    private MachineMode(MachineCanvas canvas, MachinePalette palette, MachineEditing editing) {
+    private MachineMode(MachineCanvas canvas, MachinePalette palette, MachineEditing editing,
+                        BooleanSupplier animations) {
         this.canvas = canvas;
         this.palette = palette;
         this.editing = editing;
+        this.animations = animations;
     }
 
     /**
@@ -62,7 +69,8 @@ public final class MachineMode {
         Runnable stopFeedingThePanes = canvas.addFrameListener(
                 () -> view.panes().forEach(CircuitCanvas::refreshSnapshot));
         MachineEditing editing = MachineEditing.install(view, canvas, palette);
-        view.putClientProperty(MachineMode.class, new MachineMode(canvas, palette, editing));
+        view.putClientProperty(MachineMode.class, new MachineMode(canvas, palette, editing,
+                () -> Animations.enabled(view.services().preferences())));
         return () -> {
             view.putClientProperty(MachineMode.class, null);
             for (Runnable undo : List.of(editing::uninstall, stopFeedingThePanes, enableCircuitActions, showPalette, showDiagram, canvas::dispose)) {
@@ -75,6 +83,14 @@ public final class MachineMode {
     public static Optional<MachineMode> of(EditorView view) {
         return view.getClientProperty(MachineMode.class) instanceof MachineMode mode
                 ? Optional.of(mode) : Optional.empty();
+    }
+
+    /**
+     * Shows {@code problem} on the diagram: selects the states and arrows it is about, brings them into view and, with
+     * «Animaciones» on, makes them blink ({@link MachineProblemNavigation}).
+     */
+    public void reveal(MachineProblem problem) {
+        canvas.reveal(problem.finding(), animations.getAsBoolean());
     }
 
     /** The diagram shown in the centre. */

@@ -14,6 +14,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Stroke;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
@@ -26,8 +27,9 @@ import java.util.stream.Collectors;
  * Draws a machine's diagram in diagram units (the caller has applied the view's zoom and pan): the arrows with their
  * conditions and Mealy outputs, the states with their names and Moore outputs, the initial mark, the active state and
  * the next arrow in the active colour, the selection dashed (the agreed mockup's look), a condition that cannot be
- * read in the problem colour, and what a gesture shows while it lasts ({@link Overlay}). Colours come from
- * {@link MachineColors} at each paint.
+ * read in the problem colour, the problems' glows ({@link MachineGlows}: a wide translucent stroke under an arrow, a
+ * halo around a state, red for an error and amber for a warning) and what a gesture shows while it lasts
+ * ({@link Overlay}). Colours come from {@link MachineColors} at each paint.
  */
 final class MachineDiagramPainter {
 
@@ -49,9 +51,21 @@ final class MachineDiagramPainter {
     private static final float LIT_BORDER_WIDTH = 4f;
     /** How opaque the rubber band's inside is (0..255). */
     private static final int RUBBER_BAND_ALPHA = 40;
+    /** How wide the glow under a problem arrow is (the mockup's 7 around a 2 wide arrow, at its state size). */
+    private static final float ARROW_GLOW_WIDTH = 10f;
+    /** How opaque the glow under an arrow is (the mockup's 0.25). */
+    private static final int ARROW_GLOW_ALPHA = 64;
+    /** How far a problem state's halo reaches past its circle (the mockup's 6 at radius 28). */
+    private static final double STATE_HALO = 8;
+    /** How opaque a state's halo is (the mockup's 0.18). */
+    private static final int STATE_HALO_ALPHA = 46;
 
     /** What to light and mark on top of the model. */
-    record Marks(Optional<ActiveMachineState> active, MachineSelection selection) {
+    record Marks(Optional<ActiveMachineState> active, MachineSelection selection, MachineGlows glows) {
+
+        Marks(Optional<ActiveMachineState> active, MachineSelection selection) {
+            this(active, selection, MachineGlows.NONE);
+        }
     }
 
     /**
@@ -108,16 +122,32 @@ final class MachineDiagramPainter {
         });
     }
 
+    /**
+     * The lit half of a revealed problem's blink: its states' borders and its arrows in the selection colour, wide, so
+     * the eye finds them after the view moved.
+     */
+    static void paintFlash(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
+                           List<String> stateIds, List<String> transitionIds, ColorScheme scheme) {
+        graphics.setColor(MachineColors.selection(scheme));
+        graphics.setStroke(new BasicStroke(LIT_BORDER_WIDTH));
+        stateIds.stream().filter(stateId -> machine.state(stateId).isPresent())
+                .forEach(stateId -> graphics.draw(geometry.circle(stateId)));
+        transitionIds.stream().filter(transitionId -> machine.transition(transitionId).isPresent())
+                .forEach(transitionId -> graphics.draw(geometry.arrow(transitionId).path()));
+    }
+
     private MachineDiagramPainter() {
     }
 
     static void paint(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry, Marks marks,
                       ColorScheme scheme) {
+        paintGlows(graphics, machine, geometry, marks.glows(), scheme);
         Optional<String> nextTransition = marks.active().flatMap(ActiveMachineState::nextTransitionId);
         for (MachineTransition transition : machine.transitions()) {
             boolean next = nextTransition.filter(transition.id()::equals).isPresent();
             paintArrow(graphics, transition, geometry.arrow(transition.id()), next,
-                    marks.selection().containsTransition(transition.id()), scheme);
+                    marks.selection().containsTransition(transition.id()),
+                    marks.glows().ofTransition(transition.id()), scheme);
         }
         geometry.initialMark().ifPresent(mark -> paintInitialMark(graphics, mark, scheme));
         Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
@@ -127,11 +157,41 @@ final class MachineDiagramPainter {
         }
     }
 
+    /** The halos of the problem states and the wide strokes under the problem arrows, under everything else. */
+    private static void paintGlows(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
+                                   MachineGlows glows, ColorScheme scheme) {
+        graphics.setStroke(new BasicStroke(ARROW_GLOW_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        for (MachineTransition transition : machine.transitions()) {
+            glows.ofTransition(transition.id()).ifPresent(glow -> {
+                graphics.setColor(withAlpha(glowColour(glow, scheme), ARROW_GLOW_ALPHA));
+                graphics.draw(geometry.arrow(transition.id()).path());
+            });
+        }
+        for (MachineState state : machine.states()) {
+            glows.ofState(state.id()).ifPresent(glow -> {
+                Point2D centre = geometry.centre(state.id());
+                double radius = MachineDiagramGeometry.STATE_RADIUS + STATE_HALO;
+                graphics.setColor(withAlpha(glowColour(glow, scheme), STATE_HALO_ALPHA));
+                graphics.fill(new Ellipse2D.Double(centre.getX() - radius, centre.getY() - radius, 2 * radius,
+                        2 * radius));
+            });
+        }
+    }
+
+    private static Color glowColour(MachineGlows.Glow glow, ColorScheme scheme) {
+        return glow == MachineGlows.Glow.ERROR ? MachineColors.problem(scheme) : MachineColors.warning(scheme);
+    }
+
+    private static Color withAlpha(Color colour, int alpha) {
+        return new Color(colour.getRed(), colour.getGreen(), colour.getBlue(), alpha);
+    }
+
     private static void paintArrow(Graphics2D graphics, MachineTransition transition,
                                    MachineDiagramGeometry.Arrow arrow, boolean next, boolean selected,
-                                   ColorScheme scheme) {
+                                   Optional<MachineGlows.Glow> glow, ColorScheme scheme) {
+        Color plain = glow.map(found -> glowColour(found, scheme)).orElseGet(() -> MachineColors.muted(scheme));
         Color colour = next ? MachineColors.active(scheme)
-                : selected ? MachineColors.selection(scheme) : MachineColors.muted(scheme);
+                : selected ? MachineColors.selection(scheme) : plain;
         float width = next ? NEXT_ARROW_WIDTH : ARROW_WIDTH;
         graphics.setColor(colour);
         graphics.setStroke(selected && !next ? dashed(width) : new BasicStroke(width));
@@ -143,7 +203,7 @@ final class MachineDiagramPainter {
             // a condition that cannot be read stays as written, in the problem colour
             boolean unreadable = MachineConditions.parse(transition.condition()).problem().isPresent();
             graphics.setColor(unreadable ? MachineColors.problem(scheme)
-                    : next ? MachineColors.active(scheme) : MachineColors.muted(scheme));
+                    : next ? MachineColors.active(scheme) : plain);
             graphics.setFont(labelFont());
             drawCentred(graphics, label, arrow.labelAnchor());
         }
