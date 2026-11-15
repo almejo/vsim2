@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
-import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -69,11 +68,9 @@ final class SnapshotRemap {
                 case WidthMismatch mismatch when mismatch.netId().startsWith(prefix) ->
                         result.add(new WidthMismatch(mismatch.netId().substring(prefix.length()),
                                 pins(mismatch.pins(), prefix)));
-                case MachineProblem machine when machine.instancePath().filter(path -> path.startsWith(prefix))
-                        .isPresent() -> result.add(MachineProblem.of(machine.definitionId(),
-                        machine.instancePath().map(path -> path.substring(prefix.length())), machine.finding()));
                 default -> {
-                    // the document's problem, or one outside this instance
+                    // the document's problem, or one outside this instance; machine problems are never in a
+                    // snapshot (ListedProblems adds them from the document and the copies' visible states)
                 }
             }
         }
