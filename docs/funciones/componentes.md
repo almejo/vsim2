@@ -288,7 +288,7 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   una próxima versión), y «Actualizar componente…» no ofrece las máquinas como el componente a reemplazar: si las
   únicas del circuito son máquinas, un mensaje lo explica. «Mirar adentro» no se ofrece sobre una máquina, y el árbol
   del circuito y Buscar no muestran ni encuentran los pines que lleva por dentro: la máquina es una hoja.
-- **Archivos**: guardar un circuito con una máquina usa el formato 7; una versión anterior de VSim no puede abrirlo.
+- **Archivos**: los circuitos se guardan en el formato 7, tengan o no máquinas; una versión anterior de VSim no puede abrirlos.
 
 ### Dibujar el diagrama
 
