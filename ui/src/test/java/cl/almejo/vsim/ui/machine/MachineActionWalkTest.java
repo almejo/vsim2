@@ -61,10 +61,13 @@ class MachineActionWalkTest {
             "simulation.start", "simulation.pause", "simulation.startOrPause", "simulation.restart",
             "simulation.step", "simulation.stepMode", "simulation.stepSize",
             "window.newView", "window.newWindow", "window.nextTab", "window.previousTab", "window.closeTab",
-            "window.closeComponents", "window.closeWindow", "window.moveGroup", "window.foldGroup",
-            "menu SIMULATION: Pausar al detectar cortocircuito",
-            "menu HELP: Acerca de VSim 2…", "menu HELP: Atajos de teclado", "menu HELP: Consejo del día",
-            "menu HELP: Qué hay de nuevo", "menu HELP: Reportar un problema…");
+            "window.closeComponents", "window.closeWindow", "window.moveGroup", "window.foldGroup");
+
+    /** The menu items without a catalog id that work on a machine's tab: their menu and their label's bundle key. */
+    private static final Map<MenuId, List<String>> MENU_ITEMS_WITHOUT_ID = Map.of(
+            MenuId.SIMULATION, List.of("action.pauseOnShortCircuit"),
+            MenuId.HELP, List.of("action.about", "action.shortcutSheet", "action.tipOfTheDay", "action.whatsNew",
+                    "action.reportProblem"));
 
     @TempDir
     Path directory;
@@ -147,7 +150,16 @@ class MachineActionWalkTest {
     }
 
     private static boolean isKnownToWork(String name) {
-        return WORK_ON_A_MACHINE.contains(name) || machineItems().contains(name);
+        return WORK_ON_A_MACHINE.contains(name) || machineItems().contains(name)
+                || menuItemsWithoutId().contains(name);
+    }
+
+    /** {@link #MENU_ITEMS_WITHOUT_ID} named as the walk names them, by menu and text in the current language. */
+    private static Set<String> menuItemsWithoutId() {
+        Set<String> names = new TreeSet<>();
+        MENU_ITEMS_WITHOUT_ID.forEach((menuId, keys) -> keys.forEach(key ->
+                names.add("menu " + menuId + ": " + Messages.text(key))));
+        return names;
     }
 
     /** The machine's own Editar items: no id in the catalog, so the walk names them by menu and text. */
