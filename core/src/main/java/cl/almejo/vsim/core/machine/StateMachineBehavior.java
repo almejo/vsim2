@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * Runs a «Máquina de estados» in the circuit (spec §1 «Simulation is the circuit's», §2.3). Pins in
@@ -23,6 +24,8 @@ import java.util.Optional;
  * current state's Moore outputs plus the Mealy outputs of the arrow today's inputs select, driven
  * {@link #OUTPUT_DELAY} after a change. A machine without states or without an initial state holds no state, drives
  * 0 and shows nothing. Starts in the initial state, so «Reiniciar», which recreates the behaviour, brings it back.
+ * After the outputs comes the hidden state pin ({@link StateMachineTypes}): the current state's code, driven
+ * {@link #OUTPUT_DELAY} after it changes (start, edge, {@code RST}, a rebuild that kept the state), or Z with no state.
  */
 final class StateMachineBehavior implements Behavior {
 
@@ -34,6 +37,10 @@ final class StateMachineBehavior implements Behavior {
     private final int resetPin;
     private final int clockPin;
     private final ClockEdgeDetector edge;
+    /** The hidden pin after the outputs that carries the state code ({@link StateMachineTypes}). */
+    private final int statePin;
+    private final int stateWidth;
+    private Value drivenStateCode;
     private Optional<String> currentStateId;
     private Map<String, Boolean> inputs = Map.of();
     private boolean resetActive;
@@ -45,6 +52,8 @@ final class StateMachineBehavior implements Behavior {
         this.resetPin = machine.inputNames().size();
         this.clockPin = resetPin + 1;
         this.edge = ClockEdgeDetector.forEdge(machine.edge());
+        this.statePin = clockPin + 1 + machine.outputNames().size();
+        this.stateWidth = StateMachineTypes.stateWidth(machine);
         this.currentStateId = machine.initialStateId();
     }
 
@@ -94,6 +103,18 @@ final class StateMachineBehavior implements Behavior {
             if (everyOutput || before == null || before != value) {
                 context.drive(clockPin + 1 + index, value ? Value.ONE : Value.ZERO, OUTPUT_DELAY);
             }
+        }
+        driveStateCode(context, everyOutput);
+    }
+
+    /** Drives the current state's code on the hidden state pin when it changed, or Z while there is no state. */
+    private void driveStateCode(BehaviorContext context, boolean always) {
+        OptionalInt index = currentStateId.map(stateId -> StateMachineTypes.stateCode(machine, stateId))
+                .orElse(OptionalInt.empty());
+        Value code = index.isPresent() ? Value.of(stateWidth, index.getAsInt()) : Value.highImpedance(stateWidth);
+        if (always || !code.equals(drivenStateCode)) {
+            drivenStateCode = code;
+            context.drive(statePin, code, OUTPUT_DELAY);
         }
     }
 

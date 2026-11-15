@@ -32,6 +32,7 @@ import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.memory.LinkedFileChecks;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
@@ -140,6 +141,11 @@ public final class OpenDocument implements AutoCloseable {
     private boolean closed;
     private boolean pauseOnShortCircuit;
     private Map<String, String> probeNets = Map.of();
+    /**
+     * The always-on channels of every machine copy of the last flattened circuit ({@link MachineChannels}), channel
+     * id → net id; added to the probes' channels for the simulation, never to {@link #probeNets()}.
+     */
+    private Map<String, String> machineChannels = Map.of();
     private long changeCount;
     private long contentVersion;
     /** The command on top of the undo stack at the last history notification (for {@link #contentVersion()}). */
@@ -234,7 +240,7 @@ public final class OpenDocument implements AutoCloseable {
             }
             fireChanged();
         });
-        document.addProbeListener(() -> simulation.setProbes(updateProbeNets()));
+        document.addProbeListener(() -> simulation.setProbes(simulationChannels()));
         synchronize();
         simulation.start();
         // A speed stored with the file applies at once, before the first tick.
@@ -1552,7 +1558,8 @@ public final class OpenDocument implements AutoCloseable {
         }
         releaseButtons();
         try {
-            simulation.restart(flattener.flatten(document, netlist), updateProbeNets());
+            FlatCircuit circuit = flattener.flatten(document, netlist);
+            simulation.restart(circuit, channelsFor(circuit));
         } catch (RuntimeException exception) {
             LOGGER.error("Could not restart the simulation of {}", displayName(), exception);
             simulation.reportFailure(exception);
@@ -1629,7 +1636,8 @@ public final class OpenDocument implements AutoCloseable {
         }
         releaseButtons();
         try {
-            return simulation.restartWithin(flattener.flatten(document, netlist), updateProbeNets(), eventBudget);
+            FlatCircuit circuit = flattener.flatten(document, netlist);
+            return simulation.restartWithin(circuit, channelsFor(circuit), eventBudget);
         } catch (RuntimeException exception) {
             LOGGER.error("Could not restart the simulation of {}", displayName(), exception);
             simulation.reportFailure(exception);
@@ -1783,10 +1791,11 @@ public final class OpenDocument implements AutoCloseable {
             connectivityProblems = circuit.connectivityProblems();
             hasClock = circuit.components().stream()
                     .anyMatch(component -> component.type().id().equals(StandardComponentTypes.CLOCK));
-            simulation.update(circuit, updateProbeNets());
+            simulation.update(circuit, channelsFor(circuit));
         } catch (RuntimeException exception) {
             LOGGER.error("Could not prepare {} for simulation", displayName(), exception);
             probeNets = Map.of();
+            machineChannels = Map.of();
             hasClock = false;
             connectivityProblems = List.of();
             if (netlistToken != document.structureRevision()) {
@@ -1795,6 +1804,26 @@ public final class OpenDocument implements AutoCloseable {
             }
             simulation.reportFailure(exception);
         }
+    }
+
+    /**
+     * The channels for the simulation of {@code circuit}: the probes' ({@link #updateProbeNets()}) and every machine
+     * copy's ({@link MachineChannels}), which are kept for later probe changes.
+     */
+    private Map<String, String> channelsFor(FlatCircuit circuit) {
+        Map<String, String> channels = new LinkedHashMap<>();
+        for (MachineChannels.MachineChannel channel : MachineChannels.of(circuit)) {
+            channels.put(channel.channelId(), channel.netId());
+        }
+        machineChannels = Collections.unmodifiableMap(channels);
+        return simulationChannels();
+    }
+
+    /** The probes' channels, freshly resolved, and the machine channels of the last flattened circuit. */
+    private Map<String, String> simulationChannels() {
+        Map<String, String> channels = updateProbeNets();
+        channels.putAll(machineChannels);
+        return channels;
     }
 
     /**

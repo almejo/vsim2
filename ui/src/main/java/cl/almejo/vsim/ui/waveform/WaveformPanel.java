@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.Actions;
@@ -325,7 +326,7 @@ public final class WaveformPanel extends JPanel {
     void placeCursor(double x) {
         long floor = (long) Math.floor(axis.timeAt(x));
         List<Long> candidates = new ArrayList<>();
-        for (Trace trace : displayed.traces().values()) {
+        for (Trace trace : probeTraces()) {
             trace.previousEdge(floor + 1).ifPresent(edge -> candidates.add(edge));
             trace.nextEdge(floor).ifPresent(edge -> candidates.add(edge));
         }
@@ -392,7 +393,7 @@ public final class WaveformPanel extends JPanel {
 
     /** «historial desde t = …» once old events were dropped, else the current time. */
     String rulerToolTip() {
-        OptionalLong complete = displayed.traces().values().stream()
+        OptionalLong complete = probeTraces().stream()
                 .filter(Trace::truncated)
                 .map(Trace::firstTime)
                 .filter(OptionalLong::isPresent)
@@ -557,8 +558,22 @@ public final class WaveformPanel extends JPanel {
         axisChanged();
     }
 
+    /**
+     * The traces of the displayed snapshot this panel's rows are made of: the machine copies' own channels
+     * ({@link MachineChannels}), recorded for their tabs, never move the cursor, the fit or the history notice.
+     */
+    private List<Trace> probeTraces() {
+        List<Trace> traces = new ArrayList<>();
+        displayed.traces().forEach((channelId, trace) -> {
+            if (!channelId.startsWith(MachineChannels.PREFIX)) {
+                traces.add(trace);
+            }
+        });
+        return traces;
+    }
+
     private void fitAll() {
-        OptionalLong first = displayed.traces().values().stream()
+        OptionalLong first = probeTraces().stream()
                 .map(Trace::firstTime)
                 .filter(OptionalLong::isPresent)
                 .mapToLong(OptionalLong::getAsLong)
