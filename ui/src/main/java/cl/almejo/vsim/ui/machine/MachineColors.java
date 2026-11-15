@@ -9,7 +9,7 @@ import java.awt.Color;
  * the scheme changes live). The active state and the next arrow use the scheme's orange ({@code memoryWrite}, which
  * every scheme gives), as in the agreed mockup; a colour of its own can come with the part's face (hito 2).
  */
-final class MachineColors {
+public final class MachineColors {
 
     /** How much of the active colour tints the active state's inside (the mockup's «active-soft»). */
     private static final double ACTIVE_FILL_TINT = 0.2;
@@ -23,7 +23,7 @@ final class MachineColors {
         return scheme.background();
     }
 
-    static Color active(ColorScheme scheme) {
+    public static Color active(ColorScheme scheme) {
         return scheme.memoryWrite();
     }
 
@@ -32,11 +32,11 @@ final class MachineColors {
         return mix(scheme.background(), active(scheme), ACTIVE_FILL_TINT);
     }
 
-    static Color stateFill(ColorScheme scheme) {
+    public static Color stateFill(ColorScheme scheme) {
         return scheme.background();
     }
 
-    static Color stateOutline(ColorScheme scheme) {
+    public static Color stateOutline(ColorScheme scheme) {
         return scheme.componentStroke();
     }
 
@@ -45,7 +45,7 @@ final class MachineColors {
     }
 
     /** Arrows, their conditions and the Moore outputs: the text colour a little towards the background. */
-    static Color muted(ColorScheme scheme) {
+    public static Color muted(ColorScheme scheme) {
         return mix(scheme.text(), scheme.background(), MUTED_MIX);
     }
 

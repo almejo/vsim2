@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.machine;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.InterfacePins;
@@ -49,6 +50,12 @@ class MachineBodyTest {
                     ? InterfacePins.OUTPUT_PIN : InterfacePins.INPUT_PIN);
         }
         assertThat(body.body().components()).hasSameSizeAs(body.pinout());
+    }
+
+    @Test
+    void theSmallestBoxIsTwelveByEightSoAFourStateMiniatureFitsBetweenThePinNames() {
+        assertThat(MachineBody.of(StateMachine.initial()).size()).isEqualTo(new GridSize(12, 8));
+        assertThat(MachineBody.of(MachineExamples.twoOnesDetector()).size()).isEqualTo(new GridSize(12, 8));
     }
 
     @Test

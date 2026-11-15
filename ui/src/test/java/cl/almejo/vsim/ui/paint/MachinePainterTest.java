@@ -8,6 +8,8 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.ui.machine.MachineColors;
 import cl.almejo.vsim.ui.machine.MachineCreation;
 import org.junit.jupiter.api.Test;
 
@@ -17,28 +19,58 @@ import java.awt.image.BufferedImage;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.paint.FaceMachines.arrow;
+import static cl.almejo.vsim.ui.paint.FaceMachines.withStates;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The simple face of a state machine: current state in the middle, «S0 → S1» below, in the scheme's orange. */
+/**
+ * The face of a state machine: up to four states its miniature with the active state lit and the next arrow in the
+ * active colour, «S0 → S1» below; from five the current state's name, big, and «próximo → S5».
+ */
 class MachinePainterTest {
 
     private static final ComponentDefinition DEFINITION = MachineDefinitions.create("maquina-1", "Máquina 1");
     private static final ComponentType TYPE = SubcircuitTypes.typeOf(DEFINITION);
 
+    /** Four states in a ring, S0 → S1 → S2 → S3 → S0. */
+    private static final StateMachine SQUARE = withStates(4, arrow("t1", "s0", "s1"), arrow("t2", "s1", "s2"),
+            arrow("t3", "s2", "s3"), arrow("t4", "s3", "s0"));
+    private static final int IMAGE_SIZE = 130;
+    private static final int MARGIN = 10;
+
     private static BufferedImage render(ComponentType type, VisibleState state, ColorScheme scheme) {
-        BufferedImage image = new BufferedImage(120, 90, BufferedImage.TYPE_INT_RGB);
+        return render(type, state, scheme, false);
+    }
+
+    /** {@code type} drawn at 100 %, turned a quarter (R90) when {@code turned}. */
+    private static BufferedImage render(ComponentType type, VisibleState state, ColorScheme scheme, boolean turned) {
+        BufferedImage image = new BufferedImage(IMAGE_SIZE, IMAGE_SIZE, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(scheme.background());
-        graphics.fillRect(0, 0, 120, 90);
-        graphics.translate(10, 10);
+        graphics.fillRect(0, 0, IMAGE_SIZE, IMAGE_SIZE);
+        if (turned) {
+            graphics.translate(MARGIN + type.size().height() * PainterSupport.UNIT, MARGIN);
+            graphics.rotate(Math.PI / 2);
+        } else {
+            graphics.translate(MARGIN, MARGIN);
+        }
         PainterRegistry.standard().painterFor(type.id()).paint(graphics, type, Map.of(), state, scheme);
         graphics.dispose();
         return image;
     }
 
+    private static ComponentType typeOf(StateMachine machine) {
+        return SubcircuitTypes.typeOf(DEFINITION.withMachine(machine));
+    }
+
+    private static VisibleState inState(String stateId, Optional<String> nextStateId,
+                                        Optional<String> nextTransitionId) {
+        return new VisibleState.MachineVisibleState(stateId, stateId.toUpperCase(), nextStateId, nextTransitionId);
+    }
+
     /** Pixels close to the scheme's orange (the text is anti-aliased, so an exact match would miss it). */
     private static int orangePixels(BufferedImage image, ColorScheme scheme) {
-        Color orange = scheme.memoryWrite();
+        Color orange = MachineColors.active(scheme);
         int count = 0;
         for (int x = 0; x < image.getWidth(); x++) {
             for (int y = 0; y < image.getHeight(); y++) {
@@ -55,6 +87,64 @@ class MachinePainterTest {
 
     private static VisibleState inState(String name, String next) {
         return new VisibleState.MachineVisibleState(name.toLowerCase(), name, Optional.of(next), Optional.empty());
+    }
+
+    @Test
+    void theNextArrowIsPaintedInTheActiveColour() {
+        ComponentType type = typeOf(SQUARE);
+        BufferedImage held = render(type, inState("s0", Optional.empty(), Optional.empty()), ColorSchemes.LIGHT);
+        BufferedImage going = render(type, inState("s0", Optional.of("s1"), Optional.of("t1")), ColorSchemes.LIGHT);
+
+        assertThat(orangePixels(held, ColorSchemes.LIGHT)).as("the lit state").isGreaterThan(5);
+        assertThat(orangePixels(going, ColorSchemes.LIGHT)).as("the lit state and the next arrow")
+                .isGreaterThan(orangePixels(held, ColorSchemes.LIGHT) + 10);
+    }
+
+    @Test
+    void theLitStateIsTheActiveOne() {
+        ComponentType type = typeOf(SQUARE);
+
+        assertThat(PainterTesting.differentPixels(
+                render(type, inState("s0", Optional.empty(), Optional.empty()), ColorSchemes.LIGHT),
+                render(type, inState("s2", Optional.empty(), Optional.empty()), ColorSchemes.LIGHT)))
+                .isGreaterThan(30);
+    }
+
+    @Test
+    void fromFiveStatesTheCurrentNameIsWrittenBigInTheActiveColour() {
+        ComponentType four = typeOf(SQUARE);
+        ComponentType five = typeOf(withStates(5));
+        VisibleState state = inState("s3", Optional.of("s4"), Optional.empty());
+
+        BufferedImage bigName = render(five, state, ColorSchemes.LIGHT);
+
+        assertThat(orangePixels(bigName, ColorSchemes.LIGHT)).isGreaterThan(30);
+        assertThat(PainterTesting.differentPixels(render(four, state, ColorSchemes.LIGHT), bigName))
+                .isGreaterThan(30);
+    }
+
+    @Test
+    void thePieceHasTheSameSizeWithFourStatesAndWithFive() {
+        assertThat(typeOf(withStates(5)).size()).isEqualTo(typeOf(SQUARE).size());
+    }
+
+    @Test
+    void withNoStateNothingIsLit() {
+        assertThat(orangePixels(render(typeOf(SQUARE), VisibleState.NONE, ColorSchemes.LIGHT), ColorSchemes.LIGHT))
+                .isZero();
+        assertThat(orangePixels(render(typeOf(withStates(5)), VisibleState.NONE, ColorSchemes.LIGHT),
+                ColorSchemes.LIGHT)).isZero();
+    }
+
+    @Test
+    void aTurnedPieceStillDrawsItsFaceInsideItsBox() {
+        ComponentType type = typeOf(SQUARE);
+        VisibleState state = inState("s0", Optional.of("s1"), Optional.of("t1"));
+
+        BufferedImage turned = render(type, state, ColorSchemes.LIGHT, true);
+
+        assertThat(orangePixels(turned, ColorSchemes.LIGHT)).isGreaterThan(15);
+        assertThat(PainterTesting.differentPixels(render(type, state, ColorSchemes.LIGHT), turned)).isGreaterThan(30);
     }
 
     @Test

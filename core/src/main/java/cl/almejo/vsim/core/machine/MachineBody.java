@@ -28,10 +28,13 @@ import java.util.Objects;
  */
 public record MachineBody(CircuitFragment body, List<DefinitionPin> pinout, GridSize size) {
 
-    /** The box is wider than a plain component's (6) so the current state's name fits between the pin names. */
-    public static final int BOX_WIDTH = 8;
-    /** The smallest box, also with only {@code RST} and {@code CLK}: room for the state's name and «S0 → S1». */
-    public static final int MINIMUM_HEIGHT = 6;
+    /**
+     * The box is twice a plain component's width (6) so the face's miniature of up to four states fits between the
+     * pin names (decision 1 of hito 2, 2026-11-15). It never depends on the number of states.
+     */
+    public static final int BOX_WIDTH = 12;
+    /** The smallest box, also with only {@code RST} and {@code CLK}: the name, the miniature and «S0 → S1». */
+    public static final int MINIMUM_HEIGHT = 8;
     /** Pins 2 grid units apart from y = 2, like {@code DefinitionBuilder}'s boxes. */
     public static final int PIN_SPACING = 2;
     public static final int FIRST_PIN_Y = 2;

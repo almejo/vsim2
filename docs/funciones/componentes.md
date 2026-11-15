@@ -277,10 +277,17 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   cambia de estado en el flanco de bajada de `CLK`, como los flip-flops, y `RST = 1` la lleva al estado inicial y la
   mantiene ahí. Una entrada sin valor, en Z o en conflicto cuenta como 0 en las
   condiciones; un `CLK` que pasa por Z o por un conflicto no da flanco.
-- **La cara de la pieza**: el nombre arriba, los pines a los lados, en el medio el nombre del estado en que está (en
-  naranja) y debajo «S0 → S1»: el estado actual y el que tomará en el próximo flanco con las entradas de hoy (solo el
-  nombre mientras `RST` la sujeta). Cada copia muestra su propio estado, también dentro de un componente propio. Una
-  forma dibujada en el editor de formas reemplaza esta cara.
+- **La cara de la pieza**: el nombre arriba y los pines a los lados. Con 1 a 4 estados, en el medio su diagrama en
+  miniatura, con sus flechas de verdad pero sin las condiciones (no caben) y los estados en un lugar fijo, no el de
+  adentro (uno al centro, dos a los lados, tres en triángulo, cuatro en cuadrado empezando arriba a la izquierda): el
+  estado en que está se enciende en naranja y la flecha que tomará en el próximo flanco con las entradas de ahora
+  también va en naranja, así que al cambiar una entrada se ve cambiar antes de dar el pulso. Debajo dice «S0 → S1», el
+  estado actual y el próximo (solo el nombre mientras `RST` la sujeta). Desde el 5.º estado la miniatura ya no se lee,
+  y la cara muestra en grande y en naranja el nombre del estado actual, debajo «próximo → S8» y arriba a la derecha un
+  ícono chico de máquina. Sin simular, o con «Sin valores», no hay nada encendido y el estado dice «—». La pieza mide
+  al menos 12 × 8 cuadros y solo crece con los pines: pasar de 4 a 5 estados no la cambia de tamaño. Girada, la cara
+  sigue derecha. Cada copia muestra su propio estado, también dentro de un componente propio. Una forma dibujada en el
+  editor de formas reemplaza esta cara.
 - **Entrar**: doble clic, Enter o «Entrar ↘» abren su pestaña, con el diagrama en lugar del lienzo del circuito; ahí las
   acciones de piezas y cables están apagadas y dicen por qué. Editar el diagrama cambia todas las copias.
 - **Lo que no se le hace**: su interior no se edita con piezas ni cables desde ningún lado (tampoco la IA: recibe el

@@ -60,11 +60,10 @@ public final class SubcircuitPainter implements ComponentPainter {
 
     private static void paintDefaultBox(Graphics2D graphics, ComponentType type, ColorScheme scheme,
                                         BasicStroke stroke, double pinScale) {
+        paintBoxAndPins(graphics, type, scheme, stroke, pinScale);
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
-        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme,
-                stroke);
         // Texts stay upright: turned a quarter, they run across the box (local y) instead of along it (local x).
         boolean sideways = PainterSupport.turnedSideways(graphics);
         String name = SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id());
@@ -72,6 +71,24 @@ public final class SubcircuitPainter implements ComponentPainter {
         double nameY = height >= SymbolTemplates.NAME_AT_TOP_HEIGHT * UNIT && !sideways ? UNIT : height / 2;
         float nameSize = fitted(graphics, name, NAME_SIZE, (sideways ? height : width) - 2 * INSET);
         PainterSupport.centeredText(graphics, box, name, width / 2, nameY, nameSize, scheme.text());
+    }
+
+    /**
+     * The default box with its pins' names and dots but no name: a state machine's face writes the name itself,
+     * always on top, because its middle holds the miniature even when the piece is turned a quarter.
+     */
+    static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
+        paintBoxAndPins(graphics, type, scheme, PainterSupport.STROKE, 1);
+    }
+
+    private static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme,
+                                        BasicStroke stroke, double pinScale) {
+        double width = type.size().width() * UNIT;
+        double height = type.size().height() * UNIT;
+        Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
+        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme,
+                stroke);
+        boolean sideways = PainterSupport.turnedSideways(graphics);
         for (PinSpec pin : type.pins()) {
             if (pin.name().isBlank()) {
                 continue;
