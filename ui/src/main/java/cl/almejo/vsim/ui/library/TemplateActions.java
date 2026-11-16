@@ -445,10 +445,15 @@ public final class TemplateActions {
         };
     }
 
-    /** The «Entrar ↘» button Propiedades shows for a user component's piece: as a double click on it. */
+    /**
+     * The «Entrar ↘» button Propiedades shows for a user component's piece: as a double click on it. A machine's piece
+     * has its own, «Entrar ↘ para cambiarlas», under the summary of its machine.
+     */
     public PropertiesPanel.ComponentRows enterRows() {
         return (component, rows) -> {
-            if (definitionIdOf(component).isPresent()
+            boolean machine = EnterableInstances.definitionOf(openDocument, component)
+                    .flatMap(circuit().document()::definition).filter(ComponentDefinition::isMachine).isPresent();
+            if (definitionIdOf(component).isPresent() && !machine
                     && EnterableInstances.definitionOf(openDocument, component).isPresent()) {
                 rows.addWide(new JButton(Actions.of(Messages.text("properties.enter"),
                         () -> canvas.get().enterComponent(component))));

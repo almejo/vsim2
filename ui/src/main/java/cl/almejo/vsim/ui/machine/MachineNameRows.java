@@ -37,6 +37,12 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
         this.library = Objects.requireNonNull(library, "library");
     }
 
+    /** First of all, above «Etiqueta»: the machine's name is what the piece is (hito 3). */
+    @Override
+    public PropertiesPanel.RowsPlace place() {
+        return PropertiesPanel.RowsPlace.BEFORE_LABEL;
+    }
+
     @Override
     public void addRows(Component component, PropertiesPanel.Rows rows) {
         Optional<String> definitionId = place.registry().findTypeOf(component)

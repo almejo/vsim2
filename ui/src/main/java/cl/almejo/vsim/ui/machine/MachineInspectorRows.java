@@ -353,7 +353,7 @@ final class MachineInspectorRows extends JPanel {
     }
 
     /** Where the machine assigns outputs: in its states (Moore), on its arrows (Mealy) or both; Moore when nowhere. */
-    private static String kindOf(StateMachine machine) {
+    static String kindOf(StateMachine machine) {
         boolean mealy = machine.transitions().stream().anyMatch(transition -> !transition.outputs().isEmpty());
         boolean moore = machine.states().stream().anyMatch(state -> !state.outputs().isEmpty());
         if (mealy && moore) {
