@@ -200,6 +200,41 @@ class MachineDrawingTest {
         assertThat(machine().state("s1").orElseThrow().position()).isEqualTo(new DiagramPoint(160, 0));
     }
 
+    /** S0 moved over S1 (S0 comes first in the model) and selected: it is drawn on top, so it is the one hit. */
+    private void selectS0OverS1() {
+        canvas.edit(current -> MachineEdits.withStatesMoved(current, java.util.Set.of("s0"), 110, 0));
+        mode.selection().selectState("s0");
+    }
+
+    @Test
+    void aDragInTheOverlapMovesTheStateDrawnOnTop() {
+        selectS0OverS1();
+
+        drag(at(130, 0), at(130, 40), at(130, 80), at(130, 120));
+
+        assertThat(machine().state("s0").orElseThrow().position().y()).isCloseTo(120, offset(1.0));
+        assertThat(machine().state("s1").orElseThrow().position()).isEqualTo(new DiagramPoint(160, 0));
+        assertThat(mode.selection().stateIds()).containsExactly("s0");
+    }
+
+    @Test
+    void aDoubleClickInTheOverlapRenamesTheStateDrawnOnTop() {
+        selectS0OverS1();
+
+        doubleClick(at(130, 0));
+
+        assertThat(inline().textComponent().getText()).isEqualTo("S0");
+    }
+
+    @Test
+    void theBorderOfTheStateDrawnOnTopLightsUpOverTheOneBelow() {
+        selectS0OverS1();
+
+        mouse(MouseEvent.MOUSE_MOVED, at(148, 0), 0, 0); // S0's border, inside S1's circle
+
+        assertThat(mode.tool().litState()).contains("s0");
+    }
+
     @Test
     void theBorderLightsUpNearItAndADragFromThereMakesAnArrowWhoseConditionOpensInline() {
         mouse(MouseEvent.MOUSE_MOVED, at(160, 38), 0, 0);

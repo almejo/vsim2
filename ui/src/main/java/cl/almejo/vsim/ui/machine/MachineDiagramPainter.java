@@ -247,10 +247,24 @@ final class MachineDiagramPainter {
      * last (hand test of hito 2, round 2: one state's ring went over another's halo but under its inside).
      */
     static List<MachineState> drawingOrder(StateMachine machine, Marks marks) {
-        Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
+        return drawingOrder(machine, marks.active(), marks.selection());
+    }
+
+    /**
+     * The ids of the states in the order they are drawn ({@link #drawingOrder(StateMachine, Marks)}), for hit testing
+     * to pick the state on top.
+     */
+    static List<String> drawingOrderIds(StateMachine machine, Optional<ActiveMachineState> active,
+                                        MachineSelection selection) {
+        return drawingOrder(machine, active, selection).stream().map(MachineState::id).toList();
+    }
+
+    private static List<MachineState> drawingOrder(StateMachine machine, Optional<ActiveMachineState> active,
+                                                   MachineSelection selection) {
+        Optional<String> activeState = active.map(ActiveMachineState::stateId);
         List<MachineState> ordered = new ArrayList<>(machine.states());
         ordered.sort(Comparator.comparingInt(state -> activeState.filter(state.id()::equals).isPresent() ? 2
-                : marks.selection().containsState(state.id()) ? 1 : 0));
+                : selection.containsState(state.id()) ? 1 : 0));
         return ordered;
     }
 

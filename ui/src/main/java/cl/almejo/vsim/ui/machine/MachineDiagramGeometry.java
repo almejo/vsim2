@@ -17,6 +17,7 @@ import java.awt.geom.QuadCurve2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -282,15 +283,22 @@ final class MachineDiagramGeometry {
         return initialMark;
     }
 
-    /** The state under {@code point}: the one drawn last (on top) when circles overlap. */
+    /** The state under {@code point}, the later one in model order when circles overlap (no state drawn on top). */
     Optional<String> stateAt(Point2D point) {
-        String found = null;
-        for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
-            if (entry.getValue().distance(point) <= radius(entry.getKey())) {
-                found = entry.getKey();
+        return stateAt(point, List.copyOf(centres.keySet()));
+    }
+
+    /**
+     * The state under {@code point}: the one drawn last (on top) when circles overlap, {@code drawingOrder} being the
+     * state ids in the order they are painted ({@link MachineDiagramPainter#drawingOrder}).
+     */
+    Optional<String> stateAt(Point2D point, List<String> drawingOrder) {
+        for (String stateId : topFirst(drawingOrder)) {
+            if (centre(stateId).distance(point) <= radius(stateId)) {
+                return Optional.of(stateId);
             }
         }
-        return Optional.ofNullable(found);
+        return Optional.empty();
     }
 
     /** The part of a state a point is on: its middle (a drag moves it) or its border (a drag starts an arrow). */
@@ -300,22 +308,40 @@ final class MachineDiagramGeometry {
     record StateHit(String stateId, StatePart part) {
     }
 
+    /** {@link #stateHitAt(Point2D, double, List)} with the states stacked in model order. */
+    Optional<StateHit> stateHitAt(Point2D point, double band) {
+        return stateHitAt(point, band, List.copyOf(centres.keySet()));
+    }
+
     /**
      * The state under {@code point} and which part of it: within {@code band} of its circle is its border (inside or
-     * just outside it), nearer the middle its centre. The state drawn last wins when they overlap.
+     * just outside it), nearer the middle its centre. The state drawn last ({@code drawingOrder}, the ids in the
+     * order they are painted) wins when they overlap.
      */
-    Optional<StateHit> stateHitAt(Point2D point, double band) {
-        StateHit found = null;
-        for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
-            double distance = entry.getValue().distance(point);
-            double radius = radius(entry.getKey());
+    Optional<StateHit> stateHitAt(Point2D point, double band, List<String> drawingOrder) {
+        for (String stateId : topFirst(drawingOrder)) {
+            double distance = centre(stateId).distance(point);
+            double radius = radius(stateId);
             if (Math.abs(distance - radius) <= band) {
-                found = new StateHit(entry.getKey(), StatePart.BORDER);
-            } else if (distance < radius) {
-                found = new StateHit(entry.getKey(), StatePart.CENTRE);
+                return Optional.of(new StateHit(stateId, StatePart.BORDER));
+            }
+            if (distance < radius) {
+                return Optional.of(new StateHit(stateId, StatePart.CENTRE));
             }
         }
-        return Optional.ofNullable(found);
+        return Optional.empty();
+    }
+
+    /**
+     * This geometry's states, the one drawn last first: those of {@code drawingOrder} on top of any it leaves out
+     * (which stay in model order at the bottom).
+     */
+    private List<String> topFirst(List<String> drawingOrder) {
+        List<String> stacked = new ArrayList<>(centres.keySet().stream()
+                .filter(stateId -> !drawingOrder.contains(stateId)).toList());
+        drawingOrder.stream().filter(centres::containsKey).forEach(stacked::add);
+        Collections.reverse(stacked);
+        return stacked;
     }
 
     /** The arrow passing within {@code tolerance} of {@code point}; the nearest one when several do. */

@@ -305,7 +305,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 return;
             }
             Optional<MachineDiagramGeometry.StateHit> hit = MachineDiagramGeometry.of(machine.get())
-                    .stateHitAt(asPoint(diagramPoint(event)), borderBand());
+                    .stateHitAt(asPoint(diagramPoint(event)), borderBand(), canvas.drawingOrder(machine.get()));
             boolean joining = palette.transitionButton().isSelected();
             Optional<MachineDiagramGeometry.StateHit> lit = hit.filter(found -> joining
                     || found.part() == MachineDiagramGeometry.StatePart.BORDER);
@@ -336,7 +336,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 doubleClick(machine.get(), geometry, point);
                 return;
             }
-            Optional<MachineDiagramGeometry.StateHit> hit = geometry.stateHitAt(at, borderBand());
+            Optional<MachineDiagramGeometry.StateHit> hit = geometry.stateHitAt(at, borderBand(),
+                    canvas.drawingOrder(machine.get()));
             if (palette.stateButton().isSelected()) {
                 if (hit.isEmpty()) {
                     palette.clearTool();
@@ -374,7 +375,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             current.moved |= current.pressed.distance(event.getPoint()) >= DRAG_THRESHOLD_PIXELS;
             if (current.kind == DragKind.JOIN) {
                 Optional<String> target = canvas.machine().flatMap(machine -> MachineDiagramGeometry.of(machine)
-                        .stateHitAt(asPoint(current.pointer), borderBand()))
+                        .stateHitAt(asPoint(current.pointer), borderBand(), canvas.drawingOrder(machine)))
                         .map(MachineDiagramGeometry.StateHit::stateId);
                 litState = target.or(() -> Optional.of(current.stateId));
             }
@@ -400,7 +401,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         private void doubleClick(StateMachine machine, MachineDiagramGeometry geometry, DiagramPoint point) {
             drag = Optional.empty();
             Point2D at = asPoint(point);
-            Optional<String> state = geometry.stateAt(at);
+            Optional<String> state = geometry.stateAt(at, canvas.drawingOrder(machine));
             if (state.isPresent()) {
                 inline.editStateName(state.get());
                 return;
@@ -466,7 +467,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 return;
             }
             Optional<String> target = canvas.machine().flatMap(machine -> MachineDiagramGeometry.of(machine)
-                    .stateHitAt(asPoint(current.pointer), borderBand()))
+                    .stateHitAt(asPoint(current.pointer), borderBand(), canvas.drawingOrder(machine)))
                     .map(MachineDiagramGeometry.StateHit::stateId);
             if (target.isPresent()) {
                 palette.clearTool();

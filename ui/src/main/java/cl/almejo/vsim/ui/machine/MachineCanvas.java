@@ -252,6 +252,14 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         };
     }
 
+    /**
+     * The ids of {@code machine}'s states in the order the diagram paints them (selected and active ones on top), so
+     * a point where circles overlap goes to the state the user sees.
+     */
+    List<String> drawingOrder(StateMachine machine) {
+        return MachineDiagramPainter.drawingOrderIds(machine, activeState, selection);
+    }
+
     /** The active state of the copy entered through, as of the last frame; empty with «Sin valores». */
     public Optional<ActiveMachineState> activeState() {
         return activeState;
@@ -403,7 +411,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         Point2D at = new Point2D.Double(diagramPoint.x(), diagramPoint.y());
         MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
         MachineGlows glows = glows();
-        List<MachineFinding> findings = geometry.stateAt(at).map(glows::findingsOfState)
+        List<MachineFinding> findings = geometry.stateAt(at, drawingOrder(machine.get())).map(glows::findingsOfState)
                 .orElseGet(() -> transitionAt(machine.get(), geometry, at).map(glows::findingsOfTransition)
                         .orElse(List.of()));
         if (findings.isEmpty()) {
@@ -568,12 +576,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         }
     }
 
-    /** The circuit the machine lives in (the place's document). */
     /** The tab's place this diagram belongs to (its machine's definition lives in the place's circuit). */
     OpenDocument place() {
         return openDocument;
     }
 
+    /** The circuit the machine lives in (the place's document). */
     private OpenDocument circuit() {
         return openDocument.parent().orElse(openDocument);
     }
