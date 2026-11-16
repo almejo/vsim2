@@ -471,6 +471,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** Stops following the document and the simulation: the tab closed or left machine mode. */
     public void dispose() {
         disposed = true;
+        blinkWhenSized = false;
         frames.stop();
         blinkTimer.stop();
         ToolTipManager.sharedInstance().unregisterComponent(this);
@@ -529,7 +530,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             pendingReveal = Optional.empty();
             waiting.or(this::diagramBounds).ifPresent(bounds -> showCentred(bounds, Math.min(1.0, fitZoom(bounds))));
         }
-        if (blinkWhenSized && width > 0 && height > 0) {
+        if (blinkWhenSized && !disposed && width > 0 && height > 0) {
             blinkWhenSized = false;
             blinkTimer.start();
         }

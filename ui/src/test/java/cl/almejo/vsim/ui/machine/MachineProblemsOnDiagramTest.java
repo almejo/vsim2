@@ -251,6 +251,19 @@ class MachineProblemsOnDiagramTest {
         }
     }
 
+    /** A layout pass while the tab closes must not start the waiting blink on a disposed diagram (review, M8). */
+    @Test
+    void aDisposedDiagramDoesNotStartTheWaitingBlinkWhenItGetsASize() {
+        MachineCanvas standalone = new MachineCanvas(place, MachineFixtures.DEFINITION_ID, new MachineSelection(),
+                (snapshot, instancePath) -> Optional.empty(), () -> ColorScheme.LIGHT);
+        standalone.reveal(problemOf(MachineFinding.Kind.UNREACHABLE_STATE).finding(), true);
+        standalone.dispose();
+
+        standalone.setBounds(0, 0, 900, 600);
+
+        assertThat(standalone.isBlinking()).isFalse();
+    }
+
     private static float saturation(Color colour) {
         return Color.RGBtoHSB(colour.getRed(), colour.getGreen(), colour.getBlue(), null)[1];
     }
