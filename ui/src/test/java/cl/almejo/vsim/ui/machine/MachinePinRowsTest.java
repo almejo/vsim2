@@ -379,6 +379,22 @@ class MachinePinRowsTest {
     }
 
     @Test
+    void aPieceThatMustKeepItsOldShapeIsToldOnTheStatusLine() {
+        EditorView view = tabOf(detectorWithTwoInputs());
+        for (String pinName : List.of("x", "y")) {
+            GridPoint pin = pinLocation(pinName);
+            UiTestSupport.addWire(document, pin.x(), pin.y(), pin.x() - 1, pin.y());
+        }
+
+        pins(view).table(Side.INPUT).busBox().doClick();
+
+        assertThat(document.document().component(piece.id()).orElseThrow().appearance())
+                .as("one-unit stubs cannot be pulled back: RST would touch y's").isPresent();
+        assertThat(view.statusBar().text()).contains("Los cables de x, y quedaron sueltos")
+                .contains("el pin in quedó en otro lugar (su lugar estaba ocupado)");
+    }
+
+    @Test
     void aBusOfOneNameIsWrittenWithItsOnlyBit() {
         EditorView view = tabOf(MachineFixtures.detector());
 

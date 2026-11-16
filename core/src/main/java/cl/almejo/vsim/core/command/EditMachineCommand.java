@@ -43,6 +43,10 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
     private ComponentDefinition replacement;
     /** The planned update when the pins change; null for a plain replacement or before the first apply. */
     private ReplaceDefinitionCommand pinChange;
+    /** The loose wire ends pulled back so the pieces take the fresh face; empty when none were. */
+    private Optional<LooseWireEnds> pulledBack = Optional.empty();
+    /** The wires left loose by removed pins, where their ends are after the edit. */
+    private List<RemovedPinWire> removedPinWires = List.of();
     private boolean prepared;
 
     public EditMachineCommand(String definitionId, StateMachine newMachine) {
@@ -58,6 +62,8 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
     public void apply(CircuitDocument document) {
         if (!prepared) {
             prepare(document);
+        } else {
+            pulledBack.ifPresent(ends -> ends.apply(document));
         }
         if (pinChange != null) {
             pinChange.apply(document);
@@ -74,10 +80,47 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
         if (!DefinitionUpdateSafety.sameInterface(previous, replacement)
                 || !sourcesInOrder(previous).equals(sourcesInOrder(replacement))) {
             ComponentTypeRegistry registry = STANDARD_TYPES.extendedWith(SubcircuitTypes.resolverFor(document));
-            pinChange = ReplaceDefinitionCommand.prepareInside(document, registry,
-                    DefinitionBundle.of(replacement, document::definition));
+            pinChange = planned(document, registry);
+            removedPinWires = pinChange.removedPinWires();
+            if (keepsAnOldShape(pinChange)) {
+                pullLooseEndsBack(document, registry);
+            }
         }
         prepared = true;
+    }
+
+    private ReplaceDefinitionCommand planned(CircuitDocument document, ComponentTypeRegistry registry) {
+        return ReplaceDefinitionCommand.prepareInside(document, registry,
+                DefinitionBundle.of(replacement, document::definition));
+    }
+
+    /** Whether a piece would keep its old shape instead of the machine's face. */
+    private static boolean keepsAnOldShape(ReplaceDefinitionCommand update) {
+        return !update.keptOldShapes().isEmpty() || !update.plan().keptOldShape().isEmpty();
+    }
+
+    /**
+     * A piece keeps its old shape when a pin would land where a removed pin's wire still ends («Como un bus» turned
+     * on or off, hito 3 review I1). Pulls those ends back one unit ({@link LooseWireEnds}) and plans again; keeps that
+     * plan, with the ends pulled back, only when every piece then takes the machine's face, and else leaves the
+     * document and the first plan as they were.
+     */
+    private void pullLooseEndsBack(CircuitDocument document, ComponentTypeRegistry registry) {
+        List<RemovedPinWire> onThePieces = removedPinWires.stream()
+                .filter(loose -> loose.containingDefinition().isEmpty()).toList();
+        Optional<LooseWireEnds> ends = LooseWireEnds.of(document, registry, previous, onThePieces);
+        if (ends.isEmpty()) {
+            return;
+        }
+        ends.get().apply(document);
+        ReplaceDefinitionCommand again = planned(document, registry);
+        if (keepsAnOldShape(again)) {
+            ends.get().revert(document);
+            return;
+        }
+        pinChange = again;
+        pulledBack = ends;
+        removedPinWires = ends.get().movedEnds(removedPinWires);
     }
 
     /**
@@ -96,6 +139,7 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
         } else if (replacement != previous) {
             document.putDefinition(previous);
         }
+        pulledBack.ifPresent(ends -> ends.revert(document));
     }
 
     @Override
@@ -121,10 +165,12 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
 
     /**
      * The wire ends left loose because their pin went away (a pin removed, or a side turned «Como un bus» or back),
-     * on the placed pieces and in the bodies that hold them, by the name the pin had; empty before the first apply.
+     * on the placed pieces and in the bodies that hold them, by the name the pin had and where the end is now (pulled
+     * back one unit from the piece when that let it take the machine's face); empty before the first apply.
      */
+    @Override
     public List<RemovedPinWire> removedPinWires() {
-        return pinChange == null ? List.of() : pinChange.removedPinWires();
+        return removedPinWires;
     }
 
     @Override

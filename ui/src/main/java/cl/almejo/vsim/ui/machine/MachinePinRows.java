@@ -3,24 +3,31 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.EditMachineCommand;
+import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
 import cl.almejo.vsim.core.command.WrapsCommand;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.RemovedPinWire;
+import cl.almejo.vsim.core.library.UpdateNote;
 import cl.almejo.vsim.core.machine.MachinePinEdits.Side;
 import cl.almejo.vsim.core.machine.MachinePinUses;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.window.InstanceNames;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.io.Serial;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
@@ -40,6 +47,9 @@ final class MachinePinRows extends JPanel {
     private static final String WIDE = "span 2, growx, wmin 0";
     private static final int FALLING_INDEX = 0;
     private static final int RISING_INDEX = 1;
+    /** The update notes about a piece that kept its old shape (the others, «el pin in se ubicó…», are noise here). */
+    private static final Set<String> KEPT_SHAPE_NOTES = Set.of("appearance.update.keptOldShape",
+            "appearance.update.newPinOwnShape");
 
     private final transient MachineCanvas canvas;
     private final transient Consumer<String> notices;
@@ -129,16 +139,23 @@ final class MachinePinRows extends JPanel {
         });
     }
 
-    /** Makes {@code change} as one undo step, then says on the status line whose wires it left loose. */
+    /**
+     * Makes {@code change} as one undo step, then says on the status line whose wires it left loose and which pieces
+     * had to keep their old shape (a pin would have touched another net there).
+     */
     private void edit(UnaryOperator<StateMachine> change) {
         if (!canvas.edit(change)) {
             return;
         }
         OpenDocument place = canvas.place();
         OpenDocument circuit = place.parent().orElse(place);
-        List<RemovedPinWire> loose = circuit.history().undoCommand().map(MachinePinRows::removedPinWires)
-                .orElse(List.of());
-        looseWiresNotice(loose).ifPresent(notices);
+        Optional<Command> command = circuit.history().undoCommand();
+        List<String> lines = new ArrayList<>();
+        looseWiresNotice(command.map(MachinePinRows::removedPinWires).orElse(List.of())).ifPresent(lines::add);
+        command.ifPresent(done -> lines.addAll(keptShapeNotes(done, circuit.document())));
+        if (!lines.isEmpty()) {
+            notices.accept(String.join(" ", lines));
+        }
     }
 
     /** The wires {@code command} (a machine edit, maybe inside its tab's write-back) left without their pin. */
@@ -147,11 +164,42 @@ final class MachinePinRows extends JPanel {
         if (inside.isPresent()) {
             return inside.get().removedPinWires();
         }
-        Command unwrapped = command;
+        return machineEditOf(command).map(EditMachineCommand::removedPinWires).orElse(List.of());
+    }
+
+    /**
+     * «Máquina 1 se queda con la forma anterior para no tocar otra red.», «Máquina 1: el pin in quedó en otro lugar
+     * (…)»: what {@code command}'s update of the placed pieces of {@code circuit} says about a piece that did not take
+     * the machine's face; empty when every piece took it.
+     */
+    static List<String> keptShapeNotes(Command command, CircuitDocument circuit) {
+        Optional<ReplaceDefinitionCommand> update = machineEditOf(command)
+                .flatMap(EditMachineCommand::plannedUpdate);
+        if (update.isEmpty()) {
+            return List.of();
+        }
+        List<String> lines = new ArrayList<>();
+        for (UpdateNote note : update.get().notes()) {
+            if (KEPT_SHAPE_NOTES.contains(note.messageKey())) {
+                lines.add(Messages.format(note.messageKey(), note.arguments().toArray()));
+            }
+        }
+        for (KeptOldShape kept : update.get().keptOldShapes()) {
+            String piece = kept.instance().value();
+            lines.add(Messages.format("problem.keptOldShape", InstanceNames.name(piece, circuit).orElse(piece),
+                    String.join(", ", kept.newPinNames())));
+        }
+        return lines;
+    }
+
+    /** The machine edit {@code command} is or wraps (in its tab's inside edit, in a marking command). */
+    private static Optional<EditMachineCommand> machineEditOf(Command command) {
+        Command unwrapped = OpenDocument.insideEditOf(command).<Command>map(EditInsideCommand::wrapped)
+                .orElse(command);
         while (unwrapped instanceof WrapsCommand wraps) {
             unwrapped = wraps.wrapped();
         }
-        return unwrapped instanceof EditMachineCommand machineEdit ? machineEdit.removedPinWires() : List.of();
+        return unwrapped instanceof EditMachineCommand machineEdit ? Optional.of(machineEdit) : Optional.empty();
     }
 
     /**

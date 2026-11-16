@@ -276,6 +276,9 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
      * (spec §6.1); empty before the first apply.
      */
     public List<RemovedPinWire> removedPinWires() {
+        if (bodyCommand instanceof EditsDefinitionItself definitionEdit) {
+            return definitionEdit.removedPinWires();
+        }
         return writeBack == null ? List.of() : writeBack.removedPinWires();
     }
 

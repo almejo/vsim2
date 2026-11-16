@@ -201,10 +201,10 @@ class EditMachineCommandTest {
 
         assertThat(pinNames(machineDefinition())).containsExactly(MachineBody.BUS_INPUT_NAME, "RST", "CLK");
         assertThat(machineDefinition().pinout().get(0).spec().width()).isEqualTo(2);
-        assertThat(bus.removedPinWires()).as("x and y are gone: their wires are told loose, by name")
+        assertThat(bus.removedPinWires()).as("x and y are gone: told loose by name, a unit off the box")
                 .containsExactlyInAnyOrder(
-                        new RemovedPinWire(Optional.empty(), piece.id(), "x", xPin),
-                        new RemovedPinWire(Optional.empty(), piece.id(), "y", yPin));
+                        new RemovedPinWire(Optional.empty(), piece.id(), "x", xPin.translate(-1, 0)),
+                        new RemovedPinWire(Optional.empty(), piece.id(), "y", yPin.translate(-1, 0)));
 
         history.undo();
         assertThat(pinNames(machineDefinition())).containsExactly("x", "y", "RST", "CLK");
@@ -231,6 +231,66 @@ class EditMachineCommandTest {
         history.redo();
         assertThat(pinNames(machineDefinition())).containsExactly("y", "x", "RST", "CLK");
         assertSwitchesOnTheirPins();
+    }
+
+    @Test
+    void turningWiredInputsIntoABusGivesThePieceTheFreshFaceAndKeepsClockAndResetWired() {
+        history.execute(new EditMachineCommand(MACHINE_ID, withSelfLoop("x·y")));
+        switchWiredTo("s40", "w32", pinLocation("x"));
+        switchWiredTo("s41", "w33", pinLocation("y"));
+        switchWiredTo("s42", "w34", pinLocation("RST"));
+        switchWiredTo("s43", "w35", pinLocation("CLK"));
+        StateMachine wired = machineDefinition().machine().orElseThrow();
+
+        EditMachineCommand bus = new EditMachineCommand(MACHINE_ID,
+                MachinePinEdits.asBus(wired, MachinePinEdits.Side.INPUT, true));
+        history.execute(bus);
+
+        assertThat(document.component(piece.id()).orElseThrow().appearance()).as("drawn as the machine")
+                .isEmpty();
+        assertThat(pinLocation(MachineBody.BUS_INPUT_NAME)).isEqualTo(new GridPoint(10, 12));
+        assertThat(pinLocation("RST")).isEqualTo(new GridPoint(10, 14));
+        assertThat(pinLocation("CLK")).isEqualTo(new GridPoint(10, 16));
+        assertThat(netOf(piecePin("RST"))).contains(new PinRef(new ElementId("s42"), 0));
+        assertThat(netOf(piecePin("CLK"))).contains(new PinRef(new ElementId("s43"), 0));
+        assertThat(netOf(new PinRef(new ElementId("s40"), 0))).as("x's switch came loose")
+                .noneMatch(pin -> pin.componentId().equals(piece.id()));
+        assertThat(netOf(new PinRef(new ElementId("s41"), 0))).as("y's switch came loose")
+                .noneMatch(pin -> pin.componentId().equals(piece.id()));
+        assertThat(bus.removedPinWires()).extracting(RemovedPinWire::pinName).containsExactlyInAnyOrder("x", "y");
+        assertThat(bus.removedPinWires()).allSatisfy(loose -> assertThat(document.wires())
+                .anyMatch(wire -> wire.start().equals(loose.position()) || wire.end().equals(loose.position())));
+
+        history.undo();
+        assertSwitchesOnTheirPins();
+        assertThat(netOf(piecePin("RST"))).contains(new PinRef(new ElementId("s42"), 0));
+        history.redo();
+        assertThat(pinLocation("RST")).isEqualTo(new GridPoint(10, 14));
+        assertThat(netOf(piecePin("RST"))).contains(new PinRef(new ElementId("s42"), 0));
+    }
+
+    @Test
+    void turningAWiredBusBackIntoPinsGivesThePieceTheFreshFace() {
+        StateMachine asBus = withSelfLoop("x·y").withBus(true, false);
+        history.execute(new EditMachineCommand(MACHINE_ID, asBus));
+        switchWiredTo("s40", "w32", pinLocation(MachineBody.BUS_INPUT_NAME));
+        switchWiredTo("s42", "w34", pinLocation("RST"));
+        switchWiredTo("s43", "w35", pinLocation("CLK"));
+        StateMachine wired = machineDefinition().machine().orElseThrow();
+
+        EditMachineCommand pins = new EditMachineCommand(MACHINE_ID,
+                MachinePinEdits.asBus(wired, MachinePinEdits.Side.INPUT, false));
+        history.execute(pins);
+
+        assertThat(document.component(piece.id()).orElseThrow().appearance()).isEmpty();
+        assertThat(pinLocation("x")).isEqualTo(new GridPoint(10, 12));
+        assertThat(pinLocation("RST")).isEqualTo(new GridPoint(10, 16));
+        assertThat(netOf(piecePin("RST"))).contains(new PinRef(new ElementId("s42"), 0));
+        assertThat(netOf(piecePin("CLK"))).contains(new PinRef(new ElementId("s43"), 0));
+        assertThat(netOf(new PinRef(new ElementId("s40"), 0)))
+                .noneMatch(pin -> pin.componentId().equals(piece.id()));
+        assertThat(pins.removedPinWires()).extracting(RemovedPinWire::pinName)
+                .containsExactly(MachineBody.BUS_INPUT_NAME);
     }
 
     private void assertSwitchesOnTheirPins() {

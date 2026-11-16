@@ -1,5 +1,8 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.library.RemovedPinWire;
+
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -19,5 +22,10 @@ public interface EditsDefinitionItself extends Command {
      */
     default Optional<ReplaceDefinitionCommand> plannedUpdate() {
         return Optional.empty();
+    }
+
+    /** The wire ends the last apply left loose because their pin went away, where they are now. */
+    default List<RemovedPinWire> removedPinWires() {
+        return plannedUpdate().map(ReplaceDefinitionCommand::removedPinWires).orElse(List.of());
     }
 }
