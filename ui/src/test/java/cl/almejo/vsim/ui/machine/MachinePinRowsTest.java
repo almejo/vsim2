@@ -16,6 +16,8 @@ import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachinePinEdits.Side;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.wiring.Connectivity;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -44,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
@@ -246,33 +249,53 @@ class MachinePinRowsTest {
     }
 
     @Test
-    void altDownMovesAnInputBelowTheNextAndThePiecesPinsSwapWithTheirWires() {
+    void altDownMovesAnInputBelowTheNextAndEachSwitchStaysOnItsOwnPin() {
         EditorView view = tabOf(detectorWithTwoInputs());
-        switchOn("x");
-        switchOn("y");
-        GridPoint xBefore = pinLocation("x");
-        GridPoint yBefore = pinLocation("y");
+        Component xSwitch = switchOn("x");
+        Component ySwitch = switchOn("y");
 
         pressKey(pins(view).table(Side.INPUT).nameField("x").orElseThrow(), KeyEvent.VK_DOWN,
                 InputEvent.ALT_DOWN_MASK);
 
         assertThat(machine().inputNames()).containsExactly("y", "x");
-        assertThat(pinLocation("x")).isEqualTo(yBefore);
-        assertThat(pinLocation("y")).isEqualTo(xBefore);
-        assertThat(aWireEndsAt(pinLocation("x"))).isTrue();
-        assertThat(aWireEndsAt(pinLocation("y"))).isTrue();
         assertThat(pins(view).table(Side.INPUT).rowNames()).startsWith("y", "x");
+        assertSwitchesOnTheirPins(xSwitch, ySwitch);
 
         pressKey(pins(view).table(Side.INPUT).nameField("x").orElseThrow(), KeyEvent.VK_UP,
                 InputEvent.ALT_DOWN_MASK);
         assertThat(machine().inputNames()).containsExactly("x", "y");
+        assertSwitchesOnTheirPins(xSwitch, ySwitch);
         perform(view.actions().undo());
         assertThat(machine().inputNames()).containsExactly("y", "x");
+        assertSwitchesOnTheirPins(xSwitch, ySwitch);
+        perform(view.actions().undo());
+        assertThat(machine().inputNames()).containsExactly("x", "y");
+        assertSwitchesOnTheirPins(xSwitch, ySwitch);
+        perform(view.actions().redo());
+        assertThat(machine().inputNames()).containsExactly("y", "x");
+        assertSwitchesOnTheirPins(xSwitch, ySwitch);
+    }
+
+    /** The switch placed on x is on the net of the piece's pin named x, and the one placed on y on y's. */
+    private void assertSwitchesOnTheirPins(Component xSwitch, Component ySwitch) {
+        assertThat(netOf(piecePin("x"))).as("the switch wired to x").contains(new PinRef(xSwitch.id(), 0));
+        assertThat(netOf(piecePin("y"))).as("the switch wired to y").contains(new PinRef(ySwitch.id(), 0));
+    }
+
+    private PinRef piecePin(String pinName) {
+        return new PinRef(piece.id(), definition().pinIndexOf(pinName).orElseThrow());
+    }
+
+    private Set<PinRef> netOf(PinRef pin) {
+        return Connectivity.of(document.document().wires(), document.document(), document.registry()).pinNets()
+                .stream().filter(net -> net.contains(pin)).findFirst().orElse(Set.of(pin));
     }
 
     @Test
-    void draggingARowByItsHandleReordersThePins() {
+    void draggingARowByItsHandleReordersThePinsAndEachSwitchStaysOnItsOwnPin() {
         EditorView view = tabOf(detectorWithTwoInputs());
+        Component xSwitch = switchOn("x");
+        Component ySwitch = switchOn("y");
         MachinePinTable inputs = pins(view).table(Side.INPUT);
         inputs.setSize(300, 400);
         UiTestSupport.layOut(inputs);
@@ -286,6 +309,10 @@ class MachinePinRowsTest {
         handle.dispatchEvent(mouse(handle, MouseEvent.MOUSE_RELEASED, below));
 
         assertThat(machine().inputNames()).containsExactly("y", "x");
+        assertSwitchesOnTheirPins(xSwitch, ySwitch);
+        perform(view.actions().undo());
+        assertThat(machine().inputNames()).containsExactly("x", "y");
+        assertSwitchesOnTheirPins(xSwitch, ySwitch);
     }
 
     private static MouseEvent mouse(JComponent source, int id, Point point) {

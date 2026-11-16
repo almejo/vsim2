@@ -16,11 +16,14 @@ import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.wiring.Connectivity;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -208,6 +211,40 @@ class EditMachineCommandTest {
         assertThat(pinLocation("x")).isEqualTo(xPin);
         assertThat(pinLocation("y")).isEqualTo(yPin);
         assertThat(document.wires()).contains(xWire, yWire);
+    }
+
+    @Test
+    void movingAnInputKeepsEachSwitchOnTheNetOfItsOwnPinAndUndoAndRedoToo() {
+        history.execute(new EditMachineCommand(MACHINE_ID, withSelfLoop("x·y")));
+        switchWiredTo("s40", "w32", pinLocation("x"));
+        switchWiredTo("s41", "w33", pinLocation("y"));
+        StateMachine wired = machineDefinition().machine().orElseThrow();
+
+        history.execute(new EditMachineCommand(MACHINE_ID,
+                MachinePinEdits.moved(wired, MachinePinEdits.Side.INPUT, 0, 1)));
+
+        assertThat(pinNames(machineDefinition())).containsExactly("y", "x", "RST", "CLK");
+        assertSwitchesOnTheirPins();
+        history.undo();
+        assertThat(pinNames(machineDefinition())).containsExactly("x", "y", "RST", "CLK");
+        assertSwitchesOnTheirPins();
+        history.redo();
+        assertThat(pinNames(machineDefinition())).containsExactly("y", "x", "RST", "CLK");
+        assertSwitchesOnTheirPins();
+    }
+
+    private void assertSwitchesOnTheirPins() {
+        assertThat(netOf(piecePin("x"))).as("the switch wired to x").contains(new PinRef(new ElementId("s40"), 0));
+        assertThat(netOf(piecePin("y"))).as("the switch wired to y").contains(new PinRef(new ElementId("s41"), 0));
+    }
+
+    private PinRef piecePin(String name) {
+        return new PinRef(piece.id(), machineDefinition().pinIndexOf(name).orElseThrow());
+    }
+
+    private Set<PinRef> netOf(PinRef pin) {
+        return Connectivity.of(document.wires(), document, registry).pinNets().stream()
+                .filter(net -> net.contains(pin)).findFirst().orElse(Set.of(pin));
     }
 
     /** A switch whose output is wired to {@code pin} from 6 units to its left; returns the wire. */

@@ -3,8 +3,10 @@ package cl.almejo.vsim.core.command;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -19,8 +21,9 @@ import java.util.Optional;
 /**
  * One edit of a «Máquina de estados»'s diagram (a state drawn, an arrow, a condition, an output; spec §2.2): puts
  * {@code newMachine}, with the names now in use as pins and the body generated again
- * ({@link MachineDefinitions#edited}). When the pins stay, the definition is simply replaced (renaming a state does
- * not touch the body or the pieces); when they change (a new name in a condition), the change goes through the
+ * ({@link MachineDefinitions#edited}). When the pins stay (also in order), the definition is simply replaced
+ * (renaming a state does not touch the body or the pieces); when they change (a new name in a condition, two pins
+ * swapped), the change goes through the
  * planning of an edit inside a component ({@link ReplaceDefinitionCommand#prepareInside}), so every placed piece and
  * the bodies that contain the machine follow with their wires. One undo step; revert restores definitions, pieces and
  * wires.
@@ -68,12 +71,22 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
         previous = document.definition(definitionId).orElseThrow(() -> new IllegalArgumentException(
                 "no definition " + definitionId + " in the document"));
         replacement = MachineDefinitions.edited(previous, newMachine);
-        if (!DefinitionUpdateSafety.sameInterface(previous, replacement)) {
+        if (!DefinitionUpdateSafety.sameInterface(previous, replacement)
+                || !sourcesInOrder(previous).equals(sourcesInOrder(replacement))) {
             ComponentTypeRegistry registry = STANDARD_TYPES.extendedWith(SubcircuitTypes.resolverFor(document));
             pinChange = ReplaceDefinitionCommand.prepareInside(document, registry,
                     DefinitionBundle.of(replacement, document::definition));
         }
         prepared = true;
+    }
+
+    /**
+     * The pins' sources in pinout order. Two pins of the same width swapped (Alt+↓ on «x» above «y») leave every
+     * place, direction and width as it was, so {@link DefinitionUpdateSafety#sameInterface} sees no change; their
+     * sources did move, and only the planned update makes each wire follow its own pin (hito 3 review, C1).
+     */
+    private static List<ElementId> sourcesInOrder(ComponentDefinition definition) {
+        return definition.pinout().stream().map(DefinitionPin::source).toList();
     }
 
     @Override
