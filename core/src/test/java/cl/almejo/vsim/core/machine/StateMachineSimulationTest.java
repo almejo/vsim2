@@ -70,6 +70,25 @@ class StateMachineSimulationTest {
         assertThat(lamp).containsExactly(Value.ZERO, Value.ZERO, Value.ONE, Value.ONE, Value.ZERO, Value.ZERO);
     }
 
+    /**
+     * Hand test of hito 2 (item 9): an LED on a Moore output follows the state shown one engine unit after the edge,
+     * the flip-flops' delay, far below what can be seen at any clock speed.
+     */
+    @Test
+    void anLedOnAMooreOutputFollowsTheStateOneUnitAfterTheEdge() {
+        detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
+        start();
+        set("x", true);
+        fallingEdge("clk"); // S1
+        set("clk", true);
+
+        engine.setInput("clk", Value.ZERO);
+        engine.advance(StateMachineBehavior.OUTPUT_DELAY);
+
+        assertThat(stateName("m")).isEqualTo("S2");
+        assertThat(led("z")).isEqualTo(Value.ONE);
+    }
+
     @Test
     void aRisingClockDoesNothingByDefault() {
         detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
