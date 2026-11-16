@@ -267,6 +267,29 @@ class MachineDiagramLooksTest {
     }
 
     /**
+     * The «!» is the cue that does not depend on colours: beside the label of an arrow between states drawn close
+     * together it lands on a state, and is still painted over that state's opaque inside (review of the hand fixes,
+     * M2).
+     */
+    @Test
+    void anArrowsBadgeOverAStateIsStillSeen() {
+        StateMachine machine = machine(new MachineState("a", "A", new DiagramPoint(150, 250), List.of()),
+                new MachineState("b", "B", new DiagramPoint(215, 250), List.of()))
+                .withTransitions(List.of(new MachineTransition("t1", "a", "b", "x +", List.of())));
+        MachineGlows glows = MachineGlows.of(MachineChecks.check(machine));
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+        Point2D badge = MachineDiagramPainter.arrowBadgeCentre(machine.transition("t1").orElseThrow(),
+                geometry.arrow("t1"), metrics(MachineDiagramPainter.labelFont()));
+        assertThat(badge.distance(geometry.centre("b"))).as("the badge is on B")
+                .isLessThan(geometry.radius("b") - MachineDiagramPainter.BADGE_RADIUS);
+        ColorScheme dark = ColorSchemes.DARK;
+
+        BufferedImage image = paint(machine, Optional.empty(), new MachineSelection(), glows, dark);
+
+        assertBadge(image, badge, dark.wireConflict(), dark);
+    }
+
+    /**
      * Around {@code centre}, a disc mostly of {@code colour} (not a thin ring nor a translucent halo) with a mark of
      * another colour down its middle (the «!»).
      */

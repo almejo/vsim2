@@ -239,6 +239,21 @@ final class MachineDiagramPainter {
                     marks.selection().containsState(state.id()),
                     marks.glows().ofState(state.id()).filter(glow -> !faded), scheme);
         }
+        paintArrowBadges(graphics, machine, geometry, marks, scheme);
+    }
+
+    /**
+     * The «!» of the problem arrows, over the states: beside a label it can land on a state's opaque inside, and it
+     * is the cue that does not depend on telling colours apart (review of the hand fixes, M2).
+     */
+    private static void paintArrowBadges(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
+                                         Marks marks, ColorScheme scheme) {
+        FontMetrics metrics = graphics.getFontMetrics(labelFont());
+        for (MachineTransition transition : machine.transitions()) {
+            marks.glows().ofTransition(transition.id()).filter(glow -> !marks.fadesTransition(transition.id()))
+                    .ifPresent(glow -> paintBadge(graphics, arrowBadgeCentre(transition,
+                            geometry.arrow(transition.id()), metrics), glowColour(glow, scheme), scheme));
+        }
     }
 
     /**
@@ -330,8 +345,6 @@ final class MachineDiagramPainter {
             graphics.setFont(labelFont());
             drawCentred(graphics, label, arrow.labelAnchor());
         }
-        glow.ifPresent(found -> paintBadge(graphics, arrowBadgeCentre(transition, arrow,
-                graphics.getFontMetrics(labelFont())), glowColour(found, scheme), scheme));
     }
 
     /**
