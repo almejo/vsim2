@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.ClockEdgeDetector;
 import cl.almejo.vsim.core.machine.MachineEvaluator.MachineStep;
+import cl.almejo.vsim.core.value.BitState;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.ArrayList;
@@ -16,17 +17,18 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * Runs a «Máquina de estados» in the circuit (spec §1 «Simulation is the circuit's», §2.3). Pins in
- * {@link MachineBody} order: the inputs, {@code RST}, {@code CLK}, the outputs. On the clock edge the machine chooses
+ * Runs a «Máquina de estados» in the circuit (spec §1 «Simulation is the circuit's», §2.3). Its pins are found by
+ * name ({@link MachinePinLayout}): the inputs, {@code RST}, {@code CLK}, the outputs, a side shown «Como un bus» being
+ * one pin whose bit k is the k-th name, read bit by bit and driven as one value. On the clock edge the machine chooses
  * (falling by default, like the flip-flops; only a direct step between 0 and 1 counts, so a clock through Z or a
  * conflict makes none) it takes the arrow the inputs select ({@link MachineEvaluator}). {@code RST = 1} sends it to the
  * initial state at once and holds it there; an unconnected {@code RST} is 0. An input that is not 0 or 1 (Z,
- * a conflict) counts as 0 in the conditions; the visible state tells the ones the conditions read that were so at the
- * last edge, and a clock in Z or in conflict, for Problemas ({@link MachineChecks#runtime}). The outputs are the
- * current state's Moore outputs plus the Mealy outputs of the arrow today's inputs select, driven
- * {@link #OUTPUT_DELAY} after a change. A machine without states or without an initial state holds no state, drives
- * 0 and shows nothing. Starts in the initial state, so «Reiniciar», which recreates the behaviour, brings it back.
- * After the outputs comes the hidden state pin ({@link StateMachineTypes}): the current state's code, driven
+ * a conflict; on a bus a conflict covers every bit, since a value has one conflict flag) counts as 0 in the
+ * conditions; the visible state tells the ones the conditions read that were so at the last edge, and a clock in Z or
+ * in conflict, for Problemas ({@link MachineChecks#runtime}). The outputs are the current state's Moore outputs plus
+ * the Mealy outputs of the arrow today's inputs select, driven {@link #OUTPUT_DELAY} after a change. A machine without
+ * states or without an initial state holds no state, drives 0 and shows nothing. Starts in the initial state, so «Reiniciar», which recreates the behaviour, brings it back.
+ * The type also has the hidden state pin ({@link StateMachineTypes}): the current state's code, driven
  * {@link #OUTPUT_DELAY} after it changes (start, edge, {@code RST}, a rebuild that kept the state), or Z with no state.
  */
 final class StateMachineBehavior implements Behavior {
@@ -36,6 +38,7 @@ final class StateMachineBehavior implements Behavior {
 
     private final StateMachine machine;
     private final MachineEvaluator evaluator;
+    private final MachinePinLayout layout;
     private final int resetPin;
     private final int clockPin;
     private final ClockEdgeDetector edge;
@@ -59,14 +62,17 @@ final class StateMachineBehavior implements Behavior {
     private boolean clockValueUndefined;
     private Optional<BehaviorContext> clockContext = Optional.empty();
     private final Map<String, Boolean> driven = new HashMap<>();
+    /** The value last driven on the output bus; null before the first. */
+    private Value drivenOutputBus;
 
-    StateMachineBehavior(StateMachine machine, int statePin) {
+    StateMachineBehavior(StateMachine machine, MachinePinLayout layout) {
         this.machine = machine;
         this.evaluator = MachineEvaluator.of(machine);
-        this.resetPin = machine.inputNames().size();
-        this.clockPin = resetPin + 1;
+        this.layout = layout;
+        this.resetPin = layout.reset();
+        this.clockPin = layout.clock();
         this.edge = ClockEdgeDetector.forEdge(machine.edge());
-        this.statePin = statePin;
+        this.statePin = layout.state();
         this.stateWidth = StateMachineTypes.stateWidth(machine);
         this.currentStateId = machine.initialStateId();
         this.inputsRead = machine.inputNames().stream().filter(machine.inputNamesUsed()::contains).toList();
@@ -101,11 +107,23 @@ final class StateMachineBehavior implements Behavior {
         Map<String, Boolean> read = new HashMap<>();
         List<String> undefined = new ArrayList<>();
         List<String> names = machine.inputNames();
+        Value bus = layout.inputBus().isPresent() ? context.input(layout.inputBus().getAsInt()) : null;
         for (int index = 0; index < names.size(); index++) {
-            Value value = context.input(index);
-            read.put(names.get(index), value.equals(Value.ONE));
-            if (!value.isFullyDefined() && inputsRead.contains(names.get(index))) {
-                undefined.add(names.get(index));
+            String name = names.get(index);
+            boolean one;
+            boolean defined;
+            if (bus != null) {
+                BitState bit = bus.bit(index);
+                defined = bit != BitState.HIGH_IMPEDANCE && !bus.conflict();
+                one = defined && bit == BitState.ONE;
+            } else {
+                Value value = context.input(layout.inputPins().get(name));
+                defined = value.isFullyDefined();
+                one = value.equals(Value.ONE);
+            }
+            read.put(name, one);
+            if (!defined && inputsRead.contains(name)) {
+                undefined.add(name);
             }
         }
         inputs = read;
@@ -120,12 +138,25 @@ final class StateMachineBehavior implements Behavior {
         Map<String, Boolean> values = currentStateId.map(stateId -> evaluator.outputs(stateId, inputs))
                 .orElseGet(this::allZero);
         List<String> outputs = machine.outputNames();
-        for (int index = 0; index < outputs.size(); index++) {
-            String output = outputs.get(index);
-            boolean value = values.getOrDefault(output, false);
-            Boolean before = driven.put(output, value);
-            if (everyOutput || before == null || before != value) {
-                context.drive(clockPin + 1 + index, value ? Value.ONE : Value.ZERO, OUTPUT_DELAY);
+        if (layout.outputBus().isPresent()) {
+            long bits = 0;
+            for (int index = 0; index < outputs.size(); index++) {
+                if (values.getOrDefault(outputs.get(index), false)) {
+                    bits |= 1L << index;
+                }
+            }
+            Value bus = Value.of(outputs.size(), bits);
+            if (everyOutput || !bus.equals(drivenOutputBus)) {
+                drivenOutputBus = bus;
+                context.drive(layout.outputBus().getAsInt(), bus, OUTPUT_DELAY);
+            }
+        } else {
+            for (String output : outputs) {
+                boolean value = values.getOrDefault(output, false);
+                Boolean before = driven.put(output, value);
+                if (everyOutput || before == null || before != value) {
+                    context.drive(layout.outputPins().get(output), value ? Value.ONE : Value.ZERO, OUTPUT_DELAY);
+                }
             }
         }
         driveStateCode(context, everyOutput);

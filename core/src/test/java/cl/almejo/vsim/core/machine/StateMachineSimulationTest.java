@@ -473,6 +473,84 @@ class StateMachineSimulationTest {
         return values;
     }
 
+    // --- «Como un bus» ---
+
+    /**
+     * Inputs x (bit 0) and y (bit 1); S0 goes to S1 on y; S1 stays. Moore Z = 1 in S1, Mealy W = 1 on S1's loop
+     * when x; outputs Z (bit 0) and W (bit 1).
+     */
+    private static StateMachine busMachine(boolean inputsAsBus, boolean outputsAsBus) {
+        return new StateMachine(
+                List.of(MachineExamples.state("s0", "S0", 0, List.of()),
+                        MachineExamples.state("s1", "S1", 100, List.of(new OutputAssignment("Z", true)))),
+                List.of(MachineExamples.arrow("t0", "s0", "s1", "y"),
+                        MachineExamples.arrow("t1", "s0", "s0", "y'"),
+                        new MachineTransition("t2", "s1", "s1", "x", List.of(new OutputAssignment("W", true))),
+                        MachineExamples.arrow("t3", "s1", "s1", "x'")),
+                Optional.of("s0"), List.of("x", "y"), List.of("Z", "W"), inputsAsBus, outputsAsBus,
+                StateMachine.EDGE_FALLING, List.of());
+    }
+
+    /** The bus machine as piece {@code m}, a 2-bit switch {@code in}, switch {@code clk}, two LEDs or a 2-bit one. */
+    private void busMachineWired(StateMachine machine) {
+        document.putDefinition(MachineDefinitions.create(MACHINE_ID, "Máquina 1").withMachine(machine));
+        Component piece = machinePiece(document, "m", new GridPoint(20, 0));
+        attach(document, "in", StandardComponentTypes.SWITCH, piece, MachineBody.BUS_INPUT_NAME, -6,
+                Map.of("value", "0", StandardComponentTypes.WIDTH, 2));
+        feed(document, "clk", StandardComponentTypes.SWITCH, piece, MachineLimits.CLOCK);
+        if (machine.outputsAsBus()) {
+            attach(document, "out", StandardComponentTypes.LED, piece, MachineBody.BUS_OUTPUT_NAME, 6,
+                    Map.of(StandardComponentTypes.WIDTH, 2));
+        } else {
+            drain(document, "z", StandardComponentTypes.LED, piece, "Z");
+            drain(document, "w", StandardComponentTypes.LED, piece, "W");
+        }
+    }
+
+    @Test
+    void aTwoBitSwitchOnTheInputBusDrivesXOnBitZeroAndYOnBitOne() {
+        busMachineWired(busMachine(true, false));
+        start();
+
+        drive("in", Value.of(2, 0b01));
+        fallingEdge("clk");
+        assertThat(stateName("m")).as("x = 1, y = 0").isEqualTo("S0");
+
+        drive("in", Value.of(2, 0b10));
+        fallingEdge("clk");
+        assertThat(stateName("m")).as("y = 1").isEqualTo("S1");
+        assertThat(led("z")).isEqualTo(Value.ONE);
+        assertThat(led("w")).isEqualTo(Value.ZERO);
+    }
+
+    @Test
+    void theOutputBusCarriesTheMooreAndTheMealyOutputsAsOneValue() {
+        busMachineWired(busMachine(true, true));
+        start();
+        assertThat(led("out")).isEqualTo(Value.of(2, 0b00));
+
+        drive("in", Value.of(2, 0b10));
+        fallingEdge("clk");
+        assertThat(led("out")).as("Z, the Moore output, on bit 0").isEqualTo(Value.of(2, 0b01));
+
+        drive("in", Value.of(2, 0b11));
+        assertThat(led("out")).as("W, the Mealy output, on bit 1 with no clock edge").isEqualTo(Value.of(2, 0b11));
+        drive("in", Value.of(2, 0b10));
+        assertThat(led("out")).isEqualTo(Value.of(2, 0b01));
+    }
+
+    @Test
+    void aBusBitInHighImpedanceAtTheEdgeIsToldByItsName() {
+        busMachineWired(busMachine(true, false));
+        start();
+
+        drive("in", new Value(2, 0b01, 0b10, false));
+        fallingEdge("clk");
+
+        assertThat(machineState("m").undefinedInputsAtLastEdge()).containsExactly("y");
+        assertThat(stateName("m")).as("y in Z counts as 0").isEqualTo("S0");
+    }
+
     // --- the circuit ---
 
     /** The machine as piece {@code m}, switches {@code x}, {@code rst} and {@code clk}, and LED {@code z}. */
@@ -520,12 +598,17 @@ class StateMachineSimulationTest {
 
     private Component attach(CircuitDocument target, String id, String typeId, Component piece, String pinName,
                              int distance) {
+        return attach(target, id, typeId, piece, pinName, distance,
+                typeId.equals(StandardComponentTypes.SWITCH) ? SWITCH_OFF : Map.of());
+    }
+
+    private Component attach(CircuitDocument target, String id, String typeId, Component piece, String pinName,
+                             int distance, Map<String, Object> parameters) {
         GridPoint pin = pinOf(target, piece, pinName);
         Component probe = registry.require(typeId).newComponent(new ElementId(id), GridPoint.ORIGIN, Rotation.R0,
-                Map.of(), "");
+                parameters, "");
         GridPoint offset = registry.typeOf(probe).pinLocation(probe, 0);
         GridPoint end = pin.translate(distance, 0);
-        Map<String, Object> parameters = typeId.equals(StandardComponentTypes.SWITCH) ? SWITCH_OFF : Map.of();
         Component placed = registry.require(typeId).newComponent(new ElementId(id),
                 new GridPoint(end.x() - offset.x(), end.y() - offset.y()), Rotation.R0, parameters, "");
         target.add(placed);

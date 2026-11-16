@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.app;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.EditInsideCommand;
+import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.command.LoosensPins;
@@ -941,6 +942,10 @@ public final class OpenDocument implements AutoCloseable {
             }
             if (command instanceof EditInsideCommand inside && !inside.removedPinWires().isEmpty()) {
                 removedByCommand.put(this, inside.removedPinWires());
+            }
+            // a machine edit that takes pins away (one removed, a side turned «Como un bus» or back) lists their wires
+            if (command instanceof EditMachineCommand machine && !machine.removedPinWires().isEmpty()) {
+                removedByCommand.put(this, machine.removedPinWires());
             }
         }
 

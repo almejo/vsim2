@@ -43,6 +43,33 @@ class TraceTest {
     }
 
     @Test
+    void aBitOfATraceKeepsOnlyTheChangesOfThatBit() {
+        ChannelTrace channel = new ChannelTrace(2);
+        channel.append(0, Value.of(2, 0b00));
+        channel.append(4, Value.of(2, 0b01));
+        channel.append(8, Value.of(2, 0b11));
+        channel.append(12, new Value(2, 0b01, 0b10, false));
+        channel.appendGap(16);
+        channel.append(20, Value.ZERO);
+        Trace trace = channel.snapshot();
+
+        Trace high = trace.bit(1);
+
+        assertThat(high.width()).isEqualTo(1);
+        assertThat(high.eventCount()).as("a value without bit 1 is a gap too, the same as the gap before")
+                .isEqualTo(4);
+        assertThat(high.eventValue(0)).contains(Value.ZERO);
+        assertThat(high.eventTime(1)).isEqualTo(8);
+        assertThat(high.eventValue(1)).contains(Value.ONE);
+        assertThat(high.eventValue(2)).contains(Value.HIGH_IMPEDANCE);
+        assertThat(high.eventTime(3)).isEqualTo(16);
+        assertThat(high.eventValue(3)).isEmpty();
+        Trace low = trace.bit(0);
+        assertThat(low.eventCount()).isEqualTo(4);
+        assertThat(low.eventValue(3)).contains(Value.ZERO);
+    }
+
+    @Test
     void indicesSpanChunks() {
         ChannelTrace channel = new ChannelTrace(1);
         for (int index = 0; index < ChannelTrace.CHUNK_SIZE * 3; index++) {

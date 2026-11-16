@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -103,6 +104,14 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
     @Override
     public List<PinRef> loosenedPins() {
         return pinChange == null ? List.of() : pinChange.loosenedPins();
+    }
+
+    /**
+     * The wire ends left loose because their pin went away (a pin removed, or a side turned «Como un bus» or back),
+     * on the placed pieces and in the bodies that hold them, by the name the pin had; empty before the first apply.
+     */
+    public List<RemovedPinWire> removedPinWires() {
+        return pinChange == null ? List.of() : pinChange.removedPinWires();
     }
 
     @Override

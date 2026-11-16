@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachineLimits;
@@ -123,15 +124,21 @@ class MachineWaveStripTest {
 
     /** A switch at 0 wired to {@code pinName} of {@code piece} from 4 units to its left. */
     private Component switchOn(Component piece, ComponentDefinition machine, String pinName) {
+        return switchOn(piece, machine, pinName, SWITCH_OFF);
+    }
+
+    /** A switch with {@code parameters} wired to {@code pinName} of {@code piece} from 4 units to its left. */
+    private Component switchOn(Component piece, ComponentDefinition machine, String pinName,
+                               Map<String, Object> parameters) {
         GridPoint pin = document.registry().typeOf(piece).pinLocation(piece,
                 machine.pinIndexOf(pinName).orElseThrow());
         GridPoint end = pin.translate(-4, 0);
         ComponentType switchType = document.registry().require(StandardComponentTypes.SWITCH);
-        Component probe = switchType.newComponent(new ElementId("probe"), GridPoint.ORIGIN, Rotation.R0, SWITCH_OFF,
+        Component probe = switchType.newComponent(new ElementId("probe"), GridPoint.ORIGIN, Rotation.R0, parameters,
                 "");
         GridPoint offset = switchType.pinLocation(probe, 0);
         Component placed = UiTestSupport.place(document, StandardComponentTypes.SWITCH, end.x() - offset.x(),
-                end.y() - offset.y(), SWITCH_OFF);
+                end.y() - offset.y(), parameters);
         UiTestSupport.addWire(document, pin.x(), pin.y(), end.x(), end.y());
         return placed;
     }
@@ -189,6 +196,37 @@ class MachineWaveStripTest {
         long atS1 = timeOf(panel.displayed().trace(state).orElseThrow(), Value.of(2, 1));
         panel.axis().setCursor(atS1);
         assertThat(panel.names().values()).containsExactly("1", "S1", "0");
+    }
+
+    @Test
+    void withTheInputsAsABusTheStripStillShowsOneRowPerNameReadFromItsBit() {
+        StateMachine detector = MachineFixtures.detector();
+        ComponentDefinition machine = MachineDefinitions.regenerated(MachineFixtures.definition(
+                detector.withPinNames(List.of("x", "y"), detector.outputNames()).withBus(true, false)));
+        document = OpenDocument.createEmpty(registry);
+        document.execute(new PutDefinitionsCommand(List.of(machine)));
+        Component piece = UiTestSupport.place(document, SubcircuitTypes.typeIdOf(machine.id()), 20, 0, Map.of());
+        // x = 1 (bit 0), y = 0 (bit 1)
+        switchOn(piece, machine, MachineBody.BUS_INPUT_NAME, Map.of("value", "1", StandardComponentTypes.WIDTH, 2));
+        Component clock = switchOn(piece, machine, MachineLimits.CLOCK);
+        String copy = piece.id().value();
+        WaveformPanel panel = panelOf(viewOf(placeOf(machine.id(), Optional.of(copy)), true));
+
+        assertThat(panel.channelNames()).containsExactly("x", "y", "estado", "Z");
+        pulse(clock);
+        pulse(clock);
+        UiTestSupport.awaitSimulation(document);
+        String output = MachineChannels.outputChannelId(copy, "Z");
+        UiTestSupport.waitUntil(() -> document.latestWaveforms().trace(output)
+                .filter(trace -> trace.eventValue(trace.eventCount() - 1).filter(Value.ONE::equals).isPresent())
+                .isPresent());
+        panel.timerTick();
+
+        assertThat(panel.names().values()).containsExactly("1", "0", "S2", "1");
+        assertThat(history(panel, MachineChannels.inputChannelId(copy, "x"))).as("Z until the switch drives it")
+                .endsWith("1").doesNotContain("0");
+        assertThat(panel.displayed().trace(MachineChannels.inputChannelId(copy, "y")).orElseThrow().width())
+                .isEqualTo(1);
     }
 
     private static long timeOf(Trace trace, Value value) {

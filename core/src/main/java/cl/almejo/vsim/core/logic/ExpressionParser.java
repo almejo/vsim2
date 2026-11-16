@@ -129,6 +129,41 @@ public final class ExpressionParser {
         return parseFrom(text, 0);
     }
 
+    /**
+     * Where a name is written in {@code text}: the name and its {@code [start, end)} offsets. A state machine renames a
+     * pin by rewriting these spans, so the rest of the user's text (spacing, primes, operators) stays as typed.
+     */
+    public record NameSpan(String name, int start, int end) {
+
+        public NameSpan {
+            Objects.requireNonNull(name, "name");
+            if (start < 0 || end <= start) {
+                throw new IllegalArgumentException("a name span needs 0 <= start < end: " + start + ", " + end);
+            }
+        }
+    }
+
+    /**
+     * Every name written in {@code text}, in order, read from the tokens alone: it works on a text that does not
+     * parse ({@code x +}), and an unknown character is skipped instead of ending the reading.
+     */
+    public static List<NameSpan> nameSpans(String text) {
+        Objects.requireNonNull(text, "text");
+        List<NameSpan> spans = new ArrayList<>();
+        int start = 0;
+        while (start < text.length()) {
+            List<Token> tokens = tokens(text, start);
+            for (Token token : tokens) {
+                if (token.kind() == Kind.NAME) {
+                    spans.add(new NameSpan(token.text(), token.column(), token.column() + token.text().length()));
+                }
+            }
+            Token last = tokens.getLast();
+            start = last.kind() == Kind.INVALID ? last.column() + last.text().length() : text.length();
+        }
+        return List.copyOf(spans);
+    }
+
     private static ExpressionResult parseFrom(String text, int start) {
         Parser parser = new Parser(tokens(text, start));
         try {

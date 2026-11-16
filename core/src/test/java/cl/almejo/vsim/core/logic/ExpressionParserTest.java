@@ -266,4 +266,14 @@ class ExpressionParserTest {
     private static Expression xor(Expression... operands) {
         return new Xor(List.of(operands));
     }
+
+    @Test
+    void theNameSpansComeFromTheTokensAlsoInATextThatDoesNotParse() {
+        assertThat(ExpressionParser.nameSpans("x' + xy·x")).containsExactly(
+                new ExpressionParser.NameSpan("x", 0, 1), new ExpressionParser.NameSpan("xy", 5, 7),
+                new ExpressionParser.NameSpan("x", 8, 9));
+        assertThat(ExpressionParser.nameSpans("x + ? y")).extracting(ExpressionParser.NameSpan::name)
+                .containsExactly("x", "y");
+        assertThat(ExpressionParser.nameSpans("")).isEmpty();
+    }
 }

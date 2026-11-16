@@ -1,12 +1,15 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.machine.MachineColors;
@@ -16,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -194,5 +198,23 @@ class MachinePainterTest {
         ComponentType drawn = SubcircuitTypes.typeOf(DEFINITION.withAppearance(Optional.of(drawing)));
 
         assertThat(orangePixels(render(drawn, inState("S0", "S1"), ColorSchemes.LIGHT), ColorSchemes.LIGHT)).isZero();
+    }
+
+    @Test
+    void aBusPinIsWrittenWithItsBitsAndEveryOtherPinAsBefore() {
+        StateMachine machine = StateMachine.initial().withPinNames(List.of("x", "y"), List.of("Z", "W", "V"))
+                .withBus(true, true);
+        List<PinSpec> pins = MachineDefinitions.create("m", "M").withMachine(machine).pinout().stream()
+                .map(DefinitionPin::spec).toList();
+
+        assertThat(pins).extracting(pin -> MachinePainter.pinText(machine, pin))
+                .containsExactly("in[1:0]", "RST", "CLK", "out[2:0]");
+        StateMachine one = machine.withPinNames(List.of("x"), List.of("Z"));
+        assertThat(MachinePainter.pinText(one, PinSpec.input(MachineBody.BUS_INPUT_NAME, 0, 2, 1)))
+                .isEqualTo("in[0]");
+        StateMachine plain = one.withBus(false, false);
+        assertThat(MachinePainter.pinText(plain, PinSpec.input("x", 0, 2, 1))).isEqualTo("x");
+        assertThat(SubcircuitPainter.pinText(PinSpec.input("dato", 0, 2, 8))).as("other components")
+                .isEqualTo("dato[8]");
     }
 }

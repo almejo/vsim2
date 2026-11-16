@@ -75,4 +75,11 @@ class MachineConditionsTest {
     void columnsCountFromTheTextAsTyped() {
         assertThat(MachineConditions.parse("  x $").problem().orElseThrow().column()).isEqualTo(4);
     }
+
+    @Test
+    void renamingANameInAConditionKeepsTheUsersSpacing() {
+        assertThat(MachineConditions.renamed("x'  +  xy·x", "x", "a")).isEqualTo("a'  +  xy·a");
+        assertThat(MachineConditions.renamed("(x)(y)", "y", "go")).isEqualTo("(x)(go)");
+        assertThat(MachineConditions.renamed("", "x", "a")).isEmpty();
+    }
 }

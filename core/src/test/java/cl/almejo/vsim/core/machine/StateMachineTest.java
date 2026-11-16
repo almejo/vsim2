@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.machine;
 
+import cl.almejo.vsim.core.document.StickyColor;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -94,5 +95,73 @@ class StateMachineTest {
         }
         return new StateMachine(List.of(state("a", "A", 0, mooreOfA), state("b", "B", 100, List.of())), arrows,
                 Optional.of("a"), List.of(), List.of(), false, false, StateMachine.EDGE_FALLING, List.of());
+    }
+
+    @Test
+    void aPinBornFromANameHasThatNameAsItsId() {
+        StateMachine machine = StateMachine.initial().withPinNames(List.of("x"), List.of("Z"));
+
+        assertThat(machine.inputs()).containsExactly(MachinePin.named("x"));
+        assertThat(machine.outputs()).containsExactly(new MachinePin("Z", "Z"));
+        assertThat(machine.pin(MachinePinEdits.Side.INPUT, "x")).contains(MachinePin.named("x"));
+        assertThat(machine.pin(MachinePinEdits.Side.OUTPUT, "x")).isEmpty();
+    }
+
+    @Test
+    void settingPinNamesKeepsTheIdsOfTheNamesThatStay() {
+        StateMachine machine = StateMachine.initial().withPins(List.of(new MachinePin("x", "a")), List.of());
+
+        StateMachine changed = machine.withPinNames(List.of("b", "a", "x"), List.of());
+
+        assertThat(changed.inputs()).containsExactly(MachinePin.named("b"), new MachinePin("x", "a"),
+                new MachinePin("x-2", "x"));
+        assertThat(changed.inputNames()).containsExactly("b", "a", "x");
+    }
+
+    @Test
+    void aPinIdUsedTwiceOnASideIsRefused() {
+        assertThatThrownBy(() -> StateMachine.initial().withPins(
+                List.of(new MachinePin("x", "a"), new MachinePin("x", "b")), List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aStateHasNoColourUntilOneIsChosenAndEditsKeepIt() {
+        MachineState state = new MachineState("s0", "S0", DiagramPoint.ORIGIN, List.of());
+        assertThat(state.color()).isEmpty();
+
+        MachineState coloured = state.withColor(Optional.of(StateColor.CYAN)).withName("Inicio")
+                .withPosition(new DiagramPoint(5, 5)).withOutputs(List.of());
+
+        assertThat(coloured.color()).contains(StateColor.CYAN);
+    }
+
+    @Test
+    void notesAreKeptAndEditedById() {
+        MachineNote note = new MachineNote("n1", DiagramPoint.ORIGIN, MachineNote.DEFAULT_WIDTH,
+                MachineNote.DEFAULT_HEIGHT, StickyColor.YELLOW, "ojo");
+        StateMachine machine = StateMachine.initial().withNotes(List.of(note));
+
+        StateMachine edited = machine.withNote("n1", old -> old.withText("ojo con S0"));
+
+        assertThat(StateMachine.initial().notes()).isEmpty();
+        assertThat(edited.notes()).extracting(MachineNote::text).containsExactly("ojo con S0");
+        assertThat(edited.withPinNames(List.of("x"), List.of()).withEdge(StateMachine.EDGE_RISING).notes())
+                .hasSize(1);
+    }
+
+    @Test
+    void aNoteIsNeverSmallerThanTheMinimumAndAPasteMovesIt() {
+        MachineNote tiny = new MachineNote("n1", DiagramPoint.ORIGIN, 1, 1, StickyColor.PINK, "");
+        assertThat(tiny.width()).isEqualTo(MachineNote.MINIMUM_WIDTH);
+        assertThat(tiny.height()).isEqualTo(MachineNote.MINIMUM_HEIGHT);
+
+        MachineNote placed = tiny.placed("n2", new DiagramPoint(10, 20));
+
+        assertThat(placed.id()).isEqualTo("n2");
+        assertThat(placed.position()).isEqualTo(new DiagramPoint(10, 20));
+        assertThat(placed.color()).isEqualTo(StickyColor.PINK);
+        assertThatThrownBy(() -> StateMachine.initial().withNotes(List.of(tiny, tiny)))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

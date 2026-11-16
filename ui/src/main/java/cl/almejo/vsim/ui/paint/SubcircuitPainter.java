@@ -14,6 +14,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
@@ -78,11 +79,22 @@ public final class SubcircuitPainter implements ComponentPainter {
      * always on top, because its middle holds the miniature even when the piece is turned a quarter.
      */
     static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
-        paintBoxAndPins(graphics, type, scheme, PainterSupport.STROKE, 1);
+        paintBoxAndPins(graphics, type, scheme, SubcircuitPainter::pinText);
+    }
+
+    /** {@link #paintBoxAndPins(Graphics2D, ComponentType, ColorScheme)} writing each pin as {@code pinText} says. */
+    static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme,
+                                Function<PinSpec, String> pinText) {
+        paintBoxAndPins(graphics, type, scheme, PainterSupport.STROKE, 1, pinText);
     }
 
     private static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme,
                                         BasicStroke stroke, double pinScale) {
+        paintBoxAndPins(graphics, type, scheme, stroke, pinScale, SubcircuitPainter::pinText);
+    }
+
+    private static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme,
+                                        BasicStroke stroke, double pinScale, Function<PinSpec, String> pinText) {
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
@@ -93,7 +105,7 @@ public final class SubcircuitPainter implements ComponentPainter {
             if (pin.name().isBlank()) {
                 continue;
             }
-            String text = pinText(pin);
+            String text = pinText.apply(pin);
             double pinX = pin.position().x() * UNIT;
             double pinY = pin.position().y() * UNIT;
             boolean left = pinX <= 0;
