@@ -360,7 +360,7 @@ En la pestaña de una máquina, lo que tiene mal se ve en el mismo diagrama, y s
 - **Al pasar el puntero** por un estado o una flecha que brilla, un globo dice qué tiene, con las mismas frases de Problemas («Desde A, «x» y «x + y» se cumplen a la vez con x = 1, y = 0: la máquina no sabe a cuál ir.»).
 - **Propiedades**: con un estado o una flecha elegidos, abajo dice sus problemas; sin nada elegido, la lista de todos los problemas de la máquina y de la copia en la que se entró, cada uno con «Error:» o «Aviso:» adelante y un botón «Ver» que lo muestra en el diagrama.
 - **F8 y Mayús+F8** (y Editar ▸ «Siguiente problema» y «Problema anterior») recorren en esa pestaña solo los problemas de la máquina, primero los errores, y vuelven a empezar al llegar al final.
-- **Mostrar un problema** (con F8, «Ver» o un clic en la lista Problemas): elige los estados o flechas de los que habla, mueve la vista hasta ellos y, con Animaciones encendidas, los hace parpadear.
+- **Mostrar un problema** (con F8, «Ver» o un clic en la lista Problemas): elige los estados o flechas de los que habla y los pone al medio de la vista; mientras siguen elegidos, los brillos de los demás problemas se apagan a un cuarto, así que ese se distingue aunque brillen varios. Con Animaciones encendidas, además parpadean con un anillo ancho de su color (rojo o ámbar), y si la pestaña recién se abre, el parpadeo espera a que se vea. Elegir otra cosa devuelve los demás brillos.
 - **Al corregirlo**, el brillo se va en el acto, sin esperar a la simulación.
 - **En el circuito**, la pieza de una máquina que tiene algún error brilla en rojo con el triángulo de advertencia; los avisos no la marcan.
 

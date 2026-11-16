@@ -213,6 +213,48 @@ class MachineProblemsOnDiagramTest {
         assertThat(toolTipAt(geometry().arrow("t1").labelAnchor())).isEmpty();
     }
 
+    /**
+     * Hand test of hito 2: with several problems glowing, the one asked for must stand out. While it is shown the other
+     * glows fade, and they come back once the selection moves on.
+     */
+    @Test
+    void aRevealedProblemStandsOutWhileTheOtherGlowsFade() {
+        Point2D stays = geometry().centre("a"); // A's own warning: it stays for x = 0, y = 0
+        float before = saturation(haloPixel(canvas, stays));
+
+        canvas.reveal(problemOf(MachineFinding.Kind.UNREACHABLE_STATE).finding(), false);
+        float whileShown = saturation(haloPixel(canvas, stays));
+        mode.selection().clear();
+        float after = saturation(haloPixel(canvas, stays));
+
+        assertThat(whileShown).isLessThan(before * 0.6f);
+        assertThat(after).isEqualTo(before);
+    }
+
+    /**
+     * A problem shown from Problemas opens a new tab whose diagram has no size yet (the real window lays it out
+     * later): the blink waits for it, so it is seen.
+     */
+    @Test
+    void aRevealBeforeTheDiagramHasASizeBlinksOnceItGetsOne() {
+        MachineCanvas standalone = new MachineCanvas(place, MachineFixtures.DEFINITION_ID, new MachineSelection(),
+                (snapshot, instancePath) -> Optional.empty(), () -> ColorScheme.LIGHT);
+        try {
+            standalone.reveal(problemOf(MachineFinding.Kind.UNREACHABLE_STATE).finding(), true);
+            assertThat(standalone.isBlinking()).as("not before it can be seen").isFalse();
+
+            standalone.setBounds(0, 0, 900, 600);
+
+            assertThat(standalone.isBlinking()).isTrue();
+        } finally {
+            standalone.dispose();
+        }
+    }
+
+    private static float saturation(Color colour) {
+        return Color.RGBtoHSB(colour.getRed(), colour.getGreen(), colour.getBlue(), null)[1];
+    }
+
     @Test
     void revealingAProblemSelectsWhatGlowsForIt() {
         mode.reveal(problemOf(MachineFinding.Kind.NONDETERMINISTIC));

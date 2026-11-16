@@ -65,9 +65,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private static final double FIT_SHARE = 0.9;
     /** How far from an arrow, on screen, a click or the pointer still takes it. */
     private static final double ARROW_REACH_PIXELS = 6;
-    /** A revealed problem blinks this many times (on and off), this fast, as a net found from Problemas. */
-    private static final int REVEAL_BLINKS = 6;
-    private static final int REVEAL_BLINK_MILLISECONDS = 180;
+    /**
+     * A revealed problem blinks this many times (on and off), this fast: longer than a net found from Problemas, so it
+     * is seen after the tab opens (hand test of hito 2).
+     */
+    private static final int REVEAL_BLINKS = 8;
+    private static final int REVEAL_BLINK_MILLISECONDS = 220;
     /** Space kept around revealed elements, in diagram units, so a halo is seen whole. */
     private static final double REVEAL_MARGIN = 2 * MachineDiagramGeometry.STATE_RADIUS;
     private static final String HTML_START = "<html>";
@@ -93,8 +96,13 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private transient Gestures gestures = Gestures.NONE;
     /** Where a problem asked to be shown before the canvas had a size: shown there instead of the whole diagram. */
     private transient Optional<Rectangle2D> pendingReveal = Optional.empty();
-    /** What a reveal blinks, and how many blinks are left (lit when odd). */
-    private transient Optional<MachineFinding> blinking = Optional.empty();
+    /**
+     * The problem a reveal shows: it blinks, and the other glows fade while the selection is the one the reveal made
+     * (a click elsewhere, a new selection or a fix ends it).
+     */
+    private transient Optional<MachineFinding> revealed = Optional.empty();
+    /** A blink asked for before the canvas had a size (a tab opened from Problemas): it starts once it has one. */
+    private boolean blinkWhenSized;
     private int blinksLeft;
     private final transient Timer blinkTimer = new Timer(REVEAL_BLINK_MILLISECONDS, event -> blinkOnce());
 
@@ -146,7 +154,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         setLayout(null); // the inline editor floats over the diagram where it is asked to
         viewport.addChangeListener(this::repaint);
         openDocument.addChangeListener(placeListener);
-        stopRepaintingOnSelection = selection.addListener(this::repaint);
+        stopRepaintingOnSelection = selection.addListener(this::selectionChanged);
         MouseHandler mouse = new MouseHandler();
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
@@ -288,22 +296,43 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
      * an unused input), whose words the machine's Propiedades list.
      */
     void reveal(MachineFinding finding, boolean blink) {
+        revealed = Optional.empty();
         selection.set(new LinkedHashSet<>(MachineGlows.statesOf(finding)),
                 new LinkedHashSet<>(MachineGlows.transitionsOf(finding)));
+        boolean sized = getWidth() > 0 && getHeight() > 0;
         machine().flatMap(machine -> boundsOf(machine, finding)).ifPresent(bounds -> {
-            if (getWidth() > 0 && getHeight() > 0) {
+            if (sized) {
                 showCentred(bounds, Math.min(viewport.zoom(), fitZoom(bounds)));
             } else {
                 pendingReveal = Optional.of(bounds);
             }
         });
         blinkTimer.stop();
-        blinking = Optional.of(finding);
+        revealed = Optional.of(finding);
         blinksLeft = blink ? REVEAL_BLINKS : 0;
-        if (blink) {
+        blinkWhenSized = blink && !sized;
+        if (blink && sized) {
             blinkTimer.start();
         }
         requestFocusInWindow();
+        repaint();
+    }
+
+    /** The problem shown now (its glow stands out, the others fade); empty once the selection moved on. */
+    Optional<MachineFinding> revealed() {
+        return revealed.filter(finding -> machine()
+                .filter(machine -> MachineChecks.check(machine).contains(finding)).isPresent());
+    }
+
+    /** A selection other than the one a reveal made ends the reveal. */
+    private void selectionChanged() {
+        revealed.ifPresent(finding -> {
+            if (!selection.stateIds().equals(new LinkedHashSet<>(MachineGlows.statesOf(finding)))
+                    || !selection.transitionIds().equals(new LinkedHashSet<>(MachineGlows.transitionsOf(finding)))) {
+                revealed = Optional.empty();
+                blinkTimer.stop();
+            }
+        });
         repaint();
     }
 
@@ -488,9 +517,13 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         super.setBounds(x, y, width, height);
         if (!viewPlaced && width > 0 && height > 0) {
             viewPlaced = true;
-            Optional<Rectangle2D> revealed = pendingReveal;
+            Optional<Rectangle2D> waiting = pendingReveal;
             pendingReveal = Optional.empty();
-            revealed.or(this::diagramBounds).ifPresent(bounds -> showCentred(bounds, Math.min(1.0, fitZoom(bounds))));
+            waiting.or(this::diagramBounds).ifPresent(bounds -> showCentred(bounds, Math.min(1.0, fitZoom(bounds))));
+        }
+        if (blinkWhenSized && width > 0 && height > 0) {
+            blinkWhenSized = false;
+            blinkTimer.start();
         }
     }
 
@@ -524,11 +557,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             canvas.transform(viewport.documentTransform());
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
             MachineDiagramPainter.paint(canvas, machine.get(), geometry,
-                    new MachineDiagramPainter.Marks(activeState, selection, glows()), colours);
+                    new MachineDiagramPainter.Marks(activeState, selection, glows(), revealed()), colours);
             MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), colours);
             if (blinkTimer.isRunning() && blinksLeft % 2 == 1) {
-                blinking.ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,
-                        MachineGlows.statesOf(finding), MachineGlows.transitionsOf(finding), colours));
+                revealed().ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,
+                        finding, colours));
             }
         } finally {
             canvas.dispose();

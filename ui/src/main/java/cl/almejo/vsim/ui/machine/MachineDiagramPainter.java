@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.machine.MachineConditions;
+import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
@@ -13,12 +14,14 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -65,11 +68,35 @@ final class MachineDiagramPainter {
      */
     private static final float SELECTION_BESIDE = 3f;
 
-    /** What to light and mark on top of the model. */
-    record Marks(Optional<ActiveMachineState> active, MachineSelection selection, MachineGlows glows) {
+    /** How much of its strength a glow keeps while another problem is being shown, so that one stands out. */
+    private static final int FADED_GLOW_SHARE = 4;
+    /** The ring a revealed problem's elements blink with: wide, in its glow colour, the selection on top. */
+    private static final float FLASH_RING_WIDTH = 9f;
+
+    /**
+     * What to light and mark on top of the model; {@code revealed} is the problem being shown (from Problemas, «Ver»,
+     * F8): while it is, the other problems' glows fade.
+     */
+    record Marks(Optional<ActiveMachineState> active, MachineSelection selection, MachineGlows glows,
+                 Optional<MachineFinding> revealed) {
+
+        Marks(Optional<ActiveMachineState> active, MachineSelection selection, MachineGlows glows) {
+            this(active, selection, glows, Optional.empty());
+        }
 
         Marks(Optional<ActiveMachineState> active, MachineSelection selection) {
             this(active, selection, MachineGlows.NONE);
+        }
+
+        /** Whether the glow of the state {@code stateId} fades now: another problem is being shown. */
+        boolean fadesState(String stateId) {
+            return revealed.filter(finding -> !MachineGlows.statesOf(finding).contains(stateId)).isPresent();
+        }
+
+        /** Whether the glow of the arrow {@code transitionId} fades now: another problem is being shown. */
+        boolean fadesTransition(String transitionId) {
+            return revealed.filter(finding -> !MachineGlows.transitionsOf(finding).contains(transitionId))
+                    .isPresent();
         }
     }
 
@@ -133,17 +160,24 @@ final class MachineDiagramPainter {
     }
 
     /**
-     * The lit half of a revealed problem's blink: its states' borders and its arrows in the selection colour, wide, so
-     * the eye finds them after the view moved.
+     * The lit half of a revealed problem's blink: its states' borders and its arrows ringed wide in the problem's
+     * colour, with the selection colour on top, so the eye finds them after the view moved (hand test of hito 2: the
+     * selection colour alone was lost among the glows).
      */
     static void paintFlash(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
-                           List<String> stateIds, List<String> transitionIds, ColorScheme scheme) {
+                           MachineFinding finding, ColorScheme scheme) {
+        List<Shape> shapes = new ArrayList<>();
+        MachineGlows.statesOf(finding).stream().filter(stateId -> machine.state(stateId).isPresent())
+                .forEach(stateId -> shapes.add(geometry.circle(stateId)));
+        MachineGlows.transitionsOf(finding).stream()
+                .filter(transitionId -> machine.transition(transitionId).isPresent())
+                .forEach(transitionId -> shapes.add(geometry.arrow(transitionId).path()));
+        graphics.setColor(finding.isWarning() ? MachineColors.warning(scheme) : MachineColors.problem(scheme));
+        graphics.setStroke(new BasicStroke(FLASH_RING_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        shapes.forEach(graphics::draw);
         graphics.setColor(MachineColors.selection(scheme));
         graphics.setStroke(new BasicStroke(LIT_BORDER_WIDTH));
-        stateIds.stream().filter(stateId -> machine.state(stateId).isPresent())
-                .forEach(stateId -> graphics.draw(geometry.circle(stateId)));
-        transitionIds.stream().filter(transitionId -> machine.transition(transitionId).isPresent())
-                .forEach(transitionId -> graphics.draw(geometry.arrow(transitionId).path()));
+        shapes.forEach(graphics::draw);
     }
 
     private MachineDiagramPainter() {
@@ -151,29 +185,36 @@ final class MachineDiagramPainter {
 
     static void paint(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry, Marks marks,
                       ColorScheme scheme) {
-        paintGlows(graphics, machine, geometry, marks.glows(), scheme);
+        paintGlows(graphics, machine, geometry, marks, scheme);
         Optional<String> nextTransition = marks.active().flatMap(ActiveMachineState::nextTransitionId);
         for (MachineTransition transition : machine.transitions()) {
             boolean next = nextTransition.filter(transition.id()::equals).isPresent();
             paintArrow(graphics, transition, geometry.arrow(transition.id()), next,
                     marks.selection().containsTransition(transition.id()),
-                    marks.glows().ofTransition(transition.id()), scheme);
+                    marks.glows().ofTransition(transition.id()).filter(glow -> !marks.fadesTransition(transition.id())),
+                    scheme);
         }
         geometry.initialMark().ifPresent(mark -> paintInitialMark(graphics, mark, scheme));
         Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
         for (MachineState state : machine.states()) {
             paintState(graphics, state, geometry, activeState.filter(state.id()::equals).isPresent(),
-                    marks.selection().containsState(state.id()), marks.glows().ofState(state.id()), scheme);
+                    marks.selection().containsState(state.id()),
+                    marks.glows().ofState(state.id()).filter(glow -> !marks.fadesState(state.id())), scheme);
         }
     }
 
-    /** The halos of the problem states and the wide strokes under the problem arrows, under everything else. */
+    /**
+     * The halos of the problem states and the wide strokes under the problem arrows, under everything else; faded
+     * while another problem is being shown.
+     */
     private static void paintGlows(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
-                                   MachineGlows glows, ColorScheme scheme) {
+                                   Marks marks, ColorScheme scheme) {
+        MachineGlows glows = marks.glows();
         graphics.setStroke(new BasicStroke(ARROW_GLOW_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         for (MachineTransition transition : machine.transitions()) {
             glows.ofTransition(transition.id()).ifPresent(glow -> {
-                graphics.setColor(withAlpha(glowColour(glow, scheme), ARROW_GLOW_ALPHA));
+                graphics.setColor(withAlpha(glowColour(glow, scheme), marks.fadesTransition(transition.id())
+                        ? ARROW_GLOW_ALPHA / FADED_GLOW_SHARE : ARROW_GLOW_ALPHA));
                 graphics.draw(geometry.arrow(transition.id()).path());
             });
         }
@@ -181,7 +222,8 @@ final class MachineDiagramPainter {
             glows.ofState(state.id()).ifPresent(glow -> {
                 Point2D centre = geometry.centre(state.id());
                 double radius = geometry.radius(state.id()) + STATE_HALO;
-                graphics.setColor(withAlpha(glowColour(glow, scheme), STATE_HALO_ALPHA));
+                graphics.setColor(withAlpha(glowColour(glow, scheme), marks.fadesState(state.id())
+                        ? STATE_HALO_ALPHA / FADED_GLOW_SHARE : STATE_HALO_ALPHA));
                 graphics.fill(new Ellipse2D.Double(centre.getX() - radius, centre.getY() - radius, 2 * radius,
                         2 * radius));
             });
