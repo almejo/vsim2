@@ -215,6 +215,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         actions.runStepsWith(new UndoInItsPlace(this));
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
+        selectionActions.showNoticesWith(this::showNotice);
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {
             if (entry.id().equals(MachineCreation.PALETTE_ID)) {
                 setToolOnEveryPane(() -> new PlaceMachineTool(services.library()::ids));

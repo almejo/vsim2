@@ -147,7 +147,7 @@ class MachineModeTest {
         Map<String, Action> byId = view.shortcutActions();
 
         view.actions().refresh(); // what every history or selection change runs
-        view.selectionActions().selectAll().setEnabled(true); // a feature re-enabling one is held back
+        view.actions().rotateClockwise().setEnabled(true); // a feature re-enabling one is held back
 
         assertThat(byId.get("edit.tidyWires").isEnabled()).isFalse();
         assertThat(byId.get("edit.tidyWires").getValue(Action.SHORT_DESCRIPTION))
@@ -158,8 +158,7 @@ class MachineModeTest {
                 .isEqualTo(reason("machine.disabled.noSheets"));
         List<Action> circuitActions = List.of(view.actions().rotateClockwise(),
                 view.actions().rotateCounterClockwise(), view.actions().configure(),
-                view.selectionActions().cut(), view.selectionActions().copy(), view.selectionActions().paste(),
-                view.selectionActions().duplicate(), view.selectionActions().selectAll(), byId.get("edit.quickInsert"),
+                byId.get("edit.quickInsert"),
                 byId.get("view.frameTool"), byId.get("view.stickyNoteTool"), byId.get("view.textTool"),
                 byId.get("tools.circuitFromExpressions"), byId.get("tools.circuitFromTruthTable"),
                 byId.get("view.addHorizontalGuide"), byId.get("window.splitHorizontal"));

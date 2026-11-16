@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -61,6 +62,9 @@ final class MachineEditing {
             undo.add(view.inspector().showInstead(InspectorPanel.PROPERTIES, rows.inScrollPane()));
         }
         undo.add(view.actions().deleteContentInstead(tool));
+        undo.add(view.selectionActions().clipboardContentInstead(
+                new MachineClipboard(canvas, tool, FragmentClipboard.system(), view::showNotice)));
+        undo.add(canvas.selection().addListener(view.selectionActions()::refresh));
         undo.add(canvas.selection().addListener(view.actions()::refresh));
         undo.add(bindDelete(canvas, view.actions().delete(), view.services().preferences()));
         undo.add(addMenuItems(view.menu(MenuId.EDIT), view.actions().delete(), tool));

@@ -52,7 +52,8 @@ class MachineActionWalkTest {
     /** The actions that work on a machine's tab (the shortcut catalog's id, or the label of an action without one). */
     private static final Set<String> WORK_ON_A_MACHINE = Set.of(
             "file.new", "file.open", "file.save", "file.saveAs", "file.exit", "file.preferences",
-            "file.exportWindowImage", "edit.undo", "edit.redo", "edit.delete",
+            "file.exportWindowImage", "edit.undo", "edit.redo", "edit.delete", "edit.cut", "edit.copy", "edit.paste",
+            "edit.duplicate", "edit.selectAll",
             "view.circuitTree", "view.palette", "view.properties", "view.problems", "view.notes", "view.memoryMap",
             "view.selectTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomField",
             "view.centerView", "view.nextProblem", "view.previousProblem", "view.presentationMode",

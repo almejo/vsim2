@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
+import cl.almejo.vsim.core.io.MachineFragmentFormat;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -27,8 +28,10 @@ import javax.swing.KeyStroke;
 import java.awt.geom.Point2D;
 import java.awt.event.KeyEvent;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -55,6 +58,10 @@ public final class SelectionActions {
     private final Action paste;
     private final Action duplicate;
     private final Action selectAll;
+    /** What the actions act on instead of the circuit's selection, while a view shows it (a machine's diagram). */
+    private Optional<ContentClipboard> content = Optional.empty();
+    /** Where a refused paste says why: the window's status line. */
+    private Consumer<String> notices = text -> { };
 
     /**
      * The actions of a window: {@code selection} is its one selection, {@code activePane} (where a paste or a
@@ -70,15 +77,17 @@ public final class SelectionActions {
         this.format = new FragmentFormat(openDocument.registry());
         int menuMask = ShortcutCatalog.menuMask();
         cut = Actions.of(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask),
-                this::cutSelection);
+                () -> content.ifPresentOrElse(ContentClipboard::cut, this::cutSelection));
         copy = Actions.of(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask),
-                this::copySelection);
+                () -> content.ifPresentOrElse(ContentClipboard::copy, this::copySelection));
         paste = Actions.of(Messages.text("action.paste"), KeyStroke.getKeyStroke(KeyEvent.VK_V, menuMask),
-                () -> pasteAt(activePane.get().mouseGridPoint()));
+                () -> content.ifPresentOrElse(ContentClipboard::paste,
+                        () -> pasteAt(activePane.get().mouseGridPoint())));
         duplicate = Actions.of(Messages.text("action.duplicate"), KeyStroke.getKeyStroke(KeyEvent.VK_D, menuMask),
-                this::duplicateSelection);
+                () -> content.ifPresentOrElse(ContentClipboard::duplicate, this::duplicateSelection));
         selectAll = Actions.of(Messages.text("action.selectAll"), KeyStroke.getKeyStroke(KeyEvent.VK_A, menuMask),
-                () -> selection.selectAll(openDocument.document()));
+                () -> content.ifPresentOrElse(ContentClipboard::selectAll,
+                        () -> selection.selectAll(openDocument.document())));
         selection.addListener(this::refresh);
         refresh();
     }
@@ -88,6 +97,27 @@ public final class SelectionActions {
     public Action paste() { return paste; }
     public Action duplicate() { return duplicate; }
     public Action selectAll() { return selectAll; }
+
+    /** A refused paste says why through {@code sayer} (the window's status line). */
+    public void showNoticesWith(Consumer<String> sayer) {
+        notices = Objects.requireNonNull(sayer, "sayer");
+    }
+
+    /**
+     * Cortar, Copiar, Pegar, Duplicar and Seleccionar todo act on {@code clipboardContent} instead of the circuit's
+     * selection, enabled as it says at each {@link #refresh()}, until the returned runnable runs (a machine's diagram).
+     */
+    public Runnable clipboardContentInstead(ContentClipboard clipboardContent) {
+        Optional<ContentClipboard> acting = Optional.of(Objects.requireNonNull(clipboardContent, "clipboardContent"));
+        content = acting;
+        refresh();
+        return () -> {
+            if (content.equals(acting)) {
+                content = Optional.empty();
+                refresh();
+            }
+        };
+    }
 
     /**
      * Floats the clipboard's fragment at {@code mousePoint}; without one, next to where it was copied from when it was
@@ -103,6 +133,10 @@ public final class SelectionActions {
         try {
             fragment = format.read(json.get());
         } catch (CircuitFormatException | RuntimeException exception) {
+            if (MachineFragmentFormat.isMachineFragment(json.get())) {
+                notices.accept(Messages.text("machine.paste.notInACircuit"));
+                return;
+            }
             // Like a drop: valid JSON can still make the reader throw (bounds overflowing an int, for one).
             LOGGER.debug("Clipboard does not hold a usable circuit fragment: {}", exception.getMessage());
             return;
@@ -167,8 +201,9 @@ public final class SelectionActions {
         menu.add(entry.tag(new JMenuItem(action)));
     }
 
-    private void refresh() {
-        boolean anySelected = !selection.isEmpty();
+    /** Enables Cortar, Copiar and Duplicar when there is something to copy (the content's, or the circuit's). */
+    public void refresh() {
+        boolean anySelected = content.map(ContentClipboard::canCopy).orElse(!selection.isEmpty());
         cut.setEnabled(anySelected);
         copy.setEnabled(anySelected);
         duplicate.setEnabled(anySelected);
