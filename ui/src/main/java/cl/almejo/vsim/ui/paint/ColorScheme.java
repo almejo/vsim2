@@ -342,12 +342,14 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     }
 
     /**
-     * A warning drawn on the board, such as an unreachable state's halo (derived, not a role): an opaque amber, deep
-     * on a light board and light on a dark one, pushed towards black or white until it reaches 3:1 like
-     * {@link #sheetCut()}; never the conflict red, which means an error.
+     * A warning drawn on the board, such as an unreachable state's halo (derived, not a role): an opaque yellow-amber,
+     * deep on a light board and light on a dark one, pushed towards black or white until it reaches 3:1 like
+     * {@link #sheetCut()} (that keeps its hue); never the conflict red, which means an error, and far enough in hue
+     * from {@link #machineActive()}'s orange that a warning state never reads as the active one (hand test of hito 2,
+     * round 2).
      */
     public Color warning() {
-        return standingOut(isDark() ? new Color(0xFF, 0xB7, 0x4D) : new Color(0xB2, 0x6A, 0x00));
+        return standingOut(isDark() ? new Color(0xFF, 0xEB, 0x3B) : new Color(0xC8, 0xA0, 0x00));
     }
 
     /**

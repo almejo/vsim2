@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -31,8 +32,8 @@ import java.util.Optional;
  * conditions and Mealy outputs, the states with their names and Moore outputs, the initial mark, the active state and
  * the next arrow in the active colour, the selection dashed (the agreed mockup's look), a condition that cannot be
  * read in the problem colour, the problems' glows ({@link MachineGlows}: a wide translucent stroke under an arrow, a
- * halo around a state, red for an error and amber for a warning) and what a gesture shows while it lasts
- * ({@link Overlay}). Colours come from {@link MachineColors} at each paint.
+ * halo around a state, red for an error and yellow-amber for a warning, each with an «!» badge) and what a
+ * gesture shows while it lasts ({@link Overlay}). Colours come from {@link MachineColors} at each paint.
  */
 final class MachineDiagramPainter {
 
@@ -68,6 +69,16 @@ final class MachineDiagramPainter {
      * so the selection stays visible over it (hand test of hito 2).
      */
     private static final float SELECTION_BESIDE = 3f;
+
+    /**
+     * The radius of the «!» badge a problem state wears on its rim and a problem arrow beside its label, so a warning
+     * or an error never reads by colour alone (hand test of hito 2, round 2).
+     */
+    static final double BADGE_RADIUS = 8;
+    /** The room between an arrow's label and its badge. */
+    private static final double BADGE_GAP = 4;
+    /** The size of the badge's «!». */
+    private static final int BADGE_MARK_SIZE = 12;
 
     /** How much of its strength a glow keeps while another problem is being shown, so that one stands out. */
     private static final int FADED_GLOW_SHARE = 4;
@@ -184,6 +195,29 @@ final class MachineDiagramPainter {
     private MachineDiagramPainter() {
     }
 
+    /**
+     * Where the badge of a problem state goes: on its rim, up and to the right, where an arrow's head seldom lands.
+     */
+    static Point2D stateBadgeCentre(MachineDiagramGeometry geometry, String stateId) {
+        Point2D centre = geometry.centre(stateId);
+        double along = geometry.radius(stateId) * Math.sqrt(0.5);
+        return new Point2D.Double(centre.getX() + along, centre.getY() - along);
+    }
+
+    /**
+     * Where the badge of a problem arrow goes: just right of its label ({@code metrics} of {@link #labelFont()}), or
+     * on the label's place when it has none.
+     */
+    static Point2D arrowBadgeCentre(MachineTransition transition, MachineDiagramGeometry.Arrow arrow,
+                                    FontMetrics metrics) {
+        String label = labelOf(transition);
+        if (label.isEmpty()) {
+            return arrow.labelAnchor();
+        }
+        Rectangle2D bounds = labelBounds(transition, arrow, metrics);
+        return new Point2D.Double(bounds.getMaxX() + BADGE_GAP + BADGE_RADIUS, bounds.getCenterY());
+    }
+
     static void paint(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry, Marks marks,
                       ColorScheme scheme) {
         paintGlows(graphics, machine, geometry, marks, scheme);
@@ -282,6 +316,26 @@ final class MachineDiagramPainter {
             graphics.setFont(labelFont());
             drawCentred(graphics, label, arrow.labelAnchor());
         }
+        glow.ifPresent(found -> paintBadge(graphics, arrowBadgeCentre(transition, arrow,
+                graphics.getFontMetrics(labelFont())), glowColour(found, scheme), scheme));
+    }
+
+    /**
+     * A small disc in the problem's colour with an «!» on it, ringed in the board's colour so it stands apart from
+     * the line or the circle it sits on: the cue that does not depend on telling colours apart.
+     */
+    private static void paintBadge(Graphics2D graphics, Point2D centre, Color colour, ColorScheme scheme) {
+        Ellipse2D disc = new Ellipse2D.Double(centre.getX() - BADGE_RADIUS, centre.getY() - BADGE_RADIUS,
+                2 * BADGE_RADIUS, 2 * BADGE_RADIUS);
+        graphics.setColor(colour);
+        graphics.fill(disc);
+        graphics.setColor(MachineColors.background(scheme));
+        graphics.setStroke(new BasicStroke(1.5f));
+        graphics.draw(disc);
+        graphics.setColor(ReadableColors.contrast(colour, Color.BLACK) >= ReadableColors.contrast(colour, Color.WHITE)
+                ? Color.BLACK : Color.WHITE);
+        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, BADGE_MARK_SIZE));
+        drawCentred(graphics, "!", centre);
     }
 
     /** «x», «x / Z=1», «/ Z=1» (otherwise, with a Mealy output) or nothing (otherwise alone). */
@@ -352,6 +406,8 @@ final class MachineDiagramPainter {
             drawCentred(graphics, mooreLabelOf(state.outputs()),
                     new Point2D.Double(outputs.getCenterX(), outputs.getCenterY()));
         });
+        glow.ifPresent(found -> paintBadge(graphics, stateBadgeCentre(geometry, state.id()),
+                glowColour(found, scheme), scheme));
     }
 
     private static Stroke dashed(float width) {

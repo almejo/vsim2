@@ -267,6 +267,23 @@ class ColorSchemesTest {
     }
 
     @Test
+    void theWarningColourIsAYellowAmberClearlyApartFromTheMachinesActiveOrange() {
+        // hand test of hito 2, round 2: a warning ring read as the active state's orange
+        for (ColorScheme scheme : ALL) {
+            double warningHue = hue(scheme.warning());
+            assertThat(warningHue).as("yellow-amber: %s", scheme).isBetween(42.0, 60.0);
+            assertThat(Math.abs(warningHue - hue(scheme.machineActive()))).as("apart from the active orange: %s",
+                    scheme).isGreaterThanOrEqualTo(15.0);
+        }
+    }
+
+    /** The hue of {@code color}, in degrees (0 red, 60 yellow). */
+    private static double hue(Color color) {
+        float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), null);
+        return hsb[0] * 360.0;
+    }
+
+    @Test
     void textAndOutlinesAreReadable() {
         for (ColorScheme scheme : STRICT) {
             assertThat(contrast(scheme.text(), scheme.background())).isGreaterThanOrEqualTo(READABLE);

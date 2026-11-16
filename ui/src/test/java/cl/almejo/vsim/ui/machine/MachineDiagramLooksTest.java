@@ -163,6 +163,63 @@ class MachineDiagramLooksTest {
         assertThat(distance(inS0, dark.background())).as("the halo over S0, whole with its state").isGreaterThan(30);
     }
 
+    @Test
+    void aWarningStateWearsABadgeWithAnExclamationOnItsRimInBothThemes() {
+        // hand test of hito 2, round 2: colour alone made a warning read as the active state
+        for (ColorScheme scheme : List.of(ColorSchemes.DARK, ColorSchemes.LIGHT)) {
+            StateMachine machine = machine(new MachineState("a", "A", new DiagramPoint(150, 250), List.of()),
+                    new MachineState("lost", "S0", new DiagramPoint(550, 250), List.of()));
+            MachineGlows glows = MachineGlows.of(MachineChecks.check(machine));
+            MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+
+            BufferedImage image = paint(machine, Optional.empty(), new MachineSelection(), glows, scheme);
+
+            assertBadge(image, MachineDiagramPainter.stateBadgeCentre(geometry, "lost"), scheme.warning(), scheme);
+        }
+    }
+
+    @Test
+    void anArrowWithAnErrorWearsARedBadgeBesideItsLabel() {
+        StateMachine machine = machine(new MachineState("a", "A", new DiagramPoint(150, 250), List.of()),
+                new MachineState("b", "B", new DiagramPoint(550, 250), List.of()))
+                .withTransitions(List.of(new MachineTransition("t1", "a", "b", "x +", List.of()),
+                        new MachineTransition("t2", "b", "a", "", List.of())));
+        MachineGlows glows = MachineGlows.of(MachineChecks.check(machine));
+        assertThat(glows.ofTransition("t1")).contains(MachineGlows.Glow.ERROR);
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+        ColorScheme dark = ColorSchemes.DARK;
+
+        BufferedImage image = paint(machine, Optional.empty(), new MachineSelection(), glows, dark);
+
+        Point2D badge = MachineDiagramPainter.arrowBadgeCentre(machine.transition("t1").orElseThrow(),
+                geometry.arrow("t1"), metrics(MachineDiagramPainter.labelFont()));
+        assertBadge(image, badge, dark.wireConflict(), dark);
+    }
+
+    /**
+     * Around {@code centre}, a disc mostly of {@code colour} (not a thin ring nor a translucent halo) with a mark of
+     * another colour down its middle (the «!»).
+     */
+    private static void assertBadge(BufferedImage image, Point2D centre, Color colour, ColorScheme scheme) {
+        int inside = 0;
+        int coloured = 0;
+        double reach = MachineDiagramPainter.BADGE_RADIUS - 1.5;
+        for (int x = (int) (centre.getX() - reach); x <= centre.getX() + reach; x++) {
+            for (int y = (int) (centre.getY() - reach); y <= centre.getY() + reach; y++) {
+                if (Math.hypot(x - centre.getX(), y - centre.getY()) <= reach) {
+                    inside++;
+                    coloured += distance(new Color(image.getRGB(x, y)), colour) < NEAR ? 1 : 0;
+                }
+            }
+        }
+        assertThat(coloured).as("a solid badge in %s", scheme).isGreaterThan(inside / 2);
+        boolean mark = false;
+        for (int y = (int) (centre.getY() - reach / 2); y <= centre.getY() + reach / 2; y++) {
+            mark |= distance(new Color(image.getRGB((int) Math.round(centre.getX()), y)), colour) > 2 * NEAR;
+        }
+        assertThat(mark).as("an «!» on it in %s", scheme).isTrue();
+    }
+
     private static void assertInside(Rectangle2D box, Point2D centre, double radius) {
         for (Point2D corner : List.of(new Point2D.Double(box.getMinX(), box.getMinY()),
                 new Point2D.Double(box.getMaxX(), box.getMinY()), new Point2D.Double(box.getMinX(), box.getMaxY()),
