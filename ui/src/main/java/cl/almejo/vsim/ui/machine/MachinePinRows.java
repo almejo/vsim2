@@ -154,7 +154,11 @@ final class MachinePinRows extends JPanel {
         return unwrapped instanceof EditMachineCommand machineEdit ? machineEdit.removedPinWires() : List.of();
     }
 
-    /** «Los cables de x, y quedaron sueltos (…)»; empty when no wire came loose. */
+    /**
+     * «Los cables de x, y quedaron sueltos (…)»; empty when no wire came loose. The words agree with the wires, not
+     * the names (hito 3 review, M5): two copies wired on {@code x} read «Los cables de x quedaron sueltos», and only
+     * one wire reads «El cable de x quedó suelto».
+     */
     static Optional<String> looseWiresNotice(List<RemovedPinWire> loose) {
         if (loose.isEmpty()) {
             return Optional.empty();

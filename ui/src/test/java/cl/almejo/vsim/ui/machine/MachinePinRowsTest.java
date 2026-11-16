@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachineLimits;
@@ -364,6 +365,17 @@ class MachinePinRowsTest {
         assertThat(machine().inputsAsBus()).isFalse();
         assertThat(pins(view).table(Side.INPUT).busBox().isSelected()).isFalse();
         assertThat(aWireEndsAt(pinLocation("x"))).isTrue();
+    }
+
+    @Test
+    void theLooseWiresNoticeAgreesWithTheNumberOfWiresItTellsAbout() {
+        RemovedPinWire first = new RemovedPinWire(Optional.empty(), new ElementId("c1"), "x", new GridPoint(0, 2));
+        RemovedPinWire second = new RemovedPinWire(Optional.empty(), new ElementId("c2"), "x", new GridPoint(0, 12));
+
+        assertThat(MachinePinRows.looseWiresNotice(List.of(first)))
+                .contains("El cable de x quedó suelto (Deshacer lo vuelve a conectar)");
+        assertThat(MachinePinRows.looseWiresNotice(List.of(first, second))).as("two copies wired on x")
+                .contains("Los cables de x quedaron sueltos (Deshacer los vuelve a conectar)");
     }
 
     @Test

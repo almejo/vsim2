@@ -166,7 +166,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         return newTransition;
     }
 
-    /** Editar ▸ «Escribir el nombre o la condición» (F2 on the diagram): the inline editor on the selected one. */
+    /** Editar ▸ «Escribir el nombre, la condición o la nota» (F2 on the diagram): the selected one's editor. */
     Action editTextAction() {
         return editText;
     }
