@@ -15,7 +15,11 @@ import java.util.Optional;
  * A rename keeps the pin's id (its wires stay) and rewrites the name everywhere it is written: every condition, also
  * one that does not parse (from its tokens, so a half-typed {@code x +} becomes {@code a +}), and every Moore and
  * Mealy output. Renaming onto a name that is already a pin of the same side is allowed when one of the two is «sin
- * usar» (decision 1 of hito 3, 2026-11-17): the renamed pin takes the name and keeps its wire, the other pin goes away.
+ * usar» (decision 1 of hito 3, 2026-11-17), and the pin that survives, with its id and so its wire, is always the
+ * unused one: it is the wired pin the student kept and wants to use again. Renaming an unused {@code x} onto {@code y}
+ * keeps {@code x}'s pin, now called {@code y}; renaming a used {@code a} onto an unused {@code b} keeps {@code b}'s
+ * pin, and the conditions that held {@code a} now hold {@code b}. The other pin goes away and its wires come loose
+ * (told on the status line, undone in one step). Both used is refused.
  */
 public final class MachinePinEdits {
 
@@ -92,7 +96,8 @@ public final class MachinePinEdits {
     /**
      * {@code machine} with the pin {@code oldName} of {@code side} called {@code newName}, written so in every
      * condition and output; the pin keeps its id. When {@code newName} is another pin of that side (one of the two
-     * «sin usar»), that other pin goes away.
+     * «sin usar»), the used one of the two goes away and the unused one stays with its id (both unused: the renamed
+     * one stays).
      *
      * @throws IllegalArgumentException when there is no such pin or {@link #nameProblem} refuses the name
      */
@@ -104,11 +109,15 @@ public final class MachinePinEdits {
         if (newName.equals(oldName)) {
             return machine;
         }
+        Optional<MachinePin> target = machine.pin(side, newName);
+        boolean targetSurvives = target.isPresent() && !MachinePinUses.of(machine, oldName).isUnused();
         List<MachinePin> pins = new ArrayList<>();
         for (MachinePin pin : machine.pins(side)) {
             if (pin.equals(renamedPin)) {
-                pins.add(pin.withName(newName));
-            } else if (!pin.name().equals(newName)) {
+                if (!targetSurvives) {
+                    pins.add(pin.withName(newName));
+                }
+            } else if (!pin.name().equals(newName) || targetSurvives) {
                 pins.add(pin);
             }
         }

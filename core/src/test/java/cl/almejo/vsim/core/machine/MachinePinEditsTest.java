@@ -68,6 +68,18 @@ class MachinePinEditsTest {
     }
 
     @Test
+    void aUsedPinRenamedOntoAnUnusedOneLeavesTheUnusedPinWithItsIdSoItsWireStays() {
+        StateMachine machine = detector.withPinNames(List.of("x", "b"), List.of("Z"));
+
+        StateMachine renamed = MachinePinEdits.renamed(machine, Side.INPUT, "x", "b");
+
+        assertThat(renamed.inputs()).as("b was the wired one the student kept: its pin survives")
+                .containsExactly(new MachinePin("b", "b"));
+        assertThat(renamed.transitions()).allSatisfy(arrow -> assertThat(arrow.condition()).doesNotContain("x"));
+        assertThat(MachinePinUses.of(renamed, "b").isUnused()).isFalse();
+    }
+
+    @Test
     void renamingOntoAnotherUsedPinIsRefused() {
         StateMachine machine = detector.withTransition("t3", arrow -> arrow.withCondition("y"));
 
