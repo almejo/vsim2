@@ -569,6 +569,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /** The circuit the machine lives in (the place's document). */
+    /** The tab's place this diagram belongs to (its machine's definition lives in the place's circuit). */
+    OpenDocument place() {
+        return openDocument;
+    }
+
     private OpenDocument circuit() {
         return openDocument.parent().orElse(openDocument);
     }

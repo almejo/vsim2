@@ -8,7 +8,8 @@ import java.util.Objects;
 /**
  * Puts the tab of every «Máquina de estados» in machine mode ({@link MachineMode}); other tabs are left as they are.
  * Installed after every extension that adds a menu item, a toolbar button or a shortcut, so it sees them all. In every
- * tab, a machine's row in Problemas goes to the machine ({@link MachineProblemNavigation}).
+ * tab, a machine's row in Problemas goes to the machine ({@link MachineProblemNavigation}), and a machine's piece
+ * shows its machine's name in Propiedades, to rename it ({@link MachineNameRows}).
  */
 public final class MachineModeExtension implements EditorExtension {
 
@@ -27,7 +28,10 @@ public final class MachineModeExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         Runnable leaveMachineMode = MachineMode.install(view, stateSource);
         Runnable stopNavigating = MachineProblemNavigation.install(view);
+        Runnable removeNameRows = view.labelFeatures().properties()
+                .addComponentRows(new MachineNameRows(view.openDocument()));
         return () -> {
+            removeNameRows.run();
             stopNavigating.run();
             leaveMachineMode.run();
         };

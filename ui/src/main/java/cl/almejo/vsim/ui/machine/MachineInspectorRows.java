@@ -65,6 +65,7 @@ final class MachineInspectorRows extends JPanel {
     private final transient Runnable stopFollowingMachine;
     private final WrappedErrorText problem = new WrappedErrorText(" ");
     private transient Optional<JTextField> nameField = Optional.empty();
+    private transient Optional<JTextField> machineNameField = Optional.empty();
     private transient Optional<JTextField> outputsField = Optional.empty();
     private transient Optional<JTextField> conditionField = Optional.empty();
     private transient Optional<JTextField> mealyOutputsField = Optional.empty();
@@ -138,6 +139,11 @@ final class MachineInspectorRows extends JPanel {
 
     Optional<JTextField> nameField() {
         return nameField;
+    }
+
+    /** The machine's own «Nombre» (its component's name), shown with nothing selected. */
+    Optional<JTextField> machineNameField() {
+        return machineNameField;
     }
 
     Optional<JTextField> outputsField() {
@@ -219,6 +225,7 @@ final class MachineInspectorRows extends JPanel {
         removeAll();
         refreshers.clear();
         nameField = Optional.empty();
+        machineNameField = Optional.empty();
         outputsField = Optional.empty();
         conditionField = Optional.empty();
         mealyOutputsField = Optional.empty();
@@ -313,6 +320,10 @@ final class MachineInspectorRows extends JPanel {
 
     private void showMachine(StateMachine machine) {
         addHeader(Messages.text("machine.properties.machine"));
+        machineNameField = Optional.of(textRow(Messages.text("machine.properties.machineName"),
+                MachineNaming.nameOf(canvas.place(), canvas.definitionId()).orElse(""),
+                machineNow -> MachineNaming.nameOf(canvas.place(), canvas.definitionId()),
+                this::applyMachineName));
         addRow(Messages.text("machine.properties.states"), new JLabel(String.valueOf(machine.states().size())));
         addRow(Messages.text("machine.properties.inputs"), new JLabel(listed(machine.inputNames())));
         addRow(Messages.text("machine.properties.outputs"), new JLabel(listed(machine.outputNames())));
@@ -403,6 +414,26 @@ final class MachineInspectorRows extends JPanel {
             return;
         }
         apply(machine -> MachineEdits.withStateName(machine, stateId, text));
+    }
+
+    /**
+     * Renames the machine (its component) when the name is good, else says why; the rows stay (the field keeps its
+     * focus), only what they show is brought up to date.
+     */
+    private void applyMachineName(String text) {
+        Optional<String> wrong = MachineNaming.problem(canvas.place(), canvas.definitionId(), text);
+        if (wrong.isPresent()) {
+            showProblem(wrong);
+            return;
+        }
+        applying = true;
+        try {
+            MachineNaming.rename(canvas.place(), canvas.definitionId(), text);
+        } finally {
+            applying = false;
+        }
+        showProblem(Optional.empty());
+        refreshers.forEach(Runnable::run);
     }
 
     private void applyOutputs(String stateId, String text) {
