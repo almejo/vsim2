@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.machine;
 
-import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.logic.ExpressionProblem;
 import cl.almejo.vsim.core.machine.MachineConditions;
 import cl.almejo.vsim.core.machine.MachineFinding;
@@ -87,7 +86,7 @@ final class MachineInspectorRows extends JPanel {
     private boolean applying;
     /** Shows a problem on the diagram (selects, centres and blinks what it is about). */
     private final transient Consumer<MachineFinding> reveal;
-    private final transient ComponentLibrary library;
+    private final transient MachineLibrary library;
     private final transient Runnable stopFollowingFrames;
     /** The problems under the rows: a sentence and its «Ver» each. */
     private final JPanel problemList = new JPanel(new MigLayout("wrap 2, insets 0, hidemode 3",
@@ -98,9 +97,9 @@ final class MachineInspectorRows extends JPanel {
 
     /**
      * The rows of {@code canvas}'s machine; a problem's «Ver» calls {@code reveal}. {@code library} is «Mis
-     * componentes»: its names are taken for the machine's, and its machines are renamed there.
+     * componentes»: its names are taken for the machine's, and a machine in it is renamed there too.
      */
-    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, ComponentLibrary library) {
+    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library) {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
         this.canvas = Objects.requireNonNull(canvas, "canvas");
         this.library = Objects.requireNonNull(library, "library");

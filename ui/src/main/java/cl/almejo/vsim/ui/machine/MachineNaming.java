@@ -1,12 +1,10 @@
 package cl.almejo.vsim.ui.machine;
 
-import cl.almejo.vsim.core.command.RenameDefinitionCommand;
 import cl.almejo.vsim.core.library.ComponentDefinition;
-import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionNames;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.ComponentForm;
+import cl.almejo.vsim.ui.library.RenameEverywhereCommand;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +19,8 @@ import java.util.Optional;
  * the edit comes from), and everything that shows the name (the tab, the breadcrumb, «Valores de», the palette, the
  * piece's face) reads it from the definition.
  *
- * <p>A machine that is in «Mis componentes» is shown in the palette with the library's name, so it is not renamed
- * here (the palette and the library would keep the old one): Propiedades says to rename it from the palette.
+ * <p>A machine that is in «Mis componentes» is renamed there too, in the same undo step (hito 3, decision 3;
+ * {@link RenameEverywhereCommand}), so the palette, the library and the circuit keep calling it the same.
  */
 final class MachineNaming {
 
@@ -43,34 +41,32 @@ final class MachineNaming {
      * Why {@code text} cannot be the name of {@code definitionId}, as the user reads it; empty when it can (keeping
      * the name it has always can).
      */
-    static Optional<String> problem(OpenDocument place, ComponentLibrary library, String definitionId, String text) {
-        Optional<String> current = nameOf(place, definitionId);
-        if (current.filter(text.strip()::equals).isPresent()) {
+    static Optional<String> problem(OpenDocument place, MachineLibrary library, String definitionId, String text) {
+        if (nameOf(place, definitionId).filter(text.strip()::equals).isPresent()) {
             return Optional.empty();
-        }
-        if (library.ids().contains(definitionId)) {
-            return Optional.of(Messages.format("machine.name.inLibrary", current.orElse(text.strip())));
         }
         List<String> others = new ArrayList<>();
         circuitOf(place).document().definitions().stream()
                 .filter(definition -> !definition.id().equals(definitionId))
                 .forEach(definition -> others.add(definition.name()));
-        library.entries().stream()
+        library.entries().entries().stream()
                 .filter(entry -> !entry.root().id().equals(definitionId))
                 .forEach(entry -> others.add(entry.root().name()));
         return DefinitionNames.problem(text, others).map(found -> ComponentForm.describe(found, text.strip()));
     }
 
     /**
-     * Renames {@code definitionId} to {@code text} (without its outer spaces) as one undo step of the circuit, when
-     * it is a good name ({@link #problem}) and not the one it has; returns whether it did.
+     * Renames {@code definitionId} to {@code text} (without its outer spaces), in the circuit and, when it is there,
+     * in «Mis componentes», as one undo step of the circuit, when it is a good name ({@link #problem}) and not the one
+     * it has; returns whether it did.
      */
-    static boolean rename(OpenDocument place, ComponentLibrary library, String definitionId, String text) {
+    static boolean rename(OpenDocument place, MachineLibrary library, String definitionId, String text) {
         if (problem(place, library, definitionId, text).isPresent()
                 || nameOf(place, definitionId).filter(text.strip()::equals).isPresent()) {
             return false;
         }
-        circuitOf(place).execute(new RenameDefinitionCommand(definitionId, text.strip()));
+        circuitOf(place).execute(new RenameEverywhereCommand(definitionId, text.strip(), library.entries()::find,
+                library.save()));
         return true;
     }
 }

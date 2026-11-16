@@ -72,6 +72,11 @@ public final class MachineCreation {
         return MachineDefinitions.create(freeId(takenIds, random), Messages.format("machine.defaultName", number));
     }
 
+    /** A new machine id that none of {@code takenIds} is (a duplicate gets one too, {@link MachineDuplication}). */
+    static String freeId(Set<String> takenIds) {
+        return freeId(takenIds, RANDOM);
+    }
+
     private static String freeId(Set<String> takenIds, RandomGenerator random) {
         String id;
         do {

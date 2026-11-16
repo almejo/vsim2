@@ -652,7 +652,8 @@ public final class TemplateActions {
         return ids;
     }
 
-    void saveToLibrary(DefinitionBundle bundle) {
+    /** Writes {@code bundle} to «Mis componentes»; a failed write is told to the user and logged. */
+    public void saveToLibrary(DefinitionBundle bundle) {
         try {
             service.save(bundle);
         } catch (IOException exception) {
