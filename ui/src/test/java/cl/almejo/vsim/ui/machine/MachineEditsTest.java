@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
@@ -151,5 +153,68 @@ class MachineEditsTest {
                         .isGreaterThanOrEqualTo(MachineEdits.PASTE_GAP);
             }
         }
+    }
+
+    private static MachineNote note(String id, double x, double y) {
+        return new MachineNote(id, new DiagramPoint(x, y), MachineNote.DEFAULT_WIDTH, MachineNote.DEFAULT_HEIGHT,
+                StickyColor.YELLOW, id);
+    }
+
+    @Test
+    void aNewNoteIsYellowEmptyOfTheDefaultSizeWithTheFirstFreeId() {
+        StateMachine withOne = detector.withNotes(List.of(note("n1", 0, 0)));
+
+        StateMachine added = MachineEdits.withNewNote(withOne, new DiagramPoint(30, 40));
+
+        MachineNote created = MachineEdits.lastNote(added);
+        assertThat(created.id()).isEqualTo("n2");
+        assertThat(created.position()).isEqualTo(new DiagramPoint(30, 40));
+        assertThat(created.color()).isEqualTo(StickyColor.YELLOW);
+        assertThat(created.text()).isEmpty();
+        assertThat(created.width()).isEqualTo(MachineNote.DEFAULT_WIDTH);
+        assertThat(created.height()).isEqualTo(MachineNote.DEFAULT_HEIGHT);
+    }
+
+    @Test
+    void movingAndDeletingTakeTheSelectedNotes() {
+        StateMachine withNotes = detector.withNotes(List.of(note("n1", 0, 200), note("n2", 300, 200)));
+
+        StateMachine moved = MachineEdits.withMoved(withNotes, Set.of("s0"), Set.of("n2"), 10, 20);
+        assertThat(moved.notes().get(0).position()).isEqualTo(new DiagramPoint(0, 200));
+        assertThat(moved.notes().get(1).position()).isEqualTo(new DiagramPoint(310, 220));
+        assertThat(moved.state("s0").orElseThrow().position()).isEqualTo(new DiagramPoint(10, 20));
+
+        StateMachine without = MachineEdits.without(withNotes, Set.of(), Set.of(), Set.of("n1"));
+        assertThat(without.notes()).extracting(MachineNote::id).containsExactly("n2");
+        assertThat(without.states()).hasSize(3);
+    }
+
+    @Test
+    void aResizedNoteKeepsWholeStepsOfEightAndTheSmallestSize() {
+        StateMachine withNote = detector.withNotes(List.of(note("n1", 0, 200)));
+
+        assertThat(MachineEdits.withNoteResized(withNote, "n1", 61, 68).notes().getFirst())
+                .extracting(MachineNote::width, MachineNote::height).containsExactly(224.0, 192.0);
+        assertThat(MachineEdits.withNoteResized(withNote, "n1", -500, -500).notes().getFirst())
+                .extracting(MachineNote::width, MachineNote::height)
+                .containsExactly(MachineNote.MINIMUM_WIDTH, MachineNote.MINIMUM_HEIGHT);
+    }
+
+    @Test
+    void aPieceTakesTheSelectedNotesAndAPasteGivesThemNewIdsShiftedWithTheStates() {
+        StateMachine withNotes = detector.withNotes(List.of(note("n1", 160, 150), note("n2", 600, 600)));
+
+        StateMachine piece = MachineEdits.pieceOf(withNotes, Set.of("s1"), Set.of("n1")).orElseThrow();
+        assertThat(piece.notes()).extracting(MachineNote::id).containsExactly("n1");
+        MachineEdits.Pasted pasted = MachineEdits.withPasted(withNotes, piece);
+
+        assertThat(pasted.noteIds()).containsExactly("n3");
+        MachineNote copy = pasted.machine().notes().get(2);
+        MachineState copyOfS1 = pasted.machine().state(pasted.stateIds().iterator().next()).orElseThrow();
+        double shift = copyOfS1.position().x() - 160;
+        assertThat(shift).isPositive();
+        assertThat(copy.position()).isEqualTo(new DiagramPoint(160 + shift, 150 + shift));
+        assertThat(MachineEdits.pieceOf(withNotes, Set.of(), Set.of())).isEmpty();
+        assertThat(MachineEdits.pieceOf(withNotes, Set.of(), Set.of("n2")).orElseThrow().states()).isEmpty();
     }
 }

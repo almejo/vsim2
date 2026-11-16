@@ -1,11 +1,13 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineEditRequest;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.ui.paint.TextFonts;
 
 import java.awt.Font;
 import java.awt.geom.Point2D;
@@ -15,10 +17,11 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Edits a state's name or an arrow's label (condition and Mealy outputs) right where the diagram draws it (spec 2026-11-14 §1 «Drawing»), with
- * the editor's usual one-line field over the canvas: Enter (or ✓, or a click elsewhere) puts it as one edit of the
- * machine, Esc (or ✗) leaves everything as it was. A name must be given and free; a condition is kept as written, also
- * when it cannot be read (the diagram draws it in the problem colour and the right panel says what is wrong).
+ * Edits a state's name or an arrow's label (condition and Mealy outputs) right where the diagram draws it (spec
+ * 2026-11-14 §1 «Drawing»), with the editor's usual one-line field over the canvas: Enter (or ✓, or a click elsewhere)
+ * puts it as one edit of the machine, Esc (or ✗) leaves everything as it was. A name must be given and free; a
+ * condition is kept as written, also when it cannot be read (the diagram draws it in the problem colour and the right
+ * panel says what is wrong). A note's text is edited over its paper, on several wrapped lines ({@link #editNote}).
  */
 final class MachineInlineEditor {
 
@@ -72,6 +75,24 @@ final class MachineInlineEditor {
                 () -> canvas.machine().flatMap(current -> current.transition(transitionId)).isPresent());
         // «/» is the only way to write outputs (the user's decision of 2026-11-15), so the editor shows it
         editor.showHint(Messages.text("machine.label.notation"));
+    }
+
+    /**
+     * Opens the text of the note {@code noteId} for editing over its paper, wrapping at the paper's width, as a circuit
+     * note's: Mayús+Enter adds a line, Enter (or a click elsewhere) puts it as one edit, Esc leaves it as it was.
+     */
+    void editNote(String noteId) {
+        Optional<MachineNote> note = canvas.machine().flatMap(found -> found.notes().stream()
+                .filter(candidate -> candidate.id().equals(noteId)).findFirst());
+        if (note.isEmpty()) {
+            return;
+        }
+        editor.open(InlineEditRequest.wrapped(MachineNotePainting.textArea(note.get()), TextFonts.labelFont(),
+                        note.get().text(), text -> Optional.empty(),
+                        text -> canvas.edit(current -> current.withNote(noteId,
+                                found -> found.withText(text.strip())))),
+                () -> canvas.machine().filter(current -> current.notes().stream()
+                        .anyMatch(candidate -> candidate.id().equals(noteId))).isPresent());
     }
 
     /** Closes an open edit without applying it (the tab leaves machine mode). */

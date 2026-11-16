@@ -4,9 +4,11 @@ import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -321,5 +323,72 @@ class MachineClipboardTest {
         assertThat(view.selectionActions().copy().isEnabled()).isTrue();
         assertThat(view.selectionActions().cut().isEnabled()).isTrue();
         assertThat(view.selectionActions().duplicate().isEnabled()).isTrue();
+    }
+
+    /** A note {@code n1} below S1 and S2, saying {@code text}. */
+    private MachineNote stickNote(String text) {
+        MachineNote note = new MachineNote("n1", new DiagramPoint(160, 150), MachineNote.DEFAULT_WIDTH,
+                MachineNote.DEFAULT_HEIGHT, StickyColor.GREEN, text);
+        mode.canvas().edit(current -> current.withNotes(List.of(note)));
+        return note;
+    }
+
+    @Test
+    void statesAndANoteCopiedIntoAnotherMachineKeepTheirPlaceTogetherWithNewIds() {
+        MachineNote note = stickNote("Detecta dos 1");
+        mode.selection().set(Set.of("s1", "s2"), Set.of(), Set.of("n1"));
+        perform(view.selectionActions().copy());
+        EditorView other = machineTab(OTHER_ID, Optional.empty());
+        MachineMode otherMode = MachineMode.of(other).orElseThrow();
+
+        perform(other.selectionActions().paste());
+
+        StateMachine otherMachine = otherMode.canvas().machine().orElseThrow();
+        assertThat(otherMachine.notes()).hasSize(1);
+        MachineNote pasted = otherMachine.notes().getFirst();
+        assertThat(pasted.text()).isEqualTo("Detecta dos 1");
+        assertThat(pasted.color()).isEqualTo(StickyColor.GREEN);
+        MachineState copyOfS1 = named(otherMachine, "S1");
+        double shift = copyOfS1.position().x() - 160;
+        assertThat(pasted.position().x() - note.position().x()).isCloseTo(shift, offset(0.5));
+        assertThat(pasted.position().y() - note.position().y()).isCloseTo(copyOfS1.position().y(), offset(0.5));
+        assertThat(otherMode.selection().noteIds()).containsExactly(pasted.id());
+    }
+
+    @Test
+    void aNoteAloneIsCopiedBesideItselfWithANewIdInOneUndoStep() {
+        MachineNote note = stickNote("Hola");
+        mode.selection().set(Set.of(), Set.of(), Set.of("n1"));
+
+        perform(view.selectionActions().copy());
+        perform(view.selectionActions().paste());
+
+        assertThat(machine().states()).hasSize(3);
+        assertThat(machine().notes()).hasSize(2);
+        MachineNote copy = machine().notes().get(1);
+        assertThat(copy.id()).isNotEqualTo("n1");
+        assertThat(copy.text()).isEqualTo("Hola");
+        assertThat(copy.position().x()).isGreaterThan(note.position().x());
+        assertThat(copy.position().y() - note.position().y())
+                .isCloseTo(copy.position().x() - note.position().x(), offset(0.5));
+        assertThat(mode.selection().noteIds()).containsExactly(copy.id());
+
+        perform(view.actions().undo());
+        assertThat(machine().notes()).containsExactly(note);
+    }
+
+    @Test
+    void duplicateAndCutCarryTheNotes() {
+        stickNote("Hola");
+        mode.selection().set(Set.of("s1"), Set.of(), Set.of("n1"));
+
+        perform(view.selectionActions().duplicate());
+        assertThat(machine().notes()).hasSize(2);
+        assertThat(machine().states()).hasSize(4);
+
+        mode.selection().set(Set.of(), Set.of(), Set.of("n1"));
+        perform(view.selectionActions().cut());
+        assertThat(machine().notes()).extracting(MachineNote::id).doesNotContain("n1");
+        assertThat(machine().states()).hasSize(4);
     }
 }
