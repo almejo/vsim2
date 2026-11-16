@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
@@ -66,11 +67,23 @@ public final class WaveformPainter {
     public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
                              int width, ColorScheme scheme, Map<String, String> formats,
                              Map<String, LongFunction<String>> valueNames) {
+        paint(graphics, snapshot, channelIds, axis, width, scheme, formats, valueNames, Map.of());
+    }
+
+    /**
+     * As above; {@code valueColors} gives a named row the colours the user gave its values (a machine's states, hito
+     * 3): a band of a value with a colour is filled with the scheme's {@link ColorScheme#waveStateFill} shade of it,
+     * read now, and its name written in {@link ColorScheme#waveStateFillText}.
+     */
+    public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
+                             int width, ColorScheme scheme, Map<String, String> formats,
+                             Map<String, LongFunction<String>> valueNames,
+                             Map<String, LongFunction<Optional<StateColor>>> valueColors) {
         // Pure strokes: lines and the bus outlines land on the same pixel rows (normalization shifts paths by a row).
         Object strokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         try {
-            paintRows(graphics, snapshot, channelIds, axis, width, scheme, formats, valueNames);
+            paintRows(graphics, snapshot, channelIds, axis, width, scheme, formats, valueNames, valueColors);
         } finally {
             graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                     strokeControl == null ? RenderingHints.VALUE_STROKE_DEFAULT : strokeControl);
@@ -79,7 +92,8 @@ public final class WaveformPainter {
 
     private static void paintRows(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds,
                                   TimeAxis axis, int width, ColorScheme scheme, Map<String, String> formats,
-                                  Map<String, LongFunction<String>> valueNames) {
+                                  Map<String, LongFunction<String>> valueNames,
+                                  Map<String, LongFunction<Optional<StateColor>>> valueColors) {
         int height = channelIds.size() * ROW_HEIGHT;
         graphics.setColor(scheme.diagramBackground());
         graphics.fill(new Rectangle2D.Double(0, 0, width, height));
@@ -89,7 +103,7 @@ public final class WaveformPainter {
             if (trace.isPresent()) {
                 paintRow(graphics, trace.get(), row * ROW_HEIGHT, axis, width, snapshot.time(), scheme,
                         formats.getOrDefault(channelIds.get(row), Probe.FORMAT_HEX),
-                        valueNames.get(channelIds.get(row)));
+                        valueNames.get(channelIds.get(row)), valueColors.get(channelIds.get(row)));
             }
         }
         OptionalLong cursor = axis.cursor();
@@ -174,6 +188,13 @@ public final class WaveformPainter {
     /** As above; a non-null {@code names} draws every value as a named band ({@link #paint} with value names). */
     static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
                         ColorScheme scheme, String format, LongFunction<String> names) {
+        return paintRow(graphics, trace, top, axis, width, now, scheme, format, names, null);
+    }
+
+    /** As above; a non-null {@code colours} fills the band of each value that has a colour with it. */
+    static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
+                        ColorScheme scheme, String format, LongFunction<String> names,
+                        LongFunction<Optional<StateColor>> colours) {
         OptionalLong first = trace.firstTime();
         if (first.isEmpty()) {
             return 0;
@@ -201,7 +222,7 @@ public final class WaveformPainter {
             double column = Math.floor(right);
             long nextColumnTime = Math.max(time + 1, (long) Math.ceil(axis.timeAt(column + 1)));
             int next = index + 1;
-            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme, format, names);
+            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme, format, names, colours);
             if (next < eventCount && trace.eventTime(next) < nextColumnTime && trace.eventTime(next) <= to) {
                 graphics.setColor(scheme.diagramTrace());
                 graphics.setStroke(LINE);
@@ -218,13 +239,14 @@ public final class WaveformPainter {
                 index = next;
             }
         }
-        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme, format, names);
+        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme, format, names,
+                colours);
         return visited;
     }
 
     private static void paintSegment(Graphics2D graphics, Optional<Value> value, double left, double right,
                                      double top, ColorScheme scheme, String format,
-                                     LongFunction<String> names) {
+                                     LongFunction<String> names, LongFunction<Optional<StateColor>> colours) {
         if (right <= left) {
             return;
         }
@@ -248,14 +270,30 @@ public final class WaveformPainter {
                 }
             }
             case BUS -> {
+                Optional<StateColor> colour = colourOf(value, names, colours);
+                Shape band = hexagon(left, right, top);
+                colour.ifPresent(found -> {
+                    graphics.setColor(scheme.waveStateFill(found));
+                    graphics.fill(band);
+                });
                 graphics.setColor(scheme.diagramTrace());
-                graphics.draw(hexagon(left, right, top));
+                graphics.draw(band);
                 String text = names != null ? ChannelRows.valueText(value, format, names)
                         : busText(value.orElseThrow(), format);
-                paintText(graphics, text, left, right, top, scheme.diagramTrace());
+                paintText(graphics, text, left, right, top,
+                        colour.map(scheme::waveStateFillText).orElseGet(scheme::diagramTrace));
             }
             case GAP -> hatch(graphics, left, right, top, scheme);
         }
+    }
+
+    /** The colour of a named band's value, when the row has colours and the value is a whole code. */
+    private static Optional<StateColor> colourOf(Optional<Value> value, LongFunction<String> names,
+                                                 LongFunction<Optional<StateColor>> colours) {
+        if (names == null || colours == null || value.isEmpty() || !value.get().isFullyDefined()) {
+            return Optional.empty();
+        }
+        return colours.apply(value.get().bits());
     }
 
     /** The text of a bus segment in a channel's {@code format}: {@code 0x66} or {@code 'f'}. */

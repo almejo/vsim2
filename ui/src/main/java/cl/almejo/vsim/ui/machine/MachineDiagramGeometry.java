@@ -74,6 +74,8 @@ final class MachineDiagramGeometry {
     private static final double LOOP_TURN = Math.PI / 2;
     /** The initial mark: an arrow this long coming from the left into the initial state. */
     private static final double INITIAL_MARK_LENGTH = 52;
+    /** The radius of the dot the initial mark starts from. */
+    private static final double INITIAL_DOT_RADIUS = 5;
 
     /** How an arrow is drawn. */
     enum ArrowKind { STRAIGHT, CURVED, SELF_LOOP }
@@ -283,6 +285,15 @@ final class MachineDiagramGeometry {
         return initialMark;
     }
 
+    /**
+     * The filled dot the initial mark starts from (UML's initial pseudostate), so the start reads at a glance; empty
+     * when the machine has no initial state.
+     */
+    Optional<Ellipse2D> initialDot() {
+        return initialMark.map(mark -> new Ellipse2D.Double(mark.getX1() - INITIAL_DOT_RADIUS,
+                mark.getY1() - INITIAL_DOT_RADIUS, 2 * INITIAL_DOT_RADIUS, 2 * INITIAL_DOT_RADIUS));
+    }
+
     /** The state under {@code point}, the later one in model order when circles overlap (no state drawn on top). */
     Optional<String> stateAt(Point2D point) {
         return stateAt(point, List.copyOf(centres.keySet()));
@@ -386,6 +397,7 @@ final class MachineDiagramGeometry {
         });
         arrows.values().forEach(arrow -> shapes.add(arrow.path()));
         initialMark.ifPresent(shapes::add);
+        initialDot().ifPresent(shapes::add);
         for (Shape shape : shapes) {
             Rectangle2D shapeBounds = shape.getBounds2D();
             union = union == null ? shapeBounds : union.createUnion(shapeBounds);

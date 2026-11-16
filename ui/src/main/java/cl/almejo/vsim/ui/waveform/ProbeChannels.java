@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -61,24 +62,38 @@ final class ProbeChannels implements WaveformChannels {
     /** A probe on a machine's state writes each code as the name of the state that has it now. */
     @Override
     public Optional<LongFunction<String>> valueNames(String channelId) {
+        return machineStateTarget(channelId).map(target -> code -> stateName(target.componentId(), code));
+    }
+
+    /** A probe on a machine's state colours each code as the state that has it now. */
+    @Override
+    public Optional<LongFunction<Optional<StateColor>>> valueColors(String channelId) {
+        return machineStateTarget(channelId).map(target -> code -> stateOf(target.componentId(), code)
+                .flatMap(MachineState::color));
+    }
+
+    private Optional<ProbeTarget.MachineStateTarget> machineStateTarget(String channelId) {
         return openDocument.document().probes().stream()
                 .filter(probe -> probe.id().equals(channelId))
                 .findFirst()
-                .filter(probe -> probe.target() instanceof ProbeTarget.MachineStateTarget)
-                .map(probe -> code -> stateName(((ProbeTarget.MachineStateTarget) probe.target()).componentId(),
-                        code));
+                .map(Probe::target)
+                .filter(ProbeTarget.MachineStateTarget.class::isInstance)
+                .map(ProbeTarget.MachineStateTarget.class::cast);
     }
 
     /** The name of the state whose code is {@code code} in the machine of piece {@code componentId}, read now. */
     private String stateName(ElementId componentId, long code) {
+        return stateOf(componentId, code).map(MachineState::name).orElseGet(() -> Long.toString(code));
+    }
+
+    /** The state whose code is {@code code} in the machine of piece {@code componentId}, read now. */
+    private Optional<MachineState> stateOf(ElementId componentId, long code) {
         CircuitDocument document = openDocument.document();
         return document.component(componentId)
                 .flatMap(component -> SubcircuitTypes.definitionIdOf(component.typeId()))
                 .flatMap(document::definition)
                 .flatMap(ComponentDefinition::machine)
-                .flatMap(machine -> StateMachineTypes.stateIdOfCode(machine, code).flatMap(machine::state))
-                .map(MachineState::name)
-                .orElseGet(() -> Long.toString(code));
+                .flatMap(machine -> StateMachineTypes.stateIdOfCode(machine, code).flatMap(machine::state));
     }
 
     @Override

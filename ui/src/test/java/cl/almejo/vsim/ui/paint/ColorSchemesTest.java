@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Function;
 
 import static cl.almejo.vsim.ui.UiTestSupport.luminance;
@@ -267,16 +269,68 @@ class ColorSchemesTest {
     }
 
     @Test
-    void theWarningColourIsAYellowAmberClearlyApartFromTheMachinesActiveOrange() {
-        // hand test of hito 2, round 2: a warning ring read as the active state's orange. PROVISIONAL: the colour is
-        // still to be chosen with the user (item 15), and only the hue is checked here, not the translucent halo over
-        // the board that read as olive; a new colour may change these bounds without being a regression.
+    void theWarningColourIsTheGoldTheUserChoseInEveryScheme() {
+        // chosen with the user from the swatch sheets of hito 3 (2026-11-17, candidate B «Dorado»), drawn beside the
+        // machine's active orange and the conflict red: a deep gold on a light board, a light gold on a dark one
+        assertThat(ColorSchemes.LIGHT.warning()).isEqualTo(new Color(0xB58200));
+        assertThat(ColorSchemes.DARK.warning()).isEqualTo(new Color(0xFFC933));
         for (ColorScheme scheme : ALL) {
             double warningHue = hue(scheme.warning());
-            assertThat(warningHue).as("yellow-amber: %s", scheme).isBetween(42.0, 60.0);
+            assertThat(warningHue).as("gold: %s", scheme).isBetween(42.0, 46.0);
             assertThat(Math.abs(warningHue - hue(scheme.machineActive()))).as("apart from the active orange: %s",
-                    scheme).isGreaterThanOrEqualTo(15.0);
+                    scheme).isGreaterThanOrEqualTo(8.0);
         }
+    }
+
+    @Test
+    void theStateFillsAreTheShadesChosenWithTheUser() {
+        // the swatch sheets of hito 3 (2026-11-17): orange became pink and the dark yellow was lightened
+        Map<StateColor, Integer> light = Map.of(StateColor.RED, 0xF4B6B6, StateColor.PINK, 0xF7B5DD,
+                StateColor.YELLOW, 0xF7EAA0, StateColor.GREEN, 0xB7E1B5, StateColor.TURQUOISE, 0xA8E0DC,
+                StateColor.BLUE, 0xB3D1F2, StateColor.VIOLET, 0xD2BFEA, StateColor.GREY, 0xD5D5D5);
+        Map<StateColor, Integer> dark = Map.of(StateColor.RED, 0x7A2E2E, StateColor.PINK, 0x8C2D69,
+                StateColor.YELLOW, 0xC8B432, StateColor.GREEN, 0x2E6B35, StateColor.TURQUOISE, 0x1F6B66,
+                StateColor.BLUE, 0x2D4F85, StateColor.VIOLET, 0x55398A, StateColor.GREY, 0x555555);
+        for (StateColor color : StateColor.values()) {
+            assertThat(ColorSchemes.LIGHT.stateFill(color)).as("%s light", color)
+                    .isEqualTo(new Color(light.get(color)));
+            assertThat(ColorSchemes.DARK.stateFill(color)).as("%s dark", color).isEqualTo(new Color(dark.get(color)));
+        }
+    }
+
+    @Test
+    void aStatesNameReadsOnEveryFillInEveryScheme() {
+        for (ColorScheme scheme : ALL) {
+            for (StateColor color : StateColor.values()) {
+                assertThat(contrast(scheme.stateFillText(color), scheme.stateFill(color)))
+                        .as("%s on %s", color, scheme).isGreaterThanOrEqualTo(READABLE);
+                assertThat(contrast(scheme.waveStateFillText(color), scheme.waveStateFill(color)))
+                        .as("%s in the waves of %s", color, scheme).isGreaterThanOrEqualTo(READABLE);
+            }
+        }
+    }
+
+    @Test
+    void noStateFillLooksLikeTheActiveOrange() {
+        for (ColorScheme scheme : List.of(ColorSchemes.LIGHT, ColorSchemes.DARK)) {
+            for (StateColor color : StateColor.values()) {
+                Color fill = scheme.stateFill(color);
+                float[] hsb = Color.RGBtoHSB(fill.getRed(), fill.getGreen(), fill.getBlue(), null);
+                if (hsb[1] > 0.1f) {
+                    double hue = hsb[0] * 360.0;
+                    assertThat(hue < 15.0 || hue > 40.0).as("%s on %s: hue %s", color, scheme, hue).isTrue();
+                }
+            }
+        }
+    }
+
+    @Test
+    void theWaveBandsTakeTheShadeThatSuitsTheWavesBackground() {
+        // Claro draws its waves on a dark screen: the bands take the dark shades there
+        assertThat(ColorSchemes.LIGHT.waveStateFill(StateColor.BLUE))
+                .isEqualTo(ColorSchemes.DARK.stateFill(StateColor.BLUE));
+        ColorScheme lightWaves = ColorSchemes.LIGHT.with(ColorRole.DIAGRAM_BACKGROUND, Color.WHITE);
+        assertThat(lightWaves.waveStateFill(StateColor.BLUE)).isEqualTo(ColorSchemes.LIGHT.stateFill(StateColor.BLUE));
     }
 
     /** The hue of {@code color}, in degrees (0 red, 60 yellow). */

@@ -30,10 +30,11 @@ import java.util.Optional;
 
 /**
  * Draws a machine's diagram in diagram units (the caller has applied the view's zoom and pan): the arrows with their
- * conditions and Mealy outputs, the states with their names and Moore outputs, the initial mark, the active state and
- * the next arrow in the active colour, the selection dashed (the agreed mockup's look), a condition that cannot be
- * read in the problem colour, the problems' glows ({@link MachineGlows}: a wide translucent stroke under an arrow, a
- * halo around a state, red for an error and yellow-amber for a warning, each with an «!» badge) and what a
+ * conditions and Mealy outputs, the states with their names, Moore outputs and colours, the initial mark (an arrow
+ * from a filled dot), the active state and the next arrow in the active colour, the selection dashed (the agreed
+ * mockup's look), a condition that cannot be read in the problem colour, the problems' glows ({@link MachineGlows}: a
+ * wide translucent stroke under an arrow, a halo around a state, red for an error and gold for a warning, each with
+ * an «!» badge) and what a
  * gesture shows while it lasts ({@link Overlay}). Colours come from {@link MachineColors} at each paint.
  */
 final class MachineDiagramPainter {
@@ -247,6 +248,10 @@ final class MachineDiagramPainter {
                     scheme);
         }
         geometry.initialMark().ifPresent(mark -> paintInitialMark(graphics, mark, scheme));
+        geometry.initialDot().ifPresent(dot -> {
+            graphics.setColor(MachineColors.muted(scheme));
+            graphics.fill(dot);
+        });
         Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
         for (MachineState state : drawingOrder(machine, marks)) {
             boolean faded = marks.fadesState(state.id());
@@ -421,13 +426,14 @@ final class MachineDiagramPainter {
     }
 
     /**
-     * A state: its circle (its outline in the problem colour when it glows, like a problem arrow, so a warning reads
-     * as amber and not only as a faint halo), its name and its Moore outputs where the geometry puts them.
+     * A state: its circle, filled with the colour the user gave it (hito 3), its outline in the problem colour when it
+     * glows (like a problem arrow, so a warning reads as gold and not only as a faint halo), its name and its Moore
+     * outputs where the geometry puts them, in a colour that reads on its inside.
      */
     private static void paintState(Graphics2D graphics, MachineState state, MachineDiagramGeometry geometry,
                                    boolean active, boolean selected, Optional<MachineGlows.Glow> glow,
                                    ColorScheme scheme) {
-        graphics.setColor(active ? MachineColors.activeFill(scheme) : MachineColors.stateFill(scheme));
+        graphics.setColor(MachineColors.stateFill(scheme, state, active));
         graphics.fill(geometry.circle(state.id()));
         float width = active ? ACTIVE_STATE_WIDTH : STATE_WIDTH;
         Color outline = glow.map(found -> glowColour(found, scheme))
@@ -441,7 +447,7 @@ final class MachineDiagramPainter {
             graphics.setStroke(dashed(STATE_WIDTH));
             graphics.draw(geometry.circle(state.id()));
         }
-        graphics.setColor(MachineColors.text(scheme));
+        graphics.setColor(MachineColors.stateText(scheme, state));
         Font nameFont = geometry.nameFont(state.id());
         graphics.setFont(nameFont);
         List<String> lines = geometry.nameLines(state.id());
@@ -453,7 +459,7 @@ final class MachineDiagramPainter {
                     new Point2D.Double(centre.getX(), top + (index + 0.5) * lineHeight));
         }
         geometry.outputsBounds(state.id()).ifPresent(outputs -> {
-            graphics.setColor(MachineColors.muted(scheme));
+            graphics.setColor(MachineColors.stateOutputs(scheme, state));
             graphics.setFont(outputsFont());
             drawCentred(graphics, mooreLabelOf(state.outputs()),
                     new Point2D.Double(outputs.getCenterX(), outputs.getCenterY()));

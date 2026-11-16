@@ -217,4 +217,14 @@ class MachinePainterTest {
         assertThat(SubcircuitPainter.pinText(PinSpec.input("dato", 0, 2, 8))).as("other components")
                 .isEqualTo("dato[8]");
     }
+
+    @Test
+    void aStateWithAColourIsFilledWithItInTheMiniature() {
+        StateMachine coloured = SQUARE.withState("s2",
+                state -> state.withColor(Optional.of(cl.almejo.vsim.core.machine.StateColor.BLUE)));
+
+        assertThat(PainterTesting.differentPixels(render(typeOf(SQUARE), VisibleState.NONE, ColorSchemes.LIGHT),
+                render(typeOf(coloured), VisibleState.NONE, ColorSchemes.LIGHT))).as("the blue circle")
+                .isGreaterThan(20);
+    }
 }

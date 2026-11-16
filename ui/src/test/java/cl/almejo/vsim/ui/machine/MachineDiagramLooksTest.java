@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.machine.MachineChecks;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
@@ -17,6 +18,7 @@ import java.awt.RenderingHints;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -70,6 +72,47 @@ class MachineDiagramLooksTest {
         }
         assertThat(activeSeen).as("still the next arrow's orange").isTrue();
         assertThat(selectionSeen).as("and the selection's blue beside it").isTrue();
+    }
+
+    @Test
+    void aStateWithAColourIsFilledWithItAndStillShowsTheActiveRing() {
+        StateMachine plain = twoStatesJoined();
+        StateMachine coloured = plain.withState("a", state -> state.withColor(Optional.of(StateColor.GREEN)));
+        ActiveMachineState active = new ActiveMachineState("a", Optional.empty(), Optional.empty());
+        for (ColorScheme scheme : List.of(ColorSchemes.LIGHT, ColorSchemes.DARK)) {
+            BufferedImage before = paint(plain, Optional.of(active), new MachineSelection(), scheme);
+            BufferedImage after = paint(coloured, Optional.of(active), new MachineSelection(), scheme);
+
+            // above the name, inside the circle (centre 150, 250; radius 40)
+            Color inside = new Color(after.getRGB(150, 222));
+            assertThat(inside).as("filled: %s", scheme).isEqualTo(scheme.stateFill(StateColor.GREEN))
+                    .isNotEqualTo(new Color(before.getRGB(150, 222)));
+            assertThat(distance(new Color(after.getRGB(150, 211)), scheme.machineActive()))
+                    .as("the active ring on the rim: %s", scheme).isLessThan(NEAR);
+        }
+    }
+
+    @Test
+    void theStartArrowBeginsAtAFilledDotInTheArrowsColourThatScalesWithTheZoom() {
+        StateMachine machine = twoStatesJoined();
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+        Point2D origin = geometry.initialMark().orElseThrow().getP1();
+        assertThat(origin).isEqualTo(new Point2D.Double(58, 250));
+        assertThat(geometry.bounds().orElseThrow().getMinX()).as("the dot is part of the diagram")
+                .isLessThanOrEqualTo(origin.getX() - 3);
+        for (ColorScheme scheme : List.of(ColorSchemes.LIGHT, ColorSchemes.DARK)) {
+            for (double zoom : new double[]{1, 2}) {
+                BufferedImage image = paint(machine, Optional.empty(), new MachineSelection(), MachineGlows.NONE,
+                        scheme, zoom);
+                int x = (int) Math.round(origin.getX() * zoom);
+                int y = (int) Math.round(origin.getY() * zoom);
+                int off = (int) Math.round(3 * zoom);
+                for (int[] point : new int[][]{{x, y}, {x - off, y}, {x, y - off}, {x, y + off}}) {
+                    assertThat(distance(new Color(image.getRGB(point[0], point[1])), MachineColors.muted(scheme)))
+                            .as("%s at %s, zoom %s", Arrays.toString(point), scheme, zoom).isLessThan(NEAR);
+                }
+            }
+        }
     }
 
     @Test
@@ -339,11 +382,19 @@ class MachineDiagramLooksTest {
 
     private static BufferedImage paint(StateMachine machine, Optional<ActiveMachineState> active,
                                        MachineSelection selection, MachineGlows glows, ColorScheme scheme) {
-        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+        return paint(machine, active, selection, glows, scheme, 1);
+    }
+
+    private static BufferedImage paint(StateMachine machine, Optional<ActiveMachineState> active,
+                                       MachineSelection selection, MachineGlows glows, ColorScheme scheme,
+                                       double zoom) {
+        BufferedImage image = new BufferedImage((int) (WIDTH * zoom), (int) (HEIGHT * zoom),
+                BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(scheme.background());
-        graphics.fillRect(0, 0, WIDTH, HEIGHT);
+        graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        graphics.scale(zoom, zoom);
         MachineDiagramPainter.paint(graphics, machine, MachineDiagramGeometry.of(machine),
                 new MachineDiagramPainter.Marks(active, selection, glows), scheme);
         graphics.dispose();

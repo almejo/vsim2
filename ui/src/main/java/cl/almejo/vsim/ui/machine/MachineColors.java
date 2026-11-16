@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import java.awt.Color;
@@ -34,6 +35,26 @@ public final class MachineColors {
 
     public static Color stateFill(ColorScheme scheme) {
         return scheme.background();
+    }
+
+    /**
+     * The inside of {@code state}: the colour the user gave it (hito 3), else the active tint when it is the active
+     * state, else the plain inside. A coloured active state keeps its colour; its orange ring says it is active.
+     */
+    static Color stateFill(ColorScheme scheme, MachineState state, boolean active) {
+        return state.color().map(scheme::stateFill)
+                .orElseGet(() -> active ? activeFill(scheme) : stateFill(scheme));
+    }
+
+    /** The name of {@code state}, readable on its {@link #stateFill(ColorScheme, MachineState, boolean) inside}. */
+    static Color stateText(ColorScheme scheme, MachineState state) {
+        return state.color().map(scheme::stateFillText).orElseGet(() -> text(scheme));
+    }
+
+    /** The Moore outputs inside {@code state}: its name's colour a little towards its inside, like {@link #muted}. */
+    static Color stateOutputs(ColorScheme scheme, MachineState state) {
+        return state.color().map(color -> mix(scheme.stateFillText(color), scheme.stateFill(color), MUTED_MIX))
+                .orElseGet(() -> muted(scheme));
     }
 
     public static Color stateOutline(ColorScheme scheme) {

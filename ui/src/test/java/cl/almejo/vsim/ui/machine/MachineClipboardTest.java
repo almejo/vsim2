@@ -178,6 +178,21 @@ class MachineClipboardTest {
     }
 
     @Test
+    void pasteAndDuplicateKeepAStatesColour() {
+        mode.canvas().edit(current -> current.withState("s1",
+                state -> state.withColor(Optional.of(cl.almejo.vsim.core.machine.StateColor.VIOLET))));
+        select("s1");
+
+        perform(view.selectionActions().copy());
+        perform(view.selectionActions().paste());
+        select("s1");
+        perform(view.selectionActions().duplicate());
+
+        assertThat(named(machine(), "S3").color()).contains(cl.almejo.vsim.core.machine.StateColor.VIOLET);
+        assertThat(named(machine(), "S4").color()).contains(cl.almejo.vsim.core.machine.StateColor.VIOLET);
+    }
+
+    @Test
     void duplicateCopiesTheSelectionBesideItWithoutTheClipboard() {
         select("s2");
 

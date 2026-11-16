@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.core.waveform.Trace;
@@ -153,9 +154,21 @@ final class MachineStripChannels implements WaveformChannels {
     }
 
     private String stateName(long code) {
-        return machine().flatMap(machine -> StateMachineTypes.stateIdOfCode(machine, code).flatMap(machine::state))
-                .map(MachineState::name)
-                .orElseGet(() -> Long.toString(code));
+        return stateOf(code).map(MachineState::name).orElseGet(() -> Long.toString(code));
+    }
+
+    /** The state row colours each code as the state that has it now (hito 3). */
+    @Override
+    public Optional<LongFunction<Optional<StateColor>>> valueColors(String channelId) {
+        Optional<String> copy = copy();
+        if (copy.isEmpty() || !channelId.equals(MachineChannels.stateChannelId(copy.get()))) {
+            return Optional.empty();
+        }
+        return Optional.of(code -> stateOf(code).flatMap(MachineState::color));
+    }
+
+    private Optional<MachineState> stateOf(long code) {
+        return machine().flatMap(machine -> StateMachineTypes.stateIdOfCode(machine, code).flatMap(machine::state));
     }
 
     @Override

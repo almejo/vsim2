@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
@@ -57,7 +58,8 @@ import java.util.function.UnaryOperator;
  * rows); otherwise it updates, in place, the fields that have no focus and no typing waiting for Enter, so what the
  * user is typing is never lost and the focus stays in the field after Enter. With nothing selected the machine's
  * rows also hold its pin list, «Como un bus» and «Flanco» ({@link MachinePinRows}); they refresh in place too.
- * A selected note shows its colour and «Editar texto».
+ * A selected note shows its colour and «Editar texto». A state has a «Color» row of swatches («sin color» and the
+ * eight colours, hito 3), which with several items selected colours all their states at once, in one undo step.
  * Under the rows, the problems of what is selected (what makes it glow), or with nothing selected the machine's
  * problems, each one with a «Ver» that shows it on the diagram; they follow every change and the running copy.
  */
@@ -89,6 +91,7 @@ final class MachineInspectorRows extends JPanel {
     private final transient BooleanSupplier animations;
     private transient Optional<ColorSwatches<StickyColor>> noteColor = Optional.empty();
     private transient Optional<JButton> editNoteText = Optional.empty();
+    private transient Optional<ColorSwatches<Optional<StateColor>>> stateColor = Optional.empty();
     /** Opens the inline editor on a note's text (its id). */
     private final transient Consumer<String> editNote;
     /** What each field of the rows shown would say now; run after a change that does not rebuild them. */
@@ -203,6 +206,11 @@ final class MachineInspectorRows extends JPanel {
         return noteColor;
     }
 
+    /** The «Color» of the selected states («sin color» first); empty when no state is selected. */
+    Optional<ColorSwatches<Optional<StateColor>>> stateColor() {
+        return stateColor;
+    }
+
     /** «Editar texto» of the selected note; empty when no note alone is selected. */
     Optional<JButton> editNoteTextButton() {
         return editNoteText;
@@ -271,7 +279,8 @@ final class MachineInspectorRows extends JPanel {
             return MACHINE_ROWS;
         }
         if (count > 1) {
-            return SEVERAL_ROWS + count;
+            // the states too: the «Color» row colours the states selected when it was built
+            return SEVERAL_ROWS + count + ":" + String.join(",", selection.stateIds());
         }
         if (!selection.stateIds().isEmpty()) {
             String stateId = selection.stateIds().iterator().next();
@@ -301,6 +310,7 @@ final class MachineInspectorRows extends JPanel {
         pinRows = Optional.empty();
         noteColor = Optional.empty();
         editNoteText = Optional.empty();
+        stateColor = Optional.empty();
         initialBox = Optional.empty();
         arrowLabel = Optional.empty();
         showProblem(Optional.empty());
@@ -384,6 +394,11 @@ final class MachineInspectorRows extends JPanel {
             showMachine(machine);
         } else if (count > 1) {
             addHeader(Messages.format("machine.properties.several", count));
+            List<String> stateIds = selection.stateIds().stream()
+                    .filter(stateId -> machine.state(stateId).isPresent()).toList();
+            if (!stateIds.isEmpty()) {
+                addStateColorRow(stateIds);
+            }
         } else if (!selection.stateIds().isEmpty()) {
             machine.state(selection.stateIds().iterator().next()).ifPresent(state -> showState(machine, state));
         } else if (!selection.noteIds().isEmpty()) {
@@ -477,9 +492,71 @@ final class MachineInspectorRows extends JPanel {
         refreshers.add(() -> canvas.machine().ifPresent(machineNow -> initial.setSelected(
                 machineNow.initialStateId().filter(state.id()::equals).isPresent())));
         add(initial, WIDE);
+        addStateColorRow(List.of(state.id()));
         nameField = Optional.of(name);
         outputsField = Optional.of(outputs);
         initialBox = Optional.of(initial);
+    }
+
+    /**
+     * «Color»: «sin color» and the eight colours, each named in its tooltip and for screen readers; a pick colours
+     * every state of {@code stateIds} in one undo step. With states of different colours none is shown chosen.
+     */
+    private void addStateColorRow(List<String> stateIds) {
+        List<Optional<StateColor>> values = new ArrayList<>();
+        values.add(Optional.empty());
+        for (StateColor color : StateColor.values()) {
+            values.add(Optional.of(color));
+        }
+        Optional<Optional<StateColor>> shared = canvas.machine().flatMap(machine -> sharedColor(machine, stateIds));
+        ColorSwatches<Optional<StateColor>> swatches = new ColorSwatches<>(values, shared.orElse(Optional.empty()),
+                MachineInspectorRows::colorName, color -> color.map(found -> canvas.colours().stateFill(found)));
+        if (shared.isEmpty()) {
+            swatches.showNoChoice();
+        }
+        swatches.addChoiceListener(() -> {
+            Optional<StateColor> chosen = swatches.selectedValue();
+            apply(machine -> {
+                StateMachine coloured = machine;
+                for (String stateId : stateIds) {
+                    if (coloured.state(stateId).isPresent()) {
+                        coloured = coloured.withState(stateId, found -> found.withColor(chosen));
+                    }
+                }
+                return coloured;
+            });
+        });
+        refreshers.add(() -> canvas.machine().ifPresent(machineNow -> {
+            Optional<Optional<StateColor>> now = sharedColor(machineNow, stateIds);
+            if (now.isEmpty()) {
+                swatches.showNoChoice();
+            } else if (swatches.showsNoChoice() || !swatches.selectedValue().equals(now.get())) {
+                swatches.select(now.get());
+            }
+        }));
+        addRow(Messages.text("machine.properties.stateColor"), swatches);
+        stateColor = Optional.of(swatches);
+    }
+
+    /** The colour every state of {@code stateIds} has (none is a colour too); empty when they differ. */
+    private static Optional<Optional<StateColor>> sharedColor(StateMachine machine, List<String> stateIds) {
+        List<Optional<StateColor>> colors = stateIds.stream().map(machine::state).flatMap(Optional::stream)
+                .map(MachineState::color).distinct().toList();
+        return colors.size() == 1 ? Optional.of(colors.getFirst()) : Optional.empty();
+    }
+
+    /** The visible name of a state colour: «sin color», «Rojo», … */
+    static String colorName(Optional<StateColor> color) {
+        return Messages.text(color.map(found -> switch (found) {
+            case RED -> "machine.stateColor.red";
+            case PINK -> "machine.stateColor.pink";
+            case YELLOW -> "machine.stateColor.yellow";
+            case GREEN -> "machine.stateColor.green";
+            case TURQUOISE -> "machine.stateColor.turquoise";
+            case BLUE -> "machine.stateColor.blue";
+            case VIOLET -> "machine.stateColor.violet";
+            case GREY -> "machine.stateColor.grey";
+        }).orElse("machine.stateColor.none"));
     }
 
     private void showTransition(StateMachine machine, MachineTransition transition) {

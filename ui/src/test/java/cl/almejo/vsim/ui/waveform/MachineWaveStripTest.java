@@ -23,7 +23,9 @@ import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.ui.UiTestSupport;
@@ -196,6 +198,25 @@ class MachineWaveStripTest {
         long atS1 = timeOf(panel.displayed().trace(state).orElseThrow(), Value.of(2, 1));
         panel.axis().setCursor(atS1);
         assertThat(panel.names().values()).containsExactly("1", "S1", "0");
+    }
+
+    @Test
+    void theStateRowTakesEachStatesColour() {
+        StateMachine detector = MachineFixtures.detector()
+                .withState("s1", state -> state.withColor(Optional.of(StateColor.TURQUOISE)));
+        ComponentDefinition machine = MachineDefinitions.regenerated(MachineFixtures.definition(detector));
+        document = OpenDocument.createEmpty(registry);
+        document.execute(new PutDefinitionsCommand(List.of(machine)));
+        Component piece = UiTestSupport.place(document, SubcircuitTypes.typeIdOf(machine.id()), 20, 0, Map.of());
+        String copy = piece.id().value();
+        WaveformPanel panel = panelOf(viewOf(placeOf(machine.id(), Optional.of(copy)), true));
+
+        String state = MachineChannels.stateChannelId(copy);
+        assertThat(panel.valueColors()).containsOnlyKeys(state);
+        long codeOfS1 = StateMachineTypes.stateCode(detector, "s1").getAsInt();
+        long codeOfS0 = StateMachineTypes.stateCode(detector, "s0").getAsInt();
+        assertThat(panel.valueColors().get(state).apply(codeOfS1)).contains(StateColor.TURQUOISE);
+        assertThat(panel.valueColors().get(state).apply(codeOfS0)).isEmpty();
     }
 
     @Test

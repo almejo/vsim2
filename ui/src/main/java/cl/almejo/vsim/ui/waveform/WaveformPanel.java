@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.Actions;
@@ -85,6 +86,7 @@ public final class WaveformPanel extends JPanel {
     private Object rowsKey;
     private List<ChannelRows.ChannelRow> cachedRows = List.of();
     private Map<String, LongFunction<String>> cachedValueNames = Map.of();
+    private Map<String, LongFunction<Optional<StateColor>>> cachedValueColors = Map.of();
     private boolean disposed;
 
     public WaveformPanel(OpenDocument openDocument, ProbeActions actions, Supplier<ColorScheme> scheme,
@@ -324,6 +326,11 @@ public final class WaveformPanel extends JPanel {
                 channels.valueNames(row.probeId()).ifPresent(function -> valueNames.put(row.probeId(), function));
             }
             cachedValueNames = Map.copyOf(valueNames);
+            Map<String, LongFunction<Optional<StateColor>>> valueColors = new HashMap<>();
+            for (ChannelRows.ChannelRow row : cachedRows) {
+                channels.valueColors(row.probeId()).ifPresent(function -> valueColors.put(row.probeId(), function));
+            }
+            cachedValueColors = Map.copyOf(valueColors);
             Optional<String> title = channels.title();
             titleLabel.setText(title.orElse(""));
             titleLabel.setVisible(title.isPresent());
@@ -335,6 +342,12 @@ public final class WaveformPanel extends JPanel {
     Map<String, LongFunction<String>> valueNames() {
         rows();
         return cachedValueNames;
+    }
+
+    /** Channel id to the colours its values have, for the rows that have them (a machine's state row). */
+    Map<String, LongFunction<Optional<StateColor>>> valueColors() {
+        rows();
+        return cachedValueColors;
     }
 
     List<String> channelIds() {
