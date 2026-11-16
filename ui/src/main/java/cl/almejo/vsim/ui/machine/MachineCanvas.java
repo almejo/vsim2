@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineChecks;
 import cl.almejo.vsim.core.machine.MachineFinding;
+import cl.almejo.vsim.core.machine.MachineKind;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
@@ -399,7 +400,10 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** What is wrong with the state or arrow under the pointer, in words; nothing over a plain one. */
     @Override
     public String getToolTipText(MouseEvent event) {
-        return problemTextAt(event.getPoint()).orElse(null);
+        Optional<String> chipText = machine()
+                .flatMap(machine -> MachineKindChips.tooltipAt(event.getPoint(), MachineKind.of(machine),
+                        MachineKindChips.defaultFont()));
+        return chipText.or(() -> problemTextAt(event.getPoint())).orElse(null);
     }
 
     private Optional<String> problemTextAt(Point2D screenPoint) {
@@ -572,6 +576,8 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
                 revealed().ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,
                         finding, colours));
             }
+            // the type chips stay on screen, not on the diagram: no zoom, no pan
+            MachineKindChips.paint((Graphics2D) graphics, MachineKind.of(machine.get()), colours);
         } finally {
             canvas.dispose();
         }
