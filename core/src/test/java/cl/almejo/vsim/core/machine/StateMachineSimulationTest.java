@@ -83,7 +83,9 @@ class StateMachineSimulationTest {
         set("clk", true);
 
         engine.setInput("clk", Value.ZERO);
-        engine.advance(StateMachineBehavior.OUTPUT_DELAY);
+        engine.advance(StateMachineBehavior.OUTPUT_DELAY - 1);
+        assertThat(led("z")).as("not yet at the edge's own time").isEqualTo(Value.ZERO);
+        engine.advance(1);
 
         assertThat(stateName("m")).isEqualTo("S2");
         assertThat(led("z")).isEqualTo(Value.ONE);

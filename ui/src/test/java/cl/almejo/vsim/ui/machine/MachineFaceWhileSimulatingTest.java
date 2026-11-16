@@ -10,7 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Hand test of hito 2 (item 9): a placed machine's face has its state line while the circuit simulates. The renderer
  * hands each part the snapshot's state under the part's own id; for a machine that is the state the face writes
- * («S0 → S0» here, with nothing on CLK), never «—».
+ * («S0 → S0» here, with nothing on CLK), never «—». This checks the snapshot only: the line painted on the face from
+ * it is not checked here.
  */
 class MachineFaceWhileSimulatingTest {
 
