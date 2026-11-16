@@ -398,8 +398,16 @@ final class MachineDiagramPainter {
             graphics.draw(geometry.circle(state.id()));
         }
         graphics.setColor(MachineColors.text(scheme));
-        graphics.setFont(geometry.nameFont(state.id()));
-        drawCentred(graphics, state.name(), geometry.centre(state.id()));
+        Font nameFont = geometry.nameFont(state.id());
+        graphics.setFont(nameFont);
+        List<String> lines = geometry.nameLines(state.id());
+        double lineHeight = MachineDiagramGeometry.lineHeight(nameFont);
+        Point2D centre = geometry.centre(state.id());
+        double top = centre.getY() - lines.size() * lineHeight / 2;
+        for (int index = 0; index < lines.size(); index++) {
+            drawCentred(graphics, lines.get(index),
+                    new Point2D.Double(centre.getX(), top + (index + 0.5) * lineHeight));
+        }
         geometry.outputsBounds(state.id()).ifPresent(outputs -> {
             graphics.setColor(MachineColors.muted(scheme));
             graphics.setFont(outputsFont());

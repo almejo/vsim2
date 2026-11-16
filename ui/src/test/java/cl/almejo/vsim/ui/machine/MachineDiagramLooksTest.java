@@ -78,14 +78,84 @@ class MachineDiagramLooksTest {
                 new MachineState("b", "S1", new DiagramPoint(550, 250), List.of()))
                 .withTransitions(List.of(new MachineTransition("t1", "b", "a", "", List.of())));
         MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
-        double nameWidth = metrics(MachineDiagramPainter.nameFont()).stringWidth("AMARILLO");
 
-        assertThat(geometry.radius("a")).isGreaterThan(nameWidth / 2 + 4);
+        assertThat(geometry.radius("a")).isGreaterThan(MachineDiagramGeometry.STATE_RADIUS)
+                .isLessThanOrEqualTo(MachineDiagramGeometry.MAXIMUM_RADIUS);
+        assertNameInside(geometry, "a");
         assertThat(geometry.radius("b")).isEqualTo(MachineDiagramGeometry.STATE_RADIUS);
+        assertThat(geometry.nameLines("b")).containsExactly("S1");
         // the arrow ends on the grown border, not on the name
         assertThat(geometry.arrow("t1").end().distance(geometry.centre("a")))
                 .isCloseTo(geometry.radius("a"), offset(0.5));
         assertThat(geometry.stateAt(new Point2D.Double(150 + geometry.radius("a") - 2, 250))).contains("a");
+    }
+
+    @Test
+    void aLongNameWithSpacesWrapsIntoBalancedLinesInsteadOfAHugeCircle() {
+        // hand test of hito 2, round 2: «amarillo jojo (2)» made a very big circle
+        StateMachine machine = machine(new MachineState("a", "amarillo jojo (2)", new DiagramPoint(150, 250),
+                List.of()));
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+
+        assertThat(geometry.nameLines("a")).containsExactly("amarillo", "jojo (2)");
+        assertThat(geometry.nameFont("a").getSize2D()).isEqualTo(MachineDiagramPainter.nameFont().getSize2D());
+        assertThat(geometry.radius("a")).isLessThanOrEqualTo(MachineDiagramGeometry.MAXIMUM_RADIUS);
+        assertNameInside(geometry, "a");
+    }
+
+    @Test
+    void aNameWrapsIntoAtMostThreeLinesChoosingTheNarrowestWidestLine() {
+        StateMachine machine = machine(
+                new MachineState("a", "uno dos tres cuatro cinco seis", new DiagramPoint(150, 250), List.of()),
+                new MachineState("b", "ab cd efghijklmnop", new DiagramPoint(550, 250), List.of()));
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+
+        assertThat(geometry.nameLines("a")).hasSizeLessThanOrEqualTo(3);
+        assertThat(String.join(" ", geometry.nameLines("a"))).isEqualTo("uno dos tres cuatro cinco seis");
+        // «ab cd» together beside the long word, not «ab» alone
+        assertThat(geometry.nameLines("b")).containsExactly("ab cd", "efghijklmnop");
+        assertNameInside(geometry, "a");
+    }
+
+    @Test
+    void pastTheLargestCircleTheNameShrinks() {
+        StateMachine machine = machine(new MachineState("a", "SEMAFORONORTESUR", new DiagramPoint(150, 250),
+                List.of()));
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+
+        assertThat(geometry.nameLines("a")).containsExactly("SEMAFORONORTESUR");
+        assertThat(geometry.radius("a")).isEqualTo(MachineDiagramGeometry.MAXIMUM_RADIUS);
+        assertThat(MachineDiagramGeometry.MAXIMUM_RADIUS).isCloseTo(1.5 * MachineDiagramGeometry.STATE_RADIUS,
+                offset(0.01));
+        assertThat(geometry.nameFont("a").getSize2D()).isLessThan(MachineDiagramPainter.nameFont().getSize2D());
+        assertNameInside(geometry, "a");
+    }
+
+    @Test
+    void theOutputsOfAStateWithAWrappedNameGoUnderTheWholeName() {
+        StateMachine machine = machine(new MachineState("a", "amarillo jojo", new DiagramPoint(150, 250),
+                List.of(new OutputAssignment("A", true))));
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+        FontMetrics metrics = metrics(geometry.nameFont("a"));
+        double nameBottom = 250 + geometry.nameLines("a").size() * (metrics.getAscent() + metrics.getDescent()) / 2.0;
+
+        Rectangle2D outputs = geometry.outputsBounds("a").orElseThrow();
+
+        assertThat(geometry.nameLines("a")).hasSize(2);
+        assertThat(outputs.getMinY()).isGreaterThanOrEqualTo(nameBottom);
+    }
+
+    /** Every line of the state's name, as the painter stacks them, lies inside its circle. */
+    private static void assertNameInside(MachineDiagramGeometry geometry, String stateId) {
+        FontMetrics metrics = metrics(geometry.nameFont(stateId));
+        List<String> lines = geometry.nameLines(stateId);
+        double lineHeight = metrics.getAscent() + metrics.getDescent();
+        double top = geometry.centre(stateId).getY() - lines.size() * lineHeight / 2;
+        for (int index = 0; index < lines.size(); index++) {
+            double width = metrics.stringWidth(lines.get(index));
+            assertInside(new Rectangle2D.Double(geometry.centre(stateId).getX() - width / 2,
+                    top + index * lineHeight, width, lineHeight), geometry.centre(stateId), geometry.radius(stateId));
+        }
     }
 
     @Test

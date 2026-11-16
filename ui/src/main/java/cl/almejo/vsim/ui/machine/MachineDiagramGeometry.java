@@ -16,6 +16,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.QuadCurve2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,26 +28,30 @@ import java.util.Optional;
  * transition from border to border (straight; curved when two or more join the same two states, bending to each
  * side of the line, or when a straight one would pass behind a third state, bending away from it; a loop over the
  * state for a self loop) with the place of its label, and the initial mark. A state is {@link #STATE_RADIUS} wide
- * unless its name needs more room (it grows up to {@link #MAXIMUM_RADIUS}, then the name shrinks), and its Moore
- * outputs go under its name inside the circle, or fully below it when they do not fit (hand test of hito 2:
- * «AMARILLO» left its circle). The painter draws it and the gestures hit-test it, so both always agree. Pure: built
- * from the model each time (texts are measured with a fixed font context).
+ * unless its name needs more room: a long name is broken at its spaces into up to {@link #MAXIMUM_NAME_LINES}
+ * balanced lines, the circle grows to hold the block (up to {@link #MAXIMUM_RADIUS}), and past that the name shrinks
+ * (hand test of hito 2, rounds 1 and 2: «AMARILLO» left its circle, «amarillo jojo (2)» made a very big one). Its
+ * Moore outputs go under its name inside the circle, or fully below it when they do not fit. The painter draws it
+ * and the gestures hit-test it, so both always agree. Pure: built from the model each
+ * time (texts are measured with a fixed font context).
  */
 final class MachineDiagramGeometry {
 
     /** A state's radius (the mockup's circles): the smallest a state is drawn. */
     static final double STATE_RADIUS = 40;
     /** The largest a state grows for its name; a longer name is drawn smaller instead. */
-    static final double MAXIMUM_RADIUS = 2.25 * STATE_RADIUS;
+    static final double MAXIMUM_RADIUS = 1.5 * STATE_RADIUS;
+    /** A long name is broken at its spaces into at most this many lines. */
+    static final int MAXIMUM_NAME_LINES = 3;
     /** Up to this radius a state also grows to keep its outputs inside; beyond it they go below the circle. */
     private static final double OUTPUTS_MAXIMUM_RADIUS = 1.5 * STATE_RADIUS;
-    /** The air between a state's name and its border, on each side. */
-    private static final double NAME_PADDING = 10;
+    /** The air between the corners of a state's name block and its border. */
+    private static final double NAME_PADDING = 7;
     /** The air between the outputs line's corners and the border. */
     private static final double OUTPUTS_PADDING = 3;
     /** How far below the centre the middle of a state's outputs line goes, inside the circle. */
     private static final double OUTPUTS_BELOW = 20;
-    /** The gap between the circle and an outputs line drawn below it. */
+    /** The gap between the circle and an outputs line drawn below it, and between the name and the outputs. */
     private static final double OUTPUTS_GAP = 4;
     /** The smallest a long name is drawn. */
     private static final float MINIMUM_NAME_SIZE = 9f;
@@ -80,8 +85,15 @@ final class MachineDiagramGeometry {
                  Point2D labelAnchor) {
     }
 
-    /** How a state is drawn: its radius, the size of its name and where its outputs line goes (if it has one). */
-    private record StateLook(double radius, float nameSize, Optional<Rectangle2D> outputs) {
+    /**
+     * How a state is drawn: its radius, its name's lines and their size, and where its outputs line goes (if it has
+     * one).
+     */
+    private record StateLook(double radius, List<String> nameLines, float nameSize, Optional<Rectangle2D> outputs) {
+    }
+
+    /** A way to break a name into lines, and the radius its block needs at the usual size. */
+    private record NameBlock(List<String> lines, double neededRadius) {
     }
 
     private final Map<String, Point2D> centres = new LinkedHashMap<>();
@@ -107,29 +119,91 @@ final class MachineDiagramGeometry {
     /** How {@code state} at {@code centre} is drawn: the radius its name and its outputs need. */
     private static StateLook lookOf(MachineState state, Point2D centre) {
         Font nameFont = MachineDiagramPainter.nameFont();
-        double nameWidth = width(state.name(), nameFont);
-        double nameRadius = nameWidth / 2 + NAME_PADDING;
-        double radius = Math.min(MAXIMUM_RADIUS, Math.max(STATE_RADIUS, nameRadius));
-        float nameSize = nameRadius <= MAXIMUM_RADIUS ? nameFont.getSize2D()
+        NameBlock block = nameBlockOf(state.name(), nameFont);
+        double radius = Math.min(MAXIMUM_RADIUS, Math.max(STATE_RADIUS, block.neededRadius()));
+        float nameSize = block.neededRadius() <= MAXIMUM_RADIUS ? nameFont.getSize2D()
                 : (float) Math.max(MINIMUM_NAME_SIZE,
-                nameFont.getSize2D() * 2 * (MAXIMUM_RADIUS - NAME_PADDING) / nameWidth);
+                nameFont.getSize2D() * (MAXIMUM_RADIUS - NAME_PADDING) / (block.neededRadius() - NAME_PADDING));
         if (state.outputs().isEmpty()) {
-            return new StateLook(radius, nameSize, Optional.empty());
+            return new StateLook(radius, block.lines(), nameSize, Optional.empty());
         }
+        double nameHalfHeight = block.lines().size() * lineHeight(nameFont.deriveFont(nameSize)) / 2;
         String text = MachineDiagramPainter.mooreLabelOf(state.outputs());
         Font outputsFont = MachineDiagramPainter.outputsFont();
         double outputsWidth = width(text, outputsFont);
-        LineMetrics line = outputsFont.getLineMetrics(text, MEASURE);
-        double outputsHeight = line.getAscent() + line.getDescent();
-        double insideRadius = Math.hypot(outputsWidth / 2, OUTPUTS_BELOW + outputsHeight / 2) + OUTPUTS_PADDING;
+        double outputsHeight = lineHeight(outputsFont);
+        double below = Math.max(OUTPUTS_BELOW, nameHalfHeight + OUTPUTS_GAP + outputsHeight / 2);
+        double insideRadius = Math.hypot(outputsWidth / 2, below + outputsHeight / 2) + OUTPUTS_PADDING;
         if (insideRadius <= Math.max(radius, OUTPUTS_MAXIMUM_RADIUS)) {
-            return new StateLook(Math.max(radius, insideRadius), nameSize, Optional.of(new Rectangle2D.Double(
-                    centre.getX() - outputsWidth / 2, centre.getY() + OUTPUTS_BELOW - outputsHeight / 2,
-                    outputsWidth, outputsHeight)));
+            return new StateLook(Math.max(radius, insideRadius), block.lines(), nameSize,
+                    Optional.of(new Rectangle2D.Double(centre.getX() - outputsWidth / 2,
+                            centre.getY() + below - outputsHeight / 2, outputsWidth, outputsHeight)));
         }
-        return new StateLook(radius, nameSize, Optional.of(new Rectangle2D.Double(
+        return new StateLook(radius, block.lines(), nameSize, Optional.of(new Rectangle2D.Double(
                 centre.getX() - outputsWidth / 2, centre.getY() + radius + OUTPUTS_GAP, outputsWidth,
                 outputsHeight)));
+    }
+
+    /**
+     * How {@code name} is broken (only at its spaces): for one, two and three lines, the split whose widest line is
+     * the narrowest; of those, the one that needs the smallest circle (half the block's diagonal plus
+     * {@link #NAME_PADDING}, never under {@link #STATE_RADIUS}), the fewest lines on a tie, so a short name stays on
+     * one line.
+     */
+    private static NameBlock nameBlockOf(String name, Font font) {
+        String[] words = name.split(" ", -1);
+        double lineHeight = lineHeight(font);
+        NameBlock best = null;
+        for (int lineCount = 1; lineCount <= Math.min(MAXIMUM_NAME_LINES, words.length); lineCount++) {
+            List<String> lines = narrowestSplit(words, lineCount, font);
+            double needed = Math.hypot(widest(lines, font) / 2, lineCount * lineHeight / 2) + NAME_PADDING;
+            if (best == null || Math.max(STATE_RADIUS, needed) < Math.max(STATE_RADIUS, best.neededRadius())) {
+                best = new NameBlock(lines, needed);
+            }
+        }
+        return best;
+    }
+
+    /** {@code words} in {@code lineCount} (1 to 3) lines, in order, the widest line as narrow as it can be. */
+    private static List<String> narrowestSplit(String[] words, int lineCount, Font font) {
+        int count = words.length;
+        List<String> best = List.of(joined(words, 0, count));
+        double bestWidest = Double.MAX_VALUE;
+        if (lineCount == 2) {
+            for (int split = 1; split < count; split++) {
+                List<String> lines = List.of(joined(words, 0, split), joined(words, split, count));
+                if (widest(lines, font) < bestWidest) {
+                    bestWidest = widest(lines, font);
+                    best = lines;
+                }
+            }
+        } else if (lineCount == 3) {
+            for (int firstSplit = 1; firstSplit < count - 1; firstSplit++) {
+                for (int secondSplit = firstSplit + 1; secondSplit < count; secondSplit++) {
+                    List<String> lines = List.of(joined(words, 0, firstSplit),
+                            joined(words, firstSplit, secondSplit), joined(words, secondSplit, count));
+                    if (widest(lines, font) < bestWidest) {
+                        bestWidest = widest(lines, font);
+                        best = lines;
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    private static double widest(List<String> lines, Font font) {
+        return lines.stream().mapToDouble(line -> width(line, font)).max().orElse(0);
+    }
+
+    private static String joined(String[] words, int from, int to) {
+        return String.join(" ", Arrays.copyOfRange(words, from, to));
+    }
+
+    /** The height of one line of {@code font}: its ascent and descent, as the painter stacks the name's lines. */
+    static double lineHeight(Font font) {
+        LineMetrics metrics = font.getLineMetrics("Ag", MEASURE);
+        return metrics.getAscent() + metrics.getDescent();
     }
 
     /** The radius {@code state} is drawn with, wherever it is: its name and its outputs may make it bigger. */
@@ -162,6 +236,11 @@ final class MachineDiagramGeometry {
     /** The font of the state {@code stateId}'s name: smaller than usual only for a very long name. */
     Font nameFont(String stateId) {
         return MachineDiagramPainter.nameFont().deriveFont(look(stateId).nameSize());
+    }
+
+    /** The lines the state {@code stateId}'s name is drawn in, top to bottom. */
+    List<String> nameLines(String stateId) {
+        return look(stateId).nameLines();
     }
 
     /** Where the state {@code stateId}'s Moore outputs line goes; empty when it has none. */
