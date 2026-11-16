@@ -292,6 +292,19 @@ class MachineProblemsOnDiagramTest {
         assertThat(mode.selection().stateIds()).containsExactly("d");
     }
 
+    /** Hand test of hito 2: «Ver» did not look like something to press (a borderless button reads as plain text). */
+    @Test
+    void eachProblemsVerLooksLikeAButton() {
+        mode.selection().clear();
+
+        assertThat(mode.inspectorRows().problemLinks()).isNotEmpty().allSatisfy(link -> {
+            assertThat(link.getClientProperty("JButton.buttonType")).isNotEqualTo("borderless");
+            assertThat(link.isBorderPainted()).isTrue();
+            assertThat(link.isContentAreaFilled()).isTrue();
+            assertThat(link.getCursor().getType()).isEqualTo(java.awt.Cursor.HAND_CURSOR);
+        });
+    }
+
     /**
      * The most saturated pixel straight under the state at {@code centre}, just past its circle (up to
      * {@link #HALO_REACH}): the halo, wherever its width and antialiasing put it.

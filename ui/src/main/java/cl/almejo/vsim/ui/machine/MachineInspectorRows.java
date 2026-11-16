@@ -24,6 +24,7 @@ import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.UIManager;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
@@ -285,7 +286,8 @@ final class MachineInspectorRows extends JPanel {
                 : "machine.properties.problem.error", sentence);
         JTextArea text = finding.isWarning() ? new Hint(line, false) : new WrappedErrorText(line);
         JButton show = new JButton(Messages.text("machine.properties.problem.show"));
-        show.putClientProperty("JButton.buttonType", "borderless");
+        // a plain button with its frame, not a borderless one (hand test of hito 2: it read as plain text)
+        show.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         show.setToolTipText(Messages.text("machine.properties.problem.showTooltip"));
         show.getAccessibleContext().setAccessibleDescription(sentence);
         show.addActionListener(event -> reveal.accept(finding));
