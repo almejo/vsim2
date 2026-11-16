@@ -30,10 +30,11 @@ import java.util.Optional;
 
 /**
  * Draws a machine's diagram in diagram units (the caller has applied the view's zoom and pan): the arrows with their
- * conditions and Mealy outputs, the states with their names and Moore outputs, the initial mark, the active state and
- * the next arrow in the active colour, the selection dashed (the agreed mockup's look), a condition that cannot be
- * read in the problem colour, the problems' glows ({@link MachineGlows}: a wide translucent stroke under an arrow, a
- * halo around a state, red for an error and yellow-amber for a warning, each with an «!» badge) and what a
+ * conditions and Mealy outputs, the states with their names, Moore outputs and colours, the initial mark (an arrow
+ * from a filled dot), the active state and the next arrow in the active colour, the selection dashed (the agreed
+ * mockup's look), a condition that cannot be read in the problem colour, the problems' glows ({@link MachineGlows}: a
+ * wide translucent stroke under an arrow, a halo around a state, red for an error and gold for a warning, each with
+ * an «!» badge) and what a
  * gesture shows while it lasts ({@link Overlay}). Colours come from {@link MachineColors} at each paint.
  */
 final class MachineDiagramPainter {
@@ -247,6 +248,10 @@ final class MachineDiagramPainter {
                     scheme);
         }
         geometry.initialMark().ifPresent(mark -> paintInitialMark(graphics, mark, scheme));
+        geometry.initialDot().ifPresent(dot -> {
+            graphics.setColor(MachineColors.muted(scheme));
+            graphics.fill(dot);
+        });
         Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
         for (MachineState state : drawingOrder(machine, marks)) {
             boolean faded = marks.fadesState(state.id());
