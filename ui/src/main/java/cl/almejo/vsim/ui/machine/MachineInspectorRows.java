@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.logic.ExpressionProblem;
 import cl.almejo.vsim.core.machine.MachineConditions;
 import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineKind;
+import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -50,7 +51,8 @@ import java.util.function.UnaryOperator;
  * kept as text»). An arrow also has its Mealy outputs, and the machine's own rows say whether it is Moore, Mealy or
  * both. A change of the machine rebuilds the rows only when what they show changed (another element, another kind of
  * rows); otherwise it updates, in place, the fields that have no focus and no typing waiting for Enter, so what the
- * user is typing is never lost and the focus stays in the field after Enter. The pin list comes in a later milestone.
+ * user is typing is never lost and the focus stays in the field after Enter. With nothing selected the machine's
+ * rows also hold its pin list, «Como un bus» and «Flanco» ({@link MachinePinRows}); they refresh in place too.
  * Under the rows, the problems of what is selected (what makes it glow), or with nothing selected the machine's
  * problems, each one with a «Ver» that shows it on the diagram; they follow every change and the running copy.
  */
@@ -74,6 +76,12 @@ final class MachineInspectorRows extends JPanel {
     private transient Optional<JTextField> conditionField = Optional.empty();
     private transient Optional<JTextField> mealyOutputsField = Optional.empty();
     private transient Optional<JLabel> kindLabel = Optional.empty();
+    private transient Optional<JLabel> statesLabel = Optional.empty();
+    private transient Optional<MachinePinRows> pinRows = Optional.empty();
+    /** The status line: a pin edit says there whose wires came loose. */
+    private final transient Consumer<String> notices;
+    /** Whether «Animaciones» is on now: a pin's uses then blink when shown. */
+    private final transient BooleanSupplier animations;
     /** What each field of the rows shown would say now; run after a change that does not rebuild them. */
     private final transient List<Runnable> refreshers = new ArrayList<>();
     /** The fields' applies of what was typed and not applied yet, run before the rows change for another selection. */
@@ -98,10 +106,14 @@ final class MachineInspectorRows extends JPanel {
 
     /**
      * The rows of {@code canvas}'s machine; a problem's «Ver» calls {@code reveal}. {@code library} is «Mis
-     * componentes»: its names are taken for the machine's, and a machine in it is renamed there too.
+     * componentes»: its names are taken for the machine's, and a machine in it is renamed there too. A pin edit says
+     * on {@code notices} (the status line) whose wires came loose; a pin's uses blink when {@code animations} says so.
      */
-    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library) {
+    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library,
+                         Consumer<String> notices, BooleanSupplier animations) {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
+        this.notices = Objects.requireNonNull(notices, "notices");
+        this.animations = Objects.requireNonNull(animations, "animations");
         this.canvas = Objects.requireNonNull(canvas, "canvas");
         this.library = Objects.requireNonNull(library, "library");
         this.reveal = Objects.requireNonNull(reveal, "reveal");
@@ -179,6 +191,16 @@ final class MachineInspectorRows extends JPanel {
         return initialBox;
     }
 
+    /** The machine's pin list, «Como un bus» and «Flanco», shown with nothing selected. */
+    Optional<MachinePinRows> pinRows() {
+        return pinRows;
+    }
+
+    /** «3 de 64» in the machine's own rows; empty when another element is selected. */
+    Optional<String> statesText() {
+        return statesLabel.map(JLabel::getText);
+    }
+
     /** Stops following the diagram (the tab leaves machine mode). */
     void dispose() {
         disposed = true;
@@ -207,7 +229,8 @@ final class MachineInspectorRows extends JPanel {
 
     /** Rebuilds when the rows must change; otherwise updates the fields that nobody is typing in. */
     private void refreshOrRebuild() {
-        if (!builtFor.equals(shownFor()) || builtFor.startsWith(MACHINE_ROWS) || builtFor.startsWith(SEVERAL_ROWS)
+        // the machine's own rows refresh in place, so a pin being renamed or moved keeps its focus
+        if (!builtFor.equals(shownFor()) || builtFor.startsWith(SEVERAL_ROWS)
                 || builtFor.equals(NO_ROWS)) {
             rebuild();
         } else {
@@ -249,6 +272,8 @@ final class MachineInspectorRows extends JPanel {
         conditionField = Optional.empty();
         mealyOutputsField = Optional.empty();
         kindLabel = Optional.empty();
+        statesLabel = Optional.empty();
+        pinRows = Optional.empty();
         initialBox = Optional.empty();
         arrowLabel = Optional.empty();
         showProblem(Optional.empty());
@@ -343,12 +368,18 @@ final class MachineInspectorRows extends JPanel {
                 MachineNaming.nameOf(canvas.place(), canvas.definitionId()).orElse(""),
                 machineNow -> MachineNaming.nameOf(canvas.place(), canvas.definitionId()),
                 this::applyMachineName));
-        addRow(Messages.text("machine.properties.states"), new JLabel(String.valueOf(machine.states().size())));
-        addRow(Messages.text("machine.properties.inputs"), new JLabel(listed(machine.inputNames())));
-        addRow(Messages.text("machine.properties.outputs"), new JLabel(listed(machine.outputNames())));
+        JLabel states = new JLabel(statesCount(machine));
+        addRow(Messages.text("machine.properties.states"), states);
+        statesLabel = Optional.of(states);
+        refreshers.add(() -> canvas.machine().ifPresent(machineNow -> states.setText(statesCount(machineNow))));
+        MachinePinRows pins = new MachinePinRows(canvas, notices, animations);
+        add(pins, WIDE);
+        pinRows = Optional.of(pins);
+        refreshers.add(pins::refresh);
         JLabel kind = new JLabel(kindOf(machine));
         addRow(Messages.text("machine.properties.kind"), kind);
         kindLabel = Optional.of(kind);
+        refreshers.add(() -> canvas.machine().ifPresent(machineNow -> kind.setText(kindOf(machineNow))));
         add(hint(Messages.text("machine.properties.howToDraw")), WIDE);
     }
 
@@ -361,8 +392,9 @@ final class MachineInspectorRows extends JPanel {
         return Messages.text(kind.mealy() ? "machine.properties.kind.mealy" : "machine.properties.kind.moore");
     }
 
-    private static String listed(List<String> names) {
-        return names.isEmpty() ? Messages.text("machine.properties.none") : String.join(", ", names);
+    /** «12 de 64». */
+    private static String statesCount(StateMachine machine) {
+        return Messages.format("machine.pins.count", machine.states().size(), MachineLimits.MAXIMUM_STATES);
     }
 
     private void showState(StateMachine machine, MachineState state) {
@@ -592,12 +624,12 @@ final class MachineInspectorRows extends JPanel {
      * A sentence that wraps at the panel's width: quiet, in the theme's muted colour read at paint time, or in the
      * label's colour (a warning).
      */
-    private static final class Hint extends JTextArea {
+    static final class Hint extends JTextArea {
 
         private static final long serialVersionUID = 1L;
         private final boolean muted;
 
-        private Hint(String text, boolean muted) {
+        Hint(String text, boolean muted) {
             super(text);
             this.muted = muted;
             setEditable(false);

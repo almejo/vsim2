@@ -100,7 +100,7 @@ final class MachinePieceRows implements PropertiesPanel.ComponentRows {
     }
 
     /** {@code in[1:0]}, or {@code in[0]} for one bit. */
-    private static String busText(String busName, int width) {
+    static String busText(String busName, int width) {
         return width == 1 ? busName + "[0]" : busName + "[" + (width - 1) + ":0]";
     }
 }

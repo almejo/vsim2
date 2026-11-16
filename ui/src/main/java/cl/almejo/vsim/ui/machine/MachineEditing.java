@@ -56,7 +56,8 @@ final class MachineEditing {
         MachineTool tool = new MachineTool(canvas, palette, inline, view::showNotice);
         MachineInspectorRows rows = new MachineInspectorRows(canvas,
                 finding -> canvas.reveal(finding, Animations.enabled(view.services().preferences())),
-                MachineLibrary.of(view));
+                MachineLibrary.of(view), view::showNotice,
+                () -> Animations.enabled(view.services().preferences()));
         List<Runnable> undo = new ArrayList<>();
         undo.add(tool.install());
         if (view.inspector().title(InspectorPanel.PROPERTIES).isPresent()) {
