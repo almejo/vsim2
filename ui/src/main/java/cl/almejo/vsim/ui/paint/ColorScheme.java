@@ -239,7 +239,7 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
         return new Color(switch (color) {
             case RED -> dark ? 0x7A2E2E : 0xF4B6B6;
             case PINK -> dark ? 0x8C2D69 : 0xF7B5DD;
-            case YELLOW -> dark ? 0xC8B432 : 0xF7EAA0;
+            case YELLOW -> dark ? 0xA89A28 : 0xF7EAA0;
             case GREEN -> dark ? 0x2E6B35 : 0xB7E1B5;
             case TURQUOISE -> dark ? 0x1F6B66 : 0xA8E0DC;
             case BLUE -> dark ? 0x2D4F85 : 0xB3D1F2;

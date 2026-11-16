@@ -883,12 +883,17 @@ public final class CircuitRenderer {
         graphics.setFont(TextFonts.tagFont());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         FontMetrics metrics = graphics.getFontMetrics();
-        for (BusLabels.BusLabel label : highlights.busLabels(state)) {
+        List<BusLabels.BusLabel> labels = highlights.busLabels(state);
+        List<Rectangle2D> bodies = labels.isEmpty() ? List.of() : state.document().components().stream()
+                .map(component -> ComponentDrawing.documentBounds(shownTypeOf(state, component), component)).toList();
+        for (BusLabels.BusLabel label : labels) {
             double textWidth = metrics.stringWidth(label.text());
             double left = label.vertical() ? label.x() + BUS_LABEL_GAP : label.x() - textWidth / 2;
             double baseline = label.vertical() ? label.y() + (metrics.getAscent() - metrics.getDescent()) / 2.0
                     : label.y() - BUS_LABEL_GAP;
-            paintTag(graphics, metrics, label.text(), left, baseline, scheme.text(), scheme);
+            Point2D spot = BusLabelPlacement.clearOf(new Point2D.Double(left, baseline), textWidth,
+                    metrics.getAscent(), metrics.getDescent(), BUS_LABEL_GAP, bodies);
+            paintTag(graphics, metrics, label.text(), spot.getX(), spot.getY(), scheme.text(), scheme);
         }
     }
 
