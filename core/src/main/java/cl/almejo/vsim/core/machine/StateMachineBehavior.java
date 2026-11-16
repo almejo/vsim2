@@ -51,7 +51,13 @@ final class StateMachineBehavior implements Behavior {
     /** Of {@link #inputsRead}, those that are Z or in conflict now, and those that were at the last edge. */
     private List<String> undefinedInputs = List.of();
     private List<String> undefinedInputsAtLastEdge = List.of();
-    private boolean clockUndefined;
+    /**
+     * Whether {@code CLK} is Z or in conflict now, and the context that tells whether anything drives it: asked at
+     * each look ({@link #visibleState}), since joining or freeing {@code CLK} may leave its value as it was (a free
+     * {@code CLK} is not told, the user's decision of 2026-11-15). The engine reuses the context for this copy.
+     */
+    private boolean clockValueUndefined;
+    private Optional<BehaviorContext> clockContext = Optional.empty();
     private final Map<String, Boolean> driven = new HashMap<>();
 
     StateMachineBehavior(StateMachine machine, int statePin) {
@@ -105,7 +111,8 @@ final class StateMachineBehavior implements Behavior {
         inputs = read;
         undefinedInputs = List.copyOf(undefined);
         resetActive = context.input(resetPin).equals(Value.ONE);
-        clockUndefined = !context.input(clockPin).isFullyDefined();
+        clockValueUndefined = !context.input(clockPin).isFullyDefined();
+        clockContext = Optional.of(context);
     }
 
     /** Drives every output whose value changed (all of them when {@code everyOutput}, at the start). */
@@ -154,11 +161,16 @@ final class StateMachineBehavior implements Behavior {
         MachineState state = current.get();
         if (resetActive) {
             return new VisibleState.MachineVisibleState(state.id(), state.name(), Optional.empty(), Optional.empty(),
-                    undefinedInputsAtLastEdge, clockUndefined);
+                    undefinedInputsAtLastEdge, clockUndefined());
         }
         Optional<MachineStep> step = evaluator.next(state.id(), inputs);
         return new VisibleState.MachineVisibleState(state.id(), state.name(), step.map(MachineStep::nextStateId),
-                step.flatMap(MachineStep::transitionId), undefinedInputsAtLastEdge, clockUndefined);
+                step.flatMap(MachineStep::transitionId), undefinedInputsAtLastEdge, clockUndefined());
+    }
+
+    /** Whether something drives {@code CLK} Z or in conflict now. */
+    private boolean clockUndefined() {
+        return clockValueUndefined && clockContext.filter(context -> context.isDriven(clockPin)).isPresent();
     }
 
     /**

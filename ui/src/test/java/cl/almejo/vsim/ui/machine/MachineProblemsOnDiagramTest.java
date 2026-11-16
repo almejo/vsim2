@@ -2,12 +2,15 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachineFinding;
+import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -49,8 +52,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.pinAt;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -111,9 +116,15 @@ class MachineProblemsOnDiagramTest {
         document = OpenDocument.createEmpty(registry);
         document.execute(new PutDefinitionsCommand(List.of(
                 MachineDefinitions.regenerated(MachineFixtures.definition(troubled())))));
-        String copy = place(document, SubcircuitTypes.typeIdOf(MachineFixtures.DEFINITION_ID), 0, 0, Map.of())
-                .id().value();
-        awaitSimulation(document); // the copy's own problem (CLK unconnected) is listed from the first refresh
+        Component piece = place(document, SubcircuitTypes.typeIdOf(MachineFixtures.DEFINITION_ID), 0, 0, Map.of());
+        String copy = piece.id().value();
+        // CLK driven by an inverter whose input is free: neither 0 nor 1 (a free CLK is not told)
+        int clockIndex = document.document().definition(MachineFixtures.DEFINITION_ID).orElseThrow()
+                .pinIndexOf(MachineLimits.CLOCK).orElseThrow();
+        GridPoint clockPin = document.registry().typeOf(piece).pinLocation(piece, clockIndex);
+        pinAt(document, clockPin.x() - 4, clockPin.y());
+        addWire(document, clockPin.x() - 4, clockPin.y(), clockPin.x(), clockPin.y());
+        awaitSimulation(document); // the copy's own problem (CLK without 0 or 1) is listed from the first refresh
         place = document.openBody(MachineFixtures.DEFINITION_ID, Optional.of(copy));
         view = new EditorView(place, services, NO_WINDOW);
         view.setSize(1200, 800);

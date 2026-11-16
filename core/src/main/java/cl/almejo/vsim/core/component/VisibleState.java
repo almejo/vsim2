@@ -34,8 +34,8 @@ public sealed interface VisibleState {
      * next clock edge takes it with today's inputs ({@code nextTransitionId} empty when no arrow is taken and it
      * stays; {@code nextStateId} empty only while {@code RST} holds it in the initial state). What the machine read
      * as 0 without wanting to: {@code undefinedInputsAtLastEdge}, the inputs its conditions read that were Z or in
-     * conflict at the last clock edge, and {@code clockUndefined}, whether {@code CLK} is Z or in conflict now, so
-     * the machine cannot advance.
+     * conflict at the last clock edge, and {@code clockUndefined}, whether something drives {@code CLK} Z or in
+     * conflict now, so the machine cannot advance (a {@code CLK} left free is not a problem).
      */
     record MachineVisibleState(String stateId, String stateName, Optional<String> nextStateId,
                                Optional<String> nextTransitionId, List<String> undefinedInputsAtLastEdge,

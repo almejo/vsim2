@@ -123,6 +123,12 @@ final class ComponentInstance implements BehaviorContext {
     }
 
     @Override
+    public boolean isDriven(int pinIndex) {
+        PinState pin = pins[pinIndex];
+        return pin.net != null && pin.net.drivers.stream().anyMatch(driver -> driver != pin);
+    }
+
+    @Override
     public void requestPause(String messageKey, List<String> arguments) {
         engine.requestPause(id, messageKey, arguments);
     }

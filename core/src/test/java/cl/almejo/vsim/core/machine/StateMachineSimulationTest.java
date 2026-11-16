@@ -170,6 +170,17 @@ class StateMachineSimulationTest {
         assertThat(machineState("m").clockUndefined()).isFalse();
     }
 
+    /** The user's decision (hand test of hito 2): a just placed machine, its CLK free, gives no warning. */
+    @Test
+    void anUnconnectedClockIsNotTold() {
+        document.putDefinition(MachineDefinitions.create(MACHINE_ID, "Máquina 1")
+                .withMachine(MachineExamples.twoOnesDetector()));
+        machinePiece(document, "m", new GridPoint(20, 0));
+        start();
+
+        assertThat(machineState("m").clockUndefined()).isFalse();
+    }
+
     @Test
     void theNextArrowFollowsTheInputs() {
         detectorWithSwitchesAndLed(MachineExamples.twoOnesDetector());
