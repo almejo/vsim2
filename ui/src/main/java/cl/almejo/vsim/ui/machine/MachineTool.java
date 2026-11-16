@@ -262,9 +262,10 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
 
     private Optional<Line2D> pendingArrow(Drag current) {
         return canvas.machine().filter(machine -> machine.state(current.stateId).isPresent()).map(machine -> {
-            Point2D centre = MachineDiagramGeometry.of(machine).centre(current.stateId);
+            MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+            Point2D centre = geometry.centre(current.stateId);
             double distance = centre.distance(current.pointer.x(), current.pointer.y());
-            double radius = MachineDiagramGeometry.STATE_RADIUS;
+            double radius = geometry.radius(current.stateId);
             Point2D start = distance <= radius ? centre : new Point2D.Double(
                     centre.getX() + (current.pointer.x() - centre.getX()) * radius / distance,
                     centre.getY() + (current.pointer.y() - centre.getY()) * radius / distance);

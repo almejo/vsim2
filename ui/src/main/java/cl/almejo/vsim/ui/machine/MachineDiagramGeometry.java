@@ -4,7 +4,10 @@ import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 
+import java.awt.Font;
 import java.awt.Shape;
+import java.awt.font.FontRenderContext;
+import java.awt.font.LineMetrics;
 import java.awt.geom.CubicCurve2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
@@ -22,13 +25,33 @@ import java.util.Optional;
 /**
  * Where a machine's diagram draws each thing, in diagram units (a pixel at 100 %): a circle per state, an arrow per
  * transition from border to border (straight; curved when two or more join the same two states, bending to each
- * side of the line, or when a straight one would pass behind a third state, bending away from it; a loop over the state for a self loop) with the place of its label, and the initial mark. The
- * painter draws it and the gestures hit-test it, so both always agree. Pure: built from the model each time.
+ * side of the line, or when a straight one would pass behind a third state, bending away from it; a loop over the
+ * state for a self loop) with the place of its label, and the initial mark. A state is {@link #STATE_RADIUS} wide
+ * unless its name needs more room (it grows up to {@link #MAXIMUM_RADIUS}, then the name shrinks), and its Moore
+ * outputs go under its name inside the circle, or fully below it when they do not fit (hand test of hito 2:
+ * «AMARILLO» left its circle). The painter draws it and the gestures hit-test it, so both always agree. Pure: built
+ * from the model each time (texts are measured with a fixed font context).
  */
 final class MachineDiagramGeometry {
 
-    /** A state's radius (the mockup's circles). */
+    /** A state's radius (the mockup's circles): the smallest a state is drawn. */
     static final double STATE_RADIUS = 40;
+    /** The largest a state grows for its name; a longer name is drawn smaller instead. */
+    static final double MAXIMUM_RADIUS = 2.25 * STATE_RADIUS;
+    /** Up to this radius a state also grows to keep its outputs inside; beyond it they go below the circle. */
+    private static final double OUTPUTS_MAXIMUM_RADIUS = 1.5 * STATE_RADIUS;
+    /** The air between a state's name and its border, on each side. */
+    private static final double NAME_PADDING = 10;
+    /** The air between the outputs line's corners and the border. */
+    private static final double OUTPUTS_PADDING = 3;
+    /** How far below the centre the middle of a state's outputs line goes, inside the circle. */
+    private static final double OUTPUTS_BELOW = 20;
+    /** The gap between the circle and an outputs line drawn below it. */
+    private static final double OUTPUTS_GAP = 4;
+    /** The smallest a long name is drawn. */
+    private static final float MINIMUM_NAME_SIZE = 9f;
+    /** Texts are measured as the canvas draws them: antialiased, without fractional metrics. */
+    private static final FontRenderContext MEASURE = new FontRenderContext(null, true, false);
     /** How far the first curved arrow between two states bends from the straight line; the next ones bend more. */
     private static final double BEND = 22;
     /** How much room a straight arrow keeps from a third state's circle before it is bent around it. */
@@ -57,18 +80,60 @@ final class MachineDiagramGeometry {
                  Point2D labelAnchor) {
     }
 
+    /** How a state is drawn: its radius, the size of its name and where its outputs line goes (if it has one). */
+    private record StateLook(double radius, float nameSize, Optional<Rectangle2D> outputs) {
+    }
+
     private final Map<String, Point2D> centres = new LinkedHashMap<>();
+    private final Map<String, StateLook> looks = new HashMap<>();
     private final Map<String, Arrow> arrows = new LinkedHashMap<>();
     private final Optional<Line2D> initialMark;
 
     private MachineDiagramGeometry(StateMachine machine) {
         for (MachineState state : machine.states()) {
-            centres.put(state.id(), new Point2D.Double(state.position().x(), state.position().y()));
+            Point2D centre = new Point2D.Double(state.position().x(), state.position().y());
+            centres.put(state.id(), centre);
+            looks.put(state.id(), lookOf(state, centre));
         }
         placeArrows(machine);
-        initialMark = machine.initialStateId().map(centres::get).map(centre -> new Line2D.Double(
-                centre.getX() - STATE_RADIUS - INITIAL_MARK_LENGTH, centre.getY(),
-                centre.getX() - STATE_RADIUS, centre.getY()));
+        initialMark = machine.initialStateId().map(initialId -> {
+            Point2D centre = centres.get(initialId);
+            double radius = radius(initialId);
+            return new Line2D.Double(centre.getX() - radius - INITIAL_MARK_LENGTH, centre.getY(),
+                    centre.getX() - radius, centre.getY());
+        });
+    }
+
+    /** How {@code state} at {@code centre} is drawn: the radius its name and its outputs need. */
+    private static StateLook lookOf(MachineState state, Point2D centre) {
+        Font nameFont = MachineDiagramPainter.nameFont();
+        double nameWidth = width(state.name(), nameFont);
+        double nameRadius = nameWidth / 2 + NAME_PADDING;
+        double radius = Math.min(MAXIMUM_RADIUS, Math.max(STATE_RADIUS, nameRadius));
+        float nameSize = nameRadius <= MAXIMUM_RADIUS ? nameFont.getSize2D()
+                : (float) Math.max(MINIMUM_NAME_SIZE,
+                nameFont.getSize2D() * 2 * (MAXIMUM_RADIUS - NAME_PADDING) / nameWidth);
+        if (state.outputs().isEmpty()) {
+            return new StateLook(radius, nameSize, Optional.empty());
+        }
+        String text = MachineDiagramPainter.mooreLabelOf(state.outputs());
+        Font outputsFont = MachineDiagramPainter.outputsFont();
+        double outputsWidth = width(text, outputsFont);
+        LineMetrics line = outputsFont.getLineMetrics(text, MEASURE);
+        double outputsHeight = line.getAscent() + line.getDescent();
+        double insideRadius = Math.hypot(outputsWidth / 2, OUTPUTS_BELOW + outputsHeight / 2) + OUTPUTS_PADDING;
+        if (insideRadius <= Math.max(radius, OUTPUTS_MAXIMUM_RADIUS)) {
+            return new StateLook(Math.max(radius, insideRadius), nameSize, Optional.of(new Rectangle2D.Double(
+                    centre.getX() - outputsWidth / 2, centre.getY() + OUTPUTS_BELOW - outputsHeight / 2,
+                    outputsWidth, outputsHeight)));
+        }
+        return new StateLook(radius, nameSize, Optional.of(new Rectangle2D.Double(
+                centre.getX() - outputsWidth / 2, centre.getY() + radius + OUTPUTS_GAP, outputsWidth,
+                outputsHeight)));
+    }
+
+    private static double width(String text, Font font) {
+        return font.getStringBounds(text, MEASURE).getWidth();
     }
 
     static MachineDiagramGeometry of(StateMachine machine) {
@@ -84,11 +149,34 @@ final class MachineDiagramGeometry {
         return centre;
     }
 
+    /** The radius of the state {@code stateId}: {@link #STATE_RADIUS}, or more for a long name or outputs. */
+    double radius(String stateId) {
+        return look(stateId).radius();
+    }
+
+    /** The font of the state {@code stateId}'s name: smaller than usual only for a very long name. */
+    Font nameFont(String stateId) {
+        return MachineDiagramPainter.nameFont().deriveFont(look(stateId).nameSize());
+    }
+
+    /** Where the state {@code stateId}'s Moore outputs line goes; empty when it has none. */
+    Optional<Rectangle2D> outputsBounds(String stateId) {
+        return look(stateId).outputs().map(box -> (Rectangle2D) box.clone());
+    }
+
+    private StateLook look(String stateId) {
+        StateLook look = looks.get(stateId);
+        if (look == null) {
+            throw new IllegalArgumentException("no state " + stateId);
+        }
+        return look;
+    }
+
     /** The circle of the state {@code stateId}. */
     Shape circle(String stateId) {
         Point2D centre = centre(stateId);
-        return new Ellipse2D.Double(centre.getX() - STATE_RADIUS, centre.getY() - STATE_RADIUS, 2 * STATE_RADIUS,
-                2 * STATE_RADIUS);
+        double radius = radius(stateId);
+        return new Ellipse2D.Double(centre.getX() - radius, centre.getY() - radius, 2 * radius, 2 * radius);
     }
 
     /** The arrow of the transition {@code transitionId}. */
@@ -114,7 +202,7 @@ final class MachineDiagramGeometry {
     Optional<String> stateAt(Point2D point) {
         String found = null;
         for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
-            if (entry.getValue().distance(point) <= STATE_RADIUS) {
+            if (entry.getValue().distance(point) <= radius(entry.getKey())) {
                 found = entry.getKey();
             }
         }
@@ -136,9 +224,10 @@ final class MachineDiagramGeometry {
         StateHit found = null;
         for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
             double distance = entry.getValue().distance(point);
-            if (Math.abs(distance - STATE_RADIUS) <= band) {
+            double radius = radius(entry.getKey());
+            if (Math.abs(distance - radius) <= band) {
                 found = new StateHit(entry.getKey(), StatePart.BORDER);
-            } else if (distance < STATE_RADIUS) {
+            } else if (distance < radius) {
                 found = new StateHit(entry.getKey(), StatePart.CENTRE);
             }
         }
@@ -181,7 +270,10 @@ final class MachineDiagramGeometry {
     Optional<Rectangle2D> bounds() {
         Rectangle2D union = null;
         List<Shape> shapes = new ArrayList<>();
-        centres.keySet().forEach(stateId -> shapes.add(circle(stateId)));
+        centres.keySet().forEach(stateId -> {
+            shapes.add(circle(stateId));
+            outputsBounds(stateId).ifPresent(shapes::add);
+        });
         arrows.values().forEach(arrow -> shapes.add(arrow.path()));
         initialMark.ifPresent(shapes::add);
         for (Shape shape : shapes) {
@@ -216,14 +308,14 @@ final class MachineDiagramGeometry {
 
     /**
      * How far a lone arrow must bend (positive: to the left of its direction) to clear a third state its straight
-     * line would pass within {@code STATE_RADIUS + CLEARANCE} of, away from that state; empty when nothing is in its
+     * line would pass within its radius and {@code CLEARANCE} of, away from that state; empty when nothing is in its
      * way. With several in the way, the nearest to the line decides.
      */
     private Optional<Double> aroundThirdState(MachineTransition transition) {
         Point2D from = centre(transition.fromId());
         Point2D to = centre(transition.toId());
         Point2D normal = leftNormal(from, to);
-        double reach = STATE_RADIUS + CLEARANCE;
+        double clearing = 0;
         double nearest = Double.MAX_VALUE;
         double side = 0;
         for (Map.Entry<String, Point2D> entry : centres.entrySet()) {
@@ -231,10 +323,12 @@ final class MachineDiagramGeometry {
                 continue;
             }
             Point2D third = entry.getValue();
+            double reach = radius(entry.getKey()) + CLEARANCE;
             double distance = Line2D.ptSegDist(from.getX(), from.getY(), to.getX(), to.getY(), third.getX(),
                     third.getY());
             if (distance < reach && distance < nearest) {
                 nearest = distance;
+                clearing = reach - distance;
                 double leftOfLine = (third.getX() - from.getX()) * normal.getX()
                         + (third.getY() - from.getY()) * normal.getY();
                 side = leftOfLine > 0 ? -1 : 1; // bend to the other side than the state
@@ -243,7 +337,7 @@ final class MachineDiagramGeometry {
         if (side == 0) {
             return Optional.empty();
         }
-        return Optional.of(side * Math.max(BEND, reach - nearest + BEND));
+        return Optional.of(side * Math.max(BEND, clearing + BEND));
     }
 
     /** The two states an arrow joins, in either direction. */
@@ -256,8 +350,8 @@ final class MachineDiagramGeometry {
     private Arrow straight(MachineTransition transition) {
         Point2D from = centre(transition.fromId());
         Point2D to = centre(transition.toId());
-        Point2D start = towards(from, to, STATE_RADIUS);
-        Point2D end = towards(to, from, STATE_RADIUS);
+        Point2D start = towards(from, to, radius(transition.fromId()));
+        Point2D end = towards(to, from, radius(transition.toId()));
         Point2D middle = middle(start, end);
         Point2D normal = leftNormal(from, to);
         Point2D label = offset(middle, normal, LABEL_GAP);
@@ -271,8 +365,8 @@ final class MachineDiagramGeometry {
         Point2D normal = leftNormal(from, to);
         // a quadratic curve peaks halfway to its control point
         Point2D control = offset(middle(from, to), normal, 2 * bend);
-        Point2D start = towards(from, control, STATE_RADIUS);
-        Point2D end = towards(to, control, STATE_RADIUS);
+        Point2D start = towards(from, control, radius(transition.fromId()));
+        Point2D end = towards(to, control, radius(transition.toId()));
         Point2D peak = offset(middle(from, to), normal, bend);
         Point2D label = offset(peak, normal, Math.copySign(LABEL_GAP, bend));
         return new Arrow(transition.id(), ArrowKind.CURVED, new QuadCurve2D.Double(start.getX(), start.getY(),
@@ -283,13 +377,14 @@ final class MachineDiagramGeometry {
     private Arrow selfLoop(MachineTransition transition, int turn) {
         Point2D centre = centre(transition.fromId());
         double axis = -Math.PI / 2 + turn * LOOP_TURN;
-        Point2D start = onCircle(centre, axis - LOOP_HALF_ANGLE, STATE_RADIUS);
-        Point2D end = onCircle(centre, axis + LOOP_HALF_ANGLE, STATE_RADIUS);
-        Point2D top = onCircle(centre, axis, STATE_RADIUS + LOOP_HEIGHT);
+        double radius = radius(transition.fromId());
+        Point2D start = onCircle(centre, axis - LOOP_HALF_ANGLE, radius);
+        Point2D end = onCircle(centre, axis + LOOP_HALF_ANGLE, radius);
+        Point2D top = onCircle(centre, axis, radius + LOOP_HEIGHT);
         Point2D across = new Point2D.Double(-Math.sin(axis), Math.cos(axis));
         Point2D firstControl = offset(top, across, -LOOP_CONTROL_SPREAD);
         Point2D secondControl = offset(top, across, LOOP_CONTROL_SPREAD);
-        Point2D label = onCircle(centre, axis, STATE_RADIUS + 0.75 * LOOP_HEIGHT + LABEL_GAP);
+        Point2D label = onCircle(centre, axis, radius + 0.75 * LOOP_HEIGHT + LABEL_GAP);
         return new Arrow(transition.id(), ArrowKind.SELF_LOOP, new CubicCurve2D.Double(start.getX(), start.getY(),
                 firstControl.getX(), firstControl.getY(), secondControl.getX(), secondControl.getY(), end.getX(),
                 end.getY()), start, end, secondControl, label);

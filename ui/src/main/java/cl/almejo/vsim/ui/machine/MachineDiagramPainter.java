@@ -42,8 +42,6 @@ final class MachineDiagramPainter {
     private static final int NAME_SIZE = 19;
     private static final int OUTPUT_SIZE = 12;
     private static final int LABEL_SIZE = 13;
-    /** How far below the centre a state's Moore outputs go. */
-    private static final double OUTPUTS_BELOW = 20;
     private static final double INITIAL_LABEL_GAP = 8;
 
     /** How wide a lit border (the pointer near it: a drag from there makes an arrow) and a drawn arrow are. */
@@ -52,12 +50,20 @@ final class MachineDiagramPainter {
     private static final int RUBBER_BAND_ALPHA = 40;
     /** How wide the glow under a problem arrow is (the mockup's 7 around a 2 wide arrow, at its state size). */
     private static final float ARROW_GLOW_WIDTH = 10f;
-    /** How opaque the glow under an arrow is (the mockup's 0.25). */
-    private static final int ARROW_GLOW_ALPHA = 64;
+    /**
+     * How opaque the glow under an arrow is: stronger than the mockup's 0.25, so an amber warning reads as amber on
+     * the dark board too (hand test of hito 2: it looked brown).
+     */
+    private static final int ARROW_GLOW_ALPHA = 110;
     /** How far a problem state's halo reaches past its circle (the mockup's 6 at radius 28). */
     private static final double STATE_HALO = 8;
-    /** How opaque a state's halo is (the mockup's 0.18). */
-    private static final int STATE_HALO_ALPHA = 46;
+    /** How opaque a state's halo is: stronger than the mockup's 0.18, for the same reason as the arrows'. */
+    private static final int STATE_HALO_ALPHA = 115;
+    /**
+     * How far the selection's dashes reach on each side of the next arrow's orange when that arrow is selected too,
+     * so the selection stays visible over it (hand test of hito 2).
+     */
+    private static final float SELECTION_BESIDE = 3f;
 
     /** What to light and mark on top of the model. */
     record Marks(Optional<ActiveMachineState> active, MachineSelection selection, MachineGlows glows) {
@@ -79,6 +85,11 @@ final class MachineDiagramPainter {
     /** The font of a state's name, at 100 %. */
     static Font nameFont() {
         return new Font(Font.SANS_SERIF, Font.BOLD, NAME_SIZE);
+    }
+
+    /** The font of a state's Moore outputs, at 100 %. */
+    static Font outputsFont() {
+        return new Font(Font.MONOSPACED, Font.PLAIN, OUTPUT_SIZE);
     }
 
     /** The font of an arrow's label, at 100 %. */
@@ -152,7 +163,7 @@ final class MachineDiagramPainter {
         Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
         for (MachineState state : machine.states()) {
             paintState(graphics, state, geometry, activeState.filter(state.id()::equals).isPresent(),
-                    marks.selection().containsState(state.id()), scheme);
+                    marks.selection().containsState(state.id()), marks.glows().ofState(state.id()), scheme);
         }
     }
 
@@ -169,7 +180,7 @@ final class MachineDiagramPainter {
         for (MachineState state : machine.states()) {
             glows.ofState(state.id()).ifPresent(glow -> {
                 Point2D centre = geometry.centre(state.id());
-                double radius = MachineDiagramGeometry.STATE_RADIUS + STATE_HALO;
+                double radius = geometry.radius(state.id()) + STATE_HALO;
                 graphics.setColor(withAlpha(glowColour(glow, scheme), STATE_HALO_ALPHA));
                 graphics.fill(new Ellipse2D.Double(centre.getX() - radius, centre.getY() - radius, 2 * radius,
                         2 * radius));
@@ -192,6 +203,12 @@ final class MachineDiagramPainter {
         Color colour = next ? MachineColors.active(scheme)
                 : selected ? MachineColors.selection(scheme) : plain;
         float width = next ? NEXT_ARROW_WIDTH : ARROW_WIDTH;
+        if (next && selected) {
+            // the selection's dashes on each side of the orange, which is drawn over them
+            graphics.setColor(MachineColors.selection(scheme));
+            graphics.setStroke(dashed(width + 2 * SELECTION_BESIDE));
+            graphics.draw(arrow.path());
+        }
         graphics.setColor(colour);
         graphics.setStroke(selected && !next ? dashed(width) : new BasicStroke(width));
         graphics.draw(arrow.path());
@@ -246,13 +263,20 @@ final class MachineDiagramPainter {
                 (float) (start.getY() - INITIAL_LABEL_GAP));
     }
 
+    /**
+     * A state: its circle (its outline in the problem colour when it glows, like a problem arrow, so a warning reads
+     * as amber and not only as a faint halo), its name and its Moore outputs where the geometry puts them.
+     */
     private static void paintState(Graphics2D graphics, MachineState state, MachineDiagramGeometry geometry,
-                                   boolean active, boolean selected, ColorScheme scheme) {
+                                   boolean active, boolean selected, Optional<MachineGlows.Glow> glow,
+                                   ColorScheme scheme) {
         graphics.setColor(active ? MachineColors.activeFill(scheme) : MachineColors.stateFill(scheme));
         graphics.fill(geometry.circle(state.id()));
         float width = active ? ACTIVE_STATE_WIDTH : STATE_WIDTH;
+        Color outline = glow.map(found -> glowColour(found, scheme))
+                .orElseGet(() -> MachineColors.stateOutline(scheme));
         graphics.setColor(active ? MachineColors.active(scheme)
-                : selected ? MachineColors.selection(scheme) : MachineColors.stateOutline(scheme));
+                : selected ? MachineColors.selection(scheme) : outline);
         graphics.setStroke(selected ? dashed(width) : new BasicStroke(width));
         graphics.draw(geometry.circle(state.id()));
         if (selected && active) {
@@ -260,16 +284,15 @@ final class MachineDiagramPainter {
             graphics.setStroke(dashed(STATE_WIDTH));
             graphics.draw(geometry.circle(state.id()));
         }
-        Point2D centre = geometry.centre(state.id());
         graphics.setColor(MachineColors.text(scheme));
-        graphics.setFont(nameFont());
-        drawCentred(graphics, state.name(), centre);
-        if (!state.outputs().isEmpty()) {
+        graphics.setFont(geometry.nameFont(state.id()));
+        drawCentred(graphics, state.name(), geometry.centre(state.id()));
+        geometry.outputsBounds(state.id()).ifPresent(outputs -> {
             graphics.setColor(MachineColors.muted(scheme));
-            graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, OUTPUT_SIZE));
+            graphics.setFont(outputsFont());
             drawCentred(graphics, mooreLabelOf(state.outputs()),
-                    new Point2D.Double(centre.getX(), centre.getY() + OUTPUTS_BELOW));
-        }
+                    new Point2D.Double(outputs.getCenterX(), outputs.getCenterY()));
+        });
     }
 
     private static Stroke dashed(float width) {
