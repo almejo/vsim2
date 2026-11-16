@@ -1,12 +1,15 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.DefinitionNames;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
@@ -213,6 +216,39 @@ public final class LibraryPalette {
         });
         menu.add(new JMenuItem(importComponent));
         return Optional.of(menu);
+    }
+
+    /**
+     * «Agregar a mi librería» on the right-click menu of every user component's piece, as the palette's own entry: it
+     * is disabled, with its reason, when the library already has the component.
+     */
+    ContextMenuContributor addToLibraryContributor() {
+        return (menu, target, selection, gridPosition) -> {
+            if (selection.size() != 1 || target.isEmpty() || !selection.contains(target.get().id())
+                    || !(target.get() instanceof Component piece)) {
+                return;
+            }
+            Optional<String> definitionId = SubcircuitTypes.definitionIdOf(piece.typeId());
+            CircuitDocument circuit = circuitOf(view.openDocument()).document();
+            Optional<ComponentDefinition> definition = definitionId.flatMap(circuit::definition);
+            if (definition.isEmpty()) {
+                return;
+            }
+            JMenuItem entry = new JMenuItem(Messages.text("action.addToLibrary"));
+            if (service.library().find(definition.get().id()).isPresent()) {
+                entry.setEnabled(false);
+                entry.setToolTipText(Messages.text("action.addToLibrary.already"));
+            } else {
+                entry.addActionListener(event -> {
+                    try {
+                        addToLibrary(DefinitionBundle.of(definition.get(), circuit::definition));
+                    } catch (IllegalArgumentException exception) {
+                        LOGGER.warn("Definition {} cannot be added to the library", definition.get().id(), exception);
+                    }
+                });
+            }
+            menu.add(entry);
+        };
     }
 
     private void place(PalettePanel.UserComponent component) {
