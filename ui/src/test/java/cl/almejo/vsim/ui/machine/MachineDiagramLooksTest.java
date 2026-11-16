@@ -133,6 +133,36 @@ class MachineDiagramLooksTest {
         assertThat(share).isGreaterThan(0.4);
     }
 
+    @Test
+    void theActiveStateIsDrawnWholeOverAStateThatOverlapsIt() {
+        // the active state comes first in the model; the plain one after it overlaps its right side
+        StateMachine machine = machine(new MachineState("a", "S0", new DiagramPoint(150, 250), List.of()),
+                new MachineState("b", "S1", new DiagramPoint(200, 270), List.of()));
+        ActiveMachineState active = new ActiveMachineState("a", Optional.empty(), Optional.empty());
+
+        BufferedImage image = paint(machine, Optional.of(active), new MachineSelection(), ColorSchemes.DARK);
+
+        // S0's ring at its right end lies inside S1's circle: drawn last, the active ring stays on top
+        Color ring = new Color(image.getRGB((int) Math.round(150 + MachineDiagramGeometry.STATE_RADIUS), 250));
+        assertThat(distance(ring, ColorSchemes.DARK.machineActive())).isLessThan(NEAR);
+    }
+
+    @Test
+    void aStatesHaloIsDrawnWithItOverTheStatesBeforeIt() {
+        // S0 (plain, first) and a warning state after it whose halo reaches into S0
+        StateMachine machine = machine(new MachineState("a", "S0", new DiagramPoint(150, 250), List.of()),
+                new MachineState("lost", "S9", new DiagramPoint(232, 250), List.of()));
+        MachineGlows glows = MachineGlows.of(MachineChecks.check(machine));
+        assertThat(glows.ofState("lost")).contains(MachineGlows.Glow.WARNING);
+        ColorScheme dark = ColorSchemes.DARK;
+
+        BufferedImage image = paint(machine, Optional.empty(), new MachineSelection(), glows, dark);
+
+        // inside S0, in the halo's band of S9 (its circle starts at 192): tinted, not S0's plain inside
+        Color inS0 = new Color(image.getRGB(186, 250));
+        assertThat(distance(inS0, dark.background())).as("the halo over S0, whole with its state").isGreaterThan(30);
+    }
+
     private static void assertInside(Rectangle2D box, Point2D centre, double radius) {
         for (Point2D corner : List.of(new Point2D.Double(box.getMinX(), box.getMinY()),
                 new Point2D.Double(box.getMaxX(), box.getMinY()), new Point2D.Double(box.getMinX(), box.getMaxY()),

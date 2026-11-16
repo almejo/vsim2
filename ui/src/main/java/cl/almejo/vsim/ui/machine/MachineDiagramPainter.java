@@ -22,6 +22,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -196,16 +197,42 @@ final class MachineDiagramPainter {
         }
         geometry.initialMark().ifPresent(mark -> paintInitialMark(graphics, mark, scheme));
         Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
-        for (MachineState state : machine.states()) {
+        for (MachineState state : drawingOrder(machine, marks)) {
+            boolean faded = marks.fadesState(state.id());
+            marks.glows().ofState(state.id()).ifPresent(glow -> paintHalo(graphics, state.id(), geometry, glow,
+                    faded, scheme));
             paintState(graphics, state, geometry, activeState.filter(state.id()::equals).isPresent(),
                     marks.selection().containsState(state.id()),
-                    marks.glows().ofState(state.id()).filter(glow -> !marks.fadesState(state.id())), scheme);
+                    marks.glows().ofState(state.id()).filter(glow -> !faded), scheme);
         }
     }
 
     /**
-     * The halos of the problem states and the wide strokes under the problem arrows, under everything else; faded
-     * while another problem is being shown.
+     * The states in the order they are drawn, each one whole (halo, inside, ring, name, outputs), so overlapping
+     * states stack the same way all through: the plain ones in model order, then the selected ones, the active one
+     * last (hand test of hito 2, round 2: one state's ring went over another's halo but under its inside).
+     */
+    static List<MachineState> drawingOrder(StateMachine machine, Marks marks) {
+        Optional<String> activeState = marks.active().map(ActiveMachineState::stateId);
+        List<MachineState> ordered = new ArrayList<>(machine.states());
+        ordered.sort(Comparator.comparingInt(state -> activeState.filter(state.id()::equals).isPresent() ? 2
+                : marks.selection().containsState(state.id()) ? 1 : 0));
+        return ordered;
+    }
+
+    /** The halo of a problem state, around its circle; faded while another problem is being shown. */
+    private static void paintHalo(Graphics2D graphics, String stateId, MachineDiagramGeometry geometry,
+                                  MachineGlows.Glow glow, boolean faded, ColorScheme scheme) {
+        Point2D centre = geometry.centre(stateId);
+        double radius = geometry.radius(stateId) + STATE_HALO;
+        graphics.setColor(withAlpha(glowColour(glow, scheme), faded ? STATE_HALO_ALPHA / FADED_GLOW_SHARE
+                : STATE_HALO_ALPHA));
+        graphics.fill(new Ellipse2D.Double(centre.getX() - radius, centre.getY() - radius, 2 * radius, 2 * radius));
+    }
+
+    /**
+     * The wide strokes under the problem arrows, under everything else; faded while another problem is being shown
+     * (a problem state's halo is drawn with its state).
      */
     private static void paintGlows(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
                                    Marks marks, ColorScheme scheme) {
@@ -216,16 +243,6 @@ final class MachineDiagramPainter {
                 graphics.setColor(withAlpha(glowColour(glow, scheme), marks.fadesTransition(transition.id())
                         ? ARROW_GLOW_ALPHA / FADED_GLOW_SHARE : ARROW_GLOW_ALPHA));
                 graphics.draw(geometry.arrow(transition.id()).path());
-            });
-        }
-        for (MachineState state : machine.states()) {
-            glows.ofState(state.id()).ifPresent(glow -> {
-                Point2D centre = geometry.centre(state.id());
-                double radius = geometry.radius(state.id()) + STATE_HALO;
-                graphics.setColor(withAlpha(glowColour(glow, scheme), marks.fadesState(state.id())
-                        ? STATE_HALO_ALPHA / FADED_GLOW_SHARE : STATE_HALO_ALPHA));
-                graphics.fill(new Ellipse2D.Double(centre.getX() - radius, centre.getY() - radius, 2 * radius,
-                        2 * radius));
             });
         }
     }

@@ -35,10 +35,15 @@ final class MachineEdits {
     private static final Pattern NUMBERED_NAME = Pattern.compile(STATE_PREFIX + "\\d+");
     /** A name already numbered as a copy ({@code AMARILLO (2)}): its copy counts on from the name before it. */
     private static final Pattern COPY_NUMBER = Pattern.compile("(.*) \\((\\d+)\\)");
-    /** How far a paste lands from what it would cover, each way, in diagram units (a state's radius). */
-    static final double PASTE_STEP = MachineDiagramGeometry.STATE_RADIUS;
+    /**
+     * How far a paste moves on each step (down and right, each way) while looking for a free place, in diagram units
+     * (half a state's radius, so it stops at the nearest free place along the way).
+     */
+    static final double PASTE_STEP = MachineDiagramGeometry.STATE_RADIUS / 2;
+    /** The least room between a pasted state's circle and any other state's circle (hand test of hito 2, round 2). */
+    static final double PASTE_GAP = MachineDiagramGeometry.STATE_RADIUS / 2;
     /** A paste moves on at most this many steps looking for a free place. */
-    private static final int PASTE_TRIES = 64;
+    private static final int PASTE_TRIES = 256;
 
     /** What a paste added: the machine after it and the ids of the new states and arrows, to select them. */
     record Pasted(StateMachine machine, Set<String> stateIds, Set<String> transitionIds) {
@@ -186,25 +191,29 @@ final class MachineEdits {
     /**
      * {@code machine} with {@code piece} added after its states and arrows: new ids, a free name for each state (the
      * name itself when free; else the next free {@code Sn} for a numbered one, or {@code AMARILLO (2)}, {@code (3)}…),
-     * moved {@link #PASTE_STEP} down and right as many times as needed so that no state lands on another one (where
-     * it was when nothing is in the way, as in another machine). The names in it become pins as any new name does.
+     * moved {@link #PASTE_STEP} down and right as many times as needed so that each of its circles stays
+     * {@link #PASTE_GAP} clear of every circle already there (where it was when nothing is in the way, as in another
+     * machine). The names in it become pins as any new name does.
      */
     static Pasted withPasted(StateMachine machine, StateMachine piece) {
-        double shift = freeShift(machine, piece);
         List<MachineState> states = new ArrayList<>(machine.states());
         Map<String, String> newIds = new HashMap<>();
         Set<String> stateIds = new LinkedHashSet<>();
+        List<MachineState> added = new ArrayList<>();
         for (MachineState copied : piece.states()) {
-            List<MachineState> sofar = List.copyOf(states);
+            List<MachineState> sofar = new ArrayList<>(states);
+            sofar.addAll(added);
             String id = firstFree(STATE_ID_PREFIX, 0, candidate -> sofar.stream()
                     .anyMatch(state -> state.id().equals(candidate)));
             Set<String> names = new HashSet<>();
             sofar.forEach(state -> names.add(state.name()));
-            states.add(new MachineState(id, freeName(copied.name(), names),
-                    copied.position().translated(shift, shift), copied.outputs()));
+            added.add(new MachineState(id, freeName(copied.name(), names), copied.position(), copied.outputs()));
             newIds.put(copied.id(), id);
             stateIds.add(id);
         }
+        double shift = freeShift(machine.states(), added);
+        added.forEach(state -> states.add(new MachineState(state.id(), state.name(),
+                state.position().translated(shift, shift), state.outputs())));
         List<MachineTransition> transitions = new ArrayList<>(machine.transitions());
         Set<String> transitionIds = new LinkedHashSet<>();
         for (MachineTransition copied : piece.transitions()) {
@@ -222,19 +231,27 @@ final class MachineEdits {
         return new Pasted(pasted, stateIds, transitionIds);
     }
 
-    /** How far {@code piece} moves (both ways) so that none of its states lands on one of {@code machine}'s. */
-    private static double freeShift(StateMachine machine, StateMachine piece) {
+    /**
+     * How far the {@code added} states move (both ways) so that each circle, as the diagram draws it (its name may
+     * make it bigger), keeps {@link #PASTE_GAP} from every circle of the {@code existing} states.
+     */
+    private static double freeShift(List<MachineState> existing, List<MachineState> added) {
+        Map<String, Double> radii = new HashMap<>();
+        existing.forEach(state -> radii.put(state.id(), MachineDiagramGeometry.radiusOf(state)));
+        added.forEach(state -> radii.put(state.id(), MachineDiagramGeometry.radiusOf(state)));
         double shift = 0;
-        for (int attempt = 0; attempt < PASTE_TRIES && covers(machine, piece, shift); attempt++) {
+        for (int attempt = 0; attempt < PASTE_TRIES && touches(existing, added, radii, shift); attempt++) {
             shift += PASTE_STEP;
         }
         return shift;
     }
 
-    private static boolean covers(StateMachine machine, StateMachine piece, double shift) {
-        return piece.states().stream().anyMatch(copied -> machine.states().stream().anyMatch(state ->
+    private static boolean touches(List<MachineState> existing, List<MachineState> added, Map<String, Double> radii,
+                                   double shift) {
+        return added.stream().anyMatch(copied -> existing.stream().anyMatch(state ->
                 Math.hypot(copied.position().x() + shift - state.position().x(),
-                        copied.position().y() + shift - state.position().y()) < PASTE_STEP / 2));
+                        copied.position().y() + shift - state.position().y())
+                        < radii.get(copied.id()) + radii.get(state.id()) + PASTE_GAP));
     }
 
     /** {@code name} when no state has it; else the next free {@code Sn}, or {@code name (2)}, {@code (3)}… */

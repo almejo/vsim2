@@ -129,8 +129,21 @@ class MachineClipboardTest {
         MachineState copyOfS2 = named(pasted, "S4");
         assertThat(copyOfS1.id()).isNotIn("s0", "s1", "s2");
         assertThat(copyOfS2.outputs()).isEqualTo(pasted.state("s2").orElseThrow().outputs());
-        assertThat(copyOfS1.position().x()).isCloseTo(160 + 40, offset(0.5));
-        assertThat(copyOfS1.position().y()).isCloseTo(40, offset(0.5));
+        // moved down and right together, clear of every state that was there
+        MachineState s1 = pasted.state("s1").orElseThrow();
+        MachineState s2 = pasted.state("s2").orElseThrow();
+        double shift = copyOfS1.position().x() - s1.position().x();
+        assertThat(shift).isPositive();
+        assertThat(copyOfS1.position().y() - s1.position().y()).isCloseTo(shift, offset(0.5));
+        assertThat(copyOfS2.position().x() - s2.position().x()).isCloseTo(shift, offset(0.5));
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(pasted);
+        for (MachineState copy : List.of(copyOfS1, copyOfS2)) {
+            for (String original : List.of("s0", "s1", "s2")) {
+                assertThat(geometry.centre(copy.id()).distance(geometry.centre(original))
+                        - geometry.radius(copy.id()) - geometry.radius(original))
+                        .isGreaterThanOrEqualTo(MachineEdits.PASTE_GAP);
+            }
+        }
         // only S1 → S2 and S2's loop join copied states; t1 comes from S0, which was not copied
         List<MachineTransition> added = pasted.transitions().subList(6, pasted.transitions().size());
         assertThat(added).extracting(MachineTransition::condition).containsExactly("x", "x");
@@ -156,7 +169,10 @@ class MachineClipboardTest {
 
         assertThat(machine().states()).extracting(MachineState::name)
                 .containsExactly("S0", "AMARILLO", "S2", "AMARILLO (2)", "AMARILLO (3)");
-        assertThat(named(machine(), "AMARILLO (3)").position()).isEqualTo(new DiagramPoint(240, 80));
+        DiagramPoint second = named(machine(), "AMARILLO (2)").position();
+        DiagramPoint third = named(machine(), "AMARILLO (3)").position();
+        assertThat(third.x()).isGreaterThan(second.x());
+        assertThat(third.y()).isGreaterThan(second.y());
     }
 
     @Test

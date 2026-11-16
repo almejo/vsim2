@@ -132,6 +132,11 @@ final class MachineDiagramGeometry {
                 outputsHeight)));
     }
 
+    /** The radius {@code state} is drawn with, wherever it is: its name and its outputs may make it bigger. */
+    static double radiusOf(MachineState state) {
+        return lookOf(state, new Point2D.Double()).radius();
+    }
+
     private static double width(String text, Font font) {
         return font.getStringBounds(text, MEASURE).getWidth();
     }

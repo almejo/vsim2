@@ -102,4 +102,54 @@ class MachineEditsTest {
         assertThat(edited.transition("t2").orElseThrow().condition())
                 .isEqualTo(detector.transition("t2").orElseThrow().condition());
     }
+
+    @Test
+    void aDuplicateLandsClearOfEveryStateNotOnlyOfTheOneItCopies() {
+        // S1 (at 160, 0) duplicated: a shift of one radius put it half over S1 (hand test of hito 2, round 2)
+        StateMachine piece = MachineEdits.pieceOf(detector, Set.of("s1")).orElseThrow();
+
+        MachineEdits.Pasted pasted = MachineEdits.withPasted(detector, piece);
+
+        assertClearOfTheOthers(pasted);
+    }
+
+    @Test
+    void aPasteBesideAStateButNotOnItsCentreStillMovesClear() {
+        // 25 to the right of S0's centre: the old rule (only nearly coinciding centres) left it over S0
+        MachineEdits.Pasted pasted = MachineEdits.withPasted(detector, lone(new DiagramPoint(25, 10)));
+
+        assertClearOfTheOthers(pasted);
+        MachineState added = pasted.machine().state(pasted.stateIds().iterator().next()).orElseThrow();
+        assertThat(Math.hypot(added.position().x() - 25, added.position().y() - 10))
+                .as("the nearest free place along the search, not far away").isLessThan(200);
+    }
+
+    @Test
+    void aPasteWhereNothingIsInTheWayStaysWhereItWas() {
+        MachineEdits.Pasted pasted = MachineEdits.withPasted(detector, lone(new DiagramPoint(0, 400)));
+
+        assertThat(pasted.machine().state(pasted.stateIds().iterator().next()).orElseThrow().position())
+                .isEqualTo(new DiagramPoint(0, 400));
+    }
+
+    private static StateMachine lone(DiagramPoint position) {
+        return new StateMachine(List.of(new MachineState("a", "LEJOS", position, List.of())), List.of(),
+                Optional.empty(), List.of(), List.of(), false, false, StateMachine.EDGE_FALLING, List.of());
+    }
+
+    /** Every pasted state's circle is at least {@link MachineEdits#PASTE_GAP} from every state that was there. */
+    private static void assertClearOfTheOthers(MachineEdits.Pasted pasted) {
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(pasted.machine());
+        for (String added : pasted.stateIds()) {
+            for (MachineState state : pasted.machine().states()) {
+                if (pasted.stateIds().contains(state.id())) {
+                    continue;
+                }
+                double between = geometry.centre(added).distance(geometry.centre(state.id()))
+                        - geometry.radius(added) - geometry.radius(state.id());
+                assertThat(between).as("%s clear of %s", added, state.name())
+                        .isGreaterThanOrEqualTo(MachineEdits.PASTE_GAP);
+            }
+        }
+    }
 }
