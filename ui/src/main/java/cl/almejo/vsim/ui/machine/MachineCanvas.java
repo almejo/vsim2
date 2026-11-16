@@ -43,6 +43,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -102,6 +103,8 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
      * (a click elsewhere, a new selection or a fix ends it).
      */
     private transient Optional<MachineFinding> revealed = Optional.empty();
+    /** The states and arrows a pin's «en 4 flechas» showed: they blink as a revealed problem's do. */
+    private transient Optional<Elements> revealedElements = Optional.empty();
     /** A blink asked for before the canvas had a size (a tab opened from Problemas): it starts once it has one. */
     private boolean blinkWhenSized;
     private int blinksLeft;
@@ -305,11 +308,27 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
      * an unused input), whose words the machine's Propiedades list.
      */
     void reveal(MachineFinding finding, boolean blink) {
+        show(new LinkedHashSet<>(MachineGlows.statesOf(finding)),
+                new LinkedHashSet<>(MachineGlows.transitionsOf(finding)), blink);
+        revealed = Optional.of(finding);
+    }
+
+    /**
+     * Selects the states {@code stateIds} and the arrows {@code transitionIds} (where a pin is used, from its row in
+     * Propiedades), brings them into view and, with {@code blink}, makes them blink a few times in the selection's
+     * colour; the blink ends with the selection, as a revealed problem's does.
+     */
+    void revealElements(Set<String> stateIds, Set<String> transitionIds, boolean blink) {
+        show(new LinkedHashSet<>(stateIds), new LinkedHashSet<>(transitionIds), blink);
+        revealedElements = Optional.of(new Elements(Set.copyOf(stateIds), Set.copyOf(transitionIds)));
+    }
+
+    private void show(Set<String> stateIds, Set<String> transitionIds, boolean blink) {
         revealed = Optional.empty();
-        selection.set(new LinkedHashSet<>(MachineGlows.statesOf(finding)),
-                new LinkedHashSet<>(MachineGlows.transitionsOf(finding)));
+        revealedElements = Optional.empty();
+        selection.set(stateIds, transitionIds);
         boolean sized = getWidth() > 0 && getHeight() > 0;
-        machine().flatMap(machine -> boundsOf(machine, finding)).ifPresent(bounds -> {
+        machine().flatMap(machine -> boundsOf(machine, stateIds, transitionIds)).ifPresent(bounds -> {
             if (sized) {
                 showCentred(bounds, Math.min(viewport.zoom(), fitZoom(bounds)));
             } else {
@@ -317,7 +336,6 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             }
         });
         blinkTimer.stop();
-        revealed = Optional.of(finding);
         blinksLeft = blink ? REVEAL_BLINKS : 0;
         blinkWhenSized = blink && !sized;
         if (blink && sized) {
@@ -325,6 +343,10 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         }
         requestFocusInWindow();
         repaint();
+    }
+
+    /** The states and arrows revealed as one pin's uses, while the selection is still theirs. */
+    private record Elements(Set<String> stateIds, Set<String> transitionIds) {
     }
 
     /** The problem shown now (its glow stands out, the others fade); empty once the selection moved on. */
@@ -335,6 +357,13 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
 
     /** A selection other than the one a reveal made ends the reveal. */
     private void selectionChanged() {
+        revealedElements.ifPresent(elements -> {
+            if (!selection.stateIds().equals(elements.stateIds())
+                    || !selection.transitionIds().equals(elements.transitionIds())) {
+                revealedElements = Optional.empty();
+                blinkTimer.stop();
+            }
+        });
         revealed.ifPresent(finding -> {
             if (!selection.stateIds().equals(new LinkedHashSet<>(MachineGlows.statesOf(finding)))
                     || !selection.transitionIds().equals(new LinkedHashSet<>(MachineGlows.transitionsOf(finding)))) {
@@ -358,16 +387,17 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         repaint();
     }
 
-    /** The glowing elements of {@code finding} with room around them; empty when it is about none. */
-    private static Optional<Rectangle2D> boundsOf(StateMachine machine, MachineFinding finding) {
+    /** The states and arrows given (those still in the machine) with room around them; empty when none is. */
+    private static Optional<Rectangle2D> boundsOf(StateMachine machine, Set<String> stateIds,
+                                                  Set<String> transitionIds) {
         MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
         Rectangle2D result = null;
-        for (String stateId : MachineGlows.statesOf(finding)) {
+        for (String stateId : stateIds) {
             if (machine.state(stateId).isPresent()) {
                 result = union(result, geometry.circle(stateId).getBounds2D());
             }
         }
-        for (String transitionId : MachineGlows.transitionsOf(finding)) {
+        for (String transitionId : transitionIds) {
             if (machine.transition(transitionId).isPresent()) {
                 result = union(result, geometry.arrow(transitionId).path().getBounds2D());
             }
@@ -575,12 +605,20 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             if (blinkTimer.isRunning() && blinksLeft % 2 == 1) {
                 revealed().ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,
                         finding, colours));
+                revealedElements.ifPresent(elements -> MachineDiagramPainter.paintFlash(canvas, machine.get(),
+                        geometry, elements.stateIds(), elements.transitionIds(), MachineColors.selection(colours),
+                        colours));
             }
             // the type chips stay on screen, not on the diagram: no zoom, no pan
             MachineKindChips.paint((Graphics2D) graphics, MachineKind.of(machine.get()), colours);
         } finally {
             canvas.dispose();
         }
+    }
+
+    /** The colours now (read each time, never kept). */
+    ColorScheme colours() {
+        return scheme.get();
     }
 
     /** The tab's place this diagram belongs to (its machine's definition lives in the place's circuit). */

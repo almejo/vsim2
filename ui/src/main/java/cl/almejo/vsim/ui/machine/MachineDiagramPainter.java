@@ -23,6 +23,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -84,6 +85,8 @@ final class MachineDiagramPainter {
     private static final int FADED_GLOW_SHARE = 4;
     /** The ring a revealed problem's elements blink with: wide, in its glow colour, the selection on top. */
     private static final float FLASH_RING_WIDTH = 9f;
+    /** The see-through of a blink ring drawn in the selection's own colour. */
+    private static final int ELEMENT_FLASH_ALPHA = 110;
 
     /**
      * What to light and mark on top of the model; {@code revealed} is the problem being shown (from Problemas, «Ver»,
@@ -178,16 +181,30 @@ final class MachineDiagramPainter {
      */
     static void paintFlash(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
                            MachineFinding finding, ColorScheme scheme) {
+        paintFlash(graphics, machine, geometry, MachineGlows.statesOf(finding), MachineGlows.transitionsOf(finding),
+                finding.isWarning() ? MachineColors.warning(scheme) : MachineColors.problem(scheme), scheme);
+    }
+
+    /**
+     * The lit half of a blink of the states {@code stateIds} and the arrows {@code transitionIds} (those still in
+     * {@code machine}): ringed wide in {@code ring} (see-through when it is the selection's own colour, so the thin
+     * selection line on top still reads), with the selection colour on top.
+     */
+    static void paintFlash(Graphics2D graphics, StateMachine machine, MachineDiagramGeometry geometry,
+                           Collection<String> stateIds, Collection<String> transitionIds, Color ring,
+                           ColorScheme scheme) {
         List<Shape> shapes = new ArrayList<>();
-        MachineGlows.statesOf(finding).stream().filter(stateId -> machine.state(stateId).isPresent())
+        stateIds.stream().filter(stateId -> machine.state(stateId).isPresent())
                 .forEach(stateId -> shapes.add(geometry.circle(stateId)));
-        MachineGlows.transitionsOf(finding).stream()
+        transitionIds.stream()
                 .filter(transitionId -> machine.transition(transitionId).isPresent())
                 .forEach(transitionId -> shapes.add(geometry.arrow(transitionId).path()));
-        graphics.setColor(finding.isWarning() ? MachineColors.warning(scheme) : MachineColors.problem(scheme));
+        Color selection = MachineColors.selection(scheme);
+        graphics.setColor(ring.equals(selection)
+                ? new Color(ring.getRed(), ring.getGreen(), ring.getBlue(), ELEMENT_FLASH_ALPHA) : ring);
         graphics.setStroke(new BasicStroke(FLASH_RING_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         shapes.forEach(graphics::draw);
-        graphics.setColor(MachineColors.selection(scheme));
+        graphics.setColor(selection);
         graphics.setStroke(new BasicStroke(LIT_BORDER_WIDTH));
         shapes.forEach(graphics::draw);
     }
