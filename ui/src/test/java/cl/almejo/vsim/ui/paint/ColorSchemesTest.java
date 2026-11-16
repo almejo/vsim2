@@ -268,7 +268,9 @@ class ColorSchemesTest {
 
     @Test
     void theWarningColourIsAYellowAmberClearlyApartFromTheMachinesActiveOrange() {
-        // hand test of hito 2, round 2: a warning ring read as the active state's orange
+        // hand test of hito 2, round 2: a warning ring read as the active state's orange. PROVISIONAL: the colour is
+        // still to be chosen with the user (item 15), and only the hue is checked here, not the translucent halo over
+        // the board that read as olive; a new colour may change these bounds without being a regression.
         for (ColorScheme scheme : ALL) {
             double warningHue = hue(scheme.warning());
             assertThat(warningHue).as("yellow-amber: %s", scheme).isBetween(42.0, 60.0);
