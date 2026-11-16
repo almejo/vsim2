@@ -358,6 +358,7 @@ final class MachineInspectorRows extends JPanel {
 
     private void showTransition(StateMachine machine, MachineTransition transition) {
         addHeader(Messages.text("machine.properties.transition"));
+        add(hint(Messages.text("machine.label.notation")), WIDE);
         JLabel ends = new JLabel(Messages.format("machine.properties.ends", nameOf(machine, transition.fromId()),
                 nameOf(machine, transition.toId())));
         addRow(Messages.text("machine.properties.goes"), ends);

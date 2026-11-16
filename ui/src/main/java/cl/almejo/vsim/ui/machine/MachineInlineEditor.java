@@ -69,6 +69,8 @@ final class MachineInlineEditor {
                         text -> applyLabel(transitionId, text),
                         InlineEditRequest.Anchor.CENTER, List.of()),
                 () -> canvas.machine().flatMap(current -> current.transition(transitionId)).isPresent());
+        // «/» is the only way to write outputs (the user's decision of 2026-11-15), so the editor shows it
+        editor.showHint(Messages.text("machine.label.notation"));
     }
 
     /** Closes an open edit without applying it (the tab leaves machine mode). */

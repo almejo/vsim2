@@ -75,6 +75,19 @@ class MachineProblemTextTest {
                 .contains("Falta un operando").endsWith("La flecha no se toma nunca.");
     }
 
+    /** «Z=1» as a condition is an output written without its slash: the sentence says how to write it. */
+    @Test
+    void anOutputWrittenWithoutTheSlashIsToldWithTheSlash() {
+        StateMachine alone = machine(List.of(state("a", "A"), state("b", "B")),
+                List.of(arrow("t1", "a", "b", "Z=1")), Optional.of("a"), List.of());
+        StateMachine afterACondition = machine(List.of(state("a", "A"), state("b", "B")),
+                List.of(arrow("t1", "a", "b", "x Z=1")), Optional.of("a"), List.of("x"));
+
+        assertThat(sentenceOf(alone, Kind.BAD_CONDITION)).contains("«/ Z=1»").contains("barra")
+                .endsWith("La flecha no se toma nunca.");
+        assertThat(sentenceOf(afterACondition, Kind.BAD_CONDITION)).contains("«x / Z=1»");
+    }
+
     @Test
     void theListSaysWhichMachineAndWhichCopy() {
         CircuitDocument document = new CircuitDocument();

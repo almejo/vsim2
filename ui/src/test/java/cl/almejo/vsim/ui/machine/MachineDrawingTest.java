@@ -221,6 +221,35 @@ class MachineDrawingTest {
         assertThat(pinNames()).contains("y");
     }
 
+    /** The user's decision (hand test of hito 2): «/» stays the only way to write outputs, and it is shown. */
+    @Test
+    void theArrowsInlineEditorShowsHowALabelIsWritten() {
+        mode.inlineEditor().editCondition("t1");
+
+        assertThat(inline().hintText().isVisible()).isTrue();
+        assertThat(inline().hintText().getText()).contains("condición / salidas").contains("x / Z=1");
+
+        inline().textComponent().setText("x / Z=");
+        assertThat(inline().hintText().isVisible()).as("a problem takes its place").isFalse();
+        inline().cancel();
+
+        mode.inlineEditor().editStateName("s1");
+        assertThat(inline().hintText().isVisible()).as("a name has no notation to show").isFalse();
+    }
+
+    @Test
+    void aSelectedArrowsPropertiesShowHowALabelIsWritten() {
+        mode.selection().selectTransition("t1");
+
+        List<String> hints = new ArrayList<>();
+        for (java.awt.Component child : mode.inspectorRows().getComponents()) {
+            if (child instanceof javax.swing.JTextArea hint) {
+                hints.add(hint.getText());
+            }
+        }
+        assertThat(hints).anySatisfy(hint -> assertThat(hint).contains("condición / salidas").contains("x / Z=1"));
+    }
+
     @Test
     void aNewNameInAConditionGivesThePlacedPartsAPin() {
         Component copy = document.document().components().get(0);

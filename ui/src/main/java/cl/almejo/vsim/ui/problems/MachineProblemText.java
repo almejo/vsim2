@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The words of a state machine's problems (hito 2, as in the mockup's «Los problemas, a la vista»): {@link #sentence}
@@ -28,6 +30,9 @@ import java.util.Optional;
 public final class MachineProblemText {
 
     private static final String LIST_SEPARATOR = ", ";
+    private static final String SLASH = "/";
+    /** An output given a value, as an arrow's outputs write it: a name, then «=». */
+    private static final Pattern OUTPUT_ASSIGNMENT = Pattern.compile("\\p{L}[\\p{L}\\p{Nd}_]*\\s*=");
 
     private MachineProblemText() {
     }
@@ -73,6 +78,10 @@ public final class MachineProblemText {
     private static String badCondition(MachineFinding finding, StateMachine machine) {
         Optional<MachineTransition> transition = firstTransition(machine, finding);
         String condition = transition.map(MachineTransition::condition).orElse("");
+        Optional<String> withSlash = withTheSlash(condition);
+        if (withSlash.isPresent()) {
+            return arrowWords(machine, finding, "problem.machine.outputWithoutSlash", withSlash.get());
+        }
         Optional<ExpressionProblem> problem = MachineConditions.parse(condition).problem();
         String reason = problem.map(found -> Messages.format(found.messageKey(), found.arguments().toArray()))
                 .orElse("");
@@ -80,6 +89,21 @@ public final class MachineProblemText {
             return arrowWords(machine, finding, "problem.machine.badConditionNoColumn", reason);
         }
         return arrowWords(machine, finding, "problem.machine.badCondition", finding.column() + 1, reason);
+    }
+
+    /**
+     * {@code condition} written as it was surely meant when it holds an output without the slash before it (the
+     * user's decision of 2026-11-15: «/» stays the only way, and the problem shows it): «Z=1» → «/ Z=1», «x Z=1» →
+     * «x / Z=1»; empty when it has no {@code name=}.
+     */
+    private static Optional<String> withTheSlash(String condition) {
+        Matcher assignment = OUTPUT_ASSIGNMENT.matcher(condition);
+        if (condition.contains(SLASH) || !assignment.find()) {
+            return Optional.empty();
+        }
+        String before = condition.substring(0, assignment.start()).strip();
+        String outputs = SLASH + " " + condition.substring(assignment.start()).strip();
+        return Optional.of(before.isEmpty() ? outputs : before + " " + outputs);
     }
 
     private static String nondeterministic(MachineFinding finding, StateMachine machine) {
