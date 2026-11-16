@@ -68,7 +68,9 @@ public final class CircuitFormat {
      * ({@code memoryContents}, optional: older files read unchanged, and an older VSim refuses a newer file instead of
      * dropping them); 7: a definition's optional {@code machine}, a «Máquina de estados» whose body is generated from it
      * (an older VSim refuses the file instead of showing the machine as an empty component), and a probe on a machine
-     * piece's state ({@code "watch": "state"}).
+     * piece's state ({@code "watch": "state"}); added to 7 before its release (hito 3 of the machines, optional): a
+     * machine pin written as {@code {"id", "name"}} once renamed (a plain name otherwise), a state's {@code color} and
+     * the diagram's {@code notes}.
      */
     public static final int FORMAT_VERSION = 7;
     static final String KIND_CIRCUIT = "circuit";

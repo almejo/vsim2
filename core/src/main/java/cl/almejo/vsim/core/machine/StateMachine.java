@@ -11,14 +11,16 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 /**
- * The inside of a «Máquina de estados» user component: its states and arrows, the initial state, the names of its
- * inputs and outputs in pin order (a name stays after it is no longer used: «sin usar»), whether they show as a bus,
- * the clock edge it reacts to and its saved tests. Immutable; ids are stable and never shown.
+ * The inside of a «Máquina de estados» user component: its states and arrows, the initial state, its input and
+ * output pins in pin order (a pin stays after its name is no longer used: «sin usar»), whether they show as a bus,
+ * the clock edge it reacts to, its saved tests and the notes stuck on its diagram. Immutable; ids are stable and
+ * never shown (a pin's id survives a rename, so the wires on it stay).
  * Design: docs/interno/superpowers/specs/2026-11-14-maquinas-de-estado-design.md §2.1.
  */
 public record StateMachine(List<MachineState> states, List<MachineTransition> transitions,
-                           Optional<String> initialStateId, List<String> inputNames, List<String> outputNames,
-                           boolean inputsAsBus, boolean outputsAsBus, String edge, List<MachineTest> tests) {
+                           Optional<String> initialStateId, List<MachinePin> inputs, List<MachinePin> outputs,
+                           boolean inputsAsBus, boolean outputsAsBus, String edge, List<MachineTest> tests,
+                           List<MachineNote> notes) {
 
     /** The values of {@code StandardParameters.EDGE}; a machine reacts to the falling edge by default. */
     public static final String EDGE_FALLING = "falling";
@@ -30,13 +32,14 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
         states = List.copyOf(states);
         transitions = List.copyOf(transitions);
         Objects.requireNonNull(initialStateId, "initialStateId");
-        inputNames = List.copyOf(inputNames);
-        outputNames = List.copyOf(outputNames);
+        inputs = List.copyOf(inputs);
+        outputs = List.copyOf(outputs);
         Objects.requireNonNull(edge, "edge");
         if (!edge.equals(EDGE_FALLING) && !edge.equals(EDGE_RISING)) {
             throw new IllegalArgumentException("unknown machine edge: " + edge);
         }
         tests = List.copyOf(tests);
+        notes = List.copyOf(notes);
         Set<String> stateIds = new HashSet<>();
         for (MachineState state : states) {
             if (!stateIds.add(state.id())) {
@@ -57,7 +60,26 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
                 throw new IllegalArgumentException("the initial state " + initial + " does not exist");
             }
         });
-        requireUniqueNames(inputNames, outputNames);
+        requireUniqueNames(names(inputs), names(outputs));
+        requireUniqueIds(inputs, "input");
+        requireUniqueIds(outputs, "output");
+        Set<String> noteIds = new HashSet<>();
+        for (MachineNote note : notes) {
+            if (!noteIds.add(note.id())) {
+                throw new IllegalArgumentException("note id used twice: " + note.id());
+            }
+        }
+    }
+
+    /**
+     * A machine whose pins are born from {@code inputNames} and {@code outputNames} (each id equal to its name),
+     * without notes: how the machines of hitos 1–2 were made, and what most tests need.
+     */
+    public StateMachine(List<MachineState> states, List<MachineTransition> transitions,
+                        Optional<String> initialStateId, List<String> inputNames, List<String> outputNames,
+                        boolean inputsAsBus, boolean outputsAsBus, String edge, List<MachineTest> tests) {
+        this(states, transitions, initialStateId, named(inputNames), named(outputNames), inputsAsBus, outputsAsBus,
+                edge, tests, List.of());
     }
 
     /** A new machine: one state {@code S0}, initial, at the origin; no arrows, no pins, falling edge. */
@@ -71,6 +93,23 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
         Objects.requireNonNull(id, what + " id");
         if (!ID_PATTERN.matcher(id).matches()) {
             throw new IllegalArgumentException(what + " id must be a slug: " + id);
+        }
+    }
+
+    private static List<MachinePin> named(List<String> names) {
+        return names.stream().map(MachinePin::named).toList();
+    }
+
+    private static List<String> names(List<MachinePin> pins) {
+        return pins.stream().map(MachinePin::name).toList();
+    }
+
+    private static void requireUniqueIds(List<MachinePin> pins, String side) {
+        Set<String> seen = new HashSet<>();
+        for (MachinePin pin : pins) {
+            if (!seen.add(pin.id())) {
+                throw new IllegalArgumentException(side + " pin id used twice: " + pin.id());
+            }
         }
     }
 
@@ -91,6 +130,26 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
         }
     }
 
+    /** The names of the input pins, in pin order. */
+    public List<String> inputNames() {
+        return names(inputs);
+    }
+
+    /** The names of the output pins, in pin order. */
+    public List<String> outputNames() {
+        return names(outputs);
+    }
+
+    /** The pins of {@code side}, in pin order. */
+    public List<MachinePin> pins(MachinePinEdits.Side side) {
+        return side == MachinePinEdits.Side.INPUT ? inputs : outputs;
+    }
+
+    /** The pin called {@code name} on {@code side}. */
+    public Optional<MachinePin> pin(MachinePinEdits.Side side, String name) {
+        return pins(side).stream().filter(pin -> pin.name().equals(name)).findFirst();
+    }
+
     public Optional<MachineState> state(String stateId) {
         return states.stream().filter(state -> state.id().equals(stateId)).findFirst();
     }
@@ -109,12 +168,12 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
      * {@code CLK}, {@code RST} and the names of {@link #outputNamesUsed() outputs} (an output is never an input).
      */
     public List<String> inputNamesUsed() {
-        Set<String> outputs = new HashSet<>(outputNamesUsed());
-        outputs.addAll(outputNames);
+        Set<String> outputNames = new HashSet<>(outputNamesUsed());
+        outputNames.addAll(outputNames());
         Set<String> names = new LinkedHashSet<>();
         for (MachineTransition transition : transitions) {
             for (String name : MachineConditions.parse(transition.condition()).names()) {
-                if (!MachineLimits.isReserved(name) && !outputs.contains(name)) {
+                if (!MachineLimits.isReserved(name) && !outputNames.contains(name)) {
                     names.add(name);
                 }
             }
@@ -150,14 +209,14 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
      * {@link MachineLimits}: «a new name in a condition creates an input». Pins no longer used stay («sin usar»).
      */
     public StateMachine withUsedNamesAdded() {
-        List<String> outputs = withAdded(outputNames, outputNamesUsed(), MachineLimits.MAXIMUM_OUTPUTS,
-                new HashSet<>(inputNames));
-        List<String> inputs = withAdded(inputNames, inputNamesUsed(), MachineLimits.MAXIMUM_INPUTS,
-                new HashSet<>(outputs));
-        if (inputs.equals(inputNames) && outputs.equals(outputNames)) {
+        List<String> newOutputNames = withAdded(outputNames(), outputNamesUsed(), MachineLimits.MAXIMUM_OUTPUTS,
+                new HashSet<>(inputNames()));
+        List<String> newInputNames = withAdded(inputNames(), inputNamesUsed(), MachineLimits.MAXIMUM_INPUTS,
+                new HashSet<>(newOutputNames));
+        if (newInputNames.equals(inputNames()) && newOutputNames.equals(outputNames())) {
             return this;
         }
-        return withPinNames(inputs, outputs);
+        return withPinNames(newInputNames, newOutputNames);
     }
 
     private static List<String> withAdded(List<String> pins, List<String> used, int limit, Set<String> taken) {
@@ -174,38 +233,71 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
     }
 
     public StateMachine withStates(List<MachineState> newStates) {
-        return new StateMachine(newStates, transitions, initialStateId, inputNames, outputNames, inputsAsBus,
-                outputsAsBus, edge, tests);
+        return new StateMachine(newStates, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
+                edge, tests, notes);
     }
 
     public StateMachine withTransitions(List<MachineTransition> newTransitions) {
-        return new StateMachine(states, newTransitions, initialStateId, inputNames, outputNames, inputsAsBus,
-                outputsAsBus, edge, tests);
+        return new StateMachine(states, newTransitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
+                edge, tests, notes);
     }
 
     public StateMachine withInitialStateId(Optional<String> newInitialStateId) {
-        return new StateMachine(states, transitions, newInitialStateId, inputNames, outputNames, inputsAsBus,
-                outputsAsBus, edge, tests);
+        return new StateMachine(states, transitions, newInitialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
+                edge, tests, notes);
     }
 
+    public StateMachine withPins(List<MachinePin> newInputs, List<MachinePin> newOutputs) {
+        return new StateMachine(states, transitions, initialStateId, newInputs, newOutputs, inputsAsBus,
+                outputsAsBus, edge, tests, notes);
+    }
+
+    /**
+     * This machine with these pin names in this order: a name that is already a pin of its side keeps that pin (and
+     * its id, so its wires); a new name gets a new pin ({@link MachinePin#minted}).
+     */
     public StateMachine withPinNames(List<String> newInputNames, List<String> newOutputNames) {
-        return new StateMachine(states, transitions, initialStateId, newInputNames, newOutputNames, inputsAsBus,
-                outputsAsBus, edge, tests);
+        return withPins(pinsNamed(inputs, newInputNames), pinsNamed(outputs, newOutputNames));
+    }
+
+    private static List<MachinePin> pinsNamed(List<MachinePin> current, List<String> names) {
+        List<Optional<MachinePin>> kept = names.stream()
+                .map(name -> current.stream().filter(pin -> pin.name().equals(name)).findFirst()).toList();
+        Set<String> takenIds = new HashSet<>();
+        kept.forEach(pin -> pin.ifPresent(present -> takenIds.add(present.id())));
+        List<MachinePin> result = new ArrayList<>();
+        for (int index = 0; index < names.size(); index++) {
+            String name = names.get(index);
+            MachinePin pin = kept.get(index).orElseGet(() -> MachinePin.minted(name, takenIds));
+            takenIds.add(pin.id());
+            result.add(pin);
+        }
+        return result;
     }
 
     public StateMachine withBus(boolean newInputsAsBus, boolean newOutputsAsBus) {
-        return new StateMachine(states, transitions, initialStateId, inputNames, outputNames, newInputsAsBus,
-                newOutputsAsBus, edge, tests);
+        return new StateMachine(states, transitions, initialStateId, inputs, outputs, newInputsAsBus,
+                newOutputsAsBus, edge, tests, notes);
     }
 
     public StateMachine withEdge(String newEdge) {
-        return new StateMachine(states, transitions, initialStateId, inputNames, outputNames, inputsAsBus,
-                outputsAsBus, newEdge, tests);
+        return new StateMachine(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
+                newEdge, tests, notes);
     }
 
     public StateMachine withTests(List<MachineTest> newTests) {
-        return new StateMachine(states, transitions, initialStateId, inputNames, outputNames, inputsAsBus,
-                outputsAsBus, edge, newTests);
+        return new StateMachine(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
+                edge, newTests, notes);
+    }
+
+    public StateMachine withNotes(List<MachineNote> newNotes) {
+        return new StateMachine(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
+                edge, tests, newNotes);
+    }
+
+    /** This machine with the note {@code noteId} replaced by what {@code change} gives. */
+    public StateMachine withNote(String noteId, UnaryOperator<MachineNote> change) {
+        return withNotes(notes.stream().map(note -> note.id().equals(noteId) ? change.apply(note) : note).toList());
     }
 
     /** This machine with the state {@code stateId} replaced by what {@code change} gives. */

@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import org.junit.jupiter.api.Test;
@@ -154,5 +155,29 @@ class EditMachineCommandTest {
 
     private static List<String> pinNames(ComponentDefinition definition) {
         return definition.pinout().stream().map(pin -> pin.spec().name()).toList();
+    }
+
+    @Test
+    void renamingAnInputKeepsTheWireOnItsPinAndUndoGivesTheOldNameBack() {
+        history.execute(new EditMachineCommand(MACHINE_ID, withSelfLoop("x")));
+        GridPoint inputPin = pinLocation("x");
+        Wire wire = new Wire(new ElementId("w31"), inputPin.plus(new GridPoint(-4, 0)), inputPin);
+        document.add(wire);
+        StateMachine wired = machineDefinition().machine().orElseThrow();
+
+        EditMachineCommand rename = new EditMachineCommand(MACHINE_ID,
+                MachinePinEdits.renamed(wired, MachinePinEdits.Side.INPUT, "x", "a"));
+        history.execute(rename);
+
+        assertThat(pinNames(machineDefinition())).containsExactly("a", "RST", "CLK");
+        assertThat(machineDefinition().machine().orElseThrow().transition("t0").orElseThrow().condition())
+                .isEqualTo("a");
+        assertThat(pinLocation("a")).isEqualTo(inputPin);
+        assertThat(document.wires()).contains(wire);
+        assertThat(rename.loosenedPins()).isEmpty();
+
+        history.undo();
+        assertThat(pinNames(machineDefinition())).containsExactly("x", "RST", "CLK");
+        assertThat(document.wires()).contains(wire);
     }
 }

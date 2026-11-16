@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.logic.ExpressionProblem;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -54,6 +55,26 @@ public final class MachineConditions {
             }
             return expression.get().evaluate(values);
         }
+    }
+
+    /**
+     * {@code condition} with every whole name {@code from} written {@code to}, the rest as typed ({@code x' + xy·x},
+     * {@code x} → {@code a}: {@code a' + xy·a}). A condition that does not parse is renamed too, from its tokens, so
+     * the user's half-typed text follows the pin it was about.
+     */
+    public static String renamed(String condition, String from, String to) {
+        Objects.requireNonNull(condition, "condition");
+        Objects.requireNonNull(from, "from");
+        Objects.requireNonNull(to, "to");
+        StringBuilder result = new StringBuilder(condition);
+        List<ExpressionParser.NameSpan> spans = ExpressionParser.nameSpans(condition);
+        for (int index = spans.size() - 1; index >= 0; index--) {
+            ExpressionParser.NameSpan span = spans.get(index);
+            if (span.name().equals(from)) {
+                result.replace(span.start(), span.end(), to);
+            }
+        }
+        return result.toString();
     }
 
     /** Reads {@code text}; blank is «otherwise». */

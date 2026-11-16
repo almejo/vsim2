@@ -21,8 +21,9 @@ import java.util.Objects;
  * The generated outside of a machine (spec §2.2): one Pin de entrada per input, then {@code RST}, then {@code CLK}
  * on the left, one Pin de salida per output on the right, and a body holding only those interface pins, so the
  * pinout, the library, «Actualizar componente» and the painters work as for any user component. A pure function of
- * the model: the ids of the body's pins come from the pin names, so a pin keeps its {@link DefinitionPin#source()}
- * when others are added or removed and the placed pieces' wires follow it.
+ * the model: the ids of the body's pins come from the {@link MachinePin#id() pin ids}, so a pin keeps its
+ * {@link DefinitionPin#source()} when others are added, removed or moved and when it is renamed, and the placed
+ * pieces' wires follow it.
  * <p>
  * Hito 1 draws every pin as one bit; «Como un bus» arrives in hito 3.
  */
@@ -60,14 +61,14 @@ public record MachineBody(CircuitFragment body, List<DefinitionPin> pinout, Grid
     /** The body, pinout and size of {@code machine}. */
     public static MachineBody of(StateMachine machine) {
         List<Side> inputs = new ArrayList<>();
-        for (String name : machine.inputNames()) {
-            inputs.add(new Side(name, idFor(INPUT_ID_PREFIX, name)));
+        for (MachinePin pin : machine.inputs()) {
+            inputs.add(new Side(pin.name(), idFor(INPUT_ID_PREFIX, pin.id())));
         }
         inputs.add(new Side(MachineLimits.RESET, RESET_ID));
         inputs.add(new Side(MachineLimits.CLOCK, CLOCK_ID));
         List<Side> outputs = new ArrayList<>();
-        for (String name : machine.outputNames()) {
-            outputs.add(new Side(name, idFor(OUTPUT_ID_PREFIX, name)));
+        for (MachinePin pin : machine.outputs()) {
+            outputs.add(new Side(pin.name(), idFor(OUTPUT_ID_PREFIX, pin.id())));
         }
         GridSize size = new GridSize(BOX_WIDTH, Math.max(MINIMUM_HEIGHT,
                 PIN_SPACING * (Math.max(inputs.size(), outputs.size()) + 1)));
@@ -96,7 +97,7 @@ public record MachineBody(CircuitFragment body, List<DefinitionPin> pinout, Grid
     }
 
     /**
-     * A body id from a pin name, one-to-one: an element id cannot hold {@code /} (it separates instance paths), so
+     * A body id from a pin id, one-to-one: an element id cannot hold {@code /} (it separates instance paths), so
      * {@code %} and {@code /} are escaped.
      */
     private static ElementId idFor(String prefix, String name) {

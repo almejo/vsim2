@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.library.AppearanceReconciler;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.InterfacePins;
@@ -98,5 +99,18 @@ class MachineBodyTest {
     private static String sourceOf(MachineBody body, String name) {
         return body.pinout().stream().filter(pin -> pin.spec().name().equals(name)).findFirst().orElseThrow()
                 .source().value();
+    }
+
+    @Test
+    void aRenamedPinKeepsItsSourceSoThePiecesWiresFollowIt() {
+        StateMachine machine = MachineExamples.twoOnesDetector();
+        ComponentDefinition before = MachineDefinitions.create("maquina-1", "Máquina 1").withMachine(machine);
+
+        ComponentDefinition after = before.withMachine(
+                MachinePinEdits.renamed(machine, MachinePinEdits.Side.INPUT, "x", "a"));
+
+        assertThat(names(after.pinout())).containsExactly("a", "RST", "CLK", "Z");
+        assertThat(after.pinout().get(0).source()).isEqualTo(before.pinout().get(0).source());
+        assertThat(AppearanceReconciler.previousPins(before, after).get(0)).contains(before.pinout().get(0));
     }
 }
