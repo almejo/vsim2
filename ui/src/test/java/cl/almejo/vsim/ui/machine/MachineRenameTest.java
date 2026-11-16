@@ -150,6 +150,65 @@ class MachineRenameTest {
     }
 
     /**
+     * A click elsewhere changes the selection (and rebuilds Propiedades) before the field hears it lost the focus:
+     * what was typed is applied first, as the label's field is (review of the hand fixes, I4).
+     */
+    @Test
+    void aNameTypedOnThePieceIsKeptWhenTheSelectionChanges() {
+        EditorView view = shown(new EditorView(document, services, NO_WINDOW));
+        view.selection().select(new ElementId(MachineFixtures.copies(document).get(0)));
+        ((JTextField) find(view.labelFeatures().properties(), MachineNameRows.FIELD_NAME)).setText("Semáforo");
+
+        view.selection().clear();
+
+        assertThat(machineName()).isEqualTo("Semáforo");
+    }
+
+    @Test
+    void namesTypedInTheTabAreKeptWhenTheSelectionChanges() {
+        EditorView view = shown(new EditorView(machineTab(), services, NO_WINDOW));
+        MachineMode mode = MachineMode.of(view).orElseThrow();
+        MachineInspectorRows rows = mode.inspectorRows();
+        rows.machineNameField().orElseThrow().setText("Semáforo");
+
+        mode.selection().selectState("s0");
+
+        assertThat(machineName()).isEqualTo("Semáforo");
+        rows.nameField().orElseThrow().setText("Inicio");
+
+        mode.selection().selectState("s1");
+
+        assertThat(mode.canvas().machine().orElseThrow().state("s0").orElseThrow().name()).isEqualTo("Inicio");
+    }
+
+    /**
+     * A refused name stays while the user fixes it, but leaving the field puts back the name the machine has, with
+     * the reason still under it (review, M3): the field never shows a name the machine does not have.
+     */
+    @Test
+    void leavingAFieldWithARefusedNamePutsTheMachinesNameBack() {
+        EditorView view = shown(new EditorView(machineTab(), services, NO_WINDOW));
+        MachineInspectorRows rows = MachineMode.of(view).orElseThrow().inspectorRows();
+        JTextField field = rows.machineNameField().orElseThrow();
+        type(field, "otra");
+        assertThat(field.getText()).isEqualTo("otra");
+
+        loseFocus(field);
+
+        assertThat(field.getText()).isEqualTo("Detector 11");
+        assertThat(rows.problemText()).contains("Ya existe un componente llamado «otra».");
+    }
+
+    /** What a focus change tells {@code field}, as if it were on screen (headless tests show no window). */
+    private static void loseFocus(JTextField field) {
+        for (java.awt.event.FocusListener listener : field.getFocusListeners()) {
+            if (listener instanceof java.awt.event.FocusAdapter) {
+                listener.focusLost(new java.awt.event.FocusEvent(field, java.awt.event.FocusEvent.FOCUS_LOST));
+            }
+        }
+    }
+
+    /**
      * A name «Mis componentes» already uses for another component is taken too, as in the palette's «Renombrar…»
      * (review of the hand fixes, I3): the palette would show two entries with one name.
      */

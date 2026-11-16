@@ -18,8 +18,8 @@ import java.util.Optional;
 
 /**
  * «Nombre de la máquina» in Propiedades for a machine's piece in a circuit (hand test of hito 2, round 2): renames
- * the machine, the same as «Nombre» in its tab ({@link MachineNaming}), applied on Enter or when the field loses the
- * focus; a name that cannot be is told under it and nothing changes.
+ * the machine, the same as «Nombre» in its tab ({@link MachineNaming}), applied on Enter, when the field loses the
+ * focus or when Propiedades shows something else; a name that cannot be is told under it and nothing changes.
  */
 final class MachineNameRows implements PropertiesPanel.ComponentRows {
 
@@ -65,6 +65,7 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
             }
         };
         field.addActionListener(event -> apply.run());
+        rows.onCommit(apply); // a click on another part rebuilds Propiedades before the focus leaves the field
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent event) {

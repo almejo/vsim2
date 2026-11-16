@@ -36,7 +36,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 /**
@@ -74,6 +76,9 @@ final class MachineInspectorRows extends JPanel {
     private transient Optional<JLabel> kindLabel = Optional.empty();
     /** What each field of the rows shown would say now; run after a change that does not rebuild them. */
     private final transient List<Runnable> refreshers = new ArrayList<>();
+    /** The fields' applies of what was typed and not applied yet, run before the rows change for another selection. */
+    private final transient List<Runnable> pendingApplies = new ArrayList<>();
+    private boolean disposed;
     /** What the rows were built for: the selected element, and the kind of rows. */
     private transient String builtFor = "";
     private transient Optional<JCheckBox> initialBox = Optional.empty();
@@ -176,12 +181,18 @@ final class MachineInspectorRows extends JPanel {
 
     /** Stops following the diagram (the tab leaves machine mode). */
     void dispose() {
+        disposed = true;
         stopFollowingSelection.run();
         stopFollowingMachine.run();
         stopFollowingFrames.run();
     }
 
     private void selectionChanged() {
+        if (builtFor.equals(shownFor())) {
+            return;
+        }
+        // a click on the diagram changes the selection before the field hears it lost the focus: apply it first
+        List.copyOf(pendingApplies).forEach(Runnable::run);
         if (!builtFor.equals(shownFor())) {
             rebuild();
         }
@@ -231,6 +242,7 @@ final class MachineInspectorRows extends JPanel {
     private void rebuild() {
         removeAll();
         refreshers.clear();
+        pendingApplies.clear();
         nameField = Optional.empty();
         machineNameField = Optional.empty();
         outputsField = Optional.empty();
@@ -387,6 +399,7 @@ final class MachineInspectorRows extends JPanel {
                 text -> {
                     apply(current -> MachineEdits.withCondition(current, transition.id(), text));
                     showProblem(MachineConditions.parse(text).problem().map(MachineInspectorRows::describe));
+                    return true; // a condition that cannot be read is kept as written
                 });
         add(hint(Messages.text(transition.isOtherwise() ? "machine.properties.otherwise"
                 : "machine.properties.conditionHint")), WIDE);
@@ -412,26 +425,27 @@ final class MachineInspectorRows extends JPanel {
         return machine.state(stateId).map(MachineState::name).orElse(stateId);
     }
 
-    private void applyName(String stateId, String text) {
+    private boolean applyName(String stateId, String text) {
         Optional<String> wrong = canvas.machine()
                 .flatMap(machine -> MachineEdits.stateNameProblem(machine, stateId, text))
                 .map(key -> Messages.format(key, text.strip()));
         if (wrong.isPresent()) {
             showProblem(wrong);
-            return;
+            return false;
         }
         apply(machine -> MachineEdits.withStateName(machine, stateId, text));
+        return true;
     }
 
     /**
      * Renames the machine (its component) when the name is good, else says why; the rows stay (the field keeps its
      * focus), only what they show is brought up to date.
      */
-    private void applyMachineName(String text) {
+    private boolean applyMachineName(String text) {
         Optional<String> wrong = MachineNaming.problem(canvas.place(), library, canvas.definitionId(), text);
         if (wrong.isPresent()) {
             showProblem(wrong);
-            return;
+            return false;
         }
         applying = true;
         try {
@@ -441,26 +455,29 @@ final class MachineInspectorRows extends JPanel {
         }
         showProblem(Optional.empty());
         refreshers.forEach(Runnable::run);
+        return true;
     }
 
-    private void applyOutputs(String stateId, String text) {
+    private boolean applyOutputs(String stateId, String text) {
         MachineOutputsText.Reading reading = MachineOutputsText.read(text);
         if (reading.problem().isPresent()) {
             MachineOutputsText.Problem wrong = reading.problem().get();
             showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
-            return;
+            return false;
         }
         apply(machine -> MachineEdits.withMooreOutputs(machine, stateId, reading.outputs()));
+        return true;
     }
 
-    private void applyMealyOutputs(String transitionId, String text) {
+    private boolean applyMealyOutputs(String transitionId, String text) {
         MachineOutputsText.Reading reading = MachineOutputsText.read(text);
         if (reading.problem().isPresent()) {
             MachineOutputsText.Problem wrong = reading.problem().get();
             showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
-            return;
+            return false;
         }
         apply(machine -> MachineEdits.withMealyOutputs(machine, transitionId, reading.outputs()));
+        return true;
     }
 
     /**
@@ -484,28 +501,43 @@ final class MachineInspectorRows extends JPanel {
     }
 
     /**
-     * A field that applies on Enter or when it loses the focus. {@code modelText} says what the machine holds for it;
-     * after a change made elsewhere the field takes it, unless it has the focus or typing not yet applied.
+     * A field that applies on Enter, when it loses the focus or before the rows change for another selection;
+     * {@code onApply} says whether it took the text. {@code modelText} says what the machine holds for it; after a
+     * change made elsewhere the field takes it, unless it has the focus or typing not yet applied. A refused text stays
+     * while the field has the focus, so it can be fixed; leaving the field puts back what the machine holds (the
+     * reason stays under it), so the field never shows what the machine does not have.
      */
     private JTextField textRow(String caption, String text, Function<StateMachine, Optional<String>> modelText,
-                               Consumer<String> onApply) {
+                               Predicate<String> onApply) {
         JTextField field = FragmentRefusingTransferHandler.install(new JTextField(text));
         String[] applied = {text};
-        Runnable applyIfChanged = () -> {
-            if (!field.getText().equals(applied[0])) {
-                applied[0] = field.getText();
-                onApply.accept(field.getText());
+        BooleanSupplier applyIfChanged = () -> {
+            String typed = field.getText();
+            if (typed.equals(applied[0])) {
+                return true;
             }
+            String before = applied[0];
+            applied[0] = typed;
+            boolean taken = onApply.test(typed);
+            if (!taken) {
+                applied[0] = before;
+            }
+            return taken;
         };
-        field.addActionListener(event -> applyIfChanged.run());
+        field.addActionListener(event -> applyIfChanged.getAsBoolean());
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent event) {
-                if (field.isShowing()) {
-                    applyIfChanged.run();
+                // not once the rows were rebuilt (another selection): they applied it then
+                if (disposed || field.getParent() != MachineInspectorRows.this || applyIfChanged.getAsBoolean()) {
+                    return;
                 }
+                String held = canvas.machine().flatMap(modelText).orElse(applied[0]);
+                field.setText(held);
+                applied[0] = held;
             }
         });
+        pendingApplies.add(applyIfChanged::getAsBoolean);
         refreshers.add(() -> {
             boolean typing = !field.getText().equals(applied[0]);
             Optional<String> held = canvas.machine().flatMap(modelText);
