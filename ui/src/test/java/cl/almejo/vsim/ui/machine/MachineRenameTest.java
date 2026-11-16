@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.io.MachineFragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -46,6 +47,7 @@ class MachineRenameTest {
     private final AppPreferences preferences = AppPreferences.inMemory();
     private final List<EditorView> views = new ArrayList<>();
     private final List<OpenDocument> places = new ArrayList<>();
+    private final ComponentLibrary library = new ComponentLibrary();
     private EditorServices services;
     private OpenDocument document;
 
@@ -53,7 +55,7 @@ class MachineRenameTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT), preferences,
-                new ComponentLibrary(), List.of(new MachineModeExtension((snapshot, instancePath) -> Optional.empty())));
+                library, List.of(new MachineModeExtension((snapshot, instancePath) -> Optional.empty())));
         document = MachineFixtures.circuitWithGeneratedMachines(1);
         document.execute(new PutDefinitionsCommand(List.of(MachineDefinitions.regenerated(
                 MachineDefinitions.create(OTHER_ID, "Otra").withMachine(StateMachine.initial())))));
@@ -145,6 +147,50 @@ class MachineRenameTest {
         assertThat(machineName()).isEqualTo("Detector 11");
         JTextComponent problem = (JTextComponent) find(view.labelFeatures().properties(), MachineNameRows.PROBLEM_NAME);
         assertThat(problem.getText()).isEqualTo("Ya existe un componente llamado «Otra».");
+    }
+
+    /**
+     * A name «Mis componentes» already uses for another component is taken too, as in the palette's «Renombrar…»
+     * (review of the hand fixes, I3): the palette would show two entries with one name.
+     */
+    @Test
+    void aNameOfAnotherComponentInTheLibraryIsTaken() {
+        library.put(DefinitionBundle.of(MachineDefinitions.regenerated(MachineDefinitions.create("contador",
+                "Contador").withMachine(StateMachine.initial())), id -> Optional.empty()));
+        EditorView view = shown(new EditorView(machineTab(), services, NO_WINDOW));
+        MachineInspectorRows rows = MachineMode.of(view).orElseThrow().inspectorRows();
+
+        type(rows.machineNameField().orElseThrow(), "contador");
+
+        assertThat(machineName()).isEqualTo("Detector 11");
+        assertThat(rows.problemText()).contains("Ya existe un componente llamado «contador».");
+    }
+
+    /**
+     * A machine that is in «Mis componentes» shows there with the library's name, so Propiedades does not rename it
+     * (the palette and the library would keep the old name): it says where it is renamed (I3).
+     */
+    @Test
+    void aMachineInTheLibraryIsRenamedFromThePaletteAndPropertiesSaysSo() {
+        ComponentDefinition machine = document.document().definition(MachineFixtures.DEFINITION_ID).orElseThrow();
+        library.put(DefinitionBundle.of(machine, document.document()::definition));
+        EditorView tabView = shown(new EditorView(machineTab(), services, NO_WINDOW));
+        MachineInspectorRows rows = MachineMode.of(tabView).orElseThrow().inspectorRows();
+
+        type(rows.machineNameField().orElseThrow(), "Detector 11");
+        assertThat(rows.problemText()).as("keeping the name is fine").isEmpty();
+        type(rows.machineNameField().orElseThrow(), "Semáforo");
+
+        assertThat(machineName()).isEqualTo("Detector 11");
+        String reason = Messages.format("machine.name.inLibrary", "Detector 11");
+        assertThat(rows.problemText()).contains(reason);
+
+        EditorView circuitView = shown(new EditorView(document, services, NO_WINDOW));
+        circuitView.selection().select(new ElementId(MachineFixtures.copies(document).get(0)));
+        type((JTextField) find(circuitView.labelFeatures().properties(), MachineNameRows.FIELD_NAME), "Semáforo");
+        assertThat(machineName()).isEqualTo("Detector 11");
+        assertThat(((JTextComponent) find(circuitView.labelFeatures().properties(), MachineNameRows.PROBLEM_NAME))
+                .getText()).isEqualTo(reason);
     }
 
     /**

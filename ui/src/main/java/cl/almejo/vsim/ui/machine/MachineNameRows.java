@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
@@ -28,9 +29,12 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
     static final String PROBLEM_NAME = "machine.definitionName.problem";
 
     private final OpenDocument place;
+    private final ComponentLibrary library;
 
-    MachineNameRows(OpenDocument place) {
+    /** @param library «Mis componentes», whose names are taken too and whose machines are renamed from the palette */
+    MachineNameRows(OpenDocument place, ComponentLibrary library) {
         this.place = Objects.requireNonNull(place, "place");
+        this.library = Objects.requireNonNull(library, "library");
     }
 
     @Override
@@ -51,11 +55,11 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
         problem.setName(PROBLEM_NAME);
         problem.setVisible(false);
         Runnable apply = () -> {
-            Optional<String> wrong = MachineNaming.problem(place, id, field.getText());
+            Optional<String> wrong = MachineNaming.problem(place, library, id, field.getText());
             problem.setText(wrong.orElse(" "));
             problem.setVisible(wrong.isPresent());
             if (wrong.isEmpty()) {
-                MachineNaming.rename(place, id, field.getText());
+                MachineNaming.rename(place, library, id, field.getText());
                 MachineNaming.nameOf(place, id).filter(name -> !name.equals(field.getText()))
                         .ifPresent(field::setText);
             }

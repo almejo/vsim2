@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.logic.ExpressionProblem;
 import cl.almejo.vsim.core.machine.MachineConditions;
 import cl.almejo.vsim.core.machine.MachineFinding;
@@ -81,6 +82,7 @@ final class MachineInspectorRows extends JPanel {
     private boolean applying;
     /** Shows a problem on the diagram (selects, centres and blinks what it is about). */
     private final transient Consumer<MachineFinding> reveal;
+    private final transient ComponentLibrary library;
     private final transient Runnable stopFollowingFrames;
     /** The problems under the rows: a sentence and its «Ver» each. */
     private final JPanel problemList = new JPanel(new MigLayout("wrap 2, insets 0, hidemode 3",
@@ -89,10 +91,14 @@ final class MachineInspectorRows extends JPanel {
     private final transient List<String> problemLines = new ArrayList<>();
     private final transient List<AbstractButton> problemLinks = new ArrayList<>();
 
-    /** The rows of {@code canvas}'s machine; a problem's «Ver» calls {@code reveal}. */
-    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal) {
+    /**
+     * The rows of {@code canvas}'s machine; a problem's «Ver» calls {@code reveal}. {@code library} is «Mis
+     * componentes»: its names are taken for the machine's, and its machines are renamed there.
+     */
+    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, ComponentLibrary library) {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
         this.canvas = Objects.requireNonNull(canvas, "canvas");
+        this.library = Objects.requireNonNull(library, "library");
         this.reveal = Objects.requireNonNull(reveal, "reveal");
         this.selection = canvas.selection();
         problemList.setOpaque(false);
@@ -422,14 +428,14 @@ final class MachineInspectorRows extends JPanel {
      * focus), only what they show is brought up to date.
      */
     private void applyMachineName(String text) {
-        Optional<String> wrong = MachineNaming.problem(canvas.place(), canvas.definitionId(), text);
+        Optional<String> wrong = MachineNaming.problem(canvas.place(), library, canvas.definitionId(), text);
         if (wrong.isPresent()) {
             showProblem(wrong);
             return;
         }
         applying = true;
         try {
-            MachineNaming.rename(canvas.place(), canvas.definitionId(), text);
+            MachineNaming.rename(canvas.place(), library, canvas.definitionId(), text);
         } finally {
             applying = false;
         }

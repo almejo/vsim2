@@ -29,7 +29,7 @@ public final class MachineModeExtension implements EditorExtension {
         Runnable leaveMachineMode = MachineMode.install(view, stateSource);
         Runnable stopNavigating = MachineProblemNavigation.install(view);
         Runnable removeNameRows = view.labelFeatures().properties()
-                .addComponentRows(new MachineNameRows(view.openDocument()));
+                .addComponentRows(new MachineNameRows(view.openDocument(), view.services().library()));
         return () -> {
             removeNameRows.run();
             stopNavigating.run();
