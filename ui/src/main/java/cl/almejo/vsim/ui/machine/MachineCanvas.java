@@ -74,6 +74,8 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
      */
     private static final int REVEAL_BLINKS = 8;
     private static final int REVEAL_BLINK_MILLISECONDS = 220;
+    /** Without animations, a pin's uses stay lit about as long as they would blink. */
+    private static final int USES_LIGHT_MILLISECONDS = REVEAL_BLINKS * REVEAL_BLINK_MILLISECONDS;
     /** Space kept around revealed elements, in diagram units, so a halo is seen whole. */
     private static final double REVEAL_MARGIN = 2 * MachineDiagramGeometry.STATE_RADIUS;
     private static final String HTML_START = "<html>";
@@ -110,6 +112,8 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private boolean blinkWhenSized;
     private int blinksLeft;
     private final transient Timer blinkTimer = new Timer(REVEAL_BLINK_MILLISECONDS, event -> blinkOnce());
+    /** With «Animaciones» off, a pin's uses are lit, still, while this runs once. */
+    private final transient Timer usesLight = new Timer(USES_LIGHT_MILLISECONDS, event -> endUsesLight());
 
     /**
      * What the diagram's gestures show on top of the model while they last: the machine as it would be after a drag
@@ -160,6 +164,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         viewport.addChangeListener(this::repaint);
         openDocument.addChangeListener(placeListener);
         stopRepaintingOnSelection = selection.addListener(this::selectionChanged);
+        usesLight.setRepeats(false);
         MouseHandler mouse = new MouseHandler();
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
@@ -315,19 +320,30 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /**
-     * Selects the states {@code stateIds} and the arrows {@code transitionIds} (where a pin is used, from its row in
-     * Propiedades), brings them into view and, with {@code blink}, makes them blink a few times in the selection's
-     * colour; the blink ends with the selection, as a revealed problem's does.
+     * Brings the states {@code stateIds} and the arrows {@code transitionIds} (where a pin is used, from its row in
+     * Propiedades) into view and, with {@code blink}, makes them blink a few times in the selection's colour; without
+     * it («Animaciones» off) they are lit for a moment. Nothing is selected, so Propiedades keeps the pin list the
+     * student is working in (hito 3 review, I3); a new selection ends the showing.
      */
     void revealElements(Set<String> stateIds, Set<String> transitionIds, boolean blink) {
-        show(new LinkedHashSet<>(stateIds), new LinkedHashSet<>(transitionIds), blink);
+        boolean sized = bringIntoView(stateIds, transitionIds);
+        startFlash(blink, sized);
         revealedElements = Optional.of(new Elements(Set.copyOf(stateIds), Set.copyOf(transitionIds)));
+        if (!blink) {
+            usesLight.restart();
+        }
+        repaint();
     }
 
     private void show(Set<String> stateIds, Set<String> transitionIds, boolean blink) {
-        revealed = Optional.empty();
-        revealedElements = Optional.empty();
         selection.set(stateIds, transitionIds);
+        startFlash(blink, bringIntoView(stateIds, transitionIds));
+        requestFocusInWindow();
+        repaint();
+    }
+
+    /** Shows the given states and arrows, now or once the canvas has a size; whether it has one now. */
+    private boolean bringIntoView(Set<String> stateIds, Set<String> transitionIds) {
         boolean sized = getWidth() > 0 && getHeight() > 0;
         machine().flatMap(machine -> boundsOf(machine, stateIds, transitionIds)).ifPresent(bounds -> {
             if (sized) {
@@ -336,18 +352,39 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
                 pendingReveal = Optional.of(bounds);
             }
         });
+        return sized;
+    }
+
+    /** Ends what an earlier reveal showed and, with {@code blink}, starts blinking (once sized). */
+    private void startFlash(boolean blink, boolean sized) {
+        revealed = Optional.empty();
+        revealedElements = Optional.empty();
+        usesLight.stop();
         blinkTimer.stop();
         blinksLeft = blink ? REVEAL_BLINKS : 0;
         blinkWhenSized = blink && !sized;
         if (blink && sized) {
             blinkTimer.start();
         }
-        requestFocusInWindow();
-        repaint();
     }
 
-    /** The states and arrows revealed as one pin's uses, while the selection is still theirs. */
-    private record Elements(Set<String> stateIds, Set<String> transitionIds) {
+    /** The states and arrows shown as one pin's uses. */
+    record Elements(Set<String> stateIds, Set<String> transitionIds) {
+    }
+
+    /** The pin uses shown now (blinking, or lit for a moment); empty when none are. */
+    Optional<Elements> shownUses() {
+        return revealedElements;
+    }
+
+    /** Whether a pin's uses are lit without blinking now («Animaciones» off). */
+    boolean isLightingUses() {
+        return usesLight.isRunning();
+    }
+
+    private void endUsesLight() {
+        revealedElements = Optional.empty();
+        repaint();
     }
 
     /** The problem shown now (its glow stands out, the others fade); empty once the selection moved on. */
@@ -356,14 +393,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
                 .filter(machine -> MachineChecks.check(machine).contains(finding)).isPresent());
     }
 
-    /** A selection other than the one a reveal made ends the reveal. */
+    /** A selection other than the one a reveal made ends the reveal; any new selection ends a pin's uses shown. */
     private void selectionChanged() {
         revealedElements.ifPresent(elements -> {
-            if (!selection.stateIds().equals(elements.stateIds())
-                    || !selection.transitionIds().equals(elements.transitionIds())) {
-                revealedElements = Optional.empty();
-                blinkTimer.stop();
-            }
+            revealedElements = Optional.empty();
+            usesLight.stop();
+            blinkTimer.stop();
         });
         revealed.ifPresent(finding -> {
             if (!selection.stateIds().equals(new LinkedHashSet<>(MachineGlows.statesOf(finding)))
@@ -509,6 +544,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         blinkWhenSized = false;
         frames.stop();
         blinkTimer.stop();
+        usesLight.stop();
         ToolTipManager.sharedInstance().unregisterComponent(this);
         openDocument.removeChangeListener(placeListener);
         stopRepaintingOnSelection.run();
@@ -604,9 +640,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             MachineDiagramPainter.paint(canvas, machine.get(), geometry,
                     new MachineDiagramPainter.Marks(activeState, selection, glows(), revealed()), colours);
             MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), colours);
-            if (blinkTimer.isRunning() && blinksLeft % 2 == 1) {
+            boolean lit = blinkTimer.isRunning() && blinksLeft % 2 == 1;
+            if (lit) {
                 revealed().ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,
                         finding, colours));
+            }
+            if (lit || usesLight.isRunning()) {
                 revealedElements.ifPresent(elements -> MachineDiagramPainter.paintFlash(canvas, machine.get(),
                         geometry, elements.stateIds(), elements.transitionIds(), MachineColors.selection(colours),
                         colours));

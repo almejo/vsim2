@@ -28,8 +28,11 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
@@ -124,6 +127,11 @@ public final class MachinePainter implements ComponentPainter {
         }
     }
 
+    /** Where the miniature of {@code machine}'s face goes on an upright piece of {@code type}. */
+    static Rectangle2D miniatureArea(Graphics2D graphics, ComponentType type, StateMachine machine) {
+        return FaceFrame.of(graphics, type, machine, false).area();
+    }
+
     /**
      * A pin's name as the face writes it: a bus pin with its bits, {@code in[1:0]}, or {@code in[0]} for one name
      * (spec §1 «Como un bus»); every other pin as on any user component.
@@ -164,24 +172,74 @@ public final class MachinePainter implements ComponentPainter {
         static FaceFrame of(Graphics2D graphics, ComponentType type, StateMachine machine, boolean sideways) {
             double width = (sideways ? type.size().height() : type.size().width()) * UNIT;
             double height = (sideways ? type.size().width() : type.size().height()) * UNIT;
-            double sides = sideways ? INSET : pinColumn(graphics, type, machine, width);
             double bands = sideways ? INSET + textHeight(graphics, PIN_NAME_SIZE) + GAP : 1;
             double titleTop = bands;
             double textBottom = height - bands;
-            Rectangle2D area = new Rectangle2D.Double(sides, titleTop + TITLE_ROW, width - 2 * sides,
-                    textBottom - TEXT_ROW - titleTop - TITLE_ROW);
+            Rectangle2D area = sideways ? area(width, titleTop, textBottom, INSET)
+                    : uprightArea(graphics, type, machine, width, titleTop, textBottom);
             return new FaceFrame(new Rectangle2D.Double(1, 1, width - 2, height - 2),
                     titleTop + TITLE_ROW / 2, textBottom - TEXT_ROW / 2, area);
         }
 
+        private static Rectangle2D area(double width, double titleTop, double textBottom, double sides) {
+            return new Rectangle2D.Double(sides, titleTop + TITLE_ROW, width - 2 * sides,
+                    textBottom - TEXT_ROW - titleTop - TITLE_ROW);
+        }
+
+        /**
+         * The miniature's room between the pin names. The column is measured on the names without a bus's bits, so
+         * a traffic light with «out[2:0]» gets the same miniature as one with «V», «A», «R» (the user's report,
+         * 2026-11-16): the bus pin sits on the first row, beside the title, clear of the states. Only when a state or
+         * an arrow would then cover a written pin name does the room shrink to the names as written.
+         */
+        private static Rectangle2D uprightArea(Graphics2D graphics, ComponentType type, StateMachine machine,
+                                               double width, double titleTop, double textBottom) {
+            Rectangle2D wide = area(width, titleTop, textBottom,
+                    pinColumn(graphics, type, width, PinSpec::name));
+            if (clearOf(MachineFaceLayout.of(machine, wide), pinNameBoxes(graphics, type, machine, width))) {
+                return wide;
+            }
+            return area(width, titleTop, textBottom, pinColumn(graphics, type, width, pin -> pinText(machine, pin)));
+        }
+
         /** How far the widest pin name reaches into the box from its side, at most a share of the box's width. */
-        private static double pinColumn(Graphics2D graphics, ComponentType type, StateMachine machine,
-                                        double width) {
+        private static double pinColumn(Graphics2D graphics, ComponentType type, double width,
+                                        Function<PinSpec, String> text) {
             double widest = 0;
             for (PinSpec pin : type.pins()) {
-                widest = Math.max(widest, textWidth(graphics, pinText(machine, pin), PIN_NAME_SIZE));
+                widest = Math.max(widest, textWidth(graphics, text.apply(pin), PIN_NAME_SIZE));
             }
             return Math.min(width * MAXIMUM_PIN_COLUMN_SHARE, INSET + widest + GAP);
+        }
+
+        /** Where the pin names are written on the upright box's left and right sides, with a little air around. */
+        private static List<Rectangle2D> pinNameBoxes(Graphics2D graphics, ComponentType type, StateMachine machine,
+                                                      double width) {
+            double textHeight = textHeight(graphics, PIN_NAME_SIZE);
+            List<Rectangle2D> boxes = new ArrayList<>();
+            for (PinSpec pin : type.pins()) {
+                double pinX = pin.position().x() * UNIT;
+                boolean left = pinX <= 0;
+                if (!left && pinX < width || pin.name().isBlank()) {
+                    continue;
+                }
+                double textWidth = textWidth(graphics, pinText(machine, pin), PIN_NAME_SIZE);
+                double textLeft = left ? INSET : width - INSET - textWidth;
+                boxes.add(new Rectangle2D.Double(textLeft - GAP, pin.position().y() * UNIT - textHeight / 2 - GAP,
+                        textWidth + 2 * GAP, textHeight + 2 * GAP));
+            }
+            return boxes;
+        }
+
+        /** Whether no state and no arrow of {@code layout} covers one of {@code boxes}. */
+        private static boolean clearOf(FaceLayout layout, List<Rectangle2D> boxes) {
+            for (Rectangle2D box : boxes) {
+                if (layout.states().stream().anyMatch(state -> state.circle().intersects(box))
+                        || layout.arrows().stream().anyMatch(arrow -> arrow.path().intersects(box))) {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 

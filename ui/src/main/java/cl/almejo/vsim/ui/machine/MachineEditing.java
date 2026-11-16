@@ -33,7 +33,7 @@ import java.util.Set;
  * gestures on the diagram ({@link MachineTool}), the inline editor of names and conditions
  * ({@link MachineInlineEditor}), the right panel's rows ({@link MachineInspectorRows}) in place of the circuit's
  * «Propiedades», «Borrar» and Supr deleting the diagram's selection, and the Editar items «Nuevo estado», «Nueva
- * transición» and «Escribir el nombre o la condición» (with words «Acciones» finds them by).
+ * transición» and «Escribir el nombre, la condición o la nota» (with words «Acciones» finds them by).
  */
 final class MachineEditing {
 

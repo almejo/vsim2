@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
@@ -216,6 +217,24 @@ class MachinePainterTest {
         assertThat(MachinePainter.pinText(plain, PinSpec.input("x", 0, 2, 1))).isEqualTo("x");
         assertThat(SubcircuitPainter.pinText(PinSpec.input("dato", 0, 2, 8))).as("other components")
                 .isEqualTo("dato[8]");
+    }
+
+    @Test
+    void aTrafficLightWithItsOutputsAsABusHasAMiniatureAsBigAsWithoutTheBus() {
+        StateMachine lights = withStates(3, arrow("t1", "s0", "s1"), arrow("t2", "s1", "s2"),
+                arrow("t3", "s2", "s0")).withPinNames(List.of(), List.of("V", "A", "R"));
+        StateMachine asBus = lights.withBus(false, true);
+        Graphics2D graphics = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).createGraphics();
+        try {
+            Rectangle2D plain = MachinePainter.miniatureArea(graphics, typeOf(lights), lights);
+            Rectangle2D bus = MachinePainter.miniatureArea(graphics, typeOf(asBus), asBus);
+
+            assertThat(typeOf(asBus).size()).isEqualTo(typeOf(lights).size());
+            assertThat(bus).as("«out[2:0]» is wider than «V», but it sits beside the title, clear of the states")
+                    .isEqualTo(plain);
+        } finally {
+            graphics.dispose();
+        }
     }
 
     @Test
