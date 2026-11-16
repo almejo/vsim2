@@ -421,13 +421,14 @@ final class MachineDiagramPainter {
     }
 
     /**
-     * A state: its circle (its outline in the problem colour when it glows, like a problem arrow, so a warning reads
-     * as amber and not only as a faint halo), its name and its Moore outputs where the geometry puts them.
+     * A state: its circle, filled with the colour the user gave it (hito 3), its outline in the problem colour when it
+     * glows (like a problem arrow, so a warning reads as gold and not only as a faint halo), its name and its Moore
+     * outputs where the geometry puts them, in a colour that reads on its inside.
      */
     private static void paintState(Graphics2D graphics, MachineState state, MachineDiagramGeometry geometry,
                                    boolean active, boolean selected, Optional<MachineGlows.Glow> glow,
                                    ColorScheme scheme) {
-        graphics.setColor(active ? MachineColors.activeFill(scheme) : MachineColors.stateFill(scheme));
+        graphics.setColor(MachineColors.stateFill(scheme, state, active));
         graphics.fill(geometry.circle(state.id()));
         float width = active ? ACTIVE_STATE_WIDTH : STATE_WIDTH;
         Color outline = glow.map(found -> glowColour(found, scheme))
@@ -441,7 +442,7 @@ final class MachineDiagramPainter {
             graphics.setStroke(dashed(STATE_WIDTH));
             graphics.draw(geometry.circle(state.id()));
         }
-        graphics.setColor(MachineColors.text(scheme));
+        graphics.setColor(MachineColors.stateText(scheme, state));
         Font nameFont = geometry.nameFont(state.id());
         graphics.setFont(nameFont);
         List<String> lines = geometry.nameLines(state.id());
@@ -453,7 +454,7 @@ final class MachineDiagramPainter {
                     new Point2D.Double(centre.getX(), top + (index + 0.5) * lineHeight));
         }
         geometry.outputsBounds(state.id()).ifPresent(outputs -> {
-            graphics.setColor(MachineColors.muted(scheme));
+            graphics.setColor(MachineColors.stateOutputs(scheme, state));
             graphics.setFont(outputsFont());
             drawCentred(graphics, mooreLabelOf(state.outputs()),
                     new Point2D.Double(outputs.getCenterX(), outputs.getCenterY()));

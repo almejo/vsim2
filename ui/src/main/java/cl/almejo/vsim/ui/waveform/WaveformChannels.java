@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 
 import javax.swing.Action;
@@ -34,6 +35,15 @@ public interface WaveformChannels {
      * paint time so they follow edits; empty for a plain row, written as bits or in its format.
      */
     Optional<LongFunction<String>> valueNames(String channelId);
+
+    /**
+     * The colours the user gave the values of channel {@code channelId} (a machine's states, hito 3), each value's
+     * own or none, asked for at paint time so they follow edits; the painter turns them into the scheme's shades.
+     * Empty for a row whose values have no colours.
+     */
+    default Optional<LongFunction<Optional<StateColor>>> valueColors(String channelId) {
+        return Optional.empty();
+    }
 
     /** Whether the rows can be renamed, moved, removed, given a format and shown in the circuit (the row menu). */
     boolean editable();

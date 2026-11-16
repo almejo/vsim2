@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.machine.MachineColors;
@@ -201,7 +202,8 @@ public final class MachinePainter implements ComponentPainter {
                     .forEach(arrow -> paintArrow(arrow, MachineColors.active(scheme), NEXT_ARROW_WIDTH));
             Optional<String> activeState = current.map(MachineVisibleState::stateId);
             for (FaceState state : layout.states()) {
-                paintCircle(state.circle(), activeState.filter(state.stateId()::equals).isPresent());
+                paintCircle(state.circle(), activeState.filter(state.stateId()::equals).isPresent(),
+                        machine.state(state.stateId()).flatMap(MachineState::color));
             }
             String text = current.map(state -> state.stateName()
                     + state.nextStateId().map(nextId -> ARROW + nameOf(nextId)).orElse("")).orElse(NO_STATE);
@@ -245,13 +247,17 @@ public final class MachinePainter implements ComponentPainter {
                 Ellipse2D circle = new Ellipse2D.Double(centreX - ICON_DOT_RADIUS, frame.titleY() - ICON_DOT_RADIUS,
                         2 * ICON_DOT_RADIUS, 2 * ICON_DOT_RADIUS);
                 boolean lit = dot == ICON_LIT_DOT && current.isPresent();
-                paintCircle(circle, lit);
+                paintCircle(circle, lit, Optional.empty());
             }
         }
 
-        /** A state's circle: lit in the active colour, or the diagram's plain state. */
-        private void paintCircle(Ellipse2D circle, boolean lit) {
-            graphics.setColor(lit ? MachineColors.active(scheme) : MachineColors.stateFill(scheme));
+        /**
+         * A state's circle: lit in the active colour (on a face this small, the active state must stand out more than
+         * its colour), else filled with the colour the user gave it, else the diagram's plain state.
+         */
+        private void paintCircle(Ellipse2D circle, boolean lit, Optional<StateColor> color) {
+            graphics.setColor(lit ? MachineColors.active(scheme)
+                    : color.map(scheme::stateFill).orElseGet(() -> MachineColors.stateFill(scheme)));
             graphics.fill(circle);
             graphics.setColor(lit ? MachineColors.active(scheme) : MachineColors.stateOutline(scheme));
             graphics.setStroke(new BasicStroke(STATE_WIDTH));

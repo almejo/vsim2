@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -8,6 +9,10 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.machine.StateColor;
+import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -104,6 +109,22 @@ class MachineStateProbesTest {
         assertThat(texts(panel.menuOfRow(ids.getFirst()).orElseThrow()))
                 .contains(Messages.text("waveform.rename"))
                 .doesNotContain(Messages.text("waveform.showAs"));
+    }
+
+    @Test
+    void theStateRowOfAProbeTakesEachStatesColourAsTheMachineHasItNow() {
+        List<String> ids = actions.addMachineStatesAndOutputs(piece).addedIds();
+        panel.probesChanged();
+        StateMachine detector = MachineFixtures.detector();
+        long codeOfS2 = StateMachineTypes.stateCode(detector, "s2").getAsInt();
+
+        assertThat(panel.valueColors()).containsOnlyKeys(ids.getFirst());
+        assertThat(panel.valueColors().get(ids.getFirst()).apply(codeOfS2)).isEmpty();
+        openDocument.execute(new EditMachineCommand(MachineFixtures.DEFINITION_ID, openDocument.document()
+                .definition(MachineFixtures.DEFINITION_ID).flatMap(ComponentDefinition::machine).orElseThrow()
+                .withState("s2", state -> state.withColor(Optional.of(StateColor.YELLOW)))));
+
+        assertThat(panel.valueColors().get(ids.getFirst()).apply(codeOfS2)).contains(StateColor.YELLOW);
     }
 
     @Test

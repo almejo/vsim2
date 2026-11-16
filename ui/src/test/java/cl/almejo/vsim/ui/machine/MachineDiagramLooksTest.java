@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.machine.MachineChecks;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
@@ -70,6 +71,24 @@ class MachineDiagramLooksTest {
         }
         assertThat(activeSeen).as("still the next arrow's orange").isTrue();
         assertThat(selectionSeen).as("and the selection's blue beside it").isTrue();
+    }
+
+    @Test
+    void aStateWithAColourIsFilledWithItAndStillShowsTheActiveRing() {
+        StateMachine plain = twoStatesJoined();
+        StateMachine coloured = plain.withState("a", state -> state.withColor(Optional.of(StateColor.GREEN)));
+        ActiveMachineState active = new ActiveMachineState("a", Optional.empty(), Optional.empty());
+        for (ColorScheme scheme : List.of(ColorSchemes.LIGHT, ColorSchemes.DARK)) {
+            BufferedImage before = paint(plain, Optional.of(active), new MachineSelection(), scheme);
+            BufferedImage after = paint(coloured, Optional.of(active), new MachineSelection(), scheme);
+
+            // above the name, inside the circle (centre 150, 250; radius 40)
+            Color inside = new Color(after.getRGB(150, 222));
+            assertThat(inside).as("filled: %s", scheme).isEqualTo(scheme.stateFill(StateColor.GREEN))
+                    .isNotEqualTo(new Color(before.getRGB(150, 222)));
+            assertThat(distance(new Color(after.getRGB(150, 211)), scheme.machineActive()))
+                    .as("the active ring on the rim: %s", scheme).isLessThan(NEAR);
+        }
     }
 
     @Test

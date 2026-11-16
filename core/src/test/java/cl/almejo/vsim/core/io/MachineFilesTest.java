@@ -164,7 +164,7 @@ class MachineFilesTest {
     @Test
     void stateColoursAndDiagramNotesRoundTrip() throws CircuitFormatException {
         StateMachine detector = MachineExamples.twoOnesDetector();
-        StateMachine machine = detector.withState("s1", state -> state.withColor(Optional.of(StateColor.PURPLE)))
+        StateMachine machine = detector.withState("s1", state -> state.withColor(Optional.of(StateColor.VIOLET)))
                 .withNotes(List.of(new MachineNote("n1", new DiagramPoint(-30.5, 140), 200, 90, StickyColor.GREEN,
                         "S2 enciende Z")));
         CircuitDocument document = circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
@@ -173,7 +173,7 @@ class MachineFilesTest {
         String json = format.write(document);
         CircuitDocument read = format.read(json);
 
-        assertThat(json).contains("\"color\" : \"purple\"").contains("\"color\" : \"green\"");
+        assertThat(json).contains("\"color\" : \"violet\"").contains("\"color\" : \"green\"");
         assertThat(read.definition("maquina-1").orElseThrow().machine()).contains(machine);
         assertThat(format.write(read)).isEqualTo(json);
     }
@@ -181,9 +181,9 @@ class MachineFilesTest {
     @Test
     void anUnknownStateColourReadsAsNoColour() throws CircuitFormatException {
         StateMachine machine = MachineExamples.twoOnesDetector()
-                .withState("s1", state -> state.withColor(Optional.of(StateColor.PURPLE)));
+                .withState("s1", state -> state.withColor(Optional.of(StateColor.VIOLET)));
         String json = format.write(circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
-                .withMachine(machine))).replace("\"purple\"", "\"magenta\"");
+                .withMachine(machine))).replace("\"violet\"", "\"magenta\"");
 
         StateMachine read = format.read(json).definition("maquina-1").orElseThrow().machine().orElseThrow();
 

@@ -309,13 +309,13 @@ final class MachineEdits {
                     .anyMatch(state -> state.id().equals(candidate)));
             Set<String> names = new HashSet<>();
             sofar.forEach(state -> names.add(state.name()));
-            added.add(new MachineState(id, freeName(copied.name(), names), copied.position(), copied.outputs()));
+            added.add(new MachineState(id, freeName(copied.name(), names), copied.position(), copied.outputs(),
+                    copied.color()));
             newIds.put(copied.id(), id);
             stateIds.add(id);
         }
         double shift = freeShift(machine, added, piece.notes());
-        added.forEach(state -> states.add(new MachineState(state.id(), state.name(),
-                state.position().translated(shift, shift), state.outputs())));
+        added.forEach(state -> states.add(state.withPosition(state.position().translated(shift, shift))));
         List<MachineTransition> transitions = new ArrayList<>(machine.transitions());
         Set<String> transitionIds = new LinkedHashSet<>();
         for (MachineTransition copied : piece.transitions()) {

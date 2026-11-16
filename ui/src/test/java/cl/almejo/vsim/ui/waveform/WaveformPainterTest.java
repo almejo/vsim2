@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.ChannelTrace;
 import cl.almejo.vsim.core.waveform.Trace;
@@ -253,6 +254,35 @@ class WaveformPainterTest {
         assertThat(ChannelRows.valueText(java.util.Optional.of(Value.highImpedance(2)), "hex", names))
                 .isEqualTo("—");
         assertThat(ChannelRows.valueText(java.util.Optional.empty(), "hex", names)).isEmpty();
+    }
+
+    @Test
+    void aStateWithAColourFillsItsBandWithThatColourReadAtPaintTime() {
+        LongFunction<String> names = code -> "S" + code;
+        LongFunction<java.util.Optional<StateColor>> colours = code -> code == 1
+                ? java.util.Optional.of(StateColor.GREEN) : java.util.Optional.empty();
+        Trace codes = trace(0, Value.of(2, 1), 5, Value.of(2, 2));
+
+        BufferedImage image = drawColoured(codes, 9, axis(20), names, colours, scheme);
+        Color green = scheme.waveStateFill(StateColor.GREEN);
+        // S1 from 0 to 5 (x 0..100), S2 from 5 on (x 100..180), above and below the text
+        assertThat(at(image, 20, HIGH + 2)).as("S1's band").isEqualTo(green);
+        assertThat(count(image, green, 105, 175, HIGH + 1, LOW - 1)).as("S2 has no colour").isZero();
+
+        ColorScheme lightWaves = scheme.with(cl.almejo.vsim.ui.paint.ColorRole.DIAGRAM_BACKGROUND, Color.WHITE);
+        assertThat(at(drawColoured(codes, 9, axis(20), names, colours, lightWaves), 20, HIGH + 2))
+                .as("the scheme of this paint").isEqualTo(lightWaves.waveStateFill(StateColor.GREEN))
+                .isNotEqualTo(green);
+    }
+
+    private BufferedImage drawColoured(Trace trace, long now, TimeAxis axis, LongFunction<String> names,
+                                       LongFunction<java.util.Optional<StateColor>> colours, ColorScheme colors) {
+        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.ROW_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        WaveformPainter.paint(graphics, new WaveformSnapshot(1, now, Map.of("p1", trace)), List.of("p1"), axis,
+                WIDTH, colors, Map.of(), Map.of("p1", names), Map.of("p1", colours));
+        graphics.dispose();
+        return image;
     }
 
     private BufferedImage drawNamed(Trace trace, long now, TimeAxis axis, LongFunction<String> names) {

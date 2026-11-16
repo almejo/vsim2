@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.Color;
@@ -205,6 +206,50 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
             case GREEN -> dark ? 0x86CE8C : 0xC8E6C9;
             case ORANGE -> dark ? 0xF4AD5E : 0xFFCC80;
         });
+    }
+
+    /**
+     * The inside of a state of a machine's diagram the user gave {@code color} (hito 3): a soft shade on a light board
+     * and a deep one on a dark board, chosen with the user from the swatch sheets (2026-11-17). Its name is written
+     * in {@link #stateFillText}.
+     */
+    public Color stateFill(StateColor color) {
+        return stateFill(color, isDark());
+    }
+
+    /** The name of a state filled with {@link #stateFill}: near black or near white, whichever reads on it. */
+    public Color stateFillText(StateColor color) {
+        return readableTextOn(stateFill(color));
+    }
+
+    /**
+     * The band of a machine's state in the waves, in the shade that suits the waves' own background (Claro draws its
+     * waves on a dark screen, so its bands take the dark shades).
+     */
+    public Color waveStateFill(StateColor color) {
+        return stateFill(color, ReadableColors.perceivedBrightness(diagramBackground) < 0.5);
+    }
+
+    /** The name written on a {@link #waveStateFill} band. */
+    public Color waveStateFillText(StateColor color) {
+        return readableTextOn(waveStateFill(color));
+    }
+
+    private static Color stateFill(StateColor color, boolean dark) {
+        return new Color(switch (color) {
+            case RED -> dark ? 0x7A2E2E : 0xF4B6B6;
+            case PINK -> dark ? 0x8C2D69 : 0xF7B5DD;
+            case YELLOW -> dark ? 0xC8B432 : 0xF7EAA0;
+            case GREEN -> dark ? 0x2E6B35 : 0xB7E1B5;
+            case TURQUOISE -> dark ? 0x1F6B66 : 0xA8E0DC;
+            case BLUE -> dark ? 0x2D4F85 : 0xB3D1F2;
+            case VIOLET -> dark ? 0x55398A : 0xD2BFEA;
+            case GREY -> dark ? 0x555555 : 0xD5D5D5;
+        });
+    }
+
+    private static Color readableTextOn(Color fill) {
+        return stickyTextIsDark(fill) ? STICKY_DARK_TEXT : STICKY_LIGHT_TEXT;
     }
 
     /** The folded corner of a sticky note: its paper in a darker shade when its text is dark, a lighter one otherwise. */

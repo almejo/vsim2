@@ -130,10 +130,18 @@ class StateMachineTest {
         MachineState state = new MachineState("s0", "S0", DiagramPoint.ORIGIN, List.of());
         assertThat(state.color()).isEmpty();
 
-        MachineState coloured = state.withColor(Optional.of(StateColor.CYAN)).withName("Inicio")
+        MachineState coloured = state.withColor(Optional.of(StateColor.TURQUOISE)).withName("Inicio")
                 .withPosition(new DiagramPoint(5, 5)).withOutputs(List.of());
 
-        assertThat(coloured.color()).contains(StateColor.CYAN);
+        assertThat(coloured.color()).contains(StateColor.TURQUOISE);
+    }
+
+    @Test
+    void theStateColoursAreTheEightTheUserChoseInTheirOrder() {
+        // the swatch sheets of hito 3 (2026-11-17): orange gave way to pink, so no fill looks like the active ring
+        assertThat(StateColor.values()).containsExactly(StateColor.valueOf("RED"), StateColor.valueOf("PINK"),
+                StateColor.valueOf("YELLOW"), StateColor.valueOf("GREEN"), StateColor.valueOf("TURQUOISE"),
+                StateColor.valueOf("BLUE"), StateColor.valueOf("VIOLET"), StateColor.valueOf("GREY"));
     }
 
     @Test
