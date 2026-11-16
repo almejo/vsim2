@@ -400,12 +400,31 @@ public final class TemplateActions {
                 service.library()::find, this::saveToLibrary));
     }
 
-    /** The «Editar descripción…» button Propiedades shows under a user component's parameters. */
+    /** The «Editar descripción…» button Propiedades shows at the very end of a user component's rows. */
     public PropertiesPanel.ComponentRows descriptionRows() {
+        return new PropertiesPanel.ComponentRows() {
+            @Override
+            public void addRows(Component component, PropertiesPanel.Rows rows) {
+                if (definitionIdOf(component).flatMap(openDocument.document()::definition).isPresent()) {
+                    rows.addWide(new JButton(Actions.of(Messages.text("action.editDescription"),
+                            () -> editDescription(component))));
+                }
+            }
+
+            @Override
+            public PropertiesPanel.RowsPlace place() {
+                return PropertiesPanel.RowsPlace.LAST;
+            }
+        };
+    }
+
+    /** The «Entrar ↘» button Propiedades shows for a user component's piece: as a double click on it. */
+    public PropertiesPanel.ComponentRows enterRows() {
         return (component, rows) -> {
-            if (definitionIdOf(component).flatMap(openDocument.document()::definition).isPresent()) {
-                rows.addWide(new JButton(Actions.of(Messages.text("action.editDescription"),
-                        () -> editDescription(component))));
+            if (definitionIdOf(component).isPresent()
+                    && EnterableInstances.definitionOf(openDocument, component).isPresent()) {
+                rows.addWide(new JButton(Actions.of(Messages.text("properties.enter"),
+                        () -> canvas.get().enterComponent(component))));
             }
         };
     }

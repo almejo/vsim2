@@ -213,6 +213,20 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
         /** Adds the rows of {@code component} through {@code rows}; nothing for a component it does not know. */
         void addRows(Component component, Rows rows);
+
+        /** Where in the panel these rows go; under the parameters unless said otherwise. */
+        default RowsPlace place() {
+            return RowsPlace.AFTER_PARAMETERS;
+        }
+    }
+
+    /**
+     * Where {@link ComponentRows} put their rows: above «Etiqueta» (a name that is not the label's), under the
+     * parameters, or at the very end (the description's button, which always closes a user component's panel).
+     * Contributors of one place keep the order they were added in.
+     */
+    public enum RowsPlace {
+        BEFORE_LABEL, AFTER_PARAMETERS, LAST
     }
 
     /** Where {@link ComponentRows} put their rows, in this panel's two columns. */
@@ -533,6 +547,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         String typeName = Messages.componentName(type, component.parameters());
         showCard(PropertyCard.forComponent(type, painters, typeName, component.label(), scheme));
         addSection("properties.section.general");
+        // read once: these rows stay where they are when the panel's own edit asks the others again
+        addExtensionRows(component, RowsPlace.BEFORE_LABEL, false);
         JTextField field = addTextRow(Messages.text("properties.label"), "label", component.label());
         ElementId id = component.id();
         int built = generation;
@@ -586,6 +602,11 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     }
 
     private void addExtensionRows(Component component) {
+        addExtensionRows(component, RowsPlace.AFTER_PARAMETERS, true);
+        addExtensionRows(component, RowsPlace.LAST, true);
+    }
+
+    private void addExtensionRows(Component component, RowsPlace place, boolean again) {
         int before = getComponentCount();
         Rows rows = new Rows() {
             @Override
@@ -599,9 +620,13 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             }
         };
         for (ComponentRows contributor : List.copyOf(componentRows)) {
-            contributor.addRows(component, rows);
+            if (contributor.place() == place) {
+                contributor.addRows(component, rows);
+            }
         }
-        extensionRowParts.addAll(List.of(getComponents()).subList(before, getComponentCount()));
+        if (again) {
+            extensionRowParts.addAll(List.of(getComponents()).subList(before, getComponentCount()));
+        }
     }
 
     private void showText(TextLabel label) {
