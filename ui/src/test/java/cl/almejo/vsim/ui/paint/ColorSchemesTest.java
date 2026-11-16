@@ -284,17 +284,25 @@ class ColorSchemesTest {
 
     @Test
     void theStateFillsAreTheShadesChosenWithTheUser() {
-        // the swatch sheets of hito 3 (2026-11-17): orange became pink and the dark yellow was lightened
+        // the swatch sheets of hito 3 (2026-11-17): orange became pink and the dark yellow was lightened, then darkened (2026-11-16) so the dark gold warning ring shows on it
         Map<StateColor, Integer> light = Map.of(StateColor.RED, 0xF4B6B6, StateColor.PINK, 0xF7B5DD,
                 StateColor.YELLOW, 0xF7EAA0, StateColor.GREEN, 0xB7E1B5, StateColor.TURQUOISE, 0xA8E0DC,
                 StateColor.BLUE, 0xB3D1F2, StateColor.VIOLET, 0xD2BFEA, StateColor.GREY, 0xD5D5D5);
         Map<StateColor, Integer> dark = Map.of(StateColor.RED, 0x7A2E2E, StateColor.PINK, 0x8C2D69,
-                StateColor.YELLOW, 0xC8B432, StateColor.GREEN, 0x2E6B35, StateColor.TURQUOISE, 0x1F6B66,
+                StateColor.YELLOW, 0xA89A28, StateColor.GREEN, 0x2E6B35, StateColor.TURQUOISE, 0x1F6B66,
                 StateColor.BLUE, 0x2D4F85, StateColor.VIOLET, 0x55398A, StateColor.GREY, 0x555555);
         for (StateColor color : StateColor.values()) {
             assertThat(ColorSchemes.LIGHT.stateFill(color)).as("%s light", color)
                     .isEqualTo(new Color(light.get(color)));
             assertThat(ColorSchemes.DARK.stateFill(color)).as("%s dark", color).isEqualTo(new Color(dark.get(color)));
+        }
+    }
+
+    @Test
+    void theGoldWarningStaysVisibleOnTheYellowState() {
+        for (ColorScheme scheme : ALL) {
+            assertThat(contrast(scheme.warning(), scheme.stateFill(StateColor.YELLOW)))
+                    .as("warning on the yellow state of %s", scheme).isGreaterThanOrEqualTo(1.6);
         }
     }
 
