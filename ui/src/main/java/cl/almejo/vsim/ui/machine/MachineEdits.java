@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -181,6 +182,36 @@ final class MachineEdits {
                 .toList();
         return Optional.of(new StateMachine(states, transitions, Optional.empty(), List.of(), List.of(), false, false,
                 machine.edge(), List.of()));
+    }
+
+    /**
+     * Why {@code changed} cannot replace {@code machine}: it needs more input or output names than a machine has pins
+     * for ({@link MachineLimits}), and more than {@code machine} already needed (a machine already past the limit, as
+     * read from a file, can still be edited down); empty when it fits. The reason as the user reads it.
+     */
+    static Optional<String> pinLimitProblem(StateMachine machine, StateMachine changed) {
+        if (outputsNeeded(changed) > MachineLimits.MAXIMUM_OUTPUTS
+                && outputsNeeded(changed) > outputsNeeded(machine)) {
+            return Optional.of(Messages.format("machine.limit.tooManyOutputs", MachineLimits.MAXIMUM_OUTPUTS));
+        }
+        if (inputsNeeded(changed) > MachineLimits.MAXIMUM_INPUTS && inputsNeeded(changed) > inputsNeeded(machine)) {
+            return Optional.of(Messages.format("machine.limit.tooManyInputs", MachineLimits.MAXIMUM_INPUTS));
+        }
+        return Optional.empty();
+    }
+
+    /** The output names {@code machine} has as pins or assigns. */
+    private static int outputsNeeded(StateMachine machine) {
+        Set<String> names = new HashSet<>(machine.outputNames());
+        names.addAll(machine.outputNamesUsed());
+        return names.size();
+    }
+
+    /** The input names {@code machine} has as pins or reads. */
+    private static int inputsNeeded(StateMachine machine) {
+        Set<String> names = new HashSet<>(machine.inputNames());
+        names.addAll(machine.inputNamesUsed());
+        return names.size();
     }
 
     /** Whether {@code piece} still fits in {@code machine} ({@link MachineLimits#MAXIMUM_STATES}). */

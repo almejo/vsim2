@@ -65,7 +65,8 @@ final class MachineInlineEditor {
         Font font = MachineDiagramPainter.labelFont();
         Rectangle2D area = MachineDiagramPainter.labelBounds(transition.get(),
                 MachineDiagramGeometry.of(machine.get()).arrow(transitionId), canvas.getFontMetrics(font));
-        editor.open(new InlineEditRequest(area, font, MachineLabelText.of(transition.get()), this::labelProblem,
+        editor.open(new InlineEditRequest(area, font, MachineLabelText.of(transition.get()),
+                        text -> labelProblem(transitionId, text),
                         text -> applyLabel(transitionId, text),
                         InlineEditRequest.Anchor.CENTER, List.of()),
                 () -> canvas.machine().flatMap(current -> current.transition(transitionId)).isPresent());
@@ -78,9 +79,14 @@ final class MachineInlineEditor {
         editor.dispose();
     }
 
-    private Optional<String> labelProblem(String text) {
-        return MachineLabelText.read(text).problem()
-                .map(problem -> Messages.format(problem.key(), problem.arguments().toArray()));
+    /** What blocks the label {@code text}: a bad outputs part, or more names than the machine has pins for. */
+    private Optional<String> labelProblem(String transitionId, String text) {
+        MachineLabelText.Reading reading = MachineLabelText.read(text);
+        if (reading.problem().isPresent()) {
+            return reading.problem().map(problem -> Messages.format(problem.key(), problem.arguments().toArray()));
+        }
+        return canvas.machine().flatMap(machine -> MachineEdits.pinLimitProblem(machine,
+                MachineEdits.withLabel(machine, transitionId, reading.condition(), reading.outputs())));
     }
 
     private void applyLabel(String transitionId, String text) {

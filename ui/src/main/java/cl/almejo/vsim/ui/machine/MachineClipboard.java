@@ -95,6 +95,11 @@ final class MachineClipboard implements ContentClipboard {
             return;
         }
         MachineEdits.Pasted pasted = MachineEdits.withPasted(machine.get(), piece);
+        Optional<String> overLimit = MachineEdits.pinLimitProblem(machine.get(), pasted.machine());
+        if (overLimit.isPresent()) {
+            notices.accept(overLimit.get());
+            return;
+        }
         if (canvas.edit(current -> MachineEdits.withPasted(current, piece).machine())) {
             canvas.selection().set(new LinkedHashSet<>(pasted.stateIds()),
                     new LinkedHashSet<>(pasted.transitionIds()));

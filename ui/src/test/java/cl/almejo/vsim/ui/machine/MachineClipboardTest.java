@@ -222,6 +222,67 @@ class MachineClipboardTest {
         assertThat(otherMode.selection().stateIds()).hasSize(2);
     }
 
+    /** Sixteen outputs is the most a machine has (review of the hand fixes, M5): a paste that needs one more says so. */
+    @Test
+    void aPasteThatNeedsMoreThanSixteenOutputsIsRefusedWithTheReason() {
+        select("s1", "s2"); // S2 sets Z
+        perform(view.selectionActions().copy());
+        EditorView other = machineTab(OTHER_ID, Optional.empty());
+        MachineMode otherMode = MachineMode.of(other).orElseThrow();
+        List<String> sixteen = new ArrayList<>();
+        for (int index = 0; index < 16; index++) {
+            sixteen.add("O" + index);
+        }
+        otherMode.canvas().edit(current -> current.withPinNames(current.inputNames(), sixteen));
+
+        perform(other.selectionActions().paste());
+
+        assertThat(otherMode.canvas().machine().orElseThrow().states()).hasSize(1);
+        assertThat(other.statusBar().text()).contains(Messages.format("machine.limit.tooManyOutputs", 16));
+    }
+
+    /** Sixty-four states is the most: «Nuevo estado» on a full machine says why nothing appears (M5). */
+    @Test
+    void aNewStateOnAFullMachineSaysWhyNothingAppears() {
+        mode.canvas().edit(current -> {
+            StateMachine full = current;
+            while (full.states().size() < 64) {
+                full = MachineEdits.withNewState(full, new DiagramPoint(full.states().size() * 100, 400));
+            }
+            return full;
+        });
+
+        perform(mode.tool().newStateAction());
+
+        assertThat(machine().states()).hasSize(64);
+        assertThat(view.statusBar().text()).contains(Messages.format("machine.limit.tooManyStates", 64));
+    }
+
+    /** A new output name in the arrow's outputs beyond the sixteenth is refused in Propiedades with the reason (M5). */
+    @Test
+    void aSeventeenthOutputTypedInPropertiesIsRefusedWithTheReason() {
+        List<String> outputs = new ArrayList<>();
+        for (int index = 0; index < 16; index++) {
+            outputs.add("O" + index);
+        }
+        mode.canvas().edit(current -> current.withPinNames(current.inputNames(), outputs));
+        mode.selection().selectTransition("t3");
+        MachineInspectorRows rows = mode.inspectorRows();
+        javax.swing.JTextField mealy = rows.mealyOutputsField().orElseThrow();
+
+        mealy.setText("W=1");
+        mealy.postActionEvent();
+
+        assertThat(machine().transition("t3").orElseThrow().outputs()).isEmpty();
+        assertThat(rows.problemText()).contains(Messages.format("machine.limit.tooManyOutputs", 16));
+
+        mode.inlineEditor().editCondition("t3");
+        mode.inlineEditor().editor().textComponent().setText("x / W=1");
+
+        assertThat(mode.inlineEditor().editor().problemText().getText())
+                .isEqualTo(Messages.format("machine.limit.tooManyOutputs", 16));
+    }
+
     @Test
     void aCircuitsPartsAreNotPastedIntoAMachine() {
         EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));

@@ -53,7 +53,7 @@ final class MachineEditing {
     /** Puts the editing of {@code canvas} and {@code palette} in {@code view}; {@link #uninstall()} takes it away. */
     static MachineEditing install(EditorView view, MachineCanvas canvas, MachinePalette palette) {
         MachineInlineEditor inline = new MachineInlineEditor(canvas);
-        MachineTool tool = new MachineTool(canvas, palette, inline);
+        MachineTool tool = new MachineTool(canvas, palette, inline, view::showNotice);
         MachineInspectorRows rows = new MachineInspectorRows(canvas,
                 finding -> canvas.reveal(finding, Animations.enabled(view.services().preferences())),
                 view.services().library());

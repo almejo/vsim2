@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The drawing gestures of a machine's diagram (spec 2026-11-14 §1 «Drawing», the gestures agreed with the user):
@@ -92,6 +93,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     private final MachineCanvas canvas;
     private final MachinePalette palette;
     private final MachineInlineEditor inline;
+    /** Where a short reason goes when a gesture does nothing (the status line). */
+    private final Consumer<String> notices;
     private final MachineSelection selection;
     private final Action newState;
     private final Action newTransition;
@@ -103,7 +106,9 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     /** A press on a state that was already selected with others: a release without moving selects it alone. */
     private boolean aloneOnRelease;
 
-    MachineTool(MachineCanvas canvas, MachinePalette palette, MachineInlineEditor inline) {
+    MachineTool(MachineCanvas canvas, MachinePalette palette, MachineInlineEditor inline,
+                Consumer<String> notices) {
+        this.notices = Objects.requireNonNull(notices, "notices");
         this.canvas = Objects.requireNonNull(canvas, "canvas");
         this.palette = Objects.requireNonNull(palette, "palette");
         this.inline = Objects.requireNonNull(inline, "inline");
@@ -242,7 +247,11 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
 
     private void addState(DiagramPoint centre) {
         Optional<StateMachine> machine = canvas.machine();
-        if (machine.isEmpty() || !MachineLimits.canAddState(machine.get())) {
+        if (machine.isEmpty()) {
+            return;
+        }
+        if (!MachineLimits.canAddState(machine.get())) {
+            notices.accept(Messages.format("machine.limit.tooManyStates", MachineLimits.MAXIMUM_STATES));
             return;
         }
         if (canvas.edit(current -> MachineEdits.withNewState(current, centre))) {

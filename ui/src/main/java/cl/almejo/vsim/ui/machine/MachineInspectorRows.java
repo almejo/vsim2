@@ -397,7 +397,9 @@ final class MachineInspectorRows extends JPanel {
         JTextField condition = textRow(Messages.text("machine.properties.condition"), transition.condition(),
                 machineNow -> machineNow.transition(transition.id()).map(MachineTransition::condition),
                 text -> {
-                    apply(current -> MachineEdits.withCondition(current, transition.id(), text));
+                    if (!applyWithinLimits(current -> MachineEdits.withCondition(current, transition.id(), text))) {
+                        return false;
+                    }
                     showProblem(MachineConditions.parse(text).problem().map(MachineInspectorRows::describe));
                     return true; // a condition that cannot be read is kept as written
                 });
@@ -465,8 +467,7 @@ final class MachineInspectorRows extends JPanel {
             showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
             return false;
         }
-        apply(machine -> MachineEdits.withMooreOutputs(machine, stateId, reading.outputs()));
-        return true;
+        return applyWithinLimits(machine -> MachineEdits.withMooreOutputs(machine, stateId, reading.outputs()));
     }
 
     private boolean applyMealyOutputs(String transitionId, String text) {
@@ -476,7 +477,21 @@ final class MachineInspectorRows extends JPanel {
             showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
             return false;
         }
-        apply(machine -> MachineEdits.withMealyOutputs(machine, transitionId, reading.outputs()));
+        return applyWithinLimits(machine -> MachineEdits.withMealyOutputs(machine, transitionId, reading.outputs()));
+    }
+
+    /**
+     * {@link #apply} when the machine after it still has pins for every name (16 inputs, 16 outputs); else says why
+     * and changes nothing. Returns whether it applied.
+     */
+    private boolean applyWithinLimits(UnaryOperator<StateMachine> change) {
+        Optional<String> overLimit = canvas.machine()
+                .flatMap(machine -> MachineEdits.pinLimitProblem(machine, change.apply(machine)));
+        if (overLimit.isPresent()) {
+            showProblem(overLimit);
+            return false;
+        }
+        apply(change);
         return true;
     }
 
