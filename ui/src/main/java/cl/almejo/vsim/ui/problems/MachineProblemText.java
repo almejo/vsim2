@@ -31,8 +31,9 @@ public final class MachineProblemText {
 
     private static final String LIST_SEPARATOR = ", ";
     private static final String SLASH = "/";
-    /** An output given a value, as an arrow's outputs write it: a name, then «=». */
-    private static final Pattern OUTPUT_ASSIGNMENT = Pattern.compile("\\p{L}[\\p{L}\\p{Nd}_]*\\s*=");
+    /** «Z=1» or «Z = 0»: a name given a bit with one «=» (not «==», a comparison). */
+    private static final Pattern OUTPUT_ASSIGNMENT = Pattern.compile(
+            "(\\p{L}[\\p{L}\\p{Nd}_]*)\\s*=(?!=)\\s*[01](?![\\p{L}\\p{Nd}_])");
 
     private MachineProblemText() {
     }
@@ -78,7 +79,7 @@ public final class MachineProblemText {
     private static String badCondition(MachineFinding finding, StateMachine machine) {
         Optional<MachineTransition> transition = firstTransition(machine, finding);
         String condition = transition.map(MachineTransition::condition).orElse("");
-        Optional<String> withSlash = withTheSlash(condition);
+        Optional<String> withSlash = withTheSlash(condition, machine);
         if (withSlash.isPresent()) {
             return arrowWords(machine, finding, "problem.machine.outputWithoutSlash", withSlash.get());
         }
@@ -94,11 +95,16 @@ public final class MachineProblemText {
     /**
      * {@code condition} written as it was surely meant when it holds an output without the slash before it (the
      * user's decision of 2026-11-15: «/» stays the only way, and the problem shows it): «Z=1» → «/ Z=1», «x Z=1» →
-     * «x / Z=1»; empty when it has no {@code name=}.
+     * «x / Z=1»; empty when it has no {@code name=0} or {@code name=1}, or when that name is one of the machine's
+     * inputs and not an output («x = 1» is then a comparison a student wrote, not an output).
      */
-    private static Optional<String> withTheSlash(String condition) {
+    private static Optional<String> withTheSlash(String condition, StateMachine machine) {
         Matcher assignment = OUTPUT_ASSIGNMENT.matcher(condition);
         if (condition.contains(SLASH) || !assignment.find()) {
+            return Optional.empty();
+        }
+        String name = assignment.group(1);
+        if (machine.inputNames().contains(name) && !machine.outputNames().contains(name)) {
             return Optional.empty();
         }
         String before = condition.substring(0, assignment.start()).strip();

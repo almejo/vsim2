@@ -88,6 +88,24 @@ class MachineProblemTextTest {
         assertThat(sentenceOf(afterACondition, Kind.BAD_CONDITION)).contains("«x / Z=1»");
     }
 
+    /**
+     * A comparison a student writes («x==1», or «x = 1» with x an input) is not an output: no «/» is suggested for it
+     * (review of the hand fixes, M6), only the reason it cannot be read.
+     */
+    @Test
+    void aComparisonIsNotToldToTakeTheSlash() {
+        StateMachine doubled = machine(List.of(state("a", "A"), state("b", "B")),
+                List.of(arrow("t1", "a", "b", "x==1")), Optional.of("a"), List.of("x"));
+        StateMachine onAnInput = machine(List.of(state("a", "A"), state("b", "B")),
+                List.of(arrow("t1", "a", "b", "x = 1")), Optional.of("a"), List.of("x"));
+        StateMachine notABit = machine(List.of(state("a", "A"), state("b", "B")),
+                List.of(arrow("t1", "a", "b", "Z=y")), Optional.of("a"), List.of("y"));
+
+        assertThat(sentenceOf(doubled, Kind.BAD_CONDITION)).doesNotContain("/").doesNotContain("barra");
+        assertThat(sentenceOf(onAnInput, Kind.BAD_CONDITION)).doesNotContain("/").doesNotContain("barra");
+        assertThat(sentenceOf(notABit, Kind.BAD_CONDITION)).doesNotContain("/").doesNotContain("barra");
+    }
+
     @Test
     void theListSaysWhichMachineAndWhichCopy() {
         CircuitDocument document = new CircuitDocument();
