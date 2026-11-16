@@ -88,6 +88,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -118,6 +119,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private List<CircuitCanvas> knownPanes = List.of();
     /** What the window's tool choice makes for each pane; null while the panes use their default tool. */
     private Supplier<? extends Tool> toolChoice;
+    /** The tool choices the content shown instead of the panes takes ({@link #chooseToolInstead}). */
+    private final Map<Class<? extends Tool>, Runnable> toolsInstead = new HashMap<>();
     private boolean spreadingDefaultTool;
     private final EditorActions actions;
     private KeyboardFocus keyboardFocus = KeyboardFocus.SWING;
@@ -419,6 +422,31 @@ public final class EditorView extends JPanel implements CanvasHost {
         for (CircuitCanvas pane : panes()) {
             pane.setTool(newTool.get());
         }
+    }
+
+    /**
+     * Chooses a tool of {@code toolType} for every pane ({@link #setToolOnEveryPane}), unless the content shown instead
+     * of the panes took that choice ({@link #chooseToolInstead}): then that runs instead (a machine's diagram arms its
+     * own note tool for «Nota adhesiva»).
+     */
+    public <T extends Tool> void chooseTool(Class<T> toolType, Supplier<T> newTool) {
+        Runnable instead = toolsInstead.get(Objects.requireNonNull(toolType, "toolType"));
+        if (instead != null) {
+            instead.run();
+        } else {
+            setToolOnEveryPane(newTool);
+        }
+    }
+
+    /**
+     * From now on {@link #chooseTool} with {@code toolType} runs {@code instead}, until the returned runnable runs (the
+     * content shown instead of the panes has a tool of its own for it).
+     */
+    public Runnable chooseToolInstead(Class<? extends Tool> toolType, Runnable instead) {
+        Objects.requireNonNull(toolType, "toolType");
+        Objects.requireNonNull(instead, "instead");
+        toolsInstead.put(toolType, instead);
+        return () -> toolsInstead.remove(toolType, instead);
     }
 
     /**

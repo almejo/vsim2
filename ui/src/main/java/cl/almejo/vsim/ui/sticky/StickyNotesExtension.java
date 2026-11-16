@@ -47,7 +47,7 @@ public final class StickyNotesExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         List<Runnable> removers = new ArrayList<>();
         Action tool = Actions.of(Messages.text("action.toolStickyNote"),
-                () -> view.setToolOnEveryPane(StickyNoteTool::new));
+                () -> view.chooseTool(StickyNoteTool.class, StickyNoteTool::new));
         Icons.install(tool, StickyNoteIcons.TOOL);
         removers.add(view.addToolButton(tool, StickyNoteTool.class));
         removers.add(MenuSlots.add(view, MenuSlot.STICKY_NOTE_TOOL, new JMenuItem(tool)));

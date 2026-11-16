@@ -1,7 +1,9 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineLimits;
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
@@ -46,11 +48,20 @@ final class MachineEdits {
     /** A paste moves on at most this many steps looking for a free place. */
     private static final int PASTE_TRIES = 256;
 
-    /** What a paste added: the machine after it and the ids of the new states and arrows, to select them. */
-    record Pasted(StateMachine machine, Set<String> stateIds, Set<String> transitionIds) {
+    /** The prefix of a note's id: {@code n1}, {@code n2}, … */
+    private static final String NOTE_ID_PREFIX = "n";
+    /**
+     * A note's size goes in whole steps of this many diagram units (a grid unit of the circuit's notes), so it is
+     * painted exactly as a circuit note of that many units.
+     */
+    static final double NOTE_SIZE_STEP = MachineNotePainting.UNIT;
+
+    /** What a paste added: the machine after it and the ids of the new states, arrows and notes, to select them. */
+    record Pasted(StateMachine machine, Set<String> stateIds, Set<String> transitionIds, Set<String> noteIds) {
         Pasted {
             stateIds = Set.copyOf(stateIds);
             transitionIds = Set.copyOf(transitionIds);
+            noteIds = Set.copyOf(noteIds);
         }
     }
 
@@ -95,13 +106,20 @@ final class MachineEdits {
      * Problems list reports).
      */
     static StateMachine without(StateMachine machine, Set<String> stateIds, Set<String> transitionIds) {
+        return without(machine, stateIds, transitionIds, Set.of());
+    }
+
+    /** {@link #without(StateMachine, Set, Set)}, and without the notes {@code noteIds} too: one Borrar. */
+    static StateMachine without(StateMachine machine, Set<String> stateIds, Set<String> transitionIds,
+                                Set<String> noteIds) {
         List<MachineTransition> transitions = machine.transitions().stream()
                 .filter(transition -> !transitionIds.contains(transition.id())
                         && !stateIds.contains(transition.fromId()) && !stateIds.contains(transition.toId()))
                 .toList();
         Optional<String> initial = machine.initialStateId().filter(id -> !stateIds.contains(id));
         return machine.withInitialStateId(initial).withTransitions(transitions)
-                .withStates(machine.states().stream().filter(state -> !stateIds.contains(state.id())).toList());
+                .withStates(machine.states().stream().filter(state -> !stateIds.contains(state.id())).toList())
+                .withNotes(machine.notes().stream().filter(note -> !noteIds.contains(note.id())).toList());
     }
 
     /** {@code machine} with the states {@code stateIds} moved by ({@code deltaX}, {@code deltaY}) diagram units. */
@@ -110,6 +128,50 @@ final class MachineEdits {
                 .map(state -> stateIds.contains(state.id())
                         ? state.withPosition(state.position().translated(deltaX, deltaY)) : state)
                 .toList());
+    }
+
+    /**
+     * {@code machine} with the states {@code stateIds} and the notes {@code noteIds} moved by ({@code deltaX},
+     * {@code deltaY}) diagram units: one drag of a selection.
+     */
+    static StateMachine withMoved(StateMachine machine, Set<String> stateIds, Set<String> noteIds, double deltaX,
+                                  double deltaY) {
+        return withStatesMoved(machine, stateIds, deltaX, deltaY).withNotes(machine.notes().stream()
+                .map(note -> noteIds.contains(note.id())
+                        ? note.withPosition(note.position().translated(deltaX, deltaY)) : note)
+                .toList());
+    }
+
+    /**
+     * {@code machine} with a new note whose top-left corner is {@code topLeft}: yellow, empty, of the default size,
+     * last in the model, with the first free id {@code n1}, {@code n2}, …
+     */
+    static StateMachine withNewNote(StateMachine machine, DiagramPoint topLeft) {
+        String id = firstFree(NOTE_ID_PREFIX, 1, candidate -> machine.notes().stream()
+                .anyMatch(note -> note.id().equals(candidate)));
+        List<MachineNote> notes = new ArrayList<>(machine.notes());
+        notes.add(new MachineNote(id, topLeft, MachineNote.DEFAULT_WIDTH, MachineNote.DEFAULT_HEIGHT,
+                StickyColor.YELLOW, ""));
+        return machine.withNotes(notes);
+    }
+
+    /** The note {@link #withNewNote} added: the last one. */
+    static MachineNote lastNote(StateMachine machine) {
+        return machine.notes().get(machine.notes().size() - 1);
+    }
+
+    /**
+     * {@code machine} with the note {@code noteId} grown by ({@code deltaWidth}, {@code deltaHeight}) from its
+     * top-left corner, in whole {@link #NOTE_SIZE_STEP}s and never under the smallest note.
+     */
+    static StateMachine withNoteResized(StateMachine machine, String noteId, double deltaWidth, double deltaHeight) {
+        return machine.withNote(noteId, note -> note.withSize(
+                Math.max(MachineNote.MINIMUM_WIDTH, inSteps(note.width() + deltaWidth)),
+                Math.max(MachineNote.MINIMUM_HEIGHT, inSteps(note.height() + deltaHeight))));
+    }
+
+    private static double inSteps(double length) {
+        return Math.round(length / NOTE_SIZE_STEP) * NOTE_SIZE_STEP;
     }
 
     /**
@@ -173,15 +235,24 @@ final class MachineEdits {
      * arrow to a state left behind stays behind), without an initial state, pins or tests; empty without a state.
      */
     static Optional<StateMachine> pieceOf(StateMachine machine, Set<String> stateIds) {
+        return pieceOf(machine, stateIds, Set.of());
+    }
+
+    /**
+     * {@link #pieceOf(StateMachine, Set)} with the notes {@code noteIds} too; a piece may hold notes alone. Empty when
+     * it would hold nothing.
+     */
+    static Optional<StateMachine> pieceOf(StateMachine machine, Set<String> stateIds, Set<String> noteIds) {
         List<MachineState> states = machine.states().stream().filter(state -> stateIds.contains(state.id())).toList();
-        if (states.isEmpty()) {
+        List<MachineNote> notes = machine.notes().stream().filter(note -> noteIds.contains(note.id())).toList();
+        if (states.isEmpty() && notes.isEmpty()) {
             return Optional.empty();
         }
         List<MachineTransition> transitions = machine.transitions().stream()
                 .filter(transition -> stateIds.contains(transition.fromId()) && stateIds.contains(transition.toId()))
                 .toList();
         return Optional.of(new StateMachine(states, transitions, Optional.empty(), List.of(), List.of(), false, false,
-                machine.edge(), List.of()));
+                machine.edge(), List.of()).withNotes(notes));
     }
 
     /**
@@ -242,7 +313,7 @@ final class MachineEdits {
             newIds.put(copied.id(), id);
             stateIds.add(id);
         }
-        double shift = freeShift(machine.states(), added);
+        double shift = freeShift(machine, added, piece.notes());
         added.forEach(state -> states.add(new MachineState(state.id(), state.name(),
                 state.position().translated(shift, shift), state.outputs())));
         List<MachineTransition> transitions = new ArrayList<>(machine.transitions());
@@ -255,26 +326,44 @@ final class MachineEdits {
                     copied.condition(), copied.outputs()));
             transitionIds.add(id);
         }
-        StateMachine pasted = machine.withStates(states).withTransitions(transitions);
-        if (machine.states().isEmpty()) {
+        List<MachineNote> notes = new ArrayList<>(machine.notes());
+        Set<String> noteIds = new LinkedHashSet<>();
+        for (MachineNote copied : piece.notes()) {
+            List<MachineNote> sofar = List.copyOf(notes);
+            String id = firstFree(NOTE_ID_PREFIX, 1, candidate -> sofar.stream()
+                    .anyMatch(note -> note.id().equals(candidate)));
+            notes.add(copied.placed(id, copied.position().translated(shift, shift)));
+            noteIds.add(id);
+        }
+        StateMachine pasted = machine.withStates(states).withTransitions(transitions).withNotes(notes);
+        if (machine.states().isEmpty() && !states.isEmpty()) {
             pasted = pasted.withInitialStateId(Optional.of(states.get(0).id()));
         }
-        return new Pasted(pasted, stateIds, transitionIds);
+        return new Pasted(pasted, stateIds, transitionIds, noteIds);
     }
 
     /**
-     * How far the {@code added} states move (both ways) so that each circle, as the diagram draws it (its name may
-     * make it bigger), keeps {@link #PASTE_GAP} from every circle of the {@code existing} states.
+     * How far the {@code added} states and {@code addedNotes} move (both ways) so that each circle, as the diagram
+     * draws it (its name may make it bigger), keeps {@link #PASTE_GAP} from every circle of {@code machine}'s states,
+     * and no note lands within {@link #PASTE_GAP} of the place of one of its notes (it would hide it).
      */
-    private static double freeShift(List<MachineState> existing, List<MachineState> added) {
+    private static double freeShift(StateMachine machine, List<MachineState> added, List<MachineNote> addedNotes) {
+        List<MachineState> existing = machine.states();
         Map<String, Double> radii = new HashMap<>();
         existing.forEach(state -> radii.put(state.id(), MachineDiagramGeometry.radiusOf(state)));
         added.forEach(state -> radii.put(state.id(), MachineDiagramGeometry.radiusOf(state)));
         double shift = 0;
-        for (int attempt = 0; attempt < PASTE_TRIES && touches(existing, added, radii, shift); attempt++) {
+        for (int attempt = 0; attempt < PASTE_TRIES && (touches(existing, added, radii, shift)
+                || covers(machine.notes(), addedNotes, shift)); attempt++) {
             shift += PASTE_STEP;
         }
         return shift;
+    }
+
+    private static boolean covers(List<MachineNote> existing, List<MachineNote> added, double shift) {
+        return added.stream().anyMatch(copied -> existing.stream().anyMatch(note ->
+                Math.hypot(copied.position().x() + shift - note.position().x(),
+                        copied.position().y() + shift - note.position().y()) < PASTE_GAP));
     }
 
     private static boolean touches(List<MachineState> existing, List<MachineState> added, Map<String, Double> radii,

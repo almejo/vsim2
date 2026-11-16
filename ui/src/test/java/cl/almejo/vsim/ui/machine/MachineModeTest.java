@@ -159,7 +159,7 @@ class MachineModeTest {
         List<Action> circuitActions = List.of(view.actions().rotateClockwise(),
                 view.actions().rotateCounterClockwise(), view.actions().configure(),
                 byId.get("edit.quickInsert"),
-                byId.get("view.frameTool"), byId.get("view.stickyNoteTool"), byId.get("view.textTool"),
+                byId.get("view.frameTool"), byId.get("view.textTool"), // «Nota adhesiva» sticks a note on the diagram
                 byId.get("tools.circuitFromExpressions"), byId.get("tools.circuitFromTruthTable"),
                 byId.get("view.addHorizontalGuide"), byId.get("window.splitHorizontal"));
         for (Action action : circuitActions) {

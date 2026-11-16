@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineChecks;
 import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineKind;
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
@@ -508,7 +509,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         zoomAroundCenter(1.0);
     }
 
-    /** Zooms until every state and arrow fills nine tenths of the canvas, centred on them. */
+    /** Zooms until every state, arrow and note fills nine tenths of the canvas, centred on them. */
     @Override
     public void zoomToFit() {
         diagramBounds().ifPresent(bounds -> showCentred(bounds, fitZoom(bounds)));
@@ -569,6 +570,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             canvas.transform(viewport.documentTransform());
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
+            paintNotes(canvas, machine.get(), colours);
             MachineDiagramPainter.paint(canvas, machine.get(), geometry,
                     new MachineDiagramPainter.Marks(activeState, selection, glows(), revealed()), colours);
             MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), colours);
@@ -583,6 +585,24 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         }
     }
 
+    /**
+     * The notes, under the states and arrows (they are reminders beside the diagram, never over a state), each one
+     * ringed while it is selected.
+     */
+    private void paintNotes(Graphics2D canvas, StateMachine machine, ColorScheme colours) {
+        for (MachineNote note : machine.notes()) {
+            MachineNotePainting.paint(canvas, note, colours, viewport.zoom());
+            if (selection.containsNote(note.id())) {
+                MachineNotePainting.paintSelection(canvas, note, colours);
+            }
+        }
+    }
+
+    /** The colours the diagram is painted with now (read at each use, never kept). */
+    ColorScheme scheme() {
+        return scheme.get();
+    }
+
     /** The tab's place this diagram belongs to (its machine's definition lives in the place's circuit). */
     OpenDocument place() {
         return openDocument;
@@ -594,7 +614,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     private Optional<Rectangle2D> diagramBounds() {
-        return machine().flatMap(machine -> MachineDiagramGeometry.of(machine).bounds());
+        return machine().flatMap(machine -> {
+            Optional<Rectangle2D> diagram = MachineDiagramGeometry.of(machine).bounds();
+            Optional<Rectangle2D> notes = MachineNotePainting.bounds(machine);
+            return diagram.map(found -> notes.map(found::createUnion).orElse(found)).or(() -> notes);
+        });
     }
 
     private double fitZoom(Rectangle2D bounds) {

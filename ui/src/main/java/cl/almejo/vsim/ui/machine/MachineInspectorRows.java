@@ -1,16 +1,20 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.logic.ExpressionProblem;
 import cl.almejo.vsim.core.machine.MachineConditions;
 import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineKind;
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.StickyColorNames;
 import cl.almejo.vsim.ui.karnaugh.ExpressionProblemText;
+import cl.almejo.vsim.ui.panels.ColorSwatches;
 import cl.almejo.vsim.ui.problems.MachineProblemText;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.swing.MigLayout;
@@ -50,7 +54,8 @@ import java.util.function.UnaryOperator;
  * kept as text»). An arrow also has its Mealy outputs, and the machine's own rows say whether it is Moore, Mealy or
  * both. A change of the machine rebuilds the rows only when what they show changed (another element, another kind of
  * rows); otherwise it updates, in place, the fields that have no focus and no typing waiting for Enter, so what the
- * user is typing is never lost and the focus stays in the field after Enter. The pin list comes in a later milestone.
+ * user is typing is never lost and the focus stays in the field after Enter. A selected note shows its colour and
+ * «Editar texto». The pin list comes in a later milestone.
  * Under the rows, the problems of what is selected (what makes it glow), or with nothing selected the machine's
  * problems, each one with a «Ver» that shows it on the diagram; they follow every change and the running copy.
  */
@@ -74,6 +79,10 @@ final class MachineInspectorRows extends JPanel {
     private transient Optional<JTextField> conditionField = Optional.empty();
     private transient Optional<JTextField> mealyOutputsField = Optional.empty();
     private transient Optional<JLabel> kindLabel = Optional.empty();
+    private transient Optional<ColorSwatches<StickyColor>> noteColor = Optional.empty();
+    private transient Optional<JButton> editNoteText = Optional.empty();
+    /** Opens the inline editor on a note's text (its id). */
+    private final transient Consumer<String> editNote;
     /** What each field of the rows shown would say now; run after a change that does not rebuild them. */
     private final transient List<Runnable> refreshers = new ArrayList<>();
     /** The fields' applies of what was typed and not applied yet, run before the rows change for another selection. */
@@ -98,11 +107,14 @@ final class MachineInspectorRows extends JPanel {
 
     /**
      * The rows of {@code canvas}'s machine; a problem's «Ver» calls {@code reveal}. {@code library} is «Mis
-     * componentes»: its names are taken for the machine's, and a machine in it is renamed there too.
+     * componentes»: its names are taken for the machine's, and a machine in it is renamed there too. A note's
+     * «Editar texto» calls {@code editNote} with its id.
      */
-    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library) {
+    MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library,
+                         Consumer<String> editNote) {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
         this.canvas = Objects.requireNonNull(canvas, "canvas");
+        this.editNote = Objects.requireNonNull(editNote, "editNote");
         this.library = Objects.requireNonNull(library, "library");
         this.reveal = Objects.requireNonNull(reveal, "reveal");
         this.selection = canvas.selection();
@@ -175,6 +187,16 @@ final class MachineInspectorRows extends JPanel {
         return kindLabel.map(JLabel::getText);
     }
 
+    /** The paper colours of the selected note; empty when no note alone is selected. */
+    Optional<ColorSwatches<StickyColor>> noteColor() {
+        return noteColor;
+    }
+
+    /** «Editar texto» of the selected note; empty when no note alone is selected. */
+    Optional<JButton> editNoteTextButton() {
+        return editNoteText;
+    }
+
     Optional<JCheckBox> initialBox() {
         return initialBox;
     }
@@ -222,7 +244,7 @@ final class MachineInspectorRows extends JPanel {
         if (machine.isEmpty()) {
             return NO_ROWS;
         }
-        int count = selection.stateIds().size() + selection.transitionIds().size();
+        int count = selectedCount();
         if (count == 0) {
             return MACHINE_ROWS;
         }
@@ -232,6 +254,10 @@ final class MachineInspectorRows extends JPanel {
         if (!selection.stateIds().isEmpty()) {
             String stateId = selection.stateIds().iterator().next();
             return machine.get().state(stateId).isPresent() ? "state:" + stateId : NO_ROWS;
+        }
+        if (!selection.noteIds().isEmpty()) {
+            String noteId = selection.noteIds().iterator().next();
+            return noteOf(machine.get(), noteId).isPresent() ? "note:" + noteId : NO_ROWS;
         }
         String transitionId = selection.transitionIds().iterator().next();
         return machine.get().transition(transitionId)
@@ -249,6 +275,8 @@ final class MachineInspectorRows extends JPanel {
         conditionField = Optional.empty();
         mealyOutputsField = Optional.empty();
         kindLabel = Optional.empty();
+        noteColor = Optional.empty();
+        editNoteText = Optional.empty();
         initialBox = Optional.empty();
         arrowLabel = Optional.empty();
         showProblem(Optional.empty());
@@ -290,12 +318,15 @@ final class MachineInspectorRows extends JPanel {
         if (canvas.machine().isEmpty()) {
             return List.of();
         }
-        int count = selection.stateIds().size() + selection.transitionIds().size();
+        int count = selectedCount();
         if (count == 0) {
             return canvas.problems().stream().map(MachineProblem::finding).toList();
         }
         if (count > 1) {
             return List.of();
+        }
+        if (!selection.noteIds().isEmpty()) {
+            return List.of(); // a note is never a problem
         }
         MachineGlows glows = canvas.glows();
         if (!selection.stateIds().isEmpty()) {
@@ -324,17 +355,50 @@ final class MachineInspectorRows extends JPanel {
     }
 
     private void showSelected(StateMachine machine) {
-        int count = selection.stateIds().size() + selection.transitionIds().size();
+        int count = selectedCount();
         if (count == 0) {
             showMachine(machine);
         } else if (count > 1) {
             addHeader(Messages.format("machine.properties.several", count));
         } else if (!selection.stateIds().isEmpty()) {
             machine.state(selection.stateIds().iterator().next()).ifPresent(state -> showState(machine, state));
+        } else if (!selection.noteIds().isEmpty()) {
+            noteOf(machine, selection.noteIds().iterator().next()).ifPresent(this::showNote);
         } else {
             machine.transition(selection.transitionIds().iterator().next())
                     .ifPresent(transition -> showTransition(machine, transition));
         }
+    }
+
+    private int selectedCount() {
+        return selection.stateIds().size() + selection.transitionIds().size() + selection.noteIds().size();
+    }
+
+    private static Optional<MachineNote> noteOf(StateMachine machine, String noteId) {
+        return machine.notes().stream().filter(note -> note.id().equals(noteId)).findFirst();
+    }
+
+    /**
+     * A note: its paper colour (the circuit notes' five), each choice one undo step, and «Editar texto», which opens
+     * its text on the paper (a double click on the note does the same).
+     */
+    private void showNote(MachineNote note) {
+        addHeader(Messages.text("machine.properties.note"));
+        String noteId = note.id();
+        ColorSwatches<StickyColor> color = new ColorSwatches<>(List.of(StickyColor.values()), note.color(),
+                StickyColorNames::of, paper -> Optional.of(canvas.scheme().stickyPaper(paper)));
+        color.addChoiceListener(() -> apply(machine -> machine.withNote(noteId,
+                found -> found.withColor(color.selectedValue()))));
+        refreshers.add(() -> canvas.machine().flatMap(machineNow -> noteOf(machineNow, noteId))
+                .filter(found -> found.color() != color.selectedValue())
+                .ifPresent(found -> color.select(found.color())));
+        addRow(Messages.text("machine.properties.noteColor"), color);
+        JButton edit = new JButton(Messages.text("machine.properties.editNoteText"));
+        edit.addActionListener(event -> editNote.accept(noteId));
+        add(edit, "span 2, left");
+        add(hint(Messages.text("machine.properties.noteHint")), WIDE);
+        noteColor = Optional.of(color);
+        editNoteText = Optional.of(edit);
     }
 
     private void showMachine(StateMachine machine) {

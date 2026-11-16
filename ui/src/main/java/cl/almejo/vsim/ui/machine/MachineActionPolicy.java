@@ -41,8 +41,8 @@ final class MachineActionPolicy {
 
     /** The window features that act on the window, the simulation or the settings, never on the circuit's parts. */
     private static final Set<String> KEPT_IDS = Set.of("waveforms.toggle", "view.presentationMode", "view.aiPresent",
-            "view.showUsedShortcuts", "tools.karnaughPractice", "help.findAction", "tools.aiPanel",
-            "file.preferences", "file.exportWindowImage");
+            "view.showUsedShortcuts", "view.stickyNoteTool", "tools.karnaughPractice", "help.findAction",
+            "tools.aiPanel", "file.preferences", "file.exportWindowImage");
     /** Items of the kept menus that act on the circuit's parts. */
     private static final Set<String> CIRCUIT_IDS_IN_KEPT_MENUS = Set.of("file.print", "file.exportImage",
             "file.exportPdf", "file.exportLogisim", "window.splitHorizontal", "window.splitVertical",

@@ -18,10 +18,11 @@ import java.awt.Dimension;
 import java.awt.Font;
 
 /**
- * The left palette of a machine's tab (spec 2026-11-14 §1, the mockup's «Paleta»): the two drawing tools, «Estado»
- * and «Transición», and under «Y después» the next steps «Convertir a circuito…» and «Probar…», shown disabled with
- * «Llega en un próximo hito» until they arrive. A tool is chosen here (one at a time, or none) and used once on the
- * diagram ({@link MachineTool}): a click places a state, a drag joins two states.
+ * The left palette of a machine's tab (spec 2026-11-14 §1, the mockup's «Paleta»): the drawing tools, «Estado»,
+ * «Transición» and «Nota» (a sticky note, hito 3), and under «Y después» the next steps «Convertir a circuito…» and
+ * «Probar…», shown disabled with «Llega en un próximo hito» until they arrive. A tool is chosen here (one at a time, or
+ * none) and used once on the diagram ({@link MachineTool}): a click places a state or a note, a drag joins two
+ * states.
  */
 public final class MachinePalette extends JPanel {
 
@@ -32,6 +33,7 @@ public final class MachinePalette extends JPanel {
     private final JToggleButton stateButton = toolButton("machine.palette.state", "machine.palette.stateHint");
     private final JToggleButton transitionButton = toolButton("machine.palette.transition",
             "machine.palette.transitionHint");
+    private final JToggleButton noteButton = toolButton("machine.palette.note", "machine.palette.noteHint");
     private final JButton convertButton = laterButton("machine.palette.convert");
     private final JButton testButton = laterButton("machine.palette.test");
     private final JLabel nextHeader = new JLabel(Messages.text("machine.palette.next"));
@@ -42,9 +44,12 @@ public final class MachinePalette extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
         tools.add(stateButton);
         tools.add(transitionButton);
+        tools.add(noteButton);
         add(stateButton);
         add(Box.createVerticalStrut(GAP));
         add(transitionButton);
+        add(Box.createVerticalStrut(GAP));
+        add(noteButton);
         add(Box.createVerticalStrut(2 * PADDING));
         nextHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
         add(nextHeader);
@@ -64,6 +69,11 @@ public final class MachinePalette extends JPanel {
     /** «Transición»: joins two states with an arrow. */
     public JToggleButton transitionButton() {
         return transitionButton;
+    }
+
+    /** «Nota»: sticks a note on the diagram with a click (the toolbar's «Nota adhesiva» chooses it too). */
+    public JToggleButton noteButton() {
+        return noteButton;
     }
 
     /** Chooses no tool: a placed state or a drawn arrow, or Esc, puts the diagram back to selecting. */

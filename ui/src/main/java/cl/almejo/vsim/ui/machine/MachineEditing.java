@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.sticky.StickyNoteTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -16,11 +17,15 @@ import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import java.awt.Component;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -56,9 +61,10 @@ final class MachineEditing {
         MachineTool tool = new MachineTool(canvas, palette, inline, view::showNotice);
         MachineInspectorRows rows = new MachineInspectorRows(canvas,
                 finding -> canvas.reveal(finding, Animations.enabled(view.services().preferences())),
-                MachineLibrary.of(view));
+                MachineLibrary.of(view), inline::editNote);
         List<Runnable> undo = new ArrayList<>();
         undo.add(tool.install());
+        undo.add(followStickyNoteTool(view, palette));
         if (view.inspector().title(InspectorPanel.PROPERTIES).isPresent()) {
             undo.add(view.inspector().showInstead(InspectorPanel.PROPERTIES, rows.inScrollPane()));
         }
@@ -92,6 +98,29 @@ final class MachineEditing {
 
     void uninstall() {
         uninstall.run();
+    }
+
+    /**
+     * The toolbar's «Nota adhesiva» (and its menu item and shortcut) chooses the palette's «Nota» in this tab instead
+     * of the circuit's note tool, and the two show the same choice: the toolbar's button is pressed while «Nota» is
+     * chosen, and Selección is pressed again once it is used or dropped. Returns what takes it back.
+     */
+    private static Runnable followStickyNoteTool(EditorView view, MachinePalette palette) {
+        JToggleButton note = palette.noteButton();
+        Runnable stopChoosing = view.chooseToolInstead(StickyNoteTool.class, () -> note.setSelected(true));
+        ItemListener follow = event -> {
+            Optional<JToggleButton> toolbarButton = view.toolButton(StickyNoteTool.class);
+            if (event.getStateChange() == ItemEvent.SELECTED) {
+                toolbarButton.ifPresent(button -> button.setSelected(true));
+            } else if (toolbarButton.filter(JToggleButton::isSelected).isPresent()) {
+                view.useDefaultToolOnEveryPane();
+            }
+        };
+        note.addItemListener(follow);
+        return () -> {
+            note.removeItemListener(follow);
+            stopChoosing.run();
+        };
     }
 
     /**
