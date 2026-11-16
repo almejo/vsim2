@@ -16,14 +16,20 @@ import java.util.OptionalInt;
 /**
  * The waveform channels every machine copy records from «Reiniciar» on, whether a panel shows them or not (hito 2,
  * decision 2): one for its state (the hidden state pin, {@link StateMachineTypes#stateNetId}), one per input and one
- * per output. They are not probes: they live in no document, file or history; the root editor adds them to the
- * channels it gives the simulation, and the machine tab's strip reads them by id. Every id starts with
- * {@code machine:}, which no probe id uses, and names the copy by its flat path ({@code machine:w/m:in:x}).
+ * per output, or one for a side shown «Como un bus» ({@code machine:w/m:in}), whose bit k is the k-th name
+ * ({@link #inputSource}, {@link #outputSource}). They are not probes: they live in no document, file or history;
+ * the root editor adds them to the channels it gives the simulation, and the machine tab's strip reads them by id.
+ * Every id starts with {@code machine:}, which no probe id uses, and names the copy by its flat path
+ * ({@code machine:w/m:in:x}).
  */
 public final class MachineChannels {
 
     /** The start of every machine channel id. */
     public static final String PREFIX = "machine:";
+
+    /** What follows the copy in the id of a bus channel. */
+    private static final String INPUT_BUS_SUFFIX = "in";
+    private static final String OUTPUT_BUS_SUFFIX = "out";
 
     /**
      * The chunks of history a machine channel keeps ({@link cl.almejo.vsim.core.waveform.ChannelTrace#CHUNK_SIZE}
@@ -89,27 +95,99 @@ public final class MachineChannels {
         return PREFIX + flatId + ":out:" + name;
     }
 
+    /** The channel of the input bus of a copy whose inputs are «Como un bus». */
+    public static String inputBusChannelId(String flatId) {
+        return PREFIX + flatId + ":" + INPUT_BUS_SUFFIX;
+    }
+
+    /** The channel of the output bus of a copy whose outputs are «Como un bus». */
+    public static String outputBusChannelId(String flatId) {
+        return PREFIX + flatId + ":" + OUTPUT_BUS_SUFFIX;
+    }
+
     /**
-     * The channels of one copy, its pins found by name in its native type (the hidden state pin is
-     * {@link StateMachineTypes#STATE_PIN_NAME}), so they follow whatever pinout its definition has.
+     * Where a name's values are recorded: the channel {@code machine:<copy>:<channelSuffix>} and, when that channel is
+     * a bus, the name's bit in it.
+     */
+    public record ChannelSlice(String channelSuffix, OptionalInt bit) {
+
+        public ChannelSlice {
+            Objects.requireNonNull(channelSuffix, "channelSuffix");
+            Objects.requireNonNull(bit, "bit");
+        }
+
+        /** The channel's id for the copy at flat path {@code flatId}. */
+        public String channelId(String flatId) {
+            return PREFIX + flatId + ":" + channelSuffix;
+        }
+    }
+
+    /**
+     * Where input {@code name} of {@code machine} is recorded: its own channel, or its bit of the input bus.
+     *
+     * @throws IllegalArgumentException when the machine has no such input
+     */
+    public static ChannelSlice inputSource(StateMachine machine, String name) {
+        return source(machine, MachinePinEdits.Side.INPUT, name, "in:", INPUT_BUS_SUFFIX);
+    }
+
+    /**
+     * Where output {@code name} of {@code machine} is recorded: its own channel, or its bit of the output bus.
+     *
+     * @throws IllegalArgumentException when the machine has no such output
+     */
+    public static ChannelSlice outputSource(StateMachine machine, String name) {
+        return source(machine, MachinePinEdits.Side.OUTPUT, name, "out:", OUTPUT_BUS_SUFFIX);
+    }
+
+    private static ChannelSlice source(StateMachine machine, MachinePinEdits.Side side, String name,
+                                       String ownPrefix, String busSuffix) {
+        Objects.requireNonNull(machine, "machine");
+        List<String> names = side == MachinePinEdits.Side.INPUT ? machine.inputNames() : machine.outputNames();
+        int index = names.indexOf(name);
+        if (index < 0) {
+            throw new IllegalArgumentException("the machine has no " + side + " " + name);
+        }
+        return MachineBody.isBus(machine, side) ? new ChannelSlice(busSuffix, OptionalInt.of(index))
+                : new ChannelSlice(ownPrefix + name, OptionalInt.empty());
+    }
+
+    /**
+     * The channels of one copy, its pins found by name and direction in its native type ({@link MachinePinLayout}),
+     * so they follow whatever pinout its definition has: the state, then the inputs (or the input bus), then the
+     * outputs (or the output bus).
      */
     private static List<MachineChannel> channelsOf(FlatComponent copy, StateMachine machine,
                                                    Map<FlatPinRef, String> netOfPin) {
+        MachinePinLayout layout = MachinePinLayout.of(copy.type(), machine);
         List<MachineChannel> channels = new ArrayList<>();
-        channels.add(new MachineChannel(stateChannelId(copy.id()),
-                netOf(netOfPin, copy, StateMachineTypes.STATE_PIN_NAME)));
+        channels.add(new MachineChannel(stateChannelId(copy.id()), netOf(netOfPin, copy, layout.state())));
+        if (layout.inputBus().isPresent()) {
+            channels.add(new MachineChannel(inputBusChannelId(copy.id()),
+                    netOf(netOfPin, copy, layout.inputBus().getAsInt())));
+        }
         for (String input : machine.inputNames()) {
-            channels.add(new MachineChannel(inputChannelId(copy.id(), input), netOf(netOfPin, copy, input)));
+            Integer pinIndex = layout.inputPins().get(input);
+            if (pinIndex != null) {
+                channels.add(new MachineChannel(inputChannelId(copy.id(), input), netOf(netOfPin, copy, pinIndex)));
+            }
+        }
+        if (layout.outputBus().isPresent()) {
+            channels.add(new MachineChannel(outputBusChannelId(copy.id()),
+                    netOf(netOfPin, copy, layout.outputBus().getAsInt())));
         }
         for (String output : machine.outputNames()) {
-            channels.add(new MachineChannel(outputChannelId(copy.id(), output), netOf(netOfPin, copy, output)));
+            Integer pinIndex = layout.outputPins().get(output);
+            if (pinIndex != null) {
+                channels.add(new MachineChannel(outputChannelId(copy.id(), output),
+                        netOf(netOfPin, copy, pinIndex)));
+            }
         }
         return channels;
     }
 
-    private static String netOf(Map<FlatPinRef, String> netOfPin, FlatComponent copy, String pinName) {
-        OptionalInt pinIndex = copy.type().pinIndexOf(pinName);
-        return pinIndex.isEmpty() ? "" : netOfPin.getOrDefault(new FlatPinRef(copy.id(), pinIndex.getAsInt()), "");
+    private static String netOf(Map<FlatPinRef, String> netOfPin, FlatComponent copy, int pinIndex) {
+        return netOfPin.getOrDefault(new FlatPinRef(copy.id(), pinIndex), "");
     }
 
     private static Map<FlatPinRef, String> netsByPin(FlatCircuit circuit) {

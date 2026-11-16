@@ -9,7 +9,9 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.RemovedPinWire;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineTransition;
@@ -179,5 +181,45 @@ class EditMachineCommandTest {
         history.undo();
         assertThat(pinNames(machineDefinition())).containsExactly("x", "RST", "CLK");
         assertThat(document.wires()).contains(wire);
+    }
+
+    @Test
+    void turningTheInputsIntoABusTellsTheirWiresLooseAndUndoAttachesThemAgain() {
+        history.execute(new EditMachineCommand(MACHINE_ID, withSelfLoop("x·y")));
+        GridPoint xPin = pinLocation("x");
+        GridPoint yPin = pinLocation("y");
+        Wire xWire = switchWiredTo("s40", "w32", xPin);
+        Wire yWire = switchWiredTo("s41", "w33", yPin);
+        StateMachine wired = machineDefinition().machine().orElseThrow();
+
+        EditMachineCommand bus = new EditMachineCommand(MACHINE_ID,
+                MachinePinEdits.asBus(wired, MachinePinEdits.Side.INPUT, true));
+        history.execute(bus);
+
+        assertThat(pinNames(machineDefinition())).containsExactly(MachineBody.BUS_INPUT_NAME, "RST", "CLK");
+        assertThat(machineDefinition().pinout().get(0).spec().width()).isEqualTo(2);
+        assertThat(bus.removedPinWires()).as("x and y are gone: their wires are told loose, by name")
+                .containsExactlyInAnyOrder(
+                        new RemovedPinWire(Optional.empty(), piece.id(), "x", xPin),
+                        new RemovedPinWire(Optional.empty(), piece.id(), "y", yPin));
+
+        history.undo();
+        assertThat(pinNames(machineDefinition())).containsExactly("x", "y", "RST", "CLK");
+        assertThat(pinLocation("x")).isEqualTo(xPin);
+        assertThat(pinLocation("y")).isEqualTo(yPin);
+        assertThat(document.wires()).contains(xWire, yWire);
+    }
+
+    /** A switch whose output is wired to {@code pin} from 6 units to its left; returns the wire. */
+    private Wire switchWiredTo(String switchId, String wireId, GridPoint pin) {
+        GridPoint end = pin.plus(new GridPoint(-6, 0));
+        Component probe = registry.require(StandardComponentTypes.SWITCH).newComponent(new ElementId(switchId),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        GridPoint offset = registry.typeOf(probe).pinLocation(probe, 0);
+        document.add(registry.require(StandardComponentTypes.SWITCH).newComponent(new ElementId(switchId),
+                new GridPoint(end.x() - offset.x(), end.y() - offset.y()), Rotation.R0, Map.of(), ""));
+        Wire wire = new Wire(new ElementId(wireId), end, pin);
+        document.add(wire);
+        return wire;
     }
 }

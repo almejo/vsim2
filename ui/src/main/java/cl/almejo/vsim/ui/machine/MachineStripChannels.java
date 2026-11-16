@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.machine.StateMachineTypes;
+import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -15,7 +16,9 @@ import cl.almejo.vsim.ui.window.InstanceNames;
 
 import javax.swing.Action;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.LongFunction;
@@ -27,12 +30,21 @@ import java.util.function.LongFunction;
  * simulating already shows what happened. The rows cannot be edited. With «Sin valores» there is no copy and no row,
  * and the title says how to get one. Everything is read from the place when asked, so another copy («Valores de»),
  * an edit of the machine or a new label shows at once.
+ * <p>
+ * The rows stay one per name when a side is «Como un bus»: such a row keeps the id of the name's own channel and
+ * {@link #latest()} gives it the name's bit of the recorded bus ({@link MachineChannels#inputSource},
+ * {@link Trace#bit}), so the panel paints it as any 1-bit row.
  */
 final class MachineStripChannels implements WaveformChannels {
 
     private final OpenDocument place;
     private final String definitionId;
     private final List<Action> headerActions;
+    /** The last recording read and what {@link #latest()} made of it, while neither it nor the machine changes. */
+    private WaveformSnapshot sliced;
+    private WaveformSnapshot slicedFrom;
+    private Optional<String> slicedCopy = Optional.empty();
+    private Optional<StateMachine> slicedMachine = Optional.empty();
 
     MachineStripChannels(OpenDocument place, String definitionId, List<Action> headerActions) {
         this.place = Objects.requireNonNull(place, "place");
@@ -80,9 +92,49 @@ final class MachineStripChannels implements WaveformChannels {
         return copy().map(path -> circuit().recordsMachineCopy(path)).orElse(true);
     }
 
+    /**
+     * The circuit's recording, plus one 1-bit trace per name that lives in a bus, under that name's own channel id;
+     * the same instance while the recording, the copy and the machine stay the same (the panel repaints when it is
+     * another).
+     */
     @Override
     public WaveformSnapshot latest() {
-        return place.latestWaveforms();
+        WaveformSnapshot recorded = place.latestWaveforms();
+        Optional<String> copy = copy();
+        Optional<StateMachine> machine = machine();
+        if (copy.isEmpty() || machine.isEmpty()
+                || !(machine.get().inputsAsBus() || machine.get().outputsAsBus())) {
+            return recorded;
+        }
+        if (recorded != slicedFrom || !copy.equals(slicedCopy) || !machine.equals(slicedMachine)) {
+            sliced = withBusBits(recorded, copy.get(), machine.get());
+            slicedFrom = recorded;
+            slicedCopy = copy;
+            slicedMachine = machine;
+        }
+        return sliced;
+    }
+
+    private static WaveformSnapshot withBusBits(WaveformSnapshot recorded, String path, StateMachine machine) {
+        Map<String, Trace> traces = new HashMap<>(recorded.traces());
+        for (String input : machine.inputNames()) {
+            addBit(traces, recorded, path, MachineChannels.inputSource(machine, input),
+                    MachineChannels.inputChannelId(path, input));
+        }
+        for (String output : machine.outputNames()) {
+            addBit(traces, recorded, path, MachineChannels.outputSource(machine, output),
+                    MachineChannels.outputChannelId(path, output));
+        }
+        return new WaveformSnapshot(recorded.version(), recorded.time(), traces);
+    }
+
+    private static void addBit(Map<String, Trace> traces, WaveformSnapshot recorded, String path,
+                               MachineChannels.ChannelSlice source, String rowId) {
+        if (source.bit().isEmpty()) {
+            return;
+        }
+        int bit = source.bit().getAsInt();
+        recorded.trace(source.channelId(path)).ifPresent(bus -> traces.put(rowId, bus.bit(bit)));
     }
 
     @Override

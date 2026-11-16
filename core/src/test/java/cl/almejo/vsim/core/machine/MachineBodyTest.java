@@ -113,4 +113,57 @@ class MachineBodyTest {
         assertThat(after.pinout().get(0).source()).isEqualTo(before.pinout().get(0).source());
         assertThat(AppearanceReconciler.previousPins(before, after).get(0)).contains(before.pinout().get(0));
     }
+
+    @Test
+    void inputsAsABusAreOnePinAsWideAsTheNamesBeforeResetAndClock() {
+        StateMachine machine = MachineExamples.twoOnesDetector().withPinNames(List.of("x", "y"), List.of("Z"))
+                .withBus(true, false);
+
+        MachineBody body = MachineBody.of(machine);
+
+        assertThat(names(body.pinout())).containsExactly(MachineBody.BUS_INPUT_NAME, "RST", "CLK", "Z");
+        DefinitionPin bus = body.pinout().get(0);
+        assertThat(bus.spec().width()).isEqualTo(2);
+        assertThat(bus.spec().direction()).isEqualTo(PinDirection.INPUT);
+        assertThat(bus.source().value()).isEqualTo("machine-input-bus");
+        Component source = body.body().components().stream()
+                .filter(component -> component.id().equals(bus.source())).findFirst().orElseThrow();
+        assertThat(InterfacePins.widthOf(source)).isEqualTo(2);
+        assertThat(body.pinout().get(1).spec().width()).isEqualTo(1);
+    }
+
+    @Test
+    void outputsAsABusAreOnePinOnTheRight() {
+        StateMachine machine = MachineExamples.twoOnesDetector().withPinNames(List.of("x"), List.of("Z", "W", "V"))
+                .withBus(false, true);
+
+        MachineBody body = MachineBody.of(machine);
+
+        assertThat(names(body.pinout())).containsExactly("x", "RST", "CLK", MachineBody.BUS_OUTPUT_NAME);
+        DefinitionPin bus = body.pinout().get(3);
+        assertThat(bus.spec().width()).isEqualTo(3);
+        assertThat(bus.spec().direction()).isEqualTo(PinDirection.OUTPUT);
+        assertThat(bus.spec().position().x()).isEqualTo(body.size().width());
+        assertThat(bus.source().value()).isEqualTo("machine-output-bus");
+    }
+
+    @Test
+    void aBusOfOneNameIsOneBitAndABusWithoutNamesHasNoPin() {
+        MachineBody one = MachineBody.of(StateMachine.initial().withPinNames(List.of("x"), List.of())
+                .withBus(true, true));
+        assertThat(names(one.pinout())).containsExactly(MachineBody.BUS_INPUT_NAME, "RST", "CLK");
+        assertThat(one.pinout().get(0).spec().width()).isEqualTo(1);
+    }
+
+    @Test
+    void aBusIsNeverNamedLikeAPinOfTheOtherSide() {
+        StateMachine machine = StateMachine.initial().withPinNames(List.of("x", "y"), List.of("in"))
+                .withBus(true, false);
+
+        MachineBody body = MachineBody.of(machine);
+
+        assertThat(names(body.pinout())).doesNotHaveDuplicates().contains("in");
+        assertThat(body.pinout().get(0).spec().name()).isEqualTo(MachineBody.busName(machine,
+                MachinePinEdits.Side.INPUT));
+    }
 }

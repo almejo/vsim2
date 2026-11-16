@@ -1,10 +1,13 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.VisibleState.MachineVisibleState;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.machine.MachineBody;
+import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -101,13 +104,13 @@ public final class MachinePainter implements ComponentPainter {
     /** The face of an instance of {@code definition}'s machine, showing {@code state} when it is a machine's. */
     static void paintFace(Graphics2D graphics, ComponentType type, ComponentDefinition definition,
                           VisibleState state, ColorScheme scheme) {
-        SubcircuitPainter.paintBoxAndPins(graphics, type, scheme);
         StateMachine machine = definition.machine().orElseGet(StateMachine::initial);
+        SubcircuitPainter.paintBoxAndPins(graphics, type, scheme, pin -> pinText(machine, pin));
         Optional<MachineVisibleState> current = state instanceof MachineVisibleState machineState
                 ? Optional.of(machineState) : Optional.empty();
         Graphics2D upright = upright(graphics, type);
         try {
-            FaceFrame frame = FaceFrame.of(upright, type, PainterSupport.turnedSideways(graphics));
+            FaceFrame frame = FaceFrame.of(upright, type, machine, PainterSupport.turnedSideways(graphics));
             upright.clip(frame.box());
             FaceLayout layout = MachineFaceLayout.of(machine, frame.area());
             Face face = new Face(upright, frame, machine, current, scheme);
@@ -118,6 +121,20 @@ public final class MachinePainter implements ComponentPainter {
         } finally {
             upright.dispose();
         }
+    }
+
+    /**
+     * A pin's name as the face writes it: a bus pin with its bits, {@code in[1:0]}, or {@code in[0]} for one name
+     * (spec §1 «Como un bus»); every other pin as on any user component.
+     */
+    static String pinText(StateMachine machine, PinSpec pin) {
+        MachinePinEdits.Side side = pin.direction() == PinDirection.OUTPUT ? MachinePinEdits.Side.OUTPUT
+                : MachinePinEdits.Side.INPUT;
+        if (MachineBody.isBus(machine, side) && pin.name().equals(MachineBody.busName(machine, side))) {
+            int highest = pin.width() - 1;
+            return highest == 0 ? pin.name() + "[0]" : pin.name() + "[" + highest + ":0]";
+        }
+        return SubcircuitPainter.pinText(pin);
     }
 
     /**
@@ -143,10 +160,10 @@ public final class MachinePainter implements ComponentPainter {
      */
     private record FaceFrame(Rectangle2D box, double titleY, double textY, Rectangle2D area) {
 
-        static FaceFrame of(Graphics2D graphics, ComponentType type, boolean sideways) {
+        static FaceFrame of(Graphics2D graphics, ComponentType type, StateMachine machine, boolean sideways) {
             double width = (sideways ? type.size().height() : type.size().width()) * UNIT;
             double height = (sideways ? type.size().width() : type.size().height()) * UNIT;
-            double sides = sideways ? INSET : pinColumn(graphics, type, width);
+            double sides = sideways ? INSET : pinColumn(graphics, type, machine, width);
             double bands = sideways ? INSET + textHeight(graphics, PIN_NAME_SIZE) + GAP : 1;
             double titleTop = bands;
             double textBottom = height - bands;
@@ -157,10 +174,11 @@ public final class MachinePainter implements ComponentPainter {
         }
 
         /** How far the widest pin name reaches into the box from its side, at most a share of the box's width. */
-        private static double pinColumn(Graphics2D graphics, ComponentType type, double width) {
+        private static double pinColumn(Graphics2D graphics, ComponentType type, StateMachine machine,
+                                        double width) {
             double widest = 0;
             for (PinSpec pin : type.pins()) {
-                widest = Math.max(widest, textWidth(graphics, SubcircuitPainter.pinText(pin), PIN_NAME_SIZE));
+                widest = Math.max(widest, textWidth(graphics, pinText(machine, pin), PIN_NAME_SIZE));
             }
             return Math.min(width * MAXIMUM_PIN_COLUMN_SHARE, INSET + widest + GAP);
         }

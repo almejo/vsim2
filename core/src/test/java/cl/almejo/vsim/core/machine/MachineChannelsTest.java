@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
+import cl.almejo.vsim.core.machine.MachineChannels.ChannelSlice;
 import cl.almejo.vsim.core.machine.MachineChannels.MachineChannel;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.FlatComponent;
@@ -17,8 +18,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Every flat machine copy gets one channel for its state, one per input and one per output. */
 class MachineChannelsTest {
@@ -89,13 +92,21 @@ class MachineChannelsTest {
     }
 
     @Test
-    void theBehaviourDrivesTheStateOnTheHiddenPinOfItsTypeWhateverThePinout() {
+    void aPinoutThatDisagreesWithTheMachineFailsLoudlyInsteadOfReadingPinsByPosition() {
         ComponentDefinition canonical = MachineDefinitions.regenerated(MachineDefinitions.create("maquina-1",
                 "Máquina 1").withMachine(MachineExamples.twoOnesDetector()));
         List<DefinitionPin> pinout = new ArrayList<>(canonical.pinout());
-        pinout.removeLast(); // a pinout that is not the canonical one (an older file, hito 6's buses)
-        ComponentType type = StateMachineTypes.typeOf(canonical.withGeometry(canonical.size(), pinout,
-                canonical.appearance()));
+        pinout.removeLast();
+        ComponentDefinition disagreeing = canonical.withGeometry(canonical.size(), pinout, canonical.appearance());
+
+        assertThatThrownBy(() -> StateMachineTypes.typeOf(disagreeing)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Z");
+    }
+
+    @Test
+    void theBehaviourDrivesTheStateOnTheHiddenPinOfItsType() {
+        ComponentType type = StateMachineTypes.typeOf(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(MachineExamples.twoOnesDetector()));
         Map<Integer, Value> driven = new HashMap<>();
         BehaviorContext context = new BehaviorContext() {
             @Override
@@ -121,9 +132,39 @@ class MachineChannelsTest {
         type.behaviorFactory().create(Map.of()).initialize(context);
 
         int statePin = type.pinIndexOf(StateMachineTypes.STATE_PIN_NAME).orElseThrow();
-        assertThat(statePin).isEqualTo(pinout.size());
         assertThat(driven).containsKey(statePin);
         assertThat(driven.get(statePin).width()).isEqualTo(StateMachineTypes.stateWidth(MachineExamples.twoOnesDetector()));
+    }
+
+    @Test
+    void aBusSideRecordsOneChannelForTheBus() {
+        StateMachine machine = MachineExamples.twoOnesDetector().withPinNames(List.of("x", "y"), List.of("Z"))
+                .withBus(true, false);
+        ComponentType type = StateMachineTypes.typeOf(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(machine));
+        FlatCircuit circuit = new FlatCircuit(List.of(new FlatComponent("c1", type, Map.of())), List.of(
+                new FlatNet("n1", List.of(new FlatPinRef("c1", 0)), 2, false),
+                net("n2", new FlatPinRef("c1", 3)),
+                stateNet("c1")));
+
+        assertThat(MachineChannels.of(circuit)).containsExactly(
+                new MachineChannel("machine:c1:state", "c1#state"),
+                new MachineChannel("machine:c1:in", "n1"),
+                new MachineChannel("machine:c1:out:Z", "n2"));
+    }
+
+    @Test
+    void aNameIsABitOfTheBusChannelInBusModeAndItsOwnChannelOtherwise() {
+        StateMachine machine = MachineExamples.twoOnesDetector().withPinNames(List.of("x", "y"), List.of("Z", "W"));
+        StateMachine bus = machine.withBus(true, true);
+
+        assertThat(MachineChannels.inputSource(machine, "y")).isEqualTo(new ChannelSlice("in:y", OptionalInt.empty()));
+        assertThat(MachineChannels.outputSource(machine, "W"))
+                .isEqualTo(new ChannelSlice("out:W", OptionalInt.empty()));
+        assertThat(MachineChannels.inputSource(bus, "y")).isEqualTo(new ChannelSlice("in", OptionalInt.of(1)));
+        assertThat(MachineChannels.outputSource(bus, "Z")).isEqualTo(new ChannelSlice("out", OptionalInt.of(0)));
+        assertThat(MachineChannels.inputSource(machine, "y").channelId("w/m")).isEqualTo("machine:w/m:in:y");
+        assertThat(MachineChannels.inputSource(bus, "y").channelId("w/m")).isEqualTo("machine:w/m:in");
     }
 
     @Test

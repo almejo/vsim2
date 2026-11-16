@@ -18,7 +18,8 @@ import java.util.OptionalInt;
 /**
  * The native type a «Máquina de estados» runs as (spec §2.3): the flattener does not expand its pins-only body but
  * adds one component of this type, with the definition's pins in pinout order (inputs, {@code RST}, {@code CLK},
- * outputs) and a {@link StateMachineBehavior}. The type id is the same for every revision of one machine, so a rebuild
+ * outputs, each side maybe one bus) and a {@link StateMachineBehavior}, which finds them by name
+ * ({@link MachinePinLayout}). The type id is the same for every revision of one machine, so a rebuild
  * after an edit hands the running state to the new behaviour ({@link Behavior#adoptStateFrom}); two types are equal
  * when their machines are, so a rebuild that changes nothing keeps the running instance.
  * <p>
@@ -46,16 +47,22 @@ public final class StateMachineTypes {
      * object (the flattener does, per flatten).
      *
      * @throws IllegalArgumentException when {@code definition} is not a machine
+     * @throws IllegalStateException    when its pinout disagrees with its machine ({@link MachinePinLayout})
      */
     public static ComponentType typeOf(ComponentDefinition definition) {
         Objects.requireNonNull(definition, "definition");
         StateMachine machine = definition.machine().orElseThrow(() ->
                 new IllegalArgumentException(definition.id() + " is not a state machine"));
         List<PinSpec> pins = new ArrayList<>(definition.pinout().stream().map(DefinitionPin::spec).toList());
-        int statePin = pins.size();
         pins.add(PinSpec.output(STATE_PIN_NAME, 0, 0, stateWidth(machine)));
-        return new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM, definition.size(), pins,
-                List.of(), new Factory(machine, statePin));
+        String typeId = typeIdOf(definition.id());
+        ComponentType pinsOnly = new ComponentType(typeId, ComponentCategory.CUSTOM, definition.size(), pins,
+                List.of(), parameters -> {
+                    throw new IllegalStateException(typeId + " is being built");
+                });
+        MachinePinLayout layout = MachinePinLayout.of(pinsOnly, machine);
+        return new ComponentType(typeId, ComponentCategory.CUSTOM, definition.size(), pins, List.of(),
+                new Factory(machine, layout));
     }
 
     /** The machine a native type runs, when {@code type} is one made by {@link #typeOf}. */
@@ -109,14 +116,14 @@ public final class StateMachineTypes {
     }
 
     /**
-     * Builds the behaviour of one machine, which drives its state code on the type's hidden pin {@code statePin};
-     * equal for equal machines and pinouts, so a type keeps its identity across rebuilds.
+     * Builds the behaviour of one machine, which finds its pins through {@code layout} (the state code goes on its
+     * hidden pin); equal for equal machines and pinouts, so a type keeps its identity across rebuilds.
      */
-    private record Factory(StateMachine machine, int statePin) implements BehaviorFactory {
+    private record Factory(StateMachine machine, MachinePinLayout layout) implements BehaviorFactory {
 
         @Override
         public Behavior create(Map<String, Object> parameters) {
-            return new StateMachineBehavior(machine, statePin);
+            return new StateMachineBehavior(machine, layout);
         }
     }
 }
