@@ -104,6 +104,9 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     private static final int STICKY_DARK_SHADOW_ALPHA = 130;
     private static final int LIGHT_ALIGNMENT_GUIDE = 0xB4008C;
     private static final int DARK_ALIGNMENT_GUIDE = 0xFF66E0;
+    /** The warning gold on a light board and on a dark one (before {@link #standingOut}, which may deepen it). */
+    private static final int LIGHT_WARNING = 0xB58200;
+    private static final int DARK_WARNING = 0xFFC933;
 
     /**
      * The grid line of a scheme that has none of its own (a custom scheme stored before the grid of lines): the
@@ -346,10 +349,10 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
      * deep on a light board and light on a dark one, pushed towards black or white until it reaches 3:1 like
      * {@link #sheetCut()} (that keeps its hue); never the conflict red, which means an error, and far enough in hue
      * from {@link #machineActive()}'s orange that a warning state never reads as the active one (hand test of hito 2,
-     * round 2).
+     * round 2). The gold («Dorado») was chosen with the user from the swatch sheets of hito 3 (2026-11-17).
      */
     public Color warning() {
-        return standingOut(isDark() ? new Color(0xFF, 0xEB, 0x3B) : new Color(0xC8, 0xA0, 0x00));
+        return standingOut(new Color(isDark() ? DARK_WARNING : LIGHT_WARNING));
     }
 
     /**

@@ -267,15 +267,16 @@ class ColorSchemesTest {
     }
 
     @Test
-    void theWarningColourIsAYellowAmberClearlyApartFromTheMachinesActiveOrange() {
-        // hand test of hito 2, round 2: a warning ring read as the active state's orange. PROVISIONAL: the colour is
-        // still to be chosen with the user (item 15), and only the hue is checked here, not the translucent halo over
-        // the board that read as olive; a new colour may change these bounds without being a regression.
+    void theWarningColourIsTheGoldTheUserChoseInEveryScheme() {
+        // chosen with the user from the swatch sheets of hito 3 (2026-11-17, candidate B «Dorado»), drawn beside the
+        // machine's active orange and the conflict red: a deep gold on a light board, a light gold on a dark one
+        assertThat(ColorSchemes.LIGHT.warning()).isEqualTo(new Color(0xB58200));
+        assertThat(ColorSchemes.DARK.warning()).isEqualTo(new Color(0xFFC933));
         for (ColorScheme scheme : ALL) {
             double warningHue = hue(scheme.warning());
-            assertThat(warningHue).as("yellow-amber: %s", scheme).isBetween(42.0, 60.0);
+            assertThat(warningHue).as("gold: %s", scheme).isBetween(42.0, 46.0);
             assertThat(Math.abs(warningHue - hue(scheme.machineActive()))).as("apart from the active orange: %s",
-                    scheme).isGreaterThanOrEqualTo(15.0);
+                    scheme).isGreaterThanOrEqualTo(8.0);
         }
     }
 
