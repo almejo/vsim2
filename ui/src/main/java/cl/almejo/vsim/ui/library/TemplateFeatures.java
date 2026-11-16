@@ -53,6 +53,7 @@ public final class TemplateFeatures {
         JMenuItem createItem = edit.add(actions.createComponent());
         JMenuItem updateItem = edit.add(actions.updateComponent());
         view.addContextMenuContributor(actions.contributor());
+        Runnable removeEnterRows = view.labelFeatures().properties().addComponentRows(actions.enterRows());
         Runnable removeDescriptionRows = view.labelFeatures().properties().addComponentRows(actions.descriptionRows());
         view.setTemplateActions(actions);
 
@@ -71,6 +72,7 @@ public final class TemplateFeatures {
 
         LibraryPalette palette = new LibraryPalette(view, service, dialogs, importer, importComponent);
         palette.install();
+        view.addContextMenuContributor(palette.addToLibraryContributor());
         // Ruling: a component file dropped on the canvas or the window is imported, not opened as a circuit.
         view.setComponentFileImporter(files -> importer.importFiles(view, files));
 
@@ -107,6 +109,7 @@ public final class TemplateFeatures {
         });
         return new TemplateFeatures(view, service, actions, palette, importComponent, menuItemsRemover, badge,
                 problemsListener, () -> {
+                    removeEnterRows.run();
                     removeDescriptionRows.run();
                     removeWarnings.run();
                     removeBadges.run();
