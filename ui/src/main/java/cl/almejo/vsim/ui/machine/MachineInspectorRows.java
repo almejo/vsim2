@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.logic.ExpressionProblem;
 import cl.almejo.vsim.core.machine.MachineConditions;
 import cl.almejo.vsim.core.machine.MachineFinding;
+import cl.almejo.vsim.core.machine.MachineKind;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -354,12 +355,11 @@ final class MachineInspectorRows extends JPanel {
 
     /** Where the machine assigns outputs: in its states (Moore), on its arrows (Mealy) or both; Moore when nowhere. */
     private static String kindOf(StateMachine machine) {
-        boolean mealy = machine.transitions().stream().anyMatch(transition -> !transition.outputs().isEmpty());
-        boolean moore = machine.states().stream().anyMatch(state -> !state.outputs().isEmpty());
-        if (mealy && moore) {
+        MachineKind kind = MachineKind.of(machine);
+        if (kind.mixed()) {
             return Messages.text("machine.properties.kind.both");
         }
-        return Messages.text(mealy ? "machine.properties.kind.mealy" : "machine.properties.kind.moore");
+        return Messages.text(kind.mealy() ? "machine.properties.kind.mealy" : "machine.properties.kind.moore");
     }
 
     private static String listed(List<String> names) {

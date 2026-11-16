@@ -161,6 +161,39 @@ class MachineDrawingTest {
     }
 
     @Test
+    void theTypeChipsDoNotCatchClicks() {
+        int before = machine().states().size();
+        Point2D underTheChips = new Point2D.Double(20, 20); // inside the «Moore» pill, over an empty spot
+
+        click(underTheChips, 0, 1);
+        click(underTheChips, 0, 2);
+
+        assertThat(machine().states()).hasSize(before + 1);
+    }
+
+    @Test
+    void hoveringAChipExplainsIt() {
+        MouseEvent hover = new MouseEvent(canvas, MouseEvent.MOUSE_MOVED, 0, 0, 20, 20, 0, false);
+
+        assertThat(canvas.getToolTipText(hover)).contains("Moore: la salida depende solo del estado");
+    }
+
+    @Test
+    void theCanvasPaintsTheChipsOnTopOfTheDiagram() {
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(900, 600,
+                java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        canvas.paint(graphics);
+        graphics.dispose();
+
+        java.awt.geom.Rectangle2D moore = MachineKindChips.mooreBounds(MachineKindChips.defaultFont());
+        java.awt.geom.Rectangle2D mealy = MachineKindChips.mealyBounds(MachineKindChips.defaultFont());
+        assertThat(image.getRGB((int) moore.getMinX() + 5, (int) moore.getCenterY()))
+                .as("the detector is Moore: its pill is lit, Mealy's is not")
+                .isNotEqualTo(image.getRGB((int) mealy.getMinX() + 5, (int) mealy.getCenterY()));
+    }
+
+    @Test
     void aDoubleClickOnEmptySpaceCreatesTheNextStateInOneUndoStep() {
         doubleClick(at(160, 200));
 
