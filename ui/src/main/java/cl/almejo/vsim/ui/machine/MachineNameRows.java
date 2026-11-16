@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
@@ -42,7 +43,9 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
             return;
         }
         String id = definitionId.get();
-        JTextField field = new JTextField(MachineNaming.nameOf(place, id).orElse(""));
+        // copied states also travel as plain text: Ctrl+V of them must not make the machine's name their JSON
+        JTextField field = FragmentRefusingTransferHandler.install(
+                new JTextField(MachineNaming.nameOf(place, id).orElse("")));
         field.setName(FIELD_NAME);
         WrappedErrorText problem = new WrappedErrorText(" ");
         problem.setName(PROBLEM_NAME);

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.inline;
 
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
@@ -155,6 +156,9 @@ public final class InlineTextEditor {
         installAreaKeys();
         TextChanges.onChange(field, this::textChanged);
         TextChanges.onChange(area, this::textChanged);
+        // copied parts or states also travel as plain text: Ctrl+V of them must not type their JSON here
+        FragmentRefusingTransferHandler.install(field);
+        FragmentRefusingTransferHandler.install(area);
     }
 
     private void configureFieldAndArea() {

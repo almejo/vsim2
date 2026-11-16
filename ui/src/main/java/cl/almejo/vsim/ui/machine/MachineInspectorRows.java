@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
+import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.karnaugh.ExpressionProblemText;
 import cl.almejo.vsim.ui.problems.MachineProblemText;
@@ -482,7 +483,7 @@ final class MachineInspectorRows extends JPanel {
      */
     private JTextField textRow(String caption, String text, Function<StateMachine, Optional<String>> modelText,
                                Consumer<String> onApply) {
-        JTextField field = new JTextField(text);
+        JTextField field = FragmentRefusingTransferHandler.install(new JTextField(text));
         String[] applied = {text};
         Runnable applyIfChanged = () -> {
             if (!field.getText().equals(applied[0])) {

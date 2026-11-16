@@ -2,12 +2,14 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.io.MachineFragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -20,8 +22,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JTextField;
+import javax.swing.TransferHandler;
 import javax.swing.text.JTextComponent;
 import java.awt.Container;
+import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -141,6 +145,39 @@ class MachineRenameTest {
         assertThat(machineName()).isEqualTo("Detector 11");
         JTextComponent problem = (JTextComponent) find(view.labelFeatures().properties(), MachineNameRows.PROBLEM_NAME);
         assertThat(problem.getText()).isEqualTo("Ya existe un componente llamado «Otra».");
+    }
+
+    /**
+     * Copied states travel as a fragment that is plain text too: Ctrl+V of them into a name or condition field must
+     * not type their JSON there (review of the hand fixes, I2), while text from another program still pastes.
+     */
+    @Test
+    void theMachinesTextFieldsRefuseCopiedStatesButTakePlainText() {
+        EditorView circuitView = shown(new EditorView(document, services, NO_WINDOW));
+        circuitView.selection().select(new ElementId(MachineFixtures.copies(document).get(0)));
+        EditorView tabView = shown(new EditorView(machineTab(), services, NO_WINDOW));
+        MachineMode mode = MachineMode.of(tabView).orElseThrow();
+        List<JTextComponent> fields = new ArrayList<>();
+        fields.add((JTextField) find(circuitView.labelFeatures().properties(), MachineNameRows.FIELD_NAME));
+        fields.add(mode.inspectorRows().machineNameField().orElseThrow());
+        mode.selection().selectState("s0");
+        fields.add(mode.inspectorRows().nameField().orElseThrow());
+        fields.add(mode.inspectorRows().outputsField().orElseThrow());
+        mode.selection().selectTransition(mode.canvas().machine().orElseThrow().transitions().get(0).id());
+        fields.add(mode.inspectorRows().conditionField().orElseThrow());
+        fields.add(mode.inspectorRows().mealyOutputsField().orElseThrow());
+        fields.add(mode.inlineEditor().editor().field());
+        fields.add(mode.inlineEditor().editor().area());
+        FragmentTransferable copiedStates = new FragmentTransferable(MachineFragmentFormat.write(
+                mode.canvas().machine().orElseThrow()));
+
+        for (JTextComponent field : fields) {
+            TransferHandler handler = field.getTransferHandler();
+            assertThat(handler.canImport(new TransferHandler.TransferSupport(field, copiedStates))).isFalse();
+            assertThat(handler.importData(new TransferHandler.TransferSupport(field, copiedStates))).isFalse();
+            assertThat(handler.canImport(new TransferHandler.TransferSupport(field, new StringSelection("S9"))))
+                    .isTrue();
+        }
     }
 
     private static java.awt.Component find(Container root, String name) {
