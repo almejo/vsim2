@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentDefinition;
-import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
@@ -29,12 +28,18 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
     static final String PROBLEM_NAME = "machine.definitionName.problem";
 
     private final OpenDocument place;
-    private final ComponentLibrary library;
+    private final MachineLibrary library;
 
-    /** @param library «Mis componentes», whose names are taken too and whose machines are renamed from the palette */
-    MachineNameRows(OpenDocument place, ComponentLibrary library) {
+    /** @param library «Mis componentes», whose names are taken too and where a machine of it is renamed too */
+    MachineNameRows(OpenDocument place, MachineLibrary library) {
         this.place = Objects.requireNonNull(place, "place");
         this.library = Objects.requireNonNull(library, "library");
+    }
+
+    /** First of all, above «Etiqueta»: the machine's name is what the piece is (hito 3). */
+    @Override
+    public PropertiesPanel.RowsPlace place() {
+        return PropertiesPanel.RowsPlace.BEFORE_LABEL;
     }
 
     @Override

@@ -226,30 +226,36 @@ class MachineRenameTest {
     }
 
     /**
-     * A machine that is in «Mis componentes» shows there with the library's name, so Propiedades does not rename it
-     * (the palette and the library would keep the old name): it says where it is renamed (I3).
+     * A machine that is in «Mis componentes» is renamed there too, in the same undo step (hito 3, decision 3): the
+     * palette, the library and the circuit keep calling it the same.
      */
     @Test
-    void aMachineInTheLibraryIsRenamedFromThePaletteAndPropertiesSaysSo() {
+    void aMachineInTheLibraryIsRenamedThereTooInOneUndoStep() {
         ComponentDefinition machine = document.document().definition(MachineFixtures.DEFINITION_ID).orElseThrow();
         library.put(DefinitionBundle.of(machine, document.document()::definition));
         EditorView tabView = shown(new EditorView(machineTab(), services, NO_WINDOW));
         MachineInspectorRows rows = MachineMode.of(tabView).orElseThrow().inspectorRows();
 
-        type(rows.machineNameField().orElseThrow(), "Detector 11");
-        assertThat(rows.problemText()).as("keeping the name is fine").isEmpty();
         type(rows.machineNameField().orElseThrow(), "Semáforo");
 
+        assertThat(rows.problemText()).isEmpty();
+        assertThat(machineName()).isEqualTo("Semáforo");
+        assertThat(libraryName()).isEqualTo("Semáforo");
+        perform(tabView.actions().undo());
         assertThat(machineName()).isEqualTo("Detector 11");
-        String reason = Messages.format("machine.name.inLibrary", "Detector 11");
-        assertThat(rows.problemText()).contains(reason);
+        assertThat(libraryName()).isEqualTo("Detector 11");
 
         EditorView circuitView = shown(new EditorView(document, services, NO_WINDOW));
         circuitView.selection().select(new ElementId(MachineFixtures.copies(document).get(0)));
-        type((JTextField) find(circuitView.labelFeatures().properties(), MachineNameRows.FIELD_NAME), "Semáforo");
-        assertThat(machineName()).isEqualTo("Detector 11");
+        type((JTextField) find(circuitView.labelFeatures().properties(), MachineNameRows.FIELD_NAME), "Cruce");
+        assertThat(machineName()).isEqualTo("Cruce");
+        assertThat(libraryName()).isEqualTo("Cruce");
         assertThat(((JTextComponent) find(circuitView.labelFeatures().properties(), MachineNameRows.PROBLEM_NAME))
-                .getText()).isEqualTo(reason);
+                .getText()).isBlank();
+    }
+
+    private String libraryName() {
+        return library.find(MachineFixtures.DEFINITION_ID).orElseThrow().root().name();
     }
 
     /**

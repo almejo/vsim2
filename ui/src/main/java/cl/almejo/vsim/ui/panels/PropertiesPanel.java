@@ -123,6 +123,11 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     private final List<java.awt.Component> extensionRowParts = new ArrayList<>();
     /** What the {@link ComponentRows} shown now apply when the panel commits ({@link Rows#onCommit}). */
     private final List<Runnable> extensionCommits = new ArrayList<>();
+    /**
+     * What the rows placed before «Etiqueta» apply when the panel commits: they are read once, so the panel's own edit
+     * (which asks the other rows again) keeps them.
+     */
+    private final List<Runnable> keptExtensionCommits = new ArrayList<>();
     private int generation;
     private boolean applying;
     private Consumer<String> noticeSink = text -> { };
@@ -239,6 +244,14 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
         /** A row as wide as the panel (a warning, a line of buttons). */
         void addWide(java.awt.Component content);
+
+        /**
+         * A section header like the panel's own («GENERAL»), as wide as the panel: «De la máquina (se cambia adentro)»
+         * over a machine piece's summary. Its accessible name is {@code title}.
+         */
+        default void addSection(String title) {
+            addWide(new JLabel(title));
+        }
 
         /**
          * Runs {@code commit} when the panel applies what its editors hold before showing something else (a click on
@@ -375,7 +388,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     /** Applies what the editors hold now, as Enter or focus loss would. */
     void commitEdits() {
         // taken first: the panel's own edit may ask the extensions for their rows again
-        List<Runnable> extensions = List.copyOf(extensionCommits);
+        List<Runnable> extensions = Stream.concat(keptExtensionCommits.stream(), extensionCommits.stream()).toList();
         pendingEdits.run();
         extensions.forEach(Runnable::run);
     }
@@ -457,6 +470,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         noteStyleRows = Map.of();
         extensionRowParts.clear();
         extensionCommits.clear();
+        keptExtensionCommits.clear();
         pendingEdits = () -> { };
         error.setText(" ");
         shown = selection.ids();
@@ -635,8 +649,13 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             }
 
             @Override
+            public void addSection(String title) {
+                PropertiesPanel.this.add(new SectionHeader(title), "span 2, growx, wmin 0, gaptop 6");
+            }
+
+            @Override
             public void onCommit(Runnable commit) {
-                extensionCommits.add(Objects.requireNonNull(commit, "commit"));
+                (again ? extensionCommits : keptExtensionCommits).add(Objects.requireNonNull(commit, "commit"));
             }
         };
         for (ComponentRows contributor : List.copyOf(componentRows)) {
