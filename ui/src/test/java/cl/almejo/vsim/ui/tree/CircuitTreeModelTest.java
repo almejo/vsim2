@@ -75,7 +75,7 @@ class CircuitTreeModelTest {
         CircuitTreeNode instance = CircuitTreeModel.build("x", document, registry).children().getFirst();
 
         assertThat(instance.definitionId()).contains(ExampleDefinitions.DOUBLE_INVERTER);
-        assertThat(names(instance.children())).containsExactly("a", "Inversor 1", "Inversor 2", "y");
+        assertThat(names(instance.children())).containsExactly("a", "Inversor · copia 1", "Inversor · copia 2", "y");
         CircuitTreeNode nested = instance.children().get(2);
         assertThat(nested.path()).isEqualTo("c1/c3");
         assertThat(nested.definitionId()).contains(ExampleDefinitions.INVERTER);

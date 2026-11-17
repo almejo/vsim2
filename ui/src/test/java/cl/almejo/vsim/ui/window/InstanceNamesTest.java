@@ -1,9 +1,12 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.CreateMachineCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -13,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
@@ -20,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * How an instance is named (spec §5.3): its label, else its type name, numbered in document order when several unlabeled
- * pieces of one type share a place; a route names each step the same way.
+ * pieces of one type share a place; a route names each step the same way. Unlabeled pieces of one user component or
+ * machine are its copies, «Inversor · copia 2», so they do not read as a component named «Inversor 2».
  */
 class InstanceNamesTest {
 
@@ -71,8 +76,9 @@ class InstanceNamesTest {
         place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 0, 0, Map.of());
 
         assertThat(InstanceNames.route("c1/c3", openDocument.document()))
-                .containsExactly("Doble inversor", "Inversor 2");
-        assertThat(InstanceNames.path("c1/c3/c2", openDocument.document())).contains("Doble inversor › Inversor 2 › NOT");
+                .containsExactly("Doble inversor", "Inversor · copia 2");
+        assertThat(InstanceNames.path("c1/c3/c2", openDocument.document()))
+                .contains("Doble inversor › Inversor · copia 2 › NOT");
         assertThat(InstanceNames.route("c9", openDocument.document())).isEmpty();
     }
 
@@ -85,5 +91,44 @@ class InstanceNamesTest {
 
         assertThat(InstanceNames.route(instance.id().value(), openDocument.document()))
                 .containsExactly("U4");
+    }
+
+    @Test
+    void unlabeledPiecesOfOneMachineAreItsCopiesAndALabelStillNamesAPiece() {
+        openDocument.execute(new CreateMachineCommand(MachineDefinitions.create("machiness", "Machiness"),
+                new GridPoint(0, 0)));
+        Component second = place(openDocument, SubcircuitTypes.typeIdOf("machiness"), 20, 0, Map.of());
+        Component labeled = place(openDocument, SubcircuitTypes.typeIdOf("machiness"), 40, 0, Map.of());
+        openDocument.execute(new SetLabelCommand(labeled.id(), "semaforo"));
+        String first = openDocument.document().components().getFirst().id().value();
+
+        assertThat(InstanceNames.name(first, openDocument.document())).contains("Machiness · copia 1");
+        assertThat(InstanceNames.name(second.id().value(), openDocument.document())).contains("Machiness · copia 2");
+        assertThat(InstanceNames.name(labeled.id().value(), openDocument.document())).contains("semaforo");
+    }
+
+    @Test
+    void aLonePieceOfAMachineIsNamedByItsMachineAlone() {
+        openDocument.execute(new CreateMachineCommand(MachineDefinitions.create("machiness", "Machiness"),
+                new GridPoint(0, 0)));
+        String piece = openDocument.document().components().getFirst().id().value();
+
+        assertThat(InstanceNames.name(piece, openDocument.document())).contains("Machiness");
+    }
+
+    @Test
+    void inEnglishACopyIsACopy() {
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+            place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 0, 0, Map.of());
+            Component second = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 0,
+                    Map.of());
+
+            assertThat(InstanceNames.name(second.id().value(), openDocument.document()))
+                    .contains(ExampleDefinitions.inverter().name() + " · copy 2");
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
     }
 }

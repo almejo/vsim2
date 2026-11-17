@@ -108,8 +108,8 @@ class PlaceBarTest {
 
         assertThat(items).hasSize(4);
         assertThat(items.get(0)).isEqualTo("Inversor en " + document.displayName());
-        assertThat(items.get(1)).isEqualTo("Inversor 1 en Doble inversor");
-        assertThat(items.get(2)).isEqualTo("Inversor 2 en Doble inversor");
+        assertThat(items.get(1)).isEqualTo("Inversor · copia 1 en Doble inversor");
+        assertThat(items.get(2)).isEqualTo("Inversor · copia 2 en Doble inversor");
         assertThat(items.getLast()).isEqualTo("Sin valores (no se simula)");
         assertThat(bar.selectedValuesItem()).isEqualTo(3);
     }
@@ -153,7 +153,7 @@ class PlaceBarTest {
         inverterInThreePlaces();
         PlaceBar bar = barOf(INVERTER, Optional.of("c2/c3"));
 
-        assertThat(bar.crumbs()).containsExactly(document.displayName(), "Doble inversor", "Inversor 2");
+        assertThat(bar.crumbs()).containsExactly(document.displayName(), "Doble inversor", "Inversor · copia 2");
         assertThat(bar.currentCrumb()).isEqualTo(2);
 
         bar.clickCrumb(0);

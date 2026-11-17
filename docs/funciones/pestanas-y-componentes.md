@@ -57,11 +57,11 @@ Cómo se crean y se guardan los componentes propios está en
 Debajo de la fila de pestañas, cada pestaña de componente muestra una barra con el color de su grupo. Las pestañas
 de circuito no la tienen.
 
-- **Ruta**: `▤ circuito › ⬚ Ram › ⬚ Selector 2`. Cada paso es la pieza con el mismo nombre que tiene en el
-  [árbol del circuito](#árbol-del-circuito) (su etiqueta, o su tipo, numerado si hay varias iguales sin etiqueta). Un
+- **Ruta**: `▤ circuito › ⬚ Ram › ⬚ Selector · copia 2`. Cada paso es la pieza con el mismo nombre que tiene en el
+  [árbol del circuito](#árbol-del-circuito) (su etiqueta, o su tipo, numerado si hay varias iguales sin etiqueta; las de un componente propio, como copias). Un
   clic en el circuito trae su pestaña; un clic en un paso entra a ese componente con la ruta anterior como valores. El
   último paso es donde estás y no hace nada.
-- **Valores de**: lista todas las piezas por las que se llega a este componente, como «Inversor 2 en Doble inversor»
+- **Valores de**: lista todas las piezas por las que se llega a este componente, como «Inversor · copia 2 en Doble inversor»
   o, si está puesto en el circuito mismo, «Inversor en lrv32im» (con el nombre del circuito). Elegir una cambia los
   valores que se ven y la ruta.
   «Sin valores (no se simula)» deja la pestaña sin valores; es lo único que hay cuando ninguna pieza usa el componente.
@@ -173,7 +173,10 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
   las piezas de adentro. Los cables, los marcos y las notas no son piezas y no aparecen; las filas no muestran valores.
 - **Los nombres**: una pieza se llama por su etiqueta («IR · Registro», con el tipo detrás) o, si no tiene, por su
   tipo («Ram», «AND de 3 entradas»). Si en un mismo lugar hay varias sin etiqueta del mismo tipo, se numeran en el
-  orden del circuito: «Multiplexor 1» … «Multiplexor 4». El identificador de la pieza («c5/c2») está en la ayuda al
+  orden del circuito: «Multiplexor 1» … «Multiplexor 4». Las piezas de un componente propio o de una máquina de
+  estados son copias de ese componente y se numeran como copias: «Sumador · copia 1», «Sumador · copia 2» (en inglés
+  «copy»), para no confundirlas con otro componente llamado «Sumador 2» (como el que deja «Duplicar como otra
+  máquina» o una importación con el nombre ocupado). El nombre solo se muestra: no se guarda. El identificador de la pieza («c5/c2») está en la ayuda al
   pasar el mouse. La [barra de lugar](#la-barra-de-lugar) y Problemas las nombran igual.
 - **Clic en una fila**: lleva a la pieza. Si está en otro lugar, primero va a esa pestaña (la del circuito, o la del
   componente que la tiene adentro, con los valores de esa pieza, abriéndola si hace falta); después la selecciona y la

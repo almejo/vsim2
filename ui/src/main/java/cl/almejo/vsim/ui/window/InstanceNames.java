@@ -19,8 +19,10 @@ import java.util.Optional;
  * How a piece is named for a person, in one place (spec §5.3): the circuit tree, the place bar's route and «Valores
  * de», and the Problemas rows all use it. The code has no designators («U4»): a piece is its label, else its type
  * name («AND de 3 entradas», «Ram»); when several unlabeled pieces of one type share a place (the circuit, or the body
- * of one definition), they are numbered in document order: «Multiplexor 1» … «Multiplexor 4». The id is never part
- * of the name.
+ * of one definition), they are numbered in document order: «Multiplexor 1» … «Multiplexor 4». Pieces of one user
+ * component or state machine are its copies, «Semáforo · copia 1», «Semáforo · copia 2»: a plain number would read
+ * as another component, and VSim itself names a duplicate or a clashing import «Semáforo 2». The id is never part of
+ * the name. These names are only shown: nothing stores them (probes, files and the AI's API keep ids).
  */
 public final class InstanceNames {
 
@@ -31,7 +33,8 @@ public final class InstanceNames {
 
     /**
      * The name of every piece of {@code place} (the circuit's components, or a definition's body) by its id: its label,
-     * else its type name, numbered when another unlabeled piece of {@code place} has the same type name.
+     * else its type name, numbered when another unlabeled piece of {@code place} has the same type name (as a copy,
+     * «Inversor · copia 2», for a piece of a user component or a machine).
      */
     public static Map<ElementId, String> names(List<Component> place, CircuitDocument document) {
         Map<String, Integer> unlabeledCounts = new HashMap<>();
@@ -50,7 +53,8 @@ public final class InstanceNames {
             String typeName = unlabeledName(component, document);
             if (unlabeledCounts.get(typeName) > 1) {
                 int number = numbersGiven.merge(typeName, 1, Integer::sum);
-                names.put(component.id(), Messages.format("instance.numbered", typeName, number));
+                String pattern = definitionOf(component, document).isPresent() ? "instance.copy" : "instance.numbered";
+                names.put(component.id(), Messages.format(pattern, typeName, number));
             } else {
                 names.put(component.id(), typeName);
             }

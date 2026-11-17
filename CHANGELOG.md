@@ -22,6 +22,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Nombres de las copias: las piezas sin etiqueta de un mismo componente propio o de una misma máquina de estados se llaman ahora «Semáforo · copia 1», «Semáforo · copia 2» (en inglés «copy») en el árbol del circuito, la barra de lugar («Valores de»), la onda de la máquina y Problemas, en vez de «Semáforo 1», «Semáforo 2», que se leían como máquinas distintas (y «Duplicar como otra máquina» crea de verdad una «Semáforo 2»). Las piezas de VSim siguen numeradas como antes («Multiplexor 2»), y una pieza con etiqueta se llama por su etiqueta. Ver [Árbol del circuito](docs/funciones/pestanas-y-componentes.md#árbol-del-circuito).
 - Máquinas de estado: los avisos del diagrama se pintan en un dorado más fácil de distinguir del naranja del estado activo.
 - Formato de archivo 7: los circuitos y los componentes se guardan ahora en el formato 7, que trae las máquinas de estado; una versión anterior de VSim no lo abre (lo dice al intentarlo). Los archivos anteriores se abren igual.
 - Propiedades de una pieza propia: «Editar descripción…» queda siempre al final, después de lo que agregan la memoria, el terminal o los grupos.
