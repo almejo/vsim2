@@ -18,6 +18,7 @@ import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.canvas.Viewport;
+import cl.almejo.vsim.ui.canvas.WheelNavigation;
 import cl.almejo.vsim.ui.inline.InlineHost;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -52,7 +53,8 @@ import java.util.function.UnaryOperator;
 /**
  * The centre of a machine's tab: its state diagram (spec 2026-11-14 §1 «The machine tab», §2.4), always the model as
  * it is now, with the active state and the next arrow of the copy entered through lit in the active colour. It zooms
- * and pans like the circuit canvas (Ctrl+wheel, the wheel, Mayús+wheel, the middle button, the window's zoom actions
+ * and pans like the circuit canvas ({@link WheelNavigation}: Ctrl+wheel, the wheel, Mayús+wheel, a touchpad's
+ * sideways swipe; the middle button, the window's zoom actions
  * through {@link ContentZoom}) and follows the simulation on the same 16 ms frames while it is shown. Diagram units
  * are pixels at 100 %. The gestures that draw and edit ({@link MachineTool}) make their edits through
  * {@link #edit} and show what they are doing through {@link #showGestures}.
@@ -63,8 +65,6 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
 
     /** The circuit canvas's frame: how often a shown diagram reads the latest snapshot. */
     static final int FRAME_MILLISECONDS = 16;
-    /** One wheel step pans this far, as on the circuit canvas. */
-    private static final double WHEEL_SCROLL_PIXELS = 40;
     /** «Ver todo» leaves this much of the canvas around the diagram. */
     private static final double FIT_SHARE = 0.9;
     /** How far from an arrow, on screen, a click or the pointer still takes it. */
@@ -760,25 +760,22 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /**
-     * Zoom and pan as on the circuit canvas: Ctrl+wheel zooms at the pointer, the wheel pans, the middle button drags
-     * (and the left one with the hand).
+     * Zoom and pan as on the circuit canvas ({@link WheelNavigation}): Ctrl+wheel zooms at the pointer, the wheel and a
+     * touchpad pan in every direction, the middle button drags (and the left one with the hand).
      */
     private final class MouseHandler extends MouseAdapter {
 
         @Override
         public void mouseWheelMoved(MouseWheelEvent event) {
-            double rotation = event.getPreciseWheelRotation();
-            if (event.isControlDown()) {
-                viewport.zoomAt(event.getX(), event.getY(), viewport.zoom() * Math.pow(Viewport.ZOOM_STEP, -rotation));
-            } else if (event.isShiftDown()) {
-                viewport.panBy(-rotation * WHEEL_SCROLL_PIXELS, 0);
-            } else {
-                viewport.panBy(0, -rotation * WHEEL_SCROLL_PIXELS);
-            }
+            WheelNavigation.wheel(viewport, event); // the viewport's change repaints
         }
 
         @Override
         public void mousePressed(MouseEvent event) {
+            if (WheelNavigation.isExtraButton(event)) { // a touchpad's sideways swipe (Linux): never a click
+                WheelNavigation.scrollSideways(viewport, event.getButton());
+                return;
+            }
             requestFocusInWindow();
             if (SwingUtilities.isMiddleMouseButton(event) || (isPanning() && SwingUtilities.isLeftMouseButton(event))) {
                 panFrom = event.getPoint();
