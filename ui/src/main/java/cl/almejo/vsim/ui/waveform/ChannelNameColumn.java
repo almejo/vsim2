@@ -7,7 +7,10 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
+import javax.swing.ToolTipManager;
+import javax.swing.UIManager;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -19,7 +22,8 @@ import java.util.Optional;
 
 /**
  * The row header of the waveform panel: each channel's name and its value at the cursor (or at the current time
- * without a cursor), «(sin conexión)» for a probe that does not resolve. Click selects a row, double click shows its
+ * without a cursor), «(sin conexión)» for a probe that does not resolve. A name too long for the room the value leaves
+ * is cut with «…» and shown whole on hover. Click selects a row, double click shows its
  * net in the circuit, right click opens the row menu.
  */
 final class ChannelNameColumn extends JComponent {
@@ -33,6 +37,7 @@ final class ChannelNameColumn extends JComponent {
     ChannelNameColumn(WaveformPanel panel) {
         this.panel = panel;
         setOpaque(true);
+        ToolTipManager.sharedInstance().registerComponent(this);
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent event) {
@@ -80,6 +85,35 @@ final class ChannelNameColumn extends JComponent {
                 row.format(), panel.valueNames().get(row.probeId()));
     }
 
+    /** What each row shows as its name: the whole name, else cut with «…» to leave room for the value. */
+    List<String> shownNames() {
+        FontMetrics metrics = getFontMetrics(font());
+        return panel.rows().stream().map(row -> shownName(row, metrics)).toList();
+    }
+
+    private String shownName(ChannelRows.ChannelRow row, FontMetrics metrics) {
+        int room = getWidth() - 3 * PADDING - metrics.stringWidth(valueOf(row));
+        return PainterSupport.ellipsized(row.name(), metrics, room);
+    }
+
+    /** The whole name of the row under the pointer when it is shown cut, else none. */
+    @Override
+    public String getToolTipText(MouseEvent event) {
+        Optional<String> probeId = probeAt(event.getY());
+        if (probeId.isEmpty()) {
+            return null;
+        }
+        FontMetrics metrics = getFontMetrics(font());
+        return panel.rows().stream().filter(row -> row.probeId().equals(probeId.get())).findFirst()
+                .filter(row -> !shownName(row, metrics).equals(row.name()))
+                .map(ChannelRows.ChannelRow::name).orElse(null);
+    }
+
+    /** The column's font; the label font while it has none of its own yet (not in a window). */
+    private Font font() {
+        return getFont() != null ? getFont() : UIManager.getFont("Label.font");
+    }
+
     @Override
     public Dimension getPreferredSize() {
         return new Dimension(COLUMN_WIDTH, Math.max(1, panel.channelIds().size()) * WaveformPainter.ROW_HEIGHT);
@@ -108,11 +142,7 @@ final class ChannelNameColumn extends JComponent {
                 int valueWidth = metrics.stringWidth(value);
                 graphics2D.setColor(scheme.diagramTrace());
                 graphics2D.drawString(value, getWidth() - PADDING - valueWidth, baseline);
-                Graphics2D nameGraphics = (Graphics2D) graphics2D.create();
-                nameGraphics.clipRect(0, top, Math.max(0, getWidth() - 2 * PADDING - valueWidth),
-                        WaveformPainter.ROW_HEIGHT);
-                nameGraphics.drawString(row.name(), PADDING, baseline);
-                nameGraphics.dispose();
+                graphics2D.drawString(shownName(row, metrics), PADDING, baseline);
                 graphics2D.setColor(scheme.diagramGrid());
                 graphics2D.drawLine(0, top + WaveformPainter.ROW_HEIGHT - 1, getWidth(),
                         top + WaveformPainter.ROW_HEIGHT - 1);

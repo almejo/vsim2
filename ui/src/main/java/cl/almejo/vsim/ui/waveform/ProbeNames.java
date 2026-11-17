@@ -5,10 +5,12 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.PinNames;
+import cl.almejo.vsim.ui.window.InstanceNames;
 
 import java.text.MessageFormat;
 import java.util.List;
@@ -28,7 +30,9 @@ public final class ProbeNames {
 
     /**
      * {@code U3.q} (label, else id, dot, pin name) for a pin; for a wire, the name of the pin its net is anchored to
-     * now ({@link ProbeResolver#anchor}), else «cable w12»; for a machine's state, «U3 · estado».
+     * now ({@link ProbeResolver#anchor}), else «cable w12»; for a machine's state, «U3 · estado». An unlabeled
+     * machine piece is named as in the circuit tree ({@link InstanceNames}: «Semáforo · estado», «Semáforo · copia
+     * 2.Z») instead of by its id; other pieces keep their id.
      */
     public static String defaultName(ProbeTarget target, CircuitDocument document, Netlist netlist,
                                      ComponentTypeRegistry registry) {
@@ -39,7 +43,7 @@ public final class ProbeNames {
                     .map(anchor -> pinName((ProbeTarget.PinTarget) anchor, document, registry, true))
                     .orElseGet(() -> wireName(wire));
             case ProbeTarget.MachineStateTarget state -> Messages.format("waveform.machineStateName",
-                    document.component(state.componentId()).map(ProbeNames::ownerName)
+                    document.component(state.componentId()).map(component -> shownOwnerName(component, document))
                             .orElse(state.componentId().value()));
         };
     }
@@ -85,13 +89,24 @@ public final class ProbeNames {
     private static String pinName(ProbeTarget.PinTarget pin, CircuitDocument document,
                                   ComponentTypeRegistry registry, boolean readable) {
         return document.component(pin.componentId())
-                .map(component -> ownerName(component) + "."
+                .map(component -> (readable ? shownOwnerName(component, document) : ownerName(component)) + "."
                         + pinName(component, pin.pinIndex(), registry, readable))
                 .orElse(pin.componentId().value() + "." + pin.pinIndex());
     }
 
+    /** The label, else the id: what an older VSim stored, and still the shown name of a piece that is no machine. */
     private static String ownerName(Component component) {
         return component.label().isBlank() ? component.id().value() : component.label();
+    }
+
+    /** As {@link #ownerName}, but an unlabeled machine piece by its name in the circuit tree, never by its id. */
+    private static String shownOwnerName(Component component, CircuitDocument document) {
+        boolean machine = InstanceNames.definitionOf(component, document).filter(ComponentDefinition::isMachine)
+                .isPresent();
+        if (!machine || !component.label().isBlank()) {
+            return ownerName(component);
+        }
+        return InstanceNames.name(component.id().value(), document).orElse(component.id().value());
     }
 
     private static String pinName(Component component, int pinIndex, ComponentTypeRegistry registry,

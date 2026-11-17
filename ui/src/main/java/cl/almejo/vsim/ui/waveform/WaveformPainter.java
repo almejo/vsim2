@@ -38,6 +38,9 @@ public final class WaveformPainter {
     static final int LEVEL_MARGIN = 6;
     static final double BUS_SLANT = 3;
     private static final float TEXT_SIZE = 11f;
+    private static final String ELLIPSIS = "…";
+    /** The text of a band keeps this many pixels from the slants on each side. */
+    private static final double TEXT_MARGIN = BUS_SLANT + 1;
     private static final double HATCH_SPACING = 6;
     private static final BasicStroke LINE = new BasicStroke(1f);
     private static final BasicStroke HIGH_IMPEDANCE = new BasicStroke(1f, BasicStroke.CAP_BUTT,
@@ -278,10 +281,12 @@ public final class WaveformPainter {
                 });
                 graphics.setColor(scheme.diagramTrace());
                 graphics.draw(band);
-                String text = names != null ? ChannelRows.valueText(value, format, names)
-                        : busText(value.orElseThrow(), format);
-                paintText(graphics, text, left, right, top,
-                        colour.map(scheme::waveStateFillText).orElseGet(scheme::diagramTrace));
+                Color textColor = colour.map(scheme::waveStateFillText).orElseGet(scheme::diagramTrace);
+                if (names != null) {
+                    paintName(graphics, ChannelRows.valueText(value, format, names), left, right, top, textColor);
+                } else {
+                    paintText(graphics, busText(value.orElseThrow(), format), left, right, top, textColor);
+                }
             }
             case GAP -> hatch(graphics, left, right, top, scheme);
         }
@@ -337,13 +342,26 @@ public final class WaveformPainter {
         return shape;
     }
 
+    /**
+     * A value's name centered in its band, {@linkplain #fittedName shortened} when the band is too narrow for it: a
+     * name cut short still tells the states apart, a number cut short would lie, so only names are shortened.
+     */
+    private static void paintName(Graphics2D graphics, String name, double left, double right, double top,
+                                  Color color) {
+        FontMetrics metrics = graphics.getFontMetrics(graphics.getFont().deriveFont(TEXT_SIZE));
+        String fitted = fittedName(name, metrics, right - left - 2 * TEXT_MARGIN);
+        if (!fitted.isEmpty()) {
+            paintText(graphics, fitted, left, right, top, color);
+        }
+    }
+
     /** {@code text} centered in the band, only when it fits between the slants. */
     private static void paintText(Graphics2D graphics, String text, double left, double right, double top,
                                   Color color) {
         Font font = graphics.getFont().deriveFont(TEXT_SIZE);
         FontMetrics metrics = graphics.getFontMetrics(font);
         int textWidth = metrics.stringWidth(text);
-        if (textWidth + 2 * BUS_SLANT + 2 > right - left) {
+        if (textWidth + 2 * TEXT_MARGIN > right - left) {
             return;
         }
         graphics.setFont(font);
@@ -351,6 +369,28 @@ public final class WaveformPainter {
         float x = (float) ((left + right - textWidth) / 2);
         float baseline = (float) (middleY(top) + (metrics.getAscent() - metrics.getDescent()) / 2.0);
         graphics.drawString(text, x, baseline);
+    }
+
+    /**
+     * What of a value's name fits in {@code room} pixels: the whole name; else its start with «…» («AMA…»); else its
+     * first letter; else nothing. The hover tooltip of the plot says the whole name ({@link WaveformPanel}).
+     */
+    static String fittedName(String text, FontMetrics metrics, double room) {
+        if (metrics.stringWidth(text) <= room) {
+            return text;
+        }
+        for (int end = text.offsetByCodePoints(text.length(), -1); end > 0;
+             end = text.offsetByCodePoints(end, -1)) {
+            String shortened = text.substring(0, end) + ELLIPSIS;
+            if (metrics.stringWidth(shortened) <= room) {
+                return shortened;
+            }
+        }
+        if (text.isEmpty()) {
+            return text;
+        }
+        String firstLetter = text.substring(0, text.offsetByCodePoints(0, 1));
+        return metrics.stringWidth(firstLetter) <= room ? firstLetter : "";
     }
 
     private static void hatch(Graphics2D graphics, double left, double right, double top, ColorScheme scheme) {

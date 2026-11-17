@@ -22,8 +22,8 @@ import java.awt.event.MouseEvent;
 
 /**
  * The traces of the waveform panel. Click: select the row and put the cursor (snapped to an edge); hover: «t = … ·
- * Δt = …»; wheel: scroll time; Ctrl+wheel: zoom around the pointer; ← / → with focus: previous / next edge of the
- * selected row.
+ * Δt = …», after the whole name of the state under the pointer in a machine's state row; wheel: scroll time;
+ * Ctrl+wheel: zoom around the pointer; ← / → with focus: previous / next edge of the selected row.
  */
 final class WaveformPlot extends JComponent implements Scrollable {
 
@@ -66,7 +66,7 @@ final class WaveformPlot extends JComponent implements Scrollable {
 
     @Override
     public String getToolTipText(MouseEvent event) {
-        return panel.hoverText(event.getX());
+        return panel.hoverText(event.getX(), event.getY());
     }
 
     @Override

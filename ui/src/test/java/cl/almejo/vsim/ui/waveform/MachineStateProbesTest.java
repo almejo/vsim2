@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
+import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -76,10 +77,30 @@ class MachineStateProbesTest {
         assertThat(openDocument.document().probes()).extracting(Probe::target).containsExactly(
                 new ProbeTarget.MachineStateTarget(piece), new ProbeTarget.PinTarget(piece, outputZ));
         assertThat(result.addedIds()).hasSize(2);
-        assertThat(panel.channelNames()).containsExactly(piece.value() + " · estado", piece.value() + ".Z");
+        assertThat(panel.channelNames()).containsExactly("Detector 11 · estado", "Detector 11.Z");
 
         openDocument.history().undo();
         assertThat(openDocument.document().probes()).isEmpty();
+    }
+
+    @Test
+    void anUnlabeledPieceAmongCopiesIsNamedAsItsCopyAndALabelWins() {
+        openDocument.close();
+        openDocument = MachineFixtures.circuitWithGeneratedMachines(2);
+        actions = new ProbeActions(openDocument);
+        panel.dispose();
+        panel = new WaveformPanel(openDocument, actions, () -> ColorScheme.LIGHT,
+                (parent, title, message, initialText) -> Optional.empty(), probeId -> { }, () -> { });
+        ElementId second = new ElementId(MachineFixtures.copies(openDocument).get(1));
+        actions.addMachineStatesAndOutputs(second);
+        panel.probesChanged();
+
+        assertThat(panel.channelNames())
+                .containsExactly("Detector 11 · copia 2 · estado", "Detector 11 · copia 2.Z");
+
+        openDocument.execute(new SetLabelCommand(second, "semaforo"));
+        panel.probesChanged();
+        assertThat(panel.channelNames()).containsExactly("semaforo · estado", "semaforo.Z");
     }
 
     @Test

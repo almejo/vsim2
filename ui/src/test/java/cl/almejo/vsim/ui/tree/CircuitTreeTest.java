@@ -157,7 +157,7 @@ class CircuitTreeTest {
     }
 
     @Test
-    void unlabeledPiecesOfOneTypeAreNumbered() {
+    void unlabeledPiecesOfOneComponentAreNumberedCopies() {
         inverterInThreePlaces();
         Component labeled = place(openDocument, StandardComponentTypes.BUFFER, 60, 0, Map.of());
         openDocument.execute(new SetLabelCommand(labeled.id(), "IR"));
@@ -165,8 +165,8 @@ class CircuitTreeTest {
 
         assertThat(tree.rowText("c2")).contains("Inversor");
         assertThat(tree.rowText("c3")).contains("Doble inversor");
-        assertThat(tree.rowText("c3/c2")).contains("Inversor 1");
-        assertThat(tree.rowText("c3/c3")).contains("Inversor 2");
+        assertThat(tree.rowText("c3/c2")).contains("Inversor · copia 1");
+        assertThat(tree.rowText("c3/c3")).contains("Inversor · copia 2");
         assertThat(tree.rowText(labeled.id().value())).contains("IR · Buffer");
     }
 
@@ -324,7 +324,7 @@ class CircuitTreeTest {
 
         assertThat(tree.resultPaths()).containsExactly("c2/c2", "c3/c2/c2", "c3/c3/c2");
         assertThat(tree.rowText("c3/c2/c2")).contains("NOT");
-        assertThat(tree.routeOf("c3/c2/c2")).contains("en Doble inversor › Inversor 1");
+        assertThat(tree.routeOf("c3/c2/c2")).contains("en Doble inversor › Inversor · copia 1");
         assertThat(tree.routeOf("c2/c2")).contains("en Inversor");
         assertThat(tree.countText()).isEqualTo("3 resultados");
 
