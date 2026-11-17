@@ -261,11 +261,13 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         }
     }
 
-    /** Esc: drops the gesture under way, else the chosen tool, else the selection. */
+    /** Esc: drops the gesture under way, else the chosen tool (the toolbar's hand too), else the selection. */
     private void cancel() {
         if (drag.isPresent()) {
             drag = Optional.empty();
             canvas.repaint();
+        } else if (canvas.putHandDown()) {
+            return;
         } else if (palette.stateButton().isSelected() || palette.transitionButton().isSelected()
                 || palette.noteButton().isSelected()) {
             palette.clearTool();
@@ -355,6 +357,10 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         @Override
         public void mouseMoved(MouseEvent event) {
             Optional<StateMachine> machine = canvas.machine();
+            if (canvas.isPanning()) { // the hand's cursor stays, nothing lights up
+                light(Optional.empty());
+                return;
+            }
             if (machine.isEmpty()) {
                 return;
             }
@@ -391,7 +397,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         @Override
         public void mousePressed(MouseEvent event) {
             Optional<StateMachine> machine = canvas.machine();
-            if (!SwingUtilities.isLeftMouseButton(event) || machine.isEmpty()) {
+            if (!SwingUtilities.isLeftMouseButton(event) || machine.isEmpty() || canvas.isPanning()) {
                 return;
             }
             DiagramPoint point = diagramPoint(event);

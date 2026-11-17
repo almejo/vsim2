@@ -27,6 +27,7 @@ import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.ToolTipManager;
+import java.awt.Cursor;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -95,8 +96,10 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** Whether the view was placed on the diagram once (it is, the first time the canvas has a size). */
     private boolean viewPlaced;
     private boolean disposed;
-    /** Where the middle button pressed, while it pans the view; null otherwise. */
+    /** Where the middle button (or the left one with the hand) pressed, while it pans the view; null otherwise. */
     private transient Point2D panFrom;
+    /** What puts the toolbar's hand down (back to Selección) while it is chosen; empty while it is not. */
+    private transient Optional<Runnable> hand = Optional.empty();
     /** What the drawing gestures show while they last (a moved state, a lit border, the rubber band). */
     private transient Gestures gestures = Gestures.NONE;
     /** Where a problem asked to be shown before the canvas had a size: shown there instead of the whole diagram. */
@@ -214,6 +217,34 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     void showGestures(Gestures shown) {
         gestures = Objects.requireNonNull(shown, "shown");
         repaint();
+    }
+
+    /**
+     * The toolbar's hand («Mover vista») is chosen: from now on a left drag pans the view, as on the circuit canvas,
+     * and the drawing gestures leave the mouse alone; {@code putDown} goes back to Selección (Esc runs it).
+     */
+    void handChosen(Runnable putDown) {
+        hand = Optional.of(Objects.requireNonNull(putDown, "putDown"));
+        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+    }
+
+    /** The hand is no longer chosen: the left button draws again. */
+    void handPutDown() {
+        hand = Optional.empty();
+        panFrom = null;
+        setCursor(Cursor.getDefaultCursor());
+    }
+
+    /** Whether the toolbar's hand is chosen: a left drag pans. */
+    boolean isPanning() {
+        return hand.isPresent();
+    }
+
+    /** Puts the hand down when it is chosen (Esc); whether it was. */
+    boolean putHandDown() {
+        Optional<Runnable> chosen = hand;
+        chosen.ifPresent(Runnable::run);
+        return chosen.isPresent();
     }
 
     /** {@code pixels} on screen as diagram units at the zoom shown now. */
@@ -728,7 +759,10 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         frameListeners.fire(Runnable::run);
     }
 
-    /** Zoom and pan as on the circuit canvas: Ctrl+wheel zooms at the pointer, the wheel pans, the middle drags. */
+    /**
+     * Zoom and pan as on the circuit canvas: Ctrl+wheel zooms at the pointer, the wheel pans, the middle button drags
+     * (and the left one with the hand).
+     */
     private final class MouseHandler extends MouseAdapter {
 
         @Override
@@ -746,7 +780,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         @Override
         public void mousePressed(MouseEvent event) {
             requestFocusInWindow();
-            if (SwingUtilities.isMiddleMouseButton(event)) {
+            if (SwingUtilities.isMiddleMouseButton(event) || (isPanning() && SwingUtilities.isLeftMouseButton(event))) {
                 panFrom = event.getPoint();
             }
         }
@@ -761,7 +795,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
 
         @Override
         public void mouseReleased(MouseEvent event) {
-            if (SwingUtilities.isMiddleMouseButton(event)) {
+            if (SwingUtilities.isMiddleMouseButton(event) || SwingUtilities.isLeftMouseButton(event)) {
                 panFrom = null;
             }
         }
