@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineNote;
@@ -9,6 +10,8 @@ import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContentDeletion;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.sticky.StickyCloseConfirmation;
+import cl.almejo.vsim.ui.sticky.StickyPart;
 
 import javax.swing.Action;
 import javax.swing.JComponent;
@@ -45,7 +48,8 @@ import java.util.function.Consumer;
  * <li>notes (hito 3): the palette's «Nota» (or the toolbar's «Nota adhesiva») sticks a yellow note with a click and
  * opens its text; a click selects a note, a drag moves it with the rest of the selection, a drag from its bottom-right
  * corner resizes it, a double click edits its text. Notes lie under the states and arrows, so those are hit
- * first.</li>
+ * first. As on a circuit's note, its ✕ asks and deletes it, its «–» folds it into a small paper, and a click on a
+ * folded note unfolds it (a drag moves it folded); each is one undo step.</li>
  * </ul>
  * Each edit goes through {@link MachineCanvas#edit}: one undo step of the circuit that belongs to the machine's tab.
  * The same edits are in the Editar menu ({@link #newStateAction()}, {@link #newTransitionAction()},
@@ -111,6 +115,13 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     private final Action newState;
     private final Action newTransition;
     private final Action editText;
+    private StickyCloseConfirmation closeConfirmation = StickyCloseConfirmation.dialog();
+    /** The note whose ✕ is under the pointer, drawn at full strength. */
+    private Optional<String> closeHovered = Optional.empty();
+    /** A plain press on a folded note: a release without moving unfolds it (a single click is enough). */
+    private boolean unfoldOnRelease;
+    /** The note a click has just unfolded: the second press of that double click is swallowed. */
+    private Optional<String> justUnfolded = Optional.empty();
     private Optional<String> litState = Optional.empty();
     private Optional<Drag> drag = Optional.empty();
     /** Mayús was down at the press: the click or the rubber band add to the selection. */
@@ -156,6 +167,11 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         };
     }
 
+    /** What asks before a note's ✕ deletes it (the circuit note's dialog; tests give a fake). */
+    void useCloseConfirmation(StickyCloseConfirmation confirmation) {
+        closeConfirmation = Objects.requireNonNull(confirmation, "confirmation");
+    }
+
     /** Editar ▸ «Nuevo estado»: a state in the middle of the view (beside it when that place is taken). */
     Action newStateAction() {
         return newState;
@@ -169,6 +185,11 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     /** Editar ▸ «Escribir el nombre, la condición o la nota» (F2 on the diagram): the selected one's editor. */
     Action editTextAction() {
         return editText;
+    }
+
+    @Override
+    public Optional<String> closeHoveredNote() {
+        return closeHovered;
     }
 
     /** The state whose border is lit now: the pointer is near it, or an arrow being drawn points at it. */
@@ -261,17 +282,39 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         }
     }
 
-    /** Esc: drops the gesture under way, else the chosen tool, else the selection. */
+    /** Esc: drops the gesture under way, else the chosen tool (the toolbar's hand too), else the selection. */
     private void cancel() {
         if (drag.isPresent()) {
             drag = Optional.empty();
             canvas.repaint();
+        } else if (canvas.putHandDown()) {
+            return;
         } else if (palette.stateButton().isSelected() || palette.transitionButton().isSelected()
                 || palette.noteButton().isSelected()) {
             palette.clearTool();
         } else {
             selection.clear();
         }
+    }
+
+    /** The note's ✕: asks as a circuit note's does and, on «Despegar», deletes it in one undo step. */
+    private void closeNote(MachineNote note) {
+        if (closeConfirmation.confirm(canvas, new StickyText(note.text()).firstLine())) {
+            canvas.edit(machine -> MachineEdits.without(machine, Set.of(), Set.of(), Set.of(note.id())));
+            hoverCloseGone(note.id());
+        }
+    }
+
+    private void hoverCloseGone(String noteId) {
+        if (closeHovered.filter(noteId::equals).isPresent()) {
+            closeHovered = Optional.empty();
+        }
+    }
+
+    /** Folds the note {@code noteId} into its small paper, or unfolds it, in one undo step; whether it changed. */
+    private boolean fold(String noteId, boolean folded) {
+        hoverCloseGone(noteId);
+        return canvas.edit(machine -> machine.withNote(noteId, note -> note.withFolded(folded)));
     }
 
     private void addState(DiagramPoint centre) {
@@ -355,6 +398,10 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         @Override
         public void mouseMoved(MouseEvent event) {
             Optional<StateMachine> machine = canvas.machine();
+            if (canvas.isPanning()) { // the hand's cursor stays, nothing lights up
+                light(Optional.empty());
+                return;
+            }
             if (machine.isEmpty()) {
                 return;
             }
@@ -364,25 +411,46 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Optional<MachineDiagramGeometry.StateHit> lit = hit.filter(found -> joining
                     || found.part() == MachineDiagramGeometry.StatePart.BORDER);
             light(lit.map(MachineDiagramGeometry.StateHit::stateId));
+            Optional<MachineNotePainting.NoteHit> note = hit.isPresent() ? Optional.empty()
+                    : noteUnder(machine.get(), diagramPoint(event));
+            hoverClose(note.filter(found -> found.part() == StickyPart.CLOSE)
+                    .map(found -> found.note().id()));
             canvas.setCursor(Cursor.getPredefinedCursor(lit.isPresent() ? Cursor.CROSSHAIR_CURSOR
-                    : hit.isPresent() ? Cursor.MOVE_CURSOR : noteCursor(machine.get(), diagramPoint(event))));
+                    : hit.isPresent() ? Cursor.MOVE_CURSOR : noteCursor(note, diagramPoint(event))));
         }
 
-        /** The cursor over a note: resizing on its corner, moving elsewhere on it, the arrow off notes. */
-        private int noteCursor(StateMachine machine, DiagramPoint point) {
+        /** The note and its part under {@code point}, unless an arrow is there or the palette's note is chosen. */
+        private Optional<MachineNotePainting.NoteHit> noteUnder(StateMachine machine, DiagramPoint point) {
             Point2D at = asPoint(point);
             if (palette.noteButton().isSelected() || canvas.transitionAt(machine, MachineDiagramGeometry.of(machine),
                     at).isPresent()) {
-                return Cursor.DEFAULT_CURSOR;
+                return Optional.empty();
             }
-            return MachineNotePainting.noteAt(machine, at)
-                    .map(note -> MachineNotePainting.onResizeCorner(note, at, resizeCorner())
-                            ? Cursor.SE_RESIZE_CURSOR : Cursor.MOVE_CURSOR)
-                    .orElse(Cursor.DEFAULT_CURSOR);
+            return MachineNotePainting.partAt(machine, at, canvas.viewport().zoom());
+        }
+
+        /**
+         * The cursor over a note, as over a circuit's: the hand on its ✕ and «–», resizing on its corner, moving
+         * elsewhere on it, the arrow off notes.
+         */
+        private int noteCursor(Optional<MachineNotePainting.NoteHit> note, DiagramPoint point) {
+            return note.map(found -> switch (found.part()) {
+                case CLOSE, FOLD -> Cursor.HAND_CURSOR;
+                default -> MachineNotePainting.onResizeCorner(found.note(), asPoint(point), resizeCorner())
+                        ? Cursor.SE_RESIZE_CURSOR : Cursor.MOVE_CURSOR;
+            }).orElse(Cursor.DEFAULT_CURSOR);
+        }
+
+        private void hoverClose(Optional<String> noteId) {
+            if (!noteId.equals(closeHovered)) {
+                closeHovered = noteId;
+                canvas.repaint();
+            }
         }
 
         @Override
         public void mouseExited(MouseEvent event) {
+            hoverClose(Optional.empty());
             if (drag.isEmpty()) {
                 light(Optional.empty());
             }
@@ -391,7 +459,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         @Override
         public void mousePressed(MouseEvent event) {
             Optional<StateMachine> machine = canvas.machine();
-            if (!SwingUtilities.isLeftMouseButton(event) || machine.isEmpty()) {
+            if (!SwingUtilities.isLeftMouseButton(event) || machine.isEmpty() || canvas.isPanning()) {
                 return;
             }
             DiagramPoint point = diagramPoint(event);
@@ -399,6 +467,14 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
             adding = event.isShiftDown();
             aloneOnRelease = false;
+            unfoldOnRelease = false;
+            Optional<String> unfoldedByTheFirstClick = justUnfolded;
+            justUnfolded = Optional.empty();
+            if (event.getClickCount() >= 2 && unfoldedByTheFirstClick.isPresent()
+                    && MachineNotePainting.noteAt(machine.get(), at).map(MachineNote::id)
+                    .equals(unfoldedByTheFirstClick)) {
+                return; // the second press of a double click whose first click unfolded the note
+            }
             if (event.getClickCount() >= 2) {
                 doubleClick(machine.get(), geometry, point);
                 return;
@@ -431,9 +507,14 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 pressTransition(arrow.get());
                 return;
             }
-            Optional<MachineNote> note = MachineNotePainting.noteAt(machine.get(), at);
+            Optional<MachineNotePainting.NoteHit> note = MachineNotePainting.partAt(machine.get(), at,
+                    canvas.viewport().zoom());
             if (note.isPresent()) {
-                pressNote(event, point, note.get());
+                switch (note.get().part()) {
+                    case CLOSE -> closeNote(note.get().note());
+                    case FOLD -> fold(note.get().note().id(), true);
+                    default -> pressNote(event, point, note.get().note());
+                }
                 return;
             }
             if (!adding) {
@@ -492,7 +573,11 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Optional<MachineNote> note = MachineNotePainting.noteAt(machine, at);
             if (note.isPresent()) {
                 selection.selectNote(note.get().id());
-                inline.editNote(note.get().id());
+                if (note.get().folded()) {
+                    fold(note.get().id(), false);
+                } else {
+                    inline.editNote(note.get().id());
+                }
                 return;
             }
             addState(point);
@@ -535,6 +620,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             } else {
                 selection.selectNote(note.id());
             }
+            unfoldOnRelease = note.folded();
             startDrag(DragKind.MOVE, event, point, "", note.id(), selection.stateIds(), selection.noteIds());
         }
 
@@ -562,7 +648,12 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         private void releaseMove(Drag current) {
             if (current.moved) {
                 canvas.edit(machine -> dragged(machine, current));
-            } else if (aloneOnRelease && !current.stateId.isEmpty()) {
+                return;
+            }
+            if (unfoldOnRelease && fold(current.noteId, false)) {
+                justUnfolded = Optional.of(current.noteId);
+            }
+            if (aloneOnRelease && !current.stateId.isEmpty()) {
                 selection.selectState(current.stateId);
             } else if (aloneOnRelease) {
                 selection.selectNote(current.noteId);

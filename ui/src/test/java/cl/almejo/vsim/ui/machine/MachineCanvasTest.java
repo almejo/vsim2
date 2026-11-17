@@ -131,6 +131,41 @@ class MachineCanvasTest {
         assertThat(canvas.viewport().gridToScreen(0, 0).getY()).isNotEqualTo(originBefore.getY());
     }
 
+    /**
+     * A touchpad's sideways swipe reaches Swing on Linux as presses of mouse buttons 4 (left) and 5 (right), not as a
+     * wheel turn: the diagram scrolls sideways as far as a Mayús+wheel step, as the circuit canvas does (hand test of
+     * hito 3, item 6), and Mayús+wheel scrolls sideways too.
+     */
+    @Test
+    void sidewaysScrollButtonsAndShiftWheelPanHorizontallyAsOnTheCircuit() {
+        Point2D origin = canvas.viewport().gridToScreen(0, 0);
+        wheel(InputEvent.SHIFT_DOWN_MASK, -1);
+        double wheelStep = canvas.viewport().gridToScreen(0, 0).getX() - origin.getX();
+        assertThat(wheelStep).isPositive();
+
+        press(4);
+        assertThat(canvas.viewport().gridToScreen(0, 0).getX() - origin.getX()).isCloseTo(2 * wheelStep,
+                offset(1e-9));
+        press(5);
+        press(5);
+        assertThat(canvas.viewport().gridToScreen(0, 0).getX()).isCloseTo(origin.getX(), offset(1e-9));
+        assertThat(canvas.viewport().gridToScreen(0, 0).getY()).isEqualTo(origin.getY());
+    }
+
+    /** A press of extra mouse button {@code button}, built as button 1 (a headless toolkit refuses others). */
+    private void press(int button) {
+        MouseEvent event = new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, 0, 10, 10, 1, false,
+                MouseEvent.BUTTON1) {
+            @Override
+            public int getButton() {
+                return button;
+            }
+        };
+        for (java.awt.event.MouseListener listener : canvas.getMouseListeners()) {
+            listener.mousePressed(event);
+        }
+    }
+
     @Test
     void zoomToFitShowsEveryState() {
         canvas.zoomToFit();

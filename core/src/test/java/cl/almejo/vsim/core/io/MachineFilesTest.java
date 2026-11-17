@@ -189,4 +189,30 @@ class MachineFilesTest {
 
         assertThat(read.state("s1").orElseThrow().color()).isEmpty();
     }
+
+    /**
+     * A folded diagram note keeps its fold in the file (format 7, still unreleased: an optional field, no new format):
+     * {@code "folded" : true} only on a folded note, so an unfolded one keeps its bytes and a file without the field
+     * reads every note unfolded.
+     */
+    @Test
+    void aFoldedDiagramNoteIsSavedFoldedAndANoteWithoutTheFieldReadsUnfolded() throws CircuitFormatException {
+        MachineNote open = new MachineNote("n1", new DiagramPoint(0, 140), 200, 90, StickyColor.GREEN, "abierta");
+        MachineNote folded = new MachineNote("n2", new DiagramPoint(300, 140), 200, 90, StickyColor.YELLOW,
+                "doblada").withFolded(true);
+        StateMachine machine = MachineExamples.twoOnesDetector().withNotes(List.of(open, folded));
+        CircuitDocument document = circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(machine));
+
+        String json = format.write(document);
+        StateMachine read = format.read(json).definition("maquina-1").orElseThrow().machine().orElseThrow();
+
+        assertThat(json).containsOnlyOnce("\"folded\" : true").doesNotContain("\"folded\" : false");
+        assertThat(read.notes()).extracting(MachineNote::folded).containsExactly(false, true);
+        assertThat(read).isEqualTo(machine);
+        String withoutTheField = json.replaceAll(",\\s*\"folded\" : true", "");
+        assertThat(withoutTheField).doesNotContain("folded");
+        assertThat(format.read(withoutTheField).definition("maquina-1").orElseThrow().machine().orElseThrow()
+                .notes()).extracting(MachineNote::folded).containsExactly(false, false);
+    }
 }

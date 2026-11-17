@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.sticky.StickyNoteTool;
+import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -66,6 +67,7 @@ final class MachineEditing {
         List<Runnable> undo = new ArrayList<>();
         undo.add(tool.install());
         undo.add(followStickyNoteTool(view, palette));
+        undo.add(followPanTool(view, canvas, palette));
         if (view.inspector().title(InspectorPanel.PROPERTIES).isPresent()) {
             undo.add(view.inspector().showInstead(InspectorPanel.PROPERTIES, rows.inScrollPane()));
         }
@@ -121,6 +123,39 @@ final class MachineEditing {
         return () -> {
             note.removeItemListener(follow);
             stopChoosing.run();
+        };
+    }
+
+    /**
+     * The toolbar's hand («Mover vista», its menu item and shortcut) pans the diagram: it reaches the hidden panes as
+     * on any tab (so its button is pressed while it is chosen and Selección takes it back), and while the active pane
+     * holds it a left drag on the diagram pans ({@link MachineCanvas#handChosen}). The hand and the palette's tools
+     * take each other's place, and Esc on the diagram puts the hand down. Returns what takes it back.
+     */
+    private static Runnable followPanTool(EditorView view, MachineCanvas canvas, MachinePalette palette) {
+        Runnable follow = () -> {
+            boolean chosen = view.canvas().tool() instanceof PanTool;
+            if (chosen && !canvas.isPanning()) {
+                palette.clearTool();
+                canvas.handChosen(view::useDefaultToolOnEveryPane);
+            } else if (!chosen && canvas.isPanning()) {
+                canvas.handPutDown();
+            }
+        };
+        Runnable stopFollowingPanes = view.forEachPane(pane -> pane.addToolListener(tool -> follow.run()));
+        ItemListener putHandDown = event -> {
+            if (event.getStateChange() == ItemEvent.SELECTED && canvas.isPanning()) {
+                view.useDefaultToolOnEveryPane();
+            }
+        };
+        List<JToggleButton> paletteTools = List.of(palette.stateButton(), palette.transitionButton(),
+                palette.noteButton());
+        paletteTools.forEach(button -> button.addItemListener(putHandDown));
+        follow.run();
+        return () -> {
+            paletteTools.forEach(button -> button.removeItemListener(putHandDown));
+            stopFollowingPanes.run();
+            canvas.handPutDown();
         };
     }
 
