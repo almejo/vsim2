@@ -9,6 +9,8 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -254,6 +256,32 @@ class WaveformPainterTest {
         assertThat(ChannelRows.valueText(java.util.Optional.of(Value.highImpedance(2)), "hex", names))
                 .isEqualTo("—");
         assertThat(ChannelRows.valueText(java.util.Optional.empty(), "hex", names)).isEmpty();
+    }
+
+    @Test
+    void aStateNameThatDoesNotFitIsShortenedWithAnEllipsisElseToItsFirstLetterElseLeftOut() {
+        FontMetrics metrics = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).createGraphics()
+                .getFontMetrics(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+        int whole = metrics.stringWidth("AMARILLO");
+        int threeAndEllipsis = metrics.stringWidth("AMA…");
+
+        assertThat(WaveformPainter.fittedName("AMARILLO", metrics, whole)).isEqualTo("AMARILLO");
+        assertThat(WaveformPainter.fittedName("AMARILLO", metrics, threeAndEllipsis)).isEqualTo("AMA…");
+        assertThat(WaveformPainter.fittedName("AMARILLO", metrics, metrics.stringWidth("A…") - 1))
+                .as("not even «A…»: the first letter").isEqualTo("A");
+        assertThat(WaveformPainter.fittedName("AMARILLO", metrics, metrics.stringWidth("A") - 1))
+                .as("not even the first letter").isEmpty();
+        assertThat(WaveformPainter.fittedName("ÉXITO", metrics, metrics.stringWidth("É"))).isEqualTo("É");
+    }
+
+    @Test
+    void aNarrowStateBandStillSaysWhichStateItIs() {
+        LongFunction<String> names = code -> code == 1 ? "AMARILLO" : "VERDE";
+        // 20 px per unit: each state lasts one unit, a band too narrow for its whole name
+        Trace codes = trace(0, Value.of(2, 1), 1, Value.of(2, 2), 2, Value.of(2, 1), 3, Value.of(2, 2));
+        BufferedImage image = drawNamed(codes, 8, axis(20), names);
+
+        assertThat(count(image, TRACE, 4, 16, HIGH + 3, LOW - 3)).as("«A» inside the first band").isPositive();
     }
 
     @Test

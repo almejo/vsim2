@@ -407,6 +407,23 @@ public final class WaveformPanel extends JPanel {
         return cursor.isPresent() ? text + " · Δt = " + TimeAxis.format(time - cursor.getAsLong()) : text;
     }
 
+    /**
+     * As {@link #hoverText(double)}; over a named row (a machine's state) the name of its value there comes first, in
+     * full, «AMARILLO · t = 12», since a narrow band shows it shortened.
+     */
+    String hoverText(double x, int y) {
+        String time = hoverText(x);
+        Optional<String> channelId = probeAt(y);
+        LongFunction<String> names = channelId.map(valueNames()::get).orElse(null);
+        if (names == null) {
+            return time;
+        }
+        long at = Math.round(Math.floor(axis.timeAt(x)));
+        String name = displayed.trace(channelId.get()).flatMap(trace -> trace.valueAt(at))
+                .map(value -> ChannelRows.valueText(Optional.of(value), Probe.FORMAT_HEX, names)).orElse("");
+        return name.isEmpty() ? time : Messages.format("waveform.valueHover", name, time);
+    }
+
     /** ← / →: the cursor jumps to the previous / next edge of the selected row, scrolling it into view. */
     void moveCursorToEdge(int direction) {
         Optional<Trace> trace = selectedProbe().flatMap(displayed::trace);
