@@ -32,6 +32,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Formas de onda: las filas de una pieza de máquina de estados sin etiqueta se llaman por la máquina («Semáforo · estado», «Semáforo.V», o «Semáforo · copia 2 · estado» si hay varias) y no por su identificador interno («c14 · estado»). Ver [La onda de la máquina](docs/funciones/componentes.md#la-onda-de-la-máquina).
 - Ctrl+V mientras editas un texto en línea (el nombre o el valor de una pieza, una nota) ya no pega ahí el texto interno de las piezas copiadas: lo rechaza, como ya hacían los campos de Propiedades; el texto copiado de otro programa se pega igual. Lo mismo en los nombres, condiciones y salidas de una máquina de estado, en línea y en Propiedades, con estados copiados.
 
 ## Versión 0.8 — 2026-11-11

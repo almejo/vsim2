@@ -367,7 +367,8 @@ En la pestaña de una máquina, bajo el diagrama, está su onda: la de la copia 
 - **Ver estados y salidas en formas de onda**: para comparar la máquina con otras señales del circuito, clic derecho
   en la pieza ▸ «Ver estados y salidas en formas de onda» (justo después de «Ver pines en formas de onda») agrega al
   panel de Formas de onda del circuito una fila con su estado, escrita con los nombres de los estados (se llama
-  «c3 · estado», con la etiqueta de la pieza si tiene, como «c3.Z» la de un pin; no tiene «Mostrar como»), y una fila por salida, en un solo paso de deshacer; se guardan con el circuito como
+  «Semáforo · estado», con el nombre de la pieza: su etiqueta si tiene, si no el de la máquina, o «Semáforo · copia 2»
+  si hay varias; no tiene «Mostrar como»), y una fila por salida, nombrada igual («Semáforo.Z»), en un solo paso de deshacer; se guardan con el circuito como
   cualquier canal y su insignia va sobre el borde de arriba de la pieza. Si ya están, la fila del estado parpadea. «Mostrar en el circuito» en la fila del estado lleva la vista a la pieza y la elige.
   Si se borra la pieza, la fila queda «(sin conexión)», como la de un pin. El mismo enlace está arriba de la onda de
   la máquina, para la copia por la que entraste; para una copia que está dentro de un componente propio se ve
