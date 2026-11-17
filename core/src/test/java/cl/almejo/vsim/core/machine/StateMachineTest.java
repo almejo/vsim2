@@ -172,4 +172,19 @@ class StateMachineTest {
         assertThatThrownBy(() -> StateMachine.initial().withNotes(List.of(tiny, tiny)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void aNoteFoldsAndUnfoldsKeepingEverythingElseAndAPasteKeepsItFolded() {
+        MachineNote note = new MachineNote("n1", DiagramPoint.ORIGIN, 200, 90, StickyColor.GREEN, "ojo");
+        assertThat(note.folded()).isFalse();
+
+        MachineNote folded = note.withFolded(true);
+
+        assertThat(folded.folded()).isTrue();
+        assertThat(folded.withFolded(false)).isEqualTo(note);
+        assertThat(folded.withText("otro").folded()).isTrue();
+        assertThat(folded.withColor(StickyColor.PINK).withPosition(new DiagramPoint(5, 5)).withSize(300, 200)
+                .folded()).isTrue();
+        assertThat(folded.placed("n2", new DiagramPoint(10, 20)).folded()).isTrue();
+    }
 }

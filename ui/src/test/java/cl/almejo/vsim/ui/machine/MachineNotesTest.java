@@ -373,4 +373,165 @@ class MachineNotesTest {
         mode.selection().set(new LinkedHashSet<>(), new LinkedHashSet<>(), Set.of("n1"));
         assertThat(view.selectionActions().copy().isEnabled()).as("a note alone can be copied").isTrue();
     }
+
+    // hand test of hito 3, item 7: the circuit note's ✕ and «–», the same look and behaviour on the diagram.
+    // n1 is at (40, 150), 160 x 120: its ✕ is at (187..197, 153..163), its «–» at (43..53, 153..163); folded, it is a
+    // 16 x 16 paper at (40, 150).
+
+    private static final DiagramPoint CROSS = new DiagramPoint(192, 158);
+    private static final DiagramPoint FOLD_BUTTON = new DiagramPoint(48, 158);
+
+    private Point2D at(DiagramPoint point) {
+        return canvas.toScreen(point);
+    }
+
+    private BufferedImage painted() {
+        BufferedImage image = new BufferedImage(900, 600, BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        canvas.paint(graphics);
+        graphics.dispose();
+        return image;
+    }
+
+    private int rgbAt(BufferedImage image, Point2D point) {
+        return image.getRGB((int) Math.round(point.getX()), (int) Math.round(point.getY())) & 0xFFFFFF;
+    }
+
+    /** Whether some pixel of the square of {@code half} diagram units around {@code centre} is not paper. */
+    private boolean somethingIsDrawnOnThePaperAround(BufferedImage image, DiagramPoint centre, double half) {
+        int paper = ColorScheme.LIGHT.stickyPaper(StickyColor.YELLOW).getRGB() & 0xFFFFFF;
+        Point2D from = at(new DiagramPoint(centre.x() - half, centre.y() - half));
+        Point2D to = at(new DiagramPoint(centre.x() + half, centre.y() + half));
+        for (int x = (int) Math.ceil(from.getX()); x <= (int) Math.floor(to.getX()); x++) {
+            for (int y = (int) Math.ceil(from.getY()); y <= (int) Math.floor(to.getY()); y++) {
+                if ((image.getRGB(x, y) & 0xFFFFFF) != paper) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Test
+    void aNoteShowsTheCircuitNotesCrossAndFoldButton() {
+        stickOne("");
+        mode.selection().clear();
+
+        BufferedImage image = painted();
+
+        assertThat(somethingIsDrawnOnThePaperAround(image, CROSS, 3)).as("the ✕").isTrue();
+        assertThat(somethingIsDrawnOnThePaperAround(image, FOLD_BUTTON, 3)).as("the «–»").isTrue();
+        assertThat(somethingIsDrawnOnThePaperAround(image, new DiagramPoint(120, 158), 3)).as("between them")
+                .isFalse();
+    }
+
+    @Test
+    void theCrossAsksAsOnTheCircuitAndDeletesTheNoteInOneUndoStep() {
+        List<String> asked = new ArrayList<>();
+        mode.tool().useCloseConfirmation((parent, firstLine) -> {
+            asked.add(firstLine);
+            return true;
+        });
+        stickOne("Ojo con S2");
+
+        mouse(MouseEvent.MOUSE_MOVED, at(CROSS), 0, 0);
+        assertThat(canvas.getCursor().getType()).isEqualTo(java.awt.Cursor.HAND_CURSOR);
+        click(at(CROSS), 1);
+
+        assertThat(asked).containsExactly("Ojo con S2");
+        assertThat(machine().notes()).isEmpty();
+        assertThat(mode.selection().noteIds()).isEmpty();
+        perform(view.actions().undo());
+        assertThat(onlyNote().text()).isEqualTo("Ojo con S2");
+    }
+
+    @Test
+    void cancellingTheCrossesQuestionKeepsTheNote() {
+        mode.tool().useCloseConfirmation((parent, firstLine) -> false);
+        stickOne("Hola");
+
+        click(at(CROSS), 1);
+
+        assertThat(onlyNote().text()).isEqualTo("Hola");
+    }
+
+    @Test
+    void theFoldButtonFoldsTheNoteIntoASmallPaperInOneUndoStepAndAClickUnfoldsIt() {
+        stickOne("Hola");
+
+        click(at(FOLD_BUTTON), 1);
+
+        assertThat(onlyNote().folded()).isTrue();
+        assertThat(onlyNote().width()).isEqualTo(MachineNote.DEFAULT_WIDTH); // kept for when it unfolds
+        assertThat(MachineNotePainting.paperOf(onlyNote()).getWidth()).isEqualTo(16.0);
+        assertThat(MachineNotePainting.noteAt(machine(), new Point2D.Double(100, 220))).isEmpty();
+        BufferedImage folded = painted();
+        assertThat(rgbAt(folded, at(100, 220)))
+                .isNotEqualTo(ColorScheme.LIGHT.stickyPaper(StickyColor.YELLOW).getRGB() & 0xFFFFFF);
+        perform(view.actions().undo());
+        assertThat(onlyNote().folded()).isFalse();
+        perform(view.actions().redo());
+        assertThat(onlyNote().folded()).isTrue();
+
+        click(at(new DiagramPoint(46, 154)), 1); // anywhere on the small paper
+
+        assertThat(onlyNote().folded()).isFalse();
+        perform(view.actions().undo());
+        assertThat(onlyNote().folded()).isTrue();
+    }
+
+    @Test
+    void aDoubleClickOnAFoldedNoteOnlyUnfoldsItAndADragMovesItFolded() {
+        stickOne("Hola");
+        click(at(FOLD_BUTTON), 1);
+
+        drag(at(new DiagramPoint(46, 154)), at(new DiagramPoint(86, 194)));
+
+        assertThat(onlyNote().folded()).isTrue();
+        assertThat(onlyNote().position().x()).isCloseTo(80, offset(1.0));
+        assertThat(onlyNote().position().y()).isCloseTo(190, offset(1.0));
+
+        doubleClick(at(new DiagramPoint(86, 194)));
+
+        assertThat(onlyNote().folded()).isFalse();
+        assertThat(inline().isOpen()).isFalse();
+    }
+
+    @Test
+    void aFoldedNoteHasNoCrossNoFoldButtonAndNoResizeCorner() {
+        mode.tool().useCloseConfirmation((parent, firstLine) -> true);
+        stickOne("Hola");
+        click(at(FOLD_BUTTON), 1);
+
+        drag(at(new DiagramPoint(55, 165)), at(new DiagramPoint(155, 265))); // its corner, were it a full note
+
+        assertThat(onlyNote().folded()).isTrue();
+        assertThat(onlyNote().width()).isEqualTo(MachineNote.DEFAULT_WIDTH);
+        click(at(CROSS), 1);
+        assertThat(machine().notes()).hasSize(1);
+    }
+
+    @Test
+    void aFoldedNoteIsSavedFolded() throws Exception {
+        stickOne("Hola");
+        click(at(FOLD_BUTTON), 1);
+
+        String json = new CircuitFormat(document.registry()).write(document.document());
+
+        assertThat(json).contains("\"folded\" : true");
+    }
+
+    @Test
+    void hoveringAFoldedNoteShowsItsTextAsOnTheCircuit() {
+        stickOne("Ojo con S2\nsi x = 1");
+        Point2D onTheSmallPaper = at(new DiagramPoint(46, 154));
+        MouseEvent hover = new MouseEvent(canvas, MouseEvent.MOUSE_MOVED, 0, 0,
+                (int) Math.round(onTheSmallPaper.getX()), (int) Math.round(onTheSmallPaper.getY()), 0, false,
+                MouseEvent.NOBUTTON);
+        assertThat(canvas.getToolTipText(hover)).isNull(); // unfolded, its text is on the paper
+
+        click(at(FOLD_BUTTON), 1);
+
+        assertThat(canvas.getToolTipText(hover)).isEqualTo("<html>Ojo con S2<br>si x = 1</html>");
+    }
 }

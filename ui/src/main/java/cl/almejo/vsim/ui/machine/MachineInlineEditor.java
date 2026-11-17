@@ -79,12 +79,13 @@ final class MachineInlineEditor {
 
     /**
      * Opens the text of the note {@code noteId} for editing over its paper, wrapping at the paper's width, as a circuit
-     * note's: Mayús+Enter adds a line, Enter (or a click elsewhere) puts it as one edit, Esc leaves it as it was.
+     * note's: Mayús+Enter adds a line, Enter (or a click elsewhere) puts it as one edit, Esc leaves it as it was. A
+     * folded note is not edited, as a circuit's is not.
      */
     void editNote(String noteId) {
         Optional<MachineNote> note = canvas.machine().flatMap(found -> found.notes().stream()
                 .filter(candidate -> candidate.id().equals(noteId)).findFirst());
-        if (note.isEmpty()) {
+        if (note.isEmpty() || note.get().folded()) {
             return;
         }
         editor.open(InlineEditRequest.wrapped(MachineNotePainting.textArea(note.get()), TextFonts.labelFont(),

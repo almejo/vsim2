@@ -85,6 +85,15 @@ public final class StickyNotesExtension implements EditorExtension {
     static Optional<String> foldedNoteToolTip(CircuitDocument document, Point2D gridPoint, double pixelsPerGrid) {
         return StickyNoteHitTester.hit(document, gridPoint, pixelsPerGrid)
                 .flatMap(hit -> document.stickyNote(hit.note()))
+                .flatMap(StickyNotesExtension::foldedNoteToolTip);
+    }
+
+    /**
+     * The tooltip of {@code note} when it is folded (its text, one line per line, or its items with ☐ / ✓); empty
+     * when it is unfolded or empty. A machine's diagram notes show theirs the same way.
+     */
+    public static Optional<String> foldedNoteToolTip(StickyNote note) {
+        return Optional.of(note)
                 .filter(StickyNote::folded)
                 .map(StickyNotesExtension::toolTipLines)
                 .filter(lines -> !lines.isEmpty())

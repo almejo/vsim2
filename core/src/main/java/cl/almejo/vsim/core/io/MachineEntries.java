@@ -65,8 +65,13 @@ final class MachineEntries {
     record TestEntry(String name) {
     }
 
-    /** A note of the diagram; {@code color} is a lower-case {@link StickyColor} name. */
-    record NoteEntry(String id, double x, double y, double width, double height, String color, String text) {
+    /**
+     * A note of the diagram; {@code color} is a lower-case {@link StickyColor} name. {@code folded} is written only
+     * when true (as a circuit's sticky note's), so an unfolded note keeps its bytes and a file without it reads
+     * unfolded.
+     */
+    record NoteEntry(String id, double x, double y, double width, double height, String color, String text,
+                     @JsonInclude(JsonInclude.Include.NON_NULL) Boolean folded) {
     }
 
     /** A pin: a plain string (its name, also its id) or an object with both when they differ. */
@@ -118,7 +123,7 @@ final class MachineEntries {
 
     private static NoteEntry noteEntry(MachineNote note) {
         return new NoteEntry(note.id(), note.position().x(), note.position().y(), note.width(), note.height(),
-                note.color().name().toLowerCase(Locale.ROOT), note.text());
+                note.color().name().toLowerCase(Locale.ROOT), note.text(), note.folded() ? Boolean.TRUE : null);
     }
 
     private static List<PinEntry> pinEntries(List<MachinePin> pins) {
@@ -200,7 +205,7 @@ final class MachineEntries {
             }
         }
         return new MachineNote(entry.id(), new DiagramPoint(entry.x(), entry.y()), entry.width(), entry.height(),
-                color, entry.text() == null ? "" : entry.text());
+                color, entry.text() == null ? "" : entry.text(), Boolean.TRUE.equals(entry.folded()));
     }
 
     private static List<OutputAssignment> outputs(List<OutputEntry> entries, String definitionId)

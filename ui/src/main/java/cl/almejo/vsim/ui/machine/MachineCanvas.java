@@ -141,6 +141,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
 
         /** The marks to draw over the diagram now. */
         MachineDiagramPainter.Overlay overlay();
+
+        /** The note whose ✕ is under the pointer now, drawn at full strength; empty when none is. */
+        default Optional<String> closeHoveredNote() {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -494,13 +499,23 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
                 .or(() -> geometry.transitionAt(point, toDiagramLength(ARROW_REACH_PIXELS)));
     }
 
-    /** What is wrong with the state or arrow under the pointer, in words; nothing over a plain one. */
+    /**
+     * What is wrong with the state or arrow under the pointer, in words, or the text of a folded note; nothing over a
+     * plain one.
+     */
     @Override
     public String getToolTipText(MouseEvent event) {
         Optional<String> chipText = machine()
                 .flatMap(machine -> MachineKindChips.tooltipAt(event.getPoint(), MachineKind.of(machine),
                         MachineKindChips.defaultFont()));
-        return chipText.or(() -> problemTextAt(event.getPoint())).orElse(null);
+        return chipText.or(() -> problemTextAt(event.getPoint()))
+                .or(() -> foldedNoteTextAt(event.getPoint())).orElse(null);
+    }
+
+    private Optional<String> foldedNoteTextAt(Point2D screenPoint) {
+        DiagramPoint diagramPoint = toDiagram(screenPoint);
+        return machine().flatMap(machine -> MachineNotePainting.foldedToolTipAt(machine,
+                new Point2D.Double(diagramPoint.x(), diagramPoint.y())));
     }
 
     private Optional<String> problemTextAt(Point2D screenPoint) {
@@ -690,11 +705,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
 
     /**
      * The notes, under the states and arrows (they are reminders beside the diagram, never over a state), each one
-     * ringed while it is selected.
+     * ringed while it is selected, with its ✕ at full strength while the pointer is on it.
      */
     private void paintNotes(Graphics2D canvas, StateMachine machine, ColorScheme colours) {
         for (MachineNote note : machine.notes()) {
-            MachineNotePainting.paint(canvas, note, colours, viewport.zoom());
+            MachineNotePainting.paint(canvas, note, colours, viewport.zoom(),
+                    gestures.closeHoveredNote().filter(note.id()::equals).isPresent());
             if (selection.containsNote(note.id())) {
                 MachineNotePainting.paintSelection(canvas, note, colours);
             }

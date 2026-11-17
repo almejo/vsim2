@@ -6,11 +6,12 @@ import java.util.Objects;
 
 /**
  * A sticky note on a machine's diagram: a paper at {@code position} (top-left) of {@code width} x {@code height}
- * diagram units, with free text and one of the circuit notes' colours. It is only a reminder for the reader: it takes
+ * diagram units, with free text and one of the circuit notes' colours, {@code folded} into a small paper icon as a
+ * circuit's sticky note folds (its size is kept for when it unfolds). It is only a reminder for the reader: it takes
  * no part in the simulation and never shows on the piece's face.
  */
 public record MachineNote(String id, DiagramPoint position, double width, double height, StickyColor color,
-                          String text) {
+                          String text, boolean folded) {
 
     /**
      * Two state circles wide ({@code STATE_RADIUS} is 40): the circuit note's 8 x 6 grid at 8 px (64 x 48) looked
@@ -34,24 +35,35 @@ public record MachineNote(String id, DiagramPoint position, double width, double
         height = Math.max(height, MINIMUM_HEIGHT);
     }
 
+    /** An unfolded note. */
+    public MachineNote(String id, DiagramPoint position, double width, double height, StickyColor color,
+                       String text) {
+        this(id, position, width, height, color, text, false);
+    }
+
     public MachineNote withPosition(DiagramPoint newPosition) {
-        return new MachineNote(id, newPosition, width, height, color, text);
+        return new MachineNote(id, newPosition, width, height, color, text, folded);
     }
 
     public MachineNote withSize(double newWidth, double newHeight) {
-        return new MachineNote(id, position, newWidth, newHeight, color, text);
+        return new MachineNote(id, position, newWidth, newHeight, color, text, folded);
     }
 
     public MachineNote withColor(StickyColor newColor) {
-        return new MachineNote(id, position, width, height, newColor, text);
+        return new MachineNote(id, position, width, height, newColor, text, folded);
     }
 
     public MachineNote withText(String newText) {
-        return new MachineNote(id, position, width, height, color, newText);
+        return new MachineNote(id, position, width, height, color, newText, folded);
+    }
+
+    /** This note folded into its small paper icon, or unfolded to its size. */
+    public MachineNote withFolded(boolean newFolded) {
+        return new MachineNote(id, position, width, height, color, text, newFolded);
     }
 
     /** This note under another id at another place (a paste). */
     public MachineNote placed(String newId, DiagramPoint newPosition) {
-        return new MachineNote(newId, newPosition, width, height, color, text);
+        return new MachineNote(newId, newPosition, width, height, color, text, folded);
     }
 }
