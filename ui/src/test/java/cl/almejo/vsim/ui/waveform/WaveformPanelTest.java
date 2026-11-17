@@ -26,6 +26,7 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Cursor;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -490,6 +491,27 @@ class WaveformPanelTest {
         panel.plotResized(400); // same scale: still 500 per tick
         panel.button("Acercar").doClick(0);
         assertThat(texts).containsExactly("1 div = 200 t");
+    }
+
+    @Test
+    void aNameTooLongForTheColumnIsCutWithAnEllipsisAndShownWholeOnHover() {
+        List<String> ids = chain();
+        String longName = "semaforo de la esquina · estado";
+        answers.add(Optional.of(longName));
+        item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
+        ChannelNameColumn column = panel.names();
+        column.setSize(ChannelNameColumn.COLUMN_WIDTH, 2 * WaveformPainter.ROW_HEIGHT);
+
+        List<String> shown = column.shownNames();
+        assertThat(shown.get(0)).isEqualTo("c1.out");
+        assertThat(shown.get(1)).endsWith("…").hasSizeLessThan(longName.length());
+        assertThat(longName).startsWith(shown.get(1).substring(0, shown.get(1).length() - 1));
+        assertThat(column.getToolTipText(mouseAt(column, WaveformPainter.ROW_HEIGHT + 5))).isEqualTo(longName);
+        assertThat(column.getToolTipText(mouseAt(column, 5))).as("a name shown whole needs no tooltip").isNull();
+    }
+
+    private static MouseEvent mouseAt(JComponent component, int y) {
+        return new MouseEvent(component, MouseEvent.MOUSE_MOVED, 0, 0, 10, y, 0, false);
     }
 
     @Test

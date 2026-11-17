@@ -32,6 +32,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Formas de onda: un nombre de canal que no cabe junto a su valor («semaforo · estado») se cortaba sin aviso («semaforo · stat»); ahora termina en «…» y al pasar el ratón se ve entero. Ver [Formas de onda](docs/funciones/formas-de-onda.md).
 - Formas de onda: en la fila del estado de una máquina, un nombre que no cabía en su tramo («AMARILLO») no se escribía; ahora se acorta («AMA…») o queda en su primera letra, y la ayuda al pasar el puntero dice el nombre entero. Ver [La onda de la máquina](docs/funciones/componentes.md#la-onda-de-la-máquina).
 - Formas de onda: las filas de una pieza de máquina de estados sin etiqueta se llaman por la máquina («Semáforo · estado», «Semáforo.V», o «Semáforo · copia 2 · estado» si hay varias) y no por su identificador interno («c14 · estado»). Ver [La onda de la máquina](docs/funciones/componentes.md#la-onda-de-la-máquina).
 - Ctrl+V mientras editas un texto en línea (el nombre o el valor de una pieza, una nota) ya no pega ahí el texto interno de las piezas copiadas: lo rechaza, como ya hacían los campos de Propiedades; el texto copiado de otro programa se pega igual. Lo mismo en los nombres, condiciones y salidas de una máquina de estado, en línea y en Propiedades, con estados copiados.

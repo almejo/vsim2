@@ -198,7 +198,7 @@ public final class PainterSupport {
     }
 
     /** {@code text}, cut with «…» when it is wider than {@code available} pixels. */
-    static String ellipsized(String text, FontMetrics metrics, double available) {
+    public static String ellipsized(String text, FontMetrics metrics, double available) {
         if (FallbackText.stringWidth(metrics, text) <= available) {
             return text;
         }
