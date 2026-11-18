@@ -121,9 +121,6 @@ public final class SelectTool implements Tool {
     private static final int BAND_FILL_ALPHA = 40;
     private static final int SUBTRACT_BAND_FILL_ALPHA = 24;
 
-    /** What a rubber band does with what it encloses: the mode is decided at the press. */
-    private enum BandMode { REPLACE, ADD, REMOVE }
-
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
     /**
      * Whether parts take typing from the keyboard (a Teclado, a UART with «Pantalla: Integrada»), asked once per type
@@ -154,7 +151,7 @@ public final class SelectTool implements Tool {
     private int hoverWidth = 1;
     private Point2D bandStart;
     private Point2D bandEnd;
-    private BandMode bandMode = BandMode.REPLACE;
+    private SelectionModifiers.BandMode bandMode = SelectionModifiers.BandMode.REPLACE;
     /** The last hover event (a move, or a release), so a modifier key changed without moving redoes the cursor. */
     private CanvasMouseEvent lastHover;
     private boolean ownPressSeen;
@@ -334,14 +331,14 @@ public final class SelectTool implements Tool {
         Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
                 ? Optional.empty()
                 : pinNear(context, event.gridPosition());
-        if (!event.shiftDown() && !event.controlDown() && pin.isEmpty()) {
+        if (!SelectionModifiers.changesSelection(event.shiftDown(), event.controlDown()) && pin.isEmpty()) {
             Optional<Component> labelled = labelPressedAt(context, event.gridPosition(), hit);
             if (labelled.isPresent()) {
                 pressLabel(context, event, labelled.get());
                 return;
             }
         }
-        if (event.shiftDown() || event.controlDown()) {
+        if (SelectionModifiers.changesSelection(event.shiftDown(), event.controlDown())) {
             pressWithModifier(context, event, hit, pin);
             return;
         }
@@ -356,7 +353,7 @@ public final class SelectTool implements Tool {
             return;
         }
         if (hit.isEmpty()) {
-            startBand(event, BandMode.REPLACE);
+            startBand(event, SelectionModifiers.BandMode.REPLACE);
             return;
         }
         pressElement(context, event, hit.get());
@@ -501,7 +498,8 @@ public final class SelectTool implements Tool {
     private void pressWithModifier(ToolContext context, CanvasMouseEvent event, Optional<DocumentElement> hit,
                                    Optional<ConnectionPoints.PinHit> pin) {
         Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
-        if (target.isPresent() && !event.controlDown()) {
+        if (target.isPresent() && SelectionModifiers.elementPress(event.shiftDown(), event.controlDown())
+                == SelectionModifiers.ElementPress.TOGGLE_OR_DRAG) {
             // Shift+click toggles the element; Shift+drag moves the selection with it (the key inverts the mode)
             pressedElement = target.get();
             selectionClick = true;
@@ -516,7 +514,7 @@ public final class SelectTool implements Tool {
         if (target.isPresent()) {
             context.selection().toggle(target.get().id());
         } else {
-            startBand(event, event.shiftDown() && event.controlDown() ? BandMode.REMOVE : BandMode.ADD);
+            startBand(event, SelectionModifiers.bandMode(event.shiftDown(), event.controlDown()));
         }
     }
 
@@ -853,7 +851,7 @@ public final class SelectTool implements Tool {
         Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
                 ? Optional.empty()
                 : nearestPin;
-        if (event.shiftDown() || event.controlDown()) {
+        if (SelectionModifiers.changesSelection(event.shiftDown(), event.controlDown())) {
             return cursorWithModifier(context, hit, pin, event);
         }
         if (pin.isPresent()) {
@@ -878,12 +876,8 @@ public final class SelectTool implements Tool {
         }
         // the press toggles the pin's component or the element, or bands on empty canvas (Ctrl+Shift subtracts)
         Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
-        if (target.isEmpty()) {
-            return event.shiftDown() && event.controlDown() ? CanvasCursor.REMOVE_FROM_SELECTION
-                    : CanvasCursor.ADD_TO_SELECTION;
-        }
-        return context.selection().contains(target.get().id()) ? CanvasCursor.REMOVE_FROM_SELECTION
-                : CanvasCursor.ADD_TO_SELECTION;
+        return SelectionModifiers.hoverCursor(event.shiftDown(), event.controlDown(),
+                target.map(element -> context.selection().contains(element.id())));
     }
 
     /** The cursor of a plain press on {@code element} (no pin, no label in the way). */
@@ -921,11 +915,7 @@ public final class SelectTool implements Tool {
             return Optional.of(CanvasCursor.CROSSHAIR);
         }
         if (bandStart != null) {
-            return Optional.of(switch (bandMode) {
-                case REPLACE -> CanvasCursor.DEFAULT;
-                case ADD -> CanvasCursor.ADD_TO_SELECTION;
-                case REMOVE -> CanvasCursor.REMOVE_FROM_SELECTION;
-            });
+            return Optional.of(SelectionModifiers.bandCursor(bandMode));
         }
         if (pressPoint != null) {
             return Optional.of(CanvasCursor.MOVE);
@@ -1136,7 +1126,7 @@ public final class SelectTool implements Tool {
         }
         Rectangle2D band = rubberBand();
         if (band != null) {
-            paintBand(graphics, context, band, bandMode == BandMode.REMOVE);
+            paintBand(graphics, context, band, bandMode == SelectionModifiers.BandMode.REMOVE);
             return;
         }
         if (hoverPin != null && wire == null) {
@@ -1227,7 +1217,7 @@ public final class SelectTool implements Tool {
                 Math.abs(bandEnd.getX() - bandStart.getX()), Math.abs(bandEnd.getY() - bandStart.getY()));
     }
 
-    private void startBand(CanvasMouseEvent event, BandMode mode) {
+    private void startBand(CanvasMouseEvent event, SelectionModifiers.BandMode mode) {
         bandStart = event.gridPosition();
         bandEnd = event.gridPosition();
         bandMode = mode;
@@ -1240,25 +1230,13 @@ public final class SelectTool implements Tool {
     private void finishBand(ToolContext context) {
         Rectangle2D band = rubberBand();
         if (Math.max(band.getWidth(), band.getHeight()) < BAND_THRESHOLD) {
-            if (bandMode == BandMode.REPLACE) {
+            if (bandMode == SelectionModifiers.BandMode.REPLACE) {
                 context.selection().clear();
             }
             return;
         }
         Set<ElementId> inside = elementsInside(context, band);
-        switch (bandMode) {
-            case REPLACE -> context.selection().set(inside);
-            case ADD -> {
-                Set<ElementId> combined = new LinkedHashSet<>(context.selection().ids());
-                combined.addAll(inside);
-                context.selection().set(combined);
-            }
-            case REMOVE -> {
-                Set<ElementId> remaining = new LinkedHashSet<>(context.selection().ids());
-                remaining.removeAll(inside);
-                context.selection().set(remaining);
-            }
-        }
+        context.selection().set(SelectionModifiers.combine(bandMode, context.selection().ids(), inside));
     }
 
     /** What the band must enclose, in grid units: a component's body and bus value box, the other elements' bounds. */
@@ -1642,7 +1620,7 @@ public final class SelectTool implements Tool {
         pathOnClickAt = null;
         bandStart = null;
         bandEnd = null;
-        bandMode = BandMode.REPLACE;
+        bandMode = SelectionModifiers.BandMode.REPLACE;
         deltaX = 0;
         deltaY = 0;
         copyDeltaX = 0;

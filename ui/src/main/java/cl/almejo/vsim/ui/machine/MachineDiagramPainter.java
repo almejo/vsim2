@@ -120,9 +120,10 @@ final class MachineDiagramPainter {
      * What a gesture shows while it lasts, on top of the diagram: the state whose border is lit, the arrow being drawn
      * (from a state's border to the pointer) and the rubber band, all in diagram units.
      */
-    record Overlay(Optional<String> litStateId, Optional<Line2D> pendingArrow, Optional<Rectangle2D> rubberBand) {
+    record Overlay(Optional<String> litStateId, Optional<Line2D> pendingArrow, Optional<Rectangle2D> rubberBand,
+                   boolean bandRemoves) {
 
-        static final Overlay NONE = new Overlay(Optional.empty(), Optional.empty(), Optional.empty());
+        static final Overlay NONE = new Overlay(Optional.empty(), Optional.empty(), Optional.empty(), false);
     }
 
     /** The font of a state's name, at 100 %. */
@@ -166,10 +167,11 @@ final class MachineDiagramPainter {
             paintHead(graphics, line.getP1(), line.getP2());
         });
         overlay.rubberBand().ifPresent(band -> {
-            graphics.setColor(new Color(highlight.getRed(), highlight.getGreen(), highlight.getBlue(),
-                    RUBBER_BAND_ALPHA));
+            // a band that takes away is red, as on the circuit
+            Color colour = overlay.bandRemoves() ? MachineColors.problem(scheme) : highlight;
+            graphics.setColor(new Color(colour.getRed(), colour.getGreen(), colour.getBlue(), RUBBER_BAND_ALPHA));
             graphics.fill(band);
-            graphics.setColor(highlight);
+            graphics.setColor(colour);
             graphics.setStroke(dashed(1f));
             graphics.draw(band);
         });

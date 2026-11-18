@@ -29,6 +29,7 @@ import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.tools.CanvasCursor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,8 +44,10 @@ import javax.swing.TransferHandler;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -410,6 +413,137 @@ class MachineDrawingTest {
 
         drag(at(100, -200), at(250, -50), at(380, 60));
         assertThat(mode.selection().stateIds()).containsExactlyInAnyOrder("s1", "s2");
+    }
+
+    private void drag(int modifiers, Point2D from, Point2D... through) {
+        mouse(MouseEvent.MOUSE_MOVED, from, modifiers, 0);
+        mouse(MouseEvent.MOUSE_PRESSED, from, modifiers | InputEvent.BUTTON1_DOWN_MASK, 1);
+        Point2D last = from;
+        for (Point2D point : through) {
+            mouse(MouseEvent.MOUSE_DRAGGED, point, modifiers | InputEvent.BUTTON1_DOWN_MASK, 0);
+            last = point;
+        }
+        mouse(MouseEvent.MOUSE_RELEASED, last, modifiers, 1);
+    }
+
+    private DiagramPoint positionOf(String stateId) {
+        return machine().state(stateId).orElseThrow().position();
+    }
+
+    /** Hand test of hito 3 (2026-11-17): the selection keys work as on the circuit, for states, arrows and notes. */
+    @Test
+    void ctrlClickTogglesStatesArrowsAndNotesAsOnTheCircuit() {
+        canvas.edit(current -> MachineEdits.withNewNote(current, new DiagramPoint(100, 150)));
+        String noteId = MachineEdits.lastNote(machine()).id();
+        Rectangle2D paper = MachineNotePainting.paperOf(MachineEdits.lastNote(machine()));
+        click(at(160, 0));
+
+        click(at(320, 0), InputEvent.CTRL_DOWN_MASK, 1);
+        assertThat(mode.selection().stateIds()).containsExactly("s1", "s2");
+        click(at(160, 0), InputEvent.CTRL_DOWN_MASK, 1);
+        assertThat(mode.selection().stateIds()).containsExactly("s2");
+
+        click(at(240, -14), InputEvent.CTRL_DOWN_MASK, 1);
+        assertThat(mode.selection().transitionIds()).containsExactly("t3");
+        click(at(240, -14), InputEvent.CTRL_DOWN_MASK, 1);
+        assertThat(mode.selection().transitionIds()).isEmpty();
+
+        click(at(paper.getCenterX(), paper.getCenterY()), InputEvent.CTRL_DOWN_MASK, 1);
+        assertThat(mode.selection().noteIds()).containsExactly(noteId);
+        click(at(paper.getCenterX(), paper.getCenterY()), InputEvent.CTRL_DOWN_MASK, 1);
+        assertThat(mode.selection().noteIds()).isEmpty();
+        assertThat(mode.selection().stateIds()).containsExactly("s2");
+    }
+
+    @Test
+    void shiftDragFromAnUnselectedStateAddsItAndMovesTheWholeSelection() {
+        click(at(320, 0));
+
+        drag(InputEvent.SHIFT_DOWN_MASK, at(0, 0), at(0, 30), at(0, 60));
+
+        assertThat(mode.selection().stateIds()).containsExactlyInAnyOrder("s0", "s2");
+        assertThat(positionOf("s0")).isEqualTo(new DiagramPoint(0, 60));
+        assertThat(positionOf("s2")).isEqualTo(new DiagramPoint(320, 60));
+        assertThat(positionOf("s1")).isEqualTo(new DiagramPoint(160, 0));
+    }
+
+    @Test
+    void shiftClickOnASelectedStateTakesItAwayButAShiftDragMovesItWithTheRest() {
+        click(at(160, 0));
+        click(at(320, 0), InputEvent.SHIFT_DOWN_MASK, 1);
+
+        drag(InputEvent.SHIFT_DOWN_MASK, at(160, 0), at(160, 30), at(160, 60));
+        assertThat(mode.selection().stateIds()).containsExactlyInAnyOrder("s1", "s2");
+        assertThat(positionOf("s1")).isEqualTo(new DiagramPoint(160, 60));
+        assertThat(positionOf("s2")).isEqualTo(new DiagramPoint(320, 60));
+
+        click(at(160, 60), InputEvent.SHIFT_DOWN_MASK, 1);
+        assertThat(mode.selection().stateIds()).containsExactly("s2");
+    }
+
+    @Test
+    void aSelectionKeyOnAStatesBorderTogglesItInsteadOfDrawingAnArrow() {
+        click(at(0, 0));
+        int arrows = machine().transitions().size();
+
+        click(at(160, 38), InputEvent.SHIFT_DOWN_MASK, 1);
+        assertThat(mode.selection().stateIds()).containsExactly("s0", "s1");
+        click(at(160, 38), InputEvent.CTRL_DOWN_MASK, 1);
+        assertThat(mode.selection().stateIds()).containsExactly("s0");
+        assertThat(machine().transitions()).hasSize(arrows);
+    }
+
+    @Test
+    void aBandWithOneKeyAddsAndWithCtrlShiftTakesAway() {
+        click(at(0, 0));
+
+        drag(InputEvent.CTRL_DOWN_MASK, at(100, -60), at(250, -50), at(380, 60));
+        assertThat(mode.selection().stateIds()).containsExactlyInAnyOrder("s0", "s1", "s2");
+
+        drag(InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK, at(260, -60), at(300, 0), at(380, 60));
+        assertThat(mode.selection().stateIds()).containsExactlyInAnyOrder("s0", "s1");
+
+        drag(InputEvent.SHIFT_DOWN_MASK, at(260, -60), at(300, 0), at(380, 60));
+        assertThat(mode.selection().stateIds()).containsExactlyInAnyOrder("s0", "s1", "s2");
+
+        drag(0, at(260, -60), at(300, 0), at(380, 60));
+        assertThat(mode.selection().stateIds()).containsExactly("s2");
+    }
+
+    @Test
+    void theCursorShowsWhatAPressWithTheSelectionKeysWouldDo() {
+        mouse(MouseEvent.MOUSE_MOVED, at(160, 0), InputEvent.SHIFT_DOWN_MASK, 0);
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        click(at(160, 0));
+        mouse(MouseEvent.MOUSE_MOVED, at(160, 0), InputEvent.CTRL_DOWN_MASK, 0);
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        mouse(MouseEvent.MOUSE_MOVED, at(160, 300), InputEvent.SHIFT_DOWN_MASK, 0);
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        mouse(MouseEvent.MOUSE_MOVED, at(160, 300), InputEvent.SHIFT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK, 0);
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        mouse(MouseEvent.MOUSE_MOVED, at(160, 300), 0, 0);
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.DEFAULT);
+
+        // a key pressed with the pointer standing still changes the cursor at once (no focus headless: the listeners)
+        KeyEvent shiftPressed = new KeyEvent(canvas, KeyEvent.KEY_PRESSED, 0, InputEvent.SHIFT_DOWN_MASK,
+                KeyEvent.VK_SHIFT, KeyEvent.CHAR_UNDEFINED);
+        for (KeyListener listener : canvas.getKeyListeners()) {
+            listener.keyPressed(shiftPressed);
+        }
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        KeyEvent shiftReleased = new KeyEvent(canvas, KeyEvent.KEY_RELEASED, 0, 0, KeyEvent.VK_SHIFT,
+                KeyEvent.CHAR_UNDEFINED);
+        for (KeyListener listener : canvas.getKeyListeners()) {
+            listener.keyReleased(shiftReleased);
+        }
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.DEFAULT);
+
+        int both = InputEvent.SHIFT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK;
+        mouse(MouseEvent.MOUSE_PRESSED, at(160, 300), both | InputEvent.BUTTON1_DOWN_MASK, 1);
+        mouse(MouseEvent.MOUSE_DRAGGED, at(200, 340), both | InputEvent.BUTTON1_DOWN_MASK, 0);
+        assertThat(mode.tool().cursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        assertThat(mode.tool().overlay().bandRemoves()).isTrue();
+        mouse(MouseEvent.MOUSE_RELEASED, at(200, 340), both, 1);
     }
 
     @Test
