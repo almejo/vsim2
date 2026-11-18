@@ -8,6 +8,7 @@ import javax.swing.JSplitPane;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -18,6 +19,9 @@ import java.util.Optional;
  * Presentation mode can {@linkplain #lendContent() borrow the content} to show it behind the bottom screen edge: the
  * dock then stays open (Ver ▸ Formas de onda checked) but gives the canvas all its height until
  * {@link #returnContent()}.
+ * <p>
+ * Another component can {@linkplain #contentInstead(JComponent) show instead of the content} for a while (a machine's
+ * test table instead of its wave strip): the content is set aside and comes back when it goes.
  */
 public final class BottomDock extends JSplitPane {
 
@@ -26,6 +30,11 @@ public final class BottomDock extends JSplitPane {
 
     private final JPanel holder = new JPanel(new BorderLayout());
     private final Listeners<Runnable> listeners = new Listeners<>();
+    private final Listeners<Runnable> contentListeners = new Listeners<>();
+    /** What {@link #setContent} gave; null for none. */
+    private JComponent ownContent;
+    /** What shows instead of {@link #ownContent} ({@link #contentInstead}); null while the content itself shows. */
+    private JComponent instead;
     private boolean dockShowing;
     private boolean placeOnNextLayout;
     private int dockHeight = DEFAULT_HEIGHT;
@@ -42,23 +51,74 @@ public final class BottomDock extends JSplitPane {
         setDividerSize(0);
     }
 
-    /** What the dock shows when open; null empties it. */
+    /**
+     * What the dock shows when open; null empties it. While another component shows {@linkplain #contentInstead
+     * instead}, the new content waits until it goes.
+     */
     public void setContent(JComponent content) {
         returnContent();
+        ownContent = content;
+        fillHolder();
+    }
+
+    /**
+     * Shows {@code replacement} where the content shows (in the dock, or wherever it is lent) until the returned
+     * runnable runs; the content is set aside meanwhile and {@link #content()} answers {@code replacement}. The dock
+     * stays open or closed as it was, and keeps its height. Installing another one replaces this one; then this one's
+     * runnable does nothing. Running the runnable shows the content again; running it twice does nothing more.
+     * <p>
+     * While the content is {@linkplain #lendContent() lent}, the borrower holds the old component: the dock fires
+     * its {@linkplain #addContentListener content listeners}, and a borrower that wants to show what the dock shows
+     * now {@linkplain #returnContent() returns} it (which takes the old one out of the borrower's hands) and lends
+     * again. EDT only.
+     */
+    public Runnable contentInstead(JComponent replacement) {
+        Objects.requireNonNull(replacement, "replacement");
+        showInstead(replacement);
+        return () -> {
+            if (instead == replacement) {
+                showInstead(null);
+            }
+        };
+    }
+
+    /**
+     * Runs {@code listener} after what the dock shows changed through {@link #contentInstead} (installed or
+     * removed); returns its removal. Presentation mode follows it to show the new component behind the bottom edge.
+     */
+    public Runnable addContentListener(Runnable listener) {
+        return contentListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** What the dock shows: the content, or what shows instead of it; also while it is lent. */
+    public Optional<JComponent> content() {
+        return Optional.ofNullable(shown());
+    }
+
+    private JComponent shown() {
+        return instead != null ? instead : ownContent;
+    }
+
+    private void showInstead(JComponent replacement) {
+        instead = replacement;
+        if (lent == null) {
+            fillHolder();
+        }
+        contentListeners.fire(Runnable::run);
+    }
+
+    /** Puts what the dock shows in its holder (while nothing is lent). */
+    private void fillHolder() {
         holder.removeAll();
-        if (content != null) {
-            holder.add(content, BorderLayout.CENTER);
+        JComponent shown = shown();
+        if (shown != null) {
+            if (shown.getParent() != null) {
+                shown.getParent().remove(shown);
+            }
+            holder.add(shown, BorderLayout.CENTER);
         }
         holder.revalidate();
         holder.repaint();
-    }
-
-    /** The dock's content, also while it is lent. */
-    public Optional<JComponent> content() {
-        if (lent != null) {
-            return Optional.of(lent);
-        }
-        return holder.getComponentCount() == 0 ? Optional.empty() : Optional.of((JComponent) holder.getComponent(0));
     }
 
     public void showDock() {
@@ -111,16 +171,16 @@ public final class BottomDock extends JSplitPane {
     }
 
     /**
-     * Takes the content out of the dock to show it elsewhere (presentation mode puts it behind the bottom edge): the
-     * dock stays open as far as Ver ▸ Formas de onda knows, but the canvas gets the whole height. Empty when there is
-     * no content or it is already lent.
+     * Takes what the dock shows (the content, or what shows {@linkplain #contentInstead instead}) out of the dock to
+     * show it elsewhere (presentation mode puts it behind the bottom edge): the dock stays open as far as Ver ▸ Formas
+     * de onda knows, but the canvas gets the whole height. Empty when there is no content or it is already lent.
      */
     public Optional<JComponent> lendContent() {
-        if (lent != null || holder.getComponentCount() == 0) {
+        if (lent != null || shown() == null) {
             return Optional.empty();
         }
         rememberHeight();
-        lent = (JComponent) holder.getComponent(0);
+        lent = shown();
         holder.removeAll();
         closeHolder();
         revalidate();
@@ -128,7 +188,11 @@ public final class BottomDock extends JSplitPane {
         return Optional.of(lent);
     }
 
-    /** Puts the lent content back in the dock; if the dock is open it opens as tall as {@link #dockHeight()}. */
+    /**
+     * Puts the lent content back in the dock; if the dock is open it opens as tall as {@link #dockHeight()}. When
+     * what the dock shows changed meanwhile ({@link #contentInstead}), the lent component leaves the borrower and the
+     * one shown now goes in the dock.
+     */
     public void returnContent() {
         if (lent == null) {
             return;
@@ -138,7 +202,7 @@ public final class BottomDock extends JSplitPane {
         if (content.getParent() != null) {
             content.getParent().remove(content);
         }
-        holder.add(content, BorderLayout.CENTER);
+        fillHolder();
         if (dockShowing) {
             // placed at the next layout, when the dock has its final size (leaving the mode shrinks it)
             holder.setVisible(true);

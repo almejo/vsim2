@@ -177,6 +177,103 @@ class MachineCanvasTest {
         }
     }
 
+    private StateMachine circuitsMachine() {
+        return document.document().definition(MachineFixtures.DEFINITION_ID).orElseThrow().machine().orElseThrow();
+    }
+
+    @Test
+    void anInstalledSourceGivesTheMachineTheDiagramShowsAndTakesItsEditsAwayFromTheCircuit() {
+        StateMachine real = circuitsMachine();
+        FakeMachineSource source = new FakeMachineSource(real);
+        Optional<cl.almejo.vsim.core.command.Command> lastStep = document.history().undoCommand();
+        List<String> changes = new java.util.ArrayList<>();
+        canvas.addChangeListener(() -> changes.add("changed"));
+
+        canvas.useSource(source);
+        boolean edited = canvas.edit(machine -> MachineEdits.withStateName(machine, "s1", "Uno"));
+
+        assertThat(edited).isTrue();
+        assertThat(canvas.machine().orElseThrow().state("s1").orElseThrow().name()).isEqualTo("Uno");
+        assertThat(source.edits()).isEqualTo(1);
+        assertThat(circuitsMachine()).as("the circuit keeps its machine").isEqualTo(real);
+        assertThat(document.history().undoCommand()).as("no step of the circuit").isEqualTo(lastStep);
+        assertThat(changes).as("installing, then the edit").hasSize(2);
+        assertThat(canvas.edit(machine -> machine)).as("an edit that changes nothing").isFalse();
+    }
+
+    @Test
+    void theSourcesActiveStateIsTheOnePaintedActive() {
+        shownState.set(Optional.of(new ActiveMachineState("s1", Optional.empty(), Optional.empty())));
+        canvas.showLatestState();
+        FakeMachineSource source = new FakeMachineSource(circuitsMachine());
+        canvas.useSource(source);
+
+        source.showState(Optional.of(new ActiveMachineState("s2", Optional.empty(), Optional.empty())));
+        BufferedImage image = paint();
+
+        assertThat(canvas.activeState().orElseThrow().stateId()).isEqualTo("s2");
+        Color active = MachineColors.activeFill(ColorScheme.LIGHT);
+        Point2D chosen = insideLeftEdgeOf(new DiagramPoint(320, 0));
+        Point2D simulated = insideLeftEdgeOf(new DiagramPoint(160, 0));
+        assertThat(new Color(image.getRGB((int) chosen.getX(), (int) chosen.getY()))).isEqualTo(active);
+        assertThat(new Color(image.getRGB((int) simulated.getX(), (int) simulated.getY()))).isNotEqualTo(active);
+        canvas.showLatestState(); // a frame reads the source too, never the snapshot
+        assertThat(canvas.activeState().orElseThrow().stateId()).isEqualTo("s2");
+    }
+
+    @Test
+    void removingTheSourceGivesTheCircuitsMachineEditsAndActiveStateBack() {
+        shownState.set(Optional.of(new ActiveMachineState("s1", Optional.empty(), Optional.empty())));
+        FakeMachineSource source = new FakeMachineSource(circuitsMachine());
+        Runnable remove = canvas.useSource(source);
+        canvas.edit(machine -> MachineEdits.withStateName(machine, "s1", "Uno"));
+        source.showState(Optional.of(new ActiveMachineState("s2", Optional.empty(), Optional.empty())));
+
+        remove.run();
+
+        assertThat(canvas.machine().orElseThrow().state("s1").orElseThrow().name()).isEqualTo("S1");
+        assertThat(canvas.activeState().orElseThrow().stateId()).as("the snapshot's again").isEqualTo("s1");
+        assertThat(source.listenerCount()).as("the canvas stopped following it").isZero();
+        canvas.edit(machine -> MachineEdits.withStateName(machine, "s1", "Uno"));
+        assertThat(circuitsMachine().state("s1").orElseThrow().name()).isEqualTo("Uno");
+        assertThat(source.edits()).isEqualTo(1);
+    }
+
+    @Test
+    void anOlderSourcesRemovalLeavesTheNewerOneInstalled() {
+        FakeMachineSource first = new FakeMachineSource(circuitsMachine());
+        FakeMachineSource second = new FakeMachineSource(circuitsMachine());
+        Runnable removeFirst = canvas.useSource(first);
+        canvas.useSource(second);
+
+        removeFirst.run();
+        canvas.edit(machine -> MachineEdits.withStateName(machine, "s1", "Uno"));
+
+        assertThat(second.edits()).isEqualTo(1);
+        assertThat(first.edits()).isZero();
+        assertThat(first.listenerCount()).as("replaced: no longer followed").isZero();
+    }
+
+    @Test
+    void theStandardSourceIsTheCircuitsAndStaysReachableWhileAnotherIsInstalled() {
+        canvas.useSource(new FakeMachineSource(circuitsMachine()));
+        canvas.edit(machine -> MachineEdits.withStateName(machine, "s1", "Uno"));
+
+        assertThat(canvas.standardSource().machine().orElseThrow()).isEqualTo(circuitsMachine());
+        assertThat(canvas.standardSource().machine().orElseThrow().state("s1").orElseThrow().name())
+                .isEqualTo("S1");
+    }
+
+    @Test
+    void disposingStopsFollowingTheSource() {
+        FakeMachineSource source = new FakeMachineSource(circuitsMachine());
+        canvas.useSource(source);
+
+        canvas.dispose();
+
+        assertThat(source.listenerCount()).isZero();
+    }
+
     private void wheel(int modifiers, int rotation) {
         MouseWheelEvent event = new MouseWheelEvent(canvas, MouseEvent.MOUSE_WHEEL, 0, modifiers, 400, 200, 0,
                 false, MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, rotation);

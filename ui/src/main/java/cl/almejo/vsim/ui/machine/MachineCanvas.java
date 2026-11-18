@@ -59,7 +59,9 @@ import java.util.function.UnaryOperator;
  * sideways swipe; the middle button, the window's zoom actions
  * through {@link ContentZoom}) and follows the simulation on the same 16 ms frames while it is shown. Diagram units
  * are pixels at 100 %. The gestures that draw and edit ({@link MachineTool}) make their edits through
- * {@link #edit} and show what they are doing through {@link #showGestures}.
+ * {@link #edit} and show what they are doing through {@link #showGestures}. Where the machine and its active state
+ * come from, and where edits go, is a {@link MachineSource}: the circuit's by default, a test's draft while one is
+ * installed with {@link #useSource}.
  */
 public final class MachineCanvas extends JComponent implements ContentZoom {
 
@@ -102,6 +104,14 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private final transient Runnable placeListener = this::placeChanged;
     private final transient Runnable stopRepaintingOnSelection;
     private transient Optional<ActiveMachineState> activeState = Optional.empty();
+    /** The circuit's machine, edits and simulated state: the source unless another is installed. */
+    private final transient MachineSource standardSource;
+    /** Where the diagram reads and edits its machine and its active state now ({@link #useSource}). */
+    private transient MachineSource source;
+    /** What stops following the installed source's changes (nothing for the standard one). */
+    private transient Runnable stopFollowingSource = () -> { };
+    /** Told after each change of an installed source's answers (the inline editor follows them). */
+    private final transient Listeners<Runnable> sourceListeners = new Listeners<>();
     /** Whether the view was placed on the diagram once (it is, the first time the canvas has a size). */
     private boolean viewPlaced;
     private boolean disposed;
@@ -175,6 +185,8 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         this.selection = Objects.requireNonNull(selection, "selection");
         this.stateSource = Objects.requireNonNull(stateSource, "stateSource");
         this.scheme = Objects.requireNonNull(scheme, "scheme");
+        this.standardSource = new CircuitSource();
+        this.source = standardSource;
         setOpaque(true);
         setFocusable(true);
         setLayout(null); // the inline editor floats over the diagram where it is asked to
@@ -200,9 +212,53 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         return definitionId;
     }
 
-    /** The machine as it is now in the circuit; empty once its definition left (its tab closes then). */
+    /**
+     * The machine as the installed source gives it: by default as it is now in the circuit, empty once its definition
+     * left (its tab closes then); in the test mode, its draft.
+     */
     public Optional<StateMachine> machine() {
-        return circuit().document().definition(definitionId).flatMap(ComponentDefinition::machine);
+        return source.machine();
+    }
+
+    /**
+     * Reads and edits the machine, and takes the active state, from {@code replacement} instead of the source
+     * installed now, until the returned runnable runs (plan 2026-11-14, hito 4 task 3: the test mode's draft). Every
+     * reader of the tab follows at once: the canvas fires its change listeners now and after each change
+     * {@code replacement} fires; the place's own changes keep reaching them as before. Installing another source
+     * replaces this one; then this one's runnable does nothing. Running the runnable puts the
+     * {@linkplain #standardSource() standard source} back (and fires the change listeners); running it twice does
+     * nothing more. Disposing the canvas stops following any source. EDT only.
+     */
+    public Runnable useSource(MachineSource replacement) {
+        Objects.requireNonNull(replacement, "replacement");
+        install(replacement);
+        return () -> {
+            if (source == replacement && replacement != standardSource) {
+                install(standardSource);
+            }
+        };
+    }
+
+    /**
+     * The circuit's source, also while another is installed: its machine definition, one {@code EditMachineCommand}
+     * per edit (one undo step of the circuit, through the tab's place), and the copy's state in the latest snapshot.
+     */
+    public MachineSource standardSource() {
+        return standardSource;
+    }
+
+    private void install(MachineSource replacement) {
+        stopFollowingSource.run();
+        source = replacement;
+        stopFollowingSource = replacement == standardSource || disposed
+                ? () -> { } : replacement.addChangeListener(this::sourceChanged);
+        sourceChanged();
+    }
+
+    /** The installed source changed what it answers (or another was installed): as a change of the place. */
+    private void sourceChanged() {
+        placeChanged();
+        sourceListeners.fire(Runnable::run);
     }
 
     /** What is selected in this diagram (shared with the tab's right panel and gestures). */
@@ -211,21 +267,13 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /**
-     * Makes {@code change} of the machine as one undo step of the circuit, executed through this tab's place so the
-     * step belongs to the machine's tab (its undo is undone here, its name says where); nothing when it changes
-     * nothing. Returns whether it made the edit.
+     * Makes {@code change} of the machine as one undo step of the installed source: by default one step of the
+     * circuit, executed through this tab's place so the step belongs to the machine's tab (its undo is undone here,
+     * its name says where); in the test mode, one step of its draft. Nothing when it changes nothing. Returns whether
+     * it made the edit.
      */
     public boolean edit(UnaryOperator<StateMachine> change) {
-        Optional<StateMachine> current = machine();
-        if (current.isEmpty()) {
-            return false;
-        }
-        StateMachine changed = change.apply(current.get());
-        if (changed.equals(current.get())) {
-            return false;
-        }
-        openDocument.execute(new EditMachineCommand(definitionId, changed));
-        return true;
+        return source.edit(Objects.requireNonNull(change, "change"));
     }
 
     /** Shows what {@code shown} gives on top of the diagram from now on (the drawing gestures). */
@@ -342,7 +390,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             @Override
             public Runnable addChangeListener(Runnable listener) {
                 openDocument.addChangeListener(listener);
-                return () -> openDocument.removeChangeListener(listener);
+                Runnable stopFollowingSources = sourceListeners.add(listener);
+                return () -> {
+                    openDocument.removeChangeListener(listener);
+                    stopFollowingSources.run();
+                };
             }
 
             @Override
@@ -365,7 +417,10 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         return MachineDiagramPainter.drawingOrderIds(machine, activeState, selection);
     }
 
-    /** The active state of the copy entered through, as of the last frame; empty with «Sin valores». */
+    /**
+     * The state lit now, as the installed source gave it at the last frame or change: by default the copy entered
+     * through, empty with «Sin valores»; in the test mode, the state of the test's chosen column.
+     */
     public Optional<ActiveMachineState> activeState() {
         return activeState;
     }
@@ -621,13 +676,12 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /**
-     * Reads the copy's state from the latest snapshot and repaints when it changed (one frame does this). The copy is
-     * the tab's context path; with «Sin valores» there is none.
+     * Asks the installed source for the active state and repaints when it changed (one frame does this). By default
+     * that is the copy's state in the latest snapshot: the copy is the tab's context path; with «Sin valores» there
+     * is none.
      */
     public void showLatestState() {
-        SimulationSnapshot snapshot = circuit().latestSnapshot();
-        Optional<ActiveMachineState> latest = openDocument.contextPath()
-                .flatMap(path -> stateSource.activeState(snapshot, path));
+        Optional<ActiveMachineState> latest = source.activeState();
         if (!latest.equals(activeState)) {
             activeState = latest;
             repaint();
@@ -655,6 +709,8 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         ToolTipManager.sharedInstance().unregisterComponent(this);
         openDocument.removeChangeListener(placeListener);
         stopRepaintingOnSelection.run();
+        stopFollowingSource.run();
+        stopFollowingSource = () -> { };
     }
 
     @Override
@@ -835,6 +891,45 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private void frame() {
         showLatestState();
         frameListeners.fire(Runnable::run);
+    }
+
+    /**
+     * The standard source: the machine as it is in the circuit, each edit one {@link EditMachineCommand} executed
+     * through the tab's place, and the copy's state in the circuit's latest snapshot.
+     */
+    private final class CircuitSource implements MachineSource {
+
+        @Override
+        public Optional<StateMachine> machine() {
+            return circuit().document().definition(definitionId).flatMap(ComponentDefinition::machine);
+        }
+
+        @Override
+        public boolean edit(UnaryOperator<StateMachine> change) {
+            Optional<StateMachine> current = machine();
+            if (current.isEmpty()) {
+                return false;
+            }
+            StateMachine changed = change.apply(current.get());
+            if (changed.equals(current.get())) {
+                return false;
+            }
+            openDocument.execute(new EditMachineCommand(definitionId, changed));
+            return true;
+        }
+
+        @Override
+        public Optional<ActiveMachineState> activeState() {
+            SimulationSnapshot snapshot = circuit().latestSnapshot();
+            return openDocument.contextPath().flatMap(path -> stateSource.activeState(snapshot, path));
+        }
+
+        /** Its changes are the place's, which the canvas follows already (it never subscribes here). */
+        @Override
+        public Runnable addChangeListener(Runnable listener) {
+            openDocument.addChangeListener(listener);
+            return () -> openDocument.removeChangeListener(listener);
+        }
     }
 
     /**

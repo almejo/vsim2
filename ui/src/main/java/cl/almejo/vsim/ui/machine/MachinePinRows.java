@@ -144,12 +144,15 @@ final class MachinePinRows extends JPanel {
      * had to keep their old shape (a pin would have touched another net there).
      */
     private void edit(UnaryOperator<StateMachine> change) {
+        OpenDocument place = canvas.place();
+        OpenDocument circuit = place.parent().orElse(place);
+        Optional<Command> before = circuit.history().undoCommand();
         if (!canvas.edit(change)) {
             return;
         }
-        OpenDocument place = canvas.place();
-        OpenDocument circuit = place.parent().orElse(place);
-        Optional<Command> command = circuit.history().undoCommand();
+        // the circuit's newest step, when this edit made one (not when the canvas edits a test's draft)
+        Optional<Command> command = circuit.history().undoCommand()
+                .filter(done -> before.map(earlier -> earlier != done).orElse(true));
         List<String> lines = new ArrayList<>();
         looseWiresNotice(command.map(MachinePinRows::removedPinWires).orElse(List.of())).ifPresent(lines::add);
         command.ifPresent(done -> lines.addAll(keptShapeNotes(done, circuit.document())));

@@ -141,4 +141,107 @@ class BottomDockTest {
         assertThat(content.getHeight()).isEqualTo(150);
         assertThat(dock.dockHeight()).isEqualTo(150);
     }
+
+    @Test
+    void anotherComponentShowsInsteadOfTheContentUntilItIsRemoved() {
+        JLabel table = new JLabel("table");
+        dock.setContent(content);
+        dock.setSize(800, 600);
+        dock.showDock();
+        layout(dock);
+
+        Runnable remove = dock.contentInstead(table);
+        layout(dock);
+
+        assertThat(dock.content()).containsSame(table);
+        assertThat(table.getParent()).isNotNull();
+        assertThat(content.getParent()).as("set aside").isNull();
+        assertThat(table.getHeight()).isEqualTo(BottomDock.DEFAULT_HEIGHT);
+        assertThat(dock.isDockShowing()).isTrue();
+
+        remove.run();
+        layout(dock);
+
+        assertThat(dock.content()).containsSame(content);
+        assertThat(table.getParent()).isNull();
+        assertThat(content.getHeight()).isEqualTo(BottomDock.DEFAULT_HEIGHT);
+    }
+
+    @Test
+    void newContentSetMeanwhileShowsOnceTheOtherComponentIsRemoved() {
+        JLabel table = new JLabel("table");
+        JLabel other = new JLabel("other");
+        dock.setContent(content);
+        Runnable remove = dock.contentInstead(table);
+
+        dock.setContent(other);
+        assertThat(dock.content()).containsSame(table);
+
+        remove.run();
+        assertThat(dock.content()).containsSame(other);
+    }
+
+    @Test
+    void anOlderRemovalLeavesTheNewerComponentShown() {
+        JLabel first = new JLabel("first");
+        JLabel second = new JLabel("second");
+        dock.setContent(content);
+        Runnable removeFirst = dock.contentInstead(first);
+        Runnable removeSecond = dock.contentInstead(second);
+
+        removeFirst.run();
+        assertThat(dock.content()).containsSame(second);
+        removeSecond.run();
+        removeSecond.run();
+        assertThat(dock.content()).containsSame(content);
+    }
+
+    @Test
+    void lendingWhileAnotherComponentShowsLendsItAndGivesItBack() {
+        JLabel table = new JLabel("table");
+        dock.setContent(content);
+        dock.setSize(800, 600);
+        dock.showDock();
+        layout(dock);
+        Runnable remove = dock.contentInstead(table);
+
+        assertThat(dock.lendContent()).containsSame(table);
+        JPanel elsewhere = new JPanel();
+        elsewhere.add(table);
+        dock.returnContent();
+        layout(dock);
+
+        assertThat(table.getParent()).isNotSameAs(elsewhere).isNotNull();
+        remove.run();
+        assertThat(dock.content()).containsSame(content);
+    }
+
+    @Test
+    void swappingWhileLentTellsTheBorrowerSoItReturnsAndLendsTheShownOne() {
+        JLabel table = new JLabel("table");
+        dock.setContent(content);
+        dock.setSize(800, 600);
+        dock.showDock();
+        layout(dock);
+        JPanel elsewhere = new JPanel();
+        List<String> calls = new ArrayList<>();
+        dock.addContentListener(() -> calls.add("swapped"));
+        elsewhere.add(dock.lendContent().orElseThrow());
+
+        Runnable remove = dock.contentInstead(table);
+
+        assertThat(calls).containsExactly("swapped");
+        assertThat(dock.content()).as("what the dock shows now").containsSame(table);
+        dock.returnContent();
+        assertThat(content.getParent()).as("the old one leaves the borrower").isNull();
+        assertThat(dock.lendContent()).containsSame(table);
+        elsewhere.add(table);
+
+        remove.run();
+
+        assertThat(calls).containsExactly("swapped", "swapped");
+        dock.returnContent();
+        assertThat(table.getParent()).isNull();
+        assertThat(dock.lendContent()).containsSame(content);
+    }
 }

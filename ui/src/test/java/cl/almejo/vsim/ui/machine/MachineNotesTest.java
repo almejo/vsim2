@@ -91,6 +91,12 @@ class MachineNotesTest {
         mode = MachineMode.of(view).orElseThrow();
         canvas = mode.canvas();
         canvas.setBounds(0, 0, 900, 600);
+        throughSource(canvas);
+    }
+
+    /** What a subclass does to the diagram's canvas before each test (runs the gestures through a machine source). */
+    void throughSource(MachineCanvas shownCanvas) {
+        // the canvas's own source
     }
 
     @AfterEach

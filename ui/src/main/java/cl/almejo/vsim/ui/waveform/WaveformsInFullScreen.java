@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.fullscreen.FullScreenFeatures;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
 
+import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
@@ -40,6 +41,7 @@ final class WaveformsInFullScreen {
     private final Runnable dockListener = this::dockChanged;
     private final Runnable preferenceListener = this::update;
     private final Runnable stopFollowingTheLayout;
+    private final Runnable stopFollowingTheContent;
     /** The window's bars while this view is laid out for the mode; empty otherwise. */
     private Optional<EdgeBars> edgeBars = Optional.empty();
     /** The dock's height and state when this view was laid out for the mode, put back on leaving. */
@@ -70,6 +72,7 @@ final class WaveformsInFullScreen {
         dock.addDockListener(dockListener);
         preferences.addListener(preferenceListener);
         this.stopFollowingTheLayout = view.addFullScreenLayoutListener(this::layoutChanged);
+        this.stopFollowingTheContent = dock.addContentListener(this::contentChanged);
         layoutChanged();
     }
 
@@ -104,6 +107,7 @@ final class WaveformsInFullScreen {
     }
 
     void dispose() {
+        stopFollowingTheContent.run();
         stopFollowingTheLayout.run();
         preferences.removeListener(preferenceListener);
         dock.removeDockListener(dockListener);
@@ -210,14 +214,30 @@ final class WaveformsInFullScreen {
         }
     }
 
+    /**
+     * The dock shows another component (a machine's test table instead of its strip, or the strip again): behind the
+     * edge, the new one takes the old one's place.
+     */
+    private void contentChanged() {
+        if (unregister != null) {
+            moveToTheDock();
+            update();
+        }
+    }
+
     private void moveToTheEdge() {
         Optional<JLayeredPane> stage = view.fullScreenStage();
-        if (stage.isEmpty() || edgeBars.isEmpty() || dock.lendContent().isEmpty()) {
+        if (stage.isEmpty() || edgeBars.isEmpty()) {
+            return;
+        }
+        Optional<JComponent> lent = dock.lendContent();
+        if (lent.isEmpty()) {
             return;
         }
         heightOnTheEdge = dock.dockHeight();
         edgeBar.updateUI(); // outside the tree while docked: a theme change since then never reached it
-        edgeBar.add(panel, BorderLayout.CENTER);
+        // what the dock shows: the panel, or what shows instead of it (BottomDock.contentInstead)
+        edgeBar.add(lent.get(), BorderLayout.CENTER);
         stage.get().add(edgeBar, JLayeredPane.PALETTE_LAYER);
         unregister = edgeBars.get().register(EdgeBars.Edge.BOTTOM, edgeBar, () -> false);
         stage.get().revalidate();
