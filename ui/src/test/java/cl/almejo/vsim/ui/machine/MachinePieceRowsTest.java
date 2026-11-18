@@ -5,7 +5,10 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineTest;
+import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -116,6 +119,7 @@ class MachinePieceRowsTest {
                 "Estados", "3 · inicial S0",
                 "Tipo", "Moore",
                 "Flanco", "Bajada (como los flip-flops)",
+                "Pruebas", "ninguna",
                 "Entrar ↘ para cambiarlas",
                 "Editar descripción…");
     }
@@ -141,6 +145,18 @@ class MachinePieceRowsTest {
                 .withEdge(StateMachine.EDGE_RISING)));
 
         assertThat(texts()).contains("4 · inicial S0", "Subida");
+    }
+
+    @Test
+    void theTestsRowSaysHowTheyDoAndFollowsAnEditMadeInsideTheMachine() {
+        selectCopy(0);
+        MachineTest failing = MachineTests.withExpected(MachineTests.withInput(
+                MachineTest.empty("p1", "Prueba 1", 1), 0, "x", true), 0, "Z", LogicValue.ONE);
+
+        document.execute(new EditMachineCommand(MachineFixtures.DEFINITION_ID,
+                MachineFixtures.detector().withTests(List.of(failing, failing.withId("p2")))));
+
+        assertThat(texts()).contains("Pruebas", "2, 2 con ✗");
     }
 
     @Test

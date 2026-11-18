@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * The machine mode of an editor view (spec 2026-11-14 §2.4): the tab of a «Máquina de estados» is an ordinary component
@@ -88,6 +89,9 @@ public final class MachineMode {
         MachineMode mode = new MachineMode(view, canvas, frame, palette, editing,
                 () -> Animations.enabled(view.services().preferences()));
         palette.testButton().addActionListener(event -> mode.startTest());
+        // the «Probar…» of Propiedades is the same entry, not a second path
+        Consumer<Boolean> followTesting = editing.rows().enterTestWith(mode::startTest);
+        mode.addTestModeListener(() -> followTesting.accept(mode.isTesting()));
         view.putClientProperty(MachineMode.class, mode);
         return () -> {
             // the tab goes (or leaves machine mode): a test's draft goes with it, unwritten

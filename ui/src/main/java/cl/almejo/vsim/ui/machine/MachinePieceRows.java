@@ -57,6 +57,7 @@ final class MachinePieceRows implements PropertiesPanel.ComponentRows {
         rows.add(Messages.text("machine.properties.states"), new JLabel(statesText(machine.get())));
         rows.add(Messages.text("machine.properties.kind"), new JLabel(MachineInspectorRows.kindOf(machine.get())));
         rows.add(Messages.text("parameter.edge"), new JLabel(edgeText(machine.get())));
+        rows.add(Messages.text("machine.tests.row"), new JLabel(MachineTestsText.of(machine.get())));
         rows.addWide(new JButton(Actions.of(Messages.text("machine.piece.enter"), () -> enter.accept(component))));
     }
 

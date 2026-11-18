@@ -86,6 +86,10 @@ final class MachineInspectorRows extends JPanel {
     private transient Optional<JTextField> mealyOutputsField = Optional.empty();
     private transient Optional<JLabel> kindLabel = Optional.empty();
     private transient Optional<JLabel> statesLabel = Optional.empty();
+    private transient Optional<JLabel> testsLabel = Optional.empty();
+    private transient Optional<JButton> testButton = Optional.empty();
+    private transient Runnable startTest = () -> { };
+    private boolean testing;
     private transient Optional<MachinePinRows> pinRows = Optional.empty();
     /** The status line: a pin edit says there whose wires came loose. */
     private final transient Consumer<String> notices;
@@ -332,6 +336,8 @@ final class MachineInspectorRows extends JPanel {
         mealyOutputsField = Optional.empty();
         kindLabel = Optional.empty();
         statesLabel = Optional.empty();
+        testsLabel = Optional.empty();
+        testButton = Optional.empty();
         pinRows = Optional.empty();
         noteColor = Optional.empty();
         editNoteText = Optional.empty();
@@ -482,7 +488,39 @@ final class MachineInspectorRows extends JPanel {
         addRow(Messages.text("machine.properties.kind"), kind);
         kindLabel = Optional.of(kind);
         refreshers.add(() -> canvas.machine().ifPresent(machineNow -> kind.setText(kindOf(machineNow))));
+        JLabel tests = new JLabel(MachineTestsText.of(machine));
+        addRow(Messages.text("machine.tests.row"), tests);
+        testsLabel = Optional.of(tests);
+        refreshers.add(() -> canvas.machine().ifPresent(machineNow -> tests.setText(MachineTestsText.of(machineNow))));
+        JButton test = new JButton(Messages.text("machine.tests.start"));
+        test.setToolTipText(Messages.text("machine.palette.testHint"));
+        test.addActionListener(event -> startTest.run());
+        test.setEnabled(!testing);
+        add(test, "span 2, left");
+        testButton = Optional.of(test);
         add(hint(Messages.text("machine.properties.howToDraw")), WIDE);
+    }
+
+    /** «1, 1 con ✗» in the machine's own rows; empty when another element is selected. */
+    Optional<String> testsText() {
+        return testsLabel.map(JLabel::getText);
+    }
+
+    /** «Probar…» in the machine's own rows; empty when another element is selected. */
+    Optional<JButton> testButton() {
+        return testButton;
+    }
+
+    /**
+     * Wires «Probar…» of the machine's rows: {@code start} is the tab's test entry ({@code MachineMode.startTest}).
+     * Returns the call to say the mode started (the button is disabled) or ended (enabled again).
+     */
+    Consumer<Boolean> enterTestWith(Runnable start) {
+        startTest = Objects.requireNonNull(start, "start");
+        return nowTesting -> {
+            testing = nowTesting;
+            testButton.ifPresent(button -> button.setEnabled(!nowTesting));
+        };
     }
 
     /** Where the machine assigns outputs: in its states (Moore), on its arrows (Mealy) or both; Moore when nowhere. */
