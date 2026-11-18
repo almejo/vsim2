@@ -94,6 +94,28 @@ class MachineTestTableLooksTest {
         assertThat(near(cells, model.cell(expected, 1), scheme.wireConflict())).as("never a red x").isFalse();
     }
 
+    /**
+     * Review finding 7: the ✓ is the scheme's own green ({@link ColorScheme#testPass()}), also on a scheme whose board
+     * and diagram differ in lightness, where a second rule of its own would pick the other green.
+     */
+    @Test
+    void theCheckIsTheSchemesGreenOnAMixedSchemeToo() {
+        ColorScheme mixed = ColorSchemes.LIGHT.with(cl.almejo.vsim.ui.paint.ColorRole.DIAGRAM_BACKGROUND,
+                new Color(0x202020));
+        MachineTestTable table = new MachineTestTable(new FakeTestSession(detectorWithATest()), () -> mixed);
+        table.setSize(WIDTH, HEIGHT);
+        layOut(table);
+
+        BufferedImage cells = paintGrid(table.grid());
+        MachineTestTableModel model = table.grid().model();
+        int verdict = model.rows().size() - 1;
+
+        assertThat(near(cells, model.cell(verdict, 3), mixed.testPass())).as("a ✓ in the scheme's green").isTrue();
+        assertThat(near(cells, model.cell(verdict, 3), ColorSchemes.DARK.testPass()))
+                .as("not the other scheme's green").isFalse();
+        assertThat(near(cells, model.cell(verdict, 5), mixed.testFail())).as("a ✗ in the scheme's red").isTrue();
+    }
+
     private static BufferedImage paintGrid(MachineTestTableGrid grid) {
         grid.setSize(grid.getPreferredSize());
         BufferedImage image = new BufferedImage(grid.getWidth(), grid.getHeight(), BufferedImage.TYPE_INT_RGB);

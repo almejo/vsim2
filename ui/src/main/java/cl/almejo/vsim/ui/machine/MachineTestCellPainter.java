@@ -7,7 +7,6 @@ import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.waveform.WaveformPainter;
 
 import java.awt.BasicStroke;
@@ -30,9 +29,6 @@ import java.util.function.LongFunction;
  */
 final class MachineTestCellPainter {
 
-    /** The ✓ green the user chose (2026-11-18): deep on a light surface, light on a dark one. */
-    private static final Color PASS_ON_LIGHT = new Color(0x2E7D32);
-    private static final Color PASS_ON_DARK = new Color(0x66BB6A);
     /** 18 % of 255: the cells' tint. */
     static final int TINT_ALPHA = 46;
     private static final int CHOSEN_COLUMN_ALPHA = 55;
@@ -57,14 +53,14 @@ final class MachineTestCellPainter {
     private MachineTestCellPainter() {
     }
 
-    /** The ✓ colour on the table's surface (the scheme's wave background). */
+    /** The ✓ colour: the scheme's own green (the one the user chose, review finding 7: never a second copy here). */
     static Color pass(ColorScheme scheme) {
-        return ReadableColors.perceivedBrightness(scheme.diagramBackground()) < 0.5 ? PASS_ON_DARK : PASS_ON_LIGHT;
+        return scheme.testPass();
     }
 
     /** The ✗ colour: the scheme's error red, as a conflict is drawn. */
     static Color fail(ColorScheme scheme) {
-        return scheme.wireConflict();
+        return scheme.testFail();
     }
 
     /** «no importa» and the dimmed ghost column: the scheme's grey. */
