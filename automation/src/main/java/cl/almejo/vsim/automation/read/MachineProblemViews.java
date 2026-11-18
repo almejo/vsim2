@@ -57,7 +57,7 @@ final class MachineProblemViews {
             case STAYS_FOR_SOME_INPUT -> "state " + states + " says nothing for " + values(finding.witness())
                     + ", so it stays there";
             case OUTPUT_NEVER_ASSIGNED -> "no state or arrow gives the output " + names + " a value: it is always 0";
-            case UNUSED_INPUT -> "the input " + names + " is not used in any condition";
+            case UNUSED_INPUT -> "the input " + names + " appears on no arrow";
             case MOORE_MEALY_CLASH -> arrows + " gives " + names + " another value than state " + states
                     + ": the arrow wins";
             case INPUT_UNDEFINED_AT_EDGE -> names + " was Z or in conflict at the last clock edge and read as 0";

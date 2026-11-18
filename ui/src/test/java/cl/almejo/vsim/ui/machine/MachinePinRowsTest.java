@@ -213,7 +213,7 @@ class MachinePinRowsTest {
 
         assertThat(machine().inputNames()).containsExactly("x", "b");
         inputs = pins(view).table(Side.INPUT);
-        assertThat(inputs.usesText("b")).isEqualTo("sin usar");
+        assertThat(inputs.usesText("b")).isEqualTo("en ninguna flecha");
         assertThat(inputs.usesText("x")).isEqualTo("en 4 flechas");
         assertThat(inputs.removeButton("b")).isPresent();
         assertThat(inputs.removeButton("x")).as("a used pin cannot be removed").isEmpty();

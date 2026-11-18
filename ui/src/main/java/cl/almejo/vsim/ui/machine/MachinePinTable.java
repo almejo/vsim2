@@ -386,7 +386,7 @@ final class MachinePinTable extends JPanel {
             add(remove);
         } else {
             String where = usesText(uses);
-            JButton link = new LinkButton(where);
+            JButton link = new MachineLinkButton(where);
             link.setToolTipText(Messages.format("machine.pins.uses.tooltip", pin.name(), where));
             link.addActionListener(event -> host.reveal(uses));
             usesLinks.put(pin.name(), link);
@@ -662,24 +662,6 @@ final class MachinePinTable extends JPanel {
         @Override
         public Color getForeground() {
             return scheme == null ? super.getForeground() : MachineColors.warning(scheme.get());
-        }
-    }
-
-    /** «en 4 flechas»: a borderless button in the theme's link colour (read at paint time). */
-    private static final class LinkButton extends JButton {
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        private LinkButton(String text) {
-            super(text);
-            putClientProperty("JButton.buttonType", "borderless");
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        }
-
-        @Override
-        public Color getForeground() {
-            Color colour = UIManager.getColor("Component.linkColor");
-            return colour != null ? colour : super.getForeground();
         }
     }
 }

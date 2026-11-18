@@ -347,15 +347,15 @@ class MachineProblemsOnDiagramTest {
         assertThat(mode.selection().stateIds()).containsExactly("d");
     }
 
-    /** Hand test of hito 2: «Ver» did not look like something to press (a borderless button reads as plain text). */
+    /** Hand test U: «Ver» is the same blue link as the «en N flechas» of the pin list, not a framed button. */
     @Test
-    void eachProblemsVerLooksLikeAButton() {
+    void eachProblemsVerIsTheSameLinkAsThePinListsUses() {
         mode.selection().clear();
 
         assertThat(mode.inspectorRows().problemLinks()).isNotEmpty().allSatisfy(link -> {
-            assertThat(link.getClientProperty("JButton.buttonType")).isNotEqualTo("borderless");
-            assertThat(link.isBorderPainted()).isTrue();
-            assertThat(link.isContentAreaFilled()).isTrue();
+            assertThat(link).isInstanceOf(MachineLinkButton.class);
+            assertThat(link.getClientProperty("JButton.buttonType")).isEqualTo("borderless");
+            assertThat(link.isFocusable()).isTrue();
             assertThat(link.getCursor().getType()).isEqualTo(java.awt.Cursor.HAND_CURSOR);
         });
     }
