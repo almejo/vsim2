@@ -66,7 +66,9 @@ public final class MachineProblemNavigation {
                 .or(() -> MachineCopies.firstPathOf(circuit.document(), problem.definitionId()));
         Optional<EditorView> shown = from.windowCommands().showPlace(circuit, Optional.of(problem.definitionId()),
                 copy);
-        shown.flatMap(MachineMode::of).ifPresent(mode -> mode.reveal(problem));
+        // when the tab shown kept the front («Seguir probando»), nothing is revealed in the hidden one, and nothing
+        // else is tried either (it would ask again)
+        shown.filter(from.windowCommands()::isShown).flatMap(MachineMode::of).ifPresent(mode -> mode.reveal(problem));
         return shown.isPresent();
     }
 

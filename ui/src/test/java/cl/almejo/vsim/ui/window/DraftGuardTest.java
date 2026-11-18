@@ -1,6 +1,9 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -117,6 +120,24 @@ class DraftGuardTest {
 
         assertThat(guard.asked).containsExactly(DraftGuard.Reason.SWITCH);
         assertThat(tabs.activeView()).isSameAs(main);
+    }
+
+    /**
+     * Review of hito 4, finding 10: «Ver la pieza» from a tab whose draft kept the front («Seguir probando») does not
+     * select the part in the hidden tab.
+     */
+    @Test
+    void goingToAPartWhenTheTabKeptTheFrontSelectsNothingThere() {
+        TextLabel label = new TextLabel(circuit.document().newLabelId(), GridPoint.ORIGIN, "x");
+        circuit.execute(new AddElementsCommand(List.of(label)));
+        guard.answer = DraftGuard.Answer.CANCEL;
+
+        tabs.goToPart(circuit, Optional.empty(), Optional.empty(), label.id());
+
+        assertThat(tabs.activeView()).isSameAs(inside);
+        assertThat(main.selection().contains(label.id())).isFalse();
+        assertThat(tabs.isShown(main)).isFalse();
+        assertThat(tabs.isShown(inside)).isTrue();
     }
 
     @Test

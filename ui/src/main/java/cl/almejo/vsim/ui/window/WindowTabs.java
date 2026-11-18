@@ -538,12 +538,15 @@ public final class WindowTabs extends JPanel {
     /**
      * Shows part {@code part} of {@code document} where it is: the place {@link #showPlace} brings to the front, with the
      * part selected and brought into view. F8 and the Problemas list (spec §6.7), «Ver la pieza» of the place bar and of
-     * the circuit tree (spec §5) all come here. Returns the tab's view.
+     * the circuit tree (spec §5) all come here. Returns the tab's view. Nothing is selected when the tab shown before
+     * kept the front (a draft's «Seguir probando»): the part would be selected in a hidden tab.
      */
     public EditorView goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
                                ElementId part) {
         EditorView view = showPlace(document, definitionId, contextPath);
-        SeePiece.selectAndTravel(view, part);
+        if (isShown(view)) {
+            SeePiece.selectAndTravel(view, part);
+        }
         return view;
     }
 
@@ -700,6 +703,16 @@ public final class WindowTabs extends JPanel {
 
     public void activate(EditorView view) {
         entryOf(view).ifPresent(entry -> model.activate(entry.id));
+    }
+
+    /**
+     * Whether {@code view}'s tab is the one shown now: after an {@link #activate}, a {@link #showPlace} or an
+     * {@link #enter}, false when the tab shown before kept the front (a draft's «Seguir probando», hito 4 of the
+     * machines), so the caller does not act on a hidden tab.
+     */
+    public boolean isShown(EditorView view) {
+        return activeEntry().filter(entry -> entry.view == view).isPresent()
+                && Objects.equals(shownId, entryOf(view).map(entry -> entry.id).orElse(null));
     }
 
     public void nextTab() {
