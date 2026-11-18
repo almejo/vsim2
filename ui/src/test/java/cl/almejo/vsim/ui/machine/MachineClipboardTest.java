@@ -300,6 +300,60 @@ class MachineClipboardTest {
                 .isEqualTo(Messages.format("machine.limit.tooManyOutputs", 16));
     }
 
+    /** A circuit's note, blue and folded, at (10, 10) of 8 x 6 units. */
+    private cl.almejo.vsim.core.document.StickyNote circuitNote() {
+        cl.almejo.vsim.core.document.StickyNote note = new cl.almejo.vsim.core.document.StickyNote(
+                document.document().newStickyNoteId(), new cl.almejo.vsim.core.geometry.GridPoint(10, 10), 8, 6,
+                StickyColor.BLUE, new cl.almejo.vsim.core.document.StickyText("hola"), true);
+        document.execute(new cl.almejo.vsim.core.command.AddElementsCommand(List.of(note)));
+        return note;
+    }
+
+    /** Hand test U: the notes of a copied selection of a circuit are pasted in a machine, the rest is left out. */
+    @Test
+    void aCircuitsNotesArePastedIntoAMachineAndTheRestIsSaidToBeLeftOut() {
+        EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
+        cl.almejo.vsim.core.document.StickyNote note = circuitNote();
+        circuit.canvas().selection().set(Set.of(new ElementId(MachineFixtures.copies(document).get(0)), note.id()));
+        perform(circuit.selectionActions().copy());
+
+        perform(view.selectionActions().paste());
+
+        assertThat(machine().states()).hasSize(3);
+        assertThat(machine().notes()).hasSize(1);
+        MachineNote pasted = machine().notes().getFirst();
+        assertThat(pasted.text()).isEqualTo("hola");
+        assertThat(pasted.color()).isEqualTo(StickyColor.BLUE);
+        assertThat(pasted.folded()).isTrue();
+        assertThat(pasted.width()).isEqualTo(64);
+        assertThat(mode.selection().noteIds()).containsExactly(pasted.id());
+        assertThat(view.statusBar().text()).contains(Messages.text("machine.paste.onlyNotes"));
+        perform(view.actions().undo());
+        assertThat(machine().notes()).isEmpty();
+    }
+
+    /** Hand test U: the notes of a machine's selection float in a circuit as its own notes do; the rest is left out. */
+    @Test
+    void aMachinesNotesFloatInACircuitAndTheStatesAreSaidToBeLeftOut() {
+        stickNote("Detecta dos 1");
+        mode.selection().set(Set.of("s1", "s2"), Set.of(), Set.of("n1"));
+        perform(view.selectionActions().copy());
+        EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
+
+        perform(circuit.selectionActions().paste());
+
+        assertThat(circuit.canvas().tool()).isInstanceOf(cl.almejo.vsim.ui.tools.FloatingSelectionTool.class);
+        cl.almejo.vsim.core.io.CircuitFragment floating = ((cl.almejo.vsim.ui.tools.FloatingSelectionTool)
+                circuit.canvas().tool()).fragment();
+        assertThat(floating.stickyNotes()).hasSize(1);
+        cl.almejo.vsim.core.document.StickyNote note = floating.stickyNotes().getFirst();
+        assertThat(note.color()).isEqualTo(StickyColor.GREEN);
+        assertThat(note.content().searchableText()).isEqualTo("Detecta dos 1");
+        assertThat(note.width()).isEqualTo(20);
+        assertThat(floating.components()).isEmpty();
+        assertThat(circuit.statusBar().text()).contains(Messages.text("machine.paste.onlyNotesInCircuit"));
+    }
+
     @Test
     void aCircuitsPartsAreNotPastedIntoAMachine() {
         EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
@@ -309,7 +363,7 @@ class MachineClipboardTest {
         perform(view.selectionActions().paste());
 
         assertThat(machine().states()).hasSize(3);
-        assertThat(view.statusBar().text()).contains("estados y flechas");
+        assertThat(view.statusBar().text()).contains("estados, flechas y notas");
     }
 
     @Test

@@ -376,9 +376,7 @@ final class MachineInspectorRows extends JPanel {
         String line = Messages.format(finding.isWarning() ? "machine.properties.problem.warning"
                 : "machine.properties.problem.error", sentence);
         JTextArea text = finding.isWarning() ? new Hint(line, false) : new WrappedErrorText(line);
-        JButton show = new JButton(Messages.text("machine.properties.problem.show"));
-        // a plain button with its frame, not a borderless one (hand test of hito 2: it read as plain text)
-        show.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        JButton show = new MachineLinkButton(Messages.text("machine.properties.problem.show"));
         show.setToolTipText(Messages.text("machine.properties.problem.showTooltip"));
         show.getAccessibleContext().setAccessibleDescription(sentence);
         show.addActionListener(event -> reveal.accept(finding));

@@ -255,6 +255,12 @@ final class MachineEdits {
                 machine.edge(), List.of()).withNotes(notes));
     }
 
+    /** A piece holding only {@code notes} (copied from a circuit), to paste as any piece. */
+    static StateMachine notesPiece(StateMachine machine, List<MachineNote> notes) {
+        return new StateMachine(List.of(), List.of(), Optional.empty(), List.of(), List.of(), false, false,
+                machine.edge(), List.of()).withNotes(notes);
+    }
+
     /**
      * Why {@code changed} cannot replace {@code machine}: it needs more input or output names than a machine has pins
      * for ({@link MachineLimits}), and more than {@code machine} already needed (a machine already past the limit, as

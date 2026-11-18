@@ -24,6 +24,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Máquinas de estado: un pin que ninguna flecha ni estado usa dice ahora «en ninguna flecha» (antes «sin usar», que se leía como «sin conectar») y el aviso de Problemas dice «La entrada y no aparece en ninguna flecha». El «Ver» de cada problema en Propiedades es ahora un enlace azul, el mismo que «en N flechas». Un clic en una fila de Problemas del circuito resalta en la máquina solo el problema de esa fila. Ver [Pines y bus](docs/funciones/componentes.md#pines-y-bus) y [Los problemas en el diagrama](docs/funciones/componentes.md#los-problemas-en-el-diagrama).
+- Máquinas de estado: las notas se copian entre un circuito y el diagrama de una máquina (el resto de lo copiado queda fuera y la barra de estado lo dice), cada pegado en un paso de deshacer. Ver [Colores y notas](docs/funciones/componentes.md#colores-y-notas).
 - Nombres de las copias: las piezas sin etiqueta de un mismo componente propio o de una misma máquina de estados se llaman ahora «Semáforo · copia 1», «Semáforo · copia 2» (en inglés «copy») en el árbol del circuito, la barra de lugar («Valores de»), la onda de la máquina y Problemas, en vez de «Semáforo 1», «Semáforo 2», que se leían como máquinas distintas (y «Duplicar como otra máquina» crea de verdad una «Semáforo 2»). Las piezas de VSim siguen numeradas como antes («Multiplexor 2»), y una pieza con etiqueta se llama por su etiqueta. Ver [Árbol del circuito](docs/funciones/pestanas-y-componentes.md#árbol-del-circuito).
 - Máquinas de estado: los avisos del diagrama se pintan en un dorado más fácil de distinguir del naranja del estado activo.
 - Máquinas de estado: al dibujar una flecha y volver con el puntero sobre el estado de donde sale, se ve la flecha a sí mismo que se creará al soltar, donde quedará, en vez de una línea recta. Ver [Dibujar el diagrama](docs/funciones/componentes.md#dibujar-el-diagrama).
@@ -36,6 +38,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Máquinas de estado: abrir un archivo con máquinas, incluso uno que VSim mismo guardó, ya no deja en el registro el aviso «el cuerpo escrito de la máquina no coincide»: lo escrito solo le faltaba los valores por omisión de los parámetros, y eso se tomaba por una diferencia.
 - Formas de onda: un nombre de canal que no cabe junto a su valor («semaforo · estado») se cortaba sin aviso («semaforo · stat»); ahora termina en «…» y al pasar el ratón se ve entero. Ver [Formas de onda](docs/funciones/formas-de-onda.md).
 - Formas de onda: en la fila del estado de una máquina, un nombre que no cabía en su tramo («AMARILLO») no se escribía; ahora se acorta («AMA…») o queda en su primera letra, y la ayuda al pasar el puntero dice el nombre entero. Ver [La onda de la máquina](docs/funciones/componentes.md#la-onda-de-la-máquina).
 - Formas de onda: las filas de una pieza de máquina de estados sin etiqueta se llaman por la máquina («Semáforo · estado», «Semáforo.V», o «Semáforo · copia 2 · estado» si hay varias) y no por su identificador interno («c14 · estado»). Ver [La onda de la máquina](docs/funciones/componentes.md#la-onda-de-la-máquina).
