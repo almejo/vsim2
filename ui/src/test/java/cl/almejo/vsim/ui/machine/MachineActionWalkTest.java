@@ -58,7 +58,7 @@ class MachineActionWalkTest {
             "view.selectTool", "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit",
             "view.zoomField", "view.centerView", "view.stickyNoteTool", "view.nextProblem", "view.previousProblem",
             "view.presentationMode",
-            "view.aiPresent", "view.showUsedShortcuts", "tools.karnaughPractice", "tools.aiPanel",
+            "view.aiPresent", "view.showUsedShortcuts", "tools.karnaughPractice", "tools.testMachine", "tools.aiPanel",
             "help.findAction", "waveforms.toggle",
             "simulation.start", "simulation.pause", "simulation.startOrPause", "simulation.restart",
             "simulation.step", "simulation.stepMode", "simulation.stepSize",

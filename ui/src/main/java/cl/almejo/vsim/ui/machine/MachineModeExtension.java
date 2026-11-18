@@ -11,7 +11,8 @@ import java.util.Objects;
  * tab, a machine's row in Problemas goes to the machine ({@link MachineProblemNavigation}), and a machine's piece
  * shows its machine's name in Propiedades, to rename it ({@link MachineNameRows}), and a summary of its machine with
  * «Entrar ↘ para cambiarlas» ({@link MachinePieceRows}); «Duplicar como otra máquina» is offered in Editar, on a
- * machine's piece and in the palette ({@link MachineDuplicationActions}).
+ * machine's piece and in the palette ({@link MachineDuplicationActions}); a machine's test mode starts from Lógica ▸
+ * «Probar la máquina…» and from a machine's piece too ({@link MachineTestEntries}).
  */
 public final class MachineModeExtension implements EditorExtension {
 
@@ -30,7 +31,10 @@ public final class MachineModeExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         // before the machine mode: a machine's tab disables «Duplicar como otra máquina» with the circuit's actions
         Runnable removeDuplication = MachineDuplicationActions.install(view);
+        // before the machine mode too: a machine's tab keeps Lógica ▸ «Probar la máquina…»
+        MachineTestEntries testEntries = MachineTestEntries.install(view);
         Runnable leaveMachineMode = MachineMode.install(view, stateSource);
+        testEntries.followMachineMode();
         Runnable stopNavigating = MachineProblemNavigation.install(view);
         Runnable removeNameRows = view.labelFeatures().properties()
                 .addComponentRows(new MachineNameRows(view.openDocument(), MachineLibrary.of(view)));
@@ -41,6 +45,7 @@ public final class MachineModeExtension implements EditorExtension {
             removeNameRows.run();
             stopNavigating.run();
             leaveMachineMode.run();
+            testEntries.uninstall();
             removeDuplication.run();
         };
     }

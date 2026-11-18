@@ -50,7 +50,9 @@ public enum MenuSlot {
     TRUTH_TABLE(MenuId.LOGIC, 0, null),
     CIRCUIT_FROM_TRUTH_TABLE(MenuId.LOGIC, 1, null),
     CIRCUIT_FROM_EXPRESSIONS(MenuId.LOGIC, 1, null),
-    KARNAUGH_PRACTICE(MenuId.LOGIC, 2, null);
+    KARNAUGH_PRACTICE(MenuId.LOGIC, 2, null),
+    /** «Probar la máquina…» (a state machine's test mode). */
+    TEST_MACHINE(MenuId.LOGIC, 3, null);
 
     private final MenuId menu;
     private final MenuSlot parent;

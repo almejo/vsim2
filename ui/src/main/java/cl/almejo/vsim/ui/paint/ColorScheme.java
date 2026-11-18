@@ -108,6 +108,13 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     /** The warning gold on a light board and on a dark one (before {@link #standingOut}, which may deepen it). */
     private static final int LIGHT_WARNING = 0xB58200;
     private static final int DARK_WARNING = 0xFFC933;
+    /** A machine's test mode (violet) and a passing test (green), on a light board and on a dark one. */
+    private static final int LIGHT_TEST_MODE = 0x6A1B9A;
+    private static final int DARK_TEST_MODE = 0xCE93D8;
+    private static final int LIGHT_TEST_PASS = 0x2E7D32;
+    private static final int DARK_TEST_PASS = 0x66BB6A;
+    /** How much of the test mode's violet tints its bar. */
+    private static final double TEST_MODE_BAR_SHARE = 0.15;
 
     /**
      * The grid line of a scheme that has none of its own (a custom scheme stored before the grid of lines): the
@@ -385,6 +392,36 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
      * A state machine's active state and the arrow it takes next (derived, not a role): today the scheme's write
      * orange, so the diagrams look as they did, but named on its own so it can change without touching memories.
      */
+    /**
+     * A machine's test mode (hito 4): the border around its diagram and the bar's accent, violet so it is none of the
+     * active orange, the warning gold, the error red, the selection blue or a state's fill; deep on a light board,
+     * light on a dark one. Chosen with the user from the swatch sheets (2026-11-18).
+     */
+    public Color testMode() {
+        return new Color(isDark() ? DARK_TEST_MODE : LIGHT_TEST_MODE);
+    }
+
+    /** The test mode's bar: the board with a little of {@link #testMode()}'s violet, opaque. */
+    public Color testModeBar() {
+        Color accent = testMode();
+        return new Color(blend(background.getRed(), accent.getRed()), blend(background.getGreen(), accent.getGreen()),
+                blend(background.getBlue(), accent.getBlue()));
+    }
+
+    private static int blend(int base, int towards) {
+        return (int) Math.round(base + (towards - base) * TEST_MODE_BAR_SHARE);
+    }
+
+    /** A test's column that did what was expected (✓): green, deep on a light board, light on a dark one. */
+    public Color testPass() {
+        return new Color(isDark() ? DARK_TEST_PASS : LIGHT_TEST_PASS);
+    }
+
+    /** A test's column that did not (✗): the scheme's error red, the conflict's. */
+    public Color testFail() {
+        return wireConflict;
+    }
+
     public Color machineActive() {
         return memoryWrite;
     }

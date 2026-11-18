@@ -19,8 +19,9 @@ import java.awt.Font;
 
 /**
  * The left palette of a machine's tab (spec 2026-11-14 §1, the mockup's «Paleta»): the drawing tools, «Estado»,
- * «Transición» and «Nota» (a sticky note, hito 3), and under «Y después» the next steps «Convertir a circuito…» and
- * «Probar…», shown disabled with «Llega en un próximo hito» until they arrive. A tool is chosen here (one at a time, or
+ * «Transición» and «Nota» (a sticky note, hito 3), and under «Y después» the next steps «Convertir a circuito…»,
+ * shown disabled with «Llega en un próximo hito» until it arrives, and «Probar…» (the test mode, hito 4; disabled
+ * with «Ya estás probando» while it is on). A tool is chosen here (one at a time, or
  * none) and used once on the diagram ({@link MachineTool}): a click places a state or a note, a drag joins two
  * states.
  */
@@ -35,7 +36,8 @@ public final class MachinePalette extends JPanel {
             "machine.palette.transitionHint");
     private final JToggleButton noteButton = toolButton("machine.palette.note", "machine.palette.noteHint");
     private final JButton convertButton = laterButton("machine.palette.convert");
-    private final JButton testButton = laterButton("machine.palette.test");
+    private final JButton testButton = fullWidth(hinted(new JButton(Messages.text("machine.palette.test")),
+            "machine.palette.testHint"));
     private final JLabel nextHeader = new JLabel(Messages.text("machine.palette.next"));
     private final ButtonGroup tools = new ButtonGroup();
 
@@ -86,7 +88,7 @@ public final class MachinePalette extends JPanel {
         return convertButton;
     }
 
-    /** «Probar…» (hito 4). */
+    /** «Probar…»: starts the test mode (hito 4; {@link MachineMode#startTest()}). */
     public JButton testButton() {
         return testButton;
     }
@@ -111,6 +113,11 @@ public final class MachinePalette extends JPanel {
         JToggleButton button = new JToggleButton(Messages.text(nameKey));
         button.setToolTipText(Messages.text(hintKey));
         return fullWidth(button);
+    }
+
+    private static <T extends AbstractButton> T hinted(T button, String hintKey) {
+        button.setToolTipText(Messages.text(hintKey));
+        return button;
     }
 
     private static JButton laterButton(String nameKey) {

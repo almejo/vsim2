@@ -148,6 +148,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final CanvasArea canvasArea;
     /** What {@link #showInsteadOfCanvas} shows where the panes go; empty while they show. */
     private Optional<JComponent> canvasSubstitute = Optional.empty();
+    /** What gets the focus while {@link #canvasSubstitute} shows (the substitute itself, or a part of it). */
+    private Optional<java.awt.Component> substituteFocus = Optional.empty();
+    /** The drafts this view keeps outside its circuit, asked before it is saved, closed or left. */
+    private final DraftGuards draftGuards = new DraftGuards();
     private final BottomDock bottomDock;
     /** Canvas | right panel; the left column | this; both with the strip: rearranged by presentation mode. */
     private final JSplitPane inspectorSplit;
@@ -335,8 +339,8 @@ public final class EditorView extends JPanel implements CanvasHost {
      * or the content shown instead of the panes ({@link #showInsteadOfCanvas}).
      */
     public java.awt.Component focusTarget() {
-        if (canvasSubstitute.isPresent()) {
-            return canvasSubstitute.get();
+        if (substituteFocus.isPresent()) {
+            return substituteFocus.get();
         }
         return canvas();
     }
@@ -349,14 +353,24 @@ public final class EditorView extends JPanel implements CanvasHost {
      * above the canvas (the place bar, the find bar) stays. One content at a time.
      */
     public Runnable showInsteadOfCanvas(JComponent content, ContentZoom zoom) {
+        return showInsteadOfCanvas(content, zoom, content);
+    }
+
+    /**
+     * As {@link #showInsteadOfCanvas(JComponent, ContentZoom)}, the focus going to {@code focus} (a part of
+     * {@code content}: a machine's diagram inside the frame of its test mode) instead of {@code content} itself.
+     */
+    public Runnable showInsteadOfCanvas(JComponent content, ContentZoom zoom, java.awt.Component focus) {
         Objects.requireNonNull(content, "content");
         Objects.requireNonNull(zoom, "zoom");
+        Objects.requireNonNull(focus, "focus");
         if (canvasSubstitute.isPresent()) {
             throw new IllegalStateException("the view already shows another content instead of its panes");
         }
         canvasArea.remove(canvasPanes);
         canvasArea.add(content, BorderLayout.CENTER);
         canvasSubstitute = Optional.of(content);
+        substituteFocus = Optional.of(focus);
         canvasArea.layOutNow();
         Runnable stopZooming = actions.zoomContentInstead(zoom);
         Runnable stopFollowingTheZoom = zoom.addViewListener(() -> statusBar.showZoom(zoom.zoom()));
@@ -370,6 +384,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             canvasArea.remove(content);
             canvasArea.add(canvasPanes, BorderLayout.CENTER);
             canvasSubstitute = Optional.empty();
+            substituteFocus = Optional.empty();
             canvasArea.layOutNow();
             statusBar.showZoom(canvas().viewport().zoom());
         };
@@ -494,6 +509,9 @@ public final class EditorView extends JPanel implements CanvasHost {
     public ZoomControl zoomControl() { return zoomControl; }
     public InspectorPanel inspector() { return inspector; }
     public BottomDock bottomDock() { return bottomDock; }
+
+    /** The drafts this view keeps outside its circuit (a machine's test mode), settled before save, close or switch. */
+    public DraftGuards draftGuards() { return draftGuards; }
     public LabelFeatures labelFeatures() { return labelFeatures; }
 
     /** The editor that writes texts right over the canvas (labels, titles, the Constante value). */

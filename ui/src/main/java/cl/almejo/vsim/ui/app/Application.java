@@ -646,6 +646,7 @@ public final class Application {
         // a half-typed inline edit counts as a change, in whichever tab of the document it is open
         boolean confirmed = CloseSequence.confirm(windows.all().stream()
                         .flatMap(window -> window.inlineEditors().stream()).toList(),
+                windows.all().stream().flatMap(window -> window.drafts().stream()).toList(),
                 () -> windows.documents().stream()
                         .allMatch(document -> windows.windowsOf(document).get(0).confirmSave(document)));
         if (!confirmed) {

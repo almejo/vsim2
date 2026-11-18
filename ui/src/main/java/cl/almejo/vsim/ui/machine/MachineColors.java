@@ -94,4 +94,14 @@ public final class MachineColors {
     private static int channel(int base, int towards, double amount) {
         return (int) Math.round(base + (towards - base) * amount);
     }
+
+    /** The border around a diagram in test mode, and the bar's accent (hito 4). */
+    static Color testMode(ColorScheme scheme) {
+        return scheme.testMode();
+    }
+
+    /** The test mode's bar over the diagram. */
+    static Color testModeBar(ColorScheme scheme) {
+        return scheme.testModeBar();
+    }
 }

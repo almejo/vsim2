@@ -156,6 +156,9 @@ public final class WindowTabs extends JPanel {
         /** Stops keeping the window's tabs in step with this tab's right panel. */
         private Runnable inspectorListenerRemover = () -> {
         };
+        /** Stops retitling the tabs when this tab's drafts come and go (« · prueba»). */
+        private Runnable draftListenerRemover = () -> {
+        };
         /** An entered tab opens on the whole body («Ver todo»), travelling there from its initial view. */
         private boolean fitsBodyWhenShown;
         /** When it was last activated (a counter): re-entering focuses the most recent tab of a definition. */
@@ -202,6 +205,8 @@ public final class WindowTabs extends JPanel {
     private int nextTabNumber;
     private long activations;
     private String shownId;
+    /** While a tab's drafts are asked before a switch: the switch back they may ask for is not asked again. */
+    private boolean askingDrafts;
     private boolean windowOpened;
     private boolean disposed;
     /** The left-column panels folded in this window: every tab shows the same (spec §5.3), and the session keeps it. */
@@ -399,6 +404,7 @@ public final class WindowTabs extends JPanel {
         entry.foldListenerRemover = view.leftColumn().addFoldListener(() -> panelsFolded(view));
         view.inspector().restore(inspectorState);
         entry.inspectorListenerRemover = view.inspector().onStateChange(() -> inspectorChanged(view));
+        entry.draftListenerRemover = view.draftGuards().addListener(this::refreshTitles);
         entries.put(id, entry);
         cards.add(view, id);
         follow(document);
@@ -549,9 +555,14 @@ public final class WindowTabs extends JPanel {
             return; // another tab of the definition already closed them all
         }
         String name = gone.getFirst().definitionName;
+        // a draft kept in a tab goes with it (a machine's test mode): the notice says so
+        Optional<String> discarded = gone.stream().map(entry -> entry.view.draftGuards().discardNotice())
+                .flatMap(Optional::stream).findFirst();
         gone.forEach(this::removeTab);
+        String notice = Messages.format("inside.definitionGone", name)
+                + discarded.map(text -> Messages.format("inside.definitionGone.draft", text)).orElse("");
         entriesOf(document).stream().filter(TabEntry::isMain).findFirst().ifPresent(main ->
-                main.view.statusBar().showNotice(Messages.format("inside.definitionGone", name)));
+                main.view.statusBar().showNotice(notice));
     }
 
     private static String nameOf(OpenDocument document, String definitionId) {
@@ -640,6 +651,11 @@ public final class WindowTabs extends JPanel {
     }
 
     /** Every tab's inline editor: an open inline edit is finished before a close asks to save. */
+    /** Every tab's drafts, in tab order: settled before the window closes or VSim exits (hito 4 of the machines). */
+    public List<DraftGuards> drafts() {
+        return views().stream().map(EditorView::draftGuards).toList();
+    }
+
     public List<InlineTextEditor> inlineEditors() {
         return views().stream().map(EditorView::inlineEditor).toList();
     }
@@ -698,7 +714,15 @@ public final class WindowTabs extends JPanel {
     }
 
     private void modelChanged() {
+        if (askingDrafts) {
+            return; // what a draft does while it is asked (a title, an applied step) waits for the answer
+        }
         String activeId = model.active().map(TabStripModel.Tab::id).orElse(null);
+        if (!Objects.equals(activeId, shownId) && keepsTheShownTab()) {
+            model.activate(shownId); // «Seguir probando»: the strip goes back to the tab still shown
+            return;
+        }
+        activeId = model.active().map(TabStripModel.Tab::id).orElse(null);
         if (!Objects.equals(activeId, shownId)) {
             Optional<TabEntry> hidden = Optional.ofNullable(shownId).map(entries::get);
             shownId = activeId;
@@ -709,6 +733,27 @@ public final class WindowTabs extends JPanel {
             notice.ifPresent(text -> shown.ifPresent(entry -> entry.view.showNotice(text)));
         }
         host.activeTabChanged();
+    }
+
+    /**
+     * Whether the tab shown now, which is being left for another one while it stays open, keeps the front because its
+     * drafts said so (a machine's test mode with a changed diagram: «Seguir probando»). The strip's model has
+     * already moved on: the caller moves it back. Asked once per switch; never while it is being asked.
+     */
+    private boolean keepsTheShownTab() {
+        if (shownId == null || model.tab(shownId).isEmpty()) {
+            return false;
+        }
+        TabEntry leaving = entries.get(shownId);
+        if (leaving == null || leaving.view.draftGuards().isEmpty()) {
+            return false;
+        }
+        askingDrafts = true;
+        try {
+            return leaving.view.draftGuards().settle(DraftGuard.Reason.SWITCH) == DraftGuard.Answer.CANCEL;
+        } finally {
+            askingDrafts = false;
+        }
     }
 
     /** Shows {@code entry}'s card, hangs its toolbar and menu bar, and gives its canvas the focus. */
@@ -967,8 +1012,9 @@ public final class WindowTabs extends JPanel {
                     if (document.document().definition(definitionId).isPresent()) {
                         entries.get(tab.id()).definitionName = name;
                     }
+                    String note = entries.get(tab.id()).view.draftGuards().titleNote().orElse("");
                     model.update(new TabStripModel.Tab(tab.id(), document, tab.definitionId(),
-                            DocumentWindows.viewTitle(name, tabs.size() > 1 ? index + 1 : 0), false));
+                            DocumentWindows.viewTitle(name, tabs.size() > 1 ? index + 1 : 0) + note, false));
                 }
             });
         }
@@ -987,7 +1033,10 @@ public final class WindowTabs extends JPanel {
         }
         TabEntry entry = found.get();
         if (!entry.isMain() || mainTabCount(entry.document) > 1) {
-            removeTab(entry);
+            entry.view.inlineEditor().confirmOrCancel();
+            if (entry.view.draftGuards().settle(DraftGuard.Reason.CLOSE) == DraftGuard.Answer.GO_ON) {
+                removeTab(entry);
+            }
             return;
         }
         closeGroup(entry.document);
@@ -1003,6 +1052,7 @@ public final class WindowTabs extends JPanel {
             return true;
         }
         boolean confirmed = CloseSequence.confirm(group.stream().map(entry -> entry.view.inlineEditor()).toList(),
+                group.stream().map(entry -> entry.view.draftGuards()).toList(),
                 () -> !host.isLastHolder(document) || host.confirmSave(document));
         if (!confirmed) {
             return false;
@@ -1015,9 +1065,18 @@ public final class WindowTabs extends JPanel {
         return true;
     }
 
-    /** «Cerrar los componentes de este circuito»: every component tab of the group goes; nothing is asked. */
+    /**
+     * «Cerrar los componentes de este circuito»: every component tab of the group goes; nothing is asked but the
+     * drafts the tabs keep (a machine's test mode), and when one is cancelled no tab goes.
+     */
     public void closeComponentTabs(OpenDocument document) {
-        entriesOf(document).stream().filter(entry -> !entry.isMain()).forEach(this::removeTab);
+        List<TabEntry> components = entriesOf(document).stream().filter(entry -> !entry.isMain()).toList();
+        components.forEach(entry -> entry.view.inlineEditor().confirmOrCancel());
+        if (DraftGuards.settle(components.stream().map(entry -> entry.view.draftGuards()).toList(),
+                DraftGuard.Reason.CLOSE) == DraftGuard.Answer.CANCEL) {
+            return;
+        }
+        components.forEach(this::removeTab);
     }
 
     private void removeTab(TabEntry entry) {
@@ -1055,6 +1114,7 @@ public final class WindowTabs extends JPanel {
             entry.bodyRemovedRemover.run();
             entry.foldListenerRemover.run();
             entry.inspectorListenerRemover.run();
+            entry.draftListenerRemover.run();
             entry.view.dispose();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the tab, or the window, open

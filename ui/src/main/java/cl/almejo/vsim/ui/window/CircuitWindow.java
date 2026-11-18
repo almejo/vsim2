@@ -351,12 +351,27 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     @Override
     public void save() {
-        trySave(activeDocument());
+        OpenDocument document = activeDocument();
+        if (draftsSettledForSaving(document)) {
+            trySave(document);
+        }
     }
 
     @Override
     public void saveAs() {
-        trySaveAs(activeDocument());
+        OpenDocument document = activeDocument();
+        if (draftsSettledForSaving(document)) {
+            trySaveAs(document);
+        }
+    }
+
+    /**
+     * Before Guardar or Guardar como, the drafts of {@code document}'s tabs in this window are settled (a machine's
+     * test mode writes its tests and asks about a changed diagram); false when the user cancelled.
+     */
+    private boolean draftsSettledForSaving(OpenDocument document) {
+        return DraftGuards.settle(tabs.viewsOf(document).stream().map(EditorView::draftGuards).toList(),
+                DraftGuard.Reason.SAVE) == DraftGuard.Answer.GO_ON;
     }
 
     @Override
@@ -382,8 +397,13 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
      * see them.
      */
     public boolean confirmClose() {
-        return CloseSequence.confirm(tabs.inlineEditors(), () -> tabs.documents().stream()
+        return CloseSequence.confirm(tabs.inlineEditors(), tabs.drafts(), () -> tabs.documents().stream()
                 .allMatch(document -> !application.isLastHolder(document, this) || confirmSave(document)));
+    }
+
+    /** Every tab's drafts (a machine's test mode), settled before an exit asks to save. */
+    public List<DraftGuards> drafts() {
+        return tabs.drafts();
     }
 
     /** Every tab's inline editor, finished before an exit asks to save (M6.8). */
