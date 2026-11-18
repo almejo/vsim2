@@ -106,11 +106,35 @@ class MachineTabEnterTest {
         assertThat(shown).isTrue();
         MachineMode mode = MachineMode.of(tabs.activeView()).orElseThrow();
         assertThat(mode.selection().stateIds()).containsExactly("lost");
+        assertThat(mode.canvas().revealed()).contains(lost);
         MachineCanvas canvas = mode.canvas();
         canvas.setBounds(0, 0, 800, 600); // the real window lays the new tab out after the click
         Point2D centre = canvas.toScreen(new DiagramPoint(600, 400));
         assertThat(centre.getX()).isCloseTo(400, offset(2.0));
         assertThat(centre.getY()).isCloseTo(300, offset(2.0));
+    }
+
+    /** Hand test U: with several problems, the row clicked in Problemas is the one that stands out, not all. */
+    @Test
+    void aProblemsRowHighlightsOnlyItsOwnProblemWhenThereAreSeveral() {
+        List<MachineState> states = new ArrayList<>(MachineFixtures.detector().states());
+        states.add(new MachineState("lost", "LOST", new DiagramPoint(600, 400), List.of()));
+        states.add(new MachineState("lost2", "LOST2", new DiagramPoint(700, 400), List.of()));
+        StateMachine withTwo = MachineFixtures.detector().withStates(states);
+        document.execute(new EditMachineCommand(MachineFixtures.DEFINITION_ID, withTwo));
+        List<MachineFinding> unreachable = MachineChecks.check(withTwo).stream()
+                .filter(finding -> finding.kind() == MachineFinding.Kind.UNREACHABLE_STATE).toList();
+        assertThat(unreachable).hasSize(2);
+        EditorView circuit = tabs.addTab(document, Optional.empty());
+
+        circuit.problems().navigator().navigateTo(
+                MachineProblem.of(MachineFixtures.DEFINITION_ID, Optional.empty(), unreachable.get(1)));
+
+        MachineCanvas laidOut = MachineMode.of(tabs.activeView()).orElseThrow().canvas();
+        assertThat(laidOut.revealed()).contains(unreachable.get(1));
+        laidOut.setBounds(0, 0, 800, 600); // the window lays the new tab out after the click
+        laidOut.doLayout();
+        assertThat(laidOut.revealed()).contains(unreachable.get(1));
     }
 
     @Test

@@ -424,7 +424,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /** The problem shown now (its glow stands out, the others fade); empty once the selection moved on. */
-    Optional<MachineFinding> revealed() {
+    public Optional<MachineFinding> revealed() {
         return revealed.filter(finding -> machine()
                 .filter(machine -> MachineChecks.check(machine).contains(finding)).isPresent());
     }
