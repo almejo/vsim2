@@ -118,6 +118,38 @@ public final class WaveformPainter {
         }
     }
 
+    /**
+     * Draws one row of equal steps instead of a recording (a machine test's columns, hito 4): {@code values.get(k)}
+     * from {@code left + k · stepWidth} to the next step, equal neighbours joined into one segment, with the same
+     * levels, edges, bands, names and colours as a recorded row ({@link #paint}); an empty value is hatched as a gap.
+     * The row is {@link #ROW_HEIGHT} tall from {@code top}.
+     */
+    public static void paintSteps(Graphics2D graphics, List<Optional<Value>> values, double left, double stepWidth,
+                                  double top, ColorScheme scheme, LongFunction<String> names,
+                                  LongFunction<Optional<StateColor>> colours) {
+        Object strokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL);
+        graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        try {
+            int start = 0;
+            for (int index = 1; index <= values.size(); index++) {
+                if (index < values.size() && values.get(index).equals(values.get(start))) {
+                    continue;
+                }
+                double right = left + index * stepWidth;
+                paintSegment(graphics, values.get(start), left + start * stepWidth, right, top, scheme,
+                        Probe.FORMAT_HEX, names, colours);
+                if (index < values.size()) {
+                    paintEdge(graphics, levelOf(values.get(start), names), levelOf(values.get(index), names), right,
+                            top, scheme);
+                }
+                start = index;
+            }
+        } finally {
+            graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                    strokeControl == null ? RenderingHints.VALUE_STROKE_DEFAULT : strokeControl);
+        }
+    }
+
     static double highY(double top) {
         return top + LEVEL_MARGIN + 0.5;
     }
