@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The {@link DraftGuard}s of one view, in the order they were added: the window asks them before saving the view's
@@ -57,6 +58,42 @@ public final class DraftGuards {
             }
         }
         return DraftGuard.Answer.GO_ON;
+    }
+
+    /**
+     * Asks every guard of every view of {@code all}, in order, what to do on a close, doing nothing yet
+     * ({@link DraftGuard#decideClosing()}); empty when one was cancelled (the ones asked before did nothing either).
+     */
+    public static Optional<List<DraftGuard.Closing>> decideClosing(Collection<DraftGuards> all) {
+        List<DraftGuard.Closing> closings = new ArrayList<>();
+        for (DraftGuards each : List.copyOf(all)) {
+            for (DraftGuard guard : List.copyOf(each.guards)) {
+                Optional<DraftGuard.Closing> closing = guard.decideClosing();
+                if (closing.isEmpty()) {
+                    return Optional.empty();
+                }
+                closings.add(closing.get());
+            }
+        }
+        return Optional.of(closings);
+    }
+
+    /**
+     * Before the view's tab moves to another window: the guards whose draft cannot travel are settled as a close, in
+     * order; CANCEL when one was cancelled (the move then does not happen).
+     */
+    public DraftGuard.Answer settleThoseThatStay() {
+        for (DraftGuard guard : List.copyOf(guards)) {
+            if (guard.traveller().isEmpty() && guard.settle(DraftGuard.Reason.CLOSE) == DraftGuard.Answer.CANCEL) {
+                return DraftGuard.Answer.CANCEL;
+            }
+        }
+        return DraftGuard.Answer.GO_ON;
+    }
+
+    /** What takes each travelling draft to the tab's new view in another window ({@link DraftGuard#traveller()}). */
+    public List<Consumer<EditorView>> travellers() {
+        return guards.stream().map(DraftGuard::traveller).flatMap(Optional::stream).toList();
     }
 
     /** What the tab's title adds now: the first guard's note; empty without one. */

@@ -130,6 +130,24 @@ public interface WindowCommands {
         return false;
     }
 
+    /**
+     * Whether {@code view}'s tab is the one this window shows now: after {@link #showPlace} it is not when the tab shown
+     * before kept the front (a draft's «Seguir probando», hito 4 of the machines), and the caller must not act on the
+     * hidden tab. True outside a real window, where the caller works on what it has.
+     */
+    default boolean isShown(EditorView view) {
+        return true;
+    }
+
+    /**
+     * Brings {@code view}'s tab to the front, in whichever window holds it (that window comes to the front too): where
+     * a machine is already being tested, when «Probar…» is asked in another tab of it. False when no window holds it
+     * (an editor outside a real window), or when the shown tab kept the front (a draft's «Seguir probando»).
+     */
+    default boolean bringToFront(EditorView view) {
+        return false;
+    }
+
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
     default void closeComponents() {
     }

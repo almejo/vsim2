@@ -451,7 +451,8 @@ public final class CircuitTree extends JPanel {
     private void inItsPlace(String path, Consumer<PlacedPiece> action) {
         SeePiece.targetOf(path, circuit().document()).ifPresent(target -> {
             Optional<EditorView> shown = window().showPlace(circuit(), target.definitionId(), target.contextPath())
-                    .or(() -> isHere(target) ? Optional.of(view) : Optional.empty());
+                    .or(() -> isHere(target) ? Optional.of(view) : Optional.empty())
+                    .filter(window()::isShown); // not in a hidden tab, when the shown one kept the front
             shown.ifPresent(where -> {
                 SeePiece.selectAndTravel(where, target.part());
                 action.accept(new PlacedPiece(where, target.part()));

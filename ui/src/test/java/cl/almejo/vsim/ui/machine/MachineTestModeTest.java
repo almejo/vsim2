@@ -216,8 +216,11 @@ class MachineTestModeTest {
     void theFirstEmptyTestIsShownButNeverWritten() {
         MachineTestMode test = start();
 
-        assertThat(test.machine().tests()).hasSize(1);
-        MachineTest first = test.machine().tests().getFirst();
+        assertThat(test.machine().tests()).isEmpty(); // unwritten: the table shows it
+        MachineTestTableModel table = MachineTestTableModel.of(test.machine(), test.chosenTest(),
+                test.chosenColumn());
+        assertThat(table.unwritten()).isTrue();
+        MachineTest first = table.tests().getFirst();
         assertThat(first.name()).isEqualTo("Prueba 1");
         assertThat(first.columns()).hasSize(MachineTests.DEFAULT_COLUMNS);
         assertThat(canvas.machine().orElseThrow().tests()).isEmpty();
@@ -243,7 +246,7 @@ class MachineTestModeTest {
         assertThat(canvas.machine().orElseThrow().initialStateId()).contains("s0");
         assertThat(nameOf(view.actions().undo())).isEqualTo("Deshacer (prueba): cambiar x");
         perform(view.actions().undo());
-        assertThat(test.machine().tests().getFirst().columns().getFirst().input(inputId())).isFalse();
+        assertThat(test.machine().tests()).isEmpty(); // back to the unwritten «Prueba 1»
         assertTheCircuitIsUntouched();
     }
 
@@ -346,8 +349,11 @@ class MachineTestModeTest {
 
     @Test
     void theDefinitionLeavingEndsTheModeAndItsTabNoteSaysTheDraftWent() {
-        start();
+        MachineTestMode test = start();
         assertThat(view.draftGuards().titleNote()).contains(" · prueba");
+        // review finding 11: nothing changed, nothing is said to be discarded
+        assertThat(view.draftGuards().discardNotice()).isEmpty();
+        setAnInput(test);
         assertThat(view.draftGuards().discardNotice()).contains("Se descartó el borrador de la prueba");
 
         document.history().undo(); // the copy
@@ -440,6 +446,152 @@ class MachineTestModeTest {
         } finally {
             circuitView.dispose();
         }
+    }
+
+    /** Review finding 2, scenario A: Guardar, then Ctrl+Z of «guardar las pruebas» in the circuit, then Salir. */
+    @Test
+    void afterGuardarAnUndoInTheCircuitStillLeavesTheTestsTheTableShows() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        assertThat(view.draftGuards().settle(DraftGuard.Reason.SAVE)).isEqualTo(DraftGuard.Answer.GO_ON);
+        assertThat(circuitsMachine().tests()).hasSize(1);
+
+        document.history().undo(); // «guardar las pruebas», from the circuit's tab
+        assertThat(circuitsMachine().tests()).isEmpty();
+        assertThat(test.bar().message()).contains("La máquina cambió afuera");
+
+        test.bar().exitButton().doClick(0);
+
+        assertThat(circuitsMachine().tests()).hasSize(1);
+        assertThat(circuitsMachine().tests().getFirst().columns().getFirst().input(inputId())).isTrue();
+    }
+
+    /** Review finding 2, scenario B: «Aplicar y guardar», then Ctrl+Z of «aplicar la prueba» in the circuit. */
+    @Test
+    void afterAplicarYGuardarAnUndoInTheCircuitOffersAplicarAgain() {
+        MachineTestMode test = start();
+        canvas.edit(MachineTestModeTest::withS1Initial);
+        questions.answers.add("Aplicar y guardar");
+        assertThat(view.draftGuards().settle(DraftGuard.Reason.SAVE)).isEqualTo(DraftGuard.Answer.GO_ON);
+        assertThat(circuitsMachine().initialStateId()).contains("s1");
+        assertThat(test.bar().exitButton().isVisible()).isTrue();
+
+        document.history().undo(); // «aplicar la prueba», from the circuit's tab
+
+        assertThat(test.diagramChanged()).isTrue();
+        assertThat(test.bar().applyButton().isVisible()).isTrue();
+        assertThat(test.bar().exitButton().isVisible()).isFalse();
+        questions.answers.add("Seguir probando");
+        assertThat(view.draftGuards().settle(DraftGuard.Reason.SWITCH)).isEqualTo(DraftGuard.Answer.CANCEL);
+    }
+
+    /**
+     * Review finding 4: one test mode per machine at a time. «Probar…» in another tab of a machine being tested goes
+     * to the tab that tests it (outside a real window, it says where it is), so two drafts never overwrite each other's
+     * tests.
+     */
+    @Test
+    void probarInAnotherTabOfAMachineBeingTestedGoesToTheTabThatTestsIt() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        List<EditorView> broughtToFront = new ArrayList<>();
+        cl.almejo.vsim.ui.window.WindowCommands window = new cl.almejo.vsim.ui.window.WindowCommands() {
+            @Override public void newDocument() { }
+            @Override public void open() { }
+            @Override public void save() { }
+            @Override public void saveAs() { }
+            @Override public void closeWindow() { }
+            @Override public void exit() { }
+
+            @Override
+            public boolean bringToFront(EditorView shown) {
+                broughtToFront.add(shown);
+                return true;
+            }
+        };
+        OpenDocument otherPlace = document.openBody(MachineFixtures.DEFINITION_ID,
+                Optional.of(MachineFixtures.copies(document).getFirst()));
+        EditorView other = new EditorView(otherPlace, view.services(), window);
+        OpenDocument thirdPlace = document.openBody(MachineFixtures.DEFINITION_ID, Optional.empty());
+        EditorView third = new EditorView(thirdPlace, view.services(), NO_WINDOW);
+        try {
+            MachineMode otherMode = MachineMode.of(other).orElseThrow();
+            otherMode.askWith(questions);
+
+            otherMode.startTest();
+
+            assertThat(otherMode.isTesting()).isFalse();
+            assertThat(broughtToFront).containsExactly(view);
+            assertThat(view.statusBar().text()).contains("Ya estabas probando esta máquina aquí");
+
+            MachineMode.of(third).orElseThrow().startTest(); // no window to go to: it says where
+            assertThat(MachineMode.of(third).orElseThrow().isTesting()).isFalse();
+            assertThat(third.statusBar().text()).contains("Ya la estás probando en otra pestaña");
+
+            test.bar().exitButton().doClick(0);
+            otherMode.startTest(); // the first test ended: this tab may test now
+            assertThat(otherMode.isTesting()).isTrue();
+            otherMode.testMode().orElseThrow().end();
+        } finally {
+            other.dispose();
+            otherPlace.close();
+            third.dispose();
+            thirdPlace.close();
+        }
+    }
+
+    /** Review finding 5: with the real session, the untouched «Prueba 1» is unwritten, so «Borrar» is off. */
+    @Test
+    void theTableKnowsTheUntouchedFirstTestIsUnwritten() {
+        MachineTestMode test = start();
+        MachineTestTable table = (MachineTestTable) view.bottomDock().content().orElseThrow();
+
+        JMenuItem delete = (JMenuItem) table.tabMenu(0).getComponent(2);
+
+        assertThat(delete.getText()).isEqualTo("Borrar");
+        assertThat(delete.isEnabled()).isFalse();
+        setAnInput(test);
+        assertThat(((JMenuItem) table.tabMenu(0).getComponent(2)).isEnabled()).isTrue();
+    }
+
+    /** Review finding 6: a test tab being renamed while Deshacer takes that test away: the rename is dropped. */
+    @Test
+    void renamingATestThatAnUndoTookAwayChangesNothing() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        MachineTestTable table = (MachineTestTable) view.bottomDock().content().orElseThrow();
+        table.addTest();
+        javax.swing.JTextField field = table.startRenaming(1);
+        field.setText("Mía");
+
+        perform(view.actions().undo()); // «+ Prueba nueva» goes, and its tab with it
+        field.postActionEvent(); // the field loses the focus, or Intro: it commits
+
+        assertThat(test.machine().tests()).hasSize(1);
+        assertThat(test.machine().tests().getFirst().name()).isEqualTo("Prueba 1");
+        assertThat(view.actions().redo().isEnabled()).isTrue(); // the rename made no step
+    }
+
+    /** Review finding 6: the rename follows its test, also when an undo moved it to another place. */
+    @Test
+    void renamingFollowsTheTestNotItsPlace() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        MachineTestTable table = (MachineTestTable) view.bottomDock().content().orElseThrow();
+        table.addTest();
+        table.addTest();
+        String thirdId = test.machine().tests().get(2).id();
+        table.deleteTest(1);
+        javax.swing.JTextField field = table.startRenaming(1); // the third test, now second
+
+        perform(view.actions().undo()); // the second test is back: the third is third again
+        field.setText("Mía");
+        field.postActionEvent();
+
+        assertThat(test.machine().tests()).hasSize(3);
+        assertThat(test.machine().tests().get(2).id()).isEqualTo(thirdId);
+        assertThat(test.machine().tests().get(2).name()).isEqualTo("Mía");
+        assertThat(test.machine().tests().get(1).name()).isNotEqualTo("Mía");
     }
 
     @Test

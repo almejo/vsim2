@@ -35,6 +35,47 @@ class HistoryTest {
         assertThat(document.labels()).hasSize(1);
     }
 
+    /**
+     * A close that wrote a test mode's draft and was then cancelled at «¿Guardar cambios?» (review of hito 4, finding
+     * 3): rolling back to a checkpoint reverts what was executed since and gives back the redo and the saved mark, as
+     * if nothing had happened.
+     */
+    @Test
+    void rollingBackToACheckpointLeavesTheHistoryAsItWas() {
+        CircuitDocument document = new CircuitDocument();
+        History history = new History(document);
+        history.execute(addLabel(document));
+        AddElementsCommand toRedo = addLabel(document);
+        history.execute(toRedo);
+        history.undo();
+        history.markSaved();
+        History.Checkpoint checkpoint = history.checkpoint();
+
+        history.execute(addLabel(document));
+        history.execute(addLabel(document));
+        assertThat(document.labels()).hasSize(3);
+
+        assertThat(history.rollBackTo(checkpoint)).isTrue();
+
+        assertThat(document.labels()).hasSize(1);
+        assertThat(history.isModified()).isFalse();
+        assertThat(history.redoCommand()).containsSame(toRedo);
+        history.redo();
+        assertThat(document.labels()).hasSize(2);
+    }
+
+    @Test
+    void aCheckpointWhoseStepsWereUndoneCannotBeRolledBackTo() {
+        CircuitDocument document = new CircuitDocument();
+        History history = new History(document);
+        history.execute(addLabel(document));
+        History.Checkpoint checkpoint = history.checkpoint();
+        history.undo();
+
+        assertThat(history.rollBackTo(checkpoint)).isFalse();
+        assertThat(document.labels()).isEmpty();
+    }
+
     @Test
     void executingClearsRedo() {
         CircuitDocument document = new CircuitDocument();

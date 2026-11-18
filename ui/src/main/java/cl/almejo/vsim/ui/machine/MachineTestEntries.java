@@ -98,6 +98,7 @@ final class MachineTestEntries {
         EnterableInstances.definitionOf(place, piece).ifPresent(definitionId -> view.windowCommands()
                 .showPlace(place.parent().orElse(place), Optional.of(definitionId),
                         EnterableInstances.contextOf(place, piece))
+                .filter(view.windowCommands()::isShown) // not when the shown tab kept the front
                 .flatMap(MachineMode::of)
                 .ifPresent(MachineMode::startTest));
     }

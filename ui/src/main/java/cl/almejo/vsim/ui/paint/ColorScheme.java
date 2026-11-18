@@ -389,10 +389,6 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     }
 
     /**
-     * A state machine's active state and the arrow it takes next (derived, not a role): today the scheme's write
-     * orange, so the diagrams look as they did, but named on its own so it can change without touching memories.
-     */
-    /**
      * A machine's test mode (hito 4): the border around its diagram and the bar's accent, violet so it is none of the
      * active orange, the warning gold, the error red, the selection blue or a state's fill; deep on a light board,
      * light on a dark one. Chosen with the user from the swatch sheets (2026-11-18).
@@ -422,6 +418,10 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
         return wireConflict;
     }
 
+    /**
+     * A state machine's active state and the arrow it takes next (derived, not a role): today the scheme's write
+     * orange, so the diagrams look as they did, but named on its own so it can change without touching memories.
+     */
     public Color machineActive() {
         return memoryWrite;
     }

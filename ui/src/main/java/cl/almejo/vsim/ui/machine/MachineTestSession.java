@@ -13,7 +13,10 @@ import java.util.function.UnaryOperator;
  */
 public interface MachineTestSession {
 
-    /** The draft machine being tested now, with its tests. */
+    /**
+     * The draft machine being tested now, with the tests it really has: none while the first test is unwritten (the
+     * table then shows its empty «Prueba 1», {@link MachineTestTableModel#shown}).
+     */
     StateMachine machine();
 
     /**

@@ -173,6 +173,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToolBar toolBar;
     private final LabelFeatures labelFeatures;
     private final InlineTextEditor inlineEditor;
+    private final List<InlineTextEditor> otherInlineEditors = new ArrayList<>();
     /** Which part has the keyboard of this window (a Teclado after a click on it), shared by every pane. */
     private final KeyboardCapture keyboardCapture;
     private final CapturedKeys capturedKeys;
@@ -516,6 +517,24 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /** The editor that writes texts right over the canvas (labels, titles, the Constante value). */
     public InlineTextEditor inlineEditor() { return inlineEditor; }
+
+    /**
+     * Another editor that writes texts right over this tab (a machine's diagram has its own): a close finishes its open
+     * edit too, as the circuit's ({@link #inlineEditors()}). Returns what takes it away again.
+     */
+    public Runnable addInlineEditor(InlineTextEditor editor) {
+        Objects.requireNonNull(editor, "editor");
+        otherInlineEditors.add(editor);
+        return () -> otherInlineEditors.remove(editor);
+    }
+
+    /** Every editor that writes texts over this tab, the circuit's first: a close finishes their open edits first. */
+    public List<InlineTextEditor> inlineEditors() {
+        List<InlineTextEditor> all = new ArrayList<>();
+        all.add(inlineEditor);
+        all.addAll(otherInlineEditors);
+        return all;
+    }
 
     /** Which part has this window's keyboard (decision 5): painters and the Terminal window read it. */
     public KeyboardCapture keyboardCapture() { return keyboardCapture; }

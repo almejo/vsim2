@@ -119,4 +119,29 @@ class MachineDraftTest {
         assertThat(draft.testsChanged()).isFalse();
         assertThat(draft.canUndo()).isTrue();
     }
+
+    /** Review of hito 4, finding 2: after a rebase, an undo in the circuit makes the real machine differ again. */
+    @Test
+    void comparedWithTheRealMachineTheDraftSeesWhatTheCircuitLacksWhateverItsBase() {
+        StateMachine tested = base.withTests(List.of(MachineTests.withInput(test, 0, "x", true)));
+        StateMachine moved = tested.withInitialStateId(java.util.Optional.of("s1"));
+        draft.edited(moved, "command.editMachine");
+        draft.rebased(moved); // «Aplicar y guardar»
+
+        // the circuit's step undone: the real machine is the old one again
+        assertThat(draft.diagramChanged()).isFalse();
+        assertThat(draft.diagramDiffersFrom(base)).isTrue();
+        assertThat(draft.testsDifferFrom(base)).isTrue();
+        assertThat(draft.diagramDiffersFrom(moved)).isFalse();
+        assertThat(draft.testsDifferFrom(moved)).isFalse();
+    }
+
+    @Test
+    void theTestsAreComparedFittedToTheRealMachinesPins() {
+        // the draft gave a value to a pin the real machine lacks: that value is not a difference
+        draft.edited(base.withTests(List.of(MachineTests.withInput(test, 0, "ghost", true))), "command.editTest");
+
+        assertThat(draft.testsDifferFrom(base.withTests(List.of(test)))).isFalse();
+        assertThat(draft.testsDifferFrom(base)).isTrue();
+    }
 }

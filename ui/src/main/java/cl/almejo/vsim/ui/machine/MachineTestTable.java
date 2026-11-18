@@ -339,11 +339,21 @@ public final class MachineTestTable extends JPanel {
     }
 
     void renameTest(int index, String name) {
+        renameTestWithId(grid.model().tests().get(index).id(), name);
+    }
+
+    /**
+     * Renames the test {@code testId} wherever it is now; nothing when it is gone (an undo took it away while its tab
+     * was being renamed, review finding 6) or {@code name} is blank.
+     */
+    private void renameTestWithId(String testId, String name) {
         String trimmed = name.strip();
-        if (!trimmed.isEmpty()) {
-            editTests(tests -> replaced(tests, index, test -> test.withName(trimmed)),
-                    "machine.test.step.renameTest");
+        if (trimmed.isEmpty()) {
+            return;
         }
+        editTests(tests -> tests.stream()
+                .map(test -> test.id().equals(testId) ? test.withName(trimmed) : test).toList(),
+                "machine.test.step.renameTest");
     }
 
     void duplicateTest(int index) {
@@ -389,16 +399,17 @@ public final class MachineTestTable extends JPanel {
 
     /**
      * Puts a text field on the tab of test {@code index}: Intro or leaving it renames the test (one step), Escape
-     * leaves the name as it was.
+     * leaves the name as it was. The name goes to that test wherever it is by then, and nowhere when it is gone.
      */
     JTextField startRenaming(int index) {
-        JTextField field = new JTextField(grid.model().tests().get(index).name(), 12);
+        MachineTest renamed = grid.model().tests().get(index);
+        JTextField field = new JTextField(renamed.name(), 12);
         boolean[] finished = {false};
         Runnable commit = () -> {
             if (!finished[0]) {
                 finished[0] = true;
-                closeEditor(index, field);
-                renameTest(index, field.getText());
+                closeEditor(field);
+                renameTestWithId(renamed.id(), field.getText());
             }
         };
         field.addActionListener(event -> commit.run());
@@ -412,7 +423,7 @@ public final class MachineTestTable extends JPanel {
                 "cancelRename");
         field.getActionMap().put("cancelRename", Actions.unnamed(() -> {
             finished[0] = true;
-            closeEditor(index, field);
+            closeEditor(field);
         }));
         tabs.setTabComponentAt(index, field);
         field.selectAll();
@@ -420,9 +431,12 @@ public final class MachineTestTable extends JPanel {
         return field;
     }
 
-    private void closeEditor(int index, JTextField field) {
-        if (index < tabs.getTabCount() && tabs.getTabComponentAt(index) == field) {
-            tabs.setTabComponentAt(index, null);
+    /** Takes {@code field} off whichever tab holds it now (none, when its tab went). */
+    private void closeEditor(JTextField field) {
+        for (int index = 0; index < tabs.getTabCount(); index++) {
+            if (tabs.getTabComponentAt(index) == field) {
+                tabs.setTabComponentAt(index, null);
+            }
         }
     }
 

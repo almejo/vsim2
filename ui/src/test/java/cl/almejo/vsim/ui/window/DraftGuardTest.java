@@ -1,6 +1,9 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -119,6 +122,24 @@ class DraftGuardTest {
         assertThat(tabs.activeView()).isSameAs(main);
     }
 
+    /**
+     * Review of hito 4, finding 10: «Ver la pieza» from a tab whose draft kept the front («Seguir probando») does not
+     * select the part in the hidden tab.
+     */
+    @Test
+    void goingToAPartWhenTheTabKeptTheFrontSelectsNothingThere() {
+        TextLabel label = new TextLabel(circuit.document().newLabelId(), GridPoint.ORIGIN, "x");
+        circuit.execute(new AddElementsCommand(List.of(label)));
+        guard.answer = DraftGuard.Answer.CANCEL;
+
+        tabs.goToPart(circuit, Optional.empty(), Optional.empty(), label.id());
+
+        assertThat(tabs.activeView()).isSameAs(inside);
+        assertThat(main.selection().contains(label.id())).isFalse();
+        assertThat(tabs.isShown(main)).isFalse();
+        assertThat(tabs.isShown(inside)).isTrue();
+    }
+
     @Test
     void comingBackToTheTabAsksNothing() {
         tabs.activate(main);
@@ -176,6 +197,29 @@ class DraftGuardTest {
         assertThat(closes).isTrue();
         assertThat(order).containsExactly("save");
         assertThat(tabs.drafts()).containsExactly(main.draftGuards(), inside.draftGuards());
+    }
+
+    /** Review of hito 4, finding 1: a draft that cannot travel is asked as a close, and Cancelar keeps the group. */
+    @Test
+    void movingTheGroupAsksADraftThatCannotTravelAndCancelarKeepsTheGroupHere() {
+        WindowTabs other = new WindowTabs(new RecordingWindowHost(),
+                place -> new EditorView(place, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW),
+                new SplitLayoutStore(preferences), () -> false);
+        try {
+            guard.answer = DraftGuard.Answer.CANCEL;
+            tabs.moveGroupTo(circuit, other, 0);
+
+            assertThat(guard.asked).containsExactly(DraftGuard.Reason.CLOSE);
+            assertThat(tabs.views()).contains(inside);
+            assertThat(other.isEmpty()).isTrue();
+
+            guard.answer = DraftGuard.Answer.GO_ON;
+            tabs.moveGroupTo(circuit, other, 0);
+
+            assertThat(other.documents()).containsExactly(circuit);
+        } finally {
+            other.disposeAll();
+        }
     }
 
     @Test
