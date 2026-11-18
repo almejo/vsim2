@@ -21,7 +21,8 @@ import java.util.OptionalInt;
  * outputs, each side maybe one bus) and a {@link StateMachineBehavior}, which finds them by name
  * ({@link MachinePinLayout}). The type id is the same for every revision of one machine, so a rebuild
  * after an edit hands the running state to the new behaviour ({@link Behavior#adoptStateFrom}); two types are equal
- * when their machines are, so a rebuild that changes nothing keeps the running instance.
+ * when their machines behave alike ({@link #behaviourOf}: tests, notes, colours and places do not count), so a
+ * rebuild that changes no behaviour keeps the running instance.
  * <p>
  * After the pinout the type has one hidden output, the state channel: it carries the current state's code, its index
  * in {@link StateMachine#states()}, {@link #stateWidth} bits wide, or Z while the machine holds no state. The
@@ -116,14 +117,54 @@ public final class StateMachineTypes {
     }
 
     /**
-     * Builds the behaviour of one machine, which finds its pins through {@code layout} (the state code goes on its
-     * hidden pin); equal for equal machines and pinouts, so a type keeps its identity across rebuilds.
+     * The part of {@code machine} its behaviour runs on: states with their names and outputs, arrows, the initial
+     * state, the pins, the bus flags and the edge; without the states' places and colours, the notes or the tests,
+     * which only the editor reads. A state's name stays: the running copy shows it (the face, the probe).
      */
-    private record Factory(StateMachine machine, MachinePinLayout layout) implements BehaviorFactory {
+    static StateMachine behaviourOf(StateMachine machine) {
+        return machine.withStates(machine.states().stream()
+                        .map(state -> new MachineState(state.id(), state.name(), DiagramPoint.ORIGIN, state.outputs()))
+                        .toList())
+                .withNotes(List.of())
+                .withTests(List.of());
+    }
+
+    /**
+     * Builds the behaviour of one machine, which finds its pins through {@code layout} (the state code goes on its
+     * hidden pin). Equal for machines of equal {@linkplain #behaviourOf behaviour} and pinouts, so a type keeps its
+     * identity across rebuilds, and an edit of a test, a note, a colour or a place keeps the running copy (hito 4,
+     * task 2) instead of building it again.
+     */
+    private static final class Factory implements BehaviorFactory {
+
+        private final StateMachine machine;
+        private final StateMachine behaviour;
+        private final MachinePinLayout layout;
+
+        Factory(StateMachine machine, MachinePinLayout layout) {
+            this.machine = machine;
+            this.behaviour = behaviourOf(machine);
+            this.layout = layout;
+        }
+
+        StateMachine machine() {
+            return machine;
+        }
 
         @Override
         public Behavior create(Map<String, Object> parameters) {
             return new StateMachineBehavior(machine, layout);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Factory factory && behaviour.equals(factory.behaviour)
+                    && layout.equals(factory.layout);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(behaviour, layout);
         }
     }
 }
