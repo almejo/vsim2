@@ -216,8 +216,11 @@ class MachineTestModeTest {
     void theFirstEmptyTestIsShownButNeverWritten() {
         MachineTestMode test = start();
 
-        assertThat(test.machine().tests()).hasSize(1);
-        MachineTest first = test.machine().tests().getFirst();
+        assertThat(test.machine().tests()).isEmpty(); // unwritten: the table shows it
+        MachineTestTableModel table = MachineTestTableModel.of(test.machine(), test.chosenTest(),
+                test.chosenColumn());
+        assertThat(table.unwritten()).isTrue();
+        MachineTest first = table.tests().getFirst();
         assertThat(first.name()).isEqualTo("Prueba 1");
         assertThat(first.columns()).hasSize(MachineTests.DEFAULT_COLUMNS);
         assertThat(canvas.machine().orElseThrow().tests()).isEmpty();
@@ -243,7 +246,7 @@ class MachineTestModeTest {
         assertThat(canvas.machine().orElseThrow().initialStateId()).contains("s0");
         assertThat(nameOf(view.actions().undo())).isEqualTo("Deshacer (prueba): cambiar x");
         perform(view.actions().undo());
-        assertThat(test.machine().tests().getFirst().columns().getFirst().input(inputId())).isFalse();
+        assertThat(test.machine().tests()).isEmpty(); // back to the unwritten «Prueba 1»
         assertTheCircuitIsUntouched();
     }
 
@@ -532,6 +535,20 @@ class MachineTestModeTest {
             third.dispose();
             thirdPlace.close();
         }
+    }
+
+    /** Review finding 5: with the real session, the untouched «Prueba 1» is unwritten, so «Borrar» is off. */
+    @Test
+    void theTableKnowsTheUntouchedFirstTestIsUnwritten() {
+        MachineTestMode test = start();
+        MachineTestTable table = (MachineTestTable) view.bottomDock().content().orElseThrow();
+
+        JMenuItem delete = (JMenuItem) table.tabMenu(0).getComponent(2);
+
+        assertThat(delete.getText()).isEqualTo("Borrar");
+        assertThat(delete.isEnabled()).isFalse();
+        setAnInput(test);
+        assertThat(((JMenuItem) table.tabMenu(0).getComponent(2)).isEnabled()).isTrue();
     }
 
     @Test

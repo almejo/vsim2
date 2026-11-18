@@ -53,12 +53,14 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     private final MachineCanvas canvas;
     private final MachineTestQuestions questions;
     private final MachineDraft draft;
-    private final MachineTest firstTest;
     private final MachineTestBar bar;
     private final Listeners<Runnable> listeners = new Listeners<>();
     private final List<Runnable> removals = new ArrayList<>();
     private final Runnable ended;
-    /** The draft as the table sees it: with the empty first test while it has none. */
+    /**
+     * The draft as the table shows it: with the empty first test while it has none (the table's own
+     * {@link MachineTestTableModel#shown}, so both see the same «Prueba 1»).
+     */
     private StateMachine shown;
     private int chosenTest;
     private int chosenColumn;
@@ -83,8 +85,6 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         this.draft = carried.draft();
         this.chosenTest = carried.chosenTest();
         this.chosenColumn = carried.chosenColumn();
-        this.firstTest = MachineTest.empty(MachineTests.freeId(List.of()), Messages.text("machine.test.firstName"),
-                MachineTests.DEFAULT_COLUMNS);
         this.bar = new MachineTestBar(() -> view.services().appearance().scheme(), this::exit, this::apply,
                 this::keepAsItWas);
         recompute();
@@ -168,9 +168,13 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     // --- the session the table uses ---
 
+    /**
+     * The draft with the tests it really has: none while «Prueba 1» is untouched, so the table knows that test is
+     * unwritten (review finding 5) and shows it itself.
+     */
     @Override
     public StateMachine machine() {
-        return shown;
+        return draft.current();
     }
 
     @Override
@@ -558,7 +562,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     /** The table's machine, the choices kept in range, and the state the chosen column lights. */
     private void recompute() {
         StateMachine current = draft.current();
-        shown = current.tests().isEmpty() ? current.withTests(List.of(firstTest)) : current;
+        shown = current.withTests(MachineTestTableModel.shown(current.tests()));
         chosenTest = Math.clamp(chosenTest, 0, shown.tests().size() - 1);
         MachineTest test = shown.tests().get(chosenTest);
         chosenColumn = Math.clamp(chosenColumn, 0, test.columns().size() - 1);
