@@ -1,0 +1,463 @@
+package cl.almejo.vsim.ui.machine;
+
+import cl.almejo.vsim.core.logic.LogicValue;
+import cl.almejo.vsim.core.machine.MachineTest;
+import cl.almejo.vsim.core.machine.MachineTests;
+import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingUtilities;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
+
+/**
+ * The tests of a machine in «Modo prueba» (hito 4, task 5), where the wave strip goes: a tab per test (✓ or ✗ in its
+ * title; double click renames it, its menu duplicates or deletes it, «+ Prueba nueva» adds one), a summary line, and a
+ * grid shaped like the wave strip ({@link MachineTestTableGrid}): the inputs you give, the state, each output with what
+ * you expected of it, and ✓ or ✗, edge by edge.
+ * <p>
+ * It only reads and edits through its {@link MachineTestSession}: every change is one named step of the test mode's
+ * draft ({@link MachineTestSession#editTests}), and choosing a test or a column is no step. While the machine has no
+ * test it shows an empty «Prueba 1» that is written only when something in it changes (decision 8).
+ * <p>
+ * Install it in the bottom dock with {@code BottomDock.contentInstead(table)}, and call {@link #close()} when the mode
+ * ends so it stops following the session.
+ */
+public final class MachineTestTable extends JPanel {
+
+    private final transient MachineTestSession session;
+    private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+    private final JButton newTestButton = new JButton(Messages.text("machine.test.tab.new"));
+    private final JButton addColumnButton = new JButton(Messages.text("machine.test.column.add"));
+    private final JLabel summary = new JLabel();
+    private final MachineTestTableGrid grid;
+    private final transient Runnable stopListening;
+    /** True while {@link #refreshTabs} sets the tabs, so their change is not taken for the user's choice. */
+    private boolean updatingTabs;
+
+    /**
+     * A table of {@code session}'s tests, painted with {@code scheme}'s colours read on every paint; it follows the
+     * session until {@link #close()}.
+     */
+    public MachineTestTable(MachineTestSession session, Supplier<ColorScheme> scheme) {
+        super(new BorderLayout());
+        this.session = session;
+        this.grid = new MachineTestTableGrid(this, scheme, currentModel());
+        getAccessibleContext().setAccessibleName(Messages.text("machine.test.table.name"));
+        add(top(), BorderLayout.NORTH);
+        add(scrolled(), BorderLayout.CENTER);
+        stopListening = session.addListener(this::refresh);
+        refresh();
+    }
+
+    /** Stops following the session (the test mode ended). */
+    public void close() {
+        stopListening.run();
+    }
+
+    private JComponent top() {
+        tabs.putClientProperty("JTabbedPane.showContentSeparator", false);
+        tabs.putClientProperty("JTabbedPane.tabHeight", 26);
+        tabs.addChangeListener(event -> tabChosen());
+        tabs.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                tabPopupIfTrigger(event);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent event) {
+                tabPopupIfTrigger(event);
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                int index = tabs.indexAtLocation(event.getX(), event.getY());
+                if (SwingUtilities.isLeftMouseButton(event) && event.getClickCount() == 2 && index >= 0) {
+                    startRenaming(index);
+                }
+            }
+        });
+        newTestButton.addActionListener(event -> addTest());
+        newTestButton.putClientProperty("JButton.buttonType", "toolBarButton");
+        JPanel tabRow = new JPanel(new BorderLayout());
+        tabRow.add(tabs, BorderLayout.CENTER);
+        tabRow.add(newTestButton, BorderLayout.EAST);
+
+        addColumnButton.addActionListener(event -> addColumn());
+        JLabel hint = new JLabel(Messages.text("machine.test.hint"));
+        hint.putClientProperty("FlatLaf.style", "foreground: $Label.disabledForeground");
+        JPanel line = new JPanel(new BorderLayout(12, 0));
+        line.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+        line.add(summary, BorderLayout.WEST);
+        line.add(hint, BorderLayout.CENTER);
+        line.add(addColumnButton, BorderLayout.EAST);
+
+        JPanel top = new JPanel(new BorderLayout());
+        top.add(tabRow, BorderLayout.NORTH);
+        top.add(line, BorderLayout.SOUTH);
+        return top;
+    }
+
+    private JComponent scrolled() {
+        JScrollPane scroll = new JScrollPane(grid);
+        scroll.setRowHeaderView(grid.names());
+        scroll.setColumnHeaderView(grid.header());
+        scroll.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, grid.corner());
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getHorizontalScrollBar().setUnitIncrement(MachineTestTableModel.COLUMN_WIDTH);
+        scroll.getVerticalScrollBar().setUnitIncrement(MachineTestTableModel.ROW_HEIGHT);
+        return scroll;
+    }
+
+    private MachineTestTableModel currentModel() {
+        return MachineTestTableModel.of(session.machine(), session.chosenTest(), session.chosenColumn());
+    }
+
+    /** Runs the tests again and shows them: after every change of the draft, its tests or the choices. */
+    private void refresh() {
+        MachineTestTableModel model = MachineTestTableModel.of(session.machine(), session.chosenTest(),
+                session.chosenColumn(), grid.model());
+        grid.setModel(model);
+        refreshTabs(model);
+        summary.setText(model.summary());
+        newTestButton.setEnabled(model.canAddTest());
+        newTestButton.setToolTipText(model.canAddTest() ? Messages.text("machine.test.tab.newTip")
+                : Messages.format("machine.test.tab.full", MachineTests.MAXIMUM_TESTS));
+        addColumnButton.setEnabled(model.canAddColumn());
+        addColumnButton.setToolTipText(model.canAddColumn() ? Messages.text("machine.test.column.addTip")
+                : Messages.format("machine.test.column.full", MachineTests.MAXIMUM_COLUMNS));
+    }
+
+    private void refreshTabs(MachineTestTableModel model) {
+        updatingTabs = true;
+        try {
+            int count = model.tests().size();
+            while (tabs.getTabCount() > count) {
+                tabs.removeTabAt(tabs.getTabCount() - 1);
+            }
+            while (tabs.getTabCount() < count) {
+                JPanel nothing = new JPanel();
+                nothing.setPreferredSize(new Dimension(0, 0));
+                tabs.addTab("", nothing);
+            }
+            for (int index = 0; index < count; index++) {
+                tabs.setTitleAt(index, model.tabTitle(index));
+            }
+            tabs.setSelectedIndex(model.testIndex());
+        } finally {
+            updatingTabs = false;
+        }
+    }
+
+    private void tabChosen() {
+        int index = tabs.getSelectedIndex();
+        if (!updatingTabs && index >= 0 && index != grid.model().testIndex()) {
+            session.chooseTest(index);
+            int last = grid.model().columnCount() - 1;
+            if (session.chosenColumn() > last) {
+                session.chooseColumn(last);
+            }
+        }
+    }
+
+    private void tabPopupIfTrigger(MouseEvent event) {
+        int index = tabs.indexAtLocation(event.getX(), event.getY());
+        if (event.isPopupTrigger() && index >= 0 && tabs.isShowing()) {
+            tabMenu(index).show(tabs, event.getX(), event.getY());
+        }
+    }
+
+    MachineTestTableGrid grid() {
+        return grid;
+    }
+
+    JComponent header() {
+        return grid.header();
+    }
+
+    JTabbedPane tabs() {
+        return tabs;
+    }
+
+    JButton newTestButton() {
+        return newTestButton;
+    }
+
+    JButton addColumnButton() {
+        return addColumnButton;
+    }
+
+    String summaryText() {
+        return summary.getText();
+    }
+
+    // ---- choices (no step) ----
+
+    void chooseColumn(int column) {
+        if (column != session.chosenColumn()) {
+            session.chooseColumn(column);
+        }
+    }
+
+    // ---- cells (one step each) ----
+
+    /** A click: an input toggles, an «esperado» cell goes · → 0 → 1 → ·. */
+    void toggle(MachineTestTableModel.Row row, int column) {
+        String pinId = row.pinId().orElseThrow();
+        if (row.kind() == MachineTestTableModel.Kind.INPUT) {
+            editChosen(test -> MachineTests.withInput(test, column, pinId, !test.columns().get(column).input(pinId)),
+                    "machine.test.step.input");
+        } else if (row.kind() == MachineTestTableModel.Kind.EXPECTED) {
+            editChosen(test -> MachineTests.withExpected(test, column, pinId,
+                    test.columns().get(column).expected(pinId).next()), "machine.test.step.expected");
+        }
+    }
+
+    /** 0 or 1 typed: every cell of {@code block} takes it. */
+    void fill(MachineTestCellPainter.Block block, boolean value) {
+        editCells(block, (test, row, column) -> row.kind() == MachineTestTableModel.Kind.INPUT
+                ? MachineTests.withInput(test, column, row.pinId().orElseThrow(), value)
+                : MachineTests.withExpected(test, column, row.pinId().orElseThrow(),
+                value ? LogicValue.ONE : LogicValue.ZERO));
+    }
+
+    /** Espacio: every cell of {@code block} changes as a click would change it. */
+    void advance(MachineTestCellPainter.Block block) {
+        editCells(block, (test, row, column) -> {
+            String pinId = row.pinId().orElseThrow();
+            return row.kind() == MachineTestTableModel.Kind.INPUT
+                    ? MachineTests.withInput(test, column, pinId, !test.columns().get(column).input(pinId))
+                    : MachineTests.withExpected(test, column, pinId,
+                    test.columns().get(column).expected(pinId).next());
+        });
+    }
+
+    /** Supr: the «esperado» cells of {@code block} become «no importa»; an input has no such value. */
+    void clearExpected(MachineTestCellPainter.Block block) {
+        editCells(block, (test, row, column) -> row.kind() == MachineTestTableModel.Kind.EXPECTED
+                ? MachineTests.withExpected(test, column, row.pinId().orElseThrow(), LogicValue.DONT_CARE)
+                : test);
+    }
+
+    /** What a key does to one editable cell. */
+    private interface CellEdit {
+        MachineTest apply(MachineTest test, MachineTestTableModel.Row row, int column);
+    }
+
+    private void editCells(MachineTestCellPainter.Block block, CellEdit edit) {
+        List<MachineTestTableModel.Row> rows = grid.model().rows();
+        editChosen(test -> {
+            MachineTest edited = test;
+            int lastColumn = Math.min(block.lastColumn(), test.columns().size() - 1);
+            for (int row = Math.max(0, block.firstRow()); row <= block.lastRow() && row < rows.size(); row++) {
+                if (!rows.get(row).kind().editable()) {
+                    continue;
+                }
+                for (int column = Math.max(0, block.firstColumn()); column <= lastColumn; column++) {
+                    edited = edit.apply(edited, rows.get(row), column);
+                }
+            }
+            return edited;
+        }, "machine.test.step.fill");
+    }
+
+    // ---- columns ----
+
+    /** «+ Columna»: a column at the end holding the last column's inputs. */
+    void addColumn() {
+        if (grid.model().canAddColumn()) {
+            editChosen(test -> MachineTests.withColumnInserted(test, test.columns().size()),
+                    "machine.test.step.addColumn");
+        }
+    }
+
+    void insertColumnBefore(int column) {
+        if (grid.model().canAddColumn()) {
+            editChosen(test -> MachineTests.withColumnInserted(test, column), "machine.test.step.insertColumn");
+        }
+    }
+
+    void deleteColumn(int column) {
+        if (!grid.model().canDeleteColumn()) {
+            return;
+        }
+        editChosen(test -> MachineTests.withColumnRemoved(test, column), "machine.test.step.deleteColumn");
+        int last = grid.model().columnCount() - 1;
+        if (session.chosenColumn() > last) {
+            session.chooseColumn(last);
+        }
+    }
+
+    /** The menu of a column's header or cells: «Insertar columna antes», «Borrar columna». */
+    JPopupMenu columnMenu(int column) {
+        MachineTestTableModel model = grid.model();
+        JPopupMenu menu = new JPopupMenu();
+        menu.add(item("machine.test.column.insertBefore", () -> insertColumnBefore(column), model.canAddColumn(),
+                Messages.format("machine.test.column.full", MachineTests.MAXIMUM_COLUMNS)));
+        menu.add(item("machine.test.column.delete", () -> deleteColumn(column), model.canDeleteColumn(),
+                Messages.text("machine.test.column.onlyOne")));
+        return menu;
+    }
+
+    // ---- tests ----
+
+    /** «+ Prueba nueva»: an empty test of 8 columns after the others, chosen. */
+    void addTest() {
+        if (!grid.model().canAddTest()) {
+            return;
+        }
+        editTests(tests -> {
+            List<MachineTest> added = new ArrayList<>(tests);
+            added.add(MachineTest.empty(MachineTests.freeId(tests), MachineTestTableModel.defaultName(tests),
+                    MachineTests.DEFAULT_COLUMNS));
+            return added;
+        }, "machine.test.step.addTest");
+        session.chooseTest(session.machine().tests().size() - 1);
+    }
+
+    void renameTest(int index, String name) {
+        String trimmed = name.strip();
+        if (!trimmed.isEmpty()) {
+            editTests(tests -> replaced(tests, index, test -> test.withName(trimmed)),
+                    "machine.test.step.renameTest");
+        }
+    }
+
+    void duplicateTest(int index) {
+        if (!grid.model().canAddTest()) {
+            return;
+        }
+        editTests(tests -> {
+            List<MachineTest> copied = new ArrayList<>(tests);
+            MachineTest original = tests.get(index);
+            copied.add(index + 1, original.withId(MachineTests.freeId(tests))
+                    .withName(Messages.format("machine.test.copyName", original.name())));
+            return copied;
+        }, "machine.test.step.duplicateTest");
+        session.chooseTest(index + 1);
+    }
+
+    void deleteTest(int index) {
+        if (grid.model().unwritten()) {
+            return;
+        }
+        int chosen = session.chosenTest();
+        editTests(tests -> {
+            List<MachineTest> kept = new ArrayList<>(tests);
+            kept.remove(index);
+            return kept;
+        }, "machine.test.step.deleteTest");
+        int remaining = Math.max(1, session.machine().tests().size());
+        int next = index < chosen ? chosen - 1 : chosen;
+        session.chooseTest(Math.max(0, Math.min(next, remaining - 1)));
+    }
+
+    /** The menu of a test's tab: «Renombrar», «Duplicar», «Borrar». */
+    JPopupMenu tabMenu(int index) {
+        MachineTestTableModel model = grid.model();
+        JPopupMenu menu = new JPopupMenu();
+        menu.add(item("machine.test.menu.rename", () -> startRenaming(index), true, ""));
+        menu.add(item("machine.test.menu.duplicate", () -> duplicateTest(index), model.canAddTest(),
+                Messages.format("machine.test.tab.full", MachineTests.MAXIMUM_TESTS)));
+        menu.add(item("machine.test.menu.delete", () -> deleteTest(index), !model.unwritten(),
+                Messages.text("machine.test.menu.deleteEmpty")));
+        return menu;
+    }
+
+    /**
+     * Puts a text field on the tab of test {@code index}: Intro or leaving it renames the test (one step), Escape
+     * leaves the name as it was.
+     */
+    JTextField startRenaming(int index) {
+        JTextField field = new JTextField(grid.model().tests().get(index).name(), 12);
+        boolean[] finished = {false};
+        Runnable commit = () -> {
+            if (!finished[0]) {
+                finished[0] = true;
+                closeEditor(index, field);
+                renameTest(index, field.getText());
+            }
+        };
+        field.addActionListener(event -> commit.run());
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent event) {
+                commit.run();
+            }
+        });
+        field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                "cancelRename");
+        field.getActionMap().put("cancelRename", Actions.unnamed(() -> {
+            finished[0] = true;
+            closeEditor(index, field);
+        }));
+        tabs.setTabComponentAt(index, field);
+        field.selectAll();
+        field.requestFocusInWindow();
+        return field;
+    }
+
+    private void closeEditor(int index, JTextField field) {
+        if (index < tabs.getTabCount() && tabs.getTabComponentAt(index) == field) {
+            tabs.setTabComponentAt(index, null);
+        }
+    }
+
+    // ---- edits ----
+
+    private void editChosen(UnaryOperator<MachineTest> change, String stepKey) {
+        int index = grid.model().testIndex();
+        editTests(tests -> replaced(tests, index, change), stepKey);
+    }
+
+    /**
+     * One step of the draft: {@code edit} applied to the tests shown (the unwritten «Prueba 1» while there are none);
+     * nothing when it changes nothing, so an untouched empty test is never written.
+     */
+    private void editTests(UnaryOperator<List<MachineTest>> edit, String stepKey) {
+        List<MachineTest> shown = MachineTestTableModel.shown(session.machine().tests());
+        if (edit.apply(shown).equals(shown)) {
+            return;
+        }
+        session.editTests(current -> edit.apply(MachineTestTableModel.shown(current)), Messages.text(stepKey));
+    }
+
+    private static List<MachineTest> replaced(List<MachineTest> tests, int index, UnaryOperator<MachineTest> change) {
+        List<MachineTest> edited = new ArrayList<>(tests);
+        edited.set(index, change.apply(tests.get(index)));
+        return edited;
+    }
+
+    private static JMenuItem item(String key, Runnable behavior, boolean enabled, String reason) {
+        JMenuItem item = new JMenuItem(Messages.text(key));
+        item.addActionListener(event -> behavior.run());
+        item.setEnabled(enabled);
+        if (!enabled && !reason.isEmpty()) {
+            item.setToolTipText(reason);
+        }
+        return item;
+    }
+}
