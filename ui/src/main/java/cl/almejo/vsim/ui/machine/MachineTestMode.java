@@ -15,12 +15,10 @@ import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.DraftGuard;
 import cl.almejo.vsim.ui.window.EditorView;
 
-import javax.swing.JComponent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -77,27 +75,29 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     /**
      * Starts the test mode of {@code canvas}'s machine in {@code view}: the draft, the diagram's source, the steps of
-     * Deshacer, the bar and border of {@code frame}, the table {@code table} makes in the dock, and the guard. Empty
-     * when the machine is gone. {@code ended} runs once when the mode ends, whichever way.
+     * Deshacer, the bar and border of {@code frame}, the test table ({@link MachineTestTable}) in the dock instead of
+     * the wave strip, and the guard. Empty when the machine is gone. {@code ended} runs once when the mode ends,
+     * whichever way.
      */
     static Optional<MachineTestMode> start(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
-                                           Function<MachineTestSession, JComponent> table,
                                            MachineTestQuestions questions, Runnable ended) {
         Optional<StateMachine> real = canvas.standardSource().machine();
         if (real.isEmpty()) {
             return Optional.empty();
         }
         MachineTestMode mode = new MachineTestMode(view, canvas, real.get(), questions, ended);
-        mode.install(frame, table.apply(mode));
+        mode.install(frame);
         return Optional.of(mode);
     }
 
-    private void install(MachineDiagramFrame frame, JComponent table) {
+    private void install(MachineDiagramFrame frame) {
         removals.add(canvas.useSource(new DraftSource()));
         removals.add(view.actions().stepsInstead(this));
         removals.add(frame.showTestMode(bar));
         BottomDock dock = view.bottomDock();
+        MachineTestTable table = new MachineTestTable(this, () -> view.services().appearance().scheme());
         removals.add(dock.contentInstead(table));
+        removals.add(table::close); // runs first on leaving: the table stops following, then the strip comes back
         if (!dock.isDockShowing()) {
             dock.showDock();
             removals.add(dock::hideDock);

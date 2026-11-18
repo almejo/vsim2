@@ -12,16 +12,10 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.PlaceBar;
 
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.SwingConstants;
-import java.awt.BorderLayout;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
-import java.util.function.Function;
 
 /**
  * The machine mode of an editor view (spec 2026-11-14 §2.4): the tab of a «Máquina de estados» is an ordinary component
@@ -36,13 +30,6 @@ import java.util.function.Function;
  */
 public final class MachineMode {
 
-    /**
-     * What the dock shows in test mode for a test session: the test table. Until the table of hito 4 (task 5) is
-     * merged, a placeholder that says the table goes there; at the merge this becomes {@code MachineTestTable::new}
-     * (or its factory).
-     */
-    static final Function<MachineTestSession, JComponent> TEST_TABLE = MachineMode::placeholderTable;
-
     private final EditorView view;
     private final MachineCanvas canvas;
     private final MachineDiagramFrame frame;
@@ -50,7 +37,6 @@ public final class MachineMode {
     private final MachineEditing editing;
     /** Whether «Animaciones» is on now: a revealed problem then blinks. */
     private final BooleanSupplier animations;
-    private final Function<MachineTestSession, JComponent> testTable;
     private final Listeners<Runnable> testModeListeners = new Listeners<>();
     private MachineTestQuestions questions = MachineTestQuestions.DIALOG;
     private Optional<MachineTestMode> testMode = Optional.empty();
@@ -58,24 +44,15 @@ public final class MachineMode {
     private Runnable stopHoldingTheLibraryButton = () -> { };
 
     private MachineMode(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame, MachinePalette palette,
-                        MachineEditing editing, BooleanSupplier animations,
-                        Function<MachineTestSession, JComponent> testTable) {
+                        MachineEditing editing, BooleanSupplier animations) {
         this.view = view;
         this.canvas = canvas;
         this.frame = frame;
         this.palette = palette;
         this.editing = editing;
         this.animations = animations;
-        this.testTable = testTable;
     }
 
-    /** Until the test table arrives: a panel saying the test table goes here. */
-    private static JComponent placeholderTable(MachineTestSession session) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(new JLabel(Messages.text("machine.test.tableComesHere"), SwingConstants.CENTER),
-                BorderLayout.CENTER);
-        return panel;
-    }
 
     /**
      * Puts {@code view} in machine mode when it shows the body of a machine; returns what puts it back (nothing to do
@@ -109,7 +86,7 @@ public final class MachineMode {
         MachineEditing editing = MachineEditing.install(view, canvas, palette);
         Runnable showProbes = MachineWaveStrip.install(view, place, machineId.get(), canvas);
         MachineMode mode = new MachineMode(view, canvas, frame, palette, editing,
-                () -> Animations.enabled(view.services().preferences()), TEST_TABLE);
+                () -> Animations.enabled(view.services().preferences()));
         palette.testButton().addActionListener(event -> mode.startTest());
         view.putClientProperty(MachineMode.class, mode);
         return () -> {
@@ -145,7 +122,7 @@ public final class MachineMode {
         if (testMode.isPresent()) {
             return;
         }
-        testMode = MachineTestMode.start(view, canvas, frame, testTable, questions, this::testEnded);
+        testMode = MachineTestMode.start(view, canvas, frame, questions, this::testEnded);
         testMode.ifPresent(started -> {
             palette.testButton().setEnabled(false);
             palette.testButton().setToolTipText(Messages.text("machine.test.alreadyTesting"));

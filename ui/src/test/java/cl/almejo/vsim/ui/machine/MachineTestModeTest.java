@@ -385,6 +385,7 @@ class MachineTestModeTest {
         MachineTestMode test = start();
 
         assertThat(view.bottomDock().content()).isPresent().isNotEqualTo(before);
+        assertThat(view.bottomDock().content().orElseThrow()).isInstanceOf(MachineTestTable.class);
         assertThat(view.bottomDock().isDockShowing()).isTrue();
 
         test.bar().exitButton().doClick(0);
