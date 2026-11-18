@@ -865,4 +865,22 @@ class MachineDrawingTest {
                 .map(state -> state.withOutputs(List.of())).toList()));
         assertThat(rows.kindText().orElseThrow()).isEqualTo(Messages.text("machine.properties.kind.mealy"));
     }
+
+    @Test
+    void theMachinesRowsShowHowItsTestsDoAndProbarStartsTheTestMode() {
+        mode.selection().clear();
+        MachineInspectorRows rows = mode.inspectorRows();
+        assertThat(rows.testsText().orElseThrow()).isEqualTo("ninguna");
+
+        cl.almejo.vsim.core.machine.MachineTest failing = cl.almejo.vsim.core.machine.MachineTests.withExpected(
+                cl.almejo.vsim.core.machine.MachineTests.withInput(
+                        cl.almejo.vsim.core.machine.MachineTest.empty("p1", "Prueba 1", 1), 0, "x", true),
+                0, "Z", cl.almejo.vsim.core.logic.LogicValue.ONE);
+        canvas.edit(current -> current.withTests(List.of(failing)));
+        assertThat(rows.testsText().orElseThrow()).isEqualTo("1, 1 con \u2717");
+
+        rows.testButton().orElseThrow().doClick();
+        assertThat(mode.isTesting()).isTrue();
+        assertThat(rows.testButton().orElseThrow().isEnabled()).isFalse();
+    }
 }
