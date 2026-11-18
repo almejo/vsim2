@@ -120,10 +120,23 @@ public final class MachineMode {
 
     /**
      * Starts the test mode of this tab's machine (hito 4): the diagram and a test table in the dock work on a draft
-     * until the user leaves ({@link MachineTestMode}). Nothing when it is on already or the machine is gone.
+     * until the user leaves ({@link MachineTestMode}). Nothing when it is on already or the machine is gone. One test
+     * mode per machine (review finding 4): when another tab tests this machine, that tab comes to the front and says
+     * so instead (outside a real window, this tab says where it is).
      */
     public void startTest() {
         if (testMode.isPresent()) {
+            return;
+        }
+        Optional<MachineTestMode> elsewhere = MachineTestsUnderWay.of(
+                MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId());
+        if (elsewhere.isPresent()) {
+            EditorView testing = elsewhere.get().view();
+            if (view.windowCommands().bringToFront(testing)) {
+                testing.showNotice(Messages.text("machine.test.testingHere"));
+            } else {
+                view.showNotice(Messages.text("machine.test.testingElsewhere"));
+            }
             return;
         }
         testMode = MachineTestMode.start(view, canvas, frame, questions, this::testEnded);

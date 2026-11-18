@@ -91,6 +91,9 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     }
 
     private void install(MachineDiagramFrame frame) {
+        // one test mode per machine (review finding 4): it is this one's until it ends
+        removals.add(MachineTestsUnderWay.add(MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId(),
+                this));
         removals.add(canvas.useSource(new DraftSource()));
         removals.add(view.actions().stepsInstead(this));
         removals.add(frame.showTestMode(bar));
@@ -110,6 +113,11 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         removals.add(() -> place.removeBodyRemovedListener(definitionLeft));
         removals.add(view.draftGuards().add(this));
         refreshBar();
+    }
+
+    /** The tab that tests. */
+    EditorView view() {
+        return view;
     }
 
     /** The bar over the diagram. */

@@ -479,6 +479,61 @@ class MachineTestModeTest {
         assertThat(view.draftGuards().settle(DraftGuard.Reason.SWITCH)).isEqualTo(DraftGuard.Answer.CANCEL);
     }
 
+    /**
+     * Review finding 4: one test mode per machine at a time. «Probar…» in another tab of a machine being tested goes
+     * to the tab that tests it (outside a real window, it says where it is), so two drafts never overwrite each other's
+     * tests.
+     */
+    @Test
+    void probarInAnotherTabOfAMachineBeingTestedGoesToTheTabThatTestsIt() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        List<EditorView> broughtToFront = new ArrayList<>();
+        cl.almejo.vsim.ui.window.WindowCommands window = new cl.almejo.vsim.ui.window.WindowCommands() {
+            @Override public void newDocument() { }
+            @Override public void open() { }
+            @Override public void save() { }
+            @Override public void saveAs() { }
+            @Override public void closeWindow() { }
+            @Override public void exit() { }
+
+            @Override
+            public boolean bringToFront(EditorView shown) {
+                broughtToFront.add(shown);
+                return true;
+            }
+        };
+        OpenDocument otherPlace = document.openBody(MachineFixtures.DEFINITION_ID,
+                Optional.of(MachineFixtures.copies(document).getFirst()));
+        EditorView other = new EditorView(otherPlace, view.services(), window);
+        OpenDocument thirdPlace = document.openBody(MachineFixtures.DEFINITION_ID, Optional.empty());
+        EditorView third = new EditorView(thirdPlace, view.services(), NO_WINDOW);
+        try {
+            MachineMode otherMode = MachineMode.of(other).orElseThrow();
+            otherMode.askWith(questions);
+
+            otherMode.startTest();
+
+            assertThat(otherMode.isTesting()).isFalse();
+            assertThat(broughtToFront).containsExactly(view);
+            assertThat(view.statusBar().text()).contains("Ya estabas probando esta máquina aquí");
+
+            MachineMode.of(third).orElseThrow().startTest(); // no window to go to: it says where
+            assertThat(MachineMode.of(third).orElseThrow().isTesting()).isFalse();
+            assertThat(third.statusBar().text()).contains("Ya la estás probando en otra pestaña");
+
+            test.bar().exitButton().doClick(0);
+            otherMode.startTest(); // the first test ended: this tab may test now
+            assertThat(otherMode.isTesting()).isTrue();
+            otherMode.testMode().orElseThrow().end();
+        } finally {
+            other.dispose();
+            otherPlace.close();
+            third.dispose();
+            thirdPlace.close();
+        }
+    }
+
     @Test
     void anExpectedValueChangesTheResultTheDiagramLights() {
         MachineTestMode test = start();

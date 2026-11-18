@@ -320,6 +320,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
+    public boolean bringToFront(EditorView view) {
+        return application.bringToFront(view);
+    }
+
+    @Override
     public boolean goToPart(OpenDocument document, Optional<String> definitionId, Optional<String> contextPath,
                             ElementId part) {
         tabs.goToPart(document, definitionId, contextPath, part);

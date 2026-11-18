@@ -657,6 +657,21 @@ public final class Application {
         return true;
     }
 
+    /**
+     * Brings {@code view}'s tab and its window to the front ({@code WindowCommands.bringToFront}); false when no window
+     * holds it, or when the shown tab there kept the front (a draft's «Seguir probando»).
+     */
+    public boolean bringToFront(EditorView view) {
+        for (CircuitWindow window : windows.all()) {
+            if (window.tabs().views().contains(view)) {
+                focus(window);
+                window.tabs().activate(view);
+                return window.tabs().activeView() == view;
+            }
+        }
+        return false;
+    }
+
     /** Whether no window but {@code window} holds a tab of {@code document} (closing it asks to save). */
     public boolean isLastHolder(OpenDocument document, CircuitWindow window) {
         return windows.isLastHolder(document, window);

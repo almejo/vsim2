@@ -130,6 +130,15 @@ public interface WindowCommands {
         return false;
     }
 
+    /**
+     * Brings {@code view}'s tab to the front, in whichever window holds it (that window comes to the front too): where
+     * a machine is already being tested, when «Probar…» is asked in another tab of it. False when no window holds it
+     * (an editor outside a real window), or when the shown tab kept the front (a draft's «Seguir probando»).
+     */
+    default boolean bringToFront(EditorView view) {
+        return false;
+    }
+
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
     default void closeComponents() {
     }
