@@ -43,7 +43,7 @@ public final class MachineTestModes {
         }
     }
 
-    /** {@code view}'s machine mode asks through {@code questions} from now on. */
+    /** {@code view}'s machine mode asks through {@code questions} from now on: call it before the test starts. */
     public static ScriptedQuestions answerWith(EditorView view, ScriptedQuestions questions) {
         MachineMode.of(view).orElseThrow().askWith(questions);
         return questions;

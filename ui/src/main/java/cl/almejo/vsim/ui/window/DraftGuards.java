@@ -61,6 +61,24 @@ public final class DraftGuards {
     }
 
     /**
+     * Asks every guard of every view of {@code all}, in order, what to do on a close, doing nothing yet
+     * ({@link DraftGuard#decideClosing()}); empty when one was cancelled (the ones asked before did nothing either).
+     */
+    public static Optional<List<DraftGuard.Closing>> decideClosing(Collection<DraftGuards> all) {
+        List<DraftGuard.Closing> closings = new ArrayList<>();
+        for (DraftGuards each : List.copyOf(all)) {
+            for (DraftGuard guard : List.copyOf(each.guards)) {
+                Optional<DraftGuard.Closing> closing = guard.decideClosing();
+                if (closing.isEmpty()) {
+                    return Optional.empty();
+                }
+                closings.add(closing.get());
+            }
+        }
+        return Optional.of(closings);
+    }
+
+    /**
      * Before the view's tab moves to another window: the guards whose draft cannot travel are settled as a close, in
      * order; CANCEL when one was cancelled (the move then does not happen).
      */

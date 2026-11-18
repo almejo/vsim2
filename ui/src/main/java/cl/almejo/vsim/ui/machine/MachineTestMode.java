@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.EditMachineCommand;
+import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.machine.MachineDraft;
 import cl.almejo.vsim.core.machine.MachineTest;
 import cl.almejo.vsim.core.machine.MachineTestRun;
@@ -14,6 +15,8 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.DraftGuard;
 import cl.almejo.vsim.ui.window.EditorView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +47,8 @@ import java.util.function.UnaryOperator;
  */
 final class MachineTestMode implements MachineTestSession, EditorActions.StepSource, DraftGuard {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(MachineTestMode.class);
+
     private final EditorView view;
     private final MachineCanvas canvas;
     private final MachineTestQuestions questions;
@@ -60,6 +65,8 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     /** The lit state, worked out after each change (the diagram asks for it on every frame). */
     private Optional<ActiveMachineState> activeState = Optional.empty();
     private boolean over;
+    /** A close decided and written, waiting for «¿Guardar cambios?»: the guard asks nothing more meanwhile. */
+    private boolean closing;
 
     /**
      * A test mode on its way to the tab's new view in another window (review finding 1): its draft with its history,
@@ -264,8 +271,8 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     @Override
     public Answer settle(Reason reason) {
-        if (over) {
-            return Answer.GO_ON;
+        if (over || closing) {
+            return Answer.GO_ON; // a close already decided asks nothing more (the save question may switch tabs)
         }
         return switch (reason) {
             case SWITCH -> diagramChanged() ? leaveAsked("machine.test.option.keepTesting") : Answer.GO_ON;
@@ -283,6 +290,73 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     @Override
     public Optional<String> titleNote() {
         return Optional.of(Messages.text("machine.test.tabNote"));
+    }
+
+    /**
+     * A close of the window, the group or VSim (review finding 3): the question about a changed diagram is asked now,
+     * as a close asks it, but nothing is written until the close sequence says so; a Cancelar at «¿Guardar cambios?»
+     * then takes the written step back, and the test goes on as it was.
+     */
+    @Override
+    public Optional<Closing> decideClosing() {
+        if (over) {
+            return Optional.of(Closing.NOTHING);
+        }
+        if (!diagramChanged()) {
+            return Optional.of(new DecidedClosing(this::writeTests));
+        }
+        int choice = questions.ask(view, Messages.format("machine.test.question.leave", machineName()),
+                List.of(Messages.text("machine.test.option.apply"), Messages.text("machine.test.option.keep"),
+                        Messages.text("machine.test.option.cancel")));
+        if (choice == 0 && replacingIsAgreed()) {
+            return Optional.of(new DecidedClosing(() -> execute(fitted(draft.current()), "command.applyTest")));
+        }
+        if (choice == 1) {
+            return Optional.of(new DecidedClosing(this::writeTests));
+        }
+        return Optional.empty();
+    }
+
+    /** A close decided: {@code writing} puts it in the circuit; the circuit's history can be rolled back after. */
+    private final class DecidedClosing implements Closing {
+        private final Runnable writing;
+        private Optional<History.Checkpoint> checkpoint = Optional.empty();
+
+        private DecidedClosing(Runnable writing) {
+            this.writing = writing;
+        }
+
+        @Override
+        public void write() {
+            if (over) {
+                return;
+            }
+            closing = true;
+            checkpoint = Optional.of(canvas.place().history().checkpoint());
+            writing.run();
+            refreshBar();
+        }
+
+        @Override
+        public void finish() {
+            closing = false;
+            end();
+        }
+
+        @Override
+        public void takeBack() {
+            closing = false;
+            checkpoint.ifPresent(taken -> {
+                if (!canvas.place().history().rollBackTo(taken)) {
+                    // the history went elsewhere meanwhile: the written step stays, Deshacer takes it back
+                    LOGGER.warn("Could not take back the test's step in {}", machineName());
+                }
+            });
+            checkpoint = Optional.empty();
+            if (!over) {
+                changed();
+            }
+        }
     }
 
     /**
