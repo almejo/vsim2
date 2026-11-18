@@ -551,6 +551,46 @@ class MachineTestModeTest {
         assertThat(((JMenuItem) table.tabMenu(0).getComponent(2)).isEnabled()).isTrue();
     }
 
+    /** Review finding 6: a test tab being renamed while Deshacer takes that test away: the rename is dropped. */
+    @Test
+    void renamingATestThatAnUndoTookAwayChangesNothing() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        MachineTestTable table = (MachineTestTable) view.bottomDock().content().orElseThrow();
+        table.addTest();
+        javax.swing.JTextField field = table.startRenaming(1);
+        field.setText("Mía");
+
+        perform(view.actions().undo()); // «+ Prueba nueva» goes, and its tab with it
+        field.postActionEvent(); // the field loses the focus, or Intro: it commits
+
+        assertThat(test.machine().tests()).hasSize(1);
+        assertThat(test.machine().tests().getFirst().name()).isEqualTo("Prueba 1");
+        assertThat(view.actions().redo().isEnabled()).isTrue(); // the rename made no step
+    }
+
+    /** Review finding 6: the rename follows its test, also when an undo moved it to another place. */
+    @Test
+    void renamingFollowsTheTestNotItsPlace() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        MachineTestTable table = (MachineTestTable) view.bottomDock().content().orElseThrow();
+        table.addTest();
+        table.addTest();
+        String thirdId = test.machine().tests().get(2).id();
+        table.deleteTest(1);
+        javax.swing.JTextField field = table.startRenaming(1); // the third test, now second
+
+        perform(view.actions().undo()); // the second test is back: the third is third again
+        field.setText("Mía");
+        field.postActionEvent();
+
+        assertThat(test.machine().tests()).hasSize(3);
+        assertThat(test.machine().tests().get(2).id()).isEqualTo(thirdId);
+        assertThat(test.machine().tests().get(2).name()).isEqualTo("Mía");
+        assertThat(test.machine().tests().get(1).name()).isNotEqualTo("Mía");
+    }
+
     @Test
     void anExpectedValueChangesTheResultTheDiagramLights() {
         MachineTestMode test = start();
