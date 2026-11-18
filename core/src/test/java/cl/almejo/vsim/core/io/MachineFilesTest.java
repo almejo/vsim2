@@ -85,6 +85,37 @@ class MachineFilesTest {
         assertThat(pasted.definitions()).containsExactly(document.definition("maquina-1").orElseThrow());
     }
 
+    /** Hand test U: every file with a machine logged «disagrees»: the written body has no defaults filled in. */
+    @Test
+    void aBodyVsimWroteItselfAgreesWithTheMachineItWasGeneratedFrom() throws Exception {
+        ComponentDefinition definition = richMachine();
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode root = (ObjectNode) mapper.readTree(format.write(circuitWith(definition)));
+        DefinitionEntries.DefinitionEntry written = mapper.treeToValue(root.path("definitions").get(0),
+                DefinitionEntries.DefinitionEntry.class);
+
+        assertThat(DefinitionEntries.writtenBodyDisagrees(written, definition.machine().orElseThrow())).isFalse();
+    }
+
+    @Test
+    void aBodyWithAnotherPinOrAnotherPlaceDisagrees() throws Exception {
+        ComponentDefinition definition = richMachine();
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode root = (ObjectNode) mapper.readTree(format.write(circuitWith(definition)));
+        ObjectNode moved = (ObjectNode) root.path("definitions").get(0);
+        ((ObjectNode) moved.path("components").get(0)).put("x", 5);
+        ObjectNode fewer = (ObjectNode) mapper.readTree(format.write(circuitWith(definition))).path("definitions")
+                .get(0);
+        ((com.fasterxml.jackson.databind.node.ArrayNode) fewer.path("pinout")).remove(0);
+
+        assertThat(DefinitionEntries.writtenBodyDisagrees(
+                mapper.treeToValue(moved, DefinitionEntries.DefinitionEntry.class),
+                definition.machine().orElseThrow())).isTrue();
+        assertThat(DefinitionEntries.writtenBodyDisagrees(
+                mapper.treeToValue(fewer, DefinitionEntries.DefinitionEntry.class),
+                definition.machine().orElseThrow())).isTrue();
+    }
+
     @Test
     void aBodyOnDiskThatDisagreesWithTheMachineIsRegenerated() throws Exception {
         ComponentDefinition definition = richMachine();

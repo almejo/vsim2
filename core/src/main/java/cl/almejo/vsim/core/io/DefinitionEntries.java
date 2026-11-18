@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
@@ -145,7 +146,7 @@ final class DefinitionEntries {
         }
         try {
             ComponentDefinition regenerated = written.withMachine(machine);
-            if (!regenerated.body().equals(written.body()) || !regenerated.pinout().equals(written.pinout())) {
+            if (disagrees(written, regenerated)) {
                 LOGGER.warn("The body written for machine {} disagrees with the machine; generating it again",
                         entry.id());
             }
@@ -153,6 +154,49 @@ final class DefinitionEntries {
         } catch (IllegalArgumentException exception) {
             throw invalid("definition " + entry.id() + ": " + exception.getMessage(), exception);
         }
+    }
+
+    /** Whether the body and pinout {@code entry} wrote differ from what {@code machine} generates. */
+    static boolean writtenBodyDisagrees(DefinitionEntry entry, StateMachine machine) throws CircuitFormatException {
+        ComponentDefinition written = circuitDefinition(entry);
+        return disagrees(written, written.withMachine(machine));
+    }
+
+    /**
+     * Whether the written body and pinout differ from the generated ones. A written component has only the parameters
+     * the writer keeps (its defaults are left out, and a machine's body is never normalized on reading), so a
+     * generated component equals it when it has every written parameter with the same value, whatever defaults it
+     * adds; that gap alone is no disagreement (it made every file with a machine log one).
+     */
+    private static boolean disagrees(ComponentDefinition written, ComponentDefinition regenerated) {
+        CircuitFragment body = written.body();
+        CircuitFragment generated = regenerated.body();
+        if (!regenerated.pinout().equals(written.pinout()) || !regenerated.size().equals(written.size())
+                || body.components().size() != generated.components().size()
+                || !body.wires().equals(generated.wires()) || !body.labels().equals(generated.labels())
+                || !body.frames().equals(generated.frames())
+                || !body.stickyNotes().equals(generated.stickyNotes())) {
+            return true;
+        }
+        for (int index = 0; index < body.components().size(); index++) {
+            if (!sameComponent(body.components().get(index), generated.components().get(index))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean sameComponent(Component written, Component generated) {
+        if (!generated.withParameters(written.parameters()).equals(written)) {
+            return false;
+        }
+        for (Map.Entry<String, Object> parameter : written.parameters().entrySet()) {
+            Object value = generated.parameters().get(parameter.getKey());
+            if (value == null || !String.valueOf(value).equals(String.valueOf(parameter.getValue()))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static ComponentDefinition generatedMachine(DefinitionEntry entry, StateMachine machine)
