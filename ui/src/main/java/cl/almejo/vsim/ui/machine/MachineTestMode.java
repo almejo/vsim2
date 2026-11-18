@@ -385,9 +385,13 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         });
     }
 
+    /** Said only when the draft holds something the circuit does not (review finding 11). */
     @Override
     public Optional<String> discardNotice() {
-        return Optional.of(Messages.text("machine.test.discarded"));
+        boolean unwritten = realMachine()
+                .map(real -> draft.diagramDiffersFrom(real) || draft.testsDifferFrom(real))
+                .orElseGet(() -> draft.diagramChanged() || draft.testsChanged());
+        return unwritten ? Optional.of(Messages.text("machine.test.discarded")) : Optional.empty();
     }
 
     /** «Aplicar / Dejar como estaba / {@code lastKey}»: GO_ON once the mode was left one of the two ways. */

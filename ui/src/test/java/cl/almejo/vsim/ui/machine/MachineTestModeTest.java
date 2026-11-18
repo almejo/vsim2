@@ -349,8 +349,11 @@ class MachineTestModeTest {
 
     @Test
     void theDefinitionLeavingEndsTheModeAndItsTabNoteSaysTheDraftWent() {
-        start();
+        MachineTestMode test = start();
         assertThat(view.draftGuards().titleNote()).contains(" · prueba");
+        // review finding 11: nothing changed, nothing is said to be discarded
+        assertThat(view.draftGuards().discardNotice()).isEmpty();
+        setAnInput(test);
         assertThat(view.draftGuards().discardNotice()).contains("Se descartó el borrador de la prueba");
 
         document.history().undo(); // the copy
