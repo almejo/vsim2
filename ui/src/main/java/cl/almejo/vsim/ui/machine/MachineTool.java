@@ -827,17 +827,17 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Set<String> transitions = new LinkedHashSet<>();
             Set<String> notes = new LinkedHashSet<>();
             for (MachineState state : machine.get().states()) {
-                if (band.contains(geometry.circle(state.id()).getBounds2D())) {
+                if (SelectionModifiers.encloses(band, geometry.circle(state.id()).getBounds2D())) {
                     states.add(state.id());
                 }
             }
             for (MachineTransition transition : machine.get().transitions()) {
-                if (band.contains(geometry.arrow(transition.id()).path().getBounds2D())) {
+                if (SelectionModifiers.encloses(band, geometry.arrow(transition.id()).path().getBounds2D())) {
                     transitions.add(transition.id());
                 }
             }
             for (MachineNote note : machine.get().notes()) {
-                if (band.contains(MachineNotePainting.paperOf(note))) {
+                if (SelectionModifiers.encloses(band, MachineNotePainting.paperOf(note))) {
                     notes.add(note.id());
                 }
             }

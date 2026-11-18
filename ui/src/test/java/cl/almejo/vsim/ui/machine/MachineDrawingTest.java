@@ -426,6 +426,19 @@ class MachineDrawingTest {
         mouse(MouseEvent.MOUSE_RELEASED, last, modifiers, 1);
     }
 
+    /**
+     * Hand test of hito 3 (2026-11-17): a band over states and the straight arrow between them took the states but not
+     * the arrow (its bounds are a flat line, which no rectangle «contains»), so it never showed selected.
+     */
+    @Test
+    void aBandOverStatesTakesTheStraightArrowBetweenThemAndPropiedadesCountsIt() {
+        drag(at(100, -60), at(250, -50), at(380, 60));
+
+        assertThat(mode.selection().stateIds()).containsExactlyInAnyOrder("s1", "s2");
+        assertThat(mode.selection().transitionIds()).containsExactly("t3");
+        assertThat(texts(mode.inspectorRows())).contains(Messages.format("machine.properties.several", 3));
+    }
+
     private DiagramPoint positionOf(String stateId) {
         return machine().state(stateId).orElseThrow().position();
     }

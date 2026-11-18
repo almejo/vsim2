@@ -1255,8 +1255,7 @@ public final class SelectTool implements Tool {
         Set<ElementId> inside = new LinkedHashSet<>();
         for (DocumentElement element : context.openDocument().document().elements()) {
             Rectangle2D area = gridArea(element, context);
-            if (area.getMinX() >= band.getMinX() && area.getMaxX() <= band.getMaxX()
-                    && area.getMinY() >= band.getMinY() && area.getMaxY() <= band.getMaxY()) {
+            if (SelectionModifiers.encloses(band, area)) {
                 inside.add(element.id());
             }
         }

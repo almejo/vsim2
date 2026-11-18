@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.tools;
 
 import org.junit.jupiter.api.Test;
 
+import java.awt.geom.Rectangle2D;
 import java.util.Optional;
 import java.util.Set;
 
@@ -50,6 +51,15 @@ class SelectionModifiersTest {
                 .containsExactlyInAnyOrder("a", "b", "c");
         assertThat(SelectionModifiers.combine(SelectionModifiers.BandMode.REMOVE, current, inside))
                 .containsExactly("a");
+    }
+
+    @Test
+    void aBandEnclosesAFlatLineAndItsOwnEdgesButNotWhatSticksOut() {
+        Rectangle2D band = new Rectangle2D.Double(0, 0, 10, 10);
+
+        assertThat(SelectionModifiers.encloses(band, new Rectangle2D.Double(2, 5, 6, 0))).isTrue();
+        assertThat(SelectionModifiers.encloses(band, new Rectangle2D.Double(0, 0, 10, 10))).isTrue();
+        assertThat(SelectionModifiers.encloses(band, new Rectangle2D.Double(2, 5, 9, 0))).isFalse();
     }
 
     @Test

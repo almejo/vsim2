@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.tools;
 
+import java.awt.geom.Rectangle2D;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -64,6 +65,16 @@ public final class SelectionModifiers {
             result.addAll(inside);
         }
         return result;
+    }
+
+    /**
+     * Whether a band takes what lies in {@code bounds}: it encloses them, edges included. Not
+     * {@link Rectangle2D#contains(Rectangle2D)}, which never contains a rectangle with no width or height, as the bounds
+     * of a straight horizontal arrow are (hand test of the machines, 2026-11-17: such an arrow was never taken).
+     */
+    public static boolean encloses(Rectangle2D band, Rectangle2D bounds) {
+        return bounds.getMinX() >= band.getMinX() && bounds.getMaxX() <= band.getMaxX()
+                && bounds.getMinY() >= band.getMinY() && bounds.getMaxY() <= band.getMaxY();
     }
 
     /**
