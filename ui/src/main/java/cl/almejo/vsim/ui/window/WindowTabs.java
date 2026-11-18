@@ -652,14 +652,17 @@ public final class WindowTabs extends JPanel {
         repaint();
     }
 
-    /** Every tab's inline editor: an open inline edit is finished before a close asks to save. */
     /** Every tab's drafts, in tab order: settled before the window closes or VSim exits (hito 4 of the machines). */
     public List<DraftGuards> drafts() {
         return views().stream().map(EditorView::draftGuards).toList();
     }
 
+    /**
+     * Every tab's inline editors (a machine's diagram's too): an open inline edit is finished before a close asks to
+     * save.
+     */
     public List<InlineTextEditor> inlineEditors() {
-        return views().stream().map(EditorView::inlineEditor).toList();
+        return views().stream().flatMap(view -> view.inlineEditors().stream()).toList();
     }
 
     /** One entry per tab for the Ventana list; {@code current} marks the active tab when this is the asking window. */
@@ -1035,7 +1038,7 @@ public final class WindowTabs extends JPanel {
         }
         TabEntry entry = found.get();
         if (!entry.isMain() || mainTabCount(entry.document) > 1) {
-            entry.view.inlineEditor().confirmOrCancel();
+            entry.view.inlineEditors().forEach(InlineTextEditor::confirmOrCancel);
             if (entry.view.draftGuards().settle(DraftGuard.Reason.CLOSE) == DraftGuard.Answer.GO_ON) {
                 removeTab(entry);
             }
@@ -1053,7 +1056,8 @@ public final class WindowTabs extends JPanel {
         if (group.isEmpty()) {
             return true;
         }
-        boolean confirmed = CloseSequence.confirm(group.stream().map(entry -> entry.view.inlineEditor()).toList(),
+        boolean confirmed = CloseSequence.confirm(group.stream()
+                        .flatMap(entry -> entry.view.inlineEditors().stream()).toList(),
                 group.stream().map(entry -> entry.view.draftGuards()).toList(),
                 () -> !host.isLastHolder(document) || host.confirmSave(document));
         if (!confirmed) {
@@ -1073,7 +1077,7 @@ public final class WindowTabs extends JPanel {
      */
     public void closeComponentTabs(OpenDocument document) {
         List<TabEntry> components = entriesOf(document).stream().filter(entry -> !entry.isMain()).toList();
-        components.forEach(entry -> entry.view.inlineEditor().confirmOrCancel());
+        components.forEach(entry -> entry.view.inlineEditors().forEach(InlineTextEditor::confirmOrCancel));
         if (DraftGuards.settle(components.stream().map(entry -> entry.view.draftGuards()).toList(),
                 DraftGuard.Reason.CLOSE) == DraftGuard.Answer.CANCEL) {
             return;

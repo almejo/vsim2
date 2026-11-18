@@ -60,6 +60,13 @@ public final class MachineTestModes {
         }, "cambiar x");
     }
 
+    /** Opens the name of state {@code stateId} on {@code view}'s diagram and types {@code text}, without confirming. */
+    public static void typeStateName(EditorView view, String stateId, String text) {
+        MachineInlineEditor inline = MachineMode.of(view).orElseThrow().inlineEditor();
+        inline.editStateName(stateId);
+        inline.editor().textComponent().setText(text);
+    }
+
     /** The draft {@code view}'s test mode shows (its tests as the table sees them), while it tests. */
     public static Optional<StateMachine> draftOf(EditorView view) {
         return MachineMode.of(view).flatMap(MachineMode::testMode).map(MachineTestMode::machine);

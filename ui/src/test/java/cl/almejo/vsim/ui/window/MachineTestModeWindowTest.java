@@ -99,6 +99,46 @@ class MachineTestModeWindowTest {
                 .isEqualTo("Deshacer (prueba): editar la máquina");
     }
 
+    private String stateName(String stateId) {
+        return circuitsMachine().state(stateId).orElseThrow().name();
+    }
+
+    private EditorView machineTab() {
+        tabs.addTab(document, Optional.empty());
+        return tabs.enter(document, MachineFixtures.DEFINITION_ID,
+                Optional.of(MachineFixtures.copies(document).getFirst()), Optional.empty());
+    }
+
+    /**
+     * Review finding 12: Ctrl+W with a state's name half typed in test mode: the name is put in the draft first, so
+     * the close asks about the changed diagram, and «Aplicar» keeps it.
+     */
+    @Test
+    void closingWithANameHalfTypedInTestModeAsksAndAplicarKeepsIt() {
+        EditorView inside = machineTab();
+        MachineTestModes.ScriptedQuestions questions = MachineTestModes.answerWith(inside,
+                new MachineTestModes.ScriptedQuestions().then("Aplicar"));
+        MachineMode.of(inside).orElseThrow().startTest();
+        MachineTestModes.typeStateName(inside, "s1", "UNO");
+
+        tabs.closeTab(inside);
+
+        assertThat(questions.asked()).hasSize(1);
+        assertThat(stateName("s1")).isEqualTo("UNO");
+        assertThat(tabs.views()).doesNotContain(inside);
+    }
+
+    /** Review finding 12, outside test mode: Ctrl+W puts the half-typed name in the circuit, as a circuit's edit. */
+    @Test
+    void closingWithANameHalfTypedPutsItInTheCircuit() {
+        EditorView inside = machineTab();
+        MachineTestModes.typeStateName(inside, "s1", "UNO");
+
+        tabs.closeTab(inside);
+
+        assertThat(stateName("s1")).isEqualTo("UNO");
+    }
+
     /** A step in the circuit's redo, so a Cancelar can be seen to keep it. */
     private Command aStepToRedo() {
         document.execute(new EditMachineCommand(MachineFixtures.DEFINITION_ID,

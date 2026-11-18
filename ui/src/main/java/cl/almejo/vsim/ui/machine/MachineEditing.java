@@ -82,6 +82,8 @@ final class MachineEditing {
         undo.add(addMenuItems(view.menu(MenuId.EDIT), view.actions().delete(), tool));
         undo.add(rows::dispose);
         undo.add(inline::dispose);
+        // a close finishes a half-typed name or condition first, as it does the circuit's (review finding 12)
+        undo.add(view.addInlineEditor(inline.editor()));
         return new MachineEditing(tool, inline, rows, () -> {
             for (int index = undo.size() - 1; index >= 0; index--) {
                 undo.get(index).run();
