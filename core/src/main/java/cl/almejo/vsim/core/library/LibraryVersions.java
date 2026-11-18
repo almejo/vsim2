@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.library;
 
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -33,14 +35,18 @@ public final class LibraryVersions {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    /** Compares every supplied definition, including nested dependencies, with its standalone library entry. */
+    /**
+     * Compares every supplied definition, including nested dependencies, with its standalone library entry. A
+     * machine's tests do not count: they live only in the circuit ({@link MachineDefinitions#forLibrary}).
+     */
     public static List<RevisionDifference> differences(Collection<ComponentDefinition> documentDefinitions,
                                                        ComponentLibrary library) {
         Objects.requireNonNull(documentDefinitions, "documentDefinitions");
         Objects.requireNonNull(library, "library");
         return documentDefinitions.stream().flatMap(definition -> library.find(definition.id()).stream()
                 .map(DefinitionBundle::root)
-                .filter(available -> !definition.sameContentAs(available))
+                .filter(available -> !MachineDefinitions.withoutTests(definition)
+                        .sameContentAs(MachineDefinitions.withoutTests(available)))
                 .map(available -> new RevisionDifference(definition.id(), definition.revision(), available.revision(),
                         relation(definition.revision(), available.revision())))).toList();
     }

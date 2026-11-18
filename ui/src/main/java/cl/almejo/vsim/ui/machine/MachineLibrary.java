@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -30,6 +31,6 @@ record MachineLibrary(ComponentLibrary entries, Consumer<DefinitionBundle> save)
     static MachineLibrary of(EditorView view) {
         ComponentLibrary entries = view.services().library();
         return new MachineLibrary(entries, bundle -> view.templateActions().ifPresentOrElse(
-                actions -> actions.saveToLibrary(bundle), () -> entries.put(bundle)));
+                actions -> actions.saveToLibrary(bundle), () -> entries.put(MachineDefinitions.forLibrary(bundle))));
     }
 }

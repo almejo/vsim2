@@ -143,6 +143,12 @@ class EditMachineCommandTest {
                 .isEqualTo("command.editMachine");
     }
 
+    @Test
+    void aStepCanBeGivenItsOwnName() {
+        assertThat(new EditMachineCommand(MACHINE_ID, StateMachine.initial(), "command.saveTests").description())
+                .isEqualTo("command.saveTests");
+    }
+
     private StateMachine withSelfLoop(String condition) {
         return original.machine().orElseThrow().withTransitions(List.of(
                 new MachineTransition("t0", "s0", "s0", condition, List.of())));
