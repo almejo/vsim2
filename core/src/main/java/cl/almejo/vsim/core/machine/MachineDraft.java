@@ -108,6 +108,24 @@ public final class MachineDraft {
     }
 
     /**
+     * Whether the draft's diagram (anything but the tests) differs from {@code machine}'s: the circuit's machine as it
+     * is now, whatever happened to it since the base (an undo in the circuit of what was applied).
+     */
+    public boolean diagramDiffersFrom(StateMachine machine) {
+        Objects.requireNonNull(machine, "machine");
+        return !current.withTests(machine.tests()).equals(machine);
+    }
+
+    /**
+     * Whether the draft's tests, fitted to {@code machine}'s pins ({@link MachineTests#fittedTo}), differ from
+     * {@code machine}'s tests: what writing the tests to the circuit's machine as it is now would change.
+     */
+    public boolean testsDifferFrom(StateMachine machine) {
+        Objects.requireNonNull(machine, "machine");
+        return !MachineTests.fittedTo(machine, current.tests()).equals(machine.tests());
+    }
+
+    /**
      * The real machine is now {@code newBase} (the tests were written to it on Guardar, or it was applied): the draft
      * and its history stay, and {@link #diagramChanged} and {@link #testsChanged} compare with it.
      */

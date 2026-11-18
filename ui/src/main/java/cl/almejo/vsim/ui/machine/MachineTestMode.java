@@ -117,9 +117,12 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         return bar;
     }
 
-    /** Whether the draft's diagram differs from the circuit's machine as it was when the test started. */
+    /**
+     * Whether the draft's diagram differs from the circuit's machine as it is now (not as it was when the test started
+     * or was last applied: an undo in the circuit of «aplicar la prueba» makes it differ again, review finding 2).
+     */
     boolean diagramChanged() {
-        return draft.diagramChanged();
+        return realMachine().map(draft::diagramDiffersFrom).orElseGet(draft::diagramChanged);
     }
 
     /** Whether the circuit's machine changed since the test started (or was last applied or saved). */
@@ -236,9 +239,9 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
             return Answer.GO_ON;
         }
         return switch (reason) {
-            case SWITCH -> draft.diagramChanged() ? leaveAsked("machine.test.option.keepTesting") : Answer.GO_ON;
+            case SWITCH -> diagramChanged() ? leaveAsked("machine.test.option.keepTesting") : Answer.GO_ON;
             case CLOSE -> {
-                if (draft.diagramChanged()) {
+                if (diagramChanged()) {
                     yield leaveAsked("machine.test.option.cancel");
                 }
                 exit();
@@ -278,7 +281,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      * guardar / Guardar sin el borrador / Cancelar». The mode goes on after the save.
      */
     private Answer settleForSaving() {
-        if (!draft.diagramChanged()) {
+        if (!diagramChanged()) {
             writeTestsStaying();
             return Answer.GO_ON;
         }
@@ -351,22 +354,19 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         return choice == 0;
     }
 
-    /** The draft's tests written to the circuit's machine in one step «Guardar las pruebas», when they changed. */
+    /**
+     * The draft's tests written to the circuit's machine in one step «Guardar las pruebas», when they differ from the
+     * circuit's machine as it is now: what the table shows is what the machine keeps, also after an undo in the circuit
+     * of a step that wrote them (review finding 2).
+     */
     private void writeTests() {
-        if (!draft.testsChanged()) {
-            return;
-        }
-        realMachine().ifPresent(real -> {
-            List<MachineTest> tests = MachineTests.fittedTo(real, draft.current().tests());
-            if (!tests.equals(real.tests())) {
-                execute(real.withTests(tests), "command.saveTests");
-            }
-        });
+        realMachine().filter(draft::testsDifferFrom).ifPresent(real -> execute(
+                real.withTests(MachineTests.fittedTo(real, draft.current().tests())), "command.saveTests"));
     }
 
     /** As {@link #writeTests()}, the mode going on: its base takes the written tests. */
     private void writeTestsStaying() {
-        if (!draft.testsChanged()) {
+        if (realMachine().filter(draft::testsDifferFrom).isEmpty()) {
             return;
         }
         writeTests();
@@ -450,7 +450,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     private void refreshBar() {
         if (!over) {
-            bar.show(draft.diagramChanged(), changedOutside());
+            bar.show(diagramChanged(), changedOutside());
         }
     }
 

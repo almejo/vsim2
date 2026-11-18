@@ -442,6 +442,43 @@ class MachineTestModeTest {
         }
     }
 
+    /** Review finding 2, scenario A: Guardar, then Ctrl+Z of «guardar las pruebas» in the circuit, then Salir. */
+    @Test
+    void afterGuardarAnUndoInTheCircuitStillLeavesTheTestsTheTableShows() {
+        MachineTestMode test = start();
+        setAnInput(test);
+        assertThat(view.draftGuards().settle(DraftGuard.Reason.SAVE)).isEqualTo(DraftGuard.Answer.GO_ON);
+        assertThat(circuitsMachine().tests()).hasSize(1);
+
+        document.history().undo(); // «guardar las pruebas», from the circuit's tab
+        assertThat(circuitsMachine().tests()).isEmpty();
+        assertThat(test.bar().message()).contains("La máquina cambió afuera");
+
+        test.bar().exitButton().doClick(0);
+
+        assertThat(circuitsMachine().tests()).hasSize(1);
+        assertThat(circuitsMachine().tests().getFirst().columns().getFirst().input(inputId())).isTrue();
+    }
+
+    /** Review finding 2, scenario B: «Aplicar y guardar», then Ctrl+Z of «aplicar la prueba» in the circuit. */
+    @Test
+    void afterAplicarYGuardarAnUndoInTheCircuitOffersAplicarAgain() {
+        MachineTestMode test = start();
+        canvas.edit(MachineTestModeTest::withS1Initial);
+        questions.answers.add("Aplicar y guardar");
+        assertThat(view.draftGuards().settle(DraftGuard.Reason.SAVE)).isEqualTo(DraftGuard.Answer.GO_ON);
+        assertThat(circuitsMachine().initialStateId()).contains("s1");
+        assertThat(test.bar().exitButton().isVisible()).isTrue();
+
+        document.history().undo(); // «aplicar la prueba», from the circuit's tab
+
+        assertThat(test.diagramChanged()).isTrue();
+        assertThat(test.bar().applyButton().isVisible()).isTrue();
+        assertThat(test.bar().exitButton().isVisible()).isFalse();
+        questions.answers.add("Seguir probando");
+        assertThat(view.draftGuards().settle(DraftGuard.Reason.SWITCH)).isEqualTo(DraftGuard.Answer.CANCEL);
+    }
+
     @Test
     void anExpectedValueChangesTheResultTheDiagramLights() {
         MachineTestMode test = start();
