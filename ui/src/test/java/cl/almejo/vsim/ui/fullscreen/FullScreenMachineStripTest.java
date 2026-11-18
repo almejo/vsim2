@@ -105,6 +105,28 @@ class FullScreenMachineStripTest {
     }
 
     @Test
+    void whatTheDockShowsInsteadOfTheStripComesUpFromTheEdgeInItsPlace() {
+        WaveformPanel strip = strip();
+        javax.swing.JLabel table = new javax.swing.JLabel("tabla");
+        enter();
+        restAtTheBottomEdge();
+        assertThat(isOnScreen(strip)).isTrue();
+
+        Runnable remove = view.bottomDock().contentInstead(table); // the test table, while testing
+        fixture.layOut();
+
+        assertThat(isOnScreen(table)).as("on the edge, where the strip was").isTrue();
+        assertThat(isOnScreen(strip)).isFalse();
+
+        remove.run();
+        fixture.layOut();
+        restAtTheBottomEdge();
+
+        assertThat(isOnScreen(strip)).isTrue();
+        assertThat(table.getParent()).isNull();
+    }
+
+    @Test
     void theStripComesUpFromTheBottomEdge() {
         assertThat(strip().channelNames()).containsExactly("x", "estado", "Z");
         enter();

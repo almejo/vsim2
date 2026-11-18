@@ -116,6 +116,12 @@ public final class EditorActions {
     private Optional<ContentZoom> contentZoom = Optional.empty();
     /** What «Borrar» deletes instead of the circuit's selection (a machine's diagram); empty for a circuit. */
     private Optional<ContentDeletion> contentDeletion = Optional.empty();
+    /** The history Deshacer and Rehacer follow instead of the circuit's (a test's draft); empty for the circuit's. */
+    private Optional<StepSource> stepSource = Optional.empty();
+    private Runnable stopFollowingStepSource = () -> { };
+    /** Deshacer's and Rehacer's tooltips before a step source was installed, given back when it goes. */
+    private Object usualUndoDescription;
+    private Object usualRedoDescription;
 
     /**
      * The actions of one window: {@code activePane} (its active pane) is resolved each time an action runs (zoom, centre,
@@ -157,7 +163,7 @@ public final class EditorActions {
         exit = Actions.of(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
         undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), this::undoStep);
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
-                () -> steps.redo());
+                this::redoStep);
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
         delete.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.delete"));
         rotateClockwise = Actions.of(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
@@ -258,6 +264,81 @@ public final class EditorActions {
     /** Deshacer and Rehacer run their step through {@code runner} from now on. */
     public void runStepsWith(StepRunner runner) {
         steps = Objects.requireNonNull(runner, "runner");
+    }
+
+    /**
+     * Another history Deshacer and Rehacer follow while it is installed with {@link #stepsInstead} (plan 2026-11-14,
+     * hito 4 task 3: the test mode's draft, whose steps never reach the circuit's history). EDT only.
+     */
+    public interface StepSource {
+
+        /** Whether there is a step to undo: Deshacer is enabled. */
+        boolean canUndo();
+
+        /** Whether there is a step to redo: Rehacer is enabled. */
+        boolean canRedo();
+
+        /**
+         * Deshacer's whole text while there is a step to undo, already translated («Deshacer (prueba): mover
+         * estado»); empty for the plain «Deshacer».
+         */
+        Optional<String> undoName();
+
+        /** Rehacer's whole text while there is a step to redo, already translated; empty for the plain «Rehacer». */
+        Optional<String> redoName();
+
+        /** Why Deshacer is disabled, as its tooltip, while {@link #canUndo()} is false; empty for none. */
+        default Optional<String> cannotUndoReason() {
+            return Optional.empty();
+        }
+
+        /** Why Rehacer is disabled, as its tooltip, while {@link #canRedo()} is false; empty for none. */
+        default Optional<String> cannotRedoReason() {
+            return Optional.empty();
+        }
+
+        /** Undoes the last step (Deshacer, Ctrl+Z, the toolbar button). */
+        void undo();
+
+        /** Redoes the last undone step (Rehacer, Ctrl+Mayús+Z). */
+        void redo();
+
+        /**
+         * Runs {@code listener} after every change of the answers above (a step made, undone or redone); returns its
+         * removal.
+         */
+        Runnable addListener(Runnable listener);
+    }
+
+    /**
+     * Deshacer and Rehacer follow {@code source} instead of the circuit's history until the returned runnable runs:
+     * their names, whether they are enabled, their tooltips while disabled ({@link StepSource#cannotUndoReason()})
+     * and what they run. The circuit's history keeps changing meanwhile (the simulation, another tab) without
+     * changing them. Installing another source replaces this one; then this one's runnable does nothing. Running the
+     * runnable gives them back to the circuit's history (through the view's {@link StepRunner}, as before) and their
+     * usual tooltips; running it twice does nothing more. A tool drawing between clicks (a continuous wire) still
+     * drops its last corner first, as with the circuit's history.
+     */
+    public Runnable stepsInstead(StepSource source) {
+        Objects.requireNonNull(source, "source");
+        stopFollowingStepSource.run();
+        if (stepSource.isEmpty()) {
+            usualUndoDescription = undo.getValue(Action.SHORT_DESCRIPTION);
+            usualRedoDescription = redo.getValue(Action.SHORT_DESCRIPTION);
+        }
+        stepSource = Optional.of(source);
+        stopFollowingStepSource = source.addListener(this::refresh);
+        refresh();
+        return () -> {
+            if (stepSource.filter(installed -> installed == source).isPresent()) {
+                stopFollowingStepSource.run();
+                stopFollowingStepSource = () -> { };
+                stepSource = Optional.empty();
+                undo.putValue(Action.SHORT_DESCRIPTION, usualUndoDescription);
+                redo.putValue(Action.SHORT_DESCRIPTION, usualRedoDescription);
+                refresh();
+            }
+        };
     }
 
     public Action undo() { return undo; }
@@ -469,7 +550,12 @@ public final class EditorActions {
         if (pane != null && pane.dropLastToolStep()) {
             return;
         }
-        steps.undo();
+        stepSource.ifPresentOrElse(StepSource::undo, steps::undo);
+    }
+
+    /** Rehacer: the installed step source's step, or the history's. */
+    private void redoStep() {
+        stepSource.ifPresentOrElse(StepSource::redo, steps::redo);
     }
 
     /** True while a tool of the active pane's window draws between clicks (a continuous wire's path). */
@@ -479,9 +565,24 @@ public final class EditorActions {
     }
 
     public void refresh() {
-        History history = openDocument.history();
         save.setEnabled(openDocument.canSave());
         boolean dropsACorner = drawsBetweenClicks();
+        stepSource.ifPresentOrElse(source -> refreshSteps(source, dropsACorner),
+                () -> refreshHistorySteps(dropsACorner));
+        Set<ElementId> selected = selection.ids();
+        // while a path is drawn the keys that act on the selection do nothing
+        boolean actsOnSelection = !selected.isEmpty() && !dropsACorner;
+        delete.setEnabled(contentDeletion.map(ContentDeletion::canDelete).orElse(actsOnSelection));
+        rotateClockwise.setEnabled(actsOnSelection);
+        rotateCounterClockwise.setEnabled(actsOnSelection);
+        moveActions.values().forEach(move -> move.setEnabled(actsOnSelection));
+        zoomToSelection.setEnabled(!selected.isEmpty());
+        configure.setEnabled(singleConfigurable().isPresent());
+    }
+
+    /** Deshacer and Rehacer as the circuit's history says, naming the step and where it was made. */
+    private void refreshHistorySteps(boolean dropsACorner) {
+        History history = openDocument.history();
         undo.setEnabled(dropsACorner || history.canUndo());
         // while a wire is drawn Deshacer drops its last corner, not the history's step its name would announce
         undo.putValue(Action.NAME, dropsACorner ? Messages.text("action.undo") : history.undoCommand()
@@ -492,15 +593,25 @@ public final class EditorActions {
         redo.putValue(Action.NAME, history.redoCommand()
                 .map(command -> stepName(command, "action.redoNamed", "action.redoInside"))
                 .orElse(Messages.text("action.redo")));
-        Set<ElementId> selected = selection.ids();
-        // while a path is drawn the keys that act on the selection do nothing
-        boolean actsOnSelection = !selected.isEmpty() && !dropsACorner;
-        delete.setEnabled(contentDeletion.map(ContentDeletion::canDelete).orElse(actsOnSelection));
-        rotateClockwise.setEnabled(actsOnSelection);
-        rotateCounterClockwise.setEnabled(actsOnSelection);
-        moveActions.values().forEach(move -> move.setEnabled(actsOnSelection));
-        zoomToSelection.setEnabled(!selected.isEmpty());
-        configure.setEnabled(singleConfigurable().isPresent());
+    }
+
+    /** Deshacer and Rehacer as {@code source} says: its names, and its reasons as tooltips while disabled. */
+    private void refreshSteps(StepSource source, boolean dropsACorner) {
+        boolean canUndo = source.canUndo();
+        undo.setEnabled(dropsACorner || canUndo);
+        undo.putValue(Action.NAME, dropsACorner ? Messages.text("action.undo")
+                : source.undoName().orElse(Messages.text("action.undo")));
+        undo.putValue(Action.SHORT_DESCRIPTION, dropsACorner || canUndo ? usualUndoDescription
+                : descriptionOr(source.cannotUndoReason(), usualUndoDescription));
+        boolean canRedo = !dropsACorner && source.canRedo();
+        redo.setEnabled(canRedo);
+        redo.putValue(Action.NAME, source.redoName().orElse(Messages.text("action.redo")));
+        redo.putValue(Action.SHORT_DESCRIPTION, canRedo ? usualRedoDescription
+                : descriptionOr(source.cannotRedoReason(), usualRedoDescription));
+    }
+
+    private static Object descriptionOr(Optional<String> reason, Object usual) {
+        return reason.isPresent() ? reason.get() : usual;
     }
 
     /**

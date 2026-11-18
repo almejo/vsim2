@@ -368,6 +368,25 @@ class MachinePinRowsTest {
     }
 
     @Test
+    void anEditOfAnotherCopyOfTheMachineNeverRepeatsTheCircuitsLastNotice() {
+        EditorView view = tabOf(detectorWithTwoInputs());
+        switchOn("x");
+        switchOn("y");
+        pins(view).table(Side.INPUT).busBox().doClick();
+        assertThat(view.statusBar().text()).contains("quedaron sueltos");
+        view.showNotice("Otra cosa");
+        MachineCanvas canvas = MachineMode.of(view).orElseThrow().canvas();
+        FakeMachineSource draft = new FakeMachineSource(canvas.machine().orElseThrow());
+        canvas.useSource(draft);
+
+        pins(view).table(Side.INPUT).busBox().doClick(); // in the draft: the circuit's last step is still the bus
+
+        assertThat(draft.edits()).isEqualTo(1);
+        assertThat(machine().inputsAsBus()).as("the circuit keeps its bus").isTrue();
+        assertThat(view.statusBar().text()).doesNotContain("suelto");
+    }
+
+    @Test
     void theLooseWiresNoticeAgreesWithTheNumberOfWiresItTellsAbout() {
         RemovedPinWire first = new RemovedPinWire(Optional.empty(), new ElementId("c1"), "x", new GridPoint(0, 2));
         RemovedPinWire second = new RemovedPinWire(Optional.empty(), new ElementId("c2"), "x", new GridPoint(0, 12));

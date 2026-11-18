@@ -94,8 +94,16 @@ class MachineClipboardTest {
         shownView.setSize(1200, 800);
         shownView.doLayout();
         views.add(shownView);
-        MachineMode.of(shownView).ifPresent(found -> found.canvas().setBounds(0, 0, 900, 600));
+        MachineMode.of(shownView).ifPresent(found -> {
+            found.canvas().setBounds(0, 0, 900, 600);
+            throughSource(found.canvas());
+        });
         return shownView;
+    }
+
+    /** What a subclass does to the diagram's canvas before each test (runs the gestures through a machine source). */
+    void throughSource(MachineCanvas shownCanvas) {
+        // the canvas's own source
     }
 
     @AfterEach
