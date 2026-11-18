@@ -1766,9 +1766,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /**
      * The AWT cursor of {@code cursor} (AWT keeps one instance of each predefined cursor; the selection and zoom cursors
-     * are drawn once, lazily).
+     * are drawn once, lazily). Public so a machine's diagram shows the very same cursors.
      */
-    private static Cursor awtCursor(CanvasCursor cursor) {
+    public static Cursor awtCursor(CanvasCursor cursor) {
         return switch (cursor) {
             case DEFAULT -> Cursor.getDefaultCursor();
             case MOVE -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
