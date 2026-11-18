@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
@@ -43,7 +44,9 @@ final class KeptVersions {
         List<String> names = new ArrayList<>();
         for (ComponentDefinition dependency : nested) {
             Optional<ComponentDefinition> existing = document.definition(dependency.id());
-            if (existing.isPresent() && !existing.get().equals(dependency)) {
+            // a machine's tests live only in the circuit: they make no other version (as in LibraryVersions)
+            if (existing.isPresent() && !MachineDefinitions.withoutTests(existing.get())
+                    .equals(MachineDefinitions.withoutTests(dependency))) {
                 names.add(Messages.format("library.place.componentName", dependency.name()));
             }
         }
