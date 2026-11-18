@@ -178,6 +178,29 @@ class DraftGuardTest {
         assertThat(tabs.drafts()).containsExactly(main.draftGuards(), inside.draftGuards());
     }
 
+    /** Review of hito 4, finding 1: a draft that cannot travel is asked as a close, and Cancelar keeps the group. */
+    @Test
+    void movingTheGroupAsksADraftThatCannotTravelAndCancelarKeepsTheGroupHere() {
+        WindowTabs other = new WindowTabs(new RecordingWindowHost(),
+                place -> new EditorView(place, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW),
+                new SplitLayoutStore(preferences), () -> false);
+        try {
+            guard.answer = DraftGuard.Answer.CANCEL;
+            tabs.moveGroupTo(circuit, other, 0);
+
+            assertThat(guard.asked).containsExactly(DraftGuard.Reason.CLOSE);
+            assertThat(tabs.views()).contains(inside);
+            assertThat(other.isEmpty()).isTrue();
+
+            guard.answer = DraftGuard.Answer.GO_ON;
+            tabs.moveGroupTo(circuit, other, 0);
+
+            assertThat(other.documents()).containsExactly(circuit);
+        } finally {
+            other.disposeAll();
+        }
+    }
+
     @Test
     void theTabsTitleSaysTheGuardIsOn() {
         assertThat(tabOf(inside).orElseThrow().title()).endsWith(" · prueba");

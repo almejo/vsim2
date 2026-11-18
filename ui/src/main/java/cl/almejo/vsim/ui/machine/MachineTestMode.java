@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 /**
@@ -35,6 +36,7 @@ import java.util.function.UnaryOperator;
  * <li>It is a {@link DraftGuard} of its view: before a tab switch (only with a changed diagram), a close and a save
  * it settles the draft, asking through {@link MachineTestQuestions}.</li>
  * <li>With no tests, it shows an empty «Prueba 1» that is written only once a cell changes.</li>
+ * <li>When the tab moves to another window, the test goes on there with the same draft ({@link #traveller()}).</li>
  * <li>When the circuit's machine changes meanwhile (another tab, an undo in the circuit, the library), the bar says
  * so and «Aplicar» asks before replacing it. When its definition leaves the circuit the mode ends with it.</li>
  * </ul>
@@ -59,13 +61,21 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     private Optional<ActiveMachineState> activeState = Optional.empty();
     private boolean over;
 
-    private MachineTestMode(EditorView view, MachineCanvas canvas, StateMachine real, MachineTestQuestions questions,
-                            Runnable ended) {
+    /**
+     * A test mode on its way to the tab's new view in another window (review finding 1): its draft with its history,
+     * the chosen test and column, and who asks its questions.
+     */
+    record Carried(MachineDraft draft, int chosenTest, int chosenColumn, MachineTestQuestions questions) {
+    }
+
+    private MachineTestMode(EditorView view, MachineCanvas canvas, Carried carried, Runnable ended) {
         this.view = view;
         this.canvas = canvas;
-        this.questions = questions;
+        this.questions = carried.questions();
         this.ended = ended;
-        this.draft = new MachineDraft(real);
+        this.draft = carried.draft();
+        this.chosenTest = carried.chosenTest();
+        this.chosenColumn = carried.chosenColumn();
         this.firstTest = MachineTest.empty(MachineTests.freeId(List.of()), Messages.text("machine.test.firstName"),
                 MachineTests.DEFAULT_COLUMNS);
         this.bar = new MachineTestBar(() -> view.services().appearance().scheme(), this::exit, this::apply,
@@ -81,13 +91,24 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      */
     static Optional<MachineTestMode> start(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
                                            MachineTestQuestions questions, Runnable ended) {
-        Optional<StateMachine> real = canvas.standardSource().machine();
-        if (real.isEmpty()) {
-            return Optional.empty();
-        }
-        MachineTestMode mode = new MachineTestMode(view, canvas, real.get(), questions, ended);
+        return canvas.standardSource().machine().map(real -> started(view, canvas, frame,
+                new Carried(new MachineDraft(real), 0, 0, questions), ended));
+    }
+
+    /**
+     * Goes on with a test mode {@code carried} from another window's tab (review finding 1), as {@link #start} but on
+     * its draft; empty when the machine is gone.
+     */
+    static Optional<MachineTestMode> resume(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
+                                            Carried carried, Runnable ended) {
+        return canvas.standardSource().machine().map(real -> started(view, canvas, frame, carried, ended));
+    }
+
+    private static MachineTestMode started(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
+                                           Carried carried, Runnable ended) {
+        MachineTestMode mode = new MachineTestMode(view, canvas, carried, ended);
         mode.install(frame);
-        return Optional.of(mode);
+        return mode;
     }
 
     private void install(MachineDiagramFrame frame) {
@@ -262,6 +283,28 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     @Override
     public Optional<String> titleNote() {
         return Optional.of(Messages.text("machine.test.tabNote"));
+    }
+
+    /**
+     * The tab moves to another window: the test goes on in its new view there, with the same draft, history and
+     * choices; nothing is written and nothing is asked. Should that view not take it (it is no machine's tab), the
+     * mode is left as «Salir de la prueba» leaves it, so the tests are written rather than lost.
+     */
+    @Override
+    public Optional<Consumer<EditorView>> traveller() {
+        return Optional.of(arrived -> {
+            if (over) {
+                return;
+            }
+            Optional<MachineMode> there = MachineMode.of(arrived);
+            if (there.isEmpty()) {
+                exit();
+                return;
+            }
+            Carried carried = new Carried(draft, chosenTest, chosenColumn, questions);
+            end(); // this tab is going: it lets the machine go, so the new tab may test it
+            there.get().goOnTesting(carried);
+        });
     }
 
     @Override

@@ -55,6 +55,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -129,7 +130,8 @@ public final class WindowTabs extends JPanel {
     }
 
     /** A tab as it travels to another window: what it shows and where its view was. */
-    private record MovedTab(Optional<String> definitionId, OpenDocument place, ViewState view, boolean active) {
+    private record MovedTab(Optional<String> definitionId, OpenDocument place, ViewState view, boolean active,
+                            List<Consumer<EditorView>> travellers) {
     }
 
     /**
@@ -1161,7 +1163,9 @@ public final class WindowTabs extends JPanel {
     /**
      * Moves {@code document}'s group to {@code target} at {@code groupIndex} (spec §4.3): new views there on the same
      * places, where these showed; when {@code target} already has the document, only the component tabs join its
-     * group. This window lets the group go, and closes when it was its last.
+     * group. This window lets the group go, and closes when it was its last. The tabs' drafts travel with them (a
+     * machine's test mode goes on there, {@link DraftGuard#traveller()}); one that cannot is settled as a close first,
+     * and Cancelar there keeps the group here.
      */
     public void moveGroupTo(OpenDocument document, WindowTabs target, int groupIndex) {
         if (target == this) {
@@ -1172,9 +1176,21 @@ public final class WindowTabs extends JPanel {
         if (group.isEmpty()) {
             return;
         }
+        // a tab's drafts travel with it (a machine's test mode goes on there); one that cannot, or a main tab that
+        // joins the target's group without arriving, is settled as a close first, and Cancelar keeps the group here
+        boolean merging = target.model.group(document).isPresent();
+        for (TabEntry entry : group) {
+            DraftGuard.Answer answer = merging && entry.isMain()
+                    ? entry.view.draftGuards().settle(DraftGuard.Reason.CLOSE)
+                    : entry.view.draftGuards().settleThoseThatStay();
+            if (answer == DraftGuard.Answer.CANCEL) {
+                return;
+            }
+        }
         String activeId = model.active().map(TabStripModel.Tab::id).orElse("");
         List<MovedTab> moved = group.stream().map(entry -> new MovedTab(entry.definitionId, entry.place,
-                entry.view.canvas().viewState(), entry.id.equals(activeId))).toList();
+                entry.view.canvas().viewState(), entry.id.equals(activeId),
+                entry.view.draftGuards().travellers())).toList();
         target.receiveGroup(document, moved, model.isFolded(document), groupIndex);
         removeGroupQuietly(document);
     }
@@ -1182,6 +1198,7 @@ public final class WindowTabs extends JPanel {
     private void receiveGroup(OpenDocument document, List<MovedTab> moved, boolean folded, int groupIndex) {
         boolean merging = model.group(document).isPresent();
         List<TabStripModel.Tab> arriving = new ArrayList<>();
+        List<Runnable> draftsArriving = new ArrayList<>();
         String activate = null;
         for (MovedTab tab : moved) {
             if (merging && tab.definitionId().isEmpty()) {
@@ -1194,10 +1211,12 @@ public final class WindowTabs extends JPanel {
             if (tab.active()) {
                 activate = entry.id;
             }
+            tab.travellers().forEach(traveller -> draftsArriving.add(() -> traveller.accept(entry.view)));
         }
         model.putGroup(new TabStripModel.Group(document, arriving, folded), groupIndex);
         String firstMain = model.group(document).orElseThrow().mainTabs().get(0).id();
         model.activate(activate != null ? activate : firstMain);
+        draftsArriving.forEach(Runnable::run);
         host.tabsChanged(document);
         refreshTitles();
     }

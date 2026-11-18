@@ -140,6 +140,23 @@ public final class MachineMode {
             return;
         }
         testMode = MachineTestMode.start(view, canvas, frame, questions, this::testEnded);
+        followTheTestMode();
+    }
+
+    /**
+     * Goes on with a test {@code carried} from this tab's old view in another window (the group moved, review finding
+     * 1): its draft, history and choices. Nothing when this tab tests already or the machine is gone (its draft went
+     * with it, as when the definition leaves the circuit).
+     */
+    void goOnTesting(MachineTestMode.Carried carried) {
+        if (testMode.isPresent()) {
+            return;
+        }
+        testMode = MachineTestMode.resume(view, canvas, frame, carried, this::testEnded);
+        followTheTestMode();
+    }
+
+    private void followTheTestMode() {
         testMode.ifPresent(started -> {
             palette.testButton().setEnabled(false);
             palette.testButton().setToolTipText(Messages.text("machine.test.alreadyTesting"));

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Work a tab keeps in memory only, outside the circuit (a machine's test-mode draft, plan 2026-11-14 hito 4), that has
@@ -32,6 +33,15 @@ public interface DraftGuard {
 
     /** What the tab's title adds while this guard is on (« · prueba»); empty for nothing. */
     default Optional<String> titleNote() {
+        return Optional.empty();
+    }
+
+    /**
+     * The tab moves to another window (its group dragged there, or «Mover el grupo a una ventana nueva»): what takes
+     * this draft to the tab's new view there, run once with that view before this one goes, so nothing is lost and
+     * nothing is asked. Empty when the draft cannot travel: the move then settles it as a close first.
+     */
+    default Optional<Consumer<EditorView>> traveller() {
         return Optional.empty();
     }
 
