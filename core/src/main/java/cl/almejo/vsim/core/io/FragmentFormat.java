@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.io;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.geometry.Bounds;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -29,6 +30,16 @@ public final class FragmentFormat {
                         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.FrameEntry> frames,
                         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.StickyNoteEntry> stickyNotes) {
     }
+
+    /** The sticky notes a fragment's text carries, and whether it carries anything else (parts, wires, labels…). */
+    public record Notes(List<StickyNote> notes, boolean hasOtherElements) {
+        public Notes {
+            notes = List.copyOf(notes);
+        }
+    }
+
+    private static final ObjectMapper NOTES_MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     private final ComponentTypeRegistry registry;
     private final CircuitFormat circuitFormat;
@@ -71,5 +82,28 @@ public final class FragmentFormat {
                 document.usedDefinitions(), document.frames(), document.stickyNotes());
         Bounds bounds = fragment.bounds(fragment.registryFor(registry));
         return fragment.translate(-bounds.x(), -bounds.y());
+    }
+
+    /**
+     * Only the sticky notes of the fragment {@code json} (what a machine's diagram takes of a circuit's copied
+     * selection); empty for any other text or a broken fragment. Needs no registry: the parts are not read.
+     */
+    public static java.util.Optional<Notes> notesOf(String json) {
+        try {
+            JsonNode root = CircuitFormat.parse(NOTES_MAPPER, json);
+            FragmentFile file = CircuitFormat.readFile(NOTES_MAPPER, root, FragmentFile.class, KIND_FRAGMENT,
+                    FragmentFile::kind);
+            List<StickyNote> notes = file.stickyNotes() == null ? List.of()
+                    : file.stickyNotes().stream().map(CircuitFormat::stickyNote).toList();
+            boolean other = !isEmpty(file.components()) || !isEmpty(file.wires()) || !isEmpty(file.labels())
+                    || !isEmpty(file.frames());
+            return java.util.Optional.of(new Notes(notes, other));
+        } catch (CircuitFormatException | RuntimeException exception) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private static boolean isEmpty(List<?> entries) {
+        return entries == null || entries.isEmpty();
     }
 }

@@ -11,6 +11,8 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.io.MachineFragmentFormat;
+import cl.almejo.vsim.core.machine.NoteTransfer;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -134,7 +136,7 @@ public final class SelectionActions {
             fragment = format.read(json.get());
         } catch (CircuitFormatException | RuntimeException exception) {
             if (MachineFragmentFormat.isMachineFragment(json.get())) {
-                notices.accept(Messages.text("machine.paste.notInACircuit"));
+                pasteMachineNotes(json.get());
                 return;
             }
             // Like a drop: valid JSON can still make the reader throw (bounds overflowing an int, for one).
@@ -146,6 +148,21 @@ public final class SelectionActions {
         }
         activePane.get().announceIncomingFragment(fragment);
         startFloating(fragment, mousePoint.orElseGet(() -> positionWithoutMouse(json.get())));
+    }
+
+    /** A machine's copied selection: only its notes float here, as circuit notes; the rest is said to be left out. */
+    private void pasteMachineNotes(String json) {
+        Optional<StateMachine> piece = MachineFragmentFormat.read(json).filter(found -> !found.notes().isEmpty());
+        if (piece.isEmpty()) {
+            notices.accept(Messages.text("machine.paste.notInACircuit"));
+            return;
+        }
+        CircuitFragment notes = new CircuitFragment(List.of(), List.of(), List.of(), List.of(), List.of(),
+                NoteTransfer.toStickyNotes(piece.get().notes()));
+        if (!piece.get().states().isEmpty()) {
+            notices.accept(Messages.text("machine.paste.onlyNotesInCircuit"));
+        }
+        startFloating(notes, positionWithoutMouse(json));
     }
 
     /** Next to the original when it was copied from this circuit and that spot is in view; else the view's center. */
