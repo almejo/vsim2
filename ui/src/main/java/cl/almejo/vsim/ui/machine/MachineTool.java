@@ -385,8 +385,17 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         }
     }
 
-    private Optional<Line2D> pendingArrow(Drag current) {
+    /**
+     * The arrow being drawn: the loop a release would make while the pointer is back over the start state (its circle
+     * or its border band), drawn where the real one goes; elsewhere a straight line from the state's border to the
+     * pointer (hand test of hito 3, 2026-11-17).
+     */
+    private Optional<MachineDiagramGeometry.Arrow> pendingArrow(Drag current) {
         return canvas.machine().filter(machine -> machine.state(current.stateId).isPresent()).map(machine -> {
+            if (joinTarget(current).filter(current.stateId::equals).isPresent()) {
+                StateMachine withLoop = MachineEdits.withNewTransition(machine, current.stateId, current.stateId);
+                return MachineDiagramGeometry.of(withLoop).arrow(MachineEdits.lastTransition(withLoop).id());
+            }
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
             Point2D centre = geometry.centre(current.stateId);
             double distance = centre.distance(current.pointer.x(), current.pointer.y());
@@ -394,8 +403,17 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Point2D start = distance <= radius ? centre : new Point2D.Double(
                     centre.getX() + (current.pointer.x() - centre.getX()) * radius / distance,
                     centre.getY() + (current.pointer.y() - centre.getY()) * radius / distance);
-            return new Line2D.Double(start, asPoint(current.pointer));
+            Point2D end = asPoint(current.pointer);
+            return new MachineDiagramGeometry.Arrow("", MachineDiagramGeometry.ArrowKind.STRAIGHT,
+                    new Line2D.Double(start, end), start, end, start, end);
         });
+    }
+
+    /** The state a release of the arrow {@code current} would join to: the one under the pointer, if any. */
+    private Optional<String> joinTarget(Drag current) {
+        return canvas.machine().flatMap(machine -> MachineDiagramGeometry.of(machine)
+                        .stateHitAt(asPoint(current.pointer), borderBand(), canvas.drawingOrder(machine)))
+                .map(MachineDiagramGeometry.StateHit::stateId);
     }
 
     private static Rectangle2D band(Drag current) {
@@ -635,10 +653,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             current.pointer = diagramPoint(event);
             current.moved |= current.pressed.distance(event.getPoint()) >= DRAG_THRESHOLD_PIXELS;
             if (current.kind == DragKind.JOIN) {
-                Optional<String> target = canvas.machine().flatMap(machine -> MachineDiagramGeometry.of(machine)
-                        .stateHitAt(asPoint(current.pointer), borderBand(), canvas.drawingOrder(machine)))
-                        .map(MachineDiagramGeometry.StateHit::stateId);
-                litState = target.or(() -> Optional.of(current.stateId));
+                litState = joinTarget(current).or(() -> Optional.of(current.stateId));
             }
             canvas.repaint();
         }
@@ -803,9 +818,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 }
                 return;
             }
-            Optional<String> target = canvas.machine().flatMap(machine -> MachineDiagramGeometry.of(machine)
-                    .stateHitAt(asPoint(current.pointer), borderBand(), canvas.drawingOrder(machine)))
-                    .map(MachineDiagramGeometry.StateHit::stateId);
+            Optional<String> target = joinTarget(current);
             if (target.isPresent()) {
                 palette.clearTool();
                 join(current.stateId, target.get());

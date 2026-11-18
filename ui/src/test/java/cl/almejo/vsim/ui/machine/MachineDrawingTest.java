@@ -346,6 +346,36 @@ class MachineDrawingTest {
         assertThat(arrow.fromId()).isEqualTo("s1");
     }
 
+    /**
+     * Hand test of hito 3 (2026-11-17): the arrow being drawn was always a straight line, yet a release on its own
+     * state makes a loop. Over the start state it now shows that loop, where the real one goes.
+     */
+    @Test
+    void theArrowBeingDrawnShowsTheLoopWhileThePointerIsBackOverItsOwnState() {
+        int buttons = InputEvent.BUTTON1_DOWN_MASK;
+        mouse(MouseEvent.MOUSE_MOVED, at(160, 38), 0, 0);
+        mouse(MouseEvent.MOUSE_PRESSED, at(160, 38), buttons, 1);
+
+        mouse(MouseEvent.MOUSE_DRAGGED, at(160, 120), buttons, 0);
+        MachineDiagramGeometry.Arrow outside = mode.tool().overlay().pendingArrow().orElseThrow();
+        assertThat(outside.kind()).isEqualTo(MachineDiagramGeometry.ArrowKind.STRAIGHT);
+
+        mouse(MouseEvent.MOUSE_DRAGGED, at(160, 10), buttons, 0);
+        MachineDiagramGeometry.Arrow loop = mode.tool().overlay().pendingArrow().orElseThrow();
+        assertThat(loop.kind()).isEqualTo(MachineDiagramGeometry.ArrowKind.SELF_LOOP);
+
+        mouse(MouseEvent.MOUSE_DRAGGED, at(160, 120), buttons, 0);
+        assertThat(mode.tool().overlay().pendingArrow().orElseThrow().kind())
+                .isEqualTo(MachineDiagramGeometry.ArrowKind.STRAIGHT);
+
+        mouse(MouseEvent.MOUSE_DRAGGED, at(160, 10), buttons, 0);
+        mouse(MouseEvent.MOUSE_RELEASED, at(160, 10), 0, 1);
+        MachineTransition made = machine().transitions().get(6);
+        assertThat(made.isSelfLoop()).isTrue();
+        assertThat(MachineDiagramGeometry.of(machine()).arrow(made.id()).path().getBounds2D())
+                .isEqualTo(loop.path().getBounds2D());
+    }
+
     @Test
     void aDoubleClickOnAConditionEditsItInlineAndEscCancels() {
         doubleClick(at(240, -14));
