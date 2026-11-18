@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
@@ -19,6 +20,7 @@ import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachinePin;
 import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineTest;
+import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateColor;
@@ -33,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** File format 7: a machine travels in circuit files, library files and the clipboard, with its generated body. */
 class MachineFilesTest {
@@ -148,7 +151,7 @@ class MachineFilesTest {
         transitions.set(1, transitions.get(1).withOutputs(List.of(new OutputAssignment("W", true))));
         StateMachine machine = detector.withTransitions(transitions).withPinNames(List.of("x", "unused"),
                         List.of("Z", "W")).withEdge(StateMachine.EDGE_RISING).withBus(false, true)
-                .withTests(List.of(new MachineTest("dos unos")));
+                .withTests(List.of(MachineTest.empty("p1", "dos unos", 2)));
         return MachineDefinitions.create("maquina-1", "Máquina 1").withMachine(machine);
     }
 
@@ -245,5 +248,72 @@ class MachineFilesTest {
         assertThat(withoutTheField).doesNotContain("folded");
         assertThat(format.read(withoutTheField).definition("maquina-1").orElseThrow().machine().orElseThrow()
                 .notes()).extracting(MachineNote::folded).containsExactly(false, false);
+    }
+
+    // --- tests ---
+
+    @Test
+    void aTestIsWrittenAsOneStringPerPinWithOneCharacterPerColumn() throws CircuitFormatException {
+        MachineTest test = MachineTest.empty("p1", "Dos 1 seguidos", 8);
+        String inputs = "01101100";
+        for (int column = 0; column < inputs.length(); column++) {
+            test = MachineTests.withInput(test, column, "x", inputs.charAt(column) == '1');
+        }
+        test = MachineTests.withExpected(MachineTests.withExpected(test, 2, "Z", LogicValue.ONE), 4, "Z",
+                LogicValue.ZERO);
+        StateMachine machine = MachineExamples.twoOnesDetector().withTests(List.of(test,
+                MachineTest.empty("p2", "Solo ceros", 3)));
+        CircuitDocument document = circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(machine));
+
+        String json = format.write(document);
+        CircuitDocument read = format.read(json);
+
+        assertThat(json.replaceAll("\\s+", "")).contains("{\"id\":\"p1\",\"name\":\"Dos1seguidos\",\"columns\":8,"
+                + "\"inputs\":{\"x\":\"01101100\"},\"expected\":{\"Z\":\"--1-0---\"}}")
+                .contains("{\"id\":\"p2\",\"name\":\"Soloceros\",\"columns\":3}");
+        assertThat(read.definition("maquina-1").orElseThrow().machine()).contains(machine);
+        assertThat(format.write(read)).isEqualTo(json);
+    }
+
+    @Test
+    void theValuesOfAPinTheMachineNoLongerHasAreKept() throws CircuitFormatException {
+        MachineTest test = MachineTests.withInput(MachineTest.empty("p1", "Prueba 1", 2), 1, "viejo", true);
+        StateMachine machine = MachineExamples.twoOnesDetector().withTests(List.of(test));
+        CircuitDocument document = circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(machine));
+
+        CircuitDocument read = format.read(format.write(document));
+
+        assertThat(read.definition("maquina-1").orElseThrow().machine()).contains(machine);
+    }
+
+    @Test
+    void aTestWithOnlyANameReadsAsOneEmptyColumnWithAFreshId() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode root = (ObjectNode) mapper.readTree(format.write(circuitWith(richMachine())));
+        ObjectNode machine = (ObjectNode) root.path("definitions").get(0).path("machine");
+        machine.putArray("tests").addObject().put("name", "dos unos");
+
+        StateMachine read = format.read(mapper.writeValueAsString(root)).definition("maquina-1").orElseThrow()
+                .machine().orElseThrow();
+
+        assertThat(read.tests()).containsExactly(MachineTest.empty("p1", "dos unos", 1));
+    }
+
+    @Test
+    void aTestValueOfTheWrongLengthOrWithAnotherCharacterIsAnInvalidFile() throws Exception {
+        String json = format.write(circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1").withMachine(
+                MachineExamples.twoOnesDetector().withTests(List.of(MachineTests.withExpected(
+                        MachineTests.withInput(MachineTest.empty("p1", "Prueba 1", 4), 1, "x", true), 2, "Z",
+                        LogicValue.ONE))))));
+        assertThat(json).contains("\"0100\"").contains("\"--1-\"");
+
+        assertThatThrownBy(() -> format.read(json.replace("\"0100\"", "\"010\"")))
+                .isInstanceOf(CircuitFormatException.class);
+        assertThatThrownBy(() -> format.read(json.replace("\"0100\"", "\"01-0\"")))
+                .isInstanceOf(CircuitFormatException.class);
+        assertThatThrownBy(() -> format.read(json.replace("\"--1-\"", "\"--1x\"")))
+                .isInstanceOf(CircuitFormatException.class);
     }
 }

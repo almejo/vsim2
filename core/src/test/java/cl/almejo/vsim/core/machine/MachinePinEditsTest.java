@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.machine;
 
+import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.machine.MachinePinEdits.PinNameProblem;
 import cl.almejo.vsim.core.machine.MachinePinEdits.Side;
 import org.junit.jupiter.api.Test;
@@ -162,5 +163,51 @@ class MachinePinEditsTest {
         assertThat(inputUses.count()).isEqualTo(5);
         assertThat(outputUses.stateIds()).containsExactly("s0", "s1", "s2");
         assertThat(MachinePinUses.of(detector, "nadie").isUnused()).isTrue();
+    }
+
+    // --- the tests follow the pins by id ---
+
+    @Test
+    void aRenameOrAMoveKeepsTheTestsValues() {
+        StateMachine machine = detector.withPinNames(List.of("x", "y"), List.of("Z"))
+                .withTests(List.of(testWith("x", "y", "Z")));
+
+        StateMachine renamed = MachinePinEdits.renamed(machine, Side.INPUT, "x", "a");
+        StateMachine moved = MachinePinEdits.moved(renamed, Side.INPUT, 1, 0);
+        StateMachine asBus = MachinePinEdits.asBus(moved, Side.INPUT, true);
+
+        assertThat(asBus.tests()).isEqualTo(machine.tests());
+    }
+
+    @Test
+    void removingAnUnusedPinStripsItsValuesFromEveryColumn() {
+        StateMachine machine = MachinePinEdits.added(MachinePinEdits.added(detector, Side.INPUT, "y"),
+                Side.OUTPUT, "W").withTests(List.of(testWith("x", "y", "W")));
+
+        StateMachine withoutY = MachinePinEdits.removed(machine, Side.INPUT, "y");
+        StateMachine withoutW = MachinePinEdits.removed(withoutY, Side.OUTPUT, "W");
+
+        assertThat(withoutY.tests().get(0).columns().get(0).inputs()).containsOnlyKeys("x");
+        assertThat(withoutY.tests().get(0).columns().get(0).expected()).containsOnlyKeys("W");
+        assertThat(withoutW.tests().get(0).columns().get(0).expected()).isEmpty();
+    }
+
+    @Test
+    void aMergeThatTakesAPinAwayStripsItsValues() {
+        StateMachine machine = detector.withPinNames(List.of("x", "w"), List.of("Z"))
+                .withTests(List.of(testWith("x", "w", "Z")));
+
+        StateMachine merged = MachinePinEdits.renamed(machine, Side.INPUT, "x", "w");
+
+        assertThat(merged.inputs()).containsExactly(MachinePin.named("w"));
+        assertThat(merged.tests().get(0).columns().get(0).inputs()).containsOnlyKeys("w");
+    }
+
+    /** A one-column test with the inputs {@code first} and {@code second} at 1 and the output expected 1. */
+    private static MachineTest testWith(String first, String second, String output) {
+        MachineTest test = MachineTest.empty("p1", "Prueba 1", 1);
+        test = MachineTests.withInput(test, 0, first, true);
+        test = MachineTests.withInput(test, 0, second, true);
+        return MachineTests.withExpected(test, 0, output, LogicValue.ONE);
     }
 }

@@ -63,6 +63,12 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
         requireUniqueNames(names(inputs), names(outputs));
         requireUniqueIds(inputs, "input");
         requireUniqueIds(outputs, "output");
+        Set<String> testIds = new HashSet<>();
+        for (MachineTest test : tests) {
+            if (!testIds.add(test.id())) {
+                throw new IllegalArgumentException("test id used twice: " + test.id());
+            }
+        }
         Set<String> noteIds = new HashSet<>();
         for (MachineNote note : notes) {
             if (!noteIds.add(note.id())) {

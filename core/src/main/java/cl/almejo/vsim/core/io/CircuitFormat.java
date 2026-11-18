@@ -70,7 +70,9 @@ public final class CircuitFormat {
      * (an older VSim refuses the file instead of showing the machine as an empty component), and a probe on a machine
      * piece's state ({@code "watch": "state"}); added to 7 before its release (hito 3 of the machines, optional): a
      * machine pin written as {@code {"id", "name"}} once renamed (a plain name otherwise), a state's {@code color} and
-     * the diagram's {@code notes}.
+     * the diagram's {@code notes}; and (hito 4) a machine test's {@code id}, {@code columns} and its {@code inputs} and
+     * {@code expected} values, one string per pin id ({@link MachineTestEntries}; an entry with only {@code name}, the
+     * earlier placeholder, reads as one empty column).
      */
     public static final int FORMAT_VERSION = 7;
     static final String KIND_CIRCUIT = "circuit";

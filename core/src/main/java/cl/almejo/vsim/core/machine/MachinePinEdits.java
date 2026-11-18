@@ -153,7 +153,7 @@ public final class MachinePinEdits {
     }
 
     /**
-     * {@code machine} without the pin {@code name} of {@code side}.
+     * {@code machine} without the pin {@code name} of {@code side}; its values leave every column of every test.
      *
      * @throws IllegalArgumentException when there is no such pin or it is used ({@link MachinePinUses}): removing it
      *                                  would only bring it back on the next edit
@@ -192,7 +192,13 @@ public final class MachinePinEdits {
                 "the machine has no " + side + " pin " + name));
     }
 
+    /**
+     * {@code machine} with {@code pins} on {@code side}; the tests lose the values of a pin that went away (removed or
+     * merged into another), so they never keep a value for a pin id a later pin could take.
+     */
     private static StateMachine withSide(StateMachine machine, Side side, List<MachinePin> pins) {
-        return side == Side.INPUT ? machine.withPins(pins, machine.outputs()) : machine.withPins(machine.inputs(), pins);
+        StateMachine changed = side == Side.INPUT ? machine.withPins(pins, machine.outputs())
+                : machine.withPins(machine.inputs(), pins);
+        return changed.withTests(MachineTests.fittedTo(changed, changed.tests()));
     }
 }

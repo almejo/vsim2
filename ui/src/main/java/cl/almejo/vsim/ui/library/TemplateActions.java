@@ -30,6 +30,7 @@ import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
@@ -321,7 +322,18 @@ public final class TemplateActions {
             return;
         }
         KeptVersions.warn(document, bundle, dialogs, canvas.get());
-        replaceDefinition(bundle);
+        replaceDefinition(withTheCircuitsTests(document, bundle));
+    }
+
+    /**
+     * {@code bundle} from the library with the circuit's own tests on its machine: tests live only in the circuit
+     * file, so following the library keeps them, fitted to the library's pins ({@link MachineDefinitions#keepingTests}).
+     */
+    private static DefinitionBundle withTheCircuitsTests(CircuitDocument document, DefinitionBundle bundle) {
+        return document.definition(bundle.root().id())
+                .map(current -> new DefinitionBundle(MachineDefinitions.keepingTests(current, bundle.root()),
+                        bundle.dependencies()))
+                .orElse(bundle);
     }
 
     /** True when the library holds a different version of the instance's definition (the badge shows). */

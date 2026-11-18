@@ -62,7 +62,14 @@ final class MachineEntries {
     record OutputEntry(String output, int value) {
     }
 
-    record TestEntry(String name) {
+    /**
+     * A test ({@link MachineTestEntries}): {@code columns} columns, and per pin id one character per column. Only
+     * {@code name} in the placeholder hitos 1–3 could write.
+     */
+    record TestEntry(@JsonInclude(JsonInclude.Include.NON_NULL) String id, String name,
+                     @JsonInclude(JsonInclude.Include.NON_NULL) Integer columns,
+                     @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> inputs,
+                     @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> expected) {
     }
 
     /**
@@ -111,7 +118,7 @@ final class MachineEntries {
                         outputEntries(transition.outputs()))).toList(),
                 machine.initialStateId().orElse(null), pinEntries(machine.inputs()), pinEntries(machine.outputs()),
                 machine.inputsAsBus(), machine.outputsAsBus(), machine.edge(),
-                machine.tests().stream().map(test -> new TestEntry(test.name())).toList(),
+                MachineTestEntries.entries(machine),
                 machine.notes().stream().map(MachineEntries::noteEntry).toList());
     }
 
@@ -150,10 +157,7 @@ final class MachineEntries {
                 transitions.add(new MachineTransition(transition.id(), transition.from(), transition.to(),
                         transition.condition(), outputs(transition.outputs(), definitionId)));
             }
-            List<MachineTest> tests = new ArrayList<>();
-            for (TestEntry test : CircuitFormat.entries(entry.tests())) {
-                tests.add(new MachineTest(CircuitFormat.requireEntry(test, "tests of " + definitionId).name()));
-            }
+            List<MachineTest> tests = MachineTestEntries.tests(CircuitFormat.entries(entry.tests()), definitionId);
             List<MachineNote> notes = new ArrayList<>();
             for (NoteEntry note : CircuitFormat.entries(entry.notes())) {
                 notes.add(note(CircuitFormat.requireEntry(note, "notes of " + definitionId)));

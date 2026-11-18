@@ -12,8 +12,11 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineTest;
+import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -156,6 +159,60 @@ class MachineLibraryRoundTripTest {
         session.view().templateActions().orElseThrow().updateFromLibrary(piece);
 
         assertThat(stateName(fresh, machine.id())).isEqualTo("S0");
+    }
+
+    // --- tests live only in the circuit (the user's rule, hito 4) ---
+
+    @Test
+    void aMachineAddedToTheLibraryLeavesItsTestsInTheCircuit() {
+        OpenDocument first = MachineFixtures.circuitWithGeneratedMachines(1);
+        first.execute(new EditMachineCommand(MachineFixtures.DEFINITION_ID, MachineFixtures.detector()
+                .withTests(List.of(oneTest()))));
+        Session saving = session(first);
+        Component piece = first.document().component(new ElementId(MachineFixtures.copies(first).get(0)))
+                .orElseThrow();
+        saving.view().selection().select(piece.id());
+
+        item(saving.view().contextMenu(Optional.of(piece), new Point2D.Double()),
+                Messages.text("action.addToLibrary")).doClick();
+
+        assertThat(session(OpenDocument.createEmpty(StandardComponentTypes.registry())).library()
+                .find(MachineFixtures.DEFINITION_ID).orElseThrow().root().machine().orElseThrow().tests()).isEmpty();
+        assertThat(saving.library().find(MachineFixtures.DEFINITION_ID).orElseThrow().root().machine()
+                .orElseThrow().tests()).isEmpty();
+        assertThat(tests(first)).containsExactly(oneTest());
+        assertThat(saving.view().templateActions().orElseThrow().isOutdated(piece)).as("tests do not count")
+                .isFalse();
+    }
+
+    @Test
+    void updatingFromTheLibraryKeepsTheCircuitsOwnTests() {
+        DefinitionBundle bundle = savedAndReadBack();
+        OpenDocument fresh = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        Session session = session(fresh);
+        fresh.execute(new PutDefinitionsCommand(bundle.all()));
+        ComponentDefinition machine = bundle.root();
+        Component piece = UiTestSupport.place(fresh, SubcircuitTypes.typeIdOf(machine.id()), 20, 0, Map.of());
+        StateMachine edited = machine.machine().orElseThrow().withState("s0", state -> state.withName("Inicio"))
+                .withTests(List.of(oneTest()));
+        fresh.execute(new EditMachineCommand(machine.id(), edited));
+        assertThat(session.view().templateActions().orElseThrow().isOutdated(piece)).isTrue();
+
+        session.view().templateActions().orElseThrow().updateFromLibrary(piece);
+
+        assertThat(stateName(fresh, machine.id())).isEqualTo("S0");
+        assertThat(tests(fresh)).containsExactly(oneTest());
+    }
+
+    /** A test that sets x in its first column and expects Z = 1 in its second. */
+    private static MachineTest oneTest() {
+        MachineTest test = MachineTests.withInput(MachineTest.empty("p1", "Dos 1 seguidos", 2), 0, "x", true);
+        return MachineTests.withExpected(test, 1, "Z", LogicValue.ONE);
+    }
+
+    private static List<MachineTest> tests(OpenDocument document) {
+        return document.document().definition(MachineFixtures.DEFINITION_ID).flatMap(ComponentDefinition::machine)
+                .orElseThrow().tests();
     }
 
     @Test

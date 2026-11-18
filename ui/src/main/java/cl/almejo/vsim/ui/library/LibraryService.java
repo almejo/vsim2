@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.io.LibraryLoad;
 import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.slf4j.Logger;
@@ -119,11 +120,15 @@ public final class LibraryService implements AutoCloseable {
         apply(current, current.load());
     }
 
-    /** Writes the file (creating the directory) and puts the bundle in the library. */
+    /**
+     * Writes the file (creating the directory) and puts the bundle in the library; a machine's tests are left behind,
+     * as they live only in the circuit file ({@link MachineDefinitions#forLibrary}).
+     */
     public void save(DefinitionBundle bundle) throws IOException {
-        directory.write(bundle);
+        DefinitionBundle withoutTests = MachineDefinitions.forLibrary(bundle);
+        directory.write(withoutTests);
         writes.incrementAndGet();
-        library.put(bundle);
+        library.put(withoutTests);
     }
 
     public void remove(String id) throws IOException {

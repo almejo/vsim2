@@ -39,6 +39,8 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
 
     private final String definitionId;
     private final StateMachine newMachine;
+    /** The step's name, a message key (Deshacer shows it). */
+    private final String description;
     private ComponentDefinition previous;
     private ComponentDefinition replacement;
     /** The planned update when the pins change; null for a plain replacement or before the first apply. */
@@ -49,9 +51,19 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
     private List<RemovedPinWire> removedPinWires = List.of();
     private boolean prepared;
 
+    /** An edit of the diagram, the step «command.editMachine». */
     public EditMachineCommand(String definitionId, StateMachine newMachine) {
+        this(definitionId, newMachine, "command.editMachine");
+    }
+
+    /**
+     * The same edit under another step name: the test mode's «Aplicar» and «Guardar las pruebas» are machine edits
+     * too (the machine's tab only lets this command through), named for what the student did.
+     */
+    public EditMachineCommand(String definitionId, StateMachine newMachine, String description) {
         this.definitionId = Objects.requireNonNull(definitionId, "definitionId");
         this.newMachine = Objects.requireNonNull(newMachine, "newMachine");
+        this.description = Objects.requireNonNull(description, "description");
     }
 
     /**
@@ -175,6 +187,6 @@ public final class EditMachineCommand implements EditsDefinitionItself, LoosensP
 
     @Override
     public String description() {
-        return "command.editMachine";
+        return description;
     }
 }
