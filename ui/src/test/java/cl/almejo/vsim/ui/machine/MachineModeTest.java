@@ -121,15 +121,16 @@ class MachineModeTest {
     }
 
     @Test
-    void theMachinePaletteOffersStateAndTransitionAndTheNextStepsDisabledWithTheirReason() {
+    void theMachinePaletteOffersStateTransitionAndProbarAndConvertirDisabledWithItsReason() {
         MachinePalette palette = MachineMode.of(viewOf(machinePlace(0))).orElseThrow().palette();
 
         assertThat(palette.stateButton().getText()).isEqualTo(Messages.text("machine.palette.state"));
         assertThat(palette.transitionButton().getText()).isEqualTo(Messages.text("machine.palette.transition"));
-        for (AbstractButton later : List.of(palette.convertButton(), palette.testButton())) {
-            assertThat(later.isEnabled()).isFalse();
-            assertThat(later.getToolTipText()).isEqualTo(Messages.text("machine.comesLater"));
-        }
+        AbstractButton later = palette.convertButton();
+        assertThat(later.isEnabled()).isFalse();
+        assertThat(later.getToolTipText()).isEqualTo(Messages.text("machine.comesLater"));
+        assertThat(palette.testButton().isEnabled()).isTrue(); // hito 4: the test mode
+        assertThat(palette.testButton().getToolTipText()).isEqualTo(Messages.text("machine.palette.testHint"));
     }
 
     @Test

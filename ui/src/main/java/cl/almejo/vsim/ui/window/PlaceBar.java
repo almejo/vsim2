@@ -71,6 +71,8 @@ public final class PlaceBar extends JPanel {
     private final JLabel useChip = new JLabel();
     private final JButton seePiece = new JButton(Messages.text("place.seePiece") + " ↗");
     private final JButton libraryButton = new JButton();
+    /** Why the library button is disabled now (a machine's test mode); empty while it works. */
+    private Optional<String> libraryHold = Optional.empty();
     private final JLabel refusalLabel = new JLabel();
     private final Timer refusalTimer = new Timer(REFUSAL_MILLISECONDS, action -> clearRefusal());
     private final List<String> crumbTexts = new ArrayList<>();
@@ -295,6 +297,46 @@ public final class PlaceBar extends JPanel {
         }
         libraryButton.setVisible(libraryBundle.isPresent());
         libraryButton.setText(Messages.text(libraryOffersAdd ? "place.addToLibrary" : "place.saveToLibrary"));
+        libraryButton.setEnabled(libraryHold.isEmpty());
+        libraryButton.setToolTipText(libraryHold.orElse(null));
+    }
+
+    /** The place bar shown over {@code view}'s canvas, when it has one (a component's tab). */
+    public static Optional<PlaceBar> of(EditorView view) {
+        return view.getClientProperty(PlaceBar.class) instanceof PlaceBar bar ? Optional.of(bar) : Optional.empty();
+    }
+
+    /** Puts this bar over {@code view}'s canvas for {@link #of}; the returned runnable takes it back. */
+    public Runnable shownIn(EditorView view) {
+        view.putClientProperty(PlaceBar.class, this);
+        return () -> {
+            if (view.getClientProperty(PlaceBar.class) == this) {
+                view.putClientProperty(PlaceBar.class, null);
+            }
+        };
+    }
+
+    /**
+     * Disables «Agregar a Mis componentes» / «Guardar en Mis componentes» with {@code reason} as its tooltip (a
+     * machine's test mode), until the returned runnable runs.
+     */
+    public Runnable holdLibraryButton(String reason) {
+        Optional<String> hold = Optional.of(reason);
+        libraryHold = hold;
+        libraryButton.setEnabled(false);
+        libraryButton.setToolTipText(reason);
+        return () -> {
+            if (libraryHold == hold) {
+                libraryHold = Optional.empty();
+                libraryButton.setEnabled(true);
+                libraryButton.setToolTipText(null);
+            }
+        };
+    }
+
+    /** Why the library button is disabled now; empty while it works (tests). */
+    Optional<String> libraryButtonHold() {
+        return libraryButton.isEnabled() ? Optional.empty() : Optional.ofNullable(libraryButton.getToolTipText());
     }
 
     // --- actions (also what the tests press) ---

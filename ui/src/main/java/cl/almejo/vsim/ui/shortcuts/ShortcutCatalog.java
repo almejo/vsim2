@@ -172,6 +172,7 @@ public final class ShortcutCatalog {
         window(entries, "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.LOGIC, null);
         window(entries, "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.LOGIC, null);
         window(entries, "tools.karnaughPractice", "action.karnaughPractice", MenuId.LOGIC, null);
+        window(entries, "tools.testMachine", "action.testMachine", MenuId.LOGIC, null);
         window(entries, "window.newView", "action.newWindow", MenuId.WINDOW, null);
         // Pestañas y editar por dentro (spec §4.8): «Cerrar pestaña» took Ctrl+W from «Cerrar ventana», which is
         // Ctrl+Mayús+W now; both are also in Archivo.

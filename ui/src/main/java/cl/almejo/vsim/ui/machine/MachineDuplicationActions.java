@@ -90,7 +90,7 @@ final class MachineDuplicationActions {
                 .filter(piece -> isMachinePiece(view.openDocument(), piece));
     }
 
-    private static boolean isMachinePiece(OpenDocument place, Component piece) {
+    static boolean isMachinePiece(OpenDocument place, Component piece) {
         return place.registry().findTypeOf(piece).flatMap(SubcircuitTypes::definitionOf)
                 .filter(ComponentDefinition::isMachine).isPresent();
     }

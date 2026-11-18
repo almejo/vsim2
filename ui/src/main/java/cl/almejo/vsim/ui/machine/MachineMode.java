@@ -5,14 +5,23 @@ import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.app.Animations;
+import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.PlaceBar;
 
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import java.awt.BorderLayout;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 
 /**
  * The machine mode of an editor view (spec 2026-11-14 §2.4): the tab of a «Máquina de estados» is an ordinary component
@@ -27,18 +36,45 @@ import java.util.function.BooleanSupplier;
  */
 public final class MachineMode {
 
+    /**
+     * What the dock shows in test mode for a test session: the test table. Until the table of hito 4 (task 5) is
+     * merged, a placeholder that says the table goes there; at the merge this becomes {@code MachineTestTable::new}
+     * (or its factory).
+     */
+    static final Function<MachineTestSession, JComponent> TEST_TABLE = MachineMode::placeholderTable;
+
+    private final EditorView view;
     private final MachineCanvas canvas;
+    private final MachineDiagramFrame frame;
     private final MachinePalette palette;
     private final MachineEditing editing;
     /** Whether «Animaciones» is on now: a revealed problem then blinks. */
     private final BooleanSupplier animations;
+    private final Function<MachineTestSession, JComponent> testTable;
+    private final Listeners<Runnable> testModeListeners = new Listeners<>();
+    private MachineTestQuestions questions = MachineTestQuestions.DIALOG;
+    private Optional<MachineTestMode> testMode = Optional.empty();
+    private Runnable stopLockingTheName = () -> { };
+    private Runnable stopHoldingTheLibraryButton = () -> { };
 
-    private MachineMode(MachineCanvas canvas, MachinePalette palette, MachineEditing editing,
-                        BooleanSupplier animations) {
+    private MachineMode(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame, MachinePalette palette,
+                        MachineEditing editing, BooleanSupplier animations,
+                        Function<MachineTestSession, JComponent> testTable) {
+        this.view = view;
         this.canvas = canvas;
+        this.frame = frame;
         this.palette = palette;
         this.editing = editing;
         this.animations = animations;
+        this.testTable = testTable;
+    }
+
+    /** Until the test table arrives: a panel saying the test table goes here. */
+    private static JComponent placeholderTable(MachineTestSession session) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(new JLabel(Messages.text("machine.test.tableComesHere"), SwingConstants.CENTER),
+                BorderLayout.CENTER);
+        return panel;
     }
 
     /**
@@ -62,7 +98,9 @@ public final class MachineMode {
                 () -> view.services().appearance().scheme());
         MachinePalette palette = new MachinePalette();
         canvas.setTransferHandler(new MachineDropRefusal(view::showNotice));
-        Runnable showDiagram = view.showInsteadOfCanvas(canvas, canvas);
+        // the frame stays while the tab is a machine's: the test mode adds its border and bar to it
+        MachineDiagramFrame frame = new MachineDiagramFrame(canvas, () -> view.services().appearance().scheme());
+        Runnable showDiagram = view.showInsteadOfCanvas(frame, canvas, canvas);
         Runnable showPalette = view.leftColumn().showInsteadOfPalette(palette);
         Runnable enableCircuitActions = MachineActionPolicy.disableCircuitActions(view);
         // the hidden panes' snapshot listeners (status bar, run buttons, Problemas) follow the diagram's frames
@@ -70,9 +108,13 @@ public final class MachineMode {
                 () -> view.panes().forEach(CircuitCanvas::refreshSnapshot));
         MachineEditing editing = MachineEditing.install(view, canvas, palette);
         Runnable showProbes = MachineWaveStrip.install(view, place, machineId.get(), canvas);
-        view.putClientProperty(MachineMode.class, new MachineMode(canvas, palette, editing,
-                () -> Animations.enabled(view.services().preferences())));
+        MachineMode mode = new MachineMode(view, canvas, frame, palette, editing,
+                () -> Animations.enabled(view.services().preferences()), TEST_TABLE);
+        palette.testButton().addActionListener(event -> mode.startTest());
+        view.putClientProperty(MachineMode.class, mode);
         return () -> {
+            // the tab goes (or leaves machine mode): a test's draft goes with it, unwritten
+            mode.testMode.ifPresent(MachineTestMode::end);
             view.putClientProperty(MachineMode.class, null);
             for (Runnable undo : List.of(showProbes, editing::uninstall, stopFeedingThePanes, enableCircuitActions,
                     showPalette, showDiagram, canvas::dispose)) {
@@ -93,6 +135,55 @@ public final class MachineMode {
      */
     public void reveal(MachineProblem problem) {
         canvas.reveal(problem.finding(), animations.getAsBoolean());
+    }
+
+    /**
+     * Starts the test mode of this tab's machine (hito 4): the diagram and a test table in the dock work on a draft
+     * until the user leaves ({@link MachineTestMode}). Nothing when it is on already or the machine is gone.
+     */
+    public void startTest() {
+        if (testMode.isPresent()) {
+            return;
+        }
+        testMode = MachineTestMode.start(view, canvas, frame, testTable, questions, this::testEnded);
+        testMode.ifPresent(started -> {
+            palette.testButton().setEnabled(false);
+            palette.testButton().setToolTipText(Messages.text("machine.test.alreadyTesting"));
+            stopLockingTheName = editing.rows().lockMachineName(Messages.text("machine.test.renameLater"));
+            stopHoldingTheLibraryButton = PlaceBar.of(view)
+                    .map(bar -> bar.holdLibraryButton(Messages.text("machine.test.libraryLater")))
+                    .orElse(() -> { });
+            testModeListeners.fire(Runnable::run);
+        });
+    }
+
+    private void testEnded() {
+        testMode = Optional.empty();
+        palette.testButton().setEnabled(true);
+        palette.testButton().setToolTipText(Messages.text("machine.palette.testHint"));
+        stopLockingTheName.run();
+        stopHoldingTheLibraryButton.run();
+        testModeListeners.fire(Runnable::run);
+    }
+
+    /** The test mode while it is on. */
+    Optional<MachineTestMode> testMode() {
+        return testMode;
+    }
+
+    /** Whether the tab is in test mode. */
+    public boolean isTesting() {
+        return testMode.isPresent();
+    }
+
+    /** Runs {@code listener} each time the test mode starts or ends; returns its removal. */
+    public Runnable addTestModeListener(Runnable listener) {
+        return testModeListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** Asks the test mode's questions through {@code replacement} (tests answer with a script). */
+    void askWith(MachineTestQuestions replacement) {
+        questions = Objects.requireNonNull(replacement, "replacement");
     }
 
     /** The diagram shown in the centre. */

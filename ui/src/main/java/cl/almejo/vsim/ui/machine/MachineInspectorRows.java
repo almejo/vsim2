@@ -79,6 +79,8 @@ final class MachineInspectorRows extends JPanel {
     private final WrappedErrorText problem = new WrappedErrorText(" ");
     private transient Optional<JTextField> nameField = Optional.empty();
     private transient Optional<JTextField> machineNameField = Optional.empty();
+    /** Why the machine's name cannot change now (the test mode); empty while it can. */
+    private transient Optional<String> nameLock = Optional.empty();
     private transient Optional<JTextField> outputsField = Optional.empty();
     private transient Optional<JTextField> conditionField = Optional.empty();
     private transient Optional<JTextField> mealyOutputsField = Optional.empty();
@@ -177,6 +179,29 @@ final class MachineInspectorRows extends JPanel {
 
     Optional<JTextField> nameField() {
         return nameField;
+    }
+
+    /**
+     * Disables the machine's «Nombre» with {@code reason} as its tooltip (the test mode: the name is the circuit's,
+     * not the draft's), until the returned runnable runs.
+     */
+    Runnable lockMachineName(String reason) {
+        Optional<String> lock = Optional.of(reason);
+        nameLock = lock;
+        applyNameLock();
+        return () -> {
+            if (nameLock == lock) {
+                nameLock = Optional.empty();
+                applyNameLock();
+            }
+        };
+    }
+
+    private void applyNameLock() {
+        machineNameField.ifPresent(field -> {
+            field.setEnabled(nameLock.isEmpty());
+            field.setToolTipText(nameLock.orElse(null));
+        });
     }
 
     /** The machine's own «Nombre» (its component's name), shown with nothing selected. */
@@ -316,6 +341,7 @@ final class MachineInspectorRows extends JPanel {
         showProblem(Optional.empty());
         builtFor = shownFor();
         canvas.machine().ifPresent(this::showSelected);
+        applyNameLock();
         add(problem, WIDE);
         refreshProblemList();
         add(problemList, WIDE);
