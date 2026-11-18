@@ -6,9 +6,11 @@ import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.tools.RubberBand;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -16,7 +18,6 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Shape;
-import java.awt.Stroke;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
@@ -43,7 +44,8 @@ final class MachineDiagramPainter {
     private static final float NEXT_ARROW_WIDTH = 3.2f;
     private static final float STATE_WIDTH = 2f;
     private static final float ACTIVE_STATE_WIDTH = 3.5f;
-    private static final float[] SELECTION_DASH = {6f, 4f};
+    private static final float BAND_WIDTH = 1f;
+    private static final int REMOVING_BAND_ALPHA = 24;
     private static final double HEAD_LENGTH = 11;
     private static final double HEAD_HALF_WIDTH = 5;
     private static final int NAME_SIZE = 19;
@@ -94,10 +96,10 @@ final class MachineDiagramPainter {
      * F8): while it is, the other problems' glows fade.
      */
     record Marks(Optional<ActiveMachineState> active, MachineSelection selection, MachineGlows glows,
-                 Optional<MachineFinding> revealed) {
+                 Optional<MachineFinding> revealed, double antsPhase) {
 
         Marks(Optional<ActiveMachineState> active, MachineSelection selection, MachineGlows glows) {
-            this(active, selection, glows, Optional.empty());
+            this(active, selection, glows, Optional.empty(), 0);
         }
 
         Marks(Optional<ActiveMachineState> active, MachineSelection selection) {
@@ -157,7 +159,7 @@ final class MachineDiagramPainter {
 
     /** Draws {@code overlay} over a diagram painted with {@code geometry}. */
     static void paintOverlay(Graphics2D graphics, MachineDiagramGeometry geometry, Overlay overlay,
-                             ColorScheme scheme) {
+                             double antsPhase, ColorScheme scheme) {
         Color highlight = MachineColors.selection(scheme);
         graphics.setColor(highlight);
         graphics.setStroke(new BasicStroke(LIT_BORDER_WIDTH));
@@ -170,11 +172,8 @@ final class MachineDiagramPainter {
         overlay.rubberBand().ifPresent(band -> {
             // a band that takes away is red, as on the circuit
             Color colour = overlay.bandRemoves() ? MachineColors.problem(scheme) : highlight;
-            graphics.setColor(new Color(colour.getRed(), colour.getGreen(), colour.getBlue(), RUBBER_BAND_ALPHA));
-            graphics.fill(band);
-            graphics.setColor(colour);
-            graphics.setStroke(dashed(1f));
-            graphics.draw(band);
+            RubberBand.paint(graphics, band, colour, overlay.bandRemoves() ? REMOVING_BAND_ALPHA : RUBBER_BAND_ALPHA,
+                    BAND_WIDTH, antsPhase);
         });
     }
 
@@ -248,7 +247,7 @@ final class MachineDiagramPainter {
             paintArrow(graphics, transition, geometry.arrow(transition.id()), next,
                     marks.selection().containsTransition(transition.id()),
                     marks.glows().ofTransition(transition.id()).filter(glow -> !marks.fadesTransition(transition.id())),
-                    scheme);
+                    marks.antsPhase(), scheme);
         }
         geometry.initialMark().ifPresent(mark -> paintInitialMark(graphics, mark, scheme));
         geometry.initialDot().ifPresent(dot -> {
@@ -262,7 +261,7 @@ final class MachineDiagramPainter {
                     faded, scheme));
             paintState(graphics, state, geometry, activeState.filter(state.id()::equals).isPresent(),
                     marks.selection().containsState(state.id()),
-                    marks.glows().ofState(state.id()).filter(glow -> !faded), scheme);
+                    marks.glows().ofState(state.id()).filter(glow -> !faded), marks.antsPhase(), scheme);
         }
         paintArrowBadges(graphics, machine, geometry, marks, scheme);
     }
@@ -345,20 +344,23 @@ final class MachineDiagramPainter {
 
     private static void paintArrow(Graphics2D graphics, MachineTransition transition,
                                    MachineDiagramGeometry.Arrow arrow, boolean next, boolean selected,
-                                   Optional<MachineGlows.Glow> glow, ColorScheme scheme) {
+                                   Optional<MachineGlows.Glow> glow, double antsPhase, ColorScheme scheme) {
         Color plain = glow.map(found -> glowColour(found, scheme)).orElseGet(() -> MachineColors.muted(scheme));
         Color colour = next ? MachineColors.active(scheme)
                 : selected ? MachineColors.selection(scheme) : plain;
         float width = next ? NEXT_ARROW_WIDTH : ARROW_WIDTH;
         if (next && selected) {
             // the selection's dashes on each side of the orange, which is drawn over them
-            graphics.setColor(MachineColors.selection(scheme));
-            graphics.setStroke(dashed(width + 2 * SELECTION_BESIDE));
+            MarchingAnts.draw(graphics, arrow.path(), MachineColors.selection(scheme), width + 2 * SELECTION_BESIDE,
+                    antsPhase);
+        }
+        if (selected && !next) {
+            MarchingAnts.draw(graphics, arrow.path(), colour, width, antsPhase);
+        } else {
+            graphics.setColor(colour);
+            graphics.setStroke(new BasicStroke(width));
             graphics.draw(arrow.path());
         }
-        graphics.setColor(colour);
-        graphics.setStroke(selected && !next ? dashed(width) : new BasicStroke(width));
-        graphics.draw(arrow.path());
         graphics.setStroke(new BasicStroke(width));
         paintHead(graphics, arrow.headFrom(), arrow.end());
         String label = labelOf(transition);
@@ -435,19 +437,24 @@ final class MachineDiagramPainter {
      */
     private static void paintState(Graphics2D graphics, MachineState state, MachineDiagramGeometry geometry,
                                    boolean active, boolean selected, Optional<MachineGlows.Glow> glow,
-                                   ColorScheme scheme) {
+                                   double antsPhase, ColorScheme scheme) {
         graphics.setColor(MachineColors.stateFill(scheme, state, active));
         graphics.fill(geometry.circle(state.id()));
         float width = active ? ACTIVE_STATE_WIDTH : STATE_WIDTH;
         Color outline = glow.map(found -> glowColour(found, scheme))
                 .orElseGet(() -> MachineColors.stateOutline(scheme));
-        graphics.setColor(active ? MachineColors.active(scheme)
-                : selected ? MachineColors.selection(scheme) : outline);
-        graphics.setStroke(selected ? dashed(width) : new BasicStroke(width));
-        graphics.draw(geometry.circle(state.id()));
+        if (selected && !active) {
+            MarchingAnts.draw(graphics, geometry.circle(state.id()), MachineColors.selection(scheme), width,
+                    antsPhase);
+        } else {
+            graphics.setColor(active ? MachineColors.active(scheme) : outline);
+            graphics.setStroke(new BasicStroke(width));
+            graphics.draw(geometry.circle(state.id()));
+        }
         if (selected && active) {
+            // the active ring is the underlay of the dashes: they march over it
             graphics.setColor(MachineColors.selection(scheme));
-            graphics.setStroke(dashed(STATE_WIDTH));
+            graphics.setStroke(MarchingAnts.stroke(STATE_WIDTH, antsPhase));
             graphics.draw(geometry.circle(state.id()));
         }
         graphics.setColor(MachineColors.stateText(scheme, state));
@@ -469,10 +476,6 @@ final class MachineDiagramPainter {
         });
         glow.ifPresent(found -> paintBadge(graphics, stateBadgeCentre(geometry, state.id()),
                 glowColour(found, scheme), scheme));
-    }
-
-    private static Stroke dashed(float width) {
-        return new BasicStroke(width, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, SELECTION_DASH, 0f);
     }
 
     /** Draws {@code text} centred on {@code centre}, both ways. */

@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.actions.ContentZoom;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
+import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.canvas.WheelNavigation;
 import cl.almejo.vsim.ui.inline.InlineHost;
@@ -47,6 +48,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -87,6 +89,13 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private final transient MachineStateSource stateSource;
     private final transient Supplier<ColorScheme> scheme;
     private final transient Viewport viewport = new Viewport();
+    /** The selection's marching ants step, as the circuit canvas's do. */
+    private static final int ANTS_MILLISECONDS = 90;
+    private final transient MarchingAnts marchingAnts = new MarchingAnts();
+    private final transient Timer antsTimer = new Timer(ANTS_MILLISECONDS, event -> antsTick());
+    /** Preferencias ▸ «Animaciones»: with «No» the dashes stay still. */
+    private transient BooleanSupplier animations = () -> true;
+    private transient BooleanSupplier onScreen = this::isShowing;
     private final transient FrameTicker frames = FrameTicker.swing(FRAME_MILLISECONDS);
     private final transient Listeners<Runnable> frameListeners = new Listeners<>();
     private final transient Listeners<Runnable> changeListeners = new Listeners<>();
@@ -181,6 +190,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 followFrames(isShowing());
+                updateAnts();
             }
         });
     }
@@ -221,7 +231,56 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** Shows what {@code shown} gives on top of the diagram from now on (the drawing gestures). */
     void showGestures(Gestures shown) {
         gestures = Objects.requireNonNull(shown, "shown");
+        updateAnts();
         repaint();
+    }
+
+    /** Where to ask whether VSim animates ({@code Animations.enabled}); without it the dashes stay still. */
+    public void setAnimations(BooleanSupplier animations) {
+        this.animations = Objects.requireNonNull(animations, "animations");
+        updateAnts();
+        repaint();
+    }
+
+    /** Preferencias ▸ «Animaciones» changed: the dashes start or stop marching. */
+    public void animationsChanged() {
+        updateAnts();
+        repaint();
+    }
+
+    /** Replaces the on-screen check (showing), so headless tests can show or hide the canvas. */
+    void overrideOnScreen(BooleanSupplier check) {
+        onScreen = Objects.requireNonNull(check, "check");
+        updateAnts();
+    }
+
+    /** Whether the dashes are marching now. */
+    boolean antsRunning() {
+        return antsTimer.isRunning();
+    }
+
+    double antsPhase() {
+        return marchingAnts.phase();
+    }
+
+    /** One clock tick: re-checks that the dashes are still needed, so the clock stops by itself when not. */
+    void antsTick() {
+        updateAnts();
+        if (antsTimer.isRunning()) {
+            marchingAnts.advance();
+            repaint();
+        }
+    }
+
+    /** The dashes march while something is outlined (a selection or a rubber band) on a shown canvas, animating. */
+    private void updateAnts() {
+        boolean needed = !disposed && onScreen.getAsBoolean() && animations.getAsBoolean()
+                && (!selection.isEmpty() || gestures.overlay().rubberBand().isPresent());
+        if (needed && !antsTimer.isRunning()) {
+            antsTimer.start();
+        } else if (!needed && antsTimer.isRunning()) {
+            antsTimer.stop();
+        }
     }
 
     /**
@@ -431,6 +490,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
 
     /** A selection other than the one a reveal made ends the reveal; any new selection ends a pin's uses shown. */
     private void selectionChanged() {
+        updateAnts();
         revealedElements.ifPresent(elements -> {
             revealedElements = Optional.empty();
             usesLight.stop();
@@ -589,6 +649,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         disposed = true;
         blinkWhenSized = false;
         frames.stop();
+        antsTimer.stop();
         blinkTimer.stop();
         usesLight.stop();
         ToolTipManager.sharedInstance().unregisterComponent(this);
@@ -684,8 +745,9 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
             paintNotes(canvas, machine.get(), colours);
             MachineDiagramPainter.paint(canvas, machine.get(), geometry,
-                    new MachineDiagramPainter.Marks(activeState, selection, glows(), revealed()), colours);
-            MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), colours);
+                    new MachineDiagramPainter.Marks(activeState, selection, glows(), revealed(),
+                            marchingAnts.phase()), colours);
+            MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), marchingAnts.phase(), colours);
             boolean lit = blinkTimer.isRunning() && blinksLeft % 2 == 1;
             if (lit) {
                 revealed().ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,

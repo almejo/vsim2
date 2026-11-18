@@ -65,6 +65,8 @@ final class MachineEditing {
                 MachineLibrary.of(view), view::showNotice,
                 () -> Animations.enabled(view.services().preferences()), inline::editNote);
         List<Runnable> undo = new ArrayList<>();
+        canvas.setAnimations(() -> Animations.enabled(view.services().preferences()));
+        undo.add(Animations.onChange(view.services().preferences(), canvas::animationsChanged));
         undo.add(tool.install());
         undo.add(followStickyNoteTool(view, palette));
         undo.add(followPanTool(view, canvas, palette));
