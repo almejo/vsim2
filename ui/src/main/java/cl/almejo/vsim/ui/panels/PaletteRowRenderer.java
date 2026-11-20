@@ -25,7 +25,7 @@ final class PaletteRowRenderer extends DefaultTreeCellRenderer {
         super.getTreeCellRendererComponent(owner, value, selected, expanded, leaf, row, focused);
         Object item = ((DefaultMutableTreeNode) value).getUserObject();
         setDisabledIcon(null); // the renderer is shared: a disabled entry's icon must not stay for the next row
-        setEnabled(owner.isEnabled() && item != TopSection.EMPTY && !panel.isDisabled(item));
+        setEnabled(owner.isEnabled() && item != TopSection.EMPTY && item != TopSection.NO_RESULTS && !panel.isDisabled(item));
         getAccessibleContext().setAccessibleName(PalettePanel.isEntryItem(item) ? panel.accessibleName(item) : null);
         if (item instanceof PaletteEntry entry) {
             setText(entry.name());
@@ -44,11 +44,12 @@ final class PaletteRowRenderer extends DefaultTreeCellRenderer {
             setText(Messages.text(switch (section) {
                 case FAVORITES -> "palette.favorites";
                 case EMPTY -> "palette.favorites.empty";
+                case NO_RESULTS -> "palette.noResults";
                 case RECENT -> "palette.recent";
             }));
             setIcon(switch (section) {
                 case FAVORITES -> new FavoriteStar(true, selected);
-                case EMPTY -> null;
+                case EMPTY, NO_RESULTS -> null;
                 case RECENT -> new RecentIcon(selected);
             });
             setToolTipText(null);

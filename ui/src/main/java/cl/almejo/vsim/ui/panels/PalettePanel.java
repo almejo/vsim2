@@ -112,8 +112,8 @@ public final class PalettePanel extends JPanel {
     /** Width of a help tooltip before it wraps, in pixels. */
     private static final int HELP_WIDTH = 260;
 
-    /** The sections above the categories, «Favoritos» and «Recientes», and the empty hint row of «Favoritos». */
-    enum TopSection { FAVORITES, EMPTY, RECENT }
+    /** The sections above the categories, «Favoritos» and «Recientes», and the empty hint row of «Favoritos» and the «no results» row of a search that finds nothing. */
+    enum TopSection { FAVORITES, EMPTY, RECENT, NO_RESULTS }
 
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
@@ -778,6 +778,9 @@ public final class PalettePanel extends JPanel {
         }
         addUserSection(root, UserSection.LIBRARY, libraryComponents, query);
         addUserSection(root, UserSection.DOCUMENT, documentComponents, query);
+        if (root.getChildCount() == 0 && !query.isBlank()) {
+            root.add(new DefaultMutableTreeNode(TopSection.NO_RESULTS, false));
+        }
         updating = true;
         try {
             tree.setModel(new DefaultTreeModel(root));
