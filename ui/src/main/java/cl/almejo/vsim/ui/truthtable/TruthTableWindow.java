@@ -15,6 +15,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -26,6 +27,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
@@ -106,6 +108,9 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         wizard.addActionListener(event -> controls.openInWizard());
         recalculate.addActionListener(event -> controls.recalculate());
         close.addActionListener(event -> dispose());
+        getRootPane().setDefaultButton(close);
+        getRootPane().registerKeyboardAction(event -> dispose(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
         grid.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {

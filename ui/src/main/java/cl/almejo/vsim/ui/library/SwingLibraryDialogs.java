@@ -66,8 +66,8 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
         });
         cancel.addActionListener(event -> dialog.dispose());
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttons.add(cancel);
         buttons.add(accept);
+        buttons.add(cancel);
         ComponentFormPanel panel = new ComponentFormPanel(form);
         dialog.getContentPane().add(panel, BorderLayout.CENTER);
         dialog.getContentPane().add(buttons, BorderLayout.SOUTH);
@@ -162,9 +162,10 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
 
     @Override
     public boolean confirmRemove(java.awt.Component parent, String componentName) {
-        return JOptionPane.showConfirmDialog(parent, Messages.format("library.remove.confirm", componentName),
-                Messages.text("action.removeFromLibrary"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE)
-                == JOptionPane.YES_OPTION;
+        Object[] options = {Messages.text("action.removeFromLibrary"), Messages.text("template.dialog.cancel")};
+        return JOptionPane.showOptionDialog(parent, Messages.format("library.remove.confirm", componentName),
+                Messages.text("action.removeFromLibrary"), JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+                null, options, options[1]) == 0;
     }
 
     @Override

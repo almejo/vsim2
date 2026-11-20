@@ -418,8 +418,8 @@ public final class ShapeEditorPanel extends JPanel {
         JButton cancel = new JButton(Messages.text("shape.cancel"));
         cancel.addActionListener(event -> onClose.run());
         accept.addActionListener(event -> acceptEdits());
-        footer.add(cancel, "sg choice");
         footer.add(accept, "sg choice");
+        footer.add(cancel, "sg choice");
         return footer;
     }
 

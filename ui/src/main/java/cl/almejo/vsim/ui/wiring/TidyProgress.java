@@ -64,6 +64,9 @@ public interface TidyProgress {
                 dialog.add(content, BorderLayout.CENTER);
                 dialog.add(buttons, BorderLayout.SOUTH);
                 dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+                dialog.getRootPane().registerKeyboardAction(event -> onCancel.run(),
+                        javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                        javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent event) {

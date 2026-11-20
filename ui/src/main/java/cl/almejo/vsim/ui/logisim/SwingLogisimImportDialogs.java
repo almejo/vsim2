@@ -8,8 +8,10 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -17,6 +19,7 @@ import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Window;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -47,6 +50,7 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
         dialog.add(new ImportReportPanel(summary, report, host), BorderLayout.CENTER);
         dialog.add(buttons, BorderLayout.SOUTH);
         dialog.getRootPane().setDefaultButton(close);
+        bindEscape(dialog, () -> dialog.dispose());
         dialog.setMinimumSize(MINIMUM_REPORT_SIZE);
         dialog.setSize(host.size().orElse(REPORT_SIZE));
         dialog.addWindowListener(new WindowAdapter() {
@@ -81,6 +85,7 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
                 content.add(bar, BorderLayout.CENTER);
                 content.add(buttons, BorderLayout.SOUTH);
                 dialog.setContentPane(content);
+                bindEscape(dialog, cancel);
                 dialog.pack();
                 dialog.setLocationRelativeTo(parent);
                 dialog.setVisible(true); // not modal: the editor stays responsive and the import goes on
@@ -94,5 +99,11 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
                 }
             }
         };
+    }
+
+    /** Escape anywhere in {@code dialog} runs {@code action}. */
+    private static void bindEscape(JDialog dialog, Runnable action) {
+        dialog.getRootPane().registerKeyboardAction(event -> action.run(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 }

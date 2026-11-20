@@ -110,10 +110,10 @@ final class ConnectionsSheet {
         back.setName("back");
         apply.setName("apply");
         apply.addActionListener(ignored -> confirmed = true);
-        row.add(back);
         if (!blocked) {
             row.add(apply);
         }
+        row.add(back);
         return row;
     }
 
