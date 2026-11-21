@@ -317,7 +317,7 @@ class ApplicationExtensionsTest {
                     "Siguiente problema", "Problema anterior", "---",
                     "Enmarcar selección", "---",
                     "Crear componente desde selección…", "Actualizar componente…", "---",
-                    "Ordenar circuito", "Ordenar circuito…", "Los cables siguen al mover", "Dibujar cables");
+                    "Ordenar circuito", "Ordenar circuito con opciones…", "Los cables siguen al mover", "Dibujar cables");
         } finally {
             view.dispose();
         }
