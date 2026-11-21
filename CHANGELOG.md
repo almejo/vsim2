@@ -44,6 +44,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Máquinas de estado: los textos de segundo plano de la pestaña de la máquina (el contador y los encabezados de la lista de pines, las ayudas de Propiedades) usan el gris legible de la interfaz, y las separaciones de Propiedades y de la lista de pines siguen el tamaño de la interfaz (100–200 %); la ayuda de «Escribir el nombre, la condición o la nota» ya no escribe la tecla F2 (cambia si la reasignas).
 - Máquinas de estado: el «en ninguna flecha» de los pines que ninguna flecha usa se lee bien también con el tema oscuro: usa el dorado legible de los avisos de la interfaz, el mismo en todas partes.
 - Máquinas de estado: abrir un archivo con máquinas, incluso uno que VSim mismo guardó, ya no deja en el registro el aviso «el cuerpo escrito de la máquina no coincide»: lo escrito solo le faltaba los valores por omisión de los parámetros, y eso se tomaba por una diferencia.
 - Formas de onda: un nombre de canal que no cabe junto a su valor («semaforo · estado») se cortaba sin aviso («semaforo · stat»); ahora termina en «…» y al pasar el ratón se ve entero. Ver [Formas de onda](docs/funciones/formas-de-onda.md).

@@ -115,7 +115,7 @@ final class MachinePinTable extends JPanel {
 
     /** The pin list of {@code side}, editing through {@code host}. */
     MachinePinTable(Side side, Host host) {
-        super(new MigLayout("wrap 4, insets 0, gapy 1, hidemode 3", "[][grow, fill, 40::][right][]"));
+        super(new MigLayout("wrap 4, insets 0, gapy 1lp, hidemode 3", "[][grow, fill, 40lp::][right][]"));
         this.side = Objects.requireNonNull(side, "side");
         this.host = Objects.requireNonNull(host, "host");
         setOpaque(false);
@@ -371,7 +371,7 @@ final class MachinePinTable extends JPanel {
         rows.add(row);
         rowNames.add(pin.name());
         firstColumn.add(handle.getText());
-        add(handle, "gapright 4");
+        add(handle, "gapright 4lp");
         add(field, "wmin 0");
         MachinePinUses.Uses uses = MachinePinUses.of(machine, pin.name());
         if (uses.isUnused()) {
@@ -408,7 +408,7 @@ final class MachinePinTable extends JPanel {
         usesLabels.put(name, always);
         rowNames.add(name);
         add(new JLabel(""));
-        add(nameLabel, "gapleft 4");
+        add(nameLabel, "gapleft 4lp");
         add(always, "span 2");
     }
 
@@ -648,8 +648,7 @@ final class MachinePinTable extends JPanel {
 
         @Override
         public Color getForeground() {
-            Color colour = UIManager.getColor("Label.disabledForeground");
-            return colour != null ? colour : super.getForeground();
+            return ReadableColors.mutedText();
         }
     }
 

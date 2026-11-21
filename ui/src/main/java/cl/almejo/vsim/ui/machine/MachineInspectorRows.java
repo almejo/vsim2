@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.NoteColorNames;
 import cl.almejo.vsim.ui.i18n.StickyColorNames;
 import cl.almejo.vsim.ui.karnaugh.ExpressionProblemText;
@@ -127,7 +128,7 @@ final class MachineInspectorRows extends JPanel {
     private final transient Runnable stopFollowingFrames;
     /** The problems under the rows: a sentence and its «Ver» each. */
     private final JPanel problemList = new JPanel(new MigLayout("wrap 2, insets 0, hidemode 3",
-            "[grow, fill, 60::][]"));
+            "[grow, fill, 60lp::][]"));
     private transient List<MachineFinding> listedProblems = List.of();
     private final transient List<String> problemLines = new ArrayList<>();
     private final transient List<AbstractButton> problemLinks = new ArrayList<>();
@@ -140,7 +141,7 @@ final class MachineInspectorRows extends JPanel {
      */
     MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library,
                          Consumer<String> notices, BooleanSupplier animations, Consumer<String> editNote) {
-        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
+        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60lp::]"));
         this.notices = Objects.requireNonNull(notices, "notices");
         this.animations = Objects.requireNonNull(animations, "animations");
         this.canvas = Objects.requireNonNull(canvas, "canvas");
@@ -397,7 +398,7 @@ final class MachineInspectorRows extends JPanel {
         if (!current.isEmpty()) {
             StateMachine machine = canvas.machine().orElseThrow();
             JLabel header = boldLabel(Messages.text("machine.properties.problems"));
-            problemList.add(header, "span 2, gaptop 6");
+            problemList.add(header, "span 2, gaptop 6lp");
             current.forEach(finding -> addProblemLine(machine, finding));
         }
         problemList.revalidate();
@@ -931,7 +932,7 @@ final class MachineInspectorRows extends JPanel {
     }
 
     private void addHeader(String text) {
-        add(boldLabel(text), WIDE + ", gaptop 6");
+        add(boldLabel(text), WIDE + ", gaptop 6lp");
     }
 
     private static JLabel boldLabel(String text) {
@@ -977,7 +978,7 @@ final class MachineInspectorRows extends JPanel {
 
         @Override
         public Color getForeground() {
-            Color colour = UIManager.getColor(muted ? "Label.disabledForeground" : "Label.foreground");
+            Color colour = muted ? ReadableColors.mutedText() : UIManager.getColor("Label.foreground");
             return colour != null ? colour : super.getForeground();
         }
 
