@@ -180,8 +180,9 @@ public final class ListedProblems {
 
     /**
      * One problem per definition whose drawing could not be read when the file was opened and that still has no
-     * drawing of its own, on the first top-level piece that uses it (directly or nested). A definition no piece uses
-     * is not listed: nothing shows it.
+     * drawing of its own, on the first top-level piece that uses it (directly or nested). A definition no piece uses is
+     * listed at the document level ({@link ConnectivityProblem#NO_ELEMENT}): nothing shows it, yet saving the circuit
+     * drops its drawing, so it is never hidden.
      */
     private static List<ConnectivityProblem> unsupportedDrawings(CircuitDocument document) {
         List<ConnectivityProblem> problems = new ArrayList<>();
@@ -191,6 +192,7 @@ public final class ListedProblems {
             if (definition.isEmpty()) {
                 continue;
             }
+            boolean listed = false;
             for (Component component : document.components()) {
                 boolean uses = document.definitionsUsedBy(List.of(component)).stream()
                         .anyMatch(used -> used.id().equals(definitionId));
@@ -198,8 +200,14 @@ public final class ListedProblems {
                     problems.add(new ConnectivityProblem(ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX + definitionId,
                             component.id().value(), -1, component.position(),
                             ConnectivityProblem.Cause.UNSUPPORTED_DRAWING));
+                    listed = true;
                     break;
                 }
+            }
+            if (!listed) {
+                problems.add(new ConnectivityProblem(ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX + definitionId,
+                        ConnectivityProblem.NO_ELEMENT, -1, GridPoint.ORIGIN,
+                        ConnectivityProblem.Cause.UNSUPPORTED_DRAWING));
             }
         }
         return problems;

@@ -42,6 +42,13 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
      */
     public static final String PLACED_ELSEWHERE_PREFIX = "placedElsewhere:";
 
+    /**
+     * The element id of a problem about the document as a whole (an unsupported drawing no piece uses): there is no
+     * piece, wire or pin to point at, and every consumer must check for it before turning an id into an
+     * {@code ElementId}.
+     */
+    public static final String NO_ELEMENT = "";
+
     /** The start of the net id of an {@link Cause#UNSUPPORTED_DRAWING} problem; the definition's id follows. */
     public static final String UNSUPPORTED_DRAWING_PREFIX = "drawing:";
 

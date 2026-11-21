@@ -92,12 +92,16 @@ final class ConnectivityProblemViews {
             }
             case OWN_CONTENTS_OVER_LINK, OWN_CONTENTS_FOR_NOTHING -> ownContents(source, problem, references);
             case UNSUPPORTED_DRAWING -> {
-                references.element(elementId);
+                boolean unused = elementId.equals(ConnectivityProblem.NO_ELEMENT);
+                if (!unused) {
+                    references.element(elementId);
+                }
                 String definitionId = problem.netId().substring(
                         ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX.length());
                 yield references.view(kind, true, problem.netId(), "The drawing of the component \""
                         + source.document().definition(definitionId).map(definition -> definition.name())
-                        .orElse(definitionId) + "\" (used by " + pieceName(source, elementId) + ") has a path VSim"
+                        .orElse(definitionId) + "\" (" + (unused ? "no piece uses it" : "used by "
+                        + pieceName(source, elementId)) + ") has a path VSim"
                         + " cannot read: the default box is shown. Saving the circuit writes the component without"
                         + " that drawing");
             }

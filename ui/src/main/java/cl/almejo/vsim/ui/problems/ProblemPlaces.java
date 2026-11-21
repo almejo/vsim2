@@ -28,7 +28,8 @@ final class ProblemPlaces {
             case WidthMismatch mismatch -> mismatch.pins().stream().findFirst().map(pin -> pin.componentId());
             case DisplayBusOverride display -> Optional.of(display.componentId());
             case TunnelProblem tunnel -> tunnel.tunnels().stream().findFirst();
-            case ConnectivityProblem connectivity -> Optional.of(connectivity.elementId());
+            case ConnectivityProblem connectivity -> Optional.of(connectivity.elementId())
+                    .filter(id -> !id.equals(ConnectivityProblem.NO_ELEMENT));
             case LinkedFileProblem linkedFile -> Optional.of(linkedFile.elementId());
         };
     }

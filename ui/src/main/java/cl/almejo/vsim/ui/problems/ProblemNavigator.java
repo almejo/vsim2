@@ -143,6 +143,9 @@ public final class ProblemNavigator {
     }
 
     private boolean navigateToConnectivity(ConnectivityProblem problem) {
+        if (problem.elementId().equals(ConnectivityProblem.NO_ELEMENT)) {
+            return false; // about the document as a whole: there is no place to go to
+        }
         CircuitCanvas pane = canvas.get();
         CircuitDocument document = pane.openDocument().document();
         ElementId visibleId = new ElementId(InstancePath.topLevel(problem.elementId()));

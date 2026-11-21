@@ -64,6 +64,9 @@ final class ConnectivityOverlay implements CanvasOverlay {
         ColorScheme colors = scheme.get();
         graphics.setStroke(STROKE);
         for (ConnectivityProblem problem : openDocument.connectivityProblems()) {
+            if (problem.elementId().equals(ConnectivityProblem.NO_ELEMENT)) {
+                continue; // about the document as a whole: nothing on the canvas to mark
+            }
             if (InstancePath.isNested(problem.elementId())) {
                 ElementId visibleId = new ElementId(InstancePath.topLevel(problem.elementId()));
                 state.document().component(visibleId).filter(component -> glowing.add(visibleId))

@@ -71,6 +71,19 @@ class UnsupportedDrawingTest {
     }
 
     @Test
+    void aDefinitionNoPieceUsesIsListedAtTheDocumentLevelBecauseSavingDropsItsDrawing(@TempDir Path directory)
+            throws Exception {
+        Path file = directory.resolve("suelto.vsim.json");
+        Files.writeString(file, brokenCircuit());
+        CircuitDocument document = new CircuitReader(registry).read(file);
+        document.remove(new ElementId("c1")); // the last piece that used the definition is gone
+
+        assertThat(ListedProblems.of(document, registry, ListedProblems.Sources.published(SimulationSnapshot.EMPTY,
+                List.of()))).containsExactly(new ConnectivityProblem("drawing:dibujo",
+                ConnectivityProblem.NO_ELEMENT, -1, GridPoint.ORIGIN, ConnectivityProblem.Cause.UNSUPPORTED_DRAWING));
+    }
+
+    @Test
     void savingWritesTheDefinitionWithoutTheBrokenDrawingAndReopensClean(@TempDir Path directory) throws Exception {
         Path file = directory.resolve("roto.vsim.json");
         Files.writeString(file, brokenCircuit());
