@@ -227,6 +227,38 @@ class AutosaveServiceTest {
     }
 
     @Test
+    void anActionRegisteredBeforeTrackingRunsOnceTheDocumentIsTrackedAndCopied() throws Exception {
+        // Application.openRecovered asks for the action before the document is shown and tracked.
+        Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
+        OpenDocument document = untracked();
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+
+        autosave.afterCopied(document, () -> deleteQuietly(oldCopy));
+        autosave.track(document);
+        autosave.tick();
+        assertThat(oldCopy).as("not before the writer ran").exists();
+        runWrites();
+
+        assertThat(hasCopy(document)).isTrue();
+        assertThat(oldCopy).as("the old recovery copy is gone once the new one is on disk").doesNotExist();
+    }
+
+    @Test
+    void anActionWaitingForTrackingNeverRunsIfTheDocumentIsNeverTracked() throws Exception {
+        Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
+        OpenDocument document = untracked();
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+
+        autosave.afterCopied(document, () -> deleteQuietly(oldCopy));
+        autosave.tick();
+        runWrites();
+        autosave.shutdown();
+        runWrites();
+
+        assertThat(oldCopy).exists();
+    }
+
+    @Test
     void anActionWaitingForACopyRunsAtTheFirstWriteThatSucceeds() throws Exception {
         Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
         Path recoveryRoot = directory.resolve("later");

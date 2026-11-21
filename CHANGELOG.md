@@ -60,6 +60,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 - Un clic derecho a mitad de un arrastre ya no cambia la selección ni abre el menú: cancela el gesto, como Esc, y soltar el botón izquierdo después no mueve nada.
 - Esc con el botón apretado sobre un cable (cables de corrido) cancela el gesto: arrastrar después ya no dibuja un cable.
+- Recuperación: la copia recuperada de un circuito se borraba solo si el documento ya estaba en la lista de autoguardado, y no lo estaba al reabrirla; quedaba en disco y se ofrecía otra vez en cada inicio (y podía pisar el archivo guardado). Ahora se borra cuando la copia nueva está en disco.
+- Inicio: un argumento de la línea de comandos que no es una ruta válida (por ejemplo con caracteres que Windows prohíbe) ya no detiene el arranque: se avisa como cualquier archivo que no se abrió.
+- Recuperación: si otro VSim tenía tomado un instante el candado de la carpeta de copias recién creada, esta instancia seguía sin candado toda su vida y otra podía ofrecer sus copias como huérfanas. Ahora reintenta unas veces antes de seguir.
 
 ## Versión 0.8 — 2026-11-11
 

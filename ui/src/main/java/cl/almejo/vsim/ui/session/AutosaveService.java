@@ -9,6 +9,7 @@ import javax.swing.Timer;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
@@ -57,6 +58,8 @@ public final class AutosaveService {
     private final Executor writer;
     private final Timer timer;
     private final Map<OpenDocument, Tracked> tracked = new LinkedHashMap<>();
+    /** Actions asked for before the document was tracked ({@link #afterCopied}); {@link #track} moves them over. */
+    private final Map<OpenDocument, Queue<Runnable>> waitingForTracking = new IdentityHashMap<>();
     private final Set<UUID> failing = ConcurrentHashMap.newKeySet();
     private final AtomicInteger loggedFailures = new AtomicInteger();
     private volatile boolean shutDown;
@@ -100,12 +103,18 @@ public final class AutosaveService {
                 discardCopy(document);
             }
         };
-        tracked.put(document, new Tracked(listener));
+        Tracked state = new Tracked(listener);
+        Queue<Runnable> early = waitingForTracking.remove(document);
+        if (early != null) {
+            state.afterCopied.addAll(early);
+        }
+        tracked.put(document, state);
         document.addChangeListener(listener);
     }
 
     /** The document is closing: it stops being copied and its copy, if any, is deleted. */
     public void untrack(OpenDocument document) {
+        waitingForTracking.remove(document);
         Tracked state = tracked.get(document);
         if (state == null) {
             return;
@@ -168,6 +177,7 @@ public final class AutosaveService {
         timer.stop();
         tracked.forEach((document, state) -> document.removeChangeListener(state.listener));
         tracked.clear();
+        waitingForTracking.clear();
         writer.execute(() -> {
             try {
                 store.deleteSession();
@@ -201,13 +211,19 @@ public final class AutosaveService {
      * Runs {@code action} on the writer once a copy of {@code document} made by this run is actually on disk: after
      * the next successful write, never after a failed one (a failing document is retried at every tick, and the action
      * waits for the first write that succeeds). Used to delete an old recovered copy only when the new one exists, so
-     * a failing disk never leaves the recovered work without a copy. Nothing for an untracked document, and nothing
+     * a failing disk never leaves the recovered work without a copy. For a document not tracked yet the action waits
+     * for {@link #track} (the application asks before it shows the document); never tracked, it never runs. Nothing
      * after shutdown: the action then never runs (the old copy stays, to be offered again).
      */
     public void afterCopied(OpenDocument document, Runnable action) {
+        if (shutDown) {
+            return;
+        }
         Tracked state = tracked.get(document);
-        if (!shutDown && state != null) {
+        if (state != null) {
             state.afterCopied.add(action);
+        } else {
+            waitingForTracking.computeIfAbsent(document, ignored -> new ConcurrentLinkedQueue<>()).add(action);
         }
     }
 
