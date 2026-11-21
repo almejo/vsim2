@@ -56,14 +56,32 @@ class ToolbarComponentTest {
         assertThat(List.of(view.toolBar().getComponents())).isEqualTo(before);
     }
 
-    /** V1: at a narrow width the real toolbar wraps; nothing leaves the window and the order is row by row. */
+    /**
+     * V1: at a narrow width the real toolbar wraps; nothing leaves the window and the order is row by row. It runs on
+     * the EDT: the layout asks the toolbar to revalidate, and that validation, queued on the EDT, must not relay the
+     * bar (at another width) in the middle of the checks.
+     */
     @Test
-    void theRealToolbarWrapsInsteadOfCuttingControlsOff() {
+    void theRealToolbarWrapsInsteadOfCuttingControlsOff() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+        javax.swing.SwingUtilities.invokeAndWait(() -> {
+            try {
+                checkTheToolbarWrapsAt(500);
+            } catch (Throwable thrown) {
+                failure.set(thrown);
+            }
+        });
+        if (failure.get() != null) {
+            throw new AssertionError(failure.get().getMessage(), failure.get());
+        }
+    }
+
+    private void checkTheToolbarWrapsAt(int width) {
         javax.swing.JToolBar toolBar = view.toolBar();
-        toolBar.setSize(500, toolBar.getPreferredSize().height);
-        toolBar.doLayout();
-        toolBar.setSize(500, toolBar.getPreferredSize().height);
-        toolBar.doLayout();
+        for (int pass = 0; pass < 2; pass++) { // the second pass sees the height the first one needed
+            toolBar.setSize(width, toolBar.getPreferredSize().height);
+            toolBar.doLayout();
+        }
         java.awt.Rectangle previous = null;
         for (Component child : toolBar.getComponents()) {
             if (!child.isVisible() || child instanceof javax.swing.Box.Filler
@@ -71,7 +89,7 @@ class ToolbarComponentTest {
                 continue;
             }
             java.awt.Rectangle bounds = child.getBounds();
-            assertThat(bounds.x + bounds.width).as("%s inside the bar", child).isLessThanOrEqualTo(500);
+            assertThat(bounds.x + bounds.width).as("%s inside the bar", child).isLessThanOrEqualTo(width);
             if (previous != null) {
                 assertThat(bounds.y > previous.y || (bounds.y == previous.y && bounds.x >= previous.x))
                         .as("%s keeps the order", child).isTrue();
