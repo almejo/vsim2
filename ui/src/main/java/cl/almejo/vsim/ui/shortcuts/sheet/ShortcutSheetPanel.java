@@ -70,6 +70,8 @@ final class ShortcutSheetPanel extends JPanel {
     private static final int LIGHT_VEIL_ALPHA = 110;
     private static final int DARK_VEIL_ALPHA = 150;
     private static final float HEADING_SCALE = 0.8f;
+    /** The rows (keycaps and names) a bit smaller than the interface's text, so the card stays compact. */
+    static final float ROW_SCALE = 0.9f;
     private static final float HEADING_TRACKING = 0.08f;
     private static final String ROW_SEPARATOR = " · ";
 
@@ -190,7 +192,9 @@ final class ShortcutSheetPanel extends JPanel {
         panel.add(heading, "span 2, gapbottom 6, align left");
         for (SheetSelection.Row row : group.rows()) {
             panel.add(new KeycapsLabel(row.keys()));
-            panel.add(new ThemedLabel("Label.foreground", row.name()));
+            JLabel name = new ThemedLabel("Label.foreground", row.name());
+            name.setFont(rowFont());
+            panel.add(name);
         }
         return panel;
     }
@@ -403,6 +407,12 @@ final class ShortcutSheetPanel extends JPanel {
         }
     }
 
+    /** The interface's text font at {@link #ROW_SCALE}, read when the card is built (each time it opens). */
+    private static Font rowFont() {
+        Font font = UIManager.getFont("Label.font");
+        return font.deriveFont(font.getSize2D() * ROW_SCALE);
+    }
+
     /** The keys of a shortcut as keycaps ({@link Keycaps}), in the theme's text colour read at paint time. */
     private static final class KeycapsLabel extends JComponent {
 
@@ -411,7 +421,7 @@ final class ShortcutSheetPanel extends JPanel {
 
         KeycapsLabel(List<String> keys) {
             this.keys = List.copyOf(keys);
-            setFont(UIManager.getFont("Label.font"));
+            setFont(rowFont());
         }
 
         @Override

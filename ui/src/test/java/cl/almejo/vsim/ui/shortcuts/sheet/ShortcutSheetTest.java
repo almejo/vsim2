@@ -168,6 +168,16 @@ class ShortcutSheetTest {
     }
 
     @Test
+    void theRowsAreAlittleSmallerThanTheInterfaceText() {
+        openSheet();
+        float interfaceSize = javax.swing.UIManager.getFont("Label.font").getSize2D();
+        javax.swing.JLabel reopen = find(root.getLayeredPane(), javax.swing.JLabel.class).stream()
+                .filter(label -> Messages.text("action.reopenClosedTab").equals(label.getText()))
+                .findFirst().orElseThrow();
+        assertThat(reopen.getFont().getSize2D()).isEqualTo(interfaceSize * 0.9f);
+    }
+
+    @Test
     void aTypedQuestionMarkOnTheCanvasOpensTheSheetAndAnotherClosesIt() {
         assertThat(questionMarkOn(view.canvas())).as("the key is taken").isTrue();
         assertThat(sheet()).isPresent();
