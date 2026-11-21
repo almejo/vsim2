@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.window.closed.ClosedGroup;
 import cl.almejo.vsim.ui.window.closed.ClosedTab;
 import cl.almejo.vsim.ui.window.closed.ClosedTabState;
 import cl.almejo.vsim.ui.window.closed.ClosedTabs;
+import cl.almejo.vsim.ui.window.tabs.GroupColors;
 import cl.almejo.vsim.ui.window.closed.ClosedWindow;
 import cl.almejo.vsim.ui.window.closed.Closing;
 import cl.almejo.vsim.ui.window.closed.DocumentReference;
@@ -70,9 +71,6 @@ public final class ClosedTabReopener {
 
         /** Takes away a window {@link #newWindow} made that could not be filled: it is never shown. */
         void discard(WindowTabs window);
-
-        /** Closes the untouched «Sin título» of {@code window}, which got something else, as Abrir does. */
-        void closeReplaced(WindowTabs window);
 
         /** Shows {@code text} over the circuit of {@code window}'s active tab for {@code duration}. */
         void notice(WindowTabs window, String text, Duration duration);
@@ -230,7 +228,6 @@ public final class ClosedTabReopener {
     }
 
     private void finish(WindowTabs target, WindowTabs requester, Notices notices) {
-        windows.closeReplaced(target);
         if (target != requester) {
             windows.focus(target);
         }
@@ -264,6 +261,7 @@ public final class ClosedTabReopener {
             return Optional.empty();
         }
         Optional<OpenDocument> read = windows.read(path.get(), target);
+        read.ifPresent(document -> GroupColors.adopt(document, reference.colourOrdinal()));
         if (read.isPresent() && reference.closing() == Closing.LOST_CHANGES) {
             notices.add(lostChanges(reference.displayName(), path.get()), LONG_NOTICE);
         }

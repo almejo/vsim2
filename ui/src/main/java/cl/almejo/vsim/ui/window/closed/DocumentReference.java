@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window.closed;
 
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.window.tabs.GroupColors;
 
 import java.nio.file.Path;
 import java.util.Objects;
@@ -17,10 +18,12 @@ public final class DocumentReference {
     private Path path;
     private String displayName;
     private boolean modifiedWhenClosed;
+    private final int colourOrdinal;
 
     private DocumentReference(OpenDocument open) {
         this.open = open;
         this.displayName = open.displayName();
+        this.colourOrdinal = GroupColors.ordinalOf(open);
     }
 
     public static DocumentReference of(OpenDocument document) {
@@ -40,6 +43,11 @@ public final class DocumentReference {
     /** The name its tab showed: «contador», «Sin título». */
     public String displayName() {
         return open != null ? open.displayName() : displayName;
+    }
+
+    /** The palette entry of its group's colour, so the circuit comes back in the same colour ({@link GroupColors}). */
+    public int colourOrdinal() {
+        return colourOrdinal;
     }
 
     public Closing closing() {

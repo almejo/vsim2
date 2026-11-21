@@ -37,6 +37,14 @@ public final class GroupColors {
         return ORDINALS.computeIfAbsent(document, key -> nextOrdinal++);
     }
 
+    /**
+     * {@code document} takes palette entry {@code ordinal}: a circuit read again to bring back a closed group keeps the
+     * colour its group had («Reabrir pestaña cerrada»).
+     */
+    public static synchronized void adopt(Object document, int ordinal) {
+        ORDINALS.put(document, ordinal);
+    }
+
     /** The colour of {@code document}'s group on the current theme. */
     public static Color colorOf(Object document) {
         return colorFor(ordinalOf(document), chromeIsDark());

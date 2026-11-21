@@ -112,12 +112,6 @@ final class ReopeningWindows implements ClosedTabReopener.Windows {
     }
 
     @Override
-    public void closeReplaced(WindowTabs window) {
-        windowOf(window).ifPresent(target -> windows.replacedBy(target)
-                .forEach(replaced -> windows.windowsOf(replaced).forEach(holder -> holder.closeGroup(replaced))));
-    }
-
-    @Override
     public void notice(WindowTabs window, String text, Duration duration) {
         windowOf(window).filter(found -> !found.tabs().isEmpty()).ifPresent(found ->
                 CanvasNotice.show(found.activeView().canvasPanes(), text, CanvasNotice.Position.TOP, duration,

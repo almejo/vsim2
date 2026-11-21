@@ -428,20 +428,39 @@ class ReopenClosedTabTest {
     }
 
     @Test
-    void reopeningIntoAWindowClosesItsUntouchedUntitledCircuitAsAbrirDoes() throws Exception {
+    void reopeningLeavesTheWindowsEmptyUntitledTabsAlone() throws Exception {
+        // the user opened them on purpose (Ctrl+T): unlike Abrir, reopening replaces nothing (hand test 2026-11-21)
         OpenDocument counter = savedWithInverters("contador.vsim");
-        OpenDocument placeholder = newDocument();
+        OpenDocument firstEmpty = newDocument();
+        OpenDocument secondEmpty = newDocument();
         other.addTab(counter, Optional.of(MAIN_VIEW));
-        other.addTab(newDocument(), Optional.empty());
+        other.addTab(otherCircuit(), Optional.empty());
         other.closeGroup(counter);
         windows.open.remove(other);
         other.disposeAll();
-        tabs.addTab(placeholder, Optional.empty());
+        tabs.addTab(firstEmpty, Optional.empty());
+        tabs.addTab(secondEmpty, Optional.empty());
 
         reopen(tabs);
 
-        assertThat(tabs.documents()).hasSize(1);
-        assertThat(tabs.documents().getFirst().path()).contains(folder.resolve("contador.vsim"));
+        assertThat(tabs.documents()).hasSize(3).contains(firstEmpty, secondEmpty);
+    }
+
+    @Test
+    void aReopenedCircuitKeepsTheColourItsGroupHad() throws Exception {
+        OpenDocument counter = savedWithInverters("contador.vsim");
+        tabs.addTab(otherCircuit(), Optional.empty());
+        tabs.addTab(counter, Optional.of(MAIN_VIEW));
+        int colour = cl.almejo.vsim.ui.window.tabs.GroupColors.ordinalOf(counter);
+        tabs.closeGroup(counter);
+        tabs.addTab(newDocument(), Optional.empty()); // takes a colour of its own meanwhile
+
+        reopen(tabs);
+
+        OpenDocument reopened = tabs.documents().get(1);
+        assertThat(reopened.path()).contains(folder.resolve("contador.vsim"));
+        assertThat(reopened).isNotSameAs(counter);
+        assertThat(cl.almejo.vsim.ui.window.tabs.GroupColors.ordinalOf(reopened)).isEqualTo(colour);
     }
 
     @Test
@@ -542,10 +561,6 @@ class ReopenClosedTabTest {
             window.disposeAll();
         }
 
-        @Override
-        public void closeReplaced(WindowTabs window) {
-            window.documents().stream().filter(OpenDocument::isPristine).toList().forEach(window::closeGroup);
-        }
 
         @Override
         public void notice(WindowTabs window, String text, Duration duration) {
