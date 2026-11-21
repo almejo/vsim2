@@ -71,4 +71,14 @@ public final class MachineTestModes {
     public static Optional<StateMachine> draftOf(EditorView view) {
         return MachineMode.of(view).flatMap(MachineMode::testMode).map(MachineTestMode::machine);
     }
+
+    /** What the test bar of {@code view} says, while it tests. */
+    public static String barMessage(EditorView view) {
+        return MachineMode.of(view).flatMap(MachineMode::testMode).orElseThrow().bar().message();
+    }
+
+    /** «Salir de la prueba» (or «Dejar como estaba») on {@code view}'s test bar. */
+    public static void leaveTheTest(EditorView view) {
+        MachineMode.of(view).flatMap(MachineMode::testMode).orElseThrow().exit();
+    }
 }

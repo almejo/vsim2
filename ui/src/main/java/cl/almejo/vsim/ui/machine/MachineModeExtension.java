@@ -40,6 +40,8 @@ public final class MachineModeExtension implements EditorExtension {
                 .addComponentRows(new MachineNameRows(view.openDocument(), MachineLibrary.of(view)));
         Runnable removePieceRows = view.labelFeatures().properties()
                 .addComponentRows(new MachinePieceRows(view.openDocument(), view::enterComponent));
+        // last: a new view of a machine being tested (Nueva vista, the group moved) tests too, everything installed
+        MachineMode.of(view).ifPresent(MachineMode::joinTheTestUnderWay);
         return () -> {
             removePieceRows.run();
             removeNameRows.run();
