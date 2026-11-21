@@ -1182,6 +1182,18 @@ public final class WindowTabs extends JPanel {
     }
 
     /**
+     * «Nueva vista en otra ventana»: what the active tab shows, in {@code target}, which already has the document's
+     * main tab. A component or machine tab gets its own tab there (as {@link #newViewOfActivePlace} does here, so a
+     * machine being tested joins the test); a circuit's main tab is already what {@code target} shows.
+     */
+    public void showActivePlaceIn(WindowTabs target) {
+        TabEntry active = activeEntry().orElseThrow(() -> new IllegalStateException("the window has no tabs"));
+        Optional<ViewState> state = Optional.of(active.view.canvas().viewState());
+        active.definitionId.ifPresent(definitionId -> target.addComponentTab(active.document, definitionId,
+                ownPlace(active.document, active.definitionId, active.place), state));
+    }
+
+    /**
      * Moves {@code document}'s group to {@code target} at {@code groupIndex} (spec §4.3): new views there on the same
      * places, where these showed; when {@code target} already has the document, only the component tabs join its
      * group. This window lets the group go, and closes when it was its last. The tabs' drafts travel with them (a

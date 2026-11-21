@@ -97,6 +97,41 @@ class MachineTestAcrossViewsTest {
     }
 
     @Test
+    void aNewWindowOfAMachineTabShowsTheMachineNotOnlyTheCircuit() {
+        EditorView inside = machineTab();
+        otherTabs.addTab(document, Optional.empty());
+
+        tabs.showActivePlaceIn(otherTabs);
+
+        assertThat(otherTabs.activeView()).isNotSameAs(inside);
+        assertThat(MachineMode.of(otherTabs.activeView())).isPresent();
+        assertThat(otherTabs.documents()).containsExactly(document);
+    }
+
+    @Test
+    void aNewWindowOfAMachineBeingTestedJoinsTheTest() {
+        EditorView inside = testing(true);
+        otherTabs.addTab(document, Optional.empty());
+
+        tabs.showActivePlaceIn(otherTabs);
+        EditorView there = otherTabs.activeView();
+        MachineTestModes.answerWith(there, questions);
+
+        assertThat(modeOf(there).isTesting()).isTrue();
+        assertThat(MachineTestModes.draftOf(there)).isEqualTo(MachineTestModes.draftOf(inside));
+        assertThat(circuitsMachine()).isEqualTo(real);
+    }
+
+    @Test
+    void aNewWindowOfTheCircuitTabAddsNothingToTheNewWindow() {
+        EditorView mainThere = otherTabs.addTab(document, Optional.empty());
+
+        tabs.showActivePlaceIn(otherTabs);
+
+        assertThat(otherTabs.activeView()).isSameAs(mainThere);
+    }
+
+    @Test
     void aNewViewOfAMachineBeingTestedTestsTheSameDraft() {
         EditorView inside = testing(true);
 
