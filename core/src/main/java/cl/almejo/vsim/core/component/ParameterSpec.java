@@ -204,7 +204,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
     private Integer normalizeInteger(Object raw) {
         long number;
         if (raw instanceof Number numeric) {
-            number = numeric.longValue();
+            number = wholeNumber(numeric);
         } else {
             try {
                 number = Long.parseLong(raw.toString().trim());
@@ -217,5 +217,29 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
                     + minimum + " and " + maximum + ": " + number);
         }
         return (int) number;
+    }
+
+    /** A number as a long, refusing what would be cut or wrapped: 8.9, 8.5, NaN, or a BigInteger beyond a long. */
+    private long wholeNumber(Number numeric) {
+        try {
+            if (numeric instanceof Byte || numeric instanceof Short || numeric instanceof Integer
+                    || numeric instanceof Long) {
+                return numeric.longValue();
+            }
+            if (numeric instanceof java.math.BigInteger bigInteger) {
+                return bigInteger.longValueExact();
+            }
+            if (numeric instanceof java.math.BigDecimal bigDecimal) {
+                return bigDecimal.longValueExact();
+            }
+            double decimal = numeric.doubleValue();
+            if (Double.isFinite(decimal) && decimal == Math.rint(decimal)
+                    && Math.abs(decimal) < 0x1p63) {
+                return (long) decimal;
+            }
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("parameter " + name + " must be an integer: " + numeric, exception);
+        }
+        throw new IllegalArgumentException("parameter " + name + " must be an integer: " + numeric);
     }
 }
