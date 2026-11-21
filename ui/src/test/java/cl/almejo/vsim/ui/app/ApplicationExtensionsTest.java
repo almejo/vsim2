@@ -426,14 +426,15 @@ class ApplicationExtensionsTest {
     /**
      * The toolbar buttons of the newer features sit grouped by meaning (the user, 2026-11-08): the capture button right
      * after Guardar, «Formas de onda» right after the speed selector, and «Presentar lo que hace la IA» then «Modo
-     * presentación» at the right edge, after a horizontal glue.
+     * presentación» at the end of the left side, after a separator.
      */
     @Test
     void theNewToolbarButtonsAreGroupedByMeaning() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             List<java.awt.Component> bar = Arrays.stream(view.toolBar().getComponents())
-                    .filter(child -> !"toolbarOverflow".equals(child.getName())).toList(); // the » button is no control of its own
+                    .filter(child -> !"toolbarOverflow".equals(child.getName())
+                            && !(child instanceof javax.swing.JLabel label && label.getIcon() == null)).toList(); // the » button and the step status label are no controls of their own
             AbstractButton save = buttonOn(view, view.actions().save());
             AbstractButton undo = buttonOn(view, view.actions().undo());
             java.awt.Component capture = bar.stream()
@@ -451,9 +452,9 @@ class ApplicationExtensionsTest {
             assertThat(bar.indexOf(undo)).as("capture before the separator before Deshacer")
                     .isEqualTo(bar.indexOf(capture) + 2);
             assertThat(bar.indexOf(waveforms)).as("waveforms after the speed").isEqualTo(bar.indexOf(speed) + 1);
-            assertThat(bar.get(bar.indexOf(waveforms) + 1)).as("then the glue")
-                    .isInstanceOf(javax.swing.Box.Filler.class);
-            assertThat(bar.indexOf(present)).as("Presentar after the glue").isEqualTo(bar.indexOf(waveforms) + 2);
+            assertThat(bar.get(bar.indexOf(waveforms) + 1)).as("then the separator of the last group")
+                    .isInstanceOf(javax.swing.JToolBar.Separator.class);
+            assertThat(bar.indexOf(present)).as("Presentar after the separator").isEqualTo(bar.indexOf(waveforms) + 2);
             assertThat(bar.indexOf(presentation)).as("Modo presentación last, after Presentar")
                     .isEqualTo(bar.indexOf(present) + 1).isEqualTo(bar.size() - 1);
         } finally {

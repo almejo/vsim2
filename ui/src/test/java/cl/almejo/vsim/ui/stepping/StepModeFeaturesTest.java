@@ -122,14 +122,37 @@ class StepModeFeaturesTest {
     }
 
     @Test
-    void theStatusLabelKeepsItsWidthSoTheSpeedSelectorStaysPutWhenTheModeTurnsOn() {
-        int outside = features.status().getPreferredSize().width;
-        assertThat(outside).as("room for the usual text even while empty").isGreaterThan(100);
+    void theStatusLabelTakesNoWidthOutsideTheModeAndSitsAtTheEndOfTheSimulationGroup() {
+        assertThat(features.status().getPreferredSize().width).as("empty: no room reserved").isZero();
+        java.util.List<java.awt.Component> bar = java.util.List.of(view.toolBar().getComponents());
+        int separator = 0;
+        while (!"toolbarEndGroupSeparator".equals(bar.get(separator).getName())) {
+            separator++;
+        }
+        assertThat(bar.get(separator - 1)).as("after the speed and the rest, before the last group")
+                .isSameAs(features.status());
 
         perform(features.stepModeAction());
 
         assertThat(features.status().getText()).isNotEmpty();
-        assertThat(features.status().getPreferredSize().width).isEqualTo(outside);
+        assertThat(features.status().getPreferredSize().width).as("room for the usual text").isGreaterThan(100);
+    }
+
+    @Test
+    void outsideTheModeTheSpeedSitsRightAfterTheLastStepButtonAndNothingGoesToTheOverflowButton() {
+        javax.swing.JToolBar toolBar = view.toolBar();
+        int width = toolBar.getPreferredSize().width + 40; // everything fits, with room to spare
+        toolBar.setSize(width, toolBar.getPreferredSize().height);
+        toolBar.doLayout();
+        java.awt.Component speed = java.util.Arrays.stream(toolBar.getComponents())
+                .filter(javax.swing.JComboBox.class::isInstance).findFirst().orElseThrow();
+        assertThat(speed.getWidth()).as("the speed is on the bar").isPositive();
+        assertThat(java.util.Arrays.stream(toolBar.getComponents())
+                .filter(child -> "toolbarOverflow".equals(child.getName())).noneMatch(java.awt.Component::isVisible))
+                .isTrue();
+        // the gap between the last step button and the speed is the speed's own label icon, not a reserved status
+        int lastStepEnd = features.clockCycleButton().getX() + features.clockCycleButton().getWidth();
+        assertThat(speed.getX() - lastStepEnd).as("normal space between them").isLessThan(40);
     }
 
     @Test

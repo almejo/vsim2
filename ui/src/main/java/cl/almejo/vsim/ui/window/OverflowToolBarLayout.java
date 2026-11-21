@@ -14,23 +14,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lays a toolbar out in one row, always (audit V1: the bar never wraps). The components before the {@code glue} form
- * the left group, the ones after it a group at the right edge. When everything does not fit, the components that do
- * not fit leave the bar from the right end of the left group, keeping the order, and the {@code overflowButton} (a
- * «»» at the right edge) shows; it opens a popup with them ({@link ToolbarOverflowMenu}). A right group that would
- * take more than half of the bar overflows too, after the left one. A hidden component keeps being visible and a child
- * of the bar, with empty bounds, so the lists that read the toolbar (the command palette) still find it and a news
- * bubble sees that its target is not on show. The overflow button is the toolbar's last child and only shows when
- * something is hidden. Separators never end the bar nor open the popup.
+ * Lays a toolbar out in one row, always (audit V1: the bar never wraps), from the left, with no glue and no right
+ * group. When everything does not fit, the components that do not fit leave the bar from the right end, keeping the
+ * order, and the {@code overflowButton} (a «»» right after what stays) shows; it opens a popup with them
+ * ({@link ToolbarOverflowMenu}). A hidden component keeps being visible and a child of the bar, with empty bounds, so
+ * the lists that read the toolbar (the command palette) still find it and a news bubble sees that its target is not on
+ * show. The overflow button is the toolbar's last child and only shows when something is hidden. Separators never end
+ * the bar (a trailing one is left without width, with no gap) nor open the popup.
  */
 final class OverflowToolBarLayout implements LayoutManager {
 
-    private final Component glue;
     private final JButton overflowButton;
     private List<Component> hidden = List.of();
 
-    OverflowToolBarLayout(Component glue, JButton overflowButton) {
-        this.glue = glue;
+    OverflowToolBarLayout(JButton overflowButton) {
         this.overflowButton = overflowButton;
     }
 
@@ -69,7 +66,7 @@ final class OverflowToolBarLayout implements LayoutManager {
             int width = 0;
             int height = 0;
             for (Component component : parent.getComponents()) {
-                if (component.isVisible() && component != glue && component != overflowButton) {
+                if (component.isVisible() && component != overflowButton) {
                     width += component.getPreferredSize().width;
                     height = Math.max(height, component.getPreferredSize().height);
                 }
@@ -85,7 +82,7 @@ final class OverflowToolBarLayout implements LayoutManager {
             int first = 0;
             int height = overflowButton.getPreferredSize().height;
             for (Component component : parent.getComponents()) {
-                if (component.isVisible() && component != glue && component != overflowButton) {
+                if (component.isVisible() && component != overflowButton) {
                     first = first == 0 ? component.getPreferredSize().width : first;
                     height = Math.max(height, component.getPreferredSize().height);
                 }
@@ -103,47 +100,40 @@ final class OverflowToolBarLayout implements LayoutManager {
             int top = insets.top;
             int height = Math.max(0, parent.getHeight() - insets.top - insets.bottom);
             List<Component> left = new ArrayList<>();
-            List<Component> right = new ArrayList<>();
-            boolean afterGlue = false;
             for (Component component : parent.getComponents()) {
-                if (component == glue) {
-                    afterGlue = true;
-                } else if (component != overflowButton && component.isVisible()) {
-                    (afterGlue ? right : left).add(component);
+                if (component != overflowButton && component.isVisible()) {
+                    left.add(component);
                 }
             }
             int overflowWidth = overflowButton.getPreferredSize().width;
-            boolean fits = widthOf(left) + widthOf(right) <= available;
-            int keptLeft = left.size();
-            boolean keepRight = true;
-            if (!fits) {
-                keepRight = widthOf(right) + overflowWidth <= available / 2;
-                int room = available - overflowWidth - (keepRight ? widthOf(right) : 0);
-                keptLeft = 0;
-                int used = 0;
-                while (keptLeft < left.size() && used + left.get(keptLeft).getPreferredSize().width <= room) {
-                    used += left.get(keptLeft).getPreferredSize().width;
-                    keptLeft++;
-                }
-                while (keptLeft > 0 && left.get(keptLeft - 1) instanceof JToolBar.Separator) {
-                    keptLeft--;
-                }
+            boolean fits = widthOf(left) <= available;
+            int kept = fits ? left.size() : leftThatFits(left, available - overflowWidth);
+            hidden = List.copyOf(left.subList(kept, left.size()));
+            int shown = kept;
+            while (shown > 0 && left.get(shown - 1) instanceof JToolBar.Separator) {
+                shown--; // a separator ending the bar would hang there alone
             }
-            List<Component> nowHidden = new ArrayList<>(left.subList(keptLeft, left.size()));
-            if (!keepRight) {
-                nowHidden.addAll(right);
-            }
-            hidden = List.copyOf(nowHidden);
-            int next = place(left.subList(0, keptLeft), insets.left, top, height);
-            int rightEdge = insets.left + available - (fits ? 0 : overflowWidth);
-            if (keepRight) {
-                place(right, rightEdge - widthOf(right), top, height);
-            }
-            for (Component component : hidden) {
+            int next = place(left.subList(0, shown), insets.left, top, height);
+            for (Component component : left.subList(shown, left.size())) {
                 component.setBounds(next, top, 0, 0);
             }
-            showOverflow(!fits, rightEdge, top, height, overflowWidth);
+            // the » sits right after what stays, so hiding leaves no gap
+            showOverflow(!fits, next, top, height, overflowWidth);
         }
+    }
+
+    /** How many components of {@code left}, from the start, fit in {@code room} (never ending with a separator). */
+    private static int leftThatFits(List<Component> left, int room) {
+        int kept = 0;
+        int used = 0;
+        while (kept < left.size() && used + left.get(kept).getPreferredSize().width <= room) {
+            used += left.get(kept).getPreferredSize().width;
+            kept++;
+        }
+        while (kept > 0 && left.get(kept - 1) instanceof JToolBar.Separator) {
+            kept--;
+        }
+        return kept;
     }
 
     private void showOverflow(boolean show, int left, int top, int height, int width) {

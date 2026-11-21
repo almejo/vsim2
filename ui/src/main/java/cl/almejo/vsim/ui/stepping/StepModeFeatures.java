@@ -60,11 +60,17 @@ public final class StepModeFeatures {
     private final JButton advanceButton;
     private final JButton clockEdgeButton;
     private final JButton clockCycleButton;
-    /** Wide enough for the usual text even while empty, so the controls after it do not move when the mode turns on. */
+    /**
+     * Takes no width while empty (outside the mode), and sits at the end of the simulation group, before the last group's separator, so turning the
+     * mode on moves nothing; wide enough for the usual text once it speaks, so it does not jitter.
+     */
     private final JLabel status = new JLabel() {
         @Override
         public Dimension getPreferredSize() {
             Dimension size = super.getPreferredSize();
+            if (getText() == null || getText().isEmpty()) {
+                return new Dimension(0, size.height);
+            }
             java.awt.FontMetrics metrics = getFontMetrics(getFont());
             int usual = Math.max(metrics.stringWidth(Messages.format("step.status", "00000", "00000")),
                     metrics.stringWidth(Messages.text("step.stable")));
@@ -121,8 +127,8 @@ public final class StepModeFeatures {
         toolBar.add(advanceButton, index + 2);
         toolBar.add(clockEdgeButton, index + 3);
         toolBar.add(clockCycleButton, index + 4);
-        status.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 8)); // air before the speed selector
-        toolBar.add(status, index + 5);
+        status.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 4)); // air after the last control of the left group
+        toolBar.add(status, indexOfEndGroupSeparator(toolBar));
         this.shortcutRemovers = List.of(view.registerShortcutAction("simulation.stepMode", stepModeAction),
                 view.registerShortcutAction("simulation.advance", advanceAction),
                 view.registerShortcutAction("simulation.advanceToClockEdge", clockEdgeAction),
@@ -181,6 +187,17 @@ public final class StepModeFeatures {
                     after++;
                 }
                 return after;
+            }
+        }
+        return children.length;
+    }
+
+    /** Where the separator of the toolbar's last group is: the status goes right before it (the end when none). */
+    private static int indexOfEndGroupSeparator(JToolBar toolBar) {
+        Component[] children = toolBar.getComponents();
+        for (int index = 0; index < children.length; index++) {
+            if ("toolbarEndGroupSeparator".equals(children[index].getName())) {
+                return index;
             }
         }
         return children.length;

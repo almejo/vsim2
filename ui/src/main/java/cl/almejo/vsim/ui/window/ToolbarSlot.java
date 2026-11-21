@@ -6,6 +6,6 @@ public enum ToolbarSlot {
     AFTER_FILE,
     /** Right after the speed selector, in the simulation group. */
     AFTER_SIMULATION,
-    /** The far right, after a horizontal glue that pushes the slot to the window's right edge. */
+    /** The last group of the left side, after the simulation group and a separator (there is no right edge group). */
     RIGHT
 }

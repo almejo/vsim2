@@ -48,7 +48,8 @@ class ToolbarComponentTest {
                 .extracting(child -> ((JButton) child).getAction()).isSameAs(view.actions().save());
         assertThat(children.get(children.indexOf(file) + 1)).isInstanceOf(javax.swing.JToolBar.Separator.class);
         assertThat(children.get(children.indexOf(simulation) - 1)).isInstanceOf(javax.swing.JComboBox.class);
-        assertThat(children.get(children.indexOf(right) - 1)).isInstanceOf(javax.swing.Box.Filler.class);
+        assertThat(children.get(children.indexOf(right) - 1)).as("after the end group's separator")
+                .isInstanceOf(javax.swing.JToolBar.Separator.class);
         assertThat(children.get(children.size() - 2)).isSameAs(right); // the overflow button is last
         removeRight.run();
         removeSimulation.run();
@@ -79,7 +80,7 @@ class ToolbarComponentTest {
         }
         for (Component child : children) {
             if (!hidden.contains(child) && child.isVisible() && child != overflow
-                    && !(child instanceof javax.swing.Box.Filler)) {
+                    && child.getWidth() > 0) {
                 assertThat(child.getX() + child.getWidth()).as("%s inside the bar", child).isLessThanOrEqualTo(500);
             }
         }
@@ -124,19 +125,19 @@ class ToolbarComponentTest {
     }
 
     @Test
-    void aHorizontalGlueKeepsTheRightSlotAtTheRightEdgeAndTheRestAtTheLeft() {
+    void theRightSlotIsTheLastGroupOfTheLeftSideRightAfterTheSpeedAndNotAtTheRightEdge() {
         JButton right = new JButton("right");
         view.addToolbarComponent(right, ToolbarSlot.RIGHT);
         JToolBar toolBar = view.toolBar();
         toolBar.setSize(2000, toolBar.getPreferredSize().height);
         toolBar.doLayout();
-        assertThat(right.getX() + right.getWidth()).isGreaterThan(2000 - 20);
         Component speed = null;
         for (Component child : toolBar.getComponents()) {
             if (child instanceof javax.swing.JComboBox<?>) {
                 speed = child;
             }
         }
-        assertThat(speed.getX() + speed.getWidth()).isLessThan(right.getX() - 300);
+        assertThat(right.getX() - (speed.getX() + speed.getWidth())).as("just a separator between them")
+                .isLessThan(60);
     }
 }

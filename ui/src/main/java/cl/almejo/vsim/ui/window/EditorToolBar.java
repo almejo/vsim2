@@ -10,7 +10,6 @@ import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 
 import javax.swing.Action;
-import javax.swing.Box;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -37,11 +36,15 @@ final class EditorToolBar {
     private final JToggleButton zoomButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
     private final Map<ToolbarSlot, List<SlotEntry>> slots = new EnumMap<>(ToolbarSlot.class);
-    private final Component glue = Box.createHorizontalGlue();
+    /** Starts the group of the {@link ToolbarSlot#RIGHT} slot, at the end of the bar; found by name. */
+    private final JToolBar.Separator endGroupSeparator = new JToolBar.Separator();
     private final JButton overflowButton = new JButton(OVERFLOW_TEXT);
     private OverflowToolBarLayout overflowLayout;
     private Component saveButton;
     private Component speedSelector;
+
+    /** Name of the separator before the last group; the step status label goes just before it. */
+    static final String END_GROUP_SEPARATOR = "toolbarEndGroupSeparator";
 
     /** The chevron of the button that opens what does not fit the bar. */
     private static final String OVERFLOW_TEXT = "\u00BB";
@@ -141,7 +144,7 @@ final class EditorToolBar {
         Component anchor = switch (slot) {
             case AFTER_FILE -> saveButton;
             case AFTER_SIMULATION -> speedSelector;
-            case RIGHT -> glue;
+            case RIGHT -> endGroupSeparator;
         };
         for (int index = 0; index < toolBar.getComponentCount(); index++) {
             if (toolBar.getComponent(index) == anchor) {
@@ -189,7 +192,7 @@ final class EditorToolBar {
         overflowButton.getAccessibleContext().setAccessibleName(Messages.text("toolbar.moreButtons"));
         overflowButton.putClientProperty("JButton.buttonType", "toolBarButton");
         overflowButton.setFocusable(true);
-        overflowLayout = new OverflowToolBarLayout(glue, overflowButton);
+        overflowLayout = new OverflowToolBarLayout(overflowButton);
         overflowButton.addActionListener(event -> overflowLayout.showMenu());
         toolBar.setLayout(overflowLayout);
         toolBar.add(actions.newDocument());
@@ -215,7 +218,8 @@ final class EditorToolBar {
         toolBar.add(speedIcon);
         toolBar.add(speed);
         speedSelector = speed;
-        toolBar.add(glue);
+        endGroupSeparator.setName(END_GROUP_SEPARATOR);
+        toolBar.add(endGroupSeparator);
         toolBar.add(overflowButton); // always the last child: slot components go in before it
     }
 }
