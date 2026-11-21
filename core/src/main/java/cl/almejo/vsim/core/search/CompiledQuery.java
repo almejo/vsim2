@@ -56,8 +56,11 @@ public final class CompiledQuery {
     }
 
     static CompiledQuery plain(String text, boolean matchCase) {
-        return matchCase ? new CompiledQuery(Kind.PLAIN, text, null, null)
-                : new CompiledQuery(Kind.PLAIN_FOLDED, fold(text), null, null);
+        if (matchCase) {
+            return new CompiledQuery(Kind.PLAIN, text, null, null);
+        }
+        String folded = fold(text);
+        return folded.isEmpty() ? nothing() : new CompiledQuery(Kind.PLAIN_FOLDED, folded, null, null);
     }
 
     static CompiledQuery regex(Pattern pattern) {
@@ -157,10 +160,19 @@ public final class CompiledQuery {
         }
     }
 
-    /** Decomposes accents (NFD), drops the combining marks and lower-cases with {@link Locale#ROOT}. */
+    /**
+     * Decomposes accents (NFD), drops the combining marks and lower-cases with {@link Locale#ROOT}, one code point
+     * at a time (so a final sigma «Σ» folds to «σ» wherever it stands, as {@link #firstPlainMatch} places it); the
+     * final sigma «ς» is mapped to «σ».
+     */
     private static String fold(String text) {
-        String decomposed = Normalizer.normalize(text, Normalizer.Form.NFD);
-        return COMBINING_MARKS.matcher(decomposed).replaceAll("").toLowerCase(Locale.ROOT);
+        StringBuilder folded = new StringBuilder(text.length());
+        text.codePoints().forEach(codePoint -> {
+            String decomposed = Normalizer.normalize(Character.toString(codePoint), Normalizer.Form.NFD);
+            String piece = COMBINING_MARKS.matcher(decomposed).replaceAll("").toLowerCase(Locale.ROOT);
+            folded.append(piece.replace('\u03C2', '\u03C3'));
+        });
+        return folded.toString();
     }
 
     /** A text whose reads spend the query's budget (sub-sequences included). */
