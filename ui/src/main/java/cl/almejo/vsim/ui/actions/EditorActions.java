@@ -39,6 +39,7 @@ import javax.swing.JComboBox;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -60,6 +61,9 @@ public final class EditorActions {
 
     /** The icon before the speed selector in the toolbar, by file name under {@code icons/} (M6.1-E). */
     public static final String SPEED_ICON = "speed";
+
+    /** Longer names of what a view shows are cut with «…» in «Nueva vista de «X»». */
+    private static final int NEW_VIEW_NAME_LIMIT = 32;
 
     private final OpenDocument openDocument;
     /** The active pane, resolved whenever an action runs (the window may be split). */
@@ -452,8 +456,11 @@ public final class EditorActions {
         simulation.add(step);
         JMenu logic = tagged(new JMenu(Messages.text("menu.logic")), MenuId.LOGIC);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
-        windowMenu.add(newView);
-        windowMenu.add(newWindowWithCircuit);
+        // people look for them as a new tab, a new window or a duplicate: the name now says «vista»
+        JMenuItem newViewItem = windowMenu.add(newView);
+        newViewItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("action.newWindow.searchTerms"));
+        JMenuItem newWindowItem = windowMenu.add(newWindowWithCircuit);
+        newWindowItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("action.newWindowWithCircuit.searchTerms"));
         windowMenu.add(moveGroup);
         windowMenu.add(foldGroup);
         windowMenu.addSeparator();
@@ -564,7 +571,20 @@ public final class EditorActions {
         return pane != null && pane.drawsBetweenClicks();
     }
 
+    /**
+     * «Nueva vista de «X»» and its other-window twin: X is what this view shows, the machine's or component's name
+     * inside one, the circuit's otherwise, cut with «…» when long.
+     */
+    private void refreshNewViewNames() {
+        String shown = openDocument.isBody() ? openDocument.definitionName() : openDocument.circuitName();
+        String cut = shown.length() <= NEW_VIEW_NAME_LIMIT ? shown
+                : shown.substring(0, NEW_VIEW_NAME_LIMIT - 1).stripTrailing() + "…";
+        newView.putValue(Action.NAME, Messages.format("action.newWindow", cut));
+        newWindowWithCircuit.putValue(Action.NAME, Messages.format("action.newWindowWithCircuit", cut));
+    }
+
     public void refresh() {
+        refreshNewViewNames();
         save.setEnabled(openDocument.canSave());
         boolean dropsACorner = drawsBetweenClicks();
         stepSource.ifPresentOrElse(source -> refreshSteps(source, dropsACorner),

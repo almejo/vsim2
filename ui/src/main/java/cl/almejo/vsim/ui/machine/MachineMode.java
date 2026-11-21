@@ -122,6 +122,16 @@ public final class MachineMode {
         canvas.reveal(problem.finding(), animations.getAsBoolean());
     }
 
+    /** Selects the state {@code stateId} alone on the diagram and brings it into view (the circuit tree's row). */
+    public void selectState(String stateId) {
+        canvas.selectAndShowState(stateId);
+    }
+
+    /** Selects the note {@code noteId} alone (the circuit tree's row). */
+    public void selectNote(String noteId) {
+        canvas.selection().selectNote(noteId);
+    }
+
     /**
      * Starts the test mode of this tab's machine (hito 4): the diagram and a test table in the dock work on a draft
      * until the user leaves ({@link MachineTestMode}). Nothing when it is on already or the machine is gone. One test

@@ -19,7 +19,9 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.machine.MachineMode;
 import cl.almejo.vsim.ui.search.FindFeatures;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
@@ -432,10 +434,32 @@ public final class CircuitTree extends JPanel {
                 window().enter(circuit(), definitionId, Optional.of(node.path())));
     }
 
+    /**
+     * Enters the machine a state or note row is in (as «Entrar» does, at that piece's copy) and chooses the state or
+     * note there; the notes group only enters. Without a window, nothing.
+     */
+    private void goToMachineRow(CircuitTreeNode node, CircuitTreeNode.MachineRow row) {
+        String instancePath = node.path().substring(0, node.path().indexOf(CircuitTreeModel.STATE_SEPARATOR));
+        Optional<EditorView> shown = window().showPlace(circuit(), Optional.of(row.machineId()),
+                Optional.of(instancePath)).filter(window()::isShown);
+        Optional<MachineMode> mode = shown.flatMap(MachineMode::of);
+        switch (row.kind()) {
+            case STATE -> mode.ifPresent(found -> found.selectState(row.elementId()));
+            case NOTE -> mode.ifPresent(found -> found.selectNote(row.elementId()));
+            case NOTES -> {
+            }
+        }
+    }
+
     /** Goes to the piece at {@code path} where it is; the circuit's row shows the main tab. */
     private void goTo(String path) {
         if (CircuitTreeNode.DOCUMENT_PATH.equals(path)) {
             window().showPlace(circuit(), Optional.empty(), Optional.empty());
+            return;
+        }
+        Optional<CircuitTreeNode> machineRow = nodeAt(path).filter(node -> node.machineRow().isPresent());
+        if (machineRow.isPresent()) {
+            goToMachineRow(machineRow.get(), machineRow.get().machineRow().get());
             return;
         }
         if (!SeePiece.show(window(), circuit(), path)) {
@@ -562,8 +586,17 @@ public final class CircuitTree extends JPanel {
 
     /** The row's tooltip: what a click does, and the piece's id. */
     Optional<String> toolTipOf(String path) {
-        return nodeAt(path).filter(node -> !node.isDocument()).map(node -> Messages.format(
-                node.isUserComponent() ? "tree.tooltip.component" : "tree.tooltip.piece", node.path()));
+        return nodeAt(path).filter(node -> !node.isDocument()).map(node -> node.machineRow()
+                .map(row -> machineToolTip(row)).orElseGet(() -> Messages.format(
+                        node.isUserComponent() ? "tree.tooltip.component" : "tree.tooltip.piece", node.path())));
+    }
+
+    /** A state's or note's tooltip: what a click does, and the problem the state is in. */
+    private static String machineToolTip(CircuitTreeNode.MachineRow row) {
+        String click = Messages.text(row.kind() == CircuitTreeNode.MachineRow.Kind.NOTE ? "tree.tooltip.note"
+                : "tree.tooltip.state");
+        return row.problem() == CircuitTreeNode.MachineRow.Severity.NONE ? click
+                : click + " · " + Messages.text("tree.machine.problem");
     }
 
     SearchField searchField() {
@@ -609,6 +642,11 @@ public final class CircuitTree extends JPanel {
      * circuit's row.
      */
     private Icon icon(CircuitTreeNode node) {
+        Optional<CircuitTreeNode.MachineRow> machineRow = node.machineRow();
+        if (machineRow.isPresent()) {
+            return machineRow.get().kind() == CircuitTreeNode.MachineRow.Kind.STATE
+                    ? new StateDot(machineRow.get().color(), machineRow.get().initial(), appearance) : null;
+        }
         Optional<ComponentType> type = node.type();
         if (type.isEmpty()) {
             return null;
@@ -701,12 +739,24 @@ public final class CircuitTree extends JPanel {
             }
             CircuitTreeNode node = row.node();
             Font font = owner.getFont();
-            Color foreground = selected ? UIManager.getColor("Tree.selectionForeground") : owner.getForeground();
-            Color grey = selected ? foreground : UIManager.getColor("Label.disabledForeground");
+            Color grey = selected ? UIManager.getColor("Tree.selectionForeground") : ReadableColors.mutedText();
+            CircuitTreeNode.MachineRow.Severity problem = node.machineRow()
+                    .map(CircuitTreeNode.MachineRow::problem).orElse(CircuitTreeNode.MachineRow.Severity.NONE);
+            Color foreground = selected ? UIManager.getColor("Tree.selectionForeground")
+                    : switch (problem) {
+                        case ERROR -> ReadableColors.errorText();
+                        case WARNING -> ReadableColors.warningText();
+                        case NONE -> owner.getForeground();
+                    };
             showName(node, searching ? searchField.getText() : "", font, foreground);
             before.setIcon(icon(node));
             List<String> greyParts = new ArrayList<>();
             node.kind().ifPresent(kind -> greyParts.add("· " + kind));
+            node.machineRow().filter(CircuitTreeNode.MachineRow::initial)
+                    .ifPresent(machineRow -> greyParts.add("· " + Messages.text("tree.machine.initial")));
+            if (problem != CircuitTreeNode.MachineRow.Severity.NONE) {
+                greyParts.add("!");
+            }
             row.routeText().ifPresent(greyParts::add);
             rightText(node).ifPresent(greyParts::add);
             muted.setText(String.join(" ", greyParts));

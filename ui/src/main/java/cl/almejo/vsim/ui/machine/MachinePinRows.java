@@ -65,7 +65,7 @@ final class MachinePinRows extends JPanel {
      * them blink when {@code animations} says so.
      */
     MachinePinRows(MachineCanvas canvas, Consumer<String> notices, BooleanSupplier animations) {
-        super(new MigLayout("wrap 2, insets 0, hidemode 3", "[left][grow, fill, 60::]"));
+        super(new MigLayout("wrap 2, insets 0, hidemode 3", "[left][grow, fill, 60lp::]"));
         this.canvas = Objects.requireNonNull(canvas, "canvas");
         this.notices = Objects.requireNonNull(notices, "notices");
         Objects.requireNonNull(animations, "animations");
@@ -94,8 +94,8 @@ final class MachinePinRows extends JPanel {
         };
         inputs = new MachinePinTable(Side.INPUT, host);
         outputs = new MachinePinTable(Side.OUTPUT, host);
-        add(inputs, WIDE + ", gaptop 4");
-        add(outputs, WIDE + ", gaptop 8");
+        add(inputs, WIDE + ", gaptop 4lp");
+        add(outputs, WIDE + ", gaptop 8lp");
         add(new MachineInspectorRows.Hint(Messages.text("machine.pins.hint"), true), WIDE);
         JLabel edgeCaption = new JLabel(Messages.text("parameter.edge"));
         edgeCaption.setLabelFor(edgeBox);
@@ -107,8 +107,8 @@ final class MachinePinRows extends JPanel {
                 edit(machine -> machine.withEdge(edge));
             }
         });
-        add(edgeCaption, "gaptop 6");
-        add(edgeBox, "gaptop 6, growx 0");
+        add(edgeCaption, "gaptop 6lp");
+        add(edgeBox, "gaptop 6lp, growx 0");
         refresh();
     }
 

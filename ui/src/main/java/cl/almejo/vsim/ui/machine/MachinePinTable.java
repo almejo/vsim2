@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.swing.MigLayout;
 
@@ -46,7 +47,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -115,7 +115,7 @@ final class MachinePinTable extends JPanel {
 
     /** The pin list of {@code side}, editing through {@code host}. */
     MachinePinTable(Side side, Host host) {
-        super(new MigLayout("wrap 4, insets 0, gapy 1, hidemode 3", "[][grow, fill, 40::][right][]"));
+        super(new MigLayout("wrap 4, insets 0, gapy 1lp, hidemode 3", "[][grow, fill, 40lp::][right][]"));
         this.side = Objects.requireNonNull(side, "side");
         this.host = Objects.requireNonNull(host, "host");
         setOpaque(false);
@@ -187,6 +187,11 @@ final class MachinePinTable extends JPanel {
     String usesText(String name) {
         return Optional.ofNullable(usesLinks.get(name)).map(AbstractButton::getText)
                 .or(() -> Optional.ofNullable(usesLabels.get(name)).map(JLabel::getText)).orElse("");
+    }
+
+    /** The colour the «en ninguna flecha» text of {@code name} is drawn with now; none when the pin is used. */
+    Color usesLabelColor(String name) {
+        return Optional.ofNullable(usesLabels.get(name)).map(JLabel::getForeground).orElse(null);
     }
 
     AbstractButton addButton() {
@@ -366,11 +371,11 @@ final class MachinePinTable extends JPanel {
         rows.add(row);
         rowNames.add(pin.name());
         firstColumn.add(handle.getText());
-        add(handle, "gapright 4");
+        add(handle, "gapright 4lp");
         add(field, "wmin 0");
         MachinePinUses.Uses uses = MachinePinUses.of(machine, pin.name());
         if (uses.isUnused()) {
-            JLabel unused = new WarningLabel(Messages.text("machine.pins.unused"), host::scheme);
+            JLabel unused = new WarningLabel(Messages.text("machine.pins.unused"));
             unused.setToolTipText(Messages.format("machine.pins.unused.tooltip", pin.name()));
             usesLabels.put(pin.name(), unused);
             add(unused);
@@ -403,7 +408,7 @@ final class MachinePinTable extends JPanel {
         usesLabels.put(name, always);
         rowNames.add(name);
         add(new JLabel(""));
-        add(nameLabel, "gapleft 4");
+        add(nameLabel, "gapleft 4lp");
         add(always, "span 2");
     }
 
@@ -643,25 +648,22 @@ final class MachinePinTable extends JPanel {
 
         @Override
         public Color getForeground() {
-            Color colour = UIManager.getColor("Label.disabledForeground");
-            return colour != null ? colour : super.getForeground();
+            return ReadableColors.mutedText();
         }
     }
 
-    /** «sin usar»: in the machine's warning colour (read at paint time), and in words. */
+    /** «en ninguna flecha»: in the readable warning text colour (read at paint time), and in words. */
     private static final class WarningLabel extends JLabel {
         @Serial
         private static final long serialVersionUID = 1L;
-        private final transient Supplier<ColorScheme> scheme;
 
-        private WarningLabel(String text, Supplier<ColorScheme> scheme) {
+        private WarningLabel(String text) {
             super(text);
-            this.scheme = scheme;
         }
 
         @Override
         public Color getForeground() {
-            return scheme == null ? super.getForeground() : MachineColors.warning(scheme.get());
+            return ReadableColors.warningText();
         }
     }
 }
