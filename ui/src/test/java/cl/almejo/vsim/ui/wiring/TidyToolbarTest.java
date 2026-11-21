@@ -56,7 +56,7 @@ class TidyToolbarTest {
     private List<AbstractButton> buttons() {
         List<AbstractButton> buttons = new ArrayList<>();
         for (Component child : view.toolBar().getComponents()) {
-            if (child instanceof AbstractButton button) {
+            if (child instanceof AbstractButton button && !"toolbarOverflow".equals(button.getName())) {
                 buttons.add(button);
             }
         }

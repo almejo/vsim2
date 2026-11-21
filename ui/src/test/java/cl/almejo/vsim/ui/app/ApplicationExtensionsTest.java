@@ -432,7 +432,8 @@ class ApplicationExtensionsTest {
     void theNewToolbarButtonsAreGroupedByMeaning() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            List<java.awt.Component> bar = Arrays.asList(view.toolBar().getComponents());
+            List<java.awt.Component> bar = Arrays.stream(view.toolBar().getComponents())
+                    .filter(child -> !"toolbarOverflow".equals(child.getName())).toList(); // the » button is no control of its own
             AbstractButton save = buttonOn(view, view.actions().save());
             AbstractButton undo = buttonOn(view, view.actions().undo());
             java.awt.Component capture = bar.stream()
