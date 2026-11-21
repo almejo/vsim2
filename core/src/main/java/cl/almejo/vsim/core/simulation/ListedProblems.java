@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.PieceMemories;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -82,6 +83,7 @@ public final class ListedProblems {
         problems.addAll(sources.outdatedPieces());
         problems.addAll(sources.linkedFiles());
         problems.addAll(storedContents(document));
+        problems.addAll(unsupportedDrawings(document));
         return List.copyOf(problems);
     }
 
@@ -172,6 +174,33 @@ public final class ListedProblems {
                 case OVER_LINK -> new ConnectivityProblem(netId, InstancePath.child(piece.value(),
                         issue.place().innerPath()), -1, position, ConnectivityProblem.Cause.OWN_CONTENTS_OVER_LINK);
             });
+        }
+        return problems;
+    }
+
+    /**
+     * One problem per definition whose drawing could not be read when the file was opened and that still has no
+     * drawing of its own, on the first top-level piece that uses it (directly or nested). A definition no piece uses
+     * is not listed: nothing shows it.
+     */
+    private static List<ConnectivityProblem> unsupportedDrawings(CircuitDocument document) {
+        List<ConnectivityProblem> problems = new ArrayList<>();
+        for (String definitionId : document.unsupportedDrawings()) {
+            Optional<ComponentDefinition> definition = document.definition(definitionId)
+                    .filter(found -> found.appearance().isEmpty());
+            if (definition.isEmpty()) {
+                continue;
+            }
+            for (Component component : document.components()) {
+                boolean uses = document.definitionsUsedBy(List.of(component)).stream()
+                        .anyMatch(used -> used.id().equals(definitionId));
+                if (uses) {
+                    problems.add(new ConnectivityProblem(ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX + definitionId,
+                            component.id().value(), -1, component.position(),
+                            ConnectivityProblem.Cause.UNSUPPORTED_DRAWING));
+                    break;
+                }
+            }
         }
         return problems;
     }

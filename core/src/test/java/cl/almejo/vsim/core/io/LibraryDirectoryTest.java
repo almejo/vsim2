@@ -144,7 +144,7 @@ class LibraryDirectoryTest {
             if (json.equals("trap")) {
                 throw new IllegalStateException("reader bug");
             }
-            return format.read(json);
+            return format.readNoting(json);
         });
         library.write(inverter);
         Path trap = directory.resolve("trap.vsimcomponent.json");

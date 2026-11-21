@@ -80,6 +80,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Importar de Logisim: una pieza con una propiedad rara (un separador sin extremos, un pin con `output="yes"`, un LED de color `red`, una orientación desconocida) ya no hace fallar toda la importación, y un valor fuera de rango (un multiplexor con -5 bits de selección, miles de millones de entradas) ya no agota la memoria ni se queda pensando: esa pieza queda fuera con una nota y el resto se importa.
 - Importar de Logisim un proyecto con un circuito sin nombre ya no falla: el circuito se importa como «circuit» (o «circuit 2», …) con una nota.
 - Importar de Logisim un proyecto con dos circuitos del mismo nombre avisa que el segundo quedó fuera (antes se omitía sin decir nada).
+- Un componente propio cuyo dibujo usa un trazo que VSim no puede leer (en un circuito o en un archivo de «Mis componentes») ya no impide abrirlo: se muestra la caja por omisión y la sección Problemas (o la lista de problemas de la librería) lo avisa con el nombre del componente. Si guardas el circuito, el componente se escribe sin ese dibujo; el pinout nunca se toca, y una pieza con una apariencia propia ilegible sigue fallando al abrir.
 
 ## Versión 0.8 — 2026-11-11
 

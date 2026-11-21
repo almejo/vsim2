@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.io;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
+import cl.almejo.vsim.core.component.appearance.SymbolPathException;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
@@ -18,6 +20,9 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +48,8 @@ final class DefinitionEntries {
                            @JsonInclude(JsonInclude.Include.NON_NULL) Long revision,
                            @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance) {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefinitionEntries.class);
 
     private DefinitionEntries() {
     }
@@ -71,7 +78,7 @@ final class DefinitionEntries {
         List<ComponentDefinition> written = new ArrayList<>();
         for (DefinitionEntry entry : entries) {
             CircuitFormat.requireEntry(entry, "definitions");
-            ComponentDefinition definition = definition(entry);
+            ComponentDefinition definition = definition(entry, document);
             if (document.definition(definition.id()).isPresent()) {
                 throw invalid("duplicate definition " + definition.id());
             }
@@ -110,7 +117,8 @@ final class DefinitionEntries {
         }
     }
 
-    private static ComponentDefinition definition(DefinitionEntry entry) throws CircuitFormatException {
+    private static ComponentDefinition definition(DefinitionEntry entry, CircuitDocument document)
+            throws CircuitFormatException {
         try {
             List<DefinitionPin> pinout = new ArrayList<>();
             for (PinEntry pin : CircuitFormat.entries(entry.pinout())) {
@@ -150,11 +158,29 @@ final class DefinitionEntries {
             }
             GridSize size = new GridSize(entry.width(), entry.height());
             return new ComponentDefinition(entry.id(), entry.name(), entry.description(), size, pinout, body,
-                    Optional.ofNullable(entry.appearance()).map(value -> AppearanceEntries.drawing(value, size)),
+                    drawing(entry, size, document),
                     entry.revision() == null ? 1 : entry.revision());
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw invalid("definition " + entry.id() + ": " + exception.getMessage(), exception);
         }
     }
 
+    /**
+     * The drawing of a definition. A path VSim cannot read does not fail the load (the user, 2026-11-20): the
+     * definition keeps the default box and the document remembers it, so the Problemas list says so. Any other fault
+     * of the appearance still fails.
+     */
+    private static Optional<SymbolDrawing> drawing(DefinitionEntry entry, GridSize size, CircuitDocument document) {
+        if (entry.appearance() == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(AppearanceEntries.drawing(entry.appearance(), size));
+        } catch (SymbolPathException exception) {
+            LOGGER.warn("The drawing of definition {} has a path that cannot be read; using the default box: {}",
+                    entry.id(), exception.getMessage());
+            document.noteUnsupportedDrawing(entry.id());
+            return Optional.empty();
+        }
+    }
 }

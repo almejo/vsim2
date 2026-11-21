@@ -175,6 +175,22 @@ class ProblemsReaderTest {
         assertThat(problem.message()).contains(instance.id().value()).contains("inside");
     }
 
+    @Test
+    void aDrawingVSimCannotReadIsAWarningNamingThePieceThatUsesIt() {
+        fixture.document.putDefinition(new ComponentDefinition("dibujo", "Dibujo", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(), List.of(), List.of())));
+        Component piece = fixture.place(SubcircuitTypes.typeIdOf("dibujo"), 10, 10, Rotation.R0, Map.of(), "");
+        fixture.document.noteUnsupportedDrawing("dibujo");
+        publish(0);
+
+        List<ProblemView> problems = ProblemsReader.read(fixture.source()).problems().stream()
+                .filter(problem -> problem.kind().equals("UNSUPPORTED_DRAWING")).toList();
+
+        assertThat(problems).hasSize(1);
+        assertThat(problems.getFirst().elementIds()).containsExactly(piece.id().value());
+        assertThat(problems.getFirst().message()).contains("Dibujo", "default box");
+    }
+
     /**
      * Fix round D (5o): a piece's own memory contents that do not do what they seem — kept over a linked file, or for
      * a memory no longer in its component — are in the Problemas list, so the AI reads them too (never hidden).

@@ -39,6 +39,8 @@ final class LibraryProblemViews {
                     + "): its component is not in «Mis componentes»";
             case DUPLICATE_ID -> "The library file " + file + " repeats the id \"" + problem.detail()
                     + "\" of another file: it is skipped";
+            case UNSUPPORTED_DRAWING -> "The library file " + file + " loaded, but the drawing of " + problem.detail()
+                    + " has a path VSim cannot read: the component shows the default box";
             case DIRECTORY_GONE -> "The library folder " + problem.file() + " no longer exists: VSim follows its"
                     + " changes again once it is back";
         };

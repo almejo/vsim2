@@ -42,6 +42,9 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
      */
     public static final String PLACED_ELSEWHERE_PREFIX = "placedElsewhere:";
 
+    /** The start of the net id of an {@link Cause#UNSUPPORTED_DRAWING} problem; the definition's id follows. */
+    public static final String UNSUPPORTED_DRAWING_PREFIX = "drawing:";
+
     /** What kind of fault this is; it decides how the editor marks and words it. */
     public enum Cause {
         /** A pin of a part inside a component's body connects to nothing (at any depth). */
@@ -90,7 +93,13 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
          * at a point of its edge where no pin is, and touches nothing else: the shape a removed pin leaves (M6, the
          * user 2026-11-07). Found from the circuit itself, so it is listed again after reopening; {@code pinIndex} -1.
          */
-        WIRE_AT_PIECE_EDGE
+        WIRE_AT_PIECE_EDGE,
+        /**
+         * The drawing of the definition of the piece {@code elementId} (a top-level piece that uses it, directly or
+         * nested) has a path VSim cannot read: the piece shows the default box (the user, 2026-11-20). {@code netId}
+         * is {@code "drawing:"} plus the definition's id; {@code pinIndex} -1. Found from the circuit itself.
+         */
+        UNSUPPORTED_DRAWING
     }
 
     public ConnectivityProblem {

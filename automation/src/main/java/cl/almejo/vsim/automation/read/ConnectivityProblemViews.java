@@ -31,7 +31,7 @@ final class ConnectivityProblemViews {
             case UNCONNECTED_INTERFACE -> "INTERFACE_UNCONNECTED_INSIDE";
             case LOOSENED_BY_SHAPE_CHANGE -> "PIN_LOOSENED_BY_SHAPE_CHANGE";
             case PIN_PLACED_ELSEWHERE, WIRE_OF_REMOVED_PIN, OUTDATED_WOULD_BREAK, OUTDATED_CANNOT_UPDATE,
-                 OWN_CONTENTS_FOR_NOTHING, OWN_CONTENTS_OVER_LINK, WIRE_AT_PIECE_EDGE -> cause.name();
+                 OWN_CONTENTS_FOR_NOTHING, OWN_CONTENTS_OVER_LINK, WIRE_AT_PIECE_EDGE, UNSUPPORTED_DRAWING -> cause.name();
         };
     }
 
@@ -91,6 +91,16 @@ final class ConnectivityProblemViews {
                         + ": its pins or size would change. The old copy is kept");
             }
             case OWN_CONTENTS_OVER_LINK, OWN_CONTENTS_FOR_NOTHING -> ownContents(source, problem, references);
+            case UNSUPPORTED_DRAWING -> {
+                references.element(elementId);
+                String definitionId = problem.netId().substring(
+                        ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX.length());
+                yield references.view(kind, true, problem.netId(), "The drawing of the component \""
+                        + source.document().definition(definitionId).map(definition -> definition.name())
+                        .orElse(definitionId) + "\" (used by " + pieceName(source, elementId) + ") has a path VSim"
+                        + " cannot read: the default box is shown. Saving the circuit writes the component without"
+                        + " that drawing");
+            }
         };
     }
 

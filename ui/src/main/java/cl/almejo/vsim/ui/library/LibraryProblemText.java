@@ -35,6 +35,8 @@ public final class LibraryProblemText {
                     .map(reason -> lowerFirst(Messages.readError(reason, problem.detail())))
                     .orElse(problem.detail()));
             case DUPLICATE_ID -> Messages.format("library.problem.DUPLICATE_ID", file, problem.detail());
+            case UNSUPPORTED_DRAWING -> Messages.format("library.problem.UNSUPPORTED_DRAWING", file,
+                    problem.detail());
             case DIRECTORY_GONE -> Messages.format("library.problem.directoryGoneWaiting", problem.file());
         };
         if (problem.kind() != LibraryProblem.Kind.UNREADABLE && problem.kind() != LibraryProblem.Kind.INVALID) {

@@ -68,6 +68,14 @@ class LibraryProblemsTest {
     }
 
     @Test
+    void aDrawingVSimCannotReadHasAPlainText() {
+        Path file = Path.of("library", "dibujo.vsimcomponent.json");
+        assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.UNSUPPORTED_DRAWING,
+                Optional.empty(), "Dibujo"))).isEqualTo("dibujo.vsimcomponent.json: el dibujo de “Dibujo” usa un"
+                + " trazo que VSim no soporta; se muestra la caja por omisión");
+    }
+
+    @Test
     void aGoneLibraryFolderIsDescribedInEnglishToo() {
         Path gone = Path.of("home", "user", "library");
         Messages.initialize(Locale.ENGLISH);
