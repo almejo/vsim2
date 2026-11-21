@@ -22,6 +22,7 @@ import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
+import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.ExportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.MenuSlot;
@@ -34,7 +35,10 @@ import org.junit.jupiter.api.io.TempDir;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JComponent;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -146,8 +150,8 @@ class ApplicationExtensionsTest {
                     "Memoria desde archivo…", "Circuito de Logisim (.circ) (beta)…");
             assertThat(view.shortcutActions().get("file.importTruthTable"))
                     .isSameAs(importMenu.getItem(1).getAction());
-            assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar", "Copiar captura",
-                    "Pegar", "Crear componente desde selección…", "Actualizar componente…");
+            assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar", "Pegar",
+                    "Copiar captura", "Crear componente desde selección…", "Actualizar componente…");
         } finally {
             view.dispose();
         }
@@ -299,6 +303,87 @@ class ApplicationExtensionsTest {
                 lines.add(indent + "  " + (child instanceof javax.swing.JMenuItem item ? item.getText() : "---"));
             }
         }
+    }
+
+    @Test
+    void theEditMenuKeepsItsGroupsTogether() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.menu(MenuId.EDIT))).containsExactly("Deshacer", "Rehacer", "---",
+                    "Configurar…", "Etiqueta…", "Rotar ↻", "Rotar ↺", "Borrar", "---",
+                    "Cortar", "Copiar", "Pegar", "Duplicar", "Copiar captura", "---",
+                    "Seleccionar todo", "---",
+                    "Buscar…", "Buscar siguiente", "Buscar anterior", "---",
+                    "Siguiente problema", "Problema anterior", "---",
+                    "Enmarcar selección", "---",
+                    "Crear componente desde selección…", "Actualizar componente…", "---",
+                    "Ordenar circuito", "Ordenar circuito…", "Los cables siguen al mover", "Dibujar cables");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void thePanelItemsAreChecksThatFollowTheirPanelWhateverOpensOrClosesIt() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            JMenu panels = submenu(view.menu(MenuId.VIEW), MenuSlot.PANELS);
+            List<JMenuItem> items = Arrays.stream(panels.getMenuComponents())
+                    .filter(JMenuItem.class::isInstance).map(JMenuItem.class::cast).toList();
+            assertThat(items).hasSize(7).allMatch(JCheckBoxMenuItem.class::isInstance);
+            JMenuItem properties = itemNamed(panels, "Propiedades");
+            JMenuItem problems = itemNamed(panels, "Problemas");
+
+            view.inspector().showTab(InspectorPanel.PROBLEMS);
+            assertThat(problems.isSelected()).isTrue();
+            assertThat(properties.isSelected()).isFalse();
+
+            view.inspector().showTab(InspectorPanel.PROPERTIES);
+            assertThat(properties.isSelected()).isTrue();
+            assertThat(problems.isSelected()).isFalse();
+
+            view.inspector().close(); // the panel's own ✕
+            assertThat(properties.isSelected()).isFalse();
+            assertThat(problems.isSelected()).isFalse();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theToolsAreRadioItemsThatFollowTheActiveToolChosenAnyWay() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            JMenu tools = view.menu(MenuId.TOOLS);
+            assertThat(Arrays.stream(tools.getMenuComponents()).filter(JMenuItem.class::isInstance))
+                    .hasSize(6).allMatch(JRadioButtonMenuItem.class::isInstance);
+            assertThat(itemNamed(tools, "Selección").isSelected()).isTrue();
+
+            Object zoomKey = view.canvas().getInputMap(JComponent.WHEN_FOCUSED)
+                    .get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, 0));
+            view.canvas().getActionMap().get(zoomKey).actionPerformed(
+                    new java.awt.event.ActionEvent(view.canvas(), java.awt.event.ActionEvent.ACTION_PERFORMED, ""));
+            assertThat(itemNamed(tools, "Zoom").isSelected()).as("Z on the canvas").isTrue();
+            assertThat(itemNamed(tools, "Selección").isSelected()).isFalse();
+
+            view.shortcutActions().get("view.frameTool").actionPerformed(
+                    new java.awt.event.ActionEvent(view.canvas(), java.awt.event.ActionEvent.ACTION_PERFORMED, ""));
+            assertThat(itemNamed(tools, "Marco").isSelected()).as("the toolbar's Marco").isTrue();
+            assertThat(itemNamed(tools, "Zoom").isSelected()).isFalse();
+
+            view.canvas().useDefaultTool(); // Esc
+            assertThat(itemNamed(tools, "Selección").isSelected()).isTrue();
+            assertThat(itemNamed(tools, "Marco").isSelected()).isFalse();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    private static JMenuItem itemNamed(JMenu menu, String text) {
+        return Arrays.stream(menu.getMenuComponents())
+                .filter(JMenuItem.class::isInstance).map(JMenuItem.class::cast)
+                .filter(item -> text.equals(item.getText()))
+                .findFirst().orElseThrow(() -> new AssertionError("no item " + text));
     }
 
     private static JMenu submenu(JMenu menu, MenuSlot slot) {

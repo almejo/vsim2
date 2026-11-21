@@ -140,7 +140,15 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   vertical y Borrar guías), Mostrar ▸ (Valores de los buses, Resaltar la red al pasar, Hojas de impresión); luego
   Lupa y Mirar adentro; al final Modo presentación (pantalla completa) (F11) y Presentar ▸ (Presentar lo que hace la
   IA, Ritmo de Presentar y, tras una línea, Mostrar los atajos al usarlos).
+- En Ver ▸ Paneles los siete ítems son casillas: la marca dice qué panel o sección está a la vista y la sigue sin
+  importar cómo se abrió o cerró (la tecla, la tira del panel derecho, su ✕ o el ítem).
 - **Herramientas** tiene las herramientas del editor: Selección, Marco, Nota adhesiva, Texto, Mover vista y Zoom (Z).
+  Son botones de radio: el punto marca la herramienta activa, la elijas desde el menú, la barra, una tecla o Esc (útil
+  en el modo presentación, sin la barra).
+- **Editar** junta cada grupo: Deshacer y Rehacer; Configurar…, Etiqueta…, Rotar ↻, Rotar ↺ y Borrar; Cortar, Copiar,
+  Pegar, Duplicar y Copiar captura; Seleccionar todo; los de buscar; los de problemas; Enmarcar selección; los de
+  componentes propios y los de cables. El clic derecho sobre un componente sigue el mismo orden (Configurar…,
+  Etiqueta…; Rotar ↻, Rotar ↺, Borrar; Cortar, Copiar, Duplicar).
 - **Lógica**, después de Simulación: Tabla de verdad…, Circuito desde tabla de verdad…, Circuito desde expresiones… y
   Practicar Karnaugh….
 - «Siguiente problema» (F8) y «Problema anterior» (Mayús+F8) están en Editar, después de «Buscar anterior»; «IA

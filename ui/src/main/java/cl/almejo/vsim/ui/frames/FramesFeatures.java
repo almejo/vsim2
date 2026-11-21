@@ -20,7 +20,6 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.MenuSlot;
-import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
@@ -82,7 +81,7 @@ public final class FramesFeatures {
         this.frameTool = Actions.of(Messages.text("action.toolFrame"), () -> view.setToolOnEveryPane(FrameTool::new));
         Icons.install(frameTool, FrameIcons.FRAME_TOOL);
         this.toolButtonRemover = view.addToolButton(frameTool, FrameTool.class);
-        this.toolMenuRemover = MenuSlots.add(view, MenuSlot.FRAME_TOOL, new JMenuItem(frameTool));
+        this.toolMenuRemover = view.addToolMenuItem(MenuSlot.FRAME_TOOL, frameTool, FrameTool.class);
         this.toolShortcutRemover = view.registerShortcutAction("view.frameTool", frameTool);
         this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
                 view.openDocument().document(), view.openDocument().registry(), ids)

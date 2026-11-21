@@ -353,11 +353,12 @@ public final class EditorActions {
         edit.add(undo);
         edit.add(redo);
         edit.addSeparator();
-        // the canvas keys (Supr, R, Mayús+R) shown, never bound: the canvas binding is the one that fires (I1)
-        edit.add(new ShownAcceleratorItem(delete));
+        // the order of the context menu (I13): «Etiqueta…» comes right after «Configurar…» (LabelFeatures); the canvas
+        // keys (Supr, R, Mayús+R) shown, never bound: the canvas binding is the one that fires (I1)
+        edit.add(configure);
         edit.add(new ShownAcceleratorItem(rotateClockwise));
         edit.add(new ShownAcceleratorItem(rotateCounterClockwise));
-        edit.add(configure);
+        edit.add(new ShownAcceleratorItem(delete));
         // Ver, Herramientas and Lógica are laid out by their slots (MenuSlot): EditorView and the extensions fill them
         JMenu view = tagged(new JMenu(Messages.text("menu.view")), MenuId.VIEW);
         JMenu tools = tagged(new JMenu(Messages.text("menu.tools")), MenuId.TOOLS);
