@@ -260,12 +260,18 @@ class ShortcutSheetTest {
     }
 
     @Test
+    void findIsInTheEditGroupBecauseItsMenuItemIsInEditar() {
+        assertThat(SheetSelection.load()).filteredOn(item -> item.id().equals("edit.find"))
+                .extracting(SheetSelection.Item::group).containsExactly(SheetSelection.Group.EDIT);
+    }
+
+    @Test
     void theSheetShowsTheGroupsWithTheCurrentKeys() {
         ShortcutSheetPanel panel = openSheet();
 
-        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Simular", "Ayuda");
+        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Ayuda");
         assertThat(panel.rows()).contains("Ctrl+N · Nuevo", "Ctrl+Z · Deshacer", "Supr · Borrar",
-                "Ctrl+Mayús+Z · Rehacer", "F6 · Avanzar un paso fijo", "? · Atajos de teclado");
+                "Ctrl+Mayús+Z · Rehacer", "F6 · Avanzar N t", "? · Atajos de teclado");
         assertThat(panel.rows()).as("the waveforms toggle has no key by default").noneMatch(
                 row -> row.endsWith("· Formas de onda"));
     }

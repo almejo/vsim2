@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** A component tab showing no instance («Sin valores», spec §6.3) says so in its status line, and only then. */
 class NoValuesHintTest {
 
-    private static final String HINT = "Sin valores: elige una pieza en “Valores de”";
+    private static final String HINT = "Sin valores: elige una pieza en «Valores de»";
 
     private final OpenDocument circuit = OpenDocument.createEmpty(StandardComponentTypes.registry());
 

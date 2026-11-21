@@ -42,7 +42,7 @@ class ShortcutsPanelTest {
     void changeWaitsForAKeyInTheCellAndAssignsIt() {
         int row = select("file.save");
         panel.changeButton().doClick(0);
-        assertThat(panel.table().getValueAt(row, 1)).isEqualTo("Presiona la combinación…");
+        assertThat(panel.table().getValueAt(row, 1)).isEqualTo("Pulsa la combinación…");
         press(KeyEvent.VK_J, CONTROL);
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_J));
         assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyNames.describe(control(KeyEvent.VK_J)));

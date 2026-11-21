@@ -87,7 +87,7 @@ class LabelMenuContributorTest {
         Component moved = openDocument.document().component(gate.id()).orElseThrow();
         selection.select(gate.id());
         JPopupMenu menu = menuFor(Optional.of(moved));
-        assertThat(texts(menu)).containsExactly("Etiqueta…", "Restablecer posición de la etiqueta");
+        assertThat(texts(menu)).containsExactly("Etiqueta…", "Restaurar posición de la etiqueta");
         choose(menu, 1);
         assertThat(openDocument.document().component(gate.id()).orElseThrow().labelOffset()).isEmpty();
         assertThat(openDocument.history().undoDescription()).contains("command.resetLabelPosition");

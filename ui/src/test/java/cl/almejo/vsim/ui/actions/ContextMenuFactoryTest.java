@@ -171,7 +171,7 @@ class ContextMenuFactoryTest {
                         "---", "Cortar", "Copiar", "Duplicar", "---", "Borrar");
     }
 
-    /** M6.8: «Restablecer posición de la etiqueta» right after «Etiqueta…», only for a moved label. */
+    /** M6.8: «Restaurar posición de la etiqueta» right after «Etiqueta…», only for a moved label. */
     @Test
     void theRealComponentMenuOffersTheResetOfAMovedLabelNextToTheLabelEntry() {
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
@@ -180,7 +180,7 @@ class ContextMenuFactoryTest {
         Component moved = openDocument.document().component(gate.id()).orElseThrow();
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(moved), CLICK)))
-                .containsExactly("Configurar…", "Etiqueta…", "Restablecer posición de la etiqueta", "---", "Rotar ↻",
+                .containsExactly("Configurar…", "Etiqueta…", "Restaurar posición de la etiqueta", "---", "Rotar ↻",
                         "Rotar ↺", "---", "Cortar", "Copiar", "Duplicar", "---", "Borrar");
     }
 

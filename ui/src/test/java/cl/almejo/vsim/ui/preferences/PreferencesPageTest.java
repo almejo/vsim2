@@ -124,7 +124,7 @@ class PreferencesPageTest {
     void theKeywordsOfARowAreSearchedToo() {
         PreferenceRow row = PreferenceRow.labeled("library", "preferences.library", new JLabel("x"), "");
 
-        assertThat(row.words()).contains("Directorio de la librería").contains("carpeta");
+        assertThat(row.words()).contains("Carpeta de Mis componentes").contains("carpeta");
     }
 
     @Test
