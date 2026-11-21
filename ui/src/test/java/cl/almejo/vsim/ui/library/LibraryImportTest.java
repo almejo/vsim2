@@ -87,14 +87,16 @@ class LibraryImportTest {
         assertThat(fixture.library.entries()).containsExactly(inverter);
         assertThat(fixture.dialogs.collisionNames).containsExactly("Negador");
 
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
+        importer.importFiles(fixture.view, List.of(file));
+        assertThat(fixture.library.find("inverter")).contains(renamed);
+        assertThat(fixture.dialogs.replaceOffered).containsExactly(true, true);
+
+        fixture.service.save(inverter);
         fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.KEEP_BOTH);
         importer.importFiles(fixture.view, List.of(file));
         assertThat(fixture.library.find("inverter-2").orElseThrow().root().name()).isEqualTo("Negador");
         assertThat(fixture.library.find("inverter")).contains(inverter);
-
-        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
-        importer.importFiles(fixture.view, List.of(file));
-        assertThat(fixture.library.find("inverter")).contains(renamed);
     }
 
     private DefinitionBundle sameNameOtherId() {
@@ -121,15 +123,27 @@ class LibraryImportTest {
     }
 
     @Test
-    void replacingByNameRemovesTheEntryThatHeldTheName() throws Exception {
+    void aClashOnlyByNameNeverOffersReplacingAndKeepsTheOtherComponent() throws Exception {
         fixture.service.save(inverter);
         Path file = outside("other.vsimcomponent.json", sameNameOtherId());
 
-        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE); // not offered; even if answered, nothing is deleted
         importer.importFiles(fixture.view, List.of(file));
 
-        assertThat(fixture.library.find("inverter")).isEmpty();
-        assertThat(fixture.library.find("other-id")).isPresent();
+        assertThat(fixture.dialogs.replaceOffered).containsExactly(false);
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(fixture.library.find("other-id")).isEmpty();
+    }
+
+    @Test
+    void aClashOfTheSameIdOffersReplacing() throws Exception {
+        fixture.service.save(inverter);
+        Path file = outside("same.vsimcomponent.json", inverter);
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.CANCEL);
+        importer.importFiles(fixture.view, List.of(file));
+
+        assertThat(fixture.dialogs.replaceOffered).containsExactly(true);
     }
 
     @Test
