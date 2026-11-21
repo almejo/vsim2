@@ -171,6 +171,11 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
 - **Las filas**: la primera es el circuito, con su nombre y cuántas piezas tiene («1 pieza», «12 piezas»). Debajo va
   cada pieza, en el orden del circuito, con el ícono de la paleta. Una pieza de un componente propio se despliega en
   las piezas de adentro. Los cables, los marcos y las notas no son piezas y no aparecen; las filas no muestran valores.
+- **Las máquinas de estados**: la pieza de una máquina se despliega en sus estados, una fila cada uno, con un punto del
+  color del estado (el inicial lleva un segundo aro y dice «estado inicial»); si tiene notas, al final va el grupo
+  «Notas (n)», con una fila por nota (su primera línea). Un estado con un problema se ve en rojo (error) o dorado
+  (aviso) y con un «!». Un clic en un estado o en una nota entra a la máquina (en esa pieza) y lo elige en el diagrama.
+  Las flechas y los textos libres no tienen fila.
 - **Los nombres**: una pieza se llama por su etiqueta («IR · Registro», con el tipo detrás) o, si no tiene, por su
   tipo («Ram», «AND de 3 entradas»). Si en un mismo lugar hay varias sin etiqueta del mismo tipo, se numeran en el
   orden del circuito: «Multiplexor 1» … «Multiplexor 4». Las piezas de un componente propio o de una máquina de

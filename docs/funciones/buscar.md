@@ -12,7 +12,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Buscar en el árbol del circuito
 
-- El [árbol del circuito](pestanas-y-componentes.md#árbol-del-circuito) tiene un campo «Buscar en el circuito» que busca en todo el circuito, también dentro de los componentes propios, por nombre (la etiqueta, o el tipo numerado: «Multiplexor 2») o tipo. Usa las mismas reglas y las mismas opciones Aa y .\* que la barra, así que encuentran lo mismo. Los resultados se listan uno debajo de otro, con su ruta en gris («en Ram › Muldiv») y lo que coincide en negrita; debajo del campo dice cuántos hay. Sin resultados, o con una expresión no válida, el campo se pone rojo y dice «Nada se llama así en este circuito.». Enter va al primero; al vaciarlo (o con Esc) vuelve el árbol con las filas que tenías desplegadas. Ctrl+F con el foco en el árbol va a ese campo en vez de abrir la barra.
+- El [árbol del circuito](pestanas-y-componentes.md#árbol-del-circuito) tiene un campo «Buscar en el circuito» que busca en todo el circuito, también dentro de los componentes propios, por nombre (la etiqueta, o el tipo numerado: «Multiplexor 2») o tipo. Usa las mismas reglas y las mismas opciones Aa y .\* que la barra, así que encuentran lo mismo. También encuentra los estados de una máquina por su nombre («en Semáforo»). Los resultados se listan uno debajo de otro, con su ruta en gris («en Ram › Muldiv») y lo que coincide en negrita; debajo del campo dice cuántos hay. Sin resultados, o con una expresión no válida, el campo se pone rojo y dice «Nada se llama así en este circuito.». Enter va al primero; al vaciarlo (o con Esc) vuelve el árbol con las filas que tenías desplegadas. Ctrl+F con el foco en el árbol va a ese campo en vez de abrir la barra.
 
 ## Viaje suave de la vista
 

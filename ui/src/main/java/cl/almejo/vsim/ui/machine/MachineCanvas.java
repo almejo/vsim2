@@ -486,6 +486,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         repaint();
     }
 
+    /** Selects the state {@code stateId} alone and brings it into view (a click on its row in the circuit tree). */
+    void selectAndShowState(String stateId) {
+        show(Set.of(stateId), Set.of(), false);
+    }
+
     private void show(Set<String> stateIds, Set<String> transitionIds, boolean blink) {
         selection.set(stateIds, transitionIds);
         startFlash(blink, bringIntoView(stateIds, transitionIds));
