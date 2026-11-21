@@ -410,7 +410,8 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * The words the memory simulated as {@code componentId} holds now, writes included (for «Volcar», the editor's live
      * grid and the AI): completed on the simulation thread once the earlier requests ran, empty when there is no such
-     * memory, and at once with empty when the thread is closed. Never wait for it on the EDT.
+     * memory, with the failure when reading it throws ({@link #answer}), and at once with empty when the thread is
+     * closed. Never wait for it on the EDT.
      */
     public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(String componentId) {
         CompletableFuture<Optional<MemoryContents>> future = new CompletableFuture<>();
@@ -420,7 +421,7 @@ public final class SimulationThread implements AutoCloseable {
         }
         waitingContents.add(future);
         future.whenComplete((contents, failure) -> waitingContents.remove(future));
-        requests.add(() -> future.complete(engine.memory(componentId).map(MemoryBehavior::liveContents)));
+        requests.add(() -> answer(future, () -> engine.memory(componentId).map(MemoryBehavior::liveContents)));
         if (stopRequested) {
             future.complete(Optional.empty());
         }
@@ -430,8 +431,9 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * What the Terminal simulated as {@code componentId} shows now, for a reader that is not its window (the AI): its
      * screen, the last {@code historyLines} rows of history and the last {@code byteCount} bytes. Completed on the
-     * simulation thread once the earlier requests ran, empty when there is no such Terminal, and at once with empty
-     * when the thread is closed. Never wait for it on the EDT.
+     * simulation thread once the earlier requests ran, empty when there is no such Terminal, with the failure when
+     * reading it throws ({@link #answer}), and at once with empty when the thread is closed. Never wait for it on the
+     * EDT.
      */
     public CompletableFuture<Optional<TerminalReading>> requestTerminalReading(String componentId, int historyLines,
                                                                               int byteCount) {
@@ -442,7 +444,7 @@ public final class SimulationThread implements AutoCloseable {
         }
         waitingReadings.add(future);
         future.whenComplete((reading, failure) -> waitingReadings.remove(future));
-        requests.add(() -> future.complete(engine.terminal(componentId).map(terminal ->
+        requests.add(() -> answer(future, () -> engine.terminal(componentId).map(terminal ->
                 TerminalReading.of(terminal.screen(), historyLines, byteCount, engine.now()))));
         if (stopRequested) {
             future.complete(Optional.empty());
@@ -453,7 +455,8 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * How many bytes the typing queue of the part simulated as {@code componentId} (a Teclado) holds now: completed
      * on the simulation thread once the earlier requests ran, empty when there is no such part or it keeps no queue,
-     * and at once with empty when the thread is closed. Never wait for it on the EDT.
+     * with the failure when reading it throws ({@link #answer}), and at once with empty when the thread is closed.
+     * Never wait for it on the EDT.
      */
     public CompletableFuture<OptionalInt> requestTypingQueueSize(String componentId) {
         CompletableFuture<OptionalInt> future = new CompletableFuture<>();
@@ -463,11 +466,25 @@ public final class SimulationThread implements AutoCloseable {
         }
         waitingQueueSizes.add(future);
         future.whenComplete((size, failure) -> waitingQueueSizes.remove(future));
-        requests.add(() -> future.complete(engine.typingQueueSize(componentId)));
+        requests.add(() -> answer(future, () -> engine.typingQueueSize(componentId)));
         if (stopRequested) {
             future.complete(OptionalInt.empty());
         }
         return future;
+    }
+
+    /**
+     * Completes {@code future} with what {@code work} answers, run on the simulation thread. When the work throws, the
+     * future completes with that failure (whoever waits on it gets an answer instead of waiting forever) and the
+     * exception goes on, so the tick still shows the failure as before.
+     */
+    static <T> void answer(CompletableFuture<T> future, Supplier<T> work) {
+        try {
+            future.complete(work.get());
+        } catch (RuntimeException exception) {
+            future.completeExceptionally(exception);
+            throw exception;
+        }
     }
 
     public void resume() {
