@@ -26,6 +26,16 @@ public sealed interface EditOperation {
         return getClass().getSimpleName();
     }
 
+    /** A copy of {@code parameters}; a parameter with no value is an {@link IllegalArgumentException} naming it. */
+    private static Map<String, Object> withoutNulls(Map<String, Object> parameters) {
+        parameters.forEach((name, value) -> {
+            if (value == null) {
+                throw new IllegalArgumentException("parameter " + name + " has no value (null)");
+            }
+        });
+        return Map.copyOf(parameters);
+    }
+
     /** Places a part of {@code typeId} with its origin at ({@code x}, {@code y}). */
     record PlacePart(Optional<String> alias, String typeId, int x, int y, Rotation rotation,
                      Map<String, Object> parameters, String label) implements EditOperation {
@@ -33,7 +43,7 @@ public sealed interface EditOperation {
             Objects.requireNonNull(alias, "alias");
             Objects.requireNonNull(typeId, "typeId");
             Objects.requireNonNull(rotation, "rotation");
-            parameters = Map.copyOf(parameters);
+            parameters = withoutNulls(parameters);
             Objects.requireNonNull(label, "label");
         }
     }
@@ -45,7 +55,7 @@ public sealed interface EditOperation {
     record SetParameters(String target, Map<String, Object> parameters) implements EditOperation {
         public SetParameters {
             Objects.requireNonNull(target, "target");
-            parameters = Map.copyOf(parameters);
+            parameters = withoutNulls(parameters);
         }
     }
 

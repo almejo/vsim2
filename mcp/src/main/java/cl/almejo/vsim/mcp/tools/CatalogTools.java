@@ -78,6 +78,6 @@ final class CatalogTools {
                 Tool.Hints.READS,
                 List.of(Map.of("document", "circuit-1", "typeId", "register", "parameters", Map.of("width", 8))),
                 arguments -> Tool.Output.of(api.describeComponent(arguments.document(), arguments.string("typeId"),
-                        arguments.map("parameters"))));
+                        arguments.parameters("parameters"))));
     }
 }

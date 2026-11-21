@@ -30,6 +30,7 @@ import cl.almejo.vsim.core.simulation.InstancePath;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -296,6 +297,19 @@ public final class EditService {
                             : new VersionStep(before, after));
         }
         return changes;
+    }
+
+    /** The editor: {@code document}'s last window closed; what is remembered about it goes. */
+    public void documentClosed(DocumentId document) {
+        logs.remove(document);
+        transparentSteps.remove(document);
+    }
+
+    /** How many documents the service still remembers something about (tests). */
+    int trackedDocuments() {
+        Set<DocumentId> tracked = new HashSet<>(logs.keySet());
+        tracked.addAll(transparentSteps.keySet());
+        return tracked.size();
     }
 
     private OperationLog logOf(DocumentId document) {

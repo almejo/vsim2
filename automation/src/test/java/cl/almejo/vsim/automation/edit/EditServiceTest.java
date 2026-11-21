@@ -1203,6 +1203,78 @@ class EditServiceTest {
         assertThat(receipt.components().getFirst().definitionId()).isNotEqualTo(inLibrary.id());
     }
 
+    // --- limits and bad values (bug hunt 2026-11-20) ---
+
+    @Test
+    void aPartFarOutsideTheCoordinateLimitIsRefusedAndTheCircuitStaysAsItWas() {
+        AutomationException refusal = assertRefused(request(place("far", "nand", Integer.MAX_VALUE, 0)),
+                AutomationError.INVALID_PARAMETER);
+
+        assertThat(refusal.getMessage()).contains("x").contains("1000000");
+        assertNothingChanged();
+    }
+
+    @Test
+    void everyOperationWithPositionsRefusesOnesPastTheLimit() {
+        int far = EditPlanner.MAXIMUM_COORDINATE + 1;
+        for (EditOperation operation : List.of(
+                place("a", "nand", 0, -far),
+                new PlaceInstance(Optional.empty(), "x", far, 0, Rotation.R0),
+                new AddNote(Optional.empty(), "n", far, 0),
+                new AddStickyNote(Optional.empty(), 0, far, OptionalInt.empty(), OptionalInt.empty(),
+                        Optional.empty(), Optional.of("t"), Optional.empty(), false),
+                new AddGuide(Guide.Orientation.HORIZONTAL, far),
+                new AddWire(List.of(new GridPoint(0, 0), new GridPoint(far, 0))),
+                new Connect(PinTarget.named("c1", "out"), PinTarget.named("c2", "in0"),
+                        List.of(new GridPoint(far, 5))),
+                new MakeFrame(Optional.empty(), "T", List.of(), Optional.of(
+                        new cl.almejo.vsim.core.geometry.Bounds(0, 0, far, 10)), false))) {
+            assertRefused(request(operation), AutomationError.INVALID_PARAMETER);
+            assertNothingChanged();
+        }
+    }
+
+    @Test
+    void aPartAtTheLimitIsStillPlaced() {
+        service.edit(request(place("edge", "nand", EditPlanner.MAXIMUM_COORDINATE, -EditPlanner.MAXIMUM_COORDINATE)));
+
+        assertThat(circuit.document().components()).hasSize(1);
+    }
+
+    @Test
+    void aMoveByMoreThanTheLimitIsRefusedAndOnePastTheLimitOfTheResultToo() {
+        service.edit(request(place("part", "nand", 10, 10)));
+        long version = circuit.version().value();
+
+        assertRefused(request(new Move(List.of("c1"), Integer.MAX_VALUE, 0)), AutomationError.INVALID_PARAMETER);
+        assertRefused(request(new Move(List.of("c1"), EditPlanner.MAXIMUM_COORDINATE, 0),
+                new Move(List.of("c1"), EditPlanner.MAXIMUM_COORDINATE, 0)), AutomationError.INVALID_PARAMETER);
+
+        assertThat(circuit.version().value()).isEqualTo(version);
+        assertThat(circuit.document().components().iterator().next().position()).isEqualTo(new GridPoint(10, 10));
+    }
+
+    @Test
+    void aNullParameterValueIsRefusedNamingTheParameter() {
+        java.util.HashMap<String, Object> parameters = new java.util.HashMap<>();
+        parameters.put("bits", null);
+
+        assertThatThrownBy(() -> new PlacePart(Optional.empty(), "and", 0, 0, Rotation.R0, parameters, ""))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("bits");
+        assertThatThrownBy(() -> new SetParameters("c1", parameters))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("bits");
+    }
+
+    @Test
+    void closingADocumentFreesItsOperationLogAndItsTransparentStep() {
+        service.edit(request(place("part", "nand", 10, 10)));
+        assertThat(service.trackedDocuments()).isPositive();
+
+        service.documentClosed(new DocumentId(DOCUMENT));
+
+        assertThat(service.trackedDocuments()).isZero();
+    }
+
     // --- helpers ---
 
     private EditRequest request(EditOperation... operations) {

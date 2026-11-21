@@ -254,11 +254,21 @@ public final class CircuitReader {
         Bounds bounds = null;
         for (DocumentElement element : document.elements()) {
             Bounds elementBounds = boundsOf(element, source);
-            bounds = bounds == null ? elementBounds : bounds.union(elementBounds);
+            bounds = bounds == null ? elementBounds : unionWithoutOverflow(bounds, elementBounds);
         }
         return new Summary(document.components().size(), document.wires().size(), document.frames().size(),
                 document.labels().size(), document.stickyNotes().size(), document.guides().size(), source.netlist().nets().size(),
                 Optional.ofNullable(bounds), partsByType,
                 document.definitions().stream().map(ComponentDefinition::name).toList());
+    }
+
+    /** The union, in long arithmetic: a circuit from a file may have parts so far apart that an int width overflows. */
+    private static Bounds unionWithoutOverflow(Bounds first, Bounds second) {
+        long minimumX = Math.min(first.x(), second.x());
+        long minimumY = Math.min(first.y(), second.y());
+        long width = Math.max((long) first.x() + first.width(), (long) second.x() + second.width()) - minimumX;
+        long height = Math.max((long) first.y() + first.height(), (long) second.y() + second.height()) - minimumY;
+        return new Bounds((int) minimumX, (int) minimumY, (int) Math.min(width, Integer.MAX_VALUE),
+                (int) Math.min(height, Integer.MAX_VALUE));
     }
 }

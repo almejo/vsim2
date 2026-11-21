@@ -66,6 +66,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Guardar a través de un enlace simbólico escribe el archivo al que apunta y el enlace sigue siendo un enlace (antes lo reemplazaba por un archivo común).
 - Guardar un archivo cuya carpeta no deja crear archivos nuevos, pero cuyo archivo sí se puede escribir, lo guarda igual (sin escritura atómica); si falla, el error nombra la carpeta y no un archivo temporal.
 - Importar un componente cuyo nombre ya usa otro de la librería (aunque tenga otro id, y sin distinguir mayúsculas) pregunta Reemplazar / Conservar ambos, como con el mismo id.
+- La IA ya no puede dejar un circuito con piezas a miles de millones de unidades: las posiciones, tamaños y desplazamientos de sus ediciones quedan dentro de ±1 000 000 de unidades de cuadrícula (si no, la edición se rechaza sin cambiar nada), y leer el resumen de un circuito con partes muy lejanas ya no falla.
+- Una edición de la IA con un parámetro sin valor (null) ya no termina en «VSim falló» sino en un rechazo claro que nombra el parámetro.
+- Al cerrar un circuito se libera lo que la IA recordaba de él (registro de operaciones y paso transparente).
 
 ## Versión 0.8 — 2026-11-11
 
