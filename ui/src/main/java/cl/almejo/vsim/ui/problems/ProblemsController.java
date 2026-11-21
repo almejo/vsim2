@@ -154,7 +154,7 @@ public final class ProblemsController {
             if (!disposed) {
                 navigator.next();
             }
-        });
+        }, () -> AcceleratorTooltip.keyName(nextProblem));
         view.inspector().addTab(InspectorPanel.PROBLEMS, Messages.text("problems.tab"), InspectorPanel.PROBLEMS_ICON,
                 panel);
         view.inspector().showShortcut(InspectorPanel.PROBLEMS, view.inspectorToggleAction(InspectorPanel.PROBLEMS));

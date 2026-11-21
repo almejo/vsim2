@@ -100,7 +100,9 @@ public final class SelectionActions {
      * menu opens and when a pane gets the focus back.
      */
     public void refreshPaste() {
-        paste.setEnabled(clipboard.read().flatMap(this::fragmentOf).isPresent());
+        // a fragment is JSON: text that does not start like it is not parsed (this runs on every pane focus)
+        paste.setEnabled(clipboard.read().filter(text -> text.stripLeading().startsWith("{"))
+                .flatMap(this::fragmentOf).isPresent());
     }
 
     /**

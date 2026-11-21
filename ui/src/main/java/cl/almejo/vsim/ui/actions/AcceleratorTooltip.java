@@ -84,6 +84,12 @@ public final class AcceleratorTooltip {
                 KeyNames.describe(key)), note);
     }
 
+    /** The name of the key of {@code action} («F8»), or the empty text when it has none. */
+    public static String keyName(Action action) {
+        KeyStroke key = ShownAcceleratorItem.acceleratorOf(action);
+        return key == null ? "" : KeyNames.describe(key);
+    }
+
     private static String withKey(Action action, String text) {
         KeyStroke key = ShownAcceleratorItem.acceleratorOf(action);
         return key == null ? text : Messages.format("tooltip.withKey", text, KeyNames.describe(key));

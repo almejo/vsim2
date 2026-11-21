@@ -37,6 +37,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Las burbujas de «Qué hay de nuevo» ya no dicen «ahora» ni «antes», para que se lean bien la primera vez que se abre VSim. La leyenda de NOT del asistente «Circuito desde expresiones» dice «A' (cualquier apóstrofo)» en vez de mostrar cuatro marcas que se ven iguales, y «Costo:» muestra «—» mientras no hay expresión. El nombre del circuito en Propiedades tiene un texto de ejemplo más corto.
 - Preferencias ▸ Aspecto: al elegir «VSim clásico», «Pastel» o «Twilight» una línea gris avisa que son los colores de VSim 1 y tienen poco contraste.
 - Documentación: rutas de menú que quedaron de antes de 0.9 corregidas, y «Qué hay de nuevo» descrito sin una lista fija de burbujas.
+- Textos en inglés: los títulos, los botones de los diálogos («Don’t save»), los grupos de Preferencias («Keyboard shortcuts») y las categorías de la paleta («My components», «Input/output») van con mayúscula solo en la primera palabra, como el resto.
 
 ### Arreglado
 
@@ -45,6 +46,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Contraste y tamaños: el texto secundario (la parte gris del árbol, la ruta de la paleta de comandos, las pestañas inactivas, los títulos de sección, la tarjeta de señal y otros) llega a 4,5:1 en el tema claro y en el oscuro; la pista del lienzo vacío se pinta con los colores del esquema del lienzo y se lee en todos; los dos interruptores comparten una pista apagada en la que la perilla blanca se distingue; la versión del splash, el contorno de la bombilla del consejo y el rojo de error de «Crear componente» se leen mejor; la hoja de atajos no corta «Avanzar al próximo evento»; el editor de forma muestra el foco; y el texto de la lupa y de la tecla Entrar, la imagen de la lupa de «Mirar adentro», las asas del editor de forma y el buscador de la memoria crecen con el tamaño de la interfaz.
 - Problemas: el «Detalle técnico» de un archivo que no se puede leer (un componente de «Mis componentes» roto, una memoria enlazada ilegible) sale en su propia línea de la fila, y el nombre del archivo ya no se repite.
 - Botones de paso: el tooltip de Avanzar y de los pasos de reloj conserva su tecla (F7…) también fuera de Paso a paso, donde además dice cómo activarlo.
+- Errores de lectura: un elemento inválido en un circuito dice «El circuito tiene un elemento inválido.» y deja el detalle técnico (en inglés) en su propia línea.
+- Barra de herramientas: la etiqueta de Paso a paso reserva el ancho de su texto habitual, así que el selector de velocidad ya no se corre al activar o dejar el modo.
+- El tooltip de la advertencia «⚠ N cortocircuitos» de la barra de estado dice la tecla que «Siguiente problema» tiene ahora (antes decía F8 aunque la hubieras cambiado).
 - Preferencias con la interfaz al 200 % en una pantalla chica: el contenido tiene barra de desplazamiento, así que «Cerrar» siempre se alcanza, y la ventana se mueve para quedar entera en pantalla.
 - Formas de onda: el texto de ayuda del panel vacío se lee en todos los esquemas de colores (se tomaba el gris del tema sobre el fondo oscuro del cronograma).
 

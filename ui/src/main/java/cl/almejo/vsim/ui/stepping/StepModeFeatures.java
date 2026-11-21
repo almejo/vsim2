@@ -27,6 +27,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -59,7 +60,17 @@ public final class StepModeFeatures {
     private final JButton advanceButton;
     private final JButton clockEdgeButton;
     private final JButton clockCycleButton;
-    private final JLabel status = new JLabel();
+    /** Wide enough for the usual text even while empty, so the controls after it do not move when the mode turns on. */
+    private final JLabel status = new JLabel() {
+        @Override
+        public Dimension getPreferredSize() {
+            Dimension size = super.getPreferredSize();
+            java.awt.FontMetrics metrics = getFontMetrics(getFont());
+            int usual = Math.max(metrics.stringWidth(Messages.format("step.status", "00000", "00000")),
+                    metrics.stringWidth(Messages.text("step.stable")));
+            return new Dimension(Math.max(size.width, usual + getInsets().left + getInsets().right), size.height);
+        }
+    };
     private final StepHighlightOverlay overlay;
     private final PendingOutlineOverlay pendingOverlay;
     private final Runnable stepModeListener = this::stepModeChanged;

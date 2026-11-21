@@ -23,10 +23,12 @@ class EnglishBundleStyleTest {
     /** Words that keep their capital inside an item: proper nouns, products and key names. */
     private static final Set<String> PROPER_NOUNS = Set.of(
             "VSim", "Logisim", "Karnaugh", "Excel", "Markdown", "Linux", "Windows", "Java", "Gray",
-            "Quine-McCluskey", "Boolean", "Hamming", "Moore", "Mealy", "Presenter", "Terminal", "My", "Alt", "Shift", "Ctrl", "Del", "Esc");
+            "Quine-McCluskey", "Boolean", "Hamming", "Moore", "Mealy", "Presenter", "Terminal", "My", "Magnifier", "Alt", "Shift", "Ctrl", "Del", "Esc");
 
-    /** Keys whose text is a menu item, a button or a tooltip. */
-    private static final Pattern SHORT_TEXT_KEYS = Pattern.compile("(action|menu|tooltip)\\..*");
+    /** Keys whose text is a menu item, a button, a title or a tooltip. */
+    private static final Pattern SHORT_TEXT_KEYS = Pattern.compile(
+            "(action|menu|tooltip|shortcuts?|preferences\\.group|category)\\..*|dialog\\.(?!overwrite\\.message).*"
+                    + "|.*\\.title(\\.many)?");
 
     private static ResourceBundle english() {
         return Messages.bundle(Locale.ENGLISH);

@@ -122,6 +122,17 @@ class StepModeFeaturesTest {
     }
 
     @Test
+    void theStatusLabelKeepsItsWidthSoTheSpeedSelectorStaysPutWhenTheModeTurnsOn() {
+        int outside = features.status().getPreferredSize().width;
+        assertThat(outside).as("room for the usual text even while empty").isGreaterThan(100);
+
+        perform(features.stepModeAction());
+
+        assertThat(features.status().getText()).isNotEmpty();
+        assertThat(features.status().getPreferredSize().width).isEqualTo(outside);
+    }
+
+    @Test
     void avanzarIsEnabledOnlyWhilePausedWithAnEventPending() {
         place(openDocument, StandardComponentTypes.CLOCK, 0, 0, Map.of());
         waitUntil(() -> openDocument.latestNextEventTime().isPresent());

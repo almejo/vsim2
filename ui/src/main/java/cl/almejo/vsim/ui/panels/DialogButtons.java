@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
+import com.formdev.flatlaf.util.UIScale;
+
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -32,7 +34,7 @@ public final class DialogButtons {
 
     /** The button row: {@code action} first, {@code cancel} last, right-aligned. */
     public static JPanel row(JButton action, JButton cancel) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.RIGHT, GAP, GAP));
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIScale.scale(GAP), UIScale.scale(GAP)));
         row.add(action);
         row.add(cancel);
         return row;
