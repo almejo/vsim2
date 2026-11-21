@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
@@ -63,6 +64,8 @@ public final class AutosaveService {
     private final Set<UUID> failing = ConcurrentHashMap.newKeySet();
     private final AtomicInteger loggedFailures = new AtomicInteger();
     private volatile boolean shutDown;
+    /** Told (on the EDT) once per document that cannot be serialized, so it has no recovery copy. */
+    private Consumer<OpenDocument> serializationFailure = document -> { };
 
     public AutosaveService(RecoveryStore store, Clock clock, Executor writer) {
         this.store = store;
@@ -87,6 +90,11 @@ public final class AutosaveService {
     /** Whether the timer is ticking. */
     public boolean isRunning() {
         return timer.isRunning();
+    }
+
+    /** {@code listener} runs on the EDT the first time a tracked document cannot be serialized (and again once it was untracked and tracked anew). */
+    public void onSerializationFailure(Consumer<OpenDocument> listener) {
+        this.serializationFailure = listener;
     }
 
     int loggedFailures() {
@@ -120,6 +128,7 @@ public final class AutosaveService {
             return;
         }
         discardCopy(document);
+        failing.remove(document.recoveryId());
         document.removeChangeListener(state.listener);
         tracked.remove(document);
     }
@@ -144,7 +153,11 @@ public final class AutosaveService {
             try {
                 content = document.serialized();
             } catch (RuntimeException exception) {
-                reportFailure(id, name, exception);
+                if (failing.add(id)) {
+                    loggedFailures.incrementAndGet();
+                    LOGGER.warn("Could not serialize {} for its recovery copy", name, exception);
+                    serializationFailure.accept(document);
+                }
                 continue;
             }
             RecoveryMetadata metadata = new RecoveryMetadata(document.path(), name, clock.instant());

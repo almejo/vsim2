@@ -2,7 +2,10 @@ package cl.almejo.vsim.ui.session;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.io.CircuitReader;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -157,6 +160,32 @@ class AutosaveServiceTest {
         place(document, StandardComponentTypes.LED, 6, 2, Map.of());
         autosave.tick();
         assertThat(runWrites()).isZero();
+    }
+
+    /** APP-5: an instance whose definition is gone cannot be serialized, so it never gets a recovery copy. */
+    private OpenDocument unserializable() {
+        OpenDocument document = tracked();
+        document.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        place(document, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 4, -1, Map.of());
+        document.document().removeDefinition(ExampleDefinitions.INVERTER);
+        return document;
+    }
+
+    @Test
+    void aDocumentThatCannotBeSerializedIsReportedOncePerDocumentAndAgainWhenReopened() {
+        List<OpenDocument> reported = new ArrayList<>();
+        autosave.onSerializationFailure(reported::add);
+        OpenDocument document = unserializable();
+
+        autosave.tick();
+        autosave.tick();
+        assertThat(reported).as("once, not at every tick").containsExactly(document);
+        assertThat(runWrites()).as("no copy was written").isZero();
+
+        autosave.untrack(document);
+        autosave.track(document);
+        autosave.tick();
+        assertThat(reported).as("reopened: told again").containsExactly(document, document);
     }
 
     @Test

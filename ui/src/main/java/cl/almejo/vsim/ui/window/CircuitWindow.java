@@ -518,7 +518,14 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         return FileDialogs.chooseSave(this,
                 document.path().map(Path::getParent).orElseGet(application::initialDirectory),
                 document.suggestedFileName())
-                .map(target -> writeTo(document, target))
+                .map(target -> {
+                    if (application.documentBackedBy(target, document).isPresent()) {
+                        JOptionPane.showMessageDialog(this, Messages.format("saveAs.openElsewhere", target.getFileName()),
+                                Messages.text("saveAs.openElsewhere.title"), JOptionPane.WARNING_MESSAGE);
+                        return false;
+                    }
+                    return writeTo(document, target);
+                })
                 .orElse(false);
     }
 

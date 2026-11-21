@@ -59,6 +59,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Arreglado
 
 - Editor de memoria: con el contenido enlazado a un archivo (solo lectura), Ctrl+Z y Ctrl+Y ya no cambian la cuadrícula.
+- «Guardar como» sobre un archivo que está abierto en otra pestaña ya no lo pisa ni deja dos documentos con el mismo archivo: VSim lo rechaza con un aviso («ciérrala primero o elige otro nombre»).
+- Un circuito que no se puede serializar (por ejemplo, con una pieza cuya definición falta) ya no se queda sin copia de recuperación en silencio: VSim lo avisa una vez en la barra de estado, y de nuevo si lo vuelves a abrir.
 - Memorias: un archivo de memoria con una dirección fuera de rango (por ejemplo `@7FFFFFFFFFFFFFFF`, o palabras más allá de las 16777216 que cabe en una memoria) o una repetición de Logisim que pasa de ahí ya no revienta ni se come la memoria: se avisa con el archivo y la línea (en un archivo enlazado, en Problemas, y se vuelve a leer).
 - Un circuito con identificadores de elementos de 20 o más cifras (ya no cabían en un número) vuelve a compilar su red.
 - La UART integrada, al bajar su «Capacidad», ya no deja a medias un carácter UTF-8 (como el Teclado): el carácter cortado se descarta entero.

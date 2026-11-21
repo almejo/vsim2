@@ -264,6 +264,7 @@ public final class Application {
         this.sessionStore = new SessionStore(preferences);
         this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
         this.autosave = AutosaveService.create(recoveryStore);
+        autosave.onSerializationFailure(this::tellNoRecoveryCopy);
     }
 
     /**
@@ -724,6 +725,18 @@ public final class Application {
             closeDocument(document);
         }
         presentationWatcher.refresh(); // a closed circuit's step waiting for «Siguiente» is dropped
+    }
+
+    /** Another open document backed by {@code file}: «Guardar como» of {@code asking} onto it is refused. */
+    public Optional<OpenDocument> documentBackedBy(Path file, OpenDocument asking) {
+        return windows.otherBackedBy(file, asking);
+    }
+
+    /** A document that cannot be serialized has no recovery copy: tell the user, in its window, once. */
+    private void tellNoRecoveryCopy(OpenDocument document) {
+        windows.windowsOf(document).stream().findFirst().ifPresent(window -> window.activeView().statusBar()
+                .showNotice(Messages.format("autosave.noCopy", document.displayName()),
+                        Messages.text("autosave.noCopy.dismiss"), () -> { }));
     }
 
     private void closeDocument(OpenDocument document) {
