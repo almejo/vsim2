@@ -97,6 +97,41 @@ class LibraryImportTest {
         assertThat(fixture.library.find("inverter")).contains(renamed);
     }
 
+    private DefinitionBundle sameNameOtherId() {
+        var root = inverter.root();
+        return new DefinitionBundle(new cl.almejo.vsim.core.library.ComponentDefinition("other-id",
+                " " + root.name().toUpperCase(java.util.Locale.ROOT), root.description(), root.size(), root.pinout(),
+                root.body(), root.appearance(), root.revision()), List.of());
+    }
+
+    @Test
+    void aNameThatIsAlreadyThereWithAnotherIdAlsoAsksAndKeepBothRenames() throws Exception {
+        fixture.service.save(inverter);
+        Path file = outside("other.vsimcomponent.json", sameNameOtherId());
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.CANCEL);
+        importer.importFiles(fixture.view, List.of(file));
+        assertThat(fixture.dialogs.collisionNames).hasSize(1);
+        assertThat(fixture.library.find("other-id")).isEmpty();
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.KEEP_BOTH);
+        importer.importFiles(fixture.view, List.of(file));
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(fixture.library.find("other-id").orElseThrow().root().name()).isNotEqualToIgnoringCase(inverter.root().name());
+    }
+
+    @Test
+    void replacingByNameRemovesTheEntryThatHeldTheName() throws Exception {
+        fixture.service.save(inverter);
+        Path file = outside("other.vsimcomponent.json", sameNameOtherId());
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
+        importer.importFiles(fixture.view, List.of(file));
+
+        assertThat(fixture.library.find("inverter")).isEmpty();
+        assertThat(fixture.library.find("other-id")).isPresent();
+    }
+
     @Test
     void keepingBothAlsoMakesTheNameUnique() {
         ComponentLibrary library = new ComponentLibrary();

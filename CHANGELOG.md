@@ -63,6 +63,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Recuperación: la copia recuperada de un circuito se borraba solo si el documento ya estaba en la lista de autoguardado, y no lo estaba al reabrirla; quedaba en disco y se ofrecía otra vez en cada inicio (y podía pisar el archivo guardado). Ahora se borra cuando la copia nueva está en disco.
 - Inicio: un argumento de la línea de comandos que no es una ruta válida (por ejemplo con caracteres que Windows prohíbe) ya no detiene el arranque: se avisa como cualquier archivo que no se abrió.
 - Recuperación: si otro VSim tenía tomado un instante el candado de la carpeta de copias recién creada, esta instancia seguía sin candado toda su vida y otra podía ofrecer sus copias como huérfanas. Ahora reintenta unas veces antes de seguir.
+- Guardar a través de un enlace simbólico escribe el archivo al que apunta y el enlace sigue siendo un enlace (antes lo reemplazaba por un archivo común).
+- Guardar un archivo cuya carpeta no deja crear archivos nuevos, pero cuyo archivo sí se puede escribir, lo guarda igual (sin escritura atómica); si falla, el error nombra la carpeta y no un archivo temporal.
+- Importar un componente cuyo nombre ya usa otro de la librería (aunque tenga otro id, y sin distinguir mayúsculas) pregunta Reemplazar / Conservar ambos, como con el mismo id.
 
 ## Versión 0.8 — 2026-11-11
 

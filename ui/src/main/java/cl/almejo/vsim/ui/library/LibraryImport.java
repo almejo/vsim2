@@ -111,17 +111,36 @@ public final class LibraryImport {
     }
 
     /**
-     * {@code bundle} as it may enter the library: as is when its id is free, otherwise as the user chooses (replace,
-     * keep both under a new identity, or nothing).
+     * {@code bundle} as it may enter the library: as is when its id and its name are free, otherwise as the user
+     * chooses (replace, keep both under a new identity, or nothing). Replacing also removes an entry of another id
+     * that holds the same name, so names stay unique.
      */
     Optional<DefinitionBundle> resolveCollision(java.awt.Component parent, DefinitionBundle bundle) {
-        if (service.library().find(bundle.root().id()).isEmpty()) {
+        String id = bundle.root().id();
+        List<DefinitionBundle> sameName = service.library().entries().stream()
+                .filter(entry -> !entry.root().id().equals(id))
+                .filter(entry -> DefinitionNames.same(entry.root().name(), bundle.root().name()))
+                .toList();
+        if (service.library().find(id).isEmpty() && sameName.isEmpty()) {
             return Optional.of(bundle);
         }
         return switch (dialogs.askImportCollision(parent, bundle.root().name())) {
-            case REPLACE -> Optional.of(bundle);
+            case REPLACE -> removeNameHolders(parent, sameName) ? Optional.of(bundle) : Optional.empty();
             case KEEP_BOTH -> Optional.of(copyWithNewIdentity(bundle, service.library()));
             case CANCEL -> Optional.empty();
         };
+    }
+
+    private boolean removeNameHolders(java.awt.Component parent, List<DefinitionBundle> holders) {
+        for (DefinitionBundle holder : holders) {
+            try {
+                service.remove(holder.root().id());
+            } catch (IOException exception) {
+                LOGGER.warn("Could not remove {} from the component library", holder.root().id(), exception);
+                dialogs.showError(parent, service.writeError(holder.root().id(), exception));
+                return false;
+            }
+        }
+        return true;
     }
 }
