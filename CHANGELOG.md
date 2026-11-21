@@ -60,6 +60,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 - Editor de memoria: con el contenido enlazado a un archivo (solo lectura), Ctrl+Z y Ctrl+Y ya no cambian la cuadrícula.
 - Memorias: un archivo de memoria con una dirección fuera de rango (por ejemplo `@7FFFFFFFFFFFFFFF`, o palabras más allá de las 16777216 que cabe en una memoria) o una repetición de Logisim que pasa de ahí ya no revienta ni se come la memoria: se avisa con el archivo y la línea (en un archivo enlazado, en Problemas, y se vuelve a leer).
+- El biestable D con la entrada D en conflicto (dos fuentes en cortocircuito) ya no guarda un bit limpio: Q y Q̅ quedan en Z, como en el Registro y el Contador.
 - Un clic derecho a mitad de un arrastre ya no cambia la selección ni abre el menú: cancela el gesto, como Esc, y soltar el botón izquierdo después no mueve nada.
 - Esc con el botón apretado sobre un cable (cables de corrido) cancela el gesto: arrastrar después ya no dibuja un cable.
 - Recuperación: la copia recuperada de un circuito se borraba solo si el documento ya estaba en la lista de autoguardado, y no lo estaba al reabrirla; quedaba en disco y se ofrecía otra vez en cada inicio (y podía pisar el archivo guardado). Ahora se borra cuando la copia nueva está en disco.

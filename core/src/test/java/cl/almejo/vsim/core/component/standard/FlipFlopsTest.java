@@ -66,6 +66,41 @@ class FlipFlopsTest {
     }
 
     @Test
+    void aDFlipFlopWhoseDIsInConflictOrZStoresUndefinedOnBothOutputs() {
+        for (Value undefinedData : List.of(Value.ONE.withConflict(), Value.HIGH_IMPEDANCE)) {
+            Value[] inputs = {undefinedData, Value.HIGH_IMPEDANCE, Value.ONE, Value.HIGH_IMPEDANCE};
+            Map<Integer, Value> driven = new java.util.TreeMap<>();
+            cl.almejo.vsim.core.component.BehaviorContext context = new cl.almejo.vsim.core.component.BehaviorContext() {
+                @Override
+                public Value input(int pinIndex) {
+                    return inputs[pinIndex];
+                }
+
+                @Override
+                public void drive(int pinIndex, Value value, long delay) {
+                    driven.put(pinIndex, value);
+                }
+
+                @Override
+                public void schedule(long delay, Runnable action) {
+                }
+
+                @Override
+                public long now() {
+                    return 0;
+                }
+            };
+            cl.almejo.vsim.core.component.Behavior behavior = registry.require(StandardComponentTypes.FLIP_FLOP_DATA)
+                    .createBehavior(Map.of("showInverted", true));
+            behavior.initialize(context);
+            inputs[DATA_CLOCK] = Value.ZERO;
+            behavior.inputChanged(context, DATA_CLOCK);
+            assertThat(driven.get(DATA_OUTPUT)).as("Q for %s", undefinedData).isEqualTo(Value.HIGH_IMPEDANCE);
+            assertThat(driven.get(DATA_NOT_OUTPUT)).as("QN for %s", undefinedData).isEqualTo(Value.HIGH_IMPEDANCE);
+        }
+    }
+
+    @Test
     void anOldDFlipFlopFileOpensWithItsPinsAndProbesWhereTheyWere() throws Exception {
         String formatFour = """
                 {"format": "vsim2", "formatVersion": 4, "kind": "circuit", "name": "old",
