@@ -34,8 +34,12 @@ class SimulationThreadTest {
     }
 
     private FlatCircuit inverterLoop() {
+        return inverterLoop(1);
+    }
+
+    private FlatCircuit inverterLoop(int delay) {
         ComponentType inverter = registry.require(TestComponentTypes.INVERTER);
-        return new FlatCircuit(List.of(new FlatComponent("i", inverter, Map.of("delay", 1))),
+        return new FlatCircuit(List.of(new FlatComponent("i", inverter, Map.of("delay", delay))),
                 List.of(new FlatNet("loop", List.of(new FlatPinRef("i", 0), new FlatPinRef("i", 1)), 1, false)));
     }
 
@@ -394,7 +398,9 @@ class SimulationThreadTest {
         AtomicLong steppingNanos = new AtomicLong();
         try (SimulationThread unlimited = new SimulationThread(new SimulationEngine(),
                 () -> steppingNanos.addAndGet(MILLISECOND))) {
-            unlimited.update(singleSource());
+            // A slow oscillating loop: at «Máxima» an idle circuit's time does not move (SimulatedTimeTest), and the
+            // fake clock lets the slices grow to 10^9 units, so a fast loop would run 10^9 events per slice.
+            unlimited.update(inverterLoop(1_000_000));
             unlimited.setSpeed(Double.POSITIVE_INFINITY);
             unlimited.resume();
             unlimited.tick();

@@ -935,7 +935,9 @@ public final class SimulationThread implements AutoCloseable {
      * Advances the engine by the units owed for {@code elapsedNanos} at the current speed (all it can at an unlimited
      * one), in slices, until they are done or the tick's real-time budget is spent. What the engine could not run in
      * time is dropped rather than owed: the simulation then goes as fast as the engine can, and every tick stays
-     * short enough to publish a frame and serve the requests.
+     * short enough to publish a frame and serve the requests. At an unlimited speed the time jumps from event to event
+     * and does not move while nothing is pending ({@link SimulationEngine#advanceThroughEventsUntilPause}); a finite
+     * one keeps real time, idle or not.
      */
     private void advanceFor(long elapsedNanos) {
         boolean unlimited = Double.isInfinite(speed);
@@ -948,14 +950,17 @@ public final class SimulationThread implements AutoCloseable {
         long deadline = sliceStart + TICK_BUDGET_NANOS;
         long advanced = 0;
         saturated = false;
-        while (unlimited || pendingUnits >= 1) {
+        while (unlimited ? engine.nextEventTime().isPresent() : pendingUnits >= 1) {
             // A slice is sized for SLICE_TARGET_NANOS; the last one, for the time left before the deadline.
             long units = Math.max(1, Math.min(sliceUnits, sliceUnits * (deadline - sliceStart) / SLICE_TARGET_NANOS));
             if (!unlimited) {
                 units = Math.min((long) pendingUnits, units);
             }
-            boolean pausedByPart = engine.advanceUntilPause(units);
-            advanced += units;
+            long before = engine.now();
+            boolean pausedByPart = unlimited
+                    ? engine.advanceThroughEventsUntilPause(units)
+                    : engine.advanceUntilPause(units);
+            advanced += engine.now() - before;
             if (!unlimited) {
                 pendingUnits -= units;
             }
@@ -967,7 +972,7 @@ public final class SimulationThread implements AutoCloseable {
                 break;
             }
             if (sliceEnd >= deadline) {
-                saturated = unlimited || pendingUnits >= 1;
+                saturated = unlimited ? engine.nextEventTime().isPresent() : pendingUnits >= 1;
                 break;
             }
         }

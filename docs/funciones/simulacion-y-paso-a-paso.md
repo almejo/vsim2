@@ -5,6 +5,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 ## Velocidad guardada en el archivo
 
 - El archivo `.vsim` guarda la velocidad de simulación del circuito (la del selector de la barra de herramientas: de ×0,1 a ×1000 y «Máxima»), y al abrirlo esa velocidad se aplica de inmediato, sin preguntar ni marcar el circuito como modificado. Sirve para circuitos que necesitan, por ejemplo, ×1000 para verse andar. Elegir otra velocidad es una edición más: marca el circuito como modificado (así se puede guardar aunque no hayas cambiado nada más) y se deshace con Ctrl+Z, que devuelve la velocidad anterior en la simulación y en el selector; elegir la misma velocidad no hace nada. Desde la pestaña de un componente, la velocidad es la del circuito que lo contiene. A ×1 (la velocidad de siempre) el archivo no lleva nada, y un archivo sin velocidad guardada abre a ×1. Si el valor guardado no es una de las velocidades del selector, el circuito abre a ×1 y el selector lo muestra. Una VSim anterior ignora la velocidad y abre a ×1.
+- A «Máxima» el tiempo simulado salta de un evento al siguiente (el próximo cambio de un reloj o de una pieza), como en Logisim, y no avanza mientras no queda nada pendiente: un circuito quieto conserva su tiempo. Las demás velocidades siguen el reloj de verdad, haya cambios o no. El tiempo nunca pasa del mayor que VSim puede contar: ahí se detiene (o la simulación se pausa con su falla si una pieza quiere programar algo más allá) en vez de volverse negativo.
 
 ## Cortocircuitos
 

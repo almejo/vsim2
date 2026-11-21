@@ -105,6 +105,11 @@ final class Scheduler {
         if (delay < 0) {
             throw new IllegalArgumentException("negative delay: " + delay);
         }
+        if (delay > Long.MAX_VALUE - now) {
+            // Refused rather than saturated: an event kept at the largest time would run there again and again.
+            throw new IllegalStateException("an event at t = " + now + " + " + delay
+                    + " would pass the largest time the simulation can reach (" + Long.MAX_VALUE + ")");
+        }
         long time = now + delay;
         momentAt(time).append(event);
         pendingEvents++;
@@ -150,6 +155,20 @@ final class Scheduler {
      * @return true when it reached {@code until}, false when a halt stopped it
      */
     boolean runUntilHalted(long until) {
+        if (!runEventsUntilHalted(until)) {
+            return false;
+        }
+        now = until;
+        return true;
+    }
+
+    /**
+     * {@link #runUntilHalted(long)} that leaves now at the time of the last event it ran instead of moving it on to
+     * {@code until}: what «Máxima» uses, whose time jumps from event to event and stays put when nothing is pending.
+     *
+     * @return true when it ran every event up to {@code until}, false when a halt stopped it
+     */
+    boolean runEventsUntilHalted(long until) {
         if (until < now) {
             throw new IllegalArgumentException("cannot go back in time from " + now + " to " + until);
         }
@@ -159,11 +178,15 @@ final class Scheduler {
             }
             runNext();
         }
-        if (haltRequested) {
-            return false;
-        }
-        now = until;
-        return true;
+        return !haltRequested;
+    }
+
+    /**
+     * {@code time + units}, or {@code Long.MAX_VALUE} when that would pass it: the simulation's time stops at the
+     * largest one instead of wrapping to a negative time.
+     */
+    static long later(long time, long units) {
+        return units > Long.MAX_VALUE - time ? Long.MAX_VALUE : time + units;
     }
 
     /** From now on {@link #runUntilHalted} stops after the current time, until {@link #clearHalt()}. */

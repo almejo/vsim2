@@ -320,8 +320,9 @@ public final class SimulationEngine {
         return scheduler.nextEventTime();
     }
 
+    /** Runs {@code duration} units on; the time stops at {@code Long.MAX_VALUE} rather than wrap. */
     public void advance(long duration) {
-        runUntil(now() + duration);
+        runUntil(Scheduler.later(now(), duration));
     }
 
     /**
@@ -332,7 +333,23 @@ public final class SimulationEngine {
      * @return true when a pause request stopped it before {@code duration}
      */
     public boolean advanceUntilPause(long duration) {
-        return !scheduler.runUntilHalted(now() + duration);
+        return !scheduler.runUntilHalted(Scheduler.later(now(), duration));
+    }
+
+    /**
+     * {@link #advanceUntilPause} at «Máxima» (SIM-2): the time jumps to the next pending event, runs the events of the
+     * {@code duration} units that start there and stays at the last one run; with nothing pending it does not move,
+     * like Logisim's time, which only jumps to events.
+     *
+     * @return true when a pause request stopped it
+     */
+    public boolean advanceThroughEventsUntilPause(long duration) {
+        if (duration < 1) {
+            throw new IllegalArgumentException("the duration must be positive: " + duration);
+        }
+        OptionalLong next = nextEventTime();
+        long until = next.isEmpty() ? now() : Scheduler.later(Math.max(now(), next.getAsLong()), duration - 1);
+        return !scheduler.runEventsUntilHalted(until);
     }
 
     /**
