@@ -28,6 +28,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Arreglado
 
 - Formas de onda con la interfaz grande: el alto de las filas, el de la regla, el ancho de la columna de nombres y el texto de los buses crecen con el «Tamaño de la interfaz» en vez de quedar fijos. Sin canales, el panel dice «Clic derecho en un cable o pin ▸ Ver en formas de onda», y al tener el foco el trazado dibuja el anillo de foco.
+- Errores al leer un archivo en el idioma de la interfaz: un archivo vacío en la carpeta de «Mis componentes» (o al abrir) dice «el archivo está vacío», un JSON que no es de VSim dice «no es un archivo de VSim», y un dibujo dañado ya no muestra la clave interna. El texto técnico de Java va aparte, en su propia línea «Detalle técnico: …».
 
 ## Versión 0.8 — 2026-11-11
 

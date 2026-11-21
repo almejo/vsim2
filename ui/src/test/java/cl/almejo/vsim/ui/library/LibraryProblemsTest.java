@@ -43,13 +43,24 @@ class LibraryProblemsTest {
         Path file = Path.of("library", "roto.vsimcomponent.json");
         assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.INVALID,
                 Optional.of(CircuitFormatException.Reason.INVALID_JSON), "line 1")))
-                .isEqualTo("roto.vsimcomponent.json no es un componente válido: El archivo no es JSON válido: line 1");
+                .isEqualTo("roto.vsimcomponent.json no es un componente válido: el archivo no es JSON válido.\n"
+                        + "Detalle técnico: line 1");
+        assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.INVALID,
+                Optional.of(CircuitFormatException.Reason.EMPTY_FILE), "")))
+                .isEqualTo("roto.vsimcomponent.json no es un componente válido: el archivo está vacío.");
+        assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.INVALID,
+                Optional.of(CircuitFormatException.Reason.NOT_VSIM_FILE), "not a VSim circuit")))
+                .isEqualTo("roto.vsimcomponent.json no es un componente válido: este archivo no es de VSim.");
+        assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.INVALID,
+                Optional.of(CircuitFormatException.Reason.INVALID_SYMBOL_PATH), "missing or excessive path data")))
+                .doesNotContain("appearance.path")
+                .contains("Detalle técnico: missing or excessive path data");
         assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.DUPLICATE_ID,
                 Optional.empty(), "inverter")))
                 .isEqualTo("roto.vsimcomponent.json repite el id «inverter» de otro archivo");
         assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.UNREADABLE,
                 Optional.empty(), "Is a directory")))
-                .isEqualTo("No se pudo leer roto.vsimcomponent.json: Is a directory");
+                .isEqualTo("No se pudo leer roto.vsimcomponent.json.\nDetalle técnico: Is a directory");
         Path gone = Path.of("home", "user", "library");
         assertThat(LibraryProblemText.describe(LibraryProblem.directoryGone(gone)))
                 .isEqualTo("La carpeta de la librería " + gone + " ya no existe: VSim volverá a seguir sus cambios"

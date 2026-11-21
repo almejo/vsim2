@@ -66,11 +66,11 @@ class CircuitFormatTest {
     }
 
     @Test
-    void nullJsonStringFailsWithInvalidJson() {
+    void nullJsonStringFailsWithAnEmptyFile() {
         assertThatThrownBy(() -> format.read((String) null))
                 .isInstanceOf(CircuitFormatException.class)
                 .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
-                        .isEqualTo(CircuitFormatException.Reason.INVALID_JSON));
+                        .isEqualTo(CircuitFormatException.Reason.EMPTY_FILE));
     }
 
     static Stream<org.junit.jupiter.params.provider.Arguments> brokenFiles() {

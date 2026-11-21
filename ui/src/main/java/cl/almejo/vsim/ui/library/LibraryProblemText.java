@@ -13,6 +13,11 @@ public final class LibraryProblemText {
     private LibraryProblemText() {
     }
 
+    /** The reason follows a colon, so it starts in lower case. */
+    private static String lowerFirst(String text) {
+        return text.isEmpty() ? text : text.substring(0, 1).toLowerCase(Messages.locale()) + text.substring(1);
+    }
+
     public static String describe(LibraryProblem problem) {
         return describe(problem, id -> Optional.empty());
     }
@@ -27,7 +32,7 @@ public final class LibraryProblemText {
         String text = switch (problem.kind()) {
             case UNREADABLE -> Messages.format("library.problem.UNREADABLE", file, problem.detail());
             case INVALID -> Messages.format("library.problem.INVALID", file, problem.reason()
-                    .map(reason -> Messages.readError(reason, problem.detail()))
+                    .map(reason -> lowerFirst(Messages.readError(reason, problem.detail())))
                     .orElse(problem.detail()));
             case DUPLICATE_ID -> Messages.format("library.problem.DUPLICATE_ID", file, problem.detail());
             case DIRECTORY_GONE -> Messages.format("library.problem.directoryGoneWaiting", problem.file());
