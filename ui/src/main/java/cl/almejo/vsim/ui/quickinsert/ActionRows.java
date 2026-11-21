@@ -146,7 +146,7 @@ final class ActionRows {
         return entries.stream().filter(Action.class::isInstance).map(Action.class::cast).toList();
     }
 
-    /** The menu accelerator, or for a canvas key (whose item shows none) the key the user gave it. */
+    /** The menu accelerator, or for a canvas key (shown on its item but not bound) the key the user gave it. */
     private Optional<KeyStroke> shortcutOf(AbstractButton button) {
         if (button instanceof JMenuItem item && item.getAccelerator() != null) {
             return Optional.of(item.getAccelerator());
@@ -156,7 +156,12 @@ final class ActionRows {
         return canvasId == null ? Optional.empty() : bindings.strokeFor(canvasId);
     }
 
+    /** The action's own reason (I15), else its tooltip, else «No disponible ahora». */
     private static String reasonOf(Action action) {
+        Optional<String> reason = Actions.disabledReason(action);
+        if (reason.isPresent()) {
+            return reason.get();
+        }
         Object description = action == null ? null : action.getValue(Action.SHORT_DESCRIPTION);
         return description instanceof String text && !text.isBlank() ? text
                 : Messages.text("commandPalette.notAvailable");

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.actions.LabelActions;
 import cl.almejo.vsim.ui.actions.LabelMenuContributor;
+import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -35,7 +36,7 @@ public final class LabelFeatures {
         LabelActions actions = new LabelActions(view.openDocument(), view.selection(), view.inlineEditor());
         KeyStroke editKey = KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0);
         Runnable paneBindings = view.forEachPane(pane -> bindEditKey(pane, editKey, actions));
-        view.menu(MenuId.EDIT).add(actions.editLabel());
+        view.menu(MenuId.EDIT).add(new ShownAcceleratorItem(actions.editLabel())); // F2 shown, the canvas fires it
         view.addContextMenuContributor(new LabelMenuContributor(actions));
         PropertiesPanel properties = new PropertiesPanel(view.openDocument(), view.selection(),
                 view.selectionMoves(), () -> view.canvas().scheme(), view.services().painters());

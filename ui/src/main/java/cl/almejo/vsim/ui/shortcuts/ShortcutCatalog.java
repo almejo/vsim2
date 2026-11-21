@@ -209,12 +209,15 @@ public final class ShortcutCatalog {
         entries.add(new ShortcutEntry(id, nameKey, MenuId.EDIT, Scope.CANVAS, Optional.of(defaultStroke)));
     }
 
-    /** Canvas keys of the Ver menu (Mayús+1, Mayús+2, the lens): the menu items show no accelerator. */
+    /**
+     * Canvas keys of the Ver menu (Mayús+1, Mayús+2, the lens): shown on the menu items, never bound (the lens's check
+     * item shows none yet).
+     */
     private static void canvasView(List<ShortcutEntry> entries, String id, String nameKey, KeyStroke defaultStroke) {
         canvasKey(entries, id, nameKey, MenuId.VIEW, defaultStroke);
     }
 
-    /** A canvas key listed under {@code group} (Z under Herramientas): its menu item shows no accelerator. */
+    /** A canvas key listed under {@code group} (Z under Herramientas): its menu item shows the key, never binds it. */
     private static void canvasKey(List<ShortcutEntry> entries, String id, String nameKey, MenuId group,
                                   KeyStroke defaultStroke) {
         entries.add(new ShortcutEntry(id, nameKey, group, Scope.CANVAS, Optional.of(defaultStroke)));

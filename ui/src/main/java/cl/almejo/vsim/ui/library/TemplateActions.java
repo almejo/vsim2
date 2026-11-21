@@ -92,6 +92,9 @@ public final class TemplateActions {
         this.updateComponent = Actions.of(Messages.text("action.updateComponent"), this::updateFromSelection);
         Icons.install(createComponent, TemplateIcons.CREATE_COMPONENT);
         Icons.install(updateComponent, TemplateIcons.UPDATE_COMPONENT);
+        Actions.disabledBecause(createComponent, () -> Messages.text("reason.needsSelection"));
+        Actions.disabledBecause(updateComponent, () -> Messages.text(openDocument.document().definitions().isEmpty()
+                ? "reason.noOwnComponents" : "reason.selectTheNewVersion"));
         canvas.get().selection().addListener(refresher); // one selection for every pane of the window
         openDocument.addChangeListener(refresher);
         refresh();

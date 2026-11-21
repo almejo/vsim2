@@ -79,6 +79,9 @@ public final class SelectionActions {
                 this::duplicateSelection);
         selectAll = Actions.of(Messages.text("action.selectAll"), KeyStroke.getKeyStroke(KeyEvent.VK_A, menuMask),
                 () -> selection.selectAll(openDocument.document()));
+        for (Action onSelection : List.of(cut, copy, duplicate)) {
+            Actions.disabledBecause(onSelection, () -> Messages.text("reason.needsSelection"));
+        }
         selection.addListener(this::refresh);
         refresh();
     }

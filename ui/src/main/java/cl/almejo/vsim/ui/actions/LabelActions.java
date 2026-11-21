@@ -75,7 +75,8 @@ public final class LabelActions {
         this.tunnelNames = new TunnelNameEditor(openDocument, editor);
         editLabel = Actions.of(Messages.text("action.label"),
                 () -> singleLabelled().ifPresent(LabelActions.this::editNameOrLabel));
-        editLabel.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.label"));
+        AcceleratorTooltip.install(editLabel, () -> Messages.text("tooltip.label"));
+        Actions.disabledBecause(editLabel, () -> Messages.text("reason.labelOne"));
         selection.addListener(this::refresh);
         refresh();
     }

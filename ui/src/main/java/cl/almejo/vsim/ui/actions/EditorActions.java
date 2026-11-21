@@ -155,12 +155,12 @@ public final class EditorActions {
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
                 () -> steps.redo());
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
-        delete.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.delete"));
         rotateClockwise = Actions.of(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
-        rotateClockwise.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.rotateClockwise"));
         rotateCounterClockwise = Actions.of(Messages.text("action.rotateCounterClockwise"), null,
                 () -> rotateSelection(false));
-        rotateCounterClockwise.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.rotateCounterClockwise"));
+        explainSelectionAction(delete, "tooltip.delete");
+        explainSelectionAction(rotateClockwise, "tooltip.rotateClockwise");
+        explainSelectionAction(rotateCounterClockwise, "tooltip.rotateCounterClockwise");
         addMoveActions("edit.moveLeft", "action.moveLeft", -1, 0);
         addMoveActions("edit.moveRight", "action.moveRight", 1, 0);
         addMoveActions("edit.moveUp", "action.moveUp", 0, -1);
@@ -168,6 +168,8 @@ public final class EditorActions {
         addFarMoveActions();
         configure = Actions.of(Messages.text("action.configure"), null,
                 () -> singleConfigurable().ifPresent(this::configure));
+        Actions.disabledBecause(configure, () -> Messages.text(selection.isEmpty() ? "reason.needsSelection"
+                : "reason.configureOne"));
         selectTool = Actions.of(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
         panTool = Actions.of(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
         zoomTool = Actions.of(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
@@ -179,9 +181,10 @@ public final class EditorActions {
         zoomReset = Actions.of(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0),
                 () -> activePane.get().resetZoom());
         zoomToFit = Actions.of(Messages.text("action.zoomToFit"), null, this::zoomToCircuit);
-        zoomToFit.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToFit"));
+        AcceleratorTooltip.install(zoomToFit, () -> Messages.text("tooltip.zoomToFit"));
         zoomToSelection = Actions.of(Messages.text("action.zoomToSelection"), null, this::zoomToSelected);
-        zoomToSelection.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToSelection"));
+        AcceleratorTooltip.install(zoomToSelection, () -> Messages.text("tooltip.zoomToSelection"));
+        Actions.disabledBecause(zoomToSelection, () -> Messages.text("reason.needsSelection"));
         centerView = Actions.of(Messages.text("action.centerView"), null, () -> activePane.get().centerCircuit());
         start = Actions.of(Messages.text("action.start"), null, openDocument::resume);
         pause = Actions.of(Messages.text("action.pause"), null, openDocument::pause);
@@ -350,9 +353,10 @@ public final class EditorActions {
         edit.add(undo);
         edit.add(redo);
         edit.addSeparator();
-        edit.add(delete);
-        edit.add(rotateClockwise);
-        edit.add(rotateCounterClockwise);
+        // the canvas keys (Supr, R, Mayús+R) shown, never bound: the canvas binding is the one that fires (I1)
+        edit.add(new ShownAcceleratorItem(delete));
+        edit.add(new ShownAcceleratorItem(rotateClockwise));
+        edit.add(new ShownAcceleratorItem(rotateCounterClockwise));
         edit.add(configure);
         // Ver, Herramientas and Lógica are laid out by their slots (MenuSlot): EditorView and the extensions fill them
         JMenu view = tagged(new JMenu(Messages.text("menu.view")), MenuId.VIEW);
@@ -501,6 +505,16 @@ public final class EditorActions {
         start.setEnabled(!running);
         pause.setEnabled(running);
         step.setEnabled(!running);
+    }
+
+    /**
+     * The tooltip of an action on the selection: its text with its canvas key, and while disabled why (nothing is
+     * selected, or a wire is being drawn, when the keys on the selection do nothing).
+     */
+    private void explainSelectionAction(Action action, String tooltipKey) {
+        AcceleratorTooltip.install(action, () -> Messages.text(tooltipKey));
+        Actions.disabledBecause(action, () -> Messages.text(drawsBetweenClicks() ? "reason.finishTheWire"
+                : "reason.needsSelection"));
     }
 
     private void deleteSelection() {

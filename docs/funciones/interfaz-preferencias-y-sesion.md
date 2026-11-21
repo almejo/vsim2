@@ -147,6 +147,15 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   (MCP)…» está al final de Ventana.
 - Los atajos son los mismos de antes, también los que hayas asignado tú en Atajos de teclado, que muestra cada acción
   bajo su menú nuevo (igual que «Buscar una acción…», Ctrl+K).
+- Las teclas del lienzo también se ven en los menús, a la derecha del ítem como las demás: Borrar (Supr), Rotar ↻ (R),
+  Rotar ↺ (Mayús+R), Etiqueta… (F2), Siguiente problema (F8), Problema anterior (Mayús+F8), Ver todo el circuito
+  (Mayús+1), Zoom a la selección (Mayús+2) y Herramientas ▸ Zoom (Z). Si cambias una en Atajos de teclado, el menú y la
+  ayuda del ítem muestran la nueva. Siguen siendo teclas del lienzo: actúan con el foco en el circuito y no al escribir
+  en un campo de texto, y una pulsación hace la acción una sola vez.
+- Un ítem apagado dice por qué en su ayuda (al pasar el mouse) y en «Buscar una acción…»: por ejemplo «Borrar la
+  selección (Supr) — Selecciona algo primero». Lo dicen Borrar, Rotar, Configurar…, Etiqueta…, Cortar, Copiar,
+  Duplicar, Siguiente y Anterior problema, Zoom a la selección, Crear componente desde selección…, Actualizar
+  componente…, Quitar división y Siguiente panel.
 
 ## Íconos, barra de herramientas y cursores
 

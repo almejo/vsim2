@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
+import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.actions.ToolChoice;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.Listeners;
@@ -507,15 +508,17 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /** Ver ▸ Zoom and the three tools of Herramientas this view owns (the others come from extensions). */
     private void addZoomAndToolItems() {
-        for (Action step : List.of(actions.zoomIn(), actions.zoomOut(), actions.zoomReset(), actions.zoomToFit(),
-                actions.zoomToSelection())) {
+        for (Action step : List.of(actions.zoomIn(), actions.zoomOut(), actions.zoomReset())) {
             MenuSlots.add(this, MenuSlot.ZOOM_STEPS, new JMenuItem(step));
         }
+        // Mayús+1 and Mayús+2 are canvas keys: shown, never bound (I1)
+        MenuSlots.add(this, MenuSlot.ZOOM_STEPS, new ShownAcceleratorItem(actions.zoomToFit()));
+        MenuSlots.add(this, MenuSlot.ZOOM_STEPS, new ShownAcceleratorItem(actions.zoomToSelection()));
         MenuSlots.add(this, MenuSlot.ZOOM_FIELD, new JMenuItem(zoomControl.typeZoomAction()));
         MenuSlots.add(this, MenuSlot.CENTER_VIEW, new JMenuItem(actions.centerView()));
         MenuSlots.add(this, MenuSlot.SELECT_TOOL, new JMenuItem(actions.selectTool()));
         MenuSlots.add(this, MenuSlot.PAN_TOOL, new JMenuItem(actions.panTool()));
-        MenuSlots.add(this, MenuSlot.ZOOM_TOOL, new JMenuItem(actions.zoomTool()));
+        MenuSlots.add(this, MenuSlot.ZOOM_TOOL, new ShownAcceleratorItem(actions.zoomTool()));
     }
 
     private void createInspectorToggles() {

@@ -1,7 +1,10 @@
 package cl.almejo.vsim.ui.actions;
 
 import java.awt.event.ActionEvent;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.KeyStroke;
@@ -28,7 +31,40 @@ public final class Actions {
      */
     public static final String SEARCH_TERMS = "vsim.searchTerms";
 
+    /**
+     * The key of the {@link KeyStroke} a canvas key gives its action (Supr for «Borrar», R for «Rotar ↻»): shown on its
+     * menu items ({@link ShownAcceleratorItem}) and in its tooltip ({@link AcceleratorTooltip}), never bound as a menu
+     * accelerator, so it never fires while the user types in a text field. {@code ShortcutsExtension} keeps it in step
+     * with Preferencias ▸ Atajos.
+     */
+    public static final String SHOWN_ACCELERATOR = "vsim.shownAccelerator";
+
+    /**
+     * The key of a {@code Supplier<String>} an action may carry: why it is disabled right now, in the user's language
+     * («Selecciona algo primero»). Its tooltip ends with it while disabled, and the command palette says it (I15).
+     */
+    public static final String DISABLED_REASON = "vsim.disabledReason";
+
     private Actions() {
+    }
+
+    /**
+     * Gives {@code action} the reason it is disabled, asked each time it turns off: its tooltip says «text (key) —
+     * reason» while disabled. An action without a tooltip of its own shows only the reason, and nothing while enabled.
+     */
+    public static void disabledBecause(Action action, Supplier<String> reason) {
+        Objects.requireNonNull(reason, "reason");
+        action.putValue(DISABLED_REASON, reason);
+        AcceleratorTooltip.followReason(action);
+    }
+
+    /** Why {@code action} is disabled, when it is and it says; empty while enabled or without a reason. */
+    public static Optional<String> disabledReason(Action action) {
+        if (action == null || action.isEnabled()
+                || !(action.getValue(DISABLED_REASON) instanceof Supplier<?> reason)) {
+            return Optional.empty();
+        }
+        return reason.get() instanceof String text && !text.isBlank() ? Optional.of(text) : Optional.empty();
     }
 
     /** A named action ({@link Action#NAME} is {@code name}, already translated). */
