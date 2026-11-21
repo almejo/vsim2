@@ -7,13 +7,13 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
+import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.sticky.StickyNoteLayout;
 import cl.almejo.vsim.ui.sticky.StickyNotePainter;
 import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
 import cl.almejo.vsim.ui.sticky.StickyPart;
 
-import java.awt.BasicStroke;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -37,7 +37,6 @@ final class MachineNotePainting {
     /** The resize corner, on screen, at least: it stays easy to grab when zoomed out. */
     static final double RESIZE_CORNER_PIXELS = StickyNoteLayout.RESIZE_SIZE;
     private static final float SELECTION_WIDTH = 2f;
-    private static final float[] SELECTION_DASH = {6f, 4f};
     private static final double SELECTION_MARGIN = 3;
     private static final PaintPolicy POLICY = PaintPolicy.CANVAS;
 
@@ -104,14 +103,12 @@ final class MachineNotePainting {
                 unitsOf(note.height()), note.color(), new StickyText(note.text()), note.folded());
     }
 
-    /** The dashed ring of a selected note, a little outside its paper, in {@code MachineColors.selection}. */
-    static void paintSelection(Graphics2D graphics, MachineNote note, ColorScheme scheme) {
+    /** The marching ants of a selected note, a little outside its paper, in {@code MachineColors.selection}. */
+    static void paintSelection(Graphics2D graphics, MachineNote note, ColorScheme scheme, double antsPhase) {
         Rectangle2D paper = paperOf(note);
-        graphics.setColor(MachineColors.selection(scheme));
-        graphics.setStroke(new BasicStroke(SELECTION_WIDTH, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f,
-                SELECTION_DASH, 0f));
-        graphics.draw(new Rectangle2D.Double(paper.getX() - SELECTION_MARGIN, paper.getY() - SELECTION_MARGIN,
-                paper.getWidth() + 2 * SELECTION_MARGIN, paper.getHeight() + 2 * SELECTION_MARGIN));
+        MarchingAnts.draw(graphics, new Rectangle2D.Double(paper.getX() - SELECTION_MARGIN,
+                paper.getY() - SELECTION_MARGIN, paper.getWidth() + 2 * SELECTION_MARGIN,
+                paper.getHeight() + 2 * SELECTION_MARGIN), MachineColors.selection(scheme), SELECTION_WIDTH, antsPhase);
     }
 
     /** The topmost note of {@code machine} under {@code point} (the last painted wins); empty over none. */
