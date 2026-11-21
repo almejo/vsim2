@@ -25,7 +25,7 @@ Cómo se crean y se guardan los componentes propios está en
 - **Volver a entrar**: si el grupo ya tiene una pestaña de ese componente, entrar de nuevo la trae al frente en vez de
   abrir otra. Esa pestaña pasa a mostrar los valores de la pieza por la que entraste. Si el grupo está plegado, entrar
   lo despliega.
-- **Varias pestañas del mismo componente**: Ventana ▸ «Nueva pestaña del mismo circuito», usada en una pestaña de
+- **Varias pestañas del mismo componente**: Ventana ▸ «Nueva vista de «X»», usada en una pestaña de
   componente, abre otra pestaña del mismo componente. Las dos se llaman «Ram (1)» y «Ram (2)», y cada una puede
   mostrar los valores de una pieza distinta. Al entrar de nuevo se usa la última que estuvo activa, y las otras siguen
   mostrando su pieza.
