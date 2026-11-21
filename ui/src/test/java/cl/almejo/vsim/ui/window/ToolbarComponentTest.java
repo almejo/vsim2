@@ -91,7 +91,9 @@ class ToolbarComponentTest {
             java.awt.Rectangle bounds = child.getBounds();
             assertThat(bounds.x + bounds.width).as("%s inside the bar", child).isLessThanOrEqualTo(width);
             if (previous != null) {
-                assertThat(bounds.y > previous.y || (bounds.y == previous.y && bounds.x >= previous.x))
+                // Buttons of different heights share a row centred on one line, so a row is an overlap in y.
+                boolean sameRow = bounds.y < previous.y + previous.height && previous.y < bounds.y + bounds.height;
+                assertThat(sameRow ? bounds.x >= previous.x : bounds.y > previous.y)
                         .as("%s keeps the order", child).isTrue();
             }
             previous = bounds;
