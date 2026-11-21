@@ -49,7 +49,7 @@ class ProblemTextTest {
                 ConnectivityProblem.Cause.UNSUPPORTED_DRAWING);
 
         assertThat(ProblemText.describe(problem, document, registry)).isEqualTo(
-                "El dibujo de “Dibujo” usa un trazo que VSim no soporta; se muestra la caja por omisión");
+                "El dibujo de «Dibujo» usa un trazo que VSim no puede leer; se muestra la caja por omisión");
         Messages.initialize(Locale.ENGLISH);
         assertThat(ProblemText.describe(problem, document, registry)).doesNotContain("problem.unsupportedDrawing")
                 .contains("Dibujo");

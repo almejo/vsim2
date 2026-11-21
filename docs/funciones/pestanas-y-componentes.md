@@ -159,9 +159,10 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   Problemas ([IA (MCP)](ia-mcp.md#qué-puede-hacer-la-ia)). Cuando un archivo enlazado a una memoria cambia afuera,
   cada circuito abierto que lo enlaza queda modificado: guarda una copia del contenido y la pone al día.
 - Un componente cuyo dibujo usa un trazo que VSim no puede leer (un archivo escrito a mano o por otro programa) se abre
-  igual, con la caja por omisión. En un circuito, Problemas dice «El dibujo de “X” usa un trazo que VSim no soporta; se
-  muestra la caja por omisión» (en la pieza que lo usa; si ninguna pieza lo usa, el aviso queda sin pieza a la que ir); en un archivo de «Mis componentes», lo dice la lista de problemas
-  de la librería, y el archivo no se toca al abrirlo. Al guardar el circuito, el componente se escribe sin ese dibujo (el
+  igual, con la caja por omisión. En un circuito, Problemas dice «El dibujo de «X» usa un trazo que VSim no puede leer;
+  se muestra la caja por omisión» (en la pieza que lo usa; si ninguna pieza lo usa, el aviso queda sin pieza a la que
+  ir); en un archivo de «Mis componentes», lo dice la lista de problemas de Mis componentes, y el archivo no se toca al
+  abrirlo. Al guardar el circuito, el componente se escribe sin ese dibujo (el
   trazo ilegible no se puede conservar); sus pines nunca se tocan, y una pieza con una apariencia propia ilegible o con
   pines que no calzan sigue fallando al abrir.
 - **Terminales**: la ventana de un Terminal de adentro muestra el de la pieza cuyos valores se ven. Un Terminal con el
