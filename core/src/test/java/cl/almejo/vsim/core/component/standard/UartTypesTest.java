@@ -513,4 +513,37 @@ class UartTypesTest {
         print(harness, "ok");
         assertThat(screenRow(harness, 0)).startsWith("ok");
     }
+
+    @Test
+    void shrinkingTheIntegratedReceiverNeverKeepsHalfAUtf8Character() {
+        Uart16550Behavior before = new Uart16550Behavior(parameters(Map.of("capacity", 8)));
+        before.acceptBytes(new IgnoringContext(), "ab\u00f1c".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // a, b, then ñ in two bytes, then c: a capacity of 3 would cut ñ in half
+        Uart16550Behavior after = new Uart16550Behavior(parameters(Map.of("capacity", 3)));
+
+        after.adoptStateFrom(before);
+
+        assertThat(((UartState) after.visibleState()).received()).isEqualTo(2);
+    }
+
+    /** A context that ignores everything: the receiver queue is what is under test. */
+    private static final class IgnoringContext implements cl.almejo.vsim.core.component.BehaviorContext {
+        @Override
+        public Value input(int pinIndex) {
+            return Value.HIGH_IMPEDANCE;
+        }
+
+        @Override
+        public void drive(int pinIndex, Value value, long delay) {
+        }
+
+        @Override
+        public void schedule(long delay, Runnable action) {
+        }
+
+        @Override
+        public long now() {
+            return 0;
+        }
+    }
 }
