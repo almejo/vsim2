@@ -578,7 +578,7 @@ class PdfExportDialogTest {
     @Test
     void theEnglishStaleMessageNamesTheRefreshButton() {
         Messages.initialize(java.util.Locale.ENGLISH);
-        assertThat(Messages.text("print.values.stale")).contains("«" + Messages.text("print.refresh") + "»");
+        assertThat(Messages.text("print.values.stale")).contains("“" + Messages.text("print.refresh") + "”");
         Messages.initialize(Messages.SPANISH);
         assertThat(Messages.text("print.values.stale")).contains("«" + Messages.text("print.refresh") + "»");
     }
