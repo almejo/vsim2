@@ -51,6 +51,53 @@ class AiServerServiceTest {
     }
 
     @Test
+    void afterARestartTheQueuedWorkStaysRefusedUntilTheOldServerHasStopped() throws Exception {
+        List<String> gate = new java.util.ArrayList<>();
+        java.util.ArrayDeque<Runnable> serverJobs = new java.util.ArrayDeque<>();
+        boolean[] queued = {false};
+        java.util.concurrent.Executor serverThread = job -> {
+            if (queued[0]) {
+                serverJobs.add(job);
+            } else {
+                job.run();
+            }
+        };
+        AiServerService restarting = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
+                new FakeAiTasks(), Runnable::run, Runnable::run, new AiServerService.QueuedWork() {
+                    @Override
+                    public void refuse() {
+                        gate.add("refuse");
+                    }
+
+                    @Override
+                    public void accept() {
+                        gate.add("accept");
+                    }
+                }, SessionPort.none(), serverThread, java.time.Clock.systemDefaultZone());
+        preferences.setAiPort(freePort());
+        try {
+            restarting.activate();
+            assertThat(restarting.isRunning()).isTrue();
+            gate.clear();
+
+            queued[0] = true; // the old server's stop and the new start wait their turn on the server thread
+            restarting.restart();
+
+            // the old server still listens here: a request reaching it must still be refused
+            assertThat(gate).containsExactly("refuse");
+            assertThat(serverJobs).hasSize(2);
+
+            queued[0] = false;
+            while (!serverJobs.isEmpty()) {
+                serverJobs.poll().run(); // the stop, then the start
+            }
+            assertThat(gate).containsExactly("refuse", "accept");
+        } finally {
+            restarting.stop();
+        }
+    }
+
+    @Test
     void detenerStopsTheTaskAtOnceOnTheEditorThreadWithoutWaitingForAnotherThread() {
         FakeAiTasks tasks = new FakeAiTasks();
         AiServerService neverInTheBackground = new AiServerService(preferences, new AutomationApi(new NoDocuments()),

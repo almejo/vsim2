@@ -60,6 +60,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 - Ordenar circuito: piezas apiladas exactamente una sobre otra (misma posición, mismos pines) ya no se tratan como un solo bloque: se separan y, si no se logra, quedan en la lista de las que no se pudieron separar.
 - Girar una selección: cuatro giros de un cuarto de vuelta, en cualquier sentido, la dejan exactamente donde estaba (antes, con un ancho o alto impar, cada giro corría el centro media casilla y un cable de 3 de largo no volvía a su lugar).
+- IA: al reiniciar (o apagar y encender) el servidor de la IA, una petición que llegaba al servidor viejo justo en ese instante todavía podía ejecutarse; ahora se rechaza hasta que el viejo se detiene.
 - Editor de memoria: con el contenido enlazado a un archivo (solo lectura), Ctrl+Z y Ctrl+Y ya no cambian la cuadrícula.
 - «Guardar como» sobre un archivo que está abierto en otra pestaña ya no lo pisa ni deja dos documentos con el mismo archivo: VSim lo rechaza con un aviso («ciérrala primero o elige otro nombre»).
 - Un circuito que no se puede serializar (por ejemplo, con una pieza cuya definición falta) ya no se queda sin copia de recuperación en silencio: VSim lo avisa una vez en la barra de estado, y de nuevo si lo vuelves a abrir.

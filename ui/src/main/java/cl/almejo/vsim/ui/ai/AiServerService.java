@@ -146,7 +146,7 @@ public final class AiServerService {
     /** The port being bound while «Encendiendo…»; empty otherwise. */
     private OptionalInt startingPort = OptionalInt.empty();
     /** Counts the starts, so a start that «Apagar» or another start overtook is dropped when it finishes. */
-    private int startGeneration;
+    private volatile int startGeneration;
     /** When the running server started and how many requests it served since. */
     private Instant startedAt;
     private long requestsServed;
@@ -336,7 +336,6 @@ public final class AiServerService {
         int generation = ++startGeneration;
         startingPort = OptionalInt.of(port);
         failure = null;
-        queuedWork.accept();
         notifyStateChanged();
         // the AI's waits for «Siguiente», ended when it was last turned off, wait again before the port answers: the
         // AI may call as soon as it does, before this EDT hears that the server listens (review M2)
@@ -344,6 +343,12 @@ public final class AiServerService {
         serverThread.execute(() -> {
             RunningServer started = null;
             AiServerState refused = null;
+            // The queue takes work again only here: the stop of a server turned off just before is queued ahead of this
+            // job on the same thread, so a request still reaching that old server stays refused until it has stopped
+            // (AI-4). A start overtaken meanwhile leaves the queue refusing.
+            if (generation == startGeneration) {
+                queuedWork.accept();
+            }
             try {
                 started = VsimMcpServer.start(api, new McpServerSettings(port, secret));
             } catch (PortInUseException exception) {
