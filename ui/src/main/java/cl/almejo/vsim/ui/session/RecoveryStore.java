@@ -45,6 +45,9 @@ public final class RecoveryStore {
     /** An orphan folder left without copies is deleted once its lock file is this old. */
     static final Duration EMPTY_FOLDER_AGE = Duration.ofHours(1);
     static final String LOCK_FILE = "lock";
+    /** Another instance's start scan holds a brand-new folder's lock for a few milliseconds: wait for it, briefly. */
+    private static final int LOCK_ATTEMPTS = 5;
+    private static final long LOCK_RETRY_PAUSE_MILLISECONDS = 20;
     static final String CONTENT_SUFFIX = ".vsim";
     static final String METADATA_SUFFIX = ".properties";
     private static final String ORIGINAL_PATH = "originalPath";
@@ -54,14 +57,37 @@ public final class RecoveryStore {
 
     private final Path recoveryRoot;
     private final Path sessionFolder;
+    private final LockAcquirer lockAcquirer;
+    private final Runnable pauseBetweenLockAttempts;
     private boolean sessionOpen;
     private FileChannel lockChannel;
     private FileLock lock;
 
     /** Touches nothing on disk: the session folder is created and locked by the first {@link #write}. */
     public RecoveryStore(Path recoveryRoot) {
+        this(recoveryRoot, FileChannel::tryLock, RecoveryStore::pauseBeforeLockRetry);
+    }
+
+    /** For tests: how the lock is taken (it may come back {@code null}: held by another process) and the pause. */
+    RecoveryStore(Path recoveryRoot, LockAcquirer lockAcquirer, Runnable pauseBetweenLockAttempts) {
         this.recoveryRoot = recoveryRoot.toAbsolutePath();
         this.sessionFolder = this.recoveryRoot.resolve(UUID.randomUUID().toString());
+        this.lockAcquirer = lockAcquirer;
+        this.pauseBetweenLockAttempts = pauseBetweenLockAttempts;
+    }
+
+    /** Takes the lock of a channel: {@code null} when another process holds it right now. */
+    @FunctionalInterface
+    interface LockAcquirer {
+        FileLock tryLock(FileChannel channel) throws IOException;
+    }
+
+    private static void pauseBeforeLockRetry() {
+        try {
+            Thread.sleep(LOCK_RETRY_PAUSE_MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** This instance's folder; it exists from the first write until {@link #deleteSession()}. */
@@ -157,7 +183,16 @@ public final class RecoveryStore {
         try {
             lockChannel = FileChannel.open(sessionFolder.resolve(LOCK_FILE), StandardOpenOption.CREATE,
                     StandardOpenOption.WRITE);
-            lock = lockChannel.tryLock();
+            for (int attempt = 1; lock == null && attempt <= LOCK_ATTEMPTS; attempt++) {
+                if (attempt > 1) {
+                    pauseBetweenLockAttempts.run();
+                }
+                lock = lockAcquirer.tryLock(lockChannel);
+            }
+            if (lock == null) {
+                LOGGER.warn("The recovery folder {} stayed locked by another process: this run has no lock on it",
+                        sessionFolder);
+            }
         } catch (IOException exception) {
             // A filesystem without locks: another VSim cannot take the lock either, so it treats this folder as live.
             LOGGER.warn("The recovery folder {} cannot be locked", sessionFolder, exception);

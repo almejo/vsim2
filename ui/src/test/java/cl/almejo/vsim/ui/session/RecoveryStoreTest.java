@@ -50,6 +50,34 @@ class RecoveryStoreTest {
     }
 
     @Test
+    void aLockHeldForAMomentByAnotherScanIsRetried() throws IOException {
+        List<Integer> attempts = new ArrayList<>();
+        RecoveryStore store = new RecoveryStore(directory.resolve("recovery"), channel -> {
+            attempts.add(attempts.size());
+            return attempts.size() <= 2 ? null : channel.tryLock();
+        }, () -> { });
+        stores.add(store);
+
+        store.write(UUID.randomUUID(), "content", untitled(SAVED_AT));
+
+        assertThat(attempts).as("two refusals, then the lock").hasSize(3);
+    }
+
+    @Test
+    void aLockNeverObtainedGivesUpAfterABoundedNumberOfAttempts() throws IOException {
+        List<Integer> attempts = new ArrayList<>();
+        RecoveryStore store = new RecoveryStore(directory.resolve("recovery"), channel -> {
+            attempts.add(attempts.size());
+            return null;
+        }, () -> { });
+        stores.add(store);
+
+        store.write(UUID.randomUUID(), "content", untitled(SAVED_AT));
+
+        assertThat(attempts).hasSizeBetween(2, 20);
+    }
+
+    @Test
     void aWriteReplacesTheCopyAtomicallyAndLeavesNoTemporaryFile() throws IOException {
         RecoveryStore store = store();
         UUID document = UUID.randomUUID();
