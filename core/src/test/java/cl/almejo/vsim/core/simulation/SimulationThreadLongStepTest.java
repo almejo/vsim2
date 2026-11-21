@@ -25,6 +25,8 @@ class SimulationThreadLongStepTest {
     private static final long NANOS_PER_MILLISECOND = 1_000_000;
     /** More than one tick's budget of slices runs with the clock below, less than {@link #LONG_STEP}. */
     private static final long SEVERAL_TICKS_STEP = 1_000_000;
+    /** The AI's event budget for a step request: plenty for one event of the clock below. */
+    private static final long AI_EVENT_BUDGET = 1_000;
 
     /** Every reading of this clock moves it one millisecond on, so a tick reaches its budget after a few slices. */
     private final AtomicLong nanos = new AtomicLong();
@@ -80,6 +82,28 @@ class SimulationThreadLongStepTest {
         assertThat(thread.latestSnapshot().running()).isFalse();
     }
 
+    /** Review I3: the snapshots say «running» during the step, so the AI's steps are refused as while running. */
+    @Test
+    void theAisStepsDuringAStepInProgressAreRefusedAndTheStepGoesOn() {
+        thread.update(fastClock());
+        thread.tick();
+        thread.step(LONG_STEP);
+        thread.tick();
+        long reached = thread.latestSnapshot().time();
+
+        CompletableFuture<RequestReport> event = thread.advanceToNextEventWithin(1, AI_EVENT_BUDGET);
+        CompletableFuture<RequestReport> edge = thread.advanceToNextClockEdgeWithin(ClockEdgeMode.ANY, 1,
+                AI_EVENT_BUDGET);
+        CompletableFuture<RequestReport> units = thread.stepWithin(1, AI_EVENT_BUDGET);
+        thread.tick();
+
+        assertThat(List.of(event.join().status(), edge.join().status(), units.join().status()))
+                .containsOnly(RequestReport.Status.REFUSED_WHILE_RUNNING);
+        assertThat(thread.latestStep()).as("the user's step was not ended").isEmpty();
+        assertThat(thread.latestSnapshot().running()).isTrue();
+        assertThat(thread.latestSnapshot().time()).as("it goes on").isGreaterThan(reached);
+    }
+
     @Test
     void restartingDropsAStepInProgress() {
         thread.update(fastClock());
@@ -117,17 +141,23 @@ class SimulationThreadLongStepTest {
         assertThat(thread.latestStep().orElseThrow().result()).isEqualTo(expected);
     }
 
+    /**
+     * On a real thread with the real clock: with the clock above every slice would seem to take one millisecond, so
+     * the slices would double up to a billion units (minutes of work) and close() could come too late to stop the
+     * thread in time (review M4).
+     */
     @Test
     void aHugeStepServesRequestsAndCloseStopsTheThread() throws Exception {
-        thread.update(fastClock());
-        thread.start();
-        thread.published().get(30, TimeUnit.SECONDS);
+        SimulationThread realTime = new SimulationThread(new SimulationEngine());
+        realTime.update(fastClock());
+        realTime.start();
+        realTime.published().get(30, TimeUnit.SECONDS);
 
-        thread.step(HUGE_STEP);
-        RequestReport during = thread.report().get(30, TimeUnit.SECONDS);
-        thread.close();
+        realTime.step(HUGE_STEP);
+        RequestReport during = realTime.report().get(30, TimeUnit.SECONDS);
+        realTime.close();
 
         assertThat(during.snapshot().time()).isBetween(0L, HUGE_STEP - 1);
-        assertThat(thread.isAlive()).as("the step does not keep the thread busy after close()").isFalse();
+        assertThat(realTime.isAlive()).as("the step does not keep the thread busy after close()").isFalse();
     }
 }

@@ -516,7 +516,7 @@ public final class SimulationThread implements AutoCloseable {
      * in slices within each tick's real-time budget, like a running simulation (SIM-3: a billion units of a fast clock
      * took a quarter of an hour in one call), so the snapshots show its time moving and the requests after it are
      * served meanwhile: edits and clicks between two slices; «Pausar», «Iniciar» and another step end it where it got,
-     * published with every net it changed so far; «Reiniciar» and a failure drop it; {@link #close()} stops it within
+     * published with every net it changed so far, while the AI's steps are refused as while running; «Reiniciar» and a failure drop it; {@link #close()} stops it within
      * a tick. A step that ends within its first budget publishes exactly what one call did.
      */
     public void step(long duration) {
@@ -936,17 +936,17 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
-     * Runs one step on this thread within the budget: refused while running; otherwise published as
-     * {@link #latestStep()} like the user's «Avanzar» (when the budget ran out, without the nets that changed).
+     * Runs one step on this thread within the budget: refused while running and during the user's sliced «Avanzar N t»
+     * (the snapshots say both as running, and the AI must not end the user's step where it got); otherwise published
+     * as {@link #latestStep()} like the user's «Avanzar» (when the budget ran out, without the nets that changed).
      */
     private void runStep(CompletableFuture<RequestReport> future, long eventBudget,
                          Supplier<StepResult> step) {
         long fromTime = engine.now();
-        if (running) {
+        if (advancing()) {
             future.complete(reportOf(RequestReport.Status.REFUSED_WHILE_RUNNING, fromTime, 0, List.of()));
             return;
         }
-        finishStep();
         StepResult[] result = new StepResult[1];
         EventBudgetRun run;
         try {

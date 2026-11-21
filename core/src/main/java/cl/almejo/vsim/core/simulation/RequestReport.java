@@ -23,7 +23,7 @@ public record RequestReport(Status status, SimulationSnapshot snapshot, Optional
         COMPLETED,
         /** The next event would have gone over the budget: stopped at the time reached and paused. */
         BUDGET_EXCEEDED,
-        /** A step while the simulation runs: nothing ran (pause first). */
+        /** A step while the simulation runs or a user's «Avanzar N t» goes on: nothing ran (pause first). */
         REFUSED_WHILE_RUNNING,
         /** The time asked for is past the largest simulation time: nothing ran. */
         REFUSED_TIME_OVERFLOW,
