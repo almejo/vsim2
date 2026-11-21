@@ -121,6 +121,23 @@ class WindowTabsTest {
         assertThat(host.newTabs).isEqualTo(2);
     }
 
+    @Test
+    void aNewEmptyTabLandsRightAfterTheActiveGroup() {
+        OpenDocument first = newDocument();
+        OpenDocument second = newDocument();
+        OpenDocument third = newDocument();
+        EditorView firstView = tabs.addTab(first, Optional.empty());
+        tabs.addTab(second, Optional.empty());
+        tabs.addTab(third, Optional.empty());
+        tabs.activate(firstView);
+        OpenDocument created = newDocument();
+
+        EditorView createdView = tabs.addTabAfterActiveGroup(created);
+
+        assertThat(groupDocuments(tabs)).containsExactly(first, created, second, third);
+        assertThat(tabs.activeView()).isSameAs(createdView);
+    }
+
     private static void clickOn(TabStrip strip, int x, int y, int clickCount) {
         strip.dispatchEvent(new MouseEvent(strip, MouseEvent.MOUSE_PRESSED, 0, InputEvent.BUTTON1_DOWN_MASK, x, y,
                 x, y, clickCount, false, MouseEvent.BUTTON1));

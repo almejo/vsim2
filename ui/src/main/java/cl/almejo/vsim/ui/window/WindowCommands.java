@@ -25,6 +25,13 @@ public interface WindowCommands {
     void exit();
 
     /**
+     * Ventana ▸ «Nueva pestaña vacía» (Ctrl+T), also the strip's «+»: a new empty circuit as a group right after the
+     * active tab's group. Nothing happens outside a real window.
+     */
+    default void newEmptyTab() {
+    }
+
+    /**
      * Ventana ▸ «Nueva pestaña del mismo circuito»: another tab on the active tab's place, in its group. Nothing
      * happens outside a real window.
      */

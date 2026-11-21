@@ -130,6 +130,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
                 DocumentWindows.viewTitle(openDocument.displayName(), viewNumber));
     }
 
+    /** The key of «Nueva pestaña vacía», which the strip's «+» runs, for the «+» tooltip. Package-private for tests. */
+    static Optional<KeyStroke> newTabShortcut(KeyBindings bindings) {
+        return bindings.strokeFor("window.newEmptyTab");
+    }
+
     // --- tabs ---
 
     /** A new main tab of {@code document}, activated; it opens at {@code initialView}, else centered. */
@@ -249,6 +254,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     @Override
     public void newDocument() {
         application.newDocument(this);
+    }
+
+    @Override
+    public void newEmptyTab() {
+        application.newEmptyTab(this);
     }
 
     @Override
@@ -578,12 +588,12 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
         @Override
         public void newTab() {
-            newDocument();
+            newEmptyTab();
         }
 
         @Override
         public Optional<KeyStroke> newTabShortcut() {
-            return keyBindings.strokeFor("file.new");
+            return CircuitWindow.newTabShortcut(keyBindings);
         }
 
         @Override

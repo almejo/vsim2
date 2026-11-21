@@ -522,6 +522,16 @@ public final class Application {
     }
 
     /**
+     * Ventana ▸ «Nueva pestaña vacía» (Ctrl+T) and the strip's «+» from {@code requester}: a new empty document as a
+     * new group there, right after the active tab's group (Archivo ▸ Nuevo puts it last).
+     */
+    public void newEmptyTab(CircuitWindow requester) {
+        OpenDocument created = OpenDocument.createEmpty(registry);
+        requester.tabs().addTabAfterActiveGroup(created);
+        autosave.track(created); // M6-B: every open document is copied while modified
+    }
+
+    /**
      * Ventana ▸ «Nueva ventana con este circuito»: a new window with a new main tab of the active tab's document, 30 px
      * down-right of its source, same zoom and center.
      */

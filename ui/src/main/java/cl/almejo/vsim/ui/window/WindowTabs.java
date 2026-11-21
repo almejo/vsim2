@@ -114,10 +114,13 @@ public final class WindowTabs extends JPanel {
         /** Every tab of every window, grouped by window (the Ventana list and «▾»). */
         List<WindowMenu.Entry> everyTab();
 
-        /** The «+» of the strip (or a double click on its empty part): Archivo ▸ Nuevo, a new circuit in a tab here. */
+        /**
+         * The «+» of the strip (or a double click on its empty part): Ventana ▸ «Nueva pestaña vacía», a new circuit
+         * in a tab here, right after the active group.
+         */
         void newTab();
 
-        /** The current shortcut of Archivo ▸ Nuevo, for the «+» tooltip; none by default. */
+        /** The current shortcut of «Nueva pestaña vacía», for the «+» tooltip; none by default. */
         default Optional<KeyStroke> newTabShortcut() {
             return Optional.empty();
         }
@@ -355,6 +358,19 @@ public final class WindowTabs extends JPanel {
     /** A new main tab of {@code document} (its group is made when it has none), activated. */
     public EditorView addTab(OpenDocument document, Optional<ViewState> initialView) {
         return add(document, Optional.empty(), document, initialView);
+    }
+
+    /**
+     * «Nueva pestaña vacía» (Ctrl+T, the strip's «+»): a new main tab of {@code document} (a new circuit) whose group
+     * goes right after the active tab's group instead of last, activated.
+     */
+    public EditorView addTabAfterActiveGroup(OpenDocument document) {
+        int activeGroup = activeEntry().map(entry -> documents().indexOf(entry.document)).orElse(-1);
+        EditorView view = addTab(document, Optional.empty());
+        if (activeGroup >= 0) {
+            model.moveGroup(document, activeGroup + 1);
+        }
+        return view;
     }
 
     /**

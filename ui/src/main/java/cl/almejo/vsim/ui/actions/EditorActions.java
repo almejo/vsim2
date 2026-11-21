@@ -104,6 +104,7 @@ public final class EditorActions {
     private final Action restart;
     private final Action startOrPause;
     private final Action step;
+    private final Action newEmptyTab;
     private final Action newView;
     private final Action newWindowWithCircuit;
     private final Action moveGroup;
@@ -202,6 +203,8 @@ public final class EditorActions {
         step = Actions.of(Messages.text("action.step"), KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0),
                 () -> openDocument.step(stepUnits));
         setStepUnits(stepUnits);
+        newEmptyTab = Actions.of(Messages.text("action.newEmptyTab"), shortcut(KeyEvent.VK_T, 0),
+                window::newEmptyTab);
         newView = Actions.of(Messages.text("action.newWindow"), null, window::newView);
         newWindowWithCircuit = Actions.of(Messages.text("action.newWindowWithCircuit"),
                 shortcut(KeyEvent.VK_N, InputEvent.SHIFT_DOWN_MASK), window::newWindowWithCircuit);
@@ -306,6 +309,8 @@ public final class EditorActions {
     public Action startOrPause() { return startOrPause; }
     public Action step() { return step; }
     public Action newView() { return newView; }
+    /** «Nueva pestaña vacía» (Ctrl+T), first in Ventana. */
+    public Action newEmptyTab() { return newEmptyTab; }
     public Action about() { return about; }
 
     public Action reportProblem() { return reportProblem; }
@@ -382,6 +387,7 @@ public final class EditorActions {
         simulation.add(step);
         JMenu logic = tagged(new JMenu(Messages.text("menu.logic")), MenuId.LOGIC);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
+        windowMenu.add(newEmptyTab);
         windowMenu.add(newView);
         windowMenu.add(newWindowWithCircuit);
         windowMenu.add(moveGroup);

@@ -27,7 +27,7 @@ class ShortcutCatalogTest {
             "edit.label", "view.circuitTree", "view.palette",
             "view.properties", "view.problems", "view.notes", "view.memoryMap",
             "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
-            "view.zoomField", "view.centerView", "view.selectTool", "view.panTool", "simulation.start", "simulation.pause", "simulation.step", "window.newView",
+            "view.zoomField", "view.centerView", "view.selectTool", "view.panTool", "simulation.start", "simulation.pause", "simulation.step", "window.newEmptyTab", "window.newView",
             "window.newWindow", "window.moveGroup", "window.foldGroup", "window.nextTab", "window.previousTab",
             "window.closeTab", "window.closeComponents", "window.closeWindow");
 
@@ -45,10 +45,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndSixtyThreeHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndSixtyFourHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(63);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(64);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
         assertThat(ids()).containsSubsequence("edit.copy", "edit.copyCapture", "edit.paste");
     }
@@ -162,6 +162,7 @@ class ShortcutCatalogTest {
         int shift = InputEvent.SHIFT_DOWN_MASK;
         assertThat(ShortcutCatalog.find("file.close")).as("Ctrl+W moved to «Cerrar pestaña»").isEmpty();
         Map<String, Optional<KeyStroke>> expected = new LinkedHashMap<>();
+        expected.put("window.newEmptyTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_T, control)));
         expected.put("window.newWindow", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_N, control | shift)));
         expected.put("window.moveGroup", Optional.empty());
         expected.put("window.foldGroup", Optional.empty());

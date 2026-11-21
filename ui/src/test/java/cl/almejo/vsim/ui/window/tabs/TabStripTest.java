@@ -272,11 +272,11 @@ class TabStripTest {
         KeyStroke ctrlN = KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK);
         KeyStroke ctrlT = KeyStroke.getKeyStroke(KeyEvent.VK_T, InputEvent.CTRL_DOWN_MASK);
         strip.setNewTabShortcut(() -> Optional.of(ctrlN));
-        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyNames.describe(ctrlN) + ")");
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nueva pestaña vacía (" + KeyNames.describe(ctrlN) + ")");
         strip.setNewTabShortcut(() -> Optional.of(ctrlT));
-        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito (" + KeyNames.describe(ctrlT) + ")");
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nueva pestaña vacía (" + KeyNames.describe(ctrlT) + ")");
         strip.setNewTabShortcut(Optional::empty);
-        assertThat(strip.getToolTipText(over)).isEqualTo("Nuevo circuito");
+        assertThat(strip.getToolTipText(over)).isEqualTo("Nueva pestaña vacía");
     }
 
     @Test
@@ -284,7 +284,7 @@ class TabStripTest {
         List<Integer> requested = new ArrayList<>();
         strip.onNewTabRequested(() -> requested.add(1));
         javax.accessibility.Accessible child = strip.getAccessibleContext().getAccessibleChild(0);
-        assertThat(child.getAccessibleContext().getAccessibleName()).isEqualTo("Nuevo circuito");
+        assertThat(child.getAccessibleContext().getAccessibleName()).isEqualTo("Nueva pestaña vacía");
         child.getAccessibleContext().getAccessibleAction().doAccessibleAction(0);
         assertThat(requested).hasSize(1);
     }

@@ -172,6 +172,8 @@ public final class ShortcutCatalog {
         window(entries, "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.LOGIC, null);
         window(entries, "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.LOGIC, null);
         window(entries, "tools.karnaughPractice", "action.karnaughPractice", MenuId.LOGIC, null);
+        // «Nueva pestaña vacía» (since 0.9): an empty circuit right after the active group; the strip's «+» runs it
+        window(entries, "window.newEmptyTab", "action.newEmptyTab", MenuId.WINDOW, stroke(KeyEvent.VK_T, menu));
         window(entries, "window.newView", "action.newWindow", MenuId.WINDOW, null);
         // Pestañas y editar por dentro (spec §4.8): «Cerrar pestaña» took Ctrl+W from «Cerrar ventana», which is
         // Ctrl+Mayús+W now; both are also in Archivo.

@@ -109,6 +109,7 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("simulation.startOrPause", actions.startOrPause());
         map.put("simulation.restart", actions.restart());
         map.put("simulation.step", actions.step());
+        map.put("window.newEmptyTab", actions.newEmptyTab());
         map.put("window.newView", actions.newView());
         map.put("window.newWindow", actions.newWindowWithCircuit());
         map.put("window.moveGroup", actions.moveGroup());

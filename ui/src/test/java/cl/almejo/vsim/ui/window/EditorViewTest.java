@@ -80,6 +80,7 @@ class EditorViewTest {
         @Override public void closeWindow() { windowCalls.add("close"); }
         @Override public void exit() { windowCalls.add("exit"); }
         @Override public void newView() { windowCalls.add("newView"); }
+        @Override public void newEmptyTab() { windowCalls.add("newEmptyTab"); }
         @Override public void newWindowWithCircuit() { windowCalls.add("newWindowWithCircuit"); }
         @Override public void moveGroupToNewWindow() { windowCalls.add("moveGroup"); }
         @Override public void toggleFold() { windowCalls.add("foldGroup"); }
@@ -152,20 +153,22 @@ class EditorViewTest {
         for (MenuId id : MenuId.values()) {
             assertThat(view.menu(id)).isSameAs(view.menuBar().getMenu(id.ordinal()));
         }
-        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(10);
-        assertThat(view.menu(MenuId.WINDOW).getItem(0).getAction()).isSameAs(view.actions().newView());
+        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(11);
+        assertThat(view.menu(MenuId.WINDOW).getItem(0).getAction()).isSameAs(view.actions().newEmptyTab());
+        assertThat(view.menu(MenuId.WINDOW).getItem(1).getAction()).isSameAs(view.actions().newView());
     }
 
     @Test
     void theWindowMenuHasTheTabItemsInTheSpecsOrder() {
-        assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
+        assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña vacía",
+                "Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
                 "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
                 "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---");
     }
 
     @Test
     void theWindowMenuOffersNewViewAndHandsItToTheWindow() {
-        assertThat(view.menu(MenuId.WINDOW).getItem(0).getText()).isEqualTo("Nueva pestaña del mismo circuito");
+        assertThat(view.menu(MenuId.WINDOW).getItem(1).getText()).isEqualTo("Nueva pestaña del mismo circuito");
         assertThat(view.actions().newView().getValue(Action.ACCELERATOR_KEY)).isNull();
         perform(view.actions().newView());
         assertThat(windowCalls).containsExactly("newView");
@@ -173,6 +176,7 @@ class EditorViewTest {
 
     @Test
     void theTabActionsAreHandedToTheWindow() {
+        perform(view.actions().newEmptyTab());
         perform(view.actions().newWindowWithCircuit());
         perform(view.actions().moveGroup());
         perform(view.actions().foldGroup());
@@ -180,7 +184,7 @@ class EditorViewTest {
         perform(view.actions().previousTab());
         perform(view.actions().closeTab());
         perform(view.actions().closeComponents());
-        assertThat(windowCalls).containsExactly("newWindowWithCircuit", "moveGroup", "foldGroup", "nextTab",
+        assertThat(windowCalls).containsExactly("newEmptyTab", "newWindowWithCircuit", "moveGroup", "foldGroup", "nextTab",
                 "previousTab", "closeTab", "closeComponents");
     }
 

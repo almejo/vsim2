@@ -520,7 +520,8 @@ class ApplicationExtensionsTest {
     void theShortcutsExtensionBindsTheWindowMenuAcceleratorsAndCanvasKeys() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
+            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña vacía",
+                    "Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
                     "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
                     "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---",
                     "Dividir", "Siguiente panel", "---", "IA (MCP)…");
