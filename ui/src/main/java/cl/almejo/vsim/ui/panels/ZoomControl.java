@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
@@ -95,6 +96,7 @@ public final class ZoomControl extends JPanel {
     private final JButton zoomInButton;
     private final JComboBox<String> field = new JComboBox<>();
     private final JButton resetButton;
+    private final Action resetAction;
     private final JButton fitButton;
     private final JButton selectionButton;
     private final Action typeZoom;
@@ -139,10 +141,16 @@ public final class ZoomControl extends JPanel {
         setOpaque(false);
         zoomOutButton = iconButton(actions.zoomOut(), "zoom-out");
         zoomInButton = iconButton(actions.zoomIn(), "zoom-in");
-        resetButton = smallButton(actions.zoomReset());
-        resetButton.setText(Messages.text("zoom.reset"));
-        resetButton.setToolTipText(Messages.text("zoom.reset.tip"));
+        resetAction = actions.zoomReset();
+        // an icon, not a second «100 %» next to the field (V9); off while the zoom already is 100 %
+        resetButton = iconButton(resetAction, "zoom-reset");
         resetButton.getAccessibleContext().setAccessibleName(Messages.text("zoom.reset.tip"));
+        refreshResetButton();
+        resetAction.addPropertyChangeListener(event -> {
+            if ("enabled".equals(event.getPropertyName()) || Action.ACCELERATOR_KEY.equals(event.getPropertyName())) {
+                refreshResetButton();
+            }
+        });
         fitButton = iconButton(actions.zoomToFit(), "zoom-fit");
         selectionButton = iconButton(actions.zoomToSelection(), "zoom-selection");
         buildSlider();
@@ -350,11 +358,19 @@ public final class ZoomControl extends JPanel {
         }
     }
 
+    private void refreshResetButton() {
+        resetButton.setEnabled(resetAction.isEnabled() && Math.abs(shownZoom - 1.0) > 1e-9);
+        String tip = Messages.text("zoom.reset.tip");
+        resetButton.setToolTipText(resetAction.getValue(Action.ACCELERATOR_KEY) instanceof KeyStroke stroke
+                ? Messages.format("tooltip.withKey", tip, KeyNames.describe(stroke)) : tip);
+    }
+
     private void showInField(double zoom) {
         boolean wasUpdating = updating;
         updating = true;
         try {
             shownZoom = zoom;
+            refreshResetButton();
             String text = Messages.format("zoom.percent", ZoomScale.percent(zoom));
             field.setSelectedItem(text);
             if (!text.equals(field.getEditor().getItem())) {

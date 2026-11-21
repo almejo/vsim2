@@ -177,6 +177,7 @@ final class EditorToolBar {
 
     private void build() {
         toolBar.setFloatable(false);
+        toolBar.setLayout(new WrapToolBarLayout(glue));
         toolBar.add(actions.newDocument());
         toolBar.add(actions.open());
         saveButton = toolBar.add(actions.save());

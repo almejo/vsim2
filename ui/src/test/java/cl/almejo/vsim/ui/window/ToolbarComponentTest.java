@@ -56,6 +56,31 @@ class ToolbarComponentTest {
         assertThat(List.of(view.toolBar().getComponents())).isEqualTo(before);
     }
 
+    /** V1: at a narrow width the real toolbar wraps; nothing leaves the window and the order is row by row. */
+    @Test
+    void theRealToolbarWrapsInsteadOfCuttingControlsOff() {
+        javax.swing.JToolBar toolBar = view.toolBar();
+        toolBar.setSize(500, toolBar.getPreferredSize().height);
+        toolBar.doLayout();
+        toolBar.setSize(500, toolBar.getPreferredSize().height);
+        toolBar.doLayout();
+        java.awt.Rectangle previous = null;
+        for (Component child : toolBar.getComponents()) {
+            if (!child.isVisible() || child instanceof javax.swing.Box.Filler
+                    || child instanceof javax.swing.JToolBar.Separator) {
+                continue;
+            }
+            java.awt.Rectangle bounds = child.getBounds();
+            assertThat(bounds.x + bounds.width).as("%s inside the bar", child).isLessThanOrEqualTo(500);
+            if (previous != null) {
+                assertThat(bounds.y > previous.y || (bounds.y == previous.y && bounds.x >= previous.x))
+                        .as("%s keeps the order", child).isTrue();
+            }
+            previous = bounds;
+        }
+        assertThat(toolBar.getHeight()).isGreaterThan(toolBar.getComponent(0).getHeight() * 2);
+    }
+
     @Test
     void insideASlotTheOrderNumberDecidesNotTheInstallOrder() {
         JButton late = new JButton("late");
