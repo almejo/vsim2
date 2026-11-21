@@ -418,6 +418,43 @@ class ExpressionsPanelTest {
     }
 
     @Test
+    void atALargeInterfaceSizeAFittedDialogKeepsTheControlsOfTheLeftSideWholeAndTheLegendGivesWay() {
+        scaleFonts(panel, 1.5f);
+        panel.setSize(1250, 700); // a fitted dialog: the legend would take more than the left side can spare
+        layOut(panel);
+        JScrollPane scroll = panel.contentScroll();
+        List<javax.swing.AbstractButton> choices = new ArrayList<>();
+        collectChoices(scroll.getViewport().getView(), choices);
+        assertThat(choices).as("the radios and checkboxes of the left side").hasSizeGreaterThan(4);
+        for (javax.swing.AbstractButton choice : choices) {
+            assertThat(choice.getWidth()).as(choice.getText() + " keeps its width")
+                    .isGreaterThanOrEqualTo(choice.getPreferredSize().width);
+            assertThat(rightEdgeInViewport(scroll, choice)).as(choice.getText() + " is inside the visible area")
+                    .isLessThanOrEqualTo(scroll.getViewport().getWidth());
+        }
+    }
+
+    private static void scaleFonts(java.awt.Component component, float factor) {
+        component.setFont(component.getFont().deriveFont(component.getFont().getSize2D() * factor));
+        if (component instanceof java.awt.Container container) {
+            for (java.awt.Component child : container.getComponents()) {
+                scaleFonts(child, factor);
+            }
+        }
+    }
+
+    private static void collectChoices(java.awt.Component component, List<javax.swing.AbstractButton> found) {
+        if (component instanceof javax.swing.JRadioButton || component instanceof javax.swing.JCheckBox) {
+            found.add((javax.swing.AbstractButton) component);
+        }
+        if (component instanceof java.awt.Container container) {
+            for (java.awt.Component child : container.getComponents()) {
+                collectChoices(child, found);
+            }
+        }
+    }
+
+    @Test
     void theLegendExamplesAreLabelsOfTheirOwnSoAnExpressionIsNeverBrokenInTwo() {
         assertThat(panel.legend().example(ExpressionLegend.Row.NOT).getText()).isEqualTo("Ejemplo: (A + B)'");
         assertThat(panel.legend().example(ExpressionLegend.Row.AND).getText()).isEqualTo("Ejemplo: A'B, A(B + C)");
