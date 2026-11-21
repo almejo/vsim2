@@ -61,7 +61,7 @@ public final class Main {
                 // The same message as any file that does not open; the start goes on behind it.
                 JOptionPane.showMessageDialog(null,
                         Messages.format("session.missing", String.join(", ", commandLine.unusable())),
-                        Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
+                        Messages.text("startup.arguments.title"), JOptionPane.WARNING_MESSAGE);
             }
         });
     }
