@@ -44,6 +44,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Máquinas de estado: la fila «Pruebas» de Propiedades (en la máquina y en su pieza) lo dice con palabras: «1 prueba: pasa ✓», «1 prueba: falla ✗», «3 pruebas: 2 pasan ✓, 1 falla ✗» o «ninguna». Ver [Modo prueba](docs/funciones/componentes.md#modo-prueba).
 - Máquinas de estado, tabla de pruebas: una pestaña «+» sigue a la última prueba (como en un navegador) y cada prueba tiene su «×» para borrarla, en un solo paso de Deshacer; el «+ Columna» salió de la esquina y es ahora un «+» gris después de la última columna, dentro de la tabla, con su explicación al pasar el puntero (también con la tecla Insert). Ver [Modo prueba](docs/funciones/componentes.md#modo-prueba).
 - Máquinas de estado, tabla de pruebas: la columna del final de la fila «estado» ya no corta «→ INICIO» como «→ IN…» (toma el ancho que pide el nombre, hasta cuatro columnas); la tabla crece con el tamaño de la interfaz y de la letra (filas, columnas, nombres y encabezado); el «·» de «no importa» y los textos secundarios usan el gris legible del tema, y los ✓ y ✗ se ven con al menos 4,5:1 de contraste sobre su tinte (se ajusta el color del texto, no el tinte). Ver [Modo prueba](docs/funciones/componentes.md#modo-prueba).
+- Máquinas de estado, tabla de pruebas en el modo presentación: tiene el 📌 del panel de Formas de onda (el mismo, recordado para todas las ventanas) y sube desde el borde de abajo al llevar el puntero, como ese panel. Ver [Modo prueba](docs/funciones/componentes.md#modo-prueba).
 
 ### Arreglado
 

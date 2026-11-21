@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.waveform.WaveformFeatures;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.DraftGuard;
 import cl.almejo.vsim.ui.window.DraftGuards;
@@ -157,6 +158,8 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         MachineTestTable table = new MachineTestTable(this, () -> view.services().appearance().scheme());
         removals.add(dock.contentInstead(table));
         removals.add(table::close); // runs first on leaving: the table stops following, then the strip comes back
+        // in presentation mode the table has the strip's pin, and the bottom edge brings it up as it brings the strip
+        WaveformFeatures.of(view).ifPresent(features -> removals.add(features.addPin(table.pinButton())));
         if (!dock.isDockShowing()) {
             dock.showDock();
             removals.add(dock::hideDock);

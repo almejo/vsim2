@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.waveform.PinToggle;
 import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
 
@@ -54,6 +55,7 @@ public final class MachineTestTable extends JPanel {
 
     private final transient MachineTestSession session;
     private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+    private final PinToggle pin = new PinToggle();
     private final JLabel summary = new JLabel();
     /** The grey line beside the summary; its colour is the theme's muted text, read each time it is painted. */
     private final JLabel hint = new JLabel(Messages.text("machine.test.hint")) {
@@ -121,7 +123,10 @@ public final class MachineTestTable extends JPanel {
         line.add(hint, "wmin 0");
 
         JPanel top = new JPanel(new BorderLayout());
-        top.add(tabs, BorderLayout.NORTH);
+        JPanel tabRow = new JPanel(new BorderLayout());
+        tabRow.add(tabs, BorderLayout.CENTER);
+        tabRow.add(pin, BorderLayout.EAST); // shown only in presentation mode
+        top.add(tabRow, BorderLayout.NORTH);
         top.add(line, BorderLayout.SOUTH);
         return top;
     }
@@ -239,6 +244,14 @@ public final class MachineTestTable extends JPanel {
 
     JTabbedPane tabs() {
         return tabs;
+    }
+
+    /**
+     * The pin of presentation mode, as the wave strip's: shown only while the mode is on (the mode wires it with
+     * {@code WaveformFeatures.addPin}).
+     */
+    public PinToggle pinButton() {
+        return pin;
     }
 
     /** The grey line beside the summary. */
