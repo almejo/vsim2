@@ -80,6 +80,32 @@ class CanvasNoticeTest {
     }
 
     @Test
+    void aTextWiderThanTheAreaBreaksIntoLinesInsideIt() {
+        canvasArea.setSize(300, 600);
+        String text = "«contador» volvió como estaba guardado (hoy, 14:32). Los cambios sin guardar se perdieron al cerrarlo.";
+        CanvasNotice.show(canvasArea, "Hello", CanvasNotice.Position.TOP, Duration.ofSeconds(2), ticker,
+                ticker::now, false);
+        int oneLine = notice().getHeight();
+
+        CanvasNotice.show(canvasArea, text, CanvasNotice.Position.TOP, Duration.ofSeconds(2), ticker,
+                ticker::now, false);
+
+        CanvasNotice notice = notice();
+        assertThat(notice.getX()).isGreaterThanOrEqualTo(0);
+        assertThat(notice.getX() + notice.getWidth()).isLessThanOrEqualTo(300);
+        assertThat(notice.getHeight()).isGreaterThan(oneLine);
+        assertThat(String.join(" ", notice.lines())).isEqualTo(text);
+    }
+
+    @Test
+    void aShortTextStaysOnOneLine() {
+        CanvasNotice.show(canvasArea, "Hello", CanvasNotice.Position.TOP, Duration.ofSeconds(2), ticker,
+                ticker::now, false);
+
+        assertThat(notice().lines()).containsExactly("Hello");
+    }
+
+    @Test
     void isCentredAtTheTopOrTheBottomOfTheArea() {
         Runnable hideTop = CanvasNotice.show(canvasArea, "Hello", CanvasNotice.Position.TOP,
                 Duration.ofSeconds(2), ticker, ticker::now, false);

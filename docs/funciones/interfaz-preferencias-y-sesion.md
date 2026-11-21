@@ -262,9 +262,9 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
 
 ## Hoja de atajos
 
-- «?» oscurece el área del circuito (no los menús; el circuito se sigue viendo detrás, más oscuro) y muestra encima
+- «?» oscurece toda la pestaña, paneles de los lados incluidos (no los menús; el circuito se sigue viendo detrás, más oscuro) y muestra encima
   una tarjeta centrada, de hasta unos 900 px de ancho, con una selección de unos 30 atajos en seis grupos, cada tecla
-  dibujada en su casilla («Ctrl» + «Mayús» + «Z»): Archivo (Nuevo, Abrir, Guardar, Guardar como, Copiar captura),
+  dibujada en su casilla («Ctrl» + «Mayús» + «Z») y con letra un poco más chica que la de la interfaz: Archivo (Nuevo, Abrir, Guardar, Guardar como, Copiar captura),
   Editar (Deshacer, Rehacer, Copiar, Cortar, Pegar, Duplicar, Seleccionar todo, Borrar, Rotar, Etiqueta, Ordenar
   circuito, Enmarcar selección, Insertar componente, Siguiente problema, Buscar), Ver (Zoom, Ver todo el circuito, Zoom a la
   selección, Modo presentación y Formas de onda si le diste una tecla), Ventana (Nueva pestaña vacía y Reabrir pestaña cerrada), Simulación (Iniciar o pausar, Avanzar N t, Avanzar al próximo evento, Reiniciar) y Ayuda (Buscar una acción y la propia «?»). Archivo y Editar van a la izquierda y los grupos cortos (Ver, Ventana, Simulación, Ayuda) a la

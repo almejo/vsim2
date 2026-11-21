@@ -216,8 +216,8 @@ final class ShortcutSheetFeatures {
                 place(layers);
             }
         };
-        view.canvasPanes().addComponentListener(areaListener);
-        whileOpen.add(() -> view.canvasPanes().removeComponentListener(areaListener));
+        view.addComponentListener(areaListener);
+        whileOpen.add(() -> view.removeComponentListener(areaListener));
         ComponentListener hiddenListener = new ComponentAdapter() {
             @Override
             public void componentHidden(ComponentEvent event) {
@@ -228,13 +228,15 @@ final class ShortcutSheetFeatures {
         whileOpen.add(() -> view.removeComponentListener(hiddenListener));
     }
 
-    /** Over the circuit area, a margin inside its edges. */
+    /**
+     * Over the whole tab, side panels included, below the menus: the circuit area alone is too narrow for the card at
+     * 1280 px with both side panels open (hand test 2026-11-21).
+     */
     private void place(JLayeredPane layers) {
         if (panel == null) {
             return;
         }
-        Rectangle area = SwingUtilities.convertRectangle(view.canvasPanes(),
-                new Rectangle(view.canvasPanes().getSize()), layers);
+        Rectangle area = SwingUtilities.convertRectangle(view, new Rectangle(view.getSize()), layers);
         panel.setBounds(area);
         panel.doLayout();
     }

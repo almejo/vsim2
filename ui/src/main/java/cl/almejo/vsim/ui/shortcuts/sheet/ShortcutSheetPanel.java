@@ -44,7 +44,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * What the sheet of shortcuts shows: a dark translucent veil over the circuit area (the circuit still shows, dimmed)
+ * What the sheet of shortcuts shows: a dark translucent veil over the whole tab (the circuit still shows, dimmed)
  * and on it a centred card, at most {@value #MAXIMUM_CARD_WIDTH} px wide, with the groups of shortcuts (each key a
  * keycap, as in the chips of «Mostrar los atajos al usarlos»), the strip with the phrase of the gesture under way
  * (only while there is one) and, last, the foot: the switch «Mostrar los atajos al usarlos», the hint «? o Esc» and

@@ -51,7 +51,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** «?» shows a sheet of the main shortcuts over the circuit area (Ayuda ▸ «Atajos de teclado»). */
+/** «?» shows a sheet of the main shortcuts over the tab (Ayuda ▸ «Atajos de teclado»). */
 class ShortcutSheetTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
@@ -484,13 +484,14 @@ class ShortcutSheetTest {
     }
 
     @Test
-    void itCoversTheCircuitAreaNotTheMenus() {
+    void itCoversTheWholeTabSidePanelsIncludedNotTheMenus() {
+        // the circuit area alone left too little room at 1280 px with both side panels open (hand test 2026-11-21)
         ShortcutSheetPanel panel = openSheet();
 
-        assertThat(view.canvasPanes().getWidth()).isPositive();
-        java.awt.Rectangle area = javax.swing.SwingUtilities.convertRectangle(view.canvasPanes(),
-                new java.awt.Rectangle(view.canvasPanes().getSize()), root.getLayeredPane());
-        assertThat(panel.getBounds()).as("the whole circuit area, no band of live canvas").isEqualTo(area);
+        assertThat(view.getWidth()).isGreaterThan(view.canvasPanes().getWidth());
+        java.awt.Rectangle tab = javax.swing.SwingUtilities.convertRectangle(view,
+                new java.awt.Rectangle(view.getSize()), root.getLayeredPane());
+        assertThat(panel.getBounds()).as("the whole tab, side panels included, below the menus").isEqualTo(tab);
     }
 
     @Test
