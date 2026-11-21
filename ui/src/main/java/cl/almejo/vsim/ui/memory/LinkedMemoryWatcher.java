@@ -10,6 +10,8 @@ import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,6 +36,8 @@ import java.util.Set;
  * circuit keeps simulating with the copy it saved. Nothing is ever written to the file. EDT only.
  */
 public final class LinkedMemoryWatcher {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(LinkedMemoryWatcher.class);
 
     /** What a file looked like the last time it was read: a change of any of these reads it again. */
     private record Fingerprint(Path file, FileTime modified, long size) {
@@ -129,6 +133,7 @@ public final class LinkedMemoryWatcher {
             reloadIfChanged(component, read.contents());
         } catch (RuntimeException exception) {
             // not seen: the file is tried again at the next poll, and the problem shows meanwhile
+            LOGGER.warn("Could not reload the memory {} from {}", id.value(), file, exception);
             seen.remove(id);
             problems.put(id, new LinkedFileProblem(id.value(), shown, LinkedFileProblem.Kind.UNREADABLE,
                     String.valueOf(exception.getMessage())));
