@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.actions.Actions;
@@ -20,6 +21,7 @@ import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import java.awt.Cursor;
 import java.awt.Point;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -56,6 +58,9 @@ import java.util.function.Consumer;
  * corner resizes it, a double click edits its text. Notes lie under the states and arrows, so those are hit
  * first. As on a circuit's note, its ✕ asks and deletes it, its «–» folds it into a small paper, and a click on a
  * folded note unfolds it (a drag moves it folded); each is one undo step.</li>
+ * <li>free texts (like the circuit's «Texto»): the palette's «Texto» (or the toolbar's) opens an editor with a click and
+ * adds the text when it is confirmed; a click selects a text, a drag moves it with the rest of the selection, a double
+ * click (or F2) edits it. Texts lie under the states and arrows, over the notes.</li>
  * </ul>
  * Each edit goes through {@link MachineCanvas#edit}: one undo step of the circuit that belongs to the machine's tab.
  * The same edits are in the Editar menu ({@link #newStateAction()}, {@link #newTransitionAction()},
@@ -86,21 +91,26 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         private final String stateId;
         /** The note pressed (a move or a resize), or "" when it was not one. */
         private final String noteId;
+        /** The free text pressed (a move), or "" when it was not one. */
+        private final String textId;
         private final Set<String> stateIds;
         private final Set<String> noteIds;
+        private final Set<String> textIds;
         private DiagramPoint pointer;
         private boolean moved;
 
         private Drag(DragKind kind, Point2D pressed, DiagramPoint start, String stateId, String noteId,
-                     Set<String> stateIds, Set<String> noteIds) {
+                     String textId, Set<String> stateIds, Set<String> noteIds, Set<String> textIds) {
             this.kind = kind;
             this.pressed = pressed;
             this.start = start;
             this.pointer = start;
             this.stateId = stateId;
             this.noteId = noteId;
+            this.textId = textId;
             this.stateIds = Set.copyOf(stateIds);
             this.noteIds = Set.copyOf(noteIds);
+            this.textIds = Set.copyOf(textIds);
         }
 
         private double deltaX() {
@@ -235,8 +245,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     private static StateMachine dragged(StateMachine machine, Drag current) {
         return current.kind == DragKind.RESIZE
                 ? MachineEdits.withNoteResized(machine, current.noteId, current.deltaX(), current.deltaY())
-                : MachineEdits.withMoved(machine, current.stateIds, current.noteIds, current.deltaX(),
-                current.deltaY());
+                : MachineEdits.withMoved(machine, current.stateIds, current.noteIds, current.textIds,
+                current.deltaX(), current.deltaY());
     }
 
     @Override
@@ -258,7 +268,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         Set<String> states = selection.stateIds();
         Set<String> transitions = selection.transitionIds();
         Set<String> notes = selection.noteIds();
-        if (canvas.edit(machine -> MachineEdits.without(machine, states, transitions, notes))) {
+        Set<String> texts = selection.textIds();
+        if (canvas.edit(machine -> MachineEdits.without(machine, states, transitions, notes, texts))) {
             selection.clear();
         }
     }
@@ -266,8 +277,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     private void refreshActions() {
         int states = selection.stateIds().size();
         newTransition.setEnabled(selection.transitionIds().isEmpty() && selection.noteIds().isEmpty()
-                && (states == 1 || states == 2));
-        editText.setEnabled(states + selection.transitionIds().size() + selection.noteIds().size() == 1);
+                && selection.textIds().isEmpty() && (states == 1 || states == 2));
+        editText.setEnabled(selection.count() == 1);
     }
 
     private void addStateInView() {
@@ -297,16 +308,17 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     }
 
     private void editSelectedText() {
-        int selected = selection.stateIds().size() + selection.transitionIds().size() + selection.noteIds().size();
-        if (selected != 1) {
+        if (selection.count() != 1) {
             return;
         }
         if (!selection.stateIds().isEmpty()) {
             inline.editStateName(selection.stateIds().iterator().next());
         } else if (!selection.transitionIds().isEmpty()) {
             inline.editCondition(selection.transitionIds().iterator().next());
-        } else {
+        } else if (!selection.noteIds().isEmpty()) {
             inline.editNote(selection.noteIds().iterator().next());
+        } else {
+            inline.editText(selection.textIds().iterator().next());
         }
     }
 
@@ -318,7 +330,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         } else if (canvas.putHandDown()) {
             return;
         } else if (palette.stateButton().isSelected() || palette.transitionButton().isSelected()
-                || palette.noteButton().isSelected()) {
+                || palette.noteButton().isSelected() || palette.textButton().isSelected()) {
             palette.clearTool();
         } else {
             selection.clear();
@@ -491,6 +503,11 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 return;
             }
             DiagramPoint point = canvas.toDiagram(screenPoint);
+            if (palette.textButton().isSelected()) { // the circuit's «Texto» shows the text cursor, nothing lights up
+                light(Optional.empty());
+                canvas.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
+                return;
+            }
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
             Optional<MachineDiagramGeometry.StateHit> hit = geometry.stateHitAt(asPoint(point), borderBand(),
                     canvas.drawingOrder(machine.get()));
@@ -499,8 +516,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Optional<MachineDiagramGeometry.StateHit> lit = hit.filter(found -> joining
                     || !selecting && found.part() == MachineDiagramGeometry.StatePart.BORDER);
             light(lit.map(MachineDiagramGeometry.StateHit::stateId));
-            Optional<MachineNotePainting.NoteHit> note = hit.isPresent() ? Optional.empty()
-                    : noteUnder(machine.get(), point);
+            Optional<MachineNotePainting.NoteHit> note = hit.isPresent() || textUnder(machine.get(), point).isPresent()
+                    ? Optional.empty() : noteUnder(machine.get(), point);
             hoverClose(note.filter(found -> found.part() == StickyPart.CLOSE)
                     .map(found -> found.note().id()));
             if (selecting && note.filter(found -> found.part() == StickyPart.CLOSE
@@ -510,14 +527,15 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 return;
             }
             showCursor(lit.isPresent() ? CanvasCursor.CROSSHAIR
-                    : hit.isPresent() ? CanvasCursor.MOVE : noteCursor(note, point));
+                    : hit.isPresent() || textUnder(machine.get(), point).isPresent() ? CanvasCursor.MOVE
+                    : noteCursor(note, point));
         }
 
         /** Whether these keys make a press a selection change: always but while a palette tool is chosen. */
         private boolean selectionKeysApply(boolean shiftDown, boolean controlDown) {
             return SelectionModifiers.changesSelection(shiftDown, controlDown)
                     && !palette.transitionButton().isSelected() && !palette.stateButton().isSelected()
-                    && !palette.noteButton().isSelected();
+                    && !palette.noteButton().isSelected() && !palette.textButton().isSelected();
         }
 
         /** Whether the state, arrow or note under {@code point} is selected; empty over empty space. */
@@ -531,7 +549,21 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             if (arrow.isPresent()) {
                 return Optional.of(selection.containsTransition(arrow.get()));
             }
+            Optional<MachineText> text = textUnder(machine, point);
+            if (text.isPresent()) {
+                return Optional.of(selection.containsText(text.get().id()));
+            }
             return note.map(found -> selection.containsNote(found.note().id()));
+        }
+
+        /** The free text under {@code point}, unless an arrow is there or a palette tool is chosen. */
+        private Optional<MachineText> textUnder(StateMachine machine, DiagramPoint point) {
+            Point2D at = asPoint(point);
+            if (palette.noteButton().isSelected() || canvas.transitionAt(machine, MachineDiagramGeometry.of(machine),
+                    at).isPresent()) {
+                return Optional.empty();
+            }
+            return MachineTextPainting.textAt(machine, at);
         }
 
         /** The note and its part under {@code point}, unless an arrow is there or the palette's note is chosen. */
@@ -604,6 +636,11 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 addNote(point);
                 return;
             }
+            if (palette.textButton().isSelected()) {
+                palette.clearTool();
+                inline.addText(point);
+                return;
+            }
             Optional<MachineDiagramGeometry.StateHit> hit = geometry.stateHitAt(at, borderBand(),
                     canvas.drawingOrder(machine.get()));
             if (palette.stateButton().isSelected()) {
@@ -615,7 +652,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             }
             if (hit.isPresent() && (palette.transitionButton().isSelected()
                     || !selecting && hit.get().part() == MachineDiagramGeometry.StatePart.BORDER)) {
-                startDrag(DragKind.JOIN, event, point, hit.get().stateId(), "", Set.of(), Set.of());
+                startDrag(DragKind.JOIN, event, point, hit.get().stateId(), "", "", Set.of(), Set.of(), Set.of());
                 return;
             }
             if (hit.isPresent()) {
@@ -625,6 +662,11 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Optional<String> arrow = canvas.transitionAt(machine.get(), geometry, at);
             if (arrow.isPresent()) {
                 pressTransition(arrow.get());
+                return;
+            }
+            Optional<MachineText> text = MachineTextPainting.textAt(machine.get(), at);
+            if (text.isPresent()) {
+                pressText(event, point, text.get());
                 return;
             }
             Optional<MachineNotePainting.NoteHit> note = MachineNotePainting.partAt(machine.get(), at,
@@ -640,7 +682,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             if (bandMode == SelectionModifiers.BandMode.REPLACE) {
                 selection.clear();
             }
-            startDrag(DragKind.BAND, event, point, "", "", Set.of(), Set.of());
+            startDrag(DragKind.BAND, event, point, "", "", "", Set.of(), Set.of(), Set.of());
             showCursor(SelectionModifiers.bandCursor(bandMode));
         }
 
@@ -692,6 +734,12 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 inline.editCondition(arrow.get());
                 return;
             }
+            Optional<MachineText> text = MachineTextPainting.textAt(machine, at);
+            if (text.isPresent()) {
+                selection.selectText(text.get().id());
+                inline.editText(text.get().id());
+                return;
+            }
             Optional<MachineNote> note = MachineNotePainting.noteAt(machine, at);
             if (note.isPresent()) {
                 selection.selectNote(note.get().id());
@@ -711,7 +759,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
          */
         private void pressState(MouseEvent event, DiagramPoint point, String stateId) {
             if (elementPress == SelectionModifiers.ElementPress.TOGGLE) {
-                selection.set(toggled(selection.stateIds(), stateId), selection.transitionIds(), selection.noteIds());
+                selection.set(toggled(selection.stateIds(), stateId), selection.transitionIds(), selection.noteIds(),
+                        selection.textIds());
                 return;
             }
             if (elementPress == SelectionModifiers.ElementPress.TOGGLE_OR_DRAG) {
@@ -719,14 +768,15 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                     removeOnRelease = true;
                 } else {
                     selection.set(with(selection.stateIds(), stateId), selection.transitionIds(),
-                            selection.noteIds());
+                            selection.noteIds(), selection.textIds());
                 }
             } else if (selection.containsState(stateId)) {
                 aloneOnRelease = selectedCount() > 1;
             } else {
                 selection.selectState(stateId);
             }
-            startDrag(DragKind.MOVE, event, point, stateId, "", selection.stateIds(), selection.noteIds());
+            startDrag(DragKind.MOVE, event, point, stateId, "", "", selection.stateIds(), selection.noteIds(),
+                    selection.textIds());
         }
 
         /**
@@ -737,11 +787,12 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             boolean plain = elementPress == SelectionModifiers.ElementPress.PLAIN;
             if (plain && MachineNotePainting.onResizeCorner(note, asPoint(point), resizeCorner())) {
                 selection.selectNote(note.id());
-                startDrag(DragKind.RESIZE, event, point, "", note.id(), Set.of(), Set.of());
+                startDrag(DragKind.RESIZE, event, point, "", note.id(), "", Set.of(), Set.of(), Set.of());
                 return;
             }
             if (elementPress == SelectionModifiers.ElementPress.TOGGLE) {
-                selection.set(selection.stateIds(), selection.transitionIds(), toggled(selection.noteIds(), note.id()));
+                selection.set(selection.stateIds(), selection.transitionIds(), toggled(selection.noteIds(), note.id()),
+                        selection.textIds());
                 return;
             }
             if (!plain) {
@@ -749,9 +800,10 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                     removeOnRelease = true;
                 } else {
                     selection.set(selection.stateIds(), selection.transitionIds(),
-                            with(selection.noteIds(), note.id()));
+                            with(selection.noteIds(), note.id()), selection.textIds());
                 }
-                startDrag(DragKind.MOVE, event, point, "", note.id(), selection.stateIds(), selection.noteIds());
+                startDrag(DragKind.MOVE, event, point, "", note.id(), "", selection.stateIds(), selection.noteIds(),
+                        selection.textIds());
                 return;
             }
             if (selection.containsNote(note.id())) {
@@ -760,11 +812,39 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 selection.selectNote(note.id());
             }
             unfoldOnRelease = note.folded();
-            startDrag(DragKind.MOVE, event, point, "", note.id(), selection.stateIds(), selection.noteIds());
+            startDrag(DragKind.MOVE, event, point, "", note.id(), "", selection.stateIds(), selection.noteIds(),
+                    selection.textIds());
+        }
+
+        /**
+         * A press on a free text: it is selected and moves (with the rest of the selection when it was already part of
+         * it). The selection keys work as on a state ({@link #pressState}).
+         */
+        private void pressText(MouseEvent event, DiagramPoint point, MachineText text) {
+            String textId = text.id();
+            if (elementPress == SelectionModifiers.ElementPress.TOGGLE) {
+                selection.set(selection.stateIds(), selection.transitionIds(), selection.noteIds(),
+                        toggled(selection.textIds(), textId));
+                return;
+            }
+            if (elementPress == SelectionModifiers.ElementPress.TOGGLE_OR_DRAG) {
+                if (selection.containsText(textId)) {
+                    removeOnRelease = true;
+                } else {
+                    selection.set(selection.stateIds(), selection.transitionIds(), selection.noteIds(),
+                            with(selection.textIds(), textId));
+                }
+            } else if (selection.containsText(textId)) {
+                aloneOnRelease = selectedCount() > 1;
+            } else {
+                selection.selectText(textId);
+            }
+            startDrag(DragKind.MOVE, event, point, "", "", textId, selection.stateIds(), selection.noteIds(),
+                    selection.textIds());
         }
 
         private int selectedCount() {
-            return selection.stateIds().size() + selection.transitionIds().size() + selection.noteIds().size();
+            return selection.count();
         }
 
         /** A press on an arrow selects it; with a selection key it toggles it (arrows are never dragged). */
@@ -774,12 +854,13 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                 return;
             }
             selection.set(selection.stateIds(), toggled(selection.transitionIds(), transitionId),
-                    selection.noteIds());
+                    selection.noteIds(), selection.textIds());
         }
 
         private void startDrag(DragKind kind, MouseEvent event, DiagramPoint point, String stateId, String noteId,
-                               Set<String> stateIds, Set<String> noteIds) {
-            drag = Optional.of(new Drag(kind, event.getPoint(), point, stateId, noteId, stateIds, noteIds));
+                               String textId, Set<String> stateIds, Set<String> noteIds, Set<String> textIds) {
+            drag = Optional.of(new Drag(kind, event.getPoint(), point, stateId, noteId, textId, stateIds, noteIds,
+                    textIds));
         }
 
         private void releaseMove(Drag current) {
@@ -789,7 +870,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             }
             if (removeOnRelease) {
                 selection.set(without(selection.stateIds(), current.stateId), selection.transitionIds(),
-                        without(selection.noteIds(), current.noteId));
+                        without(selection.noteIds(), current.noteId), without(selection.textIds(), current.textId));
                 return;
             }
             if (unfoldOnRelease && fold(current.noteId, false)) {
@@ -797,6 +878,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             }
             if (aloneOnRelease && !current.stateId.isEmpty()) {
                 selection.selectState(current.stateId);
+            } else if (aloneOnRelease && !current.textId.isEmpty()) {
+                selection.selectText(current.textId);
             } else if (aloneOnRelease) {
                 selection.selectNote(current.noteId);
             }
@@ -839,6 +922,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Set<String> states = new LinkedHashSet<>();
             Set<String> transitions = new LinkedHashSet<>();
             Set<String> notes = new LinkedHashSet<>();
+            Set<String> texts = new LinkedHashSet<>();
             for (MachineState state : machine.get().states()) {
                 if (SelectionModifiers.encloses(band, geometry.circle(state.id()).getBounds2D())) {
                     states.add(state.id());
@@ -854,9 +938,15 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
                     notes.add(note.id());
                 }
             }
+            for (MachineText text : machine.get().texts()) {
+                if (SelectionModifiers.encloses(band, MachineTextPainting.box(text))) {
+                    texts.add(text.id());
+                }
+            }
             selection.set(SelectionModifiers.combine(bandMode, selection.stateIds(), states),
                     SelectionModifiers.combine(bandMode, selection.transitionIds(), transitions),
-                    SelectionModifiers.combine(bandMode, selection.noteIds(), notes));
+                    SelectionModifiers.combine(bandMode, selection.noteIds(), notes),
+                    SelectionModifiers.combine(bandMode, selection.textIds(), texts));
         }
 
         private DiagramPoint diagramPoint(MouseEvent event) {

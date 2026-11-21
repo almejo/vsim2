@@ -74,7 +74,7 @@ public final class MachineMode {
         MachineSelection selection = new MachineSelection();
         MachineCanvas canvas = new MachineCanvas(place, machineId.get(), selection, stateSource,
                 () -> view.services().appearance().scheme());
-        MachinePalette palette = new MachinePalette();
+        MachinePalette palette = new MachinePalette(() -> view.services().appearance().scheme());
         canvas.setTransferHandler(new MachineDropRefusal(view::showNotice));
         // the frame stays while the tab is a machine's: the test mode adds its border and bar to it
         MachineDiagramFrame frame = new MachineDiagramFrame(canvas, () -> view.services().appearance().scheme());

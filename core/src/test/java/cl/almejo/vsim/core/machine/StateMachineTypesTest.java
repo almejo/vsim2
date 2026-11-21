@@ -52,6 +52,14 @@ class StateMachineTypesTest {
     }
 
     @Test
+    void aFreeTextIsNotBehaviourEither() {
+        StateMachine written = detector.withTexts(List.of(new MachineText("t1", new DiagramPoint(0, 140), "hola")));
+
+        assertThat(typeOf(written)).isEqualTo(typeOf(detector));
+        assertThat(typeOf(written).hashCode()).isEqualTo(typeOf(detector).hashCode());
+    }
+
+    @Test
     void aDifferentConditionOutputEdgeOrInitialStateGivesADifferentType() {
         assertThat(typeOf(detector.withTransition("t1", arrow -> arrow.withCondition("x'"))))
                 .isNotEqualTo(typeOf(detector));

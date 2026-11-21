@@ -233,7 +233,7 @@ public final class CircuitFormat {
     }
 
     /** The entry of a note's style; {@code null} (no key) for a plain note. */
-    private static StyleEntry styleEntry(NoteStyle style) {
+    static StyleEntry styleEntry(NoteStyle style) {
         if (style.isPlain()) {
             return null;
         }

@@ -118,7 +118,7 @@ public final class StateMachineTypes {
 
     /**
      * The part of {@code machine} its behaviour runs on: states with their names and outputs, arrows, the initial
-     * state, the pins, the bus flags and the edge; without the states' places and colours, the notes or the tests,
+     * state, the pins, the bus flags and the edge; without the states' places and colours, the notes, the free texts or the tests,
      * which only the editor reads. A state's name stays: the running copy shows it (the face, the probe).
      */
     static StateMachine behaviourOf(StateMachine machine) {
@@ -126,6 +126,7 @@ public final class StateMachineTypes {
                         .map(state -> new MachineState(state.id(), state.name(), DiagramPoint.ORIGIN, state.outputs()))
                         .toList())
                 .withNotes(List.of())
+                .withTexts(List.of())
                 .withTests(List.of());
     }
 

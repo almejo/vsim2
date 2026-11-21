@@ -150,15 +150,19 @@ public final class SelectionActions {
         startFloating(fragment, mousePoint.orElseGet(() -> positionWithoutMouse(json.get())));
     }
 
-    /** A machine's copied selection: only its notes float here, as circuit notes; the rest is said to be left out. */
+    /**
+     * A machine's copied selection: only its notes and free texts float here, as circuit notes and texts; the rest is
+     * said to be left out.
+     */
     private void pasteMachineNotes(String json) {
-        Optional<StateMachine> piece = MachineFragmentFormat.read(json).filter(found -> !found.notes().isEmpty());
+        Optional<StateMachine> piece = MachineFragmentFormat.read(json)
+                .filter(found -> !found.notes().isEmpty() || !found.texts().isEmpty());
         if (piece.isEmpty()) {
             notices.accept(Messages.text("machine.paste.notInACircuit"));
             return;
         }
-        CircuitFragment notes = new CircuitFragment(List.of(), List.of(), List.of(), List.of(), List.of(),
-                NoteTransfer.toStickyNotes(piece.get().notes()));
+        CircuitFragment notes = new CircuitFragment(List.of(), List.of(), NoteTransfer.toTextLabels(piece.get().texts()),
+                List.of(), List.of(), NoteTransfer.toStickyNotes(piece.get().notes()));
         if (!piece.get().states().isEmpty()) {
             notices.accept(Messages.text("machine.paste.onlyNotesInCircuit"));
         }

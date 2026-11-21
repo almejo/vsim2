@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachineExamples;
 import cl.almejo.vsim.core.machine.MachineNote;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachinePin;
 import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineTest;
@@ -248,6 +249,33 @@ class MachineFilesTest {
         assertThat(withoutTheField).doesNotContain("folded");
         assertThat(format.read(withoutTheField).definition("maquina-1").orElseThrow().machine().orElseThrow()
                 .notes()).extracting(MachineNote::folded).containsExactly(false, false);
+    }
+
+    /**
+     * The free texts of the diagram are an optional field of the machine block (format 7, unreleased): none written
+     * when there are none (a machine keeps its bytes), a plain text writes no style, and a file without the field
+     * reads no texts.
+     */
+    @Test
+    void freeTextsRoundTripAndAMachineWithoutThemWritesNoField() throws CircuitFormatException {
+        MachineText plain = new MachineText("t1", new DiagramPoint(12.5, -40), "una\nnota");
+        MachineText boxed = new MachineText("t2", new DiagramPoint(300, 140), "con caja",
+                new cl.almejo.vsim.core.document.NoteStyle(cl.almejo.vsim.core.document.NoteColor.YELLOW,
+                        cl.almejo.vsim.core.document.NoteColor.NONE, cl.almejo.vsim.core.document.NoteColor.BLUE));
+        StateMachine machine = MachineExamples.twoOnesDetector().withTexts(List.of(plain, boxed));
+        String bare = format.write(circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(MachineExamples.twoOnesDetector())));
+
+        String json = format.write(circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(machine)));
+        StateMachine read = format.read(json).definition("maquina-1").orElseThrow().machine().orElseThrow();
+
+        assertThat(bare).doesNotContain("\"texts\"");
+        assertThat(json).contains("\"texts\"");
+        assertThat(read).isEqualTo(machine);
+        assertThat(read.texts()).containsExactly(plain, boxed);
+        assertThat(format.write(format.read(json))).isEqualTo(json);
+        assertThat(format.read(bare).definition("maquina-1").orElseThrow().machine().orElseThrow().texts()).isEmpty();
     }
 
     // --- tests ---

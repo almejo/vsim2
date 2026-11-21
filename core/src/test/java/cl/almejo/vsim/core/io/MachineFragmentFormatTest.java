@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.io;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -31,6 +32,13 @@ class MachineFragmentFormatTest {
 
         assertThat(MachineFragmentFormat.isMachineFragment(json)).isTrue();
         assertThat(MachineFragmentFormat.read(json)).contains(piece());
+    }
+
+    @Test
+    void theFreeTextsOfAPieceTravelWithIt() {
+        StateMachine withTexts = piece().withTexts(List.of(new MachineText("t1", new DiagramPoint(5, 6), "hola")));
+
+        assertThat(MachineFragmentFormat.read(MachineFragmentFormat.write(withTexts))).contains(withTexts);
     }
 
     @Test

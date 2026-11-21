@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.machine;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 
 import java.util.ArrayList;
@@ -12,7 +13,8 @@ import java.util.List;
  * Sticky notes crossing between a circuit and a machine's diagram (copy in one, paste in the other). A circuit note is
  * in grid units of {@link GridPoint#PIXELS_PER_UNIT} pixels and a diagram note in pixels at 100 %, so the note keeps
  * the size it has on screen. A checklist becomes free text (done items marked), as a machine note has no list. The
- * notes come out with the top-left of the group at the origin (the paste moves them where it wants).
+ * notes come out with the top-left of the group at the origin (the paste moves them where it wants). The free texts
+ * ({@link TextLabel} and {@link MachineText}) cross the same way, with their style.
  */
 public final class NoteTransfer {
 
@@ -45,6 +47,33 @@ public final class NoteTransfer {
                     new GridPoint(units(note.position().x() - left), units(note.position().y() - top)),
                     units(note.width()), units(note.height()), note.color(), new StickyText(note.text()),
                     note.folded()));
+        }
+        return List.copyOf(result);
+    }
+
+    /** {@code labels} as diagram texts, the top-left of the group at (0, 0), with ids {@code t1}, {@code t2}… */
+    public static List<MachineText> toMachineTexts(List<TextLabel> labels) {
+        int left = labels.stream().mapToInt(label -> label.position().x()).min().orElse(0);
+        int top = labels.stream().mapToInt(label -> label.position().y()).min().orElse(0);
+        List<MachineText> result = new ArrayList<>();
+        for (TextLabel label : labels) {
+            result.add(new MachineText("t" + (result.size() + 1),
+                    new DiagramPoint((label.position().x() - left) * (double) GridPoint.PIXELS_PER_UNIT,
+                            (label.position().y() - top) * (double) GridPoint.PIXELS_PER_UNIT),
+                    label.text(), label.style()));
+        }
+        return List.copyOf(result);
+    }
+
+    /** {@code texts} as circuit texts, the top-left of the group at (0, 0), with ids {@code label1}… */
+    public static List<TextLabel> toTextLabels(List<MachineText> texts) {
+        double left = texts.stream().mapToDouble(text -> text.position().x()).min().orElse(0);
+        double top = texts.stream().mapToDouble(text -> text.position().y()).min().orElse(0);
+        List<TextLabel> result = new ArrayList<>();
+        for (MachineText text : texts) {
+            result.add(new TextLabel(new ElementId("label" + (result.size() + 1)),
+                    new GridPoint(units(text.position().x() - left), units(text.position().y() - top)), text.text(),
+                    text.style()));
         }
         return List.copyOf(result);
     }

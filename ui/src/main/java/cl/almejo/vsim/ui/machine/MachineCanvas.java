@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.machine.MachineChecks;
 import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineKind;
 import cl.almejo.vsim.core.machine.MachineNote;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
@@ -800,6 +801,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             canvas.transform(viewport.documentTransform());
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine.get());
             paintNotes(canvas, machine.get(), colours);
+            paintTexts(canvas, machine.get(), colours);
             MachineDiagramPainter.paint(canvas, machine.get(), geometry,
                     new MachineDiagramPainter.Marks(activeState, selection, glows(), revealed(),
                             marchingAnts.phase()), colours);
@@ -835,6 +837,16 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         }
     }
 
+    /** The free texts, under the states and arrows like the notes, each one in marching ants while it is selected. */
+    private void paintTexts(Graphics2D canvas, StateMachine machine, ColorScheme colours) {
+        for (MachineText text : machine.texts()) {
+            MachineTextPainting.paint(canvas, text, colours);
+            if (selection.containsText(text.id())) {
+                MachineTextPainting.paintSelection(canvas, text, colours, marchingAnts.phase());
+            }
+        }
+    }
+
     /** The colours now (read each time, never kept). */
     ColorScheme colours() {
         return scheme.get();
@@ -853,8 +865,10 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     private Optional<Rectangle2D> diagramBounds() {
         return machine().flatMap(machine -> {
             Optional<Rectangle2D> diagram = MachineDiagramGeometry.of(machine).bounds();
-            Optional<Rectangle2D> notes = MachineNotePainting.bounds(machine);
-            return diagram.map(found -> notes.map(found::createUnion).orElse(found)).or(() -> notes);
+            Optional<Rectangle2D> beside = MachineNotePainting.bounds(machine).map(notes ->
+                    MachineTextPainting.bounds(machine).map(notes::createUnion).orElse(notes))
+                    .or(() -> MachineTextPainting.bounds(machine));
+            return diagram.map(found -> beside.map(found::createUnion).orElse(found)).or(() -> beside);
         });
     }
 
