@@ -75,6 +75,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - La IA ya no puede dejar un circuito con piezas a miles de millones de unidades: las posiciones, tamaños y desplazamientos de sus ediciones quedan dentro de ±1 000 000 de unidades de cuadrícula (si no, la edición se rechaza sin cambiar nada), y leer el resumen de un circuito con partes muy lejanas ya no falla.
 - Una edición de la IA con un parámetro sin valor (null) ya no termina en «VSim falló» sino en un rechazo claro que nombra el parámetro.
 - Al cerrar un circuito se libera lo que la IA recordaba de él (registro de operaciones y paso transparente).
+- Buscar: una Σ final en mayúsculas («ΟΔΟΣ») se encuentra al buscar «σ» (o «ς»), y el resaltado la marca; una búsqueda que queda vacía al ignorar los acentos (solo una marca combinada) ya no coincide con todo.
+- Circuito desde expresiones: veinte mil «!» o «(» seguidos ya no tiran un error interno; la línea muestra el problema «La expresión está demasiado anidada» (más de 500 niveles).
 
 ## Versión 0.8 — 2026-11-11
 

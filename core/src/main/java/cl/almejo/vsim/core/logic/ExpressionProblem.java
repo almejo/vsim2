@@ -44,12 +44,14 @@ public record ExpressionProblem(String messageKey, List<Object> arguments, int c
     public static final String TOO_MANY_OUTPUTS = "expressions.problem.tooManyOutputs";
     /** No line at all. */
     public static final String NO_OUTPUTS = "expressions.problem.noOutputs";
+    /** More nested NOTs and parentheses than the parser follows. */
+    public static final String TOO_NESTED = "expressions.problem.tooNested";
 
     /** Every message key, for the bundle completeness test. */
     public static final List<String> MESSAGE_KEYS = List.of(EMPTY_LINE, MISSING_EQUALS, BLANK_OUTPUT_NAME,
             INVALID_OUTPUT_NAME, EMPTY_EXPRESSION, UNEXPECTED_CHARACTER, MISSING_OPERAND, UNCLOSED_PARENTHESIS,
             UNEXPECTED_CLOSING_PARENTHESIS, REPEATED_OUTPUT, OUTPUT_USED_AS_INPUT, INPUTS_DIFFER_ONLY_IN_CASE,
-            NO_INPUTS, TOO_MANY_INPUTS, TOO_MANY_OUTPUTS, NO_OUTPUTS);
+            NO_INPUTS, TOO_MANY_INPUTS, TOO_MANY_OUTPUTS, NO_OUTPUTS, TOO_NESTED);
 
     public ExpressionProblem {
         arguments = List.copyOf(arguments);
