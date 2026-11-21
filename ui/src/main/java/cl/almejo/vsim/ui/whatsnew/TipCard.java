@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.whatsnew;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.theme.ThemeColors;
@@ -66,16 +68,16 @@ final class TipCard extends JComponent {
     static final int WIDTH = 300;
     private static final int PADDING_Y = 12;
     private static final int PADDING_X = 14;
-    private static final int CORNER = 10;
+    private static final int CORNER = CardLook.CORNER;
     /** Room around the card for its shadow, inside this component's bounds. */
     static final int SHADOW = 12;
     private static final int SHADOW_LAYERS = 6;
     private static final int SHADOW_ALPHA = 9;
     private static final int SHADOW_DROP = 4;
     private static final int GAP = 6;
+    private static final int CLOSE_ICON_SIZE = 14;
     private static final float TITLE_GROWTH = 2f;
     private static final float SMALL_SHRINK = 1f;
-    private static final String CLOSE = "×";
     private static final String PREVIOUS_ARROW = "‹";
     private static final String NEXT_ARROW = "›";
     private static final Insets SMALL_BUTTON_MARGIN = new Insets(1, 8, 1, 8);
@@ -86,7 +88,7 @@ final class TipCard extends JComponent {
             return TipPicture.mutedColour(); // read at paint time: the theme changes live
         }
     };
-    private final JButton closeButton = new JButton(CLOSE);
+    private final JButton closeButton = new JButton(Icons.get(CardLook.CLOSE_ICON, CLOSE_ICON_SIZE));
     private final TipPicture picture;
     /** The title wraps like the text, so a long one in any language is never cut. */
     private final TextView titleView = new TextView(TipCard::titleFont);

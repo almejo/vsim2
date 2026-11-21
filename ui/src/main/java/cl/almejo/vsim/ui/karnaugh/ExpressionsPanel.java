@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.logic.Minimizer;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
@@ -26,9 +27,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
-import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -625,10 +624,8 @@ public final class ExpressionsPanel extends JPanel {
                 panel::requestClose);
         panel.setOnClose(dialog::dispose);
         panel.updateDefaultButton();
-        Dimension size = panel.dialogSize();
-        // Not wider than the screen: there the legend's details wrap instead.
-        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        dialog.setSize(Math.min(size.width, screen.width), Math.min(size.height, screen.height));
+        dialog.setSize(panel.dialogSize());
+        DialogButtons.fitToScreen(dialog); // not wider than the usable screen: the legend's details wrap instead
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
     }

@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.ai.AiPreferencesPanel;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
 
@@ -63,6 +64,7 @@ public final class PreferencesDialog {
     private static void show(Component parent, PreferencesPanel panel) {
         JOptionPane pane = optionPane(panel);
         JDialog dialog = pane.createDialog(parent, Messages.text("preferences.title"));
+        DialogButtons.fitToScreen(dialog);
         dialog.addWindowListener(focusSearchWhenOpened(panel));
         try {
             dialog.setVisible(true);

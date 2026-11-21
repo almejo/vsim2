@@ -38,7 +38,7 @@ public final class CanvasNotice extends JComponent {
     private static final int MARGIN = 16;
     private static final int PADDING_X = 16;
     private static final int PADDING_Y = 8;
-    private static final int CORNER = 14;
+    private static final int CORNER = CardLook.CORNER;
     private static final int GAP = 6;
     /** Chips are for projectors and videos: the UI font times this, and the paddings and distances with it. */
     private static final float CHIP_SCALE = 1.8f;

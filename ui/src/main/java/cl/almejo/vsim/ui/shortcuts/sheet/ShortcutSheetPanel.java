@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.shortcuts.sheet;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.panels.Keycaps;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.theme.SwitchBox;
@@ -59,7 +60,7 @@ final class ShortcutSheetPanel extends JPanel {
     private static final int VEIL_MARGIN = 24;
     /** One wheel notch or arrow click of the groups' scroll bar: about a row. */
     private static final int SCROLL_UNIT = 16;
-    private static final int CORNER = 18;
+    private static final int CORNER = CardLook.CORNER;
     private static final int SHADOW_SIZE = 14;
     private static final int SHADOW_ALPHA = 7;
     private static final int LIGHT_VEIL_ALPHA = 110;

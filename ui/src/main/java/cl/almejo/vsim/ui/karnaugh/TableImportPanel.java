@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.logic.TableImportException;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
@@ -687,6 +688,7 @@ public final class TableImportPanel extends JPanel {
         panel.updateDefaultButton();
         dialog.pack();
         panel.fitWindow();
+        DialogButtons.fitToScreen(dialog);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
     }
