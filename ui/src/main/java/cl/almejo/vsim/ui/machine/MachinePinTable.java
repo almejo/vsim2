@@ -103,6 +103,10 @@ final class MachinePinTable extends JPanel {
     private final JCheckBox busBox = new JCheckBox(Messages.text("machine.pins.asBus"));
     private final JLabel busLabel = new JLabel("");
     private final JButton addButton;
+    /** The «?» next to the title: the pin-renaming help in its tooltip, and shown under the title when pressed. */
+    private final JButton helpButton = new MachineLinkButton(Messages.text("machine.pins.help"));
+    private final MachineInspectorRows.Hint helpText = new MachineInspectorRows.Hint(Messages.text("machine.pins.hint"),
+            true);
     private final JTextField newNameField = FragmentRefusingTransferHandler.install(new JTextField());
     private final WrappedErrorText problem = new WrappedErrorText(" ");
     /** What the rows were built from; they are rebuilt only when it changes. */
@@ -128,6 +132,15 @@ final class MachinePinTable extends JPanel {
             }
         });
         busLabel.setFont(monospaced());
+        helpButton.setToolTipText(Messages.text("machine.pins.hint"));
+        helpButton.getAccessibleContext().setAccessibleName(Messages.text("machine.pins.help.title"));
+        helpButton.getAccessibleContext().setAccessibleDescription(Messages.text("machine.pins.hint"));
+        helpButton.addActionListener(event -> {
+            helpText.setVisible(!helpText.isVisible());
+            revalidate();
+            repaint();
+        });
+        helpText.setVisible(false);
         addButton = new JButton(Messages.text(isInputs() ? "machine.pins.addInput" : "machine.pins.addOutput"));
         addButton.putClientProperty("JButton.buttonType", "borderless");
         addButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -201,6 +214,11 @@ final class MachinePinTable extends JPanel {
     /** The field of a new pin's name, while it is open. */
     Optional<JTextField> newNameField() {
         return newNameField.isVisible() ? Optional.of(newNameField) : Optional.empty();
+    }
+
+    /** The «?» of the title. */
+    AbstractButton helpButton() {
+        return helpButton;
     }
 
     JCheckBox busBox() {
@@ -309,8 +327,10 @@ final class MachinePinTable extends JPanel {
             title.setFont(font.deriveFont(Font.BOLD));
         }
         counter.setText(Messages.format("machine.pins.count", count, limit()));
-        add(title, "span 2");
-        add(counter, "span 2, right");
+        add(title, "span 4, split 3");
+        add(counter, "gapx 8lp");
+        add(helpButton, "gapx 4lp");
+        add(helpText, WIDE);
         settingBus = true;
         try {
             busBox.setSelected(MachineBody.isBus(machine, side));

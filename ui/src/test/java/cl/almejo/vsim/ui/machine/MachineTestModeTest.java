@@ -100,6 +100,12 @@ class MachineTestModeTest {
         document.close();
     }
 
+    /** The «Probar…» of the machine's Propiedades (this test's view has no place bar). */
+    private javax.swing.AbstractButton propertiesTestButton() {
+        mode.selection().clear();
+        return mode.inspectorRows().testButton().orElseThrow();
+    }
+
     private StateMachine circuitsMachine() {
         return document.document().definition(MachineFixtures.DEFINITION_ID)
                 .flatMap(ComponentDefinition::machine).orElseThrow();
@@ -367,15 +373,15 @@ class MachineTestModeTest {
     void whileTestingTheEntriesSayYouAreAlreadyTestingAndTheNameCannotChange() {
         Action test = view.shortcutActions().get("tools.testMachine");
         assertThat(test.isEnabled()).isTrue();
-        assertThat(mode.palette().testButton().isEnabled()).isTrue();
+        assertThat(propertiesTestButton().isEnabled()).isTrue();
 
-        mode.palette().testButton().doClick(0);
+        propertiesTestButton().doClick(0);
 
         assertThat(mode.testMode()).isPresent();
         assertThat(test.isEnabled()).isFalse();
         assertThat(test.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Ya estás probando");
-        assertThat(mode.palette().testButton().isEnabled()).isFalse();
-        assertThat(mode.palette().testButton().getToolTipText()).isEqualTo("Ya estás probando");
+        assertThat(propertiesTestButton().isEnabled()).isFalse();
+        assertThat(propertiesTestButton().getToolTipText()).isEqualTo("Ya estás probando");
         assertThat(mode.inspectorRows().machineNameField().orElseThrow().isEnabled()).isFalse();
         assertThat(mode.inspectorRows().machineNameField().orElseThrow().getToolTipText())
                 .isEqualTo("Sal de la prueba para cambiarle el nombre");

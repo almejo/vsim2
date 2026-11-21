@@ -23,6 +23,7 @@ import javax.swing.Timer;
 import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -30,7 +31,8 @@ import java.util.Optional;
 /**
  * The bar under the tab strip of a component tab (spec §5.1), tinted with its group's colour: the route of the
  * context as clickable crumbs, «Valores de» (every instance path that reaches the definition, plus «Sin valores»),
- * how many places use it, «Ver la pieza», the library button, and the explanation of an edit refused inside, which
+ * how many places use it, «Ver la pieza», a machine's «Probar…» and «Convertir a circuito…», the
+ * library button, and the explanation of an edit refused inside, which
  * has no other place. It follows its place's changes and the library's; {@link #dispose()}
  * takes both listeners away. Colours are read when it paints or its look changes, never kept. EDT only.
  */
@@ -50,7 +52,7 @@ public final class PlaceBar extends JPanel {
         /** Writes the bundle over the library's entry of the same id. */
         void saveToLibrary(DefinitionBundle bundle);
 
-        /** Adds the bundle to the library (the palette's «Agregar a mi librería»). */
+        /** Adds the bundle to the library (the palette's «Agregar a Mis componentes»). */
         void addToLibrary(DefinitionBundle bundle);
     }
 
@@ -71,6 +73,9 @@ public final class PlaceBar extends JPanel {
     private final JLabel useChip = new JLabel();
     private final JButton seePiece = new JButton(Messages.text("place.seePiece") + " ↗");
     private final JButton libraryButton = new JButton();
+    /** «Probar…» and «Convertir a circuito…»: a machine's tab shows them ({@link #showMachineActions}). */
+    private final JButton machineTestButton = new JButton(Messages.text("machine.palette.test"));
+    private final JButton machineConvertButton = new JButton(Messages.text("machine.palette.convert"));
     /** Why the library button is disabled now (a machine's test mode); empty while it works. */
     private Optional<String> libraryHold = Optional.empty();
     private final JLabel refusalLabel = new JLabel();
@@ -84,7 +89,7 @@ public final class PlaceBar extends JPanel {
     private final Runnable removeRefusalListener;
 
     public PlaceBar(OpenDocument place, ComponentLibrary library, Callbacks callbacks) {
-        super(new MigLayout("insets 4 12 4 12, gapx 14, fillx", "[][][][][]push[][]"));
+        super(new MigLayout("insets 4 12 4 12, gapx 14, fillx", "[][][][][][][]push"));
         this.place = place;
         this.library = library;
         this.callbacks = callbacks;
@@ -96,7 +101,14 @@ public final class PlaceBar extends JPanel {
         add(valuesCombo);
         add(useChip);
         add(seePiece);
+        add(machineTestButton, "hidemode 3");
+        add(machineConvertButton, "hidemode 3");
         add(libraryButton);
+        machineTestButton.setVisible(false);
+        machineConvertButton.setVisible(false);
+        machineConvertButton.setEnabled(false);
+        machineConvertButton.setToolTipText(Messages.text("machine.comesLater"));
+        machineTestButton.setToolTipText(Messages.text("machine.palette.testHint"));
         add(refusalLabel, "newline, span");
         valuesCombo.addActionListener(action -> {
             if (!updating && valuesCombo.getSelectedIndex() >= 0) {
@@ -332,6 +344,33 @@ public final class PlaceBar extends JPanel {
                 libraryButton.setToolTipText(null);
             }
         };
+    }
+
+    /**
+     * A machine's tab: shows «Probar…», which calls {@code startTest}, and «Convertir a circuito…», disabled with its
+     * reason until it exists, before the library button. The returned runnable hides them again.
+     */
+    public Runnable showMachineActions(Runnable startTest) {
+        ActionListener start = action -> startTest.run();
+        machineTestButton.addActionListener(start);
+        machineTestButton.setVisible(true);
+        machineConvertButton.setVisible(true);
+        revalidate();
+        repaint();
+        return () -> {
+            machineTestButton.removeActionListener(start);
+            machineTestButton.setVisible(false);
+            machineConvertButton.setVisible(false);
+            revalidate();
+            repaint();
+        };
+    }
+
+    /** «Probar…» is disabled with «Ya estás probando» while the machine's tab tests, enabled again when it ends. */
+    public void machineTesting(boolean testing) {
+        machineTestButton.setEnabled(!testing);
+        machineTestButton.setToolTipText(Messages.text(testing ? "machine.test.alreadyTesting"
+                : "machine.palette.testHint"));
     }
 
     /** Why the library button is disabled now; empty while it works (tests). */

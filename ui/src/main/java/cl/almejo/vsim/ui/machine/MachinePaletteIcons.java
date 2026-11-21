@@ -30,7 +30,7 @@ final class MachinePaletteIcons {
 
     /** What an icon draws. */
     enum Kind {
-        STATE, TRANSITION, NOTE, TEXT, TEST, CONVERT
+        STATE, TRANSITION, NOTE, TEXT
     }
 
     private MachinePaletteIcons() {
@@ -70,8 +70,6 @@ final class MachinePaletteIcons {
                     case TRANSITION -> paintTransition(local, colours);
                     case NOTE -> paintNote(local);
                     case TEXT -> paintText(local, colours);
-                    case TEST -> paintTest(local, colours);
-                    case CONVERT -> paintConvert(local, colours);
                 }
             } finally {
                 local.dispose();
@@ -122,27 +120,6 @@ final class MachinePaletteIcons {
             graphics.setStroke(new BasicStroke(1.25f));
             graphics.draw(new Line2D.Double(7, 8.5, 17, 8.5));
             graphics.draw(new Line2D.Double(7, 12, 14, 12));
-        }
-
-        /** A play triangle: starts the test. */
-        private static void paintTest(Graphics2D graphics, ColorScheme colours) {
-            Path2D triangle = new Path2D.Double();
-            triangle.moveTo(7, 4.5);
-            triangle.lineTo(19, 12);
-            triangle.lineTo(7, 19.5);
-            triangle.closePath();
-            graphics.setColor(MachineColors.active(colours));
-            graphics.fill(triangle);
-        }
-
-        /** An arrow into a bar: the machine goes out as a circuit. */
-        private static void paintConvert(Graphics2D graphics, ColorScheme colours) {
-            graphics.setColor(MachineColors.stateOutline(colours));
-            graphics.setStroke(new BasicStroke(1.75f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            graphics.draw(new Line2D.Double(4, 12, 15, 12));
-            graphics.draw(new Line2D.Double(10.5, 7.5, 15, 12));
-            graphics.draw(new Line2D.Double(10.5, 16.5, 15, 12));
-            graphics.draw(new Line2D.Double(19.5, 5, 19.5, 19));
         }
 
         private static void paintText(Graphics2D graphics, ColorScheme colours) {
