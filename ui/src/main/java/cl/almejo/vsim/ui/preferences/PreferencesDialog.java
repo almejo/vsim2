@@ -76,7 +76,8 @@ public final class PreferencesDialog {
 
     /** The content with its only button, which is not the initial value, so it does not take the focus on opening. */
     static JOptionPane optionPane(PreferencesPanel panel) {
-        return new JOptionPane(panel, JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null,
+        // in a scroll pane: a dialog cut to a small screen (200 % size) keeps «Cerrar» in reach
+        return new JOptionPane(DialogButtons.scrolling(panel), JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null,
                 new Object[]{Messages.text("preferences.close")}, null);
     }
 

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.waveform;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import javax.swing.JComponent;
@@ -120,6 +121,17 @@ final class WaveformPlot extends JComponent implements Scrollable {
         return Messages.format("waveform.empty", Messages.text("waveform.menu.show"));
     }
 
+    /** The hint's colour: readable over the scheme's chronogram background, not over the theme's. */
+    static Color hintColor(ColorScheme scheme) {
+        Color background = scheme.diagramBackground();
+        Color trace = scheme.diagramTrace();
+        if (ReadableColors.contrast(trace, background) >= ReadableColors.MINIMUM_TEXT_CONTRAST) {
+            return trace;
+        }
+        return ReadableColors.contrast(Color.BLACK, background) >= ReadableColors.contrast(Color.WHITE, background)
+                ? Color.BLACK : Color.WHITE;
+    }
+
     private void paintEmptyHint(Graphics2D graphics) {
         Font font = UIManager.getFont("Label.font");
         if (font != null) {
@@ -127,7 +139,7 @@ final class WaveformPlot extends JComponent implements Scrollable {
         }
         FontMetrics metrics = graphics.getFontMetrics();
         String hint = emptyHint();
-        graphics.setColor(ReadableColors.mutedText());
+        graphics.setColor(hintColor(panel.scheme()));
         int x = Math.max(WaveformPainter.scaled(6), (getWidth() - metrics.stringWidth(hint)) / 2);
         int y = (getHeight() + metrics.getAscent() - metrics.getDescent()) / 2;
         graphics.drawString(hint, x, y);

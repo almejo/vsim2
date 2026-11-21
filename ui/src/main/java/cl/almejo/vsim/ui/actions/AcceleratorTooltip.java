@@ -72,6 +72,18 @@ public final class AcceleratorTooltip {
         return refresh;
     }
 
+    /**
+     * What a toolbar button of {@code action} shows as its tooltip: the description or the name, the action's key
+     * and the button's {@code note} ({@link Actions#TOOLBAR_NOTE}), the same text {@code ToolbarTooltips} writes.
+     */
+    public static String toolbarText(Action action, String note) {
+        Object description = action.getValue(Action.SHORT_DESCRIPTION);
+        String text = String.valueOf(description != null ? description : action.getValue(Action.NAME));
+        KeyStroke key = ShownAcceleratorItem.acceleratorOf(action);
+        return Actions.withNote(key == null ? text : Messages.format("tooltip.withShortcut", text,
+                KeyNames.describe(key)), note);
+    }
+
     private static String withKey(Action action, String text) {
         KeyStroke key = ShownAcceleratorItem.acceleratorOf(action);
         return key == null ? text : Messages.format("tooltip.withKey", text, KeyNames.describe(key));

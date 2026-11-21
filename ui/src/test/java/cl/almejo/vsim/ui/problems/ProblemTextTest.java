@@ -294,4 +294,15 @@ class ProblemTextTest {
 
         assertThat(text).startsWith("Dentro de U1").endsWith(": La salida «CLK» no tiene entrada.");
     }
+
+    @Test
+    void anUnreadableLinkedFileNamesTheFileOnceAndPutsTheDetailOnItsOwnLine() {
+        Component memory = place(StandardComponentTypes.AND, 20, 0, "Programa", Map.of());
+        String text = ProblemText.describe(new cl.almejo.vsim.core.simulation.LinkedFileProblem(memory.id().value(),
+                "rom.hex", cl.almejo.vsim.core.simulation.LinkedFileProblem.Kind.UNREADABLE,
+                "Detalle técnico: rom.hex (Permission denied)"), document, registry);
+        assertThat(text.lines().findFirst().orElseThrow()).contains("rom.hex, que no se puede leer").doesNotContain("(");
+        assertThat(text.lines().toList()).hasSize(2);
+        assertThat(text.lines().toList().get(1)).isEqualTo("Detalle técnico: rom.hex (Permission denied)");
+    }
 }

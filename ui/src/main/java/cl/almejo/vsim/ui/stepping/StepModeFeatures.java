@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.StepResult;
+import cl.almejo.vsim.ui.actions.AcceleratorTooltip;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -275,7 +276,11 @@ public final class StepModeFeatures {
     private static void showToolbarButton(JButton button, Action action, boolean stepMode) {
         String name = String.valueOf(action.getValue(Action.NAME));
         button.setEnabled(stepMode && action.isEnabled());
-        String tooltip = stepMode ? name : Messages.format("step.button.off", name);
+        // the key stays in the tooltip in both states: the note is added to what the shortcuts' tooltip says (and
+        // ToolbarTooltips, which follows the note, rewrites it with the key when the shortcuts change)
+        String note = stepMode ? null : Messages.text("step.button.off");
+        button.putClientProperty(Actions.TOOLBAR_NOTE, note);
+        String tooltip = AcceleratorTooltip.toolbarText(action, note);
         if (!tooltip.equals(button.getToolTipText())) {
             button.setToolTipText(tooltip);
         }

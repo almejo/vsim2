@@ -320,6 +320,23 @@ class ShortcutsExtensionTest {
     }
 
     @Test
+    void theStepButtonsKeepTheirKeyInTheTooltipOutsideAndInsideTheMode() {
+        EditorView stepping = new EditorView(openDocument, services.withExtensions(List.of(
+                new cl.almejo.vsim.ui.stepping.StepModeExtension(), new ActionIcons(), new PreferencesFeature(),
+                new ShortcutsExtension())), NO_WINDOW);
+        views.add(stepping);
+        AbstractButton advance = toolbarButton(stepping, stepping.shortcutActions().get("simulation.advance"));
+        String key = KeyNames.describe(plain(KeyEvent.VK_F7));
+
+        assertThat(advance.getToolTipText()).as("off").contains("(" + key + ")").contains("Paso a paso");
+
+        openDocument.setStepMode(true);
+        javax.swing.SwingUtilities.invokeLater(() -> { });
+        assertThat(advance.getToolTipText()).as("in the mode").isEqualTo(withShortcut("Avanzar al próximo evento",
+                plain(KeyEvent.VK_F7)));
+    }
+
+    @Test
     void theUndoTooltipFollowsItsNameAndADescriptionWinsOverTheName() {
         EditorView icons = iconView();
         AbstractButton undo = toolbarButton(icons, icons.actions().undo());

@@ -130,4 +130,22 @@ class ProblemsPanelTest {
         panel.showLibraryProblems(List.of(brokenFile));
         assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de Mis componentes con problemas");
     }
+
+    @Test
+    void aProblemRowWithTwoLinesShowsBothLinesAndTheHtmlIsEscaped() {
+        ProblemsPanel multiLine = new ProblemsPanel(problem -> "No se pudo leer x.\nDetalle técnico: a < b",
+                navigated::add);
+        multiLine.showSnapshot(snapshot(10, shortCircuit));
+        Problem problem = multiLine.problemList().getModel().getElementAt(0);
+        String text = ((JLabel) multiLine.problemList().getCellRenderer()
+                .getListCellRendererComponent(multiLine.problemList(), problem, 0, false, false)).getText();
+        assertThat(text).isEqualTo("<html>No se pudo leer x.<br>Detalle técnico: a &lt; b</html>");
+    }
+
+    @Test
+    void aLibraryRowWithTwoLinesShowsBothLines() {
+        panel.showLibraryProblems(List.of("No se pudo leer x.\nDetalle técnico: boom", "una línea"));
+        assertThat(panel.libraryRowText(0)).isEqualTo("<html>No se pudo leer x.<br>Detalle técnico: boom</html>");
+        assertThat(panel.libraryRowText(1)).isEqualTo("una línea");
+    }
 }

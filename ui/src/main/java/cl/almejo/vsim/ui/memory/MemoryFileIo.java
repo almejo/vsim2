@@ -20,8 +20,21 @@ public final class MemoryFileIo {
 
     /** A file that cannot be used: the message is already translated. */
     public static final class Unreadable extends Exception {
+        private final String detail;
+
         public Unreadable(String message) {
+            this(message, message);
+        }
+
+        /** {@code detail}: the one-line reason alone, for a message that already names the file and the cause. */
+        public Unreadable(String message, String detail) {
             super(message);
+            this.detail = detail;
+        }
+
+        /** The one-line reason, to put inside another message that already names the file. */
+        public String detail() {
+            return detail;
         }
     }
 
@@ -38,7 +51,8 @@ public final class MemoryFileIo {
             throw new Unreadable(Messages.format("memory.file.notUtf8", file.getFileName()));
         } catch (IOException exception) {
             throw new Unreadable(Messages.format("memory.file.unreadable", file.getFileName(),
-                    String.valueOf(exception.getMessage())));
+                    String.valueOf(exception.getMessage())),
+                    Messages.format("memory.file.technical", String.valueOf(exception.getMessage())));
         }
         String firstLine = text.lines().findFirst().orElse("");
         MemoryFileFormat format = MemoryFormats.forReading(file.getFileName().toString(), firstLine)

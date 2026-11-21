@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.actions;
 
+import cl.almejo.vsim.ui.i18n.Messages;
+
 import java.awt.event.ActionEvent;
 import java.util.Objects;
 import java.util.Optional;
@@ -45,6 +47,13 @@ public final class Actions {
      */
     public static final String DISABLED_REASON = "vsim.disabledReason";
 
+    /**
+     * The client property of a toolbar button that is off for a reason its action does not know (the step buttons
+     * outside Paso a paso): a {@code String}, already translated, that its tooltip ends with after the key
+     * («Avanzar (F7) — Activa Simulación ▸ Paso a paso»); null or absent for none.
+     */
+    public static final String TOOLBAR_NOTE = "vsim.toolbarNote";
+
     private Actions() {
     }
 
@@ -56,6 +65,12 @@ public final class Actions {
         Objects.requireNonNull(reason, "reason");
         action.putValue(DISABLED_REASON, reason);
         AcceleratorTooltip.followReason(action);
+    }
+
+    /** {@code tooltip} followed by a {@link #TOOLBAR_NOTE} ({@code note}: a String or null) when there is one. */
+    public static String withNote(String tooltip, Object note) {
+        return note instanceof String text && !text.isBlank() ? Messages.format("tooltip.withReason", tooltip, text)
+                : tooltip;
     }
 
     /** Why {@code action} is disabled, when it is and it says; empty while enabled or without a reason. */

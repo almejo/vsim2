@@ -90,4 +90,16 @@ class DialogButtonsTest {
         assertThat(scroll.getPreferredSize().width).isGreaterThanOrEqualTo(300);
         assertThat(scroll.getBorder()).isNull();
     }
+
+    @Test
+    void aWindowThatStickOutOfTheUsableAreaIsMovedInside() {
+        Rectangle usable = new Rectangle(0, 28, 1366, 740);
+
+        assertThat(DialogButtons.placed(new Rectangle(-300, -50, 1366, 740), usable))
+                .isEqualTo(new Rectangle(0, 28, 1366, 740));
+        assertThat(DialogButtons.placed(new Rectangle(1000, 600, 656, 400), usable))
+                .isEqualTo(new Rectangle(710, 368, 656, 400));
+        assertThat(DialogButtons.placed(new Rectangle(100, 100, 500, 300), usable))
+                .isEqualTo(new Rectangle(100, 100, 500, 300));
+    }
 }

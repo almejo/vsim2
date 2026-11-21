@@ -69,7 +69,7 @@ public final class DialogButtons {
         return scroll;
     }
 
-    /** After {@code pack()}: shrinks {@code window} to the usable area of the screen it is on. */
+    /** After {@code pack()}: shrinks {@code window} to the usable area of the screen it is on, and keeps it inside. */
     public static void fitToScreen(Window window) {
         GraphicsConfiguration configuration = window.getGraphicsConfiguration();
         if (configuration == null) {
@@ -78,6 +78,14 @@ public final class DialogButtons {
         Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
         Rectangle usable = usable(configuration.getBounds(), screenInsets);
         window.setSize(fitted(window.getSize(), usable));
+        window.setBounds(placed(window.getBounds(), usable)); // it was centred for its size before the cut
+    }
+
+    /** {@code bounds} moved, not resized, to lie inside {@code usable} (as far as it fits there). */
+    static Rectangle placed(Rectangle bounds, Rectangle usable) {
+        int x = Math.max(usable.x, Math.min(bounds.x, usable.x + usable.width - bounds.width));
+        int y = Math.max(usable.y, Math.min(bounds.y, usable.y + usable.height - bounds.height));
+        return new Rectangle(x, y, bounds.width, bounds.height);
     }
 
     /** The screen {@code bounds} minus the desktop's bars ({@code screenInsets}). */

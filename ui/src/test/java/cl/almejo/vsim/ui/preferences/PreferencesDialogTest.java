@@ -62,6 +62,20 @@ class PreferencesDialogTest {
     }
 
     @Test
+    void theContentScrollsWhenTheDialogIsCutToASmallScreen() {
+        PreferencesPanel panel = panel(AppPreferences.inMemory());
+        JOptionPane pane = PreferencesDialog.optionPane(panel);
+
+        assertThat(pane.getMessage()).isInstanceOf(javax.swing.JScrollPane.class);
+        javax.swing.JScrollPane scroll = (javax.swing.JScrollPane) pane.getMessage();
+        assertThat(scroll.getViewport().getView()).isSameAs(panel);
+        scroll.setSize(500, 150); // far less than the page needs, as in 200 % on a 1366 x 768 screen
+        scroll.doLayout();
+        assertThat(scroll.getVerticalScrollBar().isVisible()).isTrue();
+        panel.dispose();
+    }
+
+    @Test
     void theShortcutsCountFollowsTheFieldOfItsOwnPanelAndTheDialogsSearchDrivesItAgain() {
         PreferencesPanel panel = panel(AppPreferences.inMemory());
         ShortcutsPanel shortcuts = (ShortcutsPanel) panel.groups().get(4).page();
