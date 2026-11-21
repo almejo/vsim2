@@ -241,6 +241,12 @@ public final class SelectTool implements Tool {
         if (secondPressAfterAnEndedPath(event)) {
             return;
         }
+        if (event.button() == CanvasMouseEvent.SECONDARY && !isIdle()) {
+            // a right press in the middle of a gesture cancels it, like Escape: no delegate selects or opens a menu
+            reset();
+            context.repaint();
+            return;
+        }
         if (activeDelegate == null && enterChip.pressed(context, event)) {
             reset();
             return;

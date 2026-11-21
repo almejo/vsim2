@@ -373,6 +373,20 @@ class StickyNoteGesturesTest {
     }
 
     @Test
+    void aRightPressOverTheNoteInTheMiddleOfADragCancelsTheDragAndSelectsNothingNew() {
+        StickyNote note = note(new StickyText("menú"));
+        Component gate = place(context.openDocument(), StandardComponentTypes.BUFFER, 0, 0,
+                Map.of(StandardComponentTypes.NEGATE, true));
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(3, 3));
+        tool.mousePressed(context, TestToolContext.event(12, 14, CanvasMouseEvent.SECONDARY, 1, false));
+        assertThat(context.contextMenuTarget).isNull();
+        assertThat(context.selection.ids()).doesNotContain(note.id());
+        assertThat(tool.isIdle()).isTrue();
+        assertThat(gate).isNotNull();
+    }
+
+    @Test
     void theCursorTellsWhatAPressWouldDo() {
         StickyNote note = checklist();
         StickyNoteLayout layout = layout(note);

@@ -414,6 +414,18 @@ class FrameGesturesTest {
     }
 
     @Test
+    void aRightPressOnTheFrameInTheMiddleOfADragCancelsTheDragAndOpensNoMenu() {
+        Frame frame = frame(0, 0, 20, 12, true);
+        gate(4, 4);
+        tool.mousePressed(context, TestToolContext.at(6, 6));
+        tool.mouseDragged(context, TestToolContext.at(7, 7));
+        tool.mousePressed(context, TestToolContext.event(10, 1, CanvasMouseEvent.SECONDARY, 1, false));
+        assertThat(context.contextMenuTarget).isNull();
+        assertThat(context.selection.ids()).doesNotContain(frame.id());
+        assertThat(tool.isIdle()).isTrue();
+    }
+
+    @Test
     void aDoubleClickOnTheTitleBarSelectsTheFrameAndOpensItsTitleEditor() {
         Frame frame = frame(0, 0, 20, 12, false);
         context.click(tool, 10, 1);
