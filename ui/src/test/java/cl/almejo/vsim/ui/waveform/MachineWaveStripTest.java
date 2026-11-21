@@ -304,6 +304,8 @@ class MachineWaveStripTest {
         assertThat(panel.channelNames()).isEmpty();
         assertThat(panel.title()).contains("Entra por una copia para ver su onda");
         assertThat(panel.hasChannels()).isFalse();
+        assertThat(panel.plot().showsEmptyHint()).as("a machine's rows are not added with a right-click")
+                .isFalse();
     }
 
     /** A circuit whose only piece {@code w} wraps the detector as {@code m}; returns the tab entered at {@code w/m}. */
@@ -396,5 +398,6 @@ class MachineWaveStripTest {
         assertThat(panel.channelIds()).isEmpty();
         assertThat(panel.hasChannels()).isFalse();
         assertThat(panel.title()).isEmpty();
+        assertThat(panel.plot().showsEmptyHint()).as("main's hint: how to add a channel").isTrue();
     }
 }

@@ -105,7 +105,7 @@ final class WaveformPlot extends JComponent implements Scrollable {
             graphics2D.fillRect(0, 0, getWidth(), getHeight());
             WaveformPainter.paint(graphics2D, panel.displayed(), panel.channelIds(), axis, getWidth(),
                     panel.scheme(), panel.formats(), panel.valueNames(), panel.valueColors());
-            if (panel.channelIds().isEmpty()) {
+            if (showsEmptyHint()) {
                 paintEmptyHint(graphics2D);
             }
             if (focused) {
@@ -114,6 +114,14 @@ final class WaveformPlot extends JComponent implements Scrollable {
         } finally {
             graphics2D.dispose();
         }
+    }
+
+    /**
+     * Whether the plot says how to add a channel: while it has none and its rows are the circuit's probes, which a
+     * right-click adds; never for a machine's own wave, whose title says why it is empty.
+     */
+    boolean showsEmptyHint() {
+        return panel.channelIds().isEmpty() && panel.channelsEditable();
     }
 
     /** «Right-click a wire or pin and choose “Show in waveforms”», with the real text of the context menu item. */

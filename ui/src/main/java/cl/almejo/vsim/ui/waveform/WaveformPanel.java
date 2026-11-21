@@ -345,6 +345,11 @@ public final class WaveformPanel extends JPanel {
         return cachedValueColors;
     }
 
+    /** Whether the rows shown are ones the user adds and edits (the circuit's probes), not a machine's own wave. */
+    boolean channelsEditable() {
+        return channels.editable();
+    }
+
     List<String> channelIds() {
         return rows().stream().map(ChannelRows.ChannelRow::probeId).toList();
     }
