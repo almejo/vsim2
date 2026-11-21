@@ -16,7 +16,7 @@ Cómo se crean y se guardan los componentes propios está en
     «Configurar…» y lo demás;
   - con **Enter**, si la única pieza seleccionada es de un componente propio.
 - **Qué piezas se pueden entrar**: las de los componentes que están en el circuito, incluidas las copias que vinieron
-  de la librería o de un circuito de Logisim. Las piezas de la paleta (compuertas, memorias, Terminal…) no se pueden
+  de Mis componentes o de un circuito de Logisim. Las piezas de la paleta (compuertas, memorias, Terminal…) no se pueden
   entrar, y su doble clic hace lo de siempre.
 - **La pestaña del componente**: se abre al final del grupo de su circuito, con un ícono de chip, el nombre del
   componente, el borde de arriba punteado y el color del grupo. Al pasar el mouse dice «Ram — componente de lrv32im».
@@ -36,9 +36,9 @@ Cómo se crean y se guardan los componentes propios está en
 
 - **Qué se edita**: lo que se cambia en la pestaña de un componente cambia el componente del circuito. Afecta a todas
   sus piezas, y cada cambio es un solo paso de deshacer del circuito, que se puede deshacer desde cualquiera de sus
-  pestañas (primero se pasa a la pestaña donde se hizo; ver **Deshacer** más abajo). La librería no cambia sola.
+  pestañas (primero se pasa a la pestaña donde se hizo; ver **Deshacer** más abajo). Mis componentes no cambia por sí solo.
 - **Marcos y notas adentro**: los marcos y las notas adhesivas que pongas en la pestaña de un componente son parte de
-  él: se guardan en el archivo del circuito con el componente (también al copiarlo o al guardarlo en la librería) y
+  él: se guardan en el archivo del circuito con el componente (también al copiarlo o al guardarlo en Mis componentes) y
   vuelven a aparecer al abrirlo.
 - **Qué valores se ven**: la pestaña muestra los valores de una sola pieza mientras el circuito simula: la pieza por
   la que entraste. Si esa pieza se borra, la pestaña pasa a mostrar otra pieza del mismo componente. Si no queda
@@ -71,10 +71,10 @@ de circuito no la tienen.
   la selecciona, mueve la vista hasta ella y la hace brillar un momento (1,5 s, con el color de selección del tema;
   quieto, sin desvanecerse, con «Reducir movimiento») para que el ojo la encuentre. Lo mismo al llegar desde F8, la
   lista de Problemas o el árbol del circuito. Está apagado sin valores.
-- **Guardar en mi librería / Agregar a mi librería**: «Agregar» aparece cuando la librería no tiene el componente
+- **Guardar en Mis componentes / Agregar a Mis componentes**: «Agregar» aparece cuando el componente no está en Mis componentes
   (pregunta lo mismo que la paleta si el id ya existe); «Guardar» aparece cuando la copia del circuito es distinta de
-  la de la librería y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe
-  en la librería por sí solo.
+  la de Mis componentes y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe
+  en Mis componentes por sí solo.
 - **Un cambio que no se hizo**: si un cambio adentro no se puede hacer, no cambia nada y la barra lo dice en ámbar
   durante unos segundos; la barra de estado también lo dice.
 
@@ -104,7 +104,7 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   Problemas lo lista otra vez, sin el nombre del pin: «Inversor: un cable llega a su borde donde no hay pin; quedó
   suelto» (ver [Conexiones pendientes](componentes.md#conexiones-pendientes)).
 - **Cambiar un componente que está adentro**: en la pestaña de un componente, «Editar descripción…», «Cambiar
-  forma…» para todas las piezas y «Actualizar desde la librería» sobre una pieza de adentro cambian ese componente en
+  forma…» para todas las piezas y «Actualizar desde Mis componentes» sobre una pieza de adentro cambian ese componente en
   el circuito, en un solo paso de deshacer, igual que desde la pestaña del circuito y con sus mismas reglas (una forma
   que movería los pines de un componente usado dentro de otro se rechaza y se dice por qué). «Crear componente desde
   selección…» sin reemplazar la selección agrega el componente al circuito. Un cambio así que llegue por otro camino
@@ -123,7 +123,7 @@ En la pestaña de un componente se edita con las mismas herramientas que en el c
   se hizo el paso; si está abierta, queda con la pieza que muestra) y deshacen o rehacen ahí, y lo que el paso tocó
   brilla 1,5 s, como con «Ver la pieza» (si estaba fuera de la vista, la vista viaja hasta ahí). Nunca se deshace algo
   que no estás viendo. Un paso hecho en la misma pestaña se deshace como siempre, sin saltos ni brillo.
-- **Si el componente cambia desde otra parte** (deshacer en la pestaña del circuito, «Actualizar desde la librería»,
+- **Si el componente cambia desde otra parte** (deshacer en la pestaña del circuito, «Actualizar desde Mis componentes»,
   la IA): la pestaña se pone al día. Si en ese momento estabas arrastrando algo o dibujando un cable adentro, ese
   gesto se cancela, como con Esc. La selección conserva lo que sigue existiendo.
 - **Problemas**: todas las pestañas de un circuito muestran la misma lista de Problemas. Un problema que está adentro
