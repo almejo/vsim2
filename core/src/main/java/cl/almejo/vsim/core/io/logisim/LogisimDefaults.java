@@ -180,10 +180,14 @@ public final class LogisimDefaults {
         }
     }
 
-    /** A width or count attribute; an unreadable one counts as 1 (the mapper reports the value itself). */
+    /**
+     * A width or count attribute; an unreadable one counts as 1, a huge one as the largest the import takes (the
+     * ends report the value itself, {@link LogisimLimits}), so no default table grows past that.
+     */
     private static int widthOf(Map<String, String> values, String name) {
         try {
-            return Math.max(1, Integer.parseInt(values.get(name).strip().toLowerCase(Locale.ROOT)));
+            return Math.clamp(Integer.parseInt(values.get(name).strip().toLowerCase(Locale.ROOT)), 1,
+                    LogisimLimits.LARGEST_COUNT);
         } catch (NumberFormatException | NullPointerException exception) {
             return 1;
         }

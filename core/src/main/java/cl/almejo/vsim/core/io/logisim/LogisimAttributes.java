@@ -78,6 +78,21 @@ public final class LogisimAttributes {
     }
 
     /**
+     * Attribute {@code name} as an {@code int} from {@code minimum} to {@code maximum}: a count a loop or an array
+     * will use ({@link LogisimLimits}).
+     *
+     * @throws IllegalArgumentException when the attribute is missing, not a number or out of that range
+     */
+    public int integer(String name, int minimum, int maximum) {
+        int number = integer(name);
+        if (number < minimum || number > maximum) {
+            throw new IllegalArgumentException("attribute " + name + " is " + number + ", not " + minimum + " to "
+                    + maximum);
+        }
+        return number;
+    }
+
+    /**
      * Attribute {@code name} as a boolean ({@code true} / {@code false}).
      *
      * @throws IllegalArgumentException when the attribute is missing or not a boolean

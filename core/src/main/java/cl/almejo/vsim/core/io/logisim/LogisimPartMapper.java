@@ -47,8 +47,12 @@ public final class LogisimPartMapper {
         } catch (IllegalArgumentException exception) {
             LOGGER.info("Logisim part {} at {} of «{}» not imported: {}", component.name(), component.location(),
                     context.circuit(), exception.getMessage());
-            return new PartDraft(component, context).leftOut(ImportNote.Kind.INVALID, LogisimNotes.INVALID_PART,
-                    component.name());
+        } catch (RuntimeException exception) {
+            // Not a bad value but a fault of ours: the part is still left out with its note, the trace is logged.
+            LOGGER.warn("Logisim part {} at {} of «{}» not imported", component.name(), component.location(),
+                    context.circuit(), exception);
         }
+        return new PartDraft(component, context).leftOut(ImportNote.Kind.INVALID, LogisimNotes.INVALID_PART,
+                component.name());
     }
 }
