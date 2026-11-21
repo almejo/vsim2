@@ -39,6 +39,8 @@ final class MachineWaveStrip {
         WaveformFeatures features = waveforms.get();
         Action showInCircuitPanel = Actions.of(Messages.text("waveform.menu.showMachine"),
                 () -> addToTheCircuitsPanel(view, place));
+        showInCircuitPanel.putValue(Action.SHORT_DESCRIPTION, Messages.text("machine.strip.showMachineTip"));
+        Actions.disabledBecause(showInCircuitPanel, () -> Messages.text("machine.strip.onlyTopLevel"));
         Runnable refreshLink = () -> refreshLink(showInCircuitPanel, place);
         refreshLink.run();
         MachineStripChannels strip = new MachineStripChannels(place, definitionId, List.of(showInCircuitPanel));
@@ -68,10 +70,7 @@ final class MachineWaveStrip {
 
     /** On for a copy placed in the main circuit; otherwise off, its tooltip saying why. */
     private static void refreshLink(Action link, OpenDocument place) {
-        boolean placed = topLevelCopy(place).isPresent();
-        link.setEnabled(placed);
-        link.putValue(Action.SHORT_DESCRIPTION, Messages.text(placed ? "machine.strip.showMachineTip"
-                : "machine.strip.onlyTopLevel"));
+        link.setEnabled(topLevelCopy(place).isPresent());
     }
 
     /**

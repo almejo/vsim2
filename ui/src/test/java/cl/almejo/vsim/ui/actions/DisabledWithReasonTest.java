@@ -41,6 +41,25 @@ class DisabledWithReasonTest {
         assertThat(action.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Ordenar circuito (Ctrl+Alt+Mayús+L)");
     }
 
+    /**
+     * An action with its own reason (main's {@link Actions#disabledBecause}) says the hold's while held, so «Acciones»
+     * and its tooltip say why a machine's tab disables it, and its own once released.
+     */
+    @Test
+    void anActionsOwnReasonGivesWayToTheHoldsAndComesBackAfter() {
+        Actions.disabledBecause(action, () -> "Selecciona algo primero");
+        action.setEnabled(false);
+
+        Runnable release = DisabledWithReason.disable(action, "No se usa en una máquina de estados");
+        action.putValue(Action.SHORT_DESCRIPTION, "Rotar ↻ (R)"); // the owner rewrites its tooltip meanwhile
+
+        assertThat(Actions.disabledReason(action)).contains("No se usa en una máquina de estados");
+        assertThat(action.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("No se usa en una máquina de estados");
+        release.run();
+        assertThat(Actions.disabledReason(action)).contains("Selecciona algo primero");
+        assertThat(action.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Selecciona algo primero");
+    }
+
     @Test
     void releasingGivesBackTheStateItHadWhenNothingChanged() {
         action.setEnabled(false);

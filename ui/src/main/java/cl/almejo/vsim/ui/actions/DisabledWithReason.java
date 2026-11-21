@@ -4,13 +4,16 @@ import javax.swing.Action;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Holds an action disabled with the reason as its tooltip ({@link Action#SHORT_DESCRIPTION}, which its menu item, its
  * toolbar button and «Acciones» show), whatever its owner sets meanwhile: the owner keeps refreshing it as usual
  * ({@code EditorActions.refresh}, a feature following the selection, a rebound key rewriting the tooltip), and what it
  * set last comes back when the hold is released. A machine's tab holds the circuit actions this way (spec
- * 2026-11-14 §1: «lo que no aplica se deshabilita con un tooltip que dice por qué»). EDT only.
+ * 2026-11-14 §1: «lo que no aplica se deshabilita con un tooltip que dice por qué»). An action with a reason of its own
+ * ({@link Actions#disabledBecause}) gives the hold's reason while held, so «Acciones» says it too, and gets its own
+ * back on release. EDT only.
  */
 public final class DisabledWithReason {
 
@@ -35,8 +38,11 @@ public final class DisabledWithReason {
     private static final class Hold {
         private final Action action;
         private final String reason;
+        private final Supplier<String> heldReason;
         private boolean wantedEnabled;
         private Object wantedDescription;
+        /** The action's own {@link Actions#DISABLED_REASON}, null when it has none. */
+        private Object wantedReason;
         private boolean released;
         private boolean asserting;
         private final PropertyChangeListener listener = this::changed;
@@ -44,11 +50,13 @@ public final class DisabledWithReason {
         Hold(Action action, String reason) {
             this.action = action;
             this.reason = reason;
+            this.heldReason = () -> reason;
         }
 
         void start() {
             wantedEnabled = action.isEnabled();
             wantedDescription = action.getValue(Action.SHORT_DESCRIPTION);
+            wantedReason = action.getValue(Actions.DISABLED_REASON);
             assertHold();
             action.addPropertyChangeListener(listener);
         }
@@ -61,6 +69,8 @@ public final class DisabledWithReason {
                 wantedEnabled = Boolean.TRUE.equals(event.getNewValue());
             } else if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) {
                 wantedDescription = event.getNewValue();
+            } else if (Actions.DISABLED_REASON.equals(event.getPropertyName())) {
+                wantedReason = event.getNewValue();
             } else {
                 return;
             }
@@ -70,6 +80,9 @@ public final class DisabledWithReason {
         private void assertHold() {
             asserting = true;
             try {
+                if (wantedReason != null) {
+                    action.putValue(Actions.DISABLED_REASON, heldReason);
+                }
                 action.setEnabled(false);
                 action.putValue(Action.SHORT_DESCRIPTION, reason);
             } finally {
@@ -85,6 +98,9 @@ public final class DisabledWithReason {
             action.removePropertyChangeListener(listener);
             action.putValue(Action.SHORT_DESCRIPTION, wantedDescription);
             action.setEnabled(wantedEnabled);
+            if (wantedReason != null) {
+                action.putValue(Actions.DISABLED_REASON, wantedReason); // its tooltip follows its own reason again
+            }
         }
     }
 }

@@ -44,6 +44,7 @@ final class MachineDuplicationActions {
     static Runnable install(EditorView view) {
         Action action = Actions.of(Messages.text("machine.duplicate"),
                 () -> selectedMachinePiece(view).ifPresent(piece -> duplicate(view, piece)));
+        Actions.disabledBecause(action, () -> Messages.text("machine.duplicate.choosePiece"));
         JMenuItem item = new JMenuItem(action);
         item.putClientProperty(Actions.SEARCH_TERMS, Messages.text("machine.duplicate.searchTerms"));
         JMenu edit = view.menu(MenuId.EDIT);
@@ -76,9 +77,7 @@ final class MachineDuplicationActions {
     }
 
     private static void refresh(EditorView view, Action action) {
-        boolean one = selectedMachinePiece(view).isPresent();
-        action.setEnabled(one);
-        action.putValue(Action.SHORT_DESCRIPTION, one ? null : Messages.text("machine.duplicate.choosePiece"));
+        action.setEnabled(selectedMachinePiece(view).isPresent());
     }
 
     /** The one part chosen in {@code view}, when it is a machine's piece. */

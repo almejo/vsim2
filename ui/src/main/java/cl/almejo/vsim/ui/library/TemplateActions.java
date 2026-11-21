@@ -387,8 +387,8 @@ public final class TemplateActions {
         Action action = Actions.of(Messages.text("action.disassemble"), () -> disassemble(instance));
         Icons.install(action, TemplateIcons.DISASSEMBLE);
         if (definitionOf(instance).filter(ComponentDefinition::isMachine).isPresent()) {
+            Actions.disabledBecause(action, () -> Messages.text("machine.refused.disassemble"));
             action.setEnabled(false);
-            action.putValue(Action.SHORT_DESCRIPTION, Messages.text("machine.refused.disassemble"));
         }
         return action;
     }

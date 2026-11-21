@@ -415,6 +415,8 @@ class TemplateActionsTest {
 
         assertThat(disassemble.isEnabled()).isFalse();
         assertThat(disassemble.getToolTipText()).isEqualTo(Messages.text("machine.refused.disassemble"));
+        assertThat(cl.almejo.vsim.ui.actions.Actions.disabledReason(disassemble.getAction()))
+                .contains(Messages.text("machine.refused.disassemble"));
     }
 
     @Test

@@ -202,6 +202,8 @@ class MachineDuplicationTest {
         JMenuItem entry = editItem();
         assertThat(entry.isEnabled()).isFalse();
         assertThat(entry.getToolTipText()).isEqualTo(Messages.text("machine.duplicate.choosePiece"));
+        assertThat(cl.almejo.vsim.ui.actions.Actions.disabledReason(entry.getAction()))
+                .contains(Messages.text("machine.duplicate.choosePiece"));
 
         view.selection().select(original().id());
         assertThat(entry.isEnabled()).isTrue();

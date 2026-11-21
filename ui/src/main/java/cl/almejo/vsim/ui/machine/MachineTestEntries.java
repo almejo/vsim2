@@ -36,6 +36,8 @@ final class MachineTestEntries {
         this.view = view;
         this.action = Actions.of(Messages.text("action.testMachine"),
                 () -> MachineMode.of(view).ifPresent(MachineMode::startTest));
+        Actions.disabledBecause(action, () -> Messages.text(MachineMode.of(view).isEmpty() ? "machine.test.enterFirst"
+                : "machine.test.alreadyTesting"));
     }
 
     /**
@@ -77,8 +79,6 @@ final class MachineTestEntries {
         Optional<MachineMode> mode = MachineMode.of(view);
         boolean testing = mode.filter(MachineMode::isTesting).isPresent();
         action.setEnabled(mode.isPresent() && !testing);
-        action.putValue(Action.SHORT_DESCRIPTION, mode.isEmpty() ? Messages.text("machine.test.enterFirst")
-                : testing ? Messages.text("machine.test.alreadyTesting") : null);
     }
 
     /** «Probar la máquina…» on the right-click menu of a machine's piece: enters that copy and tests it. */

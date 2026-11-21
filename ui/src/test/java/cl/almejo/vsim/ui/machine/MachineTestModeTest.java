@@ -380,6 +380,7 @@ class MachineTestModeTest {
         assertThat(mode.testMode()).isPresent();
         assertThat(test.isEnabled()).isFalse();
         assertThat(test.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Ya estás probando");
+        assertThat(cl.almejo.vsim.ui.actions.Actions.disabledReason(test)).contains("Ya estás probando");
         assertThat(propertiesTestButton().isEnabled()).isFalse();
         assertThat(propertiesTestButton().getToolTipText()).isEqualTo("Ya estás probando");
         assertThat(mode.inspectorRows().machineNameField().orElseThrow().isEnabled()).isFalse();

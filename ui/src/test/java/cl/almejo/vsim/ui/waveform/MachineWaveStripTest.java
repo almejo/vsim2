@@ -347,7 +347,11 @@ class MachineWaveStripTest {
         AbstractButton link = panel.button(Messages.text("waveform.menu.showMachine"));
 
         assertThat(link.isEnabled()).isFalse();
-        assertThat(link.getToolTipText()).isEqualTo("Solo para máquinas puestas en el circuito principal");
+        assertThat(link.getToolTipText()).as("what it does, then why it is off (main's I15)")
+                .isEqualTo(Messages.format("tooltip.withReason", Messages.text("machine.strip.showMachineTip"),
+                        "Solo para máquinas puestas en el circuito principal"));
+        assertThat(cl.almejo.vsim.ui.actions.Actions.disabledReason(link.getAction()))
+                .contains("Solo para máquinas puestas en el circuito principal");
     }
 
     @Test
