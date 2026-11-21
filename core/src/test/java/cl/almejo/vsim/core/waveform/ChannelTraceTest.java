@@ -176,28 +176,4 @@ class ChannelTraceTest {
         assertThat(trace.valueAt(2).orElseThrow()).isSameAs(Value.HIGH_IMPEDANCE);
         assertThat(trace.valueAt(3).orElseThrow()).isSameAs(Value.ZERO);
     }
-
-    @Test
-    void aSameTimeChangeCollapsesIntoTheLastFrozenChunkWhenTheTailIsEmpty() {
-        ChannelTrace channel = alternating(ChannelTrace.CHUNK_SIZE);
-        long lastTime = 10L * (ChannelTrace.CHUNK_SIZE - 1);
-        Value lastValue = Value.of((ChannelTrace.CHUNK_SIZE - 1) % 2 == 1);
-        Value other = lastValue.equals(Value.ONE) ? Value.ZERO : Value.ONE;
-        // an event in a new chunk, then its glitch removed: the tail is empty and the last event is a frozen one
-        channel.append(lastTime + 5, other);
-        channel.append(lastTime + 5, lastValue);
-        assertThat(channel.snapshot().eventCount()).isEqualTo(ChannelTrace.CHUNK_SIZE);
-
-        channel.append(lastTime, Value.HIGH_IMPEDANCE);
-
-        Trace trace = channel.snapshot();
-        assertThat(trace.eventCount()).as("one event at that time, not two").isEqualTo(ChannelTrace.CHUNK_SIZE);
-        assertThat(trace.valueAt(lastTime)).contains(Value.HIGH_IMPEDANCE);
-        assertThat(trace.lastTime()).hasValue(lastTime);
-
-        channel.append(lastTime, other);
-        assertThat(channel.snapshot().eventCount()).as("back to the value before: the glitch disappears")
-                .isEqualTo(ChannelTrace.CHUNK_SIZE - 1);
-        assertThat(channel.snapshot().valueAt(lastTime)).contains(other);
-    }
 }

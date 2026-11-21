@@ -85,9 +85,6 @@ public final class ChannelTrace {
         if (tailSize > 0 && tailTimes[tailSize - 1] == time) {
             return replaceLast(value);
         }
-        if (tailSize == 0 && !fullChunks.isEmpty() && lastTime() == time) {
-            return replaceLastFrozen(value);
-        }
         if (hasEvents() && Objects.equals(lastValue(), value)) {
             return false;
         }
@@ -114,44 +111,6 @@ public final class ChannelTrace {
             tailSize--;
         } else {
             tailValues[last] = value;
-        }
-        published = null;
-        return true;
-    }
-
-    /**
-     * The same collapse when the tail is empty, so the last event is the last of a frozen chunk. That chunk may be
-     * shared with a published snapshot, so it is replaced by a changed copy, never written.
-     */
-    private boolean replaceLastFrozen(Value value) {
-        int lastIndex = fullChunks.size() - 1;
-        Chunk chunk = fullChunks.get(lastIndex);
-        int last = chunk.size() - 1;
-        if (Objects.equals(chunk.values()[last], value)) {
-            return false;
-        }
-        Value previous;
-        boolean hasPrevious = true;
-        if (last > 0) {
-            previous = chunk.values()[last - 1];
-        } else if (lastIndex > 0) {
-            previous = lastValueOf(fullChunks.get(lastIndex - 1));
-        } else {
-            previous = null;
-            hasPrevious = false;
-        }
-        Value[] values = Arrays.copyOf(chunk.values(), chunk.values().length);
-        long[] times = Arrays.copyOf(chunk.times(), chunk.times().length);
-        if ((hasPrevious && Objects.equals(previous, value)) || (!hasPrevious && value == null)) {
-            values[last] = null;
-            if (last == 0) {
-                fullChunks.removeLast();
-            } else {
-                fullChunks.set(lastIndex, new Chunk(times, values, last));
-            }
-        } else {
-            values[last] = value;
-            fullChunks.set(lastIndex, new Chunk(times, values, chunk.size()));
         }
         published = null;
         return true;
