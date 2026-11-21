@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.whatsnew.FeatureBubble;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
+import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -94,14 +95,12 @@ final class MachineTestHelp {
      * removes it.
      */
     static Runnable installMenuItem(EditorView view) {
-        JMenuItem item = new JMenuItem(Actions.of(Messages.text("action.machineTestHelp"),
-                () -> MachineMode.of(view).ifPresent(mode -> mode.help().show())));
+        Action action = Actions.of(Messages.text("action.machineTestHelp"),
+                () -> MachineMode.of(view).ifPresent(mode -> mode.help().show()));
+        Actions.disabledBecause(action, () -> Messages.text("machine.test.help.onlyTesting"));
+        JMenuItem item = new JMenuItem(action);
         item.putClientProperty(Actions.SEARCH_TERMS, Messages.text("machine.test.help.searchTerms"));
-        Runnable refresh = () -> {
-            boolean testing = MachineMode.of(view).map(MachineMode::isTesting).orElse(false);
-            item.setEnabled(testing);
-            item.setToolTipText(testing ? null : Messages.text("machine.test.help.onlyTesting"));
-        };
+        Runnable refresh = () -> action.setEnabled(MachineMode.of(view).map(MachineMode::isTesting).orElse(false));
         refresh.run();
         JMenu help = view.menu(MenuId.HELP);
         help.add(item, indexAfterTheTips(help));

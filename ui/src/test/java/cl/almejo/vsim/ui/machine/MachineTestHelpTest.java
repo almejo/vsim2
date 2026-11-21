@@ -110,10 +110,14 @@ class MachineTestHelpTest {
         JMenuItem item = helpItem();
         assertThat(item.isEnabled()).isFalse();
         assertThat(item.getToolTipText()).isEqualTo(Messages.text("machine.test.help.onlyTesting"));
+        assertThat(item.getAction().isEnabled()).as("the action, which «Acciones» reads").isFalse();
+        assertThat(cl.almejo.vsim.ui.actions.Actions.disabledReason(item.getAction()))
+                .contains(Messages.text("machine.test.help.onlyTesting"));
 
         mode.startTest();
         assertThat(opened).as("seen: not by itself").isZero();
         assertThat(item.isEnabled()).isTrue();
+        assertThat(item.getAction().isEnabled()).isTrue();
         assertThat(item.getToolTipText()).isNull();
 
         item.doClick();
