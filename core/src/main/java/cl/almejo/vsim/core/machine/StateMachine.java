@@ -13,14 +13,14 @@ import java.util.regex.Pattern;
 /**
  * The inside of a «Máquina de estados» user component: its states and arrows, the initial state, its input and
  * output pins in pin order (a pin stays after its name is no longer used: «sin usar»), whether they show as a bus,
- * the clock edge it reacts to, its saved tests and the notes stuck on its diagram. Immutable; ids are stable and
+ * the clock edge it reacts to, its saved tests, the notes stuck on its diagram and the free texts written on it. Immutable; ids are stable and
  * never shown (a pin's id survives a rename, so the wires on it stay).
  * Design: docs/interno/superpowers/specs/2026-11-14-maquinas-de-estado-design.md §2.1.
  */
 public record StateMachine(List<MachineState> states, List<MachineTransition> transitions,
                            Optional<String> initialStateId, List<MachinePin> inputs, List<MachinePin> outputs,
                            boolean inputsAsBus, boolean outputsAsBus, String edge, List<MachineTest> tests,
-                           List<MachineNote> notes) {
+                           List<MachineNote> notes, List<MachineText> texts) {
 
     /** The values of {@code StandardParameters.EDGE}; a machine reacts to the falling edge by default. */
     public static final String EDGE_FALLING = "falling";
@@ -40,6 +40,7 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
         }
         tests = List.copyOf(tests);
         notes = List.copyOf(notes);
+        texts = List.copyOf(texts);
         Set<String> stateIds = new HashSet<>();
         for (MachineState state : states) {
             if (!stateIds.add(state.id())) {
@@ -75,6 +76,21 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
                 throw new IllegalArgumentException("note id used twice: " + note.id());
             }
         }
+        Set<String> textIds = new HashSet<>();
+        for (MachineText text : texts) {
+            if (!textIds.add(text.id())) {
+                throw new IllegalArgumentException("text id used twice: " + text.id());
+            }
+        }
+    }
+
+    /** A machine with notes and no free texts: how the machines of hitos 1–3 were made. */
+    public StateMachine(List<MachineState> states, List<MachineTransition> transitions,
+                        Optional<String> initialStateId, List<MachinePin> inputs, List<MachinePin> outputs,
+                        boolean inputsAsBus, boolean outputsAsBus, String edge, List<MachineTest> tests,
+                        List<MachineNote> notes) {
+        this(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus, edge, tests, notes,
+                List.of());
     }
 
     /**
@@ -240,22 +256,22 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
 
     public StateMachine withStates(List<MachineState> newStates) {
         return new StateMachine(newStates, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
-                edge, tests, notes);
+                edge, tests, notes, texts);
     }
 
     public StateMachine withTransitions(List<MachineTransition> newTransitions) {
         return new StateMachine(states, newTransitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
-                edge, tests, notes);
+                edge, tests, notes, texts);
     }
 
     public StateMachine withInitialStateId(Optional<String> newInitialStateId) {
         return new StateMachine(states, transitions, newInitialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
-                edge, tests, notes);
+                edge, tests, notes, texts);
     }
 
     public StateMachine withPins(List<MachinePin> newInputs, List<MachinePin> newOutputs) {
         return new StateMachine(states, transitions, initialStateId, newInputs, newOutputs, inputsAsBus,
-                outputsAsBus, edge, tests, notes);
+                outputsAsBus, edge, tests, notes, texts);
     }
 
     /**
@@ -283,22 +299,32 @@ public record StateMachine(List<MachineState> states, List<MachineTransition> tr
 
     public StateMachine withBus(boolean newInputsAsBus, boolean newOutputsAsBus) {
         return new StateMachine(states, transitions, initialStateId, inputs, outputs, newInputsAsBus,
-                newOutputsAsBus, edge, tests, notes);
+                newOutputsAsBus, edge, tests, notes, texts);
     }
 
     public StateMachine withEdge(String newEdge) {
         return new StateMachine(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
-                newEdge, tests, notes);
+                newEdge, tests, notes, texts);
     }
 
     public StateMachine withTests(List<MachineTest> newTests) {
         return new StateMachine(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
-                edge, newTests, notes);
+                edge, newTests, notes, texts);
     }
 
     public StateMachine withNotes(List<MachineNote> newNotes) {
         return new StateMachine(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
-                edge, tests, newNotes);
+                edge, tests, newNotes, texts);
+    }
+
+    public StateMachine withTexts(List<MachineText> newTexts) {
+        return new StateMachine(states, transitions, initialStateId, inputs, outputs, inputsAsBus, outputsAsBus,
+                edge, tests, notes, newTexts);
+    }
+
+    /** This machine with the free text {@code textId} replaced by what {@code change} gives. */
+    public StateMachine withText(String textId, UnaryOperator<MachineText> change) {
+        return withTexts(texts.stream().map(text -> text.id().equals(textId) ? change.apply(text) : text).toList());
     }
 
     /** This machine with the note {@code noteId} replaced by what {@code change} gives. */

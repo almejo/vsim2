@@ -52,6 +52,19 @@ class FragmentFormatTest {
         assertThat(fragment.labels()).containsExactly(new TextLabel(new ElementId("l1"), GridPoint.ORIGIN, "hola"));
     }
 
+    @Test
+    void theNotesOfAFragmentIncludeItsFreeTextsAndNotCountedAsOtherElements() {
+        String onlyTexts = format.write(new CircuitFragment(List.of(), List.of(),
+                List.of(new TextLabel(new ElementId("l1"), new GridPoint(2, 3), "hola"))));
+        String withWire = format.write(sample());
+
+        FragmentFormat.Notes texts = FragmentFormat.notesOf(onlyTexts).orElseThrow();
+        assertThat(texts.texts()).extracting(TextLabel::text).containsExactly("hola");
+        assertThat(texts.notes()).isEmpty();
+        assertThat(texts.hasOtherElements()).isFalse();
+        assertThat(FragmentFormat.notesOf(withWire).orElseThrow().hasOtherElements()).isTrue();
+    }
+
     @ParameterizedTest
     @MethodSource("badInputs")
     void badInputFailsWithAReason(String json, CircuitFormatException.Reason reason) {

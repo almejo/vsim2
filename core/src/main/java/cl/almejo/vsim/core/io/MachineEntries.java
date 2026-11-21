@@ -1,11 +1,14 @@
 package cl.almejo.vsim.core.io;
 
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachinePin;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTest;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateColor;
@@ -29,7 +32,7 @@ import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 /**
  * The JSON shape of a «Máquina de estados» (format 7, the {@code machine} of a definition entry): states with their
  * place, Moore outputs and colour, arrows with their condition as typed and their Mealy outputs, the initial state,
- * the pins in order, the bus flags, the edge, the saved tests and the diagram's notes. Empty lists and the defaults
+ * the pins in order, the bus flags, the edge, the saved tests, the diagram's notes and its free texts. Empty lists and the defaults
  * of the flags are not written. An output's value is 0 or 1. A pin whose id is its name is written as the name alone
  * (as hitos 1–2 wrote every pin), a renamed one as {@code {"id": "x", "name": "a"}}.
  */
@@ -46,7 +49,8 @@ final class MachineEntries {
                         @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean outputsAsBus,
                         String edge,
                         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<TestEntry> tests,
-                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<NoteEntry> notes) {
+                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<NoteEntry> notes,
+                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<TextEntry> texts) {
     }
 
     /** A state; {@code color} is a lower-case {@link StateColor} name, left out when the state has none. */
@@ -79,6 +83,14 @@ final class MachineEntries {
      */
     record NoteEntry(String id, double x, double y, double width, double height, String color, String text,
                      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean folded) {
+    }
+
+    /**
+     * A free text of the diagram: its place, its lines and, only when the text is not plain, its colours by
+     * {@link NoteColor} name (a circuit note's {@link CircuitFormat.StyleEntry}). A file without {@code texts} has none.
+     */
+    record TextEntry(String id, double x, double y, String text,
+                     @JsonInclude(JsonInclude.Include.NON_NULL) CircuitFormat.StyleEntry style) {
     }
 
     /** A pin: a plain string (its name, also its id) or an object with both when they differ. */
@@ -119,7 +131,13 @@ final class MachineEntries {
                 machine.initialStateId().orElse(null), pinEntries(machine.inputs()), pinEntries(machine.outputs()),
                 machine.inputsAsBus(), machine.outputsAsBus(), machine.edge(),
                 MachineTestEntries.entries(machine),
-                machine.notes().stream().map(MachineEntries::noteEntry).toList());
+                machine.notes().stream().map(MachineEntries::noteEntry).toList(),
+                machine.texts().stream().map(MachineEntries::textEntry).toList());
+    }
+
+    private static TextEntry textEntry(MachineText text) {
+        return new TextEntry(text.id(), text.position().x(), text.position().y(), text.text(),
+                CircuitFormat.styleEntry(text.style()));
     }
 
     private static StateEntry stateEntry(MachineState state) {
@@ -162,11 +180,15 @@ final class MachineEntries {
             for (NoteEntry note : CircuitFormat.entries(entry.notes())) {
                 notes.add(note(CircuitFormat.requireEntry(note, "notes of " + definitionId)));
             }
+            List<MachineText> texts = new ArrayList<>();
+            for (TextEntry text : CircuitFormat.entries(entry.texts())) {
+                texts.add(text(CircuitFormat.requireEntry(text, "texts of " + definitionId), definitionId));
+            }
             String edge = entry.edge() == null ? StateMachine.EDGE_FALLING : entry.edge();
             return new StateMachine(states, transitions, Optional.ofNullable(entry.initialState()),
                     pins(entry.inputs(), "inputs of " + definitionId),
                     pins(entry.outputs(), "outputs of " + definitionId), entry.inputsAsBus(), entry.outputsAsBus(),
-                    edge, tests, notes);
+                    edge, tests, notes, texts);
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw invalid("machine of " + definitionId + ": " + exception.getMessage(), exception);
         }
@@ -210,6 +232,30 @@ final class MachineEntries {
         }
         return new MachineNote(entry.id(), new DiagramPoint(entry.x(), entry.y()), entry.width(), entry.height(),
                 color, entry.text() == null ? "" : entry.text(), Boolean.TRUE.equals(entry.folded()));
+    }
+
+    /** A free text; a colour VSim does not know reads as none (and is logged), so one never fails the whole file. */
+    private static MachineText text(TextEntry entry, String definitionId) {
+        NoteStyle style = NoteStyle.PLAIN;
+        CircuitFormat.StyleEntry colours = entry.style();
+        if (colours != null) {
+            style = new NoteStyle(noteColor(colours.background(), entry, definitionId),
+                    noteColor(colours.text(), entry, definitionId), noteColor(colours.border(), entry, definitionId));
+        }
+        return new MachineText(entry.id(), new DiagramPoint(entry.x(), entry.y()), entry.text(), style);
+    }
+
+    private static NoteColor noteColor(String name, TextEntry entry, String definitionId) {
+        if (name == null) {
+            return NoteColor.NONE;
+        }
+        try {
+            return NoteColor.valueOf(name);
+        } catch (IllegalArgumentException exception) {
+            LOG.warn("machine of {}: text {} has an unknown colour {}; read without it", definitionId, entry.id(),
+                    name);
+            return NoteColor.NONE;
+        }
     }
 
     private static List<OutputAssignment> outputs(List<OutputEntry> entries, String definitionId)
