@@ -1254,6 +1254,34 @@ class EditServiceTest {
         assertThat(circuit.document().components().iterator().next().position()).isEqualTo(new GridPoint(10, 10));
     }
 
+    /** What a hand-made file can hold and the AI could never place: a gate three times past the limit. */
+    private void addFarNand() {
+        PlacePart nand = place("far", "nand", 0, 0);
+        circuit.document().add(new cl.almejo.vsim.core.document.Component(
+                new cl.almejo.vsim.core.document.ElementId("c1"), nand.typeId(),
+                new GridPoint(3 * EditPlanner.MAXIMUM_COORDINATE, 0), Rotation.R0, nand.parameters(), ""));
+    }
+
+    @Test
+    void aFileCanHoldElementsAndGuidesFarerThanTheLimitAndTheAiMayBringThemCloser() {
+        addFarNand();
+        circuit.document().setGuides(List.of(new Guide(Guide.Orientation.VERTICAL, 3 * EditPlanner.MAXIMUM_COORDINATE)));
+
+        service.edit(request(new Move(List.of("c1"), -2 * EditPlanner.MAXIMUM_COORDINATE, 0),
+                new RemoveGuide(Guide.Orientation.VERTICAL, 3 * EditPlanner.MAXIMUM_COORDINATE)));
+
+        assertThat(circuit.document().components().iterator().next().position())
+                .isEqualTo(new GridPoint(EditPlanner.MAXIMUM_COORDINATE, 0));
+        assertThat(circuit.document().guides()).isEmpty();
+    }
+
+    @Test
+    void aFarElementMayNotBeMovedFartherOut() {
+        addFarNand();
+
+        assertRefused(request(new Move(List.of("c1"), 1, 0)), AutomationError.INVALID_PARAMETER);
+    }
+
     @Test
     void aNullParameterValueIsRefusedNamingTheParameter() {
         java.util.HashMap<String, Object> parameters = new java.util.HashMap<>();

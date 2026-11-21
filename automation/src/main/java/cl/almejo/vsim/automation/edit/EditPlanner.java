@@ -311,7 +311,8 @@ final class EditPlanner {
                 sticky.height().ifPresent(height -> requireWithinLimit("height", height));
             }
             case AddGuide addGuide -> requireWithinLimit("position", addGuide.position());
-            case RemoveGuide removeGuide -> requireWithinLimit("position", removeGuide.position());
+            // RemoveGuide and Move are not bounded here: a file may hold guides and elements past the limit, and the
+            // AI may take them out or bring them closer; only where a move ends is checked (requireMovedWithinLimit)
             case AddWire addWire -> requirePointsWithinLimit(addWire.points(), "points");
             case Connect connect -> requirePointsWithinLimit(connect.via(), "via");
             case MakeFrame makeFrame -> makeFrame.bounds().ifPresent(bounds -> {
@@ -322,10 +323,6 @@ final class EditPlanner {
                 requireWithinLimit("bounds.x + width", (long) bounds.x() + bounds.width());
                 requireWithinLimit("bounds.y + height", (long) bounds.y() + bounds.height());
             });
-            case Move move -> {
-                requireWithinLimit("deltaX", move.deltaX());
-                requireWithinLimit("deltaY", move.deltaY());
-            }
             case SetComponentShape setComponentShape -> setComponentShape.pins().forEach(pin -> {
                 requireWithinLimit("pins.x", pin.x());
                 requireWithinLimit("pins.y", pin.y());
@@ -875,15 +872,25 @@ final class EditPlanner {
         followWidths(before, ids);
     }
 
-    /** Moves add up (call after call): what would end past the limit is refused, so no position ever overflows. */
+    /**
+     * Moves add up (call after call): what would end past the limit is refused, so no position ever overflows, unless
+     * the move brings that edge closer to the origin (a file may hold elements past the limit).
+     */
     private void requireMovedWithinLimit(Set<ElementId> ids, int deltaX, int deltaY) {
         ElementBounds.union(ids.stream().flatMap(id -> candidate.element(id).stream()).toList(), registry)
                 .ifPresent(bounds -> {
-                    requireWithinLimit("the moved elements' x", (long) bounds.x() + deltaX);
-                    requireWithinLimit("the moved elements' x", (long) bounds.maximumX() + deltaX);
-                    requireWithinLimit("the moved elements' y", (long) bounds.y() + deltaY);
-                    requireWithinLimit("the moved elements' y", (long) bounds.maximumY() + deltaY);
+                    requireMovedEdgeWithinLimit("the moved elements' x", bounds.x(), deltaX);
+                    requireMovedEdgeWithinLimit("the moved elements' x", bounds.maximumX(), deltaX);
+                    requireMovedEdgeWithinLimit("the moved elements' y", bounds.y(), deltaY);
+                    requireMovedEdgeWithinLimit("the moved elements' y", bounds.maximumY(), deltaY);
                 });
+    }
+
+    private static void requireMovedEdgeWithinLimit(String name, int edge, int delta) {
+        long moved = (long) edge + delta;
+        if (Math.abs(moved) > Math.abs((long) edge)) {
+            requireWithinLimit(name, moved);
+        }
     }
 
     private void delete(Delete operation) {
