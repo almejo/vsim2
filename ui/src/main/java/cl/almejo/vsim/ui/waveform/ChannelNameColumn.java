@@ -24,7 +24,7 @@ import java.util.Optional;
  */
 final class ChannelNameColumn extends JComponent {
 
-    static final int COLUMN_WIDTH = 190;
+    private static final int COLUMN_WIDTH = 190;
     private static final int PADDING = 6;
     private static final int HIGHLIGHT_ALPHA = 90;
 
@@ -79,9 +79,14 @@ final class ChannelNameColumn extends JComponent {
                 row.format());
     }
 
+    /** The width of the names column at the current interface size. */
+    static int columnWidth() {
+        return WaveformPainter.scaled(COLUMN_WIDTH);
+    }
+
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(COLUMN_WIDTH, Math.max(1, panel.channelIds().size()) * WaveformPainter.ROW_HEIGHT);
+        return new Dimension(columnWidth(), Math.max(1, panel.channelIds().size()) * WaveformPainter.rowHeight());
     }
 
     @Override
@@ -96,25 +101,25 @@ final class ChannelNameColumn extends JComponent {
             List<ChannelRows.ChannelRow> rows = panel.rows();
             for (int index = 0; index < rows.size(); index++) {
                 ChannelRows.ChannelRow row = rows.get(index);
-                int top = index * WaveformPainter.ROW_HEIGHT;
+                int top = index * WaveformPainter.rowHeight();
                 boolean selected = panel.selectedProbe().filter(row.probeId()::equals).isPresent();
                 if (selected || panel.isBlinkLit(row.probeId())) {
                     graphics2D.setColor(PainterSupport.withAlpha(scheme.selection(), HIGHLIGHT_ALPHA));
-                    graphics2D.fillRect(0, top, getWidth(), WaveformPainter.ROW_HEIGHT);
+                    graphics2D.fillRect(0, top, getWidth(), WaveformPainter.rowHeight());
                 }
-                int baseline = top + (WaveformPainter.ROW_HEIGHT + metrics.getAscent() - metrics.getDescent()) / 2;
+                int baseline = top + (WaveformPainter.rowHeight() + metrics.getAscent() - metrics.getDescent()) / 2;
                 String value = valueOf(row);
                 int valueWidth = metrics.stringWidth(value);
                 graphics2D.setColor(scheme.diagramTrace());
                 graphics2D.drawString(value, getWidth() - PADDING - valueWidth, baseline);
                 Graphics2D nameGraphics = (Graphics2D) graphics2D.create();
                 nameGraphics.clipRect(0, top, Math.max(0, getWidth() - 2 * PADDING - valueWidth),
-                        WaveformPainter.ROW_HEIGHT);
+                        WaveformPainter.rowHeight());
                 nameGraphics.drawString(row.name(), PADDING, baseline);
                 nameGraphics.dispose();
                 graphics2D.setColor(scheme.diagramGrid());
-                graphics2D.drawLine(0, top + WaveformPainter.ROW_HEIGHT - 1, getWidth(),
-                        top + WaveformPainter.ROW_HEIGHT - 1);
+                graphics2D.drawLine(0, top + WaveformPainter.rowHeight() - 1, getWidth(),
+                        top + WaveformPainter.rowHeight() - 1);
             }
         } finally {
             graphics2D.dispose();

@@ -54,7 +54,7 @@ class WaveformPainterTest {
     }
 
     private BufferedImage draw(Trace trace, long now, TimeAxis axis) {
-        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.ROW_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.rowHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         WaveformPainter.paint(graphics, new WaveformSnapshot(1, now, Map.of("p1", trace)), List.of("p1"), axis,
                 WIDTH, scheme);
@@ -154,7 +154,7 @@ class WaveformPainterTest {
     }
 
     private int positionsVisited(Trace trace, long now, TimeAxis axis) {
-        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.ROW_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.rowHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         try {
             return WaveformPainter.paintRow(graphics, trace, 0, axis, WIDTH, now, scheme);
@@ -232,7 +232,7 @@ class WaveformPainterTest {
     }
 
     private BufferedImage drawFormatted(Trace trace, long now, TimeAxis axis, String format) {
-        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.ROW_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(WIDTH, WaveformPainter.rowHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         WaveformPainter.paint(graphics, new WaveformSnapshot(1, now, Map.of("p1", trace)), List.of("p1"), axis,
                 WIDTH, scheme, Map.of("p1", format));

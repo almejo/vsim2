@@ -24,9 +24,14 @@ import java.util.OptionalLong;
  */
 final class TimeRuler extends JComponent {
 
-    static final int RULER_HEIGHT = 22;
+    private static final int RULER_HEIGHT = 22;
     private static final int TICK_LENGTH = 6;
     private static final int PADDING = 4;
+
+    /** The height of the ruler at the current interface size. */
+    static int rulerHeight() {
+        return WaveformPainter.scaled(RULER_HEIGHT);
+    }
 
     private final WaveformPanel panel;
     private int dragX;
@@ -72,7 +77,7 @@ final class TimeRuler extends JComponent {
 
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(100, RULER_HEIGHT);
+        return new Dimension(100, rulerHeight());
     }
 
     @Override
@@ -89,7 +94,7 @@ final class TimeRuler extends JComponent {
             graphics2D.setColor(scheme.diagramTrace());
             for (long tick : visibleTicks()) {
                 int x = (int) Math.floor(axis.xOf(tick));
-                graphics2D.drawLine(x, getHeight() - TICK_LENGTH, x, getHeight());
+                graphics2D.drawLine(x, getHeight() - WaveformPainter.scaled(TICK_LENGTH), x, getHeight());
                 graphics2D.drawString(TimeAxis.format(tick), x + 3, baseline);
             }
             String now = TimeAxis.timeLabel(panel.displayed().time());

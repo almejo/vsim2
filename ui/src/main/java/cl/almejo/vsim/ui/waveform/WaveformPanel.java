@@ -158,7 +158,7 @@ public final class WaveformPanel extends JPanel {
             return;
         }
         selectProbe(probeId);
-        plot.scrollRectToVisible(new Rectangle(0, row * WaveformPainter.ROW_HEIGHT, 1, WaveformPainter.ROW_HEIGHT));
+        plot.scrollRectToVisible(new Rectangle(0, row * WaveformPainter.rowHeight(), 1, WaveformPainter.rowHeight()));
     }
 
     /** Makes the row of {@code probeId} blink for about 1.5 s (an add found its net already shown). */
@@ -313,7 +313,7 @@ public final class WaveformPanel extends JPanel {
     /** The probe of the row at {@code y}, if any. */
     Optional<String> probeAt(int y) {
         List<String> ids = channelIds();
-        int row = y / WaveformPainter.ROW_HEIGHT;
+        int row = y / WaveformPainter.rowHeight();
         return y >= 0 && row < ids.size() ? Optional.of(ids.get(row)) : Optional.empty();
     }
 
