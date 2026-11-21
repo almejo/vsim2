@@ -11,7 +11,11 @@ import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -94,6 +98,53 @@ class AiServerServiceTest {
             assertThat(gate).containsExactly("refuse", "accept");
         } finally {
             restarting.stop();
+        }
+    }
+
+    /** Review I2: «Apagar» on the EDT between the start's check of its generation and its accept on the server thread. */
+    @Test
+    void apagarBetweenTheStartsCheckAndItsAcceptLeavesTheQueuedWorkRefused() throws Exception {
+        List<String> gate = new ArrayList<>();
+        ArrayDeque<Runnable> serverJobs = new ArrayDeque<>();
+        boolean[] queued = {true};
+        Executor serverThread = job -> {
+            if (queued[0]) {
+                serverJobs.add(job);
+            } else {
+                job.run();
+            }
+        };
+        AiServerService[] overtaken = new AiServerService[1];
+        boolean[] apagarDuringAccept = {true};
+        overtaken[0] = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
+                new FakeAiTasks(), Runnable::run, Runnable::run, new AiServerService.QueuedWork() {
+                    @Override
+                    public void refuse() {
+                        gate.add("refuse");
+                    }
+
+                    @Override
+                    public void accept() {
+                        if (apagarDuringAccept[0]) {
+                            apagarDuringAccept[0] = false;
+                            overtaken[0].deactivate(); // the EDT, after the check and before the accept took effect
+                        }
+                        gate.add("accept");
+                    }
+                }, SessionPort.none(), serverThread, Clock.systemDefaultZone());
+        preferences.setAiPort(freePort());
+        try {
+            overtaken[0].activate();
+            Runnable start = serverJobs.poll();
+            queued[0] = false;
+
+            start.run();
+
+            assertThat(gate).as("the queue ends refusing").endsWith("refuse");
+            assertThat(overtaken[0].isRunning()).isFalse();
+            assertThat(overtaken[0].isStarting()).isFalse();
+        } finally {
+            overtaken[0].stop();
         }
     }
 

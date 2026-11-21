@@ -348,6 +348,11 @@ public final class AiServerService {
             // (AI-4). A start overtaken meanwhile leaves the queue refusing.
             if (generation == startGeneration) {
                 queuedWork.accept();
+                // «Apagar» on the EDT may have come between the check and the accept: it moves the generation before it
+                // refuses, so in either order the queue ends refusing (review I2)
+                if (generation != startGeneration) {
+                    queuedWork.refuse();
+                }
             }
             try {
                 started = VsimMcpServer.start(api, new McpServerSettings(port, secret));
