@@ -31,6 +31,8 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.event.MenuEvent;
+import javax.swing.event.MenuListener;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -219,6 +221,45 @@ class TruthTableExtensionTest {
         } finally {
             view.dispose();
         }
+    }
+
+    private static void open(JMenu menu) {
+        for (MenuListener listener : menu.getMenuListeners()) {
+            listener.menuSelected(new MenuEvent(menu));
+        }
+    }
+
+    @Test
+    void theLogicItemIsOffOnASequentialCircuitAndSaysWhy() {
+        place(openDocument, StandardComponentTypes.CLOCK, 0, 0, Map.of());
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            JMenuItem item = last(view.menu(MenuId.LOGIC));
+            open(view.menu(MenuId.LOGIC));
+
+            assertThat(item.isEnabled()).isFalse();
+            assertThat(item.getAction().getValue(javax.swing.Action.SHORT_DESCRIPTION)).isEqualTo(
+                    "Solo para circuitos combinacionales: este tiene flip-flops o relojes. Prueba las formas de onda.");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theLogicItemStaysOnWhenTheRefusalIsAnotherOne() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            open(view.menu(MenuId.LOGIC));
+
+            assertThat(last(view.menu(MenuId.LOGIC)).isEnabled()).as("no inputs: the message explains it").isTrue();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void itsMessagesAreTitledWithTheFeature() {
+        assertThat(TruthTableExtension.messageTitle()).isEqualTo("Tabla de verdad");
     }
 
     @Test

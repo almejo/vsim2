@@ -31,6 +31,7 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.Menus;
 import cl.almejo.vsim.ui.window.WindowCommands;
 
 import javax.swing.Action;
@@ -106,6 +107,7 @@ public final class EditorActions {
     private final Action newView;
     private final Action newWindowWithCircuit;
     private final Action moveGroup;
+    private final WindowCommands window;
     private final Action foldGroup;
     private final Action nextTab;
     private final Action previousTab;
@@ -204,6 +206,8 @@ public final class EditorActions {
         newWindowWithCircuit = Actions.of(Messages.text("action.newWindowWithCircuit"),
                 shortcut(KeyEvent.VK_N, InputEvent.SHIFT_DOWN_MASK), window::newWindowWithCircuit);
         moveGroup = Actions.of(Messages.text("action.moveGroup"), null, window::moveGroupToNewWindow);
+        Actions.disabledBecause(moveGroup, () -> Messages.text("reason.oneGroup"));
+        this.window = window;
         foldGroup = Actions.of(Messages.text("action.foldGroup"), null, window::toggleFold);
         // Ctrl on every platform: ⌘+Tab is the system's application switcher on macOS
         nextTab = Actions.of(Messages.text("action.nextTab"),
@@ -232,6 +236,14 @@ public final class EditorActions {
     public Action newWindowWithCircuit() { return newWindowWithCircuit; }
     /** «Mover el grupo a una ventana nueva». */
     public Action moveGroup() { return moveGroup; }
+    /**
+     * «Mover el grupo a una ventana nueva» is on only while the window holds another group (I14): asked when Ventana
+     * opens and by the window when its groups change.
+     */
+    public void refreshWindowActions() {
+        moveGroup.setEnabled(window.holdsOtherGroups());
+    }
+
     /** «Plegar / desplegar el grupo». */
     public Action foldGroup() { return foldGroup; }
     /** «Pestaña siguiente» (Ctrl+Tab). */
@@ -381,6 +393,7 @@ public final class EditorActions {
         windowMenu.add(closeComponents);
         windowMenu.addSeparator();
         // «Dividir ▸» and «Siguiente panel» follow (SplitViewsFeatures)
+        Menus.onOpen(windowMenu, this::refreshWindowActions);
         JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
         help.add(about);
         help.add(reportProblem);

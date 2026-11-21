@@ -81,6 +81,9 @@ import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
@@ -313,6 +316,18 @@ public final class EditorView extends JPanel implements CanvasHost {
         edit.addSeparator();
         edit.add(selectionActions.selectAll());
         addContextMenuContributor(selectionActions.contributor());
+        // «Pegar» asks the clipboard again when it may have changed elsewhere: Editar opens, a pane gets the focus back
+        Menus.onOpen(edit, selectionActions::refreshPaste);
+        forEachPane(pane -> {
+            FocusListener refresh = new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent event) {
+                    selectionActions.refreshPaste();
+                }
+            };
+            pane.addFocusListener(refresh);
+            return () -> pane.removeFocusListener(refresh);
+        });
     }
 
     public OpenDocument openDocument() { return openDocument; }
