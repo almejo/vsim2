@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.io.MachineFragmentFormat;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.NoteTransfer;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -21,9 +22,9 @@ import java.util.function.Consumer;
 /**
  * Cortar, Copiar, Pegar, Duplicar and Seleccionar todo on a machine's diagram (hand test of hito 2: the window's own
  * actions and keys, routed here in a machine's tab): the selected states travel with the arrows between them, and the
- * selected notes with them (or alone, hito 3), as {@link MachineFragmentFormat} text on the app's clipboard, so they
+ * selected notes and free texts with them (or alone, hito 3), as {@link MachineFragmentFormat} text on the app's clipboard, so they
  * paste into this machine or another one; a paste or a duplicate is one {@code EditMachineCommand}
- * ({@link MachineCanvas#edit}) and leaves what it added selected. Of a circuit's copied selection only the notes are
+ * ({@link MachineCanvas#edit}) and leaves what it added selected. Of a circuit's copied selection only the notes and the free texts are
  * pasted here ({@link NoteTransfer}); the rest is left out with a reason on the status line, as a machine's states
  * are in a circuit.
  */
@@ -43,7 +44,8 @@ final class MachineClipboard implements ContentClipboard {
 
     @Override
     public boolean canCopy() {
-        return !canvas.selection().stateIds().isEmpty() || !canvas.selection().noteIds().isEmpty();
+        return !canvas.selection().stateIds().isEmpty() || !canvas.selection().noteIds().isEmpty()
+                || !canvas.selection().textIds().isEmpty();
     }
 
     @Override
@@ -73,15 +75,20 @@ final class MachineClipboard implements ContentClipboard {
         }
     }
 
-    /** A circuit's copied selection: only its notes come in; the rest is left out, and the status line says so. */
+    /**
+     * A circuit's copied selection: only its notes and free texts come in; the rest is left out, and the status line
+     * says so.
+     */
     private void pasteCircuitNotes(String text) {
-        Optional<FragmentFormat.Notes> copied = FragmentFormat.notesOf(text).filter(found -> !found.notes().isEmpty());
+        Optional<FragmentFormat.Notes> copied = FragmentFormat.notesOf(text)
+                .filter(found -> !found.notes().isEmpty() || !found.texts().isEmpty());
         Optional<StateMachine> machine = canvas.machine();
         if (copied.isEmpty() || machine.isEmpty()) {
             notices.accept(Messages.text("machine.paste.notInAMachine"));
             return;
         }
-        StateMachine piece = MachineEdits.notesPiece(machine.get(), NoteTransfer.toMachineNotes(copied.get().notes()));
+        StateMachine piece = MachineEdits.notesPiece(machine.get(), NoteTransfer.toMachineNotes(copied.get().notes()),
+                NoteTransfer.toMachineTexts(copied.get().texts()));
         if (add(piece) && copied.get().hasOtherElements()) {
             notices.accept(Messages.text("machine.paste.onlyNotes"));
         }
@@ -97,12 +104,13 @@ final class MachineClipboard implements ContentClipboard {
         canvas.machine().ifPresent(machine -> canvas.selection().set(
                 new LinkedHashSet<>(machine.states().stream().map(MachineState::id).toList()),
                 new LinkedHashSet<>(machine.transitions().stream().map(MachineTransition::id).toList()),
-                new LinkedHashSet<>(machine.notes().stream().map(MachineNote::id).toList())));
+                new LinkedHashSet<>(machine.notes().stream().map(MachineNote::id).toList()),
+                new LinkedHashSet<>(machine.texts().stream().map(MachineText::id).toList())));
     }
 
     private Optional<StateMachine> selectedPiece() {
         return canvas.machine().flatMap(machine -> MachineEdits.pieceOf(machine, canvas.selection().stateIds(),
-                canvas.selection().noteIds()));
+                canvas.selection().noteIds(), canvas.selection().textIds()));
     }
 
     /** Adds {@code piece} as one undo step and selects what it added; says why when it does not fit. */
@@ -123,7 +131,8 @@ final class MachineClipboard implements ContentClipboard {
         }
         if (canvas.edit(current -> MachineEdits.withPasted(current, piece).machine())) {
             canvas.selection().set(new LinkedHashSet<>(pasted.stateIds()),
-                    new LinkedHashSet<>(pasted.transitionIds()), new LinkedHashSet<>(pasted.noteIds()));
+                    new LinkedHashSet<>(pasted.transitionIds()), new LinkedHashSet<>(pasted.noteIds()),
+                    new LinkedHashSet<>(pasted.textIds()));
             return true;
         }
         return false;

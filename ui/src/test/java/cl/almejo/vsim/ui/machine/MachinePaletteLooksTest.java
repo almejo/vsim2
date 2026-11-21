@@ -32,7 +32,7 @@ class MachinePaletteLooksTest {
 
     private static List<AbstractButton> rows(MachinePalette palette) {
         return List.of(palette.stateButton(), palette.transitionButton(), palette.noteButton(),
-                palette.convertButton(), palette.testButton());
+                palette.textButton(), palette.convertButton(), palette.testButton());
     }
 
     private static BufferedImage paint(AbstractButton row) {

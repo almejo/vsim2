@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.labels.TextTool;
 import cl.almejo.vsim.ui.sticky.StickyNoteTool;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -69,6 +70,7 @@ final class MachineEditing {
         undo.add(Animations.onChange(view.services().preferences(), canvas::animationsChanged));
         undo.add(tool.install());
         undo.add(followStickyNoteTool(view, palette));
+        undo.add(followTextTool(view, palette));
         undo.add(followPanTool(view, canvas, palette));
         if (view.inspector().title(InspectorPanel.PROPERTIES).isPresent()) {
             undo.add(view.inspector().showInstead(InspectorPanel.PROPERTIES, rows.inScrollPane()));
@@ -131,6 +133,28 @@ final class MachineEditing {
     }
 
     /**
+     * The toolbar's «Texto» (and its menu item and shortcut) chooses the palette's «Texto» in this tab instead of the
+     * circuit's text tool, and the two show the same choice, as with the sticky note. Returns what takes it back.
+     */
+    private static Runnable followTextTool(EditorView view, MachinePalette palette) {
+        JToggleButton text = palette.textButton();
+        Runnable stopChoosing = view.chooseToolInstead(TextTool.class, () -> text.setSelected(true));
+        ItemListener follow = event -> {
+            Optional<JToggleButton> toolbarButton = view.toolButton(TextTool.class);
+            if (event.getStateChange() == ItemEvent.SELECTED) {
+                toolbarButton.ifPresent(button -> button.setSelected(true));
+            } else if (toolbarButton.filter(JToggleButton::isSelected).isPresent()) {
+                view.useDefaultToolOnEveryPane();
+            }
+        };
+        text.addItemListener(follow);
+        return () -> {
+            text.removeItemListener(follow);
+            stopChoosing.run();
+        };
+    }
+
+    /**
      * The toolbar's hand («Mover vista», its menu item and shortcut) pans the diagram: it reaches the hidden panes as
      * on any tab (so its button is pressed while it is chosen and Selección takes it back), and while the active pane
      * holds it a left drag on the diagram pans ({@link MachineCanvas#handChosen}). The hand and the palette's tools
@@ -153,7 +177,7 @@ final class MachineEditing {
             }
         };
         List<JToggleButton> paletteTools = List.of(palette.stateButton(), palette.transitionButton(),
-                palette.noteButton());
+                palette.noteButton(), palette.textButton());
         paletteTools.forEach(button -> button.addItemListener(putHandDown));
         follow.run();
         return () -> {

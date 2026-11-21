@@ -26,10 +26,10 @@ import java.util.function.Supplier;
 /**
  * The left palette of a machine's tab (spec 2026-11-14 §1, the mockup's «Paleta»), its rows drawn as the circuit
  * palette's are ({@link MachinePaletteRows}): the drawing tools, «Estado»,
- * «Transición» and «Nota» (a sticky note, hito 3), and under «Y después» the next steps «Convertir a circuito…»,
+ * «Transición», «Nota» (a sticky note, hito 3) and «Texto» (a free text), and under «Y después» the next steps «Convertir a circuito…»,
  * shown disabled with «Llega en un próximo hito» until it arrives, and «Probar…» (the test mode, hito 4; disabled
  * with «Ya estás probando» while it is on). A tool is chosen here (one at a time, or
- * none) and used once on the diagram ({@link MachineTool}): a click places a state or a note, a drag joins two
+ * none) and used once on the diagram ({@link MachineTool}): a click places a state, a note or a text, a drag joins two
  * states.
  */
 public final class MachinePalette extends JPanel {
@@ -41,6 +41,7 @@ public final class MachinePalette extends JPanel {
     private final JToggleButton stateButton;
     private final JToggleButton transitionButton;
     private final JToggleButton noteButton;
+    private final JToggleButton textButton;
     private final JButton convertButton;
     private final JButton testButton;
     private final JLabel nextHeader = new JLabel(Messages.text("machine.palette.next"));
@@ -53,6 +54,7 @@ public final class MachinePalette extends JPanel {
         transitionButton = toolRow("machine.palette.transition", "machine.palette.transitionHint", Kind.TRANSITION,
                 scheme);
         noteButton = toolRow("machine.palette.note", "machine.palette.noteHint", Kind.NOTE, scheme);
+        textButton = toolRow("machine.palette.text", "machine.palette.textHint", Kind.TEXT, scheme);
         convertButton = actionRow("machine.palette.convert", null, Kind.CONVERT, scheme);
         convertButton.setEnabled(false);
         convertButton.setToolTipText(Messages.text("machine.comesLater"));
@@ -63,11 +65,14 @@ public final class MachinePalette extends JPanel {
         tools.add(stateButton);
         tools.add(transitionButton);
         tools.add(noteButton);
+        tools.add(textButton);
         add(stateButton);
         add(Box.createVerticalStrut(UIScale.scale(GAP)));
         add(transitionButton);
         add(Box.createVerticalStrut(UIScale.scale(GAP)));
         add(noteButton);
+        add(Box.createVerticalStrut(UIScale.scale(GAP)));
+        add(textButton);
         add(Box.createVerticalStrut(UIScale.scale(2 * PADDING)));
         nextHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
         add(nextHeader);
@@ -92,6 +97,11 @@ public final class MachinePalette extends JPanel {
     /** «Nota»: sticks a note on the diagram with a click (the toolbar's «Nota adhesiva» chooses it too). */
     public JToggleButton noteButton() {
         return noteButton;
+    }
+
+    /** «Texto»: writes a free text on the diagram with a click (the toolbar's «Texto» chooses it too). */
+    public JToggleButton textButton() {
+        return textButton;
     }
 
     /** Chooses no tool: a placed state or a drawn arrow, or Esc, puts the diagram back to selecting. */

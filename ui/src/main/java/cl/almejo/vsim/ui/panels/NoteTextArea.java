@@ -18,12 +18,12 @@ import java.util.List;
  * The text of a note in Propiedades (IA.3): a text area that keeps its line breaks, where Enter confirms like a
  * field's Enter, Shift+Enter adds a line and Tab moves on to the next control. It grows with its lines.
  */
-final class NoteTextArea extends JTextArea {
+public final class NoteTextArea extends JTextArea {
 
     private static final String CONFIRM = "note-confirm";
     private final List<Runnable> confirmListeners = new ArrayList<>();
 
-    NoteTextArea(String text) {
+    public NoteTextArea(String text) {
         super(text);
         FragmentRefusingTransferHandler.install(this);
         // wrap inside the panel instead of growing to the longest line
@@ -46,12 +46,12 @@ final class NoteTextArea extends JTextArea {
     }
 
     /** Runs {@code listener} when the user confirms the text (Enter). */
-    void addConfirmListener(Runnable listener) {
+    public void addConfirmListener(Runnable listener) {
         confirmListeners.add(listener);
     }
 
     /** What Enter does: tells the listeners the text is confirmed. */
-    void confirm() {
+    public void confirm() {
         for (Runnable listener : List.copyOf(confirmListeners)) {
             listener.run();
         }

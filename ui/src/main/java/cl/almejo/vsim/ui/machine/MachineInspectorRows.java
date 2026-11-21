@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.logic.ExpressionProblem;
 import cl.almejo.vsim.core.machine.MachineConditions;
@@ -8,15 +10,19 @@ import cl.almejo.vsim.core.machine.MachineKind;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.NoteColorNames;
 import cl.almejo.vsim.ui.i18n.StickyColorNames;
 import cl.almejo.vsim.ui.karnaugh.ExpressionProblemText;
 import cl.almejo.vsim.ui.panels.ColorSwatches;
+import cl.almejo.vsim.ui.panels.NoteColorSwatches;
+import cl.almejo.vsim.ui.panels.NoteTextArea;
 import cl.almejo.vsim.ui.problems.MachineProblemText;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.swing.MigLayout;
@@ -38,7 +44,9 @@ import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -96,6 +104,8 @@ final class MachineInspectorRows extends JPanel {
     /** Whether «Animaciones» is on now: a pin's uses then blink when shown. */
     private final transient BooleanSupplier animations;
     private transient Optional<ColorSwatches<StickyColor>> noteColor = Optional.empty();
+    private transient Optional<NoteTextArea> textArea = Optional.empty();
+    private transient Map<NoteStyle.Role, ColorSwatches<NoteColor>> textStyle = Map.of();
     private transient Optional<JButton> editNoteText = Optional.empty();
     private transient Optional<ColorSwatches<Optional<StateColor>>> stateColor = Optional.empty();
     /** Opens the inline editor on a note's text (its id). */
@@ -235,6 +245,16 @@ final class MachineInspectorRows extends JPanel {
         return noteColor;
     }
 
+    /** The words of the selected free text; empty when no text alone is selected. */
+    Optional<NoteTextArea> textArea() {
+        return textArea;
+    }
+
+    /** The «Fondo», «Letra» or «Borde» swatches of the selected free texts; empty when only texts are not selected. */
+    Optional<ColorSwatches<NoteColor>> textStyle(NoteStyle.Role role) {
+        return Optional.ofNullable(textStyle.get(role));
+    }
+
     /** The «Color» of the selected states («sin color» first); empty when no state is selected. */
     Optional<ColorSwatches<Optional<StateColor>>> stateColor() {
         return stateColor;
@@ -308,8 +328,10 @@ final class MachineInspectorRows extends JPanel {
             return MACHINE_ROWS;
         }
         if (count > 1) {
-            // the states too: the «Color» row colours the states selected when it was built
-            return SEVERAL_ROWS + count + ":" + String.join(",", selection.stateIds());
+            // the states and texts too: the «Color» row colours the states selected when it was built, and the style
+            // rows the texts
+            return SEVERAL_ROWS + count + ":" + String.join(",", selection.stateIds()) + ":"
+                    + String.join(",", selection.textIds());
         }
         if (!selection.stateIds().isEmpty()) {
             String stateId = selection.stateIds().iterator().next();
@@ -318,6 +340,10 @@ final class MachineInspectorRows extends JPanel {
         if (!selection.noteIds().isEmpty()) {
             String noteId = selection.noteIds().iterator().next();
             return noteOf(machine.get(), noteId).isPresent() ? "note:" + noteId : NO_ROWS;
+        }
+        if (!selection.textIds().isEmpty()) {
+            String textId = selection.textIds().iterator().next();
+            return textOf(machine.get(), textId).isPresent() ? "text:" + textId : NO_ROWS;
         }
         String transitionId = selection.transitionIds().iterator().next();
         return machine.get().transition(transitionId)
@@ -340,6 +366,8 @@ final class MachineInspectorRows extends JPanel {
         testButton = Optional.empty();
         pinRows = Optional.empty();
         noteColor = Optional.empty();
+        textArea = Optional.empty();
+        textStyle = Map.of();
         editNoteText = Optional.empty();
         stateColor = Optional.empty();
         initialBox = Optional.empty();
@@ -391,8 +419,8 @@ final class MachineInspectorRows extends JPanel {
         if (count > 1) {
             return List.of();
         }
-        if (!selection.noteIds().isEmpty()) {
-            return List.of(); // a note is never a problem
+        if (!selection.noteIds().isEmpty() || !selection.textIds().isEmpty()) {
+            return List.of(); // a note or a free text is never a problem
         }
         MachineGlows glows = canvas.glows();
         if (!selection.stateIds().isEmpty()) {
@@ -429,10 +457,15 @@ final class MachineInspectorRows extends JPanel {
             if (!stateIds.isEmpty()) {
                 addStateColorRow(stateIds);
             }
+            if (selection.count() == selection.textIds().size()) {
+                addTextStyleRows(selection.textIds().stream().filter(id -> textOf(machine, id).isPresent()).toList());
+            }
         } else if (!selection.stateIds().isEmpty()) {
             machine.state(selection.stateIds().iterator().next()).ifPresent(state -> showState(machine, state));
         } else if (!selection.noteIds().isEmpty()) {
             noteOf(machine, selection.noteIds().iterator().next()).ifPresent(this::showNote);
+        } else if (!selection.textIds().isEmpty()) {
+            textOf(machine, selection.textIds().iterator().next()).ifPresent(this::showText);
         } else {
             machine.transition(selection.transitionIds().iterator().next())
                     .ifPresent(transition -> showTransition(machine, transition));
@@ -440,7 +473,7 @@ final class MachineInspectorRows extends JPanel {
     }
 
     private int selectedCount() {
-        return selection.stateIds().size() + selection.transitionIds().size() + selection.noteIds().size();
+        return selection.count();
     }
 
     private static Optional<MachineNote> noteOf(StateMachine machine, String noteId) {
@@ -468,6 +501,98 @@ final class MachineInspectorRows extends JPanel {
         add(hint(Messages.text("machine.properties.noteHint")), WIDE);
         noteColor = Optional.of(color);
         editNoteText = Optional.of(edit);
+    }
+
+    private static Optional<MachineText> textOf(StateMachine machine, String textId) {
+        return machine.texts().stream().filter(text -> text.id().equals(textId)).findFirst();
+    }
+
+    /**
+     * A free text, as the circuit's «Texto» shows in Propiedades: its words (several lines; Enter confirms, Mayús+Enter
+     * adds a line, a blank text is ignored) and its «Fondo», «Letra» and «Borde» colours; each change is one undo step.
+     */
+    private void showText(MachineText text) {
+        addHeader(Messages.text("machine.properties.text"));
+        String textId = text.id();
+        NoteTextArea area = new NoteTextArea(text.text());
+        String[] applied = {text.text()};
+        BooleanSupplier applyIfChanged = () -> {
+            String typed = area.getText().strip();
+            if (typed.equals(applied[0])) {
+                return true;
+            }
+            if (typed.isEmpty()) {
+                area.setText(applied[0]); // a blank text is ignored, as the circuit's is
+                return true;
+            }
+            applied[0] = typed;
+            apply(machine -> MachineEdits.withTextWords(machine, textId, typed));
+            return true;
+        };
+        area.addConfirmListener(applyIfChanged::getAsBoolean);
+        area.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent event) {
+                if (!disposed && area.getParent() == MachineInspectorRows.this) {
+                    applyIfChanged.getAsBoolean();
+                }
+            }
+        });
+        pendingApplies.add(applyIfChanged::getAsBoolean);
+        refreshers.add(() -> {
+            Optional<String> held = canvas.machine().flatMap(machineNow -> textOf(machineNow, textId))
+                    .map(MachineText::text);
+            boolean typing = !area.getText().strip().equals(applied[0]);
+            if (!typing && !area.hasFocus() && held.isPresent() && !held.get().equals(area.getText())) {
+                area.setText(held.get());
+                applied[0] = held.get();
+            }
+        });
+        addRow(Messages.text("properties.text"), area);
+        textArea = Optional.of(area);
+        addTextStyleRows(List.of(textId));
+        add(hint(Messages.text("machine.properties.textHint")), WIDE);
+    }
+
+    /**
+     * «Fondo», «Letra» and «Borde» for the texts {@code textIds}: each row shows the colour they share, or no choice
+     * when they differ; a pick paints that part of every one of them, one undo step.
+     */
+    private void addTextStyleRows(List<String> textIds) {
+        StateMachine machine = canvas.machine().orElse(null);
+        if (machine == null || textIds.isEmpty()) {
+            return;
+        }
+        List<MachineText> texts = textIds.stream().map(id -> textOf(machine, id)).flatMap(Optional::stream).toList();
+        Map<NoteStyle.Role, ColorSwatches<NoteColor>> rows = new EnumMap<>(NoteStyle.Role.class);
+        for (NoteStyle.Role role : NoteStyle.Role.values()) {
+            List<NoteColor> colors = texts.stream().map(text -> text.style().color(role)).distinct().toList();
+            ColorSwatches<NoteColor> swatches = NoteColorSwatches.of(role, List.of(NoteColor.values()),
+                    colors.getFirst(), canvas::colours);
+            if (colors.size() > 1) {
+                swatches.showNoChoice();
+            }
+            swatches.addChoiceListener(() -> apply(machineNow -> withStyled(machineNow, textIds, role,
+                    swatches.selectedValue())));
+            refreshers.add(() -> canvas.machine().ifPresent(machineNow -> {
+                List<NoteColor> now = textIds.stream().map(id -> textOf(machineNow, id)).flatMap(Optional::stream)
+                        .map(text -> text.style().color(role)).distinct().toList();
+                if (now.size() == 1 && swatches.selectedValue() != now.getFirst()) {
+                    swatches.select(now.getFirst());
+                }
+            }));
+            addRow(NoteColorNames.of(role), swatches);
+            rows.put(role, swatches);
+        }
+        textStyle = rows;
+    }
+
+    /** {@code machine} with {@code role} of the texts {@code textIds} painted {@code color}. */
+    private static StateMachine withStyled(StateMachine machine, List<String> textIds, NoteStyle.Role role,
+                                           NoteColor color) {
+        return machine.withTexts(machine.texts().stream()
+                .map(text -> textIds.contains(text.id()) ? text.withStyle(text.style().with(role, color)) : text)
+                .toList());
     }
 
     private void showMachine(StateMachine machine) {

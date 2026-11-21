@@ -1,9 +1,12 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineEditRequest;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
@@ -94,6 +97,47 @@ final class MachineInlineEditor {
                                 found -> found.withText(text.strip())))),
                 () -> canvas.machine().filter(current -> current.notes().stream()
                         .anyMatch(candidate -> candidate.id().equals(noteId))).isPresent());
+    }
+
+    /**
+     * Opens an empty editor for a new free text with its top-left corner at {@code topLeft}, as the circuit's «Texto»
+     * does: Mayús+Enter adds a line, Enter (or a click elsewhere) adds the text as one edit and selects it, Esc adds
+     * nothing; a blank text adds nothing.
+     */
+    void addText(DiagramPoint topLeft) {
+        editor.open(InlineEditRequest.multiLine(MachineTextPainting.emptyLinesAt(topLeft.x(), topLeft.y()),
+                LabelLayout.font(), "", text -> Optional.empty(), raw -> {
+                    String words = raw.strip();
+                    if (words.isEmpty()) {
+                        return;
+                    }
+                    if (canvas.edit(current -> MachineEdits.withNewText(current, topLeft, words))) {
+                        canvas.machine().map(MachineEdits::lastText).map(MachineText::id)
+                                .ifPresent(canvas.selection()::selectText);
+                    }
+                }), () -> canvas.machine().isPresent());
+    }
+
+    /**
+     * Opens the lines of the free text {@code textId} for editing over where they are drawn: Mayús+Enter adds a line,
+     * Enter (or a click elsewhere) puts them as one edit, Esc leaves them as they were; a blank text is ignored (the
+     * text stays, as the circuit's does).
+     */
+    void editText(String textId) {
+        Optional<MachineText> text = canvas.machine().flatMap(found -> found.texts().stream()
+                .filter(candidate -> candidate.id().equals(textId)).findFirst());
+        if (text.isEmpty()) {
+            return;
+        }
+        editor.open(InlineEditRequest.multiLine(MachineTextPainting.linesArea(text.get()), LabelLayout.font(),
+                        text.get().text(), words -> Optional.empty(), raw -> {
+                            String words = raw.strip();
+                            if (!words.isEmpty() && !words.equals(text.get().text())) {
+                                canvas.edit(current -> MachineEdits.withTextWords(current, textId, words));
+                            }
+                        }),
+                () -> canvas.machine().filter(current -> current.texts().stream()
+                        .anyMatch(candidate -> candidate.id().equals(textId))).isPresent());
     }
 
     /** Closes an open edit without applying it (the tab leaves machine mode). */

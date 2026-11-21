@@ -362,6 +362,29 @@ class MachineClipboardTest {
         assertThat(circuit.statusBar().text()).contains(Messages.text("machine.paste.onlyNotesInCircuit"));
     }
 
+    /** A machine's free texts float in a circuit as its own texts, with their style (task H). */
+    @Test
+    void aMachinesFreeTextsFloatInACircuitAsItsOwnTextsWithTheirStyle() {
+        cl.almejo.vsim.core.document.NoteStyle boxed = new cl.almejo.vsim.core.document.NoteStyle(
+                cl.almejo.vsim.core.document.NoteColor.YELLOW, cl.almejo.vsim.core.document.NoteColor.NONE,
+                cl.almejo.vsim.core.document.NoteColor.NONE);
+        mode.canvas().edit(current -> current.withTexts(List.of(
+                new cl.almejo.vsim.core.machine.MachineText("t1", new DiagramPoint(160, 150), "Ojo", boxed))));
+        mode.selection().set(Set.of("s1"), Set.of(), Set.of(), Set.of("t1"));
+        perform(view.selectionActions().copy());
+        EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
+
+        perform(circuit.selectionActions().paste());
+
+        cl.almejo.vsim.core.io.CircuitFragment floating = ((cl.almejo.vsim.ui.tools.FloatingSelectionTool)
+                circuit.canvas().tool()).fragment();
+        assertThat(floating.labels()).hasSize(1);
+        assertThat(floating.labels().getFirst().text()).isEqualTo("Ojo");
+        assertThat(floating.labels().getFirst().style()).isEqualTo(boxed);
+        assertThat(floating.components()).isEmpty();
+        assertThat(circuit.statusBar().text()).contains(Messages.text("machine.paste.onlyNotesInCircuit"));
+    }
+
     @Test
     void aCircuitsPartsAreNotPastedIntoAMachine() {
         EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
@@ -371,7 +394,7 @@ class MachineClipboardTest {
         perform(view.selectionActions().paste());
 
         assertThat(machine().states()).hasSize(3);
-        assertThat(view.statusBar().text()).contains("estados, flechas y notas");
+        assertThat(view.statusBar().text()).contains("estados, flechas, notas y textos");
     }
 
     @Test
