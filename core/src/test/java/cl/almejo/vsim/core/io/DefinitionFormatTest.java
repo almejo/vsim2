@@ -41,6 +41,8 @@ class DefinitionFormatTest {
     void badFilesFailWithAReason() throws Exception {
         String inverter = format.write(inverterBundle);
         assertReason("no json", CircuitFormatException.Reason.INVALID_JSON);
+        assertReason("", CircuitFormatException.Reason.EMPTY_FILE);
+        assertReason("  \n", CircuitFormatException.Reason.EMPTY_FILE);
         assertReason("[1, 2]", CircuitFormatException.Reason.NOT_VSIM_FILE);
         assertReason(mutated(inverter, root -> root.put("kind", "circuit")), CircuitFormatException.Reason.INVALID_ELEMENT);
         assertReason(mutated(inverter, root -> root.put("formatVersion", CircuitFormat.FORMAT_VERSION + 1)),

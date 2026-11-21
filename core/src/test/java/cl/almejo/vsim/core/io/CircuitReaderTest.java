@@ -77,12 +77,12 @@ class CircuitReaderTest {
     }
 
     @Test
-    void nullAndEmptyContentAreInvalidJson() {
+    void nullAndEmptyContentAreAnEmptyFile() {
         for (String content : new String[]{null, "", "   "}) {
             assertThatThrownBy(() -> reader.read(content))
                     .isInstanceOf(CircuitFormatException.class)
                     .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
-                            .isEqualTo(CircuitFormatException.Reason.INVALID_JSON));
+                            .isEqualTo(CircuitFormatException.Reason.EMPTY_FILE));
         }
     }
 

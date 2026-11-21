@@ -425,8 +425,8 @@ public final class CircuitFormat {
 
     /** The JSON tree of {@code json}; {@code null} or malformed text is {@code INVALID_JSON}. */
     static JsonNode parse(ObjectMapper mapper, String json) throws CircuitFormatException {
-        if (json == null) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "json is null");
+        if (json == null || json.isBlank()) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.EMPTY_FILE, "empty content");
         }
         try {
             return mapper.readTree(json);

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.io;
 
+import cl.almejo.vsim.core.component.appearance.SymbolPathException;
+
 public class CircuitFormatException extends Exception {
 
     public enum Reason {
@@ -11,7 +13,11 @@ public class CircuitFormatException extends Exception {
         /** A file to import as XML (a Logisim {@code .circ}) whose text is not XML at all. */
         NOT_XML,
         /** XML whose root is not a Logisim {@code <project>}. */
-        NOT_LOGISIM_PROJECT
+        NOT_LOGISIM_PROJECT,
+        /** A file with no content (or only blanks). */
+        EMPTY_FILE,
+        /** A drawing path of a component that does not follow the symbol-path syntax; the detail is technical. */
+        INVALID_SYMBOL_PATH
     }
 
     private final Reason reason;
@@ -24,7 +30,19 @@ public class CircuitFormatException extends Exception {
     }
 
     public CircuitFormatException(Reason reason, String detail, Throwable cause) {
-        this(reason, detail, cause, null, null);
+        this(reasonFor(reason, cause), detailFor(detail, cause), cause, null, null);
+    }
+
+    /** A bad drawing path (whatever wrapped it) is its own reason, so the UI can say it in the user's language. */
+    private static Reason reasonFor(Reason reason, Throwable cause) {
+        return cause instanceof SymbolPathException ? Reason.INVALID_SYMBOL_PATH : reason;
+    }
+
+    private static String detailFor(String detail, Throwable cause) {
+        if (cause instanceof SymbolPathException pathException && !pathException.arguments().isEmpty()) {
+            return String.valueOf(pathException.arguments().getFirst());
+        }
+        return detail;
     }
 
     private CircuitFormatException(Reason reason, String detail, Throwable cause, Element element, String savedWith) {
