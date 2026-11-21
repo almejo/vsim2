@@ -58,6 +58,10 @@ final class ShortcutSheetPanel extends JPanel {
     static final int MAXIMUM_CARD_WIDTH = 900;
     /** The veil left visible around the card. */
     private static final int VEIL_MARGIN = 24;
+    /** The least veil left around a card that needs the room (so no name is cut). */
+    private static final int MINIMUM_VEIL_MARGIN = 8;
+    /** The card's horizontal padding, both sides (Card's insets). */
+    private static final int CARD_PADDING = 60;
     /** One wheel notch or arrow click of the groups' scroll bar: about a row. */
     private static final int SCROLL_UNIT = 16;
     private static final int CORNER = CardLook.CORNER;
@@ -257,6 +261,18 @@ final class ShortcutSheetPanel extends JPanel {
         return gesturePhrase.isEmpty() ? "" : gesture.getText();
     }
 
+    /** The card's width with both columns' longest entries whole and the gap between the columns at its preferred size. */
+    int neededCardWidth() {
+        // the scroll bar's room too: a short window scrolls the groups and its bar takes from the viewport
+        return groupsScroll.getPreferredSize().width + groupsScroll.getVerticalScrollBar().getPreferredSize().width
+                + CARD_PADDING;
+    }
+
+    /** The least the card can be and still show every entry whole. */
+    int leastCardWidth() {
+        return neededCardWidth();
+    }
+
     /**
      * The card centred on the veil: as wide as the area allows up to {@value #MAXIMUM_CARD_WIDTH} px, as tall as its
      * content at that width (the wrapped gesture strip knows its height once it has its width) but never taller than
@@ -264,7 +280,12 @@ final class ShortcutSheetPanel extends JPanel {
      */
     @Override
     public void doLayout() {
-        int width = Math.max(0, Math.min(MAXIMUM_CARD_WIDTH, getWidth() - 2 * VEIL_MARGIN));
+        int needed = neededCardWidth();
+        int width = Math.min(Math.max(MAXIMUM_CARD_WIDTH, needed), getWidth() - 2 * VEIL_MARGIN);
+        if (width < needed) { // the area is short: take the veil's margin before a column gives way
+            width = Math.min(needed, getWidth() - 2 * MINIMUM_VEIL_MARGIN);
+        }
+        width = Math.max(0, width);
         card.setSize(width, Math.max(1, card.getHeight()));
         layOutTree(card);
         int height = Math.max(0, Math.min(card.getPreferredSize().height, getHeight() - 2 * VEIL_MARGIN));
@@ -322,7 +343,7 @@ final class ShortcutSheetPanel extends JPanel {
     private static final class ColumnsPanel extends JPanel implements Scrollable {
 
         ColumnsPanel() {
-            super(new MigLayout("insets 0, fillx, gapx 40", "[grow, fill, shrink 100][grow, fill, shrink 0]", "[top]"));
+            super(new MigLayout("insets 0, fillx", "[grow, fill, shrink 100]16[grow, fill, shrink 0]", "[top]"));
         }
 
         @Override

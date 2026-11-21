@@ -28,6 +28,7 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.FocusTraversalPolicy;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
@@ -293,6 +294,23 @@ final class PreferencesPanel extends JPanel {
     /** The text that replaces the page when nothing matches; empty otherwise. */
     String noResultsText() {
         return noResults.getText();
+    }
+
+    /**
+     * As narrow as the page shown allows, not the widest of all the pages (the cards' own minimum): in a dialog cut to
+     * the screen the page follows the viewport (its combos shrink) instead of scrolling sideways. The preferred size,
+     * which opens the dialog, is still the widest page's.
+     */
+    @Override
+    public Dimension getMinimumSize() {
+        Dimension whole = super.getMinimumSize();
+        for (Component page : cardPanel.getComponents()) {
+            if (page.isVisible()) {
+                int others = whole.width - cardPanel.getMinimumSize().width;
+                return new Dimension(others + page.getMinimumSize().width, whole.height);
+            }
+        }
+        return whole;
     }
 
     /** The dialog closed: stores the group it showed as the last seen (once, not on every click) and stops every

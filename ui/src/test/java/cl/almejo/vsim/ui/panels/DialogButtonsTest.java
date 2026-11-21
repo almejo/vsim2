@@ -86,7 +86,7 @@ class DialogButtonsTest {
 
         var scroll = DialogButtons.scrolling(content);
 
-        assertThat(scroll.getViewport().getView()).isSameAs(content);
+        assertThat(javax.swing.SwingUtilities.isDescendingFrom(content, scroll.getViewport())).isTrue();
         assertThat(scroll.getPreferredSize().width).isGreaterThanOrEqualTo(300);
         assertThat(scroll.getBorder()).isNull();
     }
@@ -101,5 +101,41 @@ class DialogButtonsTest {
                 .isEqualTo(new Rectangle(710, 368, 656, 400));
         assertThat(DialogButtons.placed(new Rectangle(100, 100, 500, 300), usable))
                 .isEqualTo(new Rectangle(100, 100, 500, 300));
+    }
+
+    private static javax.swing.JScrollPane laidOut(int width, int height) {
+        JPanel content = new JPanel();
+        content.setPreferredSize(new Dimension(600, 400));
+        content.setMinimumSize(new Dimension(300, 200));
+        var scroll = DialogButtons.scrolling(content);
+        scroll.setSize(width, height);
+        scroll.doLayout();
+        scroll.getViewport().doLayout();
+        return scroll;
+    }
+
+    @Test
+    void theContentFollowsTheViewportWidthWhenItCanShrinkToIt() {
+        var scroll = laidOut(400, 500);
+
+        assertThat(scroll.getViewport().getView().getWidth()).isEqualTo(scroll.getViewport().getWidth());
+        assertThat(scroll.getHorizontalScrollBar().isVisible()).isFalse();
+    }
+
+    @Test
+    void theContentFollowsTheViewportHeightWhenItCanShrinkToIt() {
+        var scroll = laidOut(700, 300);
+
+        assertThat(scroll.getViewport().getView().getHeight()).isEqualTo(scroll.getViewport().getHeight());
+        assertThat(scroll.getVerticalScrollBar().isVisible()).isFalse();
+    }
+
+    @Test
+    void theContentScrollsOnlyWhenTheViewportIsSmallerThanItsMinimum() {
+        var scroll = laidOut(200, 100);
+
+        assertThat(scroll.getViewport().getView().getWidth()).isGreaterThanOrEqualTo(300);
+        assertThat(scroll.getHorizontalScrollBar().isVisible()).isTrue();
+        assertThat(scroll.getVerticalScrollBar().isVisible()).isTrue();
     }
 }

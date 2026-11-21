@@ -7,6 +7,9 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
+import javax.swing.JViewport;
+import javax.swing.Scrollable;
+import javax.swing.SwingConstants;
 import javax.swing.KeyStroke;
 import javax.swing.RootPaneContainer;
 import java.awt.BorderLayout;
@@ -28,6 +31,7 @@ public final class DialogButtons {
 
     /** Unscaled gaps of the button row, at 100 %. */
     private static final int GAP = 6;
+    private static final int SCROLL_UNIT = 16;
 
     private DialogButtons() {
     }
@@ -62,9 +66,13 @@ public final class DialogButtons {
         }
     }
 
-    /** {@code content} in a borderless scroll pane: scrollbars appear only when the window is made smaller than it. */
+    /**
+     * {@code content} in a borderless scroll pane. The content follows the viewport (so a window cut to the screen
+     * still shows all of it, its own scroll panes and combos shrinking) and scrollbars appear only in the direction
+     * where the viewport is smaller than the content's minimum size.
+     */
     public static JScrollPane scrolling(JComponent content) {
-        JScrollPane scroll = new JScrollPane(content, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+        JScrollPane scroll = new JScrollPane(new FollowingView(content), JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scroll.setBorder(null);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
@@ -100,5 +108,57 @@ public final class DialogButtons {
     /** {@code size} cut to fit inside {@code usable}. */
     static Dimension fitted(Dimension size, Rectangle usable) {
         return new Dimension(Math.min(size.width, usable.width), Math.min(size.height, usable.height));
+    }
+
+    /**
+     * The scrolled view: it takes the viewport's width (and height) as long as the content can shrink to it, and only
+     * when the viewport is smaller than the content's minimum size does it keep the content's preferred size and scroll.
+     */
+    private static final class FollowingView extends JPanel implements Scrollable {
+
+        private final JComponent content;
+
+        FollowingView(JComponent content) {
+            super(new BorderLayout());
+            this.content = content;
+            add(content, BorderLayout.CENTER);
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            return content.getPreferredSize();
+        }
+
+        @Override
+        public Dimension getMinimumSize() {
+            return content.getMinimumSize();
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return SCROLL_UNIT;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return Math.max(SCROLL_UNIT, (orientation == SwingConstants.VERTICAL ? visible.height : visible.width)
+                    - SCROLL_UNIT);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return getParent() instanceof JViewport viewport && viewport.getWidth() >= content.getMinimumSize().width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof JViewport viewport
+                    && viewport.getHeight() >= content.getMinimumSize().height;
+        }
     }
 }

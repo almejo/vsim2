@@ -68,10 +68,14 @@ class PreferencesDialogTest {
 
         assertThat(pane.getMessage()).isInstanceOf(javax.swing.JScrollPane.class);
         javax.swing.JScrollPane scroll = (javax.swing.JScrollPane) pane.getMessage();
-        assertThat(scroll.getViewport().getView()).isSameAs(panel);
-        scroll.setSize(500, 150); // far less than the page needs, as in 200 % on a 1366 x 768 screen
+        assertThat(javax.swing.SwingUtilities.isDescendingFrom(panel, scroll.getViewport())).isTrue();
+        scroll.setSize(900, 150); // less than the widest page, and far less tall than any, as at 200 % on a 1366 x 768 screen
         scroll.doLayout();
         assertThat(scroll.getVerticalScrollBar().isVisible()).isTrue();
+        scroll.getViewport().doLayout();
+        scroll.getViewport().getView().doLayout();
+        assertThat(scroll.getHorizontalScrollBar().isVisible()).as("only vertical scrolling").isFalse();
+        assertThat(panel.getWidth()).as("the page follows the viewport").isEqualTo(scroll.getViewport().getWidth());
         panel.dispose();
     }
 
