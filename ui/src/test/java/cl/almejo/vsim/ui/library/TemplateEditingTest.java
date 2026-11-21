@@ -259,8 +259,8 @@ class TemplateEditingTest {
         Optional<String> lastStep = fixture.openDocument.history().undoDescription();
 
         JPopupMenu menu = contribute(instance);
-        assertThat(texts(menu)).containsExactly("Entrar", "Desarmar", "Actualizar desde la librería");
-        click(menu, "Actualizar desde la librería");
+        assertThat(texts(menu)).containsExactly("Entrar", "Desarmar", "Actualizar desde Mis componentes");
+        click(menu, "Actualizar desde Mis componentes");
 
         assertThat(fixture.dialogs.errors).containsExactly(Messages.text("template.updateFromLibrary.recursive"));
         assertThat(document.definitions()).containsExactly(inverter, ExampleDefinitions.doubleInverter());
@@ -278,7 +278,7 @@ class TemplateEditingTest {
         fixture.service.save(library);
         fixture.select(instance);
 
-        click(contribute(instance), "Actualizar desde la librería");
+        click(contribute(instance), "Actualizar desde Mis componentes");
 
         assertThat(fixture.dialogs.messages).containsExactly(Messages.format("library.place.keptVersion",
                 Messages.format("library.place.componentName", "Negador")));
@@ -557,8 +557,8 @@ class TemplateEditingTest {
         assertThat(image.getRGB(108, 84) >>> 24).isNotZero(); // top-right corner of the 4 × 4 box at (10, 10)
 
         JPopupMenu menu = contribute(instance);
-        assertThat(texts(menu)).containsExactly("Entrar", "Desarmar", "Actualizar desde la librería");
-        click(menu, "Actualizar desde la librería");
+        assertThat(texts(menu)).containsExactly("Entrar", "Desarmar", "Actualizar desde Mis componentes");
+        click(menu, "Actualizar desde Mis componentes");
 
         assertThat(document.definition(ExampleDefinitions.INVERTER)).contains(renamed.root());
         assertThat(badge.outdatedIds()).isEmpty();

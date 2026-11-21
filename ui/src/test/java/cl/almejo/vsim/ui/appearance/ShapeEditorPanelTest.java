@@ -206,7 +206,7 @@ class ShapeEditorPanelTest {
         assertThat(panel.scopeSwitchTexts()).containsExactly("Solo esta pieza (U3)", "Todas las piezas (3 en este circuito)");
         assertThat(panel.scopeDetail()).isEqualTo("El circuito de adentro sigue siendo el del componente.");
         panel.switchScope(ShapeEditScope.CIRCUIT_DEFINITION);
-        assertThat(panel.scopeDetail()).isEqualTo("3 piezas cambian. Se guarda también en la librería.");
+        assertThat(panel.scopeDetail()).isEqualTo("3 piezas cambian. Se guarda también en Mis componentes.");
     }
 
     @Test
@@ -221,7 +221,7 @@ class ShapeEditorPanelTest {
         ShapeEditorPanel library = new ShapeEditorPanel(new ShapeEditRequest(definition(),
                 ComponentAppearance.of(definition()), ShapeEditScope.LIBRARY_DEFINITION, false, false, "", 0, "", true,
                 true), AppPreferences.inMemory(), () -> ColorSchemes.LIGHT);
-        assertThat(library.scopeTitle()).isEqualTo("El componente en la librería");
+        assertThat(library.scopeTitle()).isEqualTo("El componente en Mis componentes");
         assertThat(library.scopeDetail()).isEqualTo("Este circuito usa otra versión: no cambia.");
     }
 

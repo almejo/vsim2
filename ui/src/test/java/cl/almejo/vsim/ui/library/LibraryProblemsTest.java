@@ -63,7 +63,7 @@ class LibraryProblemsTest {
                 .isEqualTo("No se pudo leer roto.vsimcomponent.json.\nDetalle técnico: Is a directory");
         Path gone = Path.of("home", "user", "library");
         assertThat(LibraryProblemText.describe(LibraryProblem.directoryGone(gone)))
-                .isEqualTo("La carpeta de la librería " + gone + " ya no existe: VSim volverá a seguir sus cambios"
+                .isEqualTo("La carpeta de Mis componentes " + gone + " ya no existe: VSim volverá a seguir sus cambios"
                         + " cuando vuelva a existir");
     }
 
@@ -73,7 +73,7 @@ class LibraryProblemsTest {
         Messages.initialize(Locale.ENGLISH);
         try {
             assertThat(LibraryProblemText.describe(LibraryProblem.directoryGone(gone)))
-                    .isEqualTo("The library folder " + gone + " no longer exists: VSim will follow its changes again"
+                    .isEqualTo("The My components folder " + gone + " no longer exists: VSim will follow its changes again"
                             + " once it is back");
         } finally {
             Messages.initialize(Messages.SPANISH);
@@ -108,8 +108,8 @@ class LibraryProblemsTest {
             LibraryWatcherTest.eventually(() -> !fixture.view.problems().libraryProblems().isEmpty());
 
             assertThat(fixture.view.problems().libraryProblems()).singleElement().asString()
-                    .startsWith("La carpeta de la librería");
-            assertThat(fixture.view.problems().libraryProblemsHeader()).isEqualTo("Librería");
+                    .startsWith("La carpeta de Mis componentes");
+            assertThat(fixture.view.problems().libraryProblemsHeader()).isEqualTo("Mis componentes");
         } finally {
             fixture.service.close();
         }
@@ -129,7 +129,7 @@ class LibraryProblemsTest {
 
         assertThat(fixture.view.problems().libraryProblems()).singleElement().asString()
                 .startsWith("inverter.vsimcomponent.json no es un componente válido")
-                .endsWith("(la librería ya tiene «Inversor» en otro archivo: este se puede borrar)");
+                .endsWith("(Mis componentes ya tiene «Inversor» en otro archivo: este se puede borrar)");
         assertThat(library.resolve("inverter-2.vsimcomponent.json")).isRegularFile();
     }
 

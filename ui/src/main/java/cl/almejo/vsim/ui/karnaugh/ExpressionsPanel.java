@@ -95,7 +95,10 @@ public final class ExpressionsPanel extends JPanel {
     private final OptionControls optionControls;
     private final JLabel formReason =
             WizardColors.label(Messages.text("expressions.asWrittenReason"), WizardColors::muted);
-    private final JLabel costLine = new JLabel(" ");
+    /** The cost line while there is no expression to cost. */
+    private static final String NO_COST = "\u2014";
+
+    private final JLabel costLine = new JLabel(NO_COST);
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
     private final ExpressionLegend legend;
     private final JPanel buttonBar;
@@ -447,7 +450,7 @@ public final class ExpressionsPanel extends JPanel {
             rows.get(index).preview.setText(text);
             rows.get(index).preview.setVisible(!text.isEmpty());
         }
-        costLine.setText(previewed == null ? " " : computed ? preview.cost() : computing);
+        costLine.setText(previewed == null ? NO_COST : computed ? preview.cost() : computing);
     }
 
     /**

@@ -116,18 +116,18 @@ class ProblemsPanelTest {
 
     @Test
     void theLibraryHeaderCountsFilesAndNotAMissingFolder() {
-        String missingFolder = "La carpeta de la librería /x ya no existe: …";
+        String missingFolder = "La carpeta de Mis componentes /x ya no existe: …";
         String brokenFile = "roto.vsimcomponent.json no es un componente válido: …";
 
         panel.showLibraryProblems(List.of(missingFolder), 0);
-        assertThat(panel.libraryHeader().getText()).isEqualTo("Librería");
+        assertThat(panel.libraryHeader().getText()).isEqualTo("Mis componentes");
         assertThat(panel.libraryHeader().isVisible()).isTrue();
 
         panel.showLibraryProblems(List.of(missingFolder, brokenFile), 1);
-        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de la librería con problemas");
+        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de Mis componentes con problemas");
         assertThat(panel.libraryProblemTexts()).containsExactly(missingFolder, brokenFile);
 
         panel.showLibraryProblems(List.of(brokenFile));
-        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de la librería con problemas");
+        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de Mis componentes con problemas");
     }
 }

@@ -187,6 +187,24 @@ class PreferencesFormTest {
     }
 
     @Test
+    void theLowContrastNoteShowsOnlyForClassicPastelAndTwilight() {
+        PreferencesForm form = form();
+        assertThat(form.schemeNote().isVisible()).isFalse();
+        assertThat(form.schemeNote().getText()).isEqualTo("Los colores de VSim 1: tienen poco contraste.");
+        for (String id : List.of("classic", "pastel", "twilight")) {
+            choose(form.schemeChoice(), Optional.of(id));
+            assertThat(form.schemeNote().isVisible()).as(id).isTrue();
+        }
+        for (String id : List.of("light", "dark", "csim", "placa", "logisim", "chipmunk")) {
+            choose(form.schemeChoice(), Optional.of(id));
+            assertThat(form.schemeNote().isVisible()).as(id).isFalse();
+        }
+        choose(form.schemeChoice(), Optional.of("twilight"));
+        choose(form.schemeChoice(), Optional.empty());
+        assertThat(form.schemeNote().isVisible()).isFalse();
+    }
+
+    @Test
     void anUnknownStoredSchemeShowsByTheme() {
         preferences.setColorScheme(Optional.of("neon"));
         preferences.setLanguage(Optional.of("fr"));

@@ -12,7 +12,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Insignia de problemas
 
-- El ícono «Problemas» de la tira del panel derecho lleva una insignia con la cantidad de problemas, también con el panel cerrado: roja y con el número de errores (cortocircuitos, anchos incompatibles y errores de túneles) si hay alguno; si solo hay avisos (displays, túneles, piezas desactualizadas, memorias enlazadas y archivos de la librería que no cargaron), ámbar y con el número de avisos. Sin problemas no hay insignia. La tarjeta del circuito en «Propiedades» (sin nada seleccionado) suma «· n problemas», con el mismo número, en un rojo o un ámbar que se lee bien como texto en los temas claro y oscuro.
+- El ícono «Problemas» de la tira del panel derecho lleva una insignia con la cantidad de problemas, también con el panel cerrado: roja y con el número de errores (cortocircuitos, anchos incompatibles y errores de túneles) si hay alguno; si solo hay avisos (displays, túneles, piezas desactualizadas, memorias enlazadas y archivos de Mis componentes que no cargaron), ámbar y con el número de avisos. Sin problemas no hay insignia. La tarjeta del circuito en «Propiedades» (sin nada seleccionado) suma «· n problemas», con el mismo número, en un rojo o un ámbar que se lee bien como texto en los temas claro y oscuro.
 
 ## Paso a paso
 

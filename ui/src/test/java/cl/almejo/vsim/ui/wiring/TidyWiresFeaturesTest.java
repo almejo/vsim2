@@ -116,7 +116,7 @@ class TidyWiresFeaturesTest {
     void theTwoItemsEndTheEditMenuAfterASeparator() {
         List<String> texts = texts(view.menu(MenuId.EDIT));
         assertThat(texts.subList(texts.size() - 3, texts.size()))
-                .containsExactly("---", "Ordenar circuito", "Ordenar circuito…");
+                .containsExactly("---", "Ordenar circuito", "Ordenar circuito con opciones…");
     }
 
     @Test

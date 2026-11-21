@@ -69,9 +69,9 @@ class LibraryPaletteMenuTest {
     @Test
     void eachKindOfEntryGetsItsOwnMenu() {
         assertThat(texts(menuFor(inverter, true))).containsExactly("Renombrar…", "Exportar…", "Mostrar en carpeta",
-                "Eliminar de la librería", "---", "Importar componente…");
+                "Eliminar de Mis componentes", "---", "Importar componente…");
         assertThat(texts(menuFor(inverter, false)))
-                .containsExactly("Agregar a mi librería", "---", "Importar componente…");
+                .containsExactly("Agregar a Mis componentes", "---", "Importar componente…");
         assertThat(texts(fixture.features.palette().menuFor(Optional.empty()).orElseThrow()))
                 .containsExactly("Importar componente…");
     }
@@ -115,11 +115,11 @@ class LibraryPaletteMenuTest {
         waitUntil(() -> fixture.stateOf(led).equals(new VisibleState.LedState(Value.ZERO)));
 
         fixture.dialogs.confirmations.add(false);
-        click(menuFor(inverter, true), "Eliminar de la librería");
+        click(menuFor(inverter, true), "Eliminar de Mis componentes");
         assertThat(fixture.library.find("inverter")).isPresent();
 
         fixture.dialogs.confirmations.add(true);
-        click(menuFor(inverter, true), "Eliminar de la librería");
+        click(menuFor(inverter, true), "Eliminar de Mis componentes");
 
         assertThat(fixture.library.find("inverter")).isEmpty();
         assertThat(libraryFile("inverter")).doesNotExist();
@@ -139,7 +139,7 @@ class LibraryPaletteMenuTest {
         fixture.place("subcircuit:inverter", 30, 30, ""); // only used definitions are listed (preflight S5)
         assertThat(fixture.view.palette().visibleSections()).endsWith("Componentes de este circuito");
 
-        click(menuFor(inverter, false), "Agregar a mi librería");
+        click(menuFor(inverter, false), "Agregar a Mis componentes");
 
         assertThat(fixture.library.find("inverter")).contains(inverter);
         assertThat(libraryFile("inverter")).isRegularFile();
@@ -155,12 +155,12 @@ class LibraryPaletteMenuTest {
         fixture.service.save(renamed); // another window added it after this menu was built
 
         fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.CANCEL);
-        click(menu, "Agregar a mi librería");
+        click(menu, "Agregar a Mis componentes");
         assertThat(fixture.dialogs.collisionNames).containsExactly("Inversor");
         assertThat(fixture.library.find("inverter")).contains(renamed);
 
         fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
-        click(menu, "Agregar a mi librería");
+        click(menu, "Agregar a Mis componentes");
         assertThat(fixture.library.find("inverter")).contains(inverter);
         assertThat(fixture.dialogs.errors).isEmpty();
     }

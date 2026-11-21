@@ -66,6 +66,11 @@ class ExpressionsPanelTest {
     }
 
     @Test
+    void theCostLineShowsADashWhileThereIsNoExpression() {
+        assertThat(panel.costText()).isEqualTo("\u2014");
+    }
+
+    @Test
     void typingParsesTheLineListsTheInputsAndPreviewsTheSimplifiedExpression() {
         assertThat(panel.lineField(0).getText()).isEqualTo("F = ");
         assertThat(panel.problemText(0)).as("a fresh dialog shows no error").isEmpty();
