@@ -203,6 +203,27 @@ class SimulationThreadStepTest {
         assertThat(thread.latestStep().orElseThrow().sequence()).as("ignored while running").isEqualTo(1);
     }
 
+    @Test
+    void anEdgeStepOnAShortedClockSaysWhyAndLeavesTheTimeAndTheFailureAlone() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        Map<String, Object> one = Map.of("width", 1, "value", "1");
+        thread.update(new FlatCircuit(List.of(
+                new FlatComponent("k", standard.require(StandardComponentTypes.CLOCK),
+                        Map.of("time-up", 5, "time-down", 5)),
+                new FlatComponent("one", standard.require(StandardComponentTypes.CONSTANT).specializedFor(one), one)),
+                List.of(new FlatNet("shared", List.of(new FlatPinRef("k", 0), new FlatPinRef("one", 0)), 1, false))));
+        thread.tick();
+
+        thread.advanceToNextClockEdge(ClockEdgeMode.ANY);
+        thread.tick();
+
+        assertThat(thread.latestSnapshot().time()).isZero();
+        assertThat(thread.latestSnapshot().failure()).as("not an engine failure in English").isEmpty();
+        PauseNotice notice = thread.latestPauseNotice().orElseThrow();
+        assertThat(notice.componentId()).isEqualTo("k");
+        assertThat(notice.messageKey()).isEqualTo(SimulationEngine.CLOCK_EDGE_SHORTED_MESSAGE);
+    }
+
     /** Clock k (3 high, 2 low) on a flip-flop whose D is its own Q inverted: q goes to 1 at t = 6. */
     private static FlatCircuit toggle() {
         ComponentTypeRegistry standard = StandardComponentTypes.registry();

@@ -303,17 +303,19 @@ class SimulationEngineStepTest {
     }
 
     @Test
-    void aClockThatNeverFallsToZeroEndsAtTheBudget() {
-        // a source driving 1 on the clock's net: 0 from the clock makes a conflict, never a 1 → 0 edge
-        engine.update(new FlatCircuit(List.of(clock("k"),
+    void aClockEdgeBehindTooManyEventTimesEndsAtTheBudget() {
+        // k falls at 2 000; a 1 / 1 clock shorted by a source (left out of the edge, SIM-4) fills every unit before it
+        FlatComponent fast = new FlatComponent("fast", StandardComponentTypes.registry()
+                .require(StandardComponentTypes.CLOCK), Map.of("time-up", 1, "time-down", 1));
+        engine.update(new FlatCircuit(List.of(clock("k"), fast,
                 component("one", TestComponentTypes.SOURCE, Map.of("value", "1"))),
-                List.of(net("clock", pin("k", 0), pin("one", 0)))));
+                List.of(net("clock", pin("k", 0)), net("shorted", pin("fast", 0), pin("one", 0)))));
 
         assertThatThrownBy(() -> engine.advanceToNextClockEdge(ClockEdgeMode.FALLING, 10,
                 SimulationEngine.STEP_EVENT_BUDGET))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("no clock edge within 10 event times");
-        assertThat(engine.now()).isEqualTo(10_000);
+        assertThat(engine.now()).isEqualTo(10);
         assertThat(SimulationEngine.CLOCK_EDGE_TIME_BUDGET).isEqualTo(1_000_000);
     }
 

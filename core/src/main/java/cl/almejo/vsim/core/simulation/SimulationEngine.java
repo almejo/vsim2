@@ -48,6 +48,13 @@ public final class SimulationEngine {
 
     /** At most this many event times run in one {@link #advanceToNextClockEdge(ClockEdgeMode)}. */
     public static final int CLOCK_EDGE_TIME_BUDGET = 1_000_000;
+    /**
+     * The {@link PauseNotice} message of an edge step refused because a clock's net has another driver, so it cannot
+     * show the clock's edges (SIM-4); its first argument is the clock's name, which the UI adds.
+     */
+    public static final String CLOCK_EDGE_SHORTED_MESSAGE = "clock.edge.shorted";
+    /** As {@link #CLOCK_EDGE_SHORTED_MESSAGE}, for a clock whose net has another width (it never shows a 0 or a 1). */
+    public static final String CLOCK_EDGE_OTHER_WIDTH_MESSAGE = "clock.edge.otherWidth";
     /** Ids (with aliases) of the nets that changed since tracking started; null while not tracking (M6.1-B). */
     private Set<String> changedNets;
     /** The pause a part asked for and {@link #takePauseRequest()} did not take yet; null when none. */
@@ -559,6 +566,10 @@ public final class SimulationEngine {
      * time, so the next «Avanzar» shows the flip-flops reacting. The result goes from the time before the first one to
      * the edge time, carries the nets that changed at the edge time only and names the edge
      * ({@link ClockEdge#BOTH} when another clock changed the opposite way at that time). Without a clock nothing runs.
+     * A clock whose net cannot show its edges (another driver on it, another width: SIM-4) is left out; when no clock
+     * is left, nothing runs and a {@link PauseNotice} of the first clock says why
+     * ({@link #CLOCK_EDGE_SHORTED_MESSAGE}, {@link #CLOCK_EDGE_OTHER_WIDTH_MESSAGE}), as it does when a short hides
+     * the edge the step reached.
      *
      * @throws IllegalStateException when no such edge comes within {@link #CLOCK_EDGE_TIME_BUDGET} event times, or
      *                               when one event time runs too many events ({@link #advanceToNextEvent()})
@@ -574,46 +585,84 @@ public final class SimulationEngine {
     StepResult advanceToNextClockEdge(ClockEdgeMode mode, int maximumEventTimes, int maximumEventsPerTime) {
         Objects.requireNonNull(mode, "mode");
         long fromTime = now();
-        List<RuntimeNet> clockOutputs = clockOutputs();
-        if (clockOutputs.isEmpty()) {
+        List<PinState> clocks = clockPins();
+        if (clocks.isEmpty()) {
             return new StepResult(fromTime, fromTime, Set.of(), nextEventTime());
         }
+        List<PinState> showingEdges = clocks.stream().filter(clock -> edgeBlocker(clock).isEmpty()).toList();
+        if (showingEdges.isEmpty()) {
+            return refusedEdgeStep(clocks.getFirst(), fromTime, fromTime, Set.of());
+        }
         for (int eventTimes = 0; eventTimes < maximumEventTimes; eventTimes++) {
-            List<Value> before = clockOutputs.stream().map(net -> net.value).toList();
+            List<Value> before = showingEdges.stream().map(clock -> clock.driven).toList();
             StepResult step = advanceToNextEvent(maximumEventsPerTime);
             if (step.isIdle()) {
                 return new StepResult(fromTime, now(), Set.of(), OptionalLong.empty());
             }
-            Optional<ClockEdge> edge = edgeSince(before, clockOutputs);
+            Optional<ClockEdge> edge = edgeSince(before, showingEdges);
             if (edge.isPresent() && mode.stopsAt(edge.get())) {
+                Optional<PinState> hidden = showingEdges.stream()
+                        .filter(clock -> !clock.net.value.equals(clock.driven)).findFirst();
+                if (hidden.isPresent()) {
+                    return refusedEdgeStep(hidden.get(), fromTime, step.time(), step.changedNets());
+                }
                 return new StepResult(fromTime, step.time(), step.changedNets(), step.nextEventTime(), edge);
             }
         }
         throw new IllegalStateException("no clock edge within " + maximumEventTimes + " event times");
     }
 
-    /** The edge the clocks made since their outputs were {@code before}: a direct 0 → 1 rises, 1 → 0 falls. */
-    private static Optional<ClockEdge> edgeSince(List<Value> before, List<RuntimeNet> clockOutputs) {
+    /**
+     * The edge the clocks made since they drove {@code before}: a direct 0 → 1 rises, 1 → 0 falls. Read from what each
+     * clock drives, not from its net (SIM-4), so a step always ends within a clock period.
+     */
+    private static Optional<ClockEdge> edgeSince(List<Value> before, List<PinState> clocks) {
         boolean rose = false;
         boolean fell = false;
-        for (int index = 0; index < clockOutputs.size(); index++) {
+        for (int index = 0; index < clocks.size(); index++) {
             Value previous = before.get(index);
-            Value current = clockOutputs.get(index).value;
+            Value current = clocks.get(index).driven;
             rose |= previous.equals(Value.ZERO) && current.equals(Value.ONE);
             fell |= previous.equals(Value.ONE) && current.equals(Value.ZERO);
         }
         return ClockEdge.of(rose, fell);
     }
 
-    /** The nets of the clocks' outputs, each once (also nested clocks, and an unconnected clock's private net). */
-    private List<RuntimeNet> clockOutputs() {
-        List<RuntimeNet> outputs = new ArrayList<>();
+    /** The output pins of the clocks (also nested clocks, and an unconnected clock's on its private net). */
+    private List<PinState> clockPins() {
+        List<PinState> clocks = new ArrayList<>();
         for (ComponentInstance instance : instances.values()) {
-            if (instance.type.id().equals(StandardComponentTypes.CLOCK) && !outputs.contains(instance.pins[0].net)) {
-                outputs.add(instance.pins[0].net);
+            if (instance.type.id().equals(StandardComponentTypes.CLOCK)) {
+                clocks.add(instance.pins[0]);
             }
         }
-        return outputs;
+        return clocks;
+    }
+
+    /**
+     * Why the net of {@code clock} cannot show its edges, as the message of a {@link PauseNotice}: it has another
+     * width (its value is never a 0 or a 1), or another pin drives it now (the two fight whenever they disagree, as a
+     * Constante 1 does each time the clock goes low); empty when the net follows the clock.
+     */
+    private static Optional<String> edgeBlocker(PinState clock) {
+        RuntimeNet net = clock.net;
+        if (net.widthMismatch) {
+            return Optional.of(CLOCK_EDGE_OTHER_WIDTH_MESSAGE);
+        }
+        boolean otherDriver = net.drivers.stream()
+                .anyMatch(pin -> pin != clock && !pin.driven.isFullyHighImpedance());
+        return otherDriver || net.value.conflict() ? Optional.of(CLOCK_EDGE_SHORTED_MESSAGE) : Optional.empty();
+    }
+
+    /**
+     * An edge step that stops because the net of {@code clock} cannot show its edges: the time stays where the step got
+     * ({@code time}; at once, where it started) and the reason goes out as a {@link PauseNotice} of the clock, which
+     * the status bar and the AI's receipt say.
+     */
+    private StepResult refusedEdgeStep(PinState clock, long fromTime, long time, Set<String> changed) {
+        String message = edgeBlocker(clock).orElse(CLOCK_EDGE_SHORTED_MESSAGE);
+        requestPause(clock.instance.id, message, List.of());
+        return new StepResult(fromTime, time, changed, nextEventTime());
     }
 
     /**
