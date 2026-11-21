@@ -204,6 +204,17 @@ class MachinePinRowsTest {
     }
 
     @Test
+    void theNoArrowTextIsDrawnWithTheReadableWarningColour() {
+        EditorView view = tabOf(MachineFixtures.detector());
+        MachinePinTable inputs = pins(view).table(Side.INPUT);
+        inputs.addButton().doClick();
+        type(inputs.newNameField().orElseThrow(), "b");
+        inputs = pins(view).table(Side.INPUT);
+
+        assertThat(inputs.usesLabelColor("b")).isEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.warningText());
+    }
+
+    @Test
     void anAddedPinIsUnusedInWordsAndOnlyItHasARemoveButton() {
         EditorView view = tabOf(MachineFixtures.detector());
         MachinePinTable inputs = pins(view).table(Side.INPUT);

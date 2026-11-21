@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.swing.MigLayout;
 
@@ -46,7 +47,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -187,6 +187,11 @@ final class MachinePinTable extends JPanel {
     String usesText(String name) {
         return Optional.ofNullable(usesLinks.get(name)).map(AbstractButton::getText)
                 .or(() -> Optional.ofNullable(usesLabels.get(name)).map(JLabel::getText)).orElse("");
+    }
+
+    /** The colour the «en ninguna flecha» text of {@code name} is drawn with now; none when the pin is used. */
+    Color usesLabelColor(String name) {
+        return Optional.ofNullable(usesLabels.get(name)).map(JLabel::getForeground).orElse(null);
     }
 
     AbstractButton addButton() {
@@ -370,7 +375,7 @@ final class MachinePinTable extends JPanel {
         add(field, "wmin 0");
         MachinePinUses.Uses uses = MachinePinUses.of(machine, pin.name());
         if (uses.isUnused()) {
-            JLabel unused = new WarningLabel(Messages.text("machine.pins.unused"), host::scheme);
+            JLabel unused = new WarningLabel(Messages.text("machine.pins.unused"));
             unused.setToolTipText(Messages.format("machine.pins.unused.tooltip", pin.name()));
             usesLabels.put(pin.name(), unused);
             add(unused);
@@ -648,20 +653,18 @@ final class MachinePinTable extends JPanel {
         }
     }
 
-    /** «sin usar»: in the machine's warning colour (read at paint time), and in words. */
+    /** «en ninguna flecha»: in the readable warning text colour (read at paint time), and in words. */
     private static final class WarningLabel extends JLabel {
         @Serial
         private static final long serialVersionUID = 1L;
-        private final transient Supplier<ColorScheme> scheme;
 
-        private WarningLabel(String text, Supplier<ColorScheme> scheme) {
+        private WarningLabel(String text) {
             super(text);
-            this.scheme = scheme;
         }
 
         @Override
         public Color getForeground() {
-            return scheme == null ? super.getForeground() : MachineColors.warning(scheme.get());
+            return ReadableColors.warningText();
         }
     }
 }

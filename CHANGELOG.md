@@ -44,6 +44,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Máquinas de estado: el «en ninguna flecha» de los pines que ninguna flecha usa se lee bien también con el tema oscuro: usa el dorado legible de los avisos de la interfaz, el mismo en todas partes.
 - Máquinas de estado: abrir un archivo con máquinas, incluso uno que VSim mismo guardó, ya no deja en el registro el aviso «el cuerpo escrito de la máquina no coincide»: lo escrito solo le faltaba los valores por omisión de los parámetros, y eso se tomaba por una diferencia.
 - Formas de onda: un nombre de canal que no cabe junto a su valor («semaforo · estado») se cortaba sin aviso («semaforo · stat»); ahora termina en «…» y al pasar el ratón se ve entero. Ver [Formas de onda](docs/funciones/formas-de-onda.md).
 - Formas de onda: en la fila del estado de una máquina, un nombre que no cabía en su tramo («AMARILLO») no se escribía; ahora se acorta («AMA…») o queda en su primera letra, y la ayuda al pasar el puntero dice el nombre entero. Ver [La onda de la máquina](docs/funciones/componentes.md#la-onda-de-la-máquina).
