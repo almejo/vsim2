@@ -123,6 +123,8 @@ public final class LogisimNotes {
 
     /** An instance of a circuit the file does not have (or that uses itself): left out; the circuit's name. */
     public static final String MISSING_CIRCUIT = "logisimImport.note.missingCircuit";
+    /** A circuit with a blank name, which VSim's components cannot have: the name it is imported under. */
+    public static final String UNNAMED_CIRCUIT = "logisimImport.note.unnamedCircuit";
 
     // --- Export (LogisimExporter). The circuit is VSim's (the document's or a component's name), never a point. The
     // first two arguments of a note about a part are what it is and its label (EXPORT_PART_KEYS): the UI turns them

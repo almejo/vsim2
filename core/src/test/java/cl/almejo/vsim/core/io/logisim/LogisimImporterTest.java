@@ -230,6 +230,58 @@ class LogisimImporterTest {
     }
 
     @Test
+    void aCircuitWithoutANameImportsUnderAFallbackNameWithANote() throws Exception {
+        ImportResult result = importText("""
+                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                <project source="2.7.1" version="1.0">
+                  <lib desc="#Wiring" name="0"/>
+                  <main name="main"/>
+                  <circuit name="main">
+                    <comp lib="0" loc="(100,100)" name="Pin"/>
+                  </circuit>
+                  <circuit name="">
+                    <comp lib="0" loc="(100,100)" name="Pin"/>
+                  </circuit>
+                  <circuit name="circuit">
+                    <comp lib="0" loc="(100,100)" name="Pin"/>
+                  </circuit>
+                </project>
+                """);
+
+        assertThat(result.document().definitions()).extracting(ComponentDefinition::name)
+                .containsExactlyInAnyOrder("circuit", "circuit 2");
+        assertThat(result.notes()).extracting(ImportNote::kind, ImportNote::circuit, ImportNote::messageKey,
+                        ImportNote::arguments)
+                .containsExactly(tuple(ImportNote.Kind.APPROXIMATED, "circuit 2", LogisimNotes.UNNAMED_CIRCUIT,
+                        List.of("circuit 2")));
+    }
+
+    @Test
+    void aMainCircuitWithoutANameIsTheDocumentUnderTheFallbackName() throws Exception {
+        ImportResult result = importText("""
+                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                <project source="2.7.1" version="1.0">
+                  <lib desc="#Wiring" name="0"/>
+                  <main name=""/>
+                  <circuit name=" ">
+                    <comp lib="0" loc="(100,100)" name="Pin"/>
+                  </circuit>
+                  <circuit name="">
+                    <comp lib="0" loc="(100,100)" name="Pin"/>
+                    <comp loc="(300,100)" name=" "/>
+                  </circuit>
+                </project>
+                """);
+
+        assertThat(result.document().name()).isEqualTo("circuit 2");
+        assertThat(result.document().definitions()).extracting(ComponentDefinition::name)
+                .containsExactly("circuit");
+        assertThat(result.document().components()).hasSize(2);
+        assertThat(result.notes()).extracting(ImportNote::messageKey)
+                .containsExactly(LogisimNotes.UNNAMED_CIRCUIT, LogisimNotes.UNNAMED_CIRCUIT);
+    }
+
+    @Test
     void theNotesAreSortedByCircuitInFileOrderThenByKind() throws Exception {
         String file = """
                 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -395,6 +447,10 @@ class LogisimImporterTest {
         });
         assertThat(result.notes()).extracting(ImportNote::messageKey)
                 .noneMatch(key -> key.startsWith("logisimImport.note.tunnel"));
+    }
+
+    private static ImportResult importText(String file) throws Exception {
+        return LogisimImporter.importFrom(new ByteArrayInputStream(file.getBytes(StandardCharsets.UTF_8)), REGISTRY);
     }
 
     private static ImportResult importFixture() throws Exception {
