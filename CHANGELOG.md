@@ -55,9 +55,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - El tooltip de la advertencia «⚠ N cortocircuitos» de la barra de estado dice la tecla que «Siguiente problema» tiene ahora (antes decía F8 aunque la hubieras cambiado).
 - Preferencias con la interfaz al 200 % en una pantalla chica: el contenido tiene barra de desplazamiento, así que «Cerrar» siempre se alcanza, y la ventana se mueve para quedar entera en pantalla.
 - Formas de onda: el texto de ayuda del panel vacío se lee en todos los esquemas de colores (se tomaba el gris del tema sobre el fondo oscuro del cronograma).
-
-### Arreglado
-
 - Ordenar circuito: piezas apiladas exactamente una sobre otra (misma posición, mismos pines) ya no se tratan como un solo bloque: se separan y, si no se logra, quedan en la lista de las que no se pudieron separar.
 - Girar una selección: cuatro giros de un cuarto de vuelta, en cualquier sentido, la dejan exactamente donde estaba (antes, con un ancho o alto impar, cada giro corría el centro media casilla y un cable de 3 de largo no volvía a su lugar).
 - IA: al reiniciar (o apagar y encender) el servidor de la IA, una petición que llegaba al servidor viejo justo en ese instante todavía podía ejecutarse; ahora se rechaza hasta que el viejo se detiene.
