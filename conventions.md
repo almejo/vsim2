@@ -95,6 +95,37 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   `FrameTicker`), so tests never show a window or wait on a real clock.
 - Preferences go through `AppPreferences`.
 
+### Interface patterns (from the interface audit, 2026-11-20)
+
+The interface stays simple for students and the same everywhere. A new screen reuses these pieces instead of building
+its own.
+
+- **Never hide, disable with a reason.** A control that does not apply stays in its place, disabled, and says why:
+  `Actions.disabledBecause(action, () -> reason)` adds «— reason» to the tooltip (menus, toolbar, Ctrl+K). The toolbar
+  never changes its contents; when it does not fit, what is left over goes to its «»» button
+  (`OverflowToolBarLayout`), in the same order. New buttons go into a `ToolbarSlot`.
+- **Keys are shown, never written by hand.** Tooltips get their key from `AcceleratorTooltip`; a canvas-scope key is
+  shown on its menu item with `ShownAcceleratorItem` / `Actions.SHOWN_ACCELERATOR` (shown, not bound). A text never
+  says «(F8)».
+- **Dialogs:** `DialogButtons`: the action button on the LEFT and Cancelar on the right, the default button, Esc to
+  cancel or close, standard insets, and `fitToScreen` after `pack()` (never larger than the usable screen; the content
+  scrolls instead of being cut). Every window closes with Esc. A confirmation that destroys something defaults to
+  Cancelar. Notices have the feature's title, never the generic «Mensaje».
+- **Cards** (floating panels): `CardLook.CORNER` and its close icon.
+- **Readable colours:** secondary text with `ReadableColors.mutedText()`, errors `errorText()`, warnings
+  `warningText()`; `Label.disabledForeground` only for what is really disabled. Text ≥ 4.5:1 and icons or knobs ≥ 3:1
+  against what is really behind them: on the canvas or a diagram that is the `ColorScheme` background, not the theme.
+- **Sizes follow the interface size (100–200 %):** pixel constants through `UIScale.scale(..)`, fonts derived from
+  `UIManager.getFont("Label.font")` at paint time, row heights from font metrics. No `deriveFont(11f)`, no
+  `static final` pixel heights for text rows.
+- **Empty states say what to do** (an empty panel, a search with no result), in muted text.
+- **Focusable custom components paint a focus ring** with `Component.focusColor`.
+- **Menus:** a toggle is a check item; a choice among several is a radio item that follows the real state from any
+  source (`EditorView.addToolMenuItem` for tools). Items of one group stay together; «…» only when a dialog follows.
+- **Before merging a visible change, look at it**: light and dark, 100 % and 200 %, Spanish and English, in the default
+  1280 px window. Layout tests measure with the real fonts, catalog and widths; a test that passes while the screen
+  cuts a text is not enough.
+
 ### Terminology of the texts (Spanish bundle; the English one follows)
 
 One word per thing; a new text uses these and an old one that strays is fixed.
