@@ -626,7 +626,7 @@ final class MachineInspectorRows extends JPanel {
         add(hint(Messages.text("machine.properties.howToDraw")), WIDE);
     }
 
-    /** «1, 1 con ✗» in the machine's own rows; empty when another element is selected. */
+    /** «1 prueba: falla ✗» in the machine's own rows; empty when another element is selected. */
     Optional<String> testsText() {
         return testsLabel.map(JLabel::getText);
     }
