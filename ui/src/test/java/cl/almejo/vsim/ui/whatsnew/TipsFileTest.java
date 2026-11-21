@@ -142,6 +142,15 @@ class TipsFileTest {
     }
 
     @Test
+    void reopeningAClosedTabHasATipThatShowsItsKey() {
+        Tip tip = TipsFile.load().stream().filter(candidate -> candidate.id().equals("reopen-closed-tab"))
+                .findFirst().orElseThrow();
+
+        assertThat(tip.pictureKey()).contains("window.reopenClosedTab");
+        assertThat(tip.trial()).isEmpty();
+    }
+
+    @Test
     void tipIdsAreUnique() {
         assertThatThrownBy(() -> TipsFile.parse(List.of(
                 "a | image | t | x | one.png | - | -",
