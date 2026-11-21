@@ -4,11 +4,14 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractButton;
 import javax.swing.Icon;
+import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -21,9 +24,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The machine palette looks like the circuit's: rows with a drawn icon, hover and the tree's selection colours. */
 class MachinePaletteLooksTest {
 
+    private LookAndFeel before;
+
+    @BeforeEach
+    void rememberLookAndFeel() {
+        before = UIManager.getLookAndFeel();
+    }
+
     @AfterEach
-    void lightAgain() {
-        FlatLightLaf.setup();
+    void restoreLookAndFeel() throws UnsupportedLookAndFeelException {
+        UIManager.setLookAndFeel(before);
     }
 
     private static MachinePalette palette() {
