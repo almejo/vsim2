@@ -56,25 +56,29 @@ class MachineTestTableLooksTest {
     }
 
     @Test
-    void theTableInTheLightAndTheDarkTheme() throws Exception {
+    void theTableInTheLightAndTheDarkThemeAtOneHundredAndTwoHundredPercent() throws Exception {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {
-            render(new FlatLightLaf(), ColorSchemes.LIGHT, "light");
-            render(new FlatDarkLaf(), ColorSchemes.DARK, "dark");
+            render(new FlatLightLaf(), ColorSchemes.LIGHT, "light", 1);
+            render(new FlatDarkLaf(), ColorSchemes.DARK, "dark", 1);
+            render(new FlatLightLaf(), ColorSchemes.LIGHT, "light-200", 2);
+            render(new FlatDarkLaf(), ColorSchemes.DARK, "dark-200", 2);
         } finally {
+            System.clearProperty("flatlaf.uiScale");
             UIManager.setLookAndFeel(previous);
         }
     }
 
-    private static void render(LookAndFeel theme, ColorScheme scheme, String name) throws Exception {
+    private static void render(LookAndFeel theme, ColorScheme scheme, String name, int zoom) throws Exception {
+        System.setProperty("flatlaf.uiScale", String.valueOf(zoom));
         UIManager.setLookAndFeel(theme);
         FakeTestSession session = new FakeTestSession(detectorWithATest());
         session.chooseColumn(2);
         MachineTestTable table = new MachineTestTable(session, () -> scheme);
         SwingUtilities.updateComponentTreeUI(table);
-        table.setSize(WIDTH, HEIGHT);
+        table.setSize(WIDTH * zoom, HEIGHT * zoom);
         layOut(table);
-        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(WIDTH * zoom, HEIGHT * zoom, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         try {
             table.printAll(graphics);
@@ -86,11 +90,11 @@ class MachineTestTableLooksTest {
         BufferedImage cells = paintGrid(table.grid());
         MachineTestTableModel model = table.grid().model();
         int verdict = model.rows().size() - 1;
-        assertThat(near(cells, model.cell(verdict, 3), MachineTestCellPainter.pass(scheme)))
+        assertThat(near(cells, model.cell(verdict, 3), MachineTestCellPainter.passText(scheme)))
                 .as("a ✓ in the chosen green").isTrue();
-        assertThat(near(cells, model.cell(verdict, 5), scheme.wireConflict())).as("a ✗ in the error red").isTrue();
+        assertThat(near(cells, model.cell(verdict, 5), MachineTestCellPainter.failText(scheme))).as("a ✗ in the error red").isTrue();
         int expected = verdict - 1;
-        assertThat(near(cells, model.cell(expected, 1), scheme.wireUnknown())).as("«·» in grey").isTrue();
+        assertThat(near(cells, model.cell(expected, 1), MachineTestCellPainter.quiet(scheme))).as("«·» in grey").isTrue();
         assertThat(near(cells, model.cell(expected, 1), scheme.wireConflict())).as("never a red x").isFalse();
     }
 
@@ -110,10 +114,12 @@ class MachineTestTableLooksTest {
         MachineTestTableModel model = table.grid().model();
         int verdict = model.rows().size() - 1;
 
-        assertThat(near(cells, model.cell(verdict, 3), mixed.testPass())).as("a ✓ in the scheme's green").isTrue();
-        assertThat(near(cells, model.cell(verdict, 3), ColorSchemes.DARK.testPass()))
-                .as("not the other scheme's green").isFalse();
-        assertThat(near(cells, model.cell(verdict, 5), mixed.testFail())).as("a ✗ in the scheme's red").isTrue();
+        assertThat(near(cells, model.cell(verdict, 3), MachineTestCellPainter.passText(mixed)))
+                .as("a ✓ in the scheme's green, as dark or light as it must be to read").isTrue();
+        assertThat(near(cells, model.cell(verdict, 5), MachineTestCellPainter.failText(mixed)))
+                .as("a ✗ in the scheme's red").isTrue();
+        assertThat(MachineTestCellPainter.passText(ColorSchemes.DARK)).as("a green that already reads is untouched")
+                .isEqualTo(ColorSchemes.DARK.testPass());
     }
 
     private static BufferedImage paintGrid(MachineTestTableGrid grid) {

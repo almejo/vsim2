@@ -6,7 +6,9 @@ import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import com.formdev.flatlaf.FlatClientProperties;
+import net.miginfocom.swing.MigLayout;
 
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -21,6 +23,7 @@ import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -52,7 +55,16 @@ public final class MachineTestTable extends JPanel {
     private final transient MachineTestSession session;
     private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
     private final JLabel summary = new JLabel();
+    /** The grey line beside the summary; its colour is the theme's muted text, read each time it is painted. */
+    private final JLabel hint = new JLabel(Messages.text("machine.test.hint")) {
+        @Override
+        public Color getForeground() {
+            return ReadableColors.mutedText();
+        }
+    };
     private final MachineTestTableGrid grid;
+    /** The grid's scroll pane, whose steps are a column and a row. */
+    private JScrollPane scrollBars;
     private final transient Runnable stopListening;
     /** True while {@link #refreshTabs} sets the tabs, so their change is not taken for the user's choice. */
     private boolean updatingTabs;
@@ -104,12 +116,9 @@ public final class MachineTestTable extends JPanel {
                 }
             }
         });
-        JLabel hint = new JLabel(Messages.text("machine.test.hint"));
-        hint.putClientProperty("FlatLaf.style", "foreground: $Label.disabledForeground");
-        JPanel line = new JPanel(new BorderLayout(12, 0));
-        line.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
-        line.add(summary, BorderLayout.WEST);
-        line.add(hint, BorderLayout.CENTER);
+        JPanel line = new JPanel(new MigLayout("insets 2lp 6lp 2lp 6lp, gap 12lp", "[][grow, fill]", "[center]"));
+        line.add(summary, "wmin 0");
+        line.add(hint, "wmin 0");
 
         JPanel top = new JPanel(new BorderLayout());
         top.add(tabs, BorderLayout.NORTH);
@@ -123,8 +132,7 @@ public final class MachineTestTable extends JPanel {
         scroll.setColumnHeaderView(grid.header());
         scroll.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, grid.corner());
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.getHorizontalScrollBar().setUnitIncrement(MachineTestTableModel.COLUMN_WIDTH);
-        scroll.getVerticalScrollBar().setUnitIncrement(MachineTestTableModel.ROW_HEIGHT);
+        scrollBars = scroll;
         return scroll;
     }
 
@@ -137,7 +145,9 @@ public final class MachineTestTable extends JPanel {
         MachineTestTableModel model = MachineTestTableModel.of(session.machine(), session.chosenTest(),
                 session.chosenColumn(), grid.model());
         grid.setModel(model);
-        refreshTabs(model);
+        scrollBars.getHorizontalScrollBar().setUnitIncrement(grid.model().layout().columnWidth());
+        scrollBars.getVerticalScrollBar().setUnitIncrement(grid.model().layout().rowHeight());
+        refreshTabs(grid.model());
         summary.setText(model.summary());
     }
 
@@ -229,6 +239,11 @@ public final class MachineTestTable extends JPanel {
 
     JTabbedPane tabs() {
         return tabs;
+    }
+
+    /** The grey line beside the summary. */
+    JLabel hint() {
+        return hint;
     }
 
     String summaryText() {

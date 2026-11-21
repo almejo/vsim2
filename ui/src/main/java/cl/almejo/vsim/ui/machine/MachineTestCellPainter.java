@@ -7,7 +7,9 @@ import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.waveform.WaveformPainter;
+import com.formdev.flatlaf.util.UIScale;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -25,7 +27,10 @@ import java.util.function.LongFunction;
  * Paints the cells of the test table (hito 4, task 5) on the wave strip's background: inputs, the state band and the
  * outputs as waves ({@link WaveformPainter#paintSteps}, the strip's own drawing), «esperado» as 0, 1 or a grey «·»
  * («no importa»; never an «x», which reads as ✗), and ✓ or ✗ per column with an 18 % tint. A result that came out
- * wrong gets the fail tint too. Every colour is read from the scheme given now (never cached).
+ * wrong gets the fail tint too. Every colour is read from the scheme given now (never cached). Texts keep at least
+ * {@link ReadableColors#MINIMUM_TEXT_CONTRAST}:1 on what they are drawn over, tints included (the tint is never
+ * changed, the text colour is: {@link #readableOn}); sizes come from the table's {@link MachineTestLayout} and the
+ * letter's own size, never from pixel counts.
  */
 final class MachineTestCellPainter {
 
@@ -33,14 +38,14 @@ final class MachineTestCellPainter {
     static final int TINT_ALPHA = 46;
     private static final int CHOSEN_COLUMN_ALPHA = 55;
     private static final int BLOCK_ALPHA = 70;
-    private static final int GHOST_ALPHA = 130;
-    private static final float VALUE_SIZE = 13f;
-    private static final float VERDICT_SIZE = 15f;
+    /** The sizes of the letters, as a share of the table's own letter. */
+    private static final float VALUE_SHARE = 1f;
+    private static final float VERDICT_SHARE = 1.15f;
     /** «·» is a small glyph: drawn larger and bold so «no importa» is seen. */
-    private static final float DOT_SIZE = 18f;
+    private static final float DOT_SHARE = 1.4f;
+    /** How much of the text colour is given up per step towards black or white when a text does not read. */
+    private static final double READABLE_STEP = 0.04;
     private static final BasicStroke LINE = new BasicStroke(1f);
-    private static final BasicStroke DIVIDER = new BasicStroke(2f);
-    private static final BasicStroke CURSOR = new BasicStroke(2f);
 
     /** The cells a key changes: editable rows {@code firstRow..lastRow} (row indices) and a column range. */
     record Block(int firstRow, int lastRow, int firstColumn, int lastColumn) {
@@ -63,9 +68,49 @@ final class MachineTestCellPainter {
         return scheme.testFail();
     }
 
-    /** «no importa» and the dimmed ghost column: the scheme's grey. */
+    /** The ✓ as a text over its tint: the scheme's green, darkened (or lightened) only as far as it must read. */
+    static Color passText(ColorScheme scheme) {
+        return readableOn(pass(scheme), tinted(pass(scheme), scheme));
+    }
+
+    /** The ✗ as a text over its tint, as {@link #passText}. */
+    static Color failText(ColorScheme scheme) {
+        return readableOn(fail(scheme), tinted(fail(scheme), scheme));
+    }
+
+    /**
+     * «no importa», the ghost column and the other secondary texts: the theme's muted grey
+     * ({@link ReadableColors#mutedText()}), pushed further only when the scheme's diagram background is one it does not
+     * read on.
+     */
     static Color quiet(ColorScheme scheme) {
-        return scheme.wireUnknown();
+        return readableOn(ReadableColors.mutedText(), scheme.diagramBackground());
+    }
+
+    /** {@code colour} over the diagram background as the tint of a ✓ or ✗ cell shows. */
+    private static Color tinted(Color colour, ColorScheme scheme) {
+        return ReadableColors.over(PainterSupport.withAlpha(colour, TINT_ALPHA), scheme.diagramBackground());
+    }
+
+    /**
+     * {@code text} when it reads on {@code background} (at least 4.5:1); otherwise {@code text} mixed with black over a
+     * light background, or with white over a dark one, just enough to read.
+     */
+    static Color readableOn(Color text, Color background) {
+        if (ReadableColors.contrast(text, background) >= ReadableColors.MINIMUM_TEXT_CONTRAST) {
+            return text;
+        }
+        Color target = ReadableColors.perceivedBrightness(background) < 0.5 ? Color.WHITE : Color.BLACK;
+        Color mixed = text;
+        for (double share = READABLE_STEP; share <= 1 + 1e-9; share += READABLE_STEP) {
+            mixed = new Color((int) Math.round(text.getRed() + (target.getRed() - text.getRed()) * share),
+                    (int) Math.round(text.getGreen() + (target.getGreen() - text.getGreen()) * share),
+                    (int) Math.round(text.getBlue() + (target.getBlue() - text.getBlue()) * share));
+            if (ReadableColors.contrast(mixed, background) >= ReadableColors.MINIMUM_TEXT_CONTRAST) {
+                return mixed;
+            }
+        }
+        return mixed;
     }
 
     /**
@@ -78,15 +123,16 @@ final class MachineTestCellPainter {
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(scheme.diagramBackground());
         graphics.fillRect(0, 0, width, height);
+        Font letter = graphics.getFont(); // the table's own: every size below is a share of it
         int columns = model.columnCount();
-        int chosenLeft = model.chosenColumn() * MachineTestTableModel.COLUMN_WIDTH;
+        int columnWidth = model.layout().columnWidth();
         graphics.setColor(PainterSupport.withAlpha(scheme.selection(), CHOSEN_COLUMN_ALPHA));
-        graphics.fillRect(chosenLeft, 0, MachineTestTableModel.COLUMN_WIDTH, model.height());
+        graphics.fillRect(model.chosenColumn() * columnWidth, 0, columnWidth, model.height());
         List<MachineTestTableModel.Row> rows = model.rows();
         for (int index = 0; index < rows.size(); index++) {
-            paintRow(graphics, model, scheme, index, rows.get(index));
+            paintRow(graphics, model, scheme, index, rows.get(index), letter);
         }
-        paintGhost(graphics, model, scheme);
+        paintGhost(graphics, model, scheme, letter);
         paintLines(graphics, model, scheme, width);
         for (int row = block.firstRow(); row <= block.lastRow(); row++) {
             if (!rows.get(row).kind().editable()) {
@@ -101,15 +147,14 @@ final class MachineTestCellPainter {
         if (focused && cursorRow >= 0 && columns > 0) {
             Rectangle cell = model.cell(cursorRow, model.chosenColumn());
             graphics.setColor(scheme.selection());
-            graphics.setStroke(CURSOR);
+            graphics.setStroke(new BasicStroke(UIScale.scale(2f)));
             graphics.drawRect(cell.x + 1, cell.y + 1, cell.width - 2, cell.height - 2);
         }
     }
 
     private static void paintRow(Graphics2D graphics, MachineTestTableModel model, ColorScheme scheme, int index,
-                                 MachineTestTableModel.Row row) {
+                                 MachineTestTableModel.Row row, Font letter) {
         int columns = model.columnCount();
-        double width = MachineTestTableModel.COLUMN_WIDTH;
         switch (row.kind()) {
             case GROUP, BUS -> {
                 // the names column writes them; the grid only draws their divider (paintLines)
@@ -119,7 +164,7 @@ final class MachineTestCellPainter {
                 for (int column = 0; column < columns; column++) {
                     values.add(Optional.of(Value.of(model.input(column, row.pinId().orElseThrow()))));
                 }
-                WaveformPainter.paintSteps(graphics, values, 0, width, row.top(), scheme, null, null);
+                paintSteps(graphics, model, values, row, scheme, null, null);
             }
             case STATE -> paintStates(graphics, model, scheme, row);
             case OUTPUT -> {
@@ -133,7 +178,7 @@ final class MachineTestCellPainter {
                             .map(result -> Value.of(Boolean.TRUE.equals(result.outputs().get(pinId)))));
                 }
                 if (model.result().stop().isEmpty()) {
-                    WaveformPainter.paintSteps(graphics, values, 0, width, row.top(), scheme, null, null);
+                    paintSteps(graphics, model, values, row, scheme, null, null);
                 }
             }
             case EXPECTED -> {
@@ -141,8 +186,8 @@ final class MachineTestCellPainter {
                     LogicValue expected = model.expected(column, row.pinId().orElseThrow());
                     boolean nothing = expected == LogicValue.DONT_CARE;
                     centered(graphics, symbol(expected), model.cell(index, column),
-                            nothing ? quiet(scheme) : scheme.diagramTrace(), nothing ? DOT_SIZE : VALUE_SIZE,
-                            nothing ? Font.BOLD : Font.PLAIN);
+                            nothing ? quiet(scheme) : scheme.diagramTrace(), letter,
+                            nothing ? DOT_SHARE : VALUE_SHARE, nothing ? Font.BOLD : Font.PLAIN);
                 }
             }
             case VERDICT -> {
@@ -152,10 +197,10 @@ final class MachineTestCellPainter {
                     Rectangle cell = model.cell(index, column);
                     if (verdict.filter(MachineTestRun.Verdict.PASS::equals).isPresent()) {
                         tint(graphics, cell, pass(scheme));
-                        centered(graphics, "✓", cell, pass(scheme), VERDICT_SIZE, Font.BOLD);
+                        centered(graphics, "✓", cell, passText(scheme), letter, VERDICT_SHARE, Font.BOLD);
                     } else if (verdict.filter(MachineTestRun.Verdict.FAIL::equals).isPresent()) {
                         tint(graphics, cell, fail(scheme));
-                        centered(graphics, "✗", cell, fail(scheme), VERDICT_SIZE, Font.BOLD);
+                        centered(graphics, "✗", cell, failText(scheme), letter, VERDICT_SHARE, Font.BOLD);
                     }
                 }
             }
@@ -187,12 +232,31 @@ final class MachineTestCellPainter {
         LongFunction<String> names = code -> code < states.size() ? states.get((int) code).name() : "";
         LongFunction<Optional<StateColor>> colours = code -> code < states.size() ? states.get((int) code).color()
                 : Optional.empty();
-        WaveformPainter.paintSteps(graphics, values, 0, MachineTestTableModel.COLUMN_WIDTH, row.top(), scheme,
-                names, colours);
+        paintSteps(graphics, model, values, row, scheme, names, colours);
+    }
+
+    /**
+     * One row of the strip's own drawing ({@link WaveformPainter#paintSteps}, made for 28 px rows at 100 %), scaled to
+     * the row this table gives it, so a taller row keeps the drawing's proportions.
+     */
+    private static void paintSteps(Graphics2D graphics, MachineTestTableModel model, List<Optional<Value>> values,
+                                   MachineTestTableModel.Row row, ColorScheme scheme, LongFunction<String> names,
+                                   LongFunction<Optional<StateColor>> colours) {
+        MachineTestLayout layout = model.layout();
+        double scale = layout.waveScale();
+        Graphics2D wave = (Graphics2D) graphics.create();
+        try {
+            wave.translate(0, row.top());
+            wave.scale(scale, scale);
+            WaveformPainter.paintSteps(wave, values, 0, layout.columnWidth() / scale, 0, scheme, names, colours);
+        } finally {
+            wave.dispose();
+        }
     }
 
     /** The dimmed ghost column after the last edge: «→ S2» in the state row. */
-    private static void paintGhost(Graphics2D graphics, MachineTestTableModel model, ColorScheme scheme) {
+    private static void paintGhost(Graphics2D graphics, MachineTestTableModel model, ColorScheme scheme,
+                                   Font letter) {
         Optional<String> text = model.ghostText();
         if (text.isEmpty()) {
             return;
@@ -201,8 +265,7 @@ final class MachineTestCellPainter {
         for (int index = 0; index < rows.size(); index++) {
             if (rows.get(index).kind() == MachineTestTableModel.Kind.STATE) {
                 Rectangle cell = model.cell(index, model.columnCount());
-                centered(graphics, text.get(), cell, PainterSupport.withAlpha(scheme.diagramTrace(), GHOST_ALPHA),
-                        VALUE_SIZE - 1, Font.PLAIN);
+                centered(graphics, text.get(), cell, quiet(scheme), letter, VALUE_SHARE, Font.PLAIN);
             }
         }
     }
@@ -214,14 +277,14 @@ final class MachineTestCellPainter {
         graphics.setColor(scheme.diagramGrid());
         graphics.setStroke(LINE);
         for (int column = 1; column <= model.columnCount(); column++) {
-            int x = column * MachineTestTableModel.COLUMN_WIDTH;
+            int x = column * model.layout().columnWidth();
             graphics.drawLine(x, 0, x, height);
         }
         for (MachineTestTableModel.Row row : model.rows()) {
             int bottom = row.top() + row.height() - 1;
             graphics.drawLine(0, bottom, width, bottom);
             if (row.kind() == MachineTestTableModel.Kind.GROUP && row.top() > 0) {
-                graphics.setStroke(DIVIDER);
+                graphics.setStroke(new BasicStroke(UIScale.scale(2f)));
                 graphics.drawLine(0, row.top(), width, row.top());
                 graphics.setStroke(LINE);
             }
@@ -233,12 +296,13 @@ final class MachineTestCellPainter {
         graphics.fill(cell);
     }
 
-    private static void centered(Graphics2D graphics, String text, Rectangle cell, Color colour, float size,
-                                 int style) {
-        Font font = graphics.getFont().deriveFont(style, size);
+    /** {@code text} centered in {@code cell}, in {@code letter}'s family at {@code share} of its size. */
+    private static void centered(Graphics2D graphics, String text, Rectangle cell, Color colour, Font letter,
+                                 float share, int style) {
+        Font font = letter.deriveFont(style, letter.getSize2D() * share);
         graphics.setFont(font);
         FontMetrics metrics = graphics.getFontMetrics(font);
-        String fitted = PainterSupport.ellipsized(text, metrics, cell.width - 4);
+        String fitted = PainterSupport.ellipsized(text, metrics, cell.width - 2 * UIScale.scale(2));
         int x = cell.x + (cell.width - metrics.stringWidth(fitted)) / 2;
         int baseline = cell.y + (cell.height + metrics.getAscent() - metrics.getDescent()) / 2;
         graphics.setColor(colour);

@@ -35,7 +35,7 @@ final class MachineTestBar extends JPanel {
      * @param keep  «Dejar como estaba»
      */
     MachineTestBar(Supplier<ColorScheme> scheme, Runnable exit, Runnable apply, Runnable keep) {
-        super(new MigLayout("insets 4 8 4 8, gap 8", "[grow, fill]push[][][]", "[center]"));
+        super(new MigLayout("insets 4lp 8lp 4lp 8lp, gap 8lp", "[grow, fill]push[][][]", "[center]"));
         this.scheme = Objects.requireNonNull(scheme, "scheme");
         setOpaque(true);
         exitButton.setToolTipText(Messages.text("machine.test.exit.tooltip"));

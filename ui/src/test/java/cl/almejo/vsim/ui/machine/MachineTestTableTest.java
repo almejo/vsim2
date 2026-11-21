@@ -101,12 +101,12 @@ class MachineTestTableTest {
 
     /** Presses the «+» header after the last column, as a click on it. */
     private void clickPlusColumn() {
-        int x = model().columnCount() * MachineTestTableModel.COLUMN_WIDTH + 2;
+        int x = model().columnCount() * model().layout().columnWidth() + 2;
         mouse(table.grid().header(), new Point(x, 2), 0, MouseEvent.BUTTON1, 1);
     }
 
     private String plusColumnTip(int columnCount) {
-        int x = columnCount * MachineTestTableModel.COLUMN_WIDTH + 2;
+        int x = columnCount * model().layout().columnWidth() + 2;
         return table.grid().header().getToolTipText(new MouseEvent(table.grid().header(), MouseEvent.MOUSE_MOVED,
                 0, 0, x, 2, 0, false));
     }
