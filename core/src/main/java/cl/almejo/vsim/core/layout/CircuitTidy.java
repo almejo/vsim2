@@ -338,7 +338,7 @@ public final class CircuitTidy {
                 }
                 boolean newOverlap = items.coveredItems(item, Map.of()).stream()
                         .anyMatch(other -> !overlapping.contains(other));
-                if (newOverlap || !item.isText() && LayoutItems.crossedByForeignWire(copy, registry,
+                if (newOverlap || item.hasBodiesOverlappingEachOther() || !item.isText() && LayoutItems.crossedByForeignWire(copy, registry,
                         item.members())) {
                     overlapping.add(item.id());
                 }

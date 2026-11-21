@@ -58,6 +58,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Ordenar circuito: piezas apiladas exactamente una sobre otra (misma posición, mismos pines) ya no se tratan como un solo bloque: se separan y, si no se logra, quedan en la lista de las que no se pudieron separar.
 - Girar una selección: cuatro giros de un cuarto de vuelta, en cualquier sentido, la dejan exactamente donde estaba (antes, con un ancho o alto impar, cada giro corría el centro media casilla y un cable de 3 de largo no volvía a su lugar).
 - Editor de memoria: con el contenido enlazado a un archivo (solo lectura), Ctrl+Z y Ctrl+Y ya no cambian la cuadrícula.
 - «Guardar como» sobre un archivo que está abierto en otra pestaña ya no lo pisa ni deja dos documentos con el mismo archivo: VSim lo rechaza con un aviso («ciérrala primero o elige otro nombre»).

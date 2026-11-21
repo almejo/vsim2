@@ -129,6 +129,45 @@ class CircuitTidyTest {
     }
 
     @Test
+    void twoPartsExactlyOnTopOfEachOtherAreSeparated() {
+        CircuitDocument document = new CircuitDocument();
+        gate(registry, document, 0, 0);
+        gate(registry, document, 0, 0);
+
+        CircuitTidyPlan plan = tidy(document, new GreedySeparator());
+
+        assertThat(anyBodiesTooClose(plan.after())).isFalse();
+        assertThat(plan.notSeparated()).isEmpty();
+        assertThat(plan.partsMoved()).isPositive();
+    }
+
+    @Test
+    void twentyPartsExactlyOnTopOfEachOtherAreSeparated() {
+        CircuitDocument document = new CircuitDocument();
+        for (int index = 0; index < 20; index++) {
+            gate(registry, document, 0, 0);
+        }
+
+        CircuitTidyPlan plan = tidy(document, new GreedySeparator());
+
+        // separated, or else every part still in someone's way is listed: never silently left on top
+        if (anyBodiesTooClose(plan.after())) {
+            assertThat(plan.notSeparated()).isNotEmpty();
+        }
+    }
+
+    @Test
+    void stackedPartsThatCannotBeSeparatedAreListed() {
+        CircuitDocument document = new CircuitDocument();
+        Component first = gate(registry, document, 0, 0);
+        Component second = gate(registry, document, 0, 0);
+
+        CircuitTidyPlan plan = tidy(document, fixed(Map.of()));
+
+        assertThat(plan.notSeparated()).containsAnyOf(first.id(), second.id());
+    }
+
+    @Test
     void gatesJoinedPinOnPinMoveTogether() {
         CircuitDocument document = new CircuitDocument();
         Component left = gate(registry, document, 0, 0);
