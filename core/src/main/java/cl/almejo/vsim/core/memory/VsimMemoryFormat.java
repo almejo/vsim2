@@ -78,6 +78,10 @@ public final class VsimMemoryFormat implements MemoryFileFormat {
                         throw new MemoryFileProblem(lineNumber, "memory.file.tooWide",
                                 List.of(token, header.width().getAsInt()));
                     }
+                    if (address >= MAXIMUM_WORDS) {
+                        throw new MemoryFileProblem(lineNumber, "memory.file.badAddress",
+                                List.of(token, Long.toHexString(address).toUpperCase(Locale.ROOT)));
+                    }
                     contents.set(address, value);
                     address++;
                 }

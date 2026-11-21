@@ -127,6 +127,11 @@ public final class LinkedMemoryWatcher {
             MemoryFile read = MemoryFileIo.read(file);
             problems.remove(id);
             reloadIfChanged(component, read.contents());
+        } catch (RuntimeException exception) {
+            // not seen: the file is tried again at the next poll, and the problem shows meanwhile
+            seen.remove(id);
+            problems.put(id, new LinkedFileProblem(id.value(), shown, LinkedFileProblem.Kind.UNREADABLE,
+                    String.valueOf(exception.getMessage())));
         } catch (MemoryFileIo.Unreadable problem) {
             problems.put(id, new LinkedFileProblem(id.value(), shown, LinkedFileProblem.Kind.UNREADABLE,
                     problem.detail()));

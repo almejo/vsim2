@@ -61,6 +61,10 @@ public final class MemoryFileIo {
             return format.read(text);
         } catch (MemoryFileProblem problem) {
             throw new Unreadable(describe(file, problem));
+        } catch (RuntimeException exception) {
+            // a format that fails in an unforeseen way is a file that cannot be read, never a crash of the caller
+            throw new Unreadable(Messages.format("memory.file.unreadable", file.getFileName(),
+                    String.valueOf(exception.getMessage())));
         }
     }
 

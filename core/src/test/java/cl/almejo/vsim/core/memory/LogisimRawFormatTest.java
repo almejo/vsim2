@@ -95,4 +95,20 @@ class LogisimRawFormatTest {
         assertThat(format.canRead("x.hex", "3A")).isFalse();
         assertThat(format.canWrite()).isTrue();
     }
+
+    @Test
+    void aRunPastTheMaximumWordsIsAProblemWithoutMaterialisingIt() {
+        long start = System.nanoTime();
+        assertThatThrownBy(() -> format.read("v2.0 raw\n16777216*0\n16777216*1\n"))
+                .isInstanceOfSatisfying(MemoryFileProblem.class, problem -> {
+                    assertThat(problem.line()).isEqualTo(3);
+                    assertThat(problem.messageKey()).isEqualTo("memory.file.badAddress");
+                });
+        assertThat(System.nanoTime() - start).isLessThan(2_000_000_000L);
+    }
+
+    @Test
+    void zeroRunsPastTheMaximumWordsStillLoad() throws MemoryFileProblem {
+        assertThat(format.read("v2.0 raw\n16777216*0\n16777216*0\n0\n").contents().count()).isEqualTo(0);
+    }
 }

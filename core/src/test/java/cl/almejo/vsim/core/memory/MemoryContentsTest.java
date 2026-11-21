@@ -136,4 +136,10 @@ class MemoryContentsTest {
         assertThat(second).isEqualTo(MemoryContents.decode("@1 9"));
         assertThat(mutable.snapshot()).isEqualTo(MemoryContents.empty());
     }
+
+    @Test
+    void decodeRefusesAnAddressThatOverflows() {
+        assertThatThrownBy(() -> MemoryContents.decode("@7FFFFFFFFFFFFFFF 1 2"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }
