@@ -387,6 +387,14 @@ class ZoomControlTest {
     }
 
     @Test
+    void aButtonShowsTheCurrentTooltipOfItsAction() {
+        zoomToSelection.putValue(javax.swing.Action.SHORT_DESCRIPTION, "Zoom a la selección (Mayús+2) — Selecciona algo primero");
+        assertThat(control.selectionButton().getToolTipText()).endsWith("Selecciona algo primero");
+        zoomToSelection.putValue(javax.swing.Action.SHORT_DESCRIPTION, "Zoom a la selección (Mayús+2)");
+        assertThat(control.selectionButton().getToolTipText()).isEqualTo("Zoom a la selección (Mayús+2)");
+    }
+
+    @Test
     void theResetButtonIsOffAt100PercentAndOnOtherwise() {
         control.showZoom(1.0);
         assertThat(control.resetButton().isEnabled()).isFalse();

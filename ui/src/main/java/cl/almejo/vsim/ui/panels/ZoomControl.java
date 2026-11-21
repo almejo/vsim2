@@ -310,12 +310,22 @@ public final class ZoomControl extends JPanel {
         });
     }
 
+    private static String tooltipOf(Action action) {
+        Object description = action.getValue(Action.SHORT_DESCRIPTION);
+        return String.valueOf(description != null ? description : action.getValue(Action.NAME));
+    }
+
     private JButton iconButton(Action action, String iconName) {
         JButton button = smallButton(action);
         button.setIcon(Icons.get(iconName, ICON_SIZE));
-        Object description = action.getValue(Action.SHORT_DESCRIPTION);
         Object name = action.getValue(Action.NAME);
-        button.setToolTipText(String.valueOf(description != null ? description : name));
+        button.setToolTipText(tooltipOf(action));
+        // the action's tooltip changes (its key, why it is off): the button shows the current one
+        action.addPropertyChangeListener(event -> {
+            if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName()) || Action.NAME.equals(event.getPropertyName())) {
+                button.setToolTipText(tooltipOf(action));
+            }
+        });
         button.getAccessibleContext().setAccessibleName(String.valueOf(name));
         return button;
     }

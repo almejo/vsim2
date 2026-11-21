@@ -363,7 +363,8 @@ class BubbleTourTest {
 
     @Test
     void inATinyWindowTheBubbleIsCentredWithoutArrowAndInside() {
-        sized(320, 240);
+        // 260 high: the toolbar wraps now, so every step is reachable, and the first («Cables de corrido») is 225 high
+        sized(320, 260);
         BubbleTour tour = start();
 
         assertThat(tour.side()).isEmpty();
