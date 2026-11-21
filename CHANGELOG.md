@@ -58,6 +58,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Editor de memoria: con el contenido enlazado a un archivo (solo lectura), Ctrl+Z y Ctrl+Y ya no cambian la cuadrícula.
 - Memorias: un archivo de memoria con una dirección fuera de rango (por ejemplo `@7FFFFFFFFFFFFFFF`, o palabras más allá de las 16777216 que cabe en una memoria) o una repetición de Logisim que pasa de ahí ya no revienta ni se come la memoria: se avisa con el archivo y la línea (en un archivo enlazado, en Problemas, y se vuelve a leer).
 - Un clic derecho a mitad de un arrastre ya no cambia la selección ni abre el menú: cancela el gesto, como Esc, y soltar el botón izquierdo después no mueve nada.
 - Esc con el botón apretado sobre un cable (cables de corrido) cancela el gesto: arrastrar después ya no dibuja un cable.

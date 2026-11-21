@@ -241,4 +241,23 @@ class MemoryGridModelTest {
         grid.setCell(0, "11");
         assertThat(fired[0]).isEqualTo(1);
     }
+
+    @Test
+    void undoAndRedoDoNothingWhileReadOnly() {
+        MemoryGridModel grid = model(8, 256);
+        grid.setCell(0, "1");
+        grid.undo();
+        assertThat(grid.canRedo()).isTrue();
+        grid.setReadOnly(true);
+        assertThat(grid.canUndo()).isFalse();
+        assertThat(grid.canRedo()).isFalse();
+        grid.redo();
+        assertThat(grid.edited().word(0)).isEqualTo(0);
+        grid.setReadOnly(false);
+        grid.redo();
+        assertThat(grid.edited().word(0)).isEqualTo(1);
+        grid.setReadOnly(true);
+        grid.undo();
+        assertThat(grid.edited().word(0)).isEqualTo(1);
+    }
 }

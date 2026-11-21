@@ -474,15 +474,15 @@ public final class MemoryGridModel extends AbstractTableModel {
     }
 
     public boolean canUndo() {
-        return !undoStack.isEmpty();
+        return !readOnly && !undoStack.isEmpty();
     }
 
     public boolean canRedo() {
-        return !redoStack.isEmpty();
+        return !readOnly && !redoStack.isEmpty();
     }
 
     public void undo() {
-        if (!undoStack.isEmpty()) {
+        if (canUndo()) {
             redoStack.push(contents);
             contents = undoStack.pop();
             dataVersion++;
@@ -491,7 +491,7 @@ public final class MemoryGridModel extends AbstractTableModel {
     }
 
     public void redo() {
-        if (!redoStack.isEmpty()) {
+        if (canRedo()) {
             undoStack.push(contents);
             contents = redoStack.pop();
             dataVersion++;
