@@ -111,6 +111,24 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     }
 
     /**
+     * As {@link #start}, on a draft {@code recovered} from a recovery copy (fix round 2 of hito 4): it is the draft's
+     * one step, «recuperar el borrador», over the circuit's machine; no step when they are the same.
+     */
+    static Optional<MachineTestMode> recovered(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
+                                               StateMachine recovered, MachineTestQuestions questions,
+                                               Runnable ended) {
+        return canvas.standardSource().machine().map(real -> {
+            MachineDraft draft = new MachineDraft(real);
+            if (!recovered.equals(real)) {
+                draft.edited(recovered, Messages.text("machine.test.recoveredStep"));
+            }
+            return started(view, canvas, frame, new Carried(MachineTestUnderWay.begin(
+                    MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId(), draft), 0, 0),
+                    questions, ended);
+        });
+    }
+
+    /**
      * Joins the machine's test {@code carried} (another view of it tests, or the tab moved to another window), as
      * {@link #start} but on its draft; empty when the machine or the test is gone.
      */

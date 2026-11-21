@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -25,8 +26,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Autosave (spec §4.1, §4.2). Every minute each tracked document that is modified and whose
  * {@link OpenDocument#changeCount()} moved since its last copy (every change goes through {@code execute}, channel
  * edits included — contract C5) is serialized on the EDT and handed to one writer thread, which also runs the deletes
- * in order. A document back at its saved state (saved, or undone to it) loses its copy at once; so does a document
- * that stops being tracked (closed). A failing document is logged once and retried at every tick. EDT only, except the
+ * in order. Work the editor keeps outside a document ({@link RecoveryDrafts}: a machine's test draft, fix round 2 of
+ * hito 4) goes in its copy too: a document holding it is copied even when saved, and every edit of it counts as a
+ * change. A document back at its saved state (saved, or undone to it) and holding no such work loses its copy at
+ * once; so does a document that stops being tracked (closed). A failing document is logged once and retried at every tick. EDT only, except the
  * writer.
  */
 public final class AutosaveService {
@@ -40,6 +43,8 @@ public final class AutosaveService {
         private final Runnable listener;
         /** The change count of the last copy handed to the writer; -1 when no copy is on disk. */
         private long copiedChangeCount = -1;
+        /** The drafts' change count ({@link RecoveryDrafts#changeCount}) of the last copy handed to the writer. */
+        private long copiedDraftCount = -1;
         /** Run by the writer once one of this document's copies is actually on disk ({@link #afterCopied}). */
         private final Queue<Runnable> afterCopied = new ConcurrentLinkedQueue<>();
 
@@ -55,6 +60,7 @@ public final class AutosaveService {
     private final RecoveryStore store;
     private final Clock clock;
     private final Executor writer;
+    private final RecoveryDrafts drafts;
     private final Timer timer;
     private final Map<OpenDocument, Tracked> tracked = new LinkedHashMap<>();
     private final Set<UUID> failing = ConcurrentHashMap.newKeySet();
@@ -62,6 +68,12 @@ public final class AutosaveService {
     private volatile boolean shutDown;
 
     public AutosaveService(RecoveryStore store, Clock clock, Executor writer) {
+        this(store, clock, writer, RecoveryDrafts.NONE);
+    }
+
+    /** With the work the editor keeps outside the documents ({@code drafts}) carried in their copies. */
+    public AutosaveService(RecoveryStore store, Clock clock, Executor writer, RecoveryDrafts drafts) {
+        this.drafts = Objects.requireNonNull(drafts, "drafts");
         this.store = store;
         this.clock = clock;
         this.writer = writer;
@@ -69,9 +81,9 @@ public final class AutosaveService {
     }
 
     /** The application's service: the system clock and one daemon writer thread. The timer starts with {@link #start()}. */
-    public static AutosaveService create(RecoveryStore store) {
+    public static AutosaveService create(RecoveryStore store, RecoveryDrafts drafts) {
         ExecutorService writer = DaemonThreads.single("vsim-autosave");
-        return new AutosaveService(store, Clock.systemDefaultZone(), writer);
+        return new AutosaveService(store, Clock.systemDefaultZone(), writer, drafts);
     }
 
     /** Starts the 60 s timer; nothing after {@link #shutdown()}. */
@@ -96,7 +108,7 @@ public final class AutosaveService {
             return;
         }
         Runnable listener = () -> {
-            if (!document.isModified()) {
+            if (!needsCopy(document)) {
                 discardCopy(document);
             }
         };
@@ -122,24 +134,27 @@ public final class AutosaveService {
         for (Map.Entry<OpenDocument, Tracked> entry : tracked.entrySet()) {
             OpenDocument document = entry.getKey();
             Tracked state = entry.getValue();
-            if (!document.isModified()) {
+            if (!needsCopy(document)) {
                 discardCopy(document);
                 continue;
             }
             UUID id = document.recoveryId();
-            if (state.copiedChangeCount == document.changeCount() && !failing.contains(id)) {
+            long draftCount = drafts.changeCount(document);
+            if (state.copiedChangeCount == document.changeCount() && state.copiedDraftCount == draftCount
+                    && !failing.contains(id)) {
                 continue;
             }
             String name = document.displayName();
             String content;
             try {
-                content = document.serialized();
+                content = drafts.serialized(document);
             } catch (RuntimeException exception) {
                 reportFailure(id, name, exception);
                 continue;
             }
             RecoveryMetadata metadata = new RecoveryMetadata(document.path(), name, clock.instant());
             state.copiedChangeCount = document.changeCount();
+            state.copiedDraftCount = draftCount;
             writer.execute(() -> {
                 if (shutDown) {
                     return;
@@ -223,12 +238,18 @@ public final class AutosaveService {
         }
     }
 
+    /** Whether {@code document} has something its file does not: changes, or work the editor keeps outside it. */
+    private boolean needsCopy(OpenDocument document) {
+        return document.isModified() || drafts.holds(document);
+    }
+
     private void discardCopy(OpenDocument document) {
         Tracked state = tracked.get(document);
         if (state == null || !state.hasCopy()) {
             return;
         }
         state.copiedChangeCount = -1;
+        state.copiedDraftCount = -1;
         UUID id = document.recoveryId();
         writer.execute(() -> {
             try {

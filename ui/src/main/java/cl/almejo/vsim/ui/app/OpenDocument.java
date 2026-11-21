@@ -1677,6 +1677,18 @@ public final class OpenDocument implements AutoCloseable {
         return serializedFor(Optional.ofNullable(path));
     }
 
+    /**
+     * As {@link #serialized()}, each definition written as {@code definitions} gives it (the document is not touched):
+     * a recovery copy writes a machine's test draft's tests in (fix round 2 of hito 4). EDT only.
+     */
+    public String serializedWith(UnaryOperator<ComponentDefinition> definitions) {
+        if (body != null) {
+            return body.parent.serializedWith(definitions);
+        }
+        return new CircuitFormat(registry).write(document, MemoryLinkPaths.relativeLinks(Optional.ofNullable(path)),
+                definitions);
+    }
+
     /** The format v2 text of the document saved as {@code target}: memory links relative to its folder. */
     private String serializedFor(Optional<Path> target) {
         return new CircuitFormat(registry).write(document, MemoryLinkPaths.relativeLinks(target));

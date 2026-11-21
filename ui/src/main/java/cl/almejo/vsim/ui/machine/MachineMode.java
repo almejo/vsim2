@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.Listeners;
@@ -137,6 +138,18 @@ public final class MachineMode {
             return;
         }
         testMode = MachineTestMode.start(view, canvas, frame, asking, this::testEnded);
+        followTheTestMode();
+    }
+
+    /**
+     * Starts the test mode on the draft {@code recovered} from a recovery copy (fix round 2 of hito 4: VSim did not
+     * close properly while the machine was being tested). Nothing when this tab or another view tests it already.
+     */
+    void resumeTest(StateMachine recovered) {
+        if (testMode.isPresent() || testUnderWay().isPresent()) {
+            return;
+        }
+        testMode = MachineTestMode.recovered(view, canvas, frame, recovered, asking, this::testEnded);
         followTheTestMode();
     }
 

@@ -18,6 +18,8 @@ import java.util.WeakHashMap;
 final class MachineTestsUnderWay {
 
     private static final Map<OpenDocument, Map<String, MachineTestUnderWay>> UNDER_WAY = new WeakHashMap<>();
+    /** Per circuit, a count that moves with every change of its tests' drafts (autosave copies them, fix round 2). */
+    private static final Map<OpenDocument, Long> CHANGES = new WeakHashMap<>();
 
     private MachineTestsUnderWay() {
     }
@@ -25,6 +27,21 @@ final class MachineTestsUnderWay {
     /** The test of {@code definitionId} in {@code circuit}, while there is one. */
     static Optional<MachineTestUnderWay> of(OpenDocument circuit, String definitionId) {
         return Optional.ofNullable(UNDER_WAY.get(circuit)).map(tests -> tests.get(definitionId));
+    }
+
+    /** The tests of {@code circuit}'s machines now, by definition id. */
+    static Map<String, MachineTestUnderWay> of(OpenDocument circuit) {
+        return Map.copyOf(UNDER_WAY.getOrDefault(circuit, Map.of()));
+    }
+
+    /** A test of {@code circuit} began, ended or changed its draft. */
+    static void changed(OpenDocument circuit) {
+        CHANGES.merge(circuit, 1L, Long::sum);
+    }
+
+    /** A count that moves with every change of {@code circuit}'s tests' drafts. */
+    static long changeCount(OpenDocument circuit) {
+        return CHANGES.getOrDefault(circuit, 0L);
     }
 
     /**

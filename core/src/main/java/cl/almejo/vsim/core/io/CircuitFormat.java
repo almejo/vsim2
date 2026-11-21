@@ -342,6 +342,15 @@ public final class CircuitFormat {
      * linked file relative to where the circuit is saved.
      */
     public String write(CircuitDocument document, UnaryOperator<Component> written) {
+        return write(document, written, UnaryOperator.identity());
+    }
+
+    /**
+     * Like {@link #write(CircuitDocument, UnaryOperator)}, with each definition written as {@code definitions} gives
+     * it (the document is not touched): a recovery copy writes a machine's test draft's tests in.
+     */
+    public String write(CircuitDocument document, UnaryOperator<Component> written,
+                        UnaryOperator<ComponentDefinition> definitions) {
         List<ComponentDefinition> used;
         try {
             used = DefinitionGraph.closure(SubcircuitTypes.definitionIds(document.components()), document::definition);
@@ -353,8 +362,8 @@ public final class CircuitFormat {
                 document.components().stream().map(written).map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
-                used.stream().map(definition -> definition.withBodyComponents(written)).map(DefinitionEntries::entry)
-                        .toList(),
+                used.stream().map(definitions).map(definition -> definition.withBodyComponents(written))
+                        .map(DefinitionEntries::entry).toList(),
                 document.probes().stream().map(CircuitFormat::probeEntry).toList(),
                 document.frames().stream().map(CircuitFormat::frameEntry).toList(),
                 document.guides().stream().map(GuideEntries::entry).toList(),

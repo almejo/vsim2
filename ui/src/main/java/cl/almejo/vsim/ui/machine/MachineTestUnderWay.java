@@ -17,6 +17,7 @@ import java.util.Objects;
  */
 final class MachineTestUnderWay {
 
+    private final OpenDocument circuit;
     private final MachineDraft draft;
     private final List<MachineTestMode> views = new ArrayList<>();
     private final Runnable forget;
@@ -25,8 +26,10 @@ final class MachineTestUnderWay {
     private boolean closing;
 
     private MachineTestUnderWay(OpenDocument circuit, String definitionId, MachineDraft draft) {
+        this.circuit = Objects.requireNonNull(circuit, "circuit");
         this.draft = Objects.requireNonNull(draft, "draft");
         this.forget = MachineTestsUnderWay.add(circuit, definitionId, this);
+        MachineTestsUnderWay.changed(circuit);
     }
 
     /** The test of {@code definitionId} in {@code circuit} begins on {@code draft}: it is the machine's test now. */
@@ -59,8 +62,9 @@ final class MachineTestUnderWay {
         }
     }
 
-    /** The draft changed (in any view): every view follows it. */
+    /** The draft changed (in any view): every view follows it, and autosave copies it again. */
     void changed() {
+        MachineTestsUnderWay.changed(circuit);
         views().forEach(MachineTestMode::draftChanged);
     }
 
@@ -71,6 +75,7 @@ final class MachineTestUnderWay {
         }
         over = true;
         forget.run();
+        MachineTestsUnderWay.changed(circuit);
         List<MachineTestMode> leaving = views();
         views.clear();
         leaving.forEach(MachineTestMode::takeOut);
