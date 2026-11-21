@@ -33,16 +33,17 @@ import java.util.Set;
 public final class ContextMenuFactory {
 
     /**
-     * Spec §6.6 for a component: Configurar…, Etiqueta…, Rotar ↻ / ↺, Cortar, Copiar, Duplicar, Borrar; on a piece of a
+     * Spec §6.6 for a component: Configurar…, Etiqueta…, Rotar ↻ / ↺ and Borrar, Cortar, Copiar, Duplicar (Borrar beside
+     * Rotar, the order of Editar: audit I13); on a piece of a
      * user component «Entrar» and «Mirar adentro» come first, on their own: both look inside it (spec §4.4).
      */
     private static final List<List<ContextMenuEntry>> COMPONENT_LAYOUT = List.of(
             List.of(ContextMenuEntry.ENTER, ContextMenuEntry.LOOK_INSIDE),
             List.of(ContextMenuEntry.VALUE, ContextMenuEntry.CONFIGURE, ContextMenuEntry.LABEL,
                     ContextMenuEntry.RESET_LABEL_POSITION),
-            List.of(ContextMenuEntry.ROTATE_CLOCKWISE, ContextMenuEntry.ROTATE_COUNTER_CLOCKWISE),
-            List.of(ContextMenuEntry.CUT, ContextMenuEntry.COPY, ContextMenuEntry.DUPLICATE),
-            List.of(ContextMenuEntry.DELETE));
+            List.of(ContextMenuEntry.ROTATE_CLOCKWISE, ContextMenuEntry.ROTATE_COUNTER_CLOCKWISE,
+                    ContextMenuEntry.DELETE),
+            List.of(ContextMenuEntry.CUT, ContextMenuEntry.COPY, ContextMenuEntry.DUPLICATE));
     /** Spec §6.6 for the empty canvas: Pegar, Agregar texto aquí, Seleccionar todo, Centrar vista. */
     private static final List<List<ContextMenuEntry>> EMPTY_CANVAS_LAYOUT = List.of(
             List.of(ContextMenuEntry.PASTE, ContextMenuEntry.ADD_TEXT),

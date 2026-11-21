@@ -87,10 +87,42 @@ class SelectionActionsTest {
     }
 
     @Test
+    void pasteIsOffWithNothingCopiedSaysWhyAndTurnsOnAfterACopy() {
+        assertThat(actions.paste().isEnabled()).isFalse();
+        assertThat(Actions.disabledReason(actions.paste())).contains("No hay nada copiado del circuito");
+
+        copyGateAt(0, 0);
+
+        assertThat(actions.paste().isEnabled()).isTrue();
+    }
+
+    @Test
+    void pasteFollowsTheClipboardWhenAskedAgain() {
+        copyGateAt(0, 0);
+        systemClipboard.setContents(new StringSelection("hola"), null); // another application copied a word
+
+        actions.refreshPaste();
+        assertThat(actions.paste().isEnabled()).isFalse();
+
+        copyGateAt(10, 0);
+        assertThat(actions.paste().isEnabled()).isTrue();
+    }
+
+    @Test
+    void theContextMenusPasteIsOffWithNothingCopied() {
+        JPopupMenu menu = new JPopupMenu();
+        actions.contributor().contribute(menu, Optional.empty(), view.canvas().selection(), new Point2D.Double(1, 1));
+
+        JMenuItem paste = (JMenuItem) menu.getComponent(0);
+        assertThat(paste.getText()).isEqualTo("Pegar");
+        assertThat(paste.isEnabled()).isFalse();
+        assertThat(paste.getAction().getValue(Action.SHORT_DESCRIPTION)).isEqualTo("No hay nada copiado del circuito");
+    }
+
+    @Test
     void cutCopyAndDuplicateFollowTheSelection() {
         Component gate = gateAt(0, 0);
         assertThat(List.of(actions.cut(), actions.copy(), actions.duplicate())).noneMatch(Action::isEnabled);
-        assertThat(actions.paste().isEnabled()).isTrue();
         assertThat(actions.selectAll().isEnabled()).isTrue();
         view.canvas().selection().select(gate.id());
         assertThat(List.of(actions.cut(), actions.copy(), actions.duplicate())).allMatch(Action::isEnabled);

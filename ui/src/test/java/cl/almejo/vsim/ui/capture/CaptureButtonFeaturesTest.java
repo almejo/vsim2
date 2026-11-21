@@ -185,12 +185,12 @@ class CaptureButtonFeaturesTest {
     }
 
     @Test
-    void theMenuItemIsRightAfterCopiarAndItsShortcutIsInTheCatalog() {
+    void theMenuItemClosesTheClipboardGroupAfterDuplicarAndItsShortcutIsInTheCatalog() {
         List<String> edit = UiTestSupport.texts(view.menu(MenuId.EDIT));
-        int copy = edit.indexOf("Copiar");
+        int duplicate = edit.indexOf("Duplicar");
 
-        assertThat(copy).isGreaterThanOrEqualTo(0);
-        assertThat(edit.get(copy + 1)).isEqualTo("Copiar captura");
+        assertThat(duplicate).isGreaterThanOrEqualTo(0);
+        assertThat(edit.get(duplicate + 1)).isEqualTo("Copiar captura");
         assertThat(ShortcutCatalog.find("edit.copyCapture").orElseThrow().defaultStroke()).contains(
                 KeyStroke.getKeyStroke(KeyEvent.VK_C, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
     }

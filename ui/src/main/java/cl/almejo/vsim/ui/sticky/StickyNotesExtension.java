@@ -13,10 +13,8 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
-import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
-import javax.swing.JMenuItem;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +48,7 @@ public final class StickyNotesExtension implements EditorExtension {
                 () -> view.setToolOnEveryPane(StickyNoteTool::new));
         Icons.install(tool, StickyNoteIcons.TOOL);
         removers.add(view.addToolButton(tool, StickyNoteTool.class));
-        removers.add(MenuSlots.add(view, MenuSlot.STICKY_NOTE_TOOL, new JMenuItem(tool)));
+        removers.add(view.addToolMenuItem(MenuSlot.STICKY_NOTE_TOOL, tool, StickyNoteTool.class));
         removers.add(view.registerShortcutAction("view.stickyNoteTool", tool));
         removers.add(view.forEachPane(this::installOn));
         StickyNoteMenu menu = new StickyNoteMenu(view.openDocument(), view::canvas, confirmation);

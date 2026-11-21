@@ -36,7 +36,7 @@ import java.util.function.Supplier;
 /**
  * The screenshot of one editor view: a split button at the end of the toolbar whose main part copies a PNG picture of
  * the VSim window or of the visible circuit (the mode chosen in its ▾ and remembered) to the clipboard, and Editar ▸
- * «Copiar captura» ({@code edit.copyCapture}, right after «Copiar») that copies with that same mode. Each copy
+ * «Copiar captura» ({@code edit.copyCapture}, right after «Duplicar») that copies with that same mode. Each copy
  * flashes white over what was copied (with animations off it stays whole and goes, without fading) and tells what happened in a notice at the bottom of
  * the circuit area. The picture is painted on the EDT by {@link WindowCapture} and handed to the clipboard without
  * touching the disk. {@link #dispose()} takes it all back.
@@ -96,7 +96,8 @@ final class CaptureButtonFeatures {
         Action action = Actions.of(Messages.text("action.copyCapture"), () -> copy(kindOf(button.mode().id())));
         this.copyAction = action;
         action.putValue(Action.SMALL_ICON, Icons.get(CaptureIcons.WINDOW, Icons.MENU_SIZE));
-        int index = Menus.indexOf(view.menu(MenuId.EDIT), view.selectionActions().copy());
+        // after the Cortar, Copiar, Pegar, Duplicar group, not in the middle of it (I13)
+        int index = Menus.indexOf(view.menu(MenuId.EDIT), view.selectionActions().duplicate());
         this.menuRemover = Menus.install(view, MenuId.EDIT, index < 0 ? -1 : index + 1, action, SHORTCUT_ID);
         Runnable added;
         try {

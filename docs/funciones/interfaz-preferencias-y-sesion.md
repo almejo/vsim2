@@ -15,7 +15,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - **Cambiar de pestaña**: un clic en la pestaña, Ctrl+Tab y Ctrl+Mayús+Tab (también Ctrl+Av Pág y Ctrl+Re Pág) recorren las pestañas de la ventana desde cualquier parte de ella (el lienzo, el panel derecho, el árbol, la paleta); Tab y Mayús+Tab siguen moviendo el foco de un panel a otro, y Ventana ▸ «Pestaña siguiente» / «Pestaña anterior» hacen lo mismo. El menú y la barra de herramientas de la ventana son los de la pestaña activa; el título de la ventana dice el circuito de la pestaña activa.
 - **Cerrar**: la × de la pestaña, el clic con el botón del medio o Archivo ▸ «Cerrar pestaña» (Ctrl+W, también en el menú Ventana) cierran la pestaña. Cerrar la última pestaña de un circuito cierra su grupo, y si ninguna otra ventana lo muestra, pregunta una vez si guardar los cambios. Archivo ▸ «Cerrar ventana» (Ctrl+Mayús+W) cierra todas las pestañas de la ventana y pregunta una vez por cada circuito que solo estaba en ella. Una ventana sin pestañas se cierra, y al cerrar la última ventana VSim termina, como antes.
 - **Más vistas del mismo circuito**: Ventana ▸ «Nueva pestaña del mismo circuito» abre otra pestaña del circuito en su grupo, con el mismo zoom y el mismo centro; Ventana ▸ «Nueva ventana con este circuito» (Ctrl+Mayús+N) abre otra ventana con el circuito, 30 px más abajo y a la derecha. Con más de una vista, las pestañas, los títulos y el menú Ventana dicen «contador (1)», «contador (2)»… y se renumeran al cerrar una. Deshacer, la simulación y el archivo son compartidos; la selección y lo que muestra cada vista, no. Arrastrar entre vistas mueve; con Ctrl, copia.
-- **Los grupos se mueven enteros**: arrastrar cualquier pestaña arrastra todo su grupo (una imagen del grupo sigue al mouse, translúcida donde el sistema lo permite, y una raya muestra dónde quedará). Soltarlo en la misma fila de pestañas cambia el orden de los grupos; soltarlo en las pestañas de otra ventana lo pasa a esa ventana (si ya tenía ese circuito, se juntan en un solo grupo); soltarlo fuera de toda fila de pestañas abre una ventana nueva con el grupo, del mismo tamaño, donde lo soltaste. Ventana ▸ «Mover el grupo a una ventana nueva» hace lo mismo desde el menú (con un solo grupo en la ventana no hace nada: la ventana ya es solo de ese circuito).
+- **Los grupos se mueven enteros**: arrastrar cualquier pestaña arrastra todo su grupo (una imagen del grupo sigue al mouse, translúcida donde el sistema lo permite, y una raya muestra dónde quedará). Soltarlo en la misma fila de pestañas cambia el orden de los grupos; soltarlo en las pestañas de otra ventana lo pasa a esa ventana (si ya tenía ese circuito, se juntan en un solo grupo); soltarlo fuera de toda fila de pestañas abre una ventana nueva con el grupo, del mismo tamaño, donde lo soltaste. Ventana ▸ «Mover el grupo a una ventana nueva» hace lo mismo desde el menú (con un solo grupo en la ventana está apagado: «Esta ventana tiene un solo circuito»).
 - **Plegar**: un doble clic en la pestaña de un circuito pliega su grupo (también Ventana ▸ «Plegar / desplegar el grupo»): las pestañas de sus componentes se esconden con una animación corta (sin animación con «[Animaciones](#animaciones): No») y la pestaña del circuito muestra «⬚ 2», cuántas hay escondidas; otro doble clic o un clic en «⬚ 2» las vuelve a mostrar. Si la pestaña activa era una de las que se esconden, pasa a ser la del circuito. Ventana ▸ «Cerrar los componentes de este circuito» cierra las pestañas de componentes del grupo sin preguntar nada.
 - **Pestaña nueva («+»)**: un botón «+» justo después de la última pestaña abre un circuito nuevo en una pestaña de la ventana, igual que Archivo ▸ Nuevo; un doble clic en la parte vacía de la fila hace lo mismo. Su tooltip dice «Nuevo circuito» con la tecla que tenga Nuevo ahora (si la cambiaste en Preferencias ▸ «Atajos de teclado», se ve la nueva). Cuando las pestañas no caben, el «+» queda fijo junto a «▾».
 - **Muchas pestañas**: cuando no caben, aparecen ‹ › para desplazarlas, el «+» y «▾» («Todas las pestañas»), que lista las pestañas de todas las ventanas agrupadas por ventana; la pestaña activa siempre queda a la vista.
@@ -140,13 +140,35 @@ Cuando el circuito no tiene nada (ni piezas, ni cables, ni textos, ni notas, ni 
   vertical y Borrar guías), Mostrar ▸ (Valores de los buses, Resaltar la red al pasar, Hojas de impresión); luego
   Lupa y Mirar adentro; al final Modo presentación (pantalla completa) (F11) y Presentar ▸ (Presentar lo que hace la
   IA, Ritmo de Presentar y, tras una línea, Mostrar los atajos al usarlos).
+- En Ver ▸ Paneles los siete ítems son casillas: la marca dice qué panel o sección está a la vista y la sigue sin
+  importar cómo se abrió o cerró (la tecla, la tira del panel derecho, su ✕ o el ítem).
 - **Herramientas** tiene las herramientas del editor: Selección, Marco, Nota adhesiva, Texto, Mover vista y Zoom (Z).
+  Son botones de radio: el punto marca la herramienta activa, la elijas desde el menú, la barra, una tecla o Esc (útil
+  en el modo presentación, sin la barra).
+- **Editar** junta cada grupo: Deshacer y Rehacer; Configurar…, Etiqueta…, Rotar ↻, Rotar ↺ y Borrar; Cortar, Copiar,
+  Pegar, Duplicar y Copiar captura; Seleccionar todo; los de buscar; los de problemas; Enmarcar selección; los de
+  componentes propios y los de cables. El clic derecho sobre un componente sigue el mismo orden (Configurar…,
+  Etiqueta…; Rotar ↻, Rotar ↺, Borrar; Cortar, Copiar, Duplicar).
 - **Lógica**, después de Simulación: Tabla de verdad…, Circuito desde tabla de verdad…, Circuito desde expresiones… y
   Practicar Karnaugh….
 - «Siguiente problema» (F8) y «Problema anterior» (Mayús+F8) están en Editar, después de «Buscar anterior»; «IA
   (MCP)…» está al final de Ventana.
 - Los atajos son los mismos de antes, también los que hayas asignado tú en Atajos de teclado, que muestra cada acción
   bajo su menú nuevo (igual que «Buscar una acción…», Ctrl+K).
+- Las teclas del lienzo también se ven en los menús, a la derecha del ítem como las demás: Borrar (Supr), Rotar ↻ (R),
+  Rotar ↺ (Mayús+R), Etiqueta… (F2), Siguiente problema (F8), Problema anterior (Mayús+F8), Ver todo el circuito
+  (Mayús+1), Zoom a la selección (Mayús+2) y Herramientas ▸ Zoom (Z). Si cambias una en Atajos de teclado, el menú y la
+  ayuda del ítem muestran la nueva. Siguen siendo teclas del lienzo: actúan con el foco en el circuito y no al escribir
+  en un campo de texto, y una pulsación hace la acción una sola vez.
+- Un ítem apagado dice por qué en su ayuda (al pasar el mouse) y en «Buscar una acción…»: por ejemplo «Borrar la
+  selección (Supr) — Selecciona algo primero». Lo dicen Borrar, Rotar, Configurar…, Etiqueta…, Cortar, Copiar,
+  Duplicar, Siguiente y Anterior problema, Zoom a la selección, Crear componente desde selección…, Actualizar
+  componente…, Quitar división y Siguiente panel.
+- Lo que no haría nada está apagado: Pegar mientras el portapapeles no tiene nada copiado de un circuito («No hay nada
+  copiado del circuito»; se vuelve a mirar al copiar o cortar, al abrir Editar o el clic derecho y al volver al
+  lienzo), Ventana ▸ «Mover el grupo a una ventana nueva» con un solo circuito en la ventana y Lógica ▸ «Tabla de
+  verdad…» en un circuito secuencial (se mira al abrir Lógica).
+- Los avisos de Tabla de verdad, Formas de onda y Exportar a PDF llevan ese título, no «Mensaje».
 
 ## Íconos, barra de herramientas y cursores
 

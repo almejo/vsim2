@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
+import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.actions.ToolChoice;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.Listeners;
@@ -49,15 +50,20 @@ import cl.almejo.vsim.ui.terminal.CapturedKeys;
 import cl.almejo.vsim.ui.terminal.KeyboardCapture;
 import cl.almejo.vsim.ui.terminal.KeyboardInspectorRows;
 import cl.almejo.vsim.ui.tools.EnterableInstances;
+import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.ButtonGroup;
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
 import javax.swing.JMenu;
@@ -75,6 +81,9 @@ import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
@@ -134,6 +143,9 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** The left column: the palette alone, or {@link #addAbovePalette} over it as an accordion. */
     private final LeftColumn leftColumn;
     private final Map<String, Action> inspectorToggles = new LinkedHashMap<>();
+    /** Herramientas: one radio item per tool, the active tool's chosen (M4), whatever chose it. */
+    private final ButtonGroup toolItems = new ButtonGroup();
+    private final Map<JRadioButtonMenuItem, Class<? extends Tool>> toolTypes = new LinkedHashMap<>();
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
@@ -304,6 +316,18 @@ public final class EditorView extends JPanel implements CanvasHost {
         edit.addSeparator();
         edit.add(selectionActions.selectAll());
         addContextMenuContributor(selectionActions.contributor());
+        // «Pegar» asks the clipboard again when it may have changed elsewhere: Editar opens, a pane gets the focus back
+        Menus.onOpen(edit, selectionActions::refreshPaste);
+        forEachPane(pane -> {
+            FocusListener refresh = new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent event) {
+                    selectionActions.refreshPaste();
+                }
+            };
+            pane.addFocusListener(refresh);
+            return () -> pane.removeFocusListener(refresh);
+        });
     }
 
     public OpenDocument openDocument() { return openDocument; }
@@ -494,28 +518,33 @@ public final class EditorView extends JPanel implements CanvasHost {
         return menu;
     }
 
-    /** Ver ▸ Paneles ▸ «Árbol del circuito» (Alt+1) and «Paleta» (Alt+2) first, checked while their panel is open. */
+    /**
+     * Ver ▸ Paneles ▸ «Árbol del circuito» (Alt+1) and «Paleta» (Alt+2) first, then the right panel's sections (Alt+3 …
+     * Alt+6): every one a check, on while its panel or section is the one showing (I3).
+     */
     private void addLeftColumnItems() {
         MenuSlots.add(this, MenuSlot.PANEL_TOGGLES,
                 new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.CIRCUIT)));
         MenuSlots.add(this, MenuSlot.PANEL_TOGGLES,
                 new JCheckBoxMenuItem(leftColumn.toggleAction(LeftColumn.Section.PALETTE)));
         for (Action toggle : inspectorToggles.values()) {
-            MenuSlots.add(this, MenuSlot.PANEL_TOGGLES, new JMenuItem(toggle));
+            MenuSlots.add(this, MenuSlot.PANEL_TOGGLES, new JCheckBoxMenuItem(toggle));
         }
     }
 
     /** Ver ▸ Zoom and the three tools of Herramientas this view owns (the others come from extensions). */
     private void addZoomAndToolItems() {
-        for (Action step : List.of(actions.zoomIn(), actions.zoomOut(), actions.zoomReset(), actions.zoomToFit(),
-                actions.zoomToSelection())) {
+        for (Action step : List.of(actions.zoomIn(), actions.zoomOut(), actions.zoomReset())) {
             MenuSlots.add(this, MenuSlot.ZOOM_STEPS, new JMenuItem(step));
         }
+        // Mayús+1 and Mayús+2 are canvas keys: shown, never bound (I1)
+        MenuSlots.add(this, MenuSlot.ZOOM_STEPS, new ShownAcceleratorItem(actions.zoomToFit()));
+        MenuSlots.add(this, MenuSlot.ZOOM_STEPS, new ShownAcceleratorItem(actions.zoomToSelection()));
         MenuSlots.add(this, MenuSlot.ZOOM_FIELD, new JMenuItem(zoomControl.typeZoomAction()));
         MenuSlots.add(this, MenuSlot.CENTER_VIEW, new JMenuItem(actions.centerView()));
-        MenuSlots.add(this, MenuSlot.SELECT_TOOL, new JMenuItem(actions.selectTool()));
-        MenuSlots.add(this, MenuSlot.PAN_TOOL, new JMenuItem(actions.panTool()));
-        MenuSlots.add(this, MenuSlot.ZOOM_TOOL, new JMenuItem(actions.zoomTool()));
+        addToolMenuItem(MenuSlot.SELECT_TOOL, actions.selectTool(), SelectTool.class);
+        addToolMenuItem(MenuSlot.PAN_TOOL, actions.panTool(), PanTool.class);
+        addToolMenuItem(MenuSlot.ZOOM_TOOL, actions.zoomTool(), ZoomTool.class); // shows Z, the canvas fires it
     }
 
     private void createInspectorToggles() {
@@ -523,6 +552,16 @@ public final class EditorView extends JPanel implements CanvasHost {
         addInspectorToggle(InspectorPanel.PROBLEMS, "problems.tab", KeyEvent.VK_4);
         addInspectorToggle(InspectorPanel.NOTES, "stickyNotes.tab", KeyEvent.VK_5);
         addInspectorToggle(InspectorPanel.MEMORY_MAP, "memory.map.tab", KeyEvent.VK_6);
+        // the checks follow the panel whatever opened, switched or closed it: a key, the strip, its own ✕, a tab
+        inspector.onStateChange(this::checkTheShownSection);
+        checkTheShownSection();
+    }
+
+    /** Ver ▸ Paneles: the section the right panel shows is checked, the others (and all, while it is closed) not. */
+    private void checkTheShownSection() {
+        Optional<String> shown = inspector.isOpen() ? inspector.selectedTab() : Optional.empty();
+        inspectorToggles.forEach((id, toggle) -> toggle.putValue(Action.SELECTED_KEY,
+                shown.filter(id::equals).isPresent()));
     }
 
     private void addInspectorToggle(String id, String nameKey, int digit) {
@@ -1026,6 +1065,37 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /**
+     * Adds the Herramientas item of a tool to {@code slot}: a radio item of the tools' group, chosen while the active
+     * pane's tool is a {@code toolType}, whether the menu, the toolbar, a key or Esc chose it (M4). A canvas key of the
+     * tool shows on it without being bound (Z for Zoom). Returns what takes it back.
+     */
+    public Runnable addToolMenuItem(MenuSlot slot, Action action, Class<? extends Tool> toolType) {
+        ShownAcceleratorItem.Radio item = new ShownAcceleratorItem.Radio(action);
+        toolItems.add(item);
+        toolTypes.put(item, toolType);
+        item.setSelected(toolType.isInstance(canvas().tool()));
+        Runnable itemRemover = MenuSlots.add(this, slot, item);
+        return () -> {
+            itemRemover.run();
+            toolTypes.remove(item);
+            toolItems.remove(item);
+        };
+    }
+
+    /** Chooses the Herramientas item of {@code tool}; none when the tool has no item (placing a component). */
+    private void showToolInMenu(Tool tool) {
+        Optional<JRadioButtonMenuItem> chosen = toolTypes.entrySet().stream()
+                .filter(entry -> entry.getValue().isInstance(tool))
+                .map(Map.Entry::getKey)
+                .findFirst();
+        if (chosen.isPresent()) {
+            chosen.get().setSelected(true);
+        } else {
+            toolItems.clearSelection();
+        }
+    }
+
+    /**
      * Adds a toggle button that is not a tool (it stays outside the tool group) right after the last tool button,
      * Zoom. Returns what takes it back.
      */
@@ -1359,6 +1429,7 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     private void toolChanged(Tool tool) {
         editorToolBar.showTool(tool);
+        showToolInMenu(tool);
         if (!tool.placesFromPalette()) {
             palette.clearSelection();
         }

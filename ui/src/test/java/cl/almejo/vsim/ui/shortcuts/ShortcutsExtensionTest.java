@@ -201,6 +201,88 @@ class ShortcutsExtensionTest {
         assertThat(view.selectionActions().cut().getValue(Action.ACCELERATOR_KEY)).isNull();
     }
 
+    /** The item of {@code action} anywhere in {@code menu}, inside its submenus too. */
+    private static JMenuItem deepItemOf(JMenu menu, Action action) {
+        for (java.awt.Component child : menu.getMenuComponents()) {
+            if (child instanceof JMenu submenu) {
+                JMenuItem found = findIn(submenu, action);
+                if (found != null) {
+                    return found;
+                }
+            } else if (child instanceof JMenuItem item && item.getAction() == action) {
+                return item;
+            }
+        }
+        throw new AssertionError("no menu item for " + action.getValue(Action.NAME));
+    }
+
+    private static JMenuItem findIn(JMenu menu, Action action) {
+        try {
+            return deepItemOf(menu, action);
+        } catch (AssertionError notThere) {
+            return null;
+        }
+    }
+
+    @Test
+    void theMenuItemsOfCanvasKeysShowTheirKeyAndFollowAReassignment() {
+        JMenuItem delete = itemOf(view.menu(MenuId.EDIT), view.actions().delete());
+        assertThat(delete.getAccelerator()).isEqualTo(plain(KeyEvent.VK_DELETE));
+        assertThat(itemOf(view.menu(MenuId.EDIT), view.actions().rotateClockwise()).getAccelerator())
+                .isEqualTo(plain(KeyEvent.VK_R));
+        assertThat(itemOf(view.menu(MenuId.EDIT), view.labelFeatures().actions().editLabel()).getAccelerator())
+                .isEqualTo(plain(KeyEvent.VK_F2));
+        assertThat(itemOf(view.menu(MenuId.EDIT), view.problems().nextProblem()).getAccelerator())
+                .isEqualTo(plain(KeyEvent.VK_F8));
+        assertThat(deepItemOf(view.menu(MenuId.VIEW), view.actions().zoomToFit()).getAccelerator())
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_1, InputEvent.SHIFT_DOWN_MASK));
+        assertThat(deepItemOf(view.menu(MenuId.VIEW), view.actions().zoomToSelection()).getAccelerator())
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_2, InputEvent.SHIFT_DOWN_MASK));
+        assertThat(itemOf(view.menu(MenuId.TOOLS), view.actions().zoomTool()).getAccelerator())
+                .isEqualTo(plain(KeyEvent.VK_Z));
+
+        bindings.assign("edit.delete", control(KeyEvent.VK_DELETE)); // Retroceso is Borrar's fixed alias, not free
+
+        assertThat(delete.getAccelerator()).isEqualTo(control(KeyEvent.VK_DELETE));
+        assertThat(view.actions().delete().getValue(Action.ACCELERATOR_KEY))
+                .as("still a canvas key: no menu accelerator that would fire while typing").isNull();
+        assertThat((String) view.actions().delete().getValue(Action.SHORT_DESCRIPTION))
+                .contains("(" + KeyNames.describe(control(KeyEvent.VK_DELETE)) + ")");
+    }
+
+    @Test
+    void pressingACanvasKeyWithItsMenuItemShownRunsTheActionOnce() {
+        cl.almejo.vsim.core.document.Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0,
+                Map.of(StandardComponentTypes.NEGATE, true));
+        view.selection().select(gate.id());
+        int[] deletions = {0};
+        view.actions().addDeleteListener(ids -> deletions[0]++);
+        KeyStroke delete = plain(KeyEvent.VK_DELETE);
+        JMenuItem item = itemOf(view.menu(MenuId.EDIT), view.actions().delete());
+
+        boolean menuRan = ((cl.almejo.vsim.ui.actions.ShownAcceleratorItem) item).processKeyBinding(delete,
+                new KeyEvent(item, KeyEvent.KEY_PRESSED, 0L, 0, KeyEvent.VK_DELETE, KeyEvent.CHAR_UNDEFINED),
+                JComponent.WHEN_IN_FOCUSED_WINDOW, true);
+        Object name = canvasKeys(view).get(delete);
+        view.canvas().getActionMap().get(name).actionPerformed(
+                new java.awt.event.ActionEvent(view.canvas(), java.awt.event.ActionEvent.ACTION_PERFORMED, ""));
+
+        assertThat(menuRan).isFalse();
+        assertThat(deletions[0]).isEqualTo(1);
+        assertThat(openDocument.document().component(gate.id())).isEmpty();
+    }
+
+    @Test
+    void aDisabledDeleteSaysWhyInItsTooltip() {
+        view.selection().clear();
+
+        String tooltip = (String) view.actions().delete().getValue(Action.SHORT_DESCRIPTION);
+
+        assertThat(view.actions().delete().isEnabled()).isFalse();
+        assertThat(tooltip).contains(KeyNames.describe(plain(KeyEvent.VK_DELETE)))
+                .contains(cl.almejo.vsim.ui.i18n.Messages.text("reason.needsSelection"));
+    }
+
     private static AbstractButton toolbarButton(EditorView target, Action action) {
         return Arrays.stream(target.toolBar().getComponents())
                 .filter(AbstractButton.class::isInstance)

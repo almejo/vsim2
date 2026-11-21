@@ -65,6 +65,14 @@ public interface WindowCommands {
     default void moveGroupToNewWindow() {
     }
 
+    /**
+     * Whether the window holds a group besides the active tab's, so «Mover el grupo a una ventana nueva» can move it
+     * out; true outside a real window, where the item does nothing either way.
+     */
+    default boolean holdsOtherGroups() {
+        return true;
+    }
+
     /** Ventana ▸ «Plegar / desplegar el grupo» of the active tab. */
     default void toggleFold() {
     }

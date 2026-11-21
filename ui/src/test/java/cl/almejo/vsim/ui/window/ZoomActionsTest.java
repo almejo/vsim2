@@ -237,6 +237,6 @@ class ZoomActionsTest {
         assertThat(view.actions().zoomToSelection().getValue(Action.NAME)).isEqualTo("Zoom a la selección");
         assertThat(view.actions().zoomToFit().getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Ver todo el circuito");
         assertThat(view.actions().zoomToSelection().getValue(Action.SHORT_DESCRIPTION))
-                .isEqualTo("Zoom a la selección (necesita algo seleccionado)");
+                .as("disabled without a selection: the reason follows").isEqualTo("Zoom a la selección — Selecciona algo primero");
     }
 }

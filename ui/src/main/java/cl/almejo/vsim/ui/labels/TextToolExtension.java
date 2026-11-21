@@ -6,10 +6,8 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
-import cl.almejo.vsim.ui.window.MenuSlots;
 
 import javax.swing.Action;
-import javax.swing.JMenuItem;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +24,7 @@ public final class TextToolExtension implements EditorExtension {
         Action tool = Actions.of(Messages.text("action.toolText"), () -> view.setToolOnEveryPane(TextTool::new));
         Icons.install(tool, TextToolIcons.TOOL);
         removers.add(view.addToolButton(tool, TextTool.class));
-        removers.add(MenuSlots.add(view, MenuSlot.TEXT_TOOL, new JMenuItem(tool)));
+        removers.add(view.addToolMenuItem(MenuSlot.TEXT_TOOL, tool, TextTool.class));
         removers.add(view.registerShortcutAction("view.textTool", tool));
         return () -> removers.reversed().forEach(Runnable::run);
     }

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.shortcuts;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -24,8 +25,9 @@ import java.util.Set;
  * Applies the keyboard shortcuts of {@link KeyBindings} to one editor view (spec §5.2): menu accelerators for WINDOW
  * entries, canvas bindings named {@code shortcut.<id>} for CANVAS entries on every pane of the view. Installed last,
  * so the actions earlier extensions registered ({@link EditorView#registerShortcutAction}) are there. It re-applies
- * on every preference change, so a change made in any window shows at once in all of them. A catalog id without an
- * action in this view is skipped. If stored overrides give two actions the same stroke, the first in catalog order
+ * on every preference change, so a change made in any window shows at once in all of them. A canvas key is also
+ * shown on its action ({@link Actions#SHOWN_ACCELERATOR}), so its menu items and tooltip say the key (I1). A catalog
+ * id without an action in this view is skipped. If stored overrides give two actions the same stroke, the first in catalog order
  * keeps it. Toolbar tooltips end with the current shortcut ({@link ToolbarTooltips}, M6.1-E).
  */
 public final class ShortcutsExtension implements EditorExtension {
@@ -51,6 +53,7 @@ public final class ShortcutsExtension implements EditorExtension {
             preferences.removeListener(listener);
             paneBindings.run();
             tooltips.dispose();
+            applier.forgetShownKeys();
         };
     }
 
@@ -196,6 +199,9 @@ public final class ShortcutsExtension implements EditorExtension {
                 stroke.ifPresent(found -> applied.put(entry.id(), found));
                 if (entry.scope() == Scope.WINDOW) {
                     action.putValue(Action.ACCELERATOR_KEY, stroke.orElse(null));
+                } else {
+                    // the menu items show the canvas key without binding it (I1)
+                    action.putValue(Actions.SHOWN_ACCELERATOR, stroke.orElse(null));
                 }
             }
             boundByPane.forEach((pane, bound) -> {
@@ -218,6 +224,16 @@ public final class ShortcutsExtension implements EditorExtension {
         private static void unbindCanvasKeys(CircuitCanvas pane, Map<String, KeyStroke> bound) {
             bound.forEach((id, stroke) -> pane.unbindKey(stroke, BINDING_PREFIX + id));
             bound.clear();
+        }
+
+        /** The menu items of the canvas keys show no key any more (the extension goes). */
+        void forgetShownKeys() {
+            for (ShortcutEntry entry : ShortcutCatalog.entries()) {
+                Action action = actions.get(entry.id());
+                if (entry.scope() == Scope.CANVAS && action != null) {
+                    action.putValue(Actions.SHOWN_ACCELERATOR, null);
+                }
+            }
         }
 
         /** The shortcut the last {@link #apply()} gave {@code id} (menu accelerator or canvas key), if any. */

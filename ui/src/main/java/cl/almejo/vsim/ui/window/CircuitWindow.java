@@ -269,10 +269,23 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     /** With a single group there is nothing to move out: the window already shows only it. */
     @Override
     public void moveGroupToNewWindow() {
-        if (tabs.documents().size() > 1) {
+        if (holdsOtherGroups()) {
             application.moveGroupToNewWindow(this, activeDocument(),
                     NewViewPlacement.after(getLocation(), viewState()).location());
         }
+    }
+
+    @Override
+    public boolean holdsOtherGroups() {
+        return tabs.documents().size() > 1;
+    }
+
+    /** «Mover el grupo…» of every tab follows the number of groups (the palette reads it without opening Ventana). */
+    private void refreshWindowActions() {
+        if (tabs == null) {
+            return; // the tabs tell the host while they are still being built
+        }
+        tabs.views().forEach(view -> view.actions().refreshWindowActions());
     }
 
     @Override
@@ -529,6 +542,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         @Override
         public void tabsChanged(OpenDocument document) {
             application.tabsChanged(document, CircuitWindow.this);
+            refreshWindowActions();
         }
 
         @Override
@@ -549,6 +563,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         @Override
         public void activeTabChanged() {
             updateTitle();
+            refreshWindowActions();
         }
 
         @Override

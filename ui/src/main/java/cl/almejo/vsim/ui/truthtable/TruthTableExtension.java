@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.truthtable;
 
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -18,7 +19,8 @@ public final class TruthTableExtension implements EditorExtension {
 
     public TruthTableExtension() {
         this(TruthTableWindow::open,
-                (parent, message) -> JOptionPane.showMessageDialog(parent, message),
+                (parent, message) -> JOptionPane.showMessageDialog(parent, message, messageTitle(),
+                        JOptionPane.INFORMATION_MESSAGE),
                 TruthTableFeatures.Confirmation.dialog(),
                 TruthTableRunner::create);
     }
@@ -33,6 +35,11 @@ public final class TruthTableExtension implements EditorExtension {
         this.messages = messages;
         this.confirmation = confirmation;
         this.runners = runners;
+    }
+
+    /** The title of its notices («Tabla de verdad», I8), not Swing's «Mensaje». */
+    static String messageTitle() {
+        return Messages.text("truthTable.messageTitle");
     }
 
     @Override

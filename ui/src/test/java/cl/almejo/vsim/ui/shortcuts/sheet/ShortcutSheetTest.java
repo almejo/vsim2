@@ -240,7 +240,7 @@ class ShortcutSheetTest {
         JMenuItem item = helpItem();
         KeyStroke questionMark = KeyStroke.getKeyStroke('?');
 
-        boolean fired = ((ShownAcceleratorItem) item).processKeyBinding(questionMark,
+        boolean fired = ((cl.almejo.vsim.ui.actions.ShownAcceleratorItem) item).processKeyBinding(questionMark,
                 typed(item, '?', 0), JMenuItem.WHEN_IN_FOCUSED_WINDOW, false);
 
         assertThat(fired).as("a «?» a text field did not take must not open the sheet").isFalse();

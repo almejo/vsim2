@@ -57,6 +57,8 @@ public final class SplitViewsFeatures {
                 () -> panes.split(Orientation.VERTICAL, MIDDLE));
         this.removeSplit = Actions.of(Messages.text("action.removeSplit"), panes::removeAll);
         this.nextPane = Actions.of(Messages.text("action.nextPane"), this::activateNextPane);
+        Actions.disabledBecause(removeSplit, () -> Messages.text("reason.notSplit"));
+        Actions.disabledBecause(nextPane, () -> Messages.text("reason.notSplit"));
         this.windowMenu = view.menu(MenuId.WINDOW);
         insertMenuItems();
         removers.add(view.registerShortcutAction(SPLIT_HORIZONTAL_SHORTCUT, splitHorizontal));
