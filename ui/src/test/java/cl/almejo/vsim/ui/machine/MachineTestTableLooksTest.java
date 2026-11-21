@@ -69,6 +69,32 @@ class MachineTestTableLooksTest {
         }
     }
 
+    @Test
+    void theUntouchedFirstTestShowsItsGreyHint() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            for (String name : List.of("light", "dark")) {
+                UIManager.setLookAndFeel(name.equals("light") ? new FlatLightLaf() : new FlatDarkLaf());
+                MachineTestTable table = new MachineTestTable(new FakeTestSession(MachineFixtures.detector()),
+                        () -> name.equals("light") ? ColorSchemes.LIGHT : ColorSchemes.DARK);
+                SwingUtilities.updateComponentTreeUI(table);
+                table.setSize(WIDTH, HEIGHT);
+                layOut(table);
+                BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+                Graphics2D graphics = image.createGraphics();
+                try {
+                    table.printAll(graphics);
+                } finally {
+                    graphics.dispose();
+                }
+                write(image, "machine-test-table-empty-" + name + ".png");
+                assertThat(table.hint().getText()).startsWith("Escribe lo que esperas que salga");
+            }
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
+    }
+
     private static void render(LookAndFeel theme, ColorScheme scheme, String name, int zoom) throws Exception {
         System.setProperty("flatlaf.uiScale", String.valueOf(zoom));
         UIManager.setLookAndFeel(theme);

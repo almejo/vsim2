@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.waveform.WaveformFeatures;
+import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.DraftGuard;
 import cl.almejo.vsim.ui.window.DraftGuards;
@@ -156,6 +157,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         removals.add(frame.showTestMode(bar));
         BottomDock dock = view.bottomDock();
         MachineTestTable table = new MachineTestTable(this, () -> view.services().appearance().scheme());
+        NewsTargets.register(table, MachineTestHelp.TARGET_ID, NewsTargets.Side.ABOVE); // the help bubble points at it
         removals.add(dock.contentInstead(table));
         removals.add(table::close); // runs first on leaving: the table stops following, then the strip comes back
         // in presentation mode the table has the strip's pin, and the bottom edge brings it up as it brings the strip

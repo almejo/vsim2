@@ -154,6 +154,8 @@ public final class MachineTestTable extends JPanel {
         scrollBars.getVerticalScrollBar().setUnitIncrement(grid.model().layout().rowHeight());
         refreshTabs(grid.model());
         summary.setText(model.summary());
+        hint.setText(Messages.text(model.unwritten() ? "machine.test.hint.first" : "machine.test.hint"));
+        hint.setToolTipText(hint.getText()); // a narrow window cuts it with «…»: the whole line is here
     }
 
     private void refreshTabs(MachineTestTableModel model) {

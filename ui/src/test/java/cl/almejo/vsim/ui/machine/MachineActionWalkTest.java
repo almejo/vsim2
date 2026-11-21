@@ -70,7 +70,7 @@ class MachineActionWalkTest {
     private static final Map<MenuId, List<String>> MENU_ITEMS_WITHOUT_ID = Map.of(
             MenuId.SIMULATION, List.of("action.pauseOnShortCircuit"),
             MenuId.HELP, List.of("action.about", "action.shortcutSheet", "action.tipOfTheDay", "action.whatsNew",
-                    "action.reportProblem"));
+                    "action.reportProblem", "action.machineTestHelp"));
 
     @TempDir
     Path directory;

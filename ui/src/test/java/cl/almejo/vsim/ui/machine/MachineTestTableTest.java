@@ -247,6 +247,19 @@ class MachineTestTableTest {
     }
 
     @Test
+    void theUntouchedFirstTestHasAGreyHintWhatToWrite() {
+        assertThat(table.hint().getText()).isEqualTo(Messages.text("machine.test.hint.first"));
+        assertThat(table.hint().getText()).startsWith("Escribe lo que esperas que salga");
+        assertThat(table.hint().getToolTipText()).as("the whole line when a narrow window cuts it")
+                .isEqualTo(table.hint().getText());
+
+        click(rowOf(MachineTestTableModel.Kind.INPUT, X), 0, 0);
+
+        assertThat(table.hint().getText()).as("once written, the short hint")
+                .isEqualTo(Messages.text("machine.test.hint"));
+    }
+
+    @Test
     void aPlusTabFollowsTheLastTestAndAddsOneInOneStep() {
         assertThat(table.tabs().getTabCount()).as("Prueba 1 and the «+»").isEqualTo(2);
         assertThat(table.tabs().getTitleAt(plusTab())).isEqualTo(Messages.text("machine.test.tab.new"));

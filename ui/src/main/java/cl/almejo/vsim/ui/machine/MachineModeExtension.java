@@ -35,6 +35,7 @@ public final class MachineModeExtension implements EditorExtension {
         MachineTestEntries testEntries = MachineTestEntries.install(view);
         Runnable leaveMachineMode = MachineMode.install(view, stateSource);
         testEntries.followMachineMode();
+        Runnable removeHelpItem = MachineTestHelp.installMenuItem(view);
         Runnable stopNavigating = MachineProblemNavigation.install(view);
         Runnable removeNameRows = view.labelFeatures().properties()
                 .addComponentRows(new MachineNameRows(view.openDocument(), MachineLibrary.of(view)));
@@ -46,6 +47,7 @@ public final class MachineModeExtension implements EditorExtension {
             removePieceRows.run();
             removeNameRows.run();
             stopNavigating.run();
+            removeHelpItem.run();
             leaveMachineMode.run();
             testEntries.uninstall();
             removeDuplication.run();
