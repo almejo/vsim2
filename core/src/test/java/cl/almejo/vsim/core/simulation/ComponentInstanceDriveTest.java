@@ -128,4 +128,29 @@ class ComponentInstanceDriveTest {
         assertThat(valueOf("a")).isEqualTo(Value.HIGH_IMPEDANCE);
         assertThat(engine.nextEventTime()).isEmpty();
     }
+
+    /** Two drives due together, as a gate whose two inputs change at the same time schedules them. */
+    @Test
+    void aDriveDueTogetherWithThePinsLastOneTakesItsPlace() {
+        registry.register(new ComponentType("test-double-drive", ComponentCategory.DEBUG, new GridSize(2, 2),
+                List.of(PinSpec.output("out", 2, 1)), List.of(),
+                parameters -> new Behavior() {
+                    @Override
+                    public void initialize(BehaviorContext context) {
+                        context.drive(0, Value.ONE, 2);
+                        context.drive(0, Value.ZERO, 2);
+                    }
+
+                    @Override
+                    public void inputChanged(BehaviorContext context, int pinIndex) {
+                    }
+                }));
+        engine.update(new FlatCircuit(List.of(component("d", "test-double-drive", Map.of())),
+                List.of(net("out", pin("d", 0)))));
+
+        EventBudgetRun run = engine.runWithEventBudget(10, () -> engine.runUntil(5));
+
+        assertThat(run.eventsProcessed()).as("one drive: the pin never shows the 1 for no time at all").isEqualTo(1);
+        assertThat(valueOf("out")).isEqualTo(Value.ZERO);
+    }
 }

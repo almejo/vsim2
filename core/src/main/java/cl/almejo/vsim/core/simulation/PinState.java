@@ -19,6 +19,13 @@ final class PinState {
     Value headingTo;
     /** The time the drive that brings {@link #headingTo} is due. */
     long headingToTime;
+    /**
+     * Set when the pin was given a drive to another value than {@link #headingTo} while drives were in flight, until
+     * it settles (no drive in flight): such a pin is not letting go of its net, whatever it is heading to now.
+     */
+    boolean changedCourse;
+    /** The drive in flight that brings {@link #headingTo}; meaningful only while {@link #pendingDrives} &gt; 0. */
+    ComponentInstance.DriveEvent latestDrive;
     RuntimeNet net;
 
     PinState(ComponentInstance instance, int index, PinSpec spec) {

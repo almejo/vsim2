@@ -105,13 +105,19 @@ final class RuntimeNet {
 
     /**
      * Whether {@code pin}, which has drives in flight, is really letting go of the net: the value its last drive brings
-     * is high impedance, or the net is heading to no conflict on any bit that value drives (it agrees with what the
-     * other pins drive or are heading to). A pin heading to a fight is no handoff: it counts as a settled driver now,
-     * so a part slower than the changes of its input (a buffer of delay 2 on a clock of 1/1 against a Constante) shows
-     * its short instead of hiding it forever.
+     * is high impedance, or the pin has not {@linkplain PinState#changedCourse changed course} since it left its last
+     * value and the net is heading to no conflict on any bit that value drives (it agrees with what the other pins
+     * drive or are heading to). A pin heading to a fight, or one whose input keeps changing faster than its delay, is
+     * no handoff: it counts as a settled driver now, so a part slower than the changes of its input (a buffer of
+     * delay 2 or 3 on a clock of 1/1 against a Constante) shows its short instead of hiding it forever.
+     *
+     * <p>Whether a pin lets go is read only when the net is resolved, that is when a drive arrives; a pin that starts
+     * or changes course in between counts from the net's next event (re-resolving at once, from {@code drive}, could
+     * feed back into the pin's own drives and loop at one time).
      */
     private boolean lettingGo(PinState pin) {
-        return pin.headingTo.isFullyHighImpedance() || !headings.conflictsOn(pin.headingTo);
+        return pin.headingTo.isFullyHighImpedance()
+                || (!pin.changedCourse && !headings.conflictsOn(pin.headingTo));
     }
 
     Value valueFor(PinState pin) {

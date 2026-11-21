@@ -149,6 +149,28 @@ class RuntimeNetTest {
     }
 
     @Test
+    void aPinThatChangedCourseCountsAsSettledEvenHeadingToTheSettledValue() {
+        PinState changing = transitioning(1, Value.ZERO, Value.ONE);
+        changing.changedCourse = true;
+        RuntimeNet net = net(1, output(1, Value.ONE), changing);
+
+        net.resolve(0);
+
+        assertThat(net.value.conflict()).as("its input changes faster than its delay: it is not letting go").isTrue();
+    }
+
+    @Test
+    void aPinThatChangedCourseStillYieldsWhenHeadingToHighImpedance() {
+        PinState changing = transitioning(1, Value.ZERO, Value.HIGH_IMPEDANCE);
+        changing.changedCourse = true;
+        RuntimeNet net = net(1, output(1, Value.ONE), changing);
+
+        net.resolve(0);
+
+        assertThat(net.value).isEqualTo(Value.ONE);
+    }
+
+    @Test
     void twoPinsHeadingToDisagreeingValuesCountAsSettledNow() {
         RuntimeNet net = net(1, transitioning(1, Value.ONE, Value.ONE), transitioning(1, Value.ZERO, Value.ZERO));
 
