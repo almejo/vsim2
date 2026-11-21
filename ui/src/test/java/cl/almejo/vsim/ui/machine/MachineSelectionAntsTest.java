@@ -1,5 +1,8 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
@@ -90,6 +93,16 @@ class MachineSelectionAntsTest {
     }
 
     @Test
+    void aSelectedNoteMarchesLikeTheRestAndComesBackAfterOnePeriod() {
+        MachineNote note = new MachineNote("n1", new DiagramPoint(40, 150), MachineNote.DEFAULT_WIDTH,
+                MachineNote.DEFAULT_HEIGHT, StickyColor.YELLOW, "hola");
+
+        assertThat(pixels(paintNoteRing(note, 0))).isNotEqualTo(pixels(paintNoteRing(note, 3)));
+        assertThat(pixels(paintNoteRing(note, 0)))
+                .isEqualTo(pixels(paintNoteRing(note, MarchingAnts.PERIOD)));
+    }
+
+    @Test
     void theAntsMarchOnlyWhileSomethingIsSelectedAndAnimationsAreOn() {
         assertThat(canvas.antsRunning()).as("nothing selected: no clock, no repaints").isFalse();
 
@@ -141,6 +154,17 @@ class MachineSelectionAntsTest {
         MachineDiagramPainter.paint(graphics, machine, MachineDiagramGeometry.of(machine),
                 new MachineDiagramPainter.Marks(Optional.empty(), selection, MachineGlows.NONE, Optional.empty(),
                         phase), dark);
+        graphics.dispose();
+        return image;
+    }
+
+    private BufferedImage paintNoteRing(MachineNote note, double phase) {
+        BufferedImage image = new BufferedImage(800, 500, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(dark.background());
+        graphics.fillRect(0, 0, 800, 500);
+        graphics.translate(OFFSET_X, OFFSET_Y);
+        MachineNotePainting.paintSelection(graphics, note, dark, phase);
         graphics.dispose();
         return image;
     }

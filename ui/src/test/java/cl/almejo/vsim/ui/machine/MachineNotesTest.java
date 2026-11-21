@@ -189,6 +189,44 @@ class MachineNotesTest {
     }
 
     @Test
+    void anEditThatLeavesOnlyBlanksKeepsTheNoteAsItWas() {
+        stickOne("Recordatorio");
+        StateMachine before = machine();
+        doubleClick(at(100, 200));
+        assertThat(inline().isOpen()).isTrue();
+
+        inline().textComponent().setText("   ");
+        inline().confirm();
+
+        assertThat(onlyNote().text()).isEqualTo("Recordatorio");
+        assertThat(machine()).isEqualTo(before);
+    }
+
+    @Test
+    void anEditThatClearsTheNoteTextKeepsItToo() {
+        stickOne("Recordatorio");
+        doubleClick(at(100, 200));
+
+        inline().textComponent().setText("");
+        inline().confirm();
+
+        assertThat(onlyNote().text()).isEqualTo("Recordatorio");
+    }
+
+    @Test
+    void aRealEditOfANoteIsOneUndoStepThatBringsTheWordsBack() {
+        stickOne("Recordatorio");
+        doubleClick(at(100, 200));
+
+        inline().textComponent().setText("Otra cosa");
+        inline().confirm();
+        assertThat(onlyNote().text()).isEqualTo("Otra cosa");
+        perform(view.actions().undo());
+
+        assertThat(onlyNote().text()).isEqualTo("Recordatorio");
+    }
+
+    @Test
     void theToolbarsStickyNoteIsEnabledInAMachineTabAndArmsTheDiagramsNote() {
         Action sticky = ShortcutsExtension.actionsOf(view).get("view.stickyNoteTool");
         assertThat(sticky.isEnabled()).isTrue();

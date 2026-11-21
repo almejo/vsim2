@@ -532,14 +532,18 @@ public final class Application {
     }
 
     /**
-     * Ventana ▸ «Nueva ventana con este circuito»: a new window with a new main tab of the active tab's document, 30 px
-     * down-right of its source, same zoom and center.
+     * «Nueva vista en otra ventana»: a new window with a new main tab of the active tab's document and, when the active tab
+     * is a machine or a component, a tab of that too, 30 px down-right of its source, same zoom and center.
      */
     public CircuitWindow newWindow(CircuitWindow source) {
         NewViewPlacement placement = NewViewPlacement.after(source.getLocation(), source.viewState());
         // setLocation also cancels the platform placement of the constructor
-        return showInNewWindow(source.activeDocument(), window -> placement.applyTo(
-                state -> window.tabs().setInitialViewState(window.activeView(), state), window::setLocation));
+        return showInNewWindow(source.activeDocument(), window -> {
+            // inside a machine or a component, the new window shows that place too, not only the circuit
+            source.tabs().showActivePlaceIn(window.tabs());
+            placement.applyTo(state -> window.tabs().setInitialViewState(window.activeView(), state),
+                    window::setLocation);
+        });
     }
 
     /**

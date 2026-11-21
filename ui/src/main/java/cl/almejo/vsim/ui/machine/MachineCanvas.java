@@ -837,7 +837,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             MachineNotePainting.paint(canvas, note, colours, viewport.zoom(),
                     gestures.closeHoveredNote().filter(note.id()::equals).isPresent());
             if (selection.containsNote(note.id())) {
-                MachineNotePainting.paintSelection(canvas, note, colours);
+                MachineNotePainting.paintSelection(canvas, note, colours, marchingAnts.phase());
             }
         }
     }
