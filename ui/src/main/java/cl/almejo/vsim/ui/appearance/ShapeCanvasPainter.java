@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.appearance;
 
+import com.formdev.flatlaf.util.UIScale;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
@@ -47,7 +48,7 @@ import java.util.Set;
 
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.BAND_FILL_ALPHA;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.BAND_WIDTH;
-import static cl.almejo.vsim.ui.appearance.ShapeCanvas.BOX_HANDLE_OFFSET;
+import static cl.almejo.vsim.ui.appearance.ShapeCanvas.boxHandleOffset;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.UNIT;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.handlePoint;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.paintAppearance;
@@ -60,6 +61,12 @@ final class ShapeCanvasPainter {
     private static final double SCREEN_PIN_RADIUS = 6;
     private static final double PIN_RING_RADIUS = 10;
     private static final int NOTCH_LENGTH = 4;
+
+    /** {@code pixels} screen pixels at the current interface size. */
+    private static double scaled(double pixels) {
+        return UIScale.scale((float) pixels);
+    }
+
     /** Handles and their lines, in screen pixels: smaller than a node, so the node stays the thing to grab. */
     private static final double HANDLE_RADIUS = 3.5;
     private static final double ACTIVE_HANDLE_RADIUS = 4.5;
@@ -92,8 +99,8 @@ final class ShapeCanvasPainter {
             ComponentAppearance appearance = canvas.current.get().appearance();
             surface.transform(canvas.viewport.documentTransform());
             paintAppearance(surface, canvas.definition, appearance, scheme, true,
-                    (float) (SCREEN_STROKE_WIDTH / zoom()),
-                    SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom()));
+                    (float) (scaled(SCREEN_STROKE_WIDTH) / zoom()),
+                    scaled(SCREEN_PIN_RADIUS) / (PainterSupport.PIN_DOT_RADIUS * zoom()));
             paintGuides(surface, scheme, appearance.size());
             paintBox(surface, scheme, appearance);
             surface.setColor(scheme.selection());
@@ -158,10 +165,10 @@ final class ShapeCanvasPainter {
         if (!canvas.current.get().pinsLocked()) {
             double right = appearance.size().width() * UNIT;
             double bottom = appearance.size().height() * UNIT;
-            double offset = BOX_HANDLE_OFFSET / zoom();
+            double offset = boxHandleOffset() / zoom();
             surface.draw(new Line2D.Double(right, bottom, right + offset, bottom + offset));
-            surface.fill(new Ellipse2D.Double(right + offset - 3 / zoom(),
-                    bottom + offset - 3 / zoom(), 6 / zoom(), 6 / zoom()));
+            surface.fill(new Ellipse2D.Double(right + offset - scaled(3) / zoom(),
+                    bottom + offset - scaled(3) / zoom(), scaled(6) / zoom(), scaled(6) / zoom()));
         }
     }
 
@@ -174,9 +181,9 @@ final class ShapeCanvasPainter {
                 surface.setColor(hovered && !selected ? PainterSupport.withAlpha(scheme.selection(), 200)
                         : scheme.selection());
                 surface.setStroke(new BasicStroke((float) ((selected ? 2 : 1.5) / zoom())));
-                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - PIN_RING_RADIUS / zoom(),
-                        placement.offset().y() * UNIT - PIN_RING_RADIUS / zoom(), 2 * PIN_RING_RADIUS / zoom(),
-                        2 * PIN_RING_RADIUS / zoom()));
+                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - scaled(PIN_RING_RADIUS) / zoom(),
+                        placement.offset().y() * UNIT - scaled(PIN_RING_RADIUS) / zoom(), 2 * scaled(PIN_RING_RADIUS) / zoom(),
+                        2 * scaled(PIN_RING_RADIUS) / zoom()));
             }
         }
     }
@@ -197,7 +204,7 @@ final class ShapeCanvasPainter {
         try {
             guide.setStroke(new BasicStroke((float) (1.5 / zoom())));
             guide.setColor(PainterSupport.withAlpha(scheme.text(), 150));
-            double notch = NOTCH_LENGTH / zoom();
+            double notch = scaled(NOTCH_LENGTH) / zoom();
             for (GridPoint point : canvas.edgeNotches()) {
                 double x = point.x() * UNIT;
                 double y = point.y() * UNIT;
@@ -371,8 +378,8 @@ final class ShapeCanvasPainter {
                 box.width() / 8.0 * UNIT, box.height() / 8.0 * UNIT));
         for (SymbolDraft.Handle handle : SymbolDraft.Handle.values()) {
             SymbolPoint point = handlePoint(handle, box);
-            surface.fill(new Rectangle2D.Double(point.x() / 8.0 * UNIT - 3 / zoom(),
-                    point.y() / 8.0 * UNIT - 3 / zoom(), 6 / zoom(), 6 / zoom()));
+            surface.fill(new Rectangle2D.Double(point.x() / 8.0 * UNIT - scaled(3) / zoom(),
+                    point.y() / 8.0 * UNIT - scaled(3) / zoom(), scaled(6) / zoom(), scaled(6) / zoom()));
         }
     }
 
@@ -454,8 +461,8 @@ final class ShapeCanvasPainter {
             surface.setColor(canvas.colors.get().selection());
             surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             surface.draw(segment);
-            surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - 3 / zoom(),
-                    hit.point().y() / 8.0 * UNIT - 3 / zoom(), 6 / zoom(), 6 / zoom()));
+            surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - scaled(3) / zoom(),
+                    hit.point().y() / 8.0 * UNIT - scaled(3) / zoom(), scaled(6) / zoom(), scaled(6) / zoom()));
         });
     }
 
@@ -472,8 +479,8 @@ final class ShapeCanvasPainter {
                 new float[]{(float) (4 / zoom()), (float) (3 / zoom())}, 0));
         surface.draw(new Line2D.Double(anchor.x() / 8.0 * UNIT, anchor.y() / 8.0 * UNIT, end.x() / 8.0 * UNIT,
                 end.y() / 8.0 * UNIT));
-        Shape marker = new Ellipse2D.Double(anchor.x() / 8.0 * UNIT - 3 / zoom(), anchor.y() / 8.0 * UNIT - 3 / zoom(),
-                6 / zoom(), 6 / zoom());
+        Shape marker = new Ellipse2D.Double(anchor.x() / 8.0 * UNIT - scaled(3) / zoom(), anchor.y() / 8.0 * UNIT - scaled(3) / zoom(),
+                scaled(6) / zoom(), scaled(6) / zoom());
         surface.setColor(scheme.background());
         surface.fill(marker);
         surface.setColor(scheme.componentStroke());
@@ -496,7 +503,7 @@ final class ShapeCanvasPainter {
             placed.lineTo(node.x() / 8.0 * UNIT, node.y() / 8.0 * UNIT);
         }
         surface.setColor(scheme.componentStroke());
-        surface.setStroke(new BasicStroke((float) (SCREEN_STROKE_WIDTH / zoom()), BasicStroke.CAP_ROUND,
+        surface.setStroke(new BasicStroke((float) (scaled(SCREEN_STROKE_WIDTH) / zoom()), BasicStroke.CAP_ROUND,
                 BasicStroke.JOIN_ROUND));
         surface.draw(placed);
         boolean closing = canvas.pathDrawing.closesOnFirstNode(canvas.pointer);
@@ -515,8 +522,8 @@ final class ShapeCanvasPainter {
         }
         surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
         for (SymbolPoint node : pathNodes) {
-            Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - 3 / zoom(), node.y() / 8.0 * UNIT - 3 / zoom(),
-                    6 / zoom(), 6 / zoom());
+            Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - scaled(3) / zoom(), node.y() / 8.0 * UNIT - scaled(3) / zoom(),
+                    scaled(6) / zoom(), scaled(6) / zoom());
             surface.setColor(scheme.background());
             surface.fill(marker);
             surface.setColor(scheme.componentStroke());

@@ -20,10 +20,10 @@ final class TipBulbIcon implements Icon {
 
     private static final int SIZE = 22;
     private static final double GRID = 24.0;
-    /** The mockup's bulb: #ffd84a with a #b8860b outline, a 28 % glow and #e0a800 rays, the same in both themes. */
+    /** The mockup's bulb: #ffd84a with a #946b00 outline, a 28 % glow and #e0a800 rays, the same in both themes. */
     private static final Color BULB = new Color(0xFFD84A);
     private static final Color GLOW = new Color(0xFF, 0xD8, 0x4A, 71);
-    private static final Color OUTLINE = new Color(0xB8860B);
+    static final Color OUTLINE = new Color(0x946B00);
     private static final Color RAYS = new Color(0xE0A800);
 
     @Override

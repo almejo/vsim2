@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.about;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
 import com.formdev.flatlaf.util.UIScale;
@@ -217,7 +218,7 @@ final class AboutContent extends JPanel {
 
         @Override
         public Color getForeground() {
-            return color("Label.disabledForeground", "Component.infoForeground", "Label.foreground");
+            return ReadableColors.mutedText();
         }
     }
 

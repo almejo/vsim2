@@ -52,7 +52,7 @@ public final class CircuitReader {
 
     private OpenedCircuit parse(String content) throws CircuitFormatException {
         if (content == null || content.isBlank()) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "empty content");
+            throw new CircuitFormatException(CircuitFormatException.Reason.EMPTY_FILE, "empty content");
         }
         JsonNode root;
         try {
@@ -61,7 +61,7 @@ public final class CircuitReader {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, exception.getOriginalMessage(), exception);
         }
         if (root == null || root.isMissingNode()) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "empty content");
+            throw new CircuitFormatException(CircuitFormatException.Reason.EMPTY_FILE, "empty content");
         }
         if (FileHeader.claimsVsim2(root)) {
             return new OpenedCircuit(format.read(root), false);

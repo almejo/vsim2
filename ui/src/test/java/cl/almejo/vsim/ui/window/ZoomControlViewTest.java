@@ -164,6 +164,6 @@ class ZoomControlViewTest {
                 assertThat(label.getText()).doesNotStartWith("zoom");
             }
         }
-        assertThat(control().resetButton().getText()).isEqualTo("100 %");
+        assertThat(control().resetButton().getText()).as("an icon, no second «100 %»").isEmpty();
     }
 }

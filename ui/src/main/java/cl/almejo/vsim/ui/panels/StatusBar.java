@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -51,6 +52,8 @@ public final class StatusBar extends JPanel {
     /** What stays true of the place shown while it is shown («Sin valores» in a component tab). */
     private final JLabel placeHint = new JLabel();
     private boolean clickable;
+    /** The key of «Siguiente problema» now ({@code ""} for none): the tooltip says it, whatever it is bound to. */
+    private Supplier<String> clickKey = () -> "";
     private boolean running;
     /** The time of the last snapshot shown. */
     private long snapshotTime;
@@ -188,8 +191,14 @@ public final class StatusBar extends JPanel {
         shortCircuits.setText(text);
         shortCircuits.setVisible(!text.isEmpty());
         if (clickable) {
-            shortCircuits.setToolTipText(Messages.text(CLICK_TOOLTIP));
+            shortCircuits.setToolTipText(clickTooltip());
         }
+    }
+
+    private String clickTooltip() {
+        String key = clickKey.get();
+        String text = Messages.text(CLICK_TOOLTIP);
+        return key.isEmpty() ? text : Messages.format("tooltip.withKey", text, key);
     }
 
     private static String problemsText(int shortCircuitCount, int widthMismatchCount) {
@@ -208,9 +217,21 @@ public final class StatusBar extends JPanel {
 
     /** Clicking the "⚠ N cortocircuitos" warning runs {@code action} (jump to the next problem). */
     public void onShortCircuitsClicked(Runnable action) {
+        onShortCircuitsClicked(action, () -> "");
+    }
+
+    /** As {@link #onShortCircuitsClicked(Runnable)}; the tooltip ends with {@code key} (read when the pointer enters). */
+    public void onShortCircuitsClicked(Runnable action, Supplier<String> key) {
+        clickKey = key;
         shortCircuits.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         clickable = true;
-        shortCircuits.setToolTipText(Messages.text(CLICK_TOOLTIP));
+        shortCircuits.setToolTipText(clickTooltip());
+        shortCircuits.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent event) {
+                shortCircuits.setToolTipText(clickTooltip());
+            }
+        });
         shortCircuits.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {

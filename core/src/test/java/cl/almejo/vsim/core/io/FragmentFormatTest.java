@@ -75,7 +75,7 @@ class FragmentFormatTest {
 
     static Stream<Arguments> badInputs() {
         return Stream.of(
-                arguments(null, CircuitFormatException.Reason.INVALID_JSON),
+                arguments(null, CircuitFormatException.Reason.EMPTY_FILE),
                 arguments("not json", CircuitFormatException.Reason.INVALID_JSON),
                 arguments("[1,2]", CircuitFormatException.Reason.NOT_VSIM_FILE),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\"}", CircuitFormatException.Reason.INVALID_ELEMENT),

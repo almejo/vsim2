@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
+import javax.swing.UIManager;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -33,11 +34,13 @@ import java.util.function.LongFunction;
  */
 public final class WaveformPainter {
 
-    public static final int ROW_HEIGHT = 28;
+    private static final int ROW_HEIGHT = 28;
+    /** The font size the pixel constants of the panel were drawn for (FlatLaf's default). */
+    private static final float REFERENCE_FONT_SIZE = 13f;
     /** From the row top to the high level, and from the low level to the row bottom. */
     static final int LEVEL_MARGIN = 6;
     static final double BUS_SLANT = 3;
-    private static final float TEXT_SIZE = 11f;
+    private static final float BUS_TEXT_SIZE = 11f;
     private static final String ELLIPSIS = "…";
     /** The text of a band keeps this many pixels from the slants on each side. */
     private static final double TEXT_MARGIN = BUS_SLANT + 1;
@@ -45,6 +48,25 @@ public final class WaveformPainter {
     private static final BasicStroke LINE = new BasicStroke(1f);
     private static final BasicStroke HIGH_IMPEDANCE = new BasicStroke(1f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_MITER, 10f, new float[]{3f, 3f}, 0f);
+
+    /** {@code pixels} (drawn for the reference font) grown with the interface font, read at layout and paint time. */
+    static int scaled(int pixels) {
+        Font font = UIManager.getFont("Label.font");
+        float size = font == null ? REFERENCE_FONT_SIZE : font.getSize2D();
+        return Math.round(pixels * size / REFERENCE_FONT_SIZE);
+    }
+
+    /** The height of one channel row at the current interface size. */
+    public static int rowHeight() {
+        return scaled(ROW_HEIGHT);
+    }
+
+    /** The size of the bus value text: relative to the interface font, a little smaller. */
+    static float busTextSize() {
+        Font font = UIManager.getFont("Label.font");
+        float size = font == null ? REFERENCE_FONT_SIZE : font.getSize2D();
+        return size * BUS_TEXT_SIZE / REFERENCE_FONT_SIZE;
+    }
 
     /** What a stretch of a row shows. */
     enum Level { LOW, HIGH, HIGH_IMPEDANCE, CONFLICT, BUS, GAP }
@@ -97,14 +119,14 @@ public final class WaveformPainter {
                                   TimeAxis axis, int width, ColorScheme scheme, Map<String, String> formats,
                                   Map<String, LongFunction<String>> valueNames,
                                   Map<String, LongFunction<Optional<StateColor>>> valueColors) {
-        int height = channelIds.size() * ROW_HEIGHT;
+        int height = channelIds.size() * rowHeight();
         graphics.setColor(scheme.diagramBackground());
         graphics.fill(new Rectangle2D.Double(0, 0, width, height));
         paintGrid(graphics, axis, height, scheme);
         for (int row = 0; row < channelIds.size(); row++) {
             Optional<Trace> trace = snapshot.trace(channelIds.get(row));
             if (trace.isPresent()) {
-                paintRow(graphics, trace.get(), row * ROW_HEIGHT, axis, width, snapshot.time(), scheme,
+                paintRow(graphics, trace.get(), row * rowHeight(), axis, width, snapshot.time(), scheme,
                         formats.getOrDefault(channelIds.get(row), Probe.FORMAT_HEX),
                         valueNames.get(channelIds.get(row)), valueColors.get(channelIds.get(row)));
             }
@@ -122,7 +144,7 @@ public final class WaveformPainter {
      * Draws one row of equal steps instead of a recording (a machine test's columns, hito 4): {@code values.get(k)}
      * from {@code left + k · stepWidth} to the next step, equal neighbours joined into one segment, with the same
      * levels, edges, bands, names and colours as a recorded row ({@link #paint}); an empty value is hatched as a gap.
-     * The row is {@link #ROW_HEIGHT} tall from {@code top}.
+     * The row is {@link #rowHeight()} tall from {@code top}.
      */
     public static void paintSteps(Graphics2D graphics, List<Optional<Value>> values, double left, double stepWidth,
                                   double top, ColorScheme scheme, LongFunction<String> names,
@@ -151,15 +173,15 @@ public final class WaveformPainter {
     }
 
     static double highY(double top) {
-        return top + LEVEL_MARGIN + 0.5;
+        return top + scaled(LEVEL_MARGIN) + 0.5;
     }
 
     static double lowY(double top) {
-        return top + ROW_HEIGHT - LEVEL_MARGIN - 0.5;
+        return top + rowHeight() - scaled(LEVEL_MARGIN) - 0.5;
     }
 
     static double middleY(double top) {
-        return top + ROW_HEIGHT / 2 + 0.5;
+        return top + rowHeight() / 2 + 0.5;
     }
 
     /** The center of the pixel column {@code x} falls in, so a one-pixel line covers exactly that column. */
@@ -380,7 +402,7 @@ public final class WaveformPainter {
      */
     private static void paintName(Graphics2D graphics, String name, double left, double right, double top,
                                   Color color) {
-        FontMetrics metrics = graphics.getFontMetrics(graphics.getFont().deriveFont(TEXT_SIZE));
+        FontMetrics metrics = graphics.getFontMetrics(graphics.getFont().deriveFont(busTextSize()));
         String fitted = fittedName(name, metrics, right - left - 2 * TEXT_MARGIN);
         if (!fitted.isEmpty()) {
             paintText(graphics, fitted, left, right, top, color);
@@ -390,7 +412,7 @@ public final class WaveformPainter {
     /** {@code text} centered in the band, only when it fits between the slants. */
     private static void paintText(Graphics2D graphics, String text, double left, double right, double top,
                                   Color color) {
-        Font font = graphics.getFont().deriveFont(TEXT_SIZE);
+        Font font = graphics.getFont().deriveFont(busTextSize());
         FontMetrics metrics = graphics.getFontMetrics(font);
         int textWidth = metrics.stringWidth(text);
         if (textWidth + 2 * TEXT_MARGIN > right - left) {

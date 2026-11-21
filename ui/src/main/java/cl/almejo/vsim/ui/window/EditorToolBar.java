@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.actions.EditorActions;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
@@ -9,8 +10,8 @@ import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 
 import javax.swing.Action;
-import javax.swing.Box;
 import javax.swing.ButtonGroup;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -35,9 +36,18 @@ final class EditorToolBar {
     private final JToggleButton zoomButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
     private final Map<ToolbarSlot, List<SlotEntry>> slots = new EnumMap<>(ToolbarSlot.class);
-    private final Component glue = Box.createHorizontalGlue();
+    /** Starts the group of the {@link ToolbarSlot#RIGHT} slot, at the end of the bar; found by name. */
+    private final JToolBar.Separator endGroupSeparator = new JToolBar.Separator();
+    private final JButton overflowButton = new JButton(OVERFLOW_TEXT);
+    private OverflowToolBarLayout overflowLayout;
     private Component saveButton;
     private Component speedSelector;
+
+    /** Name of the separator before the last group; the step status label goes just before it. */
+    static final String END_GROUP_SEPARATOR = "toolbarEndGroupSeparator";
+
+    /** The chevron of the button that opens what does not fit the bar. */
+    private static final String OVERFLOW_TEXT = "\u00BB";
 
     private record SlotEntry(JComponent component, int order) {
     }
@@ -134,14 +144,14 @@ final class EditorToolBar {
         Component anchor = switch (slot) {
             case AFTER_FILE -> saveButton;
             case AFTER_SIMULATION -> speedSelector;
-            case RIGHT -> glue;
+            case RIGHT -> endGroupSeparator;
         };
         for (int index = 0; index < toolBar.getComponentCount(); index++) {
             if (toolBar.getComponent(index) == anchor) {
                 return index + 1;
             }
         }
-        return toolBar.getComponentCount();
+        return toolBar.getComponentCount() - 1; // before the overflow button
     }
 
     /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */
@@ -177,6 +187,14 @@ final class EditorToolBar {
 
     private void build() {
         toolBar.setFloatable(false);
+        overflowButton.setName("toolbarOverflow");
+        overflowButton.setToolTipText(Messages.text("toolbar.moreButtons"));
+        overflowButton.getAccessibleContext().setAccessibleName(Messages.text("toolbar.moreButtons"));
+        overflowButton.putClientProperty("JButton.buttonType", "toolBarButton");
+        overflowButton.setFocusable(true);
+        overflowLayout = new OverflowToolBarLayout(overflowButton);
+        overflowButton.addActionListener(event -> overflowLayout.showMenu());
+        toolBar.setLayout(overflowLayout);
         toolBar.add(actions.newDocument());
         toolBar.add(actions.open());
         saveButton = toolBar.add(actions.save());
@@ -200,6 +218,8 @@ final class EditorToolBar {
         toolBar.add(speedIcon);
         toolBar.add(speed);
         speedSelector = speed;
-        toolBar.add(glue);
+        endGroupSeparator.setName(END_GROUP_SEPARATOR);
+        toolBar.add(endGroupSeparator);
+        toolBar.add(overflowButton); // always the last child: slot components go in before it
     }
 }

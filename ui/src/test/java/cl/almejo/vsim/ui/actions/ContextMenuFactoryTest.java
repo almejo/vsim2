@@ -57,7 +57,7 @@ class ContextMenuFactoryTest {
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar");
+                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "Borrar");
     }
 
     @Test
@@ -135,7 +135,7 @@ class ContextMenuFactoryTest {
         assertThat(texts(contextMenu(Optional.of(first), CLICK))).containsExactly("Uno");
         Component outsider = place(openDocument, StandardComponentTypes.BUFFER, 20, 0, Map.of(StandardComponentTypes.NEGATE, true));
         assertThat(texts(contextMenu(Optional.of(outsider), CLICK)))
-                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar", "---", "Uno");
+                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "Borrar", "---", "Uno");
     }
 
     @Test
@@ -148,7 +148,7 @@ class ContextMenuFactoryTest {
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar");
+                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "Borrar");
         Component other = place(openDocument, StandardComponentTypes.BUFFER, 10, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().set(List.of(gate.id(), other.id()));
         assertThat(texts(contextMenu(Optional.of(gate), CLICK))).containsExactly("Borrar", "Rotar ↻");
@@ -161,17 +161,20 @@ class ContextMenuFactoryTest {
                 .containsExactly("Pegar", "Agregar texto aquí", "---", "Seleccionar todo", "Centrar circuito");
     }
 
-    /** Spec §6.6 order, review M6: Configurar…, Etiqueta…, Rotar ↻ / ↺, Cortar, Copiar, Duplicar, Borrar. */
+    /**
+     * Spec §6.6 order, review M6, with Borrar beside Rotar as in Editar (audit I13): Configurar…, Etiqueta…, Rotar ↻ /
+     * ↺, Borrar, Cortar, Copiar, Duplicar.
+     */
     @Test
     void theRealComponentMenuOffersClipboardAndLabelEntries() {
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "Etiqueta…", "---", "Rotar ↻", "Rotar ↺",
-                        "---", "Cortar", "Copiar", "Duplicar", "---", "Borrar");
+                .containsExactly("Configurar…", "Etiqueta…", "---", "Rotar ↻", "Rotar ↺", "Borrar",
+                        "---", "Cortar", "Copiar", "Duplicar");
     }
 
-    /** M6.8: «Restablecer posición de la etiqueta» right after «Etiqueta…», only for a moved label. */
+    /** M6.8: «Restaurar posición de la etiqueta» right after «Etiqueta…», only for a moved label. */
     @Test
     void theRealComponentMenuOffersTheResetOfAMovedLabelNextToTheLabelEntry() {
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
@@ -180,8 +183,8 @@ class ContextMenuFactoryTest {
         Component moved = openDocument.document().component(gate.id()).orElseThrow();
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(moved), CLICK)))
-                .containsExactly("Configurar…", "Etiqueta…", "Restablecer posición de la etiqueta", "---", "Rotar ↻",
-                        "Rotar ↺", "---", "Cortar", "Copiar", "Duplicar", "---", "Borrar");
+                .containsExactly("Configurar…", "Etiqueta…", "Restaurar posición de la etiqueta", "---", "Rotar ↻",
+                        "Rotar ↺", "Borrar", "---", "Cortar", "Copiar", "Duplicar");
     }
 
     @Test

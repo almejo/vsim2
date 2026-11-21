@@ -194,7 +194,7 @@ class TemplateActionsTest {
         assertNotReplaced(List.of(input, first, second), outside, "doble-salida");
         assertThat(netOf(outside.get(0))).isNotEqualTo(netOf(outside.get(1)));
         assertThat(fixture.dialogs.messages).containsExactly("No se reemplazó la selección: el pin y2 quedaría sobre "
-                + "otro cable o pin. El componente quedó en la librería.");
+                + "otro cable o pin. El componente quedó en Mis componentes.");
         fixture.openDocument.history().undo();
         assertThat(fixture.openDocument.document().definitions()).isEmpty();
         assertThat(fixture.openDocument.document().components()).hasSize(3);

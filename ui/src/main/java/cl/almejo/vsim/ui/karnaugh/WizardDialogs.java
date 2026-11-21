@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.ui.panels.DialogButtons;
+
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JRootPane;
@@ -30,7 +32,7 @@ final class WizardDialogs {
                 Dialog.ModalityType.DOCUMENT_MODAL);
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         dialog.addWindowListener(closeBox(requestClose));
-        dialog.setContentPane(content);
+        dialog.setContentPane(DialogButtons.scrolling(content)); // a dialog cut to the screen scrolls, never cuts
         bindEscape(dialog.getRootPane(), requestClose);
         return dialog;
     }

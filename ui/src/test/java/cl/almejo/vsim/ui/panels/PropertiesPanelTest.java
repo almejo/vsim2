@@ -171,6 +171,26 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void theCircuitNamePlaceholderFitsTheFieldAtTheDefaultInspectorWidth() {
+        panel.setSize(cl.almejo.vsim.ui.window.InspectorPanel.PREFERRED_WIDTH, 600);
+        layOut(panel);
+        JTextField name = panel.circuitNameField();
+        java.awt.FontMetrics metrics = name.getFontMetrics(name.getFont());
+        String placeholder = (String) name.getClientProperty("JTextField.placeholderText");
+        java.awt.Insets insets = name.getInsets();
+        assertThat(metrics.stringWidth(placeholder)).isLessThanOrEqualTo(name.getWidth() - insets.left - insets.right);
+    }
+
+    private static void layOut(java.awt.Container container) {
+        container.doLayout();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof java.awt.Container inner) {
+                layOut(inner);
+            }
+        }
+    }
+
+    @Test
     void nothingSelectedShowsTheCircuitNameAndEditingItIsOneUndoStep() {
         openDocument.document().setName("Sumador");
         panel.refresh();

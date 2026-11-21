@@ -99,6 +99,11 @@ class WaveformsExtensionTest {
     }
 
     @Test
+    void itsNoticesAreTitledWithTheFeature() {
+        assertThat(WaveformsExtension.messageTitle()).isEqualTo("Formas de onda");
+    }
+
+    @Test
     void theViewMenuTogglesThePanelUnderTheCanvas() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {

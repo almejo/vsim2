@@ -23,11 +23,11 @@ edit.tidyWires
 edit.frameSelection
 edit.quickInsert
 view.nextProblem
+edit.find
 [VIEW]
 view.zoomTool
 view.zoomToFit
 view.zoomToSelection
-edit.find
 view.presentationMode
 waveforms.toggle
 [SIMULATE]

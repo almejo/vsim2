@@ -10,7 +10,7 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-import static cl.almejo.vsim.ui.appearance.ShapeCanvas.HIT_RADIUS;
+import static cl.almejo.vsim.ui.appearance.ShapeCanvas.hitRadius;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.MINIMUM_CLOSED_NODES;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.MINIMUM_OPEN_NODES;
 
@@ -164,7 +164,7 @@ final class ShapePathDrawing {
     /** Whether the pointer is on the first placed node and there are enough nodes to close the figure there. */
     boolean closesOnFirstNode(Point at) {
         return pathNodes.size() >= MINIMUM_CLOSED_NODES
-                && canvas.screen(pathNodes.getFirst().x(), pathNodes.getFirst().y()).distance(at) < HIT_RADIUS;
+                && canvas.screen(pathNodes.getFirst().x(), pathNodes.getFirst().y()).distance(at) < hitRadius();
     }
 
     /** Finishes the figure being drawn if it has enough nodes; otherwise forgets it. */

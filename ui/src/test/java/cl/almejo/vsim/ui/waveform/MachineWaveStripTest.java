@@ -199,11 +199,11 @@ class MachineWaveStripTest {
         panel.axis().setCursor(atS1);
         assertThat(panel.names().values()).containsExactly("1", "S1", "0");
 
-        int stateRowMiddle = WaveformPainter.ROW_HEIGHT + WaveformPainter.ROW_HEIGHT / 2;
+        int stateRowMiddle = WaveformPainter.rowHeight() + WaveformPainter.rowHeight() / 2;
         double atS1Pixel = panel.axis().xOf(atS1) + 1;
         assertThat(panel.hoverText(atS1Pixel, stateRowMiddle)).as("hovering a state names it in full")
                 .isEqualTo("S1 · " + panel.hoverText(atS1Pixel));
-        assertThat(panel.hoverText(atS1Pixel, WaveformPainter.ROW_HEIGHT / 2)).as("a plain row: only the time")
+        assertThat(panel.hoverText(atS1Pixel, WaveformPainter.rowHeight() / 2)).as("a plain row: only the time")
                 .isEqualTo(panel.hoverText(atS1Pixel));
     }
 

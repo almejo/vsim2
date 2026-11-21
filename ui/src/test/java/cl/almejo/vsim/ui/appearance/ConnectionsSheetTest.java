@@ -45,10 +45,10 @@ class ConnectionsSheetTest {
     }
 
     @Test
-    void volverThenAplicarAndConnectByHandAreTheButtonsAndTheLastIsTheDefault() {
+    void aplicarThenVolverAreTheButtonsAndAplicarIsTheDefault() {
         ConnectionsSheet sheet = new ConnectionsSheet(question(false));
         assertThat(buttons(sheet)).extracting(JButton::getText).containsExactly(
-                Messages.text("shape.connections.back"), Messages.text("shape.connections.apply"));
+                Messages.text("shape.connections.apply"), Messages.text("shape.connections.back"));
         assertThat(sheet.defaultButton().getText()).isEqualTo(Messages.text("shape.connections.apply"));
     }
 
@@ -57,10 +57,10 @@ class ConnectionsSheetTest {
         ConnectionsSheet sheet = new ConnectionsSheet(question(false));
         sheet.content().setSize(sheet.content().getPreferredSize());
         layout(sheet.content());
-        JButton apply = sheet.defaultButton();
-        Rectangle applyBounds = SwingUtilities.convertRectangle(apply.getParent(), apply.getBounds(), sheet.content());
-        assertThat(applyBounds.x + applyBounds.width).isGreaterThanOrEqualTo(sheet.content().getWidth() - 24);
-        assertThat(applyBounds.x).isGreaterThan(sheet.content().getWidth() / 2);
+        JButton back = buttons(sheet).getLast();
+        Rectangle backBounds = SwingUtilities.convertRectangle(back.getParent(), back.getBounds(), sheet.content());
+        assertThat(backBounds.x + backBounds.width).isGreaterThanOrEqualTo(sheet.content().getWidth() - 24);
+        assertThat(backBounds.x).isGreaterThan(sheet.content().getWidth() / 2);
     }
 
     @Test
@@ -77,7 +77,7 @@ class ConnectionsSheetTest {
         applied.defaultButton().doClick();
         assertThat(applied.confirmed()).isTrue();
         ConnectionsSheet backed = new ConnectionsSheet(question(false));
-        buttons(backed).getFirst().doClick();
+        buttons(backed).getLast().doClick();
         assertThat(backed.confirmed()).isFalse();
     }
 

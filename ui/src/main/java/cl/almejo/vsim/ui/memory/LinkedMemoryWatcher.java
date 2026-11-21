@@ -129,7 +129,7 @@ public final class LinkedMemoryWatcher {
             reloadIfChanged(component, read.contents());
         } catch (MemoryFileIo.Unreadable problem) {
             problems.put(id, new LinkedFileProblem(id.value(), shown, LinkedFileProblem.Kind.UNREADABLE,
-                    problem.getMessage()));
+                    problem.detail()));
         }
     }
 

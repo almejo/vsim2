@@ -33,9 +33,9 @@ class WizardColorsTest {
     }
 
     @Test
-    void theNegationLegendListsEveryMarkTheParserAccepts() {
+    void theNegationLegendSaysAnyApostropheWorksInsteadOfListingLookAlikes() {
         String detail = cl.almejo.vsim.ui.i18n.Messages.text("expressions.legend.not.detail");
-        assertThat(detail).contains("\u02B9", "\u2032", "\u2019");
+        assertThat(detail).contains("cualquier apóstrofo").doesNotContain("\u02B9", "\u2032", "\u2019");
     }
 
     @Test

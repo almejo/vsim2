@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.ui.actions.TextPrompt;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -15,13 +16,19 @@ public final class WaveformsExtension implements EditorExtension {
     private final BiConsumer<Component, String> messages;
 
     public WaveformsExtension() {
-        this(TextPrompt.DIALOG, (parent, message) -> JOptionPane.showMessageDialog(parent, message));
+        this(TextPrompt.DIALOG, (parent, message) -> JOptionPane.showMessageDialog(parent, message, messageTitle(),
+                JOptionPane.INFORMATION_MESSAGE));
     }
 
     /** {@code prompt} asks for a channel's new name; {@code messages} shows a notice (the channel cap). */
     public WaveformsExtension(TextPrompt prompt, BiConsumer<Component, String> messages) {
         this.prompt = prompt;
         this.messages = messages;
+    }
+
+    /** The title of its notices («Formas de onda», I8), not Swing's «Mensaje». */
+    static String messageTitle() {
+        return Messages.text("menu.view.waveforms");
     }
 
     @Override

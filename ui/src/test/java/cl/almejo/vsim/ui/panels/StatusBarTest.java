@@ -111,7 +111,8 @@ class StatusBarTest {
     @Test
     void clickingTheShortCircuitWarningRunsTheCallback() {
         AtomicInteger clicks = new AtomicInteger();
-        statusBar.onShortCircuitsClicked(clicks::incrementAndGet);
+        String[] key = {"F8"};
+        statusBar.onShortCircuitsClicked(clicks::incrementAndGet, () -> key[0]);
         statusBar.showShortCircuits(1);
         JLabel warning = statusBar.shortCircuitsLabel();
         MouseEvent click = new MouseEvent(warning, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
@@ -121,6 +122,12 @@ class StatusBarTest {
         assertThat(clicks).hasValue(1);
         assertThat(warning.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
         assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
+        key[0] = "Ctrl+J"; // the key was reassigned: the tooltip says the new one when the pointer enters
+        MouseEvent enter = new MouseEvent(warning, MouseEvent.MOUSE_ENTERED, 0, 0, 2, 2, 0, false);
+        for (MouseListener listener : warning.getMouseListeners()) {
+            listener.mouseEntered(enter);
+        }
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (Ctrl+J)");
     }
 
     @Test
@@ -151,13 +158,13 @@ class StatusBarTest {
         statusBar.onShortCircuitsClicked(() -> { });
         JLabel warning = statusBar.shortCircuitsLabel();
         statusBar.showProblems(1, 0);
-        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema");
         statusBar.showProblems(0, 1);
-        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema");
         statusBar.showProblems(2, 1);
-        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema");
         statusBar.showProblems(1, 0);
-        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema");
     }
 
     @Test

@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.shortcuts.sheet;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.panels.Keycaps;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.theme.SwitchBox;
@@ -39,6 +41,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * What the sheet of shortcuts shows: a dark translucent veil over the circuit area (the circuit still shows, dimmed)
@@ -55,9 +58,13 @@ final class ShortcutSheetPanel extends JPanel {
     static final int MAXIMUM_CARD_WIDTH = 900;
     /** The veil left visible around the card. */
     private static final int VEIL_MARGIN = 24;
+    /** The least veil left around a card that needs the room (so no name is cut). */
+    private static final int MINIMUM_VEIL_MARGIN = 8;
+    /** The card's horizontal padding, both sides (Card's insets). */
+    private static final int CARD_PADDING = 60;
     /** One wheel notch or arrow click of the groups' scroll bar: about a row. */
     private static final int SCROLL_UNIT = 16;
-    private static final int CORNER = 18;
+    private static final int CORNER = CardLook.CORNER;
     private static final int SHADOW_SIZE = 14;
     private static final int SHADOW_ALPHA = 7;
     private static final int LIGHT_VEIL_ALPHA = 110;
@@ -139,7 +146,7 @@ final class ShortcutSheetPanel extends JPanel {
         foot.setOpaque(false);
         foot.add(showUsedShortcutsLabel);
         foot.add(showUsedShortcuts);
-        foot.add(new ThemedLabel("Label.disabledForeground", Messages.text("shortcutSheet.closeHint")));
+        foot.add(new ThemedLabel(ReadableColors::mutedText, Messages.text("shortcutSheet.closeHint")));
         foot.add(allShortcuts, "hidemode 3");
         return foot;
     }
@@ -168,7 +175,7 @@ final class ShortcutSheetPanel extends JPanel {
     private static JPanel groupPanel(SheetSelection.Column group) {
         JPanel panel = new JPanel(new MigLayout("insets 0, wrap 2, gapy 10, gapx 12", "[right][left]"));
         panel.setOpaque(false);
-        JLabel heading = new ThemedLabel("Label.disabledForeground", group.title().toUpperCase(Locale.ROOT));
+        JLabel heading = new ThemedLabel(ReadableColors::mutedText, group.title().toUpperCase(Locale.ROOT));
         Font font = heading.getFont();
         heading.setFont(font.deriveFont(Map.of(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD,
                 TextAttribute.SIZE, font.getSize2D() * HEADING_SCALE, TextAttribute.TRACKING, HEADING_TRACKING)));
@@ -254,6 +261,18 @@ final class ShortcutSheetPanel extends JPanel {
         return gesturePhrase.isEmpty() ? "" : gesture.getText();
     }
 
+    /** The card's width with both columns' longest entries whole and the gap between the columns at its preferred size. */
+    int neededCardWidth() {
+        // the scroll bar's room too: a short window scrolls the groups and its bar takes from the viewport
+        return groupsScroll.getPreferredSize().width + groupsScroll.getVerticalScrollBar().getPreferredSize().width
+                + CARD_PADDING;
+    }
+
+    /** The least the card can be and still show every entry whole. */
+    int leastCardWidth() {
+        return neededCardWidth();
+    }
+
     /**
      * The card centred on the veil: as wide as the area allows up to {@value #MAXIMUM_CARD_WIDTH} px, as tall as its
      * content at that width (the wrapped gesture strip knows its height once it has its width) but never taller than
@@ -261,7 +280,12 @@ final class ShortcutSheetPanel extends JPanel {
      */
     @Override
     public void doLayout() {
-        int width = Math.max(0, Math.min(MAXIMUM_CARD_WIDTH, getWidth() - 2 * VEIL_MARGIN));
+        int needed = neededCardWidth();
+        int width = Math.min(Math.max(MAXIMUM_CARD_WIDTH, needed), getWidth() - 2 * VEIL_MARGIN);
+        if (width < needed) { // the area is short: take the veil's margin before a column gives way
+            width = Math.min(needed, getWidth() - 2 * MINIMUM_VEIL_MARGIN);
+        }
+        width = Math.max(0, width);
         card.setSize(width, Math.max(1, card.getHeight()));
         layOutTree(card);
         int height = Math.max(0, Math.min(card.getPreferredSize().height, getHeight() - 2 * VEIL_MARGIN));
@@ -319,7 +343,7 @@ final class ShortcutSheetPanel extends JPanel {
     private static final class ColumnsPanel extends JPanel implements Scrollable {
 
         ColumnsPanel() {
-            super(new MigLayout("insets 0, fillx, gapx 40", "[grow, fill][grow, fill]", "[top]"));
+            super(new MigLayout("insets 0, fillx", "[grow, fill, shrink 100]16[grow, fill, shrink 0]", "[top]"));
         }
 
         @Override
@@ -412,17 +436,21 @@ final class ShortcutSheetPanel extends JPanel {
     /** A label whose colour is the theme's {@code colorKey}, read at each paint (themes change live). */
     private static final class ThemedLabel extends JLabel {
 
-        private final String colorKey;
+        private final Supplier<Color> color;
 
         ThemedLabel(String colorKey, String text) {
+            this(() -> themeColor(colorKey, Color.BLACK), text);
+        }
+
+        ThemedLabel(Supplier<Color> color, String text) {
             super(text);
-            this.colorKey = colorKey;
+            this.color = color;
             setHorizontalAlignment(SwingConstants.LEADING);
         }
 
         @Override
         public Color getForeground() {
-            return colorKey == null ? super.getForeground() : themeColor(colorKey, super.getForeground());
+            return color == null ? super.getForeground() : color.get();
         }
     }
 

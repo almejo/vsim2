@@ -45,6 +45,6 @@ final class HintSkippingSelectionModel extends DefaultTreeSelectionModel {
 
     private boolean isSkipped(TreePath path) {
         Object item = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
-        return item == TopSection.EMPTY || disabled.test(item);
+        return item == TopSection.EMPTY || item == TopSection.NO_RESULTS || disabled.test(item);
     }
 }

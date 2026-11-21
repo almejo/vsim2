@@ -18,14 +18,18 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.karnaugh.KarnaughHandoff;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
+import cl.almejo.vsim.ui.window.Menus;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.Action;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
+import javax.swing.event.MenuListener;
 import java.awt.Component;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -76,6 +80,8 @@ public final class TruthTableFeatures {
     private final Delay delay;
     private final Action action;
     private final Runnable itemRemover;
+    private final JMenu logicMenu;
+    private final MenuListener availability;
     private final List<Session> sessions = new ArrayList<>();
     /** On the canvas while a window is open: moves each window's highlight to the row of the live inputs. */
     private final Consumer<SimulationSnapshot> snapshotListener = this::followSnapshot;
@@ -105,7 +111,22 @@ public final class TruthTableFeatures {
         this.action = Actions.of(Messages.text("action.truthTable"), () -> open(view.selection().ids()));
         // Lógica ▸ «Tabla de verdad…»; the id keeps its old «simulation.» prefix so saved key bindings still apply
         this.itemRemover = MenuSlots.install(view, MenuSlot.TRUTH_TABLE, action, "simulation.truthTable");
+        // M2: off on a sequential circuit, with the reason; asked when Lógica opens (preparing the table compiles the
+        // circuit, too much for every edit). The refusal message stays for the other ways in (palette, key).
+        Actions.disabledBecause(action, () -> Messages.text("truthTable.disabled.sequential"));
+        this.logicMenu = view.menu(MenuId.LOGIC);
+        this.availability = Menus.onOpen(logicMenu, this::refreshAvailability);
         view.addContextMenuContributor(new Contributor());
+    }
+
+    /** «Tabla de verdad…» is off while what it would compute (the selection, or the circuit) is sequential. */
+    void refreshAvailability() {
+        if (disposed) {
+            return;
+        }
+        Preparation preparation = prepare(Set.copyOf(view.selection().ids()));
+        action.setEnabled(!(preparation instanceof Preparation.Refused refused
+                && refused.reason() == Preparation.Reason.SEQUENTIAL));
     }
 
     public Action action() {
@@ -190,6 +211,7 @@ public final class TruthTableFeatures {
             return;
         }
         disposed = true;
+        logicMenu.removeMenuListener(availability);
         itemRemover.run();
         runner.dispose();
         for (Session session : List.copyOf(sessions)) {

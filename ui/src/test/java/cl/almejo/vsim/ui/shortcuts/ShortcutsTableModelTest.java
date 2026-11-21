@@ -85,7 +85,7 @@ class ShortcutsTableModelTest {
     void capturingShowsThePromptAndAFreeStrokeIsAssigned() {
         model.beginCapture("file.save");
         assertThat(model.isCapturing()).isTrue();
-        assertThat(shortcutOf("file.save")).isEqualTo("Presiona la combinación…");
+        assertThat(shortcutOf("file.save")).isEqualTo("Pulsa la combinación…");
         assertThat(model.offer(control(KeyEvent.VK_J))).isEqualTo(ShortcutsTableModel.Outcome.ASSIGNED);
         assertThat(model.isCapturing()).isFalse();
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_J));

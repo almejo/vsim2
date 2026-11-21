@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.shortcuts;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.AbstractButton;
@@ -52,6 +53,9 @@ final class ToolbarTooltips {
                 };
                 action.addPropertyChangeListener(follower);
                 removals.add(() -> action.removePropertyChangeListener(follower));
+                PropertyChangeListener noteFollower = event -> refresh(button);
+                button.addPropertyChangeListener(Actions.TOOLBAR_NOTE, noteFollower);
+                removals.add(() -> button.removePropertyChangeListener(Actions.TOOLBAR_NOTE, noteFollower));
             }
         }
     }
@@ -71,8 +75,9 @@ final class ToolbarTooltips {
         Action action = button.getAction();
         Object description = action.getValue(Action.SHORT_DESCRIPTION);
         String text = String.valueOf(description != null ? description : action.getValue(Action.NAME));
-        button.setToolTipText(strokes.apply(idsByButton.get(button))
+        String withKey = strokes.apply(idsByButton.get(button))
                 .map(stroke -> Messages.format("tooltip.withShortcut", text, KeyNames.describe(stroke)))
-                .orElse(text));
+                .orElse(text);
+        button.setToolTipText(Actions.withNote(withKey, button.getClientProperty(Actions.TOOLBAR_NOTE)));
     }
 }

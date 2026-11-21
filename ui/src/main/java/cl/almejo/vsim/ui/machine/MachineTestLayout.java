@@ -13,8 +13,9 @@ import java.util.function.Function;
 /**
  * The sizes of the test table's pieces, in pixels (fix round 2 of hito 4): every one from the interface scale
  * ({@link UIScale}) and the font's own metrics, never a literal pixel count, so the table grows with the interface
- * (100 % to 200 %) and with a bigger letter. The wave strip's rows are {@link WaveformPainter#ROW_HEIGHT} at 100 %; the
- * table's waves are drawn scaled by {@link #waveScale()} to the row it gives them.
+ * (100 % to 200 %) and with a bigger letter. The wave strip's rows are {@link WaveformPainter#rowHeight()}, which
+ * follows the interface size too; when the table's letter asks for a taller row, its waves are drawn scaled by
+ * {@link #waveScale()} to it.
  *
  * @param columnWidth  one column (one edge): wide enough for «64» and its edge arrow
  * @param ghostWidth   the column after the last edge, with the room «→ S…» needs (at most four columns)
@@ -42,7 +43,7 @@ record MachineTestLayout(int columnWidth, int ghostWidth, int rowHeight, int gro
     /** The sizes before a font is known: the interface scale alone. */
     static MachineTestLayout basic() {
         int column = UIScale.scale(MINIMUM_COLUMN);
-        return new MachineTestLayout(column, column, UIScale.scale(WaveformPainter.ROW_HEIGHT),
+        return new MachineTestLayout(column, column, WaveformPainter.rowHeight(),
                 UIScale.scale(MINIMUM_GROUP), UIScale.scale(MINIMUM_HEADER), UIScale.scale(NAMES),
                 UIScale.scale(PADDING));
     }
@@ -64,7 +65,7 @@ record MachineTestLayout(int columnWidth, int ghostWidth, int rowHeight, int gro
                     + 2 * air);
         }
         return new MachineTestLayout(column, Math.min(ghost, GHOST_MAXIMUM_COLUMNS * column),
-                Math.max(UIScale.scale(WaveformPainter.ROW_HEIGHT), metrics.getHeight() + 2 * air),
+                Math.max(WaveformPainter.rowHeight(), metrics.getHeight() + 2 * air),
                 Math.max(UIScale.scale(MINIMUM_GROUP), group.getHeight() + air),
                 Math.max(UIScale.scale(MINIMUM_HEADER), metrics.getHeight() + 2 * air),
                 UIScale.scale(NAMES), padding);
@@ -75,8 +76,8 @@ record MachineTestLayout(int columnWidth, int ghostWidth, int rowHeight, int gro
         return font.deriveFont(font.getSize2D() * GROUP_FONT_SHARE);
     }
 
-    /** How much the wave strip's drawing (made for {@link WaveformPainter#ROW_HEIGHT}) is scaled to fit a row. */
+    /** How much the wave strip's drawing (made for {@link WaveformPainter#rowHeight()}) is scaled to fit a row. */
     double waveScale() {
-        return rowHeight / (double) WaveformPainter.ROW_HEIGHT;
+        return rowHeight / (double) WaveformPainter.rowHeight();
     }
 }

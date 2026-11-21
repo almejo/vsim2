@@ -19,7 +19,7 @@ class WaveformPainterStepsTest {
 
     @Test
     void eachStepIsDrawnAtItsLevelWithAnEdgeBetweenDifferentSteps() {
-        BufferedImage image = new BufferedImage(3 * STEP, WaveformPainter.ROW_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(3 * STEP, WaveformPainter.rowHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         try {
             WaveformPainter.paintSteps(graphics, List.of(Optional.of(Value.ZERO), Optional.of(Value.ZERO),

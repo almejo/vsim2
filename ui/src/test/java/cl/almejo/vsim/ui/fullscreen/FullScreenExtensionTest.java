@@ -52,7 +52,7 @@ class FullScreenExtensionTest {
 
     private JToggleButton toolbarToggle(EditorView target) {
         Component[] components = target.toolBar().getComponents();
-        Component last = components[components.length - 1];
+        Component last = components[components.length - 2]; // the » overflow button is the very last child
         assertThat(last).isInstanceOf(JToggleButton.class);
         return (JToggleButton) last;
     }

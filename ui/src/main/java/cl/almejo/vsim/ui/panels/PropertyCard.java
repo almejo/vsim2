@@ -32,7 +32,7 @@ final class PropertyCard extends JPanel {
     /** Sizes in pixels before UI scaling. */
     private static final int TILE = 38;
     private static final int ICON = 24;
-    private static final int ARC = 10;
+    private static final int ARC = CardLook.CORNER;
     private static final String CIRCUIT_ICON = "grid";
 
     private final JLabel title = new JLabel();

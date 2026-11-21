@@ -368,6 +368,7 @@ class ZoomControlTest {
     void theButtonsRunTheirActionsAndTheSelectionOneFollowsItsAction() {
         control.zoomOutButton().doClick();
         control.zoomInButton().doClick();
+        control.showZoom(1.5); // «100 %» is off while already at 100 %
         control.resetButton().doClick();
         control.fitButton().doClick();
         zoomToSelection.setEnabled(false);
@@ -378,10 +379,29 @@ class ZoomControlTest {
 
         assertThat(List.of(zoomOut.runs, zoomIn.runs, zoomReset.runs, zoomToFit.runs, zoomToSelection.runs))
                 .containsOnly(1);
-        assertThat(control.resetButton().getText()).isEqualTo("100 %");
-        assertThat(control.resetButton().getToolTipText()).isEqualTo("Volver a 100 %");
+        assertThat(control.resetButton().getText()).as("an icon, not a second «100 %»").isEmpty();
+        assertThat(control.resetButton().getIcon()).isNotNull();
+        assertThat(control.resetButton().getToolTipText()).startsWith("Volver a 100 %");
         assertThat(control.fitButton().getToolTipText()).isEqualTo("Ver todo el circuito");
         assertThat(control.zoomOutButton().getToolTipText()).isEqualTo("Alejar");
+    }
+
+    @Test
+    void aButtonShowsTheCurrentTooltipOfItsAction() {
+        zoomToSelection.putValue(javax.swing.Action.SHORT_DESCRIPTION, "Zoom a la selección (Mayús+2) — Selecciona algo primero");
+        assertThat(control.selectionButton().getToolTipText()).endsWith("Selecciona algo primero");
+        zoomToSelection.putValue(javax.swing.Action.SHORT_DESCRIPTION, "Zoom a la selección (Mayús+2)");
+        assertThat(control.selectionButton().getToolTipText()).isEqualTo("Zoom a la selección (Mayús+2)");
+    }
+
+    @Test
+    void theResetButtonIsOffAt100PercentAndOnOtherwise() {
+        control.showZoom(1.0);
+        assertThat(control.resetButton().isEnabled()).isFalse();
+        control.showZoom(1.5);
+        assertThat(control.resetButton().isEnabled()).isTrue();
+        control.showZoom(1.0);
+        assertThat(control.resetButton().isEnabled()).isFalse();
     }
 
     @Test

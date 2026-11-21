@@ -127,6 +127,10 @@ public final class AiExtension implements EditorExtension {
                         AiPreferencesPanel.systemClipboard());
                 dialog.setContentPane(panel);
                 dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
+                JDialog shown = dialog;
+                shown.getRootPane().registerKeyboardAction(event -> shown.setVisible(false),
+                        javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                        javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
                 dialog.addWindowListener(new WindowAdapter() {
                     @Override
                     public void windowClosed(WindowEvent event) {

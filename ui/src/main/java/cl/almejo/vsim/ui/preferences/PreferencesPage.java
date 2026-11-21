@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.preferences;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 import net.miginfocom.swing.MigLayout;
@@ -40,7 +41,7 @@ final class PreferencesPage extends JPanel {
 
         @Override
         public Color getForeground() {
-            return ThemeColors.ui("Label.disabledForeground", super.getForeground());
+            return ReadableColors.mutedText();
         }
     }
 

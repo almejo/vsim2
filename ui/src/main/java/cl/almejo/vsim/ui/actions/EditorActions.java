@@ -31,6 +31,7 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.Menus;
 import cl.almejo.vsim.ui.window.WindowCommands;
 
 import javax.swing.Action;
@@ -110,6 +111,7 @@ public final class EditorActions {
     private final Action newView;
     private final Action newWindowWithCircuit;
     private final Action moveGroup;
+    private final WindowCommands window;
     private final Action foldGroup;
     private final Action nextTab;
     private final Action previousTab;
@@ -169,12 +171,12 @@ public final class EditorActions {
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
                 this::redoStep);
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
-        delete.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.delete"));
         rotateClockwise = Actions.of(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
-        rotateClockwise.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.rotateClockwise"));
         rotateCounterClockwise = Actions.of(Messages.text("action.rotateCounterClockwise"), null,
                 () -> rotateSelection(false));
-        rotateCounterClockwise.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.rotateCounterClockwise"));
+        explainSelectionAction(delete, "tooltip.delete");
+        explainSelectionAction(rotateClockwise, "tooltip.rotateClockwise");
+        explainSelectionAction(rotateCounterClockwise, "tooltip.rotateCounterClockwise");
         addMoveActions("edit.moveLeft", "action.moveLeft", -1, 0);
         addMoveActions("edit.moveRight", "action.moveRight", 1, 0);
         addMoveActions("edit.moveUp", "action.moveUp", 0, -1);
@@ -182,6 +184,8 @@ public final class EditorActions {
         addFarMoveActions();
         configure = Actions.of(Messages.text("action.configure"), null,
                 () -> singleConfigurable().ifPresent(this::configure));
+        Actions.disabledBecause(configure, () -> Messages.text(selection.isEmpty() ? "reason.needsSelection"
+                : "reason.configureOne"));
         selectTool = Actions.of(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
         panTool = Actions.of(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
         zoomTool = Actions.of(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
@@ -194,9 +198,10 @@ public final class EditorActions {
                 () -> zoom(ContentZoom::resetZoom, CircuitCanvas::resetZoom));
         zoomToFit = Actions.of(Messages.text("action.zoomToFit"), null,
                 () -> zoom(ContentZoom::zoomToFit, pane -> zoomToCircuit()));
-        zoomToFit.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToFit"));
+        AcceleratorTooltip.install(zoomToFit, () -> Messages.text("tooltip.zoomToFit"));
         zoomToSelection = Actions.of(Messages.text("action.zoomToSelection"), null, this::zoomToSelected);
-        zoomToSelection.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToSelection"));
+        AcceleratorTooltip.install(zoomToSelection, () -> Messages.text("tooltip.zoomToSelection"));
+        Actions.disabledBecause(zoomToSelection, () -> Messages.text("reason.needsSelection"));
         centerView = Actions.of(Messages.text("action.centerView"), null,
                 () -> zoom(ContentZoom::center, CircuitCanvas::centerCircuit));
         start = Actions.of(Messages.text("action.start"), null, openDocument::resume);
@@ -217,6 +222,8 @@ public final class EditorActions {
         newWindowWithCircuit = Actions.of(Messages.text("action.newWindowWithCircuit"),
                 shortcut(KeyEvent.VK_N, InputEvent.SHIFT_DOWN_MASK), window::newWindowWithCircuit);
         moveGroup = Actions.of(Messages.text("action.moveGroup"), null, window::moveGroupToNewWindow);
+        Actions.disabledBecause(moveGroup, () -> Messages.text("reason.oneGroup"));
+        this.window = window;
         foldGroup = Actions.of(Messages.text("action.foldGroup"), null, window::toggleFold);
         // Ctrl on every platform: ⌘+Tab is the system's application switcher on macOS
         nextTab = Actions.of(Messages.text("action.nextTab"),
@@ -245,6 +252,14 @@ public final class EditorActions {
     public Action newWindowWithCircuit() { return newWindowWithCircuit; }
     /** «Mover el grupo a una ventana nueva». */
     public Action moveGroup() { return moveGroup; }
+    /**
+     * «Mover el grupo a una ventana nueva» is on only while the window holds another group (I14): asked when Ventana
+     * opens and by the window when its groups change.
+     */
+    public void refreshWindowActions() {
+        moveGroup.setEnabled(window.holdsOtherGroups());
+    }
+
     /** «Plegar / desplegar el grupo». */
     public Action foldGroup() { return foldGroup; }
     /** «Pestaña siguiente» (Ctrl+Tab). */
@@ -441,10 +456,12 @@ public final class EditorActions {
         edit.add(undo);
         edit.add(redo);
         edit.addSeparator();
-        edit.add(delete);
-        edit.add(rotateClockwise);
-        edit.add(rotateCounterClockwise);
+        // the order of the context menu (I13): «Etiqueta…» comes right after «Configurar…» (LabelFeatures); the canvas
+        // keys (Supr, R, Mayús+R) shown, never bound: the canvas binding is the one that fires (I1)
         edit.add(configure);
+        edit.add(new ShownAcceleratorItem(rotateClockwise));
+        edit.add(new ShownAcceleratorItem(rotateCounterClockwise));
+        edit.add(new ShownAcceleratorItem(delete));
         // Ver, Herramientas and Lógica are laid out by their slots (MenuSlot): EditorView and the extensions fill them
         JMenu view = tagged(new JMenu(Messages.text("menu.view")), MenuId.VIEW);
         JMenu tools = tagged(new JMenu(Messages.text("menu.tools")), MenuId.TOOLS);
@@ -470,6 +487,7 @@ public final class EditorActions {
         windowMenu.add(closeComponents);
         windowMenu.addSeparator();
         // «Dividir ▸» and «Siguiente panel» follow (SplitViewsFeatures)
+        Menus.onOpen(windowMenu, this::refreshWindowActions);
         JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
         help.add(about);
         help.add(reportProblem);
@@ -678,6 +696,16 @@ public final class EditorActions {
         start.setEnabled(!running);
         pause.setEnabled(running);
         step.setEnabled(!running);
+    }
+
+    /**
+     * The tooltip of an action on the selection: its text with its canvas key, and while disabled why (nothing is
+     * selected, or a wire is being drawn, when the keys on the selection do nothing).
+     */
+    private void explainSelectionAction(Action action, String tooltipKey) {
+        AcceleratorTooltip.install(action, () -> Messages.text(tooltipKey));
+        Actions.disabledBecause(action, () -> Messages.text(drawsBetweenClicks() ? "reason.finishTheWire"
+                : "reason.needsSelection"));
     }
 
     private void deleteSelection() {

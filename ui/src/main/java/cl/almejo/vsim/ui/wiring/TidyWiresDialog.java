@@ -2,13 +2,12 @@ package cl.almejo.vsim.ui.wiring;
 
 import cl.almejo.vsim.core.layout.CircuitTidyOptions;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.SwingUtilities;
-import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.FlowLayout;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -34,16 +33,7 @@ public final class TidyWiresDialog {
         cancel.addActionListener(event -> dialog.dispose());
         panel.onChange(() -> apply.setEnabled(panel.canApply()));
         apply.setEnabled(panel.canApply());
-        javax.swing.JPanel buttons = new javax.swing.JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttons.add(apply);
-        buttons.add(cancel);
-        dialog.add(panel, BorderLayout.CENTER);
-        dialog.add(buttons, BorderLayout.SOUTH);
-        dialog.getRootPane().setDefaultButton(apply);
-        dialog.getRootPane().registerKeyboardAction(event -> dialog.dispose(),
-                javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
-                javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
-        dialog.pack();
+        DialogButtons.assemble(dialog, panel, apply, cancel);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
         panel.dispose();

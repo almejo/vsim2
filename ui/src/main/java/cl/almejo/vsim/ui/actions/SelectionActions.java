@@ -90,8 +90,13 @@ public final class SelectionActions {
         selectAll = Actions.of(Messages.text("action.selectAll"), KeyStroke.getKeyStroke(KeyEvent.VK_A, menuMask),
                 () -> content.ifPresentOrElse(ContentClipboard::selectAll,
                         () -> selection.selectAll(openDocument.document())));
+        for (Action onSelection : List.of(cut, copy, duplicate)) {
+            Actions.disabledBecause(onSelection, () -> Messages.text("reason.needsSelection"));
+        }
+        Actions.disabledBecause(paste, () -> Messages.text("reason.nothingCopied"));
         selection.addListener(this::refresh);
         refresh();
+        refreshPaste();
     }
 
     public Action cut() { return cut; }
@@ -122,6 +127,17 @@ public final class SelectionActions {
     }
 
     /**
+     * «Pegar» is on only while the clipboard holds a circuit fragment (I14). The clipboard changes behind VSim's back
+     * (another application, another window), so this is asked again after a copy or a cut, when Editar or the context
+     * menu opens and when a pane gets the focus back.
+     */
+    public void refreshPaste() {
+        // a fragment is JSON: text that does not start like it is not parsed (this runs on every pane focus)
+        paste.setEnabled(clipboard.read().filter(text -> text.stripLeading().startsWith("{"))
+                .flatMap(this::fragmentOf).isPresent());
+    }
+
+    /**
      * Floats the clipboard's fragment at {@code mousePoint}; without one, next to where it was copied from when it was
      * copied from this circuit (any of its views) and that spot is in view, otherwise at the center of the view.
      * Anything that is not a fragment is ignored.
@@ -131,23 +147,30 @@ public final class SelectionActions {
         if (json.isEmpty()) {
             return;
         }
-        CircuitFragment fragment;
-        try {
-            fragment = format.read(json.get());
-        } catch (CircuitFormatException | RuntimeException exception) {
+        Optional<CircuitFragment> fragment = fragmentOf(json.get());
+        if (fragment.isEmpty()) {
             if (MachineFragmentFormat.isMachineFragment(json.get())) {
                 pasteMachineNotes(json.get());
-                return;
             }
-            // Like a drop: valid JSON can still make the reader throw (bounds overflowing an int, for one).
-            LOGGER.debug("Clipboard does not hold a usable circuit fragment: {}", exception.getMessage());
             return;
         }
         if (fragment.isEmpty()) {
             return;
         }
-        activePane.get().announceIncomingFragment(fragment);
-        startFloating(fragment, mousePoint.orElseGet(() -> positionWithoutMouse(json.get())));
+        activePane.get().announceIncomingFragment(fragment.get());
+        startFloating(fragment.get(), mousePoint.orElseGet(() -> positionWithoutMouse(json.get())));
+    }
+
+    /** The non-empty circuit fragment {@code json} holds; empty for anything else. */
+    private Optional<CircuitFragment> fragmentOf(String json) {
+        try {
+            CircuitFragment fragment = format.read(json);
+            return fragment.isEmpty() ? Optional.empty() : Optional.of(fragment);
+        } catch (CircuitFormatException | RuntimeException exception) {
+            // Like a drop: valid JSON can still make the reader throw (bounds overflowing an int, for one).
+            LOGGER.debug("Clipboard does not hold a usable circuit fragment: {}", exception.getMessage());
+            return Optional.empty();
+        }
     }
 
     /**
@@ -193,8 +216,11 @@ public final class SelectionActions {
             if (target.isEmpty()) {
                 Optional<GridPoint> openedAt = Optional.of(new GridPoint(
                         (int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY())));
-                menu.add(ContextMenuEntry.PASTE.tag(
-                        new JMenuItem(Actions.of(Messages.text("action.paste"), null, () -> pasteAt(openedAt)))));
+                Action pasteHere = Actions.of(Messages.text("action.paste"), null, () -> pasteAt(openedAt));
+                Actions.disabledBecause(pasteHere, () -> Messages.text("reason.nothingCopied"));
+                refreshPaste();
+                pasteHere.setEnabled(paste.isEnabled());
+                menu.add(ContextMenuEntry.PASTE.tag(new JMenuItem(pasteHere)));
                 addOnce(menu, selectAll, ContextMenuEntry.SELECT_ALL);
                 return;
             }
@@ -240,6 +266,7 @@ public final class SelectionActions {
         CircuitFragment fragment = CircuitFragment.of(openDocument.document(), ids, openDocument.registry());
         clipboard.put(format.write(fragment), new GridPoint(bounds.get().x(), bounds.get().y()),
                 openDocument.document());
+        refreshPaste();
         return true;
     }
 

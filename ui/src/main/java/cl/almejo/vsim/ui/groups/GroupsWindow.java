@@ -382,8 +382,8 @@ final class GroupsWindow {
         cancel.addActionListener(event -> cancel());
         accept.setName("groups.accept");
         accept.addActionListener(event -> accept());
-        buttons.add(cancel, "sg buttons");
         buttons.add(accept, "sg buttons");
+        buttons.add(cancel, "sg buttons");
         return buttons;
     }
 

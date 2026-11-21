@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.netcard;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 import com.formdev.flatlaf.util.UIScale;
@@ -75,14 +77,14 @@ final class SignalCard extends JComponent {
     private static final int PADDING_HORIZONTAL = 10;
     private static final int SECTION_GAP = 5;
     private static final int COLUMN_GAP = 10;
-    private static final int CORNER = 10;
+    private static final int CORNER = CardLook.CORNER;
     private static final int ICON_SIZE = 14;
     private static final int LINK_PADDING = 1;
     /** How far the pointer must move after a press before it is a drag and not a click on the card's body. */
     private static final int DRAG_THRESHOLD = 4;
     /** The waveform panel's pushpin and the find bar's cross, recoloured by FlatLaf in dark themes. */
     private static final String PIN_ICON = "netcard-pin"; // red, like a real pin (the user, 2026-11-13)
-    private static final String CLOSE_ICON = "find-close";
+    private static final String CLOSE_ICON = CardLook.CLOSE_ICON;
     private static final float BORDER_WIDTH = 1f;
     private static final float PINNED_BORDER_WIDTH = 2f;
     private static final String SMALL = "small";
@@ -385,9 +387,9 @@ final class SignalCard extends JComponent {
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    /** The colour of a secondary or problem text, by its key in the look and feel. */
+    /** The colour of a secondary text (the readable grey) or a problem text (by its key in the look and feel). */
     private enum Tone {
-        SECONDARY("Label.disabledForeground", Color.GRAY),
+        SECONDARY(null, Color.GRAY),
         PROBLEM("Actions.Red", new Color(0xDB5860));
 
         private final String key;
@@ -399,7 +401,7 @@ final class SignalCard extends JComponent {
         }
 
         Color color() {
-            return uiColor(key, fallback);
+            return key == null ? ReadableColors.mutedText() : uiColor(key, fallback);
         }
     }
 

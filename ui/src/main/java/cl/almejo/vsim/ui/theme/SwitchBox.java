@@ -70,8 +70,7 @@ public final class SwitchBox extends JCheckBox {
             int knobMargin = UIScale.scale(KNOB_MARGIN);
             int top = (getHeight() - trackHeight) / 2;
             boolean on = isSelected();
-            Color track = on ? ThemeColors.accent()
-                    : ThemeColors.ui("Component.borderColor", Color.GRAY);
+            Color track = on ? ThemeColors.accent() : ReadableColors.switchOffTrack();
             if (!isEnabled()) {
                 track = ThemeColors.ui("Component.disabledBorderColor", track);
             }
@@ -83,7 +82,7 @@ public final class SwitchBox extends JCheckBox {
             }
             int knobSize = trackHeight - 2 * knobMargin;
             int knobX = on ? trackWidth - knobMargin - knobSize : knobMargin;
-            local.setColor(Color.WHITE); // reads on the accent and on the grey «off» track, light or dark theme
+            local.setColor(Color.WHITE); // reads on the accent and on the off track (ReadableColors.switchOffTrack: 3:1 or more, light or dark theme)
             local.fillOval(knobX, top + knobMargin, knobSize, knobSize);
             local.setFont(getFont());
             FontMetrics metrics = local.getFontMetrics();

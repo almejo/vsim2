@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.ai.AiPreferencesPanel;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
 
@@ -63,6 +64,7 @@ public final class PreferencesDialog {
     private static void show(Component parent, PreferencesPanel panel) {
         JOptionPane pane = optionPane(panel);
         JDialog dialog = pane.createDialog(parent, Messages.text("preferences.title"));
+        DialogButtons.fitToScreen(dialog);
         dialog.addWindowListener(focusSearchWhenOpened(panel));
         try {
             dialog.setVisible(true);
@@ -74,7 +76,8 @@ public final class PreferencesDialog {
 
     /** The content with its only button, which is not the initial value, so it does not take the focus on opening. */
     static JOptionPane optionPane(PreferencesPanel panel) {
-        return new JOptionPane(panel, JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null,
+        // in a scroll pane: a dialog cut to a small screen (200 % size) keeps «Cerrar» in reach
+        return new JOptionPane(DialogButtons.scrolling(panel), JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null,
                 new Object[]{Messages.text("preferences.close")}, null);
     }
 

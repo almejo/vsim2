@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.StepResult;
+import cl.almejo.vsim.ui.actions.AcceleratorTooltip;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -26,6 +27,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -58,7 +60,23 @@ public final class StepModeFeatures {
     private final JButton advanceButton;
     private final JButton clockEdgeButton;
     private final JButton clockCycleButton;
-    private final JLabel status = new JLabel();
+    /**
+     * Takes no width while empty (outside the mode), and sits at the end of the simulation group, before the last group's separator, so turning the
+     * mode on moves nothing; wide enough for the usual text once it speaks, so it does not jitter.
+     */
+    private final JLabel status = new JLabel() {
+        @Override
+        public Dimension getPreferredSize() {
+            Dimension size = super.getPreferredSize();
+            if (getText() == null || getText().isEmpty()) {
+                return new Dimension(0, size.height);
+            }
+            java.awt.FontMetrics metrics = getFontMetrics(getFont());
+            int usual = Math.max(metrics.stringWidth(Messages.format("step.status", "00000", "00000")),
+                    metrics.stringWidth(Messages.text("step.stable")));
+            return new Dimension(Math.max(size.width, usual + getInsets().left + getInsets().right), size.height);
+        }
+    };
     private final StepHighlightOverlay overlay;
     private final PendingOutlineOverlay pendingOverlay;
     private final Runnable stepModeListener = this::stepModeChanged;
@@ -109,8 +127,8 @@ public final class StepModeFeatures {
         toolBar.add(advanceButton, index + 2);
         toolBar.add(clockEdgeButton, index + 3);
         toolBar.add(clockCycleButton, index + 4);
-        status.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 8)); // air before the speed selector
-        toolBar.add(status, index + 5);
+        status.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 4)); // air after the last control of the left group
+        toolBar.add(status, indexOfEndGroupSeparator(toolBar));
         this.shortcutRemovers = List.of(view.registerShortcutAction("simulation.stepMode", stepModeAction),
                 view.registerShortcutAction("simulation.advance", advanceAction),
                 view.registerShortcutAction("simulation.advanceToClockEdge", clockEdgeAction),
@@ -169,6 +187,17 @@ public final class StepModeFeatures {
                     after++;
                 }
                 return after;
+            }
+        }
+        return children.length;
+    }
+
+    /** Where the separator of the toolbar's last group is: the status goes right before it (the end when none). */
+    private static int indexOfEndGroupSeparator(JToolBar toolBar) {
+        Component[] children = toolBar.getComponents();
+        for (int index = 0; index < children.length; index++) {
+            if ("toolbarEndGroupSeparator".equals(children[index].getName())) {
+                return index;
             }
         }
         return children.length;
@@ -261,13 +290,27 @@ public final class StepModeFeatures {
         boolean clockStepsEnabled = !snapshot.running() && openDocument.hasClock();
         clockEdgeAction.setEnabled(clockStepsEnabled);
         clockCycleAction.setEnabled(clockStepsEnabled);
-        advanceButton.setVisible(stepMode);
-        clockEdgeButton.setVisible(stepMode);
-        clockCycleButton.setVisible(stepMode);
-        status.setVisible(stepMode);
-        String text = StepStatusText.of(snapshot.time(), openDocument.latestStep(), next);
+        // the buttons never come and go (I2): outside the mode they are off and the tooltip says how to turn it on;
+        // the actions (menu items, keys) keep their own state
+        showToolbarButton(advanceButton, advanceAction, stepMode);
+        showToolbarButton(clockEdgeButton, clockEdgeAction, stepMode);
+        showToolbarButton(clockCycleButton, clockCycleAction, stepMode);
+        String text = stepMode ? StepStatusText.of(snapshot.time(), openDocument.latestStep(), next) : "";
         if (!text.equals(status.getText())) {
             status.setText(text);
+        }
+    }
+
+    private static void showToolbarButton(JButton button, Action action, boolean stepMode) {
+        String name = String.valueOf(action.getValue(Action.NAME));
+        button.setEnabled(stepMode && action.isEnabled());
+        // the key stays in the tooltip in both states: the note is added to what the shortcuts' tooltip says (and
+        // ToolbarTooltips, which follows the note, rewrites it with the key when the shortcuts change)
+        String note = stepMode ? null : Messages.text("step.button.off");
+        button.putClientProperty(Actions.TOOLBAR_NOTE, note);
+        String tooltip = AcceleratorTooltip.toolbarText(action, note);
+        if (!tooltip.equals(button.getToolTipText())) {
+            button.setToolTipText(tooltip);
         }
     }
 

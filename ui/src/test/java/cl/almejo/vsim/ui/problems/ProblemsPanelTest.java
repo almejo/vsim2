@@ -116,18 +116,36 @@ class ProblemsPanelTest {
 
     @Test
     void theLibraryHeaderCountsFilesAndNotAMissingFolder() {
-        String missingFolder = "La carpeta de la librería /x ya no existe: …";
+        String missingFolder = "La carpeta de Mis componentes /x ya no existe: …";
         String brokenFile = "roto.vsimcomponent.json no es un componente válido: …";
 
         panel.showLibraryProblems(List.of(missingFolder), 0);
-        assertThat(panel.libraryHeader().getText()).isEqualTo("Librería");
+        assertThat(panel.libraryHeader().getText()).isEqualTo("Mis componentes");
         assertThat(panel.libraryHeader().isVisible()).isTrue();
 
         panel.showLibraryProblems(List.of(missingFolder, brokenFile), 1);
-        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de la librería con problemas");
+        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de Mis componentes con problemas");
         assertThat(panel.libraryProblemTexts()).containsExactly(missingFolder, brokenFile);
 
         panel.showLibraryProblems(List.of(brokenFile));
-        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de la librería con problemas");
+        assertThat(panel.libraryHeader().getText()).isEqualTo("1 archivo de Mis componentes con problemas");
+    }
+
+    @Test
+    void aProblemRowWithTwoLinesShowsBothLinesAndTheHtmlIsEscaped() {
+        ProblemsPanel multiLine = new ProblemsPanel(problem -> "No se pudo leer x.\nDetalle técnico: a < b",
+                navigated::add);
+        multiLine.showSnapshot(snapshot(10, shortCircuit));
+        Problem problem = multiLine.problemList().getModel().getElementAt(0);
+        String text = ((JLabel) multiLine.problemList().getCellRenderer()
+                .getListCellRendererComponent(multiLine.problemList(), problem, 0, false, false)).getText();
+        assertThat(text).isEqualTo("<html>No se pudo leer x.<br>Detalle técnico: a &lt; b</html>");
+    }
+
+    @Test
+    void aLibraryRowWithTwoLinesShowsBothLines() {
+        panel.showLibraryProblems(List.of("No se pudo leer x.\nDetalle técnico: boom", "una línea"));
+        assertThat(panel.libraryRowText(0)).isEqualTo("<html>No se pudo leer x.<br>Detalle técnico: boom</html>");
+        assertThat(panel.libraryRowText(1)).isEqualTo("una línea");
     }
 }

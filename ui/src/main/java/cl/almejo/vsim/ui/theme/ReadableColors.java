@@ -19,6 +19,9 @@ public final class ReadableColors {
     private static final Color LIGHT_MUTED_TEXT = new Color(0x626262);
     private static final Color DARK_MUTED_TEXT = new Color(0xADADAD);
 
+    private static final Color LIGHT_SWITCH_OFF_TRACK = new Color(0x808080);
+    private static final Color DARK_SWITCH_OFF_TRACK = new Color(0x6B6F72);
+
     private ReadableColors() {
     }
 
@@ -48,6 +51,15 @@ public final class ReadableColors {
      */
     public static Color mutedText() {
         return dark() ? DARK_MUTED_TEXT : LIGHT_MUTED_TEXT;
+    }
+
+    /**
+     * The track of an «off» switch, shared by every switch: dark enough for its white knob to read on it (at least
+     * 3:1, a graphic's minimum) on a light theme and on a dark one, where the theme's own border colour is too pale
+     * (1.7:1 on FlatLaf Light).
+     */
+    public static Color switchOffTrack() {
+        return dark() ? DARK_SWITCH_OFF_TRACK : LIGHT_SWITCH_OFF_TRACK;
     }
 
     /** The panel background of the current theme (white when the look and feel has none). */

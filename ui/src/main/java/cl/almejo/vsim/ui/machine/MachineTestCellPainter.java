@@ -236,8 +236,9 @@ final class MachineTestCellPainter {
     }
 
     /**
-     * One row of the strip's own drawing ({@link WaveformPainter#paintSteps}, made for 28 px rows at 100 %), scaled to
-     * the row this table gives it, so a taller row keeps the drawing's proportions.
+     * One row of the strip's own drawing ({@link WaveformPainter#paintSteps}, made for
+     * {@link WaveformPainter#rowHeight()} rows), scaled to the row this table gives it when the letter asks for a
+     * taller one, so the drawing keeps its proportions.
      */
     private static void paintSteps(Graphics2D graphics, MachineTestTableModel model, List<Optional<Value>> values,
                                    MachineTestTableModel.Row row, ColorScheme scheme, LongFunction<String> names,

@@ -65,7 +65,7 @@ class PalettePanelTest {
     void releasingTheMouseOnTheChosenEntryHandsTheFocusOverAfterTheTreeTookIt() throws Exception {
         java.util.concurrent.atomic.AtomicInteger handOvers = new java.util.concurrent.atomic.AtomicInteger();
         palette.setFocusAfterMouseChoice(handOvers::incrementAndGet);
-        javax.swing.JTree tree = palette.tree();
+        javax.swing.JTree tree = PalettePanelAccess.tree(palette);
         tree.setSize(300, 2000);
         palette.choose(StandardComponentTypes.AND);
         java.awt.Rectangle entry = tree.getPathBounds(tree.getSelectionPath());
@@ -182,6 +182,19 @@ class PalettePanelTest {
         assertThat(PaletteFilter.matches(clock, "CLO")).isTrue();
         assertThat(PaletteFilter.matches(clock, "reL")).isTrue();
         assertThat(PaletteFilter.matches(clock, "led")).isFalse();
+    }
+
+    @Test
+    void aSearchThatFindsNothingShowsAHintRowThatCannotBeSelected() {
+        palette.searchField().setText("zzzzzz");
+        javax.swing.tree.TreeModel model = PalettePanelAccess.tree(palette).getModel();
+        Object root = model.getRoot();
+        assertThat(model.getChildCount(root)).isEqualTo(1);
+        Object only = ((javax.swing.tree.DefaultMutableTreeNode) model.getChild(root, 0)).getUserObject();
+        assertThat(only).isEqualTo(PalettePanel.TopSection.NO_RESULTS);
+        palette.searchField().setText("");
+        assertThat(((javax.swing.tree.DefaultMutableTreeNode) PalettePanelAccess.tree(palette).getModel().getChild(
+                PalettePanelAccess.tree(palette).getModel().getRoot(), 0)).getUserObject()).isNotEqualTo(PalettePanel.TopSection.NO_RESULTS);
     }
 
     @Test
@@ -383,7 +396,7 @@ class PalettePanelTest {
 
     @Test
     void theArrowsMoveWithoutPickingAndEnterPicksLikeAClick() {
-        javax.swing.JTree tree = palette.tree();
+        javax.swing.JTree tree = PalettePanelAccess.tree(palette);
         palette.setFilter("and");
         tree.setSelectionRow(0); // the category
 
@@ -398,7 +411,7 @@ class PalettePanelTest {
 
     @Test
     void upOnTheFirstRowFocusesTheSearchAndDownFromTheSearchGoesToTheFirstEntry() {
-        javax.swing.JTree tree = palette.tree();
+        javax.swing.JTree tree = PalettePanelAccess.tree(palette);
         palette.useKeyboardFocus(recordingFocus);
         palette.setFilter("and");
         tree.setSelectionRow(0);
@@ -417,7 +430,7 @@ class PalettePanelTest {
         List<String> escapes = new ArrayList<>();
         palette.setEscapeAction(() -> escapes.add("escape"));
 
-        assertThat(press(palette.tree(), java.awt.event.KeyEvent.VK_ESCAPE)).isTrue();
+        assertThat(press(PalettePanelAccess.tree(palette), java.awt.event.KeyEvent.VK_ESCAPE)).isTrue();
 
         assertThat(escapes).containsExactly("escape");
     }

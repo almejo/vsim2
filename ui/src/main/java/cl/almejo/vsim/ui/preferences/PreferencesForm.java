@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.CustomColorSchemes;
 import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.wiring.InvertModifierNames;
 import com.formdev.flatlaf.FlatLaf;
@@ -22,6 +23,7 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -71,6 +74,9 @@ public final class PreferencesForm {
     private final AppPreferences preferences;
     private final DirectoryChooser directoryChooser;
     private final JComboBox<Choice<AppPreferences.Theme>> themeChoice = new JComboBox<>();
+    private static final Set<String> LOW_CONTRAST_SCHEMES = Set.of(ColorSchemes.CLASSIC_ID, ColorSchemes.PASTEL_ID,
+            ColorSchemes.TWILIGHT_ID);
+
     private final JComboBox<Choice<Optional<String>>> schemeChoice = new JComboBox<>();
     private final JComboBox<Choice<Optional<String>>> languageChoice = new JComboBox<>();
     private final JComboBox<Choice<AppPreferences.InvertModifier>> invertModifierChoice = new JComboBox<>();
@@ -97,6 +103,8 @@ public final class PreferencesForm {
     private final SchemeEditorPanel.ColorChooser colorChooser;
     private final BooleanSupplier themeIsDark;
     private final DeleteConfirmer deleteConfirmer;
+    /** «Los colores de VSim 1…»: under the scheme combo while one of the inherited, low-contrast schemes is chosen. */
+    private final SchemeNote schemeNote = new SchemeNote();
     private final JButton customizeSchemeButton = new JButton(Messages.text("preferences.scheme.customize"));
     private final JButton deleteSchemeButton = new JButton(Messages.text("preferences.scheme.delete"));
     private boolean refreshingSchemes;
@@ -163,6 +171,7 @@ public final class PreferencesForm {
             if (!refreshingSchemes) {
                 preferences.setColorScheme(selected(schemeChoice));
                 deleteSchemeButton.setEnabled(selectedCustomScheme().isPresent());
+                refreshSchemeNote();
             }
         });
         customizeSchemeButton.addActionListener(event -> customizeScheme());
@@ -218,6 +227,7 @@ public final class PreferencesForm {
                         presentationZoomChoice, ""))
                 .section("preferences.section.circuit")
                 .row(PreferenceRow.labeled("scheme", "preferences.scheme", schemeChoice, "",
+                        new PreferenceRow.Placed(schemeNote, "skip 1, hidemode 3"),
                         new PreferenceRow.Placed(customizeSchemeButton, "skip 1, split 2, growx 0"),
                         new PreferenceRow.Placed(deleteSchemeButton, "growx 0")).ignoringValues())
                 .row(PreferenceRow.labeled("textFont", "preferences.textFont", fontFamilyChoice, "split 2",
@@ -433,6 +443,11 @@ public final class PreferencesForm {
             refreshingSchemes = false;
         }
         deleteSchemeButton.setEnabled(selectedCustomScheme().isPresent());
+        refreshSchemeNote();
+    }
+
+    private void refreshSchemeNote() {
+        schemeNote.setApplicable(selected(schemeChoice).filter(LOW_CONTRAST_SCHEMES::contains).isPresent());
     }
 
     private Optional<NamedColorScheme> selectedCustomScheme() {
@@ -512,6 +527,10 @@ public final class PreferencesForm {
 
     JComboBox<Choice<AppPreferences.Theme>> themeChoice() {
         return themeChoice;
+    }
+
+    JLabel schemeNote() {
+        return schemeNote;
     }
 
     JComboBox<Choice<Optional<String>>> schemeChoice() {
@@ -632,5 +651,29 @@ public final class PreferencesForm {
 
     private static <T> T selected(JComboBox<Choice<T>> combo) {
         return combo.getItemAt(combo.getSelectedIndex()).value();
+    }
+
+    /** A muted line; the page shows and hides every component of a row while it filters, this one stays hidden if not applicable. */
+    private static final class SchemeNote extends JLabel {
+        private boolean applicable;
+
+        SchemeNote() {
+            super(Messages.text("preferences.scheme.lowContrast"));
+        }
+
+        @Override
+        public Color getForeground() {
+            return ReadableColors.mutedText();
+        }
+
+        @Override
+        public void setVisible(boolean visible) {
+            super.setVisible(visible && applicable);
+        }
+
+        void setApplicable(boolean applicable) {
+            this.applicable = applicable;
+            setVisible(applicable);
+        }
     }
 }

@@ -36,7 +36,8 @@ public final class ProblemsPanel extends JPanel {
     private final JList<Problem> list = new JList<>(model);
     private final JLabel libraryHeader = new JLabel();
     private final DefaultListModel<String> libraryModel = new DefaultListModel<>();
-    private final JScrollPane libraryScroll = new JScrollPane(new JList<>(libraryModel));
+    private final JList<String> libraryList = new JList<>(libraryModel);
+    private final JScrollPane libraryScroll = new JScrollPane(libraryList);
     private final Function<Problem, String> describer;
     private final Function<Problem, List<Action>> quickActions;
     private List<Problem> shown;
@@ -70,8 +71,16 @@ public final class ProblemsPanel extends JPanel {
             public java.awt.Component getListCellRendererComponent(JList<?> source, Object value, int index,
                                                                    boolean selected, boolean focused) {
                 super.getListCellRendererComponent(source, value, index, selected, focused);
-                setText(describer.apply((Problem) value));
+                setText(RowText.of(describer.apply((Problem) value)));
                 return this;
+            }
+        });
+        libraryList.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> source, Object value, int index,
+                                                                   boolean selected, boolean focused) {
+                return super.getListCellRendererComponent(source, RowText.of(String.valueOf(value)), index, selected,
+                        focused);
             }
         });
         list.addMouseListener(new MouseAdapter() {
@@ -132,6 +141,11 @@ public final class ProblemsPanel extends JPanel {
 
     List<String> libraryProblemTexts() {
         return Collections.list(libraryModel.elements());
+    }
+
+    String libraryRowText(int index) {
+        return ((JLabel) libraryList.getCellRenderer().getListCellRendererComponent(libraryList,
+                libraryModel.get(index), index, false, false)).getText();
     }
 
     JLabel libraryHeader() {

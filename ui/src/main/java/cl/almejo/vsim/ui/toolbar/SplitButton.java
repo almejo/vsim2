@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.toolbar;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
+import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -248,7 +249,7 @@ public final class SplitButton extends JComponent {
         arrowButton.putClientProperty("JButton.buttonType", TOOLBAR_BUTTON_TYPE);
         arrowButton.setFocusable(true);
         arrowButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
-        arrowButton.setPreferredSize(new Dimension(ARROW_WIDTH, mainButton.getPreferredSize().height));
+        arrowButton.setPreferredSize(new Dimension(UIScale.scale(ARROW_WIDTH), mainButton.getPreferredSize().height));
         arrowButton.addActionListener(event -> openPopup());
         arrowButton.getInputMap(JComponent.WHEN_FOCUSED)
                 .put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.ALT_DOWN_MASK), OPEN_MODES);
@@ -275,9 +276,10 @@ public final class SplitButton extends JComponent {
                 painter.setColor(color == null ? component.getForeground() : color);
                 int centre = x + getIconWidth() / 2;
                 int middle = y + getIconHeight() / 2;
-                painter.fillPolygon(new int[]{centre - ARROW_HALF_WIDTH, centre + ARROW_HALF_WIDTH, centre},
-                        new int[]{middle - ARROW_HEIGHT / 2, middle - ARROW_HEIGHT / 2, middle + ARROW_HEIGHT / 2 + 1},
-                        3);
+                int halfWidth = UIScale.scale(ARROW_HALF_WIDTH);
+                int height = UIScale.scale(ARROW_HEIGHT);
+                painter.fillPolygon(new int[]{centre - halfWidth, centre + halfWidth, centre},
+                        new int[]{middle - height / 2, middle - height / 2, middle + height / 2 + 1}, 3);
             } finally {
                 painter.dispose();
             }
@@ -285,12 +287,12 @@ public final class SplitButton extends JComponent {
 
         @Override
         public int getIconWidth() {
-            return ARROW_HALF_WIDTH * 2 + 2;
+            return UIScale.scale(ARROW_HALF_WIDTH) * 2 + 2;
         }
 
         @Override
         public int getIconHeight() {
-            return ARROW_HEIGHT + 3;
+            return UIScale.scale(ARROW_HEIGHT) + 3;
         }
     }
 }

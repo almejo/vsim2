@@ -95,6 +95,27 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   `FrameTicker`), so tests never show a window or wait on a real clock.
 - Preferences go through `AppPreferences`.
 
+### Terminology of the texts (Spanish bundle; the English one follows)
+
+One word per thing; a new text uses these and an old one that strays is fixed.
+
+| Say | Never | Notes |
+|---|---|---|
+| cuadrícula | grilla | the grid of the circuit and of the diagrams |
+| carpeta | directorio | what the user sees; `directory` stays in code and preference ids |
+| Mis componentes | librería, biblioteca | the student's own components (menus, Propiedades, Problemas, dialogs, docs); English «My components». «Biblioteca» only for Logisim's libraries |
+| esquema de colores | esquema de color | |
+| Restaurar | Restablecer | back to the default or the original |
+| Pulsa | Presiona | the key or the button; always the tú form |
+| Borrar | | destroys something of the drawing (a wire, a guide, a segment) |
+| Quitar | | takes something out of a list or a structure (a favorite, a split, a waveform) |
+| Eliminar | | removes a component from Mis componentes |
+| piezas, cables | | the parts of a circuit; «elementos» only for a mixed selection |
+| « » | “ ” | quotes in Spanish; the English bundle uses “ ” (`EnglishBundleStyleTest`) |
+
+English: sentence case in menu items, buttons, titles and tooltips (proper nouns and acronyms keep their capitals),
+American spelling.
+
 ## 8. File format
 
 - Until VSim 2.0 is declared final the VSim 2 format may change freely (agreed with the user 2026-10-20): no

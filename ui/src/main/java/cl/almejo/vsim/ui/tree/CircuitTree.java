@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.tree;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;

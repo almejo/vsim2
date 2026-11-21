@@ -500,13 +500,13 @@ class WaveformPanelTest {
         answers.add(Optional.of(longName));
         item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
         ChannelNameColumn column = panel.names();
-        column.setSize(ChannelNameColumn.COLUMN_WIDTH, 2 * WaveformPainter.ROW_HEIGHT);
+        column.setSize(ChannelNameColumn.columnWidth(), 2 * WaveformPainter.rowHeight());
 
         List<String> shown = column.shownNames();
         assertThat(shown.get(0)).isEqualTo("c1.out");
         assertThat(shown.get(1)).endsWith("…").hasSizeLessThan(longName.length());
         assertThat(longName).startsWith(shown.get(1).substring(0, shown.get(1).length() - 1));
-        assertThat(column.getToolTipText(mouseAt(column, WaveformPainter.ROW_HEIGHT + 5))).isEqualTo(longName);
+        assertThat(column.getToolTipText(mouseAt(column, WaveformPainter.rowHeight() + 5))).isEqualTo(longName);
         assertThat(column.getToolTipText(mouseAt(column, 5))).as("a name shown whole needs no tooltip").isNull();
     }
 

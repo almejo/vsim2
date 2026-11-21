@@ -99,7 +99,7 @@ class EmptyCanvasHintTest {
     void aPaneTooSmallForTheWholeTextShowsNone() {
         BufferedImage image = new BufferedImage(40, 40, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
-        EmptyCanvasHint.paint(graphics, 40, 40, EmptyCanvasHint.lines(Optional.of("Ctrl+K")));
+        EmptyCanvasHint.paint(graphics, ColorScheme.LIGHT, 40, 40, EmptyCanvasHint.lines(Optional.of("Ctrl+K")));
         graphics.dispose();
         for (int row = 0; row < 40; row++) {
             for (int column = 0; column < 40; column++) {

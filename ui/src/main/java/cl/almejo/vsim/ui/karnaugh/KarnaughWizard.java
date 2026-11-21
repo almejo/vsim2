@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.karnaugh;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import net.miginfocom.swing.MigLayout;
@@ -527,6 +528,7 @@ public final class KarnaughWizard extends JPanel {
         wizard.setOnClose(dialog::dispose);
         wizard.updateNavigation(); // the default button, now that there is a root pane
         dialog.setSize(DIALOG_SIZE);
+        DialogButtons.fitToScreen(dialog);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
     }

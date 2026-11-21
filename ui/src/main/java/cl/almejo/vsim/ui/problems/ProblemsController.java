@@ -25,7 +25,9 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.actions.AcceleratorTooltip;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.canvas.PartFormats;
 import cl.almejo.vsim.ui.app.Animations;
@@ -136,9 +138,11 @@ public final class ProblemsController {
         this.panel = new ProblemsPanel(this::describe, navigator::navigateTo, this::quickActionsOf);
 
         nextProblem = Actions.of(Messages.text("action.nextProblem"), navigator::next);
-        nextProblem.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.nextProblem"));
+        AcceleratorTooltip.install(nextProblem, () -> Messages.text("tooltip.nextProblem"));
+        Actions.disabledBecause(nextProblem, () -> Messages.text("reason.noProblems"));
         previousProblem = Actions.of(Messages.text("action.previousProblem"), navigator::previous);
-        previousProblem.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.previousProblem"));
+        AcceleratorTooltip.install(previousProblem, () -> Messages.text("tooltip.previousProblem"));
+        Actions.disabledBecause(previousProblem, () -> Messages.text("reason.noProblems"));
         pauseOnShortCircuit = new AbstractAction(Messages.text("action.pauseOnShortCircuit")) {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -155,14 +159,14 @@ public final class ProblemsController {
             if (!disposed) {
                 navigator.next();
             }
-        });
+        }, () -> AcceleratorTooltip.keyName(nextProblem));
         view.inspector().addTab(InspectorPanel.PROBLEMS, Messages.text("problems.tab"), InspectorPanel.PROBLEMS_ICON,
                 panel);
         view.inspector().showShortcut(InspectorPanel.PROBLEMS, view.inspectorToggleAction(InspectorPanel.PROBLEMS));
 
         editMenu = view.menu(MenuId.EDIT);
-        nextItem = new JMenuItem(nextProblem);
-        previousItem = new JMenuItem(previousProblem);
+        nextItem = new ShownAcceleratorItem(nextProblem); // F8 shown, the canvas binding fires it
+        previousItem = new ShownAcceleratorItem(previousProblem);
         placeMenuItems();
         simulationMenu = view.menu(MenuId.SIMULATION);
         simulationMenu.addSeparator();

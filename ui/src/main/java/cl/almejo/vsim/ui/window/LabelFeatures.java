@@ -2,11 +2,13 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.actions.LabelActions;
 import cl.almejo.vsim.ui.actions.LabelMenuContributor;
+import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 
+import javax.swing.JMenu;
 import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 
@@ -35,7 +37,9 @@ public final class LabelFeatures {
         LabelActions actions = new LabelActions(view.openDocument(), view.selection(), view.inlineEditor());
         KeyStroke editKey = KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0);
         Runnable paneBindings = view.forEachPane(pane -> bindEditKey(pane, editKey, actions));
-        view.menu(MenuId.EDIT).add(actions.editLabel());
+        // right after «Configurar…», as in the context menu (I13); F2 shown, the canvas binding fires it
+        JMenu edit = view.menu(MenuId.EDIT);
+        edit.insert(new ShownAcceleratorItem(actions.editLabel()), Menus.indexOf(edit, view.actions().configure()) + 1);
         view.addContextMenuContributor(new LabelMenuContributor(actions));
         PropertiesPanel properties = new PropertiesPanel(view.openDocument(), view.selection(),
                 view.selectionMoves(), () -> view.canvas().scheme(), view.services().painters());

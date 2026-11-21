@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.shortcuts.sheet;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
@@ -76,7 +77,8 @@ final class ShortcutSheetFeatures {
         this.seams = seams;
         this.preferences = view.services().preferences();
         this.toggle = Actions.of(Messages.text("action.shortcutSheet"), this::toggle);
-        this.item = new ShownAcceleratorItem(toggle, QUESTION_MARK);
+        toggle.putValue(Actions.SHOWN_ACCELERATOR, QUESTION_MARK);
+        this.item = new ShownAcceleratorItem(toggle);
         item.putClientProperty(Actions.SEARCH_TERMS, Messages.text("shortcutSheet.searchTerms"));
         JMenu help = view.menu(MenuId.HELP);
         help.add(item, helpItemIndex(help));

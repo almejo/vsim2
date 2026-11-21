@@ -5,11 +5,11 @@ import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -17,14 +17,11 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 import java.awt.BorderLayout;
 import java.awt.Desktop;
 import java.awt.Dialog;
-import java.awt.FlowLayout;
-import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -65,16 +62,8 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
             dialog.dispose();
         });
         cancel.addActionListener(event -> dialog.dispose());
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttons.add(cancel);
-        buttons.add(accept);
         ComponentFormPanel panel = new ComponentFormPanel(form);
-        dialog.getContentPane().add(panel, BorderLayout.CENTER);
-        dialog.getContentPane().add(buttons, BorderLayout.SOUTH);
-        dialog.getRootPane().setDefaultButton(accept);
-        dialog.getRootPane().registerKeyboardAction(event -> dialog.dispose(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
-        dialog.pack();
+        DialogButtons.assemble(dialog, panel, accept, cancel);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
         form.removeListener(enabler); // «Volver» shows the same form again in a new dialog
@@ -162,9 +151,10 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
 
     @Override
     public boolean confirmRemove(java.awt.Component parent, String componentName) {
-        return JOptionPane.showConfirmDialog(parent, Messages.format("library.remove.confirm", componentName),
-                Messages.text("action.removeFromLibrary"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE)
-                == JOptionPane.YES_OPTION;
+        Object[] options = {Messages.text("action.removeFromLibrary"), Messages.text("template.dialog.cancel")};
+        return JOptionPane.showOptionDialog(parent, Messages.format("library.remove.confirm", componentName),
+                Messages.text("action.removeFromLibrary"), JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+                null, options, options[1]) == 0;
     }
 
     @Override

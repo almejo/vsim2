@@ -110,8 +110,8 @@ public final class PdfExportDialog extends JPanel {
                     (parent, message) -> JOptionPane.showConfirmDialog(parent, message,
                             Messages.text("print.title"), JOptionPane.OK_CANCEL_OPTION,
                             JOptionPane.WARNING_MESSAGE) == JOptionPane.OK_OPTION,
-                    (parent, message) -> JOptionPane.showMessageDialog(parent, message, null,
-                            JOptionPane.ERROR_MESSAGE),
+                    (parent, message) -> JOptionPane.showMessageDialog(parent, message,
+                            Messages.text("print.title"), JOptionPane.ERROR_MESSAGE),
                     action -> {
                         Timer timer = new Timer(PREVIEW_DELAY_MILLISECONDS, event -> action.run());
                         timer.setRepeats(false);

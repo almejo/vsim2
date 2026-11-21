@@ -56,7 +56,7 @@ class TidyToolbarTest {
     private List<AbstractButton> buttons() {
         List<AbstractButton> buttons = new ArrayList<>();
         for (Component child : view.toolBar().getComponents()) {
-            if (child instanceof AbstractButton button) {
+            if (child instanceof AbstractButton button && !"toolbarOverflow".equals(button.getName())) {
                 buttons.add(button);
             }
         }
@@ -114,13 +114,13 @@ class TidyToolbarTest {
         }
         assertThat(tidy).isPositive();
         AbstractButton arrow = (AbstractButton) components.get(tidy + 1);
-        Action options = item(view.menu(MenuId.EDIT), "Ordenar circuito…").getAction();
+        Action options = item(view.menu(MenuId.EDIT), "Ordenar circuito con opciones…").getAction();
         assertThat(arrow.getAction()).isSameAs(options);
         assertThat(arrow.getIcon()).isSameAs(Icons.get(StepIcons.SIZE_MENU, Icons.MENU_SIZE));
         assertThat(arrow.getHideActionText()).isTrue();
         assertThat(arrow.isFocusable()).isFalse();
         // Ctrl+Alt+Mayús+L as this platform names it.
-        assertThat(arrow.getToolTipText()).isEqualTo("Ordenar circuito… (" + KeyNames.describe(
+        assertThat(arrow.getToolTipText()).isEqualTo("Ordenar circuito con opciones… (" + KeyNames.describe(
                 KeyStroke.getKeyStroke(KeyEvent.VK_L,
                         InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)) + ")");
     }

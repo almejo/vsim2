@@ -21,7 +21,7 @@ record FileProblem(String message, String details) {
     /** Every bundle key this class can ask for. */
     static final List<String> MESSAGE_KEYS = List.of("fileproblem.title", "fileproblem.title.many",
             "fileproblem.newer", "fileproblem.newer.unknown", "fileproblem.notVsim", "fileproblem.logisim",
-            "fileproblem.damaged", "fileproblem.damaged.at", "fileproblem.unsupported", "fileproblem.unreadable",
+            "fileproblem.damaged", "fileproblem.damaged.at", "fileproblem.empty", "fileproblem.unsupported", "fileproblem.unreadable",
             "fileproblem.element.components", "fileproblem.element.wires", "fileproblem.element.labels",
             "fileproblem.element.frames", "fileproblem.element.stickyNotes", "fileproblem.element.other",
             "fileproblem.details");
@@ -37,9 +37,10 @@ record FileProblem(String message, String details) {
             case NEWER_FORMAT -> newer(name, exception);
             case NOT_VSIM_FILE, NOT_XML, NOT_LOGISIM_PROJECT -> notVsim(name, file);
             case INVALID_JSON -> looksLikeVsim2(sniff(file)) ? damaged(name, exception) : notVsim(name, file);
+            case EMPTY_FILE -> Messages.format("fileproblem.empty", name);
             case READ_ERROR -> Messages.format("fileproblem.unreadable", name);
             case UNSUPPORTED_VERSION -> Messages.format("fileproblem.unsupported", name);
-            case INVALID_ELEMENT, UNKNOWN_COMPONENT_TYPE -> damaged(name, exception);
+            case INVALID_ELEMENT, UNKNOWN_COMPONENT_TYPE, INVALID_SYMBOL_PATH -> damaged(name, exception);
         };
         return new FileProblem(message, details);
     }

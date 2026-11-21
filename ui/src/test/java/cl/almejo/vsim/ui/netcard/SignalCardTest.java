@@ -165,15 +165,8 @@ class SignalCardTest {
     @Test
     void theSecondaryTextsReadTheirColourWhenPainted() {
         showAndLayOut(andOutput(), false);
-        Color original = UIManager.getColor("Label.disabledForeground");
-        try {
-            Color changed = new Color(1, 2, 3);
-            UIManager.put("Label.disabledForeground", changed);
-
-            assertThat(labelWithText(card, "La maneja").getForeground()).isEqualTo(changed);
-        } finally {
-            UIManager.put("Label.disabledForeground", original);
-        }
+        assertThat(labelWithText(card, "La maneja").getForeground())
+                .isEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.mutedText());
     }
 
     private static JLabel labelWithText(Container container, String text) {

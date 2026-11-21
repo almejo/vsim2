@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.logic.Minimizer;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
@@ -26,9 +27,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
-import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -95,11 +94,15 @@ public final class ExpressionsPanel extends JPanel {
     private final OptionControls optionControls;
     private final JLabel formReason =
             WizardColors.label(Messages.text("expressions.asWrittenReason"), WizardColors::muted);
-    private final JLabel costLine = new JLabel(" ");
+    /** The cost line while there is no expression to cost. */
+    private static final String NO_COST = "\u2014";
+
+    private final JLabel costLine = new JLabel(NO_COST);
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
     private final ExpressionLegend legend;
     private final JPanel buttonBar;
     private final JScrollPane contentScroll;
+    private final JPanel content;
     private final JScrollPane legendScroll;
     private Runnable onClose = () -> { };
     private KarnaughWizard.DiscardConfirmation discardConfirmation =
@@ -143,7 +146,7 @@ public final class ExpressionsPanel extends JPanel {
         this.legend = new ExpressionLegend(this::insert);
 
         // The left side scrolls only up and down: it takes the dialog's width, so the lines fill it and shrink with it.
-        JPanel content = new WidthTrackingPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""));
+        content = new WidthTrackingPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""));
         content.add(new JLabel(Messages.text("karnaugh.table.titleLabel")));
         content.add(title, "growx 0, wmin 200");
         content.add(linesPanel, "span 2, growx, wmin 0, gaptop 8");
@@ -447,7 +450,7 @@ public final class ExpressionsPanel extends JPanel {
             rows.get(index).preview.setText(text);
             rows.get(index).preview.setVisible(!text.isEmpty());
         }
-        costLine.setText(previewed == null ? " " : computed ? preview.cost() : computing);
+        costLine.setText(previewed == null ? NO_COST : computed ? preview.cost() : computing);
     }
 
     /**
@@ -596,7 +599,24 @@ public final class ExpressionsPanel extends JPanel {
         Insets insets = legendScroll.getInsets();
         int natural = legend.rowsWidth() + insets.left + insets.right
                 + legendScroll.getVerticalScrollBar().getPreferredSize().width;
-        return panelWidth <= 0 ? natural : Math.min(natural, Math.max(LEGEND_MINIMUM, panelWidth - LEFT_MINIMUM));
+        return panelWidth <= 0 ? natural : Math.min(natural, Math.max(LEGEND_MINIMUM, panelWidth - leftMinimum()));
+    }
+
+    /**
+     * The least width the left side keeps: {@link #LEFT_MINIMUM}, or more when its controls need more (a larger
+     * interface size); the legend gives way before that.
+     */
+    private int leftMinimum() {
+        return Math.max(LEFT_MINIMUM, content.getMinimumSize().width + contentScroll.getInsets().left
+                + contentScroll.getInsets().right + contentScroll.getVerticalScrollBar().getPreferredSize().width);
+    }
+
+    /** Never less than the left side's minimum plus the open legend's: a smaller window scrolls sideways. */
+    @Override
+    public Dimension getMinimumSize() {
+        Dimension size = super.getMinimumSize();
+        int legendMinimum = legend.isExpanded() ? LEGEND_MINIMUM : legendScroll.getMinimumSize().width;
+        return new Dimension(Math.max(size.width, leftMinimum() + legendMinimum), size.height);
     }
 
     /** The dialog's first size: wide enough for the left side and the legend's rows on one line. */
@@ -622,10 +642,8 @@ public final class ExpressionsPanel extends JPanel {
                 panel::requestClose);
         panel.setOnClose(dialog::dispose);
         panel.updateDefaultButton();
-        Dimension size = panel.dialogSize();
-        // Not wider than the screen: there the legend's details wrap instead.
-        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        dialog.setSize(Math.min(size.width, screen.width), Math.min(size.height, screen.height));
+        dialog.setSize(panel.dialogSize());
+        DialogButtons.fitToScreen(dialog); // not wider than the usable screen: the legend's details wrap instead
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
     }
