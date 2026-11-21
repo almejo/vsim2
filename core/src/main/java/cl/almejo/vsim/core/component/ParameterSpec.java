@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.component;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -226,10 +228,10 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
                     || numeric instanceof Long) {
                 return numeric.longValue();
             }
-            if (numeric instanceof java.math.BigInteger bigInteger) {
+            if (numeric instanceof BigInteger bigInteger) {
                 return bigInteger.longValueExact();
             }
-            if (numeric instanceof java.math.BigDecimal bigDecimal) {
+            if (numeric instanceof BigDecimal bigDecimal) {
                 return bigDecimal.longValueExact();
             }
             double decimal = numeric.doubleValue();

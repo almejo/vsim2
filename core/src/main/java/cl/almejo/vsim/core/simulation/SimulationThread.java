@@ -516,8 +516,9 @@ public final class SimulationThread implements AutoCloseable {
      * in slices within each tick's real-time budget, like a running simulation (SIM-3: a billion units of a fast clock
      * took a quarter of an hour in one call), so the snapshots show its time moving and the requests after it are
      * served meanwhile: edits and clicks between two slices; «Pausar», «Iniciar» and another step end it where it got,
-     * published with every net it changed so far, while the AI's steps are refused as while running; «Reiniciar» and a failure drop it; {@link #close()} stops it within
-     * a tick. A step that ends within its first budget publishes exactly what one call did.
+     * published with every net it changed so far, while the AI's steps are refused as while running; «Reiniciar» and a
+     * failure drop it; {@link #close()} stops it within a tick. A step that ends within its first budget publishes
+     * exactly what one call did.
      */
     public void step(long duration) {
         requests.add(() -> {

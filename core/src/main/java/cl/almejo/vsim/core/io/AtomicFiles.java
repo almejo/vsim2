@@ -40,8 +40,8 @@ public final class AtomicFiles {
                     Files.writeString(absolute, content);
                     return;
                 }
-                throw new IOException("Cannot write in the folder " + folder + " (" + exception.getClass().getSimpleName() + ")",
-                        exception);
+                throw new IOException("Cannot write in the folder " + folder + " ("
+                        + exception.getClass().getSimpleName() + ")", exception);
             }
             Files.writeString(temporary, content);
             // After the write: copying a read-only target's permissions first would make the write itself fail.

@@ -422,9 +422,9 @@ public final class SelectTool implements Tool {
 
     /**
      * The one way to abandon the gesture under way (Escape, a right press in the middle of it, the focus lost, an
-     * interruption, another tool): a delegate's press (a frame, a sticky note), a held button, a press, a move, a rubber
-     * band, a label drag, a wire press and a wire drawn in pieces. A continuous path is not part of it: it needs no held
-     * button and survives the focus; interrupt and deactivated cancel it too.
+     * interruption, another tool): a delegate's press (a frame, a sticky note), a held button, a press, a move, a
+     * rubber band, a label drag, a wire press and a wire drawn in pieces. A continuous path is not part of it: it needs
+     * no held button and survives the focus; interrupt and deactivated cancel it too.
      */
     private void cancelGesture(ToolContext context) {
         cancelDelegate(context);

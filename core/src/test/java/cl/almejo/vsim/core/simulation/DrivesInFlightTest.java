@@ -55,7 +55,8 @@ class DrivesInFlightTest {
             engine.runUntil(time);
             SimulationSnapshot snapshot = engine.snapshot();
             boolean shortListed = snapshot.problems().stream()
-                    .anyMatch(problem -> problem instanceof ShortCircuit shortCircuit && shortCircuit.netId().equals(netId));
+                    .anyMatch(problem -> problem instanceof ShortCircuit shortCircuit
+                            && shortCircuit.netId().equals(netId));
             if (snapshot.netValue(netId).conflict()) {
                 assertThat(shortListed).as("a conflict at t = %d is listed as a short", time).isTrue();
                 conflicts++;

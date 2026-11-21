@@ -144,7 +144,8 @@ public final class RotateElementsCommand implements Command {
     private DocumentElement rotated(DocumentElement element, Pivot pivot, Rotation turn) {
         return switch (element) {
             case Component component when turnsBySide(component) ->
-                    MultiBitOrientation.turnedAbout(component, typeOf(component), point -> pivot.turn(point, turn), turn);
+                    MultiBitOrientation.turnedAbout(component, typeOf(component), point -> pivot.turn(point, turn),
+                            turn);
             case Component component -> component
                     .withPosition(around(component.position(), pivot, turn))
                     .withRotation(clockwise ? component.rotation().clockwise() : component.rotation().counterClockwise());

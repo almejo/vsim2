@@ -7,8 +7,8 @@ import java.util.Optional;
 
 /**
  * D flip-flop: pin 0 D, pin 1 Q, pin 2 clock, pin 3 Q̅ when «Mostrar Q̅» is on (appended in format 5, so older files
- * keep their pin indices). Latches D on a falling edge; Q copies D when it is a defined bit, and Q and Q̅ are both Z when D
- * is Z or a bus conflict (a short is never stored as a clean bit, as in Register and Counter).
+ * keep their pin indices). Latches D on a falling edge; Q copies D when it is a defined bit, and Q and Q̅ are both Z
+ * when D is Z or a bus conflict (a short is never stored as a clean bit, as in Register and Counter).
  */
 final class FlipFlopDataBehavior extends ClockedFlipFlopBehavior {
 

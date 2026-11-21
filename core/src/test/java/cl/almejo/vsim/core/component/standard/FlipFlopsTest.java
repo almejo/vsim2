@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.GateHarness;
+import cl.almejo.vsim.core.component.Behavior;
+import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -18,6 +20,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -69,8 +72,8 @@ class FlipFlopsTest {
     void aDFlipFlopWhoseDIsInConflictOrZStoresUndefinedOnBothOutputs() {
         for (Value undefinedData : List.of(Value.ONE.withConflict(), Value.HIGH_IMPEDANCE)) {
             Value[] inputs = {undefinedData, Value.HIGH_IMPEDANCE, Value.ONE, Value.HIGH_IMPEDANCE};
-            Map<Integer, Value> driven = new java.util.TreeMap<>();
-            cl.almejo.vsim.core.component.BehaviorContext context = new cl.almejo.vsim.core.component.BehaviorContext() {
+            Map<Integer, Value> driven = new TreeMap<>();
+            BehaviorContext context = new BehaviorContext() {
                 @Override
                 public Value input(int pinIndex) {
                     return inputs[pinIndex];
@@ -90,7 +93,7 @@ class FlipFlopsTest {
                     return 0;
                 }
             };
-            cl.almejo.vsim.core.component.Behavior behavior = registry.require(StandardComponentTypes.FLIP_FLOP_DATA)
+            Behavior behavior = registry.require(StandardComponentTypes.FLIP_FLOP_DATA)
                     .createBehavior(Map.of("showInverted", true));
             behavior.initialize(context);
             inputs[DATA_CLOCK] = Value.ZERO;

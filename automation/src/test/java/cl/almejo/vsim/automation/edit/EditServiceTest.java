@@ -46,6 +46,7 @@ import cl.almejo.vsim.core.document.StickyItem;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -62,6 +63,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -657,7 +659,7 @@ class EditServiceTest {
                 new PlacePart(Optional.of("y"), "output-pin", 18, 1, Rotation.R0, Map.of(), "Y"),
                 connect("new:source", "out", "new:not", "in"),
                 connect("new:not", "out", "new:y", "pin")));
-        return new java.util.HashMap<>(receipt.aliases());
+        return new HashMap<>(receipt.aliases());
     }
 
     @Test
@@ -1228,7 +1230,7 @@ class EditServiceTest {
                 new Connect(PinTarget.named("c1", "out"), PinTarget.named("c2", "in0"),
                         List.of(new GridPoint(far, 5))),
                 new MakeFrame(Optional.empty(), "T", List.of(), Optional.of(
-                        new cl.almejo.vsim.core.geometry.Bounds(0, 0, far, 10)), false))) {
+                        new Bounds(0, 0, far, 10)), false))) {
             assertRefused(request(operation), AutomationError.INVALID_PARAMETER);
             assertNothingChanged();
         }
@@ -1257,15 +1259,16 @@ class EditServiceTest {
     /** What a hand-made file can hold and the AI could never place: a gate three times past the limit. */
     private void addFarNand() {
         PlacePart nand = place("far", "nand", 0, 0);
-        circuit.document().add(new cl.almejo.vsim.core.document.Component(
-                new cl.almejo.vsim.core.document.ElementId("c1"), nand.typeId(),
+        circuit.document().add(new Component(
+                new ElementId("c1"), nand.typeId(),
                 new GridPoint(3 * EditPlanner.MAXIMUM_COORDINATE, 0), Rotation.R0, nand.parameters(), ""));
     }
 
     @Test
     void aFileCanHoldElementsAndGuidesFarerThanTheLimitAndTheAiMayBringThemCloser() {
         addFarNand();
-        circuit.document().setGuides(List.of(new Guide(Guide.Orientation.VERTICAL, 3 * EditPlanner.MAXIMUM_COORDINATE)));
+        circuit.document().setGuides(List.of(new Guide(Guide.Orientation.VERTICAL,
+                3 * EditPlanner.MAXIMUM_COORDINATE)));
 
         service.edit(request(new Move(List.of("c1"), -2 * EditPlanner.MAXIMUM_COORDINATE, 0),
                 new RemoveGuide(Guide.Orientation.VERTICAL, 3 * EditPlanner.MAXIMUM_COORDINATE)));
@@ -1284,7 +1287,7 @@ class EditServiceTest {
 
     @Test
     void aNullParameterValueIsRefusedNamingTheParameter() {
-        java.util.HashMap<String, Object> parameters = new java.util.HashMap<>();
+        HashMap<String, Object> parameters = new HashMap<>();
         parameters.put("bits", null);
 
         assertThatThrownBy(() -> new PlacePart(Optional.empty(), "and", 0, 0, Rotation.R0, parameters, ""))
@@ -1366,7 +1369,7 @@ class EditServiceTest {
                 new PlacePart(Optional.of("y"), "output-pin", 18, 1, Rotation.R0, Map.of(), "Y"),
                 connect("new:a", "pin", "new:not", "in"),
                 connect("new:not", "out", "new:y", "pin")));
-        Map<String, String> ids = new java.util.HashMap<>(receipt.aliases());
+        Map<String, String> ids = new HashMap<>(receipt.aliases());
         ids.put("w1", receipt.connections().get(0).wireIds().getFirst());
         ids.put("w2", receipt.connections().get(1).wireIds().getFirst());
         return ids;

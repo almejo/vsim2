@@ -243,8 +243,8 @@ class ExpressionParserTest {
 
     @Test
     void absurdNestingIsAProblemNeverAStackOverflow() {
-        for (String text : List.of("F = " + "!".repeat(20_000) + "A", "F = " + "(".repeat(20_000) + "A" + ")".repeat(20_000),
-                "F = A" + "'".repeat(20_000))) {
+        for (String text : List.of("F = " + "!".repeat(20_000) + "A",
+                "F = " + "(".repeat(20_000) + "A" + ")".repeat(20_000), "F = A" + "'".repeat(20_000))) {
             ParseResult result = ExpressionParser.parseLine(text);
 
             assertThat(result.line()).isEmpty();

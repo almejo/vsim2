@@ -33,7 +33,7 @@ class AiServerServiceTest {
 
     @Test
     void stoppingRefusesTheQueuedWorkFirstAndStartingTakesWorkAgain() throws Exception {
-        List<String> gate = new java.util.ArrayList<>();
+        List<String> gate = new ArrayList<>();
         AiServerService gated = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
                 new FakeAiTasks(), Runnable::run, Runnable::run, new AiServerService.QueuedWork() {
                     @Override
@@ -56,10 +56,10 @@ class AiServerServiceTest {
 
     @Test
     void afterARestartTheQueuedWorkStaysRefusedUntilTheOldServerHasStopped() throws Exception {
-        List<String> gate = new java.util.ArrayList<>();
-        java.util.ArrayDeque<Runnable> serverJobs = new java.util.ArrayDeque<>();
+        List<String> gate = new ArrayList<>();
+        ArrayDeque<Runnable> serverJobs = new ArrayDeque<>();
         boolean[] queued = {false};
-        java.util.concurrent.Executor serverThread = job -> {
+        Executor serverThread = job -> {
             if (queued[0]) {
                 serverJobs.add(job);
             } else {
@@ -77,7 +77,7 @@ class AiServerServiceTest {
                     public void accept() {
                         gate.add("accept");
                     }
-                }, SessionPort.none(), serverThread, java.time.Clock.systemDefaultZone());
+                }, SessionPort.none(), serverThread, Clock.systemDefaultZone());
         preferences.setAiPort(freePort());
         try {
             restarting.activate();
@@ -101,7 +101,7 @@ class AiServerServiceTest {
         }
     }
 
-    /** Review I2: «Apagar» on the EDT between the start's check of its generation and its accept on the server thread. */
+    /** Review I2: «Apagar» on the EDT between the start's check of its generation and its accept on the server. */
     @Test
     void apagarBetweenTheStartsCheckAndItsAcceptLeavesTheQueuedWorkRefused() throws Exception {
         List<String> gate = new ArrayList<>();
