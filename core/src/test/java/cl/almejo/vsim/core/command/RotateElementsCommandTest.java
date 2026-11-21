@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -80,15 +81,59 @@ class RotateElementsCommandTest {
                 List.of(first.id(), second.id(), new ElementId("c99")), false, registry);
         command.apply(document);
         assertThat(Set.copyOf(document.elements())).isNotEqualTo(before);
-        // union bounds are (0,0)-(11,7), so the pivot is the grid point nearest its center (5.5, 3.5): (6, 4)
-        assertThat(RotateElementsCommand.pivotOf(new Bounds(0, 0, 11, 7))).isEqualTo(new GridPoint(6, 4));
-        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(new GridPoint(2, 10));
+        // union bounds are (0,0)-(11,7): it turns about its own centre (5.5, 3.5), in half units (11, 7)
+        assertThat(RotateElementsCommand.pivotOf(new Bounds(0, 0, 11, 7)))
+                .isEqualTo(new RotateElementsCommand.Pivot(11, 7));
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(new GridPoint(2, 9));
         assertThat(document.component(first.id()).orElseThrow().rotation()).isEqualTo(Rotation.R270);
-        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(5, 3));
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(5, 2));
         assertThat(document.component(second.id()).orElseThrow().rotation()).isEqualTo(Rotation.R270);
         command.revert(document);
         assertThat(Set.copyOf(document.elements())).isEqualTo(before);
         assertThat(command.description()).isEqualTo("command.rotate");
+    }
+
+    @Test
+    void fourTurnsEitherWayBringAnyGroupBackExactly() {
+        for (int width = 0; width <= 5; width++) {
+            for (int height = 0; height <= 5; height++) {
+                if (width == 0 && height == 0) {
+                    continue;
+                }
+                for (boolean clockwise : new boolean[]{true, false}) {
+                    CircuitDocument local = new CircuitDocument();
+                    Component gate = gate(registry, local, 10 + width, 10);
+                    List<ElementId> ids = new ArrayList<>(List.of(gate.id()));
+                    if (width > 0) {
+                        Wire across = new Wire(local.newWireId(), new GridPoint(0, 0), new GridPoint(width, 0));
+                        local.add(across);
+                        ids.add(across.id());
+                    }
+                    if (height > 0) {
+                        Wire down = new Wire(local.newWireId(), new GridPoint(0, 0), new GridPoint(0, height));
+                        local.add(down);
+                        ids.add(down.id());
+                    }
+                    Set<DocumentElement> start = Set.copyOf(local.elements());
+                    for (int turn = 0; turn < 4; turn++) {
+                        new RotateElementsCommand(ids, clockwise, registry).apply(local);
+                    }
+                    assertThat(Set.copyOf(local.elements())).as(width + "x" + height + " cw=" + clockwise)
+                            .isEqualTo(start);
+                }
+            }
+        }
+    }
+
+    @Test
+    void aThreeLongWireComesBackAfterFourTurns() {
+        Wire wire = new Wire(document.newWireId(), new GridPoint(0, 0), new GridPoint(3, 0));
+        document.add(wire);
+        for (int turn = 0; turn < 4; turn++) {
+            new RotateElementsCommand(List.of(wire.id()), true, registry).apply(document);
+        }
+        assertThat(document.wire(wire.id()).orElseThrow().start()).isEqualTo(new GridPoint(0, 0));
+        assertThat(document.wire(wire.id()).orElseThrow().end()).isEqualTo(new GridPoint(3, 0));
     }
 
     @Test

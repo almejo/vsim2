@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 /**
  * Where a Switch or LED points, kept in one place only: a one-bit part turns as a whole (the element's rotation, its
@@ -104,13 +105,14 @@ public final class MultiBitOrientation {
     }
 
     /**
-     * A multi-bit part turned with a group about {@code pivot}: its pin goes where the quarter turn {@code turn}
-     * takes it and moves to the next side, the body stays upright behind it.
+     * A multi-bit part turned with a group by {@code turnAbout}: its pin goes where that
+     * takes it for the quarter turn {@code turn} and moves to the next side, the body stays upright behind it.
      */
-    public static Component turnedAbout(Component component, ComponentType type, GridPoint pivot, Rotation turn) {
+    public static Component turnedAbout(Component component, ComponentType type,
+                                        UnaryOperator<GridPoint> turnAbout, Rotation turn) {
         Component upright = normalized(component, type);
         GridPoint pin = type.pinLocation(upright, 0);
-        GridPoint turnedPin = pivot.plus(turn.apply(new GridPoint(pin.x() - pivot.x(), pin.y() - pivot.y())));
+        GridPoint turnedPin = turnAbout.apply(pin);
         String side = MultiBitLayout.sideOf(type, upright.parameters());
         return keepingPin(withSide(upright, turned(side, turn.quarterTurns())), type, turnedPin);
     }

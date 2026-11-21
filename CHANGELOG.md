@@ -58,6 +58,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Girar una selección: cuatro giros de un cuarto de vuelta, en cualquier sentido, la dejan exactamente donde estaba (antes, con un ancho o alto impar, cada giro corría el centro media casilla y un cable de 3 de largo no volvía a su lugar).
 - Editor de memoria: con el contenido enlazado a un archivo (solo lectura), Ctrl+Z y Ctrl+Y ya no cambian la cuadrícula.
 - «Guardar como» sobre un archivo que está abierto en otra pestaña ya no lo pisa ni deja dos documentos con el mismo archivo: VSim lo rechaza con un aviso («ciérrala primero o elige otro nombre»).
 - Un circuito que no se puede serializar (por ejemplo, con una pieza cuya definición falta) ya no se queda sin copia de recuperación en silencio: VSim lo avisa una vez en la barra de estado, y de nuevo si lo vuelves a abrir.

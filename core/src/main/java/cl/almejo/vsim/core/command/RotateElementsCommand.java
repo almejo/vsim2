@@ -84,7 +84,7 @@ public final class RotateElementsCommand implements Command {
         if (bounds.isEmpty()) {
             return List.of();
         }
-        GridPoint pivot = pivotOf(bounds.get());
+        Pivot pivot = pivotOf(bounds.get());
         Rotation turn = clockwise ? Rotation.R90 : Rotation.R270;
         if (elements.size() == 1 && elements.getFirst() instanceof Component lone && turnsBySide(lone)) {
             return List.of(new Turn(lone, MultiBitOrientation.turnedInPlace(lone, typeOf(lone), turn)));
@@ -109,15 +109,42 @@ public final class RotateElementsCommand implements Command {
         return "command.rotate";
     }
 
-    static GridPoint pivotOf(Bounds bounds) {
-        return new GridPoint((int) Math.round(bounds.x() + bounds.width() / 2.0),
-                (int) Math.round(bounds.y() + bounds.height() / 2.0));
+    /** A turning point in half units: (2, 3) is the grid point (1, 1.5). Its two halves have the same parity. */
+    record Pivot(int doubledX, int doubledY) {
+
+        GridPoint turn(GridPoint point, Rotation turn) {
+            GridPoint offset = turn.apply(new GridPoint(2 * point.x() - doubledX, 2 * point.y() - doubledY));
+            return new GridPoint((doubledX + offset.x()) / 2, (doubledY + offset.y()) / 2);
+        }
     }
 
-    private DocumentElement rotated(DocumentElement element, GridPoint pivot, Rotation turn) {
+    /**
+     * The point a group turns about. A centre on the grid (or in the middle of a cell) is used as it is. A centre
+     * halfway along one axis only would send grid points between grid points, so it moves half a unit to the
+     * middle of one of the two cells next to it, picked so that every centre of the four a group has while it turns
+     * picks the same cell: the group then turns about one fixed point and four turns bring it back exactly.
+     */
+    static Pivot pivotOf(Bounds bounds) {
+        int doubledX = 2 * bounds.x() + bounds.width();
+        int doubledY = 2 * bounds.y() + bounds.height();
+        if (Math.floorMod(doubledX, 2) == Math.floorMod(doubledY, 2)) {
+            return new Pivot(doubledX, doubledY);
+        }
+        // Cells of the checkerboard whose lower-left grid corner has an even coordinate sum are the pivots.
+        if (doubledX % 2 != 0) {
+            int column = Math.floorDiv(doubledX, 2);
+            int row = Math.floorDiv(doubledY, 2);
+            return new Pivot(doubledX, Math.floorMod(column + row, 2) == 0 ? doubledY + 1 : doubledY - 1);
+        }
+        int column = Math.floorDiv(doubledX, 2);
+        int row = Math.floorDiv(doubledY, 2);
+        return new Pivot(Math.floorMod(column + row, 2) == 0 ? doubledX + 1 : doubledX - 1, doubledY);
+    }
+
+    private DocumentElement rotated(DocumentElement element, Pivot pivot, Rotation turn) {
         return switch (element) {
             case Component component when turnsBySide(component) ->
-                    MultiBitOrientation.turnedAbout(component, typeOf(component), pivot, turn);
+                    MultiBitOrientation.turnedAbout(component, typeOf(component), point -> pivot.turn(point, turn), turn);
             case Component component -> component
                     .withPosition(around(component.position(), pivot, turn))
                     .withRotation(clockwise ? component.rotation().clockwise() : component.rotation().counterClockwise());
@@ -142,7 +169,7 @@ public final class RotateElementsCommand implements Command {
      * The frame's rectangle turned about {@code pivot}: width and height swap and the title stays on the top edge of
      * the new rectangle. A side that would end up under the minimum size grows to it, rightwards or downwards.
      */
-    private static Frame rotatedFrame(Frame frame, GridPoint pivot, Rotation turn) {
+    private static Frame rotatedFrame(Frame frame, Pivot pivot, Rotation turn) {
         GridPoint corner = around(frame.topLeft(), pivot, turn);
         GridPoint opposite = around(frame.topLeft().translate(frame.width(), frame.height()), pivot, turn);
         GridPoint topLeft = new GridPoint(Math.min(corner.x(), opposite.x()), Math.min(corner.y(), opposite.y()));
@@ -150,8 +177,8 @@ public final class RotateElementsCommand implements Command {
                 Math.max(Frame.MINIMUM_HEIGHT, Math.abs(opposite.y() - corner.y())));
     }
 
-    private static GridPoint around(GridPoint point, GridPoint pivot, Rotation turn) {
-        return pivot.plus(turn.apply(new GridPoint(point.x() - pivot.x(), point.y() - pivot.y())));
+    private static GridPoint around(GridPoint point, Pivot pivot, Rotation turn) {
+        return pivot.turn(point, turn);
     }
 
     private record Turn(DocumentElement before, DocumentElement after) {
