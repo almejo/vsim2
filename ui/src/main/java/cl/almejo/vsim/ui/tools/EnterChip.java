@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.tools;
 
+import javax.swing.UIManager;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -26,7 +27,8 @@ import java.util.Optional;
 final class EnterChip {
 
     /** Sizes in screen pixels, divided by the zoom where the chip is drawn in document pixels. */
-    private static final float FONT_SIZE = 11f;
+    /** The chip text's size relative to the label font (11 px beside the 13 px of the default theme). */
+    private static final float FONT_RATIO = 11f / 13f;
     private static final double PADDING = 5;
     private static final double HEIGHT = 16;
     private static final double OVERLAP = 6;
@@ -93,7 +95,7 @@ final class EnterChip {
             local.setColor(scheme.selection());
             local.fill(new RoundRectangle2D.Double(chip.getX(), chip.getY(), chip.getWidth(), chip.getHeight(),
                     ARC / zoom, ARC / zoom));
-            Font font = chipFont().deriveFont((float) (FONT_SIZE / zoom));
+            Font font = chipFont().deriveFont((float) (chipFont().getSize2D() / zoom));
             local.setFont(font);
             local.setColor(scheme.background());
             LineMetrics metrics = font.getLineMetrics(text(), local.getFontRenderContext());
@@ -183,7 +185,9 @@ final class EnterChip {
     }
 
     private static Font chipFont() {
-        return new Font(Font.DIALOG, Font.BOLD, Math.round(FONT_SIZE));
+        Font label = UIManager.getFont("Label.font");
+        float size = (label != null ? label.getSize2D() : 13f) * FONT_RATIO;
+        return new Font(Font.DIALOG, Font.BOLD, 1).deriveFont(size);
     }
 
     private static String text() {

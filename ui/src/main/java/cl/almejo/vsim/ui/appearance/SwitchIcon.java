@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.appearance;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import javax.swing.AbstractButton;
@@ -56,8 +57,6 @@ final class SwitchIcon implements Icon {
     }
 
     private static Color offTrack() {
-        Color border = UIManager.getColor("Component.borderColor");
-        Color text = UIManager.getColor("Label.disabledForeground");
-        return text != null ? text : border != null ? border : Color.GRAY;
+        return ReadableColors.switchOffTrack();
     }
 }

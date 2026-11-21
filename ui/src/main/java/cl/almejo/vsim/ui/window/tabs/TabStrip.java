@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window.tabs;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.ai.AiRobotIcon;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -1316,7 +1317,7 @@ public final class TabStrip extends JComponent implements Accessible {
     }
 
     private static Color mutedText() {
-        return ThemeColors.ui("Label.disabledForeground", mix(textColor(), activeFill(), 0.4));
+        return ReadableColors.mutedText();
     }
 
     private static Color accent() {

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.quickinsert;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
@@ -75,7 +76,7 @@ final class PaletteRowRenderer implements ListCellRenderer<QuickInsertPanel.Row>
     private Component actionCell(JList<?> list, ActionRow row, boolean selected) {
         Color background = selected ? list.getSelectionBackground() : list.getBackground();
         Color foreground = selected ? list.getSelectionForeground() : list.getForeground();
-        Color muted = selected ? foreground : UIManager.getColor("Label.disabledForeground");
+        Color muted = selected ? foreground : ReadableColors.mutedText();
         actionCell.setBackground(background);
         actionCell.setOpaque(true);
         check.setPreferredSize(null);

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -308,7 +309,7 @@ public final class LeftColumn extends JPanel {
             if (font != null) {
                 titleButton.setFont(font.deriveFont(Font.BOLD));
             }
-            Color muted = UIManager.getColor("Label.disabledForeground");
+            Color muted = ReadableColors.mutedText();
             keyLabel.setForeground(muted);
         }
 

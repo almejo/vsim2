@@ -141,7 +141,7 @@ class AboutDialogTest {
     }
 
     @Test
-    void theMutedTextFollowsTheDisabledForegroundAndTheLinksTheLinkColour() {
+    void theMutedTextIsTheReadableGreyAndTheLinksTheLinkColour() {
         AboutContent content = content(new LinkOpener() {
             @Override public boolean available() { return true; }
             @Override public boolean open(String link) { return true; }
@@ -154,7 +154,7 @@ class AboutDialogTest {
                     .orElseThrow();
             AboutContent.LinkLabel link = (AboutContent.LinkLabel) everyComponent(content).stream()
                     .filter(AboutContent.LinkLabel.class::isInstance).findFirst().orElseThrow();
-            assertThat(version.getForeground()).isEqualTo(new java.awt.Color(11, 12, 13));
+            assertThat(version.getForeground()).isEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.mutedText());
             assertThat(link.getForeground()).isEqualTo(new java.awt.Color(21, 22, 23));
         } finally {
             javax.swing.UIManager.put("Label.disabledForeground", null);

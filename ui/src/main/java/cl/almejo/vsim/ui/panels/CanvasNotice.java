@@ -257,7 +257,7 @@ public final class CanvasNotice extends JComponent {
         repaint();
     }
 
-    /** The tooltip colours of the current theme (dark in light themes, as a toast), read at paint time, translucent. */
+    /** The tooltip colours of the current theme (a light panel in the light themes, read at paint time), read at paint time, translucent. */
     static Color toastBackground() {
         Color base = UIManager.getColor("ToolTip.background");
         if (base == null) {

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.whatsnew;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.Keycaps;
@@ -320,8 +321,8 @@ final class TipPicture extends JComponent {
     }
 
     static Color mutedColour() {
-        Color muted = UIManager.getColor("Label.disabledForeground");
-        return muted == null ? Color.GRAY : muted;
+        Color muted = ReadableColors.mutedText();
+        return muted;
     }
 
     static Color borderColour() {

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.shortcuts.sheet;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.Keycaps;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.theme.SwitchBox;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * What the sheet of shortcuts shows: a dark translucent veil over the circuit area (the circuit still shows, dimmed)
@@ -139,7 +141,7 @@ final class ShortcutSheetPanel extends JPanel {
         foot.setOpaque(false);
         foot.add(showUsedShortcutsLabel);
         foot.add(showUsedShortcuts);
-        foot.add(new ThemedLabel("Label.disabledForeground", Messages.text("shortcutSheet.closeHint")));
+        foot.add(new ThemedLabel(ReadableColors::mutedText, Messages.text("shortcutSheet.closeHint")));
         foot.add(allShortcuts, "hidemode 3");
         return foot;
     }
@@ -168,7 +170,7 @@ final class ShortcutSheetPanel extends JPanel {
     private static JPanel groupPanel(SheetSelection.Column group) {
         JPanel panel = new JPanel(new MigLayout("insets 0, wrap 2, gapy 10, gapx 12", "[right][left]"));
         panel.setOpaque(false);
-        JLabel heading = new ThemedLabel("Label.disabledForeground", group.title().toUpperCase(Locale.ROOT));
+        JLabel heading = new ThemedLabel(ReadableColors::mutedText, group.title().toUpperCase(Locale.ROOT));
         Font font = heading.getFont();
         heading.setFont(font.deriveFont(Map.of(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD,
                 TextAttribute.SIZE, font.getSize2D() * HEADING_SCALE, TextAttribute.TRACKING, HEADING_TRACKING)));
@@ -319,7 +321,7 @@ final class ShortcutSheetPanel extends JPanel {
     private static final class ColumnsPanel extends JPanel implements Scrollable {
 
         ColumnsPanel() {
-            super(new MigLayout("insets 0, fillx, gapx 40", "[grow, fill][grow, fill]", "[top]"));
+            super(new MigLayout("insets 0, fillx, gapx 40", "[grow, fill, shrink 100][grow, fill, shrink 0]", "[top]"));
         }
 
         @Override
@@ -412,17 +414,21 @@ final class ShortcutSheetPanel extends JPanel {
     /** A label whose colour is the theme's {@code colorKey}, read at each paint (themes change live). */
     private static final class ThemedLabel extends JLabel {
 
-        private final String colorKey;
+        private final Supplier<Color> color;
 
         ThemedLabel(String colorKey, String text) {
+            this(() -> themeColor(colorKey, Color.BLACK), text);
+        }
+
+        ThemedLabel(Supplier<Color> color, String text) {
             super(text);
-            this.colorKey = colorKey;
+            this.color = color;
             setHorizontalAlignment(SwingConstants.LEADING);
         }
 
         @Override
         public Color getForeground() {
-            return colorKey == null ? super.getForeground() : themeColor(colorKey, super.getForeground());
+            return color == null ? super.getForeground() : color.get();
         }
     }
 

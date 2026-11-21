@@ -55,9 +55,9 @@ final class StartupSplash {
     private static final int IMAGE_HEIGHT = 400;
     private static final String[] IMAGE_RESOURCES = {"/splash/vsim2-splash.png", "/splash/vsim2-splash@2x.png"};
     private static final Color LOADING_COLOR = new Color(0x8A8F98);
-    private static final Color VERSION_COLOR = new Color(0x5A5E66);
+    static final Color VERSION_COLOR = new Color(0x8A8F98);
     /** The image's own background, behind everything until the picture is painted. */
-    private static final Color BACKGROUND = new Color(0x1E1F22);
+    static final Color BACKGROUND = new Color(0x1E1F22);
 
     /** How long {@link #awaitFirstPaint()} waits at most before the start goes on anyway. */
     private static final Duration FIRST_PAINT_LIMIT = Duration.ofMillis(1500);

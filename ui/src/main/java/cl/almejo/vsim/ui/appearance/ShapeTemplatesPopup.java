@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.appearance;
 
+import com.formdev.flatlaf.util.UIScale;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
@@ -72,7 +73,7 @@ public final class ShapeTemplatesPopup {
         cell.setVerticalAlignment(SwingConstants.TOP);
         cell.setVerticalTextPosition(SwingConstants.BOTTOM);
         cell.setHorizontalTextPosition(SwingConstants.CENTER);
-        cell.setPreferredSize(new Dimension(CELL_WIDTH, THUMBNAIL + 2 * GAP + 2 * cell.getFontMetrics(cell.getFont()).getHeight()
+        cell.setPreferredSize(new Dimension(UIScale.scale(CELL_WIDTH), THUMBNAIL + 2 * GAP + 2 * cell.getFontMetrics(cell.getFont()).getHeight()
                 + GAP));
         cell.getAccessibleContext().setAccessibleName(caption);
         cell.addActionListener(ignored -> {

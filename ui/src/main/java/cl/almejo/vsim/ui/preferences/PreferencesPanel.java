@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.preferences;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.TextChanges;
@@ -334,7 +335,7 @@ final class PreferencesPanel extends JPanel {
                     + (searching ? ", " + count.getText() : ""));
             inner.setOpaque(selected);
             inner.setBackground(selectionBackground);
-            Color muted = ThemeColors.ui("Label.disabledForeground", owner.getForeground());
+            Color muted = ReadableColors.mutedText();
             title.setForeground(selected ? selectionForeground : owner.getForeground());
             count.setForeground(selected ? selectionForeground : muted);
             outer.setBorder(group.separatorBefore() && !searching ? BorderFactory.createCompoundBorder(

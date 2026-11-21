@@ -258,7 +258,7 @@ class PdfExportDialogTest {
     }
 
     @Test
-    void theHintsTakeTheirDimColourFromTheThemeWhenItChanges() throws Exception {
+    void theHintsTakeTheirMutedColourFromTheThemeWhenItChanges() throws Exception {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {
             UIManager.setLookAndFeel(new FlatLightLaf());
@@ -266,11 +266,11 @@ class PdfExportDialogTest {
             open();
             SwingUtilities.updateComponentTreeUI(dialog);
             assertThat(dialog.hintLabel().getForeground())
-                    .isEqualTo(UIManager.getColor("Label.disabledForeground"));
+                    .isEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.mutedText());
             UIManager.setLookAndFeel(new FlatDarkLaf());
             SwingUtilities.updateComponentTreeUI(dialog);
             assertThat(dialog.hintLabel().getForeground())
-                    .isEqualTo(UIManager.getColor("Label.disabledForeground"));
+                    .isEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.mutedText());
         } finally {
             UIManager.setLookAndFeel(previous);
         }

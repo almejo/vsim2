@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.appearance;
 
+import com.formdev.flatlaf.util.UIScale;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
@@ -40,7 +41,9 @@ import java.util.Locale;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -72,8 +75,18 @@ import java.util.function.Supplier;
 final class ShapeCanvas extends JPanel {
     static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final String MESSAGE_PREFIX = "shape.";
-    static final int HIT_RADIUS = 7;
-    static final int BOX_HANDLE_OFFSET = 18;
+    private static final int HIT_RADIUS = 7;
+    private static final int BOX_HANDLE_OFFSET = 18;
+
+    /** The reach of a click on a handle, in screen pixels, grown with the interface size. */
+    static int hitRadius() {
+        return UIScale.scale(HIT_RADIUS);
+    }
+
+    /** How far the box's resize handle sits from the box's corner, in screen pixels, grown with the interface size. */
+    static int boxHandleOffset() {
+        return UIScale.scale(BOX_HANDLE_OFFSET);
+    }
     private static final int FIT_SIDE_MARGIN = 64;
     private static final int FIT_VERTICAL_MARGIN = 64;
     /** About 32 px per grid unit: the box looks comfortable, as in the mockup, however small it is. */
@@ -590,7 +603,7 @@ final class ShapeCanvas extends JPanel {
     private boolean pressSelectHandleOrPin(MouseEvent event) {
         handle = hitHandle(event.getPoint());
         resizingBox = handle.isEmpty() && !current.get().pinsLocked()
-                && boxHandleLocation().distance(event.getPoint()) < HIT_RADIUS;
+                && boxHandleLocation().distance(event.getPoint()) < hitRadius();
         if (handle.isPresent() || resizingBox) {
             return true;
         }
@@ -744,7 +757,7 @@ final class ShapeCanvas extends JPanel {
      */
     private Optional<HandleRef> grabbableHandleAt(Point at) {
         Optional<HandleRef> nearest = Optional.empty();
-        double nearestDistance = HIT_RADIUS;
+        double nearestDistance = hitRadius();
         for (HandleRef candidate : curveHandles().reversed()) {
             SymbolPoint location = handleLocation(candidate);
             double distance = screen(location.x(), location.y()).distance(at);
@@ -1083,7 +1096,7 @@ final class ShapeCanvas extends JPanel {
             } else if (figure >= 0 && tool == ShapeTool.NODES && view.elements().get(figure) instanceof SymbolPath path) {
                 if (!path.closed() && path.nodes().size() >= 3
                         && screen(path.nodes().getFirst().point().x(), path.nodes().getFirst().point().y())
-                        .distance(event.getPoint()) < HIT_RADIUS) {
+                        .distance(event.getPoint()) < hitRadius()) {
                     publish.accept(view.select(Set.of(figure)).closePath(figure));
                 } else {
                     int segment = hitSegment(figure, event.getPoint());
@@ -1177,7 +1190,7 @@ final class ShapeCanvas extends JPanel {
             }
             for (int node = 0; node < path.nodes().size(); node++) {
                 SymbolPoint point = path.nodes().get(node).point();
-                if (screen(point.x(), point.y()).distance(at) < HIT_RADIUS) {
+                if (screen(point.x(), point.y()).distance(at) < hitRadius()) {
                     return Optional.of(new NodeHit(index, node));
                 }
             }
@@ -1330,7 +1343,7 @@ final class ShapeCanvas extends JPanel {
             if (element instanceof SymbolPath path) {
                 Shape outline = SymbolPainter.path(path);
                 if (path.filled() && outline.contains(x, y)
-                        || new BasicStroke((float) (2 * HIT_RADIUS / zoom())).createStrokedShape(outline)
+                        || new BasicStroke((float) (2 * hitRadius() / zoom())).createStrokedShape(outline)
                         .contains(x, y)) {
                     return index;
                 }
@@ -1352,7 +1365,7 @@ final class ShapeCanvas extends JPanel {
     /** The pin under {@code at}, if any. */
     private Optional<ElementId> pinAt(Point at) {
         return current.get().appearance().pins().stream().filter(placement ->
-                screen(placement.offset().x() * 8, placement.offset().y() * 8).distance(at) < HIT_RADIUS)
+                screen(placement.offset().x() * 8, placement.offset().y() * 8).distance(at) < hitRadius())
                 .map(PinPlacement::source).findFirst();
     }
 
@@ -1365,12 +1378,12 @@ final class ShapeCanvas extends JPanel {
 
     private int hitSegment(int index, Point at) {
         SymbolPath path = (SymbolPath) current.get().elements().get(index);
-        return ShapeSegments.find(List.of(path), localX(at), localY(at), HIT_RADIUS / zoom() / UNIT * 8)
+        return ShapeSegments.find(List.of(path), localX(at), localY(at), hitRadius() / zoom() / UNIT * 8)
                 .map(ShapeSegments.Hit::segmentIndex).orElse(-1);
     }
 
     private Optional<ShapeSegments.Hit> segmentAt(Point at) {
-        return ShapeSegments.find(current.get().elements(), localX(at), localY(at), HIT_RADIUS / zoom() / UNIT * 8);
+        return ShapeSegments.find(current.get().elements(), localX(at), localY(at), hitRadius() / zoom() / UNIT * 8);
     }
 
     /** {@code point} in eighths of a grid unit, which are also the figure's local pixels ({@code UNIT} is 8). */
@@ -1389,7 +1402,7 @@ final class ShapeCanvas extends JPanel {
         return current.get().selectionBounds().flatMap(box -> {
             for (SymbolDraft.Handle handle : SymbolDraft.Handle.values()) {
                 SymbolPoint point = handlePoint(handle, box);
-                if (screen(point.x(), point.y()).distance(at) < HIT_RADIUS) {
+                if (screen(point.x(), point.y()).distance(at) < hitRadius()) {
                     return Optional.of(handle);
                 }
             }
@@ -1400,7 +1413,7 @@ final class ShapeCanvas extends JPanel {
     private Point boxHandleLocation() {
         Point corner = screen(current.get().appearance().size().width() * 8,
                 current.get().appearance().size().height() * 8);
-        return new Point(corner.x + BOX_HANDLE_OFFSET, corner.y + BOX_HANDLE_OFFSET);
+        return new Point(corner.x + boxHandleOffset(), corner.y + boxHandleOffset());
     }
 
     private void pointerMoved(MouseEvent event) {
@@ -1412,7 +1425,7 @@ final class ShapeCanvas extends JPanel {
         boolean wasOverBoxHandle = overBoxHandle;
         overBoxHandle = tool == ShapeTool.SELECT && !current.get().pinsLocked()
                 && hitHandle(event.getPoint()).isEmpty()
-                && boxHandleLocation().distance(event.getPoint()) < HIT_RADIUS;
+                && boxHandleLocation().distance(event.getPoint()) < hitRadius();
         if (overBoxHandle != wasOverBoxHandle) {
             changed.run();
         }
@@ -1624,6 +1637,23 @@ final class ShapeCanvas extends JPanel {
             fitPending = pending;
         }
         painter.paint(graphics);
+        paintFocusRing(graphics);
+    }
+
+    /** The theme's focus colour around the canvas while it has the keyboard, read at paint time. */
+    private void paintFocusRing(Graphics graphics) {
+        if (!hasFocus()) {
+            return;
+        }
+        Graphics2D ring = (Graphics2D) graphics.create();
+        try {
+            ring.setColor(ThemeColors.ui("Component.focusColor", Color.GRAY));
+            float width = UIScale.scale(2f);
+            ring.setStroke(new BasicStroke(width));
+            ring.draw(new Rectangle2D.Float(width / 2, width / 2, getWidth() - width, getHeight() - width));
+        } finally {
+            ring.dispose();
+        }
     }
 
     /** Every whole grid point on the box edge: where pins usually go and where the outline should pass. */

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.magnifier;
 
+import com.formdev.flatlaf.util.UIScale;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -26,7 +27,20 @@ final class MagnifierPicture extends JComponent {
     /** A body smaller than the window is shown bigger, but not blown up past this. */
     private static final double MAXIMUM_SCALE = 2.0;
     /** The size of the picture of a body with nothing inside. */
-    private static final Dimension EMPTY_SIZE = new Dimension(MAXIMUM_WIDTH / 2, MAXIMUM_HEIGHT / 2);
+
+    private static Dimension emptySize() {
+        return new Dimension(maximumWidth() / 2, maximumHeight() / 2);
+    }
+
+    /** The widest the picture gets, grown with the interface size. */
+    static int maximumWidth() {
+        return UIScale.scale(MAXIMUM_WIDTH);
+    }
+
+    /** The tallest the picture gets, grown with the interface size. */
+    static int maximumHeight() {
+        return UIScale.scale(MAXIMUM_HEIGHT);
+    }
 
     private final OpenDocument place;
     private final PainterRegistry painters;
@@ -42,8 +56,8 @@ final class MagnifierPicture extends JComponent {
     @Override
     public Dimension getPreferredSize() {
         // the images round up to whole pixels: never past the maximum by that one
-        return image().map(image -> new Dimension(Math.min(MAXIMUM_WIDTH, image.width(scaleOf(image))),
-                Math.min(MAXIMUM_HEIGHT, image.height(scaleOf(image))))).orElse(EMPTY_SIZE);
+        return image().map(image -> new Dimension(Math.min(maximumWidth(), image.width(scaleOf(image))),
+                Math.min(maximumHeight(), image.height(scaleOf(image))))).orElseGet(MagnifierPicture::emptySize);
     }
 
     @Override
@@ -76,8 +90,8 @@ final class MagnifierPicture extends JComponent {
     }
 
     private static double scaleOf(CircuitImage image) {
-        double fitWidth = (double) MAXIMUM_WIDTH / image.width(1.0);
-        double fitHeight = (double) MAXIMUM_HEIGHT / image.height(1.0);
+        double fitWidth = (double) maximumWidth() / image.width(1.0);
+        double fitHeight = (double) maximumHeight() / image.height(1.0);
         return Math.min(MAXIMUM_SCALE, Math.min(fitWidth, fitHeight));
     }
 }
