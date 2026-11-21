@@ -59,8 +59,8 @@ class OpenDocumentClockEdgeNoticeTest {
         Messages.initialize(Locale.ENGLISH);
 
         assertThat(said(SimulationEngine.CLOCK_EDGE_SHORTED_MESSAGE))
-                .isEqualTo("Clock \"reloj\" cannot make an edge: its net has a short circuit");
+                .isEqualTo("Clock “reloj” cannot make an edge: its net has a short circuit");
         assertThat(said(SimulationEngine.CLOCK_EDGE_OTHER_WIDTH_MESSAGE))
-                .isEqualTo("Clock \"reloj\" cannot make an edge: its net has another width");
+                .isEqualTo("Clock “reloj” cannot make an edge: its net has another width");
     }
 }
