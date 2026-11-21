@@ -99,14 +99,17 @@ class StepModeFeaturesTest {
     @Test
     void theToggleEntersTheModeAndIniciarLeavesIt() {
         assertThat(features.stepModeAction().getValue(Action.SELECTED_KEY)).isEqualTo(false);
-        assertThat(features.advanceButton().isVisible()).isFalse();
-        assertThat(features.status().isVisible()).isFalse();
+        assertThat(features.advanceButton().isVisible()).as("always there (I2)").isTrue();
+        assertThat(features.advanceButton().isEnabled()).as("but off outside the mode").isFalse();
+        assertThat(features.advanceButton().getToolTipText()).contains("Paso a paso");
+        assertThat(features.status().isVisible()).isTrue();
+        assertThat(features.status().getText()).isEmpty();
 
         perform(features.stepModeAction());
 
         assertThat(openDocument.stepMode()).isTrue();
         assertThat(features.stepModeAction().getValue(Action.SELECTED_KEY)).isEqualTo(true);
-        assertThat(features.advanceButton().isVisible()).isTrue();
+        assertThat(features.status().getText()).as("the label speaks in the mode").isNotEmpty();
         assertThat(features.advanceButton().getIcon()).isSameAs(Icons.get(StepIcons.ADVANCE, Icons.TOOLBAR_SIZE));
         assertThat(features.status().isVisible()).isTrue();
 
@@ -114,7 +117,8 @@ class StepModeFeaturesTest {
 
         assertThat(openDocument.stepMode()).isFalse();
         assertThat(features.stepModeAction().getValue(Action.SELECTED_KEY)).isEqualTo(false);
-        assertThat(features.advanceButton().isVisible()).isFalse();
+        assertThat(features.advanceButton().isVisible()).isTrue();
+        assertThat(features.advanceButton().isEnabled()).isFalse();
     }
 
     @Test
@@ -126,7 +130,8 @@ class StepModeFeaturesTest {
         assertThat(features.advanceAction().isEnabled()).as("running").isFalse();
         features.snapshotPublished(SimulationSnapshot.EMPTY);
         assertThat(features.advanceAction().isEnabled()).as("paused with a clock").isTrue();
-        assertThat(features.status().getText()).startsWith("t = 0 · próximo evento: t = ");
+        assertThat(features.status().getText()).as("outside the mode the label keeps its place, empty").isEmpty();
+        assertThat(features.advanceButton().isEnabled()).as("the toolbar button waits for the mode").isFalse();
     }
 
     @Test
@@ -251,9 +256,9 @@ class StepModeFeaturesTest {
     void theNextClockEdgeNeedsAClockAndAPausedSimulation() {
         features.snapshotPublished(SimulationSnapshot.EMPTY);
         assertThat(features.clockEdgeAction().isEnabled()).as("no clock").isFalse();
-        assertThat(features.clockEdgeButton().isVisible()).isFalse();
+        assertThat(features.clockEdgeButton().isEnabled()).isFalse();
         assertThat(features.clockCycleAction().isEnabled()).as("no clock").isFalse();
-        assertThat(features.clockCycleButton().isVisible()).isFalse();
+        assertThat(features.clockCycleButton().isEnabled()).isFalse();
 
         Component clock = place(openDocument, StandardComponentTypes.CLOCK, 0, 0,
                 Map.of("time-up", 3, "time-down", 2));
@@ -264,9 +269,9 @@ class StepModeFeaturesTest {
         assertThat(awaitSimulation(openDocument).running()).isFalse();
         showLatestSnapshot();
         assertThat(features.clockEdgeAction().isEnabled()).isTrue();
-        assertThat(features.clockEdgeButton().isVisible()).isTrue();
+        assertThat(features.clockEdgeButton().isEnabled()).isTrue();
         assertThat(features.clockCycleAction().isEnabled()).isTrue();
-        assertThat(features.clockCycleButton().isVisible()).isTrue();
+        assertThat(features.clockCycleButton().isEnabled()).isTrue();
 
         perform(features.clockEdgeAction());
         awaitStep(1);

@@ -261,13 +261,23 @@ public final class StepModeFeatures {
         boolean clockStepsEnabled = !snapshot.running() && openDocument.hasClock();
         clockEdgeAction.setEnabled(clockStepsEnabled);
         clockCycleAction.setEnabled(clockStepsEnabled);
-        advanceButton.setVisible(stepMode);
-        clockEdgeButton.setVisible(stepMode);
-        clockCycleButton.setVisible(stepMode);
-        status.setVisible(stepMode);
-        String text = StepStatusText.of(snapshot.time(), openDocument.latestStep(), next);
+        // the buttons never come and go (I2): outside the mode they are off and the tooltip says how to turn it on;
+        // the actions (menu items, keys) keep their own state
+        showToolbarButton(advanceButton, advanceAction, stepMode);
+        showToolbarButton(clockEdgeButton, clockEdgeAction, stepMode);
+        showToolbarButton(clockCycleButton, clockCycleAction, stepMode);
+        String text = stepMode ? StepStatusText.of(snapshot.time(), openDocument.latestStep(), next) : "";
         if (!text.equals(status.getText())) {
             status.setText(text);
+        }
+    }
+
+    private static void showToolbarButton(JButton button, Action action, boolean stepMode) {
+        String name = String.valueOf(action.getValue(Action.NAME));
+        button.setEnabled(stepMode && action.isEnabled());
+        String tooltip = stepMode ? name : Messages.format("step.button.off", name);
+        if (!tooltip.equals(button.getToolTipText())) {
+            button.setToolTipText(tooltip);
         }
     }
 
