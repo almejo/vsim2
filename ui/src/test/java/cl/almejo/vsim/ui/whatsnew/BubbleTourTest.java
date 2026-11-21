@@ -95,7 +95,7 @@ class BubbleTourTest {
         content.add(view.toolBar(), BorderLayout.NORTH);
         content.add(view, BorderLayout.CENTER);
         root.setContentPane(content);
-        sized(1400, 1000);
+        sized(2600, 1000); // wide enough for the whole toolbar: a button pushed into the overflow popup has no bubble
         tours = new BubbleTours(new BubbleTours.Seams(new RecordingKeyDispatchers(dispatchers), () -> {
             ManualFrameTicker ticker = new ManualFrameTicker();
             tickers.add(ticker);
@@ -363,8 +363,8 @@ class BubbleTourTest {
 
     @Test
     void inATinyWindowTheBubbleIsCentredWithoutArrowAndInside() {
-        // 260 high: the toolbar wraps now, so every step is reachable, and the first («Cables de corrido») is 225 high
-        sized(320, 260);
+        // the toolbar buttons do not fit 320 px, so their steps are skipped and the first shown is a menu one: no room below it
+        sized(320, 240);
         BubbleTour tour = start();
 
         assertThat(tour.side()).isEmpty();

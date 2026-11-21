@@ -49,7 +49,7 @@ class ToolbarComponentTest {
         assertThat(children.get(children.indexOf(file) + 1)).isInstanceOf(javax.swing.JToolBar.Separator.class);
         assertThat(children.get(children.indexOf(simulation) - 1)).isInstanceOf(javax.swing.JComboBox.class);
         assertThat(children.get(children.indexOf(right) - 1)).isInstanceOf(javax.swing.Box.Filler.class);
-        assertThat(children.getLast()).isSameAs(right);
+        assertThat(children.get(children.size() - 2)).isSameAs(right); // the overflow button is last
         removeRight.run();
         removeSimulation.run();
         removeFile.run();
@@ -57,48 +57,58 @@ class ToolbarComponentTest {
     }
 
     /**
-     * V1: at a narrow width the real toolbar wraps; nothing leaves the window and the order is row by row. It runs on
-     * the EDT: the layout asks the toolbar to revalidate, and that validation, queued on the EDT, must not relay the
-     * bar (at another width) in the middle of the checks.
+     * V1: at a narrow width the real toolbar stays one row; what does not fit leaves the bar (it is not drawn) and is in
+     * the «»» popup, in the bar's order.
      */
     @Test
-    void theRealToolbarWrapsInsteadOfCuttingControlsOff() throws Exception {
-        java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
-        javax.swing.SwingUtilities.invokeAndWait(() -> {
-            try {
-                checkTheToolbarWrapsAt(500);
-            } catch (Throwable thrown) {
-                failure.set(thrown);
-            }
-        });
-        if (failure.get() != null) {
-            throw new AssertionError(failure.get().getMessage(), failure.get());
+    void theRealToolbarKeepsOneRowAndTheHiddenControlsAreInTheOverflowPopupInOrder() {
+        JToolBar toolBar = view.toolBar();
+        OverflowToolBarLayout layout = (OverflowToolBarLayout) toolBar.getLayout();
+        toolBar.setSize(500, toolBar.getPreferredSize().height);
+        toolBar.doLayout();
+        Component overflow = overflowButton();
+        assertThat(overflow.isVisible()).isTrue();
+        List<Component> hidden = layout.hidden();
+        assertThat(hidden).isNotEmpty();
+        List<Component> children = List.of(toolBar.getComponents());
+        int previousIndex = -1;
+        for (Component component : hidden) { // in the bar's order
+            assertThat(children.indexOf(component)).isGreaterThan(previousIndex);
+            previousIndex = children.indexOf(component);
+            assertThat(component.getBounds().isEmpty()).as("%s is not on the bar", component).isTrue();
         }
+        for (Component child : children) {
+            if (!hidden.contains(child) && child.isVisible() && child != overflow
+                    && !(child instanceof javax.swing.Box.Filler)) {
+                assertThat(child.getX() + child.getWidth()).as("%s inside the bar", child).isLessThanOrEqualTo(500);
+            }
+        }
+        // every hidden button or combo has its popup entry, in order
+        long entries = List.of(layout.overflowMenu().getComponents()).stream()
+                .filter(javax.swing.JMenuItem.class::isInstance).count();
+        long expected = hidden.stream().filter(component -> component instanceof javax.swing.AbstractButton
+                || component instanceof javax.swing.JComboBox<?>
+                || component instanceof cl.almejo.vsim.ui.toolbar.SplitButton).count();
+        assertThat(entries).isEqualTo(expected);
+        assertThat(overflow.getBounds().height).isGreaterThan(0);
     }
 
-    private void checkTheToolbarWrapsAt(int width) {
-        javax.swing.JToolBar toolBar = view.toolBar();
-        for (int pass = 0; pass < 2; pass++) { // the second pass sees the height the first one needed
-            toolBar.setSize(width, toolBar.getPreferredSize().height);
-            toolBar.doLayout();
-        }
-        java.awt.Rectangle previous = null;
-        for (Component child : toolBar.getComponents()) {
-            if (!child.isVisible() || child instanceof javax.swing.Box.Filler
-                    || child instanceof javax.swing.JToolBar.Separator) {
-                continue;
+    @Test
+    void theRealToolbarShowsEverythingWhenWideAndTheOverflowButtonStaysHidden() {
+        JToolBar toolBar = view.toolBar();
+        toolBar.setSize(4000, toolBar.getPreferredSize().height);
+        toolBar.doLayout();
+        assertThat(overflowButton().isVisible()).isFalse();
+        assertThat(((OverflowToolBarLayout) toolBar.getLayout()).hidden()).isEmpty();
+    }
+
+    private Component overflowButton() {
+        for (Component child : view.toolBar().getComponents()) {
+            if ("toolbarOverflow".equals(child.getName())) {
+                return child;
             }
-            java.awt.Rectangle bounds = child.getBounds();
-            assertThat(bounds.x + bounds.width).as("%s inside the bar", child).isLessThanOrEqualTo(width);
-            if (previous != null) {
-                // Buttons of different heights share a row centred on one line, so a row is an overlap in y.
-                boolean sameRow = bounds.y < previous.y + previous.height && previous.y < bounds.y + bounds.height;
-                assertThat(sameRow ? bounds.x >= previous.x : bounds.y > previous.y)
-                        .as("%s keeps the order", child).isTrue();
-            }
-            previous = bounds;
         }
-        assertThat(toolBar.getHeight()).isGreaterThan(toolBar.getComponent(0).getHeight() * 2);
+        throw new AssertionError("no overflow button");
     }
 
     @Test
@@ -110,7 +120,7 @@ class ToolbarComponentTest {
         view.addToolbarComponent(early, ToolbarSlot.RIGHT, 1);
         view.addToolbarComponent(alsoLate, ToolbarSlot.RIGHT, 2);
         List<Component> children = List.of(view.toolBar().getComponents());
-        assertThat(children.subList(children.size() - 3, children.size())).containsExactly(early, late, alsoLate);
+        assertThat(children.subList(children.size() - 4, children.size() - 1)).containsExactly(early, late, alsoLate);
     }
 
     @Test
