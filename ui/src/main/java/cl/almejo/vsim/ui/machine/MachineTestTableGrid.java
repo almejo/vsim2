@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -10,6 +11,7 @@ import javax.accessibility.AccessibleRole;
 import javax.swing.JComponent;
 import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -41,6 +43,7 @@ final class MachineTestTableGrid extends JComponent {
     private static final int PADDING = 6;
     private static final float GROUP_SIZE = 11f;
     private static final int CHOSEN_HEADER_ALPHA = 90;
+    private static final int DISABLED_PLUS_ALPHA = 90;
 
     private final MachineTestTable table;
     private final transient Supplier<ColorScheme> scheme;
@@ -64,6 +67,7 @@ final class MachineTestTableGrid extends JComponent {
         setFocusable(true);
         ToolTipManager.sharedInstance().registerComponent(this);
         ToolTipManager.sharedInstance().registerComponent(names);
+        ToolTipManager.sharedInstance().registerComponent(header);
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent event) {
@@ -272,7 +276,10 @@ final class MachineTestTableGrid extends JComponent {
                     if (popupIfTrigger(event, Header.this, column)) {
                         return;
                     }
-                    if (event.getButton() == MouseEvent.BUTTON1 && column.isPresent()) {
+                    if (event.getButton() == MouseEvent.BUTTON1 && model.plusAt(event.getX())) {
+                        MachineTestTableGrid.this.requestFocusInWindow();
+                        table.addColumn();
+                    } else if (event.getButton() == MouseEvent.BUTTON1 && column.isPresent()) {
                         MachineTestTableGrid.this.requestFocusInWindow();
                         moveTo(column.getAsInt(), event.isShiftDown());
                     }
@@ -283,6 +290,16 @@ final class MachineTestTableGrid extends JComponent {
                     popupIfTrigger(event, Header.this, model.columnAt(event.getX()));
                 }
             });
+        }
+
+        /** Over the «+» after the last column: what it does, or why it cannot. */
+        @Override
+        public String getToolTipText(MouseEvent event) {
+            if (!model.plusAt(event.getX())) {
+                return null;
+            }
+            return model.canAddColumn() ? Messages.text("machine.test.column.addTip")
+                    : Messages.format("machine.test.column.full", MachineTests.MAXIMUM_COLUMNS);
         }
 
         @Override
@@ -321,12 +338,28 @@ final class MachineTestTableGrid extends JComponent {
                     canvas.setColor(MachineTestCellPainter.quiet(colours));
                     canvas.drawString(arrow, (column + 1) * width - metrics.stringWidth(arrow) - 3, baseline);
                 }
+                paintPlus(canvas, plain, width, baselineOf(canvas, plain));
                 canvas.setColor(colours.diagramGrid());
                 canvas.drawLine(0, HEADER_HEIGHT - 1, getWidth(), HEADER_HEIGHT - 1);
             } finally {
                 canvas.dispose();
             }
         }
+    }
+
+    /** The «+» header after the last column, greyed (fainter still when no more columns fit). */
+    private void paintPlus(Graphics2D canvas, Font plain, int width, int baseline) {
+        canvas.setFont(plain.deriveFont(Font.BOLD));
+        FontMetrics metrics = canvas.getFontMetrics();
+        Color grey = MachineTestCellPainter.quiet(scheme.get());
+        canvas.setColor(model.canAddColumn() ? grey : PainterSupport.withAlpha(grey, DISABLED_PLUS_ALPHA));
+        String plus = Messages.text("machine.test.column.add");
+        canvas.drawString(plus, model.columnCount() * width + (width - metrics.stringWidth(plus)) / 2, baseline);
+    }
+
+    private static int baselineOf(Graphics2D canvas, Font font) {
+        FontMetrics metrics = canvas.getFontMetrics(font);
+        return (HEADER_HEIGHT + metrics.getAscent() - metrics.getDescent()) / 2;
     }
 
     /** The rows' names, as the wave strip's names column writes them; a name cut with «…» shows whole on hover. */

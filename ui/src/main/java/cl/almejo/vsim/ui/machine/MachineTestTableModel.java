@@ -268,6 +268,11 @@ final class MachineTestTableModel {
         return Optional.of(Messages.format("machine.test.ghost", stateName(columns.getLast().nextStateId())));
     }
 
+    /** Whether {@code x} is over the «+» after the last column (the ghost column's slot of the header). */
+    boolean plusAt(int x) {
+        return x >= columnCount() * COLUMN_WIDTH && x < width();
+    }
+
     boolean canAddColumn() {
         return columnCount() < MachineTests.MAXIMUM_COLUMNS;
     }

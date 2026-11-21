@@ -11,7 +11,8 @@ import java.awt.event.KeyEvent;
  * The test table's keys, as the Karnaugh practice binds them ({@code PracticeKeyboard}): ← and → choose the column
  * (the diagram follows), ↑ and ↓ move between the editable rows, Mayús with an arrow stretches a block, 0 and 1 fill
  * the block, Espacio changes each of its cells as a click would, and Supr or Retroceso set its «esperado» cells to
- * «no importa». Each fill is one step of the draft.
+ * «no importa», and Insert adds a column at the end (the «+» after the last column, for those who do not point).
+ * Each edit is one step of the draft.
  */
 final class MachineTestKeyboard {
 
@@ -41,6 +42,7 @@ final class MachineTestKeyboard {
         bind("testAdvance", () -> table.advance(grid.block()), KeyEvent.VK_SPACE, 0);
         bind("testNothingExpected", () -> table.clearExpected(grid.block()), KeyEvent.VK_DELETE, 0);
         bind("testNothingExpected", () -> table.clearExpected(grid.block()), KeyEvent.VK_BACK_SPACE, 0);
+        bind("testAddColumn", table::addColumn, KeyEvent.VK_INSERT, 0);
     }
 
     private void bind(String name, Runnable action, int keyCode, int modifiers) {

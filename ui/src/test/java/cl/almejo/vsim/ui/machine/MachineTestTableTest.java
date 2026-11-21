@@ -13,6 +13,7 @@ import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import java.awt.Color;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -97,6 +99,30 @@ class MachineTestTableTest {
         action.actionPerformed(new ActionEvent(table.grid(), ActionEvent.ACTION_PERFORMED, ""));
     }
 
+    /** Presses the «+» header after the last column, as a click on it. */
+    private void clickPlusColumn() {
+        int x = model().columnCount() * MachineTestTableModel.COLUMN_WIDTH + 2;
+        mouse(table.grid().header(), new Point(x, 2), 0, MouseEvent.BUTTON1, 1);
+    }
+
+    private String plusColumnTip(int columnCount) {
+        int x = columnCount * MachineTestTableModel.COLUMN_WIDTH + 2;
+        return table.grid().header().getToolTipText(new MouseEvent(table.grid().header(), MouseEvent.MOUSE_MOVED,
+                0, 0, x, 2, 0, false));
+    }
+
+    /** What the «+» tab is: the one after the last test's tab. */
+    private int plusTab() {
+        return table.tabs().getTabCount() - 1;
+    }
+
+    /** The «×» of test tab {@code index}, as FlatLaf calls it when it is pressed. */
+    @SuppressWarnings("unchecked")
+    private void pressClose(int index) {
+        ((BiConsumer<JTabbedPane, Integer>) table.tabs().getClientProperty("JTabbedPane.tabCloseCallback"))
+                .accept(table.tabs(), index);
+    }
+
     private static void perform(JMenuItem item) {
         assertThat(item.isEnabled()).as("enabled: %s", item.getText()).isTrue();
         item.doClick();
@@ -128,7 +154,7 @@ class MachineTestTableTest {
 
     @Test
     void theEmptyFirstTestShowsButIsWrittenOnlyWhenACellChanges() {
-        assertThat(table.tabs().getTabCount()).isEqualTo(1);
+        assertThat(table.tabs().getTabCount()).as("Prueba 1 and the «+»").isEqualTo(2);
         assertThat(table.tabs().getTitleAt(0)).startsWith(Messages.format("machine.test.defaultName", 1));
         assertThat(session.steps()).isEmpty();
         assertThat(session.machine().tests()).isEmpty();
@@ -188,10 +214,17 @@ class MachineTestTableTest {
     }
 
     @Test
+    void theInsertKeyAddsAColumnAtTheEndForThoseWhoDoNotPoint() {
+        key(KeyEvent.VK_INSERT, 0);
+
+        assertThat(test().columns()).hasSize(9);
+    }
+
+    @Test
     void addingAColumnCopiesTheLastInputs() {
         click(rowOf(MachineTestTableModel.Kind.INPUT, X), 7, 0);
 
-        table.addColumnButton().doClick();
+        clickPlusColumn();
 
         assertThat(test().columns()).hasSize(9);
         assertThat(test().columns().get(8).input(X)).isTrue();
@@ -214,19 +247,90 @@ class MachineTestTableTest {
     }
 
     @Test
+    void aPlusTabFollowsTheLastTestAndAddsOneInOneStep() {
+        assertThat(table.tabs().getTabCount()).as("Prueba 1 and the «+»").isEqualTo(2);
+        assertThat(table.tabs().getTitleAt(plusTab())).isEqualTo(Messages.text("machine.test.tab.new"));
+        assertThat(table.tabs().getToolTipTextAt(plusTab())).isEqualTo(Messages.text("machine.test.tab.newTip"));
+
+        table.tabs().setSelectedIndex(plusTab());
+
+        assertThat(session.machine().tests()).hasSize(2);
+        assertThat(session.chosenTest()).isEqualTo(1);
+        assertThat(table.tabs().getSelectedIndex()).as("the new test's tab, never the «+»").isEqualTo(1);
+        assertThat(table.tabs().getTabCount()).isEqualTo(3);
+        assertThat(table.tabs().getTitleAt(plusTab())).isEqualTo(Messages.text("machine.test.tab.new"));
+        assertThat(session.steps()).containsExactly(Messages.text("machine.test.step.addTest"));
+    }
+
+    @Test
+    void theXOfATestTabDeletesThatTestInOneStep() {
+        table.tabs().setSelectedIndex(plusTab());
+        table.tabs().setSelectedIndex(plusTab());
+        assertThat(session.machine().tests()).hasSize(3);
+
+        pressClose(1);
+
+        assertThat(session.machine().tests()).extracting(MachineTest::name)
+                .containsExactly(Messages.format("machine.test.defaultName", 1),
+                        Messages.format("machine.test.defaultName", 3));
+        assertThat(session.steps()).last().isEqualTo(Messages.text("machine.test.step.deleteTest"));
+        assertThat(table.tabs().getTabCount()).isEqualTo(3);
+        assertThat(table.tabs().getSelectedIndex()).isLessThan(2);
+    }
+
+    @Test
+    void onlyTheTestTabsHaveAnXAndTheUntouchedFirstOneDoesNot() {
+        JTabbedPane tabs = table.tabs();
+        assertThat(tabs.getClientProperty("JTabbedPane.tabClosable")).isEqualTo(Boolean.TRUE);
+        assertThat(tabs.getClientProperty("JTabbedPane.tabCloseCallback")).isNotNull();
+        assertThat(((JComponent) tabs.getComponentAt(0)).getClientProperty("JTabbedPane.tabClosable"))
+                .as("nothing to delete in the untouched «Prueba 1»").isEqualTo(Boolean.FALSE);
+        assertThat(((JComponent) tabs.getComponentAt(plusTab())).getClientProperty("JTabbedPane.tabClosable"))
+                .isEqualTo(Boolean.FALSE);
+
+        click(rowOf(MachineTestTableModel.Kind.INPUT, X), 0, 0);
+
+        assertThat(((JComponent) tabs.getComponentAt(0)).getClientProperty("JTabbedPane.tabClosable"))
+                .isEqualTo(Boolean.TRUE);
+        assertThat(((JComponent) tabs.getComponentAt(plusTab())).getClientProperty("JTabbedPane.tabClosable"))
+                .isEqualTo(Boolean.FALSE);
+    }
+
+    @Test
+    void closingTheLastTestLeavesTheUntouchedFirstOneAsOnFirstEntry() {
+        click(rowOf(MachineTestTableModel.Kind.INPUT, X), 0, 0);
+        assertThat(session.machine().tests()).hasSize(1);
+
+        pressClose(0);
+
+        assertThat(session.machine().tests()).isEmpty();
+        assertThat(model().unwritten()).isTrue();
+        assertThat(table.tabs().getTabCount()).isEqualTo(2);
+        assertThat(table.tabs().getTitleAt(0)).isEqualTo(Messages.format("machine.test.defaultName", 1));
+        assertThat(session.steps()).last().isEqualTo(Messages.text("machine.test.step.deleteTest"));
+    }
+
+    @Test
+    void thePlusColumnIsInsideTheTableAfterTheLastColumnAndSaysWhatItDoes() {
+        assertThat(plusColumnTip(model().columnCount())).isEqualTo(Messages.text("machine.test.column.addTip"));
+        assertThat(plusColumnTip(2)).as("over a column, no tip").isNull();
+    }
+
+    @Test
     void atSixtyFourColumnsAddingIsOffAndSaysWhy() {
         MachineTest full = MachineTest.empty("p1", "Larga", MachineTests.MAXIMUM_COLUMNS);
         session.replaceMachine(session.machine().withTests(List.of(full)));
 
-        assertThat(table.addColumnButton().isEnabled()).isFalse();
-        assertThat(table.addColumnButton().getToolTipText())
+        clickPlusColumn();
+        assertThat(test().columns()).as("the «+» does nothing").hasSize(MachineTests.MAXIMUM_COLUMNS);
+        assertThat(plusColumnTip(MachineTests.MAXIMUM_COLUMNS))
                 .isEqualTo(Messages.format("machine.test.column.full", MachineTests.MAXIMUM_COLUMNS));
         assertThat(item(table.columnMenu(0), "machine.test.column.insertBefore").isEnabled()).isFalse();
     }
 
     @Test
     void testsAreAddedRenamedDuplicatedAndDeletedEachInOneStep() {
-        table.newTestButton().doClick();
+        table.tabs().setSelectedIndex(plusTab());
         assertThat(session.machine().tests()).extracting(MachineTest::name)
                 .containsExactly(Messages.format("machine.test.defaultName", 1),
                         Messages.format("machine.test.defaultName", 2));
@@ -249,7 +353,7 @@ class MachineTestTableTest {
         assertThat(session.steps()).containsExactly(Messages.text("machine.test.step.addTest"),
                 Messages.text("machine.test.step.renameTest"), Messages.text("machine.test.step.duplicateTest"),
                 Messages.text("machine.test.step.deleteTest"));
-        assertThat(table.tabs().getTabCount()).isEqualTo(2);
+        assertThat(table.tabs().getTabCount()).as("two tests and the «+»").isEqualTo(3);
     }
 
     @Test
@@ -260,8 +364,8 @@ class MachineTestTableTest {
         }
         session.replaceMachine(session.machine().withTests(tests));
 
-        assertThat(table.newTestButton().isEnabled()).isFalse();
-        assertThat(table.newTestButton().getToolTipText())
+        assertThat(table.tabs().isEnabledAt(plusTab())).isFalse();
+        assertThat(table.tabs().getToolTipTextAt(plusTab()))
                 .isEqualTo(Messages.format("machine.test.tab.full", MachineTests.MAXIMUM_TESTS));
         assertThat(item(table.tabMenu(0), "machine.test.menu.duplicate").isEnabled()).isFalse();
     }
