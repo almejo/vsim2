@@ -81,6 +81,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Importar de Logisim un proyecto con un circuito sin nombre ya no falla: el circuito se importa como «circuit» (o «circuit 2», …) con una nota.
 - Importar de Logisim un proyecto con dos circuitos del mismo nombre avisa que el segundo quedó fuera (antes se omitía sin decir nada).
 - Un componente propio cuyo dibujo usa un trazo que VSim no puede leer (en un circuito o en un archivo de «Mis componentes») ya no impide abrirlo: se muestra la caja por omisión y la sección Problemas (o la lista de problemas de la librería) lo avisa con el nombre del componente. Si guardas el circuito, el componente se escribe sin ese dibujo; el pinout nunca se toca, y una pieza con una apariencia propia ilegible sigue fallando al abrir.
+- Cortocircuitos escondidos: una pieza con retardo 2 o más cuya entrada cambia más rápido que su retardo (un Buffer de retardo 2 con un reloj de 1/1, unido a una Constante) ya no esconde el cortocircuito que hace. Solo no cuenta como cortocircuito la pieza que de verdad suelta la red (va a Z o al mismo valor) mientras otra la toma, como en el traspaso de un bus.
 
 ## Versión 0.8 — 2026-11-11
 

@@ -108,8 +108,22 @@ final class ComponentInstance implements BehaviorContext {
             // the event is kept, so the values the pin goes through stay in order.
             return;
         }
+        long due = engine.scheduler().schedule(delay, new DriveEvent(this, pin, value));
+        if (pin.pendingDrives == 0) {
+            pin.headingTo = value;
+            pin.headingToTime = due;
+        } else if (due >= pin.headingToTime) {
+            // Equal times run in scheduling order, so of two drives due together the later one arrives last.
+            boolean headingChanged = !value.equals(pin.headingTo);
+            pin.headingTo = value;
+            pin.headingToTime = due;
+            if (headingChanged && pin.net != null) {
+                // Whether the pin is letting go of its net may have changed (RuntimeNet#lettingGo): the net is
+                // resolved again at this time, after the events already due, as a drive arriving would do.
+                engine.scheduler().schedule(0, new ResolveEvent(this, pin.net));
+            }
+        }
         pin.pendingDrives++;
-        engine.scheduler().schedule(delay, new DriveEvent(this, pin, value));
     }
 
     @Override
@@ -147,6 +161,24 @@ final class ComponentInstance implements BehaviorContext {
             pin.pendingDrives--;
             pin.driven = value;
             owner.engine.netChanged(pin.net);
+        }
+    }
+
+    /** Resolves a net again after one of its pins changed where its drives in flight take it ({@link #drive}). */
+    private static final class ResolveEvent extends Scheduler.Event {
+
+        private final RuntimeNet net;
+
+        ResolveEvent(ComponentInstance instance, RuntimeNet net) {
+            super(instance);
+            this.net = net;
+        }
+
+        @Override
+        void run() {
+            if (!owner.removed) {
+                owner.engine.netChanged(net);
+            }
         }
     }
 

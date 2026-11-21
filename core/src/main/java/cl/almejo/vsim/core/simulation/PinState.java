@@ -12,6 +12,13 @@ final class PinState {
     Value driven;
     Value lastSeen;
     int pendingDrives;
+    /**
+     * The value the pin ends at once its drives in flight arrive: the one of the drive due last (VSim 1's
+     * {@code programedValue}). Meaningful only while {@link #pendingDrives} &gt; 0.
+     */
+    Value headingTo;
+    /** The time the drive that brings {@link #headingTo} is due. */
+    long headingToTime;
     RuntimeNet net;
 
     PinState(ComponentInstance instance, int index, PinSpec spec) {
@@ -20,5 +27,6 @@ final class PinState {
         this.spec = spec;
         this.driven = Value.highImpedance(spec.width());
         this.lastSeen = driven;
+        this.headingTo = driven;
     }
 }

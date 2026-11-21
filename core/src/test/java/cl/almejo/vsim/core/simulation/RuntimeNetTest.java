@@ -27,6 +27,13 @@ class RuntimeNetTest {
         return pin;
     }
 
+    /** A pin whose drives in flight end at {@code headingTo}, the value of the last one to arrive. */
+    private static PinState transitioning(int width, Value driven, Value headingTo) {
+        PinState pin = transitioning(width, driven);
+        pin.headingTo = headingTo;
+        return pin;
+    }
+
     private static RuntimeNet net(int width, PinState... pins) {
         RuntimeNet net = new RuntimeNet("n", width, false);
         for (PinState pin : pins) {
@@ -101,6 +108,64 @@ class RuntimeNetTest {
 
         assertThat(net.value).as("the first pending pin fills the bit; a pending disagreement is no conflict yet")
                 .isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void aPinHeadingToAValueThatDisagreesWithTheSettledOneCountsAsSettledNow() {
+        RuntimeNet net = net(1, output(1, Value.ONE), transitioning(1, Value.ZERO, Value.ZERO));
+
+        net.resolve(4);
+
+        assertThat(net.value.conflict()).as("it is not letting go of the net: its 0 fights the 1 now").isTrue();
+        assertThat(net.conflictSince).isEqualTo(4);
+    }
+
+    @Test
+    void aPinThatCountsAsSettledShowsTheValueItDrivesNow() {
+        RuntimeNet net = net(1, output(1, Value.ONE), transitioning(1, Value.ONE, Value.ZERO));
+
+        net.resolve(0);
+
+        assertThat(net.value).as("its 0 is still on its way; today it drives 1, like the settled pin")
+                .isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void aPinLettingGoOfTheNetNeverConflicts() {
+        RuntimeNet net = net(1, output(1, Value.ONE), transitioning(1, Value.ZERO, Value.HIGH_IMPEDANCE));
+
+        net.resolve(0);
+
+        assertThat(net.value).as("a bus handoff: the pin heading to Z yields at once").isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void aPinHeadingToTheSettledValueNeverConflicts() {
+        RuntimeNet net = net(1, output(1, Value.ONE), transitioning(1, Value.ZERO, Value.ONE));
+
+        net.resolve(0);
+
+        assertThat(net.value).isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void twoPinsHeadingToDisagreeingValuesCountAsSettledNow() {
+        RuntimeNet net = net(1, transitioning(1, Value.ONE, Value.ONE), transitioning(1, Value.ZERO, Value.ZERO));
+
+        net.resolve(0);
+
+        assertThat(net.value.conflict()).as("both always in flight must not hide the short they make").isTrue();
+    }
+
+    @Test
+    void aPinHeadingToBitsNobodyElseDrivesNeverConflicts() {
+        RuntimeNet net = net(4, output(4, new Value(4, 0b0001, 0b1100, false)),
+                transitioning(4, new Value(4, 0b0110, 0b0000, false), new Value(4, 0b1100, 0b0011, false)));
+
+        net.resolve(0);
+
+        assertThat(net.value).as("it heads to bits 2 and 3 only, which nobody else drives; meanwhile it fills them")
+                .isEqualTo(new Value(4, 0b0101, 0b0000, false));
     }
 
     @Test

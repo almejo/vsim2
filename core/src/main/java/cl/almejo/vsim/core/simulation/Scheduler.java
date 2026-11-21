@@ -96,13 +96,19 @@ final class Scheduler {
         schedule(delay, new ActionEvent(null, action));
     }
 
-    /** Schedules {@code event} for now + {@code delay}, after every event already due then. */
-    void schedule(long delay, Event event) {
+    /**
+     * Schedules {@code event} for now + {@code delay}, after every event already due then.
+     *
+     * @return the time the event is due
+     */
+    long schedule(long delay, Event event) {
         if (delay < 0) {
             throw new IllegalArgumentException("negative delay: " + delay);
         }
-        momentAt(now + delay).append(event);
+        long time = now + delay;
+        momentAt(time).append(event);
         pendingEvents++;
+        return time;
     }
 
     /**

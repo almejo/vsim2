@@ -9,6 +9,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 ## Cortocircuitos
 
 - Los cortocircuitos se ven en rojo pulsante, con un halo en cada pin que maneja la red; al pasar el mouse sobre el cable se listan los drivers. Click en "⚠ N cortocircuitos" o F8 / Mayús+F8 salta al siguiente/anterior; la sección Problemas del panel derecho los lista (doble click navega). Simulación → "Pausar al detectar cortocircuito" detiene la simulación cuando aparece uno nuevo. Un cortocircuito dentro de un componente propio resalta su instancia y F8 lleva a ella; si une redes del circuito a través de una instancia, solo se resalta (y muestra los drivers al pasar el mouse) la red principal.
+- Traspaso de un bus: mientras una pieza suelta la red (su cambio a Z, o al mismo valor que la red, todavía viene en camino por su retardo) y otra la toma, eso no es un cortocircuito. Una pieza que va hacia un valor que pelea con la red sí cuenta con el valor que da ahora, así que una pieza más lenta que los cambios de su entrada (un Buffer de retardo 2 con un reloj de 1/1 unido a una Constante) muestra su cortocircuito.
 
 ## Insignia de problemas
 

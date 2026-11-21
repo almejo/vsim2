@@ -101,6 +101,14 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
             drivers++;
         }
 
+        /** True when two drivers added since the last reset disagree on a bit that {@code driver} defines. */
+        public boolean conflictsOn(Value driver) {
+            if (driver.width != width) {
+                throw new IllegalArgumentException("driver width " + driver.width + " differs from net width " + width);
+            }
+            return (conflictMask & ~driver.highImpedanceMask & mask) != 0;
+        }
+
         /** True when no driver was added since the last reset. */
         public boolean isEmpty() {
             return drivers == 0;
