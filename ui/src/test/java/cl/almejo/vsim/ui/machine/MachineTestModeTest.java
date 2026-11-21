@@ -486,51 +486,40 @@ class MachineTestModeTest {
     }
 
     /**
-     * Review finding 4: one test mode per machine at a time. «Probar…» in another tab of a machine being tested goes
-     * to the tab that tests it (outside a real window, it says where it is), so two drafts never overwrite each other's
-     * tests.
+     * Review finding 4, as fix round 2 of hito 4 changed it: one test per machine at a time, shared by its views. A
+     * view of a machine being tested (another copy, another tab) tests the same draft, so two drafts never overwrite
+     * each other's tests; one view leaving the test leaves it in all, and a view that goes only leaves.
      */
     @Test
-    void probarInAnotherTabOfAMachineBeingTestedGoesToTheTabThatTestsIt() {
+    void anotherViewOfAMachineBeingTestedTestsTheSameDraft() {
         MachineTestMode test = start();
         setAnInput(test);
-        List<EditorView> broughtToFront = new ArrayList<>();
-        cl.almejo.vsim.ui.window.WindowCommands window = new cl.almejo.vsim.ui.window.WindowCommands() {
-            @Override public void newDocument() { }
-            @Override public void open() { }
-            @Override public void save() { }
-            @Override public void saveAs() { }
-            @Override public void closeWindow() { }
-            @Override public void exit() { }
-
-            @Override
-            public boolean bringToFront(EditorView shown) {
-                broughtToFront.add(shown);
-                return true;
-            }
-        };
         OpenDocument otherPlace = document.openBody(MachineFixtures.DEFINITION_ID,
                 Optional.of(MachineFixtures.copies(document).getFirst()));
-        EditorView other = new EditorView(otherPlace, view.services(), window);
+        EditorView other = new EditorView(otherPlace, view.services(), NO_WINDOW);
         OpenDocument thirdPlace = document.openBody(MachineFixtures.DEFINITION_ID, Optional.empty());
         EditorView third = new EditorView(thirdPlace, view.services(), NO_WINDOW);
         try {
             MachineMode otherMode = MachineMode.of(other).orElseThrow();
             otherMode.askWith(questions);
 
-            otherMode.startTest();
-
-            assertThat(otherMode.isTesting()).isFalse();
-            assertThat(broughtToFront).containsExactly(view);
-            assertThat(view.statusBar().text()).contains("Ya estabas probando esta máquina aquí");
-
-            MachineMode.of(third).orElseThrow().startTest(); // no window to go to: it says where
-            assertThat(MachineMode.of(third).orElseThrow().isTesting()).isFalse();
-            assertThat(third.statusBar().text()).contains("Ya la estás probando en otra pestaña");
-
-            test.bar().exitButton().doClick(0);
-            otherMode.startTest(); // the first test ended: this tab may test now
             assertThat(otherMode.isTesting()).isTrue();
+            assertThat(otherMode.testMode().orElseThrow().machine()).isEqualTo(test.machine());
+            otherMode.startTest(); // «Probar…» there: it tests already, nothing more
+            assertThat(otherMode.testMode().orElseThrow().test()).isSameAs(test.test());
+
+            third.dispose(); // a view that goes only leaves the test
+            assertThat(mode.isTesting()).isTrue();
+            assertThat(otherMode.isTesting()).isTrue();
+
+            test.bar().exitButton().doClick(0); // leaving in one view leaves in all, the tests written once
+            assertThat(otherMode.isTesting()).isFalse();
+            assertThat(circuitsMachine().tests()).hasSize(1);
+            assertThat(questions.asked).isEmpty();
+
+            otherMode.startTest(); // a new test, of this tab
+            assertThat(otherMode.isTesting()).isTrue();
+            assertThat(mode.isTesting()).isFalse();
             otherMode.testMode().orElseThrow().end();
         } finally {
             other.dispose();

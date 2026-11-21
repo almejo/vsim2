@@ -4,9 +4,12 @@ import cl.almejo.vsim.ui.app.Listeners;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -39,21 +42,42 @@ public final class DraftGuards {
 
     /**
      * Asks every guard, in order, to settle before {@code reason}; stops at the first that cancels (the guards asked
-     * before it keep what they did).
+     * before it keep what they did). On a close, a draft another view keeps too is not asked about
+     * ({@link DraftGuard#keptOutside}).
      */
     public DraftGuard.Answer settle(DraftGuard.Reason reason) {
+        return settle(List.of(this), reason);
+    }
+
+    /**
+     * Before this view's tab is left for {@code target}'s: as {@link #settle(DraftGuard.Reason)} with
+     * {@link DraftGuard.Reason#SWITCH}, but a draft {@code target} keeps too (another view of a machine being tested)
+     * is not asked about: the user goes on with it there.
+     */
+    public DraftGuard.Answer settleSwitchingTo(DraftGuards target) {
         for (DraftGuard guard : List.copyOf(guards)) {
-            if (guard.settle(reason) == DraftGuard.Answer.CANCEL) {
+            if (target.keeps(guard.draft())) {
+                continue;
+            }
+            if (guard.settle(DraftGuard.Reason.SWITCH) == DraftGuard.Answer.CANCEL) {
                 return DraftGuard.Answer.CANCEL;
             }
         }
         return DraftGuard.Answer.GO_ON;
     }
 
-    /** As {@link #settle(DraftGuard.Reason)} over the guards of every view of {@code all}, in order. */
+    /** Whether one of these guards keeps {@code draft} ({@link DraftGuard#draft()}). */
+    private boolean keeps(Object draft) {
+        return guards.stream().anyMatch(guard -> guard.draft() == draft);
+    }
+
+    /**
+     * As {@link #settle(DraftGuard.Reason)} over the guards of every view of {@code all}, in order: a draft several of
+     * them keep is asked about once, and on a close a draft a view outside {@code all} keeps is not asked about.
+     */
     public static DraftGuard.Answer settle(Collection<DraftGuards> all, DraftGuard.Reason reason) {
-        for (DraftGuards each : List.copyOf(all)) {
-            if (each.settle(reason) == DraftGuard.Answer.CANCEL) {
+        for (DraftGuard guard : askedAbout(all, reason)) {
+            if (guard.settle(reason) == DraftGuard.Answer.CANCEL) {
                 return DraftGuard.Answer.CANCEL;
             }
         }
@@ -62,20 +86,40 @@ public final class DraftGuards {
 
     /**
      * Asks every guard of every view of {@code all}, in order, what to do on a close, doing nothing yet
-     * ({@link DraftGuard#decideClosing()}); empty when one was cancelled (the ones asked before did nothing either).
+     * ({@link DraftGuard#decideClosing()}); empty when one was cancelled (the ones asked before did nothing either). A
+     * draft several of them keep is asked about once; one a view outside {@code all} keeps is not asked about.
      */
     public static Optional<List<DraftGuard.Closing>> decideClosing(Collection<DraftGuards> all) {
         List<DraftGuard.Closing> closings = new ArrayList<>();
-        for (DraftGuards each : List.copyOf(all)) {
-            for (DraftGuard guard : List.copyOf(each.guards)) {
-                Optional<DraftGuard.Closing> closing = guard.decideClosing();
-                if (closing.isEmpty()) {
-                    return Optional.empty();
-                }
-                closings.add(closing.get());
+        for (DraftGuard guard : askedAbout(all, DraftGuard.Reason.CLOSE)) {
+            Optional<DraftGuard.Closing> closing = guard.decideClosing();
+            if (closing.isEmpty()) {
+                return Optional.empty();
             }
+            closings.add(closing.get());
         }
         return Optional.of(closings);
+    }
+
+    /**
+     * The guards of {@code all} to ask before {@code reason}, in order: the first of each draft, and on a close only
+     * those whose draft no view outside {@code all} keeps.
+     */
+    private static List<DraftGuard> askedAbout(Collection<DraftGuards> all, DraftGuard.Reason reason) {
+        List<DraftGuards> leaving = List.copyOf(all);
+        Set<Object> drafts = Collections.newSetFromMap(new IdentityHashMap<>());
+        List<DraftGuard> asked = new ArrayList<>();
+        for (DraftGuards each : leaving) {
+            for (DraftGuard guard : List.copyOf(each.guards)) {
+                if (reason == DraftGuard.Reason.CLOSE && guard.keptOutside(leaving)) {
+                    continue;
+                }
+                if (drafts.add(guard.draft())) {
+                    asked.add(guard);
+                }
+            }
+        }
+        return asked;
     }
 
     /**

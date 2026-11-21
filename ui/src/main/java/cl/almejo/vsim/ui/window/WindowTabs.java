@@ -736,7 +736,7 @@ public final class WindowTabs extends JPanel {
             return; // what a draft does while it is asked (a title, an applied step) waits for the answer
         }
         String activeId = model.active().map(TabStripModel.Tab::id).orElse(null);
-        if (!Objects.equals(activeId, shownId) && keepsTheShownTab()) {
+        if (!Objects.equals(activeId, shownId) && keepsTheShownTab(activeId)) {
             model.activate(shownId); // «Seguir probando»: the strip goes back to the tab still shown
             return;
         }
@@ -755,10 +755,11 @@ public final class WindowTabs extends JPanel {
 
     /**
      * Whether the tab shown now, which is being left for another one while it stays open, keeps the front because its
-     * drafts said so (a machine's test mode with a changed diagram: «Seguir probando»). The strip's model has
-     * already moved on: the caller moves it back. Asked once per switch; never while it is being asked.
+     * drafts said so (a machine's test mode with a changed diagram: «Seguir probando»); a draft the new tab keeps too
+     * (another view of the machine being tested) is not asked about. The strip's model has already moved on: the
+     * caller moves it back. Asked once per switch; never while it is being asked.
      */
-    private boolean keepsTheShownTab() {
+    private boolean keepsTheShownTab(String activeId) {
         if (shownId == null || model.tab(shownId).isEmpty()) {
             return false;
         }
@@ -766,9 +767,12 @@ public final class WindowTabs extends JPanel {
         if (leaving == null || leaving.view.draftGuards().isEmpty()) {
             return false;
         }
+        // a draft the new tab keeps too (another view of the machine being tested) goes on there: nothing to ask
+        DraftGuards target = Optional.ofNullable(activeId).map(entries::get).map(entry -> entry.view.draftGuards())
+                .orElseGet(DraftGuards::new);
         askingDrafts = true;
         try {
-            return leaving.view.draftGuards().settle(DraftGuard.Reason.SWITCH) == DraftGuard.Answer.CANCEL;
+            return leaving.view.draftGuards().settleSwitchingTo(target) == DraftGuard.Answer.CANCEL;
         } finally {
             askingDrafts = false;
         }

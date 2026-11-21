@@ -14,11 +14,13 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.DraftGuard;
+import cl.almejo.vsim.ui.window.DraftGuards;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -39,6 +41,10 @@ import java.util.function.UnaryOperator;
  * <li>It is a {@link DraftGuard} of its view: before a tab switch (only with a changed diagram), a close and a save
  * it settles the draft, asking through {@link MachineTestQuestions}.</li>
  * <li>With no tests, it shows an empty «Prueba 1» that is written only once a cell changes.</li>
+ * <li>The test is the machine's, not the tab's ({@link MachineTestUnderWay}): every view of the machine that tests
+ * shows and edits the same draft; a switch between them asks nothing, and closing one of them while another tests
+ * asks nothing either (the guard's {@link #draft()} and {@link #keptOutside}). Leaving the test in one view leaves
+ * it in all.</li>
  * <li>When the tab moves to another window, the test goes on there with the same draft ({@link #traveller()}).</li>
  * <li>When the circuit's machine changes meanwhile (another tab, an undo in the circuit, the library), the bar says
  * so and «Aplicar» asks before replacing it. When its definition leaves the circuit the mode ends with it.</li>
@@ -52,7 +58,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     private final EditorView view;
     private final MachineCanvas canvas;
     private final MachineTestQuestions questions;
-    private final MachineDraft draft;
+    private final MachineTestUnderWay test;
     private final MachineTestBar bar;
     private final Listeners<Runnable> listeners = new Listeners<>();
     private final List<Runnable> removals = new ArrayList<>();
@@ -66,23 +72,23 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     private int chosenColumn;
     /** The lit state, worked out after each change (the diagram asks for it on every frame). */
     private Optional<ActiveMachineState> activeState = Optional.empty();
-    private boolean over;
-    /** A close decided and written, waiting for «¿Guardar cambios?»: the guard asks nothing more meanwhile. */
-    private boolean closing;
+    /** Whether this view stopped testing (the test may go on in others). */
+    private boolean left;
 
     /**
-     * A test mode on its way to the tab's new view in another window (review finding 1): its draft with its history,
-     * the chosen test and column, and who asks its questions.
+     * A test a view joins (another view of the machine tests it, or the tab moved to another window, review finding
+     * 1): the test, with its draft and history, and the chosen test and column the view starts on.
      */
-    record Carried(MachineDraft draft, int chosenTest, int chosenColumn, MachineTestQuestions questions) {
+    record Carried(MachineTestUnderWay test, int chosenTest, int chosenColumn) {
     }
 
-    private MachineTestMode(EditorView view, MachineCanvas canvas, Carried carried, Runnable ended) {
+    private MachineTestMode(EditorView view, MachineCanvas canvas, Carried carried, MachineTestQuestions questions,
+                            Runnable ended) {
         this.view = view;
         this.canvas = canvas;
-        this.questions = carried.questions();
+        this.questions = questions;
         this.ended = ended;
-        this.draft = carried.draft();
+        this.test = carried.test();
         this.chosenTest = carried.chosenTest();
         this.chosenColumn = carried.chosenColumn();
         this.bar = new MachineTestBar(() -> view.services().appearance().scheme(), this::exit, this::apply,
@@ -93,35 +99,57 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     /**
      * Starts the test mode of {@code canvas}'s machine in {@code view}: the draft, the diagram's source, the steps of
      * Deshacer, the bar and border of {@code frame}, the test table ({@link MachineTestTable}) in the dock instead of
-     * the wave strip, and the guard. Empty when the machine is gone. {@code ended} runs once when the mode ends,
+     * the wave strip, and the guard. The machine's test begins with it (one per machine: call it only when there is
+     * none, else {@link #join}). Empty when the machine is gone. {@code ended} runs once when this view stops testing,
      * whichever way.
      */
     static Optional<MachineTestMode> start(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
                                            MachineTestQuestions questions, Runnable ended) {
         return canvas.standardSource().machine().map(real -> started(view, canvas, frame,
-                new Carried(new MachineDraft(real), 0, 0, questions), ended));
+                new Carried(MachineTestUnderWay.begin(MachineTestsUnderWay.circuitOf(canvas.place()),
+                        canvas.definitionId(), new MachineDraft(real)), 0, 0), questions, ended));
     }
 
     /**
-     * Goes on with a test mode {@code carried} from another window's tab (review finding 1), as {@link #start} but on
-     * its draft; empty when the machine is gone.
+     * As {@link #start}, on a draft {@code recovered} from a recovery copy (fix round 2 of hito 4): it is the draft's
+     * one step, «recuperar el borrador», over the circuit's machine; no step when they are the same.
      */
-    static Optional<MachineTestMode> resume(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
-                                            Carried carried, Runnable ended) {
-        return canvas.standardSource().machine().map(real -> started(view, canvas, frame, carried, ended));
+    static Optional<MachineTestMode> recovered(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
+                                               StateMachine recovered, MachineTestQuestions questions,
+                                               Runnable ended) {
+        return canvas.standardSource().machine().map(real -> {
+            MachineDraft draft = new MachineDraft(real);
+            if (!recovered.equals(real)) {
+                draft.edited(recovered, Messages.text("machine.test.recoveredStep"));
+            }
+            return started(view, canvas, frame, new Carried(MachineTestUnderWay.begin(
+                    MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId(), draft), 0, 0),
+                    questions, ended);
+        });
+    }
+
+    /**
+     * Joins the machine's test {@code carried} (another view of it tests, or the tab moved to another window), as
+     * {@link #start} but on its draft; empty when the machine or the test is gone.
+     */
+    static Optional<MachineTestMode> join(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
+                                          Carried carried, MachineTestQuestions questions, Runnable ended) {
+        if (carried.test().isOver()) {
+            return Optional.empty();
+        }
+        return canvas.standardSource().machine().map(real -> started(view, canvas, frame, carried, questions,
+                ended));
     }
 
     private static MachineTestMode started(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
-                                           Carried carried, Runnable ended) {
-        MachineTestMode mode = new MachineTestMode(view, canvas, carried, ended);
+                                           Carried carried, MachineTestQuestions questions, Runnable ended) {
+        MachineTestMode mode = new MachineTestMode(view, canvas, carried, questions, ended);
         mode.install(frame);
         return mode;
     }
 
     private void install(MachineDiagramFrame frame) {
-        // one test mode per machine (review finding 4): it is this one's until it ends
-        removals.add(MachineTestsUnderWay.add(MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId(),
-                this));
+        test.joined(this);
         removals.add(canvas.useSource(new DraftSource()));
         removals.add(view.actions().stepsInstead(this));
         removals.add(frame.showTestMode(bar));
@@ -148,6 +176,27 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         return view;
     }
 
+    /** The machine's test this view shows (shared with its other views that test). */
+    MachineTestUnderWay test() {
+        return test;
+    }
+
+    /** What a view joining this test starts on: this view's chosen test and column. */
+    Carried carried() {
+        return new Carried(test, chosenTest, chosenColumn);
+    }
+
+    /** Shows the chosen test and column of {@code carried} (a view that joined: the one it came from). */
+    void choose(Carried carried) {
+        chosenTest = carried.chosenTest();
+        chosenColumn = carried.chosenColumn();
+        changed();
+    }
+
+    private MachineDraft theDraft() {
+        return test.draft();
+    }
+
     /** The bar over the diagram. */
     MachineTestBar bar() {
         return bar;
@@ -158,12 +207,12 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      * or was last applied: an undo in the circuit of «aplicar la prueba» makes it differ again, review finding 2).
      */
     boolean diagramChanged() {
-        return realMachine().map(draft::diagramDiffersFrom).orElseGet(draft::diagramChanged);
+        return realMachine().map(theDraft()::diagramDiffersFrom).orElseGet(theDraft()::diagramChanged);
     }
 
     /** Whether the circuit's machine changed since the test started (or was last applied or saved). */
     boolean changedOutside() {
-        return realMachine().filter(real -> !real.equals(draft.base())).isPresent();
+        return realMachine().filter(real -> !real.equals(theDraft().base())).isPresent();
     }
 
     // --- the session the table uses ---
@@ -174,7 +223,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      */
     @Override
     public StateMachine machine() {
-        return draft.current();
+        return theDraft().current();
     }
 
     @Override
@@ -186,8 +235,8 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         if (after.equals(before)) {
             return;
         }
-        draft.edited(draft.current().withTests(after), stepName);
-        changed();
+        theDraft().edited(theDraft().current().withTests(after), stepName);
+        test.changed();
     }
 
     @Override
@@ -227,22 +276,22 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     @Override
     public boolean canUndo() {
-        return draft.canUndo();
+        return theDraft().canUndo();
     }
 
     @Override
     public boolean canRedo() {
-        return draft.canRedo();
+        return theDraft().canRedo();
     }
 
     @Override
     public Optional<String> undoName() {
-        return draft.undoName().map(name -> Messages.format("machine.test.undoNamed", name));
+        return theDraft().undoName().map(name -> Messages.format("machine.test.undoNamed", name));
     }
 
     @Override
     public Optional<String> redoName() {
-        return draft.redoName().map(name -> Messages.format("machine.test.redoNamed", name));
+        return theDraft().redoName().map(name -> Messages.format("machine.test.redoNamed", name));
     }
 
     @Override
@@ -257,17 +306,17 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     @Override
     public void undo() {
-        if (draft.canUndo()) {
-            draft.undo();
-            changed();
+        if (theDraft().canUndo()) {
+            theDraft().undo();
+            test.changed();
         }
     }
 
     @Override
     public void redo() {
-        if (draft.canRedo()) {
-            draft.redo();
-            changed();
+        if (theDraft().canRedo()) {
+            theDraft().redo();
+            test.changed();
         }
     }
 
@@ -275,7 +324,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     @Override
     public Answer settle(Reason reason) {
-        if (over || closing) {
+        if (isOver() || test.isClosing()) {
             return Answer.GO_ON; // a close already decided asks nothing more (the save question may switch tabs)
         }
         return switch (reason) {
@@ -291,6 +340,19 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         };
     }
 
+    /** The machine's test: every view that tests it keeps the same draft, asked about once. */
+    @Override
+    public Object draft() {
+        return test;
+    }
+
+    /** Whether a view that is not closing tests this machine too: the test goes on there, nothing to ask. */
+    @Override
+    public boolean keptOutside(Collection<DraftGuards> leaving) {
+        return test.views().stream().anyMatch(other -> leaving.stream()
+                .noneMatch(guards -> guards == other.view.draftGuards()));
+    }
+
     @Override
     public Optional<String> titleNote() {
         return Optional.of(Messages.text("machine.test.tabNote"));
@@ -303,7 +365,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      */
     @Override
     public Optional<Closing> decideClosing() {
-        if (over) {
+        if (isOver()) {
             return Optional.of(Closing.NOTHING);
         }
         if (!diagramChanged()) {
@@ -313,7 +375,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
                 List.of(Messages.text("machine.test.option.apply"), Messages.text("machine.test.option.keep"),
                         Messages.text("machine.test.option.cancel")));
         if (choice == 0 && replacingIsAgreed()) {
-            return Optional.of(new DecidedClosing(() -> execute(fitted(draft.current()), "command.applyTest")));
+            return Optional.of(new DecidedClosing(() -> execute(fitted(theDraft().current()), "command.applyTest")));
         }
         if (choice == 1) {
             return Optional.of(new DecidedClosing(this::writeTests));
@@ -332,10 +394,10 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
         @Override
         public void write() {
-            if (over) {
+            if (isOver()) {
                 return;
             }
-            closing = true;
+            test.setClosing(true);
             checkpoint = Optional.of(canvas.place().history().checkpoint());
             writing.run();
             refreshBar();
@@ -343,13 +405,13 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
         @Override
         public void finish() {
-            closing = false;
+            test.setClosing(false);
             end();
         }
 
         @Override
         public void takeBack() {
-            closing = false;
+            test.setClosing(false);
             checkpoint.ifPresent(taken -> {
                 if (!canvas.place().history().rollBackTo(taken)) {
                     // the history went elsewhere meanwhile: the written step stays, Deshacer takes it back
@@ -357,31 +419,35 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
                 }
             });
             checkpoint = Optional.empty();
-            if (!over) {
-                changed();
+            if (!isOver()) {
+                test.changed();
             }
         }
     }
 
     /**
-     * The tab moves to another window: the test goes on in its new view there, with the same draft, history and
-     * choices; nothing is written and nothing is asked. Should that view not take it (it is no machine's tab), the
-     * mode is left as «Salir de la prueba» leaves it, so the tests are written rather than lost.
+     * The tab moves to another window: its new view there joins the test, with the same draft, history and choices,
+     * and this view leaves it; nothing is written and nothing is asked. Should that view not take it (it is no
+     * machine's tab) and no other view test, the test is left as «Salir de la prueba» leaves it, so the tests are
+     * written rather than lost.
      */
     @Override
     public Optional<Consumer<EditorView>> traveller() {
         return Optional.of(arrived -> {
-            if (over) {
+            if (isOver()) {
                 return;
             }
             Optional<MachineMode> there = MachineMode.of(arrived);
             if (there.isEmpty()) {
-                exit();
+                if (test.views().size() == 1) {
+                    exit();
+                } else {
+                    leave();
+                }
                 return;
             }
-            Carried carried = new Carried(draft, chosenTest, chosenColumn, questions);
-            end(); // this tab is going: it lets the machine go, so the new tab may test it
-            there.get().goOnTesting(carried);
+            there.get().goOnTesting(carried()); // first: the test never has no view meanwhile
+            leave();
         });
     }
 
@@ -389,8 +455,8 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     @Override
     public Optional<String> discardNotice() {
         boolean unwritten = realMachine()
-                .map(real -> draft.diagramDiffersFrom(real) || draft.testsDifferFrom(real))
-                .orElseGet(() -> draft.diagramChanged() || draft.testsChanged());
+                .map(real -> theDraft().diagramDiffersFrom(real) || theDraft().testsDifferFrom(real))
+                .orElseGet(() -> theDraft().diagramChanged() || theDraft().testsChanged());
         return unwritten ? Optional.of(Messages.text("machine.test.discarded")) : Optional.empty();
     }
 
@@ -436,7 +502,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     /** «Salir de la prueba»: the tests written when they changed, the draft's diagram (if any) left behind. */
     void exit() {
-        if (over) {
+        if (isOver()) {
             return;
         }
         end();
@@ -454,13 +520,13 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      * testing.
      */
     boolean apply() {
-        if (over) {
+        if (isOver()) {
             return true;
         }
         if (!replacingIsAgreed()) {
             return false;
         }
-        StateMachine applied = fitted(draft.current());
+        StateMachine applied = fitted(theDraft().current());
         end();
         execute(applied, "command.applyTest");
         return true;
@@ -471,9 +537,9 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         if (!replacingIsAgreed()) {
             return false;
         }
-        execute(fitted(draft.current()), "command.applyTest");
-        realMachine().ifPresent(draft::rebased);
-        changed();
+        execute(fitted(theDraft().current()), "command.applyTest");
+        realMachine().ifPresent(theDraft()::rebased);
+        test.changed();
         return true;
     }
 
@@ -493,18 +559,18 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      * of a step that wrote them (review finding 2).
      */
     private void writeTests() {
-        realMachine().filter(draft::testsDifferFrom).ifPresent(real -> execute(
-                real.withTests(MachineTests.fittedTo(real, draft.current().tests())), "command.saveTests"));
+        realMachine().filter(theDraft()::testsDifferFrom).ifPresent(real -> execute(
+                real.withTests(MachineTests.fittedTo(real, theDraft().current().tests())), "command.saveTests"));
     }
 
     /** As {@link #writeTests()}, the mode going on: its base takes the written tests. */
     private void writeTestsStaying() {
-        if (realMachine().filter(draft::testsDifferFrom).isEmpty()) {
+        if (realMachine().filter(theDraft()::testsDifferFrom).isEmpty()) {
             return;
         }
         writeTests();
-        realMachine().ifPresent(real -> draft.rebased(draft.base().withTests(real.tests())));
-        changed();
+        realMachine().ifPresent(real -> theDraft().rebased(theDraft().base().withTests(real.tests())));
+        test.changed();
     }
 
     /** {@code machine} with its tests fitted to its own pins. */
@@ -528,12 +594,29 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
                 .ifPresent(view::showNotice);
     }
 
-    /** Ends the mode without writing anything: everything it put in the view goes, the draft with it. Runs once. */
+    /** Ends the machine's test in every view that tests it, without writing anything: the draft goes. Runs once. */
     void end() {
-        if (over) {
+        test.end();
+    }
+
+    /**
+     * This view stops testing without writing anything (its tab goes or moves): the test goes on in the machine's
+     * other views that test, and ends with the last.
+     */
+    void leave() {
+        if (left) {
             return;
         }
-        over = true;
+        takeOut();
+        test.left(this);
+    }
+
+    /** Everything this view's test mode put in the view goes; runs once. */
+    void takeOut() {
+        if (left) {
+            return;
+        }
+        left = true;
         for (int index = removals.size() - 1; index >= 0; index--) {
             removals.get(index).run();
         }
@@ -541,9 +624,9 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         ended.run();
     }
 
-    /** Whether the mode ended. */
+    /** Whether this view stopped testing (the test ended, or the view left it). */
     boolean isOver() {
-        return over;
+        return left || test.isOver();
     }
 
     // --- keeping up ---
@@ -556,6 +639,13 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         return MachineNaming.nameOf(canvas.place(), canvas.definitionId()).orElse(canvas.definitionId());
     }
 
+    /** The draft changed, here or in another view of the test: this view follows. */
+    void draftChanged() {
+        if (!isOver()) {
+            changed();
+        }
+    }
+
     /** The draft, a choice or the table changed: recomputed, and told to the diagram, the table and Deshacer. */
     private void changed() {
         recompute();
@@ -565,7 +655,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
     /** The table's machine, the choices kept in range, and the state the chosen column lights. */
     private void recompute() {
-        StateMachine current = draft.current();
+        StateMachine current = theDraft().current();
         shown = current.withTests(MachineTestTableModel.shown(current.tests()));
         chosenTest = Math.clamp(chosenTest, 0, shown.tests().size() - 1);
         MachineTest test = shown.tests().get(chosenTest);
@@ -582,7 +672,7 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     }
 
     private void refreshBar() {
-        if (!over) {
+        if (!isOver()) {
             bar.show(diagramChanged(), changedOutside());
         }
     }
@@ -592,18 +682,18 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
 
         @Override
         public Optional<StateMachine> machine() {
-            return Optional.of(draft.current());
+            return Optional.of(theDraft().current());
         }
 
         @Override
         public boolean edit(UnaryOperator<StateMachine> change) {
-            StateMachine current = draft.current();
+            StateMachine current = theDraft().current();
             StateMachine changed = change.apply(current);
             if (changed.equals(current)) {
                 return false;
             }
-            draft.edited(changed, Messages.text("command.editMachine"));
-            changed();
+            theDraft().edited(changed, Messages.text("command.editMachine"));
+            test.changed();
             return true;
         }
 

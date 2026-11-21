@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -69,6 +70,23 @@ public interface DraftGuard {
      */
     default Optional<Closing> decideClosing() {
         return settle(Reason.CLOSE) == Answer.CANCEL ? Optional.empty() : Optional.of(Closing.NOTHING);
+    }
+
+    /**
+     * What this guard keeps (fix round 2 of hito 4): the guards of several views that keep one draft (a machine tested
+     * in two views) return the same object, so the window asks about it once, and never on a switch between those
+     * views. By default the guard itself.
+     */
+    default Object draft() {
+        return this;
+    }
+
+    /**
+     * Whether a view outside {@code leaving} (the guards of the views that close) keeps this guard's draft too, so
+     * closing those views asks nothing about it: it goes on in the others. By default false.
+     */
+    default boolean keptOutside(Collection<DraftGuards> leaving) {
+        return false;
     }
 
     /** What the tab's title adds while this guard is on (« · prueba»); empty for nothing. */

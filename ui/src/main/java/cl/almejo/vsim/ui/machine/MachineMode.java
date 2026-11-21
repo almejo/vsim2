@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.Listeners;
@@ -40,6 +41,8 @@ public final class MachineMode {
     private final BooleanSupplier animations;
     private final Listeners<Runnable> testModeListeners = new Listeners<>();
     private MachineTestQuestions questions = MachineTestQuestions.DIALOG;
+    /** Asks through whatever {@link #questions} is when the question comes (set after the test may have started). */
+    private final MachineTestQuestions asking = (parent, message, options) -> questions.ask(parent, message, options);
     private Optional<MachineTestMode> testMode = Optional.empty();
     private Runnable stopLockingTheName = () -> { };
     private Runnable stopHoldingTheLibraryButton = () -> { };
@@ -94,8 +97,9 @@ public final class MachineMode {
         mode.addTestModeListener(() -> followTesting.accept(mode.isTesting()));
         view.putClientProperty(MachineMode.class, mode);
         return () -> {
-            // the tab goes (or leaves machine mode): a test's draft goes with it, unwritten
-            mode.testMode.ifPresent(MachineTestMode::end);
+            // the tab goes (or leaves machine mode): it leaves the test, which goes on in the machine's other views
+            // that test, else its draft goes, unwritten
+            mode.testMode.ifPresent(MachineTestMode::leave);
             view.putClientProperty(MachineMode.class, null);
             for (Runnable undo : List.of(showProbes, editing::uninstall, stopFeedingThePanes, enableCircuitActions,
                     showPalette, showDiagram, canvas::dispose)) {
@@ -121,38 +125,66 @@ public final class MachineMode {
     /**
      * Starts the test mode of this tab's machine (hito 4): the diagram and a test table in the dock work on a draft
      * until the user leaves ({@link MachineTestMode}). Nothing when it is on already or the machine is gone. One test
-     * mode per machine (review finding 4): when another tab tests this machine, that tab comes to the front and says
-     * so instead (outside a real window, this tab says where it is).
+     * per machine (review finding 4): when another view tests this machine, this one joins its test, on the same
+     * draft (fix round 2).
      */
     public void startTest() {
         if (testMode.isPresent()) {
             return;
         }
-        Optional<MachineTestMode> elsewhere = MachineTestsUnderWay.of(
-                MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId());
-        if (elsewhere.isPresent()) {
-            EditorView testing = elsewhere.get().view();
-            if (view.windowCommands().bringToFront(testing)) {
-                testing.showNotice(Messages.text("machine.test.testingHere"));
-            } else {
-                view.showNotice(Messages.text("machine.test.testingElsewhere"));
-            }
+        Optional<MachineTestUnderWay> underWay = testUnderWay();
+        if (underWay.isPresent()) {
+            joinTheTest(underWay.get());
             return;
         }
-        testMode = MachineTestMode.start(view, canvas, frame, questions, this::testEnded);
+        testMode = MachineTestMode.start(view, canvas, frame, asking, this::testEnded);
         followTheTestMode();
     }
 
     /**
-     * Goes on with a test {@code carried} from this tab's old view in another window (the group moved, review finding
-     * 1): its draft, history and choices. Nothing when this tab tests already or the machine is gone (its draft went
-     * with it, as when the definition leaves the circuit).
+     * Starts the test mode on the draft {@code recovered} from a recovery copy (fix round 2 of hito 4: VSim did not
+     * close properly while the machine was being tested). Nothing when this tab or another view tests it already.
+     */
+    void resumeTest(StateMachine recovered) {
+        if (testMode.isPresent() || testUnderWay().isPresent()) {
+            return;
+        }
+        testMode = MachineTestMode.recovered(view, canvas, frame, recovered, asking, this::testEnded);
+        followTheTestMode();
+    }
+
+    /**
+     * Joins the test of this tab's machine when another view tests it (a new view of a machine being tested tests
+     * from the start, fix round 2 of hito 4); nothing otherwise.
+     */
+    void joinTheTestUnderWay() {
+        if (testMode.isEmpty()) {
+            testUnderWay().ifPresent(this::joinTheTest);
+        }
+    }
+
+    private Optional<MachineTestUnderWay> testUnderWay() {
+        return MachineTestsUnderWay.of(MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId())
+                .filter(test -> !test.isOver());
+    }
+
+    /** Joins {@code test}, starting on the chosen test and column of the first view that tests it. */
+    private void joinTheTest(MachineTestUnderWay test) {
+        goOnTesting(test.views().stream().findFirst().map(MachineTestMode::carried)
+                .orElseGet(() -> new MachineTestMode.Carried(test, 0, 0)));
+    }
+
+    /**
+     * Joins the test {@code carried} (another view of the machine tests it, or this tab's old view in another window
+     * carried it when the group moved, review finding 1): its draft, history and choices. When this tab tests it
+     * already, it only takes the choices. Nothing when this tab tests another one or the machine is gone.
      */
     void goOnTesting(MachineTestMode.Carried carried) {
         if (testMode.isPresent()) {
+            testMode.filter(mode -> mode.test() == carried.test()).ifPresent(mode -> mode.choose(carried));
             return;
         }
-        testMode = MachineTestMode.resume(view, canvas, frame, carried, this::testEnded);
+        testMode = MachineTestMode.join(view, canvas, frame, carried, asking, this::testEnded);
         followTheTestMode();
     }
 
