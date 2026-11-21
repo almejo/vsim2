@@ -180,6 +180,22 @@ class MachineActionWalkTest {
         }
     }
 
+    /**
+     * The diagram's F2 shows on its Editar item as the circuit's canvas keys do (main's I1), and only shows there: the
+     * diagram's binding stays the one that runs it, so an F2 typed elsewhere never edits a state.
+     */
+    @Test
+    void theEditTextItemShowsTheDiagramsF2WithoutRunningByIt() {
+        javax.swing.JMenuItem editText = itemsDeep(view.menu(MenuId.EDIT)).stream()
+                .filter(item -> Messages.text("machine.action.editText").equals(item.getText()))
+                .findFirst().orElseThrow();
+
+        assertThat(editText.getAccelerator()).isEqualTo(javax.swing.KeyStroke.getKeyStroke(
+                java.awt.event.KeyEvent.VK_F2, 0));
+        assertThat(editText).isInstanceOfSatisfying(cl.almejo.vsim.ui.actions.ShownAcceleratorItem.class,
+                item -> assertThat(item.onlyShowsItsAccelerator()).isTrue());
+    }
+
     @Test
     void everyActionOfAMachineTabIsDisabledWithItsReasonOrKnownToWork() {
         assertThat(strays(walk())).isEmpty();

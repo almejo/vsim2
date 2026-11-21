@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
@@ -232,8 +233,9 @@ final class MachineEditing {
         return () -> added.forEach(edit.getPopupMenu()::remove);
     }
 
+    /** An Editar item of the diagram, showing the diagram's key of its action (F2) without running by it. */
     private static JMenuItem item(Action action, String searchKey) {
-        JMenuItem item = new JMenuItem(action);
+        JMenuItem item = new ShownAcceleratorItem(action);
         item.putClientProperty(Actions.SEARCH_TERMS, Messages.text(searchKey));
         return item;
     }

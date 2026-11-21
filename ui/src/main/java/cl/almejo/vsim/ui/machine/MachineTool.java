@@ -153,6 +153,9 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     /** A press on a state that was already selected with others: a release without moving selects it alone. */
     private boolean aloneOnRelease;
 
+    /** The diagram's key for {@link #editTextAction()}, as F2 is the circuit's «Etiqueta…». */
+    private static final KeyStroke EDIT_TEXT_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0);
+
     MachineTool(MachineCanvas canvas, MachinePalette palette, MachineInlineEditor inline,
                 Consumer<String> notices) {
         this.notices = Objects.requireNonNull(notices, "notices");
@@ -165,6 +168,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         newTransition.putValue(Action.SHORT_DESCRIPTION, Messages.text("machine.action.newTransitionHint"));
         editText = Actions.of(Messages.text("machine.action.editText"), this::editSelectedText);
         editText.putValue(Action.SHORT_DESCRIPTION, Messages.text("machine.action.editTextHint"));
+        editText.putValue(Actions.SHOWN_ACCELERATOR, EDIT_TEXT_KEY); // its Editar item says F2; the diagram runs it
     }
 
     /** Starts listening to the canvas; returns what stops it. */
@@ -177,7 +181,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         canvas.showGestures(this);
         canvas.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), CANCEL);
         canvas.getActionMap().put(CANCEL, Actions.unnamed(this::cancel));
-        canvas.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), EDIT_TEXT);
+        canvas.getInputMap(JComponent.WHEN_FOCUSED).put(EDIT_TEXT_KEY, EDIT_TEXT);
         canvas.getActionMap().put(EDIT_TEXT, editText);
         Runnable stopFollowing = selection.addListener(this::refreshActions);
         refreshActions();
@@ -188,7 +192,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             canvas.removeKeyListener(keys);
             canvas.showGestures(MachineCanvas.Gestures.NONE);
             canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
-            canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
+            canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(EDIT_TEXT_KEY);
             canvas.getActionMap().remove(CANCEL);
             canvas.getActionMap().remove(EDIT_TEXT);
         };
