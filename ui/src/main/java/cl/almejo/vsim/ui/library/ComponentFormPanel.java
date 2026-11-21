@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.library;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
@@ -17,8 +18,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.UIManager;
-import java.awt.Color;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,6 @@ import java.util.function.BiConsumer;
  */
 public final class ComponentFormPanel extends JPanel {
 
-    private static final Color ERROR_FALLBACK = new Color(0xDB5860);
 
     /** Width of the pins note before it wraps, in pixels. */
     private static final int NOTE_WIDTH = 360;
@@ -125,8 +123,7 @@ public final class ComponentFormPanel extends JPanel {
         name.setText(form.name());
         TextChanges.onChange(name, () -> form.setName(name.getText()));
         add(name, "span 2");
-        Color error = UIManager.getColor("Actions.Red");
-        message.setForeground(error == null ? ERROR_FALLBACK : error);
+        message.setForeground(ReadableColors.errorText());
         add(message, "span 2");
         addDescription();
     }

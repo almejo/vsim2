@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.netcard;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.theme.ThemeColors;
@@ -385,9 +386,9 @@ final class SignalCard extends JComponent {
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    /** The colour of a secondary or problem text, by its key in the look and feel. */
+    /** The colour of a secondary text (the readable grey) or a problem text (by its key in the look and feel). */
     private enum Tone {
-        SECONDARY("Label.disabledForeground", Color.GRAY),
+        SECONDARY(null, Color.GRAY),
         PROBLEM("Actions.Red", new Color(0xDB5860));
 
         private final String key;
@@ -399,7 +400,7 @@ final class SignalCard extends JComponent {
         }
 
         Color color() {
-            return uiColor(key, fallback);
+            return key == null ? ReadableColors.mutedText() : uiColor(key, fallback);
         }
     }
 

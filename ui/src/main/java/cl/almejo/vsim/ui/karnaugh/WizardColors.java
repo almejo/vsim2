@@ -29,7 +29,7 @@ final class WizardColors {
     }
 
     static Color muted() {
-        return ThemeColors.ui("Label.disabledForeground", Color.GRAY);
+        return ReadableColors.mutedText();
     }
 
     static Color gridLine() {

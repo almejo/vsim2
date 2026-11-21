@@ -1,17 +1,16 @@
 package cl.almejo.vsim.ui.library;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.TextChanges;
 
 import javax.swing.DefaultCellEditor;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
-import javax.swing.UIManager;
 import javax.swing.event.CellEditorListener;
 import javax.swing.event.ChangeEvent;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
-import java.awt.Color;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -26,7 +25,6 @@ import java.util.function.Supplier;
  */
 final class PinNameTable extends JTable {
 
-    private static final Color ERROR_FALLBACK = new Color(0xDB5860);
 
     private final Supplier<List<String>> names;
     private final BiConsumer<Integer, String> rename;
@@ -87,8 +85,7 @@ final class PinNameTable extends JTable {
                 super.getTableCellRendererComponent(table, value, selected, focused, row, column);
                 Optional<String> reason = problem.apply(row);
                 if (reason.isPresent()) {
-                    Color error = UIManager.getColor("Actions.Red");
-                    setForeground(error == null ? ERROR_FALLBACK : error);
+                    setForeground(ReadableColors.errorText());
                 }
                 setToolTipText(reason.orElse(null));
                 return this;

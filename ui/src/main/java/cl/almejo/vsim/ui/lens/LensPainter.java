@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.lens;
 
+import javax.swing.UIManager;
+import com.formdev.flatlaf.util.UIScale;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.PainterSupport;
@@ -27,7 +29,8 @@ final class LensPainter {
     private static final int CROSSHAIR_ARM = 7;
     /** The crosshair is faint: it marks the centre without hiding what is there. */
     private static final int CROSSHAIR_ALPHA = 140;
-    private static final float LABEL_FONT_SIZE = 11f;
+    /** The label's size relative to the label font (11 px beside the 13 px of the default theme). */
+    private static final float LABEL_FONT_RATIO = 11f / 13f;
     /** The label's left edge, as a fraction of the radius right of the centre (the mockup's 0.62). */
     private static final double LABEL_X_FRACTION = 0.62;
     /** The label's baseline below the circle's bottom. */
@@ -35,6 +38,11 @@ final class LensPainter {
     /** Room for the label's text («4×») and its descent, generous for larger fonts. */
     private static final int LABEL_WIDTH = 48;
     private static final int LABEL_HEIGHT = 22;
+
+    private static float labelFontSize() {
+        Font label = UIManager.getFont("Label.font");
+        return (label != null ? label.getSize2D() : 13f) * LABEL_FONT_RATIO;
+    }
 
     private LensPainter() {
     }
@@ -68,7 +76,7 @@ final class LensPainter {
     static Rectangle labelArea(Point2D centre, LensLook look) {
         int left = (int) Math.floor(centre.getX() + look.halfWidth() * LABEL_X_FRACTION) - 1;
         int top = (int) Math.floor(centre.getY() + look.halfHeight()) + 1;
-        return new Rectangle(left, top, LABEL_WIDTH, LABEL_HEIGHT);
+        return new Rectangle(left, top, UIScale.scale(LABEL_WIDTH), UIScale.scale(LABEL_HEIGHT));
     }
 
     private static void paintMagnifiedScene(Graphics2D screen, CircuitCanvas pane, Point2D centre, double factor,
@@ -100,7 +108,7 @@ final class LensPainter {
     private static void paintLabel(Graphics2D chrome, Point2D centre, double factor, Color accent,
                                   LensLook look) {
         chrome.setColor(accent);
-        chrome.setFont(chrome.getFont().deriveFont(Font.BOLD, LABEL_FONT_SIZE));
+        chrome.setFont(chrome.getFont().deriveFont(Font.BOLD, labelFontSize()));
         String text = Messages.format("lens.zoomLabel", (int) Math.round(factor));
         float x = (float) (centre.getX() + look.halfWidth() * LABEL_X_FRACTION);
         float baseline = (float) (centre.getY() + look.halfHeight() + LABEL_BASELINE_BELOW);

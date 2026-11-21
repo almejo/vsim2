@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.memory;
 
+import com.formdev.flatlaf.util.UIScale;
 import cl.almejo.vsim.core.command.SetInstanceMemoryContentsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
@@ -868,7 +869,7 @@ public final class MemoryEditorDialog {
         findCounter.setName("memory.find.counter");
         findCounter.setPreferredSize(new Dimension(
                 findCounter.getFontMetrics(findCounter.getFont()).stringWidth(
-                        Messages.format("memory.find.counter", 9999, 9999)) + 12, 20));
+                        Messages.format("memory.find.counter", 9999, 9999)) + 12, UIScale.scale(20)));
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         left.setOpaque(false);
         left.add(findField);

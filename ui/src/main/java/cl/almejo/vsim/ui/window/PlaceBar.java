@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -173,8 +174,8 @@ public final class PlaceBar extends JPanel {
     }
 
     private static Color mutedColor() {
-        Color muted = UIManager.getColor("Label.disabledForeground");
-        return muted == null ? Color.GRAY : muted;
+        Color muted = ReadableColors.mutedText();
+        return muted;
     }
 
     private static Color mix(Color base, Color tint, float amount) {

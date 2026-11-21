@@ -1918,7 +1918,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** The welcome text of a canvas with nothing in it, centred in this pane; screen only, never in an export. */
     private void paintEmptyHint(Graphics2D screen) {
         if (EmptyCanvasHint.isShownFor(openDocument.document())) {
-            EmptyCanvasHint.paint(screen, getWidth(), getHeight(), emptyHintLines());
+            EmptyCanvasHint.paint(screen, scheme(), getWidth(), getHeight(), emptyHintLines());
         }
     }
 

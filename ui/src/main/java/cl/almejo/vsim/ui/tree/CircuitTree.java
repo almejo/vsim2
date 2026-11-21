@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.tree;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -701,7 +702,7 @@ public final class CircuitTree extends JPanel {
             CircuitTreeNode node = row.node();
             Font font = owner.getFont();
             Color foreground = selected ? UIManager.getColor("Tree.selectionForeground") : owner.getForeground();
-            Color grey = selected ? foreground : UIManager.getColor("Label.disabledForeground");
+            Color grey = selected ? foreground : ReadableColors.mutedText();
             showName(node, searching ? searchField.getText() : "", font, foreground);
             before.setIcon(icon(node));
             List<String> greyParts = new ArrayList<>();

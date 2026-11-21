@@ -68,7 +68,7 @@ final class NoticeLabel extends JLabel {
     public Color getForeground() {
         // the superclass constructor asks before the field is set
         return switch (kind == null ? Kind.HINT : kind) {
-            case HINT -> UIManager.getColor("Label.disabledForeground");
+            case HINT -> ReadableColors.mutedText();
             case INFO -> AiColors.success();
             case WARNING -> ReadableColors.warningText();
         };
