@@ -251,12 +251,18 @@ class ShortcutSheetTest {
     void everyIdOfTheSelectionIsAShortcutOfTheCatalogOrTheSheetItself() {
         List<SheetSelection.Item> items = SheetSelection.load();
 
-        assertThat(items).hasSizeBetween(28, 32);
+        assertThat(items).hasSizeBetween(28, 34);
         assertThat(items).filteredOn(item -> !item.id().equals(SheetSelection.THE_SHEET))
                 .allSatisfy(item -> assertThat(ShortcutCatalog.find(item.id())).isPresent());
         assertThat(items).extracting(SheetSelection.Item::group).containsSequence(SheetSelection.Group.FILE)
                 .contains(SheetSelection.Group.EDIT, SheetSelection.Group.VIEW, SheetSelection.Group.SIMULATE,
                         SheetSelection.Group.HELP);
+    }
+
+    @Test
+    void fileAndEditStayOnTheLeftAndTheShortGroupsGoRight() {
+        assertThat(ShortcutSheetPanel.leftColumnCount(6)).isEqualTo(2);
+        assertThat(ShortcutSheetPanel.leftColumnCount(5)).isEqualTo(2);
     }
 
     @Test
@@ -269,7 +275,8 @@ class ShortcutSheetTest {
     void theSheetShowsTheGroupsWithTheCurrentKeys() {
         ShortcutSheetPanel panel = openSheet();
 
-        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Ayuda");
+        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Ventana", "Simulación", "Ayuda");
+        assertThat(panel.rows()).contains("Ctrl+T · Nueva pestaña vacía", "Ctrl+Mayús+T · Reabrir pestaña cerrada");
         assertThat(panel.rows()).contains("Ctrl+N · Nuevo", "Ctrl+Z · Deshacer", "Supr · Borrar",
                 "Ctrl+Mayús+Z · Rehacer", "F6 · Avanzar N t", "? · Atajos de teclado");
         assertThat(panel.rows()).as("the waveforms toggle has no key by default").noneMatch(

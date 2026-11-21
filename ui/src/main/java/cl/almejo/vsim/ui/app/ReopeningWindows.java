@@ -7,8 +7,8 @@ import cl.almejo.vsim.ui.session.RecentFiles;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.window.CircuitWindow;
+import cl.almejo.vsim.ui.window.ClosedTabReopener;
 import cl.almejo.vsim.ui.window.WindowTabs;
-import cl.almejo.vsim.ui.window.closed.ClosedTabReopener;
 import cl.almejo.vsim.ui.window.closed.ClosedTabs;
 
 import java.awt.Rectangle;
@@ -98,6 +98,23 @@ final class ReopeningWindows implements ClosedTabReopener.Windows {
     @Override
     public void focus(WindowTabs window) {
         windowOf(window).ifPresent(focus);
+    }
+
+    @Override
+    public void discard(WindowTabs window) {
+        windowOf(window).ifPresent(created -> {
+            if (created.tabs().isEmpty()) {
+                created.discardUnshown();
+            } else {
+                created.closeQuietly(); // not recorded: the documents it last held close, the entry goes back
+            }
+        });
+    }
+
+    @Override
+    public void closeReplaced(WindowTabs window) {
+        windowOf(window).ifPresent(target -> windows.replacedBy(target)
+                .forEach(replaced -> windows.windowsOf(replaced).forEach(holder -> holder.closeGroup(replaced))));
     }
 
     @Override

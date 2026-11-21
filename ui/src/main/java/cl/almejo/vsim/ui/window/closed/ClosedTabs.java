@@ -35,7 +35,7 @@ public final class ClosedTabs {
 
     private static Optional<ClosedEntry> worthKeeping(ClosedEntry entry) {
         return switch (entry) {
-            case ClosedTab tab -> Optional.of(tab);
+            case ClosedTab tab -> tab.document().isUntouchedUntitled() ? Optional.empty() : Optional.of(tab);
             case ClosedGroup group -> group.document().isUntouchedUntitled() ? Optional.empty() : Optional.of(group);
             case ClosedWindow window -> {
                 List<ClosedGroup> groups = window.groups().stream()
@@ -69,9 +69,17 @@ public final class ClosedTabs {
         return List.copyOf(entries);
     }
 
-    /** {@code document} closed: every entry of it keeps only its file and how it closed. */
+    /**
+     * {@code document} closed: every entry of it keeps only its file and how it closed. A circuit without a file can
+     * never come back, so its single-tab entries go; its group or window entry stays, to say so once.
+     */
     public void documentClosed(OpenDocument document) {
+        boolean removed = document.path().isEmpty()
+                && entries.removeIf(entry -> entry instanceof ClosedTab tab && tab.document().refersTo(document));
         entries.forEach(entry -> entry.documents().forEach(reference -> reference.documentClosed(document)));
+        if (removed) {
+            changed();
+        }
     }
 
     /** Runs {@code listener} after every push and pop; returns what removes it. */

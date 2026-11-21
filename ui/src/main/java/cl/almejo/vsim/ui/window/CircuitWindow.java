@@ -21,6 +21,7 @@ import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.window.closed.ClosedEntry;
+import cl.almejo.vsim.ui.window.closed.ClosedGroup;
 import cl.almejo.vsim.ui.window.closed.ClosedWindow;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import org.slf4j.Logger;
@@ -340,12 +341,13 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     /**
-     * The user closes this whole window (after the save questions): «Reabrir pestaña cerrada» keeps its groups and
-     * where it was. Guarded: the window's state can fail (a window with no size), and the window must still close.
+     * The user closed this whole window (after the save questions): «Reabrir pestaña cerrada» keeps {@code groups}
+     * (taken before the questions) and where the window was. Guarded: the window's state can fail (a window with no
+     * size), and the window must still close.
      */
-    private void recordClosedWindow() {
+    private void recordClosedWindow(List<ClosedGroup> groups, int activeGroup) {
         try {
-            application.closedTabs().push(new ClosedWindow(tabs.closedGroups(), tabs.activeGroupIndex(),
+            application.closedTabs().push(new ClosedWindow(groups, activeGroup,
                     WindowState.of(normalBounds(), isMaximized(), viewState())));
         } catch (RuntimeException exception) {
             LOGGER.warn("Could not remember the closed window for «Reabrir pestaña cerrada»", exception);
@@ -412,8 +414,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     @Override
     public void closeWindow() {
+        // taken before the save questions, which bring each document they ask about to the front
+        List<ClosedGroup> groups = tabs.closedGroups();
+        int activeGroup = tabs.activeGroupIndex();
         if (confirmClose()) {
-            recordClosedWindow();
+            recordClosedWindow(groups, activeGroup);
             closeQuietly();
         }
     }
@@ -607,8 +612,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
 
         @Override
-        public void windowClosedByUser() {
-            recordClosedWindow();
+        public void windowClosedByUser(List<ClosedGroup> groups, int activeGroup) {
+            recordClosedWindow(groups, activeGroup);
         }
 
         @Override

@@ -199,6 +199,39 @@ class WindowTabsClosedTest {
     }
 
     @Test
+    void theGroupIsRecordedAsItWasBeforeTheSaveQuestionMovedItsActiveTab() throws Exception {
+        OpenDocument counter = savedWithInverters("contador.vsim");
+        tabs.addTab(newDocument(), Optional.empty());
+        EditorView main = tabs.addTab(counter, Optional.of(MAIN_VIEW));
+        EditorView inside = componentTab(tabs, counter, 0);
+        tabs.activate(inside);
+        place(counter, StandardComponentTypes.BUFFER, 40, 40, Map.of(StandardComponentTypes.NEGATE, true));
+        host.onSaveQuestion = document -> tabs.activate(main); // as the window does to show what it asks about
+
+        tabs.closeGroup(counter);
+
+        assertThat(host.saveQuestions).containsExactly(counter);
+        assertThat(((ClosedGroup) host.closedByUser.getFirst()).activeTab()).isEqualTo(1);
+    }
+
+    @Test
+    void theOnlyGroupIsHandedToTheWindowAsItWasBeforeTheSaveQuestion() throws Exception {
+        OpenDocument counter = savedWithInverters("contador.vsim");
+        EditorView main = tabs.addTab(counter, Optional.of(MAIN_VIEW));
+        EditorView inside = componentTab(tabs, counter, 1);
+        tabs.activate(inside);
+        place(counter, StandardComponentTypes.BUFFER, 40, 40, Map.of(StandardComponentTypes.NEGATE, true));
+        host.onSaveQuestion = document -> tabs.activate(main);
+
+        tabs.closeGroup(counter);
+
+        assertThat(host.windowsClosedByUser).isEqualTo(1);
+        assertThat(host.closedWindowGroups).hasSize(1);
+        assertThat(host.closedWindowGroups.getFirst().activeTab()).isEqualTo(1);
+        assertThat(host.closedWindowActiveGroup).isZero();
+    }
+
+    @Test
     void closingTheOnlyGroupClosesTheWindowAsTheUsersClose() {
         tabs.addTab(newDocument(), Optional.empty());
 

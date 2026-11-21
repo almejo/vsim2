@@ -52,9 +52,17 @@ public final class DocumentReference {
         return modifiedWhenClosed ? Closing.LOST_CHANGES : Closing.SAVED;
     }
 
-    /** An untitled circuit nobody touched: nothing to bring back, so it never enters the stack. */
+    /**
+     * A new, empty circuit nobody touched ({@link OpenDocument#isPristine}): nothing to bring back, so it never enters
+     * the stack. An untitled circuit with content (an example's copy, an import) does: it closes as never saved.
+     */
     boolean isUntouchedUntitled() {
-        return open != null && open.path().isEmpty() && !open.isModified();
+        return open != null && open.isPristine();
+    }
+
+    /** Whether this reference still points at {@code document}, open. */
+    boolean refersTo(OpenDocument document) {
+        return open == document;
     }
 
     /** {@code document} closes: when it is this reference's, only its file and how it closed are kept. */

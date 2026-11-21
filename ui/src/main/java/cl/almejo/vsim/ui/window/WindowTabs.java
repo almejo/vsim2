@@ -142,9 +142,10 @@ public final class WindowTabs extends JPanel {
 
         /**
          * The user closed this window's last group (after the save question): the window closes as if the user closed
-         * it, and {@link #closedGroups()} still has every tab. Nothing by default.
+         * it. {@code groups} and {@code activeGroup} are the window as it was before the question (which may activate
+         * another tab). Nothing by default.
          */
-        default void windowClosedByUser() {
+        default void windowClosedByUser(List<ClosedGroup> groups, int activeGroup) {
         }
 
         /** Where the AI works now: the robot on the tabs (fix round D, item 5n). None by default. */
@@ -1045,17 +1046,19 @@ public final class WindowTabs extends JPanel {
         if (group.isEmpty()) {
             return true;
         }
+        // taken before the question, which brings the document's main tab to the front; kept only if confirmed
+        ClosedGroup closed = closedGroup(document);
         boolean confirmed = CloseSequence.confirm(group.stream().map(entry -> entry.view.inlineEditor()).toList(),
                 () -> !host.isLastHolder(document) || host.confirmSave(document));
         if (!confirmed) {
             return false;
         }
         if (model.groups().size() == 1) {
-            host.windowClosedByUser(); // «Reabrir pestaña cerrada» brings back the whole window
+            host.windowClosedByUser(List.of(closed), 0); // «Reabrir pestaña cerrada» brings back the window
             host.emptied(); // closing the window keeps today's rules (session, Recientes)
             return true;
         }
-        host.closedByUser(closedGroup(document));
+        host.closedByUser(closed);
         removeGroupQuietly(document);
         return true;
     }

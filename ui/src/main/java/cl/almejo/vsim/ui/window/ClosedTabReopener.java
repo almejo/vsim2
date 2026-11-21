@@ -1,11 +1,18 @@
-package cl.almejo.vsim.ui.window.closed;
+package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
-import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowTabs;
+import cl.almejo.vsim.ui.window.closed.ClosedEntry;
+import cl.almejo.vsim.ui.window.closed.ClosedGroup;
+import cl.almejo.vsim.ui.window.closed.ClosedTab;
+import cl.almejo.vsim.ui.window.closed.ClosedTabState;
+import cl.almejo.vsim.ui.window.closed.ClosedTabs;
+import cl.almejo.vsim.ui.window.closed.ClosedWindow;
+import cl.almejo.vsim.ui.window.closed.Closing;
+import cl.almejo.vsim.ui.window.closed.DocumentReference;
+import cl.almejo.vsim.ui.window.closed.WindowReference;
 
 import javax.swing.KeyStroke;
 import java.io.IOException;
@@ -60,6 +67,12 @@ public final class ClosedTabReopener {
 
         /** Brings {@code window} to the front. */
         void focus(WindowTabs window);
+
+        /** Takes away a window {@link #newWindow} made that could not be filled: it is never shown. */
+        void discard(WindowTabs window);
+
+        /** Closes the untouched «Sin título» of {@code window}, which got something else, as Abrir does. */
+        void closeReplaced(WindowTabs window);
 
         /** Shows {@code text} over the circuit of {@code window}'s active tab for {@code duration}. */
         void notice(WindowTabs window, String text, Duration duration);
@@ -169,19 +182,29 @@ public final class ClosedTabReopener {
             notices.showOver(windows, requester);
             return;
         }
+        ClosedGroup activeGroup = closed.groups().get(Math.min(Math.max(0, closed.activeGroup()),
+                closed.groups().size() - 1));
         WindowTabs created = windows.newWindow();
         EditorView active = null;
-        for (int index = 0; index < groups.size(); index++) {
-            EditorView restored = restoreInto(created, documents.get(index), groups.get(index), Integer.MAX_VALUE,
-                    notices);
-            if (groups.get(index) == closed.groups().get(Math.min(closed.activeGroup(), closed.groups().size() - 1))) {
-                active = restored;
+        try {
+            for (int index = 0; index < groups.size(); index++) {
+                EditorView restored = restoreInto(created, documents.get(index), groups.get(index), Integer.MAX_VALUE,
+                        notices);
+                if (groups.get(index) == activeGroup) {
+                    active = restored;
+                }
             }
+        } catch (RuntimeException exception) {
+            // no half-built window stays registered, and the entry can be tried again
+            windows.discard(created);
+            closedTabs.push(closed);
+            throw exception;
         }
         if (active != null) {
             created.activate(active);
         }
-        windows.show(created, closed.bounds());
+        windows.show(created, withActiveTabView(closed.bounds(), groups.contains(activeGroup) ? activeGroup
+                : groups.getFirst()));
         notices.showOver(windows, created);
     }
 
@@ -193,7 +216,21 @@ public final class ClosedTabReopener {
         return restored.active();
     }
 
+    /**
+     * Where the window was, looking where its active tab looked: the bounds keep the view of the tab active when it
+     * closed, which may be a group that did not come back, and placing the window must not overwrite the tab's own view.
+     */
+    private static WindowState withActiveTabView(WindowState bounds, ClosedGroup active) {
+        List<ClosedTabState> tabs = active.tabs();
+        if (tabs.isEmpty()) {
+            return bounds;
+        }
+        ClosedTabState tab = tabs.get(Math.min(Math.max(0, active.activeTab()), tabs.size() - 1));
+        return WindowState.of(bounds.bounds(), bounds.maximized(), tab.view());
+    }
+
     private void finish(WindowTabs target, WindowTabs requester, Notices notices) {
+        windows.closeReplaced(target);
         if (target != requester) {
             windows.focus(target);
         }

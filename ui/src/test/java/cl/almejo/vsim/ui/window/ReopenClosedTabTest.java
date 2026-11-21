@@ -13,7 +13,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
-import cl.almejo.vsim.ui.window.closed.ClosedTabReopener;
 import cl.almejo.vsim.ui.window.closed.ClosedTabs;
 import cl.almejo.vsim.ui.window.closed.ClosedWindow;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
@@ -40,6 +39,7 @@ import java.util.Optional;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Ventana ▸ «Reabrir pestaña cerrada» (Ctrl+Mayús+T, card «ctrl-t»): what comes back for each kind of close, where,
@@ -112,6 +112,13 @@ class ReopenClosedTabTest {
     private OpenDocument newDocument() {
         OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         documents.add(document);
+        return document;
+    }
+
+    /** Another circuit of the window, with something drawn (an untouched one would make way, as for Abrir). */
+    private OpenDocument otherCircuit() {
+        OpenDocument document = newDocument();
+        modify(document);
         return document;
     }
 
@@ -190,7 +197,7 @@ class ReopenClosedTabTest {
     void aComponentTabWhoseCircuitClosedOpensTheCircuitWithThatTabActive() throws Exception {
         OpenDocument counter = savedWithInverters("contador.vsim");
         Path file = counter.path().orElseThrow();
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         tabs.closeTab(componentTab(tabs, counter, 1));
         tabs.closeGroup(counter);
@@ -211,9 +218,9 @@ class ReopenClosedTabTest {
 
     @Test
     void aClosedSavedGroupComesBackWholeInItsPlaceInTheStrip() throws Exception {
-        OpenDocument first = newDocument();
+        OpenDocument first = otherCircuit();
         OpenDocument counter = savedWithInverters("contador.vsim");
-        OpenDocument last = newDocument();
+        OpenDocument last = otherCircuit();
         tabs.addTab(first, Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         componentTab(tabs, counter, 0);
@@ -240,7 +247,7 @@ class ReopenClosedTabTest {
     void aGroupClosedWithNoGuardarComesBackAsSavedAndSaysTheChangesWereLost() throws Exception {
         OpenDocument counter = savedWithInverters("contador.vsim");
         int savedParts = counter.document().components().size();
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         modify(counter);
         host.answerToSave = true; // «No guardar»: the question answers yes without saving
@@ -260,7 +267,7 @@ class ReopenClosedTabTest {
     void theSavedTimeOfAnotherDayCarriesItsDate() throws Exception {
         clock = Clock.fixed(SAVED_AT.plusDays(3).toInstant(), ZONE);
         OpenDocument counter = savedWithInverters("contador.vsim");
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         modify(counter);
         tabs.closeGroup(counter);
@@ -275,7 +282,7 @@ class ReopenClosedTabTest {
     void aNeverSavedCircuitCannotComeBackAndTheNextPressReopensThePreviousEntry() throws Exception {
         OpenDocument counter = savedWithInverters("contador.vsim");
         OpenDocument untitled = newDocument();
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         tabs.closeTab(componentTab(tabs, counter, 0));
         tabs.addTab(untitled, Optional.empty());
@@ -300,7 +307,7 @@ class ReopenClosedTabTest {
     void withoutAKeyTheNeverSavedNoticeNamesTheAction() {
         reopenKey = Optional.empty();
         OpenDocument untitled = newDocument();
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(untitled, Optional.empty());
         modify(untitled);
         tabs.closeGroup(untitled);
@@ -314,7 +321,7 @@ class ReopenClosedTabTest {
     @Test
     void aMissingFileIsToldAndItsEntryDropped() throws Exception {
         OpenDocument counter = savedWithInverters("contador.vsim");
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         tabs.closeGroup(counter);
         Files.delete(folder.resolve("contador.vsim"));
@@ -331,7 +338,7 @@ class ReopenClosedTabTest {
     @Test
     void aGroupWhoseCircuitIsStillOpenInAnotherWindowComesBackOnTheOpenCircuit() throws Exception {
         OpenDocument counter = savedWithInverters("contador.vsim");
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         componentTab(tabs, counter, 1);
         other.addTab(counter, Optional.of(MAIN_VIEW));
@@ -349,7 +356,7 @@ class ReopenClosedTabTest {
     @Test
     void aComponentGoneFromTheFileIsToldAndTheCircuitStillOpens() throws Exception {
         OpenDocument counter = savedWithInverters("contador.vsim");
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
         tabs.addTab(counter, Optional.of(MAIN_VIEW));
         tabs.closeTab(componentTab(tabs, counter, 1));
         counter.history().undo();
@@ -368,7 +375,7 @@ class ReopenClosedTabTest {
 
     @Test
     void anEmptyStackSaysSo() {
-        tabs.addTab(newDocument(), Optional.empty());
+        tabs.addTab(otherCircuit(), Optional.empty());
 
         reopen(tabs);
 
@@ -404,6 +411,71 @@ class ReopenClosedTabTest {
         assertThat(windows.shown).containsExactly(bounds);
     }
 
+    @Test
+    void aReopenedWindowShowsItsActiveTabsOwnViewEvenWhenAnUntouchedGroupWasActive() throws Exception {
+        OpenDocument counter = savedWithInverters("contador.vsim");
+        tabs.addTab(counter, Optional.of(INSIDE_VIEW));
+        tabs.addTab(newDocument(), Optional.of(MAIN_VIEW)); // active, untouched: it does not come back
+        WindowState bounds = new WindowState(10, 20, 1000, 700, false, MAIN_VIEW);
+        closedTabs.push(new ClosedWindow(tabs.closedGroups(), tabs.activeGroupIndex(), bounds));
+        windows.open.remove(tabs);
+        tabs.disposeAll();
+        closeDocument(counter);
+
+        reopen(other);
+
+        assertThat(windows.shown).containsExactly(new WindowState(10, 20, 1000, 700, false, INSIDE_VIEW));
+    }
+
+    @Test
+    void reopeningIntoAWindowClosesItsUntouchedUntitledCircuitAsAbrirDoes() throws Exception {
+        OpenDocument counter = savedWithInverters("contador.vsim");
+        OpenDocument placeholder = newDocument();
+        other.addTab(counter, Optional.of(MAIN_VIEW));
+        other.addTab(newDocument(), Optional.empty());
+        other.closeGroup(counter);
+        windows.open.remove(other);
+        other.disposeAll();
+        tabs.addTab(placeholder, Optional.empty());
+
+        reopen(tabs);
+
+        assertThat(tabs.documents()).hasSize(1);
+        assertThat(tabs.documents().getFirst().path()).contains(folder.resolve("contador.vsim"));
+    }
+
+    @Test
+    void aWindowThatFailsToComeBackIsDiscardedAndItsEntryKept() throws Exception {
+        OpenDocument counter = savedWithInverters("contador.vsim");
+        tabs.addTab(counter, Optional.of(MAIN_VIEW));
+        tabs.addTab(otherCircuit(), Optional.empty());
+        modify(tabs.documents().get(1));
+        closedTabs.push(new ClosedWindow(tabs.closedGroups(), 0, new WindowState(0, 0, 800, 600, false, MAIN_VIEW)));
+        windows.failingWindow = true;
+
+        assertThatThrownBy(() -> reopen(other)).isInstanceOf(IllegalStateException.class);
+
+        assertThat(windows.discarded).hasSize(1);
+        assertThat(windows.shown).isEmpty();
+        assertThat(closedTabs.entries()).hasSize(1).first().isInstanceOf(ClosedWindow.class);
+    }
+
+    @Test
+    void anUntitledCopyWithContentSaysItWasNeverSaved() throws Exception {
+        OpenDocument source = savedWithInverters("ejemplo.vsim");
+        OpenDocument copy = new OpenDocument(
+                new cl.almejo.vsim.core.io.CircuitReader(StandardComponentTypes.registry())
+                        .read(source.path().orElseThrow()), StandardComponentTypes.registry(), null, false);
+        documents.add(copy);
+        tabs.addTab(otherCircuit(), Optional.empty());
+        tabs.addTab(copy, Optional.empty());
+        tabs.closeGroup(copy);
+
+        reopen(tabs);
+
+        assertThat(windows.notices).singleElement().asString().startsWith("«ejemplo» nunca se guardó");
+    }
+
     /** The application's part, recorded: files are read for real. */
     private final class RecordingWindows implements ClosedTabReopener.Windows {
         final List<WindowTabs> open = new ArrayList<>();
@@ -413,6 +485,8 @@ class ReopenClosedTabTest {
         final List<Duration> noticeDurations = new ArrayList<>();
         final List<WindowTabs> noticeWindows = new ArrayList<>();
         final List<WindowState> shown = new ArrayList<>();
+        final List<WindowTabs> discarded = new ArrayList<>();
+        boolean failingWindow;
 
         @Override
         public boolean isOpen(WindowTabs window) {
@@ -439,6 +513,13 @@ class ReopenClosedTabTest {
 
         @Override
         public WindowTabs newWindow() {
+            if (failingWindow) {
+                WindowTabs broken = new WindowTabs(new RecordingWindowHost(), place -> {
+                    throw new IllegalStateException("an extension failed");
+                }, new SplitLayoutStore(preferences), () -> false);
+                created.add(broken);
+                return broken;
+            }
             WindowTabs window = ReopenClosedTabTest.this.newWindow(new RecordingWindowHost());
             open.remove(window);
             created.add(window);
@@ -453,6 +534,17 @@ class ReopenClosedTabTest {
 
         @Override
         public void focus(WindowTabs window) {
+        }
+
+        @Override
+        public void discard(WindowTabs window) {
+            discarded.add(window);
+            window.disposeAll();
+        }
+
+        @Override
+        public void closeReplaced(WindowTabs window) {
+            window.documents().stream().filter(OpenDocument::isPristine).toList().forEach(window::closeGroup);
         }
 
         @Override

@@ -28,6 +28,10 @@ final class RecordingWindowHost implements WindowTabs.Host {
     java.util.function.Consumer<ClosedEntry> onClosedByUser = closed -> {
     };
     int windowsClosedByUser;
+    List<cl.almejo.vsim.ui.window.closed.ClosedGroup> closedWindowGroups = List.of();
+    int closedWindowActiveGroup = -1;
+    java.util.function.Consumer<OpenDocument> onSaveQuestion = document -> {
+    };
     Runnable onWindowClosedByUser = () -> {
     };
     java.util.function.Consumer<OpenDocument> onGroupClosed = document -> {
@@ -51,6 +55,7 @@ final class RecordingWindowHost implements WindowTabs.Host {
     @Override
     public boolean confirmSave(OpenDocument document) {
         saveQuestions.add(document);
+        onSaveQuestion.accept(document);
         return answerToSave;
     }
 
@@ -77,8 +82,10 @@ final class RecordingWindowHost implements WindowTabs.Host {
     }
 
     @Override
-    public void windowClosedByUser() {
+    public void windowClosedByUser(List<cl.almejo.vsim.ui.window.closed.ClosedGroup> groups, int activeGroup) {
         windowsClosedByUser++;
+        closedWindowGroups = groups;
+        closedWindowActiveGroup = activeGroup;
         onWindowClosedByUser.run();
     }
 

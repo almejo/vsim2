@@ -130,6 +130,14 @@ final class ShortcutSheetPanel extends JPanel {
         groupsScroll.setWheelScrollingEnabled(true);
     }
 
+    /**
+     * How many of {@code groups} columns stack on the left: the long ones (Archivo, Editar) stay there and the short
+     * ones (Ver, Ventana, Simulación, Ayuda) go right; with an odd number the right gets one more.
+     */
+    static int leftColumnCount(int groups) {
+        return (groups - 1) / 2;
+    }
+
     /** The switch with its label on the left, the closing hint in the middle, the link on the right. */
     private JPanel foot(Consumer<Boolean> showUsedShortcutsChosen, Runnable allShortcutsChosen) {
         showUsedShortcuts.setFocusable(false);
@@ -152,13 +160,13 @@ final class ShortcutSheetPanel extends JPanel {
     }
 
     /**
-     * Shows {@code shown}: the first half of the groups stacked on the left, the rest (one more when they are odd, the
-     * short ones: Ver, Simular, Ayuda) on the right.
+     * Shows {@code shown}: Archivo and Editar stacked on the left, the short groups (Ver, Ventana, Simulación, Ayuda) on
+     * the right ({@link #leftColumnCount}).
      */
     void setColumns(List<SheetSelection.Column> shown) {
         columns = List.copyOf(shown);
         columnsPanel.removeAll();
-        int leftCount = columns.size() / 2;
+        int leftCount = leftColumnCount(columns.size());
         columnsPanel.add(stack(columns.subList(0, leftCount)), "wmin 0");
         columnsPanel.add(stack(columns.subList(leftCount, columns.size())), "wmin 0");
         revalidate();

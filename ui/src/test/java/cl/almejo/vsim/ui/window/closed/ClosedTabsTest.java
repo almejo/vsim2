@@ -104,6 +104,52 @@ class ClosedTabsTest {
     }
 
     @Test
+    void aTabOfAnUntouchedUntitledCircuitNeverEnters() {
+        closedTabs.push(componentTab(untitled(), 1));
+
+        assertThat(closedTabs.isEmpty()).isTrue();
+    }
+
+    @Test
+    void anUntitledCircuitWithContentEntersAndClosesAsNeverSaved() throws Exception {
+        OpenDocument source = saved("ejemplo.vsim");
+        modify(source);
+        source.save(folder.resolve("ejemplo.vsim"));
+        OpenDocument copy = new OpenDocument(
+                new cl.almejo.vsim.core.io.CircuitReader(StandardComponentTypes.registry())
+                        .read(folder.resolve("ejemplo.vsim")), StandardComponentTypes.registry(), null, false);
+        documents.add(copy);
+        assertThat(copy.isModified()).isFalse(); // as an example opened as an untitled copy
+
+        closedTabs.push(group(copy));
+        closedTabs.documentClosed(copy);
+
+        assertThat(closedTabs.entries()).hasSize(1);
+        assertThat(((ClosedGroup) closedTabs.entries().getFirst()).closing()).isEqualTo(Closing.NEVER_SAVED);
+    }
+
+    @Test
+    void aCircuitWithoutAFileTakesItsTabEntriesWithItWhenItClosesAndKeepsOnlyItsGroup() throws Exception {
+        OpenDocument older = saved("contador.vsim");
+        OpenDocument document = untitled();
+        modify(document);
+        closedTabs.push(componentTab(older, 1));
+        closedTabs.push(componentTab(document, 1));
+        closedTabs.push(componentTab(document, 2));
+        closedTabs.push(group(document));
+        int[] heard = new int[1];
+        closedTabs.addListener(() -> heard[0]++);
+
+        closedTabs.documentClosed(document);
+
+        assertThat(closedTabs.entries()).hasSize(2);
+        assertThat(closedTabs.entries().getFirst()).isInstanceOf(ClosedGroup.class);
+        assertThat(((ClosedTab) closedTabs.entries().getLast()).document().path())
+                .contains(folder.resolve("contador.vsim"));
+        assertThat(heard[0]).isEqualTo(1);
+    }
+
+    @Test
     void aModifiedUntitledCircuitEntersAndClosesAsNeverSaved() {
         OpenDocument document = untitled();
         modify(document);
