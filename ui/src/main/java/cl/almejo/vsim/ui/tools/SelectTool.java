@@ -220,13 +220,9 @@ public final class SelectTool implements Tool {
     @Override
     public void deactivated(ToolContext context) {
         interrupt(context).ifPresent(context::showNotice);
-        cancelDelegate(context);
-        releaseHeldButton(context);
         hoverPin = null;
         hoverWidth = 1;
         enterChip.clear();
-        reset();
-        context.repaint();
     }
 
     @Override
@@ -243,8 +239,7 @@ public final class SelectTool implements Tool {
         }
         if (event.button() == CanvasMouseEvent.SECONDARY && !isIdle()) {
             // a right press in the middle of a gesture cancels it, like Escape: no delegate selects or opens a menu
-            reset();
-            context.repaint();
+            cancelGesture(context);
             return;
         }
         if (activeDelegate == null && enterChip.pressed(context, event)) {
@@ -318,8 +313,7 @@ public final class SelectTool implements Tool {
             if (isIdle()) {
                 pressSecondary(context, event, hit);
             } else {
-                reset(); // a right press in the middle of a gesture cancels it, like Escape
-                context.repaint();
+                cancelGesture(context); // a right press in the middle of a gesture cancels it, like Escape
             }
             return;
         }
@@ -423,7 +417,20 @@ public final class SelectTool implements Tool {
     /** The canvas lost the focus or its window was deactivated: the release may never come, so let go now. */
     @Override
     public void focusLost(ToolContext context) {
+        cancelGesture(context); // the release of a move, band or label drag may never come; a path in progress stays
+    }
+
+    /**
+     * The one way to abandon the gesture under way (Escape, a right press in the middle of it, the focus lost, an
+     * interruption, another tool): a delegate's press (a frame, a sticky note), a held button, a press, a move, a rubber
+     * band, a label drag, a wire press and a wire drawn in pieces. A continuous path is not part of it: it needs no held
+     * button and survives the focus; interrupt and deactivated cancel it too.
+     */
+    private void cancelGesture(ToolContext context) {
+        cancelDelegate(context);
         releaseHeldButton(context);
+        reset();
+        context.repaint();
     }
 
     /** A secondary press selects what it hit (or clears the selection on empty canvas) and opens the context menu. */
@@ -1048,19 +1055,8 @@ public final class SelectTool implements Tool {
         if (keyCode != KeyEvent.VK_ESCAPE) {
             return false;
         }
-        if (activeDelegate != null) {
-            cancelDelegate(context);
-            context.repaint();
-            return true;
-        }
-        if (heldButton != null) {
-            releaseHeldButton(context);
-            return true;
-        }
-        if (pressPoint != null || wire != null || bandStart != null || labelComponent != null || wirePress != null
-                || pathOnClickAt != null) {
-            reset();
-            context.repaint();
+        if (!isIdle() || heldButton != null || pathOnClickAt != null) {
+            cancelGesture(context);
         } else {
             context.selection().clear();
         }
@@ -1119,7 +1115,9 @@ public final class SelectTool implements Tool {
      */
     @Override
     public Optional<String> interrupt(ToolContext context) {
-        return continuousWire.interrupt(context);
+        Optional<String> notice = continuousWire.interrupt(context);
+        cancelGesture(context);
+        return notice;
     }
 
     /** Enter with exactly one user-component instance selected enters it (spec §4.4); false when not taken. */

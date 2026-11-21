@@ -1124,4 +1124,37 @@ class SelectToolTest {
                 .isEqualTo(new GridPoint(20, 0));
         assertThat(context.openDocument().history().undoCommand()).isEmpty();
     }
+
+    @Test
+    void losingTheFocusInTheMiddleOfAMoveCancelsItLikeEscape() {
+        Component first = not(0, 0);
+        context.openDocument().history().clear();
+        GridPoint firstPosition = context.openDocument().document().component(first.id()).orElseThrow().position();
+        tool.mousePressed(context, TestToolContext.at(2, 1));
+        tool.mouseDragged(context, TestToolContext.at(10, 1));
+        assertThat(tool.isIdle()).isFalse();
+
+        tool.focusLost(context); // a modal dialog took the release
+
+        assertThat(tool.isIdle()).isTrue();
+        assertThat(tool.holdsGesture()).isFalse();
+        assertThat(tool.movingElements(context)).isEmpty();
+        assertThat(tool.interrupt(context)).isEmpty();
+        assertThat(context.openDocument().history().undoCommand()).isEmpty();
+        tool.mouseReleased(context, TestToolContext.at(10, 1));
+        assertThat(context.openDocument().document().component(first.id()).orElseThrow().position())
+                .isEqualTo(firstPosition);
+    }
+
+    @Test
+    void interruptingAMoveCancelsIt() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(2, 1));
+        tool.mouseDragged(context, TestToolContext.at(10, 1));
+
+        assertThat(tool.interrupt(context)).isEmpty();
+
+        assertThat(tool.isIdle()).isTrue();
+        assertThat(tool.movingElements(context)).isEmpty();
+    }
 }

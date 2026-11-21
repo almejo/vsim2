@@ -67,6 +67,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Un parámetro entero que llega de un archivo o de la IA con decimales (8.9) o fuera de rango ya no se recorta ni se da vuelta: se rechaza, como el texto «8.9».
 - El biestable D con la entrada D en conflicto (dos fuentes en cortocircuito) ya no guarda un bit limpio: Q y Q̅ quedan en Z, como en el Registro y el Contador.
 - Un clic derecho a mitad de un arrastre ya no cambia la selección ni abre el menú: cancela el gesto, como Esc, y soltar el botón izquierdo después no mueve nada.
+- Si se pierde el soltar del mouse en mitad de un movimiento, una banda de selección o un arrastre de etiqueta (Alt+Tab, un diálogo que toma el foco), el lienzo ya no queda ocupado: el gesto se cancela como con Esc, sin sombras, sin paso de deshacer y con las flechas y Enter otra vez funcionando.
 - Esc con el botón apretado sobre un cable (cables de corrido) cancela el gesto: arrastrar después ya no dibuja un cable.
 - Recuperación: la copia recuperada de un circuito se borraba solo si el documento ya estaba en la lista de autoguardado, y no lo estaba al reabrirla; quedaba en disco y se ofrecía otra vez en cada inicio (y podía pisar el archivo guardado). Ahora se borra cuando la copia nueva está en disco.
 - Inicio: un argumento de la línea de comandos que no es una ruta válida (por ejemplo con caracteres que Windows prohíbe) ya no detiene el arranque: se avisa como cualquier archivo que no se abrió.
