@@ -56,6 +56,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Preferencias con la interfaz al 200 % en una pantalla chica: el contenido tiene barra de desplazamiento, así que «Cerrar» siempre se alcanza, y la ventana se mueve para quedar entera en pantalla.
 - Formas de onda: el texto de ayuda del panel vacío se lee en todos los esquemas de colores (se tomaba el gris del tema sobre el fondo oscuro del cronograma).
 
+### Arreglado
+
+- Un clic derecho a mitad de un arrastre ya no cambia la selección ni abre el menú: cancela el gesto, como Esc, y soltar el botón izquierdo después no mueve nada.
+- Esc con el botón apretado sobre un cable (cables de corrido) cancela el gesto: arrastrar después ya no dibuja un cable.
+
 ## Versión 0.8 — 2026-11-11
 
 Los cables se dibujan de corrido desde Selección; modo presentación a pantalla completa con los atajos a la vista,

@@ -545,4 +545,21 @@ class SelectToolContinuousWireTest {
         }
         return painted;
     }
+
+    @Test
+    void escapeWhileTheButtonIsHeldOnAWireCancelsThePressSoADragDrawsNothing() {
+        Wire wire = addWire(context.openDocument(), 10, 10, 20, 10);
+        context.openDocument().history().clear();
+
+        tool.mousePressed(context, TestToolContext.event(15, 10.1, CanvasMouseEvent.PRIMARY, 1, false));
+        boolean taken = tool.keyPressed(context, KeyEvent.VK_ESCAPE, false);
+        tool.mouseDragged(context, TestToolContext.at(15, 16));
+
+        assertThat(taken).isTrue();
+        assertThat(drawing()).isFalse();
+        assertThat(tool.isIdle()).isTrue();
+        tool.mouseReleased(context, TestToolContext.at(15, 16));
+        assertThat(wires()).extracting(Wire::id).containsExactly(wire.id());
+        assertThat(context.openDocument().history().undoCommand()).isEmpty();
+    }
 }

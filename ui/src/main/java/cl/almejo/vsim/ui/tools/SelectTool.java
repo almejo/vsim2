@@ -309,7 +309,12 @@ public final class SelectTool implements Tool {
         Optional<DocumentElement> hit = context.hitTester()
                 .elementAt(context.openDocument().document(), event.gridPosition());
         if (event.button() == CanvasMouseEvent.SECONDARY) {
-            pressSecondary(context, event, hit);
+            if (isIdle()) {
+                pressSecondary(context, event, hit);
+            } else {
+                reset(); // a right press in the middle of a gesture cancels it, like Escape
+                context.repaint();
+            }
             return;
         }
         if (event.button() != CanvasMouseEvent.PRIMARY) {
@@ -1046,7 +1051,8 @@ public final class SelectTool implements Tool {
             releaseHeldButton(context);
             return true;
         }
-        if (pressPoint != null || wire != null || bandStart != null || labelComponent != null) {
+        if (pressPoint != null || wire != null || bandStart != null || labelComponent != null || wirePress != null
+                || pathOnClickAt != null) {
             reset();
             context.repaint();
         } else {
