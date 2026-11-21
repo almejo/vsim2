@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.window.closed.ClosedEntry;
 
 import javax.swing.JMenuBar;
 import java.awt.Point;
@@ -23,6 +24,14 @@ final class RecordingWindowHost implements WindowTabs.Host {
     };
     int emptied;
     int activeChanges;
+    final List<ClosedEntry> closedByUser = new ArrayList<>();
+    java.util.function.Consumer<ClosedEntry> onClosedByUser = closed -> {
+    };
+    int windowsClosedByUser;
+    Runnable onWindowClosedByUser = () -> {
+    };
+    java.util.function.Consumer<OpenDocument> onGroupClosed = document -> {
+    };
 
     @Override
     public void showMenuBar(JMenuBar shown) {
@@ -58,6 +67,19 @@ final class RecordingWindowHost implements WindowTabs.Host {
     @Override
     public void groupClosed(OpenDocument document) {
         closedGroups.add(document);
+        onGroupClosed.accept(document);
+    }
+
+    @Override
+    public void closedByUser(ClosedEntry closed) {
+        closedByUser.add(closed);
+        onClosedByUser.accept(closed);
+    }
+
+    @Override
+    public void windowClosedByUser() {
+        windowsClosedByUser++;
+        onWindowClosedByUser.run();
     }
 
     @Override

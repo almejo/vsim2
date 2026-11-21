@@ -112,6 +112,7 @@ import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
 import cl.almejo.vsim.ui.window.PlaceMarks;
 import cl.almejo.vsim.ui.window.WindowMenu;
+import cl.almejo.vsim.ui.window.closed.ClosedTabs;
 import cl.almejo.vsim.ui.window.panes.SplitViewsExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,6 +192,8 @@ public final class Application {
     private final SheetAnchors sheetAnchors = new SheetAnchors();
     /** Where the AI works now: the robot on the tabs of every window (fix round D, item 5n). */
     private final AiPlaceMarks placeMarks = new AiPlaceMarks();
+    /** What «Reabrir pestaña cerrada» brings back, for every window; empty at every start (card «ctrl-t»). */
+    private final ClosedTabs closedTabs = new ClosedTabs();
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
@@ -678,6 +681,17 @@ public final class Application {
         return placeMarks;
     }
 
+    /** The tabs, groups and windows the user closed, newest first. */
+    public ClosedTabs closedTabs() {
+        return closedTabs;
+    }
+
+    /** Ventana ▸ «Reabrir pestaña cerrada» (Ctrl+Mayús+T) from {@code requester}. */
+    public void reopenClosedTab(CircuitWindow requester) {
+        new ReopeningWindows(windows, openingFiles, recentFiles, autosave, this::createWindow, this::focus,
+                Application::screens, this::rememberDirectory).reopen(closedTabs, requester);
+    }
+
     /**
      * {@code window} entered or left «Modo presentación»: while any window is in it, the interface takes the
      * presentation size (Preferencias, Aspecto, «En modo presentación»).
@@ -713,6 +727,7 @@ public final class Application {
     }
 
     private void closeDocument(OpenDocument document) {
+        closedTabs.documentClosed(document); // the stack keeps only its file: no closed document stays in memory
         autosave.untrack(document);
         document.close();
     }

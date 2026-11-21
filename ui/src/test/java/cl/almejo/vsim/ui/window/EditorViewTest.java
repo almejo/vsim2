@@ -88,6 +88,8 @@ class EditorViewTest {
         @Override public void previousTab() { windowCalls.add("previousTab"); }
         @Override public void closeTab() { windowCalls.add("closeTab"); }
         @Override public void closeComponents() { windowCalls.add("closeComponents"); }
+        @Override public void reopenClosedTab() { windowCalls.add("reopenClosedTab"); }
+        @Override public boolean hasClosedTabs() { return true; }
         @Override public void enter(OpenDocument document, String definitionId, Optional<String> contextPath,
                                     Optional<cl.almejo.vsim.ui.canvas.ViewState> from) {
             enteredDocuments.add(document);
@@ -153,7 +155,7 @@ class EditorViewTest {
         for (MenuId id : MenuId.values()) {
             assertThat(view.menu(id)).isSameAs(view.menuBar().getMenu(id.ordinal()));
         }
-        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(11);
+        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(12);
         assertThat(view.menu(MenuId.WINDOW).getItem(0).getAction()).isSameAs(view.actions().newEmptyTab());
         assertThat(view.menu(MenuId.WINDOW).getItem(1).getAction()).isSameAs(view.actions().newView());
     }
@@ -163,7 +165,16 @@ class EditorViewTest {
         assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña vacía",
                 "Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
                 "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
-                "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---");
+                "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "Reabrir pestaña cerrada",
+                "---");
+    }
+
+    @Test
+    void reopenClosedTabFollowsTheComponentsItemAndIsFoundByOtherWords() {
+        javax.swing.JMenuItem item = view.menu(MenuId.WINDOW).getItem(10);
+        assertThat(item.getAction()).isSameAs(view.actions().reopenClosedTab());
+        assertThat((String) item.getClientProperty(cl.almejo.vsim.ui.actions.Actions.SEARCH_TERMS))
+                .contains("recuperar", "deshacer");
     }
 
     @Test
@@ -184,8 +195,9 @@ class EditorViewTest {
         perform(view.actions().previousTab());
         perform(view.actions().closeTab());
         perform(view.actions().closeComponents());
+        perform(view.actions().reopenClosedTab());
         assertThat(windowCalls).containsExactly("newEmptyTab", "newWindowWithCircuit", "moveGroup", "foldGroup", "nextTab",
-                "previousTab", "closeTab", "closeComponents");
+                "previousTab", "closeTab", "closeComponents", "reopenClosedTab");
     }
 
     @Test

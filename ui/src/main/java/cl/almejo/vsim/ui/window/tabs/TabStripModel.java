@@ -179,6 +179,21 @@ public final class TabStripModel {
         changed();
     }
 
+    /**
+     * Moves tab {@code tabId} to {@code indexInGroup} of its group, clamped so main tabs stay before the component tabs
+     * (a tab coming back to where it was closed).
+     */
+    public void moveTab(String tabId, int indexInGroup) {
+        Entry entry = entryOfTab(tabId).orElseThrow(() -> new IllegalArgumentException("unknown tab " + tabId));
+        Tab tab = tab(tabId).orElseThrow();
+        entry.tabs.remove(tab);
+        int mainTabs = entry.mainTabCount();
+        int lowest = tab.isMain() ? 0 : mainTabs;
+        int highest = tab.isMain() ? mainTabs : entry.tabs.size();
+        entry.tabs.add(Math.max(lowest, Math.min(highest, indexInGroup)), tab);
+        changed();
+    }
+
     /** Moves the group of {@code document} so that it ends at {@code toGroupIndex} (clamped). */
     public void moveGroup(Object document, int toGroupIndex) {
         Entry entry = entryOf(document).orElseThrow(() -> new IllegalArgumentException("no group for " + document));

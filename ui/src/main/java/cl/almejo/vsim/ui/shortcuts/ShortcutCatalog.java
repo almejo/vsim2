@@ -188,6 +188,9 @@ public final class ShortcutCatalog {
                 stroke(KeyEvent.VK_TAB, control | shift));
         window(entries, "window.closeTab", "action.closeTab", MenuId.WINDOW, stroke(KeyEvent.VK_W, menu));
         window(entries, "window.closeComponents", "action.closeComponents", MenuId.WINDOW, null);
+        // «Reabrir pestaña cerrada» (since 0.9): the newest closed tab, group or window comes back
+        window(entries, "window.reopenClosedTab", "action.reopenClosedTab", MenuId.WINDOW,
+                stroke(KeyEvent.VK_T, menu | shift));
         window(entries, "window.closeWindow", "action.closeWindow", MenuId.WINDOW, stroke(KeyEvent.VK_W, menu | shift));
         // no defaults: F6 belongs to «Avanzar N t» (and to Swing's split-pane focus)
         window(entries, "window.splitHorizontal", "shortcut.splitHorizontal", MenuId.WINDOW, null);

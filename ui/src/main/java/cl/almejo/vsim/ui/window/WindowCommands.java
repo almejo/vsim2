@@ -150,6 +150,18 @@ public interface WindowCommands {
     }
 
     /**
+     * Ventana ▸ «Reabrir pestaña cerrada» (Ctrl+Mayús+T): the newest closed tab, group or window comes back. Nothing
+     * happens outside a real window.
+     */
+    default void reopenClosedTab() {
+    }
+
+    /** Whether something closed can come back with «Reabrir pestaña cerrada»; never outside a real window. */
+    default boolean hasClosedTabs() {
+        return false;
+    }
+
+    /**
      * Ver ▸ «Modo presentación (pantalla completa)» of this window: one per window, shared by its tabs. Empty outside
      * a real window (the item shows, disabled).
      */

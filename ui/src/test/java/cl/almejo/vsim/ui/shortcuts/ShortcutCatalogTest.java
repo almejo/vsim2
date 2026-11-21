@@ -29,7 +29,7 @@ class ShortcutCatalogTest {
             "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
             "view.zoomField", "view.centerView", "view.selectTool", "view.panTool", "simulation.start", "simulation.pause", "simulation.step", "window.newEmptyTab", "window.newView",
             "window.newWindow", "window.moveGroup", "window.foldGroup", "window.nextTab", "window.previousTab",
-            "window.closeTab", "window.closeComponents", "window.closeWindow");
+            "window.closeTab", "window.closeComponents", "window.reopenClosedTab", "window.closeWindow");
 
     private static List<String> ids() {
         return ShortcutCatalog.entries().stream().map(ShortcutEntry::id).toList();
@@ -45,10 +45,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndSixtyFourHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndSixtyFiveHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(64);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(65);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
         assertThat(ids()).containsSubsequence("edit.copy", "edit.copyCapture", "edit.paste");
     }
@@ -170,6 +170,7 @@ class ShortcutCatalogTest {
         expected.put("window.previousTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, control | shift)));
         expected.put("window.closeTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_W, control)));
         expected.put("window.closeComponents", Optional.empty());
+        expected.put("window.reopenClosedTab", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_T, control | shift)));
         expected.put("window.closeWindow", Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_W, control | shift)));
         expected.forEach((id, stroke) -> {
             ShortcutEntry entry = ShortcutCatalog.find(id).orElseThrow();

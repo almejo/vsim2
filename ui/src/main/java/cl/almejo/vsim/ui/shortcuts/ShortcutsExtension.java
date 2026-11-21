@@ -118,6 +118,7 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("window.previousTab", actions.previousTab());
         map.put("window.closeTab", actions.closeTab());
         map.put("window.closeComponents", actions.closeComponents());
+        map.put("window.reopenClosedTab", actions.reopenClosedTab());
         map.put("window.closeWindow", actions.closeWindow());
         return map;
     }

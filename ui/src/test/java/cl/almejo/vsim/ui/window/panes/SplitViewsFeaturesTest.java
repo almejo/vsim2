@@ -335,7 +335,7 @@ class SplitViewsFeaturesTest {
     // --- menu ----------------------------------------------------------------------------------------------------------
 
     private JMenu splitMenu() {
-        return (JMenu) view.menu(MenuId.WINDOW).getMenuComponent(11);
+        return (JMenu) view.menu(MenuId.WINDOW).getMenuComponent(12);
     }
 
     @Test

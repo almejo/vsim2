@@ -523,8 +523,8 @@ class ApplicationExtensionsTest {
             assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña vacía",
                     "Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
                     "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
-                    "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---",
-                    "Dividir", "Siguiente panel", "---", "IA (MCP)…");
+                    "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito",
+                    "Reabrir pestaña cerrada", "---", "Dividir", "Siguiente panel", "---", "IA (MCP)…");
             assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_S, ShortcutCatalog.menuMask()));
             assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)
