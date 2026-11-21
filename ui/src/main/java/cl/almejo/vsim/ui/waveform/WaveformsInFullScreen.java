@@ -12,6 +12,8 @@ import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -42,6 +44,8 @@ final class WaveformsInFullScreen {
     private final Runnable preferenceListener = this::update;
     private final Runnable stopFollowingTheLayout;
     private final Runnable stopFollowingTheContent;
+    /** The pins of what the dock shows instead of the panel ({@link #addPin}); the panel's own is its toolbar's. */
+    private final List<PinToggle> otherPins = new ArrayList<>();
     /** The window's bars while this view is laid out for the mode; empty otherwise. */
     private Optional<EdgeBars> edgeBars = Optional.empty();
     /** The dock's height and state when this view was laid out for the mode, put back on leaving. */
@@ -74,6 +78,22 @@ final class WaveformsInFullScreen {
         this.stopFollowingTheLayout = view.addFullScreenLayoutListener(this::layoutChanged);
         this.stopFollowingTheContent = dock.addContentListener(this::contentChanged);
         layoutChanged();
+    }
+
+    /**
+     * {@code pin} is the pin of what the dock shows instead of the panel (a machine's test table): the same pin as the
+     * panel's, shown only in the mode and remembered for every view; it follows the mode and the pin from now on.
+     * Returns what takes it away.
+     */
+    Runnable addPin(PinToggle pin) {
+        java.awt.event.ActionListener pressed = event -> pinPressed();
+        pin.addActionListener(pressed);
+        otherPins.add(pin);
+        update();
+        return () -> {
+            pin.removeActionListener(pressed);
+            otherPins.remove(pin);
+        };
     }
 
     /**
@@ -199,6 +219,10 @@ final class WaveformsInFullScreen {
         try {
             panel.showPinned(isPinned());
             panel.pinButton().setVisible(edgeBars.isPresent());
+            for (PinToggle other : otherPins) {
+                other.showPinned(isPinned());
+                other.setVisible(edgeBars.isPresent());
+            }
             boolean available = edgeBars.isPresent() && (hasProbes() || dock.isDockShowing());
             if (available && isPinned()) {
                 dock.showDock();

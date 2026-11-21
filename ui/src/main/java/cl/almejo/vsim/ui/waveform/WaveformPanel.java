@@ -65,7 +65,7 @@ public final class WaveformPanel extends JPanel {
     private final TimeAxis axis = new TimeAxis();
     private final JToolBar toolBar = new JToolBar();
     private final JToggleButton followButton;
-    private final JToggleButton pinButton = new JToggleButton();
+    private final PinToggle pinButton = new PinToggle();
     private final JLabel scaleLabel = new JLabel();
     private final ChannelNameColumn names;
     private final WaveformPlot plot;
@@ -119,10 +119,6 @@ public final class WaveformPanel extends JPanel {
         addTool(toolAction("waveform.clear", WaveformIcons.CLEAR, openDocument::clearWaveforms));
         addTool(toolAction("waveform.hide", WaveformIcons.HIDE, hide));
         toolBar.add(Box.createHorizontalGlue());
-        pinButton.setIcon(Icons.get(WaveformIcons.PIN, Icons.MENU_SIZE));
-        pinButton.setSelectedIcon(new PinnedIcon(Icons.MENU_SIZE));
-        pinButton.setVisible(false);
-        showPinned(false);
         toolBar.add(pinButton);
         scaleLabel.setToolTipText(Messages.text("waveform.scaleTip"));
         scaleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, SCALE_LABEL_MARGIN));
@@ -203,7 +199,7 @@ public final class WaveformPanel extends JPanel {
     }
 
     /** The pin of presentation mode (docked or behind the bottom edge); shown only while the mode is on. */
-    public JToggleButton pinButton() {
+    public PinToggle pinButton() {
         return pinButton;
     }
 
@@ -212,8 +208,7 @@ public final class WaveformPanel extends JPanel {
      * like its neighbours; the tooltip says what a press does.
      */
     void showPinned(boolean pinned) {
-        pinButton.setSelected(pinned);
-        pinButton.setToolTipText(Messages.text(pinned ? "waveform.pinnedTip" : "waveform.pinTip"));
+        pinButton.showPinned(pinned);
     }
 
     /** The time under the cursor, empty without a cursor. */

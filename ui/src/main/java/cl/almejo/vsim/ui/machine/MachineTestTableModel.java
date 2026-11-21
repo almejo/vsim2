@@ -8,7 +8,6 @@ import cl.almejo.vsim.core.machine.MachineTestRun;
 import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.waveform.WaveformPainter;
 
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -30,12 +29,6 @@ import java.util.stream.Collectors;
  */
 final class MachineTestTableModel {
 
-    /** The width of one column (one edge). */
-    static final int COLUMN_WIDTH = 44;
-    /** The rows that hold a wave, a value or a verdict are as tall as the wave strip's rows. */
-    static final int ROW_HEIGHT = WaveformPainter.ROW_HEIGHT;
-    /** The «Entradas» / «Salidas» bars and a bus's header are lower. */
-    static final int GROUP_HEIGHT = 18;
     /** The width of a state code in the state row (64 states fit in 6 bits). */
     static final int STATE_CODE_WIDTH = 8;
 
@@ -60,21 +53,23 @@ final class MachineTestTableModel {
     private final int chosenColumn;
     private final List<MachineTestRun.TestResult> results;
     private final List<Row> rows;
+    private final MachineTestLayout layout;
 
     private MachineTestTableModel(StateMachine machine, int chosenTest, int chosenColumn,
-                                  List<MachineTestRun.TestResult> results) {
+                                  List<MachineTestRun.TestResult> results, MachineTestLayout layout) {
         this.machine = machine;
+        this.layout = layout;
         this.unwritten = machine.tests().isEmpty();
         this.tests = shown(machine.tests());
         this.testIndex = clamp(chosenTest, tests.size());
         this.results = results;
         this.chosenColumn = clamp(chosenColumn, test().columns().size());
-        this.rows = rowsOf(machine);
+        this.rows = rowsOf(machine, layout);
     }
 
     static MachineTestTableModel of(StateMachine machine, int chosenTest, int chosenColumn) {
         return new MachineTestTableModel(machine, chosenTest, chosenColumn,
-                MachineTestRun.runAll(machine.withTests(shown(machine.tests()))));
+                MachineTestRun.runAll(machine.withTests(shown(machine.tests()))), MachineTestLayout.basic());
     }
 
     /**
@@ -84,9 +79,19 @@ final class MachineTestTableModel {
     static MachineTestTableModel of(StateMachine machine, int chosenTest, int chosenColumn,
                                     MachineTestTableModel previous) {
         if (previous.machine != machine) {
-            return of(machine, chosenTest, chosenColumn);
+            return of(machine, chosenTest, chosenColumn).withLayout(previous.layout);
         }
-        return new MachineTestTableModel(machine, chosenTest, chosenColumn, previous.results);
+        return new MachineTestTableModel(machine, chosenTest, chosenColumn, previous.results, previous.layout);
+    }
+
+    /** The same table with its pieces sized by {@code newLayout} (the grid's, from its font and the scale). */
+    MachineTestTableModel withLayout(MachineTestLayout newLayout) {
+        return newLayout.equals(layout) ? this
+                : new MachineTestTableModel(machine, testIndex, chosenColumn, results, newLayout);
+    }
+
+    MachineTestLayout layout() {
+        return layout;
     }
 
     /**
@@ -115,36 +120,37 @@ final class MachineTestTableModel {
         return Math.max(0, Math.min(index, size - 1));
     }
 
-    private static List<Row> rowsOf(StateMachine machine) {
+    private static List<Row> rowsOf(StateMachine machine, MachineTestLayout layout) {
         List<Row> rows = new ArrayList<>();
         Consumer<Row> add = rows::add;
         if (!machine.inputs().isEmpty()) {
             add.accept(new Row(Kind.GROUP, Messages.text("machine.test.row.inputs"), Optional.empty(), 0,
-                    GROUP_HEIGHT));
+                    layout.groupHeight()));
             if (machine.inputsAsBus()) {
                 add.accept(new Row(Kind.BUS, MachinePieceRows.inputsText(machine), Optional.empty(), 0,
-                        GROUP_HEIGHT));
+                        layout.groupHeight()));
             }
             for (MachinePin pin : machine.inputs()) {
-                add.accept(new Row(Kind.INPUT, pin.name(), Optional.of(pin.id()), 0, ROW_HEIGHT));
+                add.accept(new Row(Kind.INPUT, pin.name(), Optional.of(pin.id()), 0, layout.rowHeight()));
             }
         }
-        add.accept(new Row(Kind.STATE, Messages.text("machine.test.row.state"), Optional.empty(), 0, ROW_HEIGHT));
+        add.accept(new Row(Kind.STATE, Messages.text("machine.test.row.state"), Optional.empty(), 0,
+                layout.rowHeight()));
         if (!machine.outputs().isEmpty()) {
             add.accept(new Row(Kind.GROUP, Messages.text("machine.test.row.outputs"), Optional.empty(), 0,
-                    GROUP_HEIGHT));
+                    layout.groupHeight()));
             if (machine.outputsAsBus()) {
                 add.accept(new Row(Kind.BUS, MachinePieceRows.outputsText(machine), Optional.empty(), 0,
-                        GROUP_HEIGHT));
+                        layout.groupHeight()));
             }
             for (MachinePin pin : machine.outputs()) {
-                add.accept(new Row(Kind.OUTPUT, pin.name(), Optional.of(pin.id()), 0, ROW_HEIGHT));
+                add.accept(new Row(Kind.OUTPUT, pin.name(), Optional.of(pin.id()), 0, layout.rowHeight()));
                 add.accept(new Row(Kind.EXPECTED, Messages.format("machine.test.row.expected", pin.name()),
-                        Optional.of(pin.id()), 0, ROW_HEIGHT));
+                        Optional.of(pin.id()), 0, layout.rowHeight()));
             }
         }
         add.accept(new Row(Kind.VERDICT, Messages.text("machine.test.row.verdict"), Optional.empty(), 0,
-                ROW_HEIGHT));
+                layout.rowHeight()));
         List<Row> placed = new ArrayList<>();
         int top = 0;
         for (Row row : rows) {
@@ -199,7 +205,7 @@ final class MachineTestTableModel {
 
     /** The columns and the ghost column after them. */
     int width() {
-        return (columnCount() + 1) * COLUMN_WIDTH;
+        return columnCount() * layout.columnWidth() + layout.ghostWidth();
     }
 
     int height() {
@@ -210,13 +216,20 @@ final class MachineTestTableModel {
     /** The cell of {@code row} in {@code column}; {@link #columnCount()} is the ghost column. */
     Rectangle cell(int row, int column) {
         Row found = rows.get(row);
-        return new Rectangle(column * COLUMN_WIDTH, found.top(), COLUMN_WIDTH, found.height());
+        return new Rectangle(column * layout.columnWidth(), found.top(),
+                column == columnCount() ? layout.ghostWidth() : layout.columnWidth(), found.height());
     }
 
     /** The real column under {@code x} (not the ghost). */
     OptionalInt columnAt(int x) {
-        int column = Math.floorDiv(x, COLUMN_WIDTH);
+        int column = Math.floorDiv(x, layout.columnWidth());
         return x >= 0 && column < columnCount() ? OptionalInt.of(column) : OptionalInt.empty();
+    }
+
+    /** The column under {@code x}, the ghost column ({@link #columnCount()}) included; -1 left of the table. */
+    int columnOrGhostAt(int x) {
+        return x < 0 ? -1 : x >= columnCount() * layout.columnWidth() ? columnCount()
+                : Math.floorDiv(x, layout.columnWidth());
     }
 
     /** The row under {@code y}. */
@@ -266,6 +279,11 @@ final class MachineTestTableModel {
             return Optional.empty();
         }
         return Optional.of(Messages.format("machine.test.ghost", stateName(columns.getLast().nextStateId())));
+    }
+
+    /** Whether {@code x} is over the «+» after the last column (the ghost column's slot of the header). */
+    boolean plusAt(int x) {
+        return x >= columnCount() * layout.columnWidth() && x < width();
     }
 
     boolean canAddColumn() {

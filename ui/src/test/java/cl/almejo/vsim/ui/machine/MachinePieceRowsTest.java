@@ -156,7 +156,7 @@ class MachinePieceRowsTest {
         document.execute(new EditMachineCommand(MachineFixtures.DEFINITION_ID,
                 MachineFixtures.detector().withTests(List.of(failing, failing.withId("p2")))));
 
-        assertThat(texts()).contains("Pruebas", "2, 2 con ✗");
+        assertThat(texts()).contains("Pruebas", "2 pruebas: 2 fallan ✗");
     }
 
     @Test

@@ -6,9 +6,12 @@ import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.waveform.PinToggle;
+import com.formdev.flatlaf.FlatClientProperties;
+import net.miginfocom.swing.MigLayout;
 
 import javax.swing.BorderFactory;
-import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
@@ -21,6 +24,7 @@ import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -29,14 +33,16 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
  * The tests of a machine in «Modo prueba» (hito 4, task 5), where the wave strip goes: a tab per test (✓ or ✗ in its
- * title; double click renames it, its menu duplicates or deletes it, «+ Prueba nueva» adds one), a summary line, and a
- * grid shaped like the wave strip ({@link MachineTestTableGrid}): the inputs you give, the state, each output with what
- * you expected of it, and ✓ or ✗, edge by edge.
+ * title and an «×» that deletes it; double click renames it, its menu duplicates or deletes it; a «+» tab after the last
+ * one adds a test, as in a browser), a summary line, and a grid shaped like the wave strip
+ * ({@link MachineTestTableGrid}): the inputs you give, the state, each output with what you expected of it, and ✓ or
+ * ✗, edge by edge; a «+» after its last column adds a column.
  * <p>
  * It only reads and edits through its {@link MachineTestSession}: every change is one named step of the test mode's
  * draft ({@link MachineTestSession#editTests}), and choosing a test or a column is no step. While the machine has no
@@ -49,10 +55,18 @@ public final class MachineTestTable extends JPanel {
 
     private final transient MachineTestSession session;
     private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
-    private final JButton newTestButton = new JButton(Messages.text("machine.test.tab.new"));
-    private final JButton addColumnButton = new JButton(Messages.text("machine.test.column.add"));
+    private final PinToggle pin = new PinToggle();
     private final JLabel summary = new JLabel();
+    /** The grey line beside the summary; its colour is the theme's muted text, read each time it is painted. */
+    private final JLabel hint = new JLabel(Messages.text("machine.test.hint")) {
+        @Override
+        public Color getForeground() {
+            return ReadableColors.mutedText();
+        }
+    };
     private final MachineTestTableGrid grid;
+    /** The grid's scroll pane, whose steps are a column and a row. */
+    private JScrollPane scrollBars;
     private final transient Runnable stopListening;
     /** True while {@link #refreshTabs} sets the tabs, so their change is not taken for the user's choice. */
     private boolean updatingTabs;
@@ -79,7 +93,11 @@ public final class MachineTestTable extends JPanel {
 
     private JComponent top() {
         tabs.putClientProperty("JTabbedPane.showContentSeparator", false);
-        tabs.putClientProperty("JTabbedPane.tabHeight", 26);
+        tabs.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSABLE, true);
+        tabs.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSE_TOOLTIPTEXT,
+                Messages.text("machine.test.tab.close"));
+        tabs.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSE_CALLBACK,
+                (BiConsumer<JTabbedPane, Integer>) (pane, index) -> deleteTest(index));
         tabs.addChangeListener(event -> tabChosen());
         tabs.addMouseListener(new MouseAdapter() {
             @Override
@@ -95,27 +113,19 @@ public final class MachineTestTable extends JPanel {
             @Override
             public void mouseClicked(MouseEvent event) {
                 int index = tabs.indexAtLocation(event.getX(), event.getY());
-                if (SwingUtilities.isLeftMouseButton(event) && event.getClickCount() == 2 && index >= 0) {
+                if (SwingUtilities.isLeftMouseButton(event) && event.getClickCount() == 2 && isTestTab(index)) {
                     startRenaming(index);
                 }
             }
         });
-        newTestButton.addActionListener(event -> addTest());
-        newTestButton.putClientProperty("JButton.buttonType", "toolBarButton");
-        JPanel tabRow = new JPanel(new BorderLayout());
-        tabRow.add(tabs, BorderLayout.CENTER);
-        tabRow.add(newTestButton, BorderLayout.EAST);
-
-        addColumnButton.addActionListener(event -> addColumn());
-        JLabel hint = new JLabel(Messages.text("machine.test.hint"));
-        hint.putClientProperty("FlatLaf.style", "foreground: $Label.disabledForeground");
-        JPanel line = new JPanel(new BorderLayout(12, 0));
-        line.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
-        line.add(summary, BorderLayout.WEST);
-        line.add(hint, BorderLayout.CENTER);
-        line.add(addColumnButton, BorderLayout.EAST);
+        JPanel line = new JPanel(new MigLayout("insets 2lp 6lp 2lp 6lp, gap 12lp", "[][grow, fill]", "[center]"));
+        line.add(summary, "wmin 0");
+        line.add(hint, "wmin 0");
 
         JPanel top = new JPanel(new BorderLayout());
+        JPanel tabRow = new JPanel(new BorderLayout());
+        tabRow.add(tabs, BorderLayout.CENTER);
+        tabRow.add(pin, BorderLayout.EAST); // shown only in presentation mode
         top.add(tabRow, BorderLayout.NORTH);
         top.add(line, BorderLayout.SOUTH);
         return top;
@@ -127,8 +137,7 @@ public final class MachineTestTable extends JPanel {
         scroll.setColumnHeaderView(grid.header());
         scroll.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, grid.corner());
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.getHorizontalScrollBar().setUnitIncrement(MachineTestTableModel.COLUMN_WIDTH);
-        scroll.getVerticalScrollBar().setUnitIncrement(MachineTestTableModel.ROW_HEIGHT);
+        scrollBars = scroll;
         return scroll;
     }
 
@@ -141,40 +150,77 @@ public final class MachineTestTable extends JPanel {
         MachineTestTableModel model = MachineTestTableModel.of(session.machine(), session.chosenTest(),
                 session.chosenColumn(), grid.model());
         grid.setModel(model);
-        refreshTabs(model);
+        scrollBars.getHorizontalScrollBar().setUnitIncrement(grid.model().layout().columnWidth());
+        scrollBars.getVerticalScrollBar().setUnitIncrement(grid.model().layout().rowHeight());
+        refreshTabs(grid.model());
         summary.setText(model.summary());
-        newTestButton.setEnabled(model.canAddTest());
-        newTestButton.setToolTipText(model.canAddTest() ? Messages.text("machine.test.tab.newTip")
-                : Messages.format("machine.test.tab.full", MachineTests.MAXIMUM_TESTS));
-        addColumnButton.setEnabled(model.canAddColumn());
-        addColumnButton.setToolTipText(model.canAddColumn() ? Messages.text("machine.test.column.addTip")
-                : Messages.format("machine.test.column.full", MachineTests.MAXIMUM_COLUMNS));
+        hint.setText(Messages.text(model.unwritten() ? "machine.test.hint.first" : "machine.test.hint"));
+        hint.setToolTipText(hint.getText()); // a narrow window cuts it with «…»: the whole line is here
     }
 
     private void refreshTabs(MachineTestTableModel model) {
         updatingTabs = true;
         try {
             int count = model.tests().size();
-            while (tabs.getTabCount() > count) {
+            while (tabs.getTabCount() > count + 1) {
                 tabs.removeTabAt(tabs.getTabCount() - 1);
             }
-            while (tabs.getTabCount() < count) {
-                JPanel nothing = new JPanel();
-                nothing.setPreferredSize(new Dimension(0, 0));
-                tabs.addTab("", nothing);
+            while (tabs.getTabCount() < count + 1) {
+                tabs.addTab("", emptyPage(false));
             }
             for (int index = 0; index < count; index++) {
                 tabs.setTitleAt(index, model.tabTitle(index));
+                tabs.setToolTipTextAt(index, null);
+                // the untouched «Prueba 1» has nothing to delete: no «×»
+                closable(index, !model.unwritten());
             }
+            // the «+» after the last test: a tab that is never chosen, it adds one (grey when no more fit)
+            closable(count, false);
+            tabs.setTitleAt(count, Messages.text("machine.test.tab.new"));
+            tabs.setEnabledAt(count, model.canAddTest());
+            tabs.setToolTipTextAt(count, model.canAddTest() ? Messages.text("machine.test.tab.newTip")
+                    : Messages.format("machine.test.tab.full", MachineTests.MAXIMUM_TESTS));
             tabs.setSelectedIndex(model.testIndex());
         } finally {
             updatingTabs = false;
         }
     }
 
+    private static JPanel emptyPage(boolean closable) {
+        JPanel nothing = new JPanel();
+        nothing.setPreferredSize(new Dimension(0, 0));
+        nothing.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSABLE, closable);
+        return nothing;
+    }
+
+    /** Whether tab {@code index} shows the «×» (FlatLaf reads it from the tab's page). */
+    private void closable(int index, boolean closable) {
+        ((JComponent) tabs.getComponentAt(index)).putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSABLE,
+                closable);
+    }
+
+    /** Whether tab {@code index} is a test's tab (not the «+» after them, and not none). */
+    private boolean isTestTab(int index) {
+        return index >= 0 && index < grid.model().tests().size();
+    }
+
     private void tabChosen() {
         int index = tabs.getSelectedIndex();
-        if (!updatingTabs && index >= 0 && index != grid.model().testIndex()) {
+        if (updatingTabs) {
+            return;
+        }
+        if (index >= 0 && index == grid.model().tests().size()) {
+            // the «+»: never stays chosen; the new test's tab does
+            updatingTabs = true;
+            try {
+                tabs.setSelectedIndex(grid.model().testIndex());
+            } finally {
+                updatingTabs = false;
+            }
+            addTest();
+            return;
+        }
+        if (index >= 0 && index != grid.model().testIndex()) {
             session.chooseTest(index);
             int last = grid.model().columnCount() - 1;
             if (session.chosenColumn() > last) {
@@ -185,7 +231,7 @@ public final class MachineTestTable extends JPanel {
 
     private void tabPopupIfTrigger(MouseEvent event) {
         int index = tabs.indexAtLocation(event.getX(), event.getY());
-        if (event.isPopupTrigger() && index >= 0 && tabs.isShowing()) {
+        if (event.isPopupTrigger() && isTestTab(index) && tabs.isShowing()) {
             tabMenu(index).show(tabs, event.getX(), event.getY());
         }
     }
@@ -202,12 +248,17 @@ public final class MachineTestTable extends JPanel {
         return tabs;
     }
 
-    JButton newTestButton() {
-        return newTestButton;
+    /**
+     * The pin of presentation mode, as the wave strip's: shown only while the mode is on (the mode wires it with
+     * {@code WaveformFeatures.addPin}).
+     */
+    public PinToggle pinButton() {
+        return pin;
     }
 
-    JButton addColumnButton() {
-        return addColumnButton;
+    /** The grey line beside the summary. */
+    JLabel hint() {
+        return hint;
     }
 
     String summaryText() {
@@ -286,7 +337,7 @@ public final class MachineTestTable extends JPanel {
 
     // ---- columns ----
 
-    /** «+ Columna»: a column at the end holding the last column's inputs. */
+    /** The «+» after the last column: a column at the end holding the last column's inputs. */
     void addColumn() {
         if (grid.model().canAddColumn()) {
             editChosen(test -> MachineTests.withColumnInserted(test, test.columns().size()),
@@ -324,7 +375,7 @@ public final class MachineTestTable extends JPanel {
 
     // ---- tests ----
 
-    /** «+ Prueba nueva»: an empty test of 8 columns after the others, chosen. */
+    /** The «+» tab: an empty test of 8 columns after the others, chosen. */
     void addTest() {
         if (!grid.model().canAddTest()) {
             return;
@@ -371,7 +422,7 @@ public final class MachineTestTable extends JPanel {
     }
 
     void deleteTest(int index) {
-        if (grid.model().unwritten()) {
+        if (grid.model().unwritten() || !isTestTab(index)) {
             return;
         }
         int chosen = session.chosenTest();

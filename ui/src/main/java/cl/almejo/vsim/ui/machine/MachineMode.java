@@ -44,6 +44,7 @@ public final class MachineMode {
     /** Asks through whatever {@link #questions} is when the question comes (set after the test may have started). */
     private final MachineTestQuestions asking = (parent, message, options) -> questions.ask(parent, message, options);
     private Optional<MachineTestMode> testMode = Optional.empty();
+    private final MachineTestHelp help;
     private Runnable stopLockingTheName = () -> { };
     private Runnable stopHoldingTheLibraryButton = () -> { };
 
@@ -55,6 +56,7 @@ public final class MachineMode {
         this.palette = palette;
         this.editing = editing;
         this.animations = animations;
+        this.help = new MachineTestHelp(view);
     }
 
 
@@ -99,6 +101,7 @@ public final class MachineMode {
         return () -> {
             // the tab goes (or leaves machine mode): it leaves the test, which goes on in the machine's other views
             // that test, else its draft goes, unwritten
+            mode.help.close();
             mode.testMode.ifPresent(MachineTestMode::leave);
             view.putClientProperty(MachineMode.class, null);
             for (Runnable undo : List.of(showProbes, editing::uninstall, stopFeedingThePanes, enableCircuitActions,
@@ -149,6 +152,9 @@ public final class MachineMode {
         }
         testMode = MachineTestMode.start(view, canvas, frame, asking, this::testEnded);
         followTheTestMode();
+        if (testMode.isPresent()) {
+            help.firstTime(); // the first test the user ever starts: a bubble over the table
+        }
     }
 
     /**
@@ -211,6 +217,7 @@ public final class MachineMode {
     }
 
     private void testEnded() {
+        help.close();
         testMode = Optional.empty();
         palette.testButton().setEnabled(true);
         palette.testButton().setToolTipText(Messages.text("machine.palette.testHint"));
@@ -232,6 +239,16 @@ public final class MachineMode {
     /** Runs {@code listener} each time the test mode starts or ends; returns its removal. */
     public Runnable addTestModeListener(Runnable listener) {
         return testModeListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** The help bubble of the test mode (the first time, and Ayuda ▸ «Ayuda del modo prueba»). */
+    MachineTestHelp help() {
+        return help;
+    }
+
+    /** The help bubble opens through {@code bubble} from now on (tests). */
+    void helpWith(MachineTestHelp.Bubble bubble) {
+        help.use(bubble);
     }
 
     /** Asks the test mode's questions through {@code replacement} (tests answer with a script). */

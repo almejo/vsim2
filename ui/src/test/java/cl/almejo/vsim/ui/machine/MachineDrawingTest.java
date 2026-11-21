@@ -877,7 +877,7 @@ class MachineDrawingTest {
                         cl.almejo.vsim.core.machine.MachineTest.empty("p1", "Prueba 1", 1), 0, "x", true),
                 0, "Z", cl.almejo.vsim.core.logic.LogicValue.ONE);
         canvas.edit(current -> current.withTests(List.of(failing)));
-        assertThat(rows.testsText().orElseThrow()).isEqualTo("1, 1 con \u2717");
+        assertThat(rows.testsText().orElseThrow()).isEqualTo("1 prueba: falla \u2717");
 
         rows.testButton().orElseThrow().doClick();
         assertThat(mode.isTesting()).isTrue();

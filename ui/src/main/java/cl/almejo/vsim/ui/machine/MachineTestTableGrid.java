@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -10,6 +11,7 @@ import javax.accessibility.AccessibleRole;
 import javax.swing.JComponent;
 import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -34,13 +36,8 @@ import java.util.stream.IntStream;
  */
 final class MachineTestTableGrid extends JComponent {
 
-    /** The edge header's height. */
-    static final int HEADER_HEIGHT = 22;
-    /** The names column's width. */
-    static final int NAMES_WIDTH = 150;
-    private static final int PADDING = 6;
-    private static final float GROUP_SIZE = 11f;
     private static final int CHOSEN_HEADER_ALPHA = 90;
+    private static final int DISABLED_PLUS_ALPHA = 90;
 
     private final MachineTestTable table;
     private final transient Supplier<ColorScheme> scheme;
@@ -56,14 +53,15 @@ final class MachineTestTableGrid extends JComponent {
     MachineTestTableGrid(MachineTestTable table, Supplier<ColorScheme> scheme, MachineTestTableModel model) {
         this.table = table;
         this.scheme = scheme;
-        this.model = model;
+        this.model = model.withLayout(layoutFor(model.machine()));
         this.cursorRow = firstEditableRow();
         this.anchorRow = cursorRow;
-        this.anchorColumn = model.chosenColumn();
+        this.anchorColumn = this.model.chosenColumn();
         setOpaque(true);
         setFocusable(true);
         ToolTipManager.sharedInstance().registerComponent(this);
         ToolTipManager.sharedInstance().registerComponent(names);
+        ToolTipManager.sharedInstance().registerComponent(header);
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent event) {
@@ -91,6 +89,22 @@ final class MachineTestTableGrid extends JComponent {
 
     MachineTestTableModel model() {
         return model;
+    }
+
+    /** The sizes of the table's pieces for its font, the interface scale and the states' names. */
+    private MachineTestLayout layoutFor(StateMachine machine) {
+        return MachineTestLayout.of(font(this), this::getFontMetrics, machine);
+    }
+
+    /** A new look and feel, font or interface scale: the pieces are sized again. */
+    @Override
+    public void updateUI() {
+        super.updateUI();
+        if (model != null) {
+            setModel(model);
+            header.revalidate();
+            names.revalidate();
+        }
     }
 
     @Override
@@ -121,8 +135,10 @@ final class MachineTestTableGrid extends JComponent {
 
     /** Shows {@code newModel}, keeping the cursor and the block where they still fit. */
     void setModel(MachineTestTableModel newModel) {
-        boolean resized = newModel.width() != model.width() || newModel.height() != model.height();
-        model = newModel;
+        MachineTestTableModel sized = newModel.withLayout(layoutFor(newModel.machine()));
+        boolean resized = sized.width() != model.width() || sized.height() != model.height()
+                || !sized.layout().equals(model.layout());
+        model = sized;
         List<MachineTestTableModel.Row> rows = model.rows();
         if (cursorRow >= rows.size() || !rows.get(cursorRow).kind().editable()) {
             cursorRow = firstEditableRow();
@@ -233,7 +249,7 @@ final class MachineTestTableGrid extends JComponent {
     @Override
     public String getToolTipText(MouseEvent event) {
         OptionalInt row = model.rowAt(event.getY());
-        int column = Math.floorDiv(event.getX(), MachineTestTableModel.COLUMN_WIDTH);
+        int column = model.columnOrGhostAt(event.getX());
         if (row.isEmpty() || column < 0 || column > model.columnCount()) {
             return null;
         }
@@ -272,7 +288,10 @@ final class MachineTestTableGrid extends JComponent {
                     if (popupIfTrigger(event, Header.this, column)) {
                         return;
                     }
-                    if (event.getButton() == MouseEvent.BUTTON1 && column.isPresent()) {
+                    if (event.getButton() == MouseEvent.BUTTON1 && model.plusAt(event.getX())) {
+                        MachineTestTableGrid.this.requestFocusInWindow();
+                        table.addColumn();
+                    } else if (event.getButton() == MouseEvent.BUTTON1 && column.isPresent()) {
                         MachineTestTableGrid.this.requestFocusInWindow();
                         moveTo(column.getAsInt(), event.isShiftDown());
                     }
@@ -285,9 +304,19 @@ final class MachineTestTableGrid extends JComponent {
             });
         }
 
+        /** Over the «+» after the last column: what it does, or why it cannot. */
+        @Override
+        public String getToolTipText(MouseEvent event) {
+            if (!model.plusAt(event.getX())) {
+                return null;
+            }
+            return model.canAddColumn() ? Messages.text("machine.test.column.addTip")
+                    : Messages.format("machine.test.column.full", MachineTests.MAXIMUM_COLUMNS);
+        }
+
         @Override
         public Dimension getPreferredSize() {
-            return new Dimension(model.width(), HEADER_HEIGHT);
+            return new Dimension(model.width(), model.layout().headerHeight());
         }
 
         @Override
@@ -302,31 +331,50 @@ final class MachineTestTableGrid extends JComponent {
                 Font plain = font(this);
                 Font bold = plain.deriveFont(Font.BOLD);
                 String arrow = StateMachine.EDGE_RISING.equals(model.machine().edge()) ? "↑" : "↓";
-                int width = MachineTestTableModel.COLUMN_WIDTH;
+                int width = model.layout().columnWidth();
+                int headerHeight = model.layout().headerHeight();
+                int inset = model.layout().padding() / 2;
                 for (int column = 0; column < model.columnCount(); column++) {
                     boolean chosen = column == model.chosenColumn();
                     canvas.setFont(chosen ? bold : plain);
                     FontMetrics metrics = canvas.getFontMetrics();
-                    int baseline = (HEADER_HEIGHT + metrics.getAscent() - metrics.getDescent()) / 2;
+                    int baseline = (headerHeight + metrics.getAscent() - metrics.getDescent()) / 2;
                     if (chosen) {
                         canvas.setColor(PainterSupport.withAlpha(colours.selection(), CHOSEN_HEADER_ALPHA));
-                        canvas.fillRect(column * width, 0, width, HEADER_HEIGHT);
+                        canvas.fillRect(column * width, 0, width, headerHeight);
                     }
                     String number = String.valueOf(column + 1);
                     canvas.setColor(colours.diagramTrace());
-                    canvas.drawString(number, column * width + (width - metrics.stringWidth(number)) / 2 - 3,
+                    canvas.drawString(number, column * width + (width - metrics.stringWidth(number)) / 2 - inset,
                             baseline);
                     canvas.setFont(plain);
                     metrics = canvas.getFontMetrics();
                     canvas.setColor(MachineTestCellPainter.quiet(colours));
-                    canvas.drawString(arrow, (column + 1) * width - metrics.stringWidth(arrow) - 3, baseline);
+                    canvas.drawString(arrow, (column + 1) * width - metrics.stringWidth(arrow) - inset, baseline);
                 }
+                paintPlus(canvas, plain, baselineOf(canvas, plain));
                 canvas.setColor(colours.diagramGrid());
-                canvas.drawLine(0, HEADER_HEIGHT - 1, getWidth(), HEADER_HEIGHT - 1);
+                canvas.drawLine(0, headerHeight - 1, getWidth(), headerHeight - 1);
             } finally {
                 canvas.dispose();
             }
         }
+    }
+
+    /** The «+» header after the last column, greyed (fainter still when no more columns fit). */
+    private void paintPlus(Graphics2D canvas, Font plain, int baseline) {
+        canvas.setFont(plain.deriveFont(Font.BOLD));
+        FontMetrics metrics = canvas.getFontMetrics();
+        Color grey = MachineTestCellPainter.quiet(scheme.get());
+        canvas.setColor(model.canAddColumn() ? grey : PainterSupport.withAlpha(grey, DISABLED_PLUS_ALPHA));
+        String plus = Messages.text("machine.test.column.add");
+        canvas.drawString(plus, model.columnCount() * model.layout().columnWidth()
+                + (model.layout().ghostWidth() - metrics.stringWidth(plus)) / 2, baseline);
+    }
+
+    private int baselineOf(Graphics2D canvas, Font font) {
+        FontMetrics metrics = canvas.getFontMetrics(font);
+        return (model.layout().headerHeight() + metrics.getAscent() - metrics.getDescent()) / 2;
     }
 
     /** The rows' names, as the wave strip's names column writes them; a name cut with «…» shows whole on hover. */
@@ -338,18 +386,18 @@ final class MachineTestTableGrid extends JComponent {
 
         @Override
         public Dimension getPreferredSize() {
-            return new Dimension(NAMES_WIDTH, model.height());
+            return new Dimension(model.layout().namesWidth(), model.height());
         }
 
         private String shown(MachineTestTableModel.Row row, FontMetrics metrics) {
-            return PainterSupport.ellipsized(row.label(), metrics, getWidth() - 2 * PADDING);
+            return PainterSupport.ellipsized(row.label(), metrics, getWidth() - 2 * model.layout().padding());
         }
 
         private Font fontOf(MachineTestTableModel.Row row) {
             Font font = font(this);
             return switch (row.kind()) {
-                case GROUP -> font.deriveFont(Font.BOLD, GROUP_SIZE);
-                case BUS -> font.deriveFont(GROUP_SIZE);
+                case GROUP -> MachineTestLayout.groupFont(font).deriveFont(Font.BOLD);
+                case BUS -> MachineTestLayout.groupFont(font);
                 default -> font;
             };
         }
@@ -380,7 +428,7 @@ final class MachineTestTableGrid extends JComponent {
                     boolean quiet = row.kind() == MachineTestTableModel.Kind.GROUP
                             || row.kind() == MachineTestTableModel.Kind.BUS;
                     canvas.setColor(quiet ? MachineTestCellPainter.quiet(colours) : colours.diagramTrace());
-                    canvas.drawString(shown(row, metrics), PADDING, baseline);
+                    canvas.drawString(shown(row, metrics), model.layout().padding(), baseline);
                     canvas.setColor(colours.diagramGrid());
                     canvas.drawLine(0, row.top() + row.height() - 1, getWidth(), row.top() + row.height() - 1);
                 }
@@ -409,7 +457,7 @@ final class MachineTestTableGrid extends JComponent {
                 canvas.setFont(font(this));
                 FontMetrics metrics = canvas.getFontMetrics();
                 canvas.setColor(MachineTestCellPainter.quiet(colours));
-                canvas.drawString(Messages.text("machine.test.header.edge"), PADDING,
+                canvas.drawString(Messages.text("machine.test.header.edge"), model.layout().padding(),
                         (getHeight() + metrics.getAscent() - metrics.getDescent()) / 2);
                 canvas.setColor(colours.diagramGrid());
                 canvas.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);

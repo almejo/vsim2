@@ -130,6 +130,15 @@ public final class WaveformFeatures {
         probesChangedInFullScreen();
     }
 
+    /**
+     * {@code pin} is the pin of what the dock shows instead of the panel (a machine's test table): in presentation mode
+     * it is shown and works exactly as the panel's own (docks it, remembered for every view). Returns what takes it
+     * away.
+     */
+    public Runnable addPin(PinToggle pin) {
+        return inFullScreen.addPin(pin);
+    }
+
     /** The blink, the markers, their tooltip and their click in {@code pane}. Returns what undoes it. */
     private Runnable installOn(CircuitCanvas pane) {
         pane.addOverlay(blink);
