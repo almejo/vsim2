@@ -65,4 +65,42 @@ class AtomicFilesTest {
         assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(target))).isEqualTo("r--r--r--");
         assertThat(filesIn(directory)).isEqualTo(1);
     }
+
+    @Test
+    void savingThroughASymbolicLinkKeepsTheLinkAndWritesTheRealFile() throws IOException {
+        Path real = Files.createDirectories(directory.resolve("real")).resolve("circuit.vsim");
+        Files.writeString(real, "old");
+        Path link = directory.resolve("link.vsim");
+        try {
+            Files.createSymbolicLink(link, real);
+        } catch (IOException | UnsupportedOperationException exception) {
+            assumeTrue(false, "links cannot be created here");
+        }
+
+        AtomicFiles.writeString(link, "new");
+
+        assertThat(Files.isSymbolicLink(link)).isTrue();
+        assertThat(Files.readString(real)).isEqualTo("new");
+        assertThat(filesIn(real.getParent())).isEqualTo(1);
+    }
+
+    @Test
+    void whenNoTemporaryFileFitsInTheFolderAnExistingWritableTargetIsWrittenDirectly() throws IOException {
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        assumeTrue(!"root".equals(System.getProperty("user.name")));
+        Path folder = Files.createDirectories(directory.resolve("locked"));
+        Path target = folder.resolve("circuit.vsim");
+        Files.writeString(target, "old");
+        folder.toFile().setWritable(false);
+        try {
+            AtomicFiles.writeString(target, "new");
+            assertThat(Files.readString(target)).isEqualTo("new");
+            Path missing = folder.resolve("absent.vsim");
+            assertThatThrownBy(() -> AtomicFiles.writeString(missing, "x"))
+                    .isInstanceOf(IOException.class).hasMessageContaining(folder.toString())
+                    .hasMessageNotContaining(".vsim2-");
+        } finally {
+            folder.toFile().setWritable(true);
+        }
+    }
 }

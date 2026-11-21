@@ -21,9 +21,28 @@ public final class AtomicFiles {
 
     public static void writeString(Path target, String content) throws IOException {
         Path absolute = target.toAbsolutePath();
-        Path temporary = absolute.getParent().resolve(".vsim2-" + UUID.randomUUID() + ".tmp");
+        if (Files.isSymbolicLink(absolute)) {
+            // Replace what the link points to, so the link survives (a dangling link is replaced as before).
+            try {
+                absolute = absolute.toRealPath();
+            } catch (IOException dangling) {
+                absolute = target.toAbsolutePath();
+            }
+        }
+        Path folder = absolute.getParent();
+        Path temporary = folder.resolve(".vsim2-" + UUID.randomUUID() + ".tmp");
         try {
-            Files.createFile(temporary);
+            try {
+                Files.createFile(temporary);
+            } catch (IOException exception) {
+                if (Files.isRegularFile(absolute) && Files.isWritable(absolute)) {
+                    // The folder does not take new files but the file itself does: not atomic, but it saves.
+                    Files.writeString(absolute, content);
+                    return;
+                }
+                throw new IOException("Cannot write in the folder " + folder + " (" + exception.getClass().getSimpleName() + ")",
+                        exception);
+            }
             Files.writeString(temporary, content);
             // After the write: copying a read-only target's permissions first would make the write itself fail.
             copyPermissions(absolute, temporary);
