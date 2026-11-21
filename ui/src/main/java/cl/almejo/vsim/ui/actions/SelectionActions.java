@@ -79,9 +79,9 @@ public final class SelectionActions {
         this.format = new FragmentFormat(openDocument.registry());
         int menuMask = ShortcutCatalog.menuMask();
         cut = Actions.of(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask),
-                () -> content.ifPresentOrElse(ContentClipboard::cut, this::cutSelection));
+                () -> content.ifPresentOrElse(this::cutContent, this::cutSelection));
         copy = Actions.of(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask),
-                () -> content.ifPresentOrElse(ContentClipboard::copy, this::copySelection));
+                () -> content.ifPresentOrElse(this::copyContent, this::copySelection));
         paste = Actions.of(Messages.text("action.paste"), KeyStroke.getKeyStroke(KeyEvent.VK_V, menuMask),
                 () -> content.ifPresentOrElse(ContentClipboard::paste,
                         () -> pasteAt(activePane.get().mouseGridPoint())));
@@ -93,7 +93,7 @@ public final class SelectionActions {
         for (Action onSelection : List.of(cut, copy, duplicate)) {
             Actions.disabledBecause(onSelection, () -> Messages.text("reason.needsSelection"));
         }
-        Actions.disabledBecause(paste, () -> Messages.text("reason.nothingCopied"));
+        Actions.disabledBecause(paste, this::cannotPasteReason);
         selection.addListener(this::refresh);
         refresh();
         refreshPaste();
@@ -118,23 +118,48 @@ public final class SelectionActions {
         Optional<ContentClipboard> acting = Optional.of(Objects.requireNonNull(clipboardContent, "clipboardContent"));
         content = acting;
         refresh();
+        refreshPaste();
         return () -> {
             if (content.equals(acting)) {
                 content = Optional.empty();
                 refresh();
+                refreshPaste();
             }
         };
     }
 
+    private void copyContent(ContentClipboard clipboardContent) {
+        clipboardContent.copy();
+        refreshPaste();
+    }
+
+    private void cutContent(ContentClipboard clipboardContent) {
+        clipboardContent.cut();
+        refreshPaste();
+    }
+
     /**
-     * «Pegar» is on only while the clipboard holds a circuit fragment (I14). The clipboard changes behind VSim's back
-     * (another application, another window), so this is asked again after a copy or a cut, when Editar or the context
-     * menu opens and when a pane gets the focus back.
+     * «Pegar» is on only while the clipboard holds a circuit fragment, or a machine's copy with notes or free texts in
+     * it (I14); in a machine's diagram, as its content says ({@link ContentClipboard#canPaste()}). The clipboard
+     * changes behind VSim's back (another application, another window), so this is asked again after a copy or a cut,
+     * when Editar or the context menu opens and when a pane (or the diagram) gets the focus back.
      */
     public void refreshPaste() {
-        // a fragment is JSON: text that does not start like it is not parsed (this runs on every pane focus)
-        paste.setEnabled(clipboard.read().filter(text -> text.stripLeading().startsWith("{"))
-                .flatMap(this::fragmentOf).isPresent());
+        paste.setEnabled(content.map(ContentClipboard::canPaste).orElseGet(
+                () -> clipboardJson().filter(json -> fragmentOf(json).isPresent()
+                        || machineNotesOf(json).isPresent()).isPresent()));
+    }
+
+    /** Why Pegar is off: nothing copied, or (in a circuit) a machine's states without notes or texts. */
+    private String cannotPasteReason() {
+        return content.map(ContentClipboard::cannotPasteReason).orElseGet(
+                () -> Messages.text(clipboardJson().filter(MachineFragmentFormat::isMachineFragment).isPresent()
+                        ? "machine.paste.notInACircuit" : "reason.nothingCopied"));
+    }
+
+    /** The clipboard's text when it may be a fragment: JSON; any other text is not parsed (this runs on every focus). */
+    private Optional<String> clipboardJson() {
+        return clipboard.read().filter(text -> text.stripLeading().startsWith("{"));
     }
 
     /**
@@ -178,8 +203,7 @@ public final class SelectionActions {
      * said to be left out.
      */
     private void pasteMachineNotes(String json) {
-        Optional<StateMachine> piece = MachineFragmentFormat.read(json)
-                .filter(found -> !found.notes().isEmpty() || !found.texts().isEmpty());
+        Optional<StateMachine> piece = machineNotesOf(json);
         if (piece.isEmpty()) {
             notices.accept(Messages.text("machine.paste.notInACircuit"));
             return;
@@ -190,6 +214,11 @@ public final class SelectionActions {
             notices.accept(Messages.text("machine.paste.onlyNotesInCircuit"));
         }
         startFloating(notes, positionWithoutMouse(json));
+    }
+
+    /** A machine's copy that has notes or free texts, the part of it a circuit takes; empty for anything else. */
+    private static Optional<StateMachine> machineNotesOf(String json) {
+        return MachineFragmentFormat.read(json).filter(found -> !found.notes().isEmpty() || !found.texts().isEmpty());
     }
 
     /** Next to the original when it was copied from this circuit and that spot is in view; else the view's center. */
@@ -217,7 +246,7 @@ public final class SelectionActions {
                 Optional<GridPoint> openedAt = Optional.of(new GridPoint(
                         (int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY())));
                 Action pasteHere = Actions.of(Messages.text("action.paste"), null, () -> pasteAt(openedAt));
-                Actions.disabledBecause(pasteHere, () -> Messages.text("reason.nothingCopied"));
+                Actions.disabledBecause(pasteHere, this::cannotPasteReason);
                 refreshPaste();
                 pasteHere.setEnabled(paste.isEnabled());
                 menu.add(ContextMenuEntry.PASTE.tag(new JMenuItem(pasteHere)));

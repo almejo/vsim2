@@ -61,6 +61,33 @@ final class MachineClipboard implements ContentClipboard {
         }
     }
 
+    /** A machine's copy, or a circuit's copied selection with notes or free texts in it. */
+    @Override
+    public boolean canPaste() {
+        return clipboardJson().filter(json -> MachineFragmentFormat.isMachineFragment(json)
+                || circuitNotesOf(json).isPresent()).isPresent();
+    }
+
+    /** A circuit's parts and wires alone say that only notes and texts come in here. */
+    @Override
+    public String cannotPasteReason() {
+        return clipboardJson().filter(MachineFragmentFormat::isCircuitFragment).isPresent()
+                ? Messages.text("machine.paste.notInAMachine") : ContentClipboard.super.cannotPasteReason();
+    }
+
+    /** The clipboard's text when it may be VSim's JSON (this runs whenever Pegar is asked again). */
+    private Optional<String> clipboardJson() {
+        return clipboard.read().filter(json -> json.stripLeading().startsWith("{"));
+    }
+
+    /** The notes and free texts of a circuit's copied selection, when it has some; empty for any other text. */
+    private static Optional<FragmentFormat.Notes> circuitNotesOf(String json) {
+        if (!MachineFragmentFormat.isCircuitFragment(json)) {
+            return Optional.empty();
+        }
+        return FragmentFormat.notesOf(json).filter(found -> !found.notes().isEmpty() || !found.texts().isEmpty());
+    }
+
     @Override
     public void paste() {
         Optional<String> text = clipboard.read();
@@ -80,8 +107,7 @@ final class MachineClipboard implements ContentClipboard {
      * says so.
      */
     private void pasteCircuitNotes(String text) {
-        Optional<FragmentFormat.Notes> copied = FragmentFormat.notesOf(text)
-                .filter(found -> !found.notes().isEmpty() || !found.texts().isEmpty());
+        Optional<FragmentFormat.Notes> copied = circuitNotesOf(text);
         Optional<StateMachine> machine = canvas.machine();
         if (copied.isEmpty() || machine.isEmpty()) {
             notices.accept(Messages.text("machine.paste.notInAMachine"));

@@ -14,7 +14,9 @@ import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Application;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
@@ -412,9 +414,11 @@ class MachineClipboardTest {
 
     @Test
     void theActionsWorkOnTheDiagramAndCopyNeedsAState() {
+        nothingCopied();
+        view.selectionActions().refreshPaste();
         mode.selection().clear();
         assertThat(view.selectionActions().copy().isEnabled()).isFalse();
-        assertThat(view.selectionActions().paste().isEnabled()).isTrue();
+        assertThat(view.selectionActions().paste().isEnabled()).as("nothing copied").isFalse();
 
         perform(view.selectionActions().selectAll());
 
@@ -423,6 +427,61 @@ class MachineClipboardTest {
         assertThat(view.selectionActions().copy().isEnabled()).isTrue();
         assertThat(view.selectionActions().cut().isEnabled()).isTrue();
         assertThat(view.selectionActions().duplicate().isEnabled()).isTrue();
+    }
+
+    /**
+     * Pegar is on in the diagram only while the clipboard holds something it takes (main's I14, merged with the
+     * machines): a machine's copy, or a circuit's notes; a circuit's parts alone turn it off with the reason.
+     */
+    @Test
+    void pasteInTheDiagramIsOnOnlyWhileTheClipboardHoldsSomethingItTakes() {
+        nothingCopied();
+        view.selectionActions().refreshPaste();
+        assertThat(view.selectionActions().paste().isEnabled()).isFalse();
+        assertThat(Actions.disabledReason(view.selectionActions().paste()))
+                .contains(Messages.text("reason.nothingCopied"));
+
+        select("s1");
+        perform(view.selectionActions().copy());
+        assertThat(view.selectionActions().paste().isEnabled()).as("a state copied in the diagram").isTrue();
+
+        EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
+        circuit.canvas().selection().set(Set.of(new ElementId(MachineFixtures.copies(document).get(0))));
+        perform(circuit.selectionActions().copy());
+        view.selectionActions().refreshPaste(); // as Editar opening or the diagram getting the focus back does
+        assertThat(view.selectionActions().paste().isEnabled()).as("a circuit's part alone").isFalse();
+        assertThat(Actions.disabledReason(view.selectionActions().paste()))
+                .contains(Messages.text("machine.paste.notInAMachine"));
+
+        cl.almejo.vsim.core.document.StickyNote note = circuitNote();
+        circuit.canvas().selection().set(Set.of(new ElementId(MachineFixtures.copies(document).get(0)), note.id()));
+        perform(circuit.selectionActions().copy());
+        view.selectionActions().refreshPaste();
+        assertThat(view.selectionActions().paste().isEnabled()).as("a circuit's note comes in").isTrue();
+    }
+
+    /** In a circuit, Pegar takes a machine's notes and texts; a machine's states alone turn it off with the reason. */
+    @Test
+    void pasteInACircuitIsOnForAMachinesNotesAndOffForItsStatesAlone() {
+        stickNote("Detecta dos 1");
+        EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
+
+        mode.selection().set(Set.of("s1"), Set.of(), Set.of("n1"));
+        perform(view.selectionActions().copy());
+        circuit.selectionActions().refreshPaste();
+        assertThat(circuit.selectionActions().paste().isEnabled()).as("the note comes in").isTrue();
+
+        select("s1");
+        perform(view.selectionActions().copy());
+        circuit.selectionActions().refreshPaste();
+        assertThat(circuit.selectionActions().paste().isEnabled()).as("states alone").isFalse();
+        assertThat(Actions.disabledReason(circuit.selectionActions().paste()))
+                .contains(Messages.text("machine.paste.notInACircuit"));
+    }
+
+    /** Leaves on the shared clipboard a text that is nothing VSim copied (another application's word). */
+    private static void nothingCopied() {
+        FragmentClipboard.system().put("nada", null, null);
     }
 
     /** A note {@code n1} below S1 and S2, saying {@code text}. */

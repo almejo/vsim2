@@ -22,6 +22,9 @@ import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import java.awt.Component;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
@@ -78,6 +81,7 @@ final class MachineEditing {
         undo.add(view.actions().deleteContentInstead(tool));
         undo.add(view.selectionActions().clipboardContentInstead(
                 new MachineClipboard(canvas, tool, FragmentClipboard.system(), view::showNotice)));
+        undo.add(refreshPasteOnFocus(view, canvas));
         undo.add(canvas.selection().addListener(view.selectionActions()::refresh));
         undo.add(canvas.selection().addListener(view.actions()::refresh));
         undo.add(bindDelete(canvas, view.actions().delete(), view.services().preferences()));
@@ -91,6 +95,18 @@ final class MachineEditing {
                 undo.get(index).run();
             }
         });
+    }
+
+    /** Pegar asks the clipboard again when the diagram gets the focus back, as a circuit's pane does. */
+    private static Runnable refreshPasteOnFocus(EditorView view, MachineCanvas canvas) {
+        FocusListener refresh = new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent event) {
+                view.selectionActions().refreshPaste();
+            }
+        };
+        canvas.addFocusListener(refresh);
+        return () -> canvas.removeFocusListener(refresh);
     }
 
     MachineTool tool() {
