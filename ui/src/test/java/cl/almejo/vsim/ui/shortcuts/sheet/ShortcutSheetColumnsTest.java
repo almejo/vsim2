@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.shortcuts.sheet;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,10 +18,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The right column of the sheet (Ver, Simular, Ayuda: the short groups) keeps the width of its longest entry; the left one gives way. */
 class ShortcutSheetColumnsTest {
 
+    private javax.swing.LookAndFeel previous;
+
     @BeforeEach
     void spanish() throws Exception {
+        previous = javax.swing.UIManager.getLookAndFeel();
         javax.swing.UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatLightLaf());
         Messages.initialize(Messages.SPANISH);
+    }
+
+    /** The look and feel goes back: the next test class of this JVM must not depend on this one running first. */
+    @AfterEach
+    void restoreTheLookAndFeel() throws Exception {
+        javax.swing.UIManager.setLookAndFeel(previous);
     }
 
     @Test
