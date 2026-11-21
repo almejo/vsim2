@@ -335,9 +335,9 @@ class MachineProblemsOnDiagramTest {
         List<String> lines = mode.inspectorRows().problemLines();
         List<AbstractButton> links = mode.inspectorRows().problemLinks();
         assertThat(lines).hasSize(4);
-        assertThat(lines.getFirst()).as("an error says so in words").startsWith("Error: ");
-        assertThat(lines).anySatisfy(line -> assertThat(line).startsWith("Aviso: ").contains("no se alcanza"));
-        assertThat(lines.getLast()).as("the running copy's own").contains("CLK no tiene 0 ni 1");
+        assertThat(lines.getFirst()).as("an error says so in words").startsWith("\u2716 ");
+        assertThat(lines).anySatisfy(line -> assertThat(line).startsWith("\u26A0 ").contains("no se alcanza"));
+        assertThat(lines.getLast()).as("the running copy's own").contains("CLK sin 0 ni 1");
         assertThat(links).hasSize(4);
         int unreachable = lines.indexOf(lines.stream().filter(line -> line.contains("no se alcanza")).findFirst()
                 .orElseThrow());

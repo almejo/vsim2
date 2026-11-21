@@ -5,7 +5,6 @@ import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.AbstractButton;
 import javax.swing.Icon;
-import javax.swing.JButton;
 import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
@@ -21,8 +20,8 @@ import java.awt.geom.RoundRectangle2D;
 /**
  * The rows of the machine palette, painted as the circuit palette's tree rows are: the icon and the name on one line,
  * the tree's own colours for the chosen row, a soft tint under the pointer, and the name muted when the row is
- * disabled. A {@link ToolRow} is a tool that stays chosen until another is; an {@link ActionRow} runs once. Both are
- * ordinary buttons (the model, the tooltip and the accessible name are the button's), only their look is the row's.
+ * disabled. A {@link ToolRow} is a tool that stays chosen until another is. It is an
+ * ordinary button (the model, the tooltip and the accessible name are the button's), only their look is the row's.
  * Colours are read at every paint, so a theme change shows at once.
  */
 final class MachinePaletteRows {
@@ -42,27 +41,6 @@ final class MachinePaletteRows {
         private static final long serialVersionUID = 1L;
 
         ToolRow(String text, Icon icon) {
-            super(text, icon);
-            lookLikeARow(this);
-        }
-
-        @Override
-        public Dimension getPreferredSize() {
-            return preferredSizeOf(this);
-        }
-
-        @Override
-        protected void paintComponent(Graphics graphics) {
-            paintRow(graphics, this);
-        }
-    }
-
-    /** A step of the palette that runs when clicked («Probar…», «Convertir a circuito…»). */
-    static final class ActionRow extends JButton {
-
-        private static final long serialVersionUID = 1L;
-
-        ActionRow(String text, Icon icon) {
             super(text, icon);
             lookLikeARow(this);
         }

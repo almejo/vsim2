@@ -19,7 +19,6 @@ import cl.almejo.vsim.ui.window.InstanceNames;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JComboBox;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.io.Serial;
 import java.util.ArrayList;
@@ -34,7 +33,8 @@ import java.util.function.UnaryOperator;
 
 /**
  * The pins of a machine in its own Propiedades (hito 3, task 6): the inputs' and the outputs' lists
- * ({@link MachinePinTable}), a line on how they are edited, and «Flanco», «Bajada (como los flip-flops)» or «Subida».
+ * ({@link MachinePinTable}, each with a «?» that says how they are edited), and the «Flanco» combo, «Bajada (como los
+ * flip-flops)» or «Subida», which the machine's rows place in their own section.
  * Every change is one edit of the machine (one undo step); when one takes pins away (a side turned «Como un bus» or
  * back, an unused pin removed or merged) the status line says whose wires came loose: «Los cables de x, y quedaron
  * sueltos». The rows follow the machine through {@link #refresh()}, which the machine's Propiedades call on each
@@ -96,9 +96,6 @@ final class MachinePinRows extends JPanel {
         outputs = new MachinePinTable(Side.OUTPUT, host);
         add(inputs, WIDE + ", gaptop 4lp");
         add(outputs, WIDE + ", gaptop 8lp");
-        add(new MachineInspectorRows.Hint(Messages.text("machine.pins.hint"), true), WIDE);
-        JLabel edgeCaption = new JLabel(Messages.text("parameter.edge"));
-        edgeCaption.setLabelFor(edgeBox);
         edgeBox.setToolTipText(Messages.text("machine.pins.edge.tooltip"));
         edgeBox.addActionListener(event -> {
             if (!settingEdge) {
@@ -107,8 +104,6 @@ final class MachinePinRows extends JPanel {
                 edit(machine -> machine.withEdge(edge));
             }
         });
-        add(edgeCaption, "gaptop 6lp");
-        add(edgeBox, "gaptop 6lp, growx 0");
         refresh();
     }
 
@@ -117,7 +112,7 @@ final class MachinePinRows extends JPanel {
         return side == Side.INPUT ? inputs : outputs;
     }
 
-    /** «Flanco». */
+    /** «Flanco»: the machine's own rows put it in their «Máquina» section ({@link #refresh()} keeps it up to date). */
     JComboBox<String> edgeBox() {
         return edgeBox;
     }

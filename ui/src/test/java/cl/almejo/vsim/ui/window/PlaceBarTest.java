@@ -170,7 +170,7 @@ class PlaceBarTest {
     void offersSaveToLibraryOnlyWhenTheCopyDiffers() {
         inverterInThreePlaces();
         PlaceBar bar = barOf(INVERTER, Optional.of("c1"));
-        assertThat(bar.libraryButtonText()).contains("Agregar a mi librería");
+        assertThat(bar.libraryButtonText()).contains("Agregar a Mis componentes");
 
         bar.clickLibraryButton();
         assertThat(calls).containsExactly("add inverter");
@@ -178,7 +178,7 @@ class PlaceBarTest {
 
         // the library's entry changes elsewhere: the circuit's copy now differs from it
         library.put(DefinitionBundle.of(ExampleDefinitions.inverter().withDescription("otra"), id -> Optional.empty()));
-        assertThat(bar.libraryButtonText()).contains("Guardar en mi librería");
+        assertThat(bar.libraryButtonText()).contains("Guardar en Mis componentes");
 
         bar.clickLibraryButton();
         assertThat(calls).containsExactly("add inverter", "save inverter");

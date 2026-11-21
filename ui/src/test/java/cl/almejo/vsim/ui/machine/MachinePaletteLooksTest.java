@@ -42,7 +42,7 @@ class MachinePaletteLooksTest {
 
     private static List<AbstractButton> rows(MachinePalette palette) {
         return List.of(palette.stateButton(), palette.transitionButton(), palette.noteButton(),
-                palette.textButton(), palette.convertButton(), palette.testButton());
+                palette.textButton());
     }
 
     private static BufferedImage paint(AbstractButton row) {
@@ -99,12 +99,11 @@ class MachinePaletteLooksTest {
     }
 
     @Test
-    void aDisabledRowKeepsItsIconAndStillDraws() {
+    void aRowKeepsItsIconAndDraws() {
         MachinePalette palette = palette();
 
-        assertThat(palette.convertButton().isEnabled()).isFalse();
-        assertThat(palette.convertButton().getIcon()).isNotNull();
-        assertThat(distinctColors(paint(palette.convertButton()))).isGreaterThan(1);
+        assertThat(palette.noteButton().getIcon()).isNotNull();
+        assertThat(distinctColors(paint(palette.noteButton()))).isGreaterThan(1);
     }
 
     @Test

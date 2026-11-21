@@ -121,16 +121,13 @@ class MachineModeTest {
     }
 
     @Test
-    void theMachinePaletteOffersStateTransitionAndProbarAndConvertirDisabledWithItsReason() {
+    void theMachinePaletteOffersTheDrawingToolsOnly() {
         MachinePalette palette = MachineMode.of(viewOf(machinePlace(0))).orElseThrow().palette();
 
         assertThat(palette.stateButton().getText()).isEqualTo(Messages.text("machine.palette.state"));
         assertThat(palette.transitionButton().getText()).isEqualTo(Messages.text("machine.palette.transition"));
-        AbstractButton later = palette.convertButton();
-        assertThat(later.isEnabled()).isFalse();
-        assertThat(later.getToolTipText()).isEqualTo(Messages.text("machine.comesLater"));
-        assertThat(palette.testButton().isEnabled()).isTrue(); // hito 4: the test mode
-        assertThat(palette.testButton().getToolTipText()).isEqualTo(Messages.text("machine.palette.testHint"));
+        assertThat(palette.noteButton().getText()).isEqualTo(Messages.text("machine.palette.note"));
+        assertThat(palette.textButton().getText()).isEqualTo(Messages.text("machine.palette.text"));
     }
 
     @Test

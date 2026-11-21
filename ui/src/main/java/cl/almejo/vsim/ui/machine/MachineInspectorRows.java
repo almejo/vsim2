@@ -59,8 +59,7 @@ import java.util.function.UnaryOperator;
 /**
  * The right panel's «Propiedades» in a machine's tab (spec 2026-11-14 §1 «The machine tab», the mockup's panel): for
  * a selected state its name, its Moore outputs written {@code Z=1, Y=0} and «Estado inicial»; for an arrow where it
- * goes and its condition, with what is wrong in it; with nothing selected, the machine's states and pins and how to
- * draw. A text applies on Enter or when the focus leaves it, each change one undo step; a wrong name or outputs text
+ * goes and its condition, with what is wrong in it; with nothing selected, the machine's own rows in order (Máquina, Entradas, Salidas, Pruebas, Problemas). A text applies on Enter or when the focus leaves it, each change one undo step; a wrong name or outputs text
  * only shows what is wrong, while a wrong condition is kept as written and says what is wrong (spec «a bad condition is
  * kept as text»). An arrow also has its Mealy outputs, and the machine's own rows say whether it is Moore, Mealy or
  * both. A change of the machine rebuilds the rows only when what they show changed (another element, another kind of
@@ -131,6 +130,7 @@ final class MachineInspectorRows extends JPanel {
             "[grow, fill, 60lp::][]"));
     private transient List<MachineFinding> listedProblems = List.of();
     private final transient List<String> problemLines = new ArrayList<>();
+    private final transient List<String> problemTips = new ArrayList<>();
     private final transient List<AbstractButton> problemLinks = new ArrayList<>();
 
     /**
@@ -182,9 +182,14 @@ final class MachineInspectorRows extends JPanel {
         return arrowLabel.map(JLabel::getText);
     }
 
-    /** The problems listed under the rows, as they read («Error: …», «Aviso: …»). */
+    /** The problems listed under the rows, as they read («✖ …» an error, «⚠ …» a warning: one short line each). */
     List<String> problemLines() {
         return List.copyOf(problemLines);
+    }
+
+    /** The full sentence in each listed problem's tooltip, in the order of {@link #problemLines()}. */
+    List<String> problemTips() {
+        return List.copyOf(problemTips);
     }
 
     /** The «Ver» of each listed problem, in the order of {@link #problemLines()}. */
@@ -393,11 +398,12 @@ final class MachineInspectorRows extends JPanel {
         listedProblems = current;
         problemList.removeAll();
         problemLines.clear();
+        problemTips.clear();
         problemLinks.clear();
         problemList.setVisible(!current.isEmpty());
         if (!current.isEmpty()) {
             StateMachine machine = canvas.machine().orElseThrow();
-            JLabel header = boldLabel(Messages.text("machine.properties.problems"));
+            JLabel header = boldLabel(Messages.format("machine.properties.problemsCount", current.size()));
             problemList.add(header, "span 2, gaptop 6lp");
             current.forEach(finding -> addProblemLine(machine, finding));
         }
@@ -435,8 +441,9 @@ final class MachineInspectorRows extends JPanel {
     private void addProblemLine(StateMachine machine, MachineFinding finding) {
         String sentence = MachineProblemText.sentence(finding, machine);
         String line = Messages.format(finding.isWarning() ? "machine.properties.problem.warning"
-                : "machine.properties.problem.error", sentence);
+                : "machine.properties.problem.error", MachineProblemText.shortSentence(finding, machine));
         JTextArea text = finding.isWarning() ? new Hint(line, false) : new WrappedErrorText(line);
+        text.setToolTipText(sentence);
         JButton show = new MachineLinkButton(Messages.text("machine.properties.problem.show"));
         show.setToolTipText(Messages.text("machine.properties.problem.showTooltip"));
         show.getAccessibleContext().setAccessibleDescription(sentence);
@@ -444,6 +451,7 @@ final class MachineInspectorRows extends JPanel {
         problemList.add(text, "wmin 0");
         problemList.add(show, "top");
         problemLines.add(line);
+        problemTips.add(sentence);
         problemLinks.add(show);
     }
 
@@ -607,24 +615,28 @@ final class MachineInspectorRows extends JPanel {
         statesLabel = Optional.of(states);
         refreshers.add(() -> canvas.machine().ifPresent(machineNow -> states.setText(statesCount(machineNow))));
         MachinePinRows pins = new MachinePinRows(canvas, notices, animations);
-        add(pins, WIDE);
-        pinRows = Optional.of(pins);
-        refreshers.add(pins::refresh);
+        JLabel edgeCaption = new JLabel(Messages.text("parameter.edge"));
+        edgeCaption.setLabelFor(pins.edgeBox());
+        add(edgeCaption);
+        add(pins.edgeBox(), "growx 0");
         JLabel kind = new JLabel(kindOf(machine));
         addRow(Messages.text("machine.properties.kind"), kind);
         kindLabel = Optional.of(kind);
         refreshers.add(() -> canvas.machine().ifPresent(machineNow -> kind.setText(kindOf(machineNow))));
+        add(pins, WIDE);
+        pinRows = Optional.of(pins);
+        refreshers.add(pins::refresh);
+        addHeader(Messages.text("machine.tests.row"));
         JLabel tests = new JLabel(MachineTestsText.of(machine));
-        addRow(Messages.text("machine.tests.row"), tests);
+        add(tests, WIDE);
         testsLabel = Optional.of(tests);
         refreshers.add(() -> canvas.machine().ifPresent(machineNow -> tests.setText(MachineTestsText.of(machineNow))));
         JButton test = new JButton(Messages.text("machine.tests.start"));
-        test.setToolTipText(Messages.text("machine.palette.testHint"));
+        test.setToolTipText(Messages.text(testing ? "machine.test.alreadyTesting" : "machine.palette.testHint"));
         test.addActionListener(event -> startTest.run());
         test.setEnabled(!testing);
         add(test, "span 2, left");
         testButton = Optional.of(test);
-        add(hint(Messages.text("machine.properties.howToDraw")), WIDE);
     }
 
     /** «1 prueba: falla ✗» in the machine's own rows; empty when another element is selected. */
@@ -645,7 +657,11 @@ final class MachineInspectorRows extends JPanel {
         startTest = Objects.requireNonNull(start, "start");
         return nowTesting -> {
             testing = nowTesting;
-            testButton.ifPresent(button -> button.setEnabled(!nowTesting));
+            testButton.ifPresent(button -> {
+                button.setEnabled(!nowTesting);
+                button.setToolTipText(Messages.text(nowTesting ? "machine.test.alreadyTesting"
+                        : "machine.palette.testHint"));
+            });
         };
     }
 

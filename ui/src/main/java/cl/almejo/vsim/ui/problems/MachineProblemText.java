@@ -29,6 +29,8 @@ import java.util.regex.Pattern;
  */
 public final class MachineProblemText {
 
+    private static final String LONG = "problem.machine.";
+    private static final String SHORT = "problem.machine.short.";
     private static final String LIST_SEPARATOR = ", ";
     private static final String SLASH = "/";
     /** «Z=1» or «Z = 0»: a name given a bit with one «=» (not «==», a comparison). */
@@ -52,44 +54,56 @@ public final class MachineProblemText {
 
     /** What {@code finding} says about {@code machine}, without naming the machine. */
     public static String sentence(MachineFinding finding, StateMachine machine) {
+        return words(finding, machine, LONG);
+    }
+
+    /**
+     * The same in one short line («A: falta qué pasa con x = 0») for the rows of the machine's Propiedades; the
+     * {@link #sentence full sentence} goes in the row's tooltip.
+     */
+    public static String shortSentence(MachineFinding finding, StateMachine machine) {
+        return words(finding, machine, SHORT);
+    }
+
+    private static String words(MachineFinding finding, StateMachine machine, String prefix) {
         return switch (finding.kind()) {
-            case NO_STATES -> Messages.text("problem.machine.noStates");
-            case NO_INITIAL_STATE -> Messages.text("problem.machine.noInitialState");
-            case BAD_CONDITION -> badCondition(finding, machine);
-            case TWO_OTHERWISE -> Messages.format("problem.machine.twoOtherwise", stateName(machine, finding),
+            case NO_STATES -> Messages.text(prefix + "noStates");
+            case NO_INITIAL_STATE -> Messages.text(prefix + "noInitialState");
+            case BAD_CONDITION -> badCondition(finding, machine, prefix);
+            case TWO_OTHERWISE -> Messages.format(prefix + "twoOtherwise", stateName(machine, finding),
                     finding.transitionIds().size());
-            case NONDETERMINISTIC -> nondeterministic(finding, machine);
-            case READS_OUTPUT_OR_RESERVED -> arrowWords(machine, finding, "problem.machine.readsOutputOrReserved",
+            case NONDETERMINISTIC -> nondeterministic(finding, machine, prefix);
+            case READS_OUTPUT_OR_RESERVED -> arrowWords(machine, finding, prefix + "readsOutputOrReserved",
                     String.join(LIST_SEPARATOR, finding.names()));
-            case TOO_MANY_NAMES -> tooManyNames(finding, machine);
-            case UNREACHABLE_STATE -> Messages.format("problem.machine.unreachable", stateName(machine, finding));
+            case TOO_MANY_NAMES -> tooManyNames(finding, machine, prefix);
+            case UNREACHABLE_STATE -> Messages.format(prefix + "unreachable", stateName(machine, finding));
             case STAYS_FOR_SOME_INPUT -> finding.witness().isEmpty()
-                    ? Messages.format("problem.machine.staysAlways", stateName(machine, finding))
-                    : Messages.format("problem.machine.stays", stateName(machine, finding),
+                    ? Messages.format(prefix + "staysAlways", stateName(machine, finding))
+                    : Messages.format(prefix + "stays", stateName(machine, finding),
                     values(finding.witness()));
-            case OUTPUT_NEVER_ASSIGNED -> Messages.format("problem.machine.outputNeverAssigned", firstName(finding));
-            case UNUSED_INPUT -> Messages.format("problem.machine.unusedInput", firstName(finding));
-            case MOORE_MEALY_CLASH -> mooreMealyClash(finding, machine);
-            case INPUT_UNDEFINED_AT_EDGE -> Messages.format("problem.machine.inputUndefined",
+            case OUTPUT_NEVER_ASSIGNED -> Messages.format(prefix + "outputNeverAssigned", firstName(finding));
+            case UNUSED_INPUT -> Messages.format(prefix + "unusedInput", firstName(finding));
+            case MOORE_MEALY_CLASH -> mooreMealyClash(finding, machine, prefix);
+            case INPUT_UNDEFINED_AT_EDGE -> Messages.format(prefix + "inputUndefined",
                     String.join(LIST_SEPARATOR, finding.names()));
-            case CLOCK_UNDEFINED -> Messages.format("problem.machine.clockUndefined", MachineLimits.CLOCK);
+            case CLOCK_UNDEFINED -> Messages.format(prefix + "clockUndefined", MachineLimits.CLOCK);
         };
     }
 
-    private static String badCondition(MachineFinding finding, StateMachine machine) {
+    private static String badCondition(MachineFinding finding, StateMachine machine, String prefix) {
         Optional<MachineTransition> transition = firstTransition(machine, finding);
         String condition = transition.map(MachineTransition::condition).orElse("");
         Optional<String> withSlash = withTheSlash(condition, machine);
         if (withSlash.isPresent()) {
-            return arrowWords(machine, finding, "problem.machine.outputWithoutSlash", withSlash.get());
+            return arrowWords(machine, finding, prefix + "outputWithoutSlash", withSlash.get());
         }
         Optional<ExpressionProblem> problem = MachineConditions.parse(condition).problem();
         String reason = problem.map(found -> Messages.format(found.messageKey(), found.arguments().toArray()))
                 .orElse("");
         if (finding.column() < 0) {
-            return arrowWords(machine, finding, "problem.machine.badConditionNoColumn", reason);
+            return arrowWords(machine, finding, prefix + "badConditionNoColumn", reason);
         }
-        return arrowWords(machine, finding, "problem.machine.badCondition", finding.column() + 1, reason);
+        return arrowWords(machine, finding, prefix + "badCondition", finding.column() + 1, reason);
     }
 
     /**
@@ -112,33 +126,33 @@ public final class MachineProblemText {
         return Optional.of(before.isEmpty() ? outputs : before + " " + outputs);
     }
 
-    private static String nondeterministic(MachineFinding finding, StateMachine machine) {
+    private static String nondeterministic(MachineFinding finding, StateMachine machine, String prefix) {
         List<String> conditions = finding.transitionIds().stream()
                 .map(id -> machine.transition(id).map(MachineTransition::condition).orElse(id)).toList();
         String first = conditions.isEmpty() ? "" : conditions.getFirst();
         String second = conditions.size() < 2 ? "" : conditions.get(1);
         if (finding.witness().isEmpty()) {
-            return Messages.format("problem.machine.nondeterministicAlways", stateName(machine, finding), first,
+            return Messages.format(prefix + "nondeterministicAlways", stateName(machine, finding), first,
                     second);
         }
-        return Messages.format("problem.machine.nondeterministic", stateName(machine, finding), first, second,
+        return Messages.format(prefix + "nondeterministic", stateName(machine, finding), first, second,
                 values(finding.witness()));
     }
 
-    private static String tooManyNames(MachineFinding finding, StateMachine machine) {
+    private static String tooManyNames(MachineFinding finding, StateMachine machine, String prefix) {
         String name = firstName(finding);
         return machine.outputNamesUsed().contains(name)
-                ? Messages.format("problem.machine.tooManyOutputs", name, MachineLimits.MAXIMUM_OUTPUTS)
-                : Messages.format("problem.machine.tooManyInputs", name, MachineLimits.MAXIMUM_INPUTS);
+                ? Messages.format(prefix + "tooManyOutputs", name, MachineLimits.MAXIMUM_OUTPUTS)
+                : Messages.format(prefix + "tooManyInputs", name, MachineLimits.MAXIMUM_INPUTS);
     }
 
-    private static String mooreMealyClash(MachineFinding finding, StateMachine machine) {
+    private static String mooreMealyClash(MachineFinding finding, StateMachine machine, String prefix) {
         String output = firstName(finding);
         Optional<MachineTransition> transition = firstTransition(machine, finding);
         String arrowValue = transition.flatMap(found -> valueOf(found.outputs(), output)).orElse("");
         String stateValue = transition.flatMap(found -> machine.state(found.fromId()))
                 .flatMap(state -> valueOf(state.outputs(), output)).orElse("");
-        return arrowWords(machine, finding, "problem.machine.mooreMealyClash", output, arrowValue, stateValue);
+        return arrowWords(machine, finding, prefix + "mooreMealyClash", output, arrowValue, stateValue);
     }
 
     private static Optional<String> valueOf(List<OutputAssignment> assignments, String output) {

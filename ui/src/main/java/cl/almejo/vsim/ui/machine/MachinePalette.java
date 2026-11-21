@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.machine.MachinePaletteIcons.Kind;
-import cl.almejo.vsim.ui.machine.MachinePaletteRows.ActionRow;
 import cl.almejo.vsim.ui.machine.MachinePaletteRows.ToolRow;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import com.formdev.flatlaf.util.UIScale;
@@ -12,24 +11,18 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
-import javax.swing.JButton;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
-import javax.swing.UIManager;
-import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
  * The left palette of a machine's tab (spec 2026-11-14 §1, the mockup's «Paleta»), its rows drawn as the circuit
- * palette's are ({@link MachinePaletteRows}): the drawing tools, «Estado»,
- * «Transición», «Nota» (a sticky note, hito 3) and «Texto» (a free text), and under «Y después» the next steps «Convertir a circuito…»,
- * shown disabled with «Llega en un próximo hito» until it arrives, and «Probar…» (the test mode, hito 4; disabled
- * with «Ya estás probando» while it is on). A tool is chosen here (one at a time, or
- * none) and used once on the diagram ({@link MachineTool}): a click places a state, a note or a text, a drag joins two
+ * palette's are ({@link MachinePaletteRows}): the drawing tools only, «Estado», «Transición», «Nota» (a sticky
+ * note) and «Texto» (a free text). The machine-wide actions («Probar…», «Convertir a circuito…», «Agregar a Mis
+ * componentes») are in the top bar of the tab ({@code PlaceBar}). A tool is chosen here (one at a time, or none) and
+ * used once on the diagram ({@link MachineTool}): a click places a state, a note or a text, a drag joins two
  * states.
  */
 public final class MachinePalette extends JPanel {
@@ -42,9 +35,6 @@ public final class MachinePalette extends JPanel {
     private final JToggleButton transitionButton;
     private final JToggleButton noteButton;
     private final JToggleButton textButton;
-    private final JButton convertButton;
-    private final JButton testButton;
-    private final JLabel nextHeader = new JLabel(Messages.text("machine.palette.next"));
     private final ButtonGroup tools = new ButtonGroup();
 
     /** A palette whose icons are drawn in the colours {@code scheme} gives at each paint (the diagram's). */
@@ -55,10 +45,6 @@ public final class MachinePalette extends JPanel {
                 scheme);
         noteButton = toolRow("machine.palette.note", "machine.palette.noteHint", Kind.NOTE, scheme);
         textButton = toolRow("machine.palette.text", "machine.palette.textHint", Kind.TEXT, scheme);
-        convertButton = actionRow("machine.palette.convert", null, Kind.CONVERT, scheme);
-        convertButton.setEnabled(false);
-        convertButton.setToolTipText(Messages.text("machine.comesLater"));
-        testButton = actionRow("machine.palette.test", "machine.palette.testHint", Kind.TEST, scheme);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(UIScale.scale(PADDING), UIScale.scale(PADDING),
                 UIScale.scale(PADDING), UIScale.scale(PADDING)));
@@ -73,15 +59,7 @@ public final class MachinePalette extends JPanel {
         add(noteButton);
         add(Box.createVerticalStrut(UIScale.scale(GAP)));
         add(textButton);
-        add(Box.createVerticalStrut(UIScale.scale(2 * PADDING)));
-        nextHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
-        add(nextHeader);
-        add(Box.createVerticalStrut(UIScale.scale(GAP)));
-        add(convertButton);
-        add(Box.createVerticalStrut(UIScale.scale(GAP)));
-        add(testButton);
         add(Box.createVerticalGlue());
-        applyTheme();
     }
 
     /** «Estado»: puts states on the diagram. */
@@ -109,43 +87,9 @@ public final class MachinePalette extends JPanel {
         tools.clearSelection();
     }
 
-    /** «Convertir a circuito…» (hito 5). */
-    public JButton convertButton() {
-        return convertButton;
-    }
-
-    /** «Probar…»: starts the test mode (hito 4; {@link MachineMode#startTest()}). */
-    public JButton testButton() {
-        return testButton;
-    }
-
-    /** The header's font follows the theme: set again on every theme change. */
-    @Override
-    public void updateUI() {
-        super.updateUI();
-        if (nextHeader != null) {
-            applyTheme();
-        }
-    }
-
-    private void applyTheme() {
-        Font font = UIManager.getFont("Label.font");
-        if (font != null) {
-            nextHeader.setFont(font.deriveFont(Font.BOLD));
-        }
-    }
-
     private static ToolRow toolRow(String nameKey, String hintKey, Kind kind, Supplier<ColorScheme> scheme) {
         ToolRow row = new ToolRow(Messages.text(nameKey), MachinePaletteIcons.of(kind, scheme));
         row.setToolTipText(Messages.text(hintKey));
-        return fullWidth(row);
-    }
-
-    private static ActionRow actionRow(String nameKey, String hintKey, Kind kind, Supplier<ColorScheme> scheme) {
-        ActionRow row = new ActionRow(Messages.text(nameKey), MachinePaletteIcons.of(kind, scheme));
-        if (hintKey != null) {
-            row.setToolTipText(Messages.text(hintKey));
-        }
         return fullWidth(row);
     }
 

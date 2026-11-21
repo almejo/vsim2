@@ -93,10 +93,14 @@ public final class MachineMode {
         Runnable showProbes = MachineWaveStrip.install(view, place, machineId.get(), canvas);
         MachineMode mode = new MachineMode(view, canvas, frame, palette, editing,
                 () -> Animations.enabled(view.services().preferences()));
-        palette.testButton().addActionListener(event -> mode.startTest());
-        // the «Probar…» of Propiedades is the same entry, not a second path
+        // the top bar's «Probar…» and the one of Propiedades are the same entry, not other paths
+        Runnable hideBarActions = PlaceBar.of(view).map(bar -> bar.showMachineActions(mode::startTest))
+                .orElse(() -> { });
         Consumer<Boolean> followTesting = editing.rows().enterTestWith(mode::startTest);
-        mode.addTestModeListener(() -> followTesting.accept(mode.isTesting()));
+        mode.addTestModeListener(() -> {
+            followTesting.accept(mode.isTesting());
+            PlaceBar.of(view).ifPresent(bar -> bar.machineTesting(mode.isTesting()));
+        });
         view.putClientProperty(MachineMode.class, mode);
         return () -> {
             // the tab goes (or leaves machine mode): it leaves the test, which goes on in the machine's other views
@@ -104,8 +108,8 @@ public final class MachineMode {
             mode.help.close();
             mode.testMode.ifPresent(MachineTestMode::leave);
             view.putClientProperty(MachineMode.class, null);
-            for (Runnable undo : List.of(showProbes, editing::uninstall, stopFeedingThePanes, enableCircuitActions,
-                    showPalette, showDiagram, canvas::dispose)) {
+            for (Runnable undo : List.of(hideBarActions, showProbes, editing::uninstall, stopFeedingThePanes,
+                    enableCircuitActions, showPalette, showDiagram, canvas::dispose)) {
                 undo.run();
             }
         };
@@ -206,8 +210,6 @@ public final class MachineMode {
 
     private void followTheTestMode() {
         testMode.ifPresent(started -> {
-            palette.testButton().setEnabled(false);
-            palette.testButton().setToolTipText(Messages.text("machine.test.alreadyTesting"));
             stopLockingTheName = editing.rows().lockMachineName(Messages.text("machine.test.renameLater"));
             stopHoldingTheLibraryButton = PlaceBar.of(view)
                     .map(bar -> bar.holdLibraryButton(Messages.text("machine.test.libraryLater")))
@@ -219,8 +221,6 @@ public final class MachineMode {
     private void testEnded() {
         help.close();
         testMode = Optional.empty();
-        palette.testButton().setEnabled(true);
-        palette.testButton().setToolTipText(Messages.text("machine.palette.testHint"));
         stopLockingTheName.run();
         stopHoldingTheLibraryButton.run();
         testModeListeners.fire(Runnable::run);
