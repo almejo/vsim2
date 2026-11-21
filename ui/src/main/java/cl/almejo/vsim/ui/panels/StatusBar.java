@@ -51,6 +51,16 @@ public final class StatusBar extends JPanel {
     private final JLabel pauseNotice = new JLabel();
     /** What stays true of the place shown while it is shown («Sin valores» in a component tab). */
     private final JLabel placeHint = new JLabel();
+    /**
+     * A lasting state of the document said until the user dismisses it (it cannot be saved): neither time nor a later
+     * notice takes it away. Shown as an activity, so it never pushes the problems or the indicators out.
+     */
+    private final JLabel lastingNotice = new ErrorTextLabel();
+    private final JButton lastingNoticeDismiss = new JButton();
+    private final JPanel lastingNoticeStrip = new JPanel(new MigLayout("insets 0", "[shrinkprio "
+            + YIELDING_PRIORITY + "][]"));
+    private Runnable lastingNoticeDismissed = () -> { };
+    private Runnable removeLastingNotice = () -> { };
     private boolean clickable;
     /** The key of «Siguiente problema» now ({@code ""} for none): the tooltip says it, whatever it is bound to. */
     private Supplier<String> clickKey = () -> "";
@@ -109,6 +119,15 @@ public final class StatusBar extends JPanel {
         failure.setVisible(false);
         pauseNotice.setVisible(false);
         placeHint.setVisible(false);
+        lastingNoticeStrip.setOpaque(false);
+        lastingNoticeStrip.add(lastingNotice, YIELDING_CONSTRAINTS);
+        lastingNoticeDismiss.putClientProperty("JButton.buttonType", "borderless");
+        lastingNoticeDismiss.addActionListener(event -> {
+            Runnable dismissed = lastingNoticeDismissed;
+            hideLastingNotice();
+            dismissed.run();
+        });
+        lastingNoticeStrip.add(lastingNoticeDismiss);
     }
 
     public void showSnapshot(SimulationSnapshot snapshot) {
@@ -436,6 +455,33 @@ public final class StatusBar extends JPanel {
         noticeActionRun = () -> { };
     }
 
+    /**
+     * Shows {@code text} with a button {@code dismissText} that hides it and runs {@code dismissed}, until it is
+     * clicked or {@link #hideLastingNotice()} is called; showing it again replaces the text. For a state that lasts
+     * (a circuit that cannot be saved), which a notice of a few seconds would hide.
+     */
+    public void showLastingNotice(String text, String dismissText, Runnable dismissed) {
+        lastingNotice.setText(text);
+        lastingNotice.setToolTipText(text); // whole, when a short bar cuts it
+        lastingNoticeDismiss.setText(dismissText);
+        lastingNoticeDismissed = dismissed;
+        if (lastingNoticeStrip.getParent() != this) {
+            removeLastingNotice = addActivity(lastingNoticeStrip);
+        }
+    }
+
+    /** Takes the lasting notice away (its state is over) without running its button; nothing when none is shown. */
+    public void hideLastingNotice() {
+        lastingNoticeDismissed = () -> { };
+        removeLastingNotice.run();
+        removeLastingNotice = () -> { };
+    }
+
+    /** The button that dismisses the lasting notice. */
+    public JButton lastingNoticeDismiss() {
+        return lastingNoticeDismiss;
+    }
+
     /** The button of a notice shown with one (hidden otherwise). */
     public JButton noticeAction() {
         return noticeAction;
@@ -446,10 +492,15 @@ public final class StatusBar extends JPanel {
         noticeTimer.stop();
     }
 
-    /** Visible texts joined with " · " (what the user reads, left to right), the zoom percentage last («125 %»). */
+    /**
+     * Visible texts joined with " · " (what the user reads, left to right), the zoom percentage last («125 %»); the
+     * lasting notice is the only activity said.
+     */
     public String text() {
-        Stream<String> labels = Stream.of(simulation, time, achievedSpeed, selection, hint, notice, gesture,
-                        shortCircuits, failure, pauseNotice, placeHint)
+        Stream<JLabel> lasting = lastingNoticeStrip.getParent() == this ? Stream.of(lastingNotice) : Stream.empty();
+        Stream<String> labels = Stream.of(Stream.of(simulation, time, achievedSpeed, selection, hint, notice, gesture,
+                        shortCircuits, failure, pauseNotice), lasting, Stream.of(placeHint))
+                .flatMap(Function.identity())
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText);
         Stream<String> zoom = zoomControl != null && zoomControl.isVisible() ? Stream.of(zoomControl.text())

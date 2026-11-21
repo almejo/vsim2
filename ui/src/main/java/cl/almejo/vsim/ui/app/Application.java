@@ -70,6 +70,7 @@ import cl.almejo.vsim.ui.library.TemplatesExtension;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.groups.GroupsExtension;
 import cl.almejo.vsim.ui.memory.MemoryEditorExtension;
 import cl.almejo.vsim.ui.memory.MemoryEditorLauncher;
@@ -264,7 +265,9 @@ public final class Application {
         this.sessionStore = new SessionStore(preferences);
         this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
         this.autosave = AutosaveService.create(recoveryStore);
-        autosave.onSerializationFailure(this::tellNoRecoveryCopy);
+        CannotSaveNotices cannotSaveNotices = new CannotSaveNotices(this::statusBarsOf);
+        autosave.onSerializationFailure(cannotSaveNotices::cannotSave);
+        autosave.onSerializationRecovered(cannotSaveNotices::canSaveAgain);
     }
 
     /**
@@ -732,11 +735,12 @@ public final class Application {
         return windows.otherBackedBy(file, asking);
     }
 
-    /** A document that cannot be serialized has no recovery copy: tell the user, in its window, once. */
-    private void tellNoRecoveryCopy(OpenDocument document) {
-        windows.windowsOf(document).stream().findFirst().ifPresent(window -> window.activeView().statusBar()
-                .showNotice(Messages.format("autosave.noCopy", document.displayName()),
-                        Messages.text("autosave.noCopy.dismiss"), () -> { }));
+    /** The status bars of every tab of {@code document}'s group, in every window that holds it. */
+    private List<StatusBar> statusBarsOf(OpenDocument document) {
+        return windows.windowsOf(document).stream()
+                .flatMap(window -> window.viewsOf(document).stream())
+                .map(EditorView::statusBar)
+                .toList();
     }
 
     private void closeDocument(OpenDocument document) {

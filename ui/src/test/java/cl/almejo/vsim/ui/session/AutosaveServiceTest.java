@@ -189,6 +189,48 @@ class AutosaveServiceTest {
     }
 
     @Test
+    void aCircuitThatCanBeSerializedAgainIsToldSoAndToldAgainIfItFailsOnceMore() {
+        List<String> told = new ArrayList<>();
+        autosave.onSerializationFailure(document -> told.add("cannot"));
+        autosave.onSerializationRecovered(document -> told.add("again"));
+        OpenDocument document = unserializable();
+        autosave.tick();
+
+        document.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        autosave.tick();
+        autosave.tick();
+        document.document().removeDefinition(ExampleDefinitions.INVERTER);
+        place(document, StandardComponentTypes.LED, 8, 2, Map.of());
+        autosave.tick();
+
+        assertThat(told).containsExactly("cannot", "again", "cannot");
+    }
+
+    /** Review I1: «already told» is its own state, not the failed writes'. */
+    @Test
+    void aCircuitWhoseCopyFailedToWriteIsStillToldWhenItCannotBeSerialized() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        AutosaveService failing = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add);
+        List<OpenDocument> reported = new ArrayList<>();
+        failing.onSerializationFailure(reported::add);
+        OpenDocument document = untracked();
+        failing.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        failing.tick();
+        runWrites();
+
+        document.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        place(document, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 4, -1, Map.of());
+        document.document().removeDefinition(ExampleDefinitions.INVERTER);
+        failing.tick();
+
+        assertThat(reported).containsExactly(document);
+        failing.shutdown();
+        runWrites();
+    }
+
+    @Test
     void aFailingWriteIsLoggedOnceAndRetriedAtEveryTick() throws Exception {
         Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
         AutosaveService failing = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),

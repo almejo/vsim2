@@ -9,6 +9,7 @@ import javax.swing.Timer;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -63,9 +64,16 @@ public final class AutosaveService {
     private final Map<OpenDocument, Queue<Runnable>> waitingForTracking = new IdentityHashMap<>();
     private final Set<UUID> failing = ConcurrentHashMap.newKeySet();
     private final AtomicInteger loggedFailures = new AtomicInteger();
+    /**
+     * The tracked documents that could not be serialized at their last try, already told (EDT only). Its own set, not
+     * {@link #failing}: a document whose copy failed to write must still be told when it cannot be serialized.
+     */
+    private final Set<UUID> unserializable = new HashSet<>();
     private volatile boolean shutDown;
     /** Told (on the EDT) once per document that cannot be serialized, so it has no recovery copy. */
     private Consumer<OpenDocument> serializationFailure = document -> { };
+    /** Told (on the EDT) when a document that could not be serialized can be again. */
+    private Consumer<OpenDocument> serializationRecovered = document -> { };
 
     public AutosaveService(RecoveryStore store, Clock clock, Executor writer) {
         this.store = store;
@@ -92,9 +100,17 @@ public final class AutosaveService {
         return timer.isRunning();
     }
 
-    /** {@code listener} runs on the EDT the first time a tracked document cannot be serialized (and again once it was untracked and tracked anew). */
+    /**
+     * {@code listener} runs on the EDT the first time a tracked document cannot be serialized, and again after it
+     * could be ({@link #onSerializationRecovered}) or after it was untracked and tracked anew.
+     */
     public void onSerializationFailure(Consumer<OpenDocument> listener) {
         this.serializationFailure = listener;
+    }
+
+    /** {@code listener} runs on the EDT when a document that could not be serialized can be again. */
+    public void onSerializationRecovered(Consumer<OpenDocument> listener) {
+        this.serializationRecovered = listener;
     }
 
     int loggedFailures() {
@@ -129,6 +145,7 @@ public final class AutosaveService {
         }
         discardCopy(document);
         failing.remove(document.recoveryId());
+        unserializable.remove(document.recoveryId());
         document.removeChangeListener(state.listener);
         tracked.remove(document);
     }
@@ -153,12 +170,16 @@ public final class AutosaveService {
             try {
                 content = document.serialized();
             } catch (RuntimeException exception) {
-                if (failing.add(id)) {
+                // retried at every tick: the change it was made for is still not copied
+                if (unserializable.add(id)) {
                     loggedFailures.incrementAndGet();
                     LOGGER.warn("Could not serialize {} for its recovery copy", name, exception);
                     serializationFailure.accept(document);
                 }
                 continue;
+            }
+            if (unserializable.remove(id)) {
+                serializationRecovered.accept(document);
             }
             RecoveryMetadata metadata = new RecoveryMetadata(document.path(), name, clock.instant());
             state.copiedChangeCount = document.changeCount();
