@@ -79,6 +79,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Circuito desde expresiones: veinte mil «!» o «(» seguidos ya no tiran un error interno; la línea muestra el problema «La expresión está demasiado anidada» (más de 500 niveles).
 - Importar de Logisim: una pieza con una propiedad rara (un separador sin extremos, un pin con `output="yes"`, un LED de color `red`, una orientación desconocida) ya no hace fallar toda la importación, y un valor fuera de rango (un multiplexor con -5 bits de selección, miles de millones de entradas) ya no agota la memoria ni se queda pensando: esa pieza queda fuera con una nota y el resto se importa.
 - Importar de Logisim un proyecto con un circuito sin nombre ya no falla: el circuito se importa como «circuit» (o «circuit 2», …) con una nota.
+- Importar de Logisim un proyecto con dos circuitos del mismo nombre avisa que el segundo quedó fuera (antes se omitía sin decir nada).
 
 ## Versión 0.8 — 2026-11-11
 

@@ -12,7 +12,8 @@ import java.util.Set;
  * The circuits of a Logisim project in the order their custom components can be made: every circuit after the ones it
  * uses (leaves first), file order otherwise. Circuits that use themselves, directly or through others, are left out
  * with an INVALID note each cycle (Logisim refuses them too); the circuits that use them stay, and their instances of
- * the missing ones are the importer's to report. An instance of a circuit the file does not have adds no order.
+ * the missing ones are the importer's to report. An instance of a circuit the file does not have adds no order. A
+ * circuit named like an earlier one is left out with an INVALID note: the instances of that name are the first's.
  */
 public record LogisimCircuitOrder(List<LogisimCircuit> circuits, List<ImportNote> notes) {
 
@@ -25,14 +26,21 @@ public record LogisimCircuitOrder(List<LogisimCircuit> circuits, List<ImportNote
 
     public static LogisimCircuitOrder of(LogisimProject project) {
         Map<String, LogisimCircuit> byName = new LinkedHashMap<>();
-        project.circuits().forEach(circuit -> byName.putIfAbsent(circuit.name(), circuit));
+        List<ImportNote> notes = new ArrayList<>();
+        for (LogisimCircuit circuit : project.circuits()) {
+            if (byName.putIfAbsent(circuit.name(), circuit) != null) {
+                notes.add(ImportNote.about(ImportNote.Kind.INVALID, circuit.name(), LogisimNotes.DUPLICATE_CIRCUIT,
+                        circuit.name()));
+            }
+        }
         Walk walk = new Walk(byName);
         byName.keySet().forEach(walk::visit);
         List<LogisimCircuit> ordered = walk.finished.stream()
                 .filter(name -> !walk.recursive.contains(name))
                 .map(byName::get)
                 .toList();
-        return new LogisimCircuitOrder(ordered, walk.notes);
+        notes.addAll(walk.notes);
+        return new LogisimCircuitOrder(ordered, notes);
     }
 
     /** A depth-first walk over «uses» edges: a circuit finishes after all the circuits it uses. */
