@@ -1308,6 +1308,43 @@ class EditServiceTest {
         assertThat(service.hasRunningTask(new DocumentId(DOCUMENT))).isFalse();
     }
 
+    /** Review round 3 (F8): a call naming a task a close ended says the circuit is closed, not «begin one first». */
+    @Test
+    void callsNamingATaskEndedByTheCloseAnswerDocumentClosed() {
+        TaskInfo running = service.beginTask(new DocumentId(DOCUMENT), "Abierta", List.of());
+        service.documentClosed(new DocumentId(DOCUMENT));
+
+        assertThatThrownBy(() -> service.requireTask(running.taskId()))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
+        assertThatThrownBy(() -> service.endTask(running.taskId()))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
+        assertThatThrownBy(() -> service.requireTask("task-never-given"))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_REFERENCE));
+    }
+
+    /** Review round 3 (F9): a close that lands while a task is being begun never leaves it running. */
+    @Test
+    void aTaskBegunWhileTheDocumentClosesIsNotLeftRunning() {
+        EditService[] holder = new EditService[1];
+        holder[0] = new EditService(new cl.almejo.vsim.automation.EditHost() {
+            @Override
+            public <T> java.util.concurrent.CompletableFuture<T> onCircuit(DocumentId document,
+                                                                         java.util.function.Function<EditableCircuit,
+                                                                                 T> work) {
+                holder[0].documentClosed(document); // the user closes the circuit right after the check passed
+                return java.util.concurrent.CompletableFuture.completedFuture(work.apply(null));
+            }
+        }, listeners, Duration.ofSeconds(5), Runnable::run);
+
+        assertThatThrownBy(() -> holder[0].beginTask(new DocumentId(DOCUMENT), "Tarde", List.of()))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
+        assertThat(holder[0].hasRunningTask(new DocumentId(DOCUMENT))).isFalse();
+    }
+
     @Test
     void closingADocumentLeavesTheTasksOfOtherDocumentsAlone() {
         TaskInfo other = service.beginTask(new DocumentId(DOCUMENT), "Otra", List.of());
