@@ -776,6 +776,22 @@ class EditServiceTest {
     }
 
     @Test
+    void aSignalWithoutANameOfItsOwnKeepsTheNameItShowedWhenTheAiDeletesItsPart() {
+        EditReceipt parts = service.edit(request(place("source", "switch", 0, 0), place("gate", "nand", 10, -1),
+                connect("new:source", "out", "new:gate", "in0")));
+        ElementId source = new ElementId(parts.aliases().get("source"));
+        ElementId gate = new ElementId(parts.aliases().get("gate"));
+        circuit.document().setProbes(List.of(new Probe("p1", new ProbeTarget.PinTarget(gate, 0), "")));
+        circuit.useProbeNaming((target, document, netlist, registry) -> target instanceof ProbeTarget.PinTarget pin
+                && document.component(pin.componentId()).isPresent() ? pin.componentId().value() + ".entrada 1" : "?");
+
+        service.edit(request(new Delete(List.of(gate.value()))));
+
+        assertThat(circuit.document().probes()).containsExactly(
+                new Probe("p1", new ProbeTarget.PinTarget(source, 0), gate.value() + ".entrada 1"));
+    }
+
+    @Test
     void aFrameWrapsItsTargetsWithRoomForItsTitle() {
         EditReceipt receipt = service.edit(request(place("gate", "nand", 10, 10),
                 new MakeFrame(Optional.of("stage"), "Etapa 1: el latch", List.of("new:gate"), Optional.empty(),

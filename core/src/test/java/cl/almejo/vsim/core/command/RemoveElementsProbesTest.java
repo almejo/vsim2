@@ -12,6 +12,8 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.netlist.ProbeNaming;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import org.junit.jupiter.api.Test;
 
@@ -81,6 +83,48 @@ class RemoveElementsProbesTest {
         history.redo();
         assertThat(document.probes()).extracting(Probe::target)
                 .containsExactly(new ProbeTarget.PinTarget(reader.id(), 0));
+    }
+
+    @Test
+    void aChannelShowingItsDefaultNameKeepsTheNameItShowedBeforeTheDeletion() {
+        Component driver = place(new GridPoint(0, 0));
+        GridPoint output = and.pinLocation(driver, AND_OUTPUT);
+        GridPoint far = new GridPoint(output.x() + 6, output.y());
+        Wire wire = wire(output, far);
+        Component reader = placeWithInputAt(far);
+        Probe unnamed = probeOnWire("p1", wire, "", Probe.FORMAT_BINARY);
+        Probe named = new Probe("p2", new ProbeTarget.PinTarget(driver.id(), AND_OUTPUT), "salida");
+        setProbes(unnamed, named);
+        ProbeNaming naming = (target, before, netlist, typeRegistry) -> switch (target) {
+            case ProbeTarget.PinTarget pin -> before.component(pin.componentId()).orElseThrow().id().value()
+                    + ".pin" + pin.pinIndex() + " on " + netlist.netForPin(new PinRef(pin.componentId(),
+                    pin.pinIndex())).orElseThrow().pins().size() + " pins";
+            case ProbeTarget.WireTarget wireTarget -> "wire " + wireTarget.wireId().value();
+        };
+
+        history.execute(new RemoveElementsCommand(List.of(driver.id()), registry, naming));
+
+        ProbeTarget moved = new ProbeTarget.PinTarget(reader.id(), 0);
+        assertThat(document.probes()).as("named with the circuit as it was, before the deletion").containsExactly(
+                new Probe("p1", moved, driver.id().value() + ".pin2 on 2 pins", Probe.FORMAT_BINARY),
+                new Probe("p2", moved, "salida"));
+        history.undo();
+        assertThat(document.probes()).containsExactly(unnamed, named);
+    }
+
+    @Test
+    void withoutANamingAMovedChannelKeepsItsEmptyName() {
+        Component driver = place(new GridPoint(0, 0));
+        GridPoint output = and.pinLocation(driver, AND_OUTPUT);
+        GridPoint far = new GridPoint(output.x() + 6, output.y());
+        Wire wire = wire(output, far);
+        Component reader = placeWithInputAt(far);
+        setProbes(probeOnWire("p1", wire, "", Probe.FORMAT_BINARY));
+
+        history.execute(new RemoveElementsCommand(List.of(driver.id()), registry));
+
+        assertThat(document.probes()).containsExactly(new Probe("p1", new ProbeTarget.PinTarget(reader.id(), 0), "",
+                Probe.FORMAT_BINARY));
     }
 
     @Test

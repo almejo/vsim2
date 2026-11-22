@@ -102,6 +102,7 @@ import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.netlist.ProbeNaming;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.core.wiring.TidyOptions;
@@ -160,6 +161,8 @@ final class EditPlanner {
     private final ComponentTypeRegistry liveRegistry;
     private final List<DefinitionBundle> library;
     private final TextMeasure measure;
+    /** The name a deleted part's unnamed waveform channel showed, stored in it when it moves (keeps its row's name). */
+    private final ProbeNaming naming;
     private final CircuitDocument candidate;
     private final ComponentTypeRegistry registry;
     private final CandidateNetlist netlists;
@@ -174,9 +177,10 @@ final class EditPlanner {
     private int operationIndex;
 
     private EditPlanner(CircuitDocument original, ComponentTypeRegistry liveRegistry,
-                        List<DefinitionBundle> library, TextMeasure measure,
+                        List<DefinitionBundle> library, TextMeasure measure, ProbeNaming naming,
                         Function<String, Optional<MemoryContents>> ownContents) {
         this.ownContents = ownContents;
+        this.naming = naming;
         this.original = original;
         this.liveRegistry = liveRegistry;
         this.library = List.copyOf(library);
@@ -193,18 +197,19 @@ final class EditPlanner {
      * Carries out {@code operations} on a copy of {@code document}; {@code registry} is the circuit's own. Neither is
      * changed. {@code library} is the user's library: an instance of one of its components brings the component's
      * definitions into the circuit, as placing it from the palette does. {@code measure} places the texts as the
-     * editor draws them, so a frame wraps its notes and part labels whole.
+     * editor draws them, so a frame wraps its notes and part labels whole; {@code naming} gives the name a waveform
+     * channel with no name of its own shows, stored in it when a deletion moves it.
      *
      * @throws AutomationException for the first operation that cannot be done, with its index in the recovery data
      */
     static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry,
                             List<EditOperation> operations) {
-        return plan(document, registry, List.of(), TextMeasure.APPROXIMATE, operations);
+        return plan(document, registry, List.of(), TextMeasure.APPROXIMATE, ProbeNaming.NONE, operations);
     }
 
     static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry, List<DefinitionBundle> library,
-                            TextMeasure measure, List<EditOperation> operations) {
-        return plan(document, registry, library, measure, operations, memoryId -> Optional.empty());
+                            TextMeasure measure, ProbeNaming naming, List<EditOperation> operations) {
+        return plan(document, registry, library, measure, naming, operations, memoryId -> Optional.empty());
     }
 
     /**
@@ -212,7 +217,7 @@ final class EditPlanner {
      * contents (spec §6.6b), so {@code SetMemoryContents} adds to those.
      */
     static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry, List<DefinitionBundle> library,
-                            TextMeasure measure, List<EditOperation> operations,
+                            TextMeasure measure, ProbeNaming naming, List<EditOperation> operations,
                             Function<String, Optional<MemoryContents>> ownContents) {
         if (operations.isEmpty()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit needs at least one operation");
@@ -221,7 +226,7 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit carries at most "
                     + MAXIMUM_OPERATIONS + " operations; split it", Map.of("maximum", MAXIMUM_OPERATIONS));
         }
-        EditPlanner planner = new EditPlanner(document, registry, library, measure, ownContents);
+        EditPlanner planner = new EditPlanner(document, registry, library, measure, naming, ownContents);
         for (EditOperation operation : operations) {
             planner.carryOut(operation);
             planner.operationIndex++;
@@ -895,7 +900,7 @@ final class EditPlanner {
 
     private void delete(Delete operation) {
         Set<ElementId> ids = FrameContents.withLockedBlocks(candidate, registry, requireTargets(operation.targets()));
-        new RemoveElementsCommand(ids, registry).apply(candidate);
+        new RemoveElementsCommand(ids, registry, naming).apply(candidate);
     }
 
     // --- frames, notes and guides ---
@@ -1056,7 +1061,7 @@ final class EditPlanner {
         List<DocumentElement> added = new ArrayList<>(List.of(instance));
         added.addAll(bridging.wires());
         if (!selection.replacedIds().isEmpty()) {
-            RemoveElementsCommand.replacedBy(selection.replacedIds(), added, registry).apply(candidate);
+            RemoveElementsCommand.replacedBy(selection.replacedIds(), added, registry, naming).apply(candidate);
         }
         new AddElementsCommand(added).apply(candidate);
         if (!bridging.unconnectedPins().isEmpty()) {

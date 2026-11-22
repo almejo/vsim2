@@ -191,7 +191,7 @@ public final class EditService {
                         AutomationError.NOT_ALLOWED, "This editor cannot write the words of one piece"));
                 String context = request.document().place().flatMap(PlaceRef::context).orElseThrow();
                 planned = EditPlanner.plan(circuit.document(), circuit.registry(), circuit.library(),
-                        circuit.textMeasure(), request.operations(), memoryId ->
+                        circuit.textMeasure(), circuit.probeNaming(), request.operations(), memoryId ->
                                 PieceMemories.effective(root, InstancePath.child(context, memoryId)));
                 // the candidate's body is only where the words were computed: nothing of it is written
                 content = ReplaceContentCommand.between(circuit.document(), circuit.document().copy(),
@@ -199,7 +199,7 @@ public final class EditService {
                 pieceWrite = Optional.of(pieceWriteOf(request, planned));
             } else {
                 planned = EditPlanner.plan(circuit.document(), circuit.registry(), circuit.library(),
-                        circuit.textMeasure(), request.operations());
+                        circuit.textMeasure(), circuit.probeNaming(), request.operations());
                 content = ReplaceContentCommand.between(circuit.document(), planned.candidate(),
                         AiEditCommand.DESCRIPTION);
             }

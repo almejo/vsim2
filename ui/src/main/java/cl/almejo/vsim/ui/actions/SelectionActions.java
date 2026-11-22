@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
+import cl.almejo.vsim.ui.waveform.ProbeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -224,7 +225,7 @@ public final class SelectionActions {
     private void cutSelection() {
         Set<ElementId> ids = selection.effectiveIds();
         if (copySelection()) {
-            openDocument.execute(new RemoveElementsCommand(ids, openDocument.registry()));
+            openDocument.execute(new RemoveElementsCommand(ids, openDocument.registry(), ProbeNames::defaultName));
         }
     }
 

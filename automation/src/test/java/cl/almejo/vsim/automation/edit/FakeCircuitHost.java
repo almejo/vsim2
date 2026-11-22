@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.netlist.ProbeNaming;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,6 +68,7 @@ final class FakeCircuitHost extends FakeAutomationHost {
         private long changeCount;
         private Command lastTop;
         private List<DefinitionBundle> library = List.of();
+        private ProbeNaming probeNaming = ProbeNaming.NONE;
 
         Circuit(CircuitDocument document) {
             this.document = document;
@@ -108,6 +110,15 @@ final class FakeCircuitHost extends FakeAutomationHost {
         @Override
         public List<DefinitionBundle> library() {
             return library;
+        }
+
+        @Override
+        public ProbeNaming probeNaming() {
+            return probeNaming;
+        }
+
+        void useProbeNaming(ProbeNaming naming) {
+            probeNaming = naming;
         }
 
         void useLibrary(List<DefinitionBundle> newLibrary) {

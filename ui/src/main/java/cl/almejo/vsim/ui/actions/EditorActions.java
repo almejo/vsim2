@@ -29,6 +29,7 @@ import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
+import cl.almejo.vsim.ui.waveform.ProbeNames;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
@@ -550,7 +551,8 @@ public final class EditorActions {
         Set<ElementId> selected = selection.effectiveIds();
         if (!selected.isEmpty()) {
             deleteListeners.forEach(listener -> listener.accept(selected));
-            openDocument.execute(new RemoveElementsCommand(selected, openDocument.registry()));
+            openDocument.execute(new RemoveElementsCommand(selected, openDocument.registry(),
+                    ProbeNames::defaultName));
         }
     }
 

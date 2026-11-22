@@ -63,12 +63,14 @@ public final class ProbeResolver {
      * whose component or wire is deleted moves to what survives of its net and is still connected: a pin or wire of the
      * old net that, after the deletion, shares its net with at least one other element (a pin left floating alone, or a
      * wire touching nothing, does not count). Among those it takes, by the rule of {@link #anchor}, a driver pin first,
-     * else the first pin by document order, else the first wire by document order, keeping its id, name and format.
-     * With nothing connected left of its net (or a net it never had) it is removed. Every other probe stays as it is,
-     * in its place.
+     * else the first pin by document order, else the first wire by document order, keeping its id, name and format;
+     * a probe with an empty name stores the one {@code naming} gives its old target before the deletion, the name its
+     * row showed. With nothing connected left of its net (or a net it never had) it is removed. Every other probe
+     * stays as it is, in its place.
      */
     public static List<Probe> afterRemoval(List<Probe> probes, Set<ElementId> removedIds, CircuitDocument document,
-                                           Netlist netlist, Netlist netlistAfter, ComponentTypeRegistry registry) {
+                                           Netlist netlist, Netlist netlistAfter, ComponentTypeRegistry registry,
+                                           ProbeNaming naming) {
         List<Probe> after = new ArrayList<>(probes.size());
         for (Probe probe : probes) {
             if (!watchesRemoved(probe.target(), removedIds, document)) {
@@ -77,9 +79,18 @@ public final class ProbeResolver {
             }
             Optional<Net> net = netOfTarget(probe.target(), netlist);
             net.flatMap(found -> survivingTarget(found, removedIds, document, netlistAfter, registry))
-                    .ifPresent(target -> after.add(probe.withTarget(target)));
+                    .ifPresent(target -> after.add(keptName(probe, document, netlist, registry, naming)
+                            .withTarget(target)));
         }
         return List.copyOf(after);
+    }
+
+    /** {@code probe} with the name its row shows now stored, when it has no name of its own. */
+    private static Probe keptName(Probe probe, CircuitDocument document, Netlist netlist,
+                                  ComponentTypeRegistry registry, ProbeNaming naming) {
+        return probe.name().isBlank()
+                ? probe.withName(naming.defaultName(probe.target(), document, netlist, registry))
+                : probe;
     }
 
     /** Whether {@code target}'s component or wire exists in {@code document} and is among {@code removedIds}. */
