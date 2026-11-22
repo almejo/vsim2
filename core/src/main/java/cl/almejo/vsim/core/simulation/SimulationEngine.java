@@ -834,7 +834,8 @@ public final class SimulationEngine {
      * records a gap). The others keep their history, even when their net id changed (spec §3.3). A channel left out
      * is parked with its history, a gap from now on, and gets it back when a channel with its id is bound again (the
      * undo of a deletion or of a removed signal); only the most recently parked are kept
-     * ({@code WaveformRecorder.MAXIMUM_PARKED_CHANNELS}), and «Limpiar trazas» and a restart forget them. Every channel
+     * ({@code WaveformRecorder.MAXIMUM_PARKED_CHANNELS} channels, {@code MAXIMUM_PARKED_EVENTS} events in all), and
+     * «Limpiar trazas» and a restart forget them. Every channel
      * is sampled now.
      */
     public void setProbes(Map<String, String> channels) {

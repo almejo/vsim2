@@ -127,6 +127,11 @@ public final class ChannelTrace {
         }
     }
 
+    /** How many events the trace holds now (what it costs to keep). */
+    public int eventCount() {
+        return fullChunks.size() * CHUNK_SIZE + tailSize;
+    }
+
     private boolean hasEvents() {
         return tailSize > 0 || !fullChunks.isEmpty();
     }

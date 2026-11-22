@@ -328,6 +328,25 @@ class SimulationEngineWaveformTest {
     }
 
     @Test
+    void restartingAlsoForgetsTheChannelsLeftOut() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        synchronize();
+        String net = netOf(source, 0);
+        engine.setProbes(Map.of("a", net, "b", net));
+        engine.advance(5);
+        engine.interact(source.value());   // 1 at t = 5
+        engine.advance(5);
+        engine.setProbes(Map.of("b", net));   // «a» is parked with its history
+
+        engine.restart(flattener.flatten(document, netlist), Map.of("b", net));
+        engine.advance(3);
+        engine.setProbes(Map.of("a", net, "b", net));
+
+        assertThat(TraceEdges.between(trace("a"), 0, 3)).as("a fresh trace from now, not the one from before")
+                .containsExactly(TraceEvent.of(3, Value.ZERO));
+    }
+
+    @Test
     void onlyTheMostRecentlyLeftOutChannelsAreKept() {
         ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
         synchronize();

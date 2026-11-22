@@ -18,13 +18,30 @@ import java.util.function.Function;
  * {@link RuntimeNet}s it watches: nets are rebuilt on every update, so {@link #rebind} hangs the traces on the
  * current nets again and samples every channel, which also records changes that happened without netChanged.
  * A channel left out is parked with its trace (a gap from that moment) and gets it back when a channel with its id
- * comes again, whatever left it out (a deleted part, a removed signal, then Undo); only the
- * {@link #MAXIMUM_PARKED_CHANNELS} most recently parked are kept. Single-threaded, like the engine.
+ * comes again, whatever left it out (a deleted part, a removed signal, then Undo); only the most recently parked are
+ * kept, at most {@link #MAXIMUM_PARKED_CHANNELS} of them holding at most {@link #MAXIMUM_PARKED_EVENTS} events in all.
+ * Single-threaded, like the engine.
  */
 final class WaveformRecorder {
 
     /** How many channels left out keep their trace, waiting to come back; past it the oldest parked is dropped. */
     static final int MAXIMUM_PARKED_CHANNELS = 64;
+    /**
+     * How many events the parked traces may hold in all (about four full traces' worth, a few MB of bus values at
+     * most); past it the oldest parked are dropped.
+     */
+    static final int MAXIMUM_PARKED_EVENTS = 4 * ChannelTrace.CHUNK_SIZE * ChannelTrace.MAXIMUM_CHUNKS;
+
+    private final int maximumParkedEvents;
+
+    WaveformRecorder() {
+        this(MAXIMUM_PARKED_EVENTS);
+    }
+
+    /** {@code maximumParkedEvents}: the events bound, smaller in tests. */
+    WaveformRecorder(int maximumParkedEvents) {
+        this.maximumParkedEvents = maximumParkedEvents;
+    }
 
     private Map<String, String> channels = Map.of();
     private final Map<String, ChannelTrace> traces = new HashMap<>();
@@ -68,6 +85,7 @@ final class WaveformRecorder {
                 traces.put(channelId, back);
             }
         });
+        dropOldestParked();
         version++;
     }
 
@@ -75,9 +93,14 @@ final class WaveformRecorder {
         trace.appendGap(now);
         parked.remove(channelId);
         parked.put(channelId, trace);
-        Iterator<String> oldest = parked.keySet().iterator();
-        while (parked.size() > MAXIMUM_PARKED_CHANNELS) {
-            oldest.next();
+    }
+
+    /** Drops the oldest parked traces until both bounds hold (after the returning channels took theirs back). */
+    private void dropOldestParked() {
+        long parkedEvents = parked.values().stream().mapToLong(ChannelTrace::eventCount).sum();
+        Iterator<ChannelTrace> oldest = parked.values().iterator();
+        while (parked.size() > MAXIMUM_PARKED_CHANNELS || parkedEvents > maximumParkedEvents) {
+            parkedEvents -= oldest.next().eventCount();
             oldest.remove();
         }
     }
