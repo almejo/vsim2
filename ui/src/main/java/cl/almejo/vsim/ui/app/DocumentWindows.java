@@ -147,6 +147,12 @@ public final class DocumentWindows<W> {
                 .or(() -> all().stream().reduce((earlier, later) -> later));
     }
 
+    /** An open document other than {@code asking} backed by {@code file}: «Guardar como» must not take it over. */
+    public Optional<OpenDocument> otherBackedBy(Path file, OpenDocument asking) {
+        return windowsByDocument.keySet().stream()
+                .filter(document -> document != asking && document.isBackedBy(file)).findFirst();
+    }
+
     private Optional<OpenDocument> showing(Path file) {
         return windowsByDocument.keySet().stream().filter(document -> document.isBackedBy(file)).findFirst();
     }

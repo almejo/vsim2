@@ -52,6 +52,17 @@ final class StartupSteps {
         }
     }
 
+    /**
+     * The start shows an empty stand-in window first so the recovery question has a window of VSim to sit over. When
+     * anything else opened ({@code openDocuments} counts the stand-in) it goes; when it is all there is, it stays as
+     * the start's empty document.
+     */
+    static void dropStandIn(int openDocuments, Runnable closeStandIn) {
+        if (openDocuments > 1) {
+            guarded("close the stand-in window", closeStandIn);
+        }
+    }
+
     private static void guarded(String step, Runnable action) {
         try {
             action.run();

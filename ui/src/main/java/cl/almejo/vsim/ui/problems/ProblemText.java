@@ -150,6 +150,9 @@ public final class ProblemText {
                     pieceName(problem.elementId(), document), ownContentsPath(problem));
             case OWN_CONTENTS_OVER_LINK -> Messages.format("problem.ownContentsOverLink",
                     InstanceNames.routeText(problem.elementId(), document));
+            case UNSUPPORTED_DRAWING -> Messages.format("problem.unsupportedDrawing", document
+                    .definition(problem.netId().substring(ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX.length()))
+                    .map(definition -> definition.name()).orElse(problem.elementId()));
         };
     }
 

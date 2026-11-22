@@ -61,7 +61,7 @@ public final class SetLabelCommand implements Command {
     private static StickyContent stickyContent(StickyNote note, String newText) {
         return switch (note.content()) {
             case StickyText ignored -> new StickyText(newText);
-            case StickyChecklist checklist -> checklist.edited(List.of(newText.split("\n", -1)));
+            case StickyChecklist checklist -> checklist.editedText(newText);
         };
     }
 

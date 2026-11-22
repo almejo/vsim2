@@ -120,7 +120,7 @@ class ExpressionTableTest {
 
     @Test
     void everyKeyIsListed() {
-        assertThat(ExpressionProblem.MESSAGE_KEYS).doesNotHaveDuplicates().hasSize(16)
+        assertThat(ExpressionProblem.MESSAGE_KEYS).doesNotHaveDuplicates().hasSize(17)
                 .allSatisfy(key -> assertThat(key).startsWith("expressions.problem."));
     }
 

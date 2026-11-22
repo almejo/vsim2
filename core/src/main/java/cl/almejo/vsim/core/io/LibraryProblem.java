@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.io;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -11,7 +12,11 @@ import java.util.Optional;
  */
 public record LibraryProblem(Path file, Kind kind, Optional<CircuitFormatException.Reason> reason, String detail) {
 
-    public enum Kind { UNREADABLE, INVALID, DUPLICATE_ID, DIRECTORY_GONE }
+    /**
+     * {@code UNSUPPORTED_DRAWING}: the file loaded, but the drawing of the component named in the detail (several are
+     * joined by a comma) has a path VSim cannot read: it shows the default box.
+     */
+    public enum Kind { UNREADABLE, INVALID, DUPLICATE_ID, DIRECTORY_GONE, UNSUPPORTED_DRAWING }
 
     public LibraryProblem {
         Objects.requireNonNull(file, "file");
@@ -52,6 +57,10 @@ public record LibraryProblem(Path file, Kind kind, Optional<CircuitFormatExcepti
 
     static LibraryProblem duplicate(Path file, String id) {
         return new LibraryProblem(file, Kind.DUPLICATE_ID, Optional.empty(), id);
+    }
+
+    static LibraryProblem unsupportedDrawing(Path file, List<String> names) {
+        return new LibraryProblem(file, Kind.UNSUPPORTED_DRAWING, Optional.empty(), String.join(", ", names));
     }
 
     /** The watched library directory was deleted: its changes are no longer followed. */

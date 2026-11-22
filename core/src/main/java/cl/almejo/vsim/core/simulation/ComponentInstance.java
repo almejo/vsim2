@@ -108,8 +108,35 @@ final class ComponentInstance implements BehaviorContext {
             // the event is kept, so the values the pin goes through stay in order.
             return;
         }
+        if (pin.pendingDrives > 0 && delay == pin.headingToTime - engine.now()) {
+            takeOverLatestDrive(pin, value);
+            return;
+        }
+        DriveEvent event = new DriveEvent(this, pin, value);
+        long due = engine.scheduler().schedule(delay, event);
+        if (pin.pendingDrives > 0) {
+            pin.changedCourse |= !value.equals(pin.headingTo);
+        }
+        if (pin.pendingDrives == 0 || due > pin.headingToTime) {
+            pin.headingTo = value;
+            pin.headingToTime = due;
+            pin.latestDrive = event;
+        }
         pin.pendingDrives++;
-        engine.scheduler().schedule(delay, new DriveEvent(this, pin, value));
+    }
+
+    /**
+     * A drive due together with the pin's last one would arrive right after it, at the same time: it takes that
+     * drive's place instead, so the pin never goes through a value for no time at all, and a net whose value feeds
+     * back into the pin cannot pile up drives due together (that grew the queue until the heap ran out, 2026-11-20).
+     * Replacing the only drive in flight is no change of course; with others in flight before it, a new value is.
+     */
+    private static void takeOverLatestDrive(PinState pin, Value value) {
+        if (pin.pendingDrives > 1) {
+            pin.changedCourse |= !value.equals(pin.headingTo);
+        }
+        pin.latestDrive.value = value;
+        pin.headingTo = value;
     }
 
     @Override
@@ -134,10 +161,11 @@ final class ComponentInstance implements BehaviorContext {
     }
 
     /** The event of a {@link #drive}: the pin takes the value and its net is resolved. It carries its data itself. */
-    private static final class DriveEvent extends Scheduler.Event {
+    static final class DriveEvent extends Scheduler.Event {
 
         private final PinState pin;
-        private final Value value;
+        /** The value it brings; a later drive due at the same time takes it over ({@link #drive}). */
+        private Value value;
 
         DriveEvent(ComponentInstance instance, PinState pin, Value value) {
             super(instance);
@@ -151,6 +179,9 @@ final class ComponentInstance implements BehaviorContext {
                 return;
             }
             pin.pendingDrives--;
+            if (pin.pendingDrives == 0) {
+                pin.changedCourse = false;
+            }
             pin.driven = value;
             owner.engine.netChanged(pin.net);
         }

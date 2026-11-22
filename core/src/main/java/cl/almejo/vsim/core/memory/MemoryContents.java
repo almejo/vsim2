@@ -146,6 +146,9 @@ public final class MemoryContents {
                     if (!addressKnown) {
                         throw new IllegalArgumentException("a word before any @address: " + token);
                     }
+                    if (address >= VsimMemoryFormat.MAXIMUM_WORDS) {
+                        throw new IllegalArgumentException("address past the most words a memory has: " + token);
+                    }
                     mutable.set(address, Long.parseUnsignedLong(token, 16));
                     address++;
                 }

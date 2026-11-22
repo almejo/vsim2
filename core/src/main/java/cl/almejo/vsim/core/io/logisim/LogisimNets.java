@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.io.logisim;
 
 import cl.almejo.vsim.core.geometry.UnionFind;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -24,10 +26,13 @@ import java.util.Set;
  *   get no direction (they become VSim tunnels «Sin dirección»), so which of them is driven does not matter.</li>
  *   <li>A one-bit splitter is only a junction between its bus and the end of its bit.</li>
  *   <li>A connected end the VSim part has no pin for is noted (an unconnected one is not).</li>
+ *   <li>A part whose ends cannot be read (an odd or out-of-range attribute) has none and is left out, noted: it joins
+ *   nothing and the layout does not place it.</li>
  * </ul>
  */
 public final class LogisimNets {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogisimNets.class);
     private static final String SPLITTER = LogisimPartRules.key(LogisimLibraries.WIRING, "Splitter");
     private static final String TUNNEL = LogisimPartRules.key(LogisimLibraries.WIRING, "Tunnel");
 
@@ -35,19 +40,43 @@ public final class LogisimNets {
     private final List<LogisimComponent> components;
     private final List<List<LogisimEnd>> ends = new ArrayList<>();
     private final Set<Integer> junctions = new HashSet<>();
+    /** The components whose ends could not be read: the layout leaves them out. */
+    private final Set<Integer> leftOut = new HashSet<>();
     private final List<ImportNote> notes = new ArrayList<>();
 
     private LogisimNets(LogisimCircuit circuit, LogisimProject project) {
         this.circuit = circuit;
         this.components = circuit.components();
-        for (LogisimComponent component : components) {
-            ends.add(LogisimEnds.of(component, project));
+        for (int index = 0; index < components.size(); index++) {
+            ends.add(endsOf(index, project));
         }
         for (int index = 0; index < components.size(); index++) {
             if (isSplitter(index) && attributes(index).integer("incoming") == 1 && ends.get(index).size() > 1) {
                 junctions.add(index);
             }
         }
+    }
+
+    /**
+     * The ends of component {@code index}; none when its attributes cannot be read (a splitter with no ends, a pin
+     * whose {@code output} is {@code yes}, a multiplexer with -5 select bits): it is left out, noted, and the rest of
+     * the file imports. An exception other than a bad value is a fault of ours: logged as a warning with its trace.
+     */
+    private List<LogisimEnd> endsOf(int index, LogisimProject project) {
+        LogisimComponent component = components.get(index);
+        try {
+            return LogisimEnds.of(component, project);
+        } catch (IllegalArgumentException exception) {
+            LOGGER.info("Logisim part {} at {} of «{}» not imported: {}", component.name(), component.location(),
+                    circuit.name(), exception.getMessage());
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Logisim part {} at {} of «{}» not imported", component.name(), component.location(),
+                    circuit.name(), exception);
+        }
+        leftOut.add(index);
+        notes.add(ImportNote.at(ImportNote.Kind.INVALID, circuit.name(), component.location(),
+                LogisimNotes.INVALID_PART, component.name()));
+        return List.of();
     }
 
     /** The nets of {@code circuit}, one of {@code project}'s (its subcircuit instances need their circuits). */
@@ -70,7 +99,7 @@ public final class LogisimNets {
                 connectedIds.add(id);
             }
         });
-        return new LogisimNetAnalysis(circuit, ends, directions, junctions, ids, connectedIds, notes);
+        return new LogisimNetAnalysis(circuit, ends, directions, junctions, leftOut, ids, connectedIds, notes);
     }
 
     /** The nets (union-find roots) with a wire or more than one end: what an end there is connected to. */
@@ -191,15 +220,21 @@ public final class LogisimNets {
         }
     }
 
+    /** Whether component {@code index} is a splitter the circuit keeps (not one left out). */
     private boolean isSplitter(int index) {
         LogisimComponent component = components.get(index);
-        return LogisimPartRules.key(component.library(), component.name()).equals(SPLITTER);
+        return !leftOut.contains(index)
+                && LogisimPartRules.key(component.library(), component.name()).equals(SPLITTER);
     }
 
-    /** A tunnel's label, trimmed as Logisim does; empty for a tunnel without one and for any other component. */
+    /**
+     * A tunnel's label, trimmed as Logisim does; empty for a tunnel without one, a tunnel left out and any other
+     * component.
+     */
     private String tunnelLabel(int index) {
         LogisimComponent component = components.get(index);
-        if (!LogisimPartRules.key(component.library(), component.name()).equals(TUNNEL)) {
+        if (leftOut.contains(index)
+                || !LogisimPartRules.key(component.library(), component.name()).equals(TUNNEL)) {
             return "";
         }
         return component.attributes().textOr("label", "").strip();

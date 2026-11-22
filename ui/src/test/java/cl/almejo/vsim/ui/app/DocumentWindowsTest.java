@@ -64,6 +64,18 @@ class DocumentWindowsTest {
     }
 
     @Test
+    void anotherDocumentBackedByAFileIsFoundButNeverTheOneAsking(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("a.vsim");
+        OpenDocument holder = savedDocument(file);
+        OpenDocument asking = savedDocument(directory.resolve("b.vsim"));
+        windows.add(holder, "one");
+        windows.add(asking, "one");
+        assertThat(windows.otherBackedBy(file, asking)).contains(holder);
+        assertThat(windows.otherBackedBy(file, holder)).as("saving over its own file is fine").isEmpty();
+        assertThat(windows.otherBackedBy(directory.resolve("c.vsim"), asking)).isEmpty();
+    }
+
+    @Test
     void addIsIdempotentForAWindowThatAlreadyHoldsTheDocument() {
         OpenDocument document = newDocument();
         windows.add(document, "one");

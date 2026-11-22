@@ -103,11 +103,29 @@ class AppearanceFilesTest {
     }
 
     @Test
-    void malformedAppearanceFailsWithAnElementErrorInsteadOfChangingPinsSilently() throws Exception {
+    void aDefinitionWhosePathCannotBeReadOpensWithTheDefaultBoxAndIsNoted() throws Exception {
         CircuitDocument document = document(original.withAppearance(Optional.of(drawing())));
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode tree = (ObjectNode) mapper.readTree(format.write(document));
         ObjectNode path = (ObjectNode) tree.path("definitions").get(0).path("appearance").path("elements").get(0);
+        path.put("d", "M 0 0 C 1 1 2 2");
+
+        CircuitDocument read = format.read(tree.toString());
+
+        assertThat(read.definitions().getFirst().appearance()).isEmpty();
+        assertThat(read.unsupportedDrawings()).containsExactly(original.id());
+    }
+
+    @Test
+    void aPlacedOverrideWhosePathCannotBeReadStillFailsWithAnElementError() throws Exception {
+        CircuitDocument document = document(original);
+        Component instance = document.components().getFirst();
+        document.replace(instance.withAppearance(Optional.of(new ComponentAppearance(original.size(),
+                Optional.of(drawing()), ComponentAppearance.of(original).pins()))));
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode tree = (ObjectNode) mapper.readTree(format.write(document));
+        ObjectNode path = (ObjectNode) tree.path("components").get(0).path("appearance").path("drawing")
+                .path("elements").get(0);
         path.put("d", "M 0 0 C 1 1 2 2");
         assertThatThrownBy(() -> format.read(tree.toString())).isInstanceOfSatisfying(CircuitFormatException.class,
                 exception -> {

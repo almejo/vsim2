@@ -3,6 +3,8 @@ package cl.almejo.vsim.core.component;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,5 +67,28 @@ class ParameterSpecTest {
     void aBooleanRefusesANumber() {
         assertThatThrownBy(() -> ParameterSpec.bool("negate", false).normalize(1))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void anIntegerAcceptsEveryIntegralNumberType() {
+        ParameterSpec width = ParameterSpec.integer("width", 1, 1, 32);
+        assertThat(width.normalize((byte) 8)).isEqualTo(8);
+        assertThat(width.normalize((short) 8)).isEqualTo(8);
+        assertThat(width.normalize(8)).isEqualTo(8);
+        assertThat(width.normalize(8L)).isEqualTo(8);
+        assertThat(width.normalize(" 8 ")).isEqualTo(8);
+        assertThat(width.normalize(BigInteger.valueOf(8))).isEqualTo(8);
+        assertThat(width.normalize(8.0)).as("a whole Double, as Jackson reads 8.0").isEqualTo(8);
+        assertThat(width.normalize(new BigDecimal("8.0"))).isEqualTo(8);
+    }
+
+    @Test
+    void anIntegerRefusesWhatIsNotAWholeNumber() {
+        ParameterSpec width = ParameterSpec.integer("width", 1, 1, 32);
+        for (Object invalid : new Object[]{8.9, 8.5f, new BigDecimal("8.5"), Double.NaN,
+                Double.POSITIVE_INFINITY, new BigInteger("18446744073709551624"), 33L, "8.9"}) {
+            assertThatThrownBy(() -> width.normalize(invalid)).as(String.valueOf(invalid))
+                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("width");
+        }
     }
 }

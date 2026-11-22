@@ -88,4 +88,33 @@ class MenuStatesTest {
             view.dispose();
         }
     }
+
+    @Test
+    void reopenClosedTabIsOffWithItsReasonWhileNothingWasClosed() {
+        boolean[] closedTabs = {false};
+        WindowCommands window = new WindowCommands() {
+            @Override public void newDocument() { }
+            @Override public void open() { }
+            @Override public void save() { }
+            @Override public void saveAs() { }
+            @Override public void closeWindow() { }
+            @Override public void exit() { }
+            @Override public boolean hasClosedTabs() { return closedTabs[0]; }
+        };
+        EditorView view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        try {
+            assertThat(view.actions().reopenClosedTab().isEnabled()).isFalse();
+            assertThat(Actions.disabledReason(view.actions().reopenClosedTab()))
+                    .contains("No hay pestañas cerradas");
+
+            closedTabs[0] = true;
+            view.actions().refreshWindowActions();
+            assertThat(view.actions().reopenClosedTab().isEnabled()).isTrue();
+            closedTabs[0] = false;
+            open(view.menu(MenuId.WINDOW));
+            assertThat(view.actions().reopenClosedTab().isEnabled()).isFalse();
+        } finally {
+            view.dispose();
+        }
+    }
 }

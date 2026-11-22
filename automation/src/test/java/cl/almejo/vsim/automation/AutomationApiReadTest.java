@@ -80,6 +80,19 @@ class AutomationApiReadTest {
     }
 
     @Test
+    void theSummaryBoundsSurviveAFarAwayPartInsteadOfFailingTheRead() {
+        for (int x : new int[]{-2_000_000_000, 2_000_000_000}) {
+            document.add(registry.require(StandardComponentTypes.BUFFER).newComponent(document.newComponentId(),
+                    new GridPoint(x, 0), Rotation.R0, Map.of(), ""));
+        }
+
+        Bounds bounds = api.readCircuit(OPEN, ReadFilter.SUMMARY, Optional.empty()).summary().bounds().orElseThrow();
+
+        assertThat(bounds.x()).isEqualTo(-2_000_000_000);
+        assertThat(bounds.width()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
     void aClosedCircuitsRefusalReachesTheAiUnchanged() {
         assertThatThrownBy(() -> api.readCircuit(new DocumentId("circuit-9"), ReadFilter.SUMMARY, Optional.empty()))
                 .isInstanceOfSatisfying(AutomationException.class,

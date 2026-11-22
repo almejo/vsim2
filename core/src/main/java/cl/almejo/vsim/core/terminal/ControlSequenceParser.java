@@ -105,6 +105,8 @@ final class ControlSequenceParser {
     private int length;
     private final int[] parameters = new int[MAXIMUM_PARAMETERS];
     private int parameterCount;
+    /** Set once a parameter past the last one that fits starts: its digits (and the next ones') belong to nobody. */
+    private boolean ignoringExtraParameters;
     private int privateMarker;
     private boolean unsupported;
 
@@ -168,6 +170,7 @@ final class ControlSequenceParser {
             case '[' -> {
                 state = State.CONTROL_SEQUENCE;
                 parameterCount = 0;
+                ignoringExtraParameters = false;
                 privateMarker = ControlSequence.NO_PRIVATE_MARKER;
                 unsupported = false;
                 return PENDING;
@@ -217,6 +220,9 @@ final class ControlSequenceParser {
     }
 
     private void addDigit(int digit) {
+        if (ignoringExtraParameters) {
+            return;
+        }
         if (parameterCount == 0) {
             parameters[parameterCount++] = ControlSequence.ABSENT;
         }
@@ -232,6 +238,8 @@ final class ControlSequenceParser {
         }
         if (parameterCount < MAXIMUM_PARAMETERS) {
             parameters[parameterCount++] = ControlSequence.ABSENT;
+        } else {
+            ignoringExtraParameters = true;
         }
     }
 }

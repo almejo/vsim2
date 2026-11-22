@@ -31,7 +31,12 @@ public interface LibraryDialogs {
     /** Empty when the user cancels. */
     List<Path> chooseImportFiles(java.awt.Component parent);
 
-    ImportChoice askImportCollision(java.awt.Component parent, String componentName);
+    /**
+     * Asks what to do with an imported component the library already has. {@code canReplace} is false when the clash
+     * is only by name with another id: replacing would delete that other component, so only keep both or cancel are
+     * offered.
+     */
+    ImportChoice askImportCollision(java.awt.Component parent, String componentName, boolean canReplace);
 
     boolean confirmRemove(java.awt.Component parent, String componentName);
 

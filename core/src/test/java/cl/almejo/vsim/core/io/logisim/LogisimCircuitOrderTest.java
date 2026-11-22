@@ -43,6 +43,21 @@ class LogisimCircuitOrderTest {
                 .containsExactly("part", "main");
     }
 
+    @Test
+    void aCircuitNamedLikeAnEarlierOneIsLeftOutWithANote() {
+        LogisimCircuit first = circuit("twice");
+        LogisimProject project = new LogisimProject("main", Map.of(), List.of(circuit("main", "twice"), first,
+                circuit("twice", "main"), circuit("twice")), List.of());
+
+        LogisimCircuitOrder order = LogisimCircuitOrder.of(project);
+
+        assertThat(order.circuits()).containsExactly(first, project.circuits().getFirst());
+        assertThat(order.notes()).hasSize(2).allMatch(note -> note.kind() == ImportNote.Kind.INVALID
+                && note.circuit().equals("twice") && note.where().isEmpty()
+                && note.messageKey().equals(LogisimNotes.DUPLICATE_CIRCUIT)
+                && note.arguments().equals(List.of("twice")));
+    }
+
     private static LogisimCircuit circuit(String name, String... uses) {
         List<LogisimComponent> components = java.util.stream.IntStream.range(0, uses.length)
                 .mapToObj(index -> new LogisimComponent(LogisimLibraries.SUBCIRCUIT, uses[index],

@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.geometry.UnionFind;
 import cl.almejo.vsim.core.geometry.WireLines;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -160,9 +161,9 @@ public final class NetlistCompiler {
     private record Anchor(String kind, String elementId, int pinIndex) {
 
         /** The digits of an id such as {@code c10}; ids without digits sort before all numbered ones. */
-        long idNumber() {
+        BigInteger idNumber() {
             String digits = elementId.replaceAll("\\D", "");
-            return digits.isEmpty() ? -1 : Long.parseLong(digits);
+            return digits.isEmpty() ? BigInteger.valueOf(-1) : new BigInteger(digits);
         }
 
         String text() {

@@ -530,6 +530,7 @@ public final class AutomationApi {
     /** The editor: {@code document}'s last window closed; its proposed step is dropped. */
     public void documentClosed(DocumentId document) {
         presentation.documentClosed(document);
+        edits.documentClosed(document);
         questions.withdrawDocument(document);
     }
 

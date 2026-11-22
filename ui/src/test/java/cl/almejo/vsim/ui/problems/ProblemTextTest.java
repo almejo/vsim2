@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -39,6 +40,20 @@ class ProblemTextTest {
     private final Component andGate = place(StandardComponentTypes.AND, 0, 0, "U3");
     private final Component notGate = place(StandardComponentTypes.BUFFER, 10, 0, "",
             Map.of(StandardComponentTypes.NEGATE, true));
+
+    @Test
+    void anUnsupportedDrawingIsToldWithTheComponentNameInSpanishAndEnglish() {
+        document.putDefinition(new ComponentDefinition("dibujo", "Dibujo", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(), List.of(), List.of())));
+        ConnectivityProblem problem = new ConnectivityProblem("drawing:dibujo", "c9", -1, GridPoint.ORIGIN,
+                ConnectivityProblem.Cause.UNSUPPORTED_DRAWING);
+
+        assertThat(ProblemText.describe(problem, document, registry)).isEqualTo(
+                "El dibujo de «Dibujo» usa un trazo que VSim no puede leer; se muestra la caja por omisión");
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(ProblemText.describe(problem, document, registry)).doesNotContain("problem.unsupportedDrawing")
+                .contains("Dibujo");
+    }
 
     @AfterEach
     void restoreSpanish() {

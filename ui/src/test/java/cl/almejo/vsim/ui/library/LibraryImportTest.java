@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.library;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.DefinitionFormat;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
@@ -25,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -87,14 +89,65 @@ class LibraryImportTest {
         assertThat(fixture.library.entries()).containsExactly(inverter);
         assertThat(fixture.dialogs.collisionNames).containsExactly("Negador");
 
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
+        importer.importFiles(fixture.view, List.of(file));
+        assertThat(fixture.library.find("inverter")).contains(renamed);
+        assertThat(fixture.dialogs.replaceOffered).containsExactly(true, true);
+
+        fixture.service.save(inverter);
         fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.KEEP_BOTH);
         importer.importFiles(fixture.view, List.of(file));
         assertThat(fixture.library.find("inverter-2").orElseThrow().root().name()).isEqualTo("Negador");
         assertThat(fixture.library.find("inverter")).contains(inverter);
+    }
 
+    private DefinitionBundle sameNameOtherId() {
+        var root = inverter.root();
+        return new DefinitionBundle(new ComponentDefinition("other-id",
+                " " + root.name().toUpperCase(Locale.ROOT), root.description(), root.size(), root.pinout(),
+                root.body(), root.appearance(), root.revision()), List.of());
+    }
+
+    @Test
+    void aNameThatIsAlreadyThereWithAnotherIdAlsoAsksAndKeepBothRenames() throws Exception {
+        fixture.service.save(inverter);
+        Path file = outside("other.vsimcomponent.json", sameNameOtherId());
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.CANCEL);
+        importer.importFiles(fixture.view, List.of(file));
+        assertThat(fixture.dialogs.collisionNames).hasSize(1);
+        assertThat(fixture.library.find("other-id")).isEmpty();
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.KEEP_BOTH);
+        importer.importFiles(fixture.view, List.of(file));
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(fixture.library.find("other-id").orElseThrow().root().name())
+                .isNotEqualToIgnoringCase(inverter.root().name());
+    }
+
+    @Test
+    void aClashOnlyByNameNeverOffersReplacingAndKeepsTheOtherComponent() throws Exception {
+        fixture.service.save(inverter);
+        Path file = outside("other.vsimcomponent.json", sameNameOtherId());
+
+        // not offered; even if answered, nothing is deleted
         fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
         importer.importFiles(fixture.view, List.of(file));
-        assertThat(fixture.library.find("inverter")).contains(renamed);
+
+        assertThat(fixture.dialogs.replaceOffered).containsExactly(false);
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(fixture.library.find("other-id")).isEmpty();
+    }
+
+    @Test
+    void aClashOfTheSameIdOffersReplacing() throws Exception {
+        fixture.service.save(inverter);
+        Path file = outside("same.vsimcomponent.json", inverter);
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.CANCEL);
+        importer.importFiles(fixture.view, List.of(file));
+
+        assertThat(fixture.dialogs.replaceOffered).containsExactly(true);
     }
 
     @Test

@@ -52,7 +52,8 @@ final class Common {
                         + "reached and the events processed within the budget")
                 .property("currentVersion", Schema.integer("The circuit version when the receipt was written"))
                 .property("outcome", Schema.enumeration("COMPLETED or FAILED (a budget that ran out is the error "
-                        + "BUDGET_EXCEEDED)", java.util.List.of("COMPLETED", "BUDGET_EXCEEDED",
+                        + "BUDGET_EXCEEDED). FAILED: see failure, or lastPause with an empty component when VSim "
+                        + "stopped at one of its limits", java.util.List.of("COMPLETED", "BUDGET_EXCEEDED",
                         "REFUSED_WHILE_RUNNING", "REFUSED_TIME_OVERFLOW", "FAILED")))
                 .property("fromTime", Schema.string("Simulation time before, as a decimal string"))
                 .property("time", Schema.string("Simulation time reached, as a decimal string"))
@@ -73,9 +74,11 @@ final class Common {
     static Map<String, Object> lastPause() {
         return Schema.object("The last time a part paused the simulation by itself since it started (a Punto de "
                         + "parada whose condition became true, a Terminal that received its «Detener al recibir» "
-                        + "text), absent when none did; compare its time with the time now")
+                        + "text) or VSim stopped it at one of its limits (a zero-delay loop, an event past the largest "
+                        + "time, a clock-edge step that found no edge), absent when none did; compare its time with "
+                        + "the time now")
                 .property("component", Schema.string("The part that paused it (an element id, or a path inside a "
-                        + "user component)"))
+                        + "user component); empty when VSim stopped at a limit"))
                 .property("time", Schema.string("The simulation time it paused at, as a decimal string"))
                 .property("reason", Schema.string("Why, as the status bar tells the user"))
                 .required("component", "time", "reason")

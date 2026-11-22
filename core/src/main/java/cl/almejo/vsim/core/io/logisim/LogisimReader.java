@@ -16,11 +16,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Reads a Logisim {@code .circ} file into a {@link LogisimProject}, with the JDK's XML parser. It follows Logisim
@@ -52,6 +54,12 @@ public final class LogisimReader {
             throw exception;
         }
     };
+
+    /**
+     * The name a circuit with a blank name is imported under: a plain word like the export's {@code main}, since a
+     * circuit's name is the file's data, not a text of VSim's.
+     */
+    static final String UNNAMED_CIRCUIT = "circuit";
 
     private final LogisimDefaults defaults;
 
@@ -115,6 +123,8 @@ public final class LogisimReader {
         private final Element project;
         private final LogisimVersion version;
         private final Map<String, String> libraries = new HashMap<>();
+        /** The name each blank circuit name stands for: the fallback of the first circuit written with it. */
+        private final Map<String, String> renamed = new HashMap<>();
         private final List<ImportNote> notes = new ArrayList<>();
 
         ProjectReading(Element project) {
@@ -126,9 +136,11 @@ public final class LogisimReader {
             for (Element library : children(project, "lib")) {
                 readLibrary(library);
             }
+            List<Element> circuitElements = children(project, "circuit");
+            List<String> names = circuitNames(circuitElements);
             List<LogisimCircuit> circuits = new ArrayList<>();
-            for (Element circuit : children(project, "circuit")) {
-                circuits.add(readCircuit(circuit));
+            for (int index = 0; index < circuitElements.size(); index++) {
+                circuits.add(readCircuit(circuitElements.get(index), names.get(index)));
             }
             Map<String, String> options = new LinkedHashMap<>();
             for (Element optionsElement : children(project, "options")) {
@@ -146,10 +158,43 @@ public final class LogisimReader {
             }
         }
 
+        /**
+         * Each circuit's name, in file order. A blank one, which no VSim component can have, becomes
+         * {@code circuit} (then {@code circuit 2}, … when taken), noted; the {@code <main>} and the instances
+         * that name it by its blank name (the first circuit with it) follow it.
+         */
+        private List<String> circuitNames(List<Element> circuitElements) {
+            Set<String> taken = new HashSet<>();
+            circuitElements.forEach(circuit -> taken.add(circuit.getAttribute("name")));
+            List<String> names = new ArrayList<>();
+            for (Element circuit : circuitElements) {
+                String name = circuit.getAttribute("name");
+                if (name.isBlank()) {
+                    String fallback = unusedName(taken);
+                    taken.add(fallback);
+                    renamed.putIfAbsent(name, fallback);
+                    notes.add(ImportNote.about(ImportNote.Kind.APPROXIMATED, fallback, LogisimNotes.UNNAMED_CIRCUIT,
+                            fallback));
+                    name = fallback;
+                }
+                names.add(name);
+            }
+            return names;
+        }
+
+        private static String unusedName(Set<String> taken) {
+            String name = UNNAMED_CIRCUIT;
+            for (int number = 2; taken.contains(name); number++) {
+                name = UNNAMED_CIRCUIT + " " + number;
+            }
+            return name;
+        }
+
         /** {@code <main name>}; without it (or when it names no circuit) the first circuit, as Logisim does. */
         private String mainCircuit(List<LogisimCircuit> circuits) {
             String first = circuits.isEmpty() ? "" : circuits.getFirst().name();
-            Optional<String> named = children(project, "main").stream().map(main -> main.getAttribute("name"))
+            Optional<String> named = children(project, "main").stream()
+                    .map(main -> circuitNamed(main.getAttribute("name")))
                     .findFirst();
             if (named.isEmpty()) {
                 return first;
@@ -161,8 +206,12 @@ public final class LogisimReader {
             return named.get();
         }
 
-        private LogisimCircuit readCircuit(Element circuit) {
-            String name = circuit.getAttribute("name");
+        /** The name the circuit the file calls {@code written} goes by ({@link #circuitNames}). */
+        private String circuitNamed(String written) {
+            return renamed.getOrDefault(written, written);
+        }
+
+        private LogisimCircuit readCircuit(Element circuit, String name) {
             List<LogisimComponent> components = new ArrayList<>();
             List<LogisimWire> wires = new ArrayList<>();
             for (Element child : children(circuit, null)) {
@@ -203,7 +252,8 @@ public final class LogisimReader {
                 return Optional.empty();
             }
             LogisimAttributes attributes = defaults.resolve(library, name, attributes(component), version);
-            return Optional.of(new LogisimComponent(library, name, location, attributes));
+            String part = library.equals(LogisimLibraries.SUBCIRCUIT) ? circuitNamed(name) : name;
+            return Optional.of(new LogisimComponent(library, part, location, attributes));
         }
 
         private Optional<LogisimWire> readWire(String circuit, Element wire) {

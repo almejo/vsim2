@@ -181,8 +181,8 @@ public final class LogisimEnds {
     /** Filling from an input adds a third, one-bit end, which VSim's extender has not. */
     private static List<LogisimEnd> bitExtender(Placement placement) {
         Ends ends = placement.ends()
-                .add("out", 0, 0, LogisimEnd.Role.OUTPUT, placement.integer("out_width"))
-                .add("in", -40, 0, LogisimEnd.Role.INPUT, placement.integer("in_width"));
+                .add("out", 0, 0, LogisimEnd.Role.OUTPUT, placement.width("out_width"))
+                .add("in", -40, 0, LogisimEnd.Role.INPUT, placement.width("in_width"));
         if (placement.text("type").equals("input")) {
             ends.lacking("fill", -20, -20, LogisimEnd.Role.INPUT, 1);
         }
@@ -196,8 +196,9 @@ public final class LogisimEnds {
      * and the older «legacy»). An end is as wide as the bits its {@code bitN} send to it (0 when none).
      */
     private static List<LogisimEnd> splitter(Placement placement) {
-        int fanout = placement.integer("fanout");
-        int incoming = placement.integer("incoming");
+        int fanout = placement.count("fanout", 1, LogisimLimits.MAXIMUM_WIDTH);
+        int incoming = placement.count("incoming", 1, LogisimLimits.MAXIMUM_WIDTH);
+        checkSplitterBits(placement, fanout, incoming);
         int[] bitsPerEnd = splitterEndWidths(placement, fanout, incoming);
         LogisimFacing facing = placement.facing();
         int lane = firstSplitterLane(placement.text("appear"), facing, fanout);
@@ -209,6 +210,28 @@ public final class LogisimEnds {
             lane += STEP;
         }
         return ends.list();
+    }
+
+    /**
+     * Every bit of the splitter goes to one of its ends or to {@code none}, as the nets and the mapper read them
+     * (Logisim's reader leaves nothing else, {@link LogisimDefaults#splitterBits}).
+     *
+     * @throws IllegalArgumentException for a missing bit or one going elsewhere
+     */
+    private static void checkSplitterBits(Placement placement, int fanout, int incoming) {
+        for (int bit = 0; bit < incoming; bit++) {
+            String end = placement.text("bit" + bit).strip();
+            if (!end.equals(LogisimDefaults.NO_END) && !isEndNumber(end, fanout)) {
+                throw new IllegalArgumentException("bit" + bit + " goes to no end: " + end);
+            }
+        }
+    }
+
+    private static boolean isEndNumber(String text, int fanout) {
+        if (text.isEmpty() || !text.chars().allMatch(Character::isDigit) || text.length() > 2) {
+            return false;
+        }
+        return Integer.parseInt(text) < fanout;
     }
 
     /** How many bits each end of a splitter carries, from its {@code bitN} (an end number or {@code none}). */
@@ -251,7 +274,7 @@ public final class LogisimEnds {
      */
     private static List<LogisimEnd> gate(Placement placement, int extraLength, boolean negatedOutput) {
         int size = placement.integer("size");
-        int inputs = placement.integer("inputs");
+        int inputs = placement.count("inputs", 1, LogisimLimits.MAXIMUM_INPUTS);
         int width = placement.width();
         int column = size + extraLength + (negatedOutput ? STEP : 0);
         Ends ends = placement.ends().add("out", 0, 0, LogisimEnd.Role.OUTPUT, width);
@@ -314,7 +337,7 @@ public final class LogisimEnds {
      * {@code selloc} edge and the enable, which VSim's multiplexer has not, 10 px behind on that edge; the output last.
      */
     private static List<LogisimEnd> multiplexer(Placement placement) {
-        int select = placement.integer("select");
+        int select = placement.selectBits();
         int width = placement.width();
         int column = plexerColumnDepth(select);
         Ends ends = placement.ends();
@@ -327,7 +350,7 @@ public final class LogisimEnds {
 
     /** A multiplexer turned around: the outputs in a column ahead of the input, the controls ahead, the input last. */
     private static List<LogisimEnd> demultiplexer(Placement placement) {
-        int select = placement.integer("select");
+        int select = placement.selectBits();
         int width = placement.width();
         int column = plexerColumnDepth(select);
         Ends ends = placement.ends();
@@ -374,7 +397,7 @@ public final class LogisimEnds {
      * starts at the location (10 px from it with one select bit).
      */
     private static List<LogisimEnd> decoder(Placement placement) {
-        int select = placement.integer("select");
+        int select = placement.selectBits();
         int outputs = 1 << select;
         int spacing = select == 1 ? 2 * STEP : STEP;
         boolean bottomOrLeft = placement.text("selloc").equals("bl");
@@ -398,7 +421,7 @@ public final class LogisimEnds {
      * 20 px behind (VSim's encoder has neither); and the valid output 10 px under the location.
      */
     private static List<LogisimEnd> priorityEncoder(Placement placement) {
-        int select = placement.integer("select");
+        int select = placement.selectBits();
         int inputs = 1 << select;
         int halfColumn = inputs / 2 * STEP;
         Ends ends = placement.ends();
@@ -417,7 +440,7 @@ public final class LogisimEnds {
      */
     private static List<LogisimEnd> bitSelector(Placement placement) {
         int width = placement.width();
-        int group = placement.integer("group");
+        int group = placement.count("group", 1, LogisimLimits.MAXIMUM_WIDTH);
         int groups = (width + group - 1) / group;
         int bottomOrLeft = placement.horizontal() ? STEP : -STEP;
         return placement.ends()
@@ -463,7 +486,7 @@ public final class LogisimEnds {
      * input, so the others have no VSim pin.
      */
     private static List<LogisimEnd> bitAdder(Placement placement) {
-        int inputs = placement.integer("inputs");
+        int inputs = placement.count("inputs", 1, LogisimLimits.MAXIMUM_INPUTS);
         int width = placement.width();
         Ends ends = placement.ends().add("Y", 0, 0, LogisimEnd.Role.OUTPUT, bitsToNumber(inputs * width + 1));
         for (int input = 0; input < inputs; input++) {
@@ -518,15 +541,15 @@ public final class LogisimEnds {
         }
         if (separate) {
             ends.add("WE", -110, 40, LogisimEnd.Role.INPUT, 1)
-                    .add("D", -140, 20, LogisimEnd.Role.INPUT, placement.integer("dataWidth"));
+                    .add("D", -140, 20, LogisimEnd.Role.INPUT, placement.width("dataWidth"));
         }
         return ends.list();
     }
 
     private static Ends memoryEnds(Placement placement, String data, LogisimEnd.Role dataRole) {
         return placement.ends()
-                .add(data, 0, 0, dataRole, placement.integer("dataWidth"))
-                .add("A", -140, 0, LogisimEnd.Role.INPUT, placement.integer("addrWidth"))
+                .add(data, 0, 0, dataRole, placement.width("dataWidth"))
+                .add("A", -140, 0, LogisimEnd.Role.INPUT, placement.width("addrWidth"))
                 .add("CS", -90, 40, LogisimEnd.Role.INPUT, 1);
     }
 
@@ -549,12 +572,26 @@ public final class LogisimEnds {
             return component.attributes().integer(name);
         }
 
+        /** A count a loop or an array will use, from {@code minimum} to {@code maximum} ({@link LogisimLimits}). */
+        int count(String name, int minimum, int maximum) {
+            return component.attributes().integer(name, minimum, maximum);
+        }
+
+        int selectBits() {
+            return count("select", LogisimLimits.MINIMUM_SELECT_BITS, LogisimLimits.MAXIMUM_SELECT_BITS);
+        }
+
         boolean bool(String name) {
             return component.attributes().has(name) && component.attributes().bool(name);
         }
 
         int width() {
-            return integer("width");
+            return width("width");
+        }
+
+        /** A width in bits, at most VSim's widest (0 for an end that carries none). */
+        int width(String name) {
+            return count(name, 0, LogisimLimits.MAXIMUM_WIDTH);
         }
 
         /** Whether the part faces east or west, so that across it is up and down. */
@@ -634,41 +671,47 @@ public final class LogisimEnds {
         private SubcircuitEnds() {
         }
 
+        /**
+         * The ends of {@code instance}. A pin of the circuit whose attributes cannot be read is not one of them (the
+         * circuit leaves that pin out, {@link LogisimInterfacePin#of}); an instance facing a way Logisim would not
+         * write keeps its symbol's own facing, as its part does ({@link SubcircuitPart#rotationFor}).
+         */
         static List<LogisimEnd> of(LogisimComponent instance, LogisimCircuit circuit) {
-            Map<LogisimPoint, LogisimComponent> pins = new HashMap<>();
-            for (LogisimComponent component : circuit.components()) {
-                if (component.library().equals(LogisimLibraries.WIRING) && component.name().equals("Pin")) {
-                    pins.putIfAbsent(component.location(), component);
-                }
-            }
+            Map<LogisimPoint, LogisimInterfacePin> pins = firstAtEachPlace(circuit);
             LogisimAppearance appearance = circuit.appearance().shapes().isEmpty()
-                    ? LogisimDefaultAppearance.build(firstAtEachPlace(circuit)) : circuit.appearance();
+                    ? LogisimDefaultAppearance.build(List.copyOf(pins.values())) : circuit.appearance();
             Shape shape = Shape.of(appearance);
-            LogisimFacing facing = LogisimFacing.parse(instance.attributes().textOr("facing", "east"));
+            LogisimFacing facing = facingOr(instance.attributes().textOr("facing", "east"), shape.facing());
             List<LogisimEnd> ends = new ArrayList<>();
             for (Map.Entry<LogisimPoint, LogisimPoint> port : shape.ports().entrySet()) {
-                LogisimComponent pin = pins.get(port.getValue());
+                LogisimInterfacePin pin = pins.get(port.getValue());
                 if (pin == null) {
                     continue;
                 }
                 LogisimPoint offset = turn(new LogisimPoint(port.getKey().x() - shape.anchor().x(),
                         port.getKey().y() - shape.anchor().y()), shape.facing(), facing);
-                boolean output = pin.attributes().has("output") && pin.attributes().bool("output");
                 ends.add(new LogisimEnd(pin.location().x() + "," + pin.location().y(),
                         new LogisimPoint(instance.location().x() + offset.x(), instance.location().y() + offset.y()),
-                        output ? LogisimEnd.Role.OUTPUT : LogisimEnd.Role.INPUT,
-                        pin.attributes().integer("width"), true));
+                        pin.output() ? LogisimEnd.Role.OUTPUT : LogisimEnd.Role.INPUT, pin.width(), true));
             }
             ends.sort(Comparator.comparingInt((LogisimEnd end) -> end.point().x())
                     .thenComparingInt(end -> end.point().y()));
             return List.copyOf(ends);
         }
 
-        /** The circuit's pins for its default box, in file order, only the first of several at the same place. */
-        private static List<LogisimInterfacePin> firstAtEachPlace(LogisimCircuit circuit) {
+        /** The circuit's pins in file order, only the first of several at the same place, by their place. */
+        private static Map<LogisimPoint, LogisimInterfacePin> firstAtEachPlace(LogisimCircuit circuit) {
             Map<LogisimPoint, LogisimInterfacePin> first = new LinkedHashMap<>();
             LogisimInterfacePin.of(circuit).forEach(pin -> first.putIfAbsent(pin.location(), pin));
-            return List.copyOf(first.values());
+            return first;
+        }
+
+        private static LogisimFacing facingOr(String text, LogisimFacing fallback) {
+            try {
+                return LogisimFacing.parse(text);
+            } catch (IllegalArgumentException exception) {
+                return fallback;
+            }
         }
 
         /** Counter-clockwise quarter turns from {@code from} to {@code to}. */

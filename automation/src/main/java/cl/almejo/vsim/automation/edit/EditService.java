@@ -30,6 +30,8 @@ import cl.almejo.vsim.core.simulation.InstancePath;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -75,6 +77,10 @@ public final class EditService {
     private final Executor events;
     private final Map<DocumentId, OperationLog> logs = new ConcurrentHashMap<>();
     private final Map<String, AiTask> tasks = new LinkedHashMap<>();
+    /** How many times each circuit was closed, to see that a close raced a begin; guarded by {@link #tasks}. */
+    private final Map<DocumentId, Integer> closeCounts = new HashMap<>();
+    /** The tasks a close ended, to answer calls that still name them; guarded by {@link #tasks}. */
+    private final Map<String, DocumentId> closedTasks = new HashMap<>();
     private final AtomicLong lastTaskNumber = new AtomicLong();
     /**
      * Per circuit, the last step VSim wrote by itself for the storyboard (a stage's frame, IA.2): an edit prepared
@@ -298,6 +304,37 @@ public final class EditService {
         return changes;
     }
 
+    /** The editor: {@code document}'s last window closed; what is remembered about it goes. */
+    public void documentClosed(DocumentId document) {
+        logs.remove(document);
+        transparentSteps.remove(document);
+        List<AiTask> ended = new ArrayList<>();
+        synchronized (tasks) {
+            closeCounts.merge(document, 1, Integer::sum);
+            tasks.values().removeIf(task -> {
+                boolean ofDocument = task.info().document().equals(document);
+                if (ofDocument) {
+                    ended.add(task);
+                    closedTasks.put(task.info().taskId(), document);
+                }
+                return ofDocument;
+            });
+        }
+        // the circuit is gone: nothing to clean up (no layout guides to take away), the task simply ends
+        for (AiTask task : ended) {
+            if (task.end()) {
+                announce(listener -> listener.taskEnded(task.info(), task.changedElementIds()));
+            }
+        }
+    }
+
+    /** How many documents the service still remembers something about (tests). */
+    int trackedDocuments() {
+        Set<DocumentId> tracked = new HashSet<>(logs.keySet());
+        tracked.addAll(transparentSteps.keySet());
+        return tracked.size();
+    }
+
     private OperationLog logOf(DocumentId document) {
         return logs.computeIfAbsent(document, newDocument -> new OperationLog());
     }
@@ -348,16 +385,27 @@ public final class EditService {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(title, "title");
         Objects.requireNonNull(stages, "stages");
+        int closesBefore = closeCount(document);
         editorWait.await(host.onCircuit(document, circuit -> Boolean.TRUE));
         runningTaskOf(document).ifPresent(running -> endTask(running.info().taskId(), false));
         TaskInfo info = new TaskInfo("task-" + lastTaskNumber.incrementAndGet(), document, title);
         AiTask task = new AiTask(info, stages);
         synchronized (tasks) {
+            if (closeCounts.getOrDefault(document, 0) != closesBefore) {
+                // the circuit closed after the check above: no task is left running on it
+                throw closedRefusal(document);
+            }
             tasks.put(info.taskId(), task);
             forgetOldTasks();
         }
         announce(listener -> listener.taskStarted(info));
         return info;
+    }
+
+    private int closeCount(DocumentId document) {
+        synchronized (tasks) {
+            return closeCounts.getOrDefault(document, 0);
+        }
     }
 
     /** Replaces the plan of a task (a stage detailed when it is reached, spec §3). */
@@ -563,8 +611,22 @@ public final class EditService {
     /** The task {@code taskId}; {@code INVALID_REFERENCE} when there is none. */
     public AiTask requireTask(String taskId) {
         Objects.requireNonNull(taskId, "taskId");
-        return task(taskId).orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE,
-                "There is no task " + taskId + "; begin one first", Map.of("taskId", taskId)));
+        return task(taskId).orElseThrow(() -> {
+            synchronized (tasks) {
+                DocumentId closed = closedTasks.get(taskId);
+                if (closed != null) {
+                    return closedRefusal(closed);
+                }
+            }
+            return new AutomationException(AutomationError.INVALID_REFERENCE,
+                    "There is no task " + taskId + "; begin one first", Map.of("taskId", taskId));
+        });
+    }
+
+    private static AutomationException closedRefusal(DocumentId document) {
+        return new AutomationException(AutomationError.DOCUMENT_CLOSED,
+                "The circuit " + document.value() + " was closed; list the documents again",
+                Map.of("document", document.value()));
     }
 
     /**

@@ -268,8 +268,12 @@ public final class ExpressionParser {
     /** Recursive descent: or := xor (OR xor)*; xor := and (XOR and)*; and := unary ((AND | side by side) unary)*. */
     private static final class Parser {
 
+        /** Deeper nesting than this is a problem, not a stack overflow; far beyond anything a person writes. */
+        static final int MAXIMUM_DEPTH = 500;
+
         private final List<Token> tokens;
         private int position;
+        private int depth;
 
         Parser(List<Token> tokens) {
             this.tokens = tokens;
@@ -327,16 +331,23 @@ public final class ExpressionParser {
         }
 
         private Expression unary() throws ParseFailure {
-            if (peek().kind() == Kind.PREFIX_NOT) {
-                position++;
-                return new Not(unary());
+            int depthOnEntry = depth;
+            try {
+                if (peek().kind() == Kind.PREFIX_NOT) {
+                    enter(peek());
+                    position++;
+                    return new Not(unary());
+                }
+                Expression expression = primary();
+                while (peek().kind() == Kind.POSTFIX_NOT) {
+                    enter(peek());
+                    position++;
+                    expression = new Not(expression);
+                }
+                return expression;
+            } finally {
+                depth = depthOnEntry;
             }
-            Expression expression = primary();
-            while (peek().kind() == Kind.POSTFIX_NOT) {
-                position++;
-                expression = new Not(expression);
-            }
-            return expression;
         }
 
         private Expression primary() throws ParseFailure {
@@ -351,8 +362,10 @@ public final class ExpressionParser {
                     return new Constant(token.text().equals("1"));
                 }
                 case OPEN -> {
+                    enter(token);
                     position++;
                     Expression inside = or();
+                    depth--;
                     Token closing = peek();
                     if (closing.kind() == Kind.CLOSE) {
                         position++;
@@ -365,6 +378,14 @@ public final class ExpressionParser {
                     throw failure(closing, ExpressionProblem.UNCLOSED_PARENTHESIS);
                 }
                 default -> throw failure(token, ExpressionProblem.MISSING_OPERAND);
+            }
+        }
+
+        /** One more level of nesting (NOT or parentheses), refused past {@link #MAXIMUM_DEPTH}. */
+        private void enter(Token token) throws ParseFailure {
+            depth++;
+            if (depth > MAXIMUM_DEPTH) {
+                throw new ParseFailure(ExpressionProblem.at(token.column(), ExpressionProblem.TOO_NESTED));
             }
         }
 

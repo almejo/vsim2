@@ -30,7 +30,7 @@ public final class LibraryDirectory {
     /** Turns a file's text into a bundle; a seam so tests can make reading fail in unexpected ways. */
     @FunctionalInterface
     interface BundleReader {
-        DefinitionBundle read(String json) throws CircuitFormatException;
+        DefinitionFormat.Read read(String json) throws CircuitFormatException;
     }
 
     private final Path directory;
@@ -42,7 +42,7 @@ public final class LibraryDirectory {
     }
 
     private LibraryDirectory(Path directory, DefinitionFormat format) {
-        this(directory, format, format::read);
+        this(directory, format, format::readNoting);
     }
 
     LibraryDirectory(Path directory, DefinitionFormat format, BundleReader reader) {
@@ -88,7 +88,8 @@ public final class LibraryDirectory {
         List<Loaded> loaded = new ArrayList<>();
         for (Path file : files) {
             try {
-                loaded.add(new Loaded(file, read(file)));
+                DefinitionFormat.Read read = reader.read(Files.readString(file));
+                loaded.add(new Loaded(file, read.bundle(), read.unsupportedDrawingNames()));
             } catch (IOException exception) {
                 problems.add(LibraryProblem.unreadable(file, exception));
             } catch (CircuitFormatException exception) {
@@ -107,6 +108,9 @@ public final class LibraryDirectory {
                 problems.add(LibraryProblem.duplicate(entry.file(), id));
             } else {
                 bundles.put(id, entry.bundle());
+                if (!entry.unsupportedDrawingNames().isEmpty()) {
+                    problems.add(LibraryProblem.unsupportedDrawing(entry.file(), entry.unsupportedDrawingNames()));
+                }
             }
         }
         problems.sort(Comparator.comparing(LibraryProblem::file));
@@ -118,7 +122,7 @@ public final class LibraryDirectory {
     }
 
     public DefinitionBundle read(Path file) throws IOException, CircuitFormatException {
-        return reader.read(Files.readString(file));
+        return reader.read(Files.readString(file)).bundle();
     }
 
     /**
@@ -196,6 +200,6 @@ public final class LibraryDirectory {
         }
     }
 
-    private record Loaded(Path file, DefinitionBundle bundle) {
+    private record Loaded(Path file, DefinitionBundle bundle, List<String> unsupportedDrawingNames) {
     }
 }

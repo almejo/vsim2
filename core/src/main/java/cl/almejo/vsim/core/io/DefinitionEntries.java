@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.io;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
+import cl.almejo.vsim.core.component.appearance.SymbolPathException;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
@@ -80,7 +82,7 @@ final class DefinitionEntries {
         List<ComponentDefinition> written = new ArrayList<>();
         for (DefinitionEntry entry : entries) {
             CircuitFormat.requireEntry(entry, "definitions");
-            ComponentDefinition definition = definition(entry);
+            ComponentDefinition definition = definition(entry, document);
             if (document.definition(definition.id()).isPresent()) {
                 throw invalid("duplicate definition " + definition.id());
             }
@@ -122,11 +124,12 @@ final class DefinitionEntries {
         }
     }
 
-    private static ComponentDefinition definition(DefinitionEntry entry) throws CircuitFormatException {
+    private static ComponentDefinition definition(DefinitionEntry entry, CircuitDocument document)
+            throws CircuitFormatException {
         if (entry.machine() == null) {
-            return circuitDefinition(entry);
+            return circuitDefinition(entry, document);
         }
-        return machineDefinition(entry, MachineEntries.machine(entry.machine(), entry.id()));
+        return machineDefinition(entry, MachineEntries.machine(entry.machine(), entry.id()), document);
     }
 
     /**
@@ -134,11 +137,11 @@ final class DefinitionEntries {
      * so the model wins when they disagree (a hand-edited file, a body written by another build); a drawn appearance
      * is kept when the written definition is valid.
      */
-    private static ComponentDefinition machineDefinition(DefinitionEntry entry, StateMachine machine)
-            throws CircuitFormatException {
+    private static ComponentDefinition machineDefinition(DefinitionEntry entry, StateMachine machine,
+            CircuitDocument document) throws CircuitFormatException {
         ComponentDefinition written;
         try {
-            written = circuitDefinition(entry);
+            written = circuitDefinition(entry, document);
         } catch (CircuitFormatException exception) {
             LOGGER.warn("The body written for machine {} is not valid; generating it from the machine",
                     entry.id(), exception);
@@ -158,7 +161,7 @@ final class DefinitionEntries {
 
     /** Whether the body and pinout {@code entry} wrote differ from what {@code machine} generates. */
     static boolean writtenBodyDisagrees(DefinitionEntry entry, StateMachine machine) throws CircuitFormatException {
-        ComponentDefinition written = circuitDefinition(entry);
+        ComponentDefinition written = circuitDefinition(entry, new CircuitDocument());
         return disagrees(written, written.withMachine(machine));
     }
 
@@ -211,7 +214,8 @@ final class DefinitionEntries {
         }
     }
 
-    private static ComponentDefinition circuitDefinition(DefinitionEntry entry) throws CircuitFormatException {
+    private static ComponentDefinition circuitDefinition(DefinitionEntry entry, CircuitDocument document)
+            throws CircuitFormatException {
         try {
             List<DefinitionPin> pinout = new ArrayList<>();
             for (PinEntry pin : CircuitFormat.entries(entry.pinout())) {
@@ -251,11 +255,29 @@ final class DefinitionEntries {
             }
             GridSize size = new GridSize(entry.width(), entry.height());
             return new ComponentDefinition(entry.id(), entry.name(), entry.description(), size, pinout, body,
-                    Optional.ofNullable(entry.appearance()).map(value -> AppearanceEntries.drawing(value, size)),
+                    drawing(entry, size, document),
                     entry.revision() == null ? 1 : entry.revision());
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw invalid("definition " + entry.id() + ": " + exception.getMessage(), exception);
         }
     }
 
+    /**
+     * The drawing of a definition. A path VSim cannot read does not fail the load (the user, 2026-11-20): the
+     * definition keeps the default box and the document remembers it, so the Problemas list says so. Any other fault
+     * of the appearance still fails.
+     */
+    private static Optional<SymbolDrawing> drawing(DefinitionEntry entry, GridSize size, CircuitDocument document) {
+        if (entry.appearance() == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(AppearanceEntries.drawing(entry.appearance(), size));
+        } catch (SymbolPathException exception) {
+            LOGGER.warn("The drawing of definition {} has a path that cannot be read; using the default box: {}",
+                    entry.id(), exception.getMessage());
+            document.noteUnsupportedDrawing(entry.id());
+            return Optional.empty();
+        }
+    }
 }

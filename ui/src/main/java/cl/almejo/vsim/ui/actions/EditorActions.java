@@ -108,6 +108,7 @@ public final class EditorActions {
     private final Action restart;
     private final Action startOrPause;
     private final Action step;
+    private final Action newEmptyTab;
     private final Action newView;
     private final Action newWindowWithCircuit;
     private final Action moveGroup;
@@ -116,6 +117,7 @@ public final class EditorActions {
     private final Action nextTab;
     private final Action previousTab;
     private final Action closeComponents;
+    private final Action reopenClosedTab;
     private final Action about;
     private final Action reportProblem;
     /** What the zoom actions act on instead of the active pane (a machine's diagram); empty for a circuit. */
@@ -218,6 +220,8 @@ public final class EditorActions {
         step = Actions.of(Messages.text("action.step"), KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0),
                 () -> openDocument.step(stepUnits));
         setStepUnits(stepUnits);
+        newEmptyTab = Actions.of(Messages.text("action.newEmptyTab"), shortcut(KeyEvent.VK_T, 0),
+                window::newEmptyTab);
         newView = Actions.of(Messages.text("action.newWindow"), null, window::newView);
         newWindowWithCircuit = Actions.of(Messages.text("action.newWindowWithCircuit"),
                 shortcut(KeyEvent.VK_N, InputEvent.SHIFT_DOWN_MASK), window::newWindowWithCircuit);
@@ -232,6 +236,10 @@ public final class EditorActions {
                 KeyStroke.getKeyStroke(KeyEvent.VK_TAB, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
                 window::previousTab);
         closeComponents = Actions.of(Messages.text("action.closeComponents"), null, window::closeComponents);
+        reopenClosedTab = Actions.of(Messages.text("action.reopenClosedTab"),
+                shortcut(KeyEvent.VK_T, InputEvent.SHIFT_DOWN_MASK), window::reopenClosedTab);
+        Actions.disabledBecause(reopenClosedTab, () -> Messages.text("reason.noClosedTabs"));
+        reopenClosedTab.setEnabled(window.hasClosedTabs());
         about = Actions.of(Messages.text("action.about"), null, () -> aboutPresenter.show(activePane.get()));
         reportProblem = Actions.of(Messages.text("action.reportProblem"), null,
                 () -> links.open(ProblemReportLink.url(information.get(), Messages.locale())));
@@ -258,6 +266,7 @@ public final class EditorActions {
      */
     public void refreshWindowActions() {
         moveGroup.setEnabled(window.holdsOtherGroups());
+        reopenClosedTab.setEnabled(window.hasClosedTabs());
     }
 
     /** «Plegar / desplegar el grupo». */
@@ -270,6 +279,8 @@ public final class EditorActions {
     public Action closeTab() { return closeTab; }
     /** «Cerrar los componentes de este circuito». */
     public Action closeComponents() { return closeComponents; }
+    /** «Reabrir pestaña cerrada» (Ctrl+Mayús+T), right after «Cerrar los componentes de este circuito». */
+    public Action reopenClosedTab() { return reopenClosedTab; }
     /**
      * What Deshacer / Rehacer run: by default the history's step, here; the view gives one that shows the place of a
      * step made in another tab first ({@code UndoInItsPlace}).
@@ -397,6 +408,8 @@ public final class EditorActions {
     public Action startOrPause() { return startOrPause; }
     public Action step() { return step; }
     public Action newView() { return newView; }
+    /** «Nueva pestaña vacía» (Ctrl+T), first in Ventana. */
+    public Action newEmptyTab() { return newEmptyTab; }
     public Action about() { return about; }
 
     public Action reportProblem() { return reportProblem; }
@@ -473,6 +486,7 @@ public final class EditorActions {
         simulation.add(step);
         JMenu logic = tagged(new JMenu(Messages.text("menu.logic")), MenuId.LOGIC);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
+        windowMenu.add(newEmptyTab);
         // people look for them as a new tab, a new window or a duplicate: the name now says «vista»
         JMenuItem newViewItem = windowMenu.add(newView);
         newViewItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("action.newWindow.searchTerms"));
@@ -485,6 +499,7 @@ public final class EditorActions {
         windowMenu.add(previousTab);
         windowMenu.add(closeTab);
         windowMenu.add(closeComponents);
+        windowMenu.add(reopenClosedTab).putClientProperty(Actions.SEARCH_TERMS, Messages.text("reopen.searchTerms"));
         windowMenu.addSeparator();
         // «Dividir ▸» and «Siguiente panel» follow (SplitViewsFeatures)
         Menus.onOpen(windowMenu, this::refreshWindowActions);

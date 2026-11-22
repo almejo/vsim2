@@ -25,6 +25,13 @@ public interface WindowCommands {
     void exit();
 
     /**
+     * Ventana ▸ «Nueva pestaña vacía» (Ctrl+T), also the strip's «+»: a new empty circuit as a group right after the
+     * active tab's group. Nothing happens outside a real window.
+     */
+    default void newEmptyTab() {
+    }
+
+    /**
      * Ventana ▸ «Nueva pestaña del mismo circuito»: another tab on the active tab's place, in its group. Nothing
      * happens outside a real window.
      */
@@ -149,6 +156,18 @@ public interface WindowCommands {
 
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
     default void closeComponents() {
+    }
+
+    /**
+     * Ventana ▸ «Reabrir pestaña cerrada» (Ctrl+Mayús+T): the newest closed tab, group or window comes back. Nothing
+     * happens outside a real window.
+     */
+    default void reopenClosedTab() {
+    }
+
+    /** Whether something closed can come back with «Reabrir pestaña cerrada»; never outside a real window. */
+    default boolean hasClosedTabs() {
+        return false;
     }
 
     /**

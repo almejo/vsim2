@@ -136,12 +136,18 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
     }
 
     @Override
-    public ImportChoice askImportCollision(java.awt.Component parent, String componentName) {
-        Object[] options = {Messages.text("library.import.replace"), Messages.text("library.import.keepBoth"),
-                Messages.text("template.dialog.cancel")};
-        int answer = JOptionPane.showOptionDialog(parent, Messages.format("library.import.collision", componentName),
-                Messages.text("library.import.title"), JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null,
-                options, options[1]);
+    public ImportChoice askImportCollision(java.awt.Component parent, String componentName, boolean canReplace) {
+        Object[] options = canReplace
+                ? new Object[]{Messages.text("library.import.replace"), Messages.text("library.import.keepBoth"),
+                        Messages.text("template.dialog.cancel")}
+                : new Object[]{Messages.text("library.import.keepBoth"), Messages.text("template.dialog.cancel")};
+        String message = Messages.format(canReplace ? "library.import.collision" : "library.import.collisionName",
+                componentName);
+        int answer = JOptionPane.showOptionDialog(parent, message, Messages.text("library.import.title"),
+                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[canReplace ? 1 : 0]);
+        if (!canReplace) {
+            return answer == 0 ? ImportChoice.KEEP_BOTH : ImportChoice.CANCEL;
+        }
         return switch (answer) {
             case 0 -> ImportChoice.REPLACE;
             case 1 -> ImportChoice.KEEP_BOTH;

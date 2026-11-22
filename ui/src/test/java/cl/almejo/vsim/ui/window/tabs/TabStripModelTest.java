@@ -51,6 +51,24 @@ class TabStripModelTest {
     }
 
     @Test
+    void moveTabPutsATabBackWhereItWasKeepingTheMainTabsFirst() {
+        model.add(main("lrv", PROCESSOR));
+        model.add(component("ram", PROCESSOR, "ram"));
+        model.add(component("alu", PROCESSOR, "alu"));
+        model.add(component("rom", PROCESSOR, "rom"));
+        model.add(main("lrv (2)", PROCESSOR));
+
+        model.moveTab("rom", 2);
+        assertThat(idsOf(PROCESSOR)).containsExactly("lrv", "lrv (2)", "rom", "ram", "alu");
+        model.moveTab("alu", 0);
+        assertThat(idsOf(PROCESSOR)).as("a component tab never goes before the main tabs")
+                .containsExactly("lrv", "lrv (2)", "alu", "rom", "ram");
+        model.moveTab("lrv", 9);
+        assertThat(idsOf(PROCESSOR)).as("a main tab never goes after the component tabs")
+                .containsExactly("lrv (2)", "lrv", "alu", "rom", "ram");
+    }
+
+    @Test
     void theFirstTabAddedIsActive() {
         model.add(main("lrv", PROCESSOR));
         model.add(main("counter", COUNTER));

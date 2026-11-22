@@ -99,7 +99,7 @@ class NewsFileTest {
             NewsFile next = NewsFiles.load("0.9").orElseThrow();
             assertThat(next.steps()).extracting(NewsStep::textKey)
                     .contains("whatsNew.preferences.text", "whatsNew.lens.text", "whatsNew.toolsMenu.text",
-                            "whatsNew.logicMenu.text", "whatsNew.shortView.text");
+                            "whatsNew.logicMenu.text", "whatsNew.shortView.text", "whatsNew.reopenTab.text");
             for (NewsStep step : concat(NewsFiles.load("0.8").orElseThrow(), next)) {
                 assertThat(NewsTargets.find(view, step.targetId())).as(step.targetId()).isPresent();
                 for (Locale locale : List.of(Locale.forLanguageTag("es"), Locale.ENGLISH)) {

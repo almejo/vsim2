@@ -8,3 +8,4 @@ menu.view    | whatsNew.highlightNet.title | whatsNew.highlightNet.text | view.h
 menu.tools   | whatsNew.toolsMenu.title  | whatsNew.toolsMenu.text  | -
 menu.logic   | whatsNew.logicMenu.title  | whatsNew.logicMenu.text  | -
 menu.view    | whatsNew.shortView.title  | whatsNew.shortView.text  | -
+menu.window  | whatsNew.reopenTab.title  | whatsNew.reopenTab.text  | -

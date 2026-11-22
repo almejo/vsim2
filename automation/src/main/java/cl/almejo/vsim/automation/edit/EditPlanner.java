@@ -51,6 +51,7 @@ import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetNoteStyleCommand;
 import cl.almejo.vsim.core.command.TidyWiresCommand;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinDirection;
@@ -230,12 +231,16 @@ final class EditPlanner {
                 planner.warnings, List.copyOf(planner.layoutGuides), planner.registry);
     }
 
+    /** The farthest an AI edit places or moves anything from the origin, in grid units. */
+    static final int MAXIMUM_COORDINATE = 1_000_000;
+
     /** The most words one SetMemoryContents writes. */
     static final int MAXIMUM_MEMORY_WORDS = 4096;
 
     private void carryOut(EditOperation operation) {
         try {
             requirePlainTexts(operation);
+            requireWithinLimits(operation);
             switch (operation) {
                 case PlacePart placePart -> placePart(placePart);
                 case SetParameters setParameters -> setParameters(setParameters);
@@ -281,6 +286,64 @@ final class EditPlanner {
             }
             default -> {
             }
+        }
+    }
+
+    /** The positions, sizes and deltas of {@code operation} stay within ±{@link #MAXIMUM_COORDINATE} grid units. */
+    private static void requireWithinLimits(EditOperation operation) {
+        switch (operation) {
+            case PlacePart placePart -> {
+                requireWithinLimit("x", placePart.x());
+                requireWithinLimit("y", placePart.y());
+            }
+            case PlaceInstance placeInstance -> {
+                requireWithinLimit("x", placeInstance.x());
+                requireWithinLimit("y", placeInstance.y());
+            }
+            case AddNote addNote -> {
+                requireWithinLimit("x", addNote.x());
+                requireWithinLimit("y", addNote.y());
+            }
+            case AddStickyNote sticky -> {
+                requireWithinLimit("x", sticky.x());
+                requireWithinLimit("y", sticky.y());
+                sticky.width().ifPresent(width -> requireWithinLimit("width", width));
+                sticky.height().ifPresent(height -> requireWithinLimit("height", height));
+            }
+            case AddGuide addGuide -> requireWithinLimit("position", addGuide.position());
+            // RemoveGuide and Move are not bounded here: a file may hold guides and elements past the limit, and the
+            // AI may take them out or bring them closer; only where a move ends is checked (requireMovedWithinLimit)
+            case AddWire addWire -> requirePointsWithinLimit(addWire.points(), "points");
+            case Connect connect -> requirePointsWithinLimit(connect.via(), "via");
+            case MakeFrame makeFrame -> makeFrame.bounds().ifPresent(bounds -> {
+                requireWithinLimit("bounds.x", bounds.x());
+                requireWithinLimit("bounds.y", bounds.y());
+                requireWithinLimit("bounds.width", bounds.width());
+                requireWithinLimit("bounds.height", bounds.height());
+                requireWithinLimit("bounds.x + width", (long) bounds.x() + bounds.width());
+                requireWithinLimit("bounds.y + height", (long) bounds.y() + bounds.height());
+            });
+            case SetComponentShape setComponentShape -> setComponentShape.pins().forEach(pin -> {
+                requireWithinLimit("pins.x", pin.x());
+                requireWithinLimit("pins.y", pin.y());
+            });
+            default -> {
+            }
+        }
+    }
+
+    private static void requirePointsWithinLimit(List<GridPoint> points, String name) {
+        for (GridPoint point : points) {
+            requireWithinLimit(name + ".x", point.x());
+            requireWithinLimit(name + ".y", point.y());
+        }
+    }
+
+    private static void requireWithinLimit(String name, long value) {
+        if (Math.abs(value) > MAXIMUM_COORDINATE) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The value of " + name + " (" + value
+                    + ") is too far from the origin: coordinates, sizes and moves stay within ±" + MAXIMUM_COORDINATE
+                    + " grid units", Map.of("argument", name, "maximum", MAXIMUM_COORDINATE));
         }
     }
 
@@ -803,9 +866,31 @@ final class EditPlanner {
             warnings.add(at() + "a move by (0, 0) moves nothing");
             return;
         }
+        requireMovedWithinLimit(ids, operation.deltaX(), operation.deltaY());
         Netlist before = netlists.of(candidate);
         MoveWithWiresCommand.of(candidate, registry, ids, operation.deltaX(), operation.deltaY()).apply(candidate);
         followWidths(before, ids);
+    }
+
+    /**
+     * Moves add up (call after call): what would end past the limit is refused, so no position ever overflows, unless
+     * the move brings that edge closer to the origin (a file may hold elements past the limit).
+     */
+    private void requireMovedWithinLimit(Set<ElementId> ids, int deltaX, int deltaY) {
+        ElementBounds.union(ids.stream().flatMap(id -> candidate.element(id).stream()).toList(), registry)
+                .ifPresent(bounds -> {
+                    requireMovedEdgeWithinLimit("the moved elements' x", bounds.x(), deltaX);
+                    requireMovedEdgeWithinLimit("the moved elements' x", bounds.maximumX(), deltaX);
+                    requireMovedEdgeWithinLimit("the moved elements' y", bounds.y(), deltaY);
+                    requireMovedEdgeWithinLimit("the moved elements' y", bounds.maximumY(), deltaY);
+                });
+    }
+
+    private static void requireMovedEdgeWithinLimit(String name, int edge, int delta) {
+        long moved = (long) edge + delta;
+        if (Math.abs(moved) > Math.abs((long) edge)) {
+            requireWithinLimit(name, moved);
+        }
     }
 
     private void delete(Delete operation) {

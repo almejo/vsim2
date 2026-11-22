@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.component.VisibleState.UartState;
 import cl.almejo.vsim.core.terminal.GlyphCache;
 import cl.almejo.vsim.core.terminal.KeyEncoding;
 import cl.almejo.vsim.core.terminal.KeyQueue;
+import cl.almejo.vsim.core.terminal.TerminalEncoding;
 import cl.almejo.vsim.core.terminal.TerminalScreen;
 import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
@@ -151,7 +152,10 @@ final class Uart16550Behavior implements Behavior, TerminalScreenPart {
         transmitterUndefined = uart.transmitterUndefined;
         // a new «Texto inicial» or another line starts the receiver over, as «Reiniciar» would
         if (uart.integrated == integrated && (!integrated || uart.initialText.equals(initialText))) {
-            received = uart.received.resizedTo(receiverCapacity());
+            // the integrated queue holds typed text: a character the new capacity would cut in half goes whole, as in
+            // the Teclado; a UART on pins queues raw line bytes, which are not text
+            received = uart.received.resizedTo(receiverCapacity(),
+                    integrated && encoding.encoding() == TerminalEncoding.UTF8);
             adoptedQueue = true;
         }
     }

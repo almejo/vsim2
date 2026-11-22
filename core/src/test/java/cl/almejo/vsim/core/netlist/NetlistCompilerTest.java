@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.TestComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import org.junit.jupiter.api.Test;
@@ -109,6 +110,19 @@ class NetlistCompilerTest {
         Net joined = netOf(older, 1, compiler.compile(document));
         assertThat(joined.pins()).contains(new PinRef(newer, 0));
         assertThat(joined.id()).isEqualTo(before);
+    }
+
+    @Test
+    void elementIdsWithTwentyOrMoreDigitsCompileAndStayOrderedNumerically() {
+        ElementId first = new ElementId("w98765432109876543210");
+        ElementId second = new ElementId("w98765432109876543211");
+        document.add(new Wire(second, new GridPoint(4, 0), new GridPoint(4, 6)));
+        document.add(new Wire(first, new GridPoint(0, 0), new GridPoint(4, 0)));
+
+        Netlist netlist = compiler.compile(document);
+
+        assertThat(netlist.netForWire(first)).isEqualTo(netlist.netForWire(second));
+        assertThat(netlist.netForWire(first).orElseThrow().id()).isEqualTo(new NetId("n:w:w98765432109876543210"));
     }
 
     @Test

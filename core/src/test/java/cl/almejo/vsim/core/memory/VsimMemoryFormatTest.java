@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.memory;
 
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,6 +11,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VsimMemoryFormatTest {
+
+    @Test
+    void theWordLimitIsTheMemoryTypesAddressBitsLimit() {
+        assertThat(VsimMemoryFormat.MAXIMUM_WORDS).isEqualTo(1 << MemoryTypes.MAXIMUM_ADDRESS_BITS);
+    }
 
     private static final String EXAMPLE = """
             # vsim: rom name=Sprites words=1024 width=16
@@ -142,5 +148,22 @@ class VsimMemoryFormatTest {
         assertThat(format.canRead("a.bin", "3A")).isFalse();
         assertThat(format.canRead("a.txt", "v2.0 raw")).isFalse();
         assertThat(format.canWrite()).isTrue();
+    }
+
+    @Test
+    void anAddressThatOverflowsIsAProblemWithItsLine() {
+        assertThatThrownBy(() -> new VsimMemoryFormat().read("00\n@7FFFFFFFFFFFFFFF 1 2\n"))
+                .isInstanceOfSatisfying(MemoryFileProblem.class, problem -> {
+                    assertThat(problem.line()).isEqualTo(2);
+                    assertThat(problem.messageKey()).isEqualTo("memory.file.badAddress");
+                });
+    }
+
+    @Test
+    void aWordPastTheMaximumWordsIsAProblemButTheLastWordLoads() throws MemoryFileProblem {
+        assertThat(new VsimMemoryFormat().read("@FFFFFF 5\n").contents().word(0xFFFFFF)).isEqualTo(5);
+        assertThatThrownBy(() -> new VsimMemoryFormat().read("@FFFFFF 5 6\n"))
+                .isInstanceOfSatisfying(MemoryFileProblem.class,
+                        problem -> assertThat(problem.messageKey()).isEqualTo("memory.file.badAddress"));
     }
 }

@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.memory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** Logisim's {@code v2.0 raw} memory image: a signature line, then hex words, with {@code count*word} runs. */
 public final class LogisimRawFormat implements MemoryFileFormat {
@@ -66,6 +67,11 @@ public final class LogisimRawFormat implements MemoryFileFormat {
                 }
                 long value = HexText.parseWord(wordText, lineNumber);
                 if (value != 0) {
+                    if (address + count > VsimMemoryFormat.MAXIMUM_WORDS) {
+                        // no memory has such words (the most is 2^24): stop here instead of materialising the run
+                        throw new MemoryFileProblem(lineNumber, "memory.file.badAddress",
+                                List.of(token, Long.toHexString(address).toUpperCase(Locale.ROOT)));
+                    }
                     for (long repeat = 0; repeat < count; repeat++) {
                         contents.set(address + repeat, value);
                     }

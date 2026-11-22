@@ -54,6 +54,8 @@ class CatalogMatchesEditorTest {
         actions.put("file.saveAs", view.actions().saveAs());
         actions.put("window.closeTab", view.actions().closeTab());
         actions.put("window.closeWindow", view.actions().closeWindow());
+        actions.put("window.newEmptyTab", view.actions().newEmptyTab());
+        actions.put("window.reopenClosedTab", view.actions().reopenClosedTab());
         actions.put("window.newWindow", view.actions().newWindowWithCircuit());
         actions.put("window.nextTab", view.actions().nextTab());
         actions.put("window.previousTab", view.actions().previousTab());

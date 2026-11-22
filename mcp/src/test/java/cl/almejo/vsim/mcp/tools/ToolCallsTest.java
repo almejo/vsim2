@@ -685,6 +685,20 @@ class ToolCallsTest {
 
     // --- helpers ---
 
+    @Test
+    void aNullParameterValueIsRefusedAsInvalidAndNamesTheParameter() {
+        String task = beginTask();
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("bits", null);
+        Map<String, Object> operation = new LinkedHashMap<>(place("a", 0, 0));
+        operation.put("parameters", parameters);
+
+        Map<String, Object> refusal = refusal("vsim_edit", edit(task, 0, List.of(operation)));
+
+        assertThat(refusal.get("error")).isEqualTo("INVALID_PARAMETER");
+        assertThat(String.valueOf(refusal.get("message"))).contains("parameters.bits");
+    }
+
     private String beginTask() {
         return (String) call("vsim_begin_task", Map.of("document", "circuit-1", "title", "Prueba",
                 "stages", List.of(Map.of("title", "Etapa")))).get("taskId");

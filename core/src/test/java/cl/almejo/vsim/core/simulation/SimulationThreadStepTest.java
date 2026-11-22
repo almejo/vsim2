@@ -92,7 +92,9 @@ class SimulationThreadStepTest {
         thread.tick();
 
         assertThat(published).isDone();
-        assertThat(published.join().failure()).contains("IllegalStateException: too many events at t = 5");
+        assertThat(published.join().running()).isFalse();
+        assertThat(thread.latestPauseNotice()).map(PauseNotice::messageKey)
+                .contains(SimulationLimitException.TOO_MANY_EVENTS);
     }
 
     @Test
@@ -159,7 +161,8 @@ class SimulationThreadStepTest {
         thread.tick();
 
         assertThat(thread.latestSnapshot().running()).isFalse();
-        assertThat(thread.latestSnapshot().failure()).contains("IllegalStateException: too many events at t = 5");
+        assertThat(thread.latestSnapshot().failure()).as("said as a pause notice, not an English failure").isEmpty();
+        assertThat(thread.latestPauseNotice()).map(PauseNotice::time).contains(5L);
         assertThat(thread.latestStep()).isEmpty();
         assertThat(thread.latestNextEventTime()).hasValue(5);
     }
@@ -201,6 +204,27 @@ class SimulationThreadStepTest {
         thread.advanceToNextClockEdge(ClockEdgeMode.FALLING);
         thread.tick();
         assertThat(thread.latestStep().orElseThrow().sequence()).as("ignored while running").isEqualTo(1);
+    }
+
+    @Test
+    void anEdgeStepOnAShortedClockSaysWhyAndLeavesTheTimeAndTheFailureAlone() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        Map<String, Object> one = Map.of("width", 1, "value", "1");
+        thread.update(new FlatCircuit(List.of(
+                new FlatComponent("k", standard.require(StandardComponentTypes.CLOCK),
+                        Map.of("time-up", 5, "time-down", 5)),
+                new FlatComponent("one", standard.require(StandardComponentTypes.CONSTANT).specializedFor(one), one)),
+                List.of(new FlatNet("shared", List.of(new FlatPinRef("k", 0), new FlatPinRef("one", 0)), 1, false))));
+        thread.tick();
+
+        thread.advanceToNextClockEdge(ClockEdgeMode.ANY);
+        thread.tick();
+
+        assertThat(thread.latestSnapshot().time()).isZero();
+        assertThat(thread.latestSnapshot().failure()).as("not an engine failure in English").isEmpty();
+        PauseNotice notice = thread.latestPauseNotice().orElseThrow();
+        assertThat(notice.componentId()).isEqualTo("k");
+        assertThat(notice.messageKey()).isEqualTo(SimulationEngine.CLOCK_EDGE_SHORTED_MESSAGE);
     }
 
     /** Clock k (3 high, 2 low) on a flip-flop whose D is its own Q inverted: q goes to 1 at t = 6. */

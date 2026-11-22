@@ -44,7 +44,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * What the sheet of shortcuts shows: a dark translucent veil over the circuit area (the circuit still shows, dimmed)
+ * What the sheet of shortcuts shows: a dark translucent veil over the whole tab (the circuit still shows, dimmed)
  * and on it a centred card, at most {@value #MAXIMUM_CARD_WIDTH} px wide, with the groups of shortcuts (each key a
  * keycap, as in the chips of «Mostrar los atajos al usarlos»), the strip with the phrase of the gesture under way
  * (only while there is one) and, last, the foot: the switch «Mostrar los atajos al usarlos», the hint «? o Esc» and
@@ -70,6 +70,8 @@ final class ShortcutSheetPanel extends JPanel {
     private static final int LIGHT_VEIL_ALPHA = 110;
     private static final int DARK_VEIL_ALPHA = 150;
     private static final float HEADING_SCALE = 0.8f;
+    /** The rows (keycaps and names) a bit smaller than the interface's text, so the card stays compact. */
+    static final float ROW_SCALE = 0.9f;
     private static final float HEADING_TRACKING = 0.08f;
     private static final String ROW_SEPARATOR = " · ";
 
@@ -130,6 +132,14 @@ final class ShortcutSheetPanel extends JPanel {
         groupsScroll.setWheelScrollingEnabled(true);
     }
 
+    /**
+     * How many of {@code groups} columns stack on the left: the long ones (Archivo, Editar) stay there and the short
+     * ones (Ver, Ventana, Simulación, Ayuda) go right; with an odd number the right gets one more.
+     */
+    static int leftColumnCount(int groups) {
+        return (groups - 1) / 2;
+    }
+
     /** The switch with its label on the left, the closing hint in the middle, the link on the right. */
     private JPanel foot(Consumer<Boolean> showUsedShortcutsChosen, Runnable allShortcutsChosen) {
         showUsedShortcuts.setFocusable(false);
@@ -152,13 +162,13 @@ final class ShortcutSheetPanel extends JPanel {
     }
 
     /**
-     * Shows {@code shown}: the first half of the groups stacked on the left, the rest (one more when they are odd, the
-     * short ones: Ver, Simular, Ayuda) on the right.
+     * Shows {@code shown}: Archivo and Editar stacked on the left, the short groups (Ver, Ventana, Simulación, Ayuda) on
+     * the right ({@link #leftColumnCount}).
      */
     void setColumns(List<SheetSelection.Column> shown) {
         columns = List.copyOf(shown);
         columnsPanel.removeAll();
-        int leftCount = columns.size() / 2;
+        int leftCount = leftColumnCount(columns.size());
         columnsPanel.add(stack(columns.subList(0, leftCount)), "wmin 0");
         columnsPanel.add(stack(columns.subList(leftCount, columns.size())), "wmin 0");
         revalidate();
@@ -182,7 +192,9 @@ final class ShortcutSheetPanel extends JPanel {
         panel.add(heading, "span 2, gapbottom 6, align left");
         for (SheetSelection.Row row : group.rows()) {
             panel.add(new KeycapsLabel(row.keys()));
-            panel.add(new ThemedLabel("Label.foreground", row.name()));
+            JLabel name = new ThemedLabel("Label.foreground", row.name());
+            name.setFont(rowFont());
+            panel.add(name);
         }
         return panel;
     }
@@ -395,6 +407,12 @@ final class ShortcutSheetPanel extends JPanel {
         }
     }
 
+    /** The interface's text font at {@link #ROW_SCALE}, read when the card is built (each time it opens). */
+    private static Font rowFont() {
+        Font font = UIManager.getFont("Label.font");
+        return font.deriveFont(font.getSize2D() * ROW_SCALE);
+    }
+
     /** The keys of a shortcut as keycaps ({@link Keycaps}), in the theme's text colour read at paint time. */
     private static final class KeycapsLabel extends JComponent {
 
@@ -403,7 +421,7 @@ final class ShortcutSheetPanel extends JPanel {
 
         KeycapsLabel(List<String> keys) {
             this.keys = List.copyOf(keys);
-            setFont(UIManager.getFont("Label.font"));
+            setFont(rowFont());
         }
 
         @Override

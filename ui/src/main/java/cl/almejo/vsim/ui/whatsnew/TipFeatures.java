@@ -36,7 +36,7 @@ final class TipFeatures {
         item.setEnabled(!tips.isEmpty());
         JMenu help = view.menu(MenuId.HELP);
         help.add(item, itemIndex(help));
-        this.cancelReadiness = seams.readiness().whenReady(view, this::windowReady);
+        this.cancelReadiness = seams.readiness().whenReady(view, () -> notices.whenStartIsFree(this::windowReady));
     }
 
     /** Right after «Qué hay de nuevo» when it is there, first otherwise. */

@@ -91,9 +91,11 @@ public final class SelectionActions {
                 () -> content.ifPresentOrElse(ContentClipboard::selectAll,
                         () -> selection.selectAll(openDocument.document())));
         for (Action onSelection : List.of(cut, copy, duplicate)) {
-            Actions.disabledBecause(onSelection, () -> Messages.text("reason.needsSelection"));
+            Actions.disabledBecause(onSelection, () -> Messages.text(drawsBetweenClicks() ? "reason.finishTheWire"
+                    : "reason.needsSelection"));
         }
-        Actions.disabledBecause(paste, this::cannotPasteReason);
+        Actions.disabledBecause(paste, () -> drawsBetweenClicks() ? Messages.text("reason.finishTheWire")
+                : cannotPasteReason());
         selection.addListener(this::refresh);
         refresh();
         refreshPaste();
@@ -145,7 +147,8 @@ public final class SelectionActions {
      * when Editar or the context menu opens and when a pane (or the diagram) gets the focus back.
      */
     public void refreshPaste() {
-        paste.setEnabled(content.map(ContentClipboard::canPaste).orElseGet(
+        // a continuous wire's keys and clicks are the path's, so nothing pastes meanwhile (in a machine's diagram too)
+        paste.setEnabled(!drawsBetweenClicks() && content.map(ContentClipboard::canPaste).orElseGet(
                 () -> clipboardJson().filter(json -> fragmentOf(json).isPresent()
                         || machineNotesOf(json).isPresent()).isPresent()));
     }
@@ -277,9 +280,19 @@ public final class SelectionActions {
         menu.add(entry.tag(new JMenuItem(action)));
     }
 
-    /** Enables Cortar, Copiar and Duplicar when there is something to copy (the content's, or the circuit's). */
+    /** True while a continuous wire is drawn: its keys and clicks are the path's, so nothing here acts. */
+    private boolean drawsBetweenClicks() {
+        CircuitCanvas pane = activePane.get();
+        return pane != null && pane.drawsBetweenClicks();
+    }
+
+    /**
+     * Enables Cortar, Copiar and Duplicar when there is something to copy (the content's, or the circuit's); they are
+     * off while a continuous wire is drawn (the window asks again when the wire starts or ends).
+     */
     public void refresh() {
-        boolean anySelected = content.map(ContentClipboard::canCopy).orElse(!selection.isEmpty());
+        boolean anySelected = !drawsBetweenClicks() && content.map(ContentClipboard::canCopy)
+                .orElse(!selection.isEmpty());
         cut.setEnabled(anySelected);
         copy.setEnabled(anySelected);
         duplicate.setEnabled(anySelected);

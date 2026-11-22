@@ -494,7 +494,7 @@ class MemoryLinksScenarioTest {
         }
 
         @Override
-        public ImportChoice askImportCollision(java.awt.Component parent, String componentName) {
+        public ImportChoice askImportCollision(java.awt.Component parent, String componentName, boolean canReplace) {
             return ImportChoice.CANCEL;
         }
 

@@ -51,7 +51,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** «?» shows a sheet of the main shortcuts over the circuit area (Ayuda ▸ «Atajos de teclado»). */
+/** «?» shows a sheet of the main shortcuts over the tab (Ayuda ▸ «Atajos de teclado»). */
 class ShortcutSheetTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
@@ -168,6 +168,16 @@ class ShortcutSheetTest {
     }
 
     @Test
+    void theRowsAreAlittleSmallerThanTheInterfaceText() {
+        openSheet();
+        float interfaceSize = javax.swing.UIManager.getFont("Label.font").getSize2D();
+        javax.swing.JLabel reopen = find(root.getLayeredPane(), javax.swing.JLabel.class).stream()
+                .filter(label -> Messages.text("action.reopenClosedTab").equals(label.getText()))
+                .findFirst().orElseThrow();
+        assertThat(reopen.getFont().getSize2D()).isEqualTo(interfaceSize * 0.9f);
+    }
+
+    @Test
     void aTypedQuestionMarkOnTheCanvasOpensTheSheetAndAnotherClosesIt() {
         assertThat(questionMarkOn(view.canvas())).as("the key is taken").isTrue();
         assertThat(sheet()).isPresent();
@@ -251,12 +261,18 @@ class ShortcutSheetTest {
     void everyIdOfTheSelectionIsAShortcutOfTheCatalogOrTheSheetItself() {
         List<SheetSelection.Item> items = SheetSelection.load();
 
-        assertThat(items).hasSizeBetween(28, 32);
+        assertThat(items).hasSizeBetween(28, 34);
         assertThat(items).filteredOn(item -> !item.id().equals(SheetSelection.THE_SHEET))
                 .allSatisfy(item -> assertThat(ShortcutCatalog.find(item.id())).isPresent());
         assertThat(items).extracting(SheetSelection.Item::group).containsSequence(SheetSelection.Group.FILE)
                 .contains(SheetSelection.Group.EDIT, SheetSelection.Group.VIEW, SheetSelection.Group.SIMULATE,
                         SheetSelection.Group.HELP);
+    }
+
+    @Test
+    void fileAndEditStayOnTheLeftAndTheShortGroupsGoRight() {
+        assertThat(ShortcutSheetPanel.leftColumnCount(6)).isEqualTo(2);
+        assertThat(ShortcutSheetPanel.leftColumnCount(5)).isEqualTo(2);
     }
 
     @Test
@@ -269,7 +285,8 @@ class ShortcutSheetTest {
     void theSheetShowsTheGroupsWithTheCurrentKeys() {
         ShortcutSheetPanel panel = openSheet();
 
-        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Ayuda");
+        assertThat(panel.groupTitles()).containsExactly("Archivo", "Editar", "Ver", "Ventana", "Simulación", "Ayuda");
+        assertThat(panel.rows()).contains("Ctrl+T · Nueva pestaña vacía", "Ctrl+Mayús+T · Reabrir pestaña cerrada");
         assertThat(panel.rows()).contains("Ctrl+N · Nuevo", "Ctrl+Z · Deshacer", "Supr · Borrar",
                 "Ctrl+Mayús+Z · Rehacer", "F6 · Avanzar N t", "? · Atajos de teclado");
         assertThat(panel.rows()).as("the waveforms toggle has no key by default").noneMatch(
@@ -467,13 +484,14 @@ class ShortcutSheetTest {
     }
 
     @Test
-    void itCoversTheCircuitAreaNotTheMenus() {
+    void itCoversTheWholeTabSidePanelsIncludedNotTheMenus() {
+        // the circuit area alone left too little room at 1280 px with both side panels open (hand test 2026-11-21)
         ShortcutSheetPanel panel = openSheet();
 
-        assertThat(view.canvasPanes().getWidth()).isPositive();
-        java.awt.Rectangle area = javax.swing.SwingUtilities.convertRectangle(view.canvasPanes(),
-                new java.awt.Rectangle(view.canvasPanes().getSize()), root.getLayeredPane());
-        assertThat(panel.getBounds()).as("the whole circuit area, no band of live canvas").isEqualTo(area);
+        assertThat(view.getWidth()).isGreaterThan(view.canvasPanes().getWidth());
+        java.awt.Rectangle tab = javax.swing.SwingUtilities.convertRectangle(view,
+                new java.awt.Rectangle(view.getSize()), root.getLayeredPane());
+        assertThat(panel.getBounds()).as("the whole tab, side panels included, below the menus").isEqualTo(tab);
     }
 
     @Test

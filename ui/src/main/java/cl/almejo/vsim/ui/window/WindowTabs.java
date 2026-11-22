@@ -14,6 +14,12 @@ import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.session.TabState;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
+import cl.almejo.vsim.ui.window.closed.ClosedEntry;
+import cl.almejo.vsim.ui.window.closed.ClosedGroup;
+import cl.almejo.vsim.ui.window.closed.ClosedTab;
+import cl.almejo.vsim.ui.window.closed.ClosedTabState;
+import cl.almejo.vsim.ui.window.closed.DocumentReference;
+import cl.almejo.vsim.ui.window.closed.WindowReference;
 import cl.almejo.vsim.ui.window.panes.RememberedSplit;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import cl.almejo.vsim.ui.window.tabs.TabMark;
@@ -45,6 +51,7 @@ import java.awt.event.MouseWheelListener;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -115,12 +122,31 @@ public final class WindowTabs extends JPanel {
         /** Every tab of every window, grouped by window (the Ventana list and «▾»). */
         List<WindowMenu.Entry> everyTab();
 
-        /** The «+» of the strip (or a double click on its empty part): Archivo ▸ Nuevo, a new circuit in a tab here. */
+        /**
+         * The «+» of the strip (or a double click on its empty part): Ventana ▸ «Nueva pestaña vacía», a new circuit
+         * in a tab here, right after the active group.
+         */
         void newTab();
 
-        /** The current shortcut of Archivo ▸ Nuevo, for the «+» tooltip; none by default. */
+        /** The current shortcut of «Nueva pestaña vacía», for the «+» tooltip; none by default. */
         default Optional<KeyStroke> newTabShortcut() {
             return Optional.empty();
+        }
+
+        /**
+         * The user closed a tab or a whole group here (its × or middle click, «Cerrar pestaña», «Cerrar los componentes
+         * de este circuito»), for «Reabrir pestaña cerrada». Not told for a group that moves to another window, a
+         * component that left the circuit, or a close nobody asked for. Nothing by default.
+         */
+        default void closedByUser(ClosedEntry closed) {
+        }
+
+        /**
+         * The user closed this window's last group (after the save question): the window closes as if the user closed
+         * it. {@code groups} and {@code activeGroup} are the window as it was before the question (which may activate
+         * another tab). Nothing by default.
+         */
+        default void windowClosedByUser(List<ClosedGroup> groups, int activeGroup) {
         }
 
         /** Where the AI works now: the robot on the tabs (fix round D, item 5n). None by default. */
@@ -362,6 +388,19 @@ public final class WindowTabs extends JPanel {
     /** A new main tab of {@code document} (its group is made when it has none), activated. */
     public EditorView addTab(OpenDocument document, Optional<ViewState> initialView) {
         return add(document, Optional.empty(), document, initialView);
+    }
+
+    /**
+     * «Nueva pestaña vacía» (Ctrl+T, the strip's «+»): a new main tab of {@code document} (a new circuit) whose group
+     * goes right after the active tab's group instead of last, activated.
+     */
+    public EditorView addTabAfterActiveGroup(OpenDocument document) {
+        int activeGroup = activeEntry().map(entry -> documents().indexOf(entry.document)).orElse(-1);
+        EditorView view = addTab(document, Optional.empty());
+        if (activeGroup >= 0) {
+            model.moveGroup(document, activeGroup + 1);
+        }
+        return view;
     }
 
     /**
@@ -891,14 +930,18 @@ public final class WindowTabs extends JPanel {
                 Optional.of(inspectorState)));
     }
 
-    /** A tab never shown yet still looks where it was going to open. */
     private static TabState tabState(TabEntry entry, Path path) {
-        ViewState view = entry.initialViewShown ? entry.view.canvas().viewState()
-                : entry.initialViewState.orElseGet(() -> entry.view.canvas().viewState());
+        ViewState view = currentView(entry);
         return entry.definitionId
                 .map(definitionId -> TabState.component(path, definitionId, entry.place.definitionName(),
                         entry.place.contextPath(), view))
                 .orElseGet(() -> TabState.main(path, view));
+    }
+
+    /** Where a tab looks now; a tab never shown yet still looks where it was going to open. */
+    private static ViewState currentView(TabEntry entry) {
+        return entry.initialViewShown ? entry.view.canvas().viewState()
+                : entry.initialViewState.orElseGet(() -> entry.view.canvas().viewState());
     }
 
     /**
@@ -1057,6 +1100,7 @@ public final class WindowTabs extends JPanel {
         if (!entry.isMain() || mainTabCount(entry.document) > 1) {
             entry.view.inlineEditors().forEach(InlineTextEditor::confirmOrCancel);
             if (entry.view.draftGuards().settle(DraftGuard.Reason.CLOSE) == DraftGuard.Answer.GO_ON) {
+                host.closedByUser(closedTab(entry));
                 removeTab(entry);
             }
             return;
@@ -1073,6 +1117,8 @@ public final class WindowTabs extends JPanel {
         if (group.isEmpty()) {
             return true;
         }
+        // taken before the question, which brings the document's main tab to the front; kept only if confirmed
+        ClosedGroup closed = closedGroup(document);
         boolean confirmed = CloseSequence.confirm(group.stream()
                         .flatMap(entry -> entry.view.inlineEditors().stream()).toList(),
                 group.stream().map(entry -> entry.view.draftGuards()).toList(),
@@ -1081,9 +1127,11 @@ public final class WindowTabs extends JPanel {
             return false;
         }
         if (model.groups().size() == 1) {
+            host.windowClosedByUser(List.of(closed), 0); // «Reabrir pestaña cerrada» brings back the window
             host.emptied(); // closing the window keeps today's rules (session, Recientes)
             return true;
         }
+        host.closedByUser(closed);
         removeGroupQuietly(document);
         return true;
     }
@@ -1099,7 +1147,10 @@ public final class WindowTabs extends JPanel {
                 DraftGuard.Reason.CLOSE) == DraftGuard.Answer.CANCEL) {
             return;
         }
-        components.forEach(this::removeTab);
+        components.forEach(entry -> {
+            host.closedByUser(closedTab(entry)); // one entry each: they come back one by one, in their order
+            removeTab(entry);
+        });
     }
 
     private void removeTab(TabEntry entry) {
@@ -1167,6 +1218,130 @@ public final class WindowTabs extends JPanel {
         entries.values().forEach(WindowTabs::release);
         List.copyOf(followedDocuments.keySet()).forEach(this::stopFollowing);
         toolBarSlot.removeAll();
+    }
+
+    // --- closed tabs (card «ctrl-t») ---
+
+    /** Every group of this window as «Reabrir pestaña cerrada» keeps them when the window closes, untitled ones too. */
+    public List<ClosedGroup> closedGroups() {
+        return documents().stream().map(this::closedGroup).toList();
+    }
+
+    /** The place among this window's groups of the active tab's group; 0 without tabs. */
+    public int activeGroupIndex() {
+        return activeEntry().map(entry -> documents().indexOf(entry.document)).orElse(0);
+    }
+
+    /** Whether this window was disposed (it closed): a closed tab then comes back in another window. */
+    public boolean isDisposed() {
+        return disposed;
+    }
+
+    private ClosedGroup closedGroup(OpenDocument document) {
+        List<TabEntry> group = entriesOf(document);
+        String activeId = model.active().map(TabStripModel.Tab::id).orElse("");
+        TabEntry active = group.stream().filter(entry -> entry.id.equals(activeId)).findFirst()
+                .orElseGet(() -> group.stream().max(Comparator.comparingLong(entry -> entry.lastActivation))
+                        .orElseThrow());
+        return new ClosedGroup(DocumentReference.of(document), group.stream().map(WindowTabs::closedState).toList(),
+                group.indexOf(active), model.isFolded(document), WindowReference.of(this),
+                documents().indexOf(document));
+    }
+
+    private ClosedTab closedTab(TabEntry entry) {
+        return new ClosedTab(DocumentReference.of(entry.document), closedState(entry), WindowReference.of(this),
+                entriesOf(entry.document).indexOf(entry));
+    }
+
+    private static ClosedTabState closedState(TabEntry entry) {
+        ViewState view = currentView(entry);
+        return entry.definitionId
+                .map(definitionId -> ClosedTabState.component(definitionId, entry.definitionName,
+                        entry.place.contextPath(), view))
+                .orElseGet(() -> ClosedTabState.main(view));
+    }
+
+    /**
+     * «Reabrir pestaña cerrada» of one tab: it comes back on {@code document} at {@code indexInGroup} of its group
+     * (a main tab first when this window has no group of the document; it then goes last), showing its view and, for
+     * a component tab, its instance; activated. The definition of a component tab must be in the document.
+     */
+    public EditorView reopenTab(OpenDocument document, ClosedTabState tab, int indexInGroup) {
+        EditorView view;
+        if (tab.isMain()) {
+            view = addTab(document, Optional.of(tab.view()));
+        } else {
+            if (model.group(document).isEmpty()) {
+                restoreRememberedSplit(addTab(document, Optional.empty()));
+            }
+            String definitionId = tab.definitionId().orElseThrow();
+            view = addComponentTab(document, definitionId, document.openBody(definitionId, tab.contextPath()),
+                    Optional.of(tab.view()));
+        }
+        restoreRememberedSplit(view);
+        entryOf(view).ifPresent(entry -> model.moveTab(entry.id, indexInGroup));
+        activate(view);
+        return view;
+    }
+
+    /** What {@link #restoreGroup} brought back: the tab it activated and the component tabs whose definition is gone. */
+    public record RestoredGroup(EditorView active, List<ClosedTabState> skipped) {
+        public RestoredGroup {
+            skipped = List.copyOf(skipped);
+        }
+    }
+
+    /**
+     * «Reabrir pestaña cerrada» of a whole group: its main tabs first (each where it looked, split as it was), the
+     * group put at {@code groupIndex} of the strip, then its component tabs on body places, then {@code activeTab}
+     * activated and the fold. When this window already has a group of {@code document}, only the component tabs join
+     * it. Unlike {@link #restore}, the window's panels are left as they are. A component tab whose definition is gone
+     * from the document is left out and returned.
+     */
+    public RestoredGroup restoreGroup(OpenDocument document, List<ClosedTabState> tabs, int activeTab,
+                                      boolean folded, int groupIndex) {
+        boolean merging = model.group(document).isPresent();
+        List<Optional<EditorView>> restored = new ArrayList<>(Collections.nCopies(tabs.size(), Optional.empty()));
+        if (!merging) {
+            for (int index = 0; index < tabs.size(); index++) {
+                if (tabs.get(index).isMain()) {
+                    restored.set(index, Optional.of(restoredMainTab(document, tabs.get(index).view())));
+                }
+            }
+            if (model.group(document).isEmpty()) {
+                restoredMainTab(document, tabs.isEmpty() ? null : tabs.getFirst().view()); // never components alone
+            }
+            model.moveGroup(document, groupIndex);
+        }
+        List<ClosedTabState> skipped = new ArrayList<>();
+        for (int index = 0; index < tabs.size(); index++) {
+            ClosedTabState tab = tabs.get(index);
+            if (tab.isMain()) {
+                continue;
+            }
+            String definitionId = tab.definitionId().orElseThrow();
+            if (document.document().definition(definitionId).isEmpty()) {
+                skipped.add(tab);
+                continue;
+            }
+            EditorView view = addComponentTab(document, definitionId,
+                    document.openBody(definitionId, tab.contextPath()), Optional.of(tab.view()));
+            restoreRememberedSplit(view);
+            restored.set(index, Optional.of(view));
+        }
+        EditorView active = (activeTab >= 0 && activeTab < restored.size() ? restored.get(activeTab) :
+                Optional.<EditorView>empty()).orElseGet(() -> showPlace(document, Optional.empty(), Optional.empty()));
+        activate(active);
+        if (!merging && folded) {
+            model.fold(document, true);
+        }
+        return new RestoredGroup(activeView(), skipped);
+    }
+
+    private EditorView restoredMainTab(OpenDocument document, ViewState view) {
+        EditorView restored = addTab(document, Optional.ofNullable(view));
+        restoreRememberedSplit(restored);
+        return restored;
     }
 
     // --- moving groups ---

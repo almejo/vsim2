@@ -254,8 +254,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             @Override
             public void focusLost(FocusEvent event) {
                 // the focus going to a sibling pane of this window keeps the keys (and the phrase) of a path under way
-                keyboardFocusLost = !(event.getOppositeComponent() instanceof CircuitCanvas sibling
-                        && otherPanes.get().contains(sibling));
+                boolean sameWindowSibling = event.getOppositeComponent() instanceof CircuitCanvas sibling
+                        && otherPanes.get().contains(sibling);
+                keyboardFocusLost = !sameWindowSibling;
                 publishGesturePhrase();
                 keyHandler.forgetModifiers();
                 spaceDown = false;
@@ -263,7 +264,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 pressForwardedTo = null; // the release of a press given to another pane's path may never come
                 showCursor();
                 autoscroll.stopAutoscroll(); // a modal dialog or another window took the release
-                tool.focusLost(CircuitCanvas.this);
+                if (!sameWindowSibling) {
+                    tool.focusLost(CircuitCanvas.this); // the focus going to a sibling pane keeps a gesture under way
+                }
                 host.canvasFocusLost(CircuitCanvas.this, Optional.ofNullable(event.getOppositeComponent()));
             }
         });

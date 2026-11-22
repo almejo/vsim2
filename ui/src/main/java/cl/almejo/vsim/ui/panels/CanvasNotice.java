@@ -18,6 +18,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,6 +54,8 @@ public final class CanvasNotice extends JComponent {
     private final Position position;
     private final Chip chip;
     private final float scale;
+    /** The text broken into lines that fit the area ({@link #fitTo}); one line when it fits. */
+    private List<String> lines;
     private float opacity;
     private int level;
     private String slot = SHOWN_PROPERTY;
@@ -71,6 +74,7 @@ public final class CanvasNotice extends JComponent {
         setFont(chip == null ? over.getFont() : over.getFont().deriveFont(over.getFont().getSize2D() * scale));
         FontMetrics metrics = getFontMetrics(getFont());
         if (chip == null) {
+            lines = List.of(text);
             setSize(metrics.stringWidth(text) + 2 * PADDING_X, metrics.getHeight() + 2 * PADDING_Y);
         } else {
             setSize(chipWidth(), chipHeight());
@@ -249,12 +253,51 @@ public final class CanvasNotice extends JComponent {
 
     private void reposition(JLayeredPane layers) {
         Rectangle area = new Rectangle(SwingUtilities.convertPoint(over, 0, 0, layers), over.getSize());
+        fitTo(area.width);
         int horizontal = area.x + (area.width - getWidth()) / 2;
         int offset = level * (getHeight() + scaled(GAP));
         int vertical = position == Position.TOP ? area.y + scaled(MARGIN) + offset
                 : area.y + area.height - getHeight() - scaled(MARGIN) - offset;
         setLocation(horizontal, vertical);
         repaint();
+    }
+
+    /**
+     * A text notice wider than {@code areaWidth} (less its margins) breaks into lines at spaces, so it never runs past
+     * the area's edges (a long text at a large interface size); a chip keeps its one line.
+     */
+    private void fitTo(int areaWidth) {
+        if (chip != null) {
+            return;
+        }
+        FontMetrics metrics = getFontMetrics(getFont());
+        int available = areaWidth - 2 * scaled(MARGIN) - 2 * PADDING_X;
+        lines = available <= 0 || metrics.stringWidth(text) <= available ? List.of(text) : wrap(text, metrics, available);
+        int widest = lines.stream().mapToInt(metrics::stringWidth).max().orElse(0);
+        setSize(widest + 2 * PADDING_X, lines.size() * metrics.getHeight() + 2 * PADDING_Y);
+    }
+
+    private static List<String> wrap(String text, FontMetrics metrics, int available) {
+        List<String> wrapped = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split(" ")) {
+            String candidate = line.isEmpty() ? word : line + " " + word;
+            if (!line.isEmpty() && metrics.stringWidth(candidate) > available) {
+                wrapped.add(line.toString());
+                line = new StringBuilder(word);
+            } else {
+                line = new StringBuilder(candidate);
+            }
+        }
+        if (!line.isEmpty()) {
+            wrapped.add(line.toString());
+        }
+        return List.copyOf(wrapped);
+    }
+
+    /** The lines the text shows in (one for a chip). */
+    List<String> lines() {
+        return chip == null ? lines : List.of(chip.name());
     }
 
     /** The tooltip colours of the current theme (a light panel in the light themes, read at paint time), read at paint time, translucent. */
@@ -288,7 +331,11 @@ public final class CanvasNotice extends JComponent {
             painter.setColor(toastForeground());
             painter.setFont(getFont());
             if (chip == null) {
-                painter.drawString(text, PADDING_X, PADDING_Y + painter.getFontMetrics().getAscent());
+                FontMetrics metrics = painter.getFontMetrics();
+                for (int index = 0; index < lines.size(); index++) {
+                    painter.drawString(lines.get(index), PADDING_X,
+                            PADDING_Y + metrics.getAscent() + index * metrics.getHeight());
+                }
             } else {
                 paintChip(painter);
             }

@@ -173,6 +173,8 @@ public final class ShortcutCatalog {
         window(entries, "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.LOGIC, null);
         window(entries, "tools.karnaughPractice", "action.karnaughPractice", MenuId.LOGIC, null);
         window(entries, "tools.testMachine", "action.testMachine", MenuId.LOGIC, null);
+        // «Nueva pestaña vacía» (since 0.9): an empty circuit right after the active group; the strip's «+» runs it
+        window(entries, "window.newEmptyTab", "action.newEmptyTab", MenuId.WINDOW, stroke(KeyEvent.VK_T, menu));
         window(entries, "window.newView", "action.newWindow.catalog", MenuId.WINDOW, null);
         // Pestañas y editar por dentro (spec §4.8): «Cerrar pestaña» took Ctrl+W from «Cerrar ventana», which is
         // Ctrl+Mayús+W now; both are also in Archivo.
@@ -187,6 +189,9 @@ public final class ShortcutCatalog {
                 stroke(KeyEvent.VK_TAB, control | shift));
         window(entries, "window.closeTab", "action.closeTab", MenuId.WINDOW, stroke(KeyEvent.VK_W, menu));
         window(entries, "window.closeComponents", "action.closeComponents", MenuId.WINDOW, null);
+        // «Reabrir pestaña cerrada» (since 0.9): the newest closed tab, group or window comes back
+        window(entries, "window.reopenClosedTab", "action.reopenClosedTab", MenuId.WINDOW,
+                stroke(KeyEvent.VK_T, menu | shift));
         window(entries, "window.closeWindow", "action.closeWindow", MenuId.WINDOW, stroke(KeyEvent.VK_W, menu | shift));
         // no defaults: F6 belongs to «Avanzar N t» (and to Swing's split-pane focus)
         window(entries, "window.splitHorizontal", "shortcut.splitHorizontal", MenuId.WINDOW, null);

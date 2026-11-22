@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.GateHarness;
+import cl.almejo.vsim.core.component.Behavior;
+import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -18,6 +20,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -63,6 +66,41 @@ class FlipFlopsTest {
         assertThat(flipFlop.pins()).extracting(PinSpec::position).containsExactly(new GridPoint(0, 2),
                 new GridPoint(4, 2), new GridPoint(2, 4), new GridPoint(4, 3));
         assertThat(flipFlop.pin(DATA_NOT_OUTPUT).direction()).isEqualTo(PinDirection.OUTPUT);
+    }
+
+    @Test
+    void aDFlipFlopWhoseDIsInConflictOrZStoresUndefinedOnBothOutputs() {
+        for (Value undefinedData : List.of(Value.ONE.withConflict(), Value.HIGH_IMPEDANCE)) {
+            Value[] inputs = {undefinedData, Value.HIGH_IMPEDANCE, Value.ONE, Value.HIGH_IMPEDANCE};
+            Map<Integer, Value> driven = new TreeMap<>();
+            BehaviorContext context = new BehaviorContext() {
+                @Override
+                public Value input(int pinIndex) {
+                    return inputs[pinIndex];
+                }
+
+                @Override
+                public void drive(int pinIndex, Value value, long delay) {
+                    driven.put(pinIndex, value);
+                }
+
+                @Override
+                public void schedule(long delay, Runnable action) {
+                }
+
+                @Override
+                public long now() {
+                    return 0;
+                }
+            };
+            Behavior behavior = registry.require(StandardComponentTypes.FLIP_FLOP_DATA)
+                    .createBehavior(Map.of("showInverted", true));
+            behavior.initialize(context);
+            inputs[DATA_CLOCK] = Value.ZERO;
+            behavior.inputChanged(context, DATA_CLOCK);
+            assertThat(driven.get(DATA_OUTPUT)).as("Q for %s", undefinedData).isEqualTo(Value.HIGH_IMPEDANCE);
+            assertThat(driven.get(DATA_NOT_OUTPUT)).as("QN for %s", undefinedData).isEqualTo(Value.HIGH_IMPEDANCE);
+        }
     }
 
     @Test

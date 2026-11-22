@@ -165,6 +165,17 @@ final class Arguments {
         return copyOf(map);
     }
 
+    /** As {@link #map}, for parameter values: one with no value (null) is refused naming it. */
+    Map<String, Object> parameters(String name) {
+        Map<String, Object> parameters = map(name);
+        parameters.forEach((parameter, value) -> {
+            if (value == null) {
+                throw invalid(name + "." + parameter, "has no value; leave it out to keep its default");
+            }
+        });
+        return parameters;
+    }
+
     private static Map<String, Object> copyOf(Map<?, ?> source) {
         Map<String, Object> copy = new LinkedHashMap<>();
         source.forEach((key, element) -> copy.put(String.valueOf(key), element));

@@ -3,8 +3,10 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
+import cl.almejo.vsim.core.simulation.SimulationLimitException;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
@@ -75,6 +77,30 @@ class StatusBarTest {
         statusBar.showSpeed(7);
         statusBar.showSnapshot(snapshot(false, 0, Optional.empty()));
         assertThat(statusBar.text()).doesNotContain("×");
+    }
+
+    @Test
+    void atMaximumTheSpeedSaysMaximumWithoutATimesSign() {
+        statusBar.showZoom(1);
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+
+        statusBar.showSpeed(Double.POSITIVE_INFINITY);
+
+        assertThat(statusBar.text()).contains("t = 1.234 · Máxima").doesNotContain("×");
+        assertThat(statusBar.achievedSpeedLabel().getToolTipText()).startsWith("Velocidad máxima: el tiempo salta");
+        statusBar.showSpeed(7);
+        assertThat(statusBar.text()).contains("×7").doesNotContain("Máxima");
+        assertThat(statusBar.achievedSpeedLabel().getToolTipText()).isEqualTo(Messages.text("status.speedTip"));
+    }
+
+    @Test
+    void anEngineLimitIsSaidInTheUsersWords() {
+        statusBar.showSnapshot(at(5, false));
+        statusBar.showPauseNotice(Optional.of(new PauseNotice("", SimulationLimitException.TOO_MANY_EVENTS,
+                List.of(), 5, 1)));
+
+        assertThat(statusBar.text()).contains("Simulación detenida en t = 5: Demasiados eventos en el mismo instante")
+                .doesNotContain("IllegalStateException");
     }
 
     @Test
@@ -285,6 +311,56 @@ class StatusBarTest {
         assertThat(bar.noticeAction().isVisible()).isFalse();
         assertThat(timers.getFirst().getInitialDelay()).isEqualTo(StatusBar.NOTICE_MILLISECONDS);
         bar.dispose();
+    }
+
+    @Test
+    void aLastingNoticeOutlivesOtherNoticesAndTheirTimerAndGoesWhenItsButtonIsClicked() {
+        List<Runnable> expirations = new java.util.ArrayList<>();
+        StatusBar bar = new StatusBar(expire -> {
+            expirations.add(expire);
+            return new javax.swing.Timer(Integer.MAX_VALUE, event -> expire.run());
+        });
+        AtomicInteger dismissed = new AtomicInteger();
+
+        bar.showLastingNotice("owner", "Sin copia", "Entendido", dismissed::incrementAndGet);
+        bar.showNotice("Guardado");
+        expirations.forEach(Runnable::run);
+
+        assertThat(bar.text()).isEqualTo("Sin copia");
+        assertThat(bar.lastingNoticeDismiss("owner").getText()).isEqualTo("Entendido");
+        bar.lastingNoticeDismiss("owner").doClick();
+        assertThat(dismissed).hasValue(1);
+        assertThat(bar.text()).isEmpty();
+        bar.dispose();
+    }
+
+    @Test
+    void lastingNoticesOfDifferentOwnersLiveSideBySideAndEachOneGoesAlone() {
+        AtomicInteger dismissed = new AtomicInteger();
+        statusBar.showLastingNotice("one", "Sin copia", "Entendido", dismissed::incrementAndGet);
+        statusBar.showLastingNotice("two", "Disco lleno", "Entendido", dismissed::incrementAndGet);
+        assertThat(statusBar.text()).contains("Sin copia").contains("Disco lleno");
+
+        statusBar.hideLastingNotice("two");
+        assertThat(statusBar.text()).isEqualTo("Sin copia");
+        statusBar.hideLastingNotice("two");
+        statusBar.lastingNoticeDismiss("one").doClick();
+
+        assertThat(statusBar.text()).isEmpty();
+        assertThat(dismissed).hasValue(1);
+    }
+
+    @Test
+    void hidingTheLastingNoticeTakesItAwayWithoutRunningItsButton() {
+        AtomicInteger dismissed = new AtomicInteger();
+        statusBar.showLastingNotice("owner", "Sin copia", "Entendido", dismissed::incrementAndGet);
+        statusBar.showLastingNotice("owner", "Sin copia de «b»", "Entendido", dismissed::incrementAndGet);
+        assertThat(statusBar.text()).as("shown again, not twice").isEqualTo("Sin copia de «b»");
+
+        statusBar.hideLastingNotice("owner");
+
+        assertThat(statusBar.text()).isEmpty();
+        assertThat(dismissed).hasValue(0);
     }
 
     @Test

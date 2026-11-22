@@ -20,12 +20,14 @@ public final class LogisimNetAnalysis {
     private final List<List<LogisimEnd>> ends;
     private final Map<Integer, SplitterDirection> splitterDirections;
     private final Set<Integer> junctions;
+    private final Set<Integer> leftOut;
     private final Map<LogisimPoint, Integer> nets;
     private final Set<Integer> connectedNets;
     private final List<ImportNote> notes;
 
     LogisimNetAnalysis(LogisimCircuit circuit, List<List<LogisimEnd>> ends,
-                       Map<Integer, SplitterDirection> splitterDirections, Set<Integer> junctions, Map<LogisimPoint, Integer> nets, Set<Integer> connectedNets,
+                       Map<Integer, SplitterDirection> splitterDirections, Set<Integer> junctions,
+                       Set<Integer> leftOut, Map<LogisimPoint, Integer> nets, Set<Integer> connectedNets,
                        List<ImportNote> notes) {
         this.circuit = circuit;
         for (int index = circuit.components().size() - 1; index >= 0; index--) {
@@ -34,6 +36,7 @@ public final class LogisimNetAnalysis {
         this.ends = List.copyOf(ends);
         this.splitterDirections = Map.copyOf(splitterDirections);
         this.junctions = Set.copyOf(junctions);
+        this.leftOut = Set.copyOf(leftOut);
         this.nets = Map.copyOf(nets);
         this.connectedNets = Set.copyOf(connectedNets);
         this.notes = List.copyOf(notes);
@@ -65,6 +68,14 @@ public final class LogisimNetAnalysis {
     /** Whether {@code component} is a one-bit splitter, which only joins its bus to the end its bit goes to. */
     public boolean isJunction(LogisimComponent component) {
         return junctions.contains(indexOf(component));
+    }
+
+    /**
+     * Whether {@code component} is left out because its attributes cannot be read (it has no ends; its note is in
+     * {@link #notes()}).
+     */
+    public boolean isLeftOut(LogisimComponent component) {
+        return leftOut.contains(indexOf(component));
     }
 
     /**

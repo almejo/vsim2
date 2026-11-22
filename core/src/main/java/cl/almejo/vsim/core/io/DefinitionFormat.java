@@ -56,7 +56,23 @@ public final class DefinitionFormat {
         }
     }
 
+    /** A component file read: the bundle, and the names of its definitions whose drawing could not be read. */
+    public record Read(DefinitionBundle bundle, List<String> unsupportedDrawingNames) {
+
+        public Read {
+            unsupportedDrawingNames = List.copyOf(unsupportedDrawingNames);
+        }
+    }
+
     public DefinitionBundle read(String json) throws CircuitFormatException {
+        return readNoting(json).bundle();
+    }
+
+    /**
+     * Like {@link #read}; a definition whose drawing has a path VSim cannot read loads with the default box and is
+     * named in the result (the user, 2026-11-20).
+     */
+    public Read readNoting(String json) throws CircuitFormatException {
         ComponentFile file = CircuitFormat.readFile(mapper, CircuitFormat.parse(mapper, json), ComponentFile.class,
                 KIND_COMPONENT, ComponentFile::kind);
         CircuitDocument scratch = new CircuitDocument();
@@ -70,7 +86,11 @@ public final class DefinitionFormat {
         DefinitionEntries.readInto(scratch, entries, local);
         ComponentDefinition definition = scratch.definition(file.id()).orElseThrow();
         try {
-            return DefinitionBundle.of(definition, scratch::definition);
+            DefinitionBundle bundle = DefinitionBundle.of(definition, scratch::definition);
+            List<String> unsupported = bundle.all().stream()
+                    .filter(each -> scratch.unsupportedDrawings().contains(each.id()))
+                    .map(ComponentDefinition::name).toList();
+            return new Read(bundle, unsupported);
         } catch (IllegalArgumentException exception) {
             throw invalid(exception.getMessage(), exception);
         }

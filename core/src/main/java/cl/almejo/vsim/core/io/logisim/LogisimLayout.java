@@ -159,7 +159,7 @@ public final class LogisimLayout {
                 }
             }
             for (LogisimComponent component : analysis.circuit().components()) {
-                if (!analysis.isJunction(component)) {
+                if (!analysis.isJunction(component) && !analysis.isLeftOut(component)) {
                     place(component);
                 }
             }

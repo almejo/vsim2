@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JComponent;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import java.awt.Desktop;
 import java.awt.GraphicsEnvironment;
@@ -19,7 +20,6 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Taskbar;
 import java.io.File;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -41,7 +41,8 @@ public final class Main {
         Locale.setDefault(Messages.locale());
         JComponent.setDefaultLocale(Messages.locale());
         Optional<StartupSplash> splash = StartupSplash.show(VsimVersion.current(), Messages.text("splash.loading"));
-        List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
+        CommandLineFiles commandLine = CommandLineFiles.parse(arguments);
+        List<Path> files = commandLine.files();
         // M6-D5: asked here, on the main thread, so the EDT never waits up to 2 s for the system's answer.
         ThemeManager.askSystemBeforeStart(preferences);
         // Installed now: macOS may send the open-file event before the Application exists; it waits in `incoming`.
@@ -56,6 +57,12 @@ public final class Main {
             installAboutHandler();
             installDockIcon();
             application.start(files, () -> splash.ifPresent(StartupSplash::awaitMinimumTime));
+            if (!commandLine.unusable().isEmpty()) {
+                // The same message as any file that does not open; the start goes on behind it.
+                JOptionPane.showMessageDialog(null,
+                        Messages.format("session.missing", String.join(", ", commandLine.unusable())),
+                        Messages.text("startup.arguments.title"), JOptionPane.WARNING_MESSAGE);
+            }
         });
     }
 

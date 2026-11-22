@@ -522,11 +522,11 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             String name = openDocument.circuitName();
-            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva vista de «" + name + "»",
-                    "Nueva vista de «" + name + "» en otra ventana",
+            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña vacía",
+                    "Nueva vista de «" + name + "»", "Nueva vista de «" + name + "» en otra ventana",
                     "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
-                    "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "---",
-                    "Dividir", "Siguiente panel", "---", "IA (MCP)…");
+                    "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito",
+                    "Reabrir pestaña cerrada", "---", "Dividir", "Siguiente panel", "---", "IA (MCP)…");
             assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_S, ShortcutCatalog.menuMask()));
             assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)

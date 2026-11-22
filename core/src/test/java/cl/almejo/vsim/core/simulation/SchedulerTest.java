@@ -54,6 +54,38 @@ class SchedulerTest {
     }
 
     @Test
+    void anEventPastTheLargestTimeIsRefusedAndTimeNeverWraps() {
+        Scheduler scheduler = new Scheduler();
+        scheduler.runUntil(Long.MAX_VALUE - 1);
+        scheduler.schedule(1, () -> { });
+
+        assertThatThrownBy(() -> scheduler.schedule(2, () -> { }))
+                .isInstanceOfSatisfying(SimulationLimitException.class, limit -> {
+                    assertThat(limit.messageKey()).isEqualTo(SimulationLimitException.TIME_OVERFLOW);
+                    assertThat(limit.time()).isEqualTo(Long.MAX_VALUE - 1);
+                })
+                .hasMessageContaining("largest time");
+        assertThat(scheduler.pendingEvents()).isEqualTo(1);
+        assertThat(scheduler.nextEventTime()).hasValue(Long.MAX_VALUE);
+        scheduler.runUntil(Long.MAX_VALUE);
+        assertThat(scheduler.now()).isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void runningOnlyTheEventsLeavesTheTimeAtTheLastOneRun() {
+        Scheduler scheduler = new Scheduler();
+        scheduler.schedule(3, () -> { });
+        scheduler.schedule(8, () -> { });
+
+        assertThat(scheduler.runEventsUntilHalted(6)).isTrue();
+        assertThat(scheduler.now()).as("not 6: the time jumps to the events only").isEqualTo(3);
+        assertThat(scheduler.runEventsUntilHalted(20)).isTrue();
+        assertThat(scheduler.now()).isEqualTo(8);
+        assertThat(scheduler.runEventsUntilHalted(50)).isTrue();
+        assertThat(scheduler.now()).as("nothing pending: the time stays").isEqualTo(8);
+    }
+
+    @Test
     void nextEventTimeIsTheEarliestPendingTimeAndEmptyWhenNothingIsPending() {
         Scheduler scheduler = new Scheduler();
         assertThat(scheduler.nextEventTime()).isEmpty();

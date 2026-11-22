@@ -20,6 +20,9 @@ import cl.almejo.vsim.ui.session.RecentFiles;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.window.closed.ClosedEntry;
+import cl.almejo.vsim.ui.window.closed.ClosedGroup;
+import cl.almejo.vsim.ui.window.closed.ClosedWindow;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +59,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final Runnable windowsListener = this::windowsChanged;
     /** Stops telling the tabs that «Animaciones» changed (a working robot bobs again with «Sí»). */
     private final Runnable stopFollowingAnimations;
+    /** Stops refreshing «Reabrir pestaña cerrada» when the stack of closed tabs changes. */
+    private final Runnable stopFollowingClosedTabs;
     private final RecentFiles recentFiles;
     private final KeyBindings keyBindings;
     /** The real full screen of this window and «Modo presentación» on it (F11). */
@@ -72,6 +77,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         this.tabs = new WindowTabs(new Host(), place -> newView(place, services),
                 new SplitLayoutStore(services.preferences()), () -> Animations.enabled(services.preferences()));
         this.stopFollowingAnimations = Animations.onChange(services.preferences(), tabs::animationsChanged);
+        this.stopFollowingClosedTabs = application.closedTabs().addListener(this::refreshWindowActions);
         setContentPane(tabs);
         this.screenMode = ScreenMode.of(this);
         this.fullScreen = new FullScreenFeatures(getRootPane(), tabs, screenMode, services.preferences());
@@ -128,6 +134,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     public static String titleFor(OpenDocument openDocument, int viewNumber) {
         return (openDocument.isModified() ? "*" : "") + Messages.format("window.title",
                 DocumentWindows.viewTitle(openDocument.displayName(), viewNumber));
+    }
+
+    /** The key of «Nueva pestaña vacía», which the strip's «+» runs, for the «+» tooltip. Package-private for tests. */
+    static Optional<KeyStroke> newTabShortcut(KeyBindings bindings) {
+        return bindings.strokeFor("window.newEmptyTab");
     }
 
     // --- tabs ---
@@ -252,6 +263,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
+    public void newEmptyTab() {
+        application.newEmptyTab(this);
+    }
+
+    @Override
     public void open() {
         application.open(this);
     }
@@ -312,6 +328,30 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     @Override
     public void closeComponents() {
         tabs.closeComponentTabs(activeDocument());
+    }
+
+    @Override
+    public void reopenClosedTab() {
+        application.reopenClosedTab(this);
+    }
+
+    @Override
+    public boolean hasClosedTabs() {
+        return !application.closedTabs().isEmpty();
+    }
+
+    /**
+     * The user closed this whole window (after the save questions): «Reabrir pestaña cerrada» keeps {@code groups}
+     * (taken before the questions) and where the window was. Guarded: the window's state can fail (a window with no
+     * size), and the window must still close.
+     */
+    private void recordClosedWindow(List<ClosedGroup> groups, int activeGroup) {
+        try {
+            application.closedTabs().push(new ClosedWindow(groups, activeGroup,
+                    WindowState.of(normalBounds(), isMaximized(), viewState())));
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not remember the closed window for «Reabrir pestaña cerrada»", exception);
+        }
     }
 
     @Override
@@ -394,7 +434,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     @Override
     public void closeWindow() {
+        // taken before the save questions, which bring each document they ask about to the front
+        List<ClosedGroup> groups = tabs.closedGroups();
+        int activeGroup = tabs.activeGroupIndex();
         if (confirmClose()) {
+            recordClosedWindow(groups, activeGroup);
             closeQuietly();
         }
     }
@@ -461,6 +505,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         closed = true;
         application.removeWindowsListener(windowsListener);
         stopFollowingAnimations.run();
+        stopFollowingClosedTabs.run();
         fullScreen.dispose();
         tabs.disposeAll();
         dispose();
@@ -475,6 +520,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         try {
             application.removeWindowsListener(windowsListener);
             stopFollowingAnimations.run();
+            stopFollowingClosedTabs.run();
             fullScreen.dispose(); // out of the full screen first, its bars back in their places
             tabs.disposeAll();
         } catch (RuntimeException exception) {
@@ -496,9 +542,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private boolean trySaveAs(OpenDocument document) {
         return FileDialogs.chooseSave(this,
                 document.path().map(Path::getParent).orElseGet(application::initialDirectory),
-                document.suggestedFileName())
+                document.suggestedFileName(),
+                target -> SaveAsTargets.confirmed(target, document, application::documentBackedBy,
+                        this::refuseSaveAs, file -> FileDialogs.confirmOverwrite(this, file)).isPresent())
                 .map(target -> writeTo(document, target))
                 .orElse(false);
+    }
+
+    private void refuseSaveAs(Path target) {
+        JOptionPane.showMessageDialog(this, Messages.format("saveAs.openElsewhere", target.getFileName()),
+                Messages.text("saveAs.openElsewhere.title"), JOptionPane.WARNING_MESSAGE);
     }
 
     private boolean writeTo(OpenDocument document, Path target) {
@@ -586,6 +639,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
 
         @Override
+        public void closedByUser(ClosedEntry closed) {
+            application.closedTabs().push(closed);
+        }
+
+        @Override
+        public void windowClosedByUser(List<ClosedGroup> groups, int activeGroup) {
+            recordClosedWindow(groups, activeGroup);
+        }
+
+        @Override
         public void activeTabChanged() {
             updateTitle();
             refreshWindowActions();
@@ -603,12 +666,12 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
         @Override
         public void newTab() {
-            newDocument();
+            newEmptyTab();
         }
 
         @Override
         public Optional<KeyStroke> newTabShortcut() {
-            return keyBindings.strokeFor("file.new");
+            return CircuitWindow.newTabShortcut(keyBindings);
         }
 
         @Override

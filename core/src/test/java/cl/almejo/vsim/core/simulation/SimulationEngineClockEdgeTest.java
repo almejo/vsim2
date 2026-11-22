@@ -119,6 +119,69 @@ class SimulationEngineClockEdgeTest {
         }
     }
 
+    /** Clock k (5 / 5) and a Constante 1 on the same net, as in the SIM-4 probe: a short whenever k is low. */
+    private void clockShortedWithAConstant() {
+        FlatComponent constant = new FlatComponent("one", StandardComponentTypes.registry()
+                .require(StandardComponentTypes.CONSTANT).specializedFor(Map.of("width", 1, "value", "1")),
+                Map.of("width", 1, "value", "1"));
+        engine.update(new FlatCircuit(List.of(clock("k", 5, 5), constant),
+                List.of(new FlatNet("shared", List.of(new FlatPinRef("k", 0), new FlatPinRef("one", 0)), 1, false))));
+    }
+
+    @Test
+    void aClockWhoseNetIsShortedIsRefusedAtOnceWithoutMovingTheTime() {
+        clockShortedWithAConstant();
+
+        for (ClockEdgeMode mode : ClockEdgeMode.values()) {
+            StepResult step = engine.advanceToNextClockEdge(mode);
+
+            assertThat(step.time()).as(mode.name()).isEqualTo(0);
+            assertThat(step.fromTime()).as(mode.name()).isEqualTo(0);
+            assertThat(step.edge()).as(mode.name()).isEmpty();
+            PauseNotice notice = engine.takePauseRequest().orElseThrow();
+            assertThat(notice.componentId()).isEqualTo("k");
+            assertThat(notice.messageKey()).isEqualTo(SimulationEngine.CLOCK_EDGE_SHORTED_MESSAGE);
+            assertThat(notice.time()).isEqualTo(0);
+        }
+    }
+
+    @Test
+    void aShortedClockIsRefusedAlsoWhileItAgreesWithTheOtherDriver() {
+        clockShortedWithAConstant();
+        engine.advance(5); // k is high now, like the Constante: no conflict at this moment
+
+        StepResult step = engine.advanceToNextClockEdge(ClockEdgeMode.ANY);
+
+        assertThat(step.time()).isEqualTo(5);
+        assertThat(engine.takePauseRequest().map(PauseNotice::messageKey))
+                .contains(SimulationEngine.CLOCK_EDGE_SHORTED_MESSAGE);
+    }
+
+    @Test
+    void aClockOnANetOfAnotherWidthIsRefusedAtOnce() {
+        engine.update(new FlatCircuit(List.of(clock("k", 5, 5)),
+                List.of(new FlatNet("wide", List.of(new FlatPinRef("k", 0)), 8, true))));
+
+        StepResult step = engine.advanceToNextClockEdge(ClockEdgeMode.FALLING);
+
+        assertThat(step.time()).isEqualTo(0);
+        assertThat(engine.takePauseRequest().map(PauseNotice::messageKey))
+                .contains(SimulationEngine.CLOCK_EDGE_OTHER_WIDTH_MESSAGE);
+    }
+
+    @Test
+    void aShortedClockDoesNotStopTheEdgeStepsOfAHealthyOne() {
+        FlatComponent constant = new FlatComponent("one", StandardComponentTypes.registry()
+                .require(StandardComponentTypes.CONSTANT).specializedFor(Map.of("width", 1, "value", "1")),
+                Map.of("width", 1, "value", "1"));
+        engine.update(new FlatCircuit(List.of(clock("k", 5, 5), constant, clock("healthy", 1_000, 1_000)),
+                List.of(new FlatNet("shared", List.of(new FlatPinRef("k", 0), new FlatPinRef("one", 0)), 1, false),
+                        net("clock", "healthy"))));
+
+        assertThat(stops(ClockEdgeMode.ANY, 2)).containsExactly("1000 RISING", "2000 FALLING");
+        assertThat(engine.takePauseRequest()).isEmpty();
+    }
+
     @Test
     void anOrdinaryStepNamesNoEdge() {
         oneClock();

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.memory;
 
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -18,7 +20,7 @@ public final class VsimMemoryFormat implements MemoryFileFormat {
 
     public static final String ID = "vsim";
     static final int MINIMUM_WORDS = 2;
-    static final int MAXIMUM_WORDS = 1 << 24;
+    static final int MAXIMUM_WORDS = 1 << MemoryTypes.MAXIMUM_ADDRESS_BITS;
     static final int MAXIMUM_WIDTH = 64;
     private static final Pattern HEADER = Pattern.compile("^\\s*#\\s*vsim:(.*)$");
     private static final List<String> EXTENSIONS = List.of(".hex", ".mem", ".rom", ".ram", ".txt");
@@ -77,6 +79,10 @@ public final class VsimMemoryFormat implements MemoryFileFormat {
                             && (value >>> header.width().getAsInt()) != 0) {
                         throw new MemoryFileProblem(lineNumber, "memory.file.tooWide",
                                 List.of(token, header.width().getAsInt()));
+                    }
+                    if (address >= MAXIMUM_WORDS) {
+                        throw new MemoryFileProblem(lineNumber, "memory.file.badAddress",
+                                List.of(token, Long.toHexString(address).toUpperCase(Locale.ROOT)));
                     }
                     contents.set(address, value);
                     address++;

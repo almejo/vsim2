@@ -9,6 +9,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 public final class FileDialogs {
@@ -40,12 +41,31 @@ public final class FileDialogs {
                 new FileNameExtensionFilter(Messages.text("file.filter.circuits"), "vsim"), FileNames::withExtension);
     }
 
+    /** The circuit save dialog where {@code accept} decides about the chosen file (refusing it, asking to replace it). */
+    public static Optional<Path> chooseSave(java.awt.Component parent, Path directory, String suggestedName,
+                                            Predicate<Path> accept) {
+        return chooseSave(parent, directory, suggestedName,
+                new FileNameExtensionFilter(Messages.text("file.filter.circuits"), "vsim"), FileNames::withExtension,
+                accept);
+    }
+
     /**
      * A save dialog for any kind of file: {@code filter} chooses what is listed and {@code withExtension} completes
      * the chosen name (M6.1-C uses it for CSV). An existing file is replaced only after the user confirms.
      */
     public static Optional<Path> chooseSave(java.awt.Component parent, Path directory, String suggestedName,
                                             FileFilter filter, UnaryOperator<Path> withExtension) {
+        return chooseSave(parent, directory, suggestedName, filter, withExtension,
+                target -> confirmOverwrite(parent, target));
+    }
+
+    /**
+     * {@link #chooseSave(java.awt.Component, Path, String, FileFilter, UnaryOperator)} where {@code accept} decides
+     * about the chosen file (it may refuse it, and ask about replacing it) instead of the plain overwrite question.
+     */
+    public static Optional<Path> chooseSave(java.awt.Component parent, Path directory, String suggestedName,
+                                            FileFilter filter, UnaryOperator<Path> withExtension,
+                                            Predicate<Path> accept) {
         JFileChooser chooser = new JFileChooser(directory.toFile());
         chooser.setFileFilter(filter);
         chooser.setSelectedFile(directory.resolve(suggestedName).toFile());
@@ -53,7 +73,7 @@ public final class FileDialogs {
             return Optional.empty();
         }
         Path target = withExtension.apply(chooser.getSelectedFile().toPath());
-        return confirmOverwrite(parent, target) ? Optional.of(target) : Optional.empty();
+        return accept.test(target) ? Optional.of(target) : Optional.empty();
     }
 
     /** True when {@code target} does not exist yet, or the user agrees to replace it. */

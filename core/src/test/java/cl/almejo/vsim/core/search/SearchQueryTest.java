@@ -192,4 +192,22 @@ class SearchQueryTest {
     private static SearchProblem problemOf(String regex) {
         return new SearchQuery(regex, false, true).compile().problem().orElseThrow();
     }
+
+    @Test
+    void aFinalSigmaMatchesAnOrdinarySigmaAndTheHighlightAgrees() {
+        CompiledQuery query = plain("σ");
+
+        assertThat(query.matches("ΟΔΟΣ")).isTrue();
+        assertThat(query.matches("οδος")).isTrue();
+        assertThat(query.firstPlainMatch("ΟΔΟΣ")).contains(new CompiledQuery.Range(3, 4));
+        assertThat(plain("ς").matches("σ")).isTrue();
+    }
+
+    @Test
+    void aQueryThatFoldsToNothingMatchesNothing() {
+        CompiledQuery query = plain("\u0301");
+
+        assertThat(query.matches("Acción")).isFalse();
+        assertThat(query.firstPlainMatch("Acción")).isEmpty();
+    }
 }

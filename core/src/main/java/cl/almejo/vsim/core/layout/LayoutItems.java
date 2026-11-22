@@ -105,6 +105,18 @@ final class LayoutItems {
             return parts == 0;
         }
 
+        /** True when two of its own bodies share an area (parts of one block that still sit on each other). */
+        boolean hasBodiesOverlappingEachOther() {
+            for (int first = 0; first < bodies.size(); first++) {
+                for (int second = first + 1; second < bodies.size(); second++) {
+                    if (overlaps(bodies.get(first), bodies.get(second), 0)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         /** Its labels or texts: the shapes that are not bodies. */
         List<Bounds> writing() {
             List<Bounds> writing = new ArrayList<>(shapes);
@@ -581,14 +593,17 @@ final class LayoutItems {
             }
         }
         UnionFind<ElementId> joins = new UnionFind<>();
-        Map<GridPoint, ElementId> firstOnPin = new HashMap<>();
+        Map<GridPoint, List<Component>> onPin = new HashMap<>();
         for (Component component : known) {
             joins.add(component.id());
+            Bounds body = registry.typeOf(component).bounds(component);
             for (GridPoint pin : registry.typeOf(component).pinLocations(component)) {
-                ElementId previous = firstOnPin.putIfAbsent(pin, component.id());
-                if (previous != null) {
-                    joins.union(previous, component.id());
-                }
+                List<Component> sharing = onPin.computeIfAbsent(pin, ignored -> new ArrayList<>());
+                // Parts stacked on top of each other share their pins too, but they are not one block: the
+                // separation has to be able to move them apart.
+                sharing.stream().filter(other -> !overlaps(registry.typeOf(other).bounds(other), body, 0))
+                        .forEach(other -> joins.union(other.id(), component.id()));
+                sharing.add(component);
             }
         }
         Map<ElementId, List<Component>> byRoot = new LinkedHashMap<>();

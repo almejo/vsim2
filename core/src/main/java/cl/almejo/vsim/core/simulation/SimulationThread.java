@@ -123,6 +123,10 @@ public final class SimulationThread implements AutoCloseable {
     private boolean memoryMapPublished;
     private long lastMemoryMapPublishNanos;
     private long stepSequence;
+    /** The «Avanzar N t» still running in slices (SIM-3); null when none. */
+    private StepInProgress stepInProgress;
+    /** When the current tick's real-time budget ends: a step in progress runs its slices until then. */
+    private long tickDeadline;
     /** The {@link #published()} futures whose request ran in this tick, completed once it has published. */
     private final List<CompletableFuture<SimulationSnapshot>> publicationWaiters = new ArrayList<>();
 
@@ -175,6 +179,7 @@ public final class SimulationThread implements AutoCloseable {
     public void restart(FlatCircuit circuit, Map<String, String> channels) {
         Map<String, String> copy = Map.copyOf(channels);
         requests.add(() -> {
+            stepInProgress = null;
             engine.restart(circuit, copy);
             latestStep = null; // the old timeline's last jump must not come back as «(+N)»
             latestPauseNotice = null;
@@ -325,6 +330,7 @@ public final class SimulationThread implements AutoCloseable {
     public void advanceToNextEvent() {
         requests.add(() -> {
             if (!running) {
+                finishStep();
                 publishStep(engine.advanceToNextEvent());
             }
         });
@@ -339,6 +345,7 @@ public final class SimulationThread implements AutoCloseable {
         Objects.requireNonNull(mode, "mode");
         requests.add(() -> {
             if (!running) {
+                finishStep();
                 publishStep(engine.advanceToNextClockEdge(mode));
             }
         });
@@ -410,7 +417,8 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * The words the memory simulated as {@code componentId} holds now, writes included (for «Volcar», the editor's live
      * grid and the AI): completed on the simulation thread once the earlier requests ran, empty when there is no such
-     * memory, and at once with empty when the thread is closed. Never wait for it on the EDT.
+     * memory, with the failure when reading it throws ({@link #answer}), and at once with empty when the thread is
+     * closed. Never wait for it on the EDT.
      */
     public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(String componentId) {
         CompletableFuture<Optional<MemoryContents>> future = new CompletableFuture<>();
@@ -420,7 +428,7 @@ public final class SimulationThread implements AutoCloseable {
         }
         waitingContents.add(future);
         future.whenComplete((contents, failure) -> waitingContents.remove(future));
-        requests.add(() -> future.complete(engine.memory(componentId).map(MemoryBehavior::liveContents)));
+        requests.add(() -> answer(future, () -> engine.memory(componentId).map(MemoryBehavior::liveContents)));
         if (stopRequested) {
             future.complete(Optional.empty());
         }
@@ -430,8 +438,9 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * What the Terminal simulated as {@code componentId} shows now, for a reader that is not its window (the AI): its
      * screen, the last {@code historyLines} rows of history and the last {@code byteCount} bytes. Completed on the
-     * simulation thread once the earlier requests ran, empty when there is no such Terminal, and at once with empty
-     * when the thread is closed. Never wait for it on the EDT.
+     * simulation thread once the earlier requests ran, empty when there is no such Terminal, with the failure when
+     * reading it throws ({@link #answer}), and at once with empty when the thread is closed. Never wait for it on the
+     * EDT.
      */
     public CompletableFuture<Optional<TerminalReading>> requestTerminalReading(String componentId, int historyLines,
                                                                               int byteCount) {
@@ -442,7 +451,7 @@ public final class SimulationThread implements AutoCloseable {
         }
         waitingReadings.add(future);
         future.whenComplete((reading, failure) -> waitingReadings.remove(future));
-        requests.add(() -> future.complete(engine.terminal(componentId).map(terminal ->
+        requests.add(() -> answer(future, () -> engine.terminal(componentId).map(terminal ->
                 TerminalReading.of(terminal.screen(), historyLines, byteCount, engine.now()))));
         if (stopRequested) {
             future.complete(Optional.empty());
@@ -453,7 +462,8 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * How many bytes the typing queue of the part simulated as {@code componentId} (a Teclado) holds now: completed
      * on the simulation thread once the earlier requests ran, empty when there is no such part or it keeps no queue,
-     * and at once with empty when the thread is closed. Never wait for it on the EDT.
+     * with the failure when reading it throws ({@link #answer}), and at once with empty when the thread is closed.
+     * Never wait for it on the EDT.
      */
     public CompletableFuture<OptionalInt> requestTypingQueueSize(String componentId) {
         CompletableFuture<OptionalInt> future = new CompletableFuture<>();
@@ -463,31 +473,114 @@ public final class SimulationThread implements AutoCloseable {
         }
         waitingQueueSizes.add(future);
         future.whenComplete((size, failure) -> waitingQueueSizes.remove(future));
-        requests.add(() -> future.complete(engine.typingQueueSize(componentId)));
+        requests.add(() -> answer(future, () -> engine.typingQueueSize(componentId)));
         if (stopRequested) {
             future.complete(OptionalInt.empty());
         }
         return future;
     }
 
+    /**
+     * Completes {@code future} with what {@code work} answers, run on the simulation thread. When the work throws, the
+     * future completes with that failure (whoever waits on it gets an answer instead of waiting forever) and the
+     * exception goes on, so the tick still shows the failure as before.
+     */
+    static <T> void answer(CompletableFuture<T> future, Supplier<T> work) {
+        try {
+            future.complete(work.get());
+        } catch (RuntimeException exception) {
+            future.completeExceptionally(exception);
+            throw exception;
+        }
+    }
+
+    /** «Iniciar»: a «Avanzar N t» still in progress ends where it got, published as a step ({@link #step}). */
     public void resume() {
         requests.add(() -> {
+            finishStep();
             running = true;
             failure = null;
         });
     }
 
+    /** «Pausar»: also ends a «Avanzar N t» in progress where it got, published as a step ({@link #step}). */
     public void pause() {
-        requests.add(() -> running = false);
+        requests.add(() -> {
+            finishStep();
+            running = false;
+        });
     }
 
-    /** «Avanzar N t»: ignored while running; while paused it is published as a {@link #latestStep()} (M6.1-B). */
+    /**
+     * «Avanzar N t»: ignored while running; while paused it is published as a {@link #latestStep()} (M6.1-B). It runs
+     * in slices within each tick's real-time budget, like a running simulation (SIM-3: a billion units of a fast clock
+     * took a quarter of an hour in one call), so the snapshots show its time moving and the requests after it are
+     * served meanwhile: edits and clicks between two slices; «Pausar», «Iniciar» and another step end it where it got,
+     * published with every net it changed so far, while the AI's steps are refused as while running; one of the
+     * engine's limits ends it where it got too; «Reiniciar» and a failure drop it; {@link #close()} stops it within a
+     * tick. A step that ends within its first budget publishes exactly what one call did.
+     */
     public void step(long duration) {
         requests.add(() -> {
             if (!running) {
-                publishStep(engine.advanceBy(duration));
+                finishStep();
+                stepInProgress = new StepInProgress(engine.now(), Scheduler.later(engine.now(), duration));
+                advanceStep();
             }
         });
+    }
+
+    /** Where a sliced «Avanzar N t» started, the time it ends at and the nets it changed so far. */
+    private static final class StepInProgress {
+        private final long fromTime;
+        private final long targetTime;
+        private final Set<String> changedNets = new LinkedHashSet<>();
+
+        private StepInProgress(long fromTime, long targetTime) {
+            this.fromTime = fromTime;
+            this.targetTime = targetTime;
+        }
+    }
+
+    /**
+     * Runs slices of the step in progress until it reaches its time or the tick's budget is spent (at least one slice,
+     * however late the tick is); a step that reaches its time is published ({@link #finishStep()}).
+     */
+    private void advanceStep() {
+        StepInProgress step = stepInProgress;
+        long sliceStart = nanoClock.getAsLong();
+        while (engine.now() < step.targetTime) {
+            long units = Math.min(sliceUnitsBefore(tickDeadline, sliceStart), step.targetTime - engine.now());
+            step.changedNets.addAll(engine.advanceBy(units).changedNets());
+            long sliceEnd = nanoClock.getAsLong();
+            adaptSlice(units, sliceEnd - sliceStart);
+            sliceStart = sliceEnd;
+            if (sliceEnd >= tickDeadline) {
+                break;
+            }
+        }
+        if (engine.now() >= step.targetTime) {
+            finishStep();
+        }
+    }
+
+    /**
+     * True while the simulation moves on by itself: running, or in a «Avanzar N t» that is still going (SIM-3). The
+     * snapshots say it as running, so the window offers «Pausar» to stop the step and nothing else steps meanwhile.
+     */
+    private boolean advancing() {
+        return running || stepInProgress != null;
+    }
+
+    /** Ends the step in progress, if any, where it got: published as a step from its start, with its changed nets. */
+    private void finishStep() {
+        StepInProgress step = stepInProgress;
+        if (step == null) {
+            return;
+        }
+        stepInProgress = null;
+        publishStep(new StepResult(step.fromTime, engine.now(), step.changedNets, engine.nextEventTime()));
+        snapshotDue = true;
     }
 
     /**
@@ -507,7 +600,10 @@ public final class SimulationThread implements AutoCloseable {
         return speed;
     }
 
-    /** The units simulated per real millisecond lately (over about a quarter of a second); 0 while paused. */
+    /**
+     * The units simulated per real millisecond lately (over about a quarter of a second); 0 while paused, and
+     * {@link Double#POSITIVE_INFINITY} while running at «Máxima», whose time jumps from event to event (SIM-2).
+     */
     public double achievedUnitsPerMillisecond() {
         return achievedUnitsPerMillisecond;
     }
@@ -620,7 +716,8 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * Completes with the published snapshot once every request queued before this call has been applied and its
      * result published: the snapshot and, written before it, the next event time, the pending components and the
-     * step. A request that fails publishes the failure first; the ones after it are applied in the next tick.
+     * step. A request that fails publishes the failure first; the ones after it are applied in the next tick. A
+     * «Avanzar N t» still in progress ({@link #step}) counts as applied once it ends, is paused or is dropped.
      * Lets a caller (tests, mainly) wait for a known state instead of polling for one the running simulation may
      * already have moved past. Never completes once the thread is closed; wait with a timeout.
      */
@@ -703,14 +800,15 @@ public final class SimulationThread implements AutoCloseable {
 
     /**
      * {@code count} steps as one: from the first one's start to the last one's end, with every net that changed and
-     * the last one's clock edge.
+     * the last one's clock edge. A pause asked on the way (a part's, or an edge step that found no edge) ends it there,
+     * as it stops a running simulation.
      */
-    private static StepResult repeated(int count, Supplier<StepResult> step) {
+    private StepResult repeated(int count, Supplier<StepResult> step) {
         StepResult first = step.get();
         StepResult last = first;
         Set<String> changed = new LinkedHashSet<>(first.changedNets());
         for (int done = 1; done < count && (last.time() != last.fromTime() || !last.changedNets().isEmpty())
-                && last.nextEventTime().isPresent(); done++) {
+                && last.nextEventTime().isPresent() && engine.pendingPause().isEmpty(); done++) {
             last = step.get();
             changed.addAll(last.changedNets());
         }
@@ -745,6 +843,7 @@ public final class SimulationThread implements AutoCloseable {
         Map<String, String> copy = Map.copyOf(channels);
         requirePositiveBudget(eventBudget);
         return budgeted(eventBudget, List.of(), () -> {
+            stepInProgress = null;
             latestStep = null; // the old timeline's last jump must not come back as «(+N)»
             latestPauseNotice = null;
             failure = null;
@@ -822,8 +921,7 @@ public final class SimulationThread implements AutoCloseable {
                 run = engine.runWithEventBudget(eventBudget, work);
             } catch (RuntimeException exception) {
                 LOGGER.error("Simulation request failed; pausing", exception);
-                publishFailure(exception);
-                future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, outcomes));
+                answerFailed(future, exception, fromTime, outcomes);
                 return;
             }
             if (run.exceeded()) {
@@ -842,13 +940,14 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
-     * Runs one step on this thread within the budget: refused while running; otherwise published as
-     * {@link #latestStep()} like the user's «Avanzar» (when the budget ran out, without the nets that changed).
+     * Runs one step on this thread within the budget: refused while running and during the user's sliced «Avanzar N t»
+     * (the snapshots say both as running, and the AI must not end the user's step where it got); otherwise published
+     * as {@link #latestStep()} like the user's «Avanzar» (when the budget ran out, without the nets that changed).
      */
     private void runStep(CompletableFuture<RequestReport> future, long eventBudget,
                          Supplier<StepResult> step) {
         long fromTime = engine.now();
-        if (running) {
+        if (advancing()) {
             future.complete(reportOf(RequestReport.Status.REFUSED_WHILE_RUNNING, fromTime, 0, List.of()));
             return;
         }
@@ -858,17 +957,34 @@ public final class SimulationThread implements AutoCloseable {
             run = engine.runWithEventBudget(eventBudget, () -> result[0] = step.get());
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation step failed; pausing", exception);
-            publishFailure(exception);
-            future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, List.of()));
+            answerFailed(future, exception, fromTime, List.of());
             return;
         }
         StepResult published = result[0] == null
                 ? new StepResult(fromTime, engine.now(), Set.of(), engine.nextEventTime())
                 : result[0];
         publishStep(published);
-        future.complete(reportOf(run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
-                : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), List.of())
-                .withClockEdge(published.edge()));
+        // An edge step that found no edge stopped at a limit (a pause of no part): it failed, like the other limits
+        boolean stoppedAtLimit = engine.pendingPause().filter(notice -> !notice.fromPart()).isPresent();
+        RequestReport.Status status = run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
+                : stoppedAtLimit ? RequestReport.Status.FAILED : RequestReport.Status.COMPLETED;
+        future.complete(reportOf(status, fromTime, run.eventsProcessed(), List.of()).withClockEdge(published.edge()));
+    }
+
+    /**
+     * Publishes {@code exception} ({@link #publishFailure}) and answers {@code future} as FAILED. If that throws too
+     * (the snapshot of the failed state fails), the future is answered with that exception, which is thrown on to
+     * the tick, so the request never waits until {@link #close()}.
+     */
+    private void answerFailed(CompletableFuture<RequestReport> future, RuntimeException exception, long fromTime,
+                              List<InputOutcome> outcomes) {
+        try {
+            publishFailure(exception);
+            future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, outcomes));
+        } catch (RuntimeException reportFailure) {
+            future.completeExceptionally(reportFailure);
+            throw reportFailure;
+        }
     }
 
     /**
@@ -878,9 +994,15 @@ public final class SimulationThread implements AutoCloseable {
     private RequestReport reportOf(RequestReport.Status status, long fromTime, long eventsProcessed,
                                    List<InputOutcome> inputs) {
         pauseForPart();
-        SimulationSnapshot snapshot = engine.snapshot().withRunning(running).withFailure(Optional.ofNullable(failure));
+        SimulationSnapshot snapshot = engine.snapshot().withRunning(advancing())
+                .withFailure(Optional.ofNullable(failure));
         return new RequestReport(status, snapshot, engine.nextEventTime(), fromTime, eventsProcessed, inputs,
                 Optional.empty(), Optional.ofNullable(latestPauseNotice));
+    }
+
+    /** For tests: whether the loop goes on at once instead of leaving the processor alone for a moment. */
+    boolean saturated() {
+        return saturated;
     }
 
     /** For tests: requests queued and not yet applied. */
@@ -894,6 +1016,7 @@ public final class SimulationThread implements AutoCloseable {
 
     void tick() {
         long now = nanoClock.getAsLong();
+        tickDeadline = now + TICK_BUDGET_NANOS;
         long elapsedNanos = firstTick ? 0 : now - lastTickNanos;
         firstTick = false;
         lastTickNanos = now;
@@ -912,6 +1035,12 @@ public final class SimulationThread implements AutoCloseable {
                 pauseForPart();
             } else {
                 stopMeasuringSpeed(now);
+                if (stepInProgress != null) {
+                    advanceStep();
+                    snapshotStale = true;
+                    pauseForPart();
+                }
+                saturated = stepInProgress != null; // a step goes on at once; a paused engine leaves the processor
             }
             if (snapshotStale) {
                 publishSnapshot(now);
@@ -924,7 +1053,7 @@ public final class SimulationThread implements AutoCloseable {
         publishWaveforms(now);
         publishMemoryMap(now);
         terminalFrames.publish(engine, now, running);
-        if (!publicationWaiters.isEmpty()) {
+        if (!publicationWaiters.isEmpty() && stepInProgress == null) {
             SimulationSnapshot published = latestSnapshot;
             publicationWaiters.forEach(waiter -> waiter.complete(published));
             publicationWaiters.clear();
@@ -935,7 +1064,9 @@ public final class SimulationThread implements AutoCloseable {
      * Advances the engine by the units owed for {@code elapsedNanos} at the current speed (all it can at an unlimited
      * one), in slices, until they are done or the tick's real-time budget is spent. What the engine could not run in
      * time is dropped rather than owed: the simulation then goes as fast as the engine can, and every tick stays
-     * short enough to publish a frame and serve the requests.
+     * short enough to publish a frame and serve the requests. At an unlimited speed the time jumps from event to event
+     * and does not move while nothing is pending ({@link SimulationEngine#advanceThroughEventsUntilPause}); a finite
+     * one keeps real time, idle or not.
      */
     private void advanceFor(long elapsedNanos) {
         boolean unlimited = Double.isInfinite(speed);
@@ -945,17 +1076,22 @@ public final class SimulationThread implements AutoCloseable {
             pendingUnits += elapsedMilliseconds * speed;
         }
         long sliceStart = nanoClock.getAsLong();
+        if (!unlimited && Double.isInfinite(achievedUnitsPerMillisecond)) {
+            stopMeasuringSpeed(sliceStart); // from «Máxima» to a finite speed: measured again from here
+        }
         long deadline = sliceStart + TICK_BUDGET_NANOS;
         long advanced = 0;
         saturated = false;
-        while (unlimited || pendingUnits >= 1) {
-            // A slice is sized for SLICE_TARGET_NANOS; the last one, for the time left before the deadline.
-            long units = Math.max(1, Math.min(sliceUnits, sliceUnits * (deadline - sliceStart) / SLICE_TARGET_NANOS));
+        while (unlimited ? engine.nextEventTime().isPresent() : pendingUnits >= 1) {
+            long units = sliceUnitsBefore(deadline, sliceStart);
             if (!unlimited) {
                 units = Math.min((long) pendingUnits, units);
             }
-            boolean pausedByPart = engine.advanceUntilPause(units);
-            advanced += units;
+            long before = engine.now();
+            boolean pausedByPart = unlimited
+                    ? engine.advanceThroughEventsUntilPause(units)
+                    : engine.advanceUntilPause(units);
+            advanced += engine.now() - before;
             if (!unlimited) {
                 pendingUnits -= units;
             }
@@ -967,14 +1103,25 @@ public final class SimulationThread implements AutoCloseable {
                 break;
             }
             if (sliceEnd >= deadline) {
-                saturated = unlimited || pendingUnits >= 1;
+                saturated = unlimited ? engine.nextEventTime().isPresent() : pendingUnits >= 1;
                 break;
             }
         }
         if (pendingUnits >= 1) {
             pendingUnits -= Math.floor(pendingUnits);
         }
-        measureSpeed(advanced, sliceStart);
+        if (unlimited) {
+            // SIM-2: at «Máxima» the time jumps from event to event, so the units per millisecond would count the jumps
+            // (a slow clock would read as a huge ×); the speed achieved is said as the maximum, not measured.
+            achievedUnitsPerMillisecond = Double.POSITIVE_INFINITY;
+        } else {
+            measureSpeed(advanced, sliceStart);
+        }
+    }
+
+    /** A slice is sized for {@link #SLICE_TARGET_NANOS}; the last one, for the time left before {@code deadline}. */
+    private long sliceUnitsBefore(long deadline, long sliceStart) {
+        return Math.max(1, Math.min(sliceUnits, sliceUnits * (deadline - sliceStart) / SLICE_TARGET_NANOS));
     }
 
     /**
@@ -1023,22 +1170,22 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
-     * Publishes the engine's state. While running, the snapshot is rebuilt at most every
-     * {@link #SNAPSHOT_INTERVAL_NANOS}, and only when some event ran since the last one (a frame could not show
-     * more); between rebuilds only its time moves. A request, a pause and a failure publish at once what they did.
+     * Publishes the engine's state. While running, or during a «Avanzar N t» in slices, the snapshot is rebuilt at
+     * most every {@link #SNAPSHOT_INTERVAL_NANOS}, and only when some event ran since the last one (a frame could not
+     * show more); between rebuilds only its time moves. A request, a pause and a failure publish at once what they did.
      */
     private void publishSnapshot(long now) {
         long interval = Math.max(SNAPSHOT_INTERVAL_NANOS, SNAPSHOT_COST_SHARE * snapshotCostNanos);
-        boolean due = snapshotDue || !running || now - lastSnapshotNanos >= interval;
-        boolean changed = snapshotDue || !running || engine.eventsRun() != eventsAtSnapshot;
+        boolean due = snapshotDue || !advancing() || now - lastSnapshotNanos >= interval;
+        boolean changed = snapshotDue || !advancing() || engine.eventsRun() != eventsAtSnapshot;
         if (due && changed) {
             long before = nanoClock.getAsLong();
             SimulationSnapshot snapshot = engine.snapshot();
             snapshotCostNanos = nanoClock.getAsLong() - before;
             pauseOnNewShortCircuit(snapshot);
             latestNextEventTime = engine.nextEventTime();
-            latestPendingComponents = running ? Set.of() : engine.pendingComponents();
-            latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
+            latestPendingComponents = advancing() ? Set.of() : engine.pendingComponents();
+            latestSnapshot = snapshot.withRunning(advancing()).withFailure(Optional.ofNullable(failure));
             snapshotStale = false;
             snapshotDue = false;
             lastSnapshotNanos = now;
@@ -1095,13 +1242,40 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     private void publishFailure(Throwable throwable) {
+        if (throwable instanceof SimulationLimitException limit) {
+            pauseAtLimit(limit);
+            return;
+        }
         running = false;
+        stepInProgress = null;
         failure = throwable.getMessage() == null
                 ? throwable.getClass().getSimpleName()
                 : throwable.getClass().getSimpleName() + ": " + throwable.getMessage();
         latestNextEventTime = engine.nextEventTime();
         latestPendingComponents = engine.pendingComponents();
         latestSnapshot = latestSnapshot.withRunning(false).withFailure(Optional.of(failure));
+    }
+
+    /**
+     * The engine reached one of its limits: the simulation pauses where the engine stopped, like at a part's pause, and
+     * says why with a {@link PauseNotice} of no part in the user's words (never an English failure), published with a
+     * snapshot of that state at once. A «Avanzar N t» in progress ends where it got, published as a step, as «Pausar»
+     * ends it.
+     */
+    private void pauseAtLimit(SimulationLimitException limit) {
+        LOGGER.info("Simulation reached a limit at t = {}; pausing: {}", limit.time(), limit.getMessage());
+        running = false;
+        try {
+            finishStep();
+        } catch (RuntimeException exception) {
+            LOGGER.error("Could not publish the step cut by a limit", exception);
+        } finally {
+            stepInProgress = null;
+        }
+        latestPauseNotice = engine.limitNotice(limit);
+        snapshotStale = true;
+        snapshotDue = true;
+        publishSnapshot(nanoClock.getAsLong());
     }
 
     private void loop() {

@@ -36,7 +36,7 @@ final class WhatsNewFeatures {
         item.putClientProperty(Actions.SEARCH_TERMS, Messages.text("whatsNew.searchTerms"));
         JMenu help = view.menu(MenuId.HELP);
         help.add(item, itemIndex(help));
-        this.cancelReadiness = seams.readiness().whenReady(view, this::windowReady);
+        this.cancelReadiness = seams.readiness().whenReady(view, () -> notices.whenStartIsFree(this::windowReady));
     }
 
     /** Right after «Atajos de teclado» when the sheet put it there, first otherwise. */

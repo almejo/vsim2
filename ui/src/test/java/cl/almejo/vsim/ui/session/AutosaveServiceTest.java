@@ -2,7 +2,10 @@ package cl.almejo.vsim.ui.session;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.io.CircuitReader;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -159,6 +162,74 @@ class AutosaveServiceTest {
         assertThat(runWrites()).isZero();
     }
 
+    /** APP-5: an instance whose definition is gone cannot be serialized, so it never gets a recovery copy. */
+    private OpenDocument unserializable() {
+        OpenDocument document = tracked();
+        document.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        place(document, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 4, -1, Map.of());
+        document.document().removeDefinition(ExampleDefinitions.INVERTER);
+        return document;
+    }
+
+    @Test
+    void aDocumentThatCannotBeSerializedIsReportedOncePerDocumentAndAgainWhenReopened() {
+        List<OpenDocument> reported = new ArrayList<>();
+        autosave.onSerializationFailure(reported::add);
+        OpenDocument document = unserializable();
+
+        autosave.tick();
+        autosave.tick();
+        assertThat(reported).as("once, not at every tick").containsExactly(document);
+        assertThat(runWrites()).as("no copy was written").isZero();
+
+        autosave.untrack(document);
+        autosave.track(document);
+        autosave.tick();
+        assertThat(reported).as("reopened: told again").containsExactly(document, document);
+    }
+
+    @Test
+    void aCircuitThatCanBeSerializedAgainIsToldSoAndToldAgainIfItFailsOnceMore() {
+        List<String> told = new ArrayList<>();
+        autosave.onSerializationFailure(document -> told.add("cannot"));
+        autosave.onSerializationRecovered(document -> told.add("again"));
+        OpenDocument document = unserializable();
+        autosave.tick();
+
+        document.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        autosave.tick();
+        autosave.tick();
+        document.document().removeDefinition(ExampleDefinitions.INVERTER);
+        place(document, StandardComponentTypes.LED, 8, 2, Map.of());
+        autosave.tick();
+
+        assertThat(told).containsExactly("cannot", "again", "cannot");
+    }
+
+    /** Review I1: «already told» is its own state, not the failed writes'. */
+    @Test
+    void aCircuitWhoseCopyFailedToWriteIsStillToldWhenItCannotBeSerialized() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        AutosaveService failing = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add);
+        List<OpenDocument> reported = new ArrayList<>();
+        failing.onSerializationFailure(reported::add);
+        OpenDocument document = untracked();
+        failing.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        failing.tick();
+        runWrites();
+
+        document.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        place(document, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 4, -1, Map.of());
+        document.document().removeDefinition(ExampleDefinitions.INVERTER);
+        failing.tick();
+
+        assertThat(reported).containsExactly(document);
+        failing.shutdown();
+        runWrites();
+    }
+
     @Test
     void aFailingWriteIsLoggedOnceAndRetriedAtEveryTick() throws Exception {
         Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
@@ -175,6 +246,110 @@ class AutosaveServiceTest {
         assertThat(failing.loggedFailures()).isEqualTo(1);
 
         failing.shutdown();
+        runWrites();
+    }
+
+    /** Debt «Autosave: recovery-copy write failures»: the user is told once, and again only after a write succeeded. */
+    @Test
+    void aCopyThatCannotBeWrittenIsToldOnceHoweverManyTicksFail() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        RecoveryStore brokenStore = new RecoveryStore(blocked.resolve("recovery"));
+        AutosaveService service = new AutosaveService(brokenStore, Clock.fixed(NOW, ZoneOffset.UTC),
+                pendingWrites::add, Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+
+        service.tick();
+        runWrites();
+        service.tick();
+        runWrites();
+        assertThat(told).containsExactly("cannot");
+
+        service.shutdown();
+        runWrites();
+    }
+
+    @Test
+    void theWriteNoticeGoesAwayWhenTheFailingDocumentIsClosed() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        AutosaveService service = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add, Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        service.tick();
+        runWrites();
+
+        service.untrack(document);
+        runWrites();
+
+        assertThat(told).containsExactly("cannot", "again");
+        service.shutdown();
+        runWrites();
+    }
+
+    /** Review round 3 (F7): a write queued before the close must not put the closed document back among the failing. */
+    @Test
+    void aWriteQueuedBeforeTheCloseThatFailsLaterDoesNotLeaveTheNoticeStuck() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        AutosaveService service = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add, Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        service.tick(); // the write is queued, not run
+
+        service.untrack(document); // the document closes before the writer gets to it
+        runWrites();
+
+        assertThat(told).as("no notice for a document that is gone").isEmpty();
+        OpenDocument another = untracked();
+        service.track(another);
+        place(another, StandardComponentTypes.LED, 2, 2, Map.of());
+        service.tick();
+        runWrites();
+        assertThat(told).as("a later failure is still told").containsExactly("cannot");
+        service.shutdown();
+        runWrites();
+    }
+
+    @Test
+    void aWriteThatSucceedsAfterAFailureTakesTheNoticeAwayAndAnotherFailureIsToldAgain() throws Exception {
+        Path folder = directory.resolve("flaky");
+        RecoveryStore flaky = new RecoveryStore(folder);
+        AutosaveService service = new AutosaveService(flaky, Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add,
+                Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        // the session folder is replaced by a plain file: writing fails; put a folder back: writing succeeds
+        Path session = flaky.sessionFolder();
+        Files.createDirectories(session.getParent());
+        Files.writeString(session, "in the way");
+        service.tick();
+        runWrites();
+        assertThat(told).containsExactly("cannot");
+
+        Files.delete(session);
+        Files.createDirectories(session);
+        service.tick();
+        runWrites();
+        assertThat(told).containsExactly("cannot", "again");
+
+        service.shutdown();
         runWrites();
     }
 
@@ -224,6 +399,38 @@ class AutosaveServiceTest {
         autosave.tick();
         runWrites();
         assertThat(newCopyWasOnDisk).as("only once").hasSize(1);
+    }
+
+    @Test
+    void anActionRegisteredBeforeTrackingRunsOnceTheDocumentIsTrackedAndCopied() throws Exception {
+        // Application.openRecovered asks for the action before the document is shown and tracked.
+        Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
+        OpenDocument document = untracked();
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+
+        autosave.afterCopied(document, () -> deleteQuietly(oldCopy));
+        autosave.track(document);
+        autosave.tick();
+        assertThat(oldCopy).as("not before the writer ran").exists();
+        runWrites();
+
+        assertThat(hasCopy(document)).isTrue();
+        assertThat(oldCopy).as("the old recovery copy is gone once the new one is on disk").doesNotExist();
+    }
+
+    @Test
+    void anActionWaitingForTrackingNeverRunsIfTheDocumentIsNeverTracked() throws Exception {
+        Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
+        OpenDocument document = untracked();
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+
+        autosave.afterCopied(document, () -> deleteQuietly(oldCopy));
+        autosave.tick();
+        runWrites();
+        autosave.shutdown();
+        runWrites();
+
+        assertThat(oldCopy).exists();
     }
 
     @Test

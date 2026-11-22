@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -34,6 +35,7 @@ public final class CircuitDocument {
     private final NavigableMap<Long, StickyNote> stickyNotes = new TreeMap<>();
     private final Map<ElementId, Long> orders = new HashMap<>();
     private final Map<String, ComponentDefinition> definitions = new LinkedHashMap<>();
+    private final Set<String> unsupportedDrawings = new LinkedHashSet<>();
     private final List<DocumentListener> listeners = new CopyOnWriteArrayList<>();
     private final Set<ElementId> pendingAdded = new LinkedHashSet<>();
     private final Set<ElementId> pendingRemoved = new LinkedHashSet<>();
@@ -102,7 +104,9 @@ public final class CircuitDocument {
     public CircuitDocument copy() {
         CircuitDocument copy = new CircuitDocument();
         copy.name = name;
+        copy.simulationSpeed = simulationSpeed;
         copy.definitions.putAll(definitions);
+        copy.unsupportedDrawings.addAll(unsupportedDrawings);
         orders.forEach((id, order) -> copy.put(element(id).orElseThrow(), order));
         copy.nextIdNumber = nextIdNumber;
         copy.nextOrder = nextOrder;
@@ -275,6 +279,23 @@ public final class CircuitDocument {
 
     public Optional<ComponentDefinition> definition(String id) {
         return Optional.ofNullable(definitions.get(id));
+    }
+
+    /**
+     * Remembers that the drawing of definition {@code id} had a path VSim cannot read when the file was read: the
+     * definition shows the default box and the Problemas list says so. Not an edit and not saved: the next save
+     * writes the definition without that drawing.
+     */
+    public void noteUnsupportedDrawing(String id) {
+        unsupportedDrawings.add(Objects.requireNonNull(id, "id"));
+    }
+
+    /**
+     * The ids of the definitions whose drawing could not be read, whatever their appearance is now; a problem is
+     * listed only while the definition still has no drawing of its own.
+     */
+    public Set<String> unsupportedDrawings() {
+        return Set.copyOf(unsupportedDrawings);
     }
 
     /** Every definition the document holds, in the order they were first added. */

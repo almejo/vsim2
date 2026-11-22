@@ -246,9 +246,9 @@ final class EditTools {
         return switch (kind) {
             case "PlacePart" -> new EditOperation.PlacePart(operation.optionalString("alias"),
                     operation.string("typeId"), operation.integer("x"), operation.integer("y"), rotationOf(operation),
-                    operation.map("parameters"), operation.string("label", ""));
+                    operation.parameters("parameters"), operation.string("label", ""));
             case "SetParameters" -> new EditOperation.SetParameters(operation.string("target"),
-                    operation.map("parameters"));
+                    operation.parameters("parameters"));
             case "SetLabel" -> new EditOperation.SetLabel(operation.string("target"),
                     operation.optionalString("text"), operation.optionalObject("style").map(EditTools::styleOf));
             case "Connect" -> new EditOperation.Connect(pinTargetOf(operation.object("from")),

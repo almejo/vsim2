@@ -46,6 +46,7 @@ import cl.almejo.vsim.core.document.StickyItem;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -62,6 +63,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -657,7 +659,7 @@ class EditServiceTest {
                 new PlacePart(Optional.of("y"), "output-pin", 18, 1, Rotation.R0, Map.of(), "Y"),
                 connect("new:source", "out", "new:not", "in"),
                 connect("new:not", "out", "new:y", "pin")));
-        return new java.util.HashMap<>(receipt.aliases());
+        return new HashMap<>(receipt.aliases());
     }
 
     @Test
@@ -1203,6 +1205,166 @@ class EditServiceTest {
         assertThat(receipt.components().getFirst().definitionId()).isNotEqualTo(inLibrary.id());
     }
 
+    // --- limits and bad values (bug hunt 2026-11-20) ---
+
+    @Test
+    void aPartFarOutsideTheCoordinateLimitIsRefusedAndTheCircuitStaysAsItWas() {
+        AutomationException refusal = assertRefused(request(place("far", "nand", Integer.MAX_VALUE, 0)),
+                AutomationError.INVALID_PARAMETER);
+
+        assertThat(refusal.getMessage()).contains("x").contains("1000000");
+        assertNothingChanged();
+    }
+
+    @Test
+    void everyOperationWithPositionsRefusesOnesPastTheLimit() {
+        int far = EditPlanner.MAXIMUM_COORDINATE + 1;
+        for (EditOperation operation : List.of(
+                place("a", "nand", 0, -far),
+                new PlaceInstance(Optional.empty(), "x", far, 0, Rotation.R0),
+                new AddNote(Optional.empty(), "n", far, 0),
+                new AddStickyNote(Optional.empty(), 0, far, OptionalInt.empty(), OptionalInt.empty(),
+                        Optional.empty(), Optional.of("t"), Optional.empty(), false),
+                new AddGuide(Guide.Orientation.HORIZONTAL, far),
+                new AddWire(List.of(new GridPoint(0, 0), new GridPoint(far, 0))),
+                new Connect(PinTarget.named("c1", "out"), PinTarget.named("c2", "in0"),
+                        List.of(new GridPoint(far, 5))),
+                new MakeFrame(Optional.empty(), "T", List.of(), Optional.of(
+                        new Bounds(0, 0, far, 10)), false))) {
+            assertRefused(request(operation), AutomationError.INVALID_PARAMETER);
+            assertNothingChanged();
+        }
+    }
+
+    @Test
+    void aPartAtTheLimitIsStillPlaced() {
+        service.edit(request(place("edge", "nand", EditPlanner.MAXIMUM_COORDINATE, -EditPlanner.MAXIMUM_COORDINATE)));
+
+        assertThat(circuit.document().components()).hasSize(1);
+    }
+
+    @Test
+    void aMoveByMoreThanTheLimitIsRefusedAndOnePastTheLimitOfTheResultToo() {
+        service.edit(request(place("part", "nand", 10, 10)));
+        long version = circuit.version().value();
+
+        assertRefused(request(new Move(List.of("c1"), Integer.MAX_VALUE, 0)), AutomationError.INVALID_PARAMETER);
+        assertRefused(request(new Move(List.of("c1"), EditPlanner.MAXIMUM_COORDINATE, 0),
+                new Move(List.of("c1"), EditPlanner.MAXIMUM_COORDINATE, 0)), AutomationError.INVALID_PARAMETER);
+
+        assertThat(circuit.version().value()).isEqualTo(version);
+        assertThat(circuit.document().components().iterator().next().position()).isEqualTo(new GridPoint(10, 10));
+    }
+
+    /** What a hand-made file can hold and the AI could never place: a gate three times past the limit. */
+    private void addFarNand() {
+        PlacePart nand = place("far", "nand", 0, 0);
+        circuit.document().add(new Component(
+                new ElementId("c1"), nand.typeId(),
+                new GridPoint(3 * EditPlanner.MAXIMUM_COORDINATE, 0), Rotation.R0, nand.parameters(), ""));
+    }
+
+    @Test
+    void aFileCanHoldElementsAndGuidesFarerThanTheLimitAndTheAiMayBringThemCloser() {
+        addFarNand();
+        circuit.document().setGuides(List.of(new Guide(Guide.Orientation.VERTICAL,
+                3 * EditPlanner.MAXIMUM_COORDINATE)));
+
+        service.edit(request(new Move(List.of("c1"), -2 * EditPlanner.MAXIMUM_COORDINATE, 0),
+                new RemoveGuide(Guide.Orientation.VERTICAL, 3 * EditPlanner.MAXIMUM_COORDINATE)));
+
+        assertThat(circuit.document().components().iterator().next().position())
+                .isEqualTo(new GridPoint(EditPlanner.MAXIMUM_COORDINATE, 0));
+        assertThat(circuit.document().guides()).isEmpty();
+    }
+
+    @Test
+    void aFarElementMayNotBeMovedFartherOut() {
+        addFarNand();
+
+        assertRefused(request(new Move(List.of("c1"), 1, 0)), AutomationError.INVALID_PARAMETER);
+    }
+
+    @Test
+    void aNullParameterValueIsRefusedNamingTheParameter() {
+        HashMap<String, Object> parameters = new HashMap<>();
+        parameters.put("bits", null);
+
+        assertThatThrownBy(() -> new PlacePart(Optional.empty(), "and", 0, 0, Rotation.R0, parameters, ""))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("bits");
+        assertThatThrownBy(() -> new SetParameters("c1", parameters))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("bits");
+    }
+
+    @Test
+    void closingADocumentEndsItsTasksAndForgetsThem() {
+        TaskInfo running = service.beginTask(new DocumentId(DOCUMENT), "Abierta", List.of());
+        AiTask endedTask = service.requireTask(running.taskId());
+
+        service.documentClosed(new DocumentId(DOCUMENT));
+
+        assertThat(endedTask.state()).isEqualTo(AiTask.State.ENDED);
+        assertThat(service.task(running.taskId())).isEmpty();
+        assertThat(service.hasRunningTask(new DocumentId(DOCUMENT))).isFalse();
+    }
+
+    /** Review round 3 (F8): a call naming a task a close ended says the circuit is closed, not «begin one first». */
+    @Test
+    void callsNamingATaskEndedByTheCloseAnswerDocumentClosed() {
+        TaskInfo running = service.beginTask(new DocumentId(DOCUMENT), "Abierta", List.of());
+        service.documentClosed(new DocumentId(DOCUMENT));
+
+        assertThatThrownBy(() -> service.requireTask(running.taskId()))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
+        assertThatThrownBy(() -> service.endTask(running.taskId()))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
+        assertThatThrownBy(() -> service.requireTask("task-never-given"))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_REFERENCE));
+    }
+
+    /** Review round 3 (F9): a close that lands while a task is being begun never leaves it running. */
+    @Test
+    void aTaskBegunWhileTheDocumentClosesIsNotLeftRunning() {
+        EditService[] holder = new EditService[1];
+        holder[0] = new EditService(new cl.almejo.vsim.automation.EditHost() {
+            @Override
+            public <T> java.util.concurrent.CompletableFuture<T> onCircuit(DocumentId document,
+                                                                         java.util.function.Function<EditableCircuit,
+                                                                                 T> work) {
+                holder[0].documentClosed(document); // the user closes the circuit right after the check passed
+                return java.util.concurrent.CompletableFuture.completedFuture(work.apply(null));
+            }
+        }, listeners, Duration.ofSeconds(5), Runnable::run);
+
+        assertThatThrownBy(() -> holder[0].beginTask(new DocumentId(DOCUMENT), "Tarde", List.of()))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
+        assertThat(holder[0].hasRunningTask(new DocumentId(DOCUMENT))).isFalse();
+    }
+
+    @Test
+    void closingADocumentLeavesTheTasksOfOtherDocumentsAlone() {
+        TaskInfo other = service.beginTask(new DocumentId(DOCUMENT), "Otra", List.of());
+
+        service.documentClosed(new DocumentId("another-document"));
+
+        assertThat(service.task(other.taskId())).isPresent();
+        assertThat(service.hasRunningTask(new DocumentId(DOCUMENT))).isTrue();
+    }
+
+    @Test
+    void closingADocumentFreesItsOperationLogAndItsTransparentStep() {
+        service.edit(request(place("part", "nand", 10, 10)));
+        assertThat(service.trackedDocuments()).isPositive();
+
+        service.documentClosed(new DocumentId(DOCUMENT));
+
+        assertThat(service.trackedDocuments()).isZero();
+    }
+
     // --- helpers ---
 
     private EditRequest request(EditOperation... operations) {
@@ -1266,7 +1428,7 @@ class EditServiceTest {
                 new PlacePart(Optional.of("y"), "output-pin", 18, 1, Rotation.R0, Map.of(), "Y"),
                 connect("new:a", "pin", "new:not", "in"),
                 connect("new:not", "out", "new:y", "pin")));
-        Map<String, String> ids = new java.util.HashMap<>(receipt.aliases());
+        Map<String, String> ids = new HashMap<>(receipt.aliases());
         ids.put("w1", receipt.connections().get(0).wireIds().getFirst());
         ids.put("w2", receipt.connections().get(1).wireIds().getFirst());
         return ids;

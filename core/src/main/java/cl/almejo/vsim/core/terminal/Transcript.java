@@ -12,11 +12,13 @@ final class Transcript {
     static final int LIMIT = 4000;
 
     private final StringBuilder text = new StringBuilder();
+    /** How many characters are kept: {@link #LIMIT}, or more when a longer suffix must still be matched. */
+    private int keep = LIMIT;
 
     void append(int codePoint) {
         text.appendCodePoint(codePoint);
-        if (text.length() > 2 * LIMIT) {
-            text.delete(0, cutBefore(text.length() - LIMIT));
+        if (text.length() > 2 * keep) {
+            text.delete(0, cutBefore(text.length() - keep));
         }
     }
 
@@ -39,6 +41,11 @@ final class Transcript {
         return text.substring(cutBefore(Math.max(0, text.length() - LIMIT)));
     }
 
+    /** From now on keeps at least {@code characters} (for a suffix longer than {@link #LIMIT}); never keeps less. */
+    void keepAtLeast(int characters) {
+        keep = Math.max(keep, characters);
+    }
+
     /** Whether the text ends with {@code suffix}; costs the suffix's length, never a copy of the text. */
     boolean endsWith(String suffix) {
         int start = text.length() - suffix.length();
@@ -56,6 +63,7 @@ final class Transcript {
     Transcript copy() {
         Transcript copy = new Transcript();
         copy.text.append(text);
+        copy.keep = keep;
         return copy;
     }
 

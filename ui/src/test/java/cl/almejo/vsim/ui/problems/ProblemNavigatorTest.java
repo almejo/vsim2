@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.Problem;
@@ -94,6 +95,14 @@ class ProblemNavigatorTest {
     private void show(Problem... problems) {
         navigator.showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(), Map.of(),
                 List.of(problems), Optional.empty()));
+    }
+
+    @Test
+    void aProblemOfTheDocumentAsAWholeNavigatesNowhereAndDoesNotFail() {
+        boolean found = navigator.navigateTo(new ConnectivityProblem("drawing:dibujo", ConnectivityProblem.NO_ELEMENT,
+                -1, GridPoint.ORIGIN, ConnectivityProblem.Cause.UNSUPPORTED_DRAWING));
+
+        assertThat(found).isFalse();
     }
 
     @Test

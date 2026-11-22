@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 /**
@@ -66,6 +67,8 @@ final class LogisimPartRules {
     private static final int MAXIMUM_TERMINAL_COLUMNS = 160;
     /** VSim's LED colours with the RGB each paints, to take the nearest to Logisim's colour (and back, on export). */
     static final Map<String, Integer> LED_COLORS = ledColors();
+    /** How Logisim writes a colour: {@code #rrggbb}. */
+    private static final Pattern LOGISIM_COLOR = Pattern.compile("#\\p{XDigit}{6}");
 
     private LogisimPartRules() {
     }
@@ -684,7 +687,16 @@ final class LogisimPartRules {
                 .part();
     }
 
+    /**
+     * The VSim LED colour nearest {@code logisimColor}, which Logisim writes {@code #rrggbb} (anything after those six
+     * digits, an alpha, is ignored).
+     *
+     * @throws IllegalArgumentException when it does not start {@code #rrggbb} ({@code red}, empty)
+     */
     private static String nearestLedColor(String logisimColor) {
+        if (!LOGISIM_COLOR.matcher(logisimColor).lookingAt()) {
+            throw new IllegalArgumentException("not a #rrggbb colour: " + logisimColor);
+        }
         int rgb = Integer.parseInt(logisimColor.substring(1, 7), 16);
         return LED_COLORS.entrySet().stream()
                 .min((first, second) -> Integer.compare(distance(first.getValue(), rgb),

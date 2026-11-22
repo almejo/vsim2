@@ -71,4 +71,27 @@ class StartupStepsTest {
         assertThat(windows).containsExactly("empty document");
         assertThat(events).containsExactly("components", "autosave", "rethrown");
     }
+
+    @Test
+    void theStandInDocumentGoesWhenSomethingElseOpened() {
+        StartupSteps.dropStandIn(2, () -> events.add("closed"));
+
+        assertThat(events).containsExactly("closed");
+    }
+
+    @Test
+    void theStandInDocumentStaysWhenItIsTheOnlyOne() {
+        StartupSteps.dropStandIn(1, () -> events.add("closed"));
+
+        assertThat(events).isEmpty();
+    }
+
+    @Test
+    void aStandInThatCannotCloseDoesNotStopTheStart() {
+        StartupSteps.dropStandIn(3, () -> {
+            throw new IllegalStateException("stuck");
+        });
+
+        assertThat(events).isEmpty();
+    }
 }

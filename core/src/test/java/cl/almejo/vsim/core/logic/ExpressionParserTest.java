@@ -276,4 +276,21 @@ class ExpressionParserTest {
                 .containsExactly("x", "y");
         assertThat(ExpressionParser.nameSpans("")).isEmpty();
     }
+
+    @Test
+    void absurdNestingIsAProblemNeverAStackOverflow() {
+        for (String text : List.of("F = " + "!".repeat(20_000) + "A",
+                "F = " + "(".repeat(20_000) + "A" + ")".repeat(20_000), "F = A" + "'".repeat(20_000))) {
+            ParseResult result = ExpressionParser.parseLine(text);
+
+            assertThat(result.line()).isEmpty();
+            assertThat(result.problem().orElseThrow().messageKey()).isEqualTo(ExpressionProblem.TOO_NESTED);
+        }
+    }
+
+    @Test
+    void reasonableNestingStillParses() {
+        assertThat(ExpressionParser.parseLine("F = " + "!".repeat(200) + "A").line()).isPresent();
+        assertThat(ExpressionParser.parseLine("F = " + "(".repeat(200) + "A" + ")".repeat(200)).line()).isPresent();
+    }
 }

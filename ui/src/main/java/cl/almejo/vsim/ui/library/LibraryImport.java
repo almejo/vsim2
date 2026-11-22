@@ -111,15 +111,21 @@ public final class LibraryImport {
     }
 
     /**
-     * {@code bundle} as it may enter the library: as is when its id is free, otherwise as the user chooses (replace,
-     * keep both under a new identity, or nothing).
+     * {@code bundle} as it may enter the library: as is when its id and its name are free, otherwise as the user
+     * chooses: replace (offered only for the same id), keep both under a new identity, or nothing. A clash only by
+     * name never offers replacing: it would delete the other component, and the circuits that use it would lose it.
      */
     Optional<DefinitionBundle> resolveCollision(java.awt.Component parent, DefinitionBundle bundle) {
-        if (service.library().find(bundle.root().id()).isEmpty()) {
+        String id = bundle.root().id();
+        List<DefinitionBundle> sameName = service.library().entries().stream()
+                .filter(entry -> !entry.root().id().equals(id))
+                .filter(entry -> DefinitionNames.same(entry.root().name(), bundle.root().name()))
+                .toList();
+        if (service.library().find(id).isEmpty() && sameName.isEmpty()) {
             return Optional.of(bundle);
         }
-        return switch (dialogs.askImportCollision(parent, bundle.root().name())) {
-            case REPLACE -> Optional.of(bundle);
+        return switch (dialogs.askImportCollision(parent, bundle.root().name(), sameName.isEmpty())) {
+            case REPLACE -> sameName.isEmpty() ? Optional.of(bundle) : Optional.empty();
             case KEEP_BOTH -> Optional.of(copyWithNewIdentity(bundle, service.library()));
             case CANCEL -> Optional.empty();
         };

@@ -190,4 +190,18 @@ class LinkedMemoryWatcherTest {
 
         assertThat(watcher.problem(rom.id())).isEqualTo(Optional.empty());
     }
+
+    @Test
+    void aFileWithAnOverflowingAddressIsAProblemNotAnException() throws IOException {
+        Path file = program("01\n");
+        Component rom = linkedRom(file, "@0 1");
+        watcher.poll();
+
+        edit(file, "@7FFFFFFFFFFFFFFF 1 2\n", 5);
+        watcher.poll();
+        watcher.poll();
+
+        assertThat(watcher.problem(rom.id())).isPresent();
+        assertThat(contentsOf(rom)).isEqualTo(MemoryContents.decode("@0 1"));
+    }
 }

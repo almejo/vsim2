@@ -20,6 +20,7 @@ final class FakeLibraryDialogs implements LibraryDialogs {
     final List<String> describedNames = new ArrayList<>();
     final Deque<Optional<Path>> exportTargets = new ArrayDeque<>();
     final Deque<List<Path>> importFiles = new ArrayDeque<>();
+    final List<Boolean> replaceOffered = new java.util.ArrayList<>();
     final Deque<ImportChoice> collisions = new ArrayDeque<>();
     final List<String> collisionNames = new ArrayList<>();
     final Deque<Boolean> confirmations = new ArrayDeque<>();
@@ -74,8 +75,9 @@ final class FakeLibraryDialogs implements LibraryDialogs {
     }
 
     @Override
-    public ImportChoice askImportCollision(java.awt.Component parent, String componentName) {
+    public ImportChoice askImportCollision(java.awt.Component parent, String componentName, boolean canReplace) {
         collisionNames.add(componentName);
+        replaceOffered.add(canReplace);
         return collisions.isEmpty() ? ImportChoice.CANCEL : collisions.removeFirst();
     }
 
