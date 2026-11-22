@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.netlist.ProbeNaming;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -212,6 +213,28 @@ class RemoveElementsProbesTest {
         history.execute(new RemoveElementsCommand(List.of(driver.id(), wire.id()), registry));
 
         assertThat(document.probes()).isEmpty();
+    }
+
+    @Test
+    void theMovedProbesAreSetBeforeTheElementsGoAndAfterTheyComeBack() {
+        Component driver = place(new GridPoint(0, 0));
+        GridPoint output = and.pinLocation(driver, AND_OUTPUT);
+        GridPoint far = new GridPoint(output.x() + 6, output.y());
+        Wire wire = wire(output, far);
+        placeWithInputAt(far);
+        setProbes(probeOnWire("p1", wire, "salida", Probe.FORMAT_BINARY));
+        List<String> notifications = new ArrayList<>();
+        document.addProbeListener(() -> notifications.add("probes"));
+        document.addListener((changed, change) -> notifications.add("elements"));
+
+        history.execute(new RemoveElementsCommand(List.of(driver.id()), registry));
+        assertThat(notifications).as("the moved probe still resolves on the old nets: the engine never sees it "
+                + "without a net").containsExactly("probes", "elements");
+
+        notifications.clear();
+        history.undo();
+        assertThat(notifications).as("undo puts the elements back first, so the old target exists")
+                .containsExactly("elements", "probes");
     }
 
     @Test

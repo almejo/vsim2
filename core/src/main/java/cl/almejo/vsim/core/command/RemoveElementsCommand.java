@@ -73,6 +73,12 @@ public final class RemoveElementsCommand implements Command {
         removed.clear();
         probesBefore = null;
         List<Probe> probesAfter = probesAfterRemoval(document);
+        // The probes first: a moved probe's new target is in its old net, so it resolves both on the nets of now and
+        // on the recompiled ones, and the engine never gets it without a net (no false gap between the two requests).
+        if (!probesAfter.equals(document.probes())) {
+            probesBefore = document.probes();
+            document.setProbes(probesAfter);
+        }
         document.batch(() -> {
             for (ElementId id : ids) {
                 if (document.element(id).isPresent()) {
@@ -81,10 +87,6 @@ public final class RemoveElementsCommand implements Command {
                 }
             }
         });
-        if (!probesAfter.equals(document.probes())) {
-            probesBefore = document.probes();
-            document.setProbes(probesAfter);
-        }
     }
 
     /**
@@ -114,6 +116,7 @@ public final class RemoveElementsCommand implements Command {
         return ProbeResolver.afterRemoval(probes, removedIds, document, netlist, netlistAfter, registry, naming);
     }
 
+    /** The elements first, then the probes, so the old targets exist again when the probes come back. */
     @Override
     public void revert(CircuitDocument document) {
         document.batch(() -> removed.forEach(entry -> document.restore(entry.element(), entry.order())));
