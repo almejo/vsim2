@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.simulation;
 
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.OptionalLong;
 import java.util.Set;
 
@@ -100,6 +101,8 @@ final class Scheduler {
      * Schedules {@code event} for now + {@code delay}, after every event already due then.
      *
      * @return the time the event is due
+     * @throws SimulationLimitException {@link SimulationLimitException#TIME_OVERFLOW} when that time would pass
+     *                                   {@code Long.MAX_VALUE}
      */
     long schedule(long delay, Event event) {
         if (delay < 0) {
@@ -107,8 +110,9 @@ final class Scheduler {
         }
         if (delay > Long.MAX_VALUE - now) {
             // Refused rather than saturated: an event kept at the largest time would run there again and again.
-            throw new IllegalStateException("an event at t = " + now + " + " + delay
-                    + " would pass the largest time the simulation can reach (" + Long.MAX_VALUE + ")");
+            throw new SimulationLimitException(SimulationLimitException.TIME_OVERFLOW, List.of(), now,
+                    "an event at t = " + now + " + " + delay + " would pass the largest time the simulation can reach ("
+                    + Long.MAX_VALUE + ")");
         }
         long time = now + delay;
         momentAt(time).append(event);
@@ -207,7 +211,8 @@ final class Scheduler {
      * {@link #runUntil(long)} with a limit (M6.1-B «Avanzar»): before running event number {@code maximumEvents + 1}
      * it throws, because a zero-delay loop would never let time move.
      *
-     * @throws IllegalStateException "too many events at t = …" with the time of the event that was not run
+     * @throws SimulationLimitException {@link SimulationLimitException#TOO_MANY_EVENTS} ("too many events at t = …")
+     *                                   with the time of the event that was not run
      */
     void runUntil(long until, int maximumEvents) {
         if (until < now) {
@@ -216,7 +221,9 @@ final class Scheduler {
         int ran = 0;
         while (head < end && moments[head].time <= until) {
             if (ran == maximumEvents) {
-                throw new IllegalStateException("too many events at t = " + moments[head].time);
+                long time = moments[head].time;
+                throw new SimulationLimitException(SimulationLimitException.TOO_MANY_EVENTS, List.of(), time,
+                        "too many events at t = " + time);
             }
             runNext();
             ran++;

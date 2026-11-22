@@ -55,6 +55,11 @@ public final class SimulationEngine {
     public static final String CLOCK_EDGE_SHORTED_MESSAGE = "clock.edge.shorted";
     /** As {@link #CLOCK_EDGE_SHORTED_MESSAGE}, for a clock whose net has another width (it never shows a 0 or a 1). */
     public static final String CLOCK_EDGE_OTHER_WIDTH_MESSAGE = "clock.edge.otherWidth";
+    /**
+     * The {@link PauseNotice} message (of no part) of an edge step that ran {@link #CLOCK_EDGE_TIME_BUDGET} event times
+     * without reaching the edge it looks for: it stops where it got, said by the notice's time.
+     */
+    public static final String CLOCK_EDGE_NOT_REACHED_MESSAGE = "clock.edge.notReached";
     /** Ids (with aliases) of the nets that changed since tracking started; null while not tracking (M6.1-B). */
     private Set<String> changedNets;
     /** The pause a part asked for and {@link #takePauseRequest()} did not take yet; null when none. */
@@ -552,7 +557,7 @@ public final class SimulationEngine {
      * «Avanzar» (M6.1-B): runs every event of the next pending time, zero-delay effects at that time included, and
      * reports the nets that changed. When nothing is pending nothing runs and the result is idle.
      *
-     * @throws IllegalStateException when more than {@link #STEP_EVENT_BUDGET} events would run at that time
+     * @throws SimulationLimitException when more than {@link #STEP_EVENT_BUDGET} events would run at that time
      */
     public StepResult advanceToNextEvent() {
         return advanceToNextEvent(STEP_EVENT_BUDGET);
@@ -569,10 +574,11 @@ public final class SimulationEngine {
      * A clock whose net cannot show its edges (another driver on it, another width: SIM-4) is left out; when no clock
      * is left, nothing runs and a {@link PauseNotice} of the first clock says why
      * ({@link #CLOCK_EDGE_SHORTED_MESSAGE}, {@link #CLOCK_EDGE_OTHER_WIDTH_MESSAGE}), as it does when a short hides
-     * the edge the step reached.
+     * the edge the step reached. When no such edge comes within {@link #CLOCK_EDGE_TIME_BUDGET} event times the step
+     * stops where it got, with the nets of its last time, and a notice of no part says so
+     * ({@link #CLOCK_EDGE_NOT_REACHED_MESSAGE}).
      *
-     * @throws IllegalStateException when no such edge comes within {@link #CLOCK_EDGE_TIME_BUDGET} event times, or
-     *                               when one event time runs too many events ({@link #advanceToNextEvent()})
+     * @throws SimulationLimitException when one event time runs too many events ({@link #advanceToNextEvent()})
      */
     public StepResult advanceToNextClockEdge(ClockEdgeMode mode) {
         return advanceToNextClockEdge(mode, CLOCK_EDGE_TIME_BUDGET, STEP_EVENT_BUDGET);
@@ -593,9 +599,11 @@ public final class SimulationEngine {
         if (showingEdges.isEmpty()) {
             return refusedEdgeStep(clocks.getFirst(), fromTime, fromTime, Set.of());
         }
+        Set<String> lastChanged = Set.of();
         for (int eventTimes = 0; eventTimes < maximumEventTimes; eventTimes++) {
             List<Value> before = showingEdges.stream().map(clock -> clock.driven).toList();
             StepResult step = advanceToNextEvent(maximumEventsPerTime);
+            lastChanged = step.changedNets();
             if (step.isIdle()) {
                 return new StepResult(fromTime, now(), Set.of(), OptionalLong.empty());
             }
@@ -609,7 +617,19 @@ public final class SimulationEngine {
                 return new StepResult(fromTime, step.time(), step.changedNets(), step.nextEventTime(), edge);
             }
         }
-        throw new IllegalStateException("no clock edge within " + maximumEventTimes + " event times");
+        // Out of budget: rolling the engine back is not cheap (no copy of its state), so the step stops where it got
+        // and a notice of no part says so, with that time.
+        requestPause("", CLOCK_EDGE_NOT_REACHED_MESSAGE, List.of());
+        return new StepResult(fromTime, now(), lastChanged, nextEventTime());
+    }
+
+    /**
+     * A {@link PauseNotice} of no part for a limit the engine reached ({@code limit}), numbered after every pause
+     * request so far; the simulation thread publishes it instead of a failure.
+     */
+    PauseNotice limitNotice(SimulationLimitException limit) {
+        pauseRequests++;
+        return new PauseNotice("", limit.messageKey(), limit.arguments(), limit.time(), pauseRequests);
     }
 
     /**

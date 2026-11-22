@@ -169,10 +169,17 @@ public final class StatusBar extends JPanel {
         pauseNotice.setVisible(shown);
     }
 
-    /** The speed the running simulation achieves, in units per real millisecond; 0, or a pause, hides it. */
+    /**
+     * The speed the running simulation achieves, in units per real millisecond; 0, or a pause, hides it. Infinite (at
+     * «Máxima», whose time jumps from event to event: SIM-2) it says «Máxima» instead of a ×.
+     */
     public void showSpeed(double unitsPerMillisecond) {
         boolean shown = running && unitsPerMillisecond > 0;
-        if (shown) {
+        if (shown && Double.isInfinite(unitsPerMillisecond)) {
+            achievedSpeed.setText(Messages.text("status.speedMaximum"));
+            achievedSpeed.setToolTipText(Messages.text("status.speedMaximumTip"));
+        } else if (shown) {
+            achievedSpeed.setToolTipText(Messages.text("status.speedTip"));
             Number rounded;
             if (unitsPerMillisecond >= 10) {
                 rounded = Math.round(unitsPerMillisecond);
@@ -301,6 +308,10 @@ public final class StatusBar extends JPanel {
 
     JLabel failureLabel() {
         return failure;
+    }
+
+    JLabel achievedSpeedLabel() {
+        return achievedSpeed;
     }
 
     JLabel pauseNoticeLabel() {

@@ -59,7 +59,11 @@ class SchedulerTest {
         scheduler.runUntil(Long.MAX_VALUE - 1);
         scheduler.schedule(1, () -> { });
 
-        assertThatThrownBy(() -> scheduler.schedule(2, () -> { })).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> scheduler.schedule(2, () -> { }))
+                .isInstanceOfSatisfying(SimulationLimitException.class, limit -> {
+                    assertThat(limit.messageKey()).isEqualTo(SimulationLimitException.TIME_OVERFLOW);
+                    assertThat(limit.time()).isEqualTo(Long.MAX_VALUE - 1);
+                })
                 .hasMessageContaining("largest time");
         assertThat(scheduler.pendingEvents()).isEqualTo(1);
         assertThat(scheduler.nextEventTime()).hasValue(Long.MAX_VALUE);

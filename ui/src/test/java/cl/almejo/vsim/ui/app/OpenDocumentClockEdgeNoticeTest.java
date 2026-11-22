@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
+import cl.almejo.vsim.core.simulation.SimulationLimitException;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +20,10 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** What the status bar says when an edge step is refused because a clock's net cannot show its edges (SIM-4). */
+/**
+ * What the status bar says when an edge step is refused because a clock's net cannot show its edges (SIM-4), and when
+ * the engine stops at one of its limits.
+ */
 class OpenDocumentClockEdgeNoticeTest {
 
     private OpenDocument document;
@@ -52,6 +56,26 @@ class OpenDocumentClockEdgeNoticeTest {
                 .isEqualTo("El reloj «reloj» no puede dar un flanco: su red está en cortocircuito");
         assertThat(said(SimulationEngine.CLOCK_EDGE_OTHER_WIDTH_MESSAGE))
                 .isEqualTo("El reloj «reloj» no puede dar un flanco: su red tiene otro ancho");
+    }
+
+    /** A notice of no part (the engine's own limit) keeps its arguments: no part name is put first. */
+    private String saidByTheEngine(String messageKey) {
+        PauseNotice notice = document.withPartName(new PauseNotice("", messageKey, List.of(), 7, 1));
+        assertThat(notice.arguments()).isEmpty();
+        return Messages.format(notice.messageKey(), notice.arguments().toArray());
+    }
+
+    @Test
+    void theEnginesLimitsAreSaidInBothLanguages() {
+        assertThat(saidByTheEngine(SimulationEngine.CLOCK_EDGE_NOT_REACHED_MESSAGE))
+                .startsWith("Ningún reloj dio el flanco");
+        assertThat(saidByTheEngine(SimulationLimitException.TIME_OVERFLOW)).contains("«Reiniciar»");
+        assertThat(saidByTheEngine(SimulationLimitException.TOO_MANY_EVENTS)).startsWith("Demasiados eventos");
+
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(saidByTheEngine(SimulationEngine.CLOCK_EDGE_NOT_REACHED_MESSAGE)).startsWith("No clock made");
+        assertThat(saidByTheEngine(SimulationLimitException.TIME_OVERFLOW)).contains("“Restart”");
+        assertThat(saidByTheEngine(SimulationLimitException.TOO_MANY_EVENTS)).startsWith("Too many events");
     }
 
     @Test

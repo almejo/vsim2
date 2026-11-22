@@ -1356,9 +1356,13 @@ public final class OpenDocument implements AutoCloseable {
     /**
      * {@code notice} with the name of the part that asked first in its arguments, as the bundle texts of part pauses
      * expect it ({@code {0}}): core does not know labels. The name is the label of the component placed on the circuit
-     * (the user component that holds a nested part), else its type's name, else the simulated id.
+     * (the user component that holds a nested part), else its type's name, else the simulated id. A notice of no part
+     * (the engine stopped at one of its limits) is returned as it is.
      */
     public PauseNotice withPartName(PauseNotice notice) {
+        if (!notice.fromPart()) {
+            return notice; // the engine's own limit: its text names no part
+        }
         String name = document.component(new ElementId(InstancePath.topLevel(notice.componentId())))
                 .map(component -> component.label().isBlank() ? Messages.componentName(component.typeId(),
                         component.parameters()) : component.label())

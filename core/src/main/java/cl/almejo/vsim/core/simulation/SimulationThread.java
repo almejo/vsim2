@@ -600,7 +600,10 @@ public final class SimulationThread implements AutoCloseable {
         return speed;
     }
 
-    /** The units simulated per real millisecond lately (over about a quarter of a second); 0 while paused. */
+    /**
+     * The units simulated per real millisecond lately (over about a quarter of a second); 0 while paused, and
+     * {@link Double#POSITIVE_INFINITY} while running at «Máxima», whose time jumps from event to event (SIM-2).
+     */
     public double achievedUnitsPerMillisecond() {
         return achievedUnitsPerMillisecond;
     }
@@ -980,6 +983,11 @@ public final class SimulationThread implements AutoCloseable {
                 Optional.empty(), Optional.ofNullable(latestPauseNotice));
     }
 
+    /** For tests: whether the loop goes on at once instead of leaving the processor alone for a moment. */
+    boolean saturated() {
+        return saturated;
+    }
+
     /** For tests: requests queued and not yet applied. */
     int pendingRequests() {
         return requests.size();
@@ -1051,6 +1059,9 @@ public final class SimulationThread implements AutoCloseable {
             pendingUnits += elapsedMilliseconds * speed;
         }
         long sliceStart = nanoClock.getAsLong();
+        if (!unlimited && Double.isInfinite(achievedUnitsPerMillisecond)) {
+            stopMeasuringSpeed(sliceStart); // from «Máxima» to a finite speed: measured again from here
+        }
         long deadline = sliceStart + TICK_BUDGET_NANOS;
         long advanced = 0;
         saturated = false;
@@ -1082,7 +1093,13 @@ public final class SimulationThread implements AutoCloseable {
         if (pendingUnits >= 1) {
             pendingUnits -= Math.floor(pendingUnits);
         }
-        measureSpeed(advanced, sliceStart);
+        if (unlimited) {
+            // SIM-2: at «Máxima» the time jumps from event to event, so the units per millisecond would count the jumps
+            // (a slow clock would read as a huge ×); the speed achieved is said as the maximum, not measured.
+            achievedUnitsPerMillisecond = Double.POSITIVE_INFINITY;
+        } else {
+            measureSpeed(advanced, sliceStart);
+        }
     }
 
     /** A slice is sized for {@link #SLICE_TARGET_NANOS}; the last one, for the time left before {@code deadline}. */
@@ -1208,6 +1225,10 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     private void publishFailure(Throwable throwable) {
+        if (throwable instanceof SimulationLimitException limit) {
+            pauseAtLimit(limit);
+            return;
+        }
         running = false;
         stepInProgress = null;
         failure = throwable.getMessage() == null
@@ -1216,6 +1237,21 @@ public final class SimulationThread implements AutoCloseable {
         latestNextEventTime = engine.nextEventTime();
         latestPendingComponents = engine.pendingComponents();
         latestSnapshot = latestSnapshot.withRunning(false).withFailure(Optional.of(failure));
+    }
+
+    /**
+     * The engine reached one of its limits: the simulation pauses where the engine stopped, like at a part's pause, and
+     * says why with a {@link PauseNotice} of no part in the user's words (never an English failure), published with a
+     * snapshot of that state at once. A «Avanzar N t» in progress is dropped, as a failure drops it.
+     */
+    private void pauseAtLimit(SimulationLimitException limit) {
+        LOGGER.info("Simulation reached a limit at t = {}; pausing: {}", limit.time(), limit.getMessage());
+        running = false;
+        stepInProgress = null;
+        latestPauseNotice = engine.limitNotice(limit);
+        snapshotStale = true;
+        snapshotDue = true;
+        publishSnapshot(nanoClock.getAsLong());
     }
 
     private void loop() {

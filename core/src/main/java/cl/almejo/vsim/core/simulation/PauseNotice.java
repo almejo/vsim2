@@ -8,6 +8,7 @@ import java.util.Objects;
  * {@code componentId} (flat id) asked at simulation time {@code time}, saying the message of bundle key
  * {@code messageKey} with {@code arguments}. {@code sequence} grows with every request of the engine, so the UI can
  * tell a new pause from one it already showed (two pauses may say the same at the same time after a «Reiniciar»).
+ * The engine's own stops (its limits) are notices of no part: {@code componentId} is empty ({@link #fromPart()}).
  */
 public record PauseNotice(String componentId, String messageKey, List<String> arguments, long time, long sequence) {
 
@@ -15,5 +16,13 @@ public record PauseNotice(String componentId, String messageKey, List<String> ar
         Objects.requireNonNull(componentId, "componentId");
         Objects.requireNonNull(messageKey, "messageKey");
         arguments = List.copyOf(arguments);
+    }
+
+    /**
+     * True when a part asked for the pause (its {@code componentId} names it); false when the engine itself stopped at
+     * one of its limits ({@link SimulationLimitException}, an edge step out of budget), with an empty id.
+     */
+    public boolean fromPart() {
+        return !componentId.isEmpty();
     }
 }

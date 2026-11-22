@@ -92,7 +92,9 @@ class SimulationThreadStepTest {
         thread.tick();
 
         assertThat(published).isDone();
-        assertThat(published.join().failure()).contains("IllegalStateException: too many events at t = 5");
+        assertThat(published.join().running()).isFalse();
+        assertThat(thread.latestPauseNotice()).map(PauseNotice::messageKey)
+                .contains(SimulationLimitException.TOO_MANY_EVENTS);
     }
 
     @Test
@@ -159,7 +161,8 @@ class SimulationThreadStepTest {
         thread.tick();
 
         assertThat(thread.latestSnapshot().running()).isFalse();
-        assertThat(thread.latestSnapshot().failure()).contains("IllegalStateException: too many events at t = 5");
+        assertThat(thread.latestSnapshot().failure()).as("said as a pause notice, not an English failure").isEmpty();
+        assertThat(thread.latestPauseNotice()).map(PauseNotice::time).contains(5L);
         assertThat(thread.latestStep()).isEmpty();
         assertThat(thread.latestNextEventTime()).hasValue(5);
     }

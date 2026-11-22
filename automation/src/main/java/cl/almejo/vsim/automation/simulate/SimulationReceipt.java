@@ -49,7 +49,10 @@ public record SimulationReceipt(DocumentId document, DocumentVersion version, Do
         REFUSED_WHILE_RUNNING,
         /** A duration past the largest time: nothing ran ({@link SimulationOperations}: INVALID_PARAMETER). */
         REFUSED_TIME_OVERFLOW,
-        /** The engine failed: paused, with {@code failure}. */
+        /**
+         * The engine failed: paused, with {@code failure}; or it reached one of its limits (a zero-delay loop, an event
+         * past the largest time), said by {@code lastPause} of no component instead.
+         */
         FAILED
     }
 

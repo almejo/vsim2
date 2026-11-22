@@ -421,6 +421,47 @@ class SimulationThreadTest {
     }
 
     @Test
+    void atMaximumTheAchievedSpeedIsMaximumNotTheJumpedTime() {
+        AtomicLong steppingNanos = new AtomicLong();
+        try (SimulationThread unlimited = new SimulationThread(new SimulationEngine(),
+                () -> steppingNanos.addAndGet(MILLISECOND))) {
+            // A slow loop: at «Máxima» the time jumps a million units per event, which no × can say honestly (SIM-2)
+            unlimited.update(inverterLoop(1_000_000));
+            unlimited.setSpeed(Double.POSITIVE_INFINITY);
+            unlimited.resume();
+            for (int tick = 0; tick < 30; tick++) {
+                unlimited.tick();
+            }
+            assertThat(unlimited.achievedUnitsPerMillisecond()).isInfinite();
+            unlimited.setSpeed(1);
+            unlimited.tick();
+            assertThat(unlimited.achievedUnitsPerMillisecond()).as("a finite speed is measured again").isFinite();
+            unlimited.pause();
+            unlimited.tick();
+            assertThat(unlimited.achievedUnitsPerMillisecond()).isZero();
+        }
+    }
+
+    @Test
+    void aPausedThreadLeavesTheProcessorAlone() {
+        AtomicLong steppingNanos = new AtomicLong();
+        try (SimulationThread unlimited = new SimulationThread(new SimulationEngine(),
+                () -> steppingNanos.addAndGet(MILLISECOND))) {
+            unlimited.update(inverterLoop(1));
+            unlimited.setSpeed(Double.POSITIVE_INFINITY);
+            unlimited.resume();
+            unlimited.tick();
+            unlimited.tick();
+            assertThat(unlimited.saturated()).as("a busy circuit at «Máxima» uses the whole tick").isTrue();
+
+            unlimited.pause();
+            unlimited.tick();
+
+            assertThat(unlimited.saturated()).as("paused, the loop parks between ticks (SIM-3)").isFalse();
+        }
+    }
+
+    @Test
     void unitsTheEngineCannotRunInTimeAreDroppedNotOwed() {
         AtomicLong slowNanos = new AtomicLong();
         AtomicLong costPerLook = new AtomicLong(5 * MILLISECOND);

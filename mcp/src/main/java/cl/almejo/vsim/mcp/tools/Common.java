@@ -73,9 +73,11 @@ final class Common {
     static Map<String, Object> lastPause() {
         return Schema.object("The last time a part paused the simulation by itself since it started (a Punto de "
                         + "parada whose condition became true, a Terminal that received its «Detener al recibir» "
-                        + "text), absent when none did; compare its time with the time now")
+                        + "text) or VSim stopped it at one of its limits (a zero-delay loop, an event past the largest "
+                        + "time, a clock-edge step that found no edge), absent when none did; compare its time with "
+                        + "the time now")
                 .property("component", Schema.string("The part that paused it (an element id, or a path inside a "
-                        + "user component)"))
+                        + "user component); empty when VSim stopped at a limit"))
                 .property("time", Schema.string("The simulation time it paused at, as a decimal string"))
                 .property("reason", Schema.string("Why, as the status bar tells the user"))
                 .required("component", "time", "reason")

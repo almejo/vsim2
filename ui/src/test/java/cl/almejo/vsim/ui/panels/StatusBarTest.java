@@ -3,8 +3,10 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.PauseNotice;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
+import cl.almejo.vsim.core.simulation.SimulationLimitException;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
@@ -75,6 +77,30 @@ class StatusBarTest {
         statusBar.showSpeed(7);
         statusBar.showSnapshot(snapshot(false, 0, Optional.empty()));
         assertThat(statusBar.text()).doesNotContain("×");
+    }
+
+    @Test
+    void atMaximumTheSpeedSaysMaximumWithoutATimesSign() {
+        statusBar.showZoom(1);
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+
+        statusBar.showSpeed(Double.POSITIVE_INFINITY);
+
+        assertThat(statusBar.text()).contains("t = 1.234 · Máxima").doesNotContain("×");
+        assertThat(statusBar.achievedSpeedLabel().getToolTipText()).startsWith("Velocidad máxima: el tiempo salta");
+        statusBar.showSpeed(7);
+        assertThat(statusBar.text()).contains("×7").doesNotContain("Máxima");
+        assertThat(statusBar.achievedSpeedLabel().getToolTipText()).isEqualTo(Messages.text("status.speedTip"));
+    }
+
+    @Test
+    void anEngineLimitIsSaidInTheUsersWords() {
+        statusBar.showSnapshot(at(5, false));
+        statusBar.showPauseNotice(Optional.of(new PauseNotice("", SimulationLimitException.TOO_MANY_EVENTS,
+                List.of(), 5, 1)));
+
+        assertThat(statusBar.text()).contains("Simulación detenida en t = 5: Demasiados eventos en el mismo instante")
+                .doesNotContain("IllegalStateException");
     }
 
     @Test
