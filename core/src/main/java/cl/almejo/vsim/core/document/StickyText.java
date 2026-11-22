@@ -18,14 +18,14 @@ public record StickyText(String text) implements StickyContent {
 
     @Override
     public String firstLine() {
-        return Arrays.stream(text.split("\n", -1)).map(String::strip).filter(line -> !line.isEmpty())
+        return Arrays.stream(text.split("\\R", -1)).map(String::strip).filter(line -> !line.isEmpty())
                 .findFirst().orElse("");
     }
 
     /** Each non-empty line becomes an item, not done. */
     @Override
     public StickyChecklist toChecklist() {
-        List<StickyItem> items = Arrays.stream(text.split("\n", -1)).filter(line -> !line.isBlank())
+        List<StickyItem> items = Arrays.stream(text.split("\\R", -1)).filter(line -> !line.isBlank())
                 .map(line -> new StickyItem(line, false)).toList();
         return new StickyChecklist(items);
     }

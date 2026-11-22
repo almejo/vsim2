@@ -59,6 +59,11 @@ public record StickyChecklist(List<StickyItem> items) implements StickyContent {
         return new StickyChecklist(result);
     }
 
+    /** {@link #edited(List)} of {@code text}, split on any line break (LF, CR LF, CR, U+2028 ...). */
+    public StickyChecklist editedText(String text) {
+        return edited(List.of(text.split("\\R", -1)));
+    }
+
     private int indexOfText(String text, int fromIndex) {
         for (int index = fromIndex; index < items.size(); index++) {
             if (items.get(index).text().equals(text)) {

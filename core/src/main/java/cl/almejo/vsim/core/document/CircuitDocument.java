@@ -104,6 +104,7 @@ public final class CircuitDocument {
     public CircuitDocument copy() {
         CircuitDocument copy = new CircuitDocument();
         copy.name = name;
+        copy.simulationSpeed = simulationSpeed;
         copy.definitions.putAll(definitions);
         copy.unsupportedDrawings.addAll(unsupportedDrawings);
         orders.forEach((id, order) -> copy.put(element(id).orElseThrow(), order));

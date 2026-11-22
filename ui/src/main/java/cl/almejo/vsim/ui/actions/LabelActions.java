@@ -174,7 +174,7 @@ public final class LabelActions {
         }
         StickyContent edited = switch (current.get().content()) {
             case StickyText ignored -> new StickyText(text);
-            case StickyChecklist checklist -> checklist.edited(List.of(text.split("\n", -1)));
+            case StickyChecklist checklist -> checklist.editedText(text);
         };
         if (!edited.equals(current.get().content())) {
             openDocument.execute(new SetLabelCommand(id, text));

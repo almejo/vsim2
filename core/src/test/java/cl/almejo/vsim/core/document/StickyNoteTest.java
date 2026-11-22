@@ -62,6 +62,17 @@ class StickyNoteTest {
     }
 
     @Test
+    void editedTextSplitsOnAnyLineBreak() {
+        StickyChecklist original = list("a", "b").toggled(1);
+
+        assertThat(original.editedText("a\r\nb\rc\nd\u2028e").items()).containsExactly(new StickyItem("a", false),
+                new StickyItem("b", true), new StickyItem("c", false), new StickyItem("d", false),
+                new StickyItem("e", false));
+        assertThat(new StickyText("x\r\ny\rz").toChecklist().items()).extracting(StickyItem::text)
+                .containsExactly("x", "y", "z");
+    }
+
+    @Test
     void editedDropsEmptyLines() {
         assertThat(list("a").edited(List.of("", "a", "", "b")).items())
                 .containsExactly(new StickyItem("a", false), new StickyItem("b", false));
