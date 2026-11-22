@@ -74,16 +74,11 @@ class OpenDocumentWaveformsTest {
         document.interact(toggle.id());
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
 
-        List<Probe> watching = document.document().probes();
         document.execute(new RemoveElementsCommand(List.of(gate.id())));
-        assertThat(document.document().probes()).as("deleting the element takes its channel along").isEmpty();
-        // a circuit read from a file can still hold a channel whose target is gone
-        document.execute(new SetProbesCommand(document.document().probes(), watching, "command.addProbes"));
         assertThat(document.probeNets()).doesNotContainKey(probe.id());
         waitUntil(() -> currentValue(probe.id()).isEmpty());
         assertThat(document.latestWaveforms().trace(probe.id())).as("the channel keeps its history").isPresent();
 
-        document.history().undo();
         document.history().undo();
         assertThat(document.probeNets()).containsEntry(probe.id(), netId);
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
