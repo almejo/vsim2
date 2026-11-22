@@ -333,6 +333,21 @@ class TipOfTheDayTest {
     }
 
     @Test
+    void theTipWaitsForTheStartHold() {
+        preferences.setNewsShownVersion("0.8");
+        whatsNew.startHold().hold();
+        EditorView view = newView();
+
+        newsReady.get(view).run();
+        tipReady.get(view).run();
+        assertThat(card(view)).isEmpty();
+        whatsNew.startHold().release();
+
+        assertThat(card(view)).isPresent();
+        assertThat(preferences.tipShownDay()).contains(today);
+    }
+
+    @Test
     void neverOnAFirstLaunch() {
         EditorView view = newView();
         preferences.setShowTipAtStart(true);

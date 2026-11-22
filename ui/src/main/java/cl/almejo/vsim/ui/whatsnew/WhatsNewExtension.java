@@ -101,6 +101,7 @@ public final class WhatsNewExtension implements EditorExtension {
     private final Seams seams;
     /** Made with the first view's preferences; one for the whole run. */
     private StartupNotices notices;
+    private final StartupHold startHold;
 
     private static final int FRAME_MILLISECONDS = 16;
 
@@ -109,15 +110,30 @@ public final class WhatsNewExtension implements EditorExtension {
      * application's AI server, the focus manager, Swing timers and Preferencias ▸ «Animaciones».
      */
     public WhatsNewExtension(AiServerService aiServer) {
+        this(aiServer, new StartupHold());
+    }
+
+    /** The real thing, its popups kept back while {@code startHold} is held (the start's recovery question). */
+    public WhatsNewExtension(AiServerService aiServer, StartupHold startHold) {
         this(new Seams(VsimVersion.current(), NewsFiles::forRunning, StartupNotices.NewsRule.current(),
                 new SettledWindow(), AiActivity.of(aiServer),
                 new BubbleTours(new BubbleTours.Seams(KeyDispatchers.focusManager(),
                         () -> FrameTicker.swing(FRAME_MILLISECONDS), System::currentTimeMillis,
-                        Animations::enabled)), StartupNotices.TipRule.current(), LocalDate::now));
+                        Animations::enabled)), StartupNotices.TipRule.current(), LocalDate::now), startHold);
     }
 
     WhatsNewExtension(Seams seams) {
+        this(seams, new StartupHold());
+    }
+
+    private WhatsNewExtension(Seams seams, StartupHold startHold) {
         this.seams = Objects.requireNonNull(seams, "seams");
+        this.startHold = Objects.requireNonNull(startHold, "startHold");
+    }
+
+    /** What keeps the bubbles and the tip of the day back while the start is busy. */
+    StartupHold startHold() {
+        return startHold;
     }
 
     @Override
@@ -133,7 +149,7 @@ public final class WhatsNewExtension implements EditorExtension {
     StartupNotices noticesFor(AppPreferences preferences) {
         if (notices == null) {
             notices = new StartupNotices(preferences, seams.runningVersion(),
-                    version -> seams.news().apply(version).isPresent(), seams.rule(), seams.tipRule(), seams.today());
+                    version -> seams.news().apply(version).isPresent(), seams.rule(), seams.tipRule(), seams.today(), startHold);
         }
         return notices;
     }

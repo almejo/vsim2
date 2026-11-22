@@ -103,6 +103,7 @@ import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
 import cl.almejo.vsim.ui.tunnel.TunnelsExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsToolbarExtension;
+import cl.almejo.vsim.ui.whatsnew.StartupHold;
 import cl.almejo.vsim.ui.whatsnew.TipOfTheDayExtension;
 import cl.almejo.vsim.ui.whatsnew.WhatsNewExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
@@ -144,6 +145,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Open windows and documents of the running application (EDT only). A window holds groups of tabs, one per document
@@ -167,6 +169,8 @@ public final class Application {
     /** The windows in «Modo presentación» now; set once the theme manager exists. */
     private final PresentingWindows<CircuitWindow> presentingWindows;
     private SystemOpenFiles systemOpenFiles = new SystemOpenFiles();
+    /** Keeps «Qué hay de nuevo» and the tip of the day back while the start asks about recovery copies. */
+    private final StartupHold startHold = new StartupHold();
     private final RecentFiles recentFiles;
     private final SessionStore sessionStore;
     private final RecoveryStore recoveryStore;
@@ -256,7 +260,7 @@ public final class Application {
                         this::rememberDirectory,
                         new AiExtension(aiServer, automationHost::documentId, proposals,
                                 applicationWindows::settingsOverride), presentation, new PrintExtension(sheetAnchors),
-                        sheetAnchors));
+                        sheetAnchors, startHold));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.presentingWindows = new PresentingWindows<>(themeManager::setPresenting);
@@ -281,7 +285,7 @@ public final class Application {
         SheetAnchors sheetAnchors = new SheetAnchors();
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
                 path -> { }, AiExtension.inactive(), PresentationExtension.inactive(),
-                new PrintExtension(PrinterAccess.none(), sheetAnchors), sheetAnchors);
+                new PrintExtension(PrinterAccess.none(), sheetAnchors), sheetAnchors, new StartupHold());
     }
 
     /**
@@ -289,12 +293,14 @@ public final class Application {
      * {@code startDirectory} and {@code chosen} are the folder «Abrir» starts in and remembers, shared with the
      * table import's file chooser. {@code ai} is the AI's panel and status line over the application's server,
      * {@code presentation} its «Presentar» toggle and floating panel, {@code print} «Imprimir…» over the system's
-     * printers or none, {@code sheetAnchors} where the shown print sheets of each document are anchored.
+     * printers or none, {@code sheetAnchors} where the shown print sheets of each document are anchored,
+     * {@code startHold} what keeps the start's popups back while its recovery question is open.
      */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs,
                                                   Supplier<Path> startDirectory, Consumer<Path> chosen,
                                                   AiExtension ai, PresentationExtension presentation,
-                                                  PrintExtension print, SheetAnchors sheetAnchors) {
+                                                  PrintExtension print, SheetAnchors sheetAnchors,
+                                                  StartupHold startHold) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
@@ -342,7 +348,7 @@ public final class Application {
         editorExtensions.add(new QuickInsertExtension()); // its Insert key before the shortcuts extension
         editorExtensions.add(new ShortcutSheetExtension()); // «?»: its Ayuda item after «Buscar una acción…»
         // «Qué hay de nuevo»: its Ayuda item after «Atajos de teclado»; one per application (the first window's bubbles)
-        WhatsNewExtension whatsNew = new WhatsNewExtension(ai.server());
+        WhatsNewExtension whatsNew = new WhatsNewExtension(ai.server(), startHold);
         editorExtensions.add(whatsNew);
         // «Consejo del día»: its Ayuda item after «Qué hay de nuevo»; asks the same startup notices (the bubbles win)
         editorExtensions.add(new TipOfTheDayExtension(whatsNew, ai.server()));
@@ -445,7 +451,11 @@ public final class Application {
         List<RecoveryCopy> reopened = new ArrayList<>();
         // With a question to ask, an empty window of VSim opens first so the question sits over it (a parentless
         // dialog hangs on Swing's hidden frame: no taskbar entry, unreachable in GNOME); it goes once other things open.
+        // The start's popups (bubbles, tip) wait for the question and the documents, then show over the final window.
+        choices.ifPresent(offered -> startHold.hold());
         Optional<StandIn> standIn = choices.flatMap(offered -> openStandIn());
+        // The first document that needs a window of its own takes the stand-in's place; null once it did.
+        AtomicReference<StandIn> unused = new AtomicReference<>(standIn.orElse(null));
         // The files that do not open at the start (session, recovered copies, command line) get one message together.
         StartupSteps.run(() -> openingFiles.collecting(() -> {
             List<RecoveryCopy> recovered = choices.map(offered -> askAboutRecoveryCopies(offered, standIn.map(StandIn::window).orElse(null)))
@@ -475,7 +485,8 @@ public final class Application {
             opened.values().stream().filter(document -> windows.windowsOf(document).isEmpty())
                     .forEach(unplaced::add);
             StartupSteps.openEach(unplaced, document -> showViews(document,
-                    document.path().flatMap(recentFiles::stateFor).stream().toList()));
+                    document.path().flatMap(recentFiles::stateFor).stream().toList(),
+                    Optional.ofNullable(unused.getAndSet(null))));
             if (!notOpened.isEmpty()) {
                 JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
                         Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
@@ -483,14 +494,18 @@ public final class Application {
             // Through the already-open check (a session file is only focused, never opened twice), as new groups of
             // the active window (the last restored one); one file each so a failure skips only that one.
             StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
-            standIn.ifPresent(stand -> StartupSteps.dropStandIn(windows.documents().size(),
+            Optional.ofNullable(unused.get()).ifPresent(stand -> StartupSteps.dropStandIn(windows.documents().size(),
                     () -> stand.window().closeGroup(stand.document())));
         }), () -> !windows.isEmpty(), this::newDocument, () -> {
             if (!components.isEmpty()) {
                 // A component file on the command line is imported into the library, as a drop on the window would.
                 windows.all().get(0).openOrImport(components);
             }
-        }, () -> startAutosave(reopened));
+        }, () -> {
+            startAutosave(reopened);
+            // After this event, which closes the stand-in and settles the windows; always, whatever failed above.
+            SwingUtilities.invokeLater(startHold::release);
+        });
         // Files the system sent while the start was running (macOS open-file events) open now, after the start's own.
         systemOpenFiles.attach(this::openFromSystem);
     }
@@ -953,12 +968,21 @@ public final class Application {
     }
 
     /** One window per state, each placed and zoomed as it was; one plain window when there is no state. */
-    private void showViews(OpenDocument document, List<WindowState> states) {
-        if (states.isEmpty()) {
+    private void showViews(OpenDocument document, List<WindowState> states, Optional<StandIn> standIn) {
+        List<WindowState> own = states;
+        if (standIn.isPresent()) {
+            // The start's empty window stays where the user saw it: the document replaces its empty one in place.
+            showIn(Optional.of(standIn.get().window()), document, states.stream().findFirst());
+            standIn.get().window().closeGroup(standIn.get().document());
+            own = states.stream().skip(1).toList();
+            if (own.isEmpty()) {
+                return;
+            }
+        } else if (states.isEmpty()) {
             showIn(Optional.empty(), document, Optional.empty());
             return;
         }
-        states.forEach(state -> showIn(Optional.empty(), document, Optional.of(state)));
+        own.forEach(state -> showIn(Optional.empty(), document, Optional.of(state)));
     }
 
     private void shutdownAutosave() {

@@ -146,6 +146,24 @@ class WhatsNewExtensionTest {
     }
 
     @Test
+    void theBubblesWaitForTheStartHoldAndThenShowOnceOverTheWindowThatIsLeft() {
+        extension.startHold().hold();
+        EditorView standIn = newView();
+        EditorView finalWindow = newView();
+
+        readyHooks.get(standIn).run();
+        readyHooks.get(finalWindow).run();
+        assertThat(opened).isEmpty();
+        standIn.dispose(); // the stand-in window closes before the start's hold ends
+        extension.startHold().release();
+
+        assertThat(opened).containsExactly("0.8");
+        assertThat(preferences.newsShownVersion()).isEmpty();
+        endings.get(0).run();
+        assertThat(preferences.newsShownVersion()).contains("0.8");
+    }
+
+    @Test
     void aFirstInstallShowsThem() {
         EditorView view = newView();
 

@@ -70,6 +70,7 @@ final class StartupNotices {
     private final TipRule tipRule;
     private final Supplier<LocalDate> today;
     private final boolean firstLaunch;
+    private final StartupHold hold;
     /** The window that asked first, and what it got; null until a window asks. */
     private Object claimingWindow;
     private Optional<Notice> claimed = Optional.empty();
@@ -79,6 +80,15 @@ final class StartupNotices {
      */
     StartupNotices(AppPreferences preferences, String runningVersion, Predicate<String> hasNews, NewsRule rule,
                    TipRule tipRule, Supplier<LocalDate> today) {
+        this(preferences, runningVersion, hasNews, rule, tipRule, today, new StartupHold());
+    }
+
+    /**
+     * @param hold what keeps the notices back while the start asks its recovery question ({@link #whenStartIsFree})
+     */
+    StartupNotices(AppPreferences preferences, String runningVersion, Predicate<String> hasNews, NewsRule rule,
+                   TipRule tipRule, Supplier<LocalDate> today, StartupHold hold) {
+        this.hold = Objects.requireNonNull(hold, "hold");
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.runningVersion = Objects.requireNonNull(runningVersion, "runningVersion");
         this.hasNews = Objects.requireNonNull(hasNews, "hasNews");
@@ -86,6 +96,14 @@ final class StartupNotices {
         this.tipRule = Objects.requireNonNull(tipRule, "tipRule");
         this.today = Objects.requireNonNull(today, "today");
         this.firstLaunch = preferences.newsShownVersion().isEmpty();
+    }
+
+    /**
+     * {@code action} (a window asking what it may show) runs now, or once the start's recovery question is answered
+     * and its documents are open, so a window that closes meanwhile (the stand-in) never claims anything.
+     */
+    void whenStartIsFree(Runnable action) {
+        hold.whenReleased(action);
     }
 
     /** Whether VSim had never run before this start (nothing stored yet when it began). */
