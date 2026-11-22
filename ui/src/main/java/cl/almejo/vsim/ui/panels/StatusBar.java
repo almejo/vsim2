@@ -17,7 +17,9 @@ import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -55,12 +57,7 @@ public final class StatusBar extends JPanel {
      * A lasting state of the document said until the user dismisses it (it cannot be saved): neither time nor a later
      * notice takes it away. Shown as an activity, so it never pushes the problems or the indicators out.
      */
-    private final JLabel lastingNotice = new ErrorTextLabel();
-    private final JButton lastingNoticeDismiss = new JButton();
-    private final JPanel lastingNoticeStrip = new JPanel(new MigLayout("insets 0", "[shrinkprio "
-            + YIELDING_PRIORITY + "][]"));
-    private Runnable lastingNoticeDismissed = () -> { };
-    private Runnable removeLastingNotice = () -> { };
+    private final Map<Object, LastingNotice> lastingNotices = new LinkedHashMap<>();
     private boolean clickable;
     /** The key of «Siguiente problema» now ({@code ""} for none): the tooltip says it, whatever it is bound to. */
     private Supplier<String> clickKey = () -> "";
@@ -119,15 +116,29 @@ public final class StatusBar extends JPanel {
         failure.setVisible(false);
         pauseNotice.setVisible(false);
         placeHint.setVisible(false);
-        lastingNoticeStrip.setOpaque(false);
-        lastingNoticeStrip.add(lastingNotice, YIELDING_CONSTRAINTS);
-        lastingNoticeDismiss.putClientProperty("JButton.buttonType", "borderless");
-        lastingNoticeDismiss.addActionListener(event -> {
-            Runnable dismissed = lastingNoticeDismissed;
-            hideLastingNotice();
-            dismissed.run();
-        });
-        lastingNoticeStrip.add(lastingNoticeDismiss);
+    }
+
+    /** One lasting notice: its text, its button and the strip that holds both while it is shown as an activity. */
+    private final class LastingNotice {
+        private final Object owner;
+        private final JLabel label = new ErrorTextLabel();
+        private final JButton dismiss = new JButton();
+        private final JPanel strip = new JPanel(new MigLayout("insets 0", "[shrinkprio " + YIELDING_PRIORITY + "][]"));
+        private Runnable dismissed = () -> { };
+        private Runnable removeStrip = () -> { };
+
+        private LastingNotice(Object owner) {
+            this.owner = owner;
+            strip.setOpaque(false);
+            strip.add(label, YIELDING_CONSTRAINTS);
+            dismiss.putClientProperty("JButton.buttonType", "borderless");
+            dismiss.addActionListener(event -> {
+                Runnable toRun = dismissed;
+                hideLastingNotice(this.owner);
+                toRun.run();
+            });
+            strip.add(dismiss);
+        }
     }
 
     public void showSnapshot(SimulationSnapshot snapshot) {
@@ -467,30 +478,36 @@ public final class StatusBar extends JPanel {
     }
 
     /**
-     * Shows {@code text} with a button {@code dismissText} that hides it and runs {@code dismissed}, until it is
-     * clicked or {@link #hideLastingNotice()} is called; showing it again replaces the text. For a state that lasts
-     * (a circuit that cannot be saved), which a notice of a few seconds would hide.
+     * Shows {@code text} as the lasting notice of {@code owner}, with a button {@code dismissText} that hides it and
+     * runs {@code dismissed}, until it is clicked or {@link #hideLastingNotice(Object)} is called; showing it again
+     * for the same owner replaces its text. Every owner has its own notice, side by side: one never hides or replaces
+     * another's. For a state that lasts (a circuit that cannot be saved), which a notice of a few seconds would hide.
      */
-    public void showLastingNotice(String text, String dismissText, Runnable dismissed) {
-        lastingNotice.setText(text);
-        lastingNotice.setToolTipText(text); // whole, when a short bar cuts it
-        lastingNoticeDismiss.setText(dismissText);
-        lastingNoticeDismissed = dismissed;
-        if (lastingNoticeStrip.getParent() != this) {
-            removeLastingNotice = addActivity(lastingNoticeStrip);
+    public void showLastingNotice(Object owner, String text, String dismissText, Runnable dismissed) {
+        LastingNotice notice = lastingNotices.computeIfAbsent(owner, LastingNotice::new);
+        notice.label.setText(text);
+        notice.label.setToolTipText(text); // whole, when a short bar cuts it
+        notice.dismiss.setText(dismissText);
+        notice.dismissed = dismissed;
+        if (notice.strip.getParent() != this) {
+            notice.removeStrip = addActivity(notice.strip);
         }
     }
 
-    /** Takes the lasting notice away (its state is over) without running its button; nothing when none is shown. */
-    public void hideLastingNotice() {
-        lastingNoticeDismissed = () -> { };
-        removeLastingNotice.run();
-        removeLastingNotice = () -> { };
+    /** Takes the lasting notice of {@code owner} away (its state is over) without running its button; nothing when none. */
+    public void hideLastingNotice(Object owner) {
+        LastingNotice notice = lastingNotices.remove(owner);
+        if (notice != null) {
+            notice.dismissed = () -> { };
+            notice.removeStrip.run();
+            notice.removeStrip = () -> { };
+        }
     }
 
-    /** The button that dismisses the lasting notice. */
-    public JButton lastingNoticeDismiss() {
-        return lastingNoticeDismiss;
+    /** The button that dismisses the lasting notice of {@code owner} (a detached one when it has none). */
+    public JButton lastingNoticeDismiss(Object owner) {
+        LastingNotice notice = lastingNotices.get(owner);
+        return notice == null ? new JButton() : notice.dismiss;
     }
 
     /** The button of a notice shown with one (hidden otherwise). */
@@ -508,7 +525,8 @@ public final class StatusBar extends JPanel {
      * lasting notice is the only activity said.
      */
     public String text() {
-        Stream<JLabel> lasting = lastingNoticeStrip.getParent() == this ? Stream.of(lastingNotice) : Stream.empty();
+        Stream<JLabel> lasting = lastingNotices.values().stream().filter(notice -> notice.strip.getParent() == this)
+                .map(notice -> notice.label);
         Stream<String> labels = Stream.of(Stream.of(simulation, time, achievedSpeed, selection, hint, notice, gesture,
                         shortCircuits, failure, pauseNotice), lasting, Stream.of(placeHint))
                 .flatMap(Function.identity())

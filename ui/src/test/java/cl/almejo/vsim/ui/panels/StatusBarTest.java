@@ -322,26 +322,42 @@ class StatusBarTest {
         });
         AtomicInteger dismissed = new AtomicInteger();
 
-        bar.showLastingNotice("Sin copia", "Entendido", dismissed::incrementAndGet);
+        bar.showLastingNotice("owner", "Sin copia", "Entendido", dismissed::incrementAndGet);
         bar.showNotice("Guardado");
         expirations.forEach(Runnable::run);
 
         assertThat(bar.text()).isEqualTo("Sin copia");
-        assertThat(bar.lastingNoticeDismiss().getText()).isEqualTo("Entendido");
-        bar.lastingNoticeDismiss().doClick();
+        assertThat(bar.lastingNoticeDismiss("owner").getText()).isEqualTo("Entendido");
+        bar.lastingNoticeDismiss("owner").doClick();
         assertThat(dismissed).hasValue(1);
         assertThat(bar.text()).isEmpty();
         bar.dispose();
     }
 
     @Test
+    void lastingNoticesOfDifferentOwnersLiveSideBySideAndEachOneGoesAlone() {
+        AtomicInteger dismissed = new AtomicInteger();
+        statusBar.showLastingNotice("one", "Sin copia", "Entendido", dismissed::incrementAndGet);
+        statusBar.showLastingNotice("two", "Disco lleno", "Entendido", dismissed::incrementAndGet);
+        assertThat(statusBar.text()).contains("Sin copia").contains("Disco lleno");
+
+        statusBar.hideLastingNotice("two");
+        assertThat(statusBar.text()).isEqualTo("Sin copia");
+        statusBar.hideLastingNotice("two");
+        statusBar.lastingNoticeDismiss("one").doClick();
+
+        assertThat(statusBar.text()).isEmpty();
+        assertThat(dismissed).hasValue(1);
+    }
+
+    @Test
     void hidingTheLastingNoticeTakesItAwayWithoutRunningItsButton() {
         AtomicInteger dismissed = new AtomicInteger();
-        statusBar.showLastingNotice("Sin copia", "Entendido", dismissed::incrementAndGet);
-        statusBar.showLastingNotice("Sin copia de «b»", "Entendido", dismissed::incrementAndGet);
+        statusBar.showLastingNotice("owner", "Sin copia", "Entendido", dismissed::incrementAndGet);
+        statusBar.showLastingNotice("owner", "Sin copia de «b»", "Entendido", dismissed::incrementAndGet);
         assertThat(statusBar.text()).as("shown again, not twice").isEqualTo("Sin copia de «b»");
 
-        statusBar.hideLastingNotice();
+        statusBar.hideLastingNotice("owner");
 
         assertThat(statusBar.text()).isEmpty();
         assertThat(dismissed).hasValue(0);

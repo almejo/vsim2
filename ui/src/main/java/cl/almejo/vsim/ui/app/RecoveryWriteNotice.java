@@ -13,6 +13,9 @@ import java.util.function.Supplier;
  */
 final class RecoveryWriteNotice {
 
+    /** The owner key of this notice in a status bar: «cannot save» has its own, and the two never hide each other. */
+    static final String OWNER = "recoveryWrite";
+
     private final Supplier<List<StatusBar>> statusBars;
 
     /** {@code statusBars} gives the status bar of every tab, in every window. */
@@ -24,11 +27,11 @@ final class RecoveryWriteNotice {
         String text = Messages.text("autosave.writeFailed");
         String dismissText = Messages.text("autosave.noCopy.dismiss");
         for (StatusBar statusBar : statusBars.get()) {
-            statusBar.showLastingNotice(text, dismissText, this::canWriteAgain);
+            statusBar.showLastingNotice(OWNER, text, dismissText, this::canWriteAgain);
         }
     }
 
     void canWriteAgain() {
-        statusBars.get().forEach(StatusBar::hideLastingNotice);
+        statusBars.get().forEach(statusBar -> statusBar.hideLastingNotice(OWNER));
     }
 }

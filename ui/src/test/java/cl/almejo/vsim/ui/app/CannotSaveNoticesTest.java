@@ -59,7 +59,7 @@ class CannotSaveNoticesTest {
     void dismissingItInOneTabTakesItAwayFromEveryTabOfTheCircuit() {
         notices.cannotSave(circuit);
 
-        circuitTab.lastingNoticeDismiss().doClick();
+        circuitTab.lastingNoticeDismiss(CannotSaveNotices.OWNER).doClick();
 
         assertThat(circuitTab.text()).isEmpty();
         assertThat(circuitSecondTab.text()).isEmpty();

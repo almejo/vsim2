@@ -14,6 +14,9 @@ import java.util.function.Function;
  */
 final class CannotSaveNotices {
 
+    /** The owner key of this notice in a status bar: the recovery-write notice has its own, and they never hide each other. */
+    static final String OWNER = "cannotSave";
+
     private final Function<OpenDocument, List<StatusBar>> statusBarsOf;
 
     /** {@code statusBarsOf} gives the status bars of every tab that shows a document, in every window. */
@@ -26,12 +29,12 @@ final class CannotSaveNotices {
         String text = Messages.format("autosave.noCopy", document.displayName());
         String dismissText = Messages.text("autosave.noCopy.dismiss");
         for (StatusBar statusBar : statusBarsOf.apply(document)) {
-            statusBar.showLastingNotice(text, dismissText, () -> canSaveAgain(document));
+            statusBar.showLastingNotice(OWNER, text, dismissText, () -> canSaveAgain(document));
         }
     }
 
     /** {@code document} can be written again, or the user dismissed the notice: none of its tabs says it any more. */
     void canSaveAgain(OpenDocument document) {
-        statusBarsOf.apply(document).forEach(StatusBar::hideLastingNotice);
+        statusBarsOf.apply(document).forEach(statusBar -> statusBar.hideLastingNotice(OWNER));
     }
 }
