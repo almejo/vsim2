@@ -443,9 +443,13 @@ public final class Application {
         List<Path> components = files.stream().filter(LibraryDirectory::isComponentFile).toList();
         List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
         List<RecoveryCopy> reopened = new ArrayList<>();
+        // With a question to ask, an empty window of VSim opens first so the question sits over it (a parentless
+        // dialog hangs on Swing's hidden frame: no taskbar entry, unreachable in GNOME); it goes once other things open.
+        Optional<StandIn> standIn = choices.flatMap(offered -> openStandIn());
         // The files that do not open at the start (session, recovered copies, command line) get one message together.
         StartupSteps.run(() -> openingFiles.collecting(() -> {
-            List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
+            List<RecoveryCopy> recovered = choices.map(offered -> askAboutRecoveryCopies(offered, standIn.map(StandIn::window).orElse(null)))
+                    .orElse(List.of());
             StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
                     circuits, Files::isRegularFile);
             // Every file opens once; then the session's windows come back with their tabs (spec §4.7).
@@ -479,6 +483,8 @@ public final class Application {
             // Through the already-open check (a session file is only focused, never opened twice), as new groups of
             // the active window (the last restored one); one file each so a failure skips only that one.
             StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
+            standIn.ifPresent(stand -> StartupSteps.dropStandIn(windows.documents().size(),
+                    () -> stand.window().closeGroup(stand.document())));
         }), () -> !windows.isEmpty(), this::newDocument, () -> {
             if (!components.isEmpty()) {
                 // A component file on the command line is imported into the library, as a drop on the window would.
@@ -841,9 +847,27 @@ public final class Application {
         }
     }
 
-    /** On the EDT: asks about the copies and returns those to recover; the discarded ones are deleted off the EDT. */
-    private List<RecoveryCopy> askAboutRecoveryCopies(RecoveryChoices<RecoveryCopy> choices) {
-        RecoveryChoices.Outcome<RecoveryCopy> outcome = choices.outcome(RecoveryPrompt.ask(null, choices));
+    /** The empty window the recovery question sits over, with its document. */
+    private record StandIn(CircuitWindow window, OpenDocument document) {
+    }
+
+    /** An empty window shown first; empty when it cannot open (the question then falls back to a parentless one). */
+    private Optional<StandIn> openStandIn() {
+        try {
+            OpenDocument document = OpenDocument.createEmpty(registry);
+            return Optional.of(new StandIn(showInNewWindow(document, window -> { }), document));
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not open the window for the recovery question", exception);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * On the EDT: asks about the copies over {@code parent} (VSim's own window) and returns those to recover; the
+     * discarded ones are deleted off the EDT.
+     */
+    private List<RecoveryCopy> askAboutRecoveryCopies(RecoveryChoices<RecoveryCopy> choices, CircuitWindow parent) {
+        RecoveryChoices.Outcome<RecoveryCopy> outcome = choices.outcome(RecoveryPrompt.ask(parent, choices));
         List<RecoveryCopy> discarded = outcome.discard();
         if (!discarded.isEmpty()) {
             // Queued on the writer before autosave.start(), which is fine: the writer runs from creation, and these
