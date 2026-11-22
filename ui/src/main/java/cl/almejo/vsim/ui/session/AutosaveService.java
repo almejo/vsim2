@@ -65,6 +65,11 @@ public final class AutosaveService {
     /** Actions asked for before the document was tracked ({@link #afterCopied}); {@link #track} moves them over. */
     private final Map<OpenDocument, Queue<Runnable>> waitingForTracking = new IdentityHashMap<>();
     private final Set<UUID> failing = ConcurrentHashMap.newKeySet();
+    /**
+     * The recovery ids of the tracked documents. A failed write adds its document to {@link #failing} only while it is
+     * here, so a write queued before the close cannot put a closed document back there.
+     */
+    private final Set<UUID> live = ConcurrentHashMap.newKeySet();
     private final AtomicInteger loggedFailures = new AtomicInteger();
     /**
      * The tracked documents that could not be serialized at their last try, already told (EDT only). Its own set, not
@@ -141,8 +146,11 @@ public final class AutosaveService {
         this.writeRecovered = listener;
     }
 
-    /** Tells the listeners when «some copy cannot be written» changed; the change is told once. */
-    private void writeTroubleMayHaveChanged() {
+    /**
+     * Tells the listeners when «some copy cannot be written» changed; the change is told once. Only the writer thread
+     * calls it (and it is synchronized), so reading {@link #failing} and setting the flag cannot interleave.
+     */
+    private synchronized void writeTroubleMayHaveChanged() {
         boolean trouble = !failing.isEmpty();
         if (writeTrouble.compareAndSet(!trouble, trouble) && !shutDown) {
             Runnable listener = trouble ? writeFailure : writeRecovered;
@@ -170,6 +178,7 @@ public final class AutosaveService {
             state.afterCopied.addAll(early);
         }
         tracked.put(document, state);
+        live.add(document.recoveryId());
         document.addChangeListener(listener);
     }
 
@@ -181,8 +190,13 @@ public final class AutosaveService {
             return;
         }
         discardCopy(document);
-        failing.remove(document.recoveryId());
-        writeTroubleMayHaveChanged();
+        UUID id = document.recoveryId();
+        live.remove(id);
+        // on the writer, after every write already queued for this document: those cannot re-add it any more
+        writer.execute(() -> {
+            failing.remove(id);
+            writeTroubleMayHaveChanged();
+        });
         unserializable.remove(document.recoveryId());
         document.removeChangeListener(state.listener);
         tracked.remove(document);
@@ -250,6 +264,7 @@ public final class AutosaveService {
         timer.stop();
         tracked.forEach((document, state) -> document.removeChangeListener(state.listener));
         tracked.clear();
+        live.clear();
         waitingForTracking.clear();
         writer.execute(() -> {
             try {
@@ -329,7 +344,7 @@ public final class AutosaveService {
     }
 
     private void reportFailure(UUID id, String name, Exception exception) {
-        if (failing.add(id)) {
+        if (live.contains(id) && failing.add(id)) {
             loggedFailures.incrementAndGet();
             LOGGER.warn("Could not write the recovery copy of {}", name, exception);
         }

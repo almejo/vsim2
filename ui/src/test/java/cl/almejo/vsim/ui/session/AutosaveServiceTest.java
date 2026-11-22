@@ -288,8 +288,37 @@ class AutosaveServiceTest {
         runWrites();
 
         service.untrack(document);
+        runWrites();
 
         assertThat(told).containsExactly("cannot", "again");
+        service.shutdown();
+        runWrites();
+    }
+
+    /** Review round 3 (F7): a write queued before the close must not put the closed document back among the failing. */
+    @Test
+    void aWriteQueuedBeforeTheCloseThatFailsLaterDoesNotLeaveTheNoticeStuck() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        AutosaveService service = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add, Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        service.tick(); // the write is queued, not run
+
+        service.untrack(document); // the document closes before the writer gets to it
+        runWrites();
+
+        assertThat(told).as("no notice for a document that is gone").isEmpty();
+        OpenDocument another = untracked();
+        service.track(another);
+        place(another, StandardComponentTypes.LED, 2, 2, Map.of());
+        service.tick();
+        runWrites();
+        assertThat(told).as("a later failure is still told").containsExactly("cannot");
         service.shutdown();
         runWrites();
     }
