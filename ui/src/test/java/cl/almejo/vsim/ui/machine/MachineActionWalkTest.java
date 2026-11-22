@@ -64,7 +64,8 @@ class MachineActionWalkTest {
             "simulation.start", "simulation.pause", "simulation.startOrPause", "simulation.restart",
             "simulation.step", "simulation.stepMode", "simulation.stepSize",
             "window.newView", "window.newWindow", "window.nextTab", "window.previousTab", "window.closeTab",
-            "window.closeComponents", "window.closeWindow", "window.moveGroup", "window.foldGroup");
+            "window.closeComponents", "window.closeWindow", "window.moveGroup", "window.foldGroup",
+            "window.newEmptyTab", "window.reopenClosedTab");
 
     /** The menu items without a catalog id that work on a machine's tab: their menu and their label's bundle key. */
     private static final Map<MenuId, List<String>> MENU_ITEMS_WITHOUT_ID = Map.of(
