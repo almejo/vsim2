@@ -516,9 +516,9 @@ public final class SimulationThread implements AutoCloseable {
      * in slices within each tick's real-time budget, like a running simulation (SIM-3: a billion units of a fast clock
      * took a quarter of an hour in one call), so the snapshots show its time moving and the requests after it are
      * served meanwhile: edits and clicks between two slices; «Pausar», «Iniciar» and another step end it where it got,
-     * published with every net it changed so far, while the AI's steps are refused as while running; «Reiniciar» and a
-     * failure drop it; {@link #close()} stops it within a tick. A step that ends within its first budget publishes
-     * exactly what one call did.
+     * published with every net it changed so far, while the AI's steps are refused as while running; one of the
+     * engine's limits ends it where it got too; «Reiniciar» and a failure drop it; {@link #close()} stops it within a
+     * tick. A step that ends within its first budget publishes exactly what one call did.
      */
     public void step(long duration) {
         requests.add(() -> {
@@ -800,14 +800,15 @@ public final class SimulationThread implements AutoCloseable {
 
     /**
      * {@code count} steps as one: from the first one's start to the last one's end, with every net that changed and
-     * the last one's clock edge.
+     * the last one's clock edge. A pause asked on the way (a part's, or an edge step that found no edge) ends it there,
+     * as it stops a running simulation.
      */
-    private static StepResult repeated(int count, Supplier<StepResult> step) {
+    private StepResult repeated(int count, Supplier<StepResult> step) {
         StepResult first = step.get();
         StepResult last = first;
         Set<String> changed = new LinkedHashSet<>(first.changedNets());
         for (int done = 1; done < count && (last.time() != last.fromTime() || !last.changedNets().isEmpty())
-                && last.nextEventTime().isPresent(); done++) {
+                && last.nextEventTime().isPresent() && engine.pendingPause().isEmpty(); done++) {
             last = step.get();
             changed.addAll(last.changedNets());
         }
@@ -920,8 +921,7 @@ public final class SimulationThread implements AutoCloseable {
                 run = engine.runWithEventBudget(eventBudget, work);
             } catch (RuntimeException exception) {
                 LOGGER.error("Simulation request failed; pausing", exception);
-                publishFailure(exception);
-                future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, outcomes));
+                answerFailed(future, exception, fromTime, outcomes);
                 return;
             }
             if (run.exceeded()) {
@@ -957,17 +957,34 @@ public final class SimulationThread implements AutoCloseable {
             run = engine.runWithEventBudget(eventBudget, () -> result[0] = step.get());
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation step failed; pausing", exception);
-            publishFailure(exception);
-            future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, List.of()));
+            answerFailed(future, exception, fromTime, List.of());
             return;
         }
         StepResult published = result[0] == null
                 ? new StepResult(fromTime, engine.now(), Set.of(), engine.nextEventTime())
                 : result[0];
         publishStep(published);
-        future.complete(reportOf(run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
-                : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), List.of())
-                .withClockEdge(published.edge()));
+        // An edge step that found no edge stopped at a limit (a pause of no part): it failed, like the other limits
+        boolean stoppedAtLimit = engine.pendingPause().filter(notice -> !notice.fromPart()).isPresent();
+        RequestReport.Status status = run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
+                : stoppedAtLimit ? RequestReport.Status.FAILED : RequestReport.Status.COMPLETED;
+        future.complete(reportOf(status, fromTime, run.eventsProcessed(), List.of()).withClockEdge(published.edge()));
+    }
+
+    /**
+     * Publishes {@code exception} ({@link #publishFailure}) and answers {@code future} as FAILED. If that throws too
+     * (the snapshot of the failed state fails), the future is answered with that exception, which is thrown on to
+     * the tick, so the request never waits until {@link #close()}.
+     */
+    private void answerFailed(CompletableFuture<RequestReport> future, RuntimeException exception, long fromTime,
+                              List<InputOutcome> outcomes) {
+        try {
+            publishFailure(exception);
+            future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, outcomes));
+        } catch (RuntimeException reportFailure) {
+            future.completeExceptionally(reportFailure);
+            throw reportFailure;
+        }
     }
 
     /**
@@ -1242,12 +1259,19 @@ public final class SimulationThread implements AutoCloseable {
     /**
      * The engine reached one of its limits: the simulation pauses where the engine stopped, like at a part's pause, and
      * says why with a {@link PauseNotice} of no part in the user's words (never an English failure), published with a
-     * snapshot of that state at once. A «Avanzar N t» in progress is dropped, as a failure drops it.
+     * snapshot of that state at once. A «Avanzar N t» in progress ends where it got, published as a step, as «Pausar»
+     * ends it.
      */
     private void pauseAtLimit(SimulationLimitException limit) {
         LOGGER.info("Simulation reached a limit at t = {}; pausing: {}", limit.time(), limit.getMessage());
         running = false;
-        stepInProgress = null;
+        try {
+            finishStep();
+        } catch (RuntimeException exception) {
+            LOGGER.error("Could not publish the step cut by a limit", exception);
+        } finally {
+            stepInProgress = null;
+        }
         latestPauseNotice = engine.limitNotice(limit);
         snapshotStale = true;
         snapshotDue = true;

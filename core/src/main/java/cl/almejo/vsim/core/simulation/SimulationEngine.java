@@ -377,6 +377,11 @@ public final class SimulationEngine {
         scheduler.requestHalt();
     }
 
+    /** The pause asked for (by a part, or of no part at a limit) that nobody took yet, left in place. */
+    Optional<PauseNotice> pendingPause() {
+        return Optional.ofNullable(pendingPause);
+    }
+
     /** The pause a part asked for and nobody took yet; taking it lets {@link #advanceUntilPause} run on. */
     public Optional<PauseNotice> takePauseRequest() {
         Optional<PauseNotice> taken = Optional.ofNullable(pendingPause);

@@ -51,7 +51,8 @@ public record SimulationReceipt(DocumentId document, DocumentVersion version, Do
         REFUSED_TIME_OVERFLOW,
         /**
          * The engine failed: paused, with {@code failure}; or it reached one of its limits (a zero-delay loop, an event
-         * past the largest time), said by {@code lastPause} of no component instead.
+         * past the largest time, a clock-edge step that found no edge), said by {@code lastPause} of no component
+         * instead.
          */
         FAILED
     }

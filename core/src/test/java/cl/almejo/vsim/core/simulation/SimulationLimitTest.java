@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.value.Value;
@@ -27,6 +28,8 @@ class SimulationLimitTest {
 
     private static final String FAR = "test-far";
     private static final String RINGING = "test-limit-ringing";
+    private static final String PAUSING = "test-limit-pausing";
+    private static final String FAR_BROKEN = "test-limit-far-broken";
 
     private final ComponentTypeRegistry registry = TestComponentTypes.registry();
     private final AtomicLong nanos = new AtomicLong();
@@ -67,6 +70,61 @@ class SimulationLimitTest {
                 }));
         return new FlatCircuit(List.of(new FlatComponent("r", registry.require(RINGING), Map.of())),
                 List.of(new FlatNet("loop", List.of(new FlatPinRef("r", 0), new FlatPinRef("r", 1)), 1, false)));
+    }
+
+    /** At t = 5 it asks to pause, like a «Punto de parada»; then it has an event every 5 units until t = 20. */
+    private FlatCircuit pausingAtFive() {
+        registry.register(new ComponentType(PAUSING, ComponentCategory.DEBUG, new GridSize(2, 2),
+                List.of(PinSpec.output("out", 2, 1)), List.of(),
+                parameters -> new Behavior() {
+                    @Override
+                    public void initialize(BehaviorContext context) {
+                        context.schedule(5, () -> context.requestPause("test.pause", List.of()));
+                        context.schedule(10, () -> context.drive(0, Value.ONE, 0));
+                        context.schedule(15, () -> context.drive(0, Value.ZERO, 0));
+                        context.schedule(20, () -> context.drive(0, Value.ONE, 0));
+                    }
+
+                    @Override
+                    public void inputChanged(BehaviorContext context, int pinIndex) {
+                    }
+                }));
+        return new FlatCircuit(List.of(new FlatComponent("p", registry.require(PAUSING), Map.of())),
+                List.of(new FlatNet("out", List.of(new FlatPinRef("p", 0)), 1, false)));
+    }
+
+    /**
+     * Like {@link #far()}, but once its event past the largest time was asked for its visible state fails, so the
+     * snapshot taken right after the limit throws.
+     */
+    private FlatCircuit farThenBroken() {
+        registry.register(new ComponentType(FAR_BROKEN, ComponentCategory.DEBUG, new GridSize(2, 2),
+                List.of(PinSpec.output("out", 2, 1)), List.of(),
+                parameters -> new Behavior() {
+                    private boolean broken;
+
+                    @Override
+                    public void initialize(BehaviorContext context) {
+                        context.schedule(5, () -> {
+                            broken = true;
+                            context.schedule(Long.MAX_VALUE, () -> { });
+                        });
+                    }
+
+                    @Override
+                    public void inputChanged(BehaviorContext context, int pinIndex) {
+                    }
+
+                    @Override
+                    public VisibleState visibleState() {
+                        if (broken) {
+                            throw new IllegalStateException("broken state");
+                        }
+                        return VisibleState.NONE;
+                    }
+                }));
+        return new FlatCircuit(List.of(new FlatComponent("b", registry.require(FAR_BROKEN), Map.of())),
+                List.of(new FlatNet("out", List.of(new FlatPinRef("b", 0)), 1, false)));
     }
 
     @Test
@@ -166,5 +224,72 @@ class SimulationLimitTest {
         assertThat(new PauseNotice("k", "clock.edge.shorted", List.of(), 0, 1).fromPart()).isTrue();
         assertThat(new PauseNotice("", SimulationLimitException.TOO_MANY_EVENTS, List.of(), 0, 1).fromPart())
                 .isFalse();
+    }
+    @Test
+    void severalAiStepsStopAtAPauseAskedOnTheWay() {
+        thread.update(pausingAtFive());
+        thread.tick();
+
+        CompletableFuture<RequestReport> report = thread.advanceToNextEventWithin(4, 1_000);
+        thread.tick();
+
+        assertThat(report.join().snapshot().time()).as("the steps after the pause do not run").isEqualTo(5);
+        assertThat(report.join().status()).isEqualTo(RequestReport.Status.COMPLETED);
+        assertThat(report.join().lastPause()).map(PauseNotice::messageKey).contains("test.pause");
+    }
+
+    @Test
+    void severalAiEdgeStepsStopAtTheFirstThatFindsNoEdgeAndSayItFailed() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        // k never falls within one step's budget of event times: a 1 / 1 clock shorted by a source fills every unit
+        thread.update(new FlatCircuit(List.of(
+                new FlatComponent("k", standard.require(StandardComponentTypes.CLOCK),
+                        Map.of("time-up", 1_500_000, "time-down", 1_500_000)),
+                new FlatComponent("fast", standard.require(StandardComponentTypes.CLOCK),
+                        Map.of("time-up", 1, "time-down", 1)),
+                new FlatComponent("one", registry.require(TestComponentTypes.SOURCE), Map.of("value", "1"))),
+                List.of(new FlatNet("clock", List.of(new FlatPinRef("k", 0)), 1, false),
+                        new FlatNet("shorted", List.of(new FlatPinRef("fast", 0), new FlatPinRef("one", 0)), 1,
+                                false))));
+        thread.tick();
+
+        CompletableFuture<RequestReport> report = thread.advanceToNextClockEdgeWithin(ClockEdgeMode.FALLING, 3,
+                Long.MAX_VALUE);
+        thread.tick();
+
+        RequestReport receipt = report.join();
+        PauseNotice notice = receipt.lastPause().orElseThrow();
+        assertThat(notice.messageKey()).isEqualTo(SimulationEngine.CLOCK_EDGE_NOT_REACHED_MESSAGE);
+        assertThat(receipt.snapshot().time()).as("no step runs past the first that found no edge")
+                .isEqualTo(notice.time());
+        assertThat(receipt.status()).isEqualTo(RequestReport.Status.FAILED);
+        assertThat(receipt.clockEdge()).isEmpty();
+    }
+
+    @Test
+    void aLongStepCutByALimitIsPublishedWhereItGot() {
+        thread.update(far());
+        thread.tick();
+
+        thread.step(100);
+        thread.tick();
+
+        assertThat(thread.latestPauseNotice()).map(PauseNotice::messageKey)
+                .contains(SimulationLimitException.TIME_OVERFLOW);
+        StepResult step = thread.latestStep().orElseThrow().result();
+        assertThat(step.fromTime()).isZero();
+        assertThat(step.time()).isEqualTo(5);
+    }
+
+    @Test
+    void theAiStepIsAnsweredEvenWhenTheSnapshotAfterALimitFails() {
+        thread.update(farThenBroken());
+        thread.tick();
+
+        CompletableFuture<RequestReport> report = thread.stepWithin(10, 1_000);
+        thread.tick();
+
+        assertThat(report).isDone();
+        assertThat(thread.latestSnapshot().running()).isFalse();
     }
 }
