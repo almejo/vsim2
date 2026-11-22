@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.StickyChecklist;
@@ -82,7 +83,7 @@ class ChangeStickyNoteCommandTest {
         History history = new History(document);
         history.execute(new AddElementsCommand(List.of(text)));
         assertThat(document.stickyNotes()).containsExactly(text);
-        history.execute(new RemoveElementsCommand(List.of(text.id())));
+        history.execute(new RemoveElementsCommand(List.of(text.id()), StandardComponentTypes.registry()));
         assertThat(document.stickyNotes()).isEmpty();
 
         history.undo();

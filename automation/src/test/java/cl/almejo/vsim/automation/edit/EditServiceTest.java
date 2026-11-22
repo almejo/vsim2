@@ -40,6 +40,8 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.StickyChecklist;
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.StickyItem;
@@ -755,6 +757,22 @@ class EditServiceTest {
 
         assertThat(circuit.elementIds()).containsExactly(parts.aliases().get("lamp"));
         assertThat(receipt.changes().removed()).containsExactly(parts.aliases().get("gate"));
+    }
+
+    @Test
+    void deletingAPartMovesTheSignalsOfItsSurvivingNetsAndRemovesTheOthers() {
+        EditReceipt parts = service.edit(request(place("source", "switch", 0, 0), place("gate", "nand", 10, -1),
+                connect("new:source", "out", "new:gate", "in0")));
+        ElementId source = new ElementId(parts.aliases().get("source"));
+        ElementId gate = new ElementId(parts.aliases().get("gate"));
+        Probe input = new Probe("p1", new ProbeTarget.PinTarget(gate, 0), "entrada");
+        Probe output = new Probe("p2", new ProbeTarget.PinTarget(gate, 2), "salida");
+        circuit.document().setProbes(List.of(input, output));
+
+        service.edit(request(new Delete(List.of(gate.value()))));
+
+        assertThat(circuit.document().probes())
+                .containsExactly(input.withTarget(new ProbeTarget.PinTarget(source, 0)));
     }
 
     @Test

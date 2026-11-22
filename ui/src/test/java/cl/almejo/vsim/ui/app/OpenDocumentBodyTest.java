@@ -255,11 +255,11 @@ class OpenDocumentBodyTest {
         AtomicInteger changes = new AtomicInteger();
         body.addChangeListener(changes::incrementAndGet);
 
-        openDocument.execute(new RemoveElementsCommand(List.of(FIRST)));
+        openDocument.execute(new RemoveElementsCommand(List.of(FIRST), openDocument.registry()));
         assertThat(body.contextPath()).contains(SECOND.value());
         assertThat(changes.get()).isPositive();
 
-        openDocument.execute(new RemoveElementsCommand(List.of(SECOND)));
+        openDocument.execute(new RemoveElementsCommand(List.of(SECOND), openDocument.registry()));
         assertThat(body.contextPath()).isEmpty();
         assertThat(body.instancePaths(BLOCK)).isEmpty();
     }
@@ -284,7 +284,7 @@ class OpenDocumentBodyTest {
         ComponentDefinition container = openDocument.document().definition(ExampleDefinitions.DOUBLE_INVERTER)
                 .orElseThrow();
 
-        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1")), body.registry()));
 
         assertThat(openDocument.document().definition(ExampleDefinitions.INVERTER).orElseThrow().pinout())
                 .extracting(pin -> pin.spec().name()).containsExactly("y");

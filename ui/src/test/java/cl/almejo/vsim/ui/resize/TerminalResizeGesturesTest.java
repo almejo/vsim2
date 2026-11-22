@@ -168,7 +168,7 @@ class TerminalResizeGesturesTest {
     @Test
     void theDragSnapsToTheCellsOfASmallFont() {
         context.openDocument().execute(new RemoveElementsCommand(
-                Set.of(terminal.id(), clockWire.id())));
+                Set.of(terminal.id(), clockWire.id()), context.openDocument().registry()));
         useTerminal(Map.of(TerminalTypes.FONT_SIZE, TerminalTypes.FONT_SIZE_SMALL));
         select();
 
@@ -181,7 +181,7 @@ class TerminalResizeGesturesTest {
     @Test
     void theDragSnapsToTheCellsOfALargeFont() {
         context.openDocument().execute(new RemoveElementsCommand(
-                Set.of(terminal.id(), clockWire.id())));
+                Set.of(terminal.id(), clockWire.id()), context.openDocument().registry()));
         useTerminal(Map.of(TerminalTypes.FONT_SIZE, TerminalTypes.FONT_SIZE_LARGE));
         select();
 
@@ -351,7 +351,7 @@ class TerminalResizeGesturesTest {
     @Test
     void theTextSurvivesAResize() {
         context.openDocument().execute(new RemoveElementsCommand(
-                Set.of(terminal.id(), clockWire.id())));
+                Set.of(terminal.id(), clockWire.id()), context.openDocument().registry()));
         ComponentType type = context.openDocument().registry().require(StandardComponentTypes.TERMINAL);
         useTerminal(ParameterProfiles.apply(type, Map.of(), TerminalTypes.PROFILE_LOGISIM));
         // A push button whose output, at (12, 70), ends the CLK wire; D is left open, so each edge writes «?».

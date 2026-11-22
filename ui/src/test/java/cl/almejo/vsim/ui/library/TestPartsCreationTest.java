@@ -1,12 +1,15 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.GateParameters;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -123,6 +126,21 @@ class TestPartsCreationTest {
 
         assertThat(elements()).isEqualTo(before);
         assertThat(fixture.openDocument.document().definitions()).isEmpty();
+    }
+
+    @Test
+    void replacingTheSelectionKeepsTheSignalOfAWireThatStaysOutside() {
+        List<Component> parts = drawSwitchNotLed();
+        Probe output = new Probe("p1", new ProbeTarget.PinTarget(parts.get(1).id(), 1), "S");
+        fixture.openDocument.execute(new SetProbesCommand(List.of(), List.of(output), "command.addProbes"));
+        fixture.dialogs.acceptForm(form -> form.setName("Negador"));
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(fixture.openDocument.document().probes()).as("the NOT went inside; the LED still reads the net")
+                .containsExactly(output.withTarget(new ProbeTarget.PinTarget(parts.get(2).id(), 0)));
+        fixture.openDocument.history().undo();
+        assertThat(fixture.openDocument.document().probes()).containsExactly(output);
     }
 
     @Test

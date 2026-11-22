@@ -264,7 +264,8 @@ public final class TemplateActions {
             return;
         }
         PasteCommand paste = new PasteCommand(plan.body(), plan.offset());
-        List<Command> steps = new ArrayList<>(List.of(new RemoveElementsCommand(List.of(instance.id())), paste));
+        List<Command> steps = new ArrayList<>(List.of(new RemoveElementsCommand(List.of(instance.id()), registry),
+                paste));
         if (!plan.bridges().isEmpty()) {
             steps.add(new AddElementsCommand(List.copyOf(plan.bridges())));
         }
@@ -461,9 +462,9 @@ public final class TemplateActions {
                 List<DocumentElement> added = new ArrayList<>(List.of(instance));
                 added.addAll(bridging.wires());
                 if (!converted.replacedIds().isEmpty()) {
-                    steps.add(new RemoveElementsCommand(converted.replacedIds()));
+                    steps.add(new RemoveElementsCommand(converted.replacedIds(), registry));
                 }
-                frameToRemove.ifPresent(frameId -> steps.add(new RemoveElementsCommand(List.of(frameId))));
+                frameToRemove.ifPresent(frameId -> steps.add(new RemoveElementsCommand(List.of(frameId), registry)));
                 steps.add(new AddElementsCommand(added));
                 if (!bridging.unconnectedPins().isEmpty()) {
                     message = Messages.format("template.pinsUnconnected",

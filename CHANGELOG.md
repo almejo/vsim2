@@ -41,6 +41,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Preferencias ▸ Aspecto: al elegir «VSim clásico», «Pastel» o «Twilight» una línea gris avisa que son los colores de VSim 1 y tienen poco contraste.
 - Documentación: rutas de menú que quedaron de antes de 0.9 corregidas, y «Qué hay de nuevo» descrito sin una lista fija de burbujas.
 - Textos en inglés: los títulos, los botones de los diálogos («Don’t save»), los grupos de Preferencias («Keyboard shortcuts») y las categorías de la paleta («My components», «Input/output») van con mayúscula solo en la primera palabra, como el resto.
+- Formas de onda: borrar, cortar, desarmar o convertir en componente la pieza o el cable de un canal ya no deja el canal «(sin conexión)»: el canal pasa a lo que queda de su red (otro pin, primero el que la maneja, o un cable), con su nombre y su formato, y si no queda nada de la red se quita, en el mismo paso de Deshacer. Deshacer (también el de «Quitar» un canal) lo devuelve con la traza que tenía, con el tramo ausente rayado. Ver [Formas de onda](docs/funciones/formas-de-onda.md#formas-de-onda).
 
 ### Arreglado
 

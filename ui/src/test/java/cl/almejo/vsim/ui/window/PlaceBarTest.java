@@ -191,7 +191,8 @@ class PlaceBarTest {
         PlaceBar bar = barOf(INVERTER, Optional.of("c2/c2"));
 
         // the inverter's input pin part «a»: the double inverter's body follows (spec §6.2 c)
-        places.getFirst().execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        places.getFirst().execute(new RemoveElementsCommand(List.of(new ElementId("c1")),
+                places.getFirst().registry()));
 
         assertThat(places.getFirst().document().component(new ElementId("c1"))).isEmpty();
         assertThat(bar.refusalText()).isEmpty();

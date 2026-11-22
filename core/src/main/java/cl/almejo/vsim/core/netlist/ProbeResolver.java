@@ -6,12 +6,14 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** Maps waveform probes to the top-level nets of a netlist compiled from the same document. */
 public final class ProbeResolver {
@@ -50,18 +52,71 @@ public final class ProbeResolver {
         if (net.isEmpty()) {
             return Optional.empty();
         }
+        return Optional.of(chosenPin(net.get(), Set.of(), document, registry)
+                .orElseGet(() -> new ProbeTarget.WireTarget(wireId)));
+    }
+
+    /**
+     * The probes as they are once {@code removedIds} are deleted from {@code document}, computed before the deletion
+     * with {@code netlist} compiled from it. A probe whose component or wire is deleted moves to what survives of its
+     * net, by the rule of {@link #anchor} (a surviving pin, a driver first, else the first surviving wire by document
+     * order), keeping its id, name and format; with nothing of its net left (or a net it never had) it is removed.
+     * Every other probe stays as it is, in its place.
+     */
+    public static List<Probe> afterRemoval(List<Probe> probes, Set<ElementId> removedIds, CircuitDocument document,
+                                           Netlist netlist, ComponentTypeRegistry registry) {
+        List<Probe> after = new ArrayList<>(probes.size());
+        for (Probe probe : probes) {
+            if (!watchesRemoved(probe.target(), removedIds, document)) {
+                after.add(probe);
+                continue;
+            }
+            Optional<Net> net = netOfTarget(probe.target(), netlist);
+            net.flatMap(found -> survivingTarget(found, removedIds, document, registry))
+                    .ifPresent(target -> after.add(probe.withTarget(target)));
+        }
+        return List.copyOf(after);
+    }
+
+    /** Whether {@code target}'s component or wire exists in {@code document} and is among {@code removedIds}. */
+    public static boolean watchesRemoved(ProbeTarget target, Set<ElementId> removedIds, CircuitDocument document) {
+        ElementId watched = switch (target) {
+            case ProbeTarget.PinTarget pin -> pin.componentId();
+            case ProbeTarget.WireTarget wire -> wire.wireId();
+        };
+        return removedIds.contains(watched) && document.element(watched).isPresent();
+    }
+
+    private static Optional<Net> netOfTarget(ProbeTarget target, Netlist netlist) {
+        return switch (target) {
+            case ProbeTarget.PinTarget pin -> netlist.netForPin(new PinRef(pin.componentId(), pin.pinIndex()));
+            case ProbeTarget.WireTarget wire -> netlist.netForWire(wire.wireId());
+        };
+    }
+
+    private static Optional<ProbeTarget> survivingTarget(Net net, Set<ElementId> removedIds, CircuitDocument document,
+                                                         ComponentTypeRegistry registry) {
+        return chosenPin(net, removedIds, document, registry).or(() -> net.wires().stream()
+                .filter(wireId -> !removedIds.contains(wireId) && document.wire(wireId).isPresent())
+                .min(Comparator.comparingLong(document::orderOf))
+                .map(ProbeTarget.WireTarget::new));
+    }
+
+    /** A pin of {@code net} not on a removed component: a driver first, else the first by document then pin order. */
+    private static Optional<ProbeTarget> chosenPin(Net net, Set<ElementId> removedIds, CircuitDocument document,
+                                                   ComponentTypeRegistry registry) {
         Comparator<PinRef> order = Comparator.comparingLong((PinRef pin) -> document.orderOf(pin.componentId()))
                 .thenComparingInt(PinRef::pinIndex);
-        List<PinRef> pins = net.get().pins().stream()
+        List<PinRef> pins = net.pins().stream()
+                .filter(pin -> !removedIds.contains(pin.componentId()))
                 .filter(pin -> document.component(pin.componentId()).isPresent())
                 .sorted(order)
                 .toList();
-        Optional<PinRef> chosen = pins.stream()
+        return pins.stream()
                 .filter(pin -> isDriver(pin, document, registry))
                 .findFirst()
-                .or(() -> pins.stream().findFirst());
-        return Optional.of(chosen.<ProbeTarget>map(pin -> new ProbeTarget.PinTarget(pin.componentId(), pin.pinIndex()))
-                .orElseGet(() -> new ProbeTarget.WireTarget(wireId)));
+                .or(() -> pins.stream().findFirst())
+                .map(pin -> new ProbeTarget.PinTarget(pin.componentId(), pin.pinIndex()));
     }
 
     private static boolean isDriver(PinRef pin, CircuitDocument document, ComponentTypeRegistry registry) {

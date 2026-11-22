@@ -1,9 +1,12 @@
 package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -84,6 +87,25 @@ class SelectionActionsTest {
         Component gate = gateAt(x, y);
         view.canvas().selection().select(gate.id());
         perform(actions.copy());
+    }
+
+    @Test
+    void cuttingAProbedGateMovesOrRemovesItsSignalsInOneUndoStep() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
+        Component gate = gateAt(4, -1);                                                         // (4,1) → (8,1)
+        Probe input = new Probe("p1", new ProbeTarget.PinTarget(gate.id(), 0), "entrada");
+        Probe output = new Probe("p2", new ProbeTarget.PinTarget(gate.id(), 1), "salida");
+        openDocument.execute(new SetProbesCommand(List.of(), List.of(input, output), "command.addProbes"));
+        view.canvas().selection().select(gate.id());
+
+        perform(actions.cut());
+
+        assertThat(openDocument.document().component(gate.id())).isEmpty();
+        assertThat(openDocument.document().probes()).as("the input net survives on the switch; the output net is gone")
+                .containsExactly(input.withTarget(new ProbeTarget.PinTarget(toggle.id(), 0)));
+        openDocument.history().undo();
+        assertThat(openDocument.document().probes()).containsExactly(input, output);
+        assertThat(openDocument.document().component(gate.id())).isPresent();
     }
 
     @Test

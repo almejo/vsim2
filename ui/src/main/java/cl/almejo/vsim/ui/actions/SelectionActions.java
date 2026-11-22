@@ -224,7 +224,7 @@ public final class SelectionActions {
     private void cutSelection() {
         Set<ElementId> ids = selection.effectiveIds();
         if (copySelection()) {
-            openDocument.execute(new RemoveElementsCommand(ids));
+            openDocument.execute(new RemoveElementsCommand(ids, openDocument.registry()));
         }
     }
 

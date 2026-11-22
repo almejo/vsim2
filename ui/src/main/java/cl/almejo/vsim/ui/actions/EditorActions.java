@@ -550,7 +550,7 @@ public final class EditorActions {
         Set<ElementId> selected = selection.effectiveIds();
         if (!selected.isEmpty()) {
             deleteListeners.forEach(listener -> listener.accept(selected));
-            openDocument.execute(new RemoveElementsCommand(selected));
+            openDocument.execute(new RemoveElementsCommand(selected, openDocument.registry()));
         }
     }
 

@@ -275,7 +275,7 @@ class TerminalWindowsTest {
         open(consola);
         open(other);
 
-        document.execute(new RemoveElementsCommand(List.of(consola.id())));
+        document.execute(new RemoveElementsCommand(List.of(consola.id()), document.registry()));
 
         assertThat(shown.get(0).closed).isTrue();
         assertThat(shown.get(1).closed).isFalse();

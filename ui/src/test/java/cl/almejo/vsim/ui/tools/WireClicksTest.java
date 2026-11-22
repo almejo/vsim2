@@ -104,7 +104,8 @@ class WireClicksTest {
         List<Wire> wires = document().wires();
         List<Long> orders = wires.stream().map(wire -> document().orderOf(wire.id())).toList();
         clicks(20.2, 5, 2, false);
-        context.openDocument().execute(new RemoveElementsCommand(context.selection.effectiveIds()));
+        context.openDocument().execute(new RemoveElementsCommand(context.selection.effectiveIds(),
+                context.openDocument().registry()));
         assertThat(document().wires()).containsExactly(onward, down);
         context.openDocument().history().undo();
         assertThat(document().wires()).isEqualTo(wires);

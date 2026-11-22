@@ -1,9 +1,12 @@
 package cl.almejo.vsim.ui.waveform;
 
-import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.ChannelTrace;
 import cl.almejo.vsim.core.waveform.Trace;
@@ -168,7 +171,10 @@ class WaveformPanelTest {
         panel.axis().setCursor(5);
         assertThat(panel.names().values()).containsExactly("1", "0");
 
-        openDocument.execute(new RemoveElementsCommand(List.of(gate.id())));
+        // deleting the gate would remove its channel (nothing of its net survives): watch a part that is not there
+        List<Probe> probes = openDocument.document().probes();
+        openDocument.execute(new SetProbesCommand(probes, List.of(probes.get(0),
+                probes.get(1).withTarget(new ProbeTarget.PinTarget(new ElementId("c99"), 0))), "command.addProbes"));
         assertThat(panel.names().values()).containsExactly("1", "(sin conexión)");
     }
 

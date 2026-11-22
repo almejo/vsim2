@@ -1088,7 +1088,7 @@ class CircuitCanvasTest {
         CircuitCanvas secondView = canvasOf(openDocument);
         try {
             Transferable transferable = dragOut(canvas, 56, 56);
-            openDocument.execute(new RemoveElementsCommand(List.of(led.id())));
+            openDocument.execute(new RemoveElementsCommand(List.of(led.id()), openDocument.registry()));
 
             assertThat(handlerOf(secondView).importFragment(transferable, new Point(160, 160), false)).isTrue();
             assertThat(openDocument.document().components()).singleElement()
@@ -1096,7 +1096,7 @@ class CircuitCanvasTest {
             assertThat(openDocument.history().undoDescription()).contains("command.move");
 
             Transferable second = dragOut(canvas, 160, 160);
-            openDocument.execute(new RemoveElementsCommand(List.of(gate.id())));
+            openDocument.execute(new RemoveElementsCommand(List.of(gate.id()), openDocument.registry()));
             Optional<String> lastStep = openDocument.history().undoDescription();
             assertThat(handlerOf(secondView).importFragment(second, new Point(80, 80), false)).isTrue();
             assertThat(openDocument.history().undoDescription()).isEqualTo(lastStep);

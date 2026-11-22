@@ -62,7 +62,7 @@ class OpenDocumentWaveformsTest {
     }
 
     @Test
-    void aProbeIsResolvedRecordedAndFollowsDeletionAndUndo() {
+    void aProbeIsResolvedRecordedGoesWithItsDeletedNetAndUndoBringsItBackWithItsHistory() {
         Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1), value 1
         Component gate = place(document, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));       // (4,1) → (8,1)
         Probe probe = addProbe(gate, 1);
@@ -73,13 +73,36 @@ class OpenDocumentWaveformsTest {
 
         document.interact(toggle.id());
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
+        long recordedFrom = document.latestWaveforms().trace(probe.id()).orElseThrow().firstTime().orElseThrow();
 
-        document.execute(new RemoveElementsCommand(List.of(gate.id())));
+        // nothing of the output net survives: the probe goes in the same undo step
+        document.execute(new RemoveElementsCommand(List.of(gate.id()), document.registry()));
+        assertThat(document.document().probes()).isEmpty();
         assertThat(document.probeNets()).doesNotContainKey(probe.id());
-        waitUntil(() -> currentValue(probe.id()).isEmpty());
-        assertThat(document.latestWaveforms().trace(probe.id())).as("the channel keeps its history").isPresent();
+        waitUntil(() -> document.latestWaveforms().trace(probe.id()).isEmpty());
 
         document.history().undo();
+        assertThat(document.document().probes()).containsExactly(probe);
+        assertThat(document.probeNets()).containsEntry(probe.id(), netId);
+        waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
+        assertThat(document.latestWaveforms().trace(probe.id()).orElseThrow().firstTime())
+                .as("the channel comes back with its recorded history").hasValue(recordedFrom);
+
+        document.history().redo();
+        assertThat(document.document().probes()).isEmpty();
+    }
+
+    @Test
+    void deletingTheGateAProbedNetFeedsMovesTheProbeToWhatSurvives() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
+        Component gate = place(document, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));       // in (4,1)
+        Probe probe = addProbe(gate, 0);
+        String netId = document.probeNets().get(probe.id());
+
+        document.execute(new RemoveElementsCommand(List.of(gate.id()), document.registry()));
+
+        assertThat(document.document().probes()).containsExactly(
+                probe.withTarget(new ProbeTarget.PinTarget(toggle.id(), 0)));
         assertThat(document.probeNets()).containsEntry(probe.id(), netId);
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
     }

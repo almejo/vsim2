@@ -207,7 +207,7 @@ class ProblemsInsideTest {
         EditorView main = view(circuit);
         OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c20"));
 
-        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1")), body.registry()));
 
         assertThat(main.problems().panel().problemTexts())
                 .contains("Inversor: el pin a ya no existe; su cable quedó suelto");
@@ -224,7 +224,7 @@ class ProblemsInsideTest {
                 new GridPoint(10, 12)))));
         EditorView main = view(circuit);
         OpenDocument body = body(ExampleDefinitions.INVERTER, Optional.of("c20"));
-        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1")), body.registry()));
         assertThat(main.problems().panel().problemTexts()).filteredOn(text -> text.startsWith("Inversor"))
                 .containsExactly("Inversor: el pin a ya no existe; su cable quedó suelto");
 

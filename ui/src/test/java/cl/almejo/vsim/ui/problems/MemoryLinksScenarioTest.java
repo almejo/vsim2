@@ -170,7 +170,7 @@ class MemoryLinksScenarioTest {
         circuit.execute(SetInstanceMemoryContentsCommand.set(new PieceMemories.Place(smallPiece.id(),
                 SMALL_RAM.value()), MemoryContents.decode("@0 1")));
         OpenDocument tab = body(circuit, SMALL, smallPiece);
-        tab.execute(new RemoveElementsCommand(List.of(SMALL_RAM)));
+        tab.execute(new RemoveElementsCommand(List.of(SMALL_RAM), tab.registry()));
         tab.close();
     }
 

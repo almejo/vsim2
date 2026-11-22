@@ -895,7 +895,7 @@ final class EditPlanner {
 
     private void delete(Delete operation) {
         Set<ElementId> ids = FrameContents.withLockedBlocks(candidate, registry, requireTargets(operation.targets()));
-        new RemoveElementsCommand(ids).apply(candidate);
+        new RemoveElementsCommand(ids, registry).apply(candidate);
     }
 
     // --- frames, notes and guides ---
@@ -1054,7 +1054,7 @@ final class EditPlanner {
         Component instance = new Component(candidate.newComponentId(), SubcircuitTypes.typeIdOf(bundle.root().id()),
                 origin, Rotation.R0, Map.of(), "");
         if (!selection.replacedIds().isEmpty()) {
-            new RemoveElementsCommand(selection.replacedIds()).apply(candidate);
+            new RemoveElementsCommand(selection.replacedIds(), registry).apply(candidate);
         }
         List<DocumentElement> added = new ArrayList<>(List.of(instance));
         added.addAll(bridging.wires());
