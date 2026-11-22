@@ -517,17 +517,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private boolean trySaveAs(OpenDocument document) {
         return FileDialogs.chooseSave(this,
                 document.path().map(Path::getParent).orElseGet(application::initialDirectory),
-                document.suggestedFileName())
-                .map(target -> {
-                    if (application.documentBackedBy(target, document).isPresent()) {
-                        JOptionPane.showMessageDialog(this,
-                                Messages.format("saveAs.openElsewhere", target.getFileName()),
-                                Messages.text("saveAs.openElsewhere.title"), JOptionPane.WARNING_MESSAGE);
-                        return false;
-                    }
-                    return writeTo(document, target);
-                })
+                document.suggestedFileName(),
+                target -> SaveAsTargets.confirmed(target, document, application::documentBackedBy,
+                        this::refuseSaveAs, file -> FileDialogs.confirmOverwrite(this, file)).isPresent())
+                .map(target -> writeTo(document, target))
                 .orElse(false);
+    }
+
+    private void refuseSaveAs(Path target) {
+        JOptionPane.showMessageDialog(this, Messages.format("saveAs.openElsewhere", target.getFileName()),
+                Messages.text("saveAs.openElsewhere.title"), JOptionPane.WARNING_MESSAGE);
     }
 
     private boolean writeTo(OpenDocument document, Path target) {

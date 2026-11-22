@@ -624,7 +624,20 @@ public final class OpenDocument implements AutoCloseable {
     /** True for the file this document was opened from (also a VSim 1 import) or last saved to, in any spelling. */
     public boolean isBackedBy(Path file) {
         OpenDocument main = main();
-        return main.backingFile != null && main.backingFile.equals(FileNames.normalized(file));
+        if (main.backingFile == null) {
+            return false;
+        }
+        Path normalized = FileNames.normalized(file);
+        if (main.backingFile.equals(normalized)) {
+            return true;
+        }
+        try {
+            // two spellings of one file the real path does not unify (a case-insensitive disk, a hard link)
+            return Files.exists(normalized) && Files.exists(main.backingFile)
+                    && Files.isSameFile(main.backingFile, normalized);
+        } catch (IOException exception) {
+            return false;
+        }
     }
 
     public boolean isImportedFromVsim1() {

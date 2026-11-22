@@ -268,6 +268,9 @@ public final class Application {
         CannotSaveNotices cannotSaveNotices = new CannotSaveNotices(this::statusBarsOf);
         autosave.onSerializationFailure(cannotSaveNotices::cannotSave);
         autosave.onSerializationRecovered(cannotSaveNotices::canSaveAgain);
+        RecoveryWriteNotice writeNotice = new RecoveryWriteNotice(this::allStatusBars);
+        autosave.onWriteFailure(writeNotice::cannotWrite);
+        autosave.onWriteRecovered(writeNotice::canWriteAgain);
     }
 
     /**
@@ -733,6 +736,11 @@ public final class Application {
     /** Another open document backed by {@code file}: «Guardar como» of {@code asking} onto it is refused. */
     public Optional<OpenDocument> documentBackedBy(Path file, OpenDocument asking) {
         return windows.otherBackedBy(file, asking);
+    }
+
+    /** The status bars of every tab of every open document, in every window. */
+    private List<StatusBar> allStatusBars() {
+        return windows.documents().stream().flatMap(document -> statusBarsOf(document).stream()).distinct().toList();
     }
 
     /** The status bars of every tab of {@code document}'s group, in every window that holds it. */

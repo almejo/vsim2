@@ -270,6 +270,38 @@ class OpenDocumentTest {
     }
 
     @Test
+    void aSymbolicLinkToTheFileNamesTheSameFile(@TempDir Path directory) throws Exception {
+        Path real = directory.resolve("real.vsim");
+        track(OpenDocument.createEmpty(registry)).save(real);
+        Path link = directory.resolve("link.vsim");
+        try {
+            Files.createSymbolicLink(link, real);
+        } catch (UnsupportedOperationException | java.io.IOException exception) {
+            org.junit.jupiter.api.Assumptions.abort("no symbolic links here");
+        }
+        OpenDocument document = track(OpenDocument.open(link, registry));
+        assertThat(document.isBackedBy(real)).isTrue();
+        assertThat(document.isBackedBy(link)).isTrue();
+        OpenDocument viaReal = track(OpenDocument.open(real, registry));
+        assertThat(viaReal.isBackedBy(link)).isTrue();
+    }
+
+    @Test
+    void aFileSavedLaterThroughALinkIsStillRecognizedUnderEitherName(@TempDir Path directory) throws Exception {
+        Path real = directory.resolve("real.vsim");
+        Files.writeString(real, "");
+        Path link = directory.resolve("link.vsim");
+        try {
+            Files.createSymbolicLink(link, real);
+        } catch (UnsupportedOperationException | java.io.IOException exception) {
+            org.junit.jupiter.api.Assumptions.abort("no symbolic links here");
+        }
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        document.save(link);
+        assertThat(document.isBackedBy(real)).isTrue();
+    }
+
+    @Test
     void anImportedVsim1DocumentIsBackedByItsSourceUntilSaved() throws Exception {
         Path legacy = Path.of("../core/src/test/resources/vsim1/4-bit-adder.json");
         OpenDocument document = track(OpenDocument.open(legacy, registry));

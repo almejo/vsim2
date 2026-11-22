@@ -249,6 +249,81 @@ class AutosaveServiceTest {
         runWrites();
     }
 
+    /** Debt «Autosave: recovery-copy write failures»: the user is told once, and again only after a write succeeded. */
+    @Test
+    void aCopyThatCannotBeWrittenIsToldOnceHoweverManyTicksFail() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        RecoveryStore brokenStore = new RecoveryStore(blocked.resolve("recovery"));
+        AutosaveService service = new AutosaveService(brokenStore, Clock.fixed(NOW, ZoneOffset.UTC),
+                pendingWrites::add, Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+
+        service.tick();
+        runWrites();
+        service.tick();
+        runWrites();
+        assertThat(told).containsExactly("cannot");
+
+        service.shutdown();
+        runWrites();
+    }
+
+    @Test
+    void theWriteNoticeGoesAwayWhenTheFailingDocumentIsClosed() throws Exception {
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        AutosaveService service = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add, Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        service.tick();
+        runWrites();
+
+        service.untrack(document);
+
+        assertThat(told).containsExactly("cannot", "again");
+        service.shutdown();
+        runWrites();
+    }
+
+    @Test
+    void aWriteThatSucceedsAfterAFailureTakesTheNoticeAwayAndAnotherFailureIsToldAgain() throws Exception {
+        Path folder = directory.resolve("flaky");
+        RecoveryStore flaky = new RecoveryStore(folder);
+        AutosaveService service = new AutosaveService(flaky, Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add,
+                Runnable::run);
+        List<String> told = new ArrayList<>();
+        service.onWriteFailure(() -> told.add("cannot"));
+        service.onWriteRecovered(() -> told.add("again"));
+        OpenDocument document = untracked();
+        service.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        // the session folder is replaced by a plain file: writing fails; put a folder back: writing succeeds
+        Path session = flaky.sessionFolder();
+        Files.createDirectories(session.getParent());
+        Files.writeString(session, "in the way");
+        service.tick();
+        runWrites();
+        assertThat(told).containsExactly("cannot");
+
+        Files.delete(session);
+        Files.createDirectories(session);
+        service.tick();
+        runWrites();
+        assertThat(told).containsExactly("cannot", "again");
+
+        service.shutdown();
+        runWrites();
+    }
+
     /** Review I2: an old recovered copy must outlive a failed write of this run's copy. */
     @Test
     void anActionWaitingForACopyDoesNotRunWhenTheWriteFails() throws Exception {

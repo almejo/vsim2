@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import java.io.IOException;
 import java.time.Clock;
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -29,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@link OpenDocument#changeCount()} moved since its last copy (every change goes through {@code execute}, channel
  * edits included — contract C5) is serialized on the EDT and handed to one writer thread, which also runs the deletes
  * in order. A document back at its saved state (saved, or undone to it) loses its copy at once; so does a document
- * that stops being tracked (closed). A failing document is logged once and retried at every tick. EDT only, except the
+ * that stops being tracked (closed). A failing document is logged once, the user told once ({@link #onWriteFailure}), and retried at every tick. EDT only, except the
  * writer.
  */
 public final class AutosaveService {
@@ -69,16 +71,28 @@ public final class AutosaveService {
      * {@link #failing}: a document whose copy failed to write must still be told when it cannot be serialized.
      */
     private final Set<UUID> unserializable = new HashSet<>();
+    /** Whether the user was told that a recovery copy cannot be written (so the notice is shown once per episode). */
+    private final AtomicBoolean writeTrouble = new AtomicBoolean();
+    /** Runs the write-trouble listeners: the EDT in the application (the writer thread is not it). */
+    private final Executor notifier;
     private volatile boolean shutDown;
+    private volatile Runnable writeFailure = () -> { };
+    private volatile Runnable writeRecovered = () -> { };
     /** Told (on the EDT) once per document that cannot be serialized, so it has no recovery copy. */
     private Consumer<OpenDocument> serializationFailure = document -> { };
     /** Told (on the EDT) when a document that could not be serialized can be again. */
     private Consumer<OpenDocument> serializationRecovered = document -> { };
 
     public AutosaveService(RecoveryStore store, Clock clock, Executor writer) {
+        this(store, clock, writer, SwingUtilities::invokeLater);
+    }
+
+    /** {@code notifier} runs the write-trouble listeners ({@link #onWriteFailure}); tests pass a direct one. */
+    public AutosaveService(RecoveryStore store, Clock clock, Executor writer, Executor notifier) {
         this.store = store;
         this.clock = clock;
         this.writer = writer;
+        this.notifier = notifier;
         this.timer = new Timer(INTERVAL_MILLISECONDS, event -> tick());
     }
 
@@ -113,6 +127,29 @@ public final class AutosaveService {
         this.serializationRecovered = listener;
     }
 
+    /**
+     * {@code listener} runs (on the EDT) when a recovery copy cannot be written (full disk, unwritable folder), once
+     * until every failing copy was written or its document closed ({@link #onWriteRecovered}). The failure is still
+     * logged.
+     */
+    public void onWriteFailure(Runnable listener) {
+        this.writeFailure = listener;
+    }
+
+    /** {@code listener} runs (on the EDT) when no recovery copy fails to be written any more. */
+    public void onWriteRecovered(Runnable listener) {
+        this.writeRecovered = listener;
+    }
+
+    /** Tells the listeners when «some copy cannot be written» changed; the change is told once. */
+    private void writeTroubleMayHaveChanged() {
+        boolean trouble = !failing.isEmpty();
+        if (writeTrouble.compareAndSet(!trouble, trouble) && !shutDown) {
+            Runnable listener = trouble ? writeFailure : writeRecovered;
+            notifier.execute(listener);
+        }
+    }
+
     int loggedFailures() {
         return loggedFailures.get();
     }
@@ -145,6 +182,7 @@ public final class AutosaveService {
         }
         discardCopy(document);
         failing.remove(document.recoveryId());
+        writeTroubleMayHaveChanged();
         unserializable.remove(document.recoveryId());
         document.removeChangeListener(state.listener);
         tracked.remove(document);
@@ -190,6 +228,7 @@ public final class AutosaveService {
                 try {
                     store.write(id, content, metadata);
                     failing.remove(id);
+                    writeTroubleMayHaveChanged();
                 } catch (IOException | RuntimeException exception) {
                     reportFailure(id, name, exception);
                     return;
@@ -294,5 +333,6 @@ public final class AutosaveService {
             loggedFailures.incrementAndGet();
             LOGGER.warn("Could not write the recovery copy of {}", name, exception);
         }
+        writeTroubleMayHaveChanged();
     }
 }
