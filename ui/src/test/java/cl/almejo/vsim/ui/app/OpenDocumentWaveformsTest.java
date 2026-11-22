@@ -16,6 +16,8 @@ import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.Trace;
+import cl.almejo.vsim.core.waveform.TraceEvent;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,7 +77,9 @@ class OpenDocumentWaveformsTest {
 
         document.interact(toggle.id());
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
-        long recordedFrom = document.latestWaveforms().trace(probe.id()).orElseThrow().firstTime().orElseThrow();
+        List<TraceEvent> recorded = events(document.latestWaveforms().trace(probe.id()).orElseThrow());
+        assertThat(recorded).extracting(TraceEvent::value).endsWith(Optional.of(Value.ZERO),
+                Optional.of(Value.ONE));
 
         // nothing of the output net survives: the probe goes in the same undo step
         document.execute(new RemoveElementsCommand(List.of(gate.id()), document.registry()));
@@ -87,11 +91,25 @@ class OpenDocumentWaveformsTest {
         assertThat(document.document().probes()).containsExactly(probe);
         assertThat(document.probeNets()).containsEntry(probe.id(), netId);
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
-        assertThat(document.latestWaveforms().trace(probe.id()).orElseThrow().firstTime())
-                .as("the channel comes back with its recorded history").hasValue(recordedFrom);
+        List<TraceEvent> back = events(document.latestWaveforms().trace(probe.id()).orElseThrow());
+        assertThat(back).as("the channel comes back with its recorded events, then the absence as a gap")
+                .startsWith(recorded.toArray(TraceEvent[]::new));
+        assertThat(back.get(recorded.size()).value()).isEmpty();
+        assertThat(back.getLast().value()).as("the gate put back drives 1 again").contains(Value.ONE);
 
         document.history().redo();
         assertThat(document.document().probes()).isEmpty();
+        assertThat(document.probeNets()).doesNotContainKey(probe.id());
+        waitUntil(() -> document.latestWaveforms().trace(probe.id()).isEmpty());
+    }
+
+    /** Every event of {@code trace}, in order (a gap has no value). */
+    private static List<TraceEvent> events(Trace trace) {
+        List<TraceEvent> events = new ArrayList<>();
+        for (int index = 0; index < trace.eventCount(); index++) {
+            events.add(new TraceEvent(trace.eventTime(index), trace.eventValue(index)));
+        }
+        return events;
     }
 
     @Test
