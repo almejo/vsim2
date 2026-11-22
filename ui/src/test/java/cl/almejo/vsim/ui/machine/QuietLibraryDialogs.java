@@ -45,7 +45,8 @@ final class QuietLibraryDialogs implements LibraryDialogs {
     }
 
     @Override
-    public LibraryDialogs.ImportChoice askImportCollision(java.awt.Component parent, String componentName) {
+    public LibraryDialogs.ImportChoice askImportCollision(java.awt.Component parent, String componentName,
+                                                        boolean canReplace) {
         return LibraryDialogs.ImportChoice.CANCEL;
     }
 
