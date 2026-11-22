@@ -288,4 +288,60 @@ class SimulationEngineWaveformTest {
         assertThat(engine.waveforms().traces()).isEmpty();
         assertThat(engine.hasWaveformChannels()).isFalse();
     }
+
+    @Test
+    void aChannelLeftOutAndAddedBackWithItsIdGetsItsHistoryBackWithTheAbsenceAsAGap() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        synchronize();
+        String net = netOf(source, 0);
+        engine.setProbes(Map.of("a", net, "b", net));
+        engine.advance(5);
+        engine.interact(source.value());   // 1 at t = 5
+        engine.advance(5);
+
+        engine.setProbes(Map.of("b", net));
+        assertThat(engine.waveforms().trace("a")).as("a channel left out is not published").isEmpty();
+        engine.advance(5);
+        engine.interact(source.value());   // 0 at t = 15, while «a» is out
+        engine.advance(5);
+        engine.setProbes(Map.of("a", net, "b", net));
+        engine.advance(5);
+
+        assertThat(TraceEdges.between(trace("a"), 0, 25)).containsExactly(TraceEvent.of(0, Value.ZERO),
+                TraceEvent.of(5, Value.ONE), TraceEvent.gap(10), TraceEvent.of(20, Value.ZERO));
+    }
+
+    @Test
+    void clearingTheTracesAlsoForgetsTheChannelsLeftOut() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        synchronize();
+        String net = netOf(source, 0);
+        engine.setProbes(Map.of("a", net));
+        engine.advance(5);
+        engine.setProbes(Map.of());
+        engine.clearWaveforms();
+        engine.advance(5);
+
+        engine.setProbes(Map.of("a", net));
+
+        assertThat(trace("a").firstTime()).hasValue(10);
+    }
+
+    @Test
+    void onlyTheMostRecentlyLeftOutChannelsAreKept() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        synchronize();
+        String net = netOf(source, 0);
+        int count = WaveformRecorder.MAXIMUM_PARKED_CHANNELS + 1;
+        for (int index = 0; index < count; index++) {
+            engine.setProbes(Map.of("channel" + index, net));   // each call leaves the one before out
+            engine.advance(1);
+        }
+        engine.setProbes(Map.of());
+
+        engine.setProbes(Map.of("channel0", net, "channel1", net));
+
+        assertThat(trace("channel0").firstTime()).as("the oldest was forgotten").hasValue(count);
+        assertThat(trace("channel1").firstTime()).as("the next one is still kept").hasValue(1);
+    }
 }
