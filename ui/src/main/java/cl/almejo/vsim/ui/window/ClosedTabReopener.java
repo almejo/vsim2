@@ -147,6 +147,9 @@ public final class ClosedTabReopener {
             notices.add(componentGone(tab, document.get()), SHORT_NOTICE);
         } else {
             target.reopenTab(document.get(), tab, closed.indexInGroup());
+            if (tab.wasTesting()) {
+                notices.add(Messages.text("reopen.withoutTestMode"), SHORT_NOTICE);
+            }
         }
         finish(target, requester, notices);
     }

@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.ui.machine.MachineMode;
 import cl.almejo.vsim.ui.session.TabState;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
@@ -1099,8 +1100,9 @@ public final class WindowTabs extends JPanel {
         TabEntry entry = found.get();
         if (!entry.isMain() || mainTabCount(entry.document) > 1) {
             entry.view.inlineEditors().forEach(InlineTextEditor::confirmOrCancel);
+            boolean wasTesting = isTesting(entry);
             if (entry.view.draftGuards().settle(DraftGuard.Reason.CLOSE) == DraftGuard.Answer.GO_ON) {
-                host.closedByUser(closedTab(entry));
+                host.closedByUser(closedTab(entry, wasTesting));
                 removeTab(entry);
             }
             return;
@@ -1143,12 +1145,14 @@ public final class WindowTabs extends JPanel {
     public void closeComponentTabs(OpenDocument document) {
         List<TabEntry> components = entriesOf(document).stream().filter(entry -> !entry.isMain()).toList();
         components.forEach(entry -> entry.view.inlineEditors().forEach(InlineTextEditor::confirmOrCancel));
+        List<TabEntry> testing = components.stream().filter(WindowTabs::isTesting).toList();
         if (DraftGuards.settle(components.stream().map(entry -> entry.view.draftGuards()).toList(),
                 DraftGuard.Reason.CLOSE) == DraftGuard.Answer.CANCEL) {
             return;
         }
         components.forEach(entry -> {
-            host.closedByUser(closedTab(entry)); // one entry each: they come back one by one, in their order
+            // one entry each: they come back one by one, in their order
+            host.closedByUser(closedTab(entry, testing.contains(entry)));
             removeTab(entry);
         });
     }
@@ -1248,9 +1252,15 @@ public final class WindowTabs extends JPanel {
                 documents().indexOf(document));
     }
 
-    private ClosedTab closedTab(TabEntry entry) {
-        return new ClosedTab(DocumentReference.of(entry.document), closedState(entry), WindowReference.of(this),
+    /** {@code wasTesting}: asked before the close settled the drafts, which may end the test. */
+    private ClosedTab closedTab(TabEntry entry, boolean wasTesting) {
+        return new ClosedTab(DocumentReference.of(entry.document), closedState(entry).testing(wasTesting),
+                WindowReference.of(this),
                 entriesOf(entry.document).indexOf(entry));
+    }
+
+    private static boolean isTesting(TabEntry entry) {
+        return MachineMode.of(entry.view).filter(MachineMode::isTesting).isPresent();
     }
 
     private static ClosedTabState closedState(TabEntry entry) {
