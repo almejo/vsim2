@@ -495,8 +495,11 @@ public final class Application {
             StartupSteps.openEach(unplaced, document -> showViews(document,
                     document.path().flatMap(recentFiles::stateFor).stream().toList(),
                     Optional.ofNullable(unused.getAndSet(null))));
-            StartupSteps.openEach(List.copyOf(recoveredDocuments.entrySet()),
-                    entry -> resumeRecoveredTests(entry.getKey(), entry.getValue()));
+            // A recovered machine test resumes once the start is done (its first-time help bubble is a start popup
+            // too: it must not show before the recovery question's stand-in window has gone).
+            List<Map.Entry<RecoveryCopy, OpenDocument>> testsToResume = List.copyOf(recoveredDocuments.entrySet());
+            startHold.whenReleased(() -> StartupSteps.openEach(testsToResume,
+                    entry -> resumeRecoveredTests(entry.getKey(), entry.getValue())));
             if (!notOpened.isEmpty()) {
                 JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
                         Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
