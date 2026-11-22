@@ -303,6 +303,22 @@ public final class EditService {
     public void documentClosed(DocumentId document) {
         logs.remove(document);
         transparentSteps.remove(document);
+        List<AiTask> ended = new ArrayList<>();
+        synchronized (tasks) {
+            tasks.values().removeIf(task -> {
+                boolean ofDocument = task.info().document().equals(document);
+                if (ofDocument) {
+                    ended.add(task);
+                }
+                return ofDocument;
+            });
+        }
+        // the circuit is gone: nothing to clean up (no layout guides to take away), the task simply ends
+        for (AiTask task : ended) {
+            if (task.end()) {
+                announce(listener -> listener.taskEnded(task.info(), task.changedElementIds()));
+            }
+        }
     }
 
     /** How many documents the service still remembers something about (tests). */

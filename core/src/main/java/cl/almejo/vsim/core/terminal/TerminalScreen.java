@@ -204,10 +204,12 @@ public final class TerminalScreen {
 
     /**
      * Whether {@link #transcript()} ends with {@code suffix} («Detener al recibir»), checked after every byte: costs
-     * the suffix's length, never a copy of the transcript.
+     * the suffix's length, never a copy of the transcript. A suffix longer than {@link #TRANSCRIPT_LIMIT} makes the
+     * screen keep that much, so it still matches (the first call comes before any text is trimmed).
      */
     public boolean transcriptEndsWith(String suffix) {
-        return suffix.length() <= TRANSCRIPT_LIMIT && transcript.endsWith(suffix);
+        transcript.keepAtLeast(suffix.length());
+        return transcript.endsWith(suffix);
     }
 
     /** Every byte received, for the byte monitor, the sounds and «Guardar salida». */

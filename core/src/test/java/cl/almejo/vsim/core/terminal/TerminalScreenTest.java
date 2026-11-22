@@ -225,4 +225,17 @@ class TerminalScreenTest {
         assertThat(screen.adoptedWith(TerminalSettings.vt(3, 12)).frame().scrollOrClearCount())
                 .as("kept by adoption").isEqualTo(5);
     }
+
+    @Test
+    void aStopTextLongerThanTheTranscriptLimitStillMatchesWhenItArrives() {
+        String stopText = "x".repeat(TerminalScreen.TRANSCRIPT_LIMIT + 500);
+        TerminalScreen screen = ScreenWriter.logisim(5, 20);
+        assertThat(screen.transcriptEndsWith(stopText)).isFalse();
+        ScreenWriter.write(screen, "y".repeat(3000));
+        for (int chunk = 0; chunk < stopText.length(); chunk += 100) {
+            ScreenWriter.write(screen, "x".repeat(100));
+            screen.transcriptEndsWith(stopText);
+        }
+        assertThat(screen.transcriptEndsWith(stopText)).isTrue();
+    }
 }

@@ -138,7 +138,8 @@ class AskToolsTest {
         api.documentClosed(new DocumentId("circuit-1"));
         assertThat(call("vsim_await_answer", Map.of("questionId", first))).containsEntry("status", "WITHDRAWN");
 
-        String second = (String) call("vsim_ask_user", Map.of("taskId", task, "question", "¿Dos?"))
+        String secondTask = beginTask(); // the first task ended with its window
+        String second = (String) call("vsim_ask_user", Map.of("taskId", secondTask, "question", "¿Dos?"))
                 .get("questionId");
         api.stopPresenting();
         assertThat(call("vsim_await_answer", Map.of("questionId", second))).containsEntry("status", "WITHDRAWN");

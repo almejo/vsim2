@@ -1297,6 +1297,28 @@ class EditServiceTest {
     }
 
     @Test
+    void closingADocumentEndsItsTasksAndForgetsThem() {
+        TaskInfo running = service.beginTask(new DocumentId(DOCUMENT), "Abierta", List.of());
+        AiTask endedTask = service.requireTask(running.taskId());
+
+        service.documentClosed(new DocumentId(DOCUMENT));
+
+        assertThat(endedTask.state()).isEqualTo(AiTask.State.ENDED);
+        assertThat(service.task(running.taskId())).isEmpty();
+        assertThat(service.hasRunningTask(new DocumentId(DOCUMENT))).isFalse();
+    }
+
+    @Test
+    void closingADocumentLeavesTheTasksOfOtherDocumentsAlone() {
+        TaskInfo other = service.beginTask(new DocumentId(DOCUMENT), "Otra", List.of());
+
+        service.documentClosed(new DocumentId("another-document"));
+
+        assertThat(service.task(other.taskId())).isPresent();
+        assertThat(service.hasRunningTask(new DocumentId(DOCUMENT))).isTrue();
+    }
+
+    @Test
     void closingADocumentFreesItsOperationLogAndItsTransparentStep() {
         service.edit(request(place("part", "nand", 10, 10)));
         assertThat(service.trackedDocuments()).isPositive();

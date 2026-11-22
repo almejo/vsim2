@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.memory;
 
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,6 +11,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VsimMemoryFormatTest {
+
+    @Test
+    void theWordLimitIsTheMemoryTypesAddressBitsLimit() {
+        assertThat(VsimMemoryFormat.MAXIMUM_WORDS).isEqualTo(1 << MemoryTypes.MAXIMUM_ADDRESS_BITS);
+    }
 
     private static final String EXAMPLE = """
             # vsim: rom name=Sprites words=1024 width=16

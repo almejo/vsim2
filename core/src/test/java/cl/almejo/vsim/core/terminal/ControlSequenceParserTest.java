@@ -46,6 +46,14 @@ class ControlSequenceParserTest {
     }
 
     @Test
+    void parametersBeyondTheSixteenthAreIgnoredNotAppendedToIt() {
+        String parameters = "1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18";
+        ControlSequence sequence = (ControlSequence) last("\u001b[" + parameters + "m");
+        assertThat(sequence.parameterCount()).isEqualTo(16);
+        assertThat(sequence.parameter(15, 0)).isEqualTo(16);
+    }
+
+    @Test
     void aSequenceWithoutParametersHasNone() {
         assertThat(((ControlSequence) last("\u001b[m")).parameterCount()).isZero();
     }
