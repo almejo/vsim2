@@ -80,9 +80,11 @@ public final class SelectionActions {
         selectAll = Actions.of(Messages.text("action.selectAll"), KeyStroke.getKeyStroke(KeyEvent.VK_A, menuMask),
                 () -> selection.selectAll(openDocument.document()));
         for (Action onSelection : List.of(cut, copy, duplicate)) {
-            Actions.disabledBecause(onSelection, () -> Messages.text("reason.needsSelection"));
+            Actions.disabledBecause(onSelection, () -> Messages.text(drawsBetweenClicks() ? "reason.finishTheWire"
+                    : "reason.needsSelection"));
         }
-        Actions.disabledBecause(paste, () -> Messages.text("reason.nothingCopied"));
+        Actions.disabledBecause(paste, () -> Messages.text(drawsBetweenClicks() ? "reason.finishTheWire"
+                : "reason.nothingCopied"));
         selection.addListener(this::refresh);
         refresh();
         refreshPaste();
@@ -101,7 +103,7 @@ public final class SelectionActions {
      */
     public void refreshPaste() {
         // a fragment is JSON: text that does not start like it is not parsed (this runs on every pane focus)
-        paste.setEnabled(clipboard.read().filter(text -> text.stripLeading().startsWith("{"))
+        paste.setEnabled(!drawsBetweenClicks() && clipboard.read().filter(text -> text.stripLeading().startsWith("{"))
                 .flatMap(this::fragmentOf).isPresent());
     }
 
@@ -188,8 +190,18 @@ public final class SelectionActions {
         menu.add(entry.tag(new JMenuItem(action)));
     }
 
-    private void refresh() {
-        boolean anySelected = !selection.isEmpty();
+    /** True while a continuous wire is drawn: its keys and clicks are the path's, so nothing here acts. */
+    private boolean drawsBetweenClicks() {
+        CircuitCanvas pane = activePane.get();
+        return pane != null && pane.drawsBetweenClicks();
+    }
+
+    /**
+     * Cut, copy and duplicate follow the selection and are off while a continuous wire is drawn (the window asks again
+     * when the wire starts or ends).
+     */
+    public void refresh() {
+        boolean anySelected = !selection.isEmpty() && !drawsBetweenClicks();
         cut.setEnabled(anySelected);
         copy.setEnabled(anySelected);
         duplicate.setEnabled(anySelected);

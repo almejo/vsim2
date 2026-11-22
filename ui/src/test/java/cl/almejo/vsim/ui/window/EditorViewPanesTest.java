@@ -267,6 +267,28 @@ class EditorViewPanesTest {
     }
 
     @Test
+    void focusMovingToASiblingPaneKeepsTheGestureAndLeavingTheWindowCancelsIt() {
+        view.canvasPanes().split(Orientation.VERTICAL, 0.5);
+        view.canvasPanes().doLayout();
+        CircuitCanvas left = view.panes().get(0);
+        CircuitCanvas right = view.panes().get(1);
+        java.awt.event.MouseEvent pressed = new java.awt.event.MouseEvent(left, java.awt.event.MouseEvent.MOUSE_PRESSED,
+                0, java.awt.event.InputEvent.BUTTON1_DOWN_MASK, 30, 30, 1, false, java.awt.event.MouseEvent.BUTTON1);
+        for (java.awt.event.MouseListener listener : left.getMouseListeners()) {
+            listener.mousePressed(pressed);
+        }
+        assertThat(left.tool().holdsGesture()).isTrue();
+
+        moveFocus(left, right);
+        assertThat(left.tool().holdsGesture()).as("a sibling pane of the window keeps the gesture").isTrue();
+
+        for (java.awt.event.FocusListener listener : left.getFocusListeners()) {
+            listener.focusLost(new java.awt.event.FocusEvent(left, java.awt.event.FocusEvent.FOCUS_LOST));
+        }
+        assertThat(left.tool().holdsGesture()).as("another window or a dialog cancels it").isFalse();
+    }
+
+    @Test
     void aContinuousWireContinuedInTheOtherPaneKeepsItsPhraseUntilItEnds() {
         CircuitCanvas left = startAWireInTheLeftPane();
         CircuitCanvas right = view.panes().get(1);

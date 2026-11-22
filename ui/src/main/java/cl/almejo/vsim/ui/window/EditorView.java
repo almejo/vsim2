@@ -269,6 +269,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         inlineEditor = new InlineTextEditor(this::canvas);
         forEachPane(this::configurePane);
         forEachPane(pane -> pane.addDrawingListener(actions::refresh)); // Deshacer drops a corner while a wire is drawn
+        forEachPane(pane -> pane.addDrawingListener(selectionActions::refresh)); // so do Cortar, Copiar and Duplicar
+        forEachPane(pane -> pane.addDrawingListener(selectionActions::refreshPaste)); // and Pegar
         forEachPane(pane -> pane.addDrawingListener(() -> releaseKeyboardWhileDrawing(pane))); // its keys are the path's
         bindZoomKeys();
         bindEscapeToTheTool();
