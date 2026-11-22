@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -8,6 +9,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFormat;
@@ -95,7 +97,10 @@ class OpenDocumentWaveformsTest {
     @Test
     void deletingTheGateAProbedNetFeedsMovesTheProbeToWhatSurvives() {
         Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
-        Component gate = place(document, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));       // in (4,1)
+        document.execute(new AddWireCommand(new Wire(document.document().newWireId(), new GridPoint(4, 1),
+                new GridPoint(8, 1))));
+        Component gate = place(document, StandardComponentTypes.BUFFER, 8, -1,
+                Map.of(StandardComponentTypes.NEGATE, true));   // in (8,1)
         Probe probe = addProbe(gate, 0);
         String netId = document.probeNets().get(probe.id());
 

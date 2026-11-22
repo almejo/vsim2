@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /** Maps waveform probes to the top-level nets of a netlist compiled from the same document. */
 public final class ProbeResolver {
@@ -52,19 +53,22 @@ public final class ProbeResolver {
         if (net.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(chosenPin(net.get(), Set.of(), document, registry)
+        return Optional.of(chosenPin(net.get(), pin -> true, document, registry)
                 .orElseGet(() -> new ProbeTarget.WireTarget(wireId)));
     }
 
     /**
      * The probes as they are once {@code removedIds} are deleted from {@code document}, computed before the deletion
-     * with {@code netlist} compiled from it. A probe whose component or wire is deleted moves to what survives of its
-     * net, by the rule of {@link #anchor} (a surviving pin, a driver first, else the first surviving wire by document
-     * order), keeping its id, name and format; with nothing of its net left (or a net it never had) it is removed.
-     * Every other probe stays as it is, in its place.
+     * with {@code netlist} compiled from it and {@code netlistAfter} compiled from the document without them. A probe
+     * whose component or wire is deleted moves to what survives of its net and is still connected: a pin or wire of the
+     * old net that, after the deletion, shares its net with at least one other element (a pin left floating alone, or a
+     * wire touching nothing, does not count). Among those it takes, by the rule of {@link #anchor}, a driver pin first,
+     * else the first pin by document order, else the first wire by document order, keeping its id, name and format.
+     * With nothing connected left of its net (or a net it never had) it is removed. Every other probe stays as it is,
+     * in its place.
      */
     public static List<Probe> afterRemoval(List<Probe> probes, Set<ElementId> removedIds, CircuitDocument document,
-                                           Netlist netlist, ComponentTypeRegistry registry) {
+                                           Netlist netlist, Netlist netlistAfter, ComponentTypeRegistry registry) {
         List<Probe> after = new ArrayList<>(probes.size());
         for (Probe probe : probes) {
             if (!watchesRemoved(probe.target(), removedIds, document)) {
@@ -72,7 +76,7 @@ public final class ProbeResolver {
                 continue;
             }
             Optional<Net> net = netOfTarget(probe.target(), netlist);
-            net.flatMap(found -> survivingTarget(found, removedIds, document, registry))
+            net.flatMap(found -> survivingTarget(found, removedIds, document, netlistAfter, registry))
                     .ifPresent(target -> after.add(probe.withTarget(target)));
         }
         return List.copyOf(after);
@@ -95,21 +99,29 @@ public final class ProbeResolver {
     }
 
     private static Optional<ProbeTarget> survivingTarget(Net net, Set<ElementId> removedIds, CircuitDocument document,
-                                                         ComponentTypeRegistry registry) {
-        return chosenPin(net, removedIds, document, registry).or(() -> net.wires().stream()
+                                                         Netlist netlistAfter, ComponentTypeRegistry registry) {
+        Predicate<PinRef> connectedPin = pin -> !removedIds.contains(pin.componentId())
+                && stillConnected(netlistAfter.netForPin(pin));
+        return chosenPin(net, connectedPin, document, registry).or(() -> net.wires().stream()
                 .filter(wireId -> !removedIds.contains(wireId) && document.wire(wireId).isPresent())
+                .filter(wireId -> stillConnected(netlistAfter.netForWire(wireId)))
                 .min(Comparator.comparingLong(document::orderOf))
                 .map(ProbeTarget.WireTarget::new));
     }
 
-    /** A pin of {@code net} not on a removed component: a driver first, else the first by document then pin order. */
-    private static Optional<ProbeTarget> chosenPin(Net net, Set<ElementId> removedIds, CircuitDocument document,
+    /** Whether a net of the netlist after the deletion joins at least two elements (pins and wires). */
+    private static boolean stillConnected(Optional<Net> net) {
+        return net.map(found -> found.pins().size() + found.wires().size() >= 2).orElse(false);
+    }
+
+    /** A pin of {@code net} that {@code eligible} accepts: a driver first, else the first by document then pin order. */
+    private static Optional<ProbeTarget> chosenPin(Net net, Predicate<PinRef> eligible, CircuitDocument document,
                                                    ComponentTypeRegistry registry) {
         Comparator<PinRef> order = Comparator.comparingLong((PinRef pin) -> document.orderOf(pin.componentId()))
                 .thenComparingInt(PinRef::pinIndex);
         List<PinRef> pins = net.pins().stream()
-                .filter(pin -> !removedIds.contains(pin.componentId()))
                 .filter(pin -> document.component(pin.componentId()).isPresent())
+                .filter(eligible)
                 .sorted(order)
                 .toList();
         return pins.stream()

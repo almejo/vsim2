@@ -462,7 +462,7 @@ public final class TemplateActions {
                 List<DocumentElement> added = new ArrayList<>(List.of(instance));
                 added.addAll(bridging.wires());
                 if (!converted.replacedIds().isEmpty()) {
-                    steps.add(new RemoveElementsCommand(converted.replacedIds(), registry));
+                    steps.add(RemoveElementsCommand.replacedBy(converted.replacedIds(), added, registry));
                 }
                 frameToRemove.ifPresent(frameId -> steps.add(new RemoveElementsCommand(List.of(frameId), registry)));
                 steps.add(new AddElementsCommand(added));

@@ -87,7 +87,9 @@ class RemoveElementsProbesTest {
     void aSurvivingWireTakesTheProbeWhenNoPinOfTheNetSurvives() {
         Component driver = place(new GridPoint(0, 0));
         GridPoint output = and.pinLocation(driver, AND_OUTPUT);
-        Wire wire = wire(output, new GridPoint(output.x() + 6, output.y()));
+        GridPoint bend = new GridPoint(output.x() + 6, output.y());
+        Wire wire = wire(output, bend);
+        wire(bend, new GridPoint(bend.x(), bend.y() + 6));
         Probe probe = probeOnWire("p1", wire, "", Probe.FORMAT_HEX);
         setProbes(probe);
 
@@ -98,26 +100,57 @@ class RemoveElementsProbesTest {
     }
 
     @Test
-    void aProbeWhoseWholeNetIsDeletedIsRemovedAndUndoBringsItBack() {
-        Component lonely = place(new GridPoint(0, 0));
-        Component other = place(new GridPoint(20, 0));
-        Probe gone = new Probe("p1", new ProbeTarget.PinTarget(lonely.id(), AND_OUTPUT), "q");
-        Probe kept = new Probe("p2", new ProbeTarget.PinTarget(other.id(), AND_OUTPUT), "r");
-        setProbes(gone, kept);
+    void aWireLeftWithNothingConnectedDoesNotKeepTheProbe() {
+        Component driver = place(new GridPoint(0, 0));
+        GridPoint output = and.pinLocation(driver, AND_OUTPUT);
+        Wire wire = wire(output, new GridPoint(output.x() + 6, output.y()));
+        setProbes(probeOnWire("p1", wire, "", Probe.FORMAT_HEX));
 
-        history.execute(new RemoveElementsCommand(List.of(lonely.id()), registry));
-        assertThat(document.probes()).containsExactly(kept);
+        history.execute(new RemoveElementsCommand(List.of(driver.id()), registry));
 
+        assertThat(document.probes()).isEmpty();
+    }
+
+    @Test
+    void aPinLeftAloneByTheDeletionDoesNotKeepTheProbe() {
+        Component driver = place(new GridPoint(0, 0));
+        GridPoint output = and.pinLocation(driver, AND_OUTPUT);
+        GridPoint far = new GridPoint(output.x() + 6, output.y());
+        Wire wire = wire(output, far);
+        placeWithInputAt(far);
+        setProbes(probeOnWire("p1", wire, "salida", Probe.FORMAT_BINARY));
+
+        history.execute(new RemoveElementsCommand(List.of(driver.id(), wire.id()), registry));
+
+        assertThat(document.probes()).as("the reader's input floats alone: nothing of the net is connected").isEmpty();
         history.undo();
-        assertThat(document.probes()).containsExactly(gone, kept);
-        history.redo();
-        assertThat(document.probes()).containsExactly(kept);
+        assertThat(document.probes()).hasSize(1);
+    }
+
+    @Test
+    void theProbeMovesToWhatIsStillConnectedNotToTheFirstSurvivingPin() {
+        Component driver = place(new GridPoint(0, 0));
+        GridPoint output = and.pinLocation(driver, AND_OUTPUT);
+        GridPoint right = new GridPoint(output.x() + 6, output.y());
+        GridPoint below = new GridPoint(output.x(), output.y() + 12);
+        Component first = placeWithInputAt(right);
+        Component second = placeWithInputAt(below);
+        Wire toFirst = wire(output, right);
+        Wire toSecond = wire(output, below);
+        setProbes(probeOnWire("p1", toSecond, "salida", Probe.FORMAT_BINARY));
+
+        history.execute(new RemoveElementsCommand(List.of(driver.id(), toFirst.id()), registry));
+
+        assertThat(document.probes()).as("%s is first by document order but floats alone now", first.id())
+                .containsExactly(new Probe("p1", new ProbeTarget.PinTarget(second.id(), 0), "salida",
+                        Probe.FORMAT_BINARY));
     }
 
     @Test
     void aDeletedWireOfAPinlessNetHandsItsProbeToAnotherWireOfTheNet() {
         Wire first = wire(new GridPoint(0, 0), new GridPoint(4, 0));
         Wire second = wire(new GridPoint(4, 0), new GridPoint(8, 0));
+        wire(new GridPoint(8, 0), new GridPoint(8, 4));
         setProbes(new Probe("p1", new ProbeTarget.WireTarget(first.id()), ""));
 
         history.execute(new RemoveElementsCommand(List.of(first.id()), registry));

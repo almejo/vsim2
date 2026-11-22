@@ -17,8 +17,8 @@ import java.util.Set;
 
 /**
  * Removes elements; undo puts each one back at its original paint and file position. The waveform probes follow in the
- * same step ({@link ProbeResolver#afterRemoval}): a probe on a deleted part or wire moves to what survives of its net,
- * or goes when nothing does; undo puts the probe list back exactly. {@code registry} resolves the document's components
+ * same step ({@link ProbeResolver#afterRemoval}): a probe on a deleted part or wire moves to what survives of its net
+ * and is still connected, or goes when nothing is; undo puts the probe list back exactly. {@code registry} resolves the document's components
  * (to compile the nets before the deletion and tell drivers); it is used only when a probe watches a removed element.
  */
 public final class RemoveElementsCommand implements Command {
@@ -27,14 +27,33 @@ public final class RemoveElementsCommand implements Command {
     }
 
     private final List<ElementId> ids;
+    /** What the same undo step adds in place of the removed elements (counted as connected for the probes). */
+    private final List<DocumentElement> replacements;
     private final ComponentTypeRegistry registry;
     private final List<RemovedElement> removed = new ArrayList<>();
     /** The probes before the last apply when it changed them, else null. */
     private List<Probe> probesBefore;
 
     public RemoveElementsCommand(Collection<ElementId> ids, ComponentTypeRegistry registry) {
+        this(ids, List.of(), registry);
+    }
+
+    private RemoveElementsCommand(Collection<ElementId> ids, Collection<DocumentElement> replacements,
+                                  ComponentTypeRegistry registry) {
         this.ids = List.copyOf(ids);
+        this.replacements = List.copyOf(replacements);
         this.registry = Objects.requireNonNull(registry, "registry");
+    }
+
+    /**
+     * Removes {@code ids} when a later command of the same undo step adds {@code replacements} in their place (the
+     * instance and bridge wires of «Crear componente»): a probe stays on a survivor that those connect, as it will be
+     * once the whole step is done.
+     */
+    public static RemoveElementsCommand replacedBy(Collection<ElementId> ids,
+                                                   Collection<? extends DocumentElement> replacements,
+                                                   ComponentTypeRegistry registry) {
+        return new RemoveElementsCommand(ids, List.copyOf(replacements), registry);
     }
 
     @Override
@@ -57,8 +76,9 @@ public final class RemoveElementsCommand implements Command {
     }
 
     /**
-     * The probe list once the elements are gone, computed on the document as it is before the removal; unchanged when
-     * the circuit does not compile (its probes stay, unresolved, rather than vanish).
+     * The probe list once the elements are gone, computed on the document as it is before the removal and on a copy
+     * without them (what is still connected); unchanged when the circuit does not compile (its probes stay,
+     * unresolved, rather than vanish).
      */
     private List<Probe> probesAfterRemoval(CircuitDocument document) {
         List<Probe> probes = document.probes();
@@ -66,14 +86,20 @@ public final class RemoveElementsCommand implements Command {
         if (probes.stream().noneMatch(probe -> ProbeResolver.watchesRemoved(probe.target(), removedIds, document))) {
             return probes;
         }
+        CircuitDocument without = document.copy();
+        ids.forEach(without::remove);
+        replacements.forEach(without::add);
         Netlist netlist;
+        Netlist netlistAfter;
         try {
-            netlist = new NetlistCompiler(registry).compile(document);
+            NetlistCompiler compiler = new NetlistCompiler(registry);
+            netlist = compiler.compile(document);
+            netlistAfter = compiler.compile(without);
         } catch (RuntimeException exception) {
             // A circuit that does not compile keeps its probes: they show «(sin conexión)» rather than vanish.
             return probes;
         }
-        return ProbeResolver.afterRemoval(probes, removedIds, document, netlist, registry);
+        return ProbeResolver.afterRemoval(probes, removedIds, document, netlist, netlistAfter, registry);
     }
 
     @Override

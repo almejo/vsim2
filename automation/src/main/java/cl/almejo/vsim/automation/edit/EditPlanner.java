@@ -1053,11 +1053,11 @@ final class EditPlanner {
         List<String> splitTunnels = Tunnels.namesSplitBy(candidate, selection.replacedIds());
         Component instance = new Component(candidate.newComponentId(), SubcircuitTypes.typeIdOf(bundle.root().id()),
                 origin, Rotation.R0, Map.of(), "");
-        if (!selection.replacedIds().isEmpty()) {
-            new RemoveElementsCommand(selection.replacedIds(), registry).apply(candidate);
-        }
         List<DocumentElement> added = new ArrayList<>(List.of(instance));
         added.addAll(bridging.wires());
+        if (!selection.replacedIds().isEmpty()) {
+            RemoveElementsCommand.replacedBy(selection.replacedIds(), added, registry).apply(candidate);
+        }
         new AddElementsCommand(added).apply(candidate);
         if (!bridging.unconnectedPins().isEmpty()) {
             warnings.add(at() + "pins left unconnected outside: " + bridging.unconnectedPins());

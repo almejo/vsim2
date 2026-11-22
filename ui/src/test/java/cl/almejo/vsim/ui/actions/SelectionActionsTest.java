@@ -92,7 +92,9 @@ class SelectionActionsTest {
     @Test
     void cuttingAProbedGateMovesOrRemovesItsSignalsInOneUndoStep() {
         Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
-        Component gate = gateAt(4, -1);                                                         // (4,1) → (8,1)
+        openDocument.execute(new AddWireCommand(new Wire(openDocument.document().newWireId(), new GridPoint(4, 1),
+                new GridPoint(8, 1))));
+        Component gate = gateAt(8, -1);                                                         // (8,1) → (12,1)
         Probe input = new Probe("p1", new ProbeTarget.PinTarget(gate.id(), 0), "entrada");
         Probe output = new Probe("p2", new ProbeTarget.PinTarget(gate.id(), 1), "salida");
         openDocument.execute(new SetProbesCommand(List.of(), List.of(input, output), "command.addProbes"));
@@ -101,7 +103,7 @@ class SelectionActionsTest {
         perform(actions.cut());
 
         assertThat(openDocument.document().component(gate.id())).isEmpty();
-        assertThat(openDocument.document().probes()).as("the input net survives on the switch; the output net is gone")
+        assertThat(openDocument.document().probes()).as("the input net survives on the switch and its wire; the output net is gone")
                 .containsExactly(input.withTarget(new ProbeTarget.PinTarget(toggle.id(), 0)));
         openDocument.history().undo();
         assertThat(openDocument.document().probes()).containsExactly(input, output);
