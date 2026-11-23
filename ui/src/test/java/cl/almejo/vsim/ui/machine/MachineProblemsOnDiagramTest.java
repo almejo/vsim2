@@ -357,14 +357,24 @@ class MachineProblemsOnDiagramTest {
     @Test
     void aProblemAboutNoStateOrArrowHasItsVerOffWithTheReasonAndTheOthersLightAtOnce() {
         mode.selection().clear();
+        List<String> lines = mode.inspectorRows().problemLines();
         List<AbstractButton> links = mode.inspectorRows().problemLinks();
+        // in the Problems panel's order (fix round 4 M), so find the copy's own problem by its words
+        int copysOwn = lines.indexOf(lines.stream().filter(line -> line.contains("CLK sin 0 ni 1")).findFirst()
+                .orElseThrow());
 
-        AbstractButton nothingToShow = links.getLast();
+        AbstractButton nothingToShow = links.get(copysOwn);
         assertThat(nothingToShow.isEnabled()).isFalse();
         assertThat(nothingToShow.getToolTipText()).contains("no es de un estado ni de una flecha");
-        links.stream().limit(links.size() - 1L).forEach(link -> assertThat(link.isEnabled()).isTrue());
+        AbstractButton somethingToShow = null;
+        for (int index = 0; index < links.size(); index++) {
+            if (index != copysOwn) {
+                assertThat(links.get(index).isEnabled()).isTrue();
+                somethingToShow = links.get(index);
+            }
+        }
 
-        links.getFirst().doClick();
+        somethingToShow.doClick();
 
         assertThat(mode.selection().count()).isPositive();
         assertThat(canvas.isBlinking()).isTrue();
