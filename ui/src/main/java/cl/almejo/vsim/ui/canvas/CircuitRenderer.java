@@ -948,8 +948,7 @@ public final class CircuitRenderer {
     }
 
     private static Line2D line(Wire wire) {
-        return new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
-                wire.end().x() * UNIT, wire.end().y() * UNIT);
+        return WireStrokes.line(wire);
     }
 
     private static Ellipse2D circle(GridPoint center, double radius) {

@@ -1,17 +1,15 @@
 package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.Wire;
-import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.RenderState;
+import cl.almejo.vsim.ui.canvas.WireStrokes;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.geom.Line2D;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -19,7 +17,6 @@ import java.util.function.Supplier;
 /** Makes the wires of a net blink for about 1.5 s after a jump to a problem (spec §6.12). Repaint only. */
 public final class NetBlink implements CanvasOverlay {
 
-    private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final BasicStroke STROKE = new BasicStroke(10f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final int ALPHA = 170;
 
@@ -69,11 +66,6 @@ public final class NetBlink implements CanvasOverlay {
         Color color = scheme.get().selection();
         graphics.setStroke(STROKE);
         graphics.setColor(PainterSupport.withAlpha(color, ALPHA));
-        for (Wire wire : state.document().wires()) {
-            if (wires.contains(wire.id())) {
-                graphics.draw(new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
-                        wire.end().x() * UNIT, wire.end().y() * UNIT));
-            }
-        }
+        WireStrokes.drawLit(graphics, state.document().wires(), wires);
     }
 }

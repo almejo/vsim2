@@ -1,16 +1,14 @@
 package cl.almejo.vsim.ui.stepping;
 
-import cl.almejo.vsim.core.document.Wire;
-import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.RenderState;
+import cl.almejo.vsim.ui.canvas.WireStrokes;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 
 import javax.swing.Timer;
 import java.awt.BasicStroke;
 import java.awt.Graphics2D;
-import java.awt.geom.Line2D;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
@@ -28,7 +26,6 @@ public final class StepHighlightOverlay implements CanvasOverlay {
     static final int TIMER_MILLISECONDS = 33;
     /** Opacity of a fully lit band (0–255). */
     static final int FULL_ALPHA = 140;
-    private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final BasicStroke STROKE = new BasicStroke(7f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
     private final Supplier<ColorScheme> scheme;
@@ -108,11 +105,6 @@ public final class StepHighlightOverlay implements CanvasOverlay {
         }
         graphics.setStroke(STROKE);
         graphics.setColor(PainterSupport.withAlpha(scheme.get().selection(), alpha));
-        for (Wire wire : state.document().wires()) {
-            if (shown.wires().contains(wire.id())) {
-                graphics.draw(new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
-                        wire.end().x() * UNIT, wire.end().y() * UNIT));
-            }
-        }
+        WireStrokes.drawLit(graphics, state.document().wires(), shown.wires());
     }
 }

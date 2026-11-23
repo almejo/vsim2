@@ -1,18 +1,16 @@
 package cl.almejo.vsim.ui.problems;
 
-import cl.almejo.vsim.core.document.Wire;
-import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.HighlightCache;
 import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.canvas.ShortCircuitHighlight;
+import cl.almejo.vsim.ui.canvas.WireStrokes;
 
 import javax.swing.Timer;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.geom.Line2D;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -28,7 +26,6 @@ public final class ShortCircuitPulse implements CanvasOverlay {
     static final long PERIOD_NANOS = 1_600_000_000L;
     static final int MAXIMUM_ALPHA = 140;
 
-    private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final BasicStroke STROKE = new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
     private final Supplier<HighlightCache> highlights;
@@ -110,11 +107,6 @@ public final class ShortCircuitPulse implements CanvasOverlay {
         }
         graphics.setStroke(STROKE);
         graphics.setColor(new Color(255, 255, 255, alpha));
-        for (Wire wire : state.document().wires()) {
-            if (highlight.wires().contains(wire.id())) {
-                graphics.draw(new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
-                        wire.end().x() * UNIT, wire.end().y() * UNIT));
-            }
-        }
+        WireStrokes.drawLit(graphics, state.document().wires(), highlight.wires());
     }
 }

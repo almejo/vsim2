@@ -3,12 +3,12 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.RenderState;
+import cl.almejo.vsim.ui.canvas.WireStrokes;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.stepping.StepHighlight;
@@ -16,7 +16,6 @@ import cl.almejo.vsim.ui.stepping.StepHighlight;
 import javax.swing.Timer;
 import java.awt.BasicStroke;
 import java.awt.Graphics2D;
-import java.awt.geom.Line2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Optional;
 import java.util.Set;
@@ -138,12 +137,7 @@ public final class AiChangeGlowOverlay implements CanvasOverlay {
         Set<ElementId> changed = shown.wires();
         graphics.setColor(PainterSupport.withAlpha(scheme.get().selection(), alpha));
         graphics.setStroke(WIRE_STROKE);
-        for (Wire wire : state.document().wires()) {
-            if (changed.contains(wire.id())) {
-                graphics.draw(new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
-                        wire.end().x() * UNIT, wire.end().y() * UNIT));
-            }
-        }
+        WireStrokes.drawLit(graphics, state.document().wires(), changed);
         graphics.setStroke(PART_STROKE);
         for (Component component : state.document().components()) {
             if (changed.contains(component.id())) {
