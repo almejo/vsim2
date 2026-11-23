@@ -51,7 +51,7 @@ public final class AutosaveService {
         private long copiedChangeCount = -1;
         /** The drafts' change count ({@link RecoveryDrafts#changeCount}) of the last copy handed to the writer. */
         private long copiedDraftCount = -1;
-        /** Run by the writer once one of this document's copies is actually on disk ({@link #afterCopied}). */
+        /** Run by the writer once one of this document's copies is actually on disk. */
         private final Queue<Runnable> afterCopied = new ConcurrentLinkedQueue<>();
 
         private Tracked(Runnable listener) {

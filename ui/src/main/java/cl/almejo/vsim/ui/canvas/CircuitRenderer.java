@@ -830,7 +830,6 @@ public final class CircuitRenderer {
         }
     }
 
-    /** The type of {@code component} as {@code state} shows it: a previewed part's own, else the cached one. */
     /**
      * The memory's parameters with the contents the frame shows for it: in a component tab, those of the piece of
      * «Valores de» when it starts from other contents than the component's (its «no cabe» warning and its content
@@ -846,6 +845,7 @@ public final class CircuitRenderer {
         return parameters;
     }
 
+    /** The type of {@code component} as {@code state} shows it: a previewed part's own, else the cached one. */
     private ComponentType shownTypeOf(RenderState state, Component component) {
         return state.previewedParts().containsKey(component.id()) ? registry.typeOf(component)
                 : placedTypes.typeOf(state.document(), component, registry);

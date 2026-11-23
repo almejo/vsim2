@@ -43,7 +43,7 @@ import java.util.function.Supplier;
  * anterior» (Mayús+F3), the {@link FindBar} under the toolbar and the {@link FindHighlightOverlay} on the canvas.
  *
  * <p>Typing searches at once (the shared {@link CompiledQuery} of the core, with the «Aa» and «.*» preferences): every
- * match is highlighted and the current one is selected and travelled to ({@link CircuitCanvas#travelTo}). Enter / ↓ /
+ * match is highlighted and the current one is selected and travelled to ({@link cl.almejo.vsim.ui.canvas.CircuitCanvas#travelTo}). Enter / ↓ /
  * F3 go to the next match and Shift+Enter / ↑ / Mayús+F3 to the previous one, wrapping around; Esc or ✕ close the bar,
  * clear the highlights and give the focus back to the canvas, keeping the text. Reopening goes on from the match the
  * user was on: Ctrl+F shows it again, F3 / Mayús+F3 go to the one after / before it. While the bar is open every document change searches

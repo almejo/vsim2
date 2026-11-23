@@ -7,7 +7,7 @@ import java.util.Objects;
  * pixels, {@code width} in bits, and what it does in its net ({@link Role}). {@code name} is the VSim pin it becomes
  * when the VSim part has one ({@code A}, {@code Cout}, {@code in1}, {@code CLK}; {@code inVsim}), otherwise Logisim's
  * own name for it ({@code OE}, {@code upper}, {@code EN}). A splitter's ends are {@code bus}, {@code end0}, … (its
- * pins follow {@link MappedPart.Extras#splitterEnds}); a subcircuit instance's are named by the location of the
+ * pins follow {@code MappedPart.Extras.splitterEnds}); a subcircuit instance's are named by the location of the
  * circuit's {@code Pin} inside it ({@code 100,150}).
  */
 public record LogisimEnd(String name, LogisimPoint point, Role role, int width, boolean inVsim) {

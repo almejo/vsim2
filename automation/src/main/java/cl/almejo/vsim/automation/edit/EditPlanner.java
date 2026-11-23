@@ -148,9 +148,11 @@ final class EditPlanner {
     /** Grid units the frame's title bar takes above the margin. */
     private static final int FRAME_TITLE_ROOM = 2;
 
-    /** What the call leaves: the candidate circuit and what the receipt reports. */
-    /** {@code layoutGuides}: the guides this edit added only to align ({@link AddGuide#layoutOnly}). */
-    /** {@code registry}: the candidate's own registry (it knows the components the call created). */
+    /**
+     * What the call leaves: the candidate circuit and what the receipt reports. {@code layoutGuides}: the guides this
+     * edit added only to align ({@code AddGuide.layoutOnly}); {@code registry}: the candidate's own registry (it knows
+     * the components the call created).
+     */
     record PlannedEdit(CircuitDocument candidate, Map<String, String> aliases, List<ConnectionReport> connections,
                        List<CreatedComponent> components, List<String> warnings, List<Guide> layoutGuides,
                        ComponentTypeRegistry registry) {

@@ -71,4 +71,17 @@ class SourceRulesTest {
         assertThat(sources.size()).isGreaterThan(300);
         assertThat(sources).allMatch(source -> source.text().contains("package "));
     }
+
+    @Test
+    void noJavadocDanglesOrPointsToItself() {
+        List<String> problems = new ArrayList<>();
+        for (JavaSource source : mainSources()) {
+            for (String problem : JavadocRules.problems(source.text())) {
+                problems.add(source.path() + " " + problem);
+            }
+        }
+
+        assertThat(problems).as("conventions.md §5: a /** */ documents a declaration and never links to itself")
+                .isEmpty();
+    }
 }

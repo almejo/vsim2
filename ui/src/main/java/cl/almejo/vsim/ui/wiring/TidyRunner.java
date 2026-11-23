@@ -23,7 +23,7 @@ import java.util.function.BooleanSupplier;
  */
 public final class TidyRunner {
 
-    /** The planning itself; {@link CircuitTidy#plan} in the application, a blocking fake in tests. */
+    /** The planning itself; {@code CircuitTidy.plan} in the application, a blocking fake in tests. */
     @FunctionalInterface
     public interface Planner {
         Optional<CircuitTidyPlan> plan(CircuitDocument snapshot, ComponentTypeRegistry registry, Set<ElementId> scope,

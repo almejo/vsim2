@@ -173,7 +173,7 @@ public final class ExpressionsPanel extends JPanel {
         legendScroll = new JScrollPane(legend) {
             /**
              * Open, as wide as its rows on one line, but never so wide that the lines get less than
-             * {@link #LEFT_MINIMUM}; collapsed, only the width of its «Notación» button. Measured each time.
+             * {@code LEFT_MINIMUM}; collapsed, only the width of its «Notación» button. Measured each time.
              */
             @Override
             public Dimension getPreferredSize() {

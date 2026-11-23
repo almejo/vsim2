@@ -13,7 +13,13 @@ subprojects {
 
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = "UTF-8"
-        options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-serial"))
+        // -Xdoclint:reference: javac reports a broken {@link}/@see (reference not found) as an ERROR, not a warning,
+        // so it fails the build without -Werror (which would also turn every -Xlint warning into an error). It is the
+        // only doclint group on: no missing-comment or html noise. Main sources only (compileTestJava is not touched).
+        // Not caught by javac: a link to an inaccessible member (private, a record component); the periodic IntelliJ
+        // analysis finds those. Dangling and self-pointing Javadoc: SourceRulesTest.
+        val doclint = if (name == "compileJava") listOf("-Xdoclint:reference") else emptyList()
+        options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-serial") + doclint)
     }
 
     // PMD (Gradle's own plugin) on src/main only. The rules live in config/pmd/vsim-rules.xml and are added one by one

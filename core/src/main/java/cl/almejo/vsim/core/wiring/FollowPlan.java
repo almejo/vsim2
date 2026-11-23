@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * How the wires follow one move (spec M6.7 §2–§4), computed by {@link WireFollow#plan}: wires translated whole with
+ * How the wires follow one move (spec M6.7 §2–§4), computed by
+ * {@link WireFollow#plan(CircuitDocument, ComponentTypeRegistry, Set, int, int)}: wires translated whole with
  * the moved elements, wires that keep their id with new endpoints, new wires (ids already reserved in the document)
  * and removed wires, plus the accidental contacts the move makes. Sets keep their (document) order.
  */

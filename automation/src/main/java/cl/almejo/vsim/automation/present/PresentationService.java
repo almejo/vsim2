@@ -131,7 +131,10 @@ public final class PresentationService {
 
     // --- edits ---
 
-    /** One edit call as «Presentar» takes it (see the class comment); throws as {@link EditService#edit} does. */
+    /**
+     * One edit call as «Presentar» takes it (see the class comment); throws as {@link EditService#edit(EditRequest)}
+     * does.
+     */
     public PresentedEdit edit(EditRequest request) {
         return edit(request, Optional.empty());
     }

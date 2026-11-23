@@ -20,7 +20,7 @@ import java.util.Objects;
  * same one a rebuilt part, whose numbering goes on), the
  * transcript, the simulation time and the glyphs read from its character ROM (empty without one). Immutable: the
  * history rows are the screen's own, shared and never written (a row never changes once it scrolled off; see
- * {@link TerminalScreen#history}), and {@link #history()} gives copies (read single cells with {@link #historyCell},
+ * {@code TerminalScreen.history}), and {@link #history()} gives copies (read single cells with {@link #historyCell},
  * which allocates nothing).
  */
 public record TerminalWindowFrame(TerminalRequest request, long owner, TerminalFrame frame,

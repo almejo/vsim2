@@ -129,10 +129,6 @@ public final class DefinitionBuilder {
     }
 
     /**
-     * The definition made of the selected elements (body moved to the origin), with the definitions its nested
-     * instances need as dependencies. {@code pinOrder} must list each selected interface pin once, on its side.
-     */
-    /**
      * The memories among {@code ids} linked to a file, in document order: a definition has no folder for the link to
      * be relative to, so building one keeps their contents and drops the link (memory spec, Task 5), and the user is
      * told which files stay behind.
@@ -156,6 +152,10 @@ public final class DefinitionBuilder {
         return component.withParameters(parameters);
     }
 
+    /**
+     * The definition made of the selected elements (body moved to the origin), with the definitions its nested
+     * instances need as dependencies. {@code pinOrder} must list each selected interface pin once, on its side.
+     */
     public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
                                                  String name, PinOrder pinOrder, ComponentTypeRegistry registry) {
         return fromSelection(document, ids, id, name, pinOrder, Map.of(), registry);

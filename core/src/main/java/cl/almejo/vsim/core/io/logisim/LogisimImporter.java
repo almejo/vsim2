@@ -140,7 +140,7 @@ public final class LogisimImporter {
         }
 
         /**
-         * Where {@code note} takes the user ({@link ImportNote#element}): in the main circuit, the element the layout
+         * Where {@code note} takes the user ({@code ImportNote.element}): in the main circuit, the element the layout
          * gave it (a text) or else the part at its location; in another circuit, the main circuit's first instance
          * that holds that circuit's component.
          */

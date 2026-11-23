@@ -394,10 +394,6 @@ public final class StandardComponentTypes {
                 PinSpec.output("C", 12, 5)));
     }
 
-    /**
-     * The box of a constant: height 2, as wide as its longest possible text needs (so the shape never depends on the
-     * value), the bus pin on the right edge, in the middle.
-     */
     /** One bit is today's pill with its pin on the right; more bits are the rows of {@link MultiBitLayout}. */
     private static ComponentShape switchShape(int width, String side) {
         if (width == 1) {
@@ -445,6 +441,10 @@ public final class StandardComponentTypes {
         return Optional.empty();
     }
 
+    /**
+     * The box of a constant: height 2, as wide as its longest possible text needs (so the shape never depends on the
+     * value), the bus pin on the right edge, in the middle.
+     */
     private static ComponentShape constantShape(int width, String format, int fractionBits) {
         // About one grid unit per character (a bold 9 px digit is under 8 px wide), plus room for margins and the lead.
         int boxWidth = Math.max(4, ConstantValue.longestDisplay(width, format, fractionBits) + 2);

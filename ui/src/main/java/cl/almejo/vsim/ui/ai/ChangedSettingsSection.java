@@ -13,7 +13,7 @@ import java.util.function.Function;
 /**
  * The «N ajustes cambiados» section of the AI panel and of the Presentar panel: a toggle header with the count and,
  * folded until the header is pressed, one line per change. Each panel gives its own layout gaps and insets and the
- * label to draw a line with; {@link #show(List)} fills it and hides the section when there is nothing to list. The
+ * label to draw a line with; {@link #showChanges(List)} fills it and hides the section when there is nothing to list. The
  * panel may add more rows below (the AI panel's «Conservar» and «Descartar»). EDT only.
  */
 public final class ChangedSettingsSection extends JPanel {

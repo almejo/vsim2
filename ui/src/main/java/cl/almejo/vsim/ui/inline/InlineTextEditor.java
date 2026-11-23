@@ -95,7 +95,6 @@ public final class InlineTextEditor {
     private static final int MAXIMUM_SUGGESTIONS = 6;
     private static final String OUTLINE = "JComponent.outline";
     private static final String OUTLINE_ERROR = "error";
-    /** WCAG AA contrast for normal text. */
 
     /** Where a new edit opens: the window's active pane. */
     private final Supplier<InlineHost> paneForNewEdits;

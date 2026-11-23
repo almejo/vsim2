@@ -13,7 +13,7 @@ import java.util.Optional;
 
 /**
  * What the import dialog edits (spec §6), on the EDT: the grid read from a file or the clipboard (or why it could not
- * be read), how many leading columns are inputs, the title and the options. {@link #result()} is the table made of
+ * be read), how many leading columns are inputs, the title and the options. {@link #spec()} is the table made of
  * them, recomputed after every change; its problems are shown cell by cell («Celda D4: …»).
  */
 final class TableImportModel {

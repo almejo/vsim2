@@ -71,7 +71,6 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
 
     /** How far from a state's circle, on screen, the pointer still lights its border. */
     private static final double BORDER_BAND_PIXELS = 8;
-    /** How far from an arrow, on screen, a click still takes it. */
     /** How far the pointer moves before a press becomes a drag, on screen. */
     private static final double DRAG_THRESHOLD_PIXELS = 4;
     /** Where a new state from the menu goes when the middle of the view is taken: this far to the right each time. */
@@ -402,17 +401,17 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         }
     }
 
-    /**
-     * The arrow being drawn: the loop a release would make while the pointer is back over the start state (its circle
-     * or its border band), drawn where the real one goes; elsewhere a straight line from the state's border to the
-     * pointer (hand test of hito 3, 2026-11-17).
-     */
     /** The side of the start state the pointer is on: where a loop made now goes. */
     private static Optional<LoopSide> loopSideAt(StateMachine machine, Drag current) {
         return Optional.of(MachineDiagramGeometry.sideOf(MachineDiagramGeometry.of(machine).centre(current.stateId),
                 asPoint(current.pointer)));
     }
 
+    /**
+     * The arrow being drawn: the loop a release would make while the pointer is back over the start state (its circle
+     * or its border band), drawn where the real one goes; elsewhere a straight line from the state's border to the
+     * pointer (hand test of hito 3, 2026-11-17).
+     */
     private Optional<MachineDiagramGeometry.Arrow> pendingArrow(Drag current) {
         return canvas.machine().filter(machine -> machine.state(current.stateId).isPresent()).map(machine -> {
             if (joinTarget(current).filter(current.stateId::equals).isPresent()) {

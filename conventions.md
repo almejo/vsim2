@@ -73,6 +73,12 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 - Javadoc on every public and package-level type and on non-obvious methods: say **what and why**, with the domain
   example when it helps (`«Faltan 2 unos por agrupar»`). Comments explain intent and decisions, not what the next line
   plainly does. Match the comment density of the surrounding code.
+- Javadoc holds: every `{@link}` / `@see` resolves and points to something visible from where it is written (a
+  private member, or a record component, gets `{@code name}` instead); no `/** */` comment that documents nothing (a
+  `/**` before a statement or another comment is a plain `//` or `/* */` comment); a Javadoc never links to itself.
+  Automatic checks: `-Xdoclint:reference` on `compileJava` (a broken link is a compile error); `SourceRulesTest` (a
+  `/**` not followed by a declaration, and a Javadoc whose `{@link #member}` / `{@value #member}` names the member it
+  documents). A link to an inaccessible member is not caught by javac: the periodic IntelliJ analysis finds it.
 - Compilation runs with `-Xlint:all`: new code introduces no warnings. The build also runs PMD
   (`config/pmd/vsim-rules.xml`) and CPD; every rule in this file with an automatic check names it, and an exception is
   explicit in place (`@SuppressWarnings("PMD.<Rule>")` or `// CPD-OFF`, with the reason beside it).

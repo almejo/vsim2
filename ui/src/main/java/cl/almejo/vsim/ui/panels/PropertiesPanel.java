@@ -167,17 +167,17 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         rebuild();
     }
 
+    /** Where the short messages about an edit go (the status bar's notice); without one they are not shown. */
+    public void onNotice(Consumer<String> sink) {
+        this.noticeSink = sink;
+    }
+
     /**
      * {@code panel} in a vertical scroll pane (never a horizontal one: the form follows the pane's width): a form
      * taller than the inspector, like the Teclado's, scrolls instead of being clipped. A text area inside the form that
      * needs no scrolling of its own hands the mouse wheel to this pane (Swing forwards the wheel from a scroll pane
      * whose bar is hidden).
      */
-    /** Where the short messages about an edit go (the status bar's notice); without one they are not shown. */
-    public void onNotice(Consumer<String> sink) {
-        this.noticeSink = sink;
-    }
-
     public static JScrollPane inScrollPane(PropertiesPanel panel) {
         JScrollPane scroll = new JScrollPane(panel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);

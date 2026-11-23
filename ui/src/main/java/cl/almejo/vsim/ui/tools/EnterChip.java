@@ -26,7 +26,7 @@ import java.util.Optional;
  */
 final class EnterChip {
 
-    /** Sizes in screen pixels, divided by the zoom where the chip is drawn in document pixels. */
+    // Sizes in screen pixels, divided by the zoom where the chip is drawn in document pixels.
     /** The chip text's size relative to the label font (11 px beside the 13 px of the default theme). */
     private static final float FONT_RATIO = 11f / 13f;
     private static final double PADDING = 5;

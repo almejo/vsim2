@@ -54,7 +54,10 @@ public final class MoveWithWiresCommand implements Command {
     private final Map<ElementId, Wire> removedOriginals = new LinkedHashMap<>();
     private final Map<ElementId, Long> removedOrders = new LinkedHashMap<>();
 
-    /** Applies {@code plan}, computed by {@link WireFollow#plan} for the same ids and delta on the current document. */
+    /**
+     * Applies {@code plan}, computed by {@link WireFollow#plan(CircuitDocument, ComponentTypeRegistry, Set, int, int)}
+     * for the same ids and delta on the current document.
+     */
     public MoveWithWiresCommand(Set<ElementId> movedIds, int deltaX, int deltaY, FollowPlan plan) {
         this(movedIds, deltaX, deltaY, null, false, List.of(), Objects.requireNonNull(plan, "plan"));
     }

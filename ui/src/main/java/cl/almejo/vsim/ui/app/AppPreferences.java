@@ -359,10 +359,10 @@ public final class AppPreferences {
     private static final int MINIMUM_AI_PORT = 1024;
     private static final int MAXIMUM_PORT = 65_535;
 
-    /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     /** The spacings «Cuadrícula ▸ Separación ▸» offers, in grid units. */
     public static final List<Integer> GRID_LINE_SPACINGS = List.of(2, 4, 5, 10);
     public static final int DEFAULT_GRID_LINE_SPACING = 2;
+    /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
     public static final long MAXIMUM_STEP_UNITS = 1_000_000_000;
 

@@ -112,7 +112,7 @@ public final class LabelLayout {
     /**
      * Where {@code text} would be drawn as the label of {@code component}: what {@link #componentLabel} gives for a
      * label with that text, also for an empty one (a zero-width box where the label would start). A label the user
-     * moved (M6.8, {@link Component#labelOffset}) is centred on its place and stays horizontal.
+     * moved (M6.8, {@code Component.labelOffset}) is centred on its place and stays horizontal.
      */
     public static PlacedText componentLabelPlace(ComponentType type, Component component, String text) {
         if (component.labelOffset().isPresent()) {

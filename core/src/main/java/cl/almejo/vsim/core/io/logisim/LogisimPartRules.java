@@ -342,7 +342,7 @@ final class LogisimPartRules {
     /**
      * An AND/OR/XOR family gate. Negated inputs: on an XOR each one only flips the output; on an AND or OR with every
      * input negated De Morgan swaps it (AND ↔ OR, output negation flipped) with the same delay; with only some
-     * negated, each gets a NOT in front ({@link MappedPart.Extras#notInFront}), one more delay unit, noted.
+     * negated, each gets a NOT in front ({@code MappedPart.Extras.notInFront}), one more delay unit, noted.
      */
     private static LogisimMapping gate(PartDraft draft, String operation, boolean negatedOutput) {
         int inputs = draft.integer("inputs");

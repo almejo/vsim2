@@ -46,7 +46,7 @@ import java.util.function.Function;
 public final class LogisimLayout {
 
     /**
-     * Logisim's 10-pixel grid step is 1.5 VSim units ({@value #SPREAD_UNITS} units every {@value #SPREAD_PIXELS}
+     * Logisim's 10-pixel grid step is 1.5 VSim units ({@code SPREAD_UNITS} units every {@value #SPREAD_PIXELS}
      * pixels): VSim's parts are bigger than Logisim's for the same pins, so a circuit copied step for step is crowded.
      */
     private static final int SPREAD_UNITS = 3;
@@ -104,7 +104,7 @@ public final class LogisimLayout {
     /**
      * A VSim part to place: its type, parameters, preferred rotation, label, one plan per pin, when known the point of
      * the unturned part (from its origin) that its Logisim location stands for, and whether it must keep its rotation
-     * ({@link MappedPart.Extras#upright}).
+     * ({@code MappedPart.Extras.upright}).
      */
     private record PartRequest(String typeId, Map<String, Object> parameters, Rotation rotation, String label,
                                List<PinSpec> pins, List<PinPlan> plans, Optional<GridPoint> anchor,

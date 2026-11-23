@@ -421,7 +421,7 @@ public final class EditService {
 
     /**
      * Ends a task and announces what it changed; a task that ended or was stopped already stays as it is. The guides
-     * it added only to align ({@link EditOperation.AddGuide#layoutOnly}) and that are still there go away first, as
+     * it added only to align ({@code AddGuide.layoutOnly}) and that are still there go away first, as
      * one more step of the task (so «Deshacer lo que hizo la IA» brings them back with the rest), unless
      * {@code keepLayoutGuides} (the AI or the user wants them). Not on the editor thread: it waits for it.
      */

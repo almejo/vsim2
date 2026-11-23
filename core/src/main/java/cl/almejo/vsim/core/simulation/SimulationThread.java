@@ -866,10 +866,6 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
-     * Queues {@code work} to run within the budget, running or paused; {@code outcomes} is what the work reports per
-     * input (it fills it as it goes). A budget that runs out pauses the simulation.
-     */
-    /**
      * Thrown into the receipt of a budgeted request that will never run: the thread was closed, or it died, before
      * its turn came.
      */
@@ -912,6 +908,10 @@ public final class SimulationThread implements AutoCloseable {
         }
     }
 
+    /**
+     * Queues {@code work} to run within the budget, running or paused; {@code outcomes} is what the work reports per
+     * input (it fills it as it goes). A budget that runs out pauses the simulation.
+     */
     private CompletableFuture<RequestReport> budgeted(long eventBudget, List<InputOutcome> outcomes, Runnable work) {
         CompletableFuture<RequestReport> future = waitingReport();
         requests.add(() -> {

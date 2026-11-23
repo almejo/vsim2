@@ -336,7 +336,7 @@ public final class AutomationApi {
      * One edit call with how «Presentar» took it (spec §5.1): not paced (working mode), {@code APPLIED} («De corrido»,
      * after the pause) or {@code PROPOSED} («Paso a paso»: shown as a ghost, then {@link #awaitStep}); {@code receipt}
      * says {@code applied} false for a proposed step. All or nothing, as one undo step (spec §10; see
-     * {@link EditService#edit}). With a line the AI says about what comes and why ({@link #say}): shown only
+     * {@link EditService#edit(EditRequest)}). With a line the AI says about what comes and why ({@link #say}): shown only
      * once VSim accepted the edit (with its ghost, or before the step's pause in «De corrido»), never for a refused
      * one or a retry. A call that only validates says nothing. See {@link PresentationService#edit(EditRequest,
      * Optional)}.
