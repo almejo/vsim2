@@ -75,6 +75,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Problemas: una fila cuya frase no cabe en el ancho del panel (o que quedó corrida de lado) la dice entera al pasar el mouse.
 - Máquinas de estado: los problemas de una máquina salen en el mismo orden en su Propiedades que en la lista Problemas (primero los errores, después los avisos); antes cada lista los ordenaba a su manera.
 - Máquinas de estado: en el modo prueba, la línea del resultado sobre la tabla («2 ✓, 1 ✗ en el flanco 6 salió Z = 0») ya no se corta en una ventana angosta o al 150 %: la ayuda en gris de al lado se acorta primero, y las dos se leen enteras al pasar el mouse.
 - Máquinas de estado: Propiedades de la máquina ya no se sale por la derecha con la interfaz al 150 % o 200 % («en 7 flec…», «sie…»): toma el ancho del panel, «Como un bus» ya no ensancha la lista de pines, el resumen de «Pruebas» pasa a otra línea si no cabe y «Flanco» dice «Bajada» cerrado (al abrirlo, «Bajada (como los flip-flops)»).
